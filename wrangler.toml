@@ -7,9 +7,10 @@ name = "fossflow"
 compatibility_date = "2025-01-01"
 pages_build_output_dir = "packages/fossflow-app/build"
 
-[[r2_buckets]]
-binding = "R2_BUCKET"
-bucket_name = "fossflow-diagrams"
+# Storage-less deployment: no R2 binding. The Worker reports
+# serverStorage=false via /api/config and the frontend falls back to
+# session/localStorage. To re-enable server storage, restore an
+# [[r2_buckets]] block here and rewire the Worker (see r2Adapter.ts).
 
 [vars]
 AUTH_MODE = "shared-token"

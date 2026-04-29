@@ -6,9 +6,7 @@ name = "fossflow"
 compatibility_date = "2025-01-01"
 pages_build_output_dir = "../fossflow-app/build"
 
-[[r2_buckets]]
-binding = "R2_BUCKET"
-bucket_name = "fossflow-diagrams"
+# Storage-less deployment: no R2 binding. See repo-root wrangler.toml.
 
 [vars]
 AUTH_MODE = "shared-token"
