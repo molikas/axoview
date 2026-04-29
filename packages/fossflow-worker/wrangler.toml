@@ -1,0 +1,16 @@
+# Standalone wrangler config for the Worker package itself (used by
+# `wrangler pages dev` from this directory). The repo-root wrangler.toml is
+# what the "Deploy to Cloudflare" button consumes for Pages.
+
+name = "fossflow"
+compatibility_date = "2025-01-01"
+pages_build_output_dir = "../fossflow-app/build"
+
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "fossflow-diagrams"
+
+[vars]
+AUTH_MODE = "shared-token"
+# AUTH_SHARED_SECRET, CF_ACCESS_*, GOOGLE_CLIENT_ID are configured as secrets
+# via `wrangler secret put` — never commit them.

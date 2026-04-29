@@ -121,6 +121,20 @@ export class StorageManager implements StorageProvider {
     return this.getActiveProvider().saveTreeManifest(manifest);
   }
 
+  async shareDiagram(id: string): Promise<{ uuid: string; url: string; sharedAt: string }> {
+    const provider = this.getActiveProvider();
+    if (!provider.shareDiagram) {
+      throw new Error(`${provider.displayName} does not support sharing`);
+    }
+    return provider.shareDiagram(id);
+  }
+
+  async unshareDiagram(id: string): Promise<void> {
+    const provider = this.getActiveProvider();
+    if (!provider.unshareDiagram) return;
+    return provider.unshareDiagram(id);
+  }
+
   subscribe?(diagramId: string, callback: () => void): () => void {
     const provider = this.getActiveProvider();
     if (provider.subscribe) return provider.subscribe(diagramId, callback);

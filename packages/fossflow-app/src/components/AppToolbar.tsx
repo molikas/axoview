@@ -29,7 +29,7 @@ import { useDiagramLifecycle } from '../providers/DiagramLifecycleProvider';
 
 export function AppToolbar() {
   const { t } = useTranslation('app');
-  const { serverStorageAvailable } = useAppStorage();
+  const { serverStorageAvailable, storage } = useAppStorage();
   const {
     diagramName,
     hasUnsavedChanges,
@@ -54,6 +54,9 @@ export function AppToolbar() {
   const [sidebarPortalSet, setSidebarPortalSet] = useState(false);
   const [showSharePopover, setShowSharePopover] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
 
   // Inline title editing
   const [editingName, setEditingName] = useState(false);
@@ -61,9 +64,14 @@ export function AppToolbar() {
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   const currentDiagramId = currentDiagram?.id;
-  const shareUrl = currentDiagramId
-    ? `${window.location.origin}/display/${currentDiagramId}`
-    : '';
+
+  // Reset share state whenever the active diagram changes
+  useEffect(() => {
+    setShareUrl('');
+    setShareCopied(false);
+    setShareError(null);
+    setShowSharePopover(false);
+  }, [currentDiagramId]);
 
   // Focus input when editing starts
   useEffect(() => {
@@ -90,18 +98,43 @@ export function AppToolbar() {
     if (e.key === 'Escape') setEditingName(false);
   };
 
-  const handleShareClick = () => {
-    if (!serverStorageAvailable || !currentDiagramId) return;
-    navigator.clipboard.writeText(shareUrl).catch(() => {
+  const handleShareClick = async () => {
+    if (!serverStorageAvailable || !currentDiagramId || !storage) return;
+    setShowSharePopover(true);
+    setShareError(null);
+    let url = shareUrl;
+    if (!url) {
+      if (!storage.shareDiagram) {
+        setShareError(t('share.unavailable', 'Sharing is not available'));
+        return;
+      }
+      try {
+        setShareLoading(true);
+        const result = await storage.shareDiagram(currentDiagramId);
+        url = result.url;
+        setShareUrl(url);
+      } catch (err) {
+        setShareError(
+          err instanceof Error
+            ? err.message
+            : t('share.failed', 'Failed to create share link')
+        );
+        return;
+      } finally {
+        setShareLoading(false);
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
       const ta = document.createElement('textarea');
-      ta.value = shareUrl;
+      ta.value = url;
       document.body.appendChild(ta);
       ta.select();
       document.execCommand('copy');
       document.body.removeChild(ta);
-    });
+    }
     setShareCopied(true);
-    setShowSharePopover(true);
     setTimeout(() => setShareCopied(false), 2500);
   };
 
@@ -451,11 +484,16 @@ export function AppToolbar() {
             <Typography variant="body2" color="text.secondary">
               {t('share.hint', 'Anyone with this link can view the diagram in read-only mode.')}
             </Typography>
+            {shareError && (
+              <Typography variant="body2" color="error">
+                {shareError}
+              </Typography>
+            )}
             <Stack direction="row" spacing={1}>
               <TextField
                 size="small"
                 fullWidth
-                value={shareUrl}
+                value={shareLoading ? t('share.creating', 'Creating link…') : shareUrl}
                 inputProps={{
                   readOnly: true,
                   style: { fontFamily: 'monospace', fontSize: 12 }
@@ -467,6 +505,7 @@ export function AppToolbar() {
                 color={shareCopied ? 'success' : 'primary'}
                 size="small"
                 onClick={handleShareClick}
+                disabled={shareLoading}
                 sx={{ whiteSpace: 'nowrap', minWidth: 80 }}
               >
                 {shareCopied ? t('share.copied', '✓ Copied!') : t('share.copy', 'Copy')}

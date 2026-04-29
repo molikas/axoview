@@ -53,8 +53,25 @@ export interface StorageProvider {
   getTreeManifest(): Promise<TreeManifest>;
   saveTreeManifest(manifest: TreeManifest): Promise<void>;
 
+  // Sharing — publish/unpublish a public snapshot. Returns the shareable URL.
+  // Throws if the provider does not support shares (e.g. session-only).
+  shareDiagram?(id: string): Promise<{ uuid: string; url: string; sharedAt: string }>;
+  unshareDiagram?(id: string): Promise<void>;
+
   // Reserved for P3 — no-op stubs for now
   subscribe?(diagramId: string, callback: () => void): () => void;
+}
+
+export interface PublicSnapshot {
+  title: string;
+  name: string;
+  icons: unknown[];
+  colors: unknown[];
+  items: unknown[];
+  views: unknown[];
+  fitToScreen?: boolean;
+  sharedAt: string;
+  sourceId: string;
 }
 
 export class NotImplementedError extends Error {

@@ -512,6 +512,34 @@ export class LocalStorageProvider implements StorageProvider {
     return raw ? JSON.parse(raw) : { folders: [] };
   }
 
+  // ---------------------------------------------------------------------------
+  // Share — server-only (snapshot to public namespace)
+  // ---------------------------------------------------------------------------
+
+  async shareDiagram(id: string): Promise<{ uuid: string; url: string; sharedAt: string }> {
+    await this.ensureChecked();
+    if (!this.usingServer) {
+      throw new Error('Sharing requires server storage');
+    }
+    const response = await fetch(`${this.baseUrl}/api/diagrams/${id}/share`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: timeoutSignal(10000)
+    });
+    if (!response.ok) throw new Error(`Share failed: ${response.status}`);
+    return response.json();
+  }
+
+  async unshareDiagram(id: string): Promise<void> {
+    await this.ensureChecked();
+    if (!this.usingServer) return;
+    const response = await fetch(`${this.baseUrl}/api/diagrams/${id}/share`, {
+      method: 'DELETE',
+      signal: timeoutSignal(10000)
+    });
+    if (!response.ok) throw new Error(`Unshare failed: ${response.status}`);
+  }
+
   async saveTreeManifest(manifest: TreeManifest): Promise<void> {
     await this.ensureChecked();
     if (this.usingServer) {

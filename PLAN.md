@@ -42,6 +42,7 @@ Claude should then:
 | **3B** | Google Drive Provider (E4) | `[ ]` | High | Depends on 3A |
 | **3C** | S3 Provider + Backend (E4) | `[ ]` | High | Depends on 2A |
 | **4A** | External Diagram Registry (E6) | `[ ]` | Low | Depends on 3A |
+| **5***  | Cloudflare + Docker dual-target deploy | `[x]` | High | See [flare_plan.md](flare_plan.md) and [DEPLOY.md](DEPLOY.md) |
 | **POST** | E2E Test Suite | 🚫 OUT OF SCOPE | — | Pick up after full UX ships |
 
 ---

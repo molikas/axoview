@@ -4,6 +4,7 @@ import { StorageManager } from '../services/storage/StorageManager';
 import { LocalStorageProvider } from '../services/storage/providers/LocalStorageProvider';
 import { GoogleDriveProvider } from '../services/storage/providers/GoogleDriveProvider';
 import { S3Provider } from '../services/storage/providers/S3Provider';
+import { fetchRuntimeConfig, RuntimeConfig } from '../hooks/useRuntimeConfig';
 
 interface AppStorageContextValue {
   storage: StorageProvider | null;
@@ -11,6 +12,7 @@ interface AppStorageContextValue {
   isServerStorage: boolean;
   isInitialized: boolean;
   serverStorageAvailable: boolean;
+  runtimeConfig: RuntimeConfig | null;
 }
 
 const AppStorageContext = createContext<AppStorageContextValue>({
@@ -18,7 +20,8 @@ const AppStorageContext = createContext<AppStorageContextValue>({
   storageManager: null,
   isServerStorage: false,
   isInitialized: false,
-  serverStorageAvailable: false
+  serverStorageAvailable: false,
+  runtimeConfig: null
 });
 
 // Singleton — created once outside the component so it survives re-renders.
@@ -32,16 +35,20 @@ manager.setActiveProvider('local');
 export function AppStorageProvider({ children }: { children: React.ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isServerStorage, setIsServerStorage] = useState(false);
+  const [runtimeConfig, setRuntimeConfig] = useState<RuntimeConfig | null>(null);
   const initStarted = useRef(false);
 
   useEffect(() => {
     if (initStarted.current) return;
     initStarted.current = true;
 
-    manager.initialize().then(() => {
+    (async () => {
+      const config = await fetchRuntimeConfig();
+      setRuntimeConfig(config);
+      await manager.initialize();
       setIsServerStorage(manager.serverStorageAvailable);
       setIsInitialized(true);
-    });
+    })();
   }, []);
 
   const serverStorageAvailable = isServerStorage && isInitialized;
@@ -53,7 +60,8 @@ export function AppStorageProvider({ children }: { children: React.ReactNode }) 
         storageManager: manager,
         isServerStorage,
         isInitialized,
-        serverStorageAvailable
+        serverStorageAvailable,
+        runtimeConfig
       }}
     >
       {children}

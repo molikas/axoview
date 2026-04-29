@@ -127,13 +127,18 @@ export function DiagramLifecycleProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { readonlyDiagramId } = useParams<{ readonlyDiagramId: string }>();
+  const { readonlyDiagramId, shareUuid } = useParams<{
+    readonlyDiagramId: string;
+    shareUuid: string;
+  }>();
   const { t } = useTranslation('app');
   const { storage, serverStorageAvailable, isInitialized } = useAppStorage();
   const iconPackManager = useIconPackManager(coreIcons);
 
+  const isPublicShareUrl = !!shareUuid;
   const isReadonlyUrl =
-    window.location.pathname.startsWith('/display/') && !!readonlyDiagramId;
+    isPublicShareUrl ||
+    (window.location.pathname.startsWith('/display/') && !!readonlyDiagramId);
 
   const isoflowRef = useRef<IsoflowRef>(null);
 
@@ -302,9 +307,66 @@ export function DiagramLifecycleProvider({
   }
 
   // ---------------------------------------------------------------------------
-  // Load readonly diagram from URL
+  // Load public-share snapshot from URL (no auth, no diagram-list fetch)
   // ---------------------------------------------------------------------------
   useEffect(() => {
+    if (!isPublicShareUrl || !shareUuid) return;
+    const baseUrl =
+      typeof window !== 'undefined' &&
+      window.location.hostname === 'localhost' &&
+      window.location.port === '3000'
+        ? 'http://localhost:3001'
+        : '';
+    const loadPublicSnapshot = async () => {
+      try {
+        const response = await fetch(`${baseUrl}/api/public/diagrams/${shareUuid}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = (await response.json()) as any;
+        const name = data.title || data.name || 'Shared Diagram';
+        await iconPackManager.loadPacksForDiagram(data.items || []);
+        const importedIcons = (data.icons || []).filter(
+          (icon: any) => icon.collection === 'imported'
+        );
+        const dataWithIcons: DiagramData = {
+          ...data,
+          title: name,
+          icons: [...iconPackManager.loadedIcons, ...importedIcons],
+          colors: data.colors?.length ? data.colors : defaultColors,
+          items: Array.isArray(data.items) ? data.items : [],
+          views: Array.isArray(data.views) ? data.views : [],
+          fitToScreen: data.fitToScreen !== false
+        };
+        const sharedDiagram: SavedDiagram = {
+          id: shareUuid,
+          name,
+          data: dataWithIcons,
+          createdAt: data.sharedAt || new Date().toISOString(),
+          updatedAt: data.sharedAt || new Date().toISOString()
+        };
+        setCurrentDiagram(sharedDiagram);
+        setDiagramName(name);
+        setCurrentModel(dataWithIcons);
+        setLastSaved(new Date(sharedDiagram.updatedAt));
+        isAfterLoadRef.current = true;
+        if (!isoflowRef.current) {
+          frozenInitialDataRef.current = dataWithIcons;
+        }
+        isoflowRef.current?.load(dataWithIcons as any);
+      } catch (_error) {
+        notificationStore.push({
+          severity: 'error',
+          message: t('dialog.readOnly.failed', 'Failed to load shared diagram')
+        });
+      }
+    };
+    loadPublicSnapshot();
+  }, [isPublicShareUrl, shareUuid]);
+
+  // ---------------------------------------------------------------------------
+  // Load readonly diagram from URL (owner-only, requires auth)
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (isPublicShareUrl) return; // public-share path uses the effect above
     if (!isReadonlyUrl || !storage) return;
     const loadReadonlyDiagram = async () => {
       try {

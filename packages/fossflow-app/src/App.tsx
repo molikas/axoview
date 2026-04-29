@@ -42,6 +42,7 @@ function App() {
     <BrowserRouter basename={basename}>
       <Routes>
         <Route path="/" element={<EditorPage />} />
+        <Route path="/display/p/:shareUuid" element={<EditorPage />} />
         <Route path="/display/:readonlyDiagramId" element={<EditorPage />} />
       </Routes>
     </BrowserRouter>

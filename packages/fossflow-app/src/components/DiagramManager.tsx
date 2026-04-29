@@ -83,18 +83,23 @@ export const DiagramManager: React.FC<Props> = ({
     }
   };
 
-  const handleShare = (id: string) => {
-    const url = `${window.location.origin}/display/${id}`;
-    navigator.clipboard.writeText(url).catch(() => {
-      const ta = document.createElement('textarea');
-      ta.value = url;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-    });
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+  const handleShare = async (id: string) => {
+    if (!storage.shareDiagram) {
+      setError(t('dialog.diagramManager.shareUnavailable', 'Sharing is not available'));
+      return;
+    }
+    try {
+      const { url } = await storage.shareDiagram(id);
+      await navigator.clipboard.writeText(url);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : t('dialog.diagramManager.failedShare', 'Failed to create share link')
+      );
+    }
   };
 
   return (

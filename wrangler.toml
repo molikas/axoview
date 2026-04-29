@@ -1,0 +1,20 @@
+# Cloudflare Pages config (consumed by the "Deploy to Cloudflare" button and
+# by `wrangler pages deploy` from the repo root). Pages Functions live under
+# /functions and are scoped to /api/* via _routes.json (see
+# packages/fossflow-app/public/_routes.json after build).
+
+name = "fossflow"
+compatibility_date = "2025-01-01"
+pages_build_output_dir = "packages/fossflow-app/build"
+
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "fossflow-diagrams"
+
+[vars]
+AUTH_MODE = "shared-token"
+# Secrets — configure via dashboard or `wrangler pages secret put`:
+#   AUTH_SHARED_SECRET     (when AUTH_MODE=shared-token)
+#   CF_ACCESS_TEAM_DOMAIN  (when AUTH_MODE=cf-access; e.g. "myteam")
+#   CF_ACCESS_AUD          (when AUTH_MODE=cf-access; the application AUD tag)
+#   GOOGLE_CLIENT_ID       (optional; surfaced by /api/config to the frontend)

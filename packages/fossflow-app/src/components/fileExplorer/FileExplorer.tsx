@@ -296,17 +296,21 @@ export function FileExplorer() {
   // Copy share link
   // ---------------------------------------------------------------------------
 
-  const handleCopyShareLink = useCallback((node: FileNode) => {
-    if (node.type !== 'diagram') return;
-    const publicUrl = process.env.PUBLIC_URL || '';
-    const base = publicUrl ? (publicUrl.endsWith('/') ? publicUrl.slice(0, -1) : publicUrl) : '';
-    const url = window.location.origin + base + '/display/' + node.id;
-    navigator.clipboard.writeText(url).then(() => {
+  const handleCopyShareLink = useCallback(async (node: FileNode) => {
+    if (node.type !== 'diagram' || !storage) return;
+    if (!storage.shareDiagram) {
+      notificationStore.push({ severity: 'error', message: 'Sharing is not available' });
+      return;
+    }
+    try {
+      const { url } = await storage.shareDiagram(node.id);
+      await navigator.clipboard.writeText(url);
       notificationStore.push({ severity: 'success', message: 'Share link copied to clipboard' });
-    }).catch(() => {
-      notificationStore.push({ severity: 'error', message: 'Failed to copy link' });
-    });
-  }, []);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create share link';
+      notificationStore.push({ severity: 'error', message });
+    }
+  }, [storage]);
 
   // ---------------------------------------------------------------------------
   // Duplicate diagram
