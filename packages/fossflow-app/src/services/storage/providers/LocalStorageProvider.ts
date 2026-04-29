@@ -4,6 +4,7 @@ import {
   StorageProvider,
   TreeManifest
 } from '../types';
+import { apiBaseUrl } from '../../../utils/apiBaseUrl';
 
 const SESSION_DIAGRAMS_KEY = 'fossflow_diagrams';
 const SESSION_DIAGRAM_PREFIX = 'fossflow_diagram_';
@@ -16,17 +17,6 @@ function timeoutSignal(ms: number): AbortSignal | undefined {
     return AbortSignal.timeout(ms);
   }
   return undefined;
-}
-
-function devBaseUrl(): string {
-  if (
-    typeof window !== 'undefined' &&
-    window.location.hostname === 'localhost' &&
-    window.location.port === '3000'
-  ) {
-    return 'http://localhost:3001';
-  }
-  return '';
 }
 
 export class LocalStorageProvider implements StorageProvider {
@@ -43,7 +33,7 @@ export class LocalStorageProvider implements StorageProvider {
   private readonly AVAILABILITY_CACHE_MS = 60000;
 
   constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl ?? devBaseUrl();
+    this.baseUrl = baseUrl ?? apiBaseUrl();
   }
 
   // ---------------------------------------------------------------------------

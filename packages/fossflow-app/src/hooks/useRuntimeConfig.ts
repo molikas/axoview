@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { apiBaseUrl } from '../utils/apiBaseUrl';
 
 export interface RuntimeConfig {
   googleClientId: string | null;
@@ -17,23 +18,12 @@ const DEFAULT_CONFIG: RuntimeConfig = {
 let cached: RuntimeConfig | null = null;
 let inflight: Promise<RuntimeConfig> | null = null;
 
-function devBaseUrl(): string {
-  if (
-    typeof window !== 'undefined' &&
-    window.location.hostname === 'localhost' &&
-    window.location.port === '3000'
-  ) {
-    return 'http://localhost:3001';
-  }
-  return '';
-}
-
 export async function fetchRuntimeConfig(): Promise<RuntimeConfig> {
   if (cached) return cached;
   if (inflight) return inflight;
   inflight = (async () => {
     try {
-      const response = await fetch(`${devBaseUrl()}/api/config`, {
+      const response = await fetch(`${apiBaseUrl()}/api/config`, {
         signal: AbortSignal.timeout(5000)
       });
       if (!response.ok) throw new Error(String(response.status));

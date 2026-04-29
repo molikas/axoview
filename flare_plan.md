@@ -1,7 +1,9 @@
 # FossFLOW — Cloudflare + Docker Dual-Target Deployment Plan
 
 > **Living document.** Sister to `PLAN.md` (which tracks feature work). This file tracks the multi-runtime deployment effort (Phase 5*).
-> Last updated: 2026-04-28
+> Last updated: 2026-04-29
+
+> **2026-04-29 update — Cloudflare runtime is now storage-less.** R2 was dropped to keep the free-tier deploy zero-config. The Worker reports `serverStorage: false` and 503s every storage route; the SPA falls back to session/localStorage. Persistent storage on Cloudflare will return via the Drive provider on a separate branch. Phase rows below reflect this revert: 5B and parts of 5F that were R2-specific are no longer wired up.
 
 ---
 
@@ -35,12 +37,12 @@ Conventions match `PLAN.md`: `[ ]` not started · `[~]` in progress · `[x]` don
 | Phase | Name | Status | Notes |
 |---|---|---|---|
 | **5A** | Backend refactor: key-based adapter + path-traversal fix | `[x]` | Docker-only, behavior-preserving. Unblocks all of 5. |
-| **5B** | Cloudflare Worker package + R2 adapter + diagrams-index + share routes | `[x]` | Depends on 5A. Implements `public/*` snapshot model from #8. |
+| **5B** | Cloudflare Worker package + R2 adapter + diagrams-index + share routes | `[~]` | **Reverted to storage-less.** Worker package + Hono + auth shipped; R2 adapter and share routes live only on the Docker (fs) backend. R2 will return via the Drive branch in a different shape. |
 | **5C** | Build & deploy pipeline (`wrangler.toml`, `_routes.json`, `_headers`, deploy button) | `[x]` | Depends on 5B. |
-| **5D** | Auth modes (`none` / `shared-token` / `cf-access`) + public-namespace bypass | `[x]` | Depends on 5B. Can run parallel with 5E. |
+| **5D** | Auth modes (`none` / `shared-token` / `cf-access`) + public-namespace bypass | `[x]` | Public bypass extended to `/api/config` and `/api/storage/status` so the SPA can boot under `shared-token`. |
 | **5E** | Frontend `/api/config` runtime config + share rewire + delete legacy `storageService.ts` | `[x]` | Depends on 5A. Can run parallel with 5D. |
-| **5F** | Hardening pass (CSP, helmet, body limits, scope lockdown) | `[x]` | Depends on 5C–5E. |
-| **5G** | `DEPLOY.md` + Drive-credentials onboarding stub | `[x]` | See [DEPLOY.md](DEPLOY.md). |
+| **5F** | Hardening pass (CSP, helmet, body limits, scope lockdown) | `[~]` | Helmet + body limits + CSP + secure-headers shipped. R2-specific items (bucket privacy, etag retries) deferred with 5B. |
+| **5G** | `DEPLOY.md` + Drive-credentials onboarding stub | `[x]` | See [DEPLOY.md](DEPLOY.md). Rewritten 2026-04-29 to match the storage-less reality. |
 
 ---
 

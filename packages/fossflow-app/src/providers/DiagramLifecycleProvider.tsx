@@ -25,6 +25,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StorageManager } from '../StorageManager';
 import { notificationStore } from '../stores/notificationStore';
 import { sequentialName } from '../utils/fileOperations';
+import { apiBaseUrl } from '../utils/apiBaseUrl';
 
 // Core icons — loaded once at module level
 const coreIcons = flattenCollections([isoflowIsopack]);
@@ -311,15 +312,9 @@ export function DiagramLifecycleProvider({
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!isPublicShareUrl || !shareUuid) return;
-    const baseUrl =
-      typeof window !== 'undefined' &&
-      window.location.hostname === 'localhost' &&
-      window.location.port === '3000'
-        ? 'http://localhost:3001'
-        : '';
     const loadPublicSnapshot = async () => {
       try {
-        const response = await fetch(`${baseUrl}/api/public/diagrams/${shareUuid}`);
+        const response = await fetch(`${apiBaseUrl()}/api/public/diagrams/${shareUuid}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = (await response.json()) as any;
         const name = data.title || data.name || 'Shared Diagram';

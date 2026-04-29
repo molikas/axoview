@@ -189,8 +189,7 @@ All diagram and folder operations route through `StorageManager` (provider regis
 | Provider | Source | Status |
 |---|---|---|
 | `LocalStorageProvider` | `services/storage/providers/LocalStorageProvider.ts` | Server-backed when `/api/storage/*` is reachable; falls back to `sessionStorage`. Full folder CRUD + tree-manifest. **Shipped.** |
-| `GoogleDriveProvider` | `services/storage/providers/GoogleDriveProvider.ts` | `NotImplementedError` stub (Phase 3B). |
-| `S3Provider` | `services/storage/providers/S3Provider.ts` | `NotImplementedError` stub (Phase 3C). |
+| `GoogleDriveProvider` | `services/storage/providers/GoogleDriveProvider.ts` | `NotImplementedError` stub — full implementation lives on a separate branch. |
 
 **Backend support (`packages/fossflow-backend/server.js`):** folder CRUD, move (cross-folder), soft-delete patch, and tree-manifest endpoints. The `LocalStorageProvider` is the only client today; the manifest is the source of truth for tree shape so the UI never has to walk the filesystem.
 

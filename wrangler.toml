@@ -9,8 +9,8 @@ pages_build_output_dir = "packages/fossflow-app/build"
 
 # Storage-less deployment: no R2 binding. The Worker reports
 # serverStorage=false via /api/config and the frontend falls back to
-# session/localStorage. To re-enable server storage, restore an
-# [[r2_buckets]] block here and rewire the Worker (see r2Adapter.ts).
+# session/localStorage. Persistent storage on Cloudflare is tracked on
+# a separate branch (Google Drive integration).
 
 [vars]
 AUTH_MODE = "shared-token"

@@ -1,40 +1,91 @@
 # FossFLOW — Deployment Guide
 
-FossFLOW runs on two targets from a single codebase:
+FossFLOW runs on three targets from a single codebase:
 
 | Target | Runtime | Storage | Auth options |
 |---|---|---|---|
-| **Cloudflare Pages** | Pages Functions (Hono) | R2 | `none`, `shared-token`, `cf-access` |
-| **Docker** | Express on Node | Filesystem | `none`, `shared-token` |
+| **Local dev** | `npm run dev` (rsbuild on :3000 + Express on :3001) | Filesystem if `ENABLE_SERVER_STORAGE=true`, else session | `none`, `shared-token` |
+| **Docker** | nginx + Express on Node | Filesystem volume | `none`, `shared-token` |
+| **Cloudflare Pages** | Pages Functions (Hono) | **None — session/localStorage only** | `none`, `shared-token`, `cf-access` |
 
-Both share a single `/api/*` HTTP contract. The frontend bundle is identical.
+The frontend bundle is identical across all three. The Cloudflare deployment is currently storage-less — `/api/config` returns `serverStorage: false` and the client falls back to session storage. A persistent backend on Cloudflare (Drive integration) is tracked on a separate branch.
+
+Both backends share a single `/api/*` HTTP contract. Three routes are public on every target:
+
+- `GET /api/config`
+- `GET /api/storage/status`
+- `GET /api/public/diagrams/:uuid`
+
+Everything else is gated by `AUTH_MODE`.
 
 ---
 
-## A. Cloudflare Pages (from scratch)
-
-### A1. Prerequisites
-
-- Cloudflare account (free plan is fine).
-- Node 18+ locally.
-- `npx wrangler login` once, in this checkout, before the first deploy.
-
-### A2. Create the R2 bucket
+## A. Local development
 
 ```bash
-npx wrangler r2 bucket create fossflow-diagrams
+npm install
+npm run dev              # SPA on http://localhost:3000
+npm run dev:backend      # Express on http://localhost:3001 (separate terminal)
 ```
 
-The bucket name in [wrangler.toml](wrangler.toml) and [packages/fossflow-worker/wrangler.toml](packages/fossflow-worker/wrangler.toml) must match — leave both at `fossflow-diagrams` unless you change them in lockstep.
+The SPA's `apiBaseUrl()` ([packages/fossflow-app/src/utils/apiBaseUrl.ts](packages/fossflow-app/src/utils/apiBaseUrl.ts)) auto-redirects `/api/*` to `:3001` when the host is `localhost:3000`. In every other context it uses same-origin relative paths.
 
-### A3. Configure auth (pick one)
+To exercise the filesystem path, run the backend with:
 
-**`none`** — public, no token. Fine for personal use behind a non-discoverable URL but not recommended.
+```bash
+ENABLE_SERVER_STORAGE=true STORAGE_PATH=./diagrams npm run dev:backend
+```
+
+Otherwise the app falls back to `sessionStorage`.
+
+---
+
+## B. Docker
+
+```bash
+docker compose up --build
+```
+
+Defaults to `AUTH_MODE=none`, `ENABLE_SERVER_STORAGE=true`, `STORAGE_PATH=/data/diagrams`.
+
+### Enable shared-token auth
+
+```yaml
+environment:
+  AUTH_MODE: shared-token
+  AUTH_SHARED_SECRET: ${AUTH_SHARED_SECRET}    # set in .env
+  ENABLE_SERVER_STORAGE: "true"
+  STORAGE_PATH: /data/diagrams
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}        # optional, surfaced via /api/config
+```
+
+`AUTH_MODE=cf-access` is rejected by Express at request time — that mode only makes sense behind Cloudflare Access.
+
+### Smoke test
+
+```bash
+BASE=http://localhost:3001
+curl "$BASE/api/config"
+curl -H "Authorization: Bearer $AUTH_SHARED_SECRET" "$BASE/api/diagrams"
+```
+
+---
+
+## C. Cloudflare Pages
+
+### C1. Prerequisites
+
+- Cloudflare account (free plan).
+- `npx wrangler login` once before the first deploy.
+
+### C2. Configure auth (pick one)
+
+**`none`** — public, no token. The default for the storage-less PoC. Fine for read-only demos.
 
 **`shared-token`** — single bearer token shared with every editor.
 
 ```bash
-npx wrangler pages secret put SHARED_TOKEN
+npx wrangler pages secret put AUTH_SHARED_SECRET
 # paste the token when prompted
 ```
 
@@ -46,13 +97,13 @@ In [packages/fossflow-worker/wrangler.toml](packages/fossflow-worker/wrangler.to
 # packages/fossflow-worker/wrangler.toml
 [vars]
 AUTH_MODE = "cf-access"
-CF_ACCESS_TEAM = "your-team"          # the subdomain in <team>.cloudflareaccess.com
-CF_ACCESS_AUD  = "<application-aud>"  # from the Access app config
+CF_ACCESS_TEAM_DOMAIN = "your-team"     # the subdomain in <team>.cloudflareaccess.com
+CF_ACCESS_AUD         = "<application-aud>"
 ```
 
-### A4. (Optional) Google Drive credentials
+### C3. (Optional) Google Drive client ID
 
-To enable the Drive provider, add the OAuth client ID:
+The Drive provider is implemented on a separate branch. Once that lands, configure:
 
 ```bash
 npx wrangler pages secret put GOOGLE_CLIENT_ID
@@ -60,114 +111,64 @@ npx wrangler pages secret put GOOGLE_CLIENT_ID
 
 The frontend reads this at runtime via `GET /api/config` — no rebuild needed when it changes.
 
-### A5. Deploy
+### C4. Deploy
 
 ```bash
 npm install
-npm run build --workspace=packages/fossflow-app
+npm run build
 npx wrangler pages deploy packages/fossflow-app/build --project-name fossflow
 ```
 
 The first deploy creates the Pages project. Subsequent deploys reuse it.
 
-### A6. Smoke test
+### C5. Smoke test
 
 ```bash
-# Replace with the URL Wrangler printed
 BASE=https://fossflow.pages.dev
-TOKEN=<your shared token, or omit -H for AUTH_MODE=none>
-
-curl "$BASE/api/config"
-curl "$BASE/api/storage/status"
-curl -H "Authorization: Bearer $TOKEN" "$BASE/api/diagrams"
+curl "$BASE/api/config"             # always public, returns serverStorage: false
+curl "$BASE/api/storage/status"     # always public, returns enabled: false
+curl -i "$BASE/api/diagrams"        # 503 — storage disabled
 ```
 
-Open `$BASE` in a browser. With `shared-token`, the app will fail to list until you set the token in the browser — for now, the simplest way is `AUTH_MODE=none` in front of Cloudflare Access, or use Access alone.
+With `AUTH_MODE=shared-token`, both `/api/config` and `/api/storage/status` remain unauthenticated so the SPA can boot. Every other `/api/*` route requires the bearer token.
 
-### A7. Path-traversal sanity check
+### C6. One-click "Deploy to Cloudflare"
 
-```bash
-curl -i "$BASE/api/diagrams/..%2F..%2Fetc%2Fpasswd"
-# expect: HTTP/2 400  {"error":"Invalid id"}
-```
-
-### A8. One-click "Deploy to Cloudflare"
-
-The repo-root [wrangler.toml](wrangler.toml) is set up so the Cloudflare deploy button works end-to-end. Add this to the README (or anywhere) once published:
+The repo-root [wrangler.toml](wrangler.toml) is set up so the deploy button works against a fork:
 
 ```markdown
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/<your-fork>/FossFLOW)
 ```
 
-The user will be prompted to create the R2 binding and any secrets at install time.
-
 ---
 
-## B. Docker
+## D. What's the same on every target
 
-The existing Docker flow is preserved. The same backend now uses the new `routes.js` + `fs` adapter so it serves the same contract Cloudflare does, including the new `/api/config` and share endpoints.
-
-### B1. Build & run
-
-```bash
-docker compose up --build
-```
-
-Defaults to `AUTH_MODE=none`, `STORAGE_PATH=/data/diagrams`.
-
-### B2. Enable shared-token auth
-
-In `docker-compose.yml` (or the env you pass `docker run`):
-
-```yaml
-environment:
-  AUTH_MODE: shared-token
-  SHARED_TOKEN: ${SHARED_TOKEN}     # set in .env
-  ENABLE_SERVER_STORAGE: "true"
-  STORAGE_PATH: /data/diagrams
-  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}  # optional, Drive provider
-```
-
-`AUTH_MODE=cf-access` is rejected by the Express server at request time — that mode only makes sense behind Cloudflare Access. Use `shared-token` (or front Docker with your own reverse proxy doing auth).
-
-### B3. Smoke test
-
-```bash
-BASE=http://localhost:3001
-curl "$BASE/api/config"
-curl -H "Authorization: Bearer $SHARED_TOKEN" "$BASE/api/diagrams"
-```
-
----
-
-## C. What's the same on both targets
-
-- HTTP contract (every `/api/*` endpoint).
-- Public-snapshot share model: `POST /api/diagrams/:id/share` → `{ uuid, url }`. Public reads via `GET /api/public/diagrams/:uuid` are always unauth (these are the only routes that bypass `AUTH_MODE`).
+- HTTP contract for every `/api/*` endpoint the frontend calls.
+- Public routes that bypass auth: `GET /api/config`, `GET /api/storage/status`, `GET /api/public/diagrams/:uuid`.
 - Body limit: 10 MB per request.
-- ID validation: `^[a-zA-Z0-9_-]{1,64}$` — anything else is `400 Invalid id`.
-- Drive OAuth scope is locked to `drive.file` (per-file consent only).
+- ID validation: `^[a-zA-Z0-9_-]{1,64}$` — anything else is `400 Invalid id` (Docker only; Cloudflare 503s before reaching the validator).
+- Drive OAuth scope is locked to `drive.file` (per-file consent only) once the Drive branch lands.
 - Runtime config (`GET /api/config`) replaces build-time env injection — the frontend bundle never embeds secrets.
 
-## D. What differs
+## E. What differs
 
 | Concern | Cloudflare | Docker |
 |---|---|---|
-| Storage | R2 bucket `fossflow-diagrams` | `STORAGE_PATH` on disk |
-| Concurrency | R2 etag retry on `diagrams-index.json` | OS filesystem semantics |
-| `cf-access` auth | Supported (JWKS RS256 verify) | Rejected (502) |
+| Storage | None — session/localStorage on the client | `STORAGE_PATH` on disk |
+| `cf-access` auth | Supported (JWKS RS256 verify) | Rejected (500) |
 | Static delivery | CF CDN + `_headers` | nginx (compose stack) |
 | Body limit enforcement | Hono `bodyLimit({ maxSize: 10MB })` | `express.json({ limit: '10mb' })` |
 | CSP delivery | `_headers` file | nginx config |
 
 ---
 
-## E. Troubleshooting
+## F. Troubleshooting
 
-**`401 Unauthorized` on every API call** — `AUTH_MODE=shared-token` is set but the client isn't sending `Authorization: Bearer …`. The frontend currently expects auth to be transparent (CF Access cookie or none). For shared-token, front the deployment with a reverse proxy that injects the header, or use `AUTH_MODE=cf-access` instead.
+**`401 Unauthorized` on every API call** — `AUTH_MODE=shared-token` is set but the client isn't sending `Authorization: Bearer …`. The SPA does not currently inject the header itself; front the deployment with a reverse proxy that injects it, or use `AUTH_MODE=cf-access`, or run with `AUTH_MODE=none`.
 
-**R2 writes failing with `412 Precondition Failed`** — concurrent writes to `diagrams-index.json` raced past 3 retries. Re-issue the request; the worker's index-rewrite loop tolerates contention but not unbounded.
+**Cloudflare deploy returns `503 Server storage is disabled` on `/api/diagrams`** — expected. The current Cloudflare runtime is storage-less. Use the Docker target for persistent storage, or wait for the Drive branch to merge.
 
-**Path-traversal `400 Invalid id`** — expected. IDs are strict NanoID-like alphanum; do not change `assertId` to relax this.
+**Path-traversal `400 Invalid id`** (Docker) — expected. IDs are strict NanoID-like alphanum; do not relax `assertId`.
 
-**Build succeeds locally but `wrangler pages deploy` 404s on `/api/*`** — check `packages/fossflow-app/public/_routes.json` was copied into `build/`. Rsbuild copies the `public/` tree by default; if you customize the output, ensure `_routes.json` lands at the build root.
+**Build succeeds locally but `wrangler pages deploy` 404s on `/api/*`** — check that [packages/fossflow-app/public/_routes.json](packages/fossflow-app/public/_routes.json) was copied into `build/`. Rsbuild copies the `public/` tree by default.

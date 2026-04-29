@@ -180,7 +180,7 @@ Seven-commit structural expansion covering provider decomposition, a notificatio
 
 - `StorageManager` provider registry. The active provider receives all diagram and folder operations (`registerProvider`, `setActiveProvider`).
 - `LocalStorageProvider`: server-backed when the backend is reachable, falls back to `sessionStorage`. Full folder CRUD and tree-manifest support.
-- `GoogleDriveProvider` and `S3Provider`: `NotImplementedError` stubs (Phase 3B / 3C).
+- `GoogleDriveProvider`: `NotImplementedError` stub — full implementation lives on a separate branch.
 - `AppStorageContext` registers and activates the local provider on init.
 - Backend (`server.js`): folder CRUD, move, soft-delete patch, and tree-manifest endpoints.
 - 9 unit tests on `LocalStorageProvider`. Session-storage warning now waits for `isInitialized` before firing.

@@ -1,11 +1,9 @@
 /**
- * Storage adapter contract — implemented by `fs.js` (Node) and `r2Adapter.ts`
- * (Cloudflare). The route layer never sees a filesystem path; it only knows
- * opaque keys like `diagrams/<id>`, `folders`, `tree-manifest`, `public/<uuid>`.
+ * Storage adapter contract — implemented by `fs.js` (Node, Docker target).
+ * The route layer never sees a filesystem path; it only knows opaque keys
+ * like `diagrams/<id>`, `folders`, `tree-manifest`, `public/<uuid>`.
  *
- * Concrete adapters map keys to their underlying storage:
- *   - fs:  `diagrams/<id>` → `<STORAGE_PATH>/<id>.json` (flat — backward-compatible)
- *   - r2:  `diagrams/<id>` → R2 object key verbatim
+ *   - fs: `diagrams/<id>` → `<STORAGE_PATH>/<id>.json` (flat — backward-compatible)
  */
 export interface StorageAdapter {
   get(key: string): Promise<Uint8Array | null>;

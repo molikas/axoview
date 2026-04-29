@@ -45,7 +45,7 @@ app.use(express.json({ limit: '10mb' }));
 // Auth (shared-token only — cf-access is Cloudflare-specific)
 // ---------------------------------------------------------------------------
 const AUTH_MODE = process.env.AUTH_MODE || 'none';
-const SHARED_TOKEN = process.env.SHARED_TOKEN || '';
+const AUTH_SHARED_SECRET = process.env.AUTH_SHARED_SECRET || '';
 
 function constantTimeEquals(a, b) {
   if (a.length !== b.length) return false;
@@ -69,7 +69,7 @@ app.use((req, res, next) => {
   if (AUTH_MODE === 'shared-token') {
     const header = req.headers['authorization'] || '';
     const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-    if (!SHARED_TOKEN || !constantTimeEquals(token, SHARED_TOKEN)) {
+    if (!AUTH_SHARED_SECRET || !constantTimeEquals(token, AUTH_SHARED_SECRET)) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     return next();

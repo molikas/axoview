@@ -1,13 +1,8 @@
 import { Hono } from 'hono';
-import { cors } from 'hono/cors';
 import { bodyLimit } from 'hono/body-limit';
 import { secureHeaders } from 'hono/secure-headers';
 import { authMiddleware } from './auth';
 
-// Storage-less Worker. The R2 adapter is intentionally not imported here so
-// the bundle has no R2 dependency until the binding is configured. To enable
-// server storage, restore the R2 binding in wrangler.toml and re-introduce
-// `createR2Adapter`/`dispatch`-based routes (see r2Adapter.ts on disk).
 interface Env {
   AUTH_MODE?: 'none' | 'shared-token' | 'cf-access';
   AUTH_SHARED_SECRET?: string;
@@ -21,7 +16,6 @@ type AppEnv = { Bindings: Env };
 const app = new Hono<AppEnv>();
 
 app.use('*', secureHeaders());
-app.use('/api/*', cors());
 app.use(
   '/api/*',
   bodyLimit({
@@ -31,8 +25,6 @@ app.use(
 );
 app.use('/api/*', authMiddleware());
 
-// Frontend probes these two on boot. Returning enabled=false makes the app
-// fall back to session/localStorage mode without any further client changes.
 app.get('/api/storage/status', (c) =>
   c.json({ enabled: false, gitBackup: false, version: '1.0.0' }, 200)
 );
@@ -48,8 +40,6 @@ app.get('/api/config', (c) =>
   )
 );
 
-// Every other API call is meaningful only with a storage backend. Reject
-// explicitly so the frontend's fallback logic isn't masked by 404s.
 app.all('/api/*', (c) =>
   c.json({ error: 'Server storage is disabled' }, 503)
 );

@@ -23,7 +23,7 @@ export interface TreeManifest {
 }
 
 export interface StorageProvider {
-  id: 'local' | 'google-drive' | 's3';
+  id: 'local' | 'google-drive';
   displayName: string;
   requiresAuth: boolean;
 

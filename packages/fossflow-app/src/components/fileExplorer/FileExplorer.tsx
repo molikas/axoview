@@ -43,7 +43,6 @@ interface PendingNew {
 
 function providerIdToLabel(id: string): string {
   if (id === 'google-drive') return 'GOOGLE DRIVE';
-  if (id === 's3') return 'S3';
   return 'DIAGRAMS';
 }
 

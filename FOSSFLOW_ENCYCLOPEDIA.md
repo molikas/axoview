@@ -188,9 +188,10 @@ Response: { success: boolean }
 
 ### Integration with App
 
-**App Service** (`packages/fossflow-app/src/services/storageService.ts`):
-- Detects server availability on startup
-- Provides unified interface for server/local storage
+**App Service** (`packages/fossflow-app/src/services/storage/StorageManager.ts` + `providers/LocalStorageProvider.ts`):
+- Provider-registry abstraction; `LocalStorageProvider` is the active provider on every shipped target
+- Server-backed when `/api/storage/*` is reachable, falls back to `sessionStorage`
+- Drive provider lives on a separate branch
 - Handles timeouts and error states
 
 ## State Management
