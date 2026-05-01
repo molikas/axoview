@@ -1,5 +1,6 @@
 import domtoimage from 'dom-to-image-more';
 import { optimizeSvgDataUrl } from './svgOptimizer';
+import { stripDefaultIcons } from './leanSave';
 import { Model, Size } from '../types';
 import { icons as availableIcons } from '../examples/initialData';
 
@@ -181,7 +182,8 @@ export const transformFromCompactFormat = (compactModel: any): Model => {
 };
 
 export const exportAsJSON = (model: Model) => {
-  const data = new Blob([JSON.stringify(model)], {
+  const lean = stripDefaultIcons(model);
+  const data = new Blob([JSON.stringify(lean)], {
     type: 'application/json;charset=utf-8'
   });
 
@@ -189,7 +191,7 @@ export const exportAsJSON = (model: Model) => {
 };
 
 export const exportAsCompactJSON = (model: Model) => {
-  const compactModel = transformToCompactFormat(model);
+  const compactModel = transformToCompactFormat(stripDefaultIcons(model));
   const data = new Blob([JSON.stringify(compactModel)], {
     type: 'application/json;charset=utf-8'
   });

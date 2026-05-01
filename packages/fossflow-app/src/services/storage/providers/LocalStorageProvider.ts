@@ -6,6 +6,22 @@ import {
 } from '../types';
 import { apiBaseUrl } from '../../../utils/apiBaseUrl';
 
+/**
+ * Apply ADR 0003 lean-save: keep only user-supplied (imported) icons.
+ * Pack icons (isoflow, aws, gcp, …) are always rehydrated from the icon pack
+ * manager on load, so there is no need to persist their SVG payloads.
+ */
+const leanIfModel = (data: unknown): unknown => {
+  if (data && typeof data === 'object' && Array.isArray((data as any).icons)) {
+    const model = data as any;
+    return {
+      ...model,
+      icons: (model.icons as any[]).filter((icon: any) => icon.collection === 'imported')
+    };
+  }
+  return data;
+};
+
 const SESSION_DIAGRAMS_KEY = 'fossflow_diagrams';
 const SESSION_DIAGRAM_PREFIX = 'fossflow_diagram_';
 const LOCAL_FOLDERS_KEY = 'fossflow-folders';
@@ -105,7 +121,7 @@ export class LocalStorageProvider implements StorageProvider {
     const response = await fetch(`${this.baseUrl}/api/diagrams/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify(leanIfModel(data)),
       signal: timeoutSignal(15000)
     });
     if (!response.ok) throw new Error(`Failed to save diagram: ${response.status}`);
@@ -164,7 +180,8 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   private sessionSaveDiagram(id: string, data: unknown): void {
-    sessionStorage.setItem(`${SESSION_DIAGRAM_PREFIX}${id}`, JSON.stringify(data));
+    const lean = leanIfModel(data);
+    sessionStorage.setItem(`${SESSION_DIAGRAM_PREFIX}${id}`, JSON.stringify(lean));
     const list = this.sessionListDiagrams();
     const name = (data as any)?.name || (data as any)?.title || 'Untitled Diagram';
     const meta: DiagramMeta = {
@@ -177,6 +194,10 @@ export class LocalStorageProvider implements StorageProvider {
     if (idx >= 0) list[idx] = meta;
     else list.push(meta);
     sessionStorage.setItem(SESSION_DIAGRAMS_KEY, JSON.stringify(list));
+    // Notify subscribers (storage gauge) — sessionStorage has no native cross-component event.
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('fossflow-session-changed'));
+    }
   }
 
   private sessionCreateDiagram(data: unknown, folderId?: string | null): string {
@@ -198,6 +219,9 @@ export class LocalStorageProvider implements StorageProvider {
         SESSION_DIAGRAMS_KEY,
         JSON.stringify(list.filter((d) => d.id !== id))
       );
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('fossflow-session-changed'));
     }
   }
 

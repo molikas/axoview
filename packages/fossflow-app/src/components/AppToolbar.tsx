@@ -6,7 +6,6 @@ import {
   Chip,
   Divider,
   IconButton,
-  InputBase,
   Popover,
   Stack,
   TextField,
@@ -16,7 +15,6 @@ import {
 } from '@mui/material';
 import {
   SaveOutlined as SaveIcon,
-  FolderOpenOutlined as FolderIcon,
   ShareOutlined as ShareIcon,
   Close as CloseIcon,
   VisibilityOutlined as PreviewIcon,
@@ -26,12 +24,12 @@ import {
 } from '@mui/icons-material';
 import { useAppStorage } from '../providers/AppStorageContext';
 import { useDiagramLifecycle } from '../providers/DiagramLifecycleProvider';
+import { SessionStorageGauge } from './fileExplorer/SessionStorageGauge';
 
 export function AppToolbar() {
   const { t } = useTranslation('app');
   const { serverStorageAvailable, storage } = useAppStorage();
   const {
-    diagramName,
     hasUnsavedChanges,
     lastSaved,
     saveStatus,
@@ -40,9 +38,7 @@ export function AppToolbar() {
     setToolbarPortalTarget,
     setSidebarTogglePortalTarget,
     handleSaveClick,
-    handleOpenClick,
     handlePreviewClick,
-    handleRenameCurrentDiagram,
     saveAllDirty,
     fileExplorerOpen,
     setFileExplorerOpen,
@@ -58,11 +54,6 @@ export function AppToolbar() {
   const [shareLoading, setShareLoading] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
 
-  // Inline title editing
-  const [editingName, setEditingName] = useState(false);
-  const [editNameValue, setEditNameValue] = useState('');
-  const titleInputRef = useRef<HTMLInputElement>(null);
-
   const currentDiagramId = currentDiagram?.id;
 
   // Reset share state whenever the active diagram changes
@@ -72,31 +63,6 @@ export function AppToolbar() {
     setShareError(null);
     setShowSharePopover(false);
   }, [currentDiagramId]);
-
-  // Focus input when editing starts
-  useEffect(() => {
-    if (editingName && titleInputRef.current) {
-      titleInputRef.current.select();
-    }
-  }, [editingName]);
-
-  const handleTitleClick = () => {
-    if (isReadonlyUrl || !currentDiagram) return;
-    setEditNameValue(diagramName);
-    setEditingName(true);
-  };
-
-  const commitRename = () => {
-    setEditingName(false);
-    if (editNameValue.trim() && editNameValue.trim() !== diagramName) {
-      handleRenameCurrentDiagram(editNameValue.trim());
-    }
-  };
-
-  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') commitRename();
-    if (e.key === 'Escape') setEditingName(false);
-  };
 
   const handleShareClick = async () => {
     if (!serverStorageAvailable || !currentDiagramId || !storage) return;
@@ -315,21 +281,21 @@ export function AppToolbar() {
                     </IconButton>
                   </Tooltip>
                 )}
+                <Chip
+                  label="SESSION"
+                  size="small"
+                  color="warning"
+                  sx={{
+                    height: 18,
+                    fontSize: '0.5625rem',
+                    fontWeight: 700,
+                    ml: 0.25,
+                    '& .MuiChip-label': { px: 0.75 }
+                  }}
+                />
+                <SessionStorageGauge />
               </>
             )}
-
-            <Tooltip
-              title={t('nav.diagrams', 'Diagrams') + ' (Ctrl+O)'}
-              placement="bottom"
-            >
-              <IconButton
-                size="small"
-                onClick={handleOpenClick}
-                sx={{ borderRadius: 1, color: 'inherit' }}
-              >
-                <FolderIcon sx={{ fontSize: 18 }} />
-              </IconButton>
-            </Tooltip>
           </>
         )}
         {isReadonlyUrl && (
@@ -345,57 +311,8 @@ export function AppToolbar() {
       {/* CENTER: diagram name (editable in server mode) */}
       <Box
         className="toolbar-center"
-        sx={{ flex: 1, display: 'flex', justifyContent: 'center', px: 1, overflow: 'hidden' }}
-      >
-        {editingName ? (
-          <InputBase
-            inputRef={titleInputRef}
-            value={editNameValue}
-            onChange={(e) => setEditNameValue(e.target.value)}
-            onBlur={commitRename}
-            onKeyDown={handleTitleKeyDown}
-            inputProps={{ style: { textAlign: 'center', padding: 0 } }}
-            sx={{
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              color: 'text.secondary',
-              maxWidth: 320,
-              '& input': { textAlign: 'center' }
-            }}
-          />
-        ) : (
-          diagramName && (
-            <Tooltip
-              title={
-                !isReadonlyUrl && currentDiagram
-                  ? t('toolbar.clickToRename', 'Click to rename')
-                  : ''
-              }
-              placement="bottom"
-              disableHoverListener={isReadonlyUrl || !currentDiagram}
-            >
-              <Typography
-                variant="body2"
-                fontWeight={500}
-                color="text.secondary"
-                noWrap
-                onClick={handleTitleClick}
-                sx={{
-                  userSelect: 'none',
-                  cursor: !isReadonlyUrl && currentDiagram ? 'text' : 'default',
-                  px: 0.5,
-                  borderRadius: 0.5,
-                  '&:hover': !isReadonlyUrl && currentDiagram
-                    ? { bgcolor: 'action.hover' }
-                    : {}
-                }}
-              >
-                {diagramName}
-              </Typography>
-            </Tooltip>
-          )
-        )}
-      </Box>
+        sx={{ flex: 1 }}
+      />
 
       {/* RIGHT: status | share + preview | sidebar toggle portal */}
       <Box

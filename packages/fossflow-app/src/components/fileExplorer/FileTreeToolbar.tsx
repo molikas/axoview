@@ -3,7 +3,9 @@ import {
   ArticleOutlined as NewDiagramIcon,
   CreateNewFolderOutlined as NewFolderIcon,
   RefreshOutlined as RefreshIcon,
-  UnfoldLessOutlined as CollapseAllIcon
+  UnfoldLessOutlined as CollapseAllIcon,
+  FileUploadOutlined as ImportIcon,
+  FileDownloadOutlined as ExportIcon
 } from '@mui/icons-material';
 
 interface Props {
@@ -12,6 +14,8 @@ interface Props {
   onNewFolder: () => void;
   onRefresh: () => Promise<void>;
   onCollapseAll: () => void;
+  onImport: () => void;
+  onExportProject: () => void;
 }
 
 export function FileTreeToolbar({
@@ -19,7 +23,9 @@ export function FileTreeToolbar({
   onNewDiagram,
   onNewFolder,
   onRefresh,
-  onCollapseAll
+  onCollapseAll,
+  onImport,
+  onExportProject
 }: Props) {
   return (
     <Box
@@ -48,6 +54,18 @@ export function FileTreeToolbar({
       >
         {providerLabel}
       </Typography>
+
+      <Tooltip title="Import" placement="bottom">
+        <IconButton size="small" onClick={onImport} sx={{ flexShrink: 0 }}>
+          <ImportIcon sx={{ fontSize: 16 }} />
+        </IconButton>
+      </Tooltip>
+
+      <Tooltip title="Export project" placement="bottom">
+        <IconButton size="small" onClick={onExportProject} sx={{ flexShrink: 0 }}>
+          <ExportIcon sx={{ fontSize: 16 }} />
+        </IconButton>
+      </Tooltip>
 
       <Tooltip title="New diagram" placement="bottom">
         <IconButton size="small" onClick={onNewDiagram} sx={{ flexShrink: 0 }}>

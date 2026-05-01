@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
-import { Tree, TreeApi } from 'react-arborist';
+import { Tree, TreeApi, NodeApi } from 'react-arborist';
 import {
   Box,
   Button,
@@ -19,8 +19,11 @@ import { useFileTree, FileNode } from '../../hooks/useFileTree';
 import { FileTreeNode } from './FileTreeNode';
 import { FileTreeToolbar } from './FileTreeToolbar';
 import { ContextMenuItems } from './ContextMenuItems';
+import { ExportDialog } from './ExportDialog';
+import { ImportDialog } from './ImportDialog';
 import { notificationStore } from '../../stores/notificationStore';
 import { sequentialName, copySuffix, countDescendants, detectCollision } from '../../utils/fileOperations';
+import { ExportScope } from '../../services/project/projectZip';
 
 interface DeleteConfirm {
   id: string;
@@ -39,6 +42,39 @@ interface CollisionDialog {
 interface PendingNew {
   type: 'folder' | 'diagram';
   parentId: string | null;
+}
+
+// Custom row: arborist's DefaultRow has only onClick — we need onDoubleClick to
+// trigger inline rename on a real DOM node arborist owns.
+function FileTreeRow({
+  node,
+  attrs,
+  innerRef,
+  children
+}: {
+  node: NodeApi<FileNode>;
+  attrs: React.HTMLAttributes<HTMLDivElement> & { style?: React.CSSProperties };
+  innerRef: React.Ref<HTMLDivElement>;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      {...attrs}
+      ref={innerRef}
+      onFocus={(e) => e.stopPropagation()}
+      onClick={node.handleClick}
+      onDoubleClick={(e) => {
+        if (node.data.id === '__pending__') return;
+        if (node.data.type === 'folder') return;
+        e.preventDefault();
+        e.stopPropagation();
+        node.select();
+        node.tree.edit(node.id);
+      }}
+    >
+      {children}
+    </div>
+  );
 }
 
 function providerIdToLabel(id: string): string {
@@ -80,9 +116,10 @@ export function FileExplorer() {
     openDiagramById,
     fileTreeRefreshToken,
     dirtyDiagramIds,
-    checkUnsavedBeforeNavigate
+    checkUnsavedBeforeNavigate,
+    markProjectExported,
+    notifyDiagramRenamedFromTree
   } = useDiagramLifecycle();
-
   const treeRef = useRef<TreeApi<FileNode> | undefined>(undefined);
   const treeContainerRef = useRef<HTMLDivElement>(null);
   const [treeHeight, setTreeHeight] = useState(400);
@@ -93,6 +130,14 @@ export function FileExplorer() {
   const [contextMenuNode, setContextMenuNode] = useState<FileNode | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirm | null>(null);
   const [collisionDialog, setCollisionDialog] = useState<CollisionDialog | null>(null);
+  const [exportTarget, setExportTarget] = useState<{
+    scope: ExportScope;
+    folderId?: string;
+    folderName?: string;
+    diagramId?: string;
+    diagramName?: string;
+  } | null>(null);
+  const [showImport, setShowImport] = useState(false);
 
   const tree = useFileTree(
     storage,
@@ -210,6 +255,7 @@ export function FileExplorer() {
       const trimmed = name.trim();
       if (!trimmed) return;
       tree.optimisticRename(id, trimmed);
+      notifyDiagramRenamedFromTree(id, trimmed);
       try {
         const isFolder = tree.folders.some((f) => f.id === id);
         if (isFolder) {
@@ -222,7 +268,7 @@ export function FileExplorer() {
         tree.refresh();
       }
     },
-    [tree, pendingNew, checkUnsavedBeforeNavigate, storage, openDiagramById]
+    [tree, pendingNew, checkUnsavedBeforeNavigate, storage, openDiagramById, notifyDiagramRenamedFromTree]
   );
 
   // ---------------------------------------------------------------------------
@@ -409,6 +455,8 @@ export function FileExplorer() {
         onNewFolder={handleNewFolder}
         onRefresh={tree.refresh}
         onCollapseAll={handleCollapseAll}
+        onImport={() => setShowImport(true)}
+        onExportProject={() => setExportTarget({ scope: 'project' })}
       />
       <Divider />
 
@@ -455,6 +503,7 @@ export function FileExplorer() {
           onMove={handleMove}
           onRename={({ id, name }) => handleRenameSubmit(id, name)}
           onSelect={(nodes) => setSelectedNode(nodes[0]?.data ?? null)}
+          renderRow={FileTreeRow}
           width="100%"
           height={treeHeight}
           rowHeight={28}
@@ -492,6 +541,22 @@ export function FileExplorer() {
             onRename={() => contextMenuNode && handleRenameNode(contextMenuNode)}
             onDuplicate={() => contextMenuNode && handleDuplicate(contextMenuNode)}
             onCopyShareLink={() => contextMenuNode && handleCopyShareLink(contextMenuNode)}
+            onExport={() => {
+              if (!contextMenuNode) return;
+              if (contextMenuNode.type === 'folder') {
+                setExportTarget({
+                  scope: 'folder',
+                  folderId: contextMenuNode.id,
+                  folderName: contextMenuNode.name
+                });
+              } else {
+                setExportTarget({
+                  scope: 'diagram',
+                  diagramId: contextMenuNode.id,
+                  diagramName: contextMenuNode.name
+                });
+              }
+            }}
             onDelete={() => {
               if (!contextMenuNode) return;
               if (contextMenuNode.type === 'folder') {
@@ -537,6 +602,43 @@ export function FileExplorer() {
           <Button color="error" variant="contained" onClick={confirmDelete}>Delete</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Export dialog (project / folder / diagram) */}
+      {exportTarget && storage && (
+        <ExportDialog
+          open
+          onClose={() => setExportTarget(null)}
+          scope={exportTarget.scope}
+          folderId={exportTarget.folderId}
+          folderName={exportTarget.folderName}
+          diagramId={exportTarget.diagramId}
+          diagramName={exportTarget.diagramName}
+          storage={storage}
+          exporterTag={`fossflow-app@${process.env.REACT_APP_VERSION ?? 'dev'}`}
+          onProjectZipExported={() => markProjectExported?.()}
+        />
+      )}
+
+      {/* Import dialog */}
+      {showImport && storage && (
+        <ImportDialog
+          open
+          onClose={() => setShowImport(false)}
+          storage={storage}
+          onImported={async () => {
+            await tree.refresh();
+          }}
+          onImportSingleJson={async (data, suggestedName) => {
+            const folderId = selectedFolderId;
+            const newId = await storage.createDiagram(
+              { ...(data as object), name: suggestedName, title: suggestedName },
+              folderId
+            );
+            await tree.refresh();
+            await openDiagramById(newId, suggestedName);
+          }}
+        />
+      )}
 
       {/* Name collision dialog */}
       <Dialog

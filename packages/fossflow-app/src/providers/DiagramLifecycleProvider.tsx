@@ -100,6 +100,7 @@ interface DiagramLifecycleContextValue {
   handleModelUpdated: (model: any) => void;
   handleNewDiagram: () => Promise<void>;
   handleRenameCurrentDiagram: (newName: string) => Promise<void>;
+  notifyDiagramRenamedFromTree: (id: string, newName: string) => void;
   saveAllDirty: () => Promise<void>;
   handleCreateBlankDiagram: (folderId: string | null) => Promise<void>;
   checkUnsavedBeforeNavigate: (onProceed: () => void) => void;
@@ -109,6 +110,14 @@ interface DiagramLifecycleContextValue {
   openDiagramById: (id: string, name: string) => Promise<void>;
   fileTreeRefreshToken: number;
   dirtyDiagramIds: Set<string>;
+  /**
+   * Session-mode flag: true when the session has any work that has not been
+   * exported to a project zip. Independent of `hasUnsavedChanges` (which tracks
+   * "model differs from save target"). Cleared only by a successful project zip
+   * export — see `markProjectExported`.
+   */
+  sessionWorkUnexported: boolean;
+  markProjectExported: () => void;
   // Icon pack
   iconPackManagerProp: {
     lazyLoadingEnabled: boolean;
@@ -170,21 +179,62 @@ export function DiagramLifecycleProvider({
   const [dirtyDiagramIds, setDirtyDiagramIds] = useState<Set<string>>(new Set());
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
+  // ADR — session-mode "work needs to be exported to a file" flag, decoupled
+  // from hasUnsavedChanges. Listens to the same custom event the gauge uses,
+  // since every session mutation already dispatches it.
+  const [sessionWorkUnexported, setSessionWorkUnexported] = useState(false);
+  const markProjectExported = useCallback(() => {
+    setSessionWorkUnexported(false);
+  }, []);
+  const hasUnsavedChangesRef = useRef(false);
+  const sessionWorkUnexportedRef = useRef(false);
+  useEffect(() => {
+    sessionWorkUnexportedRef.current = sessionWorkUnexported;
+  }, [sessionWorkUnexported]);
+  useEffect(() => {
+    if (serverStorageAvailable) return; // server mode does not use this flag
+    const handler = () => setSessionWorkUnexported(true);
+    window.addEventListener('fossflow-session-changed', handler);
+    return () => window.removeEventListener('fossflow-session-changed', handler);
+  }, [serverStorageAvailable]);
+
+  // beforeunload — warn before leaving with unsaved/un-exported work.
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      const trigger = serverStorageAvailable
+        ? hasUnsavedChangesRef.current
+        : sessionWorkUnexportedRef.current;
+      if (!trigger) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [serverStorageAvailable]);
+
   // In server mode the single-diagram hasUnsavedChanges is driven by saveStatus.
   // In session mode it uses dirtyDiagramIds as before.
   const hasUnsavedChanges = serverStorageAvailable
     ? false  // toolbar uses saveStatus directly in server mode
     : dirtyDiagramIds.has(currentDiagram?.id ?? '__unsaved__');
+  useEffect(() => {
+    hasUnsavedChangesRef.current = hasUnsavedChanges;
+  }, [hasUnsavedChanges]);
 
   // ---------------------------------------------------------------------------
   // Auto-save (server mode only)
   // ---------------------------------------------------------------------------
   const autoSave = useAutoSave({
     storage,
-    enabled: serverStorageAvailable && !isReadonlyUrl,
-    onSaved: (_id, savedAt) => {
+    enabled: !!storage && !isReadonlyUrl,
+    onSaved: (id, savedAt) => {
       setLastSaved(savedAt);
       setFileTreeRefreshToken((n) => n + 1);
+      // In session mode, clear the dirty bit so the badge + unsaved indicator update.
+      if (!serverStorageAvailable) {
+        setDirtyDiagramIds((prev) => setWithout(prev, id));
+        scratchBufferRef.current.delete(id);
+      }
     },
     onError: () => {
       notificationStore.push({
@@ -508,7 +558,8 @@ export function DiagramLifecycleProvider({
   // Session-mode save
   // ---------------------------------------------------------------------------
   const executeSave = useCallback(
-    (existingDiagram?: SavedDiagram) => {
+    async (existingDiagram?: SavedDiagram) => {
+      const s = storageRef.current;
       const importedIcons = (currentModel?.icons || diagramData.icons || []).filter(
         (icon) => icon.collection === 'imported'
       );
@@ -520,11 +571,36 @@ export function DiagramLifecycleProvider({
         views: currentModel?.views || diagramData.views || [],
         fitToScreen: true
       };
+
+      // Resolve the diagram ID — new diagrams must go through createDiagram so
+      // the storage provider (and the file tree) knows about them.
+      let id: string;
+      let createdAt: string;
+      try {
+        if (currentDiagram) {
+          id = currentDiagram.id;
+          createdAt = currentDiagram.createdAt;
+          if (s) await s.saveDiagram(id, savedData as any);
+        } else if (existingDiagram) {
+          id = existingDiagram.id;
+          createdAt = existingDiagram.createdAt;
+          if (s) await s.saveDiagram(id, savedData as any);
+        } else {
+          // Brand-new diagram: let the storage provider allocate the ID.
+          id = s ? await s.createDiagram(savedData as any, null) : Date.now().toString();
+          createdAt = new Date().toISOString();
+        }
+      } catch (e) {
+        console.error('executeSave: storage op failed', e);
+        notificationStore.push({ severity: 'error', message: t('alert.saveFailed', 'Save failed') });
+        return;
+      }
+
       const newDiagram: SavedDiagram = {
-        id: currentDiagram?.id || Date.now().toString(),
+        id,
         name: diagramName,
         data: savedData,
-        createdAt: currentDiagram?.createdAt || new Date().toISOString(),
+        createdAt,
         updatedAt: new Date().toISOString()
       };
       if (currentDiagram) {
@@ -537,8 +613,6 @@ export function DiagramLifecycleProvider({
               : d
           )
         );
-        newDiagram.id = existingDiagram.id;
-        newDiagram.createdAt = existingDiagram.createdAt;
       } else {
         setDiagrams([...diagrams, newDiagram]);
       }
@@ -839,6 +913,23 @@ export function DiagramLifecycleProvider({
     [serverStorageAvailable]
   );
 
+  // Sync in-memory state (diagramName, currentDiagram, model store title) when
+  // the file tree renames the currently-open diagram. Storage is already updated
+  // by the caller — this only keeps the canvas breadcrumb in sync.
+  const notifyDiagramRenamedFromTree = useCallback((id: string, newName: string) => {
+    if (!currentDiagramRef.current || currentDiagramRef.current.id !== id) return;
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    setDiagramName(trimmed);
+    setCurrentDiagram((prev) => (prev ? { ...prev, name: trimmed } : prev));
+    if (isoflowRef.current && currentModelRef.current) {
+      const updatedModel = { ...currentModelRef.current, title: trimmed };
+      setCurrentModel(updatedModel);
+      isAfterLoadRef.current = true;
+      isoflowRef.current.load(updatedModel as any, { preserveViewport: true });
+    }
+  }, []);
+
   // ---------------------------------------------------------------------------
   // Toolbar save actions
   // ---------------------------------------------------------------------------
@@ -950,6 +1041,7 @@ export function DiagramLifecycleProvider({
     let savedCount = 0;
     const failedIds: string[] = [];
 
+    const s = storageRef.current;
     for (const dirtyId of allDirtyIds) {
       const dirtyData = resolveData(dirtyId);
       if (!dirtyData) continue;
@@ -958,10 +1050,14 @@ export function DiagramLifecycleProvider({
           const nameCandidate = dirtyData.title || diagramNameRef.current || 'Untitled Diagram';
           const chosenName = sequentialName(nameCandidate, sessionExistingNames);
           sessionExistingNames.push(chosenName);
+          const savedPayload = { ...dirtyData, title: chosenName };
+          const newId = s
+            ? await s.createDiagram(savedPayload as any, null)
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
           const newSessionDiagram: SavedDiagram = {
-            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            id: newId,
             name: chosenName,
-            data: { ...dirtyData, title: chosenName },
+            data: savedPayload,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           };
@@ -974,6 +1070,7 @@ export function DiagramLifecycleProvider({
         } else {
           const existingEntry = diagrams.find((d) => d.id === dirtyId);
           if (existingEntry) {
+            if (s) await s.saveDiagram(dirtyId, dirtyData as any);
             sessionUpdates.push({ ...existingEntry, data: dirtyData, updatedAt: new Date().toISOString() });
             if (dirtyId === currentDiagramRef.current?.id) setLastSaved(new Date());
           }
@@ -1046,10 +1143,16 @@ export function DiagramLifecycleProvider({
         // If no diagram open, do nothing — user must create explicitly
       } else {
         // ── Session mode ─────────────────────────────────────────────────────
-        const bufferKey = currentDiagramRef.current?.id ?? '__unsaved__';
+        const currentId = currentDiagramRef.current?.id ?? null;
+        const bufferKey = currentId ?? '__unsaved__';
         scratchBufferRef.current.set(bufferKey, updatedModel);
         if (!dirtyDiagramIdsRef.current.has(bufferKey)) {
           setDirtyDiagramIds((prev) => setWithAdd(prev, bufferKey));
+        }
+        // Auto-save to session storage when a diagram is open (no ID = unsaved new
+        // diagram, must be explicitly saved first via Ctrl+S).
+        if (currentId) {
+          autoSave.scheduleSave(currentId, updatedModel);
         }
       }
     },
@@ -1111,6 +1214,7 @@ export function DiagramLifecycleProvider({
     handleModelUpdated,
     handleNewDiagram,
     handleRenameCurrentDiagram,
+    notifyDiagramRenamedFromTree,
     saveAllDirty,
     handleCreateBlankDiagram,
     checkUnsavedBeforeNavigate,
@@ -1119,6 +1223,8 @@ export function DiagramLifecycleProvider({
     openDiagramById,
     fileTreeRefreshToken,
     dirtyDiagramIds,
+    sessionWorkUnexported,
+    markProjectExported,
     iconPackManagerProp
   };
 

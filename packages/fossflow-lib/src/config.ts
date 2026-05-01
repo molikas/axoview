@@ -34,7 +34,7 @@ export const DEFAULT_FONT_FAMILY = 'Roboto, Arial, sans-serif';
 export const VIEW_DEFAULTS: Required<
   Omit<View, 'id' | 'description' | 'lastUpdated' | 'layers'>
 > = {
-  name: 'Untitled view',
+  name: 'Page 1',
   items: [],
   connectors: [],
   rectangles: [],

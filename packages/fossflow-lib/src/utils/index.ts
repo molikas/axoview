@@ -11,3 +11,4 @@ export * from './findNearestUnoccupiedTile';
 export * from './pointInPolygon';
 export * from './connectorLabels';
 export * from './renderOrder';
+export * from './leanSave';

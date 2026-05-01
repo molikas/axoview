@@ -27,7 +27,7 @@ jest.mock('src/utils', () => ({
 
 jest.mock('src/config', () => ({
   VIEW_DEFAULTS: {
-    name: 'Untitled view',
+    name: 'Page 1',
     items: [],
     connectors: [],
     rectangles: [],
@@ -93,7 +93,7 @@ describe('View operations integration — C-2 regression', () => {
     it('uses VIEW_DEFAULTS.name when name is not provided', () => {
       const state = makeState([]);
       const result = createView({}, ctx(state, 'v1'));
-      expect(result.model.views[0].name).toBe('Untitled view');
+      expect(result.model.views[0].name).toBe('Page 1');
     });
 
     it('partial override: only overridden fields differ from VIEW_DEFAULTS', () => {

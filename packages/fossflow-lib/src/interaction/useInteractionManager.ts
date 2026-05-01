@@ -236,6 +236,19 @@ export const useInteractionManager = () => {
         uiState.actions.setDialog(DialogTypeEnum.HELP);
       }
 
+      if (e.key === 'F2') {
+        const ctrl = uiState.itemControls;
+        if (
+          (ctrl?.type === 'ITEM' || ctrl?.type === 'TEXTBOX') &&
+          uiState.editorMode === 'EDITABLE'
+        ) {
+          e.preventDefault();
+          window.dispatchEvent(
+            new CustomEvent('inlineEditNodeName', { detail: { id: ctrl.id } })
+          );
+        }
+      }
+
       const hotkeyMapping = HOTKEY_PROFILES[uiState.hotkeyProfile];
       const key = e.key.toLowerCase();
 
