@@ -27,6 +27,18 @@ const SESSION_DIAGRAM_PREFIX = 'fossflow_diagram_';
 const LOCAL_FOLDERS_KEY = 'fossflow-folders';
 const LOCAL_MANIFEST_KEY = 'fossflow-tree-manifest';
 
+// Date.now() alone collides when many ids are minted in the same tick (e.g.
+// during a project import loop). A collision on folder ids lets the import's
+// parent-remap produce a folder whose parentId equals its own id, which the
+// recursive tree builder then walks forever.
+function uniqueSuffix(): string {
+  const rand =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+      : Math.random().toString(36).slice(2, 14);
+  return `${Date.now().toString(36)}_${rand}`;
+}
+
 /** Builds an AbortSignal with timeout, falling back gracefully if unavailable. */
 function timeoutSignal(ms: number): AbortSignal | undefined {
   if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
@@ -201,7 +213,7 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   private sessionCreateDiagram(data: unknown, folderId?: string | null): string {
-    const id = `diagram_${Date.now()}`;
+    const id = `diagram_${uniqueSuffix()}`;
     const dataWithFolder = folderId != null ? { ...(data as object), folderId } : data;
     this.sessionSaveDiagram(id, dataWithFolder);
     return id;
@@ -402,7 +414,7 @@ export class LocalStorageProvider implements StorageProvider {
 
   private localCreateFolder(name: string, parentId?: string | null): string {
     const folders = this.localGetFolders();
-    const id = `folder_${Date.now()}`;
+    const id = `folder_${uniqueSuffix()}`;
     folders.push({ id, name, parentId: parentId ?? null });
     this.localSaveFolders(folders);
     return id;
