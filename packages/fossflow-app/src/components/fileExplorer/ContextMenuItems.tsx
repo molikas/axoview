@@ -18,6 +18,7 @@ interface Props {
   onExport: () => void;
   onDelete: () => void;
   onClose: () => void;
+  canShare: boolean;
 }
 
 export function ContextMenuItems({
@@ -28,7 +29,8 @@ export function ContextMenuItems({
   onCopyShareLink,
   onExport,
   onDelete,
-  onClose
+  onClose,
+  canShare
 }: Props) {
   const isDiagram = node.type === 'diagram';
 
@@ -55,7 +57,7 @@ export function ContextMenuItems({
           Duplicate
         </MenuItem>
       )}
-      {isDiagram && (
+      {isDiagram && canShare && (
         <MenuItem dense onClick={handle(onCopyShareLink)}>
           <ListItemIcon><ShareLinkIcon fontSize="small" /></ListItemIcon>
           Copy share link

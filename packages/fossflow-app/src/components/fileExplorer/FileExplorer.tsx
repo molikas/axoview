@@ -110,7 +110,7 @@ function injectPendingNode(
 }
 
 export function FileExplorer() {
-  const { storage } = useAppStorage();
+  const { storage, serverStorageAvailable } = useAppStorage();
   const {
     currentDiagram,
     openDiagramById,
@@ -537,6 +537,7 @@ export function FileExplorer() {
         {contextMenuNode && (
           <ContextMenuItems
             node={contextMenuNode}
+            canShare={serverStorageAvailable}
             onOpen={() => { if (contextMenuNode) handleOpenDiagram(contextMenuNode); }}
             onRename={() => contextMenuNode && handleRenameNode(contextMenuNode)}
             onDuplicate={() => contextMenuNode && handleDuplicate(contextMenuNode)}
