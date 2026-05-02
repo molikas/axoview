@@ -2,6 +2,7 @@ import React from 'react';
 import { Box } from '@mui/material';
 import { Icon } from 'src/types';
 import { PROJECTED_TILE_SIZE } from 'src/config';
+import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { getIsoProjectionCss } from 'src/utils';
 
 interface Props {
@@ -9,6 +10,23 @@ interface Props {
 }
 
 export const NonIsometricIcon = ({ icon }: Props) => {
+  const { strategy } = useCanvasMode();
+
+  if (strategy.projectionName === '2D') {
+    return (
+      <Box
+        component="img"
+        src={icon.url}
+        alt={`icon-${icon.id}`}
+        sx={{
+          position: 'absolute',
+          width: PROJECTED_TILE_SIZE.width * 0.7 * (icon.scale || 1),
+          pointerEvents: 'none'
+        }}
+      />
+    );
+  }
+
   return (
     <Box sx={{ pointerEvents: 'none' }}>
       <Box
