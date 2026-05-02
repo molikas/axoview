@@ -201,17 +201,15 @@ export function ImportDialog({
     return (
       <Stack spacing={2}>
         <Box>
-          <Typography variant="subtitle2">{zipFilename || 'Project'}</Typography>
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="subtitle2">
             {folderCount} folder{folderCount === 1 ? '' : 's'}, {diagramCount} diagram
-            {diagramCount === 1 ? '' : 's'} · exported by{' '}
-            {parsed.manifest.exportedBy ?? 'unknown'}
+            {diagramCount === 1 ? '' : 's'}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            From {parsed.manifest.exportedBy ?? 'unknown'}
           </Typography>
         </Box>
         <FormControl>
-          <Typography variant="body2" sx={{ mb: 0.5 }}>
-            Where should it go?
-          </Typography>
           <RadioGroup
             value={destination}
             onChange={(_, v) => setDestination(v as DestinationKind)}
@@ -219,19 +217,19 @@ export function ImportDialog({
             <FormControlLabel
               value="root"
               control={<Radio size="small" />}
-              label="Merge into root (preserve folder shape)"
+              label="At the top — keep the original folder layout"
             />
             <FormControlLabel
               value="newFolder"
               control={<Radio size="small" />}
-              label="Wrap in a new folder"
+              label="Inside a new folder"
             />
             <FormControlLabel
               value="replaceAll"
               control={<Radio size="small" />}
               label={
                 <Typography variant="body2" color="error.main">
-                  Replace entire workspace (destructive)
+                  Replace all existing folders and diagrams
                 </Typography>
               }
             />
