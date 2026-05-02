@@ -34,6 +34,8 @@ In other words: drop an icon iff it is a *pure* duplicate of a bundled fixture. 
 
 Load-time rehydration is handled by [ADR 0002](0002-icon-catalog-merge-on-load.md) — the loader unions `bundledFixtures` back in before populating the model store.
 
+**2026-05-02:** Lean-save now also persists `requiredPacks: string[]` — the unique non-isoflow/imported collections referenced by `items`. Loaders consult it to lazy-fetch the right icon packs before the merge in ADR 0002 runs; without this signal, items end up pointing at icon ids that nothing in the loaded catalog can resolve. The field is **preserved** (not re-derived) when the input is already lean — otherwise a round-trip through storage wipes the list to `[]`. Authoritative re-derivation only runs when every `item.icon` resolves against `model.icons`.
+
 ## Consequences
 
 **Positive:**
