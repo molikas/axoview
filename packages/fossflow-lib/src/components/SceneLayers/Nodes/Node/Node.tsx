@@ -57,7 +57,9 @@ export const Node = memo(({ node, order }: Props) => {
   const commitName = useCallback(
     (raw: string) => {
       const next = raw.trim();
-      if (next && next !== modelItem?.name) {
+      // Always commit whenever the value changed — including clearing to empty,
+      // which is how the user hides the label (matching the details-panel TextField).
+      if (next !== (modelItem?.name ?? '')) {
         updateModelItem(node.id, { name: next });
       }
       setIsEditingName(false);

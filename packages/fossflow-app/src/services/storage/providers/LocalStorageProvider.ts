@@ -195,14 +195,21 @@ export class LocalStorageProvider implements StorageProvider {
     const lean = leanIfModel(data);
     sessionStorage.setItem(`${SESSION_DIAGRAM_PREFIX}${id}`, JSON.stringify(lean));
     const list = this.sessionListDiagrams();
-    const name = (data as any)?.name || (data as any)?.title || 'Untitled Diagram';
+    const idx = list.findIndex((d) => d.id === id);
+    const existing = idx >= 0 ? list[idx] : undefined;
+    const name = (data as any)?.name || (data as any)?.title || existing?.name || 'Untitled Diagram';
+    // Preserve the existing meta's folderId when the save payload doesn't carry one.
+    // Autosave strips folderId from the model; without this fallback every autosave
+    // would relocate the diagram to root.
+    const dataFolderId = (data as any)?.folderId;
+    const folderId =
+      dataFolderId !== undefined ? dataFolderId : existing?.folderId ?? null;
     const meta: DiagramMeta = {
       id,
       name,
       lastModified: new Date().toISOString(),
-      folderId: (data as any)?.folderId ?? null
+      folderId
     };
-    const idx = list.findIndex((d) => d.id === id);
     if (idx >= 0) list[idx] = meta;
     else list.push(meta);
     sessionStorage.setItem(SESSION_DIAGRAMS_KEY, JSON.stringify(list));

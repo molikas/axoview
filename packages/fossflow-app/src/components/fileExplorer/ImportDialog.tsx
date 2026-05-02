@@ -99,7 +99,20 @@ export function ImportDialog({
             throw new Error('That file is not valid JSON.');
           }
           setSingleJsonData(data);
-          setSingleJsonName(file.name.replace(/\.json$/i, ''));
+          // Prefer the diagram's embedded title so a JSON round-trip preserves
+          // the name; fall back to the filename when the JSON has no title.
+          // `t` is the compact-format field name.
+          const embeddedTitle =
+            (data as any)?.title ||
+            (data as any)?.name ||
+            (data as any)?.t ||
+            '';
+          const fileBaseName = file.name.replace(/\.(?:compact\.)?json$/i, '');
+          const suggested =
+            typeof embeddedTitle === 'string' && embeddedTitle.trim()
+              ? embeddedTitle.trim()
+              : fileBaseName;
+          setSingleJsonName(suggested);
           setStep('configureJson');
         }
       } catch (err) {

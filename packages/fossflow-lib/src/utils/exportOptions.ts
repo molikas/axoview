@@ -8,6 +8,29 @@ export const generateGenericFilename = (extension: string) => {
   return `fossflow-export-${new Date().toISOString()}.${extension}`;
 };
 
+const slugifyTitle = (title: string): string => {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+};
+
+export const generateTitleFilename = (
+  title: string | undefined,
+  extension: string
+): string => {
+  const slug = slugifyTitle(title || '');
+  if (!slug) return generateGenericFilename(extension);
+  // Short YYYYMMDD-HHmm suffix keeps the filename unique without dominating it.
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const stamp =
+    `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}` +
+    `-${pad(d.getHours())}${pad(d.getMinutes())}`;
+  return `${slug}-${stamp}.${extension}`;
+};
+
 export const base64ToBlob = (
   base64: string,
   contentType: string,
@@ -187,7 +210,7 @@ export const exportAsJSON = (model: Model) => {
     type: 'application/json;charset=utf-8'
   });
 
-  downloadFile(data, generateGenericFilename('json'));
+  downloadFile(data, generateTitleFilename(model.title, 'json'));
 };
 
 export const exportAsCompactJSON = (model: Model) => {
@@ -196,7 +219,7 @@ export const exportAsCompactJSON = (model: Model) => {
     type: 'application/json;charset=utf-8'
   });
 
-  downloadFile(data, generateGenericFilename('compact.json'));
+  downloadFile(data, generateTitleFilename(model.title, 'compact.json'));
 };
 
 export const exportAsImage = async (
