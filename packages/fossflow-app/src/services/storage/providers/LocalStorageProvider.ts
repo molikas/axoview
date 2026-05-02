@@ -10,13 +10,64 @@ import { apiBaseUrl } from '../../../utils/apiBaseUrl';
  * Apply ADR 0003 lean-save: keep only user-supplied (imported) icons.
  * Pack icons (isoflow, aws, gcp, …) are always rehydrated from the icon pack
  * manager on load, so there is no need to persist their SVG payloads.
+ *
+ * Also persists `requiredPacks` — the unique non-isoflow/imported collections
+ * actually referenced by items — so the load path can fetch exactly those
+ * packs without having to introspect bare icon-id strings.
  */
 const leanIfModel = (data: unknown): unknown => {
   if (data && typeof data === 'object' && Array.isArray((data as any).icons)) {
     const model = data as any;
+
+    // Plain Object dictionaries instead of Set: ts-jest transpiles `new Set`
+    // under target=es5 with a broken polyfill where `.add()` is a no-op for
+    // string members, making derived-/known- lookups silently empty.
+    const itemIconIds: { [k: string]: true } = {};
+    if (Array.isArray(model.items)) {
+      for (let i = 0; i < model.items.length; i++) {
+        const item = model.items[i];
+        if (item && typeof item.icon === 'string') itemIconIds[item.icon] = true;
+      }
+    }
+
+    const knownIconIds: { [k: string]: true } = {};
+    const derivedRequiredPacks: { [k: string]: true } = {};
+    for (let i = 0; i < model.icons.length; i++) {
+      const icon = model.icons[i];
+      if (icon && icon.id) knownIconIds[icon.id] = true;
+      if (
+        icon &&
+        icon.id &&
+        itemIconIds[icon.id] &&
+        typeof icon.collection === 'string' &&
+        icon.collection !== 'isoflow' &&
+        icon.collection !== 'imported'
+      ) {
+        derivedRequiredPacks[icon.collection] = true;
+      }
+    }
+
+    // If every item's icon resolves against the icons array, the derived list
+    // is authoritative. Otherwise the input is already lean (icons stripped to
+    // imported-only) and we can't see what packs the unresolved items need —
+    // preserve whatever was on the input rather than overwriting with [].
+    let allResolved = true;
+    const itemIconIdList = Object.keys(itemIconIds);
+    for (let i = 0; i < itemIconIdList.length; i++) {
+      if (!knownIconIds[itemIconIdList[i]]) { allResolved = false; break; }
+    }
+    const existingRequiredPacks = Array.isArray(model.requiredPacks)
+      ? (model.requiredPacks as unknown[]).filter((p): p is string => typeof p === 'string')
+      : null;
+    const derived = Object.keys(derivedRequiredPacks);
+    const requiredPacks = allResolved
+      ? derived
+      : (existingRequiredPacks !== null ? existingRequiredPacks : derived);
+
     return {
       ...model,
-      icons: (model.icons as any[]).filter((icon: any) => icon.collection === 'imported')
+      icons: (model.icons as any[]).filter((icon: any) => icon.collection === 'imported'),
+      requiredPacks
     };
   }
   return data;

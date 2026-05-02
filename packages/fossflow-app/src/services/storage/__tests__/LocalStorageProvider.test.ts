@@ -111,6 +111,85 @@ describe('LocalStorageProvider', () => {
     expect((capturedBody as any).title).toBe('Updated');
   });
 
+  // ---- leanIfModel (ADR 0003 + requiredPacks) -------------------------------
+
+  test('saveDiagram() strips pack icons but keeps imported icons (ADR 0003)', async () => {
+    const provider = await serverProvider();
+
+    let body: any;
+    setFetch(async (_input, init) => {
+      body = JSON.parse((init as RequestInit).body as string);
+      return mockResponse({ success: true });
+    });
+
+    await provider.saveDiagram('d1', {
+      items: [{ id: 'i1', name: 'n', icon: 'aws_ec2' }],
+      icons: [
+        { id: 'aws_ec2', name: 'EC2', url: 'data:x', collection: 'aws' },
+        { id: 'iso_box', name: 'Box', url: 'data:x', collection: 'isoflow' },
+        { id: 'usr_a', name: 'My logo', url: 'data:y', collection: 'imported' }
+      ]
+    });
+
+    expect(body.icons).toHaveLength(1);
+    expect(body.icons[0].id).toBe('usr_a');
+  });
+
+  test('saveDiagram() derives requiredPacks from items × full icons', async () => {
+    const provider = await serverProvider();
+
+    let body: any;
+    setFetch(async (_input, init) => {
+      body = JSON.parse((init as RequestInit).body as string);
+      return mockResponse({ success: true });
+    });
+
+    await provider.saveDiagram('d1', {
+      items: [
+        { id: 'i1', name: 'n', icon: 'aws_ec2' },
+        { id: 'i2', name: 'n', icon: 'material_Abc' },
+        { id: 'i3', name: 'n', icon: 'iso_box' } // isoflow shouldn't appear
+      ],
+      icons: [
+        { id: 'aws_ec2', name: 'EC2', url: 'd', collection: 'aws' },
+        { id: 'aws_unused', name: 'X', url: 'd', collection: 'aws' }, // not used
+        { id: 'gcp_unused', name: 'Y', url: 'd', collection: 'gcp' }, // not used
+        { id: 'material_Abc', name: 'Abc', url: 'd', collection: 'material' },
+        { id: 'iso_box', name: 'Box', url: 'd', collection: 'isoflow' }
+      ]
+    });
+
+    expect(body.requiredPacks.sort()).toEqual(['aws', 'material']);
+  });
+
+  // Regression: the bug that prompted this work — re-importing a lean payload
+  // (icons already stripped to imported-only) used to overwrite the good
+  // requiredPacks list with [] because nothing in icons[] resolved against
+  // items[]. Lean inputs must preserve the field they came in with.
+  test('saveDiagram() preserves existing requiredPacks when input is already lean', async () => {
+    const provider = await serverProvider();
+
+    let body: any;
+    setFetch(async (_input, init) => {
+      body = JSON.parse((init as RequestInit).body as string);
+      return mockResponse({ success: true });
+    });
+
+    await provider.saveDiagram('d1', {
+      items: [
+        { id: 'i1', name: 'n', icon: 'aws_ec2' },
+        { id: 'i2', name: 'n', icon: 'material_Abc' }
+      ],
+      icons: [
+        // Only an imported icon — pack icons have already been stripped
+        { id: 'usr_a', name: 'logo', url: 'd', collection: 'imported' }
+      ],
+      requiredPacks: ['aws', 'material']
+    });
+
+    expect(body.requiredPacks.sort()).toEqual(['aws', 'material']);
+  });
+
   // ---- createDiagram --------------------------------------------------------
 
   test('createDiagram() returns new id from server', async () => {

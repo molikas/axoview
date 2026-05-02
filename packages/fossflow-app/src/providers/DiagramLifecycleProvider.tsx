@@ -368,7 +368,7 @@ export function DiagramLifecycleProvider({
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = (await response.json()) as any;
         const name = data.title || data.name || 'Shared Diagram';
-        await iconPackManager.loadPacksForDiagram(data.items || []);
+        await iconPackManager.loadPacksForDiagram(data);
         const importedIcons = (data.icons || []).filter(
           (icon: any) => icon.collection === 'imported'
         );
@@ -544,13 +544,17 @@ export function DiagramLifecycleProvider({
     const importedIcons = (currentModel?.icons || diagramData.icons || []).filter(
       (icon: any) => icon.collection === 'imported'
     );
+    const preservedRequiredPacks = (currentModel as any)?.requiredPacks;
     return {
       title: currentModel?.title || diagramName || 'Untitled Diagram',
       icons: importedIcons,
       colors: currentModel?.colors || diagramData.colors || [],
       items: currentModel?.items || diagramData.items || [],
       views: currentModel?.views || diagramData.views || [],
-      fitToScreen: true
+      fitToScreen: true,
+      ...(Array.isArray(preservedRequiredPacks)
+        ? { requiredPacks: preservedRequiredPacks }
+        : {})
     };
   }, [currentModel, diagramData, diagramName]);
 
@@ -563,13 +567,17 @@ export function DiagramLifecycleProvider({
       const importedIcons = (currentModel?.icons || diagramData.icons || []).filter(
         (icon) => icon.collection === 'imported'
       );
+      const preservedRequiredPacks = (currentModel as any)?.requiredPacks;
       const savedData = {
         title: diagramName,
         icons: importedIcons,
         colors: currentModel?.colors || diagramData.colors || [],
         items: currentModel?.items || diagramData.items || [],
         views: currentModel?.views || diagramData.views || [],
-        fitToScreen: true
+        fitToScreen: true,
+        ...(Array.isArray(preservedRequiredPacks)
+          ? { requiredPacks: preservedRequiredPacks }
+          : {})
       };
 
       // Resolve the diagram ID — new diagrams must go through createDiagram so
@@ -662,7 +670,7 @@ export function DiagramLifecycleProvider({
   // ---------------------------------------------------------------------------
   const executeLoad = useCallback(
     async (diagram: SavedDiagram) => {
-      await iconPackManager.loadPacksForDiagram(diagram.data.items || []);
+      await iconPackManager.loadPacksForDiagram(diagram.data);
       const importedIcons = (diagram.data.icons || []).filter(
         (icon: any) => icon.collection === 'imported'
       );
@@ -758,7 +766,7 @@ export function DiagramLifecycleProvider({
       }
 
       const loadedIcons = data.icons || [];
-      await iconPackManager.loadPacksForDiagram(data.items || []);
+      await iconPackManager.loadPacksForDiagram(data);
       const hasDefaultIcons = loadedIcons.some(
         (icon: any) =>
           icon.collection === 'isoflow' ||
@@ -1109,13 +1117,21 @@ export function DiagramLifecycleProvider({
   // ---------------------------------------------------------------------------
   const handleModelUpdated = useCallback(
     (model: any) => {
+      // isoflow's model schema doesn't include `requiredPacks`, so the field
+      // is dropped from `model` here. Re-attach from the in-memory ref so the
+      // hint survives autosave round-trips when the icons array hasn't been
+      // fully rehydrated (e.g. a pack is still loading on first open).
+      const preservedRequiredPacks = (currentModelRef.current as any)?.requiredPacks;
       const updatedModel: DiagramData = {
         title: model.title || diagramNameRef.current || 'Untitled',
         icons: model.icons || [],
         colors: model.colors || defaultColors,
         items: model.items || [],
         views: model.views || [],
-        fitToScreen: true
+        fitToScreen: true,
+        ...(Array.isArray(preservedRequiredPacks)
+          ? { requiredPacks: preservedRequiredPacks }
+          : {})
       };
       setCurrentModel(updatedModel);
 
