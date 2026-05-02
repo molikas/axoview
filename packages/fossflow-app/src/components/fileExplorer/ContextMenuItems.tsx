@@ -4,6 +4,8 @@ import {
   DriveFileRenameOutlineOutlined as RenameIcon,
   ContentCopyOutlined as DuplicateIcon,
   LinkOutlined as ShareLinkIcon,
+  ImageOutlined as ImageIcon,
+  DataObjectOutlined as JsonIcon,
   FileDownloadOutlined as ExportIcon,
   DeleteOutlined as DeleteIcon
 } from '@mui/icons-material';
@@ -15,7 +17,10 @@ interface Props {
   onRename: () => void;
   onDuplicate: () => void;
   onCopyShareLink: () => void;
-  onExport: () => void;
+  onExportImage: () => void;
+  onExportJson: () => void;
+  onExportCompactJson: () => void;
+  onExportFolder: () => void;
   onDelete: () => void;
   onClose: () => void;
   canShare: boolean;
@@ -27,7 +32,10 @@ export function ContextMenuItems({
   onRename,
   onDuplicate,
   onCopyShareLink,
-  onExport,
+  onExportImage,
+  onExportJson,
+  onExportCompactJson,
+  onExportFolder,
   onDelete,
   onClose,
   canShare
@@ -63,10 +71,28 @@ export function ContextMenuItems({
           Copy share link
         </MenuItem>
       )}
-      <MenuItem dense onClick={handle(onExport)}>
-        <ListItemIcon><ExportIcon fontSize="small" /></ListItemIcon>
-        {isDiagram ? 'Export…' : 'Export folder…'}
-      </MenuItem>
+      {isDiagram ? (
+        <>
+          <Divider />
+          <MenuItem dense onClick={handle(onExportImage)}>
+            <ListItemIcon><ImageIcon fontSize="small" /></ListItemIcon>
+            Export as image…
+          </MenuItem>
+          <MenuItem dense onClick={handle(onExportJson)}>
+            <ListItemIcon><JsonIcon fontSize="small" /></ListItemIcon>
+            Export as JSON
+          </MenuItem>
+          <MenuItem dense onClick={handle(onExportCompactJson)}>
+            <ListItemIcon><JsonIcon fontSize="small" /></ListItemIcon>
+            Export as compact JSON
+          </MenuItem>
+        </>
+      ) : (
+        <MenuItem dense onClick={handle(onExportFolder)}>
+          <ListItemIcon><ExportIcon fontSize="small" /></ListItemIcon>
+          Export folder…
+        </MenuItem>
+      )}
       <Divider />
       <MenuItem dense onClick={handle(onDelete)} sx={{ color: 'error.main' }}>
         <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>

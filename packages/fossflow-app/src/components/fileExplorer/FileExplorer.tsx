@@ -1,6 +1,11 @@
 import { useRef, useState, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { Tree, TreeApi, NodeApi } from 'react-arborist';
 import {
+  exportAsJSON,
+  exportAsCompactJSON,
+  mergeBundledFixtures
+} from 'fossflow';
+import {
   Box,
   Button,
   Dialog,
@@ -118,7 +123,8 @@ export function FileExplorer() {
     dirtyDiagramIds,
     checkUnsavedBeforeNavigate,
     markProjectExported,
-    notifyDiagramRenamedFromTree
+    notifyDiagramRenamedFromTree,
+    isoflowRef
   } = useDiagramLifecycle();
   const treeRef = useRef<TreeApi<FileNode> | undefined>(undefined);
   const treeContainerRef = useRef<HTMLDivElement>(null);
@@ -131,11 +137,9 @@ export function FileExplorer() {
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirm | null>(null);
   const [collisionDialog, setCollisionDialog] = useState<CollisionDialog | null>(null);
   const [exportTarget, setExportTarget] = useState<{
-    scope: ExportScope;
+    scope: Exclude<ExportScope, 'diagram'>;
     folderId?: string;
     folderName?: string;
-    diagramId?: string;
-    diagramName?: string;
   } | null>(null);
   const [showImport, setShowImport] = useState(false);
 
@@ -361,6 +365,51 @@ export function FileExplorer() {
   // Duplicate diagram
   // ---------------------------------------------------------------------------
 
+  // ---------------------------------------------------------------------------
+  // Export — image (delegates to the lib's ExportImageDialog)
+  // ---------------------------------------------------------------------------
+
+  const handleExportImage = useCallback(
+    (node: FileNode) => {
+      if (node.type !== 'diagram' || !node.diagramMeta) return;
+      const openDialog = () => isoflowRef.current?.openExportImageDialog();
+      if (currentDiagram?.id === node.id) {
+        openDialog();
+        return;
+      }
+      checkUnsavedBeforeNavigate(async () => {
+        try {
+          await openDiagramById(node.diagramMeta!.id, node.diagramMeta!.name);
+          // Wait one tick so the model store finishes hydrating before the
+          // hidden Isoflow inside the dialog reads from it.
+          requestAnimationFrame(() => openDialog());
+        } catch {
+          notificationStore.push({ severity: 'error', message: `Failed to open "${node.name}"` });
+        }
+      });
+    },
+    [currentDiagram, openDiagramById, checkUnsavedBeforeNavigate, isoflowRef]
+  );
+
+  // ---------------------------------------------------------------------------
+  // Export — JSON / compact JSON (direct download, no dialog)
+  // ---------------------------------------------------------------------------
+
+  const handleExportJsonNode = useCallback(
+    async (node: FileNode, compact: boolean) => {
+      if (node.type !== 'diagram' || !storage) return;
+      try {
+        const raw = await storage.loadDiagram(node.id);
+        const model = mergeBundledFixtures(raw as any);
+        if (compact) exportAsCompactJSON(model);
+        else exportAsJSON(model);
+      } catch {
+        notificationStore.push({ severity: 'error', message: `Failed to export "${node.name}"` });
+      }
+    },
+    [storage]
+  );
+
   const handleDuplicate = useCallback(
     async (node: FileNode) => {
       if (node.type !== 'diagram' || !storage) return;
@@ -542,21 +591,16 @@ export function FileExplorer() {
             onRename={() => contextMenuNode && handleRenameNode(contextMenuNode)}
             onDuplicate={() => contextMenuNode && handleDuplicate(contextMenuNode)}
             onCopyShareLink={() => contextMenuNode && handleCopyShareLink(contextMenuNode)}
-            onExport={() => {
-              if (!contextMenuNode) return;
-              if (contextMenuNode.type === 'folder') {
-                setExportTarget({
-                  scope: 'folder',
-                  folderId: contextMenuNode.id,
-                  folderName: contextMenuNode.name
-                });
-              } else {
-                setExportTarget({
-                  scope: 'diagram',
-                  diagramId: contextMenuNode.id,
-                  diagramName: contextMenuNode.name
-                });
-              }
+            onExportImage={() => contextMenuNode && handleExportImage(contextMenuNode)}
+            onExportJson={() => contextMenuNode && handleExportJsonNode(contextMenuNode, false)}
+            onExportCompactJson={() => contextMenuNode && handleExportJsonNode(contextMenuNode, true)}
+            onExportFolder={() => {
+              if (!contextMenuNode || contextMenuNode.type !== 'folder') return;
+              setExportTarget({
+                scope: 'folder',
+                folderId: contextMenuNode.id,
+                folderName: contextMenuNode.name
+              });
             }}
             onDelete={() => {
               if (!contextMenuNode) return;
@@ -604,7 +648,7 @@ export function FileExplorer() {
         </DialogActions>
       </Dialog>
 
-      {/* Export dialog (project / folder / diagram) */}
+      {/* Export dialog (project / folder zip only) */}
       {exportTarget && storage && (
         <ExportDialog
           open
@@ -612,8 +656,6 @@ export function FileExplorer() {
           scope={exportTarget.scope}
           folderId={exportTarget.folderId}
           folderName={exportTarget.folderName}
-          diagramId={exportTarget.diagramId}
-          diagramName={exportTarget.diagramName}
           storage={storage}
           exporterTag={`fossflow-app@${process.env.REACT_APP_VERSION ?? 'dev'}`}
           onProjectZipExported={() => markProjectExported?.()}

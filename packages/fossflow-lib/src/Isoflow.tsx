@@ -130,9 +130,12 @@ const App = forwardRef<IsoflowRef, IsoflowProps>(
         load: (data, opts) => {
           load(data, opts);
           markClean();
+        },
+        openExportImageDialog: () => {
+          uiStateActions.setDialog('EXPORT_IMAGE');
         }
       }),
-      [load, markClean]
+      [load, markClean, uiStateActions]
     );
 
     const mergedInitialData = useMemo(() => {
