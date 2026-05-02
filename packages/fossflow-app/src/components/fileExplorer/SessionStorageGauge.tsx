@@ -120,15 +120,24 @@ export function SessionStorageGauge({ onDeleteDiagram }: Props) {
   const usedLabel = useMemo(() => formatBytes(totalBytes), [totalBytes]);
   const limitLabel = useMemo(() => formatBytes(APPROX_LIMIT_BYTES), []);
   const ratio = totalBytes / APPROX_LIMIT_BYTES;
+  const percentLabel =
+    totalBytes === 0
+      ? '0%'
+      : ratio < 0.01
+        ? '<1%'
+        : `${Math.round(ratio * 100)}%`;
   const color: 'default' | 'warning' | 'error' =
     ratio > 0.9 ? 'error' : ratio > 0.6 ? 'warning' : 'default';
 
   return (
     <>
-      <Tooltip title="Session storage usage — click for breakdown" placement="bottom">
+      <Tooltip
+        title={`Session storage: ${percentLabel} used (${usedLabel} of ~${limitLabel}) — click for breakdown`}
+        placement="bottom"
+      >
         <Chip
           size="small"
-          label={`${usedLabel} / ~${limitLabel}`}
+          label={`${percentLabel} · ${usedLabel}`}
           color={color}
           variant={color === 'default' ? 'outlined' : 'filled'}
           onClick={(e) => setAnchor(e.currentTarget)}
