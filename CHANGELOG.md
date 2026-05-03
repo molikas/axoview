@@ -3,11 +3,15 @@
 All notable changes to this fork are documented here.
 For upstream FossFLOW history (pre-fork), see [docs/upstream-changelog.md](docs/upstream-changelog.md).
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning uses a date-based scheme: `YYYY.M.D` — the version always reflects the date the release was cut from `master`. The live demo at [demo-fce.pages.dev](https://demo-fce.pages.dev/) always runs the latest version.
 
 ---
 
 ## [Unreleased]
+
+---
+
+## [2026.5.3] — 2026-05-03
 
 ### Added
 

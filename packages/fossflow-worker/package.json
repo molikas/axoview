@@ -1,6 +1,6 @@
 {
   "name": "fossflow-worker",
-  "version": "1.10.8",
+  "version": "2026.5.3",
   "description": "Cloudflare Worker (Hono) backend for FossFLOW Pages deploy",
   "private": true,
   "type": "module",
