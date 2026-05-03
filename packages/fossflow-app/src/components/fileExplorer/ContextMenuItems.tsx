@@ -4,6 +4,9 @@ import {
   DriveFileRenameOutlineOutlined as RenameIcon,
   ContentCopyOutlined as DuplicateIcon,
   LinkOutlined as ShareLinkIcon,
+  ImageOutlined as ImageIcon,
+  DataObjectOutlined as JsonIcon,
+  FileDownloadOutlined as ExportIcon,
   DeleteOutlined as DeleteIcon
 } from '@mui/icons-material';
 import type { FileNode } from '../../hooks/useFileTree';
@@ -14,8 +17,13 @@ interface Props {
   onRename: () => void;
   onDuplicate: () => void;
   onCopyShareLink: () => void;
+  onExportImage: () => void;
+  onExportJson: () => void;
+  onExportCompactJson: () => void;
+  onExportFolder: () => void;
   onDelete: () => void;
   onClose: () => void;
+  canShare: boolean;
 }
 
 export function ContextMenuItems({
@@ -24,8 +32,13 @@ export function ContextMenuItems({
   onRename,
   onDuplicate,
   onCopyShareLink,
+  onExportImage,
+  onExportJson,
+  onExportCompactJson,
+  onExportFolder,
   onDelete,
-  onClose
+  onClose,
+  canShare
 }: Props) {
   const isDiagram = node.type === 'diagram';
 
@@ -52,10 +65,32 @@ export function ContextMenuItems({
           Duplicate
         </MenuItem>
       )}
-      {isDiagram && (
+      {isDiagram && canShare && (
         <MenuItem dense onClick={handle(onCopyShareLink)}>
           <ListItemIcon><ShareLinkIcon fontSize="small" /></ListItemIcon>
           Copy share link
+        </MenuItem>
+      )}
+      {isDiagram ? (
+        <>
+          <Divider />
+          <MenuItem dense onClick={handle(onExportImage)}>
+            <ListItemIcon><ImageIcon fontSize="small" /></ListItemIcon>
+            Export as image…
+          </MenuItem>
+          <MenuItem dense onClick={handle(onExportJson)}>
+            <ListItemIcon><JsonIcon fontSize="small" /></ListItemIcon>
+            Export as JSON
+          </MenuItem>
+          <MenuItem dense onClick={handle(onExportCompactJson)}>
+            <ListItemIcon><JsonIcon fontSize="small" /></ListItemIcon>
+            Export as compact JSON
+          </MenuItem>
+        </>
+      ) : (
+        <MenuItem dense onClick={handle(onExportFolder)}>
+          <ListItemIcon><ExportIcon fontSize="small" /></ListItemIcon>
+          Export folder…
         </MenuItem>
       )}
       <Divider />

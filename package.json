@@ -3,6 +3,7 @@
   "version": "1.10.8",
   "private": true,
   "description": "Monorepo for FossFLOW diagram editor and library",
+  "packageManager": "npm@10.9.2",
   "workspaces": [
     "packages/*"
   ],
@@ -57,14 +58,12 @@
     "tar": "^7.5.7"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1029.0",
-    "@aws-sdk/s3-request-presigner": "^3.1029.0",
     "@react-oauth/google": "^0.13.5",
+    "core-js": "^3.49.0",
     "express-rate-limit": "^8.3.2",
     "gapi": "^0.0.3",
     "gapi-script": "^1.2.0",
     "helmet": "^8.1.0",
-    "minio": "^8.0.7",
     "msw": "^2.13.2",
     "react-arborist": "^3.4.3"
   }

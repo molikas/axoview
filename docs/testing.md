@@ -1,8 +1,10 @@
 # Regression Test Suite Reference
 
-**Last updated:** 2026-04-10
-**Total:** ~729 tests · 72 suites · all passing (last full run 2026-04-06; test updates in round 10 are net-neutral)
-**Run:** `npm test --workspace=packages/fossflow-lib`
+**Last updated:** 2026-05-03
+**Total:** ~745 tests · 76 suites · all passing
+**Run:** `npm test --workspace=packages/fossflow-lib` (lib) · `npm test --workspace=packages/fossflow-app` (app, project-zip + LocalStorageProvider)
+
+E2E tests are not currently run in CI — Selenium framework under `e2e-tests/` is being retired in favour of Playwright. Migration tracked at [docs/tactical/playwright-migration.md](tactical/playwright-migration.md).
 
 ---
 
@@ -16,10 +18,24 @@
 | Schemas / Validation | 9 | 56 |
 | Components | 11 | 48 |
 | Perf / Render Isolation | 8 | 36 |
-| Utilities & Config | 8 | 71 |
+| Utilities & Config (incl. lean save) | 9 | 80 |
 | Stores & Infrastructure | 4 | 67 |
 | **Standalone app config** | **1** | **3** |
-| **Total** | **54** | **507** |
+| **Total** | **60** | **525** |
+
+(The 525 / 60 figure counts lib suites only — the **~745 / 76** total at the top includes app-side suites: `services/project/__tests__/projectZip.test.ts`, `services/storage/__tests__/LocalStorageProvider.test.ts`, and the lean-save / requiredPacks regressions.)
+
+---
+
+## Branch additions (2026-04-29 → 2026-05-02)
+
+New suites shipped with Phase 5* + the session-mode UX revamp:
+
+| Suite | Coverage |
+|---|---|
+| [`packages/fossflow-lib/src/utils/__tests__/leanSave.test.ts`](../packages/fossflow-lib/src/utils/__tests__/leanSave.test.ts) | ADR 0003 round-trip identity (strip-then-merge), strip drops pure duplicates, custom + override icons preserved, empty `icons[]` produces full catalog after merge, `requiredPacks` derivation from full icons, **preservation contract for already-lean inputs** (the regression that broke icon-pack auto-load on import) |
+| [`packages/fossflow-app/src/services/project/__tests__/projectZip.test.ts`](../packages/fossflow-app/src/services/project/__tests__/projectZip.test.ts) | ADR 0001 round-trip (export → parse → import → identical workspace modulo IDs and `lastModified`), ID rewriting + cross-reference update, malformed zip rejection, unknown version rejection, replace-all typed-confirm gate |
+| [`packages/fossflow-app/src/services/storage/__tests__/LocalStorageProvider.test.ts`](../packages/fossflow-app/src/services/storage/__tests__/LocalStorageProvider.test.ts) (updated) | Unique-id minting (random suffix prevents same-ms collisions), `sessionSaveDiagram` preserves existing `folderId` when payload doesn't carry one |
 
 ---
 
@@ -466,3 +482,13 @@ npx jest --coverage
 ```
 
 Run from `packages/fossflow-lib/`.
+
+---
+
+## Code coverage
+
+```bash
+npm test --workspace=packages/fossflow-lib -- --coverage
+```
+
+HTML report: `packages/fossflow-lib/coverage/lcov-report/index.html`. Current global statement coverage ~32%. Thresholds set at 10% global minimum — intentionally low while the suite grows. Additional static analysis tools (ESLint, Knip, `npm audit`) output to `reports/`.

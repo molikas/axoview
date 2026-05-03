@@ -18,6 +18,7 @@ import { useModelStore } from 'src/stores/modelStore';
 import { useView } from 'src/hooks/useView';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { modelSchema } from 'src/schemas/model';
+import { mergeBundledFixtures } from 'src/utils/leanSave';
 
 // Must match the threshold in IconCollection.tsx so newly-loaded large packs
 // (e.g. Material Icons) are not auto-expanded (which would freeze the browser).
@@ -113,7 +114,11 @@ export const useInitialDataManager = () => {
           Object.assign(initialData, updates.model);
         }
 
-        modelActions.set(initialData, true);
+        // ADR 0002: union bundled fixtures into the model's icons before storing,
+        // so the side dock always has the full catalog regardless of what was saved.
+        const merged = mergeBundledFixtures(initialData);
+
+        modelActions.set(merged, true);
         modelActions.clearHistory();
 
         // Reset scroll/zoom for a clean slate on each load, unless the caller
@@ -128,15 +133,15 @@ export const useInitialDataManager = () => {
 
         const activeViewId = uiStateStoreApi.getState().view;
         const targetViewId =
-          initialData.view ??
-          (activeViewId && initialData.views.some((v) => v.id === activeViewId)
+          merged.view ??
+          (activeViewId && merged.views.some((v) => v.id === activeViewId)
             ? activeViewId
-            : initialData.views[0].id);
-        const view = getItemByIdOrThrow(initialData.views, targetViewId);
+            : merged.views[0].id);
+        const view = getItemByIdOrThrow(merged.views, targetViewId);
 
-        changeView(view.value.id, initialData);
+        changeView(view.value.id, merged);
 
-        if (initialData.fitToView) {
+        if (merged.fitToView) {
           const rendererEl = uiStateStoreApi.getState().rendererEl;
           const rendererSize = rendererEl?.getBoundingClientRect();
 
@@ -162,7 +167,7 @@ export const useInitialDataManager = () => {
         const existingById = new Map(existingCategoriesState.map((c) => [c.id, c]));
 
         const categoriesState: IconCollectionState[] = categoriseIcons(
-          initialData.icons
+          merged.icons
         ).map((collection) => {
           const existing = existingById.get(collection.name ?? '');
           return {

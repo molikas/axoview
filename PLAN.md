@@ -1,6 +1,6 @@
 # FossFlow — Implementation Plan
 > **Living document.** Point Claude to this file at the start of any session: "read PLAN.md and implement the next incomplete phase."
-> Last updated: 2026-04-18
+> Last updated: 2026-04-29
 
 ---
 
@@ -40,8 +40,9 @@ Claude should then:
 | **2C** | Diagram-to-Diagram Links | `[x]` | Low | Depends on 2A, 2B-R |
 | **3A** | Google Auth — authStore (E5) | `[ ]` | Medium | Depends on 0B |
 | **3B** | Google Drive Provider (E4) | `[ ]` | High | Depends on 3A |
-| **3C** | S3 Provider + Backend (E4) | `[ ]` | High | Depends on 2A |
+| **3C** | ~~S3 Provider + Backend (E4)~~ | 🚫 DROPPED (2026-04-29) | — | S3 support dropped — see Phase 3C section |
 | **4A** | External Diagram Registry (E6) | `[ ]` | Low | Depends on 3A |
+| **5***  | Cloudflare + Docker dual-target deploy | `[x]` | High | See [flare_plan.md](flare_plan.md) and [DEPLOY.md](DEPLOY.md) |
 | **POST** | E2E Test Suite | 🚫 OUT OF SCOPE | — | Pick up after full UX ships |
 
 ---
@@ -87,7 +88,7 @@ c:\myTemp\FossFLOW\
 │   │       │   ├── ExportDialog.tsx   # Export options
 │   │       │   └── ErrorBoundary.tsx  # Crash fallback UI
 │   │       └── services/
-│   │           ├── storageService.ts  # StorageManager → ServerStorage | SessionStorage
+│   │           ├── storage/             # StorageManager + provider registry (replaces legacy storageService.ts, deleted 2026-04-29)
 │   │           └── iconPackManager.ts # Lazy icon pack loader
 │   │
 │   ├── fossflow-backend/      # Express server
@@ -429,8 +430,7 @@ packages/fossflow-app/src/services/storage/
 ├── StorageManager.ts                # Refactored: provider registry + active provider delegation
 ├── providers/
 │   ├── LocalStorageProvider.ts      # Merges existing ServerStorage + SessionStorage
-│   ├── GoogleDriveProvider.ts       # STUB only in this phase — implemented in 3B
-│   └── S3Provider.ts               # STUB only in this phase — implemented in 3C
+│   └── GoogleDriveProvider.ts       # STUB only in this phase — implemented on a separate branch
 └── index.ts                         # Re-exports
 ```
 
@@ -496,7 +496,7 @@ export interface StorageProvider {
 - [x] Create `services/storage/providers/LocalStorageProvider.ts` — merge existing `ServerStorage` + `SessionStorage` logic into one provider implementing `StorageProvider`
 - [x] Add folder support to `LocalStorageProvider`: folders stored as `fossflow_folders` JSON in localStorage (key: `fossflow-folders`), folder membership stored as `folderId` on diagram metadata
 - [x] Create stub `services/storage/providers/GoogleDriveProvider.ts` — throws `NotImplementedError` on all methods
-- [x] Create stub `services/storage/providers/S3Provider.ts` — throws `NotImplementedError` on all methods
+- [~] ~~Create stub `services/storage/providers/S3Provider.ts`~~ — created in Phase 2A, deleted 2026-04-29 with Phase 3C drop
 - [x] Refactor `services/storage/StorageManager.ts` — provider registry pattern, `registerProvider()`, `setActiveProvider()`, delegates all calls to active provider
 - [x] Update `providers/AppStorageContext.tsx` to initialize `StorageManager` with `LocalStorageProvider` as default
 - [x] Update `fossflow-backend/server.js` — add folder endpoints:
@@ -1011,92 +1011,9 @@ GoogleDriveProvider.test.ts (MSW mocking googleapis.com):
 
 ---
 
-## Phase 3C — S3 Provider + Backend (E4)
-**Status:** `[ ]` | **Token load:** High | **Depends on:** 2A
+## Phase 3C — ~~S3 Provider + Backend (E4)~~ 🚫 DROPPED (2026-04-29)
 
-### Token guardrail
-> ⚠️ **Integration tests require MinIO running in Docker.**
-> Unit tests use MSW to mock both the backend signed-URL endpoint AND the S3 PUT/GET calls.
-> Integration tests use `docker-compose.test.yml` with MinIO.
-> Do NOT test against real AWS S3 in CI — use MinIO.
-
-### Session startup checklist
-```
-Before coding, read these files:
-  packages/fossflow-app/src/services/storage/types.ts       (StorageProvider interface)
-  packages/fossflow-app/src/services/storage/providers/S3Provider.ts  (current stub)
-  packages/fossflow-backend/server.js                        (existing endpoints — add signed URL)
-```
-
-### Architecture (must follow exactly)
-```
-Browser (S3Provider.ts)
-  1. POST /api/storage/s3/signed-url  { operation, key }
-  ↓
-fossflow-backend (server.js)
-  Validates: key starts with configured prefix
-  Generates: pre-signed URL via @aws-sdk/client-s3
-  Returns: { signedUrl, expiresAt }
-  ↓ (back to browser)
-  2. fetch(signedUrl) — direct to S3/MinIO
-```
-
-**Credential flow:** AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_BUCKET, S3_PREFIX, S3_ENDPOINT, S3_REGION) set as env vars on Docker instance. Never in browser.
-
-**Pre-signed URL expiry:** GET: 15 min | PUT: 5 min | DELETE: 2 min
-
-### Backend additions (`server.js`)
-```
-POST /api/storage/s3/signed-url
-  body: { operation: 'GET' | 'PUT' | 'DELETE', key: string }
-  validates: key starts with process.env.S3_PREFIX
-  generates: pre-signed URL
-  returns: { signedUrl: string, expiresAt: string }
-
-GET /api/storage/s3/status
-  returns: { configured: boolean, bucket: string, prefix: string }
-```
-
-### Sub-tasks
-- [ ] `yarn add @aws-sdk/client-s3 @aws-sdk/s3-request-presigner` in fossflow-backend
-- [ ] Add signed URL endpoint to `server.js` with path traversal validation
-- [ ] Add `express-rate-limit` to signed URL endpoint (60 req/min per IP)
-- [ ] Implement `S3Provider.ts` — full `StorageProvider` interface via signed URLs
-- [ ] S3 "folders" = key prefix segments. `listFolders()` = list common prefixes.
-- [ ] Tree manifest stored at `{S3_PREFIX}/fossflow-manifest.json`
-- [ ] Create `docker-compose.test.yml` with MinIO service for integration tests
-- [ ] Write unit tests: `services/storage/__tests__/S3Provider.test.ts` (MSW)
-- [ ] Write integration tests: `services/storage/__tests__/S3Provider.integration.test.ts` (MinIO)
-- [ ] Write backend tests: `fossflow-backend/__tests__/s3.test.js` (supertest)
-
-### Unit tests (must write — not E2E)
-```
-S3Provider.test.ts (MSW mocking backend + S3):
-  ✓ listDiagrams() calls backend for list, fetches key prefixes
-  ✓ saveDiagram() fetches signed PUT URL then PUTs data
-  ✓ loadDiagram() fetches signed GET URL then GETs data
-  ✓ expired signed URL (403): re-fetches URL and retries once
-  ✓ backend unavailable → error notification, storage stays on local
-
-s3.test.js (supertest against backend):
-  ✓ POST /api/storage/s3/signed-url returns signed URL for valid key
-  ✓ Key outside S3_PREFIX → 400 Bad Request
-  ✓ Key with path traversal (../../etc) → 400 Bad Request
-  ✓ Rate limit: 61st request in 1min → 429
-  ✓ GET /api/storage/s3/status returns configured: false when env not set
-
-S3Provider.integration.test.ts (requires MinIO):
-  ✓ Full CRUD cycle: create → load → save → delete
-  ✓ Folder operations: create folder → list → rename → delete
-```
-
-### Done criteria
-- [ ] S3 provider implements full `StorageProvider` interface
-- [ ] Backend signed URL endpoint with path traversal protection
-- [ ] Unit tests pass (MSW)
-- [ ] Integration tests pass (MinIO)
-- [ ] Backend security tests pass (supertest)
-- [ ] `yarn build` clean
+**Status:** 🚫 DROPPED. The S3 provider stub was deleted along with the AWS SDK / MinIO dependencies on 2026-04-29 ([cloudflare_poc] cleanup). The persistent-storage path on Cloudflare is being addressed via Google Drive on a separate branch instead. If S3 support is ever needed again, restore from git history (commit predating the drop).
 
 ---
 
@@ -1204,11 +1121,11 @@ Playwright mock approach:
 | `react-arborist` | `react-arborist` | 2B | fossflow-app |
 | `@react-oauth/google` | `@react-oauth/google` | 3A | fossflow-app |
 | `gapi-script` or raw GIS | `gapi-script` | 3B | fossflow-app |
-| `@aws-sdk/client-s3` | `@aws-sdk/client-s3` | 3C | fossflow-backend |
-| `@aws-sdk/s3-request-presigner` | `@aws-sdk/s3-request-presigner` | 3C | fossflow-backend |
-| `express-rate-limit` | `express-rate-limit` | 3C | fossflow-backend |
+| ~~`@aws-sdk/client-s3`~~ | — | 🚫 3C dropped (2026-04-29) | — |
+| ~~`@aws-sdk/s3-request-presigner`~~ | — | 🚫 3C dropped (2026-04-29) | — |
+| ~~`express-rate-limit`~~ | — | 🚫 3C dropped (2026-04-29) | — |
 | `msw` | `msw@^2` | 2A | fossflow-app (devDep) |
-| `helmet` | `helmet` | 3C | fossflow-backend |
+| ~~`helmet`~~ | — | 🚫 3C dropped (2026-04-29) | — |
 
 ---
 
@@ -1216,10 +1133,5 @@ Playwright mock approach:
 
 - [ ] Access token absent from localStorage (unit test + manual DevTools check)
 - [ ] CORS `allowed-origins` env var set (not `*`) on backend
-- [ ] S3 key path traversal test passes
 - [ ] Drive scope is `drive.file` not `drive` (check OAuth consent screen)
-- [ ] S3 bucket policy denies public access
-- [ ] Pre-signed URL expiry: GET ≤15min, PUT ≤5min, DELETE ≤2min
-- [ ] `helmet` middleware active on backend
-- [ ] Rate limiting on `/api/storage/s3/signed-url`
 - [ ] No `console.log(token)` or similar in auth code (grep before ship)

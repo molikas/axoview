@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Coords, AnchorPosition } from 'src/types';
 import { Svg } from 'src/components/Svg/Svg';
-import { TRANSFORM_CONTROLS_COLOR } from 'src/config';
+import { TRANSFORM_CONTROLS_COLOR, UNPROJECTED_TILE_SIZE } from 'src/config';
 import { useIsoProjection } from 'src/hooks/useIsoProjection';
 import {
   getBoundingBox,
@@ -24,7 +24,7 @@ export const TransformControls = ({ from, to, onAnchorMouseDown }: Props) => {
     from,
     to
   });
-  const { getTilePosition } = useCanvasMode();
+  const { getTilePosition, strategy } = useCanvasMode();
 
   const anchors = useMemo(() => {
     if (!onAnchorMouseDown) return [];
@@ -33,10 +33,21 @@ export const TransformControls = ({ from, to, onAnchorMouseDown }: Props) => {
     const namedCorners = convertBoundsToNamedAnchors(corners);
     const cornerPositions = Object.entries(namedCorners).map(
       ([key, value], i) => {
-        const position = getTilePosition({
-          tile: value,
-          origin: outermostCornerPositions[i]
-        });
+        let position: Coords;
+        if (strategy.projectionName === '2D') {
+          // 2D tiles are squares — outer corners are diagonals from each
+          // corner-tile's center, not single-axis offsets like in iso.
+          const center = getTilePosition({ tile: value });
+          const half = UNPROJECTED_TILE_SIZE / 2;
+          const offsetX = key.endsWith('LEFT') ? -half : half;
+          const offsetY = key.startsWith('BOTTOM') ? half : -half;
+          position = { x: center.x + offsetX, y: center.y + offsetY };
+        } else {
+          position = getTilePosition({
+            tile: value,
+            origin: outermostCornerPositions[i]
+          });
+        }
 
         return {
           position,
@@ -48,7 +59,7 @@ export const TransformControls = ({ from, to, onAnchorMouseDown }: Props) => {
     );
 
     return cornerPositions;
-  }, [onAnchorMouseDown, from, to, getTilePosition]);
+  }, [onAnchorMouseDown, from, to, getTilePosition, strategy.projectionName]);
 
   return (
     <>

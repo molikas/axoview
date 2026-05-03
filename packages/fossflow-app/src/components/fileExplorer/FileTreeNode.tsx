@@ -30,11 +30,9 @@ export function FileTreeNode({ node, style, dragHandle, selectedId, onContextMen
       node.toggle();
       return;
     }
-    // For diagrams: delay open slightly so a double-click can cancel it.
     if (clickTimerRef.current) {
       clearTimeout(clickTimerRef.current);
       clickTimerRef.current = null;
-      // Second click of a double-click — let dblclick handler take over.
       return;
     }
     clickTimerRef.current = setTimeout(() => {
@@ -42,15 +40,6 @@ export function FileTreeNode({ node, style, dragHandle, selectedId, onContextMen
       onOpen(node.data);
     }, 300);
   }, [isFolder, node, onOpen]);
-
-  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    if (clickTimerRef.current) {
-      clearTimeout(clickTimerRef.current);
-      clickTimerRef.current = null;
-    }
-    node.edit();
-  }, [node]);
 
   const FolderIconComponent = node.isOpen ? FolderOpenIcon : FolderIcon;
 
@@ -170,7 +159,6 @@ export function FileTreeNode({ node, style, dragHandle, selectedId, onContextMen
       ref={dragHandle}
       style={style}
       onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
       onContextMenu={(e) => onContextMenu(e, node.data)}
       sx={{ display: 'flex', alignItems: 'center' }}
     >

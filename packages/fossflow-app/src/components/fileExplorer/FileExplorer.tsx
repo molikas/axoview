@@ -1,5 +1,10 @@
 import { useRef, useState, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
-import { Tree, TreeApi } from 'react-arborist';
+import { Tree, TreeApi, NodeApi } from 'react-arborist';
+import {
+  exportAsJSON,
+  exportAsCompactJSON,
+  mergeBundledFixtures
+} from 'fossflow';
 import {
   Box,
   Button,
@@ -19,8 +24,11 @@ import { useFileTree, FileNode } from '../../hooks/useFileTree';
 import { FileTreeNode } from './FileTreeNode';
 import { FileTreeToolbar } from './FileTreeToolbar';
 import { ContextMenuItems } from './ContextMenuItems';
+import { ExportDialog } from './ExportDialog';
+import { ImportDialog } from './ImportDialog';
 import { notificationStore } from '../../stores/notificationStore';
 import { sequentialName, copySuffix, countDescendants, detectCollision } from '../../utils/fileOperations';
+import { ExportScope } from '../../services/project/projectZip';
 
 interface DeleteConfirm {
   id: string;
@@ -41,9 +49,41 @@ interface PendingNew {
   parentId: string | null;
 }
 
+// Custom row: arborist's DefaultRow has only onClick — we need onDoubleClick to
+// trigger inline rename on a real DOM node arborist owns.
+function FileTreeRow({
+  node,
+  attrs,
+  innerRef,
+  children
+}: {
+  node: NodeApi<FileNode>;
+  attrs: React.HTMLAttributes<HTMLDivElement> & { style?: React.CSSProperties };
+  innerRef: React.Ref<HTMLDivElement>;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      {...attrs}
+      ref={innerRef}
+      onFocus={(e) => e.stopPropagation()}
+      onClick={node.handleClick}
+      onDoubleClick={(e) => {
+        if (node.data.id === '__pending__') return;
+        if (node.data.type === 'folder') return;
+        e.preventDefault();
+        e.stopPropagation();
+        node.select();
+        node.tree.edit(node.id);
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 function providerIdToLabel(id: string): string {
   if (id === 'google-drive') return 'GOOGLE DRIVE';
-  if (id === 's3') return 'S3';
   return 'DIAGRAMS';
 }
 
@@ -75,15 +115,17 @@ function injectPendingNode(
 }
 
 export function FileExplorer() {
-  const { storage } = useAppStorage();
+  const { storage, serverStorageAvailable } = useAppStorage();
   const {
     currentDiagram,
     openDiagramById,
     fileTreeRefreshToken,
     dirtyDiagramIds,
-    checkUnsavedBeforeNavigate
+    checkUnsavedBeforeNavigate,
+    markProjectExported,
+    notifyDiagramRenamedFromTree,
+    isoflowRef
   } = useDiagramLifecycle();
-
   const treeRef = useRef<TreeApi<FileNode> | undefined>(undefined);
   const treeContainerRef = useRef<HTMLDivElement>(null);
   const [treeHeight, setTreeHeight] = useState(400);
@@ -94,6 +136,12 @@ export function FileExplorer() {
   const [contextMenuNode, setContextMenuNode] = useState<FileNode | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirm | null>(null);
   const [collisionDialog, setCollisionDialog] = useState<CollisionDialog | null>(null);
+  const [exportTarget, setExportTarget] = useState<{
+    scope: Exclude<ExportScope, 'diagram'>;
+    folderId?: string;
+    folderName?: string;
+  } | null>(null);
+  const [showImport, setShowImport] = useState(false);
 
   const tree = useFileTree(
     storage,
@@ -211,6 +259,7 @@ export function FileExplorer() {
       const trimmed = name.trim();
       if (!trimmed) return;
       tree.optimisticRename(id, trimmed);
+      notifyDiagramRenamedFromTree(id, trimmed);
       try {
         const isFolder = tree.folders.some((f) => f.id === id);
         if (isFolder) {
@@ -223,7 +272,7 @@ export function FileExplorer() {
         tree.refresh();
       }
     },
-    [tree, pendingNew, checkUnsavedBeforeNavigate, storage, openDiagramById]
+    [tree, pendingNew, checkUnsavedBeforeNavigate, storage, openDiagramById, notifyDiagramRenamedFromTree]
   );
 
   // ---------------------------------------------------------------------------
@@ -296,21 +345,70 @@ export function FileExplorer() {
   // Copy share link
   // ---------------------------------------------------------------------------
 
-  const handleCopyShareLink = useCallback((node: FileNode) => {
-    if (node.type !== 'diagram') return;
-    const publicUrl = process.env.PUBLIC_URL || '';
-    const base = publicUrl ? (publicUrl.endsWith('/') ? publicUrl.slice(0, -1) : publicUrl) : '';
-    const url = window.location.origin + base + '/display/' + node.id;
-    navigator.clipboard.writeText(url).then(() => {
+  const handleCopyShareLink = useCallback(async (node: FileNode) => {
+    if (node.type !== 'diagram' || !storage) return;
+    if (!storage.shareDiagram) {
+      notificationStore.push({ severity: 'error', message: 'Sharing is not available' });
+      return;
+    }
+    try {
+      const { url } = await storage.shareDiagram(node.id);
+      await navigator.clipboard.writeText(url);
       notificationStore.push({ severity: 'success', message: 'Share link copied to clipboard' });
-    }).catch(() => {
-      notificationStore.push({ severity: 'error', message: 'Failed to copy link' });
-    });
-  }, []);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create share link';
+      notificationStore.push({ severity: 'error', message });
+    }
+  }, [storage]);
 
   // ---------------------------------------------------------------------------
   // Duplicate diagram
   // ---------------------------------------------------------------------------
+
+  // ---------------------------------------------------------------------------
+  // Export — image (delegates to the lib's ExportImageDialog)
+  // ---------------------------------------------------------------------------
+
+  const handleExportImage = useCallback(
+    (node: FileNode) => {
+      if (node.type !== 'diagram' || !node.diagramMeta) return;
+      const openDialog = () => isoflowRef.current?.openExportImageDialog();
+      if (currentDiagram?.id === node.id) {
+        openDialog();
+        return;
+      }
+      checkUnsavedBeforeNavigate(async () => {
+        try {
+          await openDiagramById(node.diagramMeta!.id, node.diagramMeta!.name);
+          // Wait one tick so the model store finishes hydrating before the
+          // hidden Isoflow inside the dialog reads from it.
+          requestAnimationFrame(() => openDialog());
+        } catch {
+          notificationStore.push({ severity: 'error', message: `Failed to open "${node.name}"` });
+        }
+      });
+    },
+    [currentDiagram, openDiagramById, checkUnsavedBeforeNavigate, isoflowRef]
+  );
+
+  // ---------------------------------------------------------------------------
+  // Export — JSON / compact JSON (direct download, no dialog)
+  // ---------------------------------------------------------------------------
+
+  const handleExportJsonNode = useCallback(
+    async (node: FileNode, compact: boolean) => {
+      if (node.type !== 'diagram' || !storage) return;
+      try {
+        const raw = await storage.loadDiagram(node.id);
+        const model = mergeBundledFixtures(raw as any);
+        if (compact) exportAsCompactJSON(model);
+        else exportAsJSON(model);
+      } catch {
+        notificationStore.push({ severity: 'error', message: `Failed to export "${node.name}"` });
+      }
+    },
+    [storage]
+  );
 
   const handleDuplicate = useCallback(
     async (node: FileNode) => {
@@ -406,6 +504,8 @@ export function FileExplorer() {
         onNewFolder={handleNewFolder}
         onRefresh={tree.refresh}
         onCollapseAll={handleCollapseAll}
+        onImport={() => setShowImport(true)}
+        onExportProject={() => setExportTarget({ scope: 'project' })}
       />
       <Divider />
 
@@ -452,6 +552,7 @@ export function FileExplorer() {
           onMove={handleMove}
           onRename={({ id, name }) => handleRenameSubmit(id, name)}
           onSelect={(nodes) => setSelectedNode(nodes[0]?.data ?? null)}
+          renderRow={FileTreeRow}
           width="100%"
           height={treeHeight}
           rowHeight={28}
@@ -485,10 +586,22 @@ export function FileExplorer() {
         {contextMenuNode && (
           <ContextMenuItems
             node={contextMenuNode}
+            canShare={serverStorageAvailable}
             onOpen={() => { if (contextMenuNode) handleOpenDiagram(contextMenuNode); }}
             onRename={() => contextMenuNode && handleRenameNode(contextMenuNode)}
             onDuplicate={() => contextMenuNode && handleDuplicate(contextMenuNode)}
             onCopyShareLink={() => contextMenuNode && handleCopyShareLink(contextMenuNode)}
+            onExportImage={() => contextMenuNode && handleExportImage(contextMenuNode)}
+            onExportJson={() => contextMenuNode && handleExportJsonNode(contextMenuNode, false)}
+            onExportCompactJson={() => contextMenuNode && handleExportJsonNode(contextMenuNode, true)}
+            onExportFolder={() => {
+              if (!contextMenuNode || contextMenuNode.type !== 'folder') return;
+              setExportTarget({
+                scope: 'folder',
+                folderId: contextMenuNode.id,
+                folderName: contextMenuNode.name
+              });
+            }}
             onDelete={() => {
               if (!contextMenuNode) return;
               if (contextMenuNode.type === 'folder') {
@@ -534,6 +647,41 @@ export function FileExplorer() {
           <Button color="error" variant="contained" onClick={confirmDelete}>Delete</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Export dialog (project / folder zip only) */}
+      {exportTarget && storage && (
+        <ExportDialog
+          open
+          onClose={() => setExportTarget(null)}
+          scope={exportTarget.scope}
+          folderId={exportTarget.folderId}
+          folderName={exportTarget.folderName}
+          storage={storage}
+          exporterTag={`fossflow-app@${process.env.REACT_APP_VERSION ?? 'dev'}`}
+          onProjectZipExported={() => markProjectExported?.()}
+        />
+      )}
+
+      {/* Import dialog */}
+      {showImport && storage && (
+        <ImportDialog
+          open
+          onClose={() => setShowImport(false)}
+          storage={storage}
+          onImported={async () => {
+            await tree.refresh();
+          }}
+          onImportSingleJson={async (data, suggestedName) => {
+            const folderId = selectedFolderId;
+            const newId = await storage.createDiagram(
+              { ...(data as object), name: suggestedName, title: suggestedName },
+              folderId
+            );
+            await tree.refresh();
+            await openDiagramById(newId, suggestedName);
+          }}
+        />
+      )}
 
       {/* Name collision dialog */}
       <Dialog

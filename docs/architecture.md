@@ -1,8 +1,15 @@
 # FossFLOW Community Edition — Architecture Reference
 
-**Last updated:** 2026-04-27 (rev 10)
-**Codebase root:** `packages/fossflow-lib/src` (library) · `packages/fossflow-app/src` (application shell)
-**Purpose:** Living architecture reference — feature inventory, store/reducer/mode architecture, test audit, gap analysis, lessons learned, and key APIs. Update this document whenever significant architectural changes are made.
+**Last updated:** 2026-05-03 (rev 11)
+**Codebase root:** `packages/fossflow-lib/src` (library) · `packages/fossflow-app/src` (application shell) · `packages/fossflow-backend/src` (Express + fs adapter) · `packages/fossflow-worker/src` (Hono + Cloudflare Pages Functions)
+**Purpose:** Living architecture reference — feature inventory, store/reducer/mode architecture, multi-target deployment contract, test audit, gap analysis, lessons learned, and key APIs. Update this document whenever significant architectural changes are made.
+
+**Companion documents:**
+- [docs/adr/](adr/) — durable architectural decisions (project zip format, icon catalog merge, lean icon save).
+- [docs/deployment.md](deployment.md) — from-scratch deploy walkthroughs.
+- [docs/testing.md](testing.md) — regression suite reference.
+- [flare_plan.md](../flare_plan.md) — Cloudflare + Docker dual-target deployment plan (Phase 5*).
+- [PLAN.md](../PLAN.md) — strategic phase roadmap.
 
 ---
 
@@ -21,6 +28,9 @@
    - [2i. Event Propagation Architecture](#2i-event-propagation-architecture)
    - [2j. Configuration Layer](#2j-configuration-layer)
    - [2k. Internationalisation (i18n) Layer](#2k-internationalisation-i18n-layer)
+   - [2l. fossflow-app Provider Decomposition](#2l-fossflow-app-provider-decomposition-2026-04-27)
+   - [2m. Deployment & API Contract](#2m-deployment--api-contract-2026-04-29)
+   - [2n. Workspace Bundles & Lean Icon Save](#2n-workspace-bundles--lean-icon-save-2026-05-01)
 3. [Test Audit](#3-test-audit)
 4. [Gap Analysis](#4-gap-analysis)
 5. [Lessons Learned](#5-lessons-learned)
@@ -86,6 +96,29 @@ Both model and scene have **independent** history stacks (past/present/future, m
 - **Rectangles**: `Rectangle` (from, to tile coords, color, customColor). Pure model — no scene data.
 - **TextBoxes**: `TextBox` (tile, content, fontSize, orientation). Scene stores computed `size`.
 - **Labels**: Connector labels are `ConnectorLabel[]` (id, text, position 0-100, height, line, showLine).
+- **Icons** (`model.icons`): conflates two concerns — the side-dock catalog (bundled fixtures) and per-diagram persistence (custom icons + overrides). Lean save (ADR 0003) strips bundled fixtures on every write; load-time merge (ADR 0002) rehydrates them. See [§ 2n](#2n-workspace-bundles--lean-icon-save-2026-05-01).
+- **`requiredPacks: string[]`** (model-level, optional): the set of non-isoflow icon collections (`aws` / `gcp` / `azure` / `k8s` / `material` / imported user packs) the model references. Importers consult it before the merge in ADR 0002 runs so items don't end up pointing at unresolvable ids. Authoritative re-derivation only happens when every `item.icon` resolves against `model.icons`; otherwise the field is preserved verbatim through a save round-trip.
+
+### Inline rename (canvas + file tree)
+
+| Surface | Trigger | Component | Notes |
+|---|---|---|---|
+| **Node label** | F2 with node selected · double-click on label | `components/SceneLayers/Nodes/Node/Node.tsx` listens for `inlineEditNodeName` `CustomEvent` by id; renders a contentEditable `Typography` that auto-grows rightward and wraps at maxWidth | Commit on Enter / blur via `useScene().updateModelItem`. Escape cancels. F2 dispatched from `interaction/useInteractionManager.ts` for `ITEM` and `TEXTBOX` selections. Empty string commits (clears the canvas label). |
+| **TextBox** | F2 with text-box selected · double-click on label | `components/SceneLayers/TextBoxes/TextBox.tsx` — same `CustomEvent` mechanism | Commits via `useScene().updateTextBox`. |
+| **File tree** | F2 with row selected · context-menu Rename | `components/fileExplorer/` — calls `treeRef.current.edit(id)` on `react-arborist` | Double-click rename in the tree does **not** work; tracked in [known_issues.md](../known_issues.md) with workaround (F2 or context menu). |
+
+### Workspace I/O (ADRs 0001-0003)
+
+| Feature | Source | Notes |
+|---|---|---|
+| **Project zip — Export** | `packages/fossflow-app/src/services/project/projectZip.ts` → `exportProject({ scope, folderId?, diagramId? })` | Three scopes: `project` / `folder` / `diagram`. Returns a `Blob` (manifest + `diagrams/<id>.json` + `tree-manifest.json`). Custom icons embedded as base64 inside each diagram (no separate `images/` folder at v1). See [ADR 0001](../docs/adr/0001-project-zip-format.md). |
+| **Project zip — Parse** | `parseProject(file)` | Validates manifest **before** any state mutation. Rejects unknown `format` or `version`. Rejects diagram ids not matching `^[a-zA-Z0-9_-]{1,64}$` (defense in depth — IDs get rewritten anyway). |
+| **Project zip — Import** | `importProject(parsed, { destination, newFolderName? })` | Three destinations: `root` (preserve relative tree shape) / `newFolder` (wrap in named folder) / `replaceAll` (typed-confirm gated, deletes everything first). Always rewrites IDs and updates cross-diagram link refs via a `Map<oldId, newId>`. |
+| **Lean icon save** | `packages/fossflow-lib/src/utils/leanSave.ts` → `stripDefaultIcons(model)` | Drops icons that are pure duplicates of `bundledFixtures.byId`. Preserves custom icons and overridden defaults verbatim. Wired into `LocalStorageProvider.sessionSaveDiagram`, server `PUT /api/diagrams/:id` callers, `exportAsJSON`, `exportAsCompactJSON`. See [ADR 0003](../docs/adr/0003-session-storage-lean-icon-save.md). |
+| **Load-time icon merge** | `packages/fossflow-lib/src/hooks/useInitialDataManager.ts` | Merges `bundledFixtures` into `modelData.icons` before writing to the store (union by id; overrides win). The merge runs on every load so it can't bit-rot. See [ADR 0002](../docs/adr/0002-icon-catalog-merge-on-load.md). |
+| **Session storage gauge** | `packages/fossflow-app/src/components/fileExplorer/SessionStorageGauge.tsx` | Chip leads with `%` (`<1% · 3.6 KB`); click opens a per-diagram size table (sorted by size desc, with quick-delete). Color thresholds at 60% / 90%. Listens to a custom `Event('fossflow-session-changed')` dispatched by `LocalStorageProvider` after each session mutation (sessionStorage has no native cross-mutation event in the same tab). |
+| **Session-mode banner** | `packages/fossflow-app/src/components/SessionModeBanner.tsx` | Shown when storage resolves to session AND ≥1 diagram exists. Dismissable per session only. |
+| **`sessionWorkUnexported` flag** | `DiagramLifecycleProvider` | Independent of `hasUnsavedChanges`. Drives the `beforeunload` prompt in session mode. Clears only on successful project-zip export. The 11 existing `hasUnsavedChanges` consumers behave unchanged. |
 
 ### Settings
 
@@ -189,8 +222,7 @@ All diagram and folder operations route through `StorageManager` (provider regis
 | Provider | Source | Status |
 |---|---|---|
 | `LocalStorageProvider` | `services/storage/providers/LocalStorageProvider.ts` | Server-backed when `/api/storage/*` is reachable; falls back to `sessionStorage`. Full folder CRUD + tree-manifest. **Shipped.** |
-| `GoogleDriveProvider` | `services/storage/providers/GoogleDriveProvider.ts` | `NotImplementedError` stub (Phase 3B). |
-| `S3Provider` | `services/storage/providers/S3Provider.ts` | `NotImplementedError` stub (Phase 3C). |
+| `GoogleDriveProvider` | `services/storage/providers/GoogleDriveProvider.ts` | `NotImplementedError` stub — full implementation lives on a separate branch. |
 
 **Backend support (`packages/fossflow-backend/server.js`):** folder CRUD, move (cross-folder), soft-delete patch, and tree-manifest endpoints. The `LocalStorageProvider` is the only client today; the manifest is the source of truth for tree shape so the UI never has to walk the filesystem.
 
@@ -925,8 +957,120 @@ App
 
 1. Construct `StorageManager`.
 2. Register the `LocalStorageProvider` (server-backed if `/api/storage/status` is reachable; falls back to `sessionStorage`).
-3. Set it active. Drive and S3 are registered as `NotImplementedError` stubs and only become candidates when their own phases land.
+3. Set it active. Drive is registered as a `NotImplementedError` stub and only becomes a candidate when Phase 3B lands. (**Update 2026-04-29:** S3 support was dropped — `S3Provider` and `@aws-sdk/*` / `minio` deps are gone. Phase 3C is no longer planned.)
 4. Set `isInitialized = true` — the session-only warning banner is gated on this so it doesn't flash before storage is known.
+
+---
+
+## 2m. Deployment & API Contract (2026-04-29)
+
+FossFLOW runs from a single codebase on three targets, sharing one `/api/*` HTTP contract. The frontend is byte-identical at the network boundary across targets; runtime config (`GET /api/config`) replaces build-time env injection. Full from-scratch walkthrough: [docs/deployment.md](deployment.md). Decision rationale: [flare_plan.md](../flare_plan.md).
+
+### Targets
+
+| Target | Runtime | Storage | Auth options |
+|---|---|---|---|
+| **Local dev** | `npm run dev` (rsbuild on :3000 + Express on :3001) | Filesystem (if `ENABLE_SERVER_STORAGE=true`) or session | `none`, `shared-token` |
+| **Docker** | nginx + Express on Node | Filesystem volume | `none`, `shared-token` |
+| **Cloudflare Pages** | Pages Functions (Hono) | **None — session/localStorage only (PoC)** | `none`, `shared-token`, `cf-access` |
+
+The Cloudflare runtime is currently storage-less (R2 was dropped to keep the free-tier deploy zero-config). The Worker reports `serverStorage: false` and 503s every storage route; the SPA falls back to session/localStorage. Persistent storage on Cloudflare will return via the Drive provider on a separate branch.
+
+### HTTP routes (one contract, two adapters)
+
+```
+GET    /api/storage/status         — { enabled: boolean }; auth-bypass
+GET    /api/config                 — runtime config; auth-bypass
+GET    /api/diagrams
+GET    /api/diagrams/:id
+POST   /api/diagrams
+PUT    /api/diagrams/:id
+PATCH  /api/diagrams/:id
+PATCH  /api/diagrams/:id/move
+DELETE /api/diagrams/:id
+GET    /api/folders
+POST   /api/folders
+PUT    /api/folders/:id
+PATCH  /api/folders/:id/move
+DELETE /api/folders/:id
+GET    /api/tree-manifest
+PUT    /api/tree-manifest
+POST   /api/diagrams/:id/share     — publish snapshot, returns { uuid, url }
+DELETE /api/diagrams/:id/share     — unpublish snapshot
+GET    /api/public/diagrams/:uuid  — unauth snapshot read
+```
+
+### Key-based StorageAdapter (no paths in the interface)
+
+```ts
+// packages/fossflow-backend/src/adapters/types.ts
+export interface StorageAdapter {
+  get(key: string): Promise<Uint8Array | null>;
+  put(key: string, value: Uint8Array): Promise<void>;
+  delete(key: string): Promise<void>;
+  list(prefix: string): Promise<string[]>;          // returns keys, not paths
+  listDiagramMeta(): Promise<DiagramMeta[]>;        // adapter-specific impl
+}
+```
+
+- `fsAdapter` ([packages/fossflow-backend/src/adapters/fs.js](../packages/fossflow-backend/src/adapters/fs.js)) converts `diagrams/abc123` → `path.join(STORAGE_PATH, 'diagrams', 'abc123.json')`. The route layer cannot construct a path.
+- `r2Adapter` (deferred — file removed from the worker after the storage-less revert) used keys verbatim against the R2 binding.
+- `listDiagramMeta` is a method, not a derived list, because the two adapters implement it very differently (fs walks the directory; R2 reads a denormalized `diagrams-index.json`).
+- **Path-traversal blocked** by ID regex `^[a-zA-Z0-9_-]{1,64}$` enforced at the route layer.
+
+### Cloudflare runtime — Hono on Pages Functions
+
+Express does not run cleanly on Workers even with `nodejs_compat`. Hono is ~14 kB, edge-native, and maps 1:1 to the existing routes. The bridge:
+
+```ts
+// functions/api/[[path]].ts
+import { handle } from 'hono/cloudflare-pages';
+import app from '../../packages/fossflow-worker/src/app';
+export const onRequest = handle(app);
+```
+
+`_routes.json` scopes the Function to `/api/*` only, so static asset requests bypass the Worker (zero CPU cost, served by Cloudflare CDN).
+
+### Auth modes
+
+| Mode | Where applied | Mechanism |
+|---|---|---|
+| `none` | Both | No auth check. Default for local dev and storage-less Cloudflare PoC. |
+| `shared-token` | Both | `Authorization: Bearer <secret>` compared with constant-time equality. Single shared secret across all editors. |
+| `cf-access` | **Cloudflare only** (Express rejects at request time) | Full JWKS RS256 verification of the Cloudflare Access JWT in [packages/fossflow-worker/src/auth.ts](../packages/fossflow-worker/src/auth.ts). Verifies `iss`, `aud`, `exp`, signature against the Access team's published JWKS. |
+
+`/api/config` and `/api/storage/status` bypass all auth modes — the SPA needs them to boot under `shared-token`.
+
+### Frontend integration
+
+- `packages/fossflow-app/src/utils/apiBaseUrl.ts` — auto-redirects `/api/*` to `:3001` when the host is `localhost:3000`; same-origin relative paths everywhere else. Consolidates three previously inline copies.
+- `packages/fossflow-app/src/hooks/useRuntimeConfig.ts` — fetches `/api/config` once on mount; downstream code reads `serverStorage`, `googleClientId`, etc. from the resulting context.
+- The legacy `storageService.ts` (build-time env injection) was removed in `f0590f3` — runtime config is now the only path.
+
+### Hardening
+
+- CSP via Helmet middleware on Express; equivalent headers via `_headers` on Cloudflare.
+- 10 MB request body limit.
+- Drive API scope locked to `drive.file` (deferred until the Drive provider lands).
+- Public-snapshot share URLs use opaque UUIDs (not diagram ids), so listing is impossible without prior knowledge.
+
+---
+
+## 2n. Workspace Bundles & Lean Icon Save (2026-05-01)
+
+Three ADRs lock the contract for FossFLOW's persistence layer. They're load-bearing — read them when touching anything in `services/project/`, `LocalStorageProvider`, `useInitialDataManager`, or `utils/leanSave.ts`.
+
+| ADR | Concern | Where it lives |
+|---|---|---|
+| [0001](adr/0001-project-zip-format.md) | Project zip format (manifest + `diagrams/<id>.json` + `tree-manifest.json`); ID rewriting on import; destination picker; versioning | [packages/fossflow-app/src/services/project/projectZip.ts](../packages/fossflow-app/src/services/project/projectZip.ts) |
+| [0002](adr/0002-icon-catalog-merge-on-load.md) | `sideDockCatalog = bundledFixtures ∪ model.icons`; merge runs on every load | [packages/fossflow-lib/src/hooks/useInitialDataManager.ts](../packages/fossflow-lib/src/hooks/useInitialDataManager.ts) |
+| [0003](adr/0003-session-storage-lean-icon-save.md) | Strip default-catalog icons on every write (session, server, exports); preserve custom + overrides; `requiredPacks: string[]` companion field | [packages/fossflow-lib/src/utils/leanSave.ts](../packages/fossflow-lib/src/utils/leanSave.ts) |
+
+The contract is symmetric: ADR 0003 strips at write time, ADR 0002 rehydrates at read time. Either side broken in isolation surfaces as "side dock empties after load" or "every diagram gets fatter on every save." Both have unit tests pinning the round-trip identity.
+
+The `requiredPacks` field is a **derived-but-preserved** signal. Authoritative re-derivation only runs when every `item.icon` resolves against `model.icons` (i.e. you're saving a hydrated, fully-loaded model). Otherwise the existing field is preserved verbatim, so a lean round-trip — autosave-before-pack-loads, project-zip-import-then-save — doesn't blow it away. Loaders consult it to lazy-fetch the right icon packs **before** the merge in ADR 0002 runs.
+
+The legacy phantom `Icon1` / `Icon2` URL stubs in `packages/fossflow-lib/src/fixtures/icons.ts` were removed (`5f6a70e`). The real catalog comes from `@isoflow/isopacks` injected at app level. ADR 0002's contract still holds because the bundled catalog is whatever the app provides — the lib doesn't ship icons of its own.
 
 ---
 
@@ -1624,6 +1768,28 @@ quill Cannot register "bullet" specified in "formats" config.
 **Fix applied:** Removed `'bullet'` from the `formats` array in `RichTextEditor.tsx`. The toolbar config object `{ list: 'bullet' }` (which renders the bullet-list button) is unaffected — that is a separate toolbar configuration, not a format registration string. Bullet list functionality is unchanged; Quill's `list` format handles both bullet and ordered variants.
 
 **Regression test:** `components/RichTextEditor/__tests__/RichTextEditor.formats.test.ts` — asserts `'bullet'` absent, `'list'` present, all 9 expected formats present, count pinned at 9.
+
+---
+
+### 7i. File-tree double-click rename (open)
+
+**Symptom:** Double-clicking a diagram row in the file tree does not enter inline rename mode.
+
+**Workaround:** Select the row and press `F2`, or use the right-click context menu → Rename. Both work.
+
+**Status:** Open. Tracked in [known_issues.md](../known_issues.md). Rename via F2 and the context menu both work; only the double-click affordance is missing. The contentEditable F2 path on the canvas (Node + TextBox) is independent and works.
+
+---
+
+### 7j. 2D mode geometry — fixed (2026-05-02)
+
+Three independent issues in 2D mode were addressed in `1927764` and `a6a627b`:
+
+1. **`NonIsometricIcon` rendered iso-projected** — hardcoded the iso CSS projection regardless of `canvasMode`, so flat artwork (AWS, GCP, Azure, K8s, MUI) stayed visually tilted after switching to 2D. Fixed by skipping the projection wrapper and rendering the image flat at the tile center when mode is `2D`.
+2. **`TransformAnchor` rotated to iso diamond** — unconditionally applied the iso CSS matrix. Fixed by skipping the projection in 2D so anchors render as upright rounded squares.
+3. **Rectangle resize handles landed on edge midpoints** — `TransformControls` used cardinal-axis `TileOrigin` offsets (`BOTTOM` / `RIGHT` / `TOP` / `LEFT`) per corner tile to place anchors. That maps to the outer points of an iso diamond, but in 2D the tiles are squares and the visible outer corners are diagonals. Fixed by offsetting each corner tile's center by `(±halfTile, ±halfTile)` in 2D; iso mode keeps the original behaviour.
+
+True 3D-iso art (Isoflow's built-in 37-icon pack, `isIsometric: true`) is unaffected — it still renders via `IsometricIcon` and continues to look the same in both modes.
 
 ---
 

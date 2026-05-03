@@ -217,20 +217,49 @@ export const useIconPackManager = (coreIcons: any[]) => {
     }
   }, [packInfo, loadPack]);
 
-  // Auto-detect required packs from diagram data
+  // Auto-detect required packs from diagram data.
+  //
+  // Two signals are honoured (in order of preference):
+  //   1. `data.requiredPacks` — written by the lean-save path; the canonical
+  //      record of which packs the diagram actually uses.
+  //   2. items × icons cross-reference — handles non-lean payloads (e.g. a
+  //      single-JSON import that retains pack icons inline) where each
+  //      `item.icon` is just an id string and the collection is only
+  //      recoverable via the icons array on the same payload.
+  //
+  // Note: `item.icon` is a string id, not an object — earlier code that read
+  // `item.icon?.collection` always evaluated to undefined.
   const loadPacksForDiagram = useCallback(
-    async (diagramItems: any[]) => {
-      if (!diagramItems || diagramItems.length === 0) return;
+    async (diagramData: any) => {
+      if (!diagramData) return;
 
-      // Extract unique collections from diagram items
       const collections = new Set<string>();
-      diagramItems.forEach((item) => {
-        if (item.icon?.collection) {
-          collections.add(item.icon.collection);
-        }
-      });
 
-      // Load any missing packs
+      if (Array.isArray(diagramData.requiredPacks)) {
+        for (const p of diagramData.requiredPacks) {
+          if (typeof p === 'string') collections.add(p);
+        }
+      }
+
+      const items = Array.isArray(diagramData.items) ? diagramData.items : [];
+      const icons = Array.isArray(diagramData.icons) ? diagramData.icons : [];
+      if (items.length && icons.length) {
+        const idToCollection = new Map<string, string>();
+        for (const icon of icons) {
+          if (icon?.id && typeof icon.collection === 'string') {
+            idToCollection.set(icon.id, icon.collection);
+          }
+        }
+        for (const item of items) {
+          const iconId =
+            typeof item?.icon === 'string' ? item.icon : item?.icon?.id;
+          if (iconId) {
+            const c = idToCollection.get(iconId);
+            if (c) collections.add(c);
+          }
+        }
+      }
+
       const packsToLoad: IconPackName[] = [];
       collections.forEach((collection) => {
         if (collection !== 'isoflow' && collection !== 'imported') {
@@ -243,10 +272,8 @@ export const useIconPackManager = (coreIcons: any[]) => {
         }
       });
 
-      // Load required packs
       for (const pack of packsToLoad) {
         await loadPack(pack);
-        // Also add to enabled packs
         if (!enabledPacks.includes(pack)) {
           const newEnabledPacks = [...enabledPacks, pack];
           setEnabledPacks(newEnabledPacks);

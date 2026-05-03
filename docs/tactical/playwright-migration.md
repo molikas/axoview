@@ -1,6 +1,32 @@
-# Playwright Migration Plan
+# Tactical — Playwright E2E Migration
 
-**Status:** Approved — ready for implementation
+> **Read first:**
+> - [docs/testing.md](../testing.md) — regression suite reference and current test counts
+> - [docs/architecture.md](../architecture.md) — interaction mode architecture (Section 1 + 2b) which the E2E tests will exercise
+>
+> **Status:** Approved — ready for implementation · **Owner:** Igor · **Last updated:** 2026-05-03
+>
+> This is a **short-lived working doc.** Delete it after the work merges; the ADRs and commit history are the durable record. `PLAN.md` (POST phase) gets a one-line entry once shipped.
+
+## Session startup checklist
+
+1. Read this file fully.
+2. Read [docs/testing.md](../testing.md) for existing test coverage context.
+3. Skim `PLAN.md` Phase Status Dashboard **for context only** — do not modify it during this work.
+4. Use `TodoWrite` to track sub-tasks.
+5. Mark `[x]` as work completes.
+6. On completion, follow the "Wrap-up" section below.
+
+## Goal
+
+Replace the Selenium + Python + pytest + Docker E2E framework (`e2e-tests/`) with a TypeScript-native Playwright suite (`packages/fossflow-e2e/`). Eliminate the 100-line React fiber-tree injection hack; replace with `window.__fossflow__` store exposure.
+
+**Out of scope:** New test scenarios beyond the existing Selenium coverage — port first, extend later.
+
+---
+
+## Original plan content
+
 **Replaces:** `e2e-tests/` (Selenium + Python + pytest + Docker)
 **New location:** `packages/fossflow-e2e/` (npm workspace, TypeScript, Playwright)
 
@@ -677,3 +703,26 @@ During migration, the existing `e2e-tests.yml` (Selenium) continues to run. A Py
 - [ ] Update `FOSSFLOW_ENCYCLOPEDIA.md` — testing section
 - [ ] Update `current_architecture.md` — test audit section
 - [ ] Commit and push
+
+---
+
+## Wrap-up
+
+When all phases complete and the Playwright suite is green in CI:
+
+1. Add a single line under `PLAN.md` POST phase:
+   ```
+   - Playwright E2E migration shipped — Selenium retired, `packages/fossflow-e2e/` is canonical E2E suite.
+   ```
+2. Delete `e2e-tests/` directory entirely (all Selenium artifacts).
+3. Delete this file. The commit history and `docs/testing.md` are the durable record.
+4. Update `docs/testing.md` — add Playwright spec table, update suite / test counts.
+5. Update `docs/architecture.md` §3 (Test Audit) — mark Playwright migration complete.
+
+## Notes for Claude
+
+- `window.__fossflow__` is gated by `process.env.NODE_ENV !== 'production'` — the bundler tree-shakes it from production builds. Never expose in production.
+- The React fiber-tree injection in the old Selenium suite is the thing being replaced — do not port it.
+- When porting a Selenium test, delete the Python file in the same commit as the passing Playwright spec. Keeping both alive risks them diverging.
+- `data-testid` attributes take precedence when accessible roles are insufficient. Add them to the source component, not the test — they survive refactors better.
+- `docs/testing.md` references this file — update the cross-link if this file is renamed.

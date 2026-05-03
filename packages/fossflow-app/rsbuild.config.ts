@@ -1,9 +1,11 @@
 import { defineConfig } from '@rsbuild/core';
 import { pluginReact } from '@rsbuild/plugin-react';
 import path from 'path';
+import pkg from './package.json';
 
 const publicUrl = process.env.PUBLIC_URL || '';
 const assetPrefix = publicUrl ? (publicUrl.endsWith('/') ? publicUrl : publicUrl + '/') : '/';
+const appVersion = process.env.REACT_APP_VERSION || pkg.version;
 
 // Resolve React from root node_modules to avoid duplicate instances
 const rootNodeModules = path.resolve(__dirname, '../../node_modules');
@@ -28,6 +30,7 @@ export default defineConfig({
         define: {
             'process.env.PUBLIC_URL': JSON.stringify(publicUrl),
             'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
+            'process.env.REACT_APP_VERSION': JSON.stringify(appVersion),
         },
     },
     output: {

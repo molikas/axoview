@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Isoflow, allLocales } from 'fossflow';
@@ -13,7 +13,8 @@ import { EmptyStateScreen } from './components/EmptyStateScreen';
 import { DiagnosticsOverlay } from './components/DiagnosticsOverlay';
 import { DiagnosticsToggleButton } from './components/DiagnosticsToggleButton';
 import { NotificationStack } from './components/NotificationStack';
-import { notificationStore } from './stores/notificationStore';
+import { SessionModeBanner } from './components/SessionModeBanner';
+import { ExportDialog } from './components/fileExplorer/ExportDialog';
 import ChangeLanguage from './components/ChangeLanguage';
 import './App.css';
 
@@ -26,22 +27,16 @@ const basename = publicUrl
 
 // Stable reference — prevents Isoflow's useEffect([mainMenuOptions]) from firing on
 // every EditorShell re-render (which would call setEditorMode and reset the tool mode).
-const MAIN_MENU_OPTIONS = [
-  // ACTION.NEW is intentionally excluded — FossFlow owns "New diagram"
-  // via its own toolbar button so it can flush auto-save first.
-  'ACTION.OPEN',
-  'EXPORT.JSON',
-  'EXPORT.PNG',
-  'ACTION.CLEAR_CANVAS',
-  'LINK.GITHUB',
-  'VERSION'
-] as const;
+const MAIN_MENU_OPTIONS = ['LINK.GITHUB', 'VERSION'] as const;
+
+const EXPORTER_TAG = `fossflow-app@${process.env.REACT_APP_VERSION ?? 'dev'}`;
 
 function App() {
   return (
     <BrowserRouter basename={basename}>
       <Routes>
         <Route path="/" element={<EditorPage />} />
+        <Route path="/display/p/:shareUuid" element={<EditorPage />} />
         <Route path="/display/:readonlyDiagramId" element={<EditorPage />} />
       </Routes>
     </BrowserRouter>
@@ -59,7 +54,7 @@ function EditorPage() {
 }
 
 function EditorShell() {
-  const { t, i18n } = useTranslation('app');
+  const { i18n } = useTranslation('app');
   const { storage, serverStorageAvailable, isInitialized } = useAppStorage();
   const {
     isoflowRef,
@@ -71,10 +66,12 @@ function EditorShell() {
     sidebarTogglePortalTarget,
     isReadonlyUrl,
     currentDiagram,
-    fileTreeRefreshToken
+    fileTreeRefreshToken,
+    markProjectExported
   } = useDiagramLifecycle();
 
   const [linkedDiagrams, setLinkedDiagrams] = useState<Array<{ id: string; name: string }>>([]);
+  const [showProjectExport, setShowProjectExport] = useState(false);
 
   useEffect(() => {
     if (!storage || !isInitialized) return;
@@ -88,29 +85,20 @@ function EditorShell() {
   const currentLocale =
     allLocales[i18n.language as keyof typeof allLocales] || allLocales['en-US'];
 
-  const sessionWarnPushedRef = useRef(false);
-  useEffect(() => {
-    if (!isInitialized) return; // wait until storage check completes before deciding
-    if (!serverStorageAvailable && !isReadonlyUrl && !sessionWarnPushedRef.current) {
-      sessionWarnPushedRef.current = true;
-      notificationStore.push({
-        severity: 'warning',
-        persistent: true,
-        message: t(
-          'status.sessionStorageNote',
-          'Session storage only — diagrams will be lost when you close this tab. Use a server backend for persistence.'
-        )
-      });
-    }
-  }, [serverStorageAvailable, isInitialized, isReadonlyUrl, t]);
-
   // Don't render canvas until storage init completes — prevents onboarding hints from
   // briefly appearing before EmptyStateScreen takes over.
   if (!isInitialized) return null;
 
+  const showSessionBanner =
+    !serverStorageAvailable && !isReadonlyUrl && linkedDiagrams.length > 0;
+
   return (
     <div className="App">
       <AppToolbar />
+
+      {showSessionBanner && (
+        <SessionModeBanner onExportProject={() => setShowProjectExport(true)} />
+      )}
 
       <FileExplorerLayout>
         <div className="fossflow-container" style={{ position: 'relative' }}>
@@ -129,13 +117,24 @@ function EditorShell() {
             suppressOnboardingHints={!!currentDiagram || isReadonlyUrl}
             mainMenuOptions={MAIN_MENU_OPTIONS}
           />
-          {serverStorageAvailable && !currentDiagram && !isReadonlyUrl && (
+          {!currentDiagram && !isReadonlyUrl && (
             <div style={{ position: 'absolute', inset: 0, zIndex: 10 }}>
               <EmptyStateScreen onCreate={() => handleCreateBlankDiagram(null)} />
             </div>
           )}
         </div>
       </FileExplorerLayout>
+
+      {storage && (
+        <ExportDialog
+          open={showProjectExport}
+          onClose={() => setShowProjectExport(false)}
+          scope="project"
+          storage={storage}
+          exporterTag={EXPORTER_TAG}
+          onProjectZipExported={() => markProjectExported?.()}
+        />
+      )}
 
       <DiagnosticsOverlay />
       <NotificationStack />

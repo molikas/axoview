@@ -4,11 +4,91 @@ import {
   StorageProvider,
   TreeManifest
 } from '../types';
+import { apiBaseUrl } from '../../../utils/apiBaseUrl';
+
+/**
+ * Apply ADR 0003 lean-save: keep only user-supplied (imported) icons.
+ * Pack icons (isoflow, aws, gcp, …) are always rehydrated from the icon pack
+ * manager on load, so there is no need to persist their SVG payloads.
+ *
+ * Also persists `requiredPacks` — the unique non-isoflow/imported collections
+ * actually referenced by items — so the load path can fetch exactly those
+ * packs without having to introspect bare icon-id strings.
+ */
+const leanIfModel = (data: unknown): unknown => {
+  if (data && typeof data === 'object' && Array.isArray((data as any).icons)) {
+    const model = data as any;
+
+    // Plain Object dictionaries instead of Set: ts-jest transpiles `new Set`
+    // under target=es5 with a broken polyfill where `.add()` is a no-op for
+    // string members, making derived-/known- lookups silently empty.
+    const itemIconIds: { [k: string]: true } = {};
+    if (Array.isArray(model.items)) {
+      for (let i = 0; i < model.items.length; i++) {
+        const item = model.items[i];
+        if (item && typeof item.icon === 'string') itemIconIds[item.icon] = true;
+      }
+    }
+
+    const knownIconIds: { [k: string]: true } = {};
+    const derivedRequiredPacks: { [k: string]: true } = {};
+    for (let i = 0; i < model.icons.length; i++) {
+      const icon = model.icons[i];
+      if (icon && icon.id) knownIconIds[icon.id] = true;
+      if (
+        icon &&
+        icon.id &&
+        itemIconIds[icon.id] &&
+        typeof icon.collection === 'string' &&
+        icon.collection !== 'isoflow' &&
+        icon.collection !== 'imported'
+      ) {
+        derivedRequiredPacks[icon.collection] = true;
+      }
+    }
+
+    // If every item's icon resolves against the icons array, the derived list
+    // is authoritative. Otherwise the input is already lean (icons stripped to
+    // imported-only) and we can't see what packs the unresolved items need —
+    // preserve whatever was on the input rather than overwriting with [].
+    let allResolved = true;
+    const itemIconIdList = Object.keys(itemIconIds);
+    for (let i = 0; i < itemIconIdList.length; i++) {
+      if (!knownIconIds[itemIconIdList[i]]) { allResolved = false; break; }
+    }
+    const existingRequiredPacks = Array.isArray(model.requiredPacks)
+      ? (model.requiredPacks as unknown[]).filter((p): p is string => typeof p === 'string')
+      : null;
+    const derived = Object.keys(derivedRequiredPacks);
+    const requiredPacks = allResolved
+      ? derived
+      : (existingRequiredPacks !== null ? existingRequiredPacks : derived);
+
+    return {
+      ...model,
+      icons: (model.icons as any[]).filter((icon: any) => icon.collection === 'imported'),
+      requiredPacks
+    };
+  }
+  return data;
+};
 
 const SESSION_DIAGRAMS_KEY = 'fossflow_diagrams';
 const SESSION_DIAGRAM_PREFIX = 'fossflow_diagram_';
 const LOCAL_FOLDERS_KEY = 'fossflow-folders';
 const LOCAL_MANIFEST_KEY = 'fossflow-tree-manifest';
+
+// Date.now() alone collides when many ids are minted in the same tick (e.g.
+// during a project import loop). A collision on folder ids lets the import's
+// parent-remap produce a folder whose parentId equals its own id, which the
+// recursive tree builder then walks forever.
+function uniqueSuffix(): string {
+  const rand =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+      : Math.random().toString(36).slice(2, 14);
+  return `${Date.now().toString(36)}_${rand}`;
+}
 
 /** Builds an AbortSignal with timeout, falling back gracefully if unavailable. */
 function timeoutSignal(ms: number): AbortSignal | undefined {
@@ -16,17 +96,6 @@ function timeoutSignal(ms: number): AbortSignal | undefined {
     return AbortSignal.timeout(ms);
   }
   return undefined;
-}
-
-function devBaseUrl(): string {
-  if (
-    typeof window !== 'undefined' &&
-    window.location.hostname === 'localhost' &&
-    window.location.port === '3000'
-  ) {
-    return 'http://localhost:3001';
-  }
-  return '';
 }
 
 export class LocalStorageProvider implements StorageProvider {
@@ -43,7 +112,7 @@ export class LocalStorageProvider implements StorageProvider {
   private readonly AVAILABILITY_CACHE_MS = 60000;
 
   constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl ?? devBaseUrl();
+    this.baseUrl = baseUrl ?? apiBaseUrl();
   }
 
   // ---------------------------------------------------------------------------
@@ -115,7 +184,7 @@ export class LocalStorageProvider implements StorageProvider {
     const response = await fetch(`${this.baseUrl}/api/diagrams/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify(leanIfModel(data)),
       signal: timeoutSignal(15000)
     });
     if (!response.ok) throw new Error(`Failed to save diagram: ${response.status}`);
@@ -174,23 +243,35 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   private sessionSaveDiagram(id: string, data: unknown): void {
-    sessionStorage.setItem(`${SESSION_DIAGRAM_PREFIX}${id}`, JSON.stringify(data));
+    const lean = leanIfModel(data);
+    sessionStorage.setItem(`${SESSION_DIAGRAM_PREFIX}${id}`, JSON.stringify(lean));
     const list = this.sessionListDiagrams();
-    const name = (data as any)?.name || (data as any)?.title || 'Untitled Diagram';
+    const idx = list.findIndex((d) => d.id === id);
+    const existing = idx >= 0 ? list[idx] : undefined;
+    const name = (data as any)?.name || (data as any)?.title || existing?.name || 'Untitled Diagram';
+    // Preserve the existing meta's folderId when the save payload doesn't carry one.
+    // Autosave strips folderId from the model; without this fallback every autosave
+    // would relocate the diagram to root.
+    const dataFolderId = (data as any)?.folderId;
+    const folderId =
+      dataFolderId !== undefined ? dataFolderId : existing?.folderId ?? null;
     const meta: DiagramMeta = {
       id,
       name,
       lastModified: new Date().toISOString(),
-      folderId: (data as any)?.folderId ?? null
+      folderId
     };
-    const idx = list.findIndex((d) => d.id === id);
     if (idx >= 0) list[idx] = meta;
     else list.push(meta);
     sessionStorage.setItem(SESSION_DIAGRAMS_KEY, JSON.stringify(list));
+    // Notify subscribers (storage gauge) — sessionStorage has no native cross-component event.
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('fossflow-session-changed'));
+    }
   }
 
   private sessionCreateDiagram(data: unknown, folderId?: string | null): string {
-    const id = `diagram_${Date.now()}`;
+    const id = `diagram_${uniqueSuffix()}`;
     const dataWithFolder = folderId != null ? { ...(data as object), folderId } : data;
     this.sessionSaveDiagram(id, dataWithFolder);
     return id;
@@ -208,6 +289,9 @@ export class LocalStorageProvider implements StorageProvider {
         SESSION_DIAGRAMS_KEY,
         JSON.stringify(list.filter((d) => d.id !== id))
       );
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('fossflow-session-changed'));
     }
   }
 
@@ -388,7 +472,7 @@ export class LocalStorageProvider implements StorageProvider {
 
   private localCreateFolder(name: string, parentId?: string | null): string {
     const folders = this.localGetFolders();
-    const id = `folder_${Date.now()}`;
+    const id = `folder_${uniqueSuffix()}`;
     folders.push({ id, name, parentId: parentId ?? null });
     this.localSaveFolders(folders);
     return id;
@@ -510,6 +594,34 @@ export class LocalStorageProvider implements StorageProvider {
     }
     const raw = localStorage.getItem(LOCAL_MANIFEST_KEY);
     return raw ? JSON.parse(raw) : { folders: [] };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Share — server-only (snapshot to public namespace)
+  // ---------------------------------------------------------------------------
+
+  async shareDiagram(id: string): Promise<{ uuid: string; url: string; sharedAt: string }> {
+    await this.ensureChecked();
+    if (!this.usingServer) {
+      throw new Error('Sharing requires server storage');
+    }
+    const response = await fetch(`${this.baseUrl}/api/diagrams/${id}/share`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: timeoutSignal(10000)
+    });
+    if (!response.ok) throw new Error(`Share failed: ${response.status}`);
+    return response.json();
+  }
+
+  async unshareDiagram(id: string): Promise<void> {
+    await this.ensureChecked();
+    if (!this.usingServer) return;
+    const response = await fetch(`${this.baseUrl}/api/diagrams/${id}/share`, {
+      method: 'DELETE',
+      signal: timeoutSignal(10000)
+    });
+    if (!response.ok) throw new Error(`Unshare failed: ${response.status}`);
   }
 
   async saveTreeManifest(manifest: TreeManifest): Promise<void> {

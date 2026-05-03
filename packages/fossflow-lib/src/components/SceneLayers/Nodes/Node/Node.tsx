@@ -1,4 +1,4 @@
-import React, { useMemo, memo, useCallback } from 'react';
+import React, { useMemo, memo, useCallback, useEffect, useState } from 'react';
 import { Box, Typography, Stack, Tooltip } from '@mui/material';
 import { OpenInNew as OpenInNewIcon } from '@mui/icons-material';
 import { DEFAULT_LABEL_HEIGHT } from 'src/config';
@@ -6,9 +6,12 @@ import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useIcon } from 'src/hooks/useIcon';
 import { ViewItem } from 'src/types';
 import { useModelItem } from 'src/hooks/useModelItem';
+import { useScene } from 'src/hooks/useScene';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { ExpandableLabel } from 'src/components/Label/ExpandableLabel';
 import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
+
+const INLINE_EDIT_EVENT = 'inlineEditNodeName';
 
 interface Props {
   node: ViewItem;
@@ -21,9 +24,48 @@ export const Node = memo(({ node, order }: Props) => {
   const { getTilePosition } = useCanvasMode();
   const editorMode = useUiStateStore((s) => s.editorMode);
   const linkedDiagrams = useUiStateStore((s) => s.linkedDiagrams);
+  const { updateModelItem } = useScene();
 
   const isReadonly = editorMode === 'EXPLORABLE_READONLY';
+  const isEditable = editorMode === 'EDITABLE';
   const hasLink = isReadonly && !!modelItem?.link;
+
+  const [isEditingName, setIsEditingName] = useState(false);
+
+  // F2 handler in useInteractionManager dispatches this event for the
+  // currently-selected item; match by id so only that node enters edit mode.
+  useEffect(() => {
+    if (!isEditable) return;
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ id: string }>).detail;
+      if (detail?.id === node.id) setIsEditingName(true);
+    };
+    window.addEventListener(INLINE_EDIT_EVENT, handler);
+    return () => window.removeEventListener(INLINE_EDIT_EVENT, handler);
+  }, [node.id, isEditable]);
+
+  const startInlineEdit = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isEditable) return;
+      e.stopPropagation();
+      e.preventDefault();
+      setIsEditingName(true);
+    },
+    [isEditable]
+  );
+
+  const commitName = useCallback(
+    (raw: string) => {
+      const next = raw.trim();
+      // Always commit whenever the value changed — including clearing to empty,
+      // which is how the user hides the label (matching the details-panel TextField).
+      if (next !== (modelItem?.name ?? '')) {
+        updateModelItem(node.id, { name: next });
+      }
+      setIsEditingName(false);
+    },
+    [updateModelItem, node.id, modelItem?.name]
+  );
 
   const linkedDiagramName = hasLink
     ? (linkedDiagrams.find((d) => d.id === modelItem!.link)?.name ?? null)
@@ -92,48 +134,97 @@ export const Node = memo(({ node, order }: Props) => {
           ...(hasLink && { pointerEvents: 'auto' })
         }}
       >
-        {(modelItem?.name || description) && (
-          <Box data-testid="node-label">
+        {(modelItem?.name || description || isEditingName) && (
+          <Box data-testid="node-label" onDoubleClick={startInlineEdit}>
             <ExpandableLabel
-              maxWidth={250}
+              maxWidth={isEditingName ? 600 : 250}
               expandDirection="BOTTOM"
               labelHeight={node.labelHeight ?? DEFAULT_LABEL_HEIGHT}
             >
               <Stack spacing={1}>
-                {modelItem.name && (
+                {isEditingName ? (
                   <Typography
                     fontWeight={600}
                     fontSize={node.labelFontSize ?? 14}
                     color={node.labelColor || 'text.primary'}
+                    contentEditable
+                    suppressContentEditableWarning
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
+                    onDoubleClick={(e) => e.stopPropagation()}
+                    onBlur={(e) => commitName(e.currentTarget.innerText)}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        (e.currentTarget as HTMLElement).blur();
+                      } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        setIsEditingName(false);
+                      }
+                    }}
+                    ref={(el) => {
+                      if (el && document.activeElement !== el) {
+                        el.focus();
+                        const range = document.createRange();
+                        range.selectNodeContents(el);
+                        const sel = window.getSelection();
+                        sel?.removeAllRanges();
+                        sel?.addRange(range);
+                      }
+                    }}
+                    sx={{
+                      outline: '1px solid rgba(0,0,0,0.3)',
+                      borderRadius: 1,
+                      px: 0.75,
+                      bgcolor: '#fff',
+                      minWidth: 20,
+                      cursor: 'text',
+                      display: 'inline-block',
+                      width: 'max-content',
+                      maxWidth: '100%',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word'
+                    }}
                   >
-                    {modelItem.headerLink ? (
-                      <a
-                        href="#"
-                        data-testid="node-header-link"
-                        title={modelItem.headerLink}
-                        style={{
-                          color: 'inherit',
-                          textDecoration: 'underline',
-                          cursor: 'pointer'
-                        }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          const url = /^https?:\/\//i.test(
-                            modelItem.headerLink!
-                          )
-                            ? modelItem.headerLink!
-                            : `https://${modelItem.headerLink}`;
-                          window.open(url, '_blank', 'noopener,noreferrer');
-                        }}
-                      >
-                        {modelItem.name}
-                      </a>
-                    ) : (
-                      modelItem.name
-                    )}
+                    {modelItem?.name ?? ''}
                   </Typography>
+                ) : (
+                  modelItem?.name && (
+                    <Typography
+                      fontWeight={600}
+                      fontSize={node.labelFontSize ?? 14}
+                      color={node.labelColor || 'text.primary'}
+                    >
+                      {modelItem.headerLink ? (
+                        <a
+                          href="#"
+                          data-testid="node-header-link"
+                          title={modelItem.headerLink}
+                          style={{
+                            color: 'inherit',
+                            textDecoration: 'underline',
+                            cursor: 'pointer'
+                          }}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            const url = /^https?:\/\//i.test(
+                              modelItem.headerLink!
+                            )
+                              ? modelItem.headerLink!
+                              : `https://${modelItem.headerLink}`;
+                            window.open(url, '_blank', 'noopener,noreferrer');
+                          }}
+                        >
+                          {modelItem.name}
+                        </a>
+                      ) : (
+                        modelItem.name
+                      )}
+                    </Typography>
+                  )
                 )}
                 {description && <RichTextEditor value={description} readOnly />}
               </Stack>

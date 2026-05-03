@@ -411,4 +411,6 @@ export interface LoadOptions {
 
 export interface IsoflowRef {
   load: (data: InitialData, options?: LoadOptions) => void;
+  /** Opens the built-in image export dialog for the currently-loaded diagram. */
+  openExportImageDialog: () => void;
 }

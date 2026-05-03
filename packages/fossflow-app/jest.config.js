@@ -18,7 +18,10 @@ module.exports = {
     '^react-dom$': path.join(rootNodeModules, 'react-dom'),
     '^react-dom/client$': path.join(rootNodeModules, 'react-dom/client'),
     '^react/jsx-runtime$': path.join(rootNodeModules, 'react/jsx-runtime'),
-    '^react/jsx-dev-runtime$': path.join(rootNodeModules, 'react/jsx-dev-runtime')
+    '^react/jsx-dev-runtime$': path.join(rootNodeModules, 'react/jsx-dev-runtime'),
+    '\\.(css|less|scss|sass)$': path.join(__dirname, 'jest.cssMock.js'),
+    '\\.(svg|png|jpg|jpeg|gif|webp)$': path.join(__dirname, 'jest.assetMock.js'),
+    '^fossflow$': path.join(__dirname, 'jest.fossflowMock.js')
   },
   setupFilesAfterEnv: [path.join(__dirname, 'jest.setup.js')],
   testPathIgnorePatterns: ['/node_modules/', '/build/', '\\.d\\.ts$'],
