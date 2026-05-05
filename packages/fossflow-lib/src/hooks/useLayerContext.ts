@@ -18,6 +18,8 @@ export interface LayerItem {
   id: string;
   type: LayerItemType;
   name: string;
+  iconUrl?: string;
+  showLabel?: boolean;
 }
 
 export interface LayerContextValue {
@@ -74,6 +76,7 @@ export const LayerContextProvider = ({
   const currentViewId = useUiStateStore((state) => state.view);
   const views = useModelStore((state) => state.views, shallow);
   const modelItems = useModelStore((state) => state.items, shallow);
+  const icons = useModelStore((state) => state.icons, shallow);
 
   const value = useMemo<LayerContextValue>(() => {
     if (!currentViewId || !views?.length) {
@@ -98,6 +101,20 @@ export const LayerContextProvider = ({
     const modelItemNameById = new Map<string, string>(
       (modelItems ?? []).map((m) => [m.id, m.name ?? 'Untitled'])
     );
+
+    // Build lookup: iconId → url
+    const iconUrlById = new Map<string, string>(
+      (icons ?? []).map((ic) => [ic.id, ic.url])
+    );
+
+    // Build lookup: modelItemId → iconUrl
+    const itemIconUrlById = new Map<string, string>();
+    for (const m of modelItems ?? []) {
+      if (m.icon) {
+        const url = iconUrlById.get(m.icon);
+        if (url) itemIconUrlById.set(m.id, url);
+      }
+    }
 
     const visibleIds = new Set<string>();
     const lockedIds = new Set<string>();
@@ -145,7 +162,7 @@ export const LayerContextProvider = ({
       if (nameOverride) {
         name = nameOverride;
       } else if (type === 'CONNECTOR') {
-        name = (entity as any).label || 'Connector';
+        name = (entity as any).name?.trim() || (entity as any).description || (entity as any).label || 'Connector';
       } else if (type === 'RECTANGLE') {
         name = 'Rectangle';
       } else if (type === 'TEXTBOX') {
@@ -154,7 +171,9 @@ export const LayerContextProvider = ({
         name = 'Unknown';
       }
 
-      pushToGroup(key, { id: entity.id, type, name });
+      const iconUrl = type === 'ITEM' ? itemIconUrlById.get(entity.id) : undefined;
+      const showLabel = (entity as any).showLabel as boolean | undefined;
+      pushToGroup(key, { id: entity.id, type, name, iconUrl, showLabel });
     };
 
     (currentView.items ?? []).forEach((item) => {
@@ -177,7 +196,7 @@ export const LayerContextProvider = ({
       unassignedCount,
       itemsByLayerId
     };
-  }, [currentViewId, views, modelItems]);
+  }, [currentViewId, views, modelItems, icons]);
 
   return React.createElement(LayerContext.Provider, { value }, children);
 };

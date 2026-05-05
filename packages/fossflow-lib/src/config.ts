@@ -42,7 +42,7 @@ export const VIEW_DEFAULTS: Required<
 };
 
 export const VIEW_ITEM_DEFAULTS: Required<
-  Omit<ViewItem, 'id' | 'tile' | 'zIndex' | 'layerId'>
+  Omit<ViewItem, 'id' | 'tile' | 'zIndex' | 'layerId' | 'showLabel'>
 > = {
   labelHeight: 80,
   labelFontSize: 14,
@@ -50,7 +50,7 @@ export const VIEW_ITEM_DEFAULTS: Required<
 };
 
 export const CONNECTOR_DEFAULTS: Required<
-  Omit<Connector, 'id' | 'color' | 'layerId'>
+  Omit<Connector, 'id' | 'color' | 'layerId' | 'name' | 'notes' | 'headerLink' | 'showLabel'>
 > = {
   width: 10,
   description: '',

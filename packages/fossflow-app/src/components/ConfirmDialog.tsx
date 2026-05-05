@@ -33,10 +33,20 @@ export function ConfirmDialog({
   onDiscard,
   onCancel
 }: ConfirmDialogProps) {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+      const target = e.target as HTMLElement
+      if (target.tagName === 'TEXTAREA' || target.isContentEditable) return
+      e.preventDefault()
+      onConfirm()
+    }
+  }
+
   return (
     <Dialog
       open={open}
       onClose={onCancel}
+      onKeyDown={handleKeyDown}
       maxWidth="xs"
       fullWidth
       PaperProps={{ sx: { boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)', borderRadius: 2 } }}

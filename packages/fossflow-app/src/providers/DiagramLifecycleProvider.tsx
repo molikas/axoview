@@ -109,6 +109,7 @@ interface DiagramLifecycleContextValue {
   setFileExplorerOpen: (open: boolean) => void;
   openDiagramById: (id: string, name: string) => Promise<void>;
   fileTreeRefreshToken: number;
+  refreshFileTree: () => void;
   dirtyDiagramIds: Set<string>;
   /**
    * Session-mode flag: true when the session has any work that has not been
@@ -1202,6 +1203,11 @@ export function DiagramLifecycleProvider({
     ]
   );
 
+  const refreshFileTree = useCallback(
+    () => setFileTreeRefreshToken((n) => n + 1),
+    []
+  );
+
   // ---------------------------------------------------------------------------
   // Context value
   // ---------------------------------------------------------------------------
@@ -1238,6 +1244,7 @@ export function DiagramLifecycleProvider({
     setFileExplorerOpen,
     openDiagramById,
     fileTreeRefreshToken,
+    refreshFileTree,
     dirtyDiagramIds,
     sessionWorkUnexported,
     markProjectExported,

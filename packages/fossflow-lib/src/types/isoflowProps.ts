@@ -235,6 +235,10 @@ export interface LocaleProps {
     openLink: string;
     caption: string;
     noCaption: string;
+    showLabel: string;
+    hideLabel: string;
+    showName: string;
+    hideName: string;
   };
   nodeInfoTab: {
     name: string;
@@ -262,6 +266,34 @@ export interface LocaleProps {
   connectorControls: {
     close: string;
     labels: string;
+    details: string;
+    style: string;
+    notes: string;
+    notesModified: string;
+    name: string;
+    namePlaceholder: string;
+    additionalLabels: string;
+    addLabel: string;
+    noLabels: string;
+    addLink: string;
+    removeLink: string;
+    linkPlaceholder: string;
+    showLabel: string;
+    hideLabel: string;
+    showName: string;
+    hideName: string;
+    color: string;
+    width: string;
+    lineStyle: string;
+    lineType: string;
+    useCustomColor: string;
+    showArrow: string;
+    solid: string;
+    dotted: string;
+    dashed: string;
+    singleLine: string;
+    doubleLine: string;
+    doubleLineWithCircle: string;
   };
   textBoxControls: {
     close: string;

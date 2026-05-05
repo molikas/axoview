@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { coords, id, constrainedStrings } from './common';
+import { coords, id, constrainedStrings, NOTES_MAX_LENGTH } from './common';
 
 export const connectorStyleOptions = ['SOLID', 'DOTTED', 'DASHED'] as const;
 export const connectorLineTypeOptions = [
@@ -32,6 +32,10 @@ export const anchorSchema = z.object({
 
 export const connectorSchema = z.object({
   id,
+  name: z.string().max(200).optional(),
+  notes: z.string().max(NOTES_MAX_LENGTH).optional(),
+  headerLink: z.string().max(2048).optional(),
+  showLabel: z.boolean().optional(),
   // Legacy label fields (for backward compatibility)
   description: constrainedStrings.description.optional(),
   startLabel: constrainedStrings.description.optional(),

@@ -797,6 +797,7 @@ DELETED:
 - [x] TrashSection removed; context menu = Open / Rename / Duplicate / Delete (hard delete, confirmation dialog)
 - [x] Dialogs standardized: soft shadow, X close button, h6 600 title, body2 text.secondary body, proper DialogActions padding
 - [x] `yarn build` clean
+- [x] Details panel + UX polish (connector name/notes/F2, layer thumbnails, Enter-to-confirm, Empty-state Import) shipped — see docs/adr/0004 and docs/tactical/details-panel-and-ux-polish.md (git history).
 
 ---
 

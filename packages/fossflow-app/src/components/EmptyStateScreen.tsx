@@ -1,5 +1,5 @@
 import { Box, Button, Paper } from '@mui/material';
-import { AddCircleOutline as AddIcon } from '@mui/icons-material';
+import { AddCircleOutline as AddIcon, FileUploadOutlined as ImportIcon } from '@mui/icons-material';
 
 // ─── A/B test: flip this constant to compare, delete the unused branch when decided ───
 const GRID_VARIANT: 'iso' | '2d' = 'iso';
@@ -22,11 +22,33 @@ const gridBackground = {
   }
 } as const;
 
+const cardSx = {
+  width: 220,
+  py: 4,
+  px: 3,
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: 2,
+  borderRadius: 3
+} as const;
+
+const buttonSx = {
+  bgcolor: SKY_BLUE,
+  '&:hover': { bgcolor: '#0284c7' },
+  px: 4,
+  borderRadius: 2,
+  textTransform: 'none',
+  fontWeight: 600,
+  fontSize: '1rem'
+} as const;
+
 interface Props {
   onCreate: () => void;
+  onImport: () => void;
 }
 
-export function EmptyStateScreen({ onCreate }: Props) {
+export function EmptyStateScreen({ onCreate, onImport }: Props) {
   return (
     <Box
       sx={{
@@ -36,39 +58,21 @@ export function EmptyStateScreen({ onCreate }: Props) {
         ...gridBackground[GRID_VARIANT],
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        gap: 3
       }}
     >
-      <Paper
-        elevation={3}
-        sx={{
-          width: 300,
-          py: 4,
-          px: 3,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 2,
-          borderRadius: 3
-        }}
-      >
+      <Paper elevation={3} sx={cardSx}>
         <AddIcon sx={{ fontSize: 72, color: SKY_BLUE }} />
-
-        <Button
-          variant="contained"
-          size="large"
-          onClick={onCreate}
-          sx={{
-            bgcolor: SKY_BLUE,
-            '&:hover': { bgcolor: '#0284c7' },
-            px: 4,
-            borderRadius: 2,
-            textTransform: 'none',
-            fontWeight: 600,
-            fontSize: '1rem'
-          }}
-        >
+        <Button variant="contained" size="large" onClick={onCreate} sx={buttonSx}>
           New diagram
+        </Button>
+      </Paper>
+
+      <Paper elevation={3} sx={cardSx}>
+        <ImportIcon sx={{ fontSize: 72, color: SKY_BLUE }} />
+        <Button variant="contained" size="large" onClick={onImport} sx={buttonSx}>
+          Import
         </Button>
       </Paper>
     </Box>

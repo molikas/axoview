@@ -239,7 +239,7 @@ export const useInteractionManager = () => {
       if (e.key === 'F2') {
         const ctrl = uiState.itemControls;
         if (
-          (ctrl?.type === 'ITEM' || ctrl?.type === 'TEXTBOX') &&
+          (ctrl?.type === 'ITEM' || ctrl?.type === 'TEXTBOX' || ctrl?.type === 'CONNECTOR') &&
           uiState.editorMode === 'EDITABLE'
         ) {
           e.preventDefault();

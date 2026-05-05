@@ -119,6 +119,46 @@ describe('connectorLabelSchema', () => {
   });
 });
 
+describe('connectorSchema — name and notes fields', () => {
+  const base = { id: 'c1', anchors: [] };
+
+  it('accepts connector with a valid name', () => {
+    expect(connectorSchema.safeParse({ ...base, name: 'My link' }).success).toBe(true);
+  });
+
+  it('rejects name longer than 200 characters', () => {
+    expect(
+      connectorSchema.safeParse({ ...base, name: 'x'.repeat(201) }).success
+    ).toBe(false);
+  });
+
+  it('accepts connector with valid notes', () => {
+    expect(
+      connectorSchema.safeParse({ ...base, notes: '<p>hello</p>' }).success
+    ).toBe(true);
+  });
+
+  it('rejects notes longer than 50000 characters', () => {
+    expect(
+      connectorSchema.safeParse({ ...base, notes: 'x'.repeat(50001) }).success
+    ).toBe(false);
+  });
+
+  it('round-trips name and notes through parse', () => {
+    const input = { ...base, name: 'Edge label', notes: '<p>some notes</p>' };
+    const result = connectorSchema.safeParse(input);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.name).toBe('Edge label');
+      expect(result.data.notes).toBe('<p>some notes</p>');
+    }
+  });
+
+  it('connector without name or notes still validates', () => {
+    expect(connectorSchema.safeParse(base).success).toBe(true);
+  });
+});
+
 describe('connectorSchema — anchor count at schema level', () => {
   it('accepts connector with 0 anchors (no minimum enforced at schema level)', () => {
     // The 2-anchor minimum is an application-level invariant, not a Zod constraint.

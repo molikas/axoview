@@ -11,6 +11,7 @@ export const ConnectorLabels = memo(({ connectors }: Props) => {
     () =>
       connectors.filter((connector) =>
         Boolean(
+          (connector.name?.trim() && connector.showLabel !== false) ||
           connector.description ||
           connector.startLabel ||
           connector.endLabel ||

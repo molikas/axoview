@@ -134,7 +134,7 @@ export const Node = memo(({ node, order }: Props) => {
           ...(hasLink && { pointerEvents: 'auto' })
         }}
       >
-        {(modelItem?.name || description || isEditingName) && (
+        {node.showLabel !== false && (modelItem?.name || description || isEditingName) && (
           <Box data-testid="node-label" onDoubleClick={startInlineEdit}>
             <ExpandableLabel
               maxWidth={isEditingName ? 600 : 250}

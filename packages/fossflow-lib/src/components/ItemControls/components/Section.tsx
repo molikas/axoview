@@ -19,10 +19,10 @@ export const Section = ({ children, sx, title }: Props) => {
       <Stack>
         {title && (
           <Typography
-            variant="body2"
+            variant="caption"
+            fontWeight={600}
             color="text.secondary"
-            textTransform="uppercase"
-            pb={1}
+            sx={{ display: 'block', mb: 0.75 }}
           >
             {title}
           </Typography>

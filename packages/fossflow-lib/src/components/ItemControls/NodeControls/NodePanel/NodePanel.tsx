@@ -301,6 +301,7 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
         <NodeInfoTab
           node={viewItem}
           onModelItemUpdated={onModelUpdate}
+          onViewItemUpdated={onViewUpdate}
           nameRef={nameRef}
           linkRef={linkRef}
           showLink={showLink}

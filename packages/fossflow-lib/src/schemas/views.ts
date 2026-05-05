@@ -11,6 +11,7 @@ export const viewItemSchema = z.object({
   labelHeight: z.number().optional(),
   labelFontSize: z.number().optional(),
   labelColor: z.string().optional(),
+  showLabel: z.boolean().optional(),
   zIndex: z.number().int().optional(),
   layerId: id.optional()
 });

@@ -25,7 +25,7 @@ export const LayersPanel = () => {
     reorderLayers,
     assignLayerToItems
   } = useLayerActions();
-  const { updateModelItem } = useScene();
+  const { updateModelItem, updateConnector, updateViewItem } = useScene();
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [expandedLayerIds, setExpandedLayerIds] = useState<Set<string>>(
     new Set()
@@ -89,11 +89,19 @@ export const LayersPanel = () => {
   // Rename item from layers panel (only ITEM type has a model name)
   const handleItemRename = useCallback(
     (item: LayerItem, newName: string) => {
-      if (item.type === 'ITEM') {
-        updateModelItem(item.id, { name: newName });
-      }
+      if (item.type === 'ITEM') updateModelItem(item.id, { name: newName });
+      if (item.type === 'CONNECTOR') updateConnector(item.id, { name: newName });
     },
-    [updateModelItem]
+    [updateModelItem, updateConnector]
+  );
+
+  const handleToggleLabel = useCallback(
+    (item: LayerItem) => {
+      const next = item.showLabel === false ? undefined : false;
+      if (item.type === 'ITEM') updateViewItem(item.id, { showLabel: next });
+      if (item.type === 'CONNECTOR') updateConnector(item.id, { showLabel: next });
+    },
+    [updateViewItem, updateConnector]
   );
 
   // Panel → canvas: clicking an item row selects it on canvas
@@ -284,6 +292,7 @@ export const LayersPanel = () => {
                           onClick={handleItemClick}
                           onRename={handleItemRename}
                           onDragStart={handleItemDragStart}
+                          onToggleLabel={handleToggleLabel}
                         />
                       ))}
                     </Box>
@@ -319,6 +328,7 @@ export const LayersPanel = () => {
                 onClick={handleItemClick}
                 onRename={handleItemRename}
                 onDragStart={handleItemDragStart}
+                onToggleLabel={handleToggleLabel}
               />
             ))}
           </Box>

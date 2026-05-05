@@ -10,7 +10,9 @@ import {
 } from '@mui/material';
 import {
   InsertLink as InsertLinkIcon,
-  OpenInNew as OpenInNewIcon
+  OpenInNew as OpenInNewIcon,
+  VisibilityOutlined as ShowNameIcon,
+  VisibilityOffOutlined as HideNameIcon
 } from '@mui/icons-material';
 import { ModelItem, ViewItem } from 'src/types';
 import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
@@ -23,6 +25,7 @@ interface Props {
   node: ViewItem;
   readOnly?: boolean;
   onModelItemUpdated: (updates: Partial<ModelItem>) => void;
+  onViewItemUpdated?: (updates: Partial<ViewItem>) => void;
   nameRef?: React.RefObject<HTMLInputElement | null>;
   linkRef?: React.RefObject<HTMLInputElement | null>;
   showLink: boolean;
@@ -33,6 +36,7 @@ export const NodeInfoTab = ({
   node,
   readOnly,
   onModelItemUpdated,
+  onViewItemUpdated,
   nameRef,
   linkRef,
   showLink,
@@ -135,6 +139,18 @@ export const NodeInfoTab = ({
               <InsertLinkIcon />
             </IconButton>
           </Tooltip>
+          {onViewItemUpdated && (
+            <Tooltip title={node.showLabel === false ? tPanel('showName') : tPanel('hideName')}>
+              <IconButton
+                size="small"
+                onClick={() => onViewItemUpdated({ showLabel: node.showLabel === false ? undefined : false })}
+              >
+                {node.showLabel === false
+                  ? <HideNameIcon sx={{ fontSize: 18 }} />
+                  : <ShowNameIcon sx={{ fontSize: 18 }} />}
+              </IconButton>
+            </Tooltip>
+          )}
         </Stack>
         {showLink && (
           <TextField
