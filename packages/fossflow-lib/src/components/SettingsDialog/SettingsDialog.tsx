@@ -19,6 +19,8 @@ import { ZoomSettings } from '../ZoomSettings/ZoomSettings';
 import { LabelSettings } from '../LabelSettings/LabelSettings';
 import { ConnectorSettings } from '../ConnectorSettings/ConnectorSettings';
 import { IconPackSettings } from '../IconPackSettings/IconPackSettings';
+import { AboutTab } from './AboutTab';
+import { DiagnosticsTab } from './DiagnosticsTab';
 import { useTranslation } from 'src/stores/localeStore';
 
 export interface SettingsDialogProps {
@@ -38,11 +40,14 @@ export interface SettingsDialogProps {
   };
   /** Optional language selector component rendered on the Language tab. */
   languageSelector?: React.ReactNode;
+  /** Called when the user clicks "Download session dump" in the Diagnostics tab. */
+  onSessionDump?: () => void;
 }
 
 export const SettingsDialog = ({
   iconPackManager,
-  languageSelector
+  languageSelector,
+  onSessionDump
 }: SettingsDialogProps) => {
   const dialog = useUiStateStore((state) => state.dialog);
   const setDialog = useUiStateStore((state) => state.actions.setDialog);
@@ -58,6 +63,65 @@ export const SettingsDialog = ({
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
+
+  // Build dynamic tab list so indices stay contiguous regardless of optional tabs
+  const tabs: Array<{ label: string; content: React.ReactNode }> = [
+    {
+      label: t('settings.hotkeys.title'),
+      content: <HotkeySettings />
+    },
+    {
+      label: 'Canvas',
+      content: (
+        <>
+          <PanSettings />
+          <Box sx={{ px: 2, pb: 2 }}>
+            <ZoomSettings />
+          </Box>
+          <Box sx={{ px: 2, pb: 2 }}>
+            <LabelSettings />
+          </Box>
+        </>
+      )
+    },
+    {
+      label: t('settings.connector.title'),
+      content: <ConnectorSettings />
+    }
+  ];
+
+  if (iconPackManager) {
+    tabs.push({
+      label: t('settings.iconPacks.title'),
+      content: (
+        <IconPackSettings
+          lazyLoadingEnabled={iconPackManager.lazyLoadingEnabled}
+          onToggleLazyLoading={iconPackManager.onToggleLazyLoading}
+          packInfo={iconPackManager.packInfo}
+          enabledPacks={iconPackManager.enabledPacks}
+          onTogglePack={iconPackManager.onTogglePack}
+        />
+      )
+    });
+  }
+
+  if (languageSelector) {
+    tabs.push({
+      label: 'Language',
+      content: (
+        <Box sx={{ px: 2, py: 1 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Select the display language for the application interface.
+          </Typography>
+          {languageSelector}
+        </Box>
+      )
+    });
+  }
+
+  // About and Diagnostics always appended last — "geeky" stuff at the end
+  tabs.push({ label: 'About', content: <AboutTab /> });
+  tabs.push({ label: 'Diagnostics', content: <DiagnosticsTab onSessionDump={onSessionDump} /> });
 
   return (
     <Dialog open={isOpen} onClose={handleClose} maxWidth="md" fullWidth>
@@ -85,44 +149,13 @@ export const SettingsDialog = ({
           allowScrollButtonsMobile
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
-          <Tab label={t('settings.hotkeys.title')} />
-          <Tab label="Canvas" />
-          <Tab label={t('settings.connector.title')} />
-          {iconPackManager && <Tab label={t('settings.iconPacks.title')} />}
-          {languageSelector && <Tab label="Language" />}
+          {tabs.map((tab) => (
+            <Tab key={tab.label} label={tab.label} />
+          ))}
         </Tabs>
 
         <Box sx={{ mt: 2 }}>
-          {tabValue === 0 && <HotkeySettings />}
-          {tabValue === 1 && (
-            <>
-              <PanSettings />
-              <Box sx={{ px: 2, pb: 2 }}>
-                <ZoomSettings />
-              </Box>
-              <Box sx={{ px: 2, pb: 2 }}>
-                <LabelSettings />
-              </Box>
-            </>
-          )}
-          {tabValue === 2 && <ConnectorSettings />}
-          {tabValue === 3 && iconPackManager && (
-            <IconPackSettings
-              lazyLoadingEnabled={iconPackManager.lazyLoadingEnabled}
-              onToggleLazyLoading={iconPackManager.onToggleLazyLoading}
-              packInfo={iconPackManager.packInfo}
-              enabledPacks={iconPackManager.enabledPacks}
-              onTogglePack={iconPackManager.onTogglePack}
-            />
-          )}
-          {languageSelector && tabValue === (iconPackManager ? 4 : 3) && (
-            <Box sx={{ px: 2, py: 1 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Select the display language for the application interface.
-              </Typography>
-              {languageSelector}
-            </Box>
-          )}
+          {tabs[tabValue]?.content}
         </Box>
       </DialogContent>
       <DialogActions>

@@ -52,7 +52,7 @@ export const BottomDock = ({ endSlot }: BottomDockProps = {}) => {
         alignItems: 'center',
         justifyContent: 'space-between',
         px: 1.5,
-        zIndex: 10
+        zIndex: 20
       }}
     >
       {/* Left zone: empty / future use */}

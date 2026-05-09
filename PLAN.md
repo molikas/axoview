@@ -38,6 +38,7 @@ Claude should then:
 | **2B** | File Explorer UI (E3) | `[x]` | ⚠️ Very High | Depends on 2A |
 | **2B-R** | File Explorer UX Revision | `[x]` | High | Revises 2B — do before 2C |
 | **2C** | Diagram-to-Diagram Links | `[x]` | Low | Depends on 2A, 2B-R |
+| **2D** | Toolbar & Dock Layout Revamp | `[ ]` | Medium | Depends on 2B-R |
 | **3A** | Google Auth — authStore (E5) | `[ ]` | Medium | Depends on 0B |
 | **3B** | Google Drive Provider (E4) | `[ ]` | High | Depends on 3A |
 | **3C** | ~~S3 Provider + Backend (E4)~~ | 🚫 DROPPED (2026-04-29) | — | S3 support dropped — see Phase 3C section |
@@ -831,6 +832,54 @@ Before coding, read these files:
 - [x] Clicking linked node in read-only mode opens correct diagram in new tab
 - [x] Diagram IDs remain stable across renames
 - [x] `yarn build` clean
+
+---
+
+## Phase 2D — Toolbar & Dock Layout Revamp
+**Status:** `[ ]` | **Token load:** Medium | **Depends on:** 2B-R
+
+### Behavior
+The application chrome is reorganized to give every class of control a single owning region. The burger menu is removed and its items distributed; the file-explorer toggle moves into the left strip alongside Elements + Layers; the top toolbar collapses to a four-group RIGHT zone (View modes / Save group / Document actions / Sidebar toggle); SettingsDialog gains About + Diagnostics tabs.
+
+The shape is locked by [docs/adr/0005-toolbar-and-dock-layout-contract.md](docs/adr/0005-toolbar-and-dock-layout-contract.md). The execution checklist lives in [docs/tactical/layout-revamp.md](docs/tactical/layout-revamp.md).
+
+### Why this lands here
+After 2B-R + 2C, the file explorer + diagram-link UX is settled but the surrounding chrome still carries debt from the upstream layout (junk-drawer burger, file-explorer toggle in the wrong region, no place to add future controls). 2D fixes the shell so future phases (formatting, presentation, annotation) have a home.
+
+### Session startup checklist
+```
+Before coding, read these files:
+  docs/adr/0005-toolbar-and-dock-layout-contract.md       (full)
+  docs/tactical/layout-revamp.md                          (full — sub-tasks live here)
+  docs/ux-principles.md                                   (full — design language)
+  packages/fossflow-app/src/components/AppToolbar.tsx     (full)
+  packages/fossflow-lib/src/components/LeftDock/LeftDock.tsx        (full)
+  packages/fossflow-lib/src/components/SettingsDialog/SettingsDialog.tsx  (full)
+  packages/fossflow-lib/src/components/MainMenu/MainMenu.tsx        (skim — for burger items being redistributed)
+```
+
+### Sub-tasks (high-level)
+Detailed sub-tasks live in [docs/tactical/layout-revamp.md](docs/tactical/layout-revamp.md). Top-level groups:
+- [ ] **A.** Left strip restructure — Navigation region (📁), separator, Working region (⊞ ≣), System anchor (⚙).
+- [ ] **B.** Top toolbar restructure — RIGHT zone with four groups; new `StatusCluster` and `ExportPopover` components.
+- [ ] **C.** Burger removal — stop passing `mainMenuOptions`; lib's `MainMenu` stays exported but unused in app.
+- [ ] **D.** SettingsDialog tabs — append `About` (GitHub, version) and `Diagnostics` (debug overlay toggle, model dump, session dump).
+- [ ] **E.** Tests — `SettingsDialog`, `AppToolbar`, `StatusCluster`, `ExportPopover`.
+- [ ] **F.** Smoke checklist — server mode, session mode, settings tabs, export, read-only, save error path.
+- [ ] **G.** Wrap-up — flip dashboard to `[x]`, append wrap-up line below, delete tactical doc.
+
+### Done criteria
+- [ ] Top toolbar matches ADR 0005 four-group RIGHT zone in both server and session modes
+- [ ] Save action and status cluster are visually adjacent in session mode (one group)
+- [ ] Burger menu is no longer rendered in the app
+- [ ] Left strip has 📁 → separator → ⊞ ≣ → spacer → ⚙ from top to bottom
+- [ ] 📁 + Elements (or 📁 + Layers) can be open simultaneously; Elements ↔ Layers stay mutex
+- [ ] Settings dialog has new About + Diagnostics tabs; debug overlay toggle works; session dump and model dump download
+- [ ] Storage gauge popover keeps per-diagram breakdown; Dump action moved to Diagnostics
+- [ ] Export popover (top toolbar) offers JSON / Compact JSON / Image
+- [ ] Read-only URL mode unchanged (chip only)
+- [ ] All new strings localized in 14 languages
+- [ ] `yarn build` clean
 
 ---
 

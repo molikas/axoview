@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Box,
-  Button,
   Chip,
   IconButton,
   Popover,
@@ -15,7 +13,7 @@ import {
   Tooltip,
   Typography
 } from '@mui/material';
-import { DeleteOutline as DeleteIcon, FileDownloadOutlined as DumpIcon } from '@mui/icons-material';
+import { DeleteOutline as DeleteIcon } from '@mui/icons-material';
 
 const SESSION_DIAGRAM_PREFIX = 'fossflow_diagram_';
 const SESSION_DIAGRAMS_KEY = 'fossflow_diagrams';
@@ -85,25 +83,6 @@ interface Props {
   onDeleteDiagram?: (id: string) => Promise<void> | void;
 }
 
-const downloadDump = () => {
-  const entries: Record<string, unknown> = {};
-  for (let i = 0; i < sessionStorage.length; i++) {
-    const key = sessionStorage.key(i);
-    if (!key || !key.startsWith('fossflow')) continue;
-    const raw = sessionStorage.getItem(key) ?? '';
-    try { entries[key] = JSON.parse(raw); } catch { entries[key] = raw; }
-  }
-  const blob = new Blob(
-    [JSON.stringify({ timestamp: new Date().toISOString(), entries }, null, 2)],
-    { type: 'application/json' }
-  );
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `fossflow-session-dump-${Date.now()}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-};
 
 export function SessionStorageGauge({ onDeleteDiagram }: Props) {
   const [{ rows, totalBytes }, setState] = useState(() => computeRows());
@@ -211,22 +190,9 @@ export function SessionStorageGauge({ onDeleteDiagram }: Props) {
             </TableContainer>
           )}
 
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="caption" color="text.secondary">
-              Export your project to keep this work safely.
-            </Typography>
-            <Tooltip title="Download raw session dump (diagnostics)" placement="left">
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<DumpIcon sx={{ fontSize: 14 }} />}
-                onClick={downloadDump}
-                sx={{ fontSize: '0.6875rem', py: 0.25, px: 1, flexShrink: 0, ml: 1 }}
-              >
-                Dump
-              </Button>
-            </Tooltip>
-          </Stack>
+          <Typography variant="caption" color="text.secondary">
+            Export your project to keep this work safely. For raw diagnostics, use Settings → Diagnostics.
+          </Typography>
         </Stack>
       </Popover>
     </>

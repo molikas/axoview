@@ -39,7 +39,21 @@ import { BottomDock } from 'src/components/BottomDock/BottomDock';
 import enUS from 'src/i18n/en-US';
 
 // Dock/sidebar slots — rendered inside the LayerContextProvider so they have full store access.
-const LeftDockSlot = () => <LeftDock />;
+const LeftDockSlot = ({
+  fileExplorerOpen,
+  onFileExplorerToggle,
+  disableWorkingTabs
+}: {
+  fileExplorerOpen?: boolean;
+  onFileExplorerToggle?: () => void;
+  disableWorkingTabs?: boolean;
+}) => (
+  <LeftDock
+    fileExplorerOpen={fileExplorerOpen}
+    onFileExplorerToggle={onFileExplorerToggle}
+    disableWorkingTabs={disableWorkingTabs}
+  />
+);
 
 const RightSidebarSlot = ({ editorMode }: { editorMode: string }) => {
   const open = useUiStateStore((s) => s.rightSidebarOpen);
@@ -69,6 +83,10 @@ const App = forwardRef<IsoflowRef, IsoflowProps>(
       languageSelector,
       bottomDockEnd,
       suppressOnboardingHints,
+      fileExplorerOpen,
+      onFileExplorerToggle,
+      disableLeftDockWorkingTabs,
+      onSessionDump,
       /** @deprecated use toolbarPortalTarget */
       menuPortalTarget
     },
@@ -235,9 +253,16 @@ const App = forwardRef<IsoflowRef, IsoflowProps>(
                 sidebarTogglePortalTarget={sidebarTogglePortalTarget}
                 languageSelector={languageSelector}
                 suppressOnboardingHints={suppressOnboardingHints}
+                onSessionDump={onSessionDump}
               />
             </Box>
-            {editorMode !== 'EXPLORABLE_READONLY' && <LeftDockSlot />}
+            {editorMode !== 'EXPLORABLE_READONLY' && (
+              <LeftDockSlot
+                fileExplorerOpen={fileExplorerOpen}
+                onFileExplorerToggle={onFileExplorerToggle}
+                disableWorkingTabs={disableLeftDockWorkingTabs}
+              />
+            )}
             <RightSidebarSlot editorMode={editorMode} />
             <BottomDockSlot endSlot={bottomDockEnd} />
           </LayerContextProvider>

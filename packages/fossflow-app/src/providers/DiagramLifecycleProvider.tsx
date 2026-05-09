@@ -26,6 +26,7 @@ import { StorageManager } from '../StorageManager';
 import { notificationStore } from '../stores/notificationStore';
 import { sequentialName } from '../utils/fileOperations';
 import { apiBaseUrl } from '../utils/apiBaseUrl';
+import { exportAsJSON, exportAsCompactJSON } from 'fossflow';
 
 // Core icons — loaded once at module level
 const coreIcons = flattenCollections([isoflowIsopack]);
@@ -98,6 +99,9 @@ interface DiagramLifecycleContextValue {
   handleOpenClick: () => void;
   handlePreviewClick: () => Promise<void>;
   handleModelUpdated: (model: any) => void;
+  handleExportJSON: () => void;
+  handleExportCompactJSON: () => void;
+  handleExportImage: () => void;
   handleNewDiagram: () => Promise<void>;
   handleRenameCurrentDiagram: (newName: string) => Promise<void>;
   notifyDiagramRenamedFromTree: (id: string, newName: string) => void;
@@ -1027,6 +1031,21 @@ export function DiagramLifecycleProvider({
   }, [serverStorageAvailable, currentDiagram, storage, autoSave.saveNow]);
 
   // ---------------------------------------------------------------------------
+  // Export actions (toolbar Export popover)
+  // ---------------------------------------------------------------------------
+  const handleExportJSON = useCallback(() => {
+    exportAsJSON(buildSaveData() as any);
+  }, [buildSaveData]);
+
+  const handleExportCompactJSON = useCallback(() => {
+    exportAsCompactJSON(buildSaveData() as any);
+  }, [buildSaveData]);
+
+  const handleExportImage = useCallback(() => {
+    isoflowRef.current?.openExportImageDialog();
+  }, []);
+
+  // ---------------------------------------------------------------------------
   // Session-mode Save All
   // ---------------------------------------------------------------------------
   const saveAllDirty = useCallback(async () => {
@@ -1234,6 +1253,9 @@ export function DiagramLifecycleProvider({
     handleOpenClick,
     handlePreviewClick,
     handleModelUpdated,
+    handleExportJSON,
+    handleExportCompactJSON,
+    handleExportImage,
     handleNewDiagram,
     handleRenameCurrentDiagram,
     notifyDiagramRenamedFromTree,

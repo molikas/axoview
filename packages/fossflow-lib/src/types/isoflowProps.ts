@@ -438,6 +438,14 @@ export interface IsoflowProps {
   bottomDockEnd?: React.ReactNode;
   /** When true, the first-load welcome notification is hidden (pass true when a diagram is open). */
   suppressOnboardingHints?: boolean;
+  /** Whether the file-explorer panel is open (controlled by the app layer). */
+  fileExplorerOpen?: boolean;
+  /** Called when the user clicks the 📁 File Explorer button in the left strip. */
+  onFileExplorerToggle?: () => void;
+  /** When true, the LeftDock's Elements/Layers icons are disabled (e.g. no diagram is loaded yet). */
+  disableLeftDockWorkingTabs?: boolean;
+  /** Called when the user clicks "Download session dump" in Settings → Diagnostics. */
+  onSessionDump?: () => void;
 }
 
 export interface LoadOptions {

@@ -1,7 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Badge,
   Box,
   Chip,
   Divider,
@@ -17,36 +16,26 @@ import {
   SaveOutlined as SaveIcon,
   ShareOutlined as ShareIcon,
   Close as CloseIcon,
-  VisibilityOutlined as PreviewIcon,
-  AccountTreeOutlined as FileExplorerIcon,
-  SyncOutlined as SavingIcon,
-  ErrorOutlineOutlined as SaveErrorIcon
+  VisibilityOutlined as PreviewIcon
 } from '@mui/icons-material';
 import { useAppStorage } from '../providers/AppStorageContext';
 import { useDiagramLifecycle } from '../providers/DiagramLifecycleProvider';
-import { SessionStorageGauge } from './fileExplorer/SessionStorageGauge';
+import { StatusCluster } from './StatusCluster';
+import { ExportPopover } from './ExportPopover';
 
 export function AppToolbar() {
   const { t } = useTranslation('app');
   const { serverStorageAvailable, storage } = useAppStorage();
   const {
     hasUnsavedChanges,
-    lastSaved,
-    saveStatus,
     isReadonlyUrl,
     currentDiagram,
-    setToolbarPortalTarget,
     setSidebarTogglePortalTarget,
     handleSaveClick,
-    handlePreviewClick,
-    saveAllDirty,
-    fileExplorerOpen,
-    setFileExplorerOpen,
-    dirtyDiagramIds
+    handlePreviewClick
   } = useDiagramLifecycle();
 
   const shareButtonRef = useRef<HTMLButtonElement>(null);
-  const [toolbarPortalSet, setToolbarPortalSet] = useState(false);
   const [sidebarPortalSet, setSidebarPortalSet] = useState(false);
   const [showSharePopover, setShowSharePopover] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
@@ -56,7 +45,6 @@ export function AppToolbar() {
 
   const currentDiagramId = currentDiagram?.id;
 
-  // Reset share state whenever the active diagram changes
   useEffect(() => {
     setShareUrl('');
     setShareCopied(false);
@@ -120,83 +108,6 @@ export function AppToolbar() {
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [showSharePopover]);
 
-  const formatSavedAt = (d: Date): string => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterday = new Date(today.getTime() - 86400000);
-    const dDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    if (dDay.getTime() === today.getTime()) return t('status.savedAt', { time });
-    if (dDay.getTime() === yesterday.getTime())
-      return t('status.savedYesterdayAt', { time });
-    const month = d.toLocaleString([], { month: 'short' });
-    const day = d.getDate();
-    if (d.getFullYear() === now.getFullYear())
-      return t('status.savedOnDate', { month, day, time });
-    return t('status.savedOnDateYear', { month, day, year: d.getFullYear(), time });
-  };
-
-  // ── Auto-save status (server mode) ──────────────────────────────────────────
-  const renderAutoSaveStatus = () => {
-    if (saveStatus === 'saving') {
-      return (
-        <Stack direction="row" alignItems="center" spacing={0.5}>
-          <SavingIcon sx={{ fontSize: 13, color: 'text.disabled', animation: 'spin 1s linear infinite', '@keyframes spin': { from: { transform: 'rotate(0deg)' }, to: { transform: 'rotate(360deg)' } } }} />
-          <Typography variant="caption" sx={{ color: 'text.disabled', userSelect: 'none' }}>
-            {t('status.saving', 'Saving…')}
-          </Typography>
-        </Stack>
-      );
-    }
-    if (saveStatus === 'error') {
-      return (
-        <Stack direction="row" alignItems="center" spacing={0.5}>
-          <SaveErrorIcon sx={{ fontSize: 13, color: 'error.main' }} />
-          <Typography variant="caption" sx={{ color: 'error.main', userSelect: 'none' }}>
-            {t('status.saveFailed', 'Save failed')}
-          </Typography>
-          <Button
-            size="small"
-            variant="text"
-            color="error"
-            sx={{ minWidth: 0, px: 0.5, py: 0, fontSize: 11, textTransform: 'none', lineHeight: 1.5 }}
-            onClick={handleSaveClick}
-          >
-            {t('status.retry', 'Retry')}
-          </Button>
-        </Stack>
-      );
-    }
-    if (lastSaved) {
-      return (
-        <Typography variant="caption" sx={{ color: 'text.disabled', userSelect: 'none', whiteSpace: 'nowrap' }}>
-          {formatSavedAt(lastSaved)}
-        </Typography>
-      );
-    }
-    return null;
-  };
-
-  // ── Session-mode status ──────────────────────────────────────────────────────
-  const renderSessionStatus = () => (
-    <Typography
-      variant="caption"
-      sx={{
-        color: hasUnsavedChanges ? 'text.primary' : 'text.disabled',
-        whiteSpace: 'nowrap',
-        userSelect: 'none',
-        minWidth: 60,
-        textAlign: 'right'
-      }}
-    >
-      {lastSaved
-        ? `${formatSavedAt(lastSaved)}${hasUnsavedChanges ? ' •' : ''}`
-        : hasUnsavedChanges
-          ? t('status.unsaved', 'Unsaved')
-          : ''}
-    </Typography>
-  );
-
   return (
     <Box
       className="toolbar"
@@ -211,121 +122,52 @@ export function AppToolbar() {
         gap: 0
       }}
     >
-      {/* LEFT: menu portal + file-explorer toggle + new + save + open */}
+      {/* LEFT: intentionally empty per ADR 0005 */}
+      <Box className="toolbar-left" sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }} />
+
+      {/* CENTER: intentionally empty per ADR 0005 */}
+      <Box className="toolbar-center" sx={{ flex: 1 }} />
+
+      {/* RIGHT: four groups separated by dividers */}
       <Box
-        className="toolbar-left"
+        className="toolbar-right"
         sx={{ display: 'flex', alignItems: 'center', gap: 0.25, flexShrink: 0 }}
       >
-        <Box
-          ref={(el: HTMLDivElement | null) => {
-            if (el && !toolbarPortalSet) {
-              setToolbarPortalSet(true);
-              setToolbarPortalTarget(el);
-            }
-          }}
-          sx={{ display: 'inline-flex', alignItems: 'center' }}
-        />
-        {!isReadonlyUrl && (
-          <>
-            <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-            <Tooltip
-              title={fileExplorerOpen ? 'Close file explorer' : 'Open file explorer'}
-              placement="bottom"
-            >
-              <IconButton
-                size="small"
-                onClick={() => setFileExplorerOpen(!fileExplorerOpen)}
-                sx={{
-                  borderRadius: 1,
-                  color: fileExplorerOpen ? 'primary.main' : 'inherit'
-                }}
-              >
-                <FileExplorerIcon sx={{ fontSize: 18 }} />
-              </IconButton>
-            </Tooltip>
-
-            <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-
-            {/* Save — shown in session mode; hidden in server mode (auto-save handles it) */}
-            {!serverStorageAvailable && (
-              <>
-                <Tooltip title={t('nav.save', 'Save') + ' (Ctrl+S)'} placement="bottom">
-                  <span>
-                    <IconButton
-                      size="small"
-                      onClick={handleSaveClick}
-                      disabled={!!currentDiagramId && !hasUnsavedChanges}
-                      sx={{ borderRadius: 1, color: 'inherit' }}
-                    >
-                      <SaveIcon sx={{ fontSize: 18 }} />
-                    </IconButton>
-                  </span>
-                </Tooltip>
-                {dirtyDiagramIds.size > (hasUnsavedChanges ? 1 : 0) && (
-                  <Tooltip
-                    title={`Save All — ${dirtyDiagramIds.size} unsaved diagrams`}
-                    placement="bottom"
-                  >
-                    <IconButton
-                      size="small"
-                      onClick={saveAllDirty}
-                      sx={{ borderRadius: 1, color: 'inherit' }}
-                    >
-                      <Badge
-                        badgeContent={dirtyDiagramIds.size}
-                        color="warning"
-                        sx={{ '& .MuiBadge-badge': { fontSize: 9, minWidth: 14, height: 14, padding: 0 } }}
-                      >
-                        <SaveIcon sx={{ fontSize: 18 }} />
-                      </Badge>
-                    </IconButton>
-                  </Tooltip>
-                )}
-                <Chip
-                  label="SESSION"
-                  size="small"
-                  color="warning"
-                  sx={{
-                    height: 18,
-                    fontSize: '0.5625rem',
-                    fontWeight: 700,
-                    ml: 0.25,
-                    '& .MuiChip-label': { px: 0.75 }
-                  }}
-                />
-                <SessionStorageGauge />
-              </>
-            )}
-          </>
-        )}
-        {isReadonlyUrl && (
+        {isReadonlyUrl ? (
           <Chip
             label={t('dialog.readOnly.mode')}
             variant="outlined"
             size="small"
             sx={{ ml: 1 }}
           />
-        )}
-      </Box>
-
-      {/* CENTER: diagram name (editable in server mode) */}
-      <Box
-        className="toolbar-center"
-        sx={{ flex: 1 }}
-      />
-
-      {/* RIGHT: status | share + preview | sidebar toggle portal */}
-      <Box
-        className="toolbar-right"
-        sx={{ display: 'flex', alignItems: 'center', gap: 0.25, flexShrink: 0 }}
-      >
-        {!isReadonlyUrl && (
+        ) : (
           <>
-            {serverStorageAvailable
-              ? renderAutoSaveStatus()
-              : renderSessionStatus()}
+            {/* Group 1: View modes — reserved per ADR 0005, future ADRs add controls here */}
+
+            {/* Group 2: Save group — Save action (session mode only) + StatusCluster */}
+            {!serverStorageAvailable && (
+              <Tooltip
+                title={t('nav.save', 'Save') + ' (Ctrl+S)'}
+                placement="bottom"
+              >
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={handleSaveClick}
+                    disabled={!!currentDiagramId && !hasUnsavedChanges}
+                    sx={{ borderRadius: 1, color: 'primary.main' }}
+                  >
+                    <SaveIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            )}
+            <StatusCluster />
 
             <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+            {/* Group 3: Document actions — Export + Share + Preview */}
+            <ExportPopover />
             <Tooltip
               title={
                 !serverStorageAvailable || !currentDiagramId
@@ -365,7 +207,10 @@ export function AppToolbar() {
                 </IconButton>
               </span>
             </Tooltip>
+
             <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+            {/* Group 4: Sidebar toggle — Properties panel portal */}
             <Box
               ref={(el: HTMLDivElement | null) => {
                 if (el && !sidebarPortalSet) {

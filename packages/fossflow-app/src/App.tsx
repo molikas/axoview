@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Isoflow, allLocales } from 'fossflow';
+import { Isoflow, allLocales, type MainMenuOptions } from 'fossflow';
 import { AppStorageProvider, useAppStorage } from './providers/AppStorageContext';
 import {
   DiagramLifecycleProvider,
   useDiagramLifecycle
 } from './providers/DiagramLifecycleProvider';
 import { FileExplorerLayout } from './layout/FileExplorerLayout';
+import { FileExplorer } from './components/fileExplorer/FileExplorer';
 import { AppToolbar } from './components/AppToolbar';
 import { EmptyStateScreen } from './components/EmptyStateScreen';
 import { DiagnosticsOverlay } from './components/DiagnosticsOverlay';
@@ -19,6 +20,7 @@ import { ImportDialog } from './components/fileExplorer/ImportDialog';
 import { parseProject, importProject } from './services/project/projectZip';
 import { notificationStore } from './stores/notificationStore';
 import ChangeLanguage from './components/ChangeLanguage';
+import { downloadSessionDump } from './utils/sessionDump';
 import './App.css';
 
 const publicUrl = process.env.PUBLIC_URL || '';
@@ -28,9 +30,8 @@ const basename = publicUrl
     : publicUrl
   : '/';
 
-// Stable reference — prevents Isoflow's useEffect([mainMenuOptions]) from firing on
-// every EditorShell re-render (which would call setEditorMode and reset the tool mode).
-const MAIN_MENU_OPTIONS = ['LINK.GITHUB', 'VERSION'] as const;
+// Burger removed per ADR 0005 — app stops using mainMenuOptions so MainMenu short-circuits.
+const MAIN_MENU_OPTIONS: MainMenuOptions = [];
 
 const EXPORTER_TAG = `fossflow-app@${process.env.REACT_APP_VERSION ?? 'dev'}`;
 
@@ -65,13 +66,13 @@ function EditorShell() {
     iconPackManagerProp,
     handleModelUpdated,
     handleCreateBlankDiagram,
-    toolbarPortalTarget,
     sidebarTogglePortalTarget,
     isReadonlyUrl,
     currentDiagram,
     fileTreeRefreshToken,
     refreshFileTree,
     openDiagramById,
+    fileExplorerOpen,
     setFileExplorerOpen,
     markProjectExported
   } = useDiagramLifecycle();
@@ -166,15 +167,53 @@ function EditorShell() {
             locale={currentLocale}
             iconPackManager={iconPackManagerProp}
             linkedDiagrams={linkedDiagrams}
-            toolbarPortalTarget={toolbarPortalTarget}
             sidebarTogglePortalTarget={sidebarTogglePortalTarget}
             languageSelector={<ChangeLanguage />}
             bottomDockEnd={<DiagnosticsToggleButton />}
             suppressOnboardingHints={!!currentDiagram || isReadonlyUrl}
             mainMenuOptions={MAIN_MENU_OPTIONS}
+            fileExplorerOpen={fileExplorerOpen}
+            onFileExplorerToggle={() => setFileExplorerOpen(!fileExplorerOpen)}
+            disableLeftDockWorkingTabs={!currentDiagram}
+            onSessionDump={downloadSessionDump}
           />
+          {/* File Explorer overlay — sits to the right of the LeftDock strip,
+              never pushes the canvas. z=15 places it above the canvas/empty
+              state but below the strip (z=20) and BottomDock (z=20). */}
+          {!isReadonlyUrl && fileExplorerOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 40,
+                left: 40,
+                width: 280,
+                zIndex: 15,
+                display: 'flex',
+                flexDirection: 'column',
+                background: 'var(--mui-palette-background-paper, #fff)',
+                borderRight: '1px solid rgba(0,0,0,0.12)',
+                boxShadow: '0 0 8px rgba(0,0,0,0.08)',
+                overflow: 'hidden'
+              }}
+            >
+              <FileExplorer />
+            </div>
+          )}
           {!currentDiagram && !isReadonlyUrl && (
-            <div style={{ position: 'absolute', inset: 0, zIndex: 10 }}>
+            // Confined to the canvas area only — leaves left strip (40px) and
+            // bottom dock (40px) visually uncovered, which sidesteps the
+            // stacking-context trap created by Isoflow's translateZ(0).
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 40,
+                right: 0,
+                bottom: 40,
+                zIndex: 5
+              }}
+            >
               <EmptyStateScreen
                 onCreate={() => handleCreateBlankDiagram(null)}
                 onImport={handleImportClick}

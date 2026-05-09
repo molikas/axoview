@@ -20,11 +20,6 @@
   overflow: hidden;
 }
 
-/* Ensure Isoflow takes full height */
-.fossflow-container > div {
-  height: 100%;
-}
-
 .loading-screen {
   display: flex;
   align-items: center;
