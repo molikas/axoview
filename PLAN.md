@@ -38,7 +38,7 @@ Claude should then:
 | **2B** | File Explorer UI (E3) | `[x]` | ⚠️ Very High | Depends on 2A |
 | **2B-R** | File Explorer UX Revision | `[x]` | High | Revises 2B — do before 2C |
 | **2C** | Diagram-to-Diagram Links | `[x]` | Low | Depends on 2A, 2B-R |
-| **2D** | Toolbar & Dock Layout Revamp | `[ ]` | Medium | Depends on 2B-R |
+| **2D** | Toolbar & Dock Layout Revamp | `[x]` | Medium | Depends on 2B-R |
 | **3A** | Google Auth — authStore (E5) | `[ ]` | Medium | Depends on 0B |
 | **3B** | Google Drive Provider (E4) | `[ ]` | High | Depends on 3A |
 | **3C** | ~~S3 Provider + Backend (E4)~~ | 🚫 DROPPED (2026-04-29) | — | S3 support dropped — see Phase 3C section |
@@ -836,7 +836,9 @@ Before coding, read these files:
 ---
 
 ## Phase 2D — Toolbar & Dock Layout Revamp
-**Status:** `[ ]` | **Token load:** Medium | **Depends on:** 2B-R
+**Status:** `[x]` | **Token load:** Medium | **Depends on:** 2B-R
+
+- Toolbar & dock layout revamp shipped 2026-05-09 — see [docs/adr/0005-toolbar-and-dock-layout-contract.md](docs/adr/0005-toolbar-and-dock-layout-contract.md). Left-side panels overlay the canvas (no push, no slide); empty state confined to the canvas region; SettingsDialog gained About + Diagnostics tabs; burger removed and items redistributed; UX principles §8 captures the durable rules.
 
 ### Behavior
 The application chrome is reorganized to give every class of control a single owning region. The burger menu is removed and its items distributed; the file-explorer toggle moves into the left strip alongside Elements + Layers; the top toolbar collapses to a four-group RIGHT zone (View modes / Save group / Document actions / Sidebar toggle); SettingsDialog gains About + Diagnostics tabs.

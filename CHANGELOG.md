@@ -9,6 +9,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Toolbar and dock layout contract (ADR 0005).** Top toolbar collapses to a single RIGHT zone with four named groups separated by dividers, ordered left → right: View modes (reserved slot — buttons land here in future ADRs), Save group (Save button in session mode + StatusCluster), Document actions (Export / Share / Preview), Sidebar toggle (Properties panel portal). LEFT and CENTER zones are intentionally empty — diagram name continues to live on the canvas. See [ADR 0005](docs/adr/0005-toolbar-and-dock-layout-contract.md).
+- **Left strip absorbs File Explorer and Settings.** Two regions (Navigation `📁` / Working `⊞ ≣`) plus a system anchor (`⚙ Settings`) at the bottom. The 📁 toggle moved out of the top toolbar; ⚙ replaces the deleted burger Settings item. Elements / Layers stay mutex; `📁 + ⊞` (or `📁 + ≣`) co-occur as before.
+- **Settings dialog gains About and Diagnostics tabs.** *About:* GitHub link + version. *Diagnostics:* debug-overlay toggle (drives `useUiStateStore.actions.setEnableDebugTools`), Download model JSON, Download session dump (re-homed from the SessionStorageGauge popover — gauge keeps its per-diagram breakdown).
+- **`ExportPopover` in toolbar Group 3** — single ⬇ button with a popover offering Export JSON / Export Compact JSON / Export Image. Replaces the three burger entries.
+- **`StatusCluster` in toolbar Group 2** — bundles save state + (in session mode) the SESSION chip and storage gauge. Save button sits flush against it so the action and state read as one visual unit.
+- **`MainMenuOptions` re-exported** from the lib's standalone exports so callers can type their `mainMenuOptions` prop without dipping into internal paths.
+- **`disableLeftDockWorkingTabs` prop** on `<Isoflow>` — when no diagram is loaded, Elements and Layers icons are disabled with a "open or create a diagram first" tooltip. Avoids dead-end clicks on the empty state.
+
+### Changed
+
+- **Left-side panels overlay the canvas instead of pushing it.** File Explorer is now an absolute overlay sibling of `Isoflow` at `left: 40px`; Elements / Layers panel offsets to `left: 320px` when File Explorer is open so both can coexist with each panel's `borderRight` providing the visual seam. Canvas dimensions stay constant regardless of which panels are open. Aligns with the existing rule for the right Properties panel.
+- **No slide animation on left-side panels.** All left-side panels (File Explorer, Elements, Layers) appear and disappear instantly. The previous behaviour was inconsistent — File Explorer never animated; Elements / Layers slid via `transform`/`transition`. Snapping removes the inconsistency and the layout-jump that switching between panel types produced.
+- **`StatusCluster` simplified — no orange wrapper.** The SESSION chip alone signals the mode; the tinted box around the cluster was redundant. Saved-text only renders when there is something to say (no more empty `<span>` placeholder).
+- **`EmptyStateScreen` confined to the canvas region.** Now positioned at `top: 0, left: 40, right: 0, bottom: 40` instead of `inset: 0`. The left strip (40 px) and BottomDock (40 px) stay visually uncovered, so the chrome is visible on first load even before a diagram exists. Removed the legacy `.fossflow-container > div { height: 100% }` rule that was overriding inline `bottom` positioning on overlay siblings.
+- **BottomDock + LeftDock strip raised to `zIndex: 20`.** Belt-and-suspenders against future overlay collisions; the geometric exclusion above is the load-bearing fix.
+
+### Fixed
+
+- **Empty state no longer hides the toolbars.** Root cause: `Isoflow`'s outer `Box` uses `transform: translateZ(0)` which creates a new stacking context, trapping the strip's `zIndex: 20` inside it; externally `Isoflow` ranked at `auto` and lost to `EmptyStateScreen`'s `zIndex: 5`. Geometric fix (above) is robust against this without depending on z-index across the boundary.
+- **`ExportPopover`** dropped the inner `<Paper>` wrap (`Popover` already wraps via `PaperProps`).
+- **`DiagnosticsTab`** stray `exportAsJSON(model as any)` cast removed — `modelFromModelStore` already returns `Model`.
+- **`AboutTab`** GitHub link opens with `noopener,noreferrer`.
+- **`AppToolbar`** dead `dirtyDiagramIds` / `multiDirtyCount` removed; Save tooltip simplified.
+- **`MAIN_MENU_OPTIONS` typed correctly.** `never[]` (semantically the impossible array) → `MainMenuOptions`.
+
+### Removed
+
+- **Burger menu in the app chrome.** Lib's `MainMenu` is still exported for other consumers; the app simply stops portaling it. Items redistributed per ADR 0005: New / Open / Clear → file explorer; Export* → toolbar Export popover; Settings → strip ⚙; GitHub + Version → Settings → About.
+
 ---
 
 ## [2026.5.9] — 2026-05-09

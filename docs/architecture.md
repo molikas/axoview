@@ -1,11 +1,11 @@
 # FossFLOW Community Edition — Architecture Reference
 
-**Last updated:** 2026-05-03 (rev 11)
+**Last updated:** 2026-05-09 (rev 12)
 **Codebase root:** `packages/fossflow-lib/src` (library) · `packages/fossflow-app/src` (application shell) · `packages/fossflow-backend/src` (Express + fs adapter) · `packages/fossflow-worker/src` (Hono + Cloudflare Pages Functions)
 **Purpose:** Living architecture reference — feature inventory, store/reducer/mode architecture, multi-target deployment contract, test audit, gap analysis, lessons learned, and key APIs. Update this document whenever significant architectural changes are made.
 
 **Companion documents:**
-- [docs/adr/](adr/) — durable architectural decisions (project zip format, icon catalog merge, lean icon save).
+- [docs/adr/](adr/) — durable architectural decisions (project zip format, icon catalog merge, lean icon save, connector parity, toolbar + dock layout contract).
 - [docs/deployment.md](deployment.md) — from-scratch deploy walkthroughs.
 - [docs/testing.md](testing.md) — regression suite reference.
 - [flare_plan.md](../flare_plan.md) — Cloudflare + Docker dual-target deployment plan (Phase 5*).
@@ -1438,6 +1438,22 @@ No `ModeActions` handler for it in the `modes` map in `useInteractionManager`. T
 
 **`setIsMainMenuOpen` clears `itemControls`:**
 Opening the main menu automatically closes any open item controls panel. May be surprising if the user has unsaved property edits.
+
+---
+
+### 5. Stacking-context trap: `transform: translateZ(0)` on `Isoflow`'s outer Box (2026-05-09)
+
+**What happens:** Children of [`Isoflow.tsx`](../packages/fossflow-lib/src/Isoflow.tsx)'s outer `<Box>` (`LeftDock` strip, `BottomDock`, etc.) cannot raise themselves above `Isoflow`'s app-level siblings via z-index alone. A `LeftDock` strip with `zIndex: 20` still rendered behind an `EmptyStateScreen` overlay at `zIndex: 5` — the chrome was completely hidden on first load.
+
+**Root cause:** `Isoflow`'s outer Box uses `transform: translateZ(0)` (a GPU compositing hint). Per the CSS spec, any non-`none` `transform` creates a new **stacking context**. All inner z-indexes (LeftDock 20, BottomDock 20) are scoped to that context. Externally, `Isoflow` itself ranks at `auto`. An app-level sibling with explicit `zIndex: 5` therefore wins over `Isoflow` regardless of how high the strip's internal z-index is.
+
+**How fixed:** Geometric exclusion, not z-index. The `EmptyStateScreen` overlay was repositioned from `inset: 0` to `top: 0, left: 40, right: 0, bottom: 40` so it occupies only canvas pixels — the left strip (40 px wide) and BottomDock (40 px tall) are visually uncovered. Z-index becomes irrelevant for the chrome-visibility question.
+
+**Why z-index alone could not work:** Bumping `Isoflow`'s outer Box to `zIndex: > 5` would have raised the entire canvas above `EmptyStateScreen`, defeating the overlay. The only z-index-based fix would have been removing the `translateZ(0)` (giving up its compositing benefit) or threading every chrome element through to a separate sibling outside `Isoflow` — a much larger refactor.
+
+**Why non-obvious:** `transform: translateZ(0)` reads as a performance hint, not a layering directive. Developers add it for GPU-layer promotion and assume z-index continues to behave globally. The stacking-context side-effect is documented but easy to forget. A second hidden trap: `.fossflow-container > div { height: 100% }` in `App.css` was overriding inline `bottom: 40` on the new overlay siblings (CSS `height` wins over implicit height-from-top+bottom). The CSS rule was redundant — Isoflow's inner `<Box>` sets `height: '100%'` itself — and was removed.
+
+**Heuristic for future overlays:** If you find yourself fighting z-index across the `Isoflow` boundary, reach for geometric exclusion (position the overlay so it doesn't cover the chrome pixels in the first place). Trust the CSS box-model over stacking arithmetic.
 
 ---
 

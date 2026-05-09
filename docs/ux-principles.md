@@ -206,7 +206,103 @@ Sentence case in all languages where it applies. No ALL CAPS even if the source 
 
 ---
 
-## 8. Reference implementations
+## 8. Layout regions and overlays
+
+The application chrome has named regions with stable ownership rules. The authoritative contract is [ADR 0005](adr/0005-toolbar-and-dock-layout-contract.md); this section captures the rules-of-thumb that follow from it.
+
+### 8.1 Left-side panels overlay the canvas — never push it
+
+File Explorer, Elements, and Layers all render as absolute overlays on top of the canvas. Opening or closing any of them does not change the canvas's bounding box.
+
+```tsx
+// ✅ Correct — absolute overlay sibling of the canvas
+<div style={{ position: 'absolute', top: 0, bottom: 40, left: 40, width: 280, zIndex: 15 }}>
+  <FileExplorer />
+</div>
+
+// ❌ Wrong — flex child that pushes the canvas right
+<Box sx={{ display: 'flex' }}>
+  <Box sx={{ width: 280 }}><FileExplorer /></Box>
+  <Box sx={{ flex: 1 }}>{canvas}</Box>
+</Box>
+```
+
+Reason: panels open and close frequently; resizing the canvas on every toggle reflows the diagram and disrupts spatial memory. The right Properties panel already followed this rule — left-side panels now match it.
+
+When File Explorer (280 px) and Elements/Layers (240 px) are both open, the working panel offsets to `left: 320` (40 + 280) so they sit side-by-side with each panel's `borderRight` providing the seam.
+
+### 8.2 No slide animations on left-side panels
+
+Left-side panels appear and disappear instantly. No `transform`/`transition` slide.
+
+**Why:** earlier behavior was inconsistent — File Explorer had no animation, Elements/Layers slid via `transform`. Switching between them produced a layout-jump that read like a bug. Snapping is consistent across all three. Animation is also a bug surface — every transition is a mid-flight state where pointer-events, focus, and z-stacking can desync.
+
+### 8.3 Disabled panel triggers when their content is meaningless
+
+When opening a panel would land the user on nothing useful, disable the trigger rather than letting the panel open empty.
+
+Example: when no diagram is loaded, Elements and Layers icons are disabled with a tooltip *"Open or create a diagram first"*. File Explorer stays enabled — it's the way to *exit* the empty state. (See `disableLeftDockWorkingTabs` prop on `<Isoflow>`.)
+
+Don't introduce dead-end clicks: the user's first interaction with an empty app should land somewhere productive.
+
+### 8.4 EmptyStateScreen is confined to the canvas region
+
+The empty-state overlay must not cover the chrome (left strip, bottom dock). It owns the canvas-sized rectangle and nothing else:
+
+```tsx
+// ✅ Correct — confined to canvas
+<div style={{ position: 'absolute', top: 0, left: 40, right: 0, bottom: 40, zIndex: 5 }}>
+  <EmptyStateScreen ... />
+</div>
+
+// ❌ Wrong — covers the whole container including the chrome
+<div style={{ position: 'absolute', inset: 0, zIndex: 5 }}>
+  <EmptyStateScreen ... />
+</div>
+```
+
+**Why this is geometric, not z-index:** `Isoflow`'s outer Box uses `transform: translateZ(0)` which creates a stacking context — any z-index on inner chrome (the strip, the BottomDock) is trapped inside it and cannot beat an app-level overlay's z-index. Geometric exclusion sidesteps the problem entirely. See [docs/architecture.md §5.5](architecture.md#5-lessons-learned).
+
+Apply the same rule to any future full-canvas overlay (modal-backdrop variants, tutorial spotlight, etc.): if the chrome must remain visible, position the overlay to leave the chrome's pixels uncovered. Don't reach for z-index across the `Isoflow` boundary.
+
+### 8.5 Status cluster — chip carries the mode signal, not the wrapper
+
+A single mode badge (here: the orange `SESSION` chip) is enough to communicate the mode. Don't double up with a tinted background around the cluster — the redundancy reduces contrast for the actual content (save state text, storage gauge) without adding information.
+
+```tsx
+// ✅ Correct — chip alone signals the mode
+<Box sx={{ display: 'flex', gap: 0.5, px: 0.5 }}>
+  {saveText && <Typography>{saveText}</Typography>}
+  <Chip label="SESSION" sx={{ bgcolor: 'warning.dark', color: 'warning.contrastText' }} />
+  <SessionStorageGauge />
+</Box>
+
+// ❌ Wrong — orange tint on the wrapper duplicates the chip's signal
+<Box sx={{ bgcolor: 'warning.main', opacity: 0.85, ... }}>
+  <Typography sx={{ color: 'warning.contrastText' }}>{saveText}</Typography>
+  <Chip label="SESSION" ... />
+</Box>
+```
+
+`opacity` is also a trap on cluster wrappers — it cascades to all children, killing contrast on the very text you wanted to draw attention to.
+
+Conditional content should render conditionally. Don't reserve space with an empty `<Typography>` — render nothing when there is nothing to say.
+
+### 8.6 Save action sits flush against StatusCluster — they are one group
+
+In session mode, the Save button (`💾`) is followed immediately by the StatusCluster with no divider between them. They read as a single unit: *"this is what state we're in, and this is what to do about it."* Visually adjacent, not visually separated.
+
+This applies more broadly: when an action and its state are mutually relevant, group them with `gap` not `divider`. Save them as a pair.
+
+### 8.7 CSS rules that target absolutely-positioned siblings should be scoped narrowly
+
+Beware broad descendant rules like `.parent > div { height: 100% }`. They look harmless when the parent has one child but become destructive when overlay siblings are added — `height: 100%` overrides implicit height-from-top+bottom on `position: absolute` children, defeating any `bottom` inset.
+
+If you need to set a child's height generically, target a class or component selector, not every `<div>`. Or trust the child's own inline/sx height (most MUI components set `height` via sx anyway).
+
+---
+
+## 9. Reference implementations
 
 When building parallel surfaces, **read these first**:
 
