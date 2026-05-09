@@ -24,7 +24,9 @@ Source and issue tracker: [github.com/molikas/FossFLOW_V2](https://github.com/mo
 
 - **Node panel — Details / Style / Notes tabs** — Selecting a node opens the right Properties panel with three tabs. *Details*: name, caption (short text shown on the canvas below the node name), and optional link. *Style*: icon picker, icon size, label font/color/height. *Notes*: full-height rich-text editor for private documentation — never shown on the canvas itself.
 - **Caption vs Notes** — "Caption" is canvas-visible text (subtitle under the node name). "Notes" is hidden documentation only accessible in the panel. Both fields are rich-text (Quill), stored separately in the model.
-- **Floating action bar** — When a node is selected in edit mode a compact pill bar appears above the node on the canvas with seven icon buttons: Style, Edit name, Edit/Add link, Edit/Add notes, **Start connector** (draws a new connector from this node and returns to cursor after connecting), Delete.
+- **Floating action bar** — When a node is selected in edit mode a compact pill bar appears above the node on the canvas with seven icon buttons: Style, Edit name, Edit/Add link, Edit/Add notes, **Start connector** (draws a new connector from this node and returns to cursor after connecting), Delete. The bar is polymorphic — connectors, text boxes, and rectangles get the same affordance (Style / Edit name / Notes / Delete) anchored above the click point.
+- **Connector parity with nodes** — Connectors are first-class peers: `name`, `notes`, optional `headerLink`, and a synthetic name label drawn at the midpoint of the line. F2 inline-renames the connector on the canvas; the name label becomes a clickable link when a URL is set. Connector controls panel mirrors the node panel exactly — Details / Style / Notes tabs.
+- **Name field for text boxes and rectangles** — Both gain an optional name shown in the layers panel and rename-able via F2 in the layers tree.
 - **Note indicator dot** — Nodes with non-empty Notes show a small blue dot at the top-right of their icon on the canvas.
 - **Read-only node panel** — In `EXPLORABLE_READONLY` mode, clicking a node opens a single-scroll panel showing **Caption** and **Notes** sections (only when non-empty). Header shows the node icon, name, and optional link button. Nodes with no caption and no notes are not clickable at all — the panel stays closed.
 - **Double-click to place node or rectangle** — Double-clicking empty canvas opens a compact "Add" popover at the cursor. A **Rectangle** button at the top creates a background rectangle for visually grouping nodes. Below it, an icon picker lets you place a node — selecting an icon places it and immediately opens its Details tab for naming. Single left-click on empty canvas just deselects; no context menu.
@@ -38,7 +40,7 @@ Source and issue tracker: [github.com/molikas/FossFLOW_V2](https://github.com/mo
 ### Canvas and navigation
 
 - **Right-click to pan** — Right-click drag pans the canvas; release to resume the active tool.
-- **Default zoom 75%** — Opens with breathing room. (Reduced from 85%.)
+- **Default zoom 65%** — Opens with breathing room. (Reduced from 75%.)
 - **2D canvas mode** — Toggle between isometric and flat 2D from the ToolMenu. Each mode uses the same node/connector model; switching auto-fits the diagram to the viewport. Backed by a `CoordinateTransformStrategy` pattern (ISO and Cartesian2D strategies, each implementing `toScreen` / `fromScreen` / `gridTileUrl`) so the rest of the renderer is mode-agnostic.
   - **2D fidelity fixes** — In 2D mode, rectangle resize handles align to the actual square corners, transform anchors render upright, and flat (non-isometric) icons render upright at the tile center instead of being projected through the iso CSS matrix. AWS / GCP / Azure / K8s / MUI artwork now reads correctly in 2D.
 - **Layers** — Each view has an independent layer stack. Layers control visibility and lock state for all element types (nodes, connectors, rectangles, text boxes). Elements can be assigned to layers; unassigned elements are always visible and interactive. Layer order is draggable.
@@ -109,6 +111,8 @@ Source and issue tracker: [github.com/molikas/FossFLOW_V2](https://github.com/mo
 - **Help dialog (`F1` / `?`)** documents all keyboard shortcuts.
 - **Burger menu** trimmed to Settings · GitHub · Version. Open / Export / Clear actions live in the file explorer (their natural home).
 - **Default new-view name** — `"Page 1"` (was `"Untitled view"`).
+- **Sentence case across all property panels** — Section primitive enforces caption + semibold + secondary-color titles; ALL CAPS legacy retired. See [docs/ux-principles.md](docs/ux-principles.md) for the design language driving this and other panel-consistency rules.
+- **Enter-to-confirm on dialogs** — `ConfirmDialog` returns on Enter, cancels on Escape, in every destructive-action prompt.
 
 ---
 

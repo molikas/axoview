@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Box,
   IconButton as MUIIconButton,
   FormControlLabel,
-  Switch
+  Switch,
+  TextField
 } from '@mui/material';
 import { useRectangle } from 'src/hooks/useRectangle';
 import { ColorSelector } from 'src/components/ColorSelector/ColorSelector';
@@ -13,8 +14,9 @@ import { useScene } from 'src/hooks/useScene';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { ControlsContainer } from '../components/ControlsContainer';
 import { Section } from '../components/Section';
-import { DeleteButton } from '../components/DeleteButton';
 import { useTranslation } from 'src/stores/localeStore';
+
+const PANEL_EVENT = 'rectanglePanel';
 
 interface Props {
   id: string;
@@ -22,39 +24,51 @@ interface Props {
 
 export const RectangleControls = ({ id }: Props) => {
   const { t } = useTranslation('rectangleControls');
-  const uiStateActions = useUiStateStore((state) => {
-    return state.actions;
-  });
+  const uiStateActions = useUiStateStore((state) => state.actions);
   const rectangle = useRectangle(id);
-  const { updateRectangle, deleteRectangle } = useScene();
-  const [useCustomColor, setUseCustomColor] = useState(
-    !!rectangle?.customColor
-  );
+  const { updateRectangle } = useScene();
+  const [useCustomColor, setUseCustomColor] = useState(!!rectangle?.customColor);
+  const nameRef = useRef<HTMLInputElement>(null);
 
-  // If rectangle doesn't exist, return null
-  if (!rectangle) {
-    return null;
-  }
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const action = (e as CustomEvent<string>).detail;
+      if (action === 'focusName') {
+        requestAnimationFrame(() => {
+          nameRef.current?.focus();
+          nameRef.current?.select();
+        });
+      }
+    };
+    window.addEventListener(PANEL_EVENT, handler);
+    return () => window.removeEventListener(PANEL_EVENT, handler);
+  }, []);
+
+  if (!rectangle) return null;
 
   return (
     <ControlsContainer>
       <Box sx={{ position: 'relative' }}>
-        {/* Close button */}
         <MUIIconButton
           aria-label={t('close')}
-          onClick={() => {
-            return uiStateActions.setItemControls(null);
-          }}
-          sx={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            zIndex: 2
-          }}
+          onClick={() => uiStateActions.setItemControls(null)}
+          sx={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
           size="small"
         >
           <CloseIcon />
         </MUIIconButton>
+        <Section title={t('name')}>
+          <TextField
+            inputRef={nameRef}
+            placeholder={t('namePlaceholder')}
+            value={rectangle.name ?? ''}
+            size="small"
+            fullWidth
+            onChange={(e) =>
+              updateRectangle(rectangle.id, { name: e.target.value || undefined })
+            }
+          />
+        </Section>
         <Section title={t('color')}>
           <FormControlLabel
             control={
@@ -74,28 +88,18 @@ export const RectangleControls = ({ id }: Props) => {
           {useCustomColor ? (
             <CustomColorInput
               value={rectangle.customColor || '#000000'}
-              onChange={(color) => {
-                updateRectangle(rectangle.id, { customColor: color });
-              }}
+              onChange={(color) =>
+                updateRectangle(rectangle.id, { customColor: color })
+              }
             />
           ) : (
             <ColorSelector
-              onChange={(color) => {
-                updateRectangle(rectangle.id, { color, customColor: '' });
-              }}
+              onChange={(color) =>
+                updateRectangle(rectangle.id, { color, customColor: '' })
+              }
               activeColor={rectangle.color}
             />
           )}
-        </Section>
-        <Section>
-          <Box>
-            <DeleteButton
-              onClick={() => {
-                uiStateActions.setItemControls(null);
-                deleteRectangle(rectangle.id);
-              }}
-            />
-          </Box>
         </Section>
       </Box>
     </ControlsContainer>

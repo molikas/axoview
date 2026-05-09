@@ -319,7 +319,8 @@ export const Cursor: ModeActions = {
       } else if (uiState.mode.mousedownItem.type === 'CONNECTOR') {
         uiState.actions.setItemControls({
           type: 'CONNECTOR',
-          id: uiState.mode.mousedownItem.id
+          id: uiState.mode.mousedownItem.id,
+          tile: uiState.mouse.position.tile
         });
       } else if (uiState.mode.mousedownItem.type === 'TEXTBOX') {
         uiState.actions.setItemControls({

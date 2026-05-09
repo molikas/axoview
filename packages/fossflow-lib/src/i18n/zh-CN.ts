@@ -299,6 +299,8 @@ const locale: LocaleProps = {
   },
   textBoxControls: {
     close: '关闭',
+    name: '名称',
+    namePlaceholder: '元素名称…',
     text: '文本',
     textSize: '文本大小',
     textColor: '文本颜色',
@@ -306,6 +308,8 @@ const locale: LocaleProps = {
   },
   rectangleControls: {
     close: '关闭',
+    name: '名称',
+    namePlaceholder: '元素名称…',
     color: '颜色',
     useCustomColor: '使用自定义颜色'
   },

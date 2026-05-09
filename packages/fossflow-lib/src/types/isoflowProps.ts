@@ -297,6 +297,8 @@ export interface LocaleProps {
   };
   textBoxControls: {
     close: string;
+    name: string;
+    namePlaceholder: string;
     text: string;
     textSize: string;
     textColor: string;
@@ -304,6 +306,8 @@ export interface LocaleProps {
   };
   rectangleControls: {
     close: string;
+    name: string;
+    namePlaceholder: string;
     color: string;
     useCustomColor: string;
   };

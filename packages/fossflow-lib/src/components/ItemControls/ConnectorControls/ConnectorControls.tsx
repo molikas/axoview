@@ -39,12 +39,12 @@ import {
 import { getConnectorLabels, generateId } from 'src/utils';
 import { ControlsContainer } from '../components/ControlsContainer';
 import { Section } from '../components/Section';
-import { DeleteButton } from '../components/DeleteButton';
 import { LabelColorPicker } from '../components/LabelColorPicker';
 import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
 import { useTranslation } from 'src/stores/localeStore';
 
 const INLINE_EDIT_EVENT = 'inlineEditNodeName';
+const PANEL_EVENT = 'connectorPanel';
 
 const TAB_DETAILS = 0;
 const TAB_STYLE = 1;
@@ -63,6 +63,7 @@ const TabPanel = ({ children, index, value }: TabPanelProps) => (
     sx={{
       flex: 1,
       overflowY: 'auto',
+      overflowX: 'hidden',
       display: value === index ? 'flex' : 'none',
       flexDirection: 'column'
     }}
@@ -79,7 +80,7 @@ export const ConnectorControls = ({ id }: Props) => {
   const { t } = useTranslation('connectorControls');
   const uiStateActions = useUiStateStore((state) => state.actions);
   const connector = useConnector(id);
-  const { updateConnector, deleteConnector } = useScene();
+  const { updateConnector } = useScene();
   const editorMode = useUiStateStore((s) => s.editorMode);
 
   const [activeTab, setActiveTab] = useState(TAB_DETAILS);
@@ -103,6 +104,28 @@ export const ConnectorControls = ({ id }: Props) => {
     window.addEventListener(INLINE_EDIT_EVENT, handler);
     return () => window.removeEventListener(INLINE_EDIT_EVENT, handler);
   }, [id, editorMode]);
+
+  // Action bar panel events (Style, Edit name, Notes)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const action = (e as CustomEvent<string>).detail;
+      if (action === 'scrollToAppearance') {
+        setActiveTab(TAB_STYLE);
+      } else if (action === 'focusName') {
+        setActiveTab(TAB_DETAILS);
+        requestAnimationFrame(() => {
+          nameRef.current?.focus();
+          nameRef.current?.select();
+        });
+      } else if (action === 'focusLink') {
+        setActiveTab(TAB_DETAILS);
+      } else if (action === 'focusNotes') {
+        setActiveTab(TAB_NOTES);
+      }
+    };
+    window.addEventListener(PANEL_EVENT, handler);
+    return () => window.removeEventListener(PANEL_EVENT, handler);
+  }, []);
 
   const labels = useMemo(() => {
     if (!connector) return [];
@@ -472,14 +495,16 @@ export const ConnectorControls = ({ id }: Props) => {
           </Section>
 
           <Section title={t('width')}>
-            <Slider
-              marks
-              step={10}
-              min={10}
-              max={30}
-              value={connector.width}
-              onChange={(_, newWidth) => updateConnector(connector.id, { width: newWidth as number })}
-            />
+            <Box sx={{ px: 1 }}>
+              <Slider
+                marks
+                step={5}
+                min={10}
+                max={30}
+                value={connector.width}
+                onChange={(_, newWidth) => updateConnector(connector.id, { width: newWidth as number })}
+              />
+            </Box>
           </Section>
 
           <Section title={t('lineStyle')}>
@@ -534,14 +559,6 @@ export const ConnectorControls = ({ id }: Props) => {
             />
           </Section>
 
-          <Section>
-            <DeleteButton
-              onClick={() => {
-                uiStateActions.setItemControls(null);
-                deleteConnector(connector.id);
-              }}
-            />
-          </Section>
         </TabPanel>
 
         {/* Notes tab */}

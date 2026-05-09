@@ -308,6 +308,8 @@ const locale: LocaleProps = {
   },
   textBoxControls: {
     close: 'बंद करें',
+    name: 'नाम',
+    namePlaceholder: 'तत्व का नाम…',
     text: 'पाठ',
     textSize: 'पाठ का आकार',
     textColor: 'पाठ का रंग',
@@ -315,6 +317,8 @@ const locale: LocaleProps = {
   },
   rectangleControls: {
     close: 'बंद करें',
+    name: 'नाम',
+    namePlaceholder: 'तत्व का नाम…',
     color: 'रंग',
     useCustomColor: 'कस्टम रंग उपयोग करें'
   },

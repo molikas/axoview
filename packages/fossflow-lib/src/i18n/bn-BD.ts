@@ -306,6 +306,8 @@ const locale: LocaleProps = {
   },
   textBoxControls: {
     close: 'বন্ধ করুন',
+    name: 'নাম',
+    namePlaceholder: 'উপাদানের নাম…',
     text: 'পাঠ্য',
     textSize: 'পাঠ্যের আকার',
     textColor: 'পাঠ্যের রং',
@@ -313,6 +315,8 @@ const locale: LocaleProps = {
   },
   rectangleControls: {
     close: 'বন্ধ করুন',
+    name: 'নাম',
+    namePlaceholder: 'উপাদানের নাম…',
     color: 'রং',
     useCustomColor: 'কাস্টম রং ব্যবহার করুন'
   },

@@ -72,7 +72,7 @@ export const CONNECTOR_DEFAULTS: Required<
 export const CONNECTOR_SEARCH_OFFSET = { x: 1, y: 1 };
 
 export const TEXTBOX_DEFAULTS: Required<
-  Omit<TextBox, 'id' | 'tile' | 'layerId'>
+  Omit<TextBox, 'id' | 'tile' | 'layerId' | 'name'>
 > = {
   orientation: 'X',
   fontSize: 0.6,
@@ -87,7 +87,7 @@ export const TEXTBOX_PADDING = 0.2;
 export const TEXTBOX_FONT_WEIGHT = 'bold';
 
 export const RECTANGLE_DEFAULTS: Required<
-  Omit<Rectangle, 'id' | 'from' | 'to' | 'color' | 'layerId'>
+  Omit<Rectangle, 'id' | 'from' | 'to' | 'color' | 'layerId' | 'name'>
 > = {
   customColor: ''
 };
@@ -107,7 +107,7 @@ export const INITIAL_DATA: InitialData = {
   fitToView: false
 };
 export const INITIAL_UI_STATE = {
-  zoom: 0.75,
+  zoom: 0.65,
   scroll: {
     position: CoordsUtils.zero(),
     offset: CoordsUtils.zero()

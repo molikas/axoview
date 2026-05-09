@@ -322,8 +322,15 @@ export const UiOverlay = ({
 
         {/* Floating action bar — edit mode only, hidden while dragging */}
         {editorMode === EditorModeEnum.EDITABLE &&
-          itemControls?.type === 'ITEM' &&
-          mode.type !== 'DRAG_ITEMS' && <NodeActionBar id={itemControls.id} />}
+          itemControls?.type &&
+          ['ITEM', 'CONNECTOR', 'TEXTBOX', 'RECTANGLE'].includes(itemControls.type) &&
+          mode.type !== 'DRAG_ITEMS' && (
+            <NodeActionBar
+              type={itemControls.type as 'ITEM' | 'CONNECTOR' | 'TEXTBOX' | 'RECTANGLE'}
+              id={(itemControls as any).id}
+              tile={(itemControls as any).tile}
+            />
+          )}
 
         {/* Lasso layer assign bar */}
         {editorMode === EditorModeEnum.EDITABLE && <LassoLayerBar />}

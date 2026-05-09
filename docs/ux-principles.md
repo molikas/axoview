@@ -68,6 +68,22 @@ Every input field has a `Section` title above it. Placeholder text is a *hint* a
 
 Reason: placeholders disappear on focus, so a placeholder-only field has no persistent label — bad for accessibility and re-scanning. Explicit Section titles persist.
 
+### 1.4 Tabbed scroll containers must clip horizontally
+
+Any container with `overflowY: 'auto'` must also set `overflowX: 'hidden'`. Per CSS spec, mixing `overflow-y: auto` with the default `overflow-x: visible` resolves *both* axes to `auto`, turning the container into a horizontal scroll container as well.
+
+This bites with MUI `Slider`: the thumb's `::after` pseudo-element is a 42 × 42 invisible hit-area centred on the thumb. At `left: 100 %` it extends ~21 px past the slider edge — enough to trigger a horizontal scrollbar in any tabbed property panel.
+
+```tsx
+// ✅ Correct — explicit on both axes
+<Box sx={{ overflowY: 'auto', overflowX: 'hidden', flex: 1 }}>
+
+// ❌ Wrong — browser silently promotes overflowX to 'auto'
+<Box sx={{ overflowY: 'auto', flex: 1 }}>
+```
+
+Reference: [`ConnectorControls.tsx`](../packages/fossflow-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx) and [`NodePanel.tsx`](../packages/fossflow-lib/src/components/ItemControls/NodeControls/NodePanel/NodePanel.tsx) `TabPanel`.
+
 ---
 
 ## 2. Affordances

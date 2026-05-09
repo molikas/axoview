@@ -42,6 +42,7 @@ const TabPanel = ({ children, index, value }: TabPanelProps) => (
     sx={{
       flex: 1,
       overflowY: 'auto',
+      overflowX: 'hidden',
       display: value === index ? 'flex' : 'none',
       flexDirection: 'column'
     }}

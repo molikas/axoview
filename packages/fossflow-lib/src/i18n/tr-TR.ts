@@ -309,6 +309,8 @@ const locale: LocaleProps = {
   },
   textBoxControls: {
     close: 'Kapat',
+    name: 'Ad',
+    namePlaceholder: 'Eleman adı…',
     text: 'Metin',
     textSize: 'Metin boyutu',
     textColor: 'Metin rengi',
@@ -316,6 +318,8 @@ const locale: LocaleProps = {
   },
   rectangleControls: {
     close: 'Kapat',
+    name: 'Ad',
+    namePlaceholder: 'Eleman adı…',
     color: 'Renk',
     useCustomColor: 'Özel Renk Kullan'
   },

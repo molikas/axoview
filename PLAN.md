@@ -798,6 +798,7 @@ DELETED:
 - [x] Dialogs standardized: soft shadow, X close button, h6 600 title, body2 text.secondary body, proper DialogActions padding
 - [x] `yarn build` clean
 - [x] Details panel + UX polish (connector name/notes/F2, layer thumbnails, Enter-to-confirm, Empty-state Import) shipped — see docs/adr/0004 and docs/tactical/details-panel-and-ux-polish.md (git history).
+- [x] Session-mode UX revamp (storage gauge, project zip, lean save) shipped — see docs/adr/0001..0003 (git history).
 
 ---
 

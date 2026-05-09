@@ -313,6 +313,8 @@ const locale: LocaleProps = {
   },
   textBoxControls: {
     close: 'Zamknij',
+    name: 'Nazwa',
+    namePlaceholder: 'Nazwa elementu…',
     text: 'Tekst',
     textSize: 'Rozmiar tekstu',
     textColor: 'Kolor tekstu',
@@ -320,6 +322,8 @@ const locale: LocaleProps = {
   },
   rectangleControls: {
     close: 'Zamknij',
+    name: 'Nazwa',
+    namePlaceholder: 'Nazwa elementu…',
     color: 'Kolor',
     useCustomColor: 'Użyj niestandardowego koloru'
   },

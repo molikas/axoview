@@ -307,6 +307,8 @@ const locale: LocaleProps = {
   },
   textBoxControls: {
     close: 'Tutup',
+    name: 'Nama',
+    namePlaceholder: 'Nama elemen…',
     text: 'Teks',
     textSize: 'Ukuran teks',
     textColor: 'Warna teks',
@@ -314,6 +316,8 @@ const locale: LocaleProps = {
   },
   rectangleControls: {
     close: 'Tutup',
+    name: 'Nama',
+    namePlaceholder: 'Nama elemen…',
     color: 'Warna',
     useCustomColor: 'Gunakan Warna Kustom'
   },

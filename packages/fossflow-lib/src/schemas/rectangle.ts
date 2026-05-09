@@ -3,6 +3,7 @@ import { id, coords } from './common';
 
 export const rectangleSchema = z.object({
   id,
+  name: z.string().max(200).optional(),
   color: id.optional(),
   customColor: z.string().optional(), // For custom RGB colors
   from: coords,

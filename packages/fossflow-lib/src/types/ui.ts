@@ -13,7 +13,7 @@ interface AddItemControls {
   type: 'ADD_ITEM';
 }
 
-export type ItemControls = ItemReference | AddItemControls;
+export type ItemControls = (ItemReference & { tile?: Coords }) | AddItemControls;
 
 export interface Mouse {
   position: {

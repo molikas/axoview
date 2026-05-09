@@ -19,29 +19,55 @@ import {
   ArrowUpwardOutlined as BringForwardIcon,
   ArrowDownwardOutlined as SendBackIcon
 } from '@mui/icons-material';
+import { Coords } from 'src/types';
 import { generateId } from 'src/utils';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useViewItem } from 'src/hooks/useViewItem';
 import { useModelItem } from 'src/hooks/useModelItem';
+import { useConnector } from 'src/hooks/useConnector';
+import { useTextBox } from 'src/hooks/useTextBox';
+import { useRectangle } from 'src/hooks/useRectangle';
 import { useScene } from 'src/hooks/useScene';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useTranslation } from 'src/stores/localeStore';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { useLayerActions } from 'src/hooks/useLayerActions';
 
-const dispatch = (action: string) =>
-  window.dispatchEvent(new CustomEvent('nodePanel', { detail: action }));
+type ItemType = 'ITEM' | 'CONNECTOR' | 'TEXTBOX' | 'RECTANGLE';
+
+const PANEL_EVENT: Record<ItemType, string> = {
+  ITEM: 'nodePanel',
+  CONNECTOR: 'connectorPanel',
+  TEXTBOX: 'textBoxPanel',
+  RECTANGLE: 'rectanglePanel'
+};
+
+const dispatch = (type: ItemType, action: string) =>
+  window.dispatchEvent(new CustomEvent(PANEL_EVENT[type], { detail: action }));
 
 interface Props {
+  type: ItemType;
   id: string;
+  /** Required for CONNECTOR (no intrinsic tile position). */
+  tile?: Coords;
 }
 
-export const NodeActionBar = ({ id }: Props) => {
+export const NodeActionBar = ({ type, id, tile: connectorTile }: Props) => {
   const { t } = useTranslation('nodeActionBar');
   const viewItem = useViewItem(id);
   const modelItem = useModelItem(id);
-  const { deleteViewItem, createConnector, updateViewItem, colors } =
-    useScene();
+  const connector = useConnector(id);
+  const textBox = useTextBox(id);
+  const rectangle = useRectangle(id);
+  const {
+    deleteViewItem,
+    deleteConnector,
+    deleteTextBox,
+    deleteRectangle,
+    createConnector,
+    updateViewItem,
+    colors
+  } = useScene();
   const uiStateActions = useUiStateStore((state) => state.actions);
   const { layers } = useLayerContext();
   const { assignLayerToItems } = useLayerActions();
@@ -52,8 +78,19 @@ export const NodeActionBar = ({ id }: Props) => {
 
   const handleDelete = useCallback(() => {
     uiStateActions.setItemControls(null);
-    deleteViewItem(id);
-  }, [uiStateActions, deleteViewItem, id]);
+    if (type === 'ITEM') deleteViewItem(id);
+    else if (type === 'CONNECTOR') deleteConnector(id);
+    else if (type === 'TEXTBOX') deleteTextBox(id);
+    else if (type === 'RECTANGLE') deleteRectangle(id);
+  }, [
+    type,
+    id,
+    uiStateActions,
+    deleteViewItem,
+    deleteConnector,
+    deleteTextBox,
+    deleteRectangle
+  ]);
 
   const handleStartConnector = useCallback(() => {
     const newConnector = {
@@ -90,19 +127,68 @@ export const NodeActionBar = ({ id }: Props) => {
 
   const handleAssignLayer = useCallback(
     (layerId: string | undefined) => {
-      assignLayerToItems(layerId, [{ type: 'ITEM', id }]);
+      assignLayerToItems(layerId, [{ type, id }]);
       setLayerMenuAnchor(null);
     },
-    [assignLayerToItems, id]
+    [assignLayerToItems, type, id]
   );
 
-  if (!viewItem || !modelItem) return null;
+  // Derive position based on element type
+  const getPosition = useCallback(() => {
+    if (type === 'ITEM' && viewItem) {
+      return getTilePosition({ tile: (viewItem as any).tile, origin: 'TOP' });
+    }
+    if (type === 'TEXTBOX' && textBox) {
+      return getTilePosition({ tile: textBox.tile, origin: 'TOP' });
+    }
+    if (type === 'RECTANGLE' && rectangle) {
+      const midX = (rectangle.from.x + rectangle.to.x) / 2;
+      const topY = Math.min(rectangle.from.y, rectangle.to.y);
+      return getTilePosition({ tile: { x: midX, y: topY }, origin: 'TOP' });
+    }
+    if (type === 'CONNECTOR' && connectorTile) {
+      return getTilePosition({ tile: connectorTile, origin: 'TOP' });
+    }
+    return null;
+  }, [type, viewItem, textBox, rectangle, connectorTile, getTilePosition]);
+
+  // Guard: can't render without position or item data
+  const pos = getPosition();
+  if (!pos) return null;
+  if (type === 'ITEM' && (!viewItem || !modelItem)) return null;
+  if (type === 'CONNECTOR' && !connector) return null;
+  if (type === 'TEXTBOX' && !textBox) return null;
+  if (type === 'RECTANGLE' && !rectangle) return null;
 
   const hasNotes =
-    !!modelItem.notes && modelItem.notes.replace(/<[^>]*>/g, '').trim() !== '';
+    type === 'ITEM'
+      ? !!modelItem?.notes &&
+        modelItem.notes.replace(/<[^>]*>/g, '').trim() !== ''
+      : type === 'CONNECTOR'
+      ? !!connector?.notes &&
+        connector.notes.replace(/<[^>]*>/g, '').trim() !== ''
+      : false;
 
-  const pos = getTilePosition({ tile: viewItem.tile, origin: 'TOP' });
-  const currentLayerId = (viewItem as any).layerId as string | undefined;
+  const hasLink =
+    type === 'ITEM'
+      ? !!modelItem?.headerLink
+      : type === 'CONNECTOR'
+      ? !!connector?.headerLink
+      : false;
+
+  const currentLayerId =
+    type === 'ITEM'
+      ? (viewItem as any)?.layerId
+      : type === 'CONNECTOR'
+      ? connector?.layerId
+      : type === 'TEXTBOX'
+      ? textBox?.layerId
+      : rectangle?.layerId;
+
+  const showLink = type === 'ITEM' || type === 'CONNECTOR';
+  const showNotes = type === 'ITEM' || type === 'CONNECTOR';
+  const showStartConnector = type === 'ITEM';
+  const showZOrder = type === 'ITEM';
 
   return (
     <Box
@@ -131,7 +217,7 @@ export const NodeActionBar = ({ id }: Props) => {
         <Tooltip title={t('style')} placement="top">
           <IconButton
             size="small"
-            onClick={() => dispatch('scrollToAppearance')}
+            onClick={() => dispatch(type, 'scrollToAppearance')}
             sx={{ p: 0.75 }}
           >
             <StyleIcon sx={{ fontSize: 16 }} />
@@ -141,52 +227,54 @@ export const NodeActionBar = ({ id }: Props) => {
         <Tooltip title={t('editName')} placement="top">
           <IconButton
             size="small"
-            onClick={() => dispatch('focusName')}
+            onClick={() => dispatch(type, 'focusName')}
             sx={{ p: 0.75 }}
           >
             <EditIcon sx={{ fontSize: 16 }} />
           </IconButton>
         </Tooltip>
 
-        <Tooltip
-          title={modelItem.headerLink ? t('editLink') : t('addLink')}
-          placement="top"
-        >
-          <IconButton
-            size="small"
-            onClick={() => dispatch('focusLink')}
-            color={modelItem.headerLink ? 'primary' : 'default'}
-            sx={{ p: 0.75 }}
-          >
-            <LinkIcon sx={{ fontSize: 16 }} />
-          </IconButton>
-        </Tooltip>
+        {showLink && (
+          <Tooltip title={hasLink ? t('editLink') : t('addLink')} placement="top">
+            <IconButton
+              size="small"
+              onClick={() => dispatch(type, 'focusLink')}
+              color={hasLink ? 'primary' : 'default'}
+              sx={{ p: 0.75 }}
+            >
+              <LinkIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        )}
 
-        <Tooltip
-          title={hasNotes ? t('editNotes') : t('addNotes')}
-          placement="top"
-        >
-          <IconButton
-            size="small"
-            onClick={() => dispatch('focusNotes')}
-            color={hasNotes ? 'primary' : 'default'}
-            sx={{ p: 0.75 }}
+        {showNotes && (
+          <Tooltip
+            title={hasNotes ? t('editNotes') : t('addNotes')}
+            placement="top"
           >
-            <NotesIcon sx={{ fontSize: 16 }} />
-          </IconButton>
-        </Tooltip>
+            <IconButton
+              size="small"
+              onClick={() => dispatch(type, 'focusNotes')}
+              color={hasNotes ? 'primary' : 'default'}
+              sx={{ p: 0.75 }}
+            >
+              <NotesIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        )}
 
-        <Tooltip title={t('startConnector')} placement="top">
-          <IconButton
-            size="small"
-            onClick={handleStartConnector}
-            sx={{ p: 0.75 }}
-          >
-            <ConnectorIcon sx={{ fontSize: 16 }} />
-          </IconButton>
-        </Tooltip>
+        {showStartConnector && (
+          <Tooltip title={t('startConnector')} placement="top">
+            <IconButton
+              size="small"
+              onClick={handleStartConnector}
+              sx={{ p: 0.75 }}
+            >
+              <ConnectorIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        )}
 
-        {/* Layer assignment — always shown so users discover layers */}
         <Tooltip title="Assign to layer" placement="top">
           <IconButton
             size="small"
@@ -198,21 +286,28 @@ export const NodeActionBar = ({ id }: Props) => {
           </IconButton>
         </Tooltip>
 
-        {/* Z-order */}
-        <Tooltip title="Bring forward (Ctrl+])" placement="top">
-          <IconButton
-            size="small"
-            onClick={handleBringForward}
-            sx={{ p: 0.75 }}
-          >
-            <BringForwardIcon sx={{ fontSize: 16 }} />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Send back (Ctrl+[)" placement="top">
-          <IconButton size="small" onClick={handleSendBack} sx={{ p: 0.75 }}>
-            <SendBackIcon sx={{ fontSize: 16 }} />
-          </IconButton>
-        </Tooltip>
+        {showZOrder && (
+          <>
+            <Tooltip title="Bring forward (Ctrl+])" placement="top">
+              <IconButton
+                size="small"
+                onClick={handleBringForward}
+                sx={{ p: 0.75 }}
+              >
+                <BringForwardIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Send back (Ctrl+[)" placement="top">
+              <IconButton
+                size="small"
+                onClick={handleSendBack}
+                sx={{ p: 0.75 }}
+              >
+                <SendBackIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          </>
+        )}
 
         <Tooltip title={t('delete')} placement="top">
           <IconButton
@@ -226,7 +321,6 @@ export const NodeActionBar = ({ id }: Props) => {
         </Tooltip>
       </Paper>
 
-      {/* Layer assignment popover */}
       <Menu
         anchorEl={layerMenuAnchor}
         open={!!layerMenuAnchor}

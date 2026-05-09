@@ -11,6 +11,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2026.5.9] — 2026-05-09
+
+### Added
+
+- **Connector as a first-class peer of nodes.** `name`, `notes`, `headerLink`, `showLabel` fields added to `connectorSchema`. Synthetic name label rendered at the connector midpoint on the canvas; F2 inline rename reuses `inlineEditNodeName`. Name label becomes a clickable link when `headerLink` is set (`OpenInNew` overlay). `ConnectorControls` restructured into Details / Style / Notes tabs matching `NodePanel` shape. See [ADR 0004](docs/adr/0004-connector-name-and-details-panel.md).
+- **`name` field on TextBox and Rectangle.** Both schemas gain `name: z.string().max(200).optional()`. `RectangleControls` and `TextBoxControls` add a Name section (sentence-case label, `Element name…` placeholder). Layer-tree shows the name when set, falling back to `content` (text box) or `'Rectangle'`.
+- **Layers-panel F2 rename for `TEXTBOX` and `RECTANGLE`** (was `ITEM`/`CONNECTOR` only). `LayerItemRow` `RENAMEABLE` set extended; `handleItemRename` wires `updateTextBox` / `updateRectangle`.
+- **Polymorphic floating action bar.** `NodeActionBar` now handles all four item types: `ITEM`, `CONNECTOR`, `TEXTBOX`, `RECTANGLE`. Per-type delete (`deleteViewItem` / `deleteConnector` / `deleteTextBox` / `deleteRectangle`) and per-type panel events (`nodePanel` / `connectorPanel` / `textBoxPanel` / `rectanglePanel`). Connector tile threaded through `ItemControls` (`Cursor.ts`) so the bar positions above the click point — connectors have no intrinsic tile.
+- **Connector width slider — 5 stops** (10 / 15 / 20 / 25 / 30) instead of 3 (10 / 20 / 30). Same range, finer resolution; existing diagrams unchanged because all previous values still align to marks.
+- **`ConfirmDialog` Enter-to-confirm** keyboard shortcut at the dialog level.
+- **`LayerItemRow` icon thumbnails for ITEM rows.** Other types use 16 px glyphs.
+- **Layer name-label toggle.** Eye icon swaps `LabelOutlined` / `LabelOffOutlined` (semantically *item name visibility*, not layer visibility — see [docs/ux-principles.md §2.2](docs/ux-principles.md)). Opacity 0.5 at rest, 1 on hover; wired on both the layer-group and unassigned render sites.
+- **`EmptyStateScreen` Import card.** Direct import path for empty trees; `ImportDialog` opens for non-empty trees so existing diagrams aren't silently overwritten. Post-import auto-opens the file explorer with a success notification. `onCreate` / `onImport` cards rendered side-by-side.
+- **`refreshFileTree`** exposed from `DiagramLifecycleProvider`.
+- **Locale namespace expansion** across all 14 locales: `connectorControls` (name, color, width, lineStyle, lineType, useCustomColor, showArrow, solid/dotted/dashed, singleLine/doubleLine/doubleLineWithCircle, addLabel, noLabels, showName/hideName); `nodePanel` showName/hideName; `textBoxControls` and `rectangleControls` `name` + `namePlaceholder`.
+- **`docs/ux-principles.md`** — living design language reference covering Section as the layout primitive, sentence-case-everywhere, half-opacity affordances, F2 rename universally, two-way panel/canvas sync, item-type parity, icon semantics, and localisation rules. Referenced by `/feature`, `/shake-out`, `/audit`, `/notes`.
+- **ADR 0004** — connector name and details panel.
+
+### Changed
+
+- **Sentence-case sweep across all property panels.** `Section` component dropped `textTransform: uppercase`; now `caption` + semibold + secondary color, sentence case throughout (Node / Connector / TextBox / Rectangle). Material-Design-2014 ALL CAPS legacy retired.
+- **`ConnectorLabels` filter** fixed to include name-only connectors (was the root cause of missing canvas labels for connectors with `name` but no legacy `description`).
+- **Default zoom 75 % → 65 %** for more breathing room on initial load.
+
+### Fixed
+
+- **Connector Style: width slider at max no longer triggers a horizontal scrollbar.** Root cause: MUI Slider thumb's invisible 42 × 42 `::after` hit-area pseudo-element extends ~21 px past the slider's right edge at `left: 100 %`; combined with `TabPanel`'s `overflowY: 'auto'` (which CSS-spec-converts `overflow-x: visible` → `auto`), this triggered a horizontal scrollbar. Fix: `overflowX: 'hidden'` on `TabPanel` in both `ConnectorControls` and `NodePanel`. The hit-area is invisible — clipping it has no visual or interaction cost.
+- **Layer eye toggle** — `onToggleLabel` handler was missing on the unassigned render site; now wired alongside the layer-group site.
+
+### Tests
+
+- No new test files this release. Test count and suite count unchanged.
+
+---
+
 ## [2026.5.3] — 2026-05-03
 
 ### Added

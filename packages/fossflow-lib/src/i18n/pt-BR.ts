@@ -308,6 +308,8 @@ const locale: LocaleProps = {
   },
   textBoxControls: {
     close: 'Fechar',
+    name: 'Nome',
+    namePlaceholder: 'Nome do elemento…',
     text: 'Texto',
     textSize: 'Tamanho do texto',
     textColor: 'Cor do texto',
@@ -315,6 +317,8 @@ const locale: LocaleProps = {
   },
   rectangleControls: {
     close: 'Fechar',
+    name: 'Nome',
+    namePlaceholder: 'Nome do elemento…',
     color: 'Cor',
     useCustomColor: 'Usar cor personalizada'
   },

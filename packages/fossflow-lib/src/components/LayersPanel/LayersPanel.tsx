@@ -25,7 +25,7 @@ export const LayersPanel = () => {
     reorderLayers,
     assignLayerToItems
   } = useLayerActions();
-  const { updateModelItem, updateConnector, updateViewItem } = useScene();
+  const { updateModelItem, updateConnector, updateViewItem, updateTextBox, updateRectangle } = useScene();
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [expandedLayerIds, setExpandedLayerIds] = useState<Set<string>>(
     new Set()
@@ -86,13 +86,14 @@ export const LayersPanel = () => {
     });
   }, []);
 
-  // Rename item from layers panel (only ITEM type has a model name)
   const handleItemRename = useCallback(
     (item: LayerItem, newName: string) => {
       if (item.type === 'ITEM') updateModelItem(item.id, { name: newName });
       if (item.type === 'CONNECTOR') updateConnector(item.id, { name: newName });
+      if (item.type === 'TEXTBOX') updateTextBox(item.id, { name: newName });
+      if (item.type === 'RECTANGLE') updateRectangle(item.id, { name: newName });
     },
-    [updateModelItem, updateConnector]
+    [updateModelItem, updateConnector, updateTextBox, updateRectangle]
   );
 
   const handleToggleLabel = useCallback(

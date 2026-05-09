@@ -4,6 +4,7 @@ import { id, coords, constrainedStrings } from './common';
 
 export const textBoxSchema = z.object({
   id,
+  name: z.string().max(200).optional(),
   tile: coords,
   content: constrainedStrings.description,
   fontSize: z.number().optional(),

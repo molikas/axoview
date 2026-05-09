@@ -164,9 +164,9 @@ export const LayerContextProvider = ({
       } else if (type === 'CONNECTOR') {
         name = (entity as any).name?.trim() || (entity as any).description || (entity as any).label || 'Connector';
       } else if (type === 'RECTANGLE') {
-        name = 'Rectangle';
+        name = (entity as any).name?.trim() || 'Rectangle';
       } else if (type === 'TEXTBOX') {
-        name = stripHtml((entity as any).text || '');
+        name = (entity as any).name?.trim() || stripHtml((entity as any).content || '');
       } else {
         name = 'Unknown';
       }

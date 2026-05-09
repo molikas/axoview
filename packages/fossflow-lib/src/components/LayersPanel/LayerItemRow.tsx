@@ -29,7 +29,7 @@ const ItemThumbnail = ({ item }: { item: LayerItem }) => {
   return GLYPH_ICON[item.type] ?? <WidgetsOutlined sx={{ fontSize: 16 }} />;
 };
 
-const RENAMEABLE: Set<LayerItemType> = new Set(['ITEM', 'CONNECTOR']);
+const RENAMEABLE: Set<LayerItemType> = new Set(['ITEM', 'CONNECTOR', 'TEXTBOX', 'RECTANGLE']);
 
 const HAS_LABEL: Set<LayerItemType> = new Set(['ITEM', 'CONNECTOR']);
 
