@@ -6,9 +6,11 @@ import { useTranslation } from 'src/stores/localeStore';
 interface Props {
   value: string;
   onChange: (value: string) => void;
+  autoFocus?: boolean;
+  size?: 'small' | 'medium';
 }
 
-export const Searchbox = ({ value, onChange }: Props) => {
+export const Searchbox = ({ value, onChange, autoFocus, size }: Props) => {
   const { t } = useTranslation('searchbox');
   return (
     <TextField
@@ -18,6 +20,8 @@ export const Searchbox = ({ value, onChange }: Props) => {
       onChange={(e) => {
         return onChange(e.target.value as string);
       }}
+      autoFocus={autoFocus}
+      size={size}
       slotProps={{
         input: {
           startAdornment: (

@@ -345,6 +345,7 @@ export interface LocaleProps {
   iconSelectionControls: {
     close: string;
     importIcons: string;
+    addMoreIcons?: string;
     isometricLabel: string;
     isometricHint: string;
     dragHint: string;
@@ -388,12 +389,15 @@ export interface LocaleProps {
     text: string;
   };
   quickIconSelector: {
-    searchPlaceholder: string;
+    /** @deprecated removed in 2026-05 shake-out; kept optional for non-English locales pending cleanup */
+    searchPlaceholder?: string;
     recentlyUsed: string;
     searchResults: string;
     noIconsFound: string;
-    helpSearch: string;
-    helpBrowse: string;
+    /** @deprecated removed in 2026-05 shake-out; kept optional for non-English locales pending cleanup */
+    helpSearch?: string;
+    /** @deprecated removed in 2026-05 shake-out; kept optional for non-English locales pending cleanup */
+    helpBrowse?: string;
   };
   // other namespaces can be added here
 }

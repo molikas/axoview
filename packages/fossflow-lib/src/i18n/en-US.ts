@@ -356,6 +356,7 @@ const locale: LocaleProps = {
   iconSelectionControls: {
     close: 'Close',
     importIcons: 'Import Icons',
+    addMoreIcons: 'Add more icons',
     isometricLabel: 'Treat as isometric (3D view)',
     isometricHint: 'Uncheck for flat icons (logos, UI elements)',
     dragHint: 'You can drag and drop any item below onto the canvas.'
@@ -401,14 +402,9 @@ const locale: LocaleProps = {
     text: 'Text'
   },
   quickIconSelector: {
-    searchPlaceholder: 'Search icons (press Enter to select)',
     recentlyUsed: 'RECENTLY USED',
     searchResults: 'SEARCH RESULTS ({count} icons)',
-    noIconsFound: 'No icons found matching "{term}"',
-    helpSearch:
-      'Use arrow keys to navigate • Enter to select • Double-click to select and close',
-    helpBrowse:
-      'Type to search • Click category to expand • Double-click to select and close'
+    noIconsFound: 'No icons found matching "{term}"'
   }
 };
 

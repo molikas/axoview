@@ -36,7 +36,7 @@ const HAS_LABEL: Set<LayerItemType> = new Set(['ITEM', 'CONNECTOR']);
 interface Props {
   item: LayerItem;
   isSelected: boolean;
-  onClick: (item: LayerItem) => void;
+  onClick: (item: LayerItem, modifiers: { shift: boolean; ctrl: boolean }) => void;
   onRename?: (item: LayerItem, newName: string) => void;
   onDragStart?: (item: LayerItem) => void;
   onToggleLabel?: (item: LayerItem) => void;
@@ -94,9 +94,9 @@ export const LayerItemRow = memo(
       <Box
         ref={rowRef}
         tabIndex={0}
-        onClick={() => {
+        onClick={(e) => {
           if (!editing) {
-            onClick(item);
+            onClick(item, { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey });
             rowRef.current?.focus();
           }
         }}
@@ -104,6 +104,8 @@ export const LayerItemRow = memo(
         onKeyDown={handleRowKeyDown}
         onMouseDown={(e) => {
           if (!editing) {
+            // Don't initiate drag when modifier keys are held (multi-select gesture)
+            if (e.shiftKey || e.ctrlKey || e.metaKey) return;
             e.preventDefault();
             onDragStart?.(item);
           }

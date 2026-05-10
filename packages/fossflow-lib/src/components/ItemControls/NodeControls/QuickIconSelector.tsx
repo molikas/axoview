@@ -1,25 +1,12 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useMemo,
-  useCallback
-} from 'react';
-import {
-  Box,
-  Stack,
-  Typography,
-  Divider,
-  TextField,
-  InputAdornment,
-  Alert
-} from '@mui/material';
-import { Search as SearchIcon } from '@mui/icons-material';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Box, Stack, Typography, Divider, Alert } from '@mui/material';
 import { Icon } from 'src/types';
 import { useModelStore } from 'src/stores/modelStore';
 import { useIconCategories } from 'src/hooks/useIconCategories';
+import { useIconFiltering } from 'src/hooks/useIconFiltering';
 import { IconGrid } from '../IconSelectionControls/IconGrid';
 import { Icons } from '../IconSelectionControls/Icons';
+import { Searchbox } from '../IconSelectionControls/Searchbox';
 import { Section } from '../components/Section';
 import { useTranslation } from 'src/stores/localeStore';
 
@@ -29,7 +16,6 @@ interface Props {
   currentIconId?: string;
 }
 
-// Store recently used icons in localStorage
 const RECENT_ICONS_KEY = 'fossflow-recent-icons';
 const MAX_RECENT_ICONS = 12;
 
@@ -44,15 +30,9 @@ const getRecentIcons = (): string[] => {
 
 const addToRecentIcons = (iconId: string) => {
   const recent = getRecentIcons();
-  // Remove if already exists and add to front
   const filtered = recent.filter((id) => id !== iconId);
   const updated = [iconId, ...filtered].slice(0, MAX_RECENT_ICONS);
   localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(updated));
-};
-
-// Escape special regex characters
-const escapeRegex = (str: string): string => {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 };
 
 export const QuickIconSelector = ({
@@ -61,14 +41,12 @@ export const QuickIconSelector = ({
   currentIconId: _currentIconId
 }: Props) => {
   const { t } = useTranslation('quickIconSelector');
-  const [searchTerm, setSearchTerm] = useState('');
   const [hoveredIndex, setHoveredIndex] = useState(0);
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  const { setFilter, filter, filteredIcons } = useIconFiltering();
 
   const icons = useModelStore((state) => state.icons);
   const { iconCategories } = useIconCategories();
 
-  // Get recently used icons
   const recentIconIds = useMemo(() => getRecentIcons(), []);
   const recentIcons = useMemo(() => {
     return recentIconIds
@@ -76,36 +54,27 @@ export const QuickIconSelector = ({
       .filter(Boolean) as Icon[];
   }, [recentIconIds, icons]);
 
-  // Filter icons based on search
-  const filteredIcons = useMemo(() => {
-    if (!searchTerm) return null;
+  const handleIconSelect = useCallback(
+    (icon: Icon) => {
+      addToRecentIcons(icon.id);
+      onIconSelected(icon);
+    },
+    [onIconSelected]
+  );
 
-    try {
-      // Escape special regex characters to prevent errors
-      const escapedSearch = escapeRegex(searchTerm);
-      const regex = new RegExp(escapedSearch, 'gi');
-      return icons.filter((icon) => regex.test(icon.name));
-    } catch (_e) {
-      // If regex still fails somehow, fall back to simple includes
-      const lowerSearch = searchTerm.toLowerCase();
-      return icons.filter((icon) =>
-        icon.name.toLowerCase().includes(lowerSearch)
-      );
-    }
-  }, [searchTerm, icons]);
+  const handleIconDoubleClick = useCallback(
+    (icon: Icon) => {
+      handleIconSelect(icon);
+      onClose?.();
+    },
+    [handleIconSelect, onClose]
+  );
 
-  // Focus search input on mount
-  useEffect(() => {
-    searchInputRef.current?.focus();
-  }, []);
-
-  // Handle keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle navigation if we're showing search results
       if (!filteredIcons || filteredIcons.length === 0) return;
 
-      const itemsPerRow = 4; // Adjust based on your grid layout
+      const itemsPerRow = 4;
       const totalItems = filteredIcons.length;
 
       switch (e.key) {
@@ -142,53 +111,23 @@ export const QuickIconSelector = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [filteredIcons, hoveredIndex, onClose]);
-
-  const handleIconSelect = useCallback(
-    (icon: Icon) => {
-      addToRecentIcons(icon.id);
-      onIconSelected(icon);
-    },
-    [onIconSelected]
-  );
-
-  const handleIconDoubleClick = useCallback(
-    (icon: Icon) => {
-      handleIconSelect(icon);
-      onClose?.();
-    },
-    [handleIconSelect, onClose]
-  );
+  }, [filteredIcons, hoveredIndex, onClose, handleIconSelect]);
 
   return (
     <Box>
       <Section sx={{ py: 2 }}>
         <Stack spacing={2}>
-          {/* Search Box */}
-          <TextField
-            ref={searchInputRef}
-            fullWidth
-            placeholder={t('searchPlaceholder')}
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setHoveredIndex(0); // Reset hover when searching
+          <Searchbox
+            value={filter}
+            onChange={(v) => {
+              setFilter(v);
+              setHoveredIndex(0);
             }}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                )
-              }
-            }}
-            size="small"
             autoFocus
+            size="small"
           />
 
-          {/* Recently Used Icons - Show when no search */}
-          {!searchTerm && recentIcons.length > 0 && (
+          {!filter && recentIcons.length > 0 && (
             <>
               <Typography variant="caption" color="text.secondary">
                 {t('recentlyUsed')}
@@ -204,8 +143,7 @@ export const QuickIconSelector = ({
         </Stack>
       </Section>
 
-      {/* Search Results */}
-      {searchTerm && filteredIcons && (
+      {filter && filteredIcons && (
         <>
           <Section sx={{ py: 1 }}>
             <Typography variant="caption" color="text.secondary">
@@ -227,7 +165,7 @@ export const QuickIconSelector = ({
             ) : (
               <Section>
                 <Alert severity="info">
-                  {t('noIconsFound').replace('{term}', searchTerm)}
+                  {t('noIconsFound').replace('{term}', filter)}
                 </Alert>
               </Section>
             )}
@@ -235,23 +173,15 @@ export const QuickIconSelector = ({
         </>
       )}
 
-      {/* Original Icon Libraries - Show when no search */}
-      {!searchTerm && (
+      {!filter && (
         <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
           <Icons
             iconCategories={iconCategories}
             onClick={handleIconSelect}
-            onMouseDown={() => {}} // Not needed for selection
+            onMouseDown={() => {}}
           />
         </Box>
       )}
-
-      {/* Help Text */}
-      <Section sx={{ py: 1 }}>
-        <Typography variant="caption" color="text.secondary">
-          {searchTerm ? t('helpSearch') : t('helpBrowse')}
-        </Typography>
-      </Section>
     </Box>
   );
 };

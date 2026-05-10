@@ -68,6 +68,19 @@ export const themeConfig: ThemeOptions = {
     }
   },
   typography: {
+    fontFamily: [
+      '-apple-system',
+      'BlinkMacSystemFont',
+      '"Segoe UI"',
+      'Roboto',
+      'Oxygen',
+      'Ubuntu',
+      'Cantarell',
+      '"Fira Sans"',
+      '"Droid Sans"',
+      '"Helvetica Neue"',
+      'sans-serif'
+    ].join(','),
     fontSize: 14,
     h2: {
       fontSize: '2.5rem',

@@ -179,7 +179,7 @@ export type ConnectorInteractionMode = 'click' | 'drag';
 
 export interface Notification {
   message: string;
-  severity: 'info' | 'success' | 'warning';
+  severity: 'info' | 'success' | 'warning' | 'error';
 }
 
 export type CanvasMode = 'ISOMETRIC' | '2D';

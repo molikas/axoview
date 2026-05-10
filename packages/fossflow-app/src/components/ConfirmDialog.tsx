@@ -53,7 +53,7 @@ export function ConfirmDialog({
     >
       {title && (
         <DialogTitle sx={{ pb: 1, pr: 6 }}>
-          <Typography variant="h6" fontWeight={600} component="span">{title}</Typography>
+          <Typography variant="h6" component="span">{title}</Typography>
           <IconButton
             size="small"
             onClick={onCancel}

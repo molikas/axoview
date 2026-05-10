@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Box,
   Paper,
@@ -28,7 +28,7 @@ import { useConnector } from 'src/hooks/useConnector';
 import { useTextBox } from 'src/hooks/useTextBox';
 import { useRectangle } from 'src/hooks/useRectangle';
 import { useScene } from 'src/hooks/useScene';
-import { useUiStateStore } from 'src/stores/uiStateStore';
+import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useTranslation } from 'src/stores/localeStore';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { useLayerActions } from 'src/hooks/useLayerActions';
@@ -69,12 +69,31 @@ export const NodeActionBar = ({ type, id, tile: connectorTile }: Props) => {
     colors
   } = useScene();
   const uiStateActions = useUiStateStore((state) => state.actions);
+  const uiStoreApi = useUiStateStoreApi();
   const { layers } = useLayerContext();
   const { assignLayerToItems } = useLayerActions();
   const { getTilePosition } = useCanvasMode();
   const [layerMenuAnchor, setLayerMenuAnchor] = useState<HTMLElement | null>(
     null
   );
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Counter-scale to keep the bar at natural pixel size at low zoom.
+  // Clamp at 1: at zoom > 1 the bar would otherwise shrink — we only want
+  // to grow back to natural size on zoom-out, not shrink below it. Bypasses
+  // React render — same pattern as SceneLayer.
+  useEffect(() => {
+    const apply = (zoom: number) => {
+      if (!wrapperRef.current) return;
+      const counter = Math.min(1, 1 / zoom);
+      wrapperRef.current.style.transform = `translateX(-50%) scale(${counter})`;
+    };
+    apply(uiStoreApi.getState().zoom);
+    return uiStoreApi.subscribe((state, prev) => {
+      if (state.zoom === prev.zoom) return;
+      apply(state.zoom);
+    });
+  }, [uiStoreApi]);
 
   const handleDelete = useCallback(() => {
     uiStateActions.setItemControls(null);
@@ -192,11 +211,13 @@ export const NodeActionBar = ({ type, id, tile: connectorTile }: Props) => {
 
   return (
     <Box
+      ref={wrapperRef}
       sx={{
         position: 'absolute',
         left: pos.x,
         top: pos.y - 40,
         transform: 'translateX(-50%)',
+        transformOrigin: 'center bottom',
         pointerEvents: 'auto',
         zIndex: 10
       }}

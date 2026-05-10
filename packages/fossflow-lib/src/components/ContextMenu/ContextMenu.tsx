@@ -30,7 +30,7 @@ export const ContextMenu = ({ onClose, anchorEl, menuItems }: Props) => {
         <MenuItem
           key={index}
           onClick={item.onClick}
-          sx={{ fontSize: 12, py: 0.5, minHeight: 32 }}
+          sx={{ py: 0.5 }}
         >
           {item.label}
         </MenuItem>

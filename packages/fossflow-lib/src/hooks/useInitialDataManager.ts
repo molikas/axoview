@@ -97,6 +97,21 @@ export const useInitialDataManager = () => {
             '[useInitialDataManager] Validation error detail:',
             JSON.stringify(validationResult.error.issues, null, 2)
           );
+
+          // Per UX §6.3 — surface validation failures to the user, not just devtools.
+          const summary = validationResult.error.issues
+            .slice(0, 2)
+            .map((issue) => {
+              const path = issue.path.length ? issue.path.join('.') : '(root)';
+              return `${path}: ${issue.message}`;
+            })
+            .join('; ');
+
+          uiStateActions.setNotification({
+            severity: 'error',
+            message: `Could not load diagram: ${summary || 'unknown validation error'}`
+          });
+
           setIsReady(false);
           return;
         }

@@ -1,8 +1,18 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { Box, Button, CircularProgress, Stack, Typography } from '@mui/material';
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Box,
+  Button,
+  CircularProgress,
+  Divider,
+  Stack
+} from '@mui/material';
 import {
   FileUpload as FileUploadIcon,
-  CloudDownloadOutlined as LoadPackIcon
+  CloudDownloadOutlined as LoadPackIcon,
+  ExpandMore as ExpandMoreIcon
 } from '@mui/icons-material';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useModelStore } from 'src/stores/modelStore';
@@ -195,96 +205,96 @@ export const ElementsPanel = () => {
         )}
       </Box>
 
-      {/* More icons — unloaded icon packs */}
-      {iconPackManager && (() => {
-        // Build the set of collections already present in the loaded icons so we
-        // don't offer to load a pack whose icons are already visible on the canvas.
+      {/* "Add more icons" — pack loaders + import, collapsed by default */}
+      {(() => {
         const loadedCollections = new Set(
           currentIcons.map((icon) => icon.collection).filter(Boolean)
         );
-        const unloaded = iconPackManager.packInfo.filter(
-          (p) => !p.loaded && !p.loading && !loadedCollections.has(p.name)
-        );
-        const loading = iconPackManager.packInfo.filter((p) => p.loading);
-        if (unloaded.length === 0 && loading.length === 0) return null;
+        const unloaded = iconPackManager
+          ? iconPackManager.packInfo.filter(
+              (p) => !p.loaded && !p.loading && !loadedCollections.has(p.name)
+            )
+          : [];
+        const loading = iconPackManager
+          ? iconPackManager.packInfo.filter((p) => p.loading)
+          : [];
+        const hasPacks = unloaded.length > 0 || loading.length > 0;
+
         return (
-          <Box
+          <Accordion
+            disableGutters
+            elevation={0}
+            square
+            defaultExpanded={false}
             sx={{
               flexShrink: 0,
               borderTop: '1px solid',
               borderColor: 'divider',
-              p: 1.5
+              '&:before': { display: 'none' },
+              bgcolor: 'transparent'
             }}
           >
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              display="block"
-              sx={{ mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: 10 }}
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon fontSize="small" />}
+              sx={{ minHeight: 0, py: 0.5, px: 1.5, '& .MuiAccordionSummary-content': { my: 0.5 } }}
             >
-              More icons
-            </Typography>
-            <Stack spacing={0.5}>
-              {[...loading, ...unloaded].map((pack) => (
-                <Button
-                  key={pack.name}
-                  size="small"
-                  variant="text"
-                  fullWidth
-                  disabled={pack.loading}
-                  startIcon={
-                    pack.loading ? (
-                      <CircularProgress size={12} color="inherit" />
-                    ) : (
-                      <LoadPackIcon sx={{ fontSize: 16 }} />
-                    )
-                  }
-                  onClick={() => iconPackManager.onTogglePack(pack.name, true)}
-                  sx={{
-                    justifyContent: 'flex-start',
-                    color: 'text.secondary',
-                    fontSize: 12,
-                    py: 0.25,
-                    '&:hover': { color: 'text.primary' }
-                  }}
-                >
-                  {pack.loading
-                    ? `Loading ${pack.displayName}…`
-                    : pack.displayName}
-                </Button>
-              ))}
-            </Stack>
-          </Box>
+              {t('addMoreIcons')}
+            </AccordionSummary>
+            <AccordionDetails sx={{ px: 1.5, pt: 0, pb: 1.5 }}>
+              {hasPacks && (
+                <Stack spacing={0.5} sx={{ mb: 1 }}>
+                  {[...loading, ...unloaded].map((pack) => (
+                    <Button
+                      key={pack.name}
+                      size="small"
+                      variant="text"
+                      fullWidth
+                      disabled={pack.loading}
+                      startIcon={
+                        pack.loading ? (
+                          <CircularProgress size={12} color="inherit" />
+                        ) : (
+                          <LoadPackIcon sx={{ fontSize: 16 }} />
+                        )
+                      }
+                      onClick={() => iconPackManager?.onTogglePack(pack.name, true)}
+                      sx={{
+                        justifyContent: 'flex-start',
+                        color: 'text.secondary',
+                        fontSize: 12,
+                        py: 0.25,
+                        '&:hover': { color: 'text.primary' }
+                      }}
+                    >
+                      {pack.loading
+                        ? `Loading ${pack.displayName}…`
+                        : pack.displayName}
+                    </Button>
+                  ))}
+                </Stack>
+              )}
+              {hasPacks && <Divider sx={{ mb: 1 }} />}
+              <Button
+                variant="outlined"
+                startIcon={<FileUploadIcon />}
+                onClick={() => fileInputRef.current?.click()}
+                fullWidth
+                size="small"
+              >
+                {t('importIcons')}
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                style={{ display: 'none' }}
+                onChange={handleFileChange}
+              />
+            </AccordionDetails>
+          </Accordion>
         );
       })()}
-
-      {/* Import section — just the button, no persistent checkbox */}
-      <Box
-        sx={{
-          flexShrink: 0,
-          borderTop: '1px solid',
-          borderColor: 'divider',
-          p: 1.5
-        }}
-      >
-        <Button
-          variant="outlined"
-          startIcon={<FileUploadIcon />}
-          onClick={() => fileInputRef.current?.click()}
-          fullWidth
-          size="small"
-        >
-          {t('importIcons')}
-        </Button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          style={{ display: 'none' }}
-          onChange={handleFileChange}
-        />
-      </Box>
 
       <ImportIconsDialog
         open={pendingFiles.length > 0}

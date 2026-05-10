@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Typography,
@@ -12,8 +12,51 @@ import { useLayerContext, LayerItem } from 'src/hooks/useLayerContext';
 import { useLayerActions } from 'src/hooks/useLayerActions';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useScene } from 'src/hooks/useScene';
+import { useSceneData } from 'src/hooks/useSceneData';
+import { ItemReference, Coords } from 'src/types';
 import { LayerRow } from './LayerRow';
 import { LayerItemRow } from './LayerItemRow';
+
+// Compute the tile bounding box that contains every passed-in item.
+// Used so the LASSO action bar (LassoLayerBar) can position itself above
+// a panel-driven multi-selection the same way it does for canvas-drag selection.
+const computeBoundingTiles = (
+  items: ItemReference[],
+  scene: {
+    items: { id: string; tile: Coords }[];
+    textBoxes: { id: string; tile: Coords }[];
+    rectangles: { id: string; from: Coords; to: Coords }[];
+    connectors: { id: string }[];
+  },
+  connectorPaths: Record<string, { tiles?: Coords[] } | undefined>
+): { startTile: Coords; endTile: Coords } | null => {
+  const tiles: Coords[] = [];
+  for (const ref of items) {
+    if (ref.type === 'ITEM') {
+      const it = scene.items.find((i) => i.id === ref.id);
+      if (it) tiles.push(it.tile);
+    } else if (ref.type === 'TEXTBOX') {
+      const tb = scene.textBoxes.find((t) => t.id === ref.id);
+      if (tb) tiles.push(tb.tile);
+    } else if (ref.type === 'RECTANGLE') {
+      const r = scene.rectangles.find((rr) => rr.id === ref.id);
+      if (r) {
+        tiles.push(r.from);
+        tiles.push(r.to);
+      }
+    } else if (ref.type === 'CONNECTOR') {
+      const path = connectorPaths[ref.id]?.tiles;
+      if (path && path.length > 0) tiles.push(...path);
+    }
+  }
+  if (tiles.length === 0) return null;
+  const xs = tiles.map((t) => t.x);
+  const ys = tiles.map((t) => t.y);
+  return {
+    startTile: { x: Math.min(...xs), y: Math.min(...ys) },
+    endTile: { x: Math.max(...xs), y: Math.max(...ys) }
+  };
+};
 
 export const LayersPanel = () => {
   const { layers, itemCountByLayerId, unassignedCount, itemsByLayerId } =
@@ -26,6 +69,7 @@ export const LayersPanel = () => {
     assignLayerToItems
   } = useLayerActions();
   const { updateModelItem, updateConnector, updateViewItem, updateTextBox, updateRectangle } = useScene();
+  const sceneData = useSceneData();
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [expandedLayerIds, setExpandedLayerIds] = useState<Set<string>>(
     new Set()
@@ -33,10 +77,22 @@ export const LayersPanel = () => {
 
   // Bidirectional: read current canvas selection
   const itemControls = useUiStateStore((s) => s.itemControls);
+  const mode = useUiStateStore((s) => s.mode);
   const uiStateActions = useUiStateStore((s) => s.actions);
 
   const selectedItemId =
     itemControls && itemControls.type !== 'ADD_ITEM' ? itemControls.id : null;
+
+  // IDs in the current LASSO multi-selection (if any) — used for row highlight.
+  const lassoSelectedIds = useMemo(() => {
+    if (mode.type === 'LASSO' && mode.selection) {
+      return new Set(mode.selection.items.map((i) => i.id));
+    }
+    return new Set<string>();
+  }, [mode]);
+
+  // Anchor for shift-click range selection — id of the last plain-clicked row.
+  const anchorIdRef = useRef<string | null>(null);
 
   // Layers displayed top-to-bottom = highest order first
   const sortedLayers = [...layers].sort((a, b) => b.order - a.order);
@@ -105,20 +161,129 @@ export const LayersPanel = () => {
     [updateViewItem, updateConnector]
   );
 
-  // Panel → canvas: clicking an item row selects it on canvas
-  const handleItemClick = useCallback(
-    (item: LayerItem) => {
-      if (item.type === 'ITEM') {
-        uiStateActions.setItemControls({ type: 'ITEM', id: item.id });
-      } else if (item.type === 'CONNECTOR') {
-        uiStateActions.setItemControls({ type: 'CONNECTOR', id: item.id });
-      } else if (item.type === 'RECTANGLE') {
-        uiStateActions.setItemControls({ type: 'RECTANGLE', id: item.id });
-      } else if (item.type === 'TEXTBOX') {
-        uiStateActions.setItemControls({ type: 'TEXTBOX', id: item.id });
-      }
+  // Flat list of visible item rows, in display order. Used to compute
+  // the shift-click range. Only expanded layers contribute; collapsed
+  // layers' items are not visible so they aren't selectable as range targets.
+  const visibleItemsFlat = useMemo<LayerItem[]>(() => {
+    const out: LayerItem[] = [];
+    for (const layer of sortedLayers) {
+      if (!expandedLayerIds.has(layer.id)) continue;
+      const layerItems = itemsByLayerId.get(layer.id) ?? [];
+      out.push(...layerItems);
+    }
+    const unassigned = itemsByLayerId.get('__unassigned__') ?? [];
+    out.push(...unassigned);
+    return out;
+  }, [sortedLayers, expandedLayerIds, itemsByLayerId]);
+
+  const buildLassoFromItems = useCallback(
+    (items: ItemReference[]) => {
+      const connectorPaths = sceneData.hitConnectors.reduce<
+        Record<string, { tiles?: Coords[] }>
+      >((acc, c) => {
+        if (c.path) acc[c.id] = { tiles: c.path.tiles };
+        return acc;
+      }, {});
+      const bounds = computeBoundingTiles(
+        items,
+        sceneData,
+        connectorPaths
+      ) ?? {
+        startTile: { x: 0, y: 0 },
+        endTile: { x: 0, y: 0 }
+      };
+      uiStateActions.setMode({
+        type: 'LASSO',
+        showCursor: true,
+        isDragging: false,
+        selection: {
+          startTile: bounds.startTile,
+          endTile: bounds.endTile,
+          items
+        }
+      });
     },
-    [uiStateActions]
+    [sceneData, uiStateActions]
+  );
+
+  // Panel → canvas: clicking an item row selects it on canvas.
+  // Modifier keys promote to a multi-select via LASSO mode (UX §4.1).
+  const handleItemClick = useCallback(
+    (item: LayerItem, modifiers: { shift: boolean; ctrl: boolean }) => {
+      const ref: ItemReference = { type: item.type, id: item.id };
+
+      if (modifiers.shift && anchorIdRef.current) {
+        const anchorIdx = visibleItemsFlat.findIndex(
+          (i) => i.id === anchorIdRef.current
+        );
+        const targetIdx = visibleItemsFlat.findIndex((i) => i.id === item.id);
+        if (anchorIdx !== -1 && targetIdx !== -1) {
+          const [lo, hi] =
+            anchorIdx <= targetIdx
+              ? [anchorIdx, targetIdx]
+              : [targetIdx, anchorIdx];
+          const range = visibleItemsFlat
+            .slice(lo, hi + 1)
+            .map<ItemReference>((i) => ({ type: i.type, id: i.id }));
+          buildLassoFromItems(range);
+          return;
+        }
+      }
+
+      if (modifiers.ctrl) {
+        // Toggle: start from current LASSO selection if present, else from
+        // current single-item selection.
+        const current: ItemReference[] =
+          mode.type === 'LASSO' && mode.selection
+            ? [...mode.selection.items]
+            : itemControls && itemControls.type !== 'ADD_ITEM'
+              ? [{ type: itemControls.type, id: itemControls.id }]
+              : [];
+        const exists = current.some(
+          (r) => r.id === ref.id && r.type === ref.type
+        );
+        const next = exists
+          ? current.filter((r) => !(r.id === ref.id && r.type === ref.type))
+          : [...current, ref];
+        if (next.length === 0) {
+          uiStateActions.setMode({
+            type: 'CURSOR',
+            showCursor: true,
+            mousedownItem: null
+          });
+          uiStateActions.setItemControls(null);
+        } else if (next.length === 1) {
+          uiStateActions.setMode({
+            type: 'CURSOR',
+            showCursor: true,
+            mousedownItem: null
+          });
+          uiStateActions.setItemControls({ type: next[0].type, id: next[0].id });
+        } else {
+          buildLassoFromItems(next);
+        }
+        anchorIdRef.current = item.id;
+        return;
+      }
+
+      // Plain click: drop any LASSO multi-select, single-select on canvas.
+      if (mode.type === 'LASSO') {
+        uiStateActions.setMode({
+          type: 'CURSOR',
+          showCursor: true,
+          mousedownItem: null
+        });
+      }
+      anchorIdRef.current = item.id;
+      uiStateActions.setItemControls({ type: item.type, id: item.id });
+    },
+    [
+      visibleItemsFlat,
+      buildLassoFromItems,
+      mode,
+      itemControls,
+      uiStateActions
+    ]
   );
 
   // Drag item to assign to a layer
@@ -289,7 +454,7 @@ export const LayersPanel = () => {
                         <LayerItemRow
                           key={item.id}
                           item={item}
-                          isSelected={item.id === selectedItemId}
+                          isSelected={item.id === selectedItemId || lassoSelectedIds.has(item.id)}
                           onClick={handleItemClick}
                           onRename={handleItemRename}
                           onDragStart={handleItemDragStart}

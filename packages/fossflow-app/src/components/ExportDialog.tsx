@@ -1,4 +1,16 @@
 import { useTranslation } from 'react-i18next';
+import {
+  Alert,
+  AlertTitle,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Typography
+} from '@mui/material';
+import { Close as CloseIcon } from '@mui/icons-material';
 
 interface Props {
   onExport: () => void;
@@ -9,31 +21,46 @@ export function ExportDialog({ onExport, onClose }: Props) {
   const { t } = useTranslation('app');
 
   return (
-    <div className="dialog-overlay">
-      <div className="dialog">
-        <h2>{t('dialog.export.title')}</h2>
-        <div
-          style={{
-            backgroundColor: '#d4edda',
-            border: '1px solid #c3e6cb',
-            padding: '15px',
-            borderRadius: '8px',
-            marginBottom: '20px'
-          }}
+    <Dialog
+      open
+      onClose={onClose}
+      maxWidth="xs"
+      fullWidth
+      PaperProps={{ sx: { boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)', borderRadius: 2 } }}
+    >
+      <DialogTitle sx={{ pb: 1, pr: 6 }}>
+        <Typography variant="h6" component="span">
+          {t('dialog.export.title')}
+        </Typography>
+        <IconButton
+          size="small"
+          onClick={onClose}
+          sx={{ position: 'absolute', top: 12, right: 12, color: 'text.secondary' }}
         >
-          <p style={{ margin: '0 0 10px 0' }}>
-            <strong>✅ {t('dialog.export.recommendedTitle')}:</strong>{' '}
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent sx={{ pt: 0 }}>
+        <Alert severity="success" sx={{ mt: 1 }}>
+          <AlertTitle sx={{ mb: 0.5 }}>
+            {t('dialog.export.recommendedTitle')}
+          </AlertTitle>
+          <Typography variant="body2">
             {t('dialog.export.recommendedMessage')}
-          </p>
-          <p style={{ margin: 0, fontSize: '14px', color: '#155724' }}>
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
             {t('dialog.export.noteMessage')}
-          </p>
-        </div>
-        <div className="dialog-buttons">
-          <button onClick={onExport}>{t('dialog.export.btnDownload')}</button>
-          <button onClick={onClose}>{t('dialog.export.btnCancel')}</button>
-        </div>
-      </div>
-    </div>
+          </Typography>
+        </Alert>
+      </DialogContent>
+      <DialogActions sx={{ px: 2.5, pb: 2.5, pt: 1 }}>
+        <Button variant="text" onClick={onClose}>
+          {t('dialog.export.btnCancel')}
+        </Button>
+        <Button variant="contained" onClick={onExport} autoFocus>
+          {t('dialog.export.btnDownload')}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
