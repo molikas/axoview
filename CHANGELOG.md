@@ -11,6 +11,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2026.5.11] — 2026-05-10
+
+### Added
+
+- **Typography contract — six tiers, theme-driven.** [`theme.ts`](packages/fossflow-lib/src/styles/theme.ts) now defines `h6 / body1 / body2 / caption / overline / micro` with explicit roles (dialog title / dialog body / primary readable lists / sub-labels / region wayfinding / glanceable status). Custom `micro` variant registered via TypeScript module augmentation. Component-level overrides (`MuiTab`, `MuiChip`, `MuiInputBase`, `MuiFormControlLabel`) live in the theme — no per-component `fontSize`/`fontWeight`. `overline` is sentence case + tracked (NOT uppercase) to honor §1.2 / §7.2. See [docs/ux-principles.md §1.5](docs/ux-principles.md).
+- **"Add more icons" accordion in the Elements panel.** Pack-loader buttons + Import Icons collapsed into a single accordion (closed by default) — gives the icon grid back its full vertical real estate without losing the affordances. Sentence-case title; uppercase removed.
+- **Layers panel: Shift-click range / Ctrl-click toggle multi-select.** Routes through canvas LASSO mode so the existing floating action bar and canvas highlights work for free. Bounding tiles computed from scene data so the action bar positions correctly above panel-driven selections. Anchor row is the last plain-clicked item; ephemeral panel state, not stored.
+- **Import validation surfaces to the user.** Schema-failed diagram loads now push a `severity: 'error'` notification with the first 1–2 zod issues summarised, alongside the existing `console.error`. New UX principle §6.3 codifies this for any future user-triggered failure path.
+- **`Export Project (.zip)` in the Export popover.** Folded into the toolbar Export menu alongside Export JSON / Compact JSON / Image. `setShowProjectExport` hoisted into `useDiagramLifecycle` so the trigger lives next to the other export actions.
+
+### Changed
+
+- **NodeActionBar stays at natural pixel size at every zoom.** Counter-scales the SceneLayer transform via direct DOM ref with `1 / zoom` (was `Math.min(1, 1/zoom)` — bar shrunk on zoom-out). Pattern documented in new UX principle §8.8 for any future canvas-anchored chrome.
+- **QuickIconSelector — parity with Elements panel.** Replaced the bespoke `TextField` with the shared `Searchbox` component, routed filtering through `useIconFiltering`, dropped the `helpBrowse` / `helpSearch` footer and the `searchPlaceholder` key. Recently-Used and keyboard navigation (Arrow / Enter / Escape) preserved.
+- **Save / Load / Export / Confirm dialogs — MUI body, sentence case.** Rewrote `SaveDialog` / `LoadDialog` / `ExportDialog` from the legacy `<div className="dialog">` HTML to MUI `Dialog + DialogTitle + DialogContent`. Deleted dead `SaveAsDialog.tsx` and the matching CSS. Dropped `fontWeight={600}` on `h6` titles — theme owns typography weight now.
+- **SessionModeBanner — quieter, dismiss-only.** `background.paper` background + 4 px `warning.main` accent stripe + caption typography (was a full warning-tinted bar). Export button removed (now in the toolbar Export popover); only the dismiss × remains. Dismissal persists in `localStorage['fossflow-session-banner-dismissed']`.
+- **`Session` chip + storage gauge — less prominent.** Chip height reverted from 18 → 16, padding tightened to 0.5, `micro` variant `fontWeight` 600 → 500. The literal `"SESSION"` is now `"Session"` (sentence case per §1.2). Gauge chip same shrink — keeps its dynamic warning/error filled state.
+- **Layers panel rows — match file explorer styling.** Item row text color flipped from `text.secondary` to `text.primary`; icon thumbnail no longer dimmed at `opacity: 0.7`. Selected state still uses `primary.contrastText`. Both panels now read as the same family.
+- **Connector additional-label "Text" input.** Replaced the floating MUI `label="Text"` with an external `caption` Typography label + `size="small"` TextField — matches the Position / Height offset / Font size pattern in the same card.
+- **Region/dock headers — sentence case.** `Diagrams` (was `DIAGRAMS`), `Layers`, `Common`, `Unassigned`, icon-pack collection names, etc. all render via the `overline` variant in sentence case. Uppercase styling came from a per-component CSS transform; removed in favour of role-driven typography. Honors UX §1.2 / §7.2.
+
+### Tests
+
+- **`quickIconSelector.i18n.test.ts`** — refreshed contract: search input is the shared `Searchbox`, help footer dropped, `searchPlaceholder` / `helpSearch` / `helpBrowse` keys removed from `quickIconSelector` namespace.
+- **DebugUtils snapshots** — re-baselined after theme changes (only emotion-generated CSS class hashes shifted; visual content identical).
+
+### Known issues
+
+- **i18n: "Add more icons" accordion title / orphan keys not translated outside en-US.** Two new entries in [`known_issues.md`](known_issues.md). Backfill the `iconSelectionControls.addMoreIcons` key in 13 non-English locales; strip the obsolete `quickIconSelector.searchPlaceholder` / `helpSearch` / `helpBrowse` keys from those same files. Functionally harmless (English fallback renders the key); cosmetic cleanup.
+- **`leanSave.test.ts` — 1 pre-existing failing assertion.** `mergeBundledFixtures (ADR 0002) › overridden default wins…` reads `bundledFixtures[0].id` but the fixtures source is empty (predates the 2026-05 shake-out). Recorded in `known_issues.md`. Runtime path is unaffected (`iconPackManager` supplies real packs).
+
+---
+
 ## [2026.5.10] — 2026-05-10
 
 ### Performance

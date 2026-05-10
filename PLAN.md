@@ -839,6 +839,7 @@ Before coding, read these files:
 **Status:** `[x]` | **Token load:** Medium | **Depends on:** 2B-R
 
 - Toolbar & dock layout revamp shipped 2026-05-09 — see [docs/adr/0005-toolbar-and-dock-layout-contract.md](docs/adr/0005-toolbar-and-dock-layout-contract.md). Left-side panels overlay the canvas (no push, no slide); empty state confined to the canvas region; SettingsDialog gained About + Diagnostics tabs; burger removed and items redistributed; UX principles §8 captures the durable rules.
+- 2026-05 — UX shake-out polish (7 issues, 3 bundles) + typography contract (UX §1.5 — six theme-driven tiers; no inline `fontSize`/`fontWeight`). Counter-scale fix on `NodeActionBar` (UX §8.8). `Export Project (.zip)` folded into the toolbar Export popover; `SessionModeBanner` quieted to dismiss-only. Region/dock headers now sentence case via `overline` variant (UX §1.2 / §7.2). See [CHANGELOG `[Unreleased]`](CHANGELOG.md#unreleased) for the full list.
 
 ### Behavior
 The application chrome is reorganized to give every class of control a single owning region. The burger menu is removed and its items distributed; the file-explorer toggle moves into the left strip alongside Elements + Layers; the top toolbar collapses to a four-group RIGHT zone (View modes / Save group / Document actions / Sidebar toggle); SettingsDialog gains About + Diagnostics tabs.
