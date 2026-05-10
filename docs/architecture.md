@@ -1,6 +1,6 @@
 # FossFLOW Community Edition — Architecture Reference
 
-**Last updated:** 2026-05-09 (rev 12)
+**Last updated:** 2026-05-10 (rev 13)
 **Codebase root:** `packages/fossflow-lib/src` (library) · `packages/fossflow-app/src` (application shell) · `packages/fossflow-backend/src` (Express + fs adapter) · `packages/fossflow-worker/src` (Hono + Cloudflare Pages Functions)
 **Purpose:** Living architecture reference — feature inventory, store/reducer/mode architecture, multi-target deployment contract, test audit, gap analysis, lessons learned, and key APIs. Update this document whenever significant architectural changes are made.
 
@@ -1822,6 +1822,23 @@ True 3D-iso art (Isoflow's built-in 37-icon pack, `isIsometric: true`) is unaffe
 **Important caveat:** All violations above are from `react-dom.development.js` and `scheduler.development.js` — the **development build** with full instrumentation, error checking, and StrictMode double-invocations. Production builds with `react-dom.production.min.js` are typically 3–5x faster. However, the 50–168ms RAF violations (3–10x over budget) indicate real structural issues that will still be perceptible in production even if the numbers improve.
 
 **Recommendation:** Before adding any major features, profile the production build to establish a real baseline. The development build numbers confirm there are render-path issues worth addressing in refactoring.
+
+---
+
+### 7k. Connector drag — partial fix landed, sustained-drag GC cliff deferred (2026-05-10)
+
+**Original symptom:** Dragging a connector on a moderately heavy diagram dropped FPS from 60 to 2–10 within seconds of drag start, with constant heap sawtooth (150 → 100 MB, every ~1 s). Hypothesis #4 in §7a ("connector re-render on every tile change") was empirically validated.
+
+**Two-part fix landed in 2026.5.10:**
+
+1. **Drag transactions** ([`useSceneActions.ts`](../packages/fossflow-lib/src/hooks/useSceneActions.ts) — `beginDragTransaction` / `commitDragTransaction`). Every tile crossed during a drag used to push a separate undo entry, computing immer patches across the entire model per tick. Now collapsed to one entry per drag via a `pendingPreFrozen` flag on both `modelStore` and `sceneStore`. Side benefit: `Ctrl+Z` after a drag rewinds the whole drag, not one tile.
+2. **Closed-form connector router** ([`utils/pathfinder.ts`](../packages/fossflow-lib/src/utils/pathfinder.ts)). The pathfinding grid never had obstacles, so A\* over it was busywork. Replaced with a deterministic diagonal-then-orthogonal walker. Eliminates per-tick `PF.Grid` + `Node` allocation.
+
+Wired into `Connector.ts` (drag mode + click mode) and `ReconnectAnchor.ts` (entry/exit + mouseup).
+
+**Validation:** [`packages/fossflow-e2e/fixtures/perf-stress-diagram.json`](../packages/fossflow-e2e/fixtures/perf-stress-diagram.json) (80 nodes / 120 connectors) and [`__perf_refactor_regression__/connector.dragPerf.test.tsx`](../packages/fossflow-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx). Test loads the JSON and `modelSchema.safeParse`s it on setup so the manual fixture cannot drift out of schema.
+
+**What's left — sustained-drag GC cliff:** A drag that runs ≳50 s without committing accumulates ~12 MB/sec of immer-cloned model state (the anchor mutation forces `produce(state, ...)` to clone the spine of model + scene every tick). V8 holds GC during sustained sync work; heap climbs to ~336 MB; one stop-the-world collection produces a ~5 s 4 fps stall, then recovery. Not a regression introduced by the fix — it's the next layer underneath. Refactor design (deferred): keep the in-progress preview in `scene.connectors[id]` only and don't write `view.connectors[].anchors` until commit. Two-reader invariant for `ConnectorAnchorOverlay` and `ConnectorLabel` is the hard part. Full context in [known_issues.md](../known_issues.md).
 
 ---
 

@@ -9,6 +9,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+---
+
+## [2026.5.10] — 2026-05-10
+
+### Performance
+
+- **Connector drag — collapsed history entries.** Each tile crossed during a connector drag (or anchor reconnect) used to push a separate history entry, computing patches across the entire model per tick. Now wrapped in a `beginDragTransaction` / `commitDragTransaction` pair on the scene store — one entry per drag. Implementation: `pendingPreFrozen` flag on both `modelStore` and `sceneStore` keeps the pre-drag snapshot alive across intermediate `set()` calls; commit triggers a single patch computation. Side benefit — `Ctrl+Z` after a drag rewinds the whole drag, not one tile at a time.
+- **Closed-form connector router.** Replaced A\* over an always-empty `PF.Grid` (in [`utils/pathfinder.ts`](packages/fossflow-lib/src/utils/pathfinder.ts)) with a deterministic diagonal-then-orthogonal walker. The grid had no obstacles, so A\* was searching for an answer geometry already determines. Removes the per-tick `Grid` + `Node` object allocation churn that produced a constant 100→200 MB GC sawtooth during sustained interaction. Original symptom (FPS dropping to 2–10 fps within seconds of drag start) is gone; first ~50 s of drag now holds 60 fps on the perf-stress fixture.
+
+### Tests
+
+- **`connector.dragPerf.test.tsx`** — 4 perf-regression tests against the real provider stack: drag transaction collapses N tile updates into 1 history entry; baseline (no transaction) still pushes N entries; `pendingPre` stays alive across intermediate ticks; 40-tick drag completes under 1500 ms (currently ~37 ms). The fixture is loaded from disk and `modelSchema.safeParse`d on test setup so the manual import file can't drift out of schema.
+- **`packages/fossflow-e2e/fixtures/perf-stress-diagram.json`** — heavy importable scene (80 nodes, 120 connectors, two named anchors at opposite ends of the canvas). Compact single-line JSON, schema-valid, regenerated from [`perf-stress-diagram.generator.mjs`](packages/fossflow-e2e/fixtures/perf-stress-diagram.generator.mjs). Shared between manual stress tests and the automated perf regression — single source of truth.
+
+### Known issues
+
+- **Sustained connector drag (≳50 s) still hits a GC cliff.** Per-tile model immer clones (~12 MB/sec on the stress fixture) accumulate to ~336 MB before V8 fires a stop-the-world collection, producing a 5-second 4-fps stall. Doesn't affect typical use (drag from A to B = 5–10 s). Refactor design context — including the two-reader invariant, files in the hot path, and the deferred `previewAnchors` approach — captured in [`known_issues.md`](known_issues.md) for a future session.
+
 ### Added
 
 - **Toolbar and dock layout contract (ADR 0005).** Top toolbar collapses to a single RIGHT zone with four named groups separated by dividers, ordered left → right: View modes (reserved slot — buttons land here in future ADRs), Save group (Save button in session mode + StatusCluster), Document actions (Export / Share / Preview), Sidebar toggle (Properties panel portal). LEFT and CENTER zones are intentionally empty — diagram name continues to live on the canvas. See [ADR 0005](docs/adr/0005-toolbar-and-dock-layout-contract.md).

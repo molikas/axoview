@@ -2,11 +2,16 @@ import { ModeActions } from 'src/types';
 import { getItemAtTile, hasMovedTile, setWindowCursor } from 'src/utils';
 
 export const ReconnectAnchor: ModeActions = {
-  entry: () => {
+  entry: ({ scene }) => {
     setWindowCursor('crosshair');
+    // One history entry covers the whole reconnect drag (begin → mouseup commit).
+    scene.beginDragTransaction();
   },
-  exit: () => {
+  exit: ({ scene }) => {
     setWindowCursor('default');
+    // Safety net: commit if we exit the mode without a normal mouseup
+    // (e.g., escape or programmatic mode change). No-op if already committed.
+    scene.commitDragTransaction();
   },
   mousemove: ({ uiState, scene }) => {
     if (uiState.mode.type !== 'RECONNECT_ANCHOR') return;
@@ -31,6 +36,10 @@ export const ReconnectAnchor: ModeActions = {
       return;
 
     const { connectorId } = uiState.mode;
+
+    // Commit before mode switch — exit hook is a safety net but committing
+    // explicitly here keeps the order obvious (preview → commit → mode change).
+    scene.commitDragTransaction();
 
     // Anchor ref is already updated by mousemove preview.
     // Switch back to CURSOR with connector still selected so the user can see

@@ -100,6 +100,9 @@ export const Connector: ModeActions = {
           ];
         }
 
+        // Open one history entry for the entire create→drag→commit lifecycle.
+        // commitDragTransaction is called on the second click (or mouseup in drag mode).
+        scene.beginDragTransaction();
         scene.createConnector(newConnector);
 
         uiState.actions.setMode({
@@ -125,6 +128,7 @@ export const Connector: ModeActions = {
 
           // If connector doesn't exist, reset mode and return
           if (!connector) {
+            scene.commitDragTransaction();
             uiState.actions.setMode({
               type: 'CONNECTOR',
               showCursor: true,
@@ -151,6 +155,7 @@ export const Connector: ModeActions = {
           });
 
           scene.updateConnector(currentMode.id, newConnector);
+          scene.commitDragTransaction();
 
           if (currentMode.returnToCursor) {
             uiState.actions.setMode({
@@ -189,6 +194,8 @@ export const Connector: ModeActions = {
         ];
       }
 
+      // Drag-mode: open one history entry for the whole press→drag→release.
+      scene.beginDragTransaction();
       scene.createConnector(newConnector);
 
       uiState.actions.setMode({
@@ -203,6 +210,7 @@ export const Connector: ModeActions = {
 
     // Only handle mouseup for drag mode
     if (uiState.connectorInteractionMode === 'drag') {
+      scene.commitDragTransaction();
       if (uiState.mode.type === 'CONNECTOR' && uiState.mode.returnToCursor) {
         uiState.actions.setMode({
           type: 'CURSOR',

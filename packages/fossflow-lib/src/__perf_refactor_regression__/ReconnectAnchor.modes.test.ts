@@ -57,6 +57,8 @@ function makeScene(overrides: any = {}) {
     ],
     items: overrides.items ?? [],
     updateConnector: overrides.updateConnector ?? jest.fn(),
+    beginDragTransaction: jest.fn(),
+    commitDragTransaction: jest.fn(),
     ...overrides
   };
 }

@@ -29,6 +29,8 @@ export interface ModelStoreWithHistory extends Omit<ModelStore, 'actions'> {
     canRedo: () => boolean;
     saveToHistory: () => void;
     clearHistory: () => void;
+    freezePendingPre: () => void;
+    unfreezePendingPre: () => void;
   };
 }
 
@@ -57,6 +59,12 @@ const initialState = () => {
     // Holds the pre-mutation snapshot captured by saveToHistory().
     // The matching set() call (skipHistory=true) will compute patches relative to it.
     let pendingPre: Model | null = null;
+
+    // While true, set() will not consume pendingPre — so a long live drag can apply
+    // many intermediate updates without burning a history entry per tick. The drag
+    // owner is responsible for unfreezing on commit so the next set() pushes one
+    // entry covering the whole drag.
+    let pendingPreFrozen = false;
 
     const saveToHistory = () => {
       // Capture the current model so the subsequent set() call can compute the diff.
@@ -116,7 +124,16 @@ const initialState = () => {
 
     const clearHistory = () => {
       pendingPre = null;
+      pendingPreFrozen = false;
       set((state) => ({ ...state, history: createHistoryState() }));
+    };
+
+    const freezePendingPre = () => {
+      pendingPreFrozen = true;
+    };
+
+    const unfreezePendingPre = () => {
+      pendingPreFrozen = false;
     };
 
     return {
@@ -130,7 +147,7 @@ const initialState = () => {
             saveToHistory();
           }
 
-          if (pendingPre !== null) {
+          if (pendingPre !== null && !pendingPreFrozen) {
             // We have a pre-state — compute patches instead of storing a full snapshot.
             const pre = pendingPre;
             pendingPre = null;
@@ -170,7 +187,9 @@ const initialState = () => {
         canUndo,
         canRedo,
         saveToHistory,
-        clearHistory
+        clearHistory,
+        freezePendingPre,
+        unfreezePendingPre
       }
     };
   });

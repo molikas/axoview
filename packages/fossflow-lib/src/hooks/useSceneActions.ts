@@ -29,6 +29,9 @@ export const useSceneActions = () => {
 
   const transactionInProgress = useRef(false);
   const pendingStateRef = useRef<State | null>(null);
+  // Live-drag transaction: state writes pass through to stores in real time, but
+  // history records only one entry (begin → commit). See beginDragTransaction.
+  const dragInProgress = useRef(false);
 
   const modelStoreApi = useModelStoreApi();
   const sceneStoreApi = useSceneStoreApi();
@@ -71,8 +74,37 @@ export const useSceneActions = () => {
 
   const saveToHistoryBeforeChange = useCallback(() => {
     if (transactionInProgress.current) return;
+    // While a live drag is open, the pre-snapshot was captured at begin; per-tick
+    // saves would overwrite it and lose the original starting state.
+    if (dragInProgress.current) return;
     modelStoreApi.getState().actions.saveToHistory();
     sceneStoreApi.getState().actions.saveToHistory();
+  }, [modelStoreApi, sceneStoreApi]);
+
+  // -------------------------------------------------------------------------
+  // Live drag transactions — for interactions where intermediate updates must
+  // be visible (connector drag, anchor reconnect) but only one undo entry
+  // should land at the end.
+  // -------------------------------------------------------------------------
+
+  const beginDragTransaction = useCallback(() => {
+    if (dragInProgress.current) return;
+    dragInProgress.current = true;
+    modelStoreApi.getState().actions.saveToHistory();
+    sceneStoreApi.getState().actions.saveToHistory();
+    modelStoreApi.getState().actions.freezePendingPre();
+    sceneStoreApi.getState().actions.freezePendingPre();
+  }, [modelStoreApi, sceneStoreApi]);
+
+  const commitDragTransaction = useCallback(() => {
+    if (!dragInProgress.current) return;
+    dragInProgress.current = false;
+    modelStoreApi.getState().actions.unfreezePendingPre();
+    sceneStoreApi.getState().actions.unfreezePendingPre();
+    // Empty-update set() consumes pendingPre and pushes one entry covering all
+    // intermediate writes since beginDragTransaction.
+    modelStoreApi.getState().actions.set({}, true);
+    sceneStoreApi.getState().actions.set({}, true);
   }, [modelStoreApi, sceneStoreApi]);
 
   // -------------------------------------------------------------------------
@@ -607,6 +639,8 @@ export const useSceneActions = () => {
     deleteSelectedItems,
     pasteItems,
     transaction,
+    beginDragTransaction,
+    commitDragTransaction,
     placeIcon,
     switchView,
     createView,

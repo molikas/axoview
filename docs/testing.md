@@ -1,7 +1,7 @@
 # Regression Test Suite Reference
 
-**Last updated:** 2026-05-03
-**Total:** ~745 tests · 76 suites · all passing
+**Last updated:** 2026-05-10
+**Total:** ~749 tests · 77 suites · all passing
 **Run:** `npm test --workspace=packages/fossflow-lib` (lib) · `npm test --workspace=packages/fossflow-app` (app, project-zip + LocalStorageProvider)
 
 E2E tests are not currently run in CI — Selenium framework under `e2e-tests/` is being retired in favour of Playwright. Migration tracked at [docs/tactical/playwright-migration.md](tactical/playwright-migration.md).
@@ -24,6 +24,14 @@ E2E tests are not currently run in CI — Selenium framework under `e2e-tests/` 
 | **Total** | **60** | **525** |
 
 (The 525 / 60 figure counts lib suites only — the **~745 / 76** total at the top includes app-side suites: `services/project/__tests__/projectZip.test.ts`, `services/storage/__tests__/LocalStorageProvider.test.ts`, and the lean-save / requiredPacks regressions.)
+
+---
+
+## Branch additions (2026-05-10)
+
+| Suite | Coverage |
+|---|---|
+| [`packages/fossflow-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx`](../packages/fossflow-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx) | 4 tests against the real provider stack (`ModelProvider` + `SceneProvider` + `UiStateProvider`): drag transaction collapses N tile updates into 1 history entry; baseline (no transaction) still pushes N entries; `pendingPre` stays alive across intermediate ticks (per-tick history.past stays flat); 40-tick drag completes under 1500 ms. The fixture is loaded from [`packages/fossflow-e2e/fixtures/perf-stress-diagram.json`](../packages/fossflow-e2e/fixtures/perf-stress-diagram.json) and `modelSchema.safeParse`'d on setup — the manual import file cannot drift out of schema. |
 
 ---
 

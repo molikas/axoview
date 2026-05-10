@@ -1,4 +1,3 @@
-import PF from 'pathfinding';
 import { Size, Coords } from 'src/types';
 
 interface Args {
@@ -7,35 +6,29 @@ interface Args {
   to: Coords;
 }
 
-// LRU-style bounded cache keyed by "fromX,fromY→toX,toY@gridWxgridH".
-// Prevents redundant A* runs for identical endpoint pairs (common after paste).
-const PATH_CACHE_MAX = 2000;
-const pathCache = new Map<string, Coords[]>();
+// The grid the connector router operates on never has obstacles, so A* over
+// it was busywork — every call allocated a fresh PF.Grid (W×H Node objects)
+// and ran a search whose answer is determined by geometry alone. During a
+// connector drag this allocated tens of MB/sec of garbage and burned the
+// main thread. We compute the path directly instead: step diagonally toward
+// the target until one axis matches, then orthogonally — equivalent to A*'s
+// answer with diagonal movement on an empty grid, modulo cosmetic tie-break.
+//
+// The gridSize argument is retained for API compatibility with isoMath.ts
+// callers and is ignored.
+export const findPath = ({ from, to }: Args): Coords[] => {
+  const path: Coords[] = [{ x: from.x, y: from.y }];
 
-const pathCacheKey = ({ gridSize, from, to }: Args) =>
-  `${from.x},${from.y}→${to.x},${to.y}@${gridSize.width}x${gridSize.height}`;
+  let x = from.x;
+  let y = from.y;
 
-export const findPath = ({ gridSize, from, to }: Args): Coords[] => {
-  const key = pathCacheKey({ gridSize, from, to });
-
-  if (pathCache.has(key)) {
-    return pathCache.get(key)!;
+  while (x !== to.x || y !== to.y) {
+    if (x < to.x) x += 1;
+    else if (x > to.x) x -= 1;
+    if (y < to.y) y += 1;
+    else if (y > to.y) y -= 1;
+    path.push({ x, y });
   }
 
-  const grid = new PF.Grid(gridSize.width, gridSize.height);
-  const finder = new PF.AStarFinder({
-    heuristic: PF.Heuristic.manhattan,
-    diagonalMovement: PF.DiagonalMovement.Always
-  });
-  const path = finder.findPath(from.x, from.y, to.x, to.y, grid);
-
-  const pathTiles = path.map((tile) => ({ x: tile[0], y: tile[1] }));
-
-  // Evict oldest entry if at capacity (Map preserves insertion order).
-  if (pathCache.size >= PATH_CACHE_MAX) {
-    pathCache.delete(pathCache.keys().next().value!);
-  }
-  pathCache.set(key, pathTiles);
-
-  return pathTiles;
+  return path;
 };

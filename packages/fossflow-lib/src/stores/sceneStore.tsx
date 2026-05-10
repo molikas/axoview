@@ -26,6 +26,8 @@ export interface SceneStoreWithHistory extends Omit<SceneStore, 'actions'> {
     canRedo: () => boolean;
     saveToHistory: () => void;
     clearHistory: () => void;
+    freezePendingPre: () => void;
+    unfreezePendingPre: () => void;
   };
 }
 
@@ -47,6 +49,9 @@ const initialState = () => {
     const initialScene: Scene = { connectors: {}, textBoxes: {} };
 
     let pendingPre: Scene | null = null;
+
+    // While true, set() will not consume pendingPre — see modelStore.tsx for why.
+    let pendingPreFrozen = false;
 
     const saveToHistory = () => {
       pendingPre = extractSceneData(get());
@@ -124,7 +129,16 @@ const initialState = () => {
 
     const clearHistory = () => {
       pendingPre = null;
+      pendingPreFrozen = false;
       set((state) => ({ ...state, history: createSceneHistoryState() }));
+    };
+
+    const freezePendingPre = () => {
+      pendingPreFrozen = true;
+    };
+
+    const unfreezePendingPre = () => {
+      pendingPreFrozen = false;
     };
 
     return {
@@ -137,7 +151,7 @@ const initialState = () => {
             saveToHistory();
           }
 
-          if (pendingPre !== null) {
+          if (pendingPre !== null && !pendingPreFrozen) {
             const pre = pendingPre;
             pendingPre = null;
             set((state) => {
@@ -175,7 +189,9 @@ const initialState = () => {
         canUndo,
         canRedo,
         saveToHistory,
-        clearHistory
+        clearHistory,
+        freezePendingPre,
+        unfreezePendingPre
       }
     };
   });

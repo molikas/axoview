@@ -41,6 +41,8 @@ function makeScene(overrides: any = {}) {
     currentView: { connectors: overrides.connectors ?? [] },
     createConnector: jest.fn(),
     updateConnector: jest.fn(),
+    beginDragTransaction: jest.fn(),
+    commitDragTransaction: jest.fn(),
     ...overrides
   };
 }
