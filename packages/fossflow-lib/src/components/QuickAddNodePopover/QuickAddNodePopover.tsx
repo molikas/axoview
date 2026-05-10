@@ -110,12 +110,7 @@ export const QuickAddNodePopover = () => {
           borderColor: 'divider'
         }}
       >
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          fontWeight={600}
-          sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}
-        >
+        <Typography variant="overline" color="text.secondary">
           {t('add')}
         </Typography>
       </Box>

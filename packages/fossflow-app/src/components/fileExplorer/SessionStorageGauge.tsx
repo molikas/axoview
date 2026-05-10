@@ -116,15 +116,18 @@ export function SessionStorageGauge({ onDeleteDiagram }: Props) {
       >
         <Chip
           size="small"
-          label={`${percentLabel} · ${usedLabel}`}
+          label={
+            <Typography variant="micro" component="span">
+              {percentLabel} · {usedLabel}
+            </Typography>
+          }
           color={color}
           variant={color === 'default' ? 'outlined' : 'filled'}
           onClick={(e) => setAnchor(e.currentTarget)}
           sx={{
-            height: 18,
-            fontSize: '0.625rem',
+            height: 16,
             cursor: 'pointer',
-            '& .MuiChip-label': { px: 0.75 }
+            '& .MuiChip-label': { px: 0.5 }
           }}
         />
       </Tooltip>

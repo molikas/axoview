@@ -160,7 +160,6 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
           )}
           <Typography
             variant="subtitle2"
-            fontWeight={700}
             sx={{
               flex: 1,
               overflow: 'hidden',
@@ -202,15 +201,9 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
           {hasCaption && (
             <Box sx={{ px: 2, pt: 2, pb: 1 }}>
               <Typography
-                variant="caption"
-                fontWeight={700}
+                variant="overline"
                 color="text.secondary"
-                sx={{
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.5,
-                  display: 'block',
-                  mb: 1
-                }}
+                sx={{ display: 'block', mb: 1 }}
               >
                 {t('caption')}
               </Typography>
@@ -221,15 +214,9 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
           {hasNotes && (
             <Box sx={{ px: 2, pt: 2, pb: 2 }}>
               <Typography
-                variant="caption"
-                fontWeight={700}
+                variant="overline"
                 color="text.secondary"
-                sx={{
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.5,
-                  display: 'block',
-                  mb: 1
-                }}
+                sx={{ display: 'block', mb: 1 }}
               >
                 {t('notes')}
               </Typography>
@@ -272,7 +259,6 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
             minHeight: 36,
             '& .MuiTab-root': {
               minHeight: 36,
-              fontSize: '0.72rem',
               py: 0.5,
               px: 1.5
             }

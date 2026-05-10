@@ -1,5 +1,13 @@
 # Known Issues
 
+## leanSave test: `bundledFixtures[0]` undefined → 1 failing unit test
+
+**Symptom:** [`packages/fossflow-lib/src/utils/__tests__/leanSave.test.ts`](packages/fossflow-lib/src/utils/__tests__/leanSave.test.ts) — `mergeBundledFixtures (ADR 0002) › overridden default wins over bundled fixture` throws `TypeError: Cannot read properties of undefined (reading 'id')` because the bundled-fixtures source ([`packages/fossflow-lib/src/fixtures/icons.ts`](packages/fossflow-lib/src/fixtures/icons.ts)) is `export const icons: Model['icons'] = []` (empty), so `bundledFixtures[0]` is undefined.
+
+**Workaround:** None for the test. The runtime path (App.tsx → iconPackManager) supplies real packs, so user-facing behavior is unaffected; only the unit assertion is wrong.
+
+**Status:** Open, pre-existing — predates the 2026-05 shake-out. Either the test should be guarded with `if (bundledFixtures.length === 0) return;` or seeded with a stub fixture. Filed for a future test cleanup.
+
 ## i18n: "Add more icons" accordion title not translated outside en-US
 
 **Symptom:** The collapsible "Add more icons" accordion in the left dock (Elements panel) shows the literal key `addMoreIcons` instead of a translated string when the active locale is not `en-US`.

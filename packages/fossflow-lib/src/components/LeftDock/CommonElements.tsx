@@ -161,16 +161,8 @@ export const CommonElements = () => {
   return (
     <Box sx={{ px: 1.5, pt: 1.5, pb: 1 }}>
       <Typography
-        variant="caption"
-        sx={{
-          display: 'block',
-          mb: 1,
-          color: 'text.disabled',
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-          fontSize: 10
-        }}
+        variant="overline"
+        sx={{ display: 'block', mb: 1, color: 'text.disabled' }}
       >
         Common
       </Typography>

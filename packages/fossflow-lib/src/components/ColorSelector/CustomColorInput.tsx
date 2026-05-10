@@ -69,7 +69,6 @@ export const CustomColorInput = ({ value, onChange }: Props) => {
           input: {
             disableUnderline: true,
             sx: {
-              fontSize: '0.875rem',
               color: 'text.secondary',
               width: '80px'
             }

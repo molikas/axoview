@@ -74,12 +74,13 @@ function EditorShell() {
     openDiagramById,
     fileExplorerOpen,
     setFileExplorerOpen,
-    markProjectExported
+    markProjectExported,
+    isProjectExportOpen,
+    closeProjectExport
   } = useDiagramLifecycle();
 
   const [linkedDiagrams, setLinkedDiagrams] = useState<Array<{ id: string; name: string }>>([]);
   const [treeIsEmpty, setTreeIsEmpty] = useState(true);
-  const [showProjectExport, setShowProjectExport] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const importFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -153,9 +154,7 @@ function EditorShell() {
     <div className="App">
       <AppToolbar />
 
-      {showSessionBanner && (
-        <SessionModeBanner onExportProject={() => setShowProjectExport(true)} />
-      )}
+      {showSessionBanner && <SessionModeBanner />}
 
       <FileExplorerLayout>
         <div className="fossflow-container" style={{ position: 'relative' }}>
@@ -260,8 +259,8 @@ function EditorShell() {
 
       {storage && (
         <ExportDialog
-          open={showProjectExport}
-          onClose={() => setShowProjectExport(false)}
+          open={isProjectExportOpen}
+          onClose={closeProjectExport}
           scope="project"
           storage={storage}
           exporterTag={EXPORTER_TAG}

@@ -39,12 +39,9 @@ export function FileTreeToolbar({
       }}
     >
       <Typography
-        variant="caption"
+        variant="overline"
         sx={{
           flex: 1,
-          fontWeight: 700,
-          fontSize: '0.6875rem',
-          letterSpacing: '0.06em',
           color: 'text.secondary',
           userSelect: 'none',
           overflow: 'hidden',

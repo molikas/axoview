@@ -220,7 +220,7 @@ export const ConnectorControls = ({ id }: Props) => {
             sx={{
               flex: 1,
               minHeight: 36,
-              '& .MuiTab-root': { minHeight: 36, fontSize: '0.72rem', py: 0.5, px: 1.5 }
+              '& .MuiTab-root': { minHeight: 36, py: 0.5, px: 1.5 }
             }}
           >
             <Tab label={t('details')} value={TAB_DETAILS} />
@@ -338,11 +338,18 @@ export const ConnectorControls = ({ id }: Props) => {
                     </MUIIconButton>
                   </Box>
 
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ mb: 0.5, display: 'block' }}
+                  >
+                    Text
+                  </Typography>
                   <TextField
-                    label="Text"
                     value={label.text}
                     onChange={(e) => handleUpdateLabel(label.id, { text: e.target.value })}
                     fullWidth
+                    size="small"
                     sx={{ mb: 2 }}
                   />
 

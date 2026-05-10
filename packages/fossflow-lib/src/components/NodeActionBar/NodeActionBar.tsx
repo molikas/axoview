@@ -78,14 +78,12 @@ export const NodeActionBar = ({ type, id, tile: connectorTile }: Props) => {
   );
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Counter-scale to keep the bar at natural pixel size at low zoom.
-  // Clamp at 1: at zoom > 1 the bar would otherwise shrink — we only want
-  // to grow back to natural size on zoom-out, not shrink below it. Bypasses
-  // React render — same pattern as SceneLayer.
+  // Counter-scale unconditionally — bar stays at natural pixel size at every
+  // zoom level (UX §8.8). Bypasses React render, same pattern as SceneLayer.
   useEffect(() => {
     const apply = (zoom: number) => {
       if (!wrapperRef.current) return;
-      const counter = Math.min(1, 1 / zoom);
+      const counter = 1 / zoom;
       wrapperRef.current.style.transform = `translateX(-50%) scale(${counter})`;
     };
     apply(uiStoreApi.getState().zoom);

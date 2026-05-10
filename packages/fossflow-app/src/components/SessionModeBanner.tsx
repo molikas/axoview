@@ -1,14 +1,10 @@
 import { useState } from 'react';
-import { Box, Button, IconButton, Typography } from '@mui/material';
+import { Box, IconButton, Typography } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
 
 const DISMISS_KEY = 'fossflow-session-banner-dismissed';
 
-interface Props {
-  onExportProject: () => void;
-}
-
-export function SessionModeBanner({ onExportProject }: Props) {
+export function SessionModeBanner() {
   const [dismissed, setDismissed] = useState<boolean>(() => {
     try {
       return localStorage.getItem(DISMISS_KEY) === '1';
@@ -45,17 +41,9 @@ export function SessionModeBanner({ onExportProject }: Props) {
       role="status"
     >
       <Typography variant="caption" color="text.secondary">
-        Your work lives in this browser tab only. Export your project to keep it.
+        Your work lives in this browser tab only. Use Export → Export project to keep it.
       </Typography>
       <Box sx={{ flex: 1 }} />
-      <Button
-        size="small"
-        variant="outlined"
-        color="warning"
-        onClick={onExportProject}
-      >
-        Export project
-      </Button>
       <IconButton
         size="small"
         onClick={handleDismiss}

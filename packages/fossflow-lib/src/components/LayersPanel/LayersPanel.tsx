@@ -371,8 +371,8 @@ export const LayersPanel = () => {
         justifyContent="space-between"
         sx={{ px: 1.5, py: 1, flexShrink: 0 }}
       >
-        <Typography variant="caption" fontWeight={600} color="text.secondary">
-          LAYERS
+        <Typography variant="overline" color="text.secondary">
+          Layers
         </Typography>
         <Stack direction="row" spacing={0.25}>
           <Tooltip title="Add layer" placement="top">
@@ -473,18 +473,11 @@ export const LayersPanel = () => {
         {unassignedCount > 0 && (
           <Box sx={{ mt: 0.5 }}>
             <Typography
-              variant="caption"
+              variant="overline"
               color="text.disabled"
-              sx={{
-                display: 'block',
-                px: 0.5,
-                pt: 0.5,
-                pb: 0.25,
-                fontSize: '0.65rem',
-                fontWeight: 600
-              }}
+              sx={{ display: 'block', px: 0.5, pt: 0.5, pb: 0.25 }}
             >
-              UNASSIGNED ({unassignedCount})
+              Unassigned ({unassignedCount})
             </Typography>
             {unassignedItems.map((item) => (
               <LayerItemRow

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef } from 'react';
-import { Stack, Chip, Divider } from '@mui/material';
+import { Stack, Chip, Divider, Typography } from '@mui/material';
 import {
   PanToolOutlined as PanToolIcon,
   NearMeOutlined as NearMeIcon,
@@ -141,10 +141,14 @@ export const ToolMenu = () => {
         />
         {mode.type === 'CONNECTOR' && (
           <Chip
-            label={connectorInteractionMode === 'click' ? 'Click' : 'Drag'}
+            label={
+              <Typography variant="micro" component="span">
+                {connectorInteractionMode === 'click' ? 'Click' : 'Drag'}
+              </Typography>
+            }
             size="small"
             variant="outlined"
-            sx={{ fontSize: '0.65rem', height: 18, mx: 'auto' }}
+            sx={{ height: 18, mx: 'auto' }}
           />
         )}
 

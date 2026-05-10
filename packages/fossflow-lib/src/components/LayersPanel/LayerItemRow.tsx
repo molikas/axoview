@@ -120,14 +120,14 @@ export const LayerItemRow = memo(
           cursor: editing ? 'text' : 'pointer',
           borderRadius: 1,
           bgcolor: isSelected ? 'primary.main' : 'transparent',
-          color: isSelected ? 'primary.contrastText' : 'text.secondary',
+          color: isSelected ? 'primary.contrastText' : 'text.primary',
           outline: 'none',
           '&:hover': { bgcolor: isSelected ? 'primary.main' : 'action.hover' },
           '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: -2 },
           userSelect: 'none'
         }}
       >
-        <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', opacity: 0.7 }}>
+        <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
           <ItemThumbnail item={item} />
         </Box>
         {editing ? (
@@ -141,7 +141,7 @@ export const LayerItemRow = memo(
             autoFocus
             sx={{
               flex: 1,
-              fontSize: '0.7rem',
+              fontSize: '0.875rem',
               bgcolor: 'background.paper',
               color: 'text.primary',
               borderRadius: 0.5,
@@ -154,10 +154,9 @@ export const LayerItemRow = memo(
         ) : (
           <>
             <Typography
-              variant="caption"
+              variant="body2"
               sx={{
                 flex: 1,
-                fontSize: '0.7rem',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap'

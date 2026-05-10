@@ -83,8 +83,8 @@ function FileTreeRow({
 }
 
 function providerIdToLabel(id: string): string {
-  if (id === 'google-drive') return 'GOOGLE DRIVE';
-  return 'DIAGRAMS';
+  if (id === 'google-drive') return 'Google Drive';
+  return 'Diagrams';
 }
 
 function injectPendingNode(
@@ -624,7 +624,7 @@ export function FileExplorer() {
         PaperProps={{ sx: { boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)', borderRadius: 2 } }}
       >
         <DialogTitle sx={{ pb: 1, pr: 6 }}>
-          <Typography variant="h6" fontWeight={600} component="span">
+          <Typography variant="h6" component="span">
             Delete &ldquo;{deleteConfirm?.name}&rdquo;?
           </Typography>
           <IconButton
@@ -692,7 +692,7 @@ export function FileExplorer() {
         PaperProps={{ sx: { boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)', borderRadius: 2 } }}
       >
         <DialogTitle sx={{ pb: 1, pr: 6 }}>
-          <Typography variant="h6" fontWeight={600} component="span">
+          <Typography variant="h6" component="span">
             Name already exists
           </Typography>
           <IconButton

@@ -134,7 +134,7 @@ export const LayerRow = memo(
                 e.stopPropagation();
               }}
               onClick={(e) => e.stopPropagation()}
-              sx={{ fontSize: '0.75rem', width: '100%' }}
+              sx={{ fontSize: '0.875rem', width: '100%' }}
             />
           ) : (
             <Box
@@ -146,7 +146,7 @@ export const LayerRow = memo(
               }}
             >
               <Typography
-                variant="caption"
+                variant="body2"
                 sx={{
                   flex: 1,
                   overflow: 'hidden',
@@ -158,9 +158,9 @@ export const LayerRow = memo(
               </Typography>
               {itemCount > 0 && (
                 <Typography
-                  variant="caption"
+                  variant="micro"
                   color="text.disabled"
-                  sx={{ flexShrink: 0, fontSize: '0.65rem' }}
+                  sx={{ flexShrink: 0 }}
                 >
                   {itemCount}
                 </Typography>

@@ -119,7 +119,7 @@ export function FileTreeNode({ node, style, dragHandle, selectedId, onContextMen
             border: '1px solid',
             borderRadius: 2,
             padding: '0 4px',
-            fontSize: '0.8125rem',
+            fontSize: '0.875rem',
             outline: 'none',
             minWidth: 0,
             background: 'var(--mui-palette-background-paper, #fff)',
@@ -132,8 +132,6 @@ export function FileTreeNode({ node, style, dragHandle, selectedId, onContextMen
           noWrap
           sx={{
             flex: 1,
-            fontSize: '0.8125rem',
-            lineHeight: 1.4,
             overflow: 'hidden',
             textOverflow: 'ellipsis'
           }}

@@ -51,7 +51,7 @@ export function StatusCluster() {
               size="small"
               variant="text"
               color="error"
-              sx={{ minWidth: 0, px: 0.5, py: 0, fontSize: 11, textTransform: 'none', lineHeight: 1.5 }}
+              sx={{ minWidth: 0, px: 0.5, py: 0, textTransform: 'none', lineHeight: 1.5 }}
               onClick={handleSaveClick}
             >
               {t('status.retry', 'Retry')}
@@ -107,12 +107,10 @@ export function StatusCluster() {
         </Typography>
       )}
       <Chip
-        label="SESSION"
+        label={<Typography variant="micro" component="span">Session</Typography>}
         size="small"
         sx={{
           height: 16,
-          fontSize: '0.5rem',
-          fontWeight: 700,
           bgcolor: 'warning.dark',
           color: 'warning.contrastText',
           '& .MuiChip-label': { px: 0.5 }

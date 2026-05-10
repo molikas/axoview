@@ -51,6 +51,8 @@ This applies everywhere: section titles, button labels, dropdown values, switch 
 'LINE STYLE'
 ```
 
+The "More icons" caption in the Elements panel was previously `textTransform: 'uppercase'`. Removed in the 2026-05 shake-out — sentence case matches every other section header. Same goes for the panel-region labels (Diagrams, Layers, Common, etc.) which now render in sentence case via the `overline` typography variant (see §1.5).
+
 ### 1.3 Field labels are explicit; placeholders are hints
 
 Every input field has a `Section` title above it. Placeholder text is a *hint* about what to type, not a label substitute.
@@ -83,6 +85,58 @@ This bites with MUI `Slider`: the thumb's `::after` pseudo-element is a 42 × 42
 ```
 
 Reference: [`ConnectorControls.tsx`](../packages/fossflow-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx) and [`NodePanel.tsx`](../packages/fossflow-lib/src/components/ItemControls/NodeControls/NodePanel/NodePanel.tsx) `TabPanel`.
+
+### 1.5 Typography is theme-driven — six tiers, picked by role
+
+The theme owns every font size and weight. Components pick a `<Typography variant="…">` based on the **role** of the text, never on how big or bold the author wishes it looked. Role-based variants survive design adjustments without code changes; ad-hoc inline `fontSize` / `fontWeight` accumulate into per-component drift.
+
+| Variant | px @ 14 base | Role | Examples |
+|---|---|---|---|
+| `h6` | 17.5 | Dialog & popover titles | `ConfirmDialog`, `SaveDialog`, `LoadDialog`, `ExportDialog` titles |
+| `body1` | 14 | Dialog/form body | `DialogContent`, descriptive paragraphs |
+| `body2` | 12.25 | **Primary readable** lists, trees, forms | Layer item names, file-tree names, tab labels, panel form fields, tooltips |
+| `caption` | 10.5 | Sub-labels / helper text | "Name", "Icon", "Link" mini-labels above an input; helper hints |
+| `overline` | 10.5 + tracked | Region wayfinding (**sentence case** per §1.2/§7.2) | `Layers`, `Diagrams`, `Elements`, `Unassigned`, dock-section headers |
+| `micro` | 9.6 | Glanceable status / badges (NOT prose) | `SESSION` chip, storage gauge, layer item-count badge, hotkey hints |
+
+**Rules:**
+
+1. **Pick by role, not size.** "Looks too small" means the role is wrong, not the size. If a layer-item label feels small, the question is "is this primary readable text?" → if yes, it's `body2`, full stop.
+2. **Never pass `fontSize` to `<Typography>`.** Same for `fontWeight`. Both belong to the variant.
+3. **Component-level overrides live in `theme.ts`.** `MuiTab`, `MuiChip`, `MuiButton` — set there once. Don't sprinkle `'& .MuiTab-root': { fontSize: ... }` inside random components.
+4. **Need a size that doesn't fit a tier?** Propose a new variant in `theme.ts`. Don't inline it. Drift starts with one inline override.
+
+**Permitted exceptions (documented):**
+
+- `TextField` `slotProps.input` — that's input rendering, not Typography. Match `body2` for input text.
+- Monospace contexts — explicit `fontFamily: 'monospace'` is a semantic choice (keyboard shortcuts, code blocks).
+- Content emphasis — bolding the value of a single labeled field (e.g. an "Active" badge inside a row) is content-driven and may use `fontWeight={…}` locally. Section labels and panel headers may **not** — that's the drift this rule blocks.
+
+```tsx
+// ✅ Correct — role-driven, sentence case
+<Typography variant="body2">{layer.name}</Typography>
+<Typography variant="overline">Layers</Typography>
+<Chip label={<Typography variant="micro">Session</Typography>} size="small" />
+
+// ❌ Wrong — sized by feel
+<Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 600 }}>
+  {layer.name}
+</Typography>
+
+// ❌ Wrong — manual ALL CAPS (violates §1.2 / §7.2)
+<Typography variant="caption" sx={{ textTransform: 'uppercase', fontWeight: 700, fontSize: 10 }}>
+  AWS
+</Typography>
+
+// ❌ Wrong — overline used to bypass §1.2 by re-imposing uppercase
+<Typography variant="overline" sx={{ textTransform: 'uppercase' }}>
+  Layers
+</Typography>
+```
+
+**Note on `overline`:** the variant intentionally renders **sentence case** in this codebase, against MUI's default. The visual differentiation that signals "region header" comes from weight 600 + tracked-out spacing + smaller size — not uppercase. This satisfies §1.2 and §7.2.
+
+The custom `micro` variant is registered via TypeScript module augmentation in [`theme.ts`](../packages/fossflow-lib/src/styles/theme.ts) so it is callable as `<Typography variant="micro">` like any built-in variant.
 
 ---
 
@@ -188,6 +242,34 @@ After import, autosave, or any operation a user might worry about:
 
 The `EmptyStateScreen` shows BOTH "New diagram" AND "Import" cards. Empty doesn't mean "you can only do one thing here" — it means "tell us what you want to do."
 
+### 6.3 Validation failures surface to the user, not just the console
+
+A failed schema parse, a malformed import, or a rejected save must call `uiStateActions.setNotification({ severity: 'error', message })` with at least the first 1–2 violations summarised in plain English. `console.error` alone is not enough — users don't open devtools.
+
+```ts
+// ✅ Correct — user sees the error
+if (!validationResult.success) {
+  console.error('[X] validation failed:', validationResult.error.issues);
+  const summary = validationResult.error.issues
+    .slice(0, 2)
+    .map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`)
+    .join('; ');
+  uiStateActions.setNotification({
+    severity: 'error',
+    message: `Could not load diagram: ${summary}`
+  });
+  return;
+}
+
+// ❌ Wrong — silent failure
+if (!validationResult.success) {
+  console.error('validation failed:', validationResult.error);
+  return;
+}
+```
+
+Reference: [`useInitialDataManager.ts`](../packages/fossflow-lib/src/hooks/useInitialDataManager.ts) surfaces zod issues this way.
+
 ---
 
 ## 7. Localization
@@ -288,6 +370,8 @@ A single mode badge (here: the orange `SESSION` chip) is enough to communicate t
 
 Conditional content should render conditionally. Don't reserve space with an empty `<Typography>` — render nothing when there is nothing to say.
 
+The same principle applies to mode banners outside the cluster (e.g. [`SessionModeBanner`](../packages/fossflow-app/src/components/SessionModeBanner.tsx)). The badge in the cluster is the load-bearing signal; a banner that reinforces it should be quiet — accent stripe, caption typography, outlined or no button — not a tinted bar that competes with the chip.
+
 ### 8.6 Save action sits flush against StatusCluster — they are one group
 
 In session mode, the Save button (`💾`) is followed immediately by the StatusCluster with no divider between them. They read as a single unit: *"this is what state we're in, and this is what to do about it."* Visually adjacent, not visually separated.
@@ -299,6 +383,36 @@ This applies more broadly: when an action and its state are mutually relevant, g
 Beware broad descendant rules like `.parent > div { height: 100% }`. They look harmless when the parent has one child but become destructive when overlay siblings are added — `height: 100%` overrides implicit height-from-top+bottom on `position: absolute` children, defeating any `bottom` inset.
 
 If you need to set a child's height generically, target a class or component selector, not every `<div>`. Or trust the child's own inline/sx height (most MUI components set `height` via sx anyway).
+
+### 8.8 Canvas-anchored chrome is screen-pixel-stable
+
+Floating chrome positioned in canvas-tile coordinates ([`NodeActionBar`](../packages/fossflow-lib/src/components/NodeActionBar/NodeActionBar.tsx), future right-click menus) must counter-scale the `SceneLayer`'s `transform: scale(zoom)` so it stays at natural pixel size at every zoom level.
+
+Pattern:
+
+- Subscribe to `useUiStateStoreApi` zoom the same way [`SceneLayer`](../packages/fossflow-lib/src/components/SceneLayer/SceneLayer.tsx) does — direct DOM ref, bypassing React render.
+- Apply `transform: ... scale(${1 / zoom})` unconditionally so the bar is screen-pixel-stable at all zoom levels.
+- Set `transformOrigin` to the corner that should stay visually anchored to the node (typically `center bottom` for top-anchored bars).
+
+```tsx
+// ✅ Correct — screen-pixel-stable at every zoom
+useEffect(() => {
+  const apply = (zoom: number) => {
+    if (!ref.current) return;
+    ref.current.style.transform = `translateX(-50%) scale(${1 / zoom})`;
+  };
+  apply(uiStoreApi.getState().zoom);
+  return uiStoreApi.subscribe((state, prev) => {
+    if (state.zoom === prev.zoom) return;
+    apply(state.zoom);
+  });
+}, [uiStoreApi]);
+
+// ❌ Wrong — Math.min(1, 1/zoom) leaves the bar shrunken at zoom < 1
+const counter = Math.min(1, 1 / zoom);  // shrinks with scene at low zoom
+```
+
+MUI `<Menu>` spawned from such chrome renders via Portal at the document root — already screen-stable; no counter-scale needed there.
 
 ---
 
@@ -315,6 +429,11 @@ When building parallel surfaces, **read these first**:
 | Layer row with rename + action toggle | [`LayerItemRow.tsx`](../packages/fossflow-lib/src/components/LayersPanel/LayerItemRow.tsx) |
 | Keyboard-first dialog | [`ConfirmDialog.tsx`](../packages/fossflow-app/src/components/ConfirmDialog.tsx) |
 | Inline canvas rename | [`Node.tsx`](../packages/fossflow-lib/src/components/SceneLayers/Nodes/Node/Node.tsx) (search `inlineEditNodeName`) |
+| Theme-driven typography contract | [`theme.ts`](../packages/fossflow-lib/src/styles/theme.ts) — see §1.5 |
+| Standard search input (panel-level) | [`Searchbox.tsx`](../packages/fossflow-lib/src/components/ItemControls/IconSelectionControls/Searchbox.tsx) |
+| Counter-scaled canvas-anchored chrome | [`NodeActionBar.tsx`](../packages/fossflow-lib/src/components/NodeActionBar/NodeActionBar.tsx) — see §8.8 |
+| Quiet mode banner | [`SessionModeBanner.tsx`](../packages/fossflow-app/src/components/SessionModeBanner.tsx) — see §8.5 |
+| Validation surfacing | [`useInitialDataManager.ts`](../packages/fossflow-lib/src/hooks/useInitialDataManager.ts) — see §6.3 |
 
 ---
 

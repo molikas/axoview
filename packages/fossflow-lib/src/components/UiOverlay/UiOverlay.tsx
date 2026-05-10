@@ -229,11 +229,11 @@ export const UiOverlay = ({
               }}
             >
               <Stack direction="row" alignItems="center">
-                <Typography fontWeight={600} color="text.secondary">
+                <Typography variant="subtitle2" color="text.secondary">
                   {title}
                 </Typography>
                 <ChevronRight />
-                <Typography fontWeight={600} color="text.secondary">
+                <Typography variant="subtitle2" color="text.secondary">
                   {currentView.name}
                 </Typography>
               </Stack>

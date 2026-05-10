@@ -20,7 +20,6 @@ export const Section = ({ children, sx, title }: Props) => {
         {title && (
           <Typography
             variant="caption"
-            fontWeight={600}
             color="text.secondary"
             sx={{ display: 'block', mb: 0.75 }}
           >

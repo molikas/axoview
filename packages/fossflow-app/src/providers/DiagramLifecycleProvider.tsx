@@ -102,6 +102,9 @@ interface DiagramLifecycleContextValue {
   handleExportJSON: () => void;
   handleExportCompactJSON: () => void;
   handleExportImage: () => void;
+  handleExportProject: () => void;
+  isProjectExportOpen: boolean;
+  closeProjectExport: () => void;
   handleNewDiagram: () => Promise<void>;
   handleRenameCurrentDiagram: (newName: string) => Promise<void>;
   notifyDiagramRenamedFromTree: (id: string, newName: string) => void;
@@ -1045,6 +1048,16 @@ export function DiagramLifecycleProvider({
     isoflowRef.current?.openExportImageDialog();
   }, []);
 
+  // "Export project" — full bundled-zip export. State lives here so the toolbar
+  // popover and any other UI surface can trigger it without prop-drilling.
+  const [isProjectExportOpen, setIsProjectExportOpen] = useState(false);
+  const handleExportProject = useCallback(() => {
+    setIsProjectExportOpen(true);
+  }, []);
+  const closeProjectExport = useCallback(() => {
+    setIsProjectExportOpen(false);
+  }, []);
+
   // ---------------------------------------------------------------------------
   // Session-mode Save All
   // ---------------------------------------------------------------------------
@@ -1256,6 +1269,9 @@ export function DiagramLifecycleProvider({
     handleExportJSON,
     handleExportCompactJSON,
     handleExportImage,
+    handleExportProject,
+    isProjectExportOpen,
+    closeProjectExport,
     handleNewDiagram,
     handleRenameCurrentDiagram,
     notifyDiagramRenamedFromTree,

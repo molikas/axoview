@@ -1,25 +1,29 @@
 import { useRef, useState } from 'react';
 import {
-  Box,
   IconButton,
   ListItemIcon,
   ListItemText,
   MenuItem,
   MenuList,
   Popover,
-  Tooltip,
-  Typography
+  Tooltip
 } from '@mui/material';
 import {
   FileDownloadOutlined as DownloadIcon,
   DataObjectOutlined as JsonIcon,
-  ImageOutlined as ImageIcon
+  ImageOutlined as ImageIcon,
+  FolderZipOutlined as ProjectZipIcon
 } from '@mui/icons-material';
 import { useDiagramLifecycle } from '../providers/DiagramLifecycleProvider';
 
 export function ExportPopover() {
-  const { handleExportJSON, handleExportCompactJSON, handleExportImage, currentDiagram } =
-    useDiagramLifecycle();
+  const {
+    handleExportJSON,
+    handleExportCompactJSON,
+    handleExportImage,
+    handleExportProject,
+    currentDiagram
+  } = useDiagramLifecycle();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
 
@@ -52,9 +56,6 @@ export function ExportPopover() {
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         PaperProps={{ sx: { mt: 0.5, minWidth: 200 } }}
       >
-        <Box sx={{ px: 2, pt: 1.5, pb: 0.5 }}>
-          <Typography variant="subtitle2">Export</Typography>
-        </Box>
         <MenuList dense sx={{ py: 0.5 }}>
           <MenuItem onClick={() => handleOption(handleExportJSON)}>
             <ListItemIcon><JsonIcon fontSize="small" /></ListItemIcon>
@@ -67,6 +68,10 @@ export function ExportPopover() {
           <MenuItem onClick={() => handleOption(handleExportImage)}>
             <ListItemIcon><ImageIcon fontSize="small" /></ListItemIcon>
             <ListItemText>Export Image</ListItemText>
+          </MenuItem>
+          <MenuItem onClick={() => handleOption(handleExportProject)}>
+            <ListItemIcon><ProjectZipIcon fontSize="small" /></ListItemIcon>
+            <ListItemText>Export Project (.zip)</ListItemText>
           </MenuItem>
         </MenuList>
       </Popover>
