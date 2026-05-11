@@ -7,7 +7,7 @@ const locale: LocaleProps = {
   mainMenu: {
     undo: 'Rückgängig',
     redo: 'Wiederholen',
-    new: 'New diagram',
+    new: 'Neues Diagramm',
     open: 'Öffnen',
     exportJson: 'Als JSON exportieren',
     exportCompactJson: 'Als kompaktes JSON exportieren',
@@ -262,10 +262,10 @@ const locale: LocaleProps = {
     caption: 'Beschriftung',
     captionHint: 'Wird auf der Leinwand unterhalb des Knotennamens angezeigt',
     openLink: 'Link öffnen',
-    diagramLink: 'Link to diagram',
-    diagramLinkPlaceholder: 'Select a diagram…',
-    diagramLinkHint: 'Clicking this node in read-only mode opens the linked diagram',
-    openDiagramLink: 'Open linked diagram'
+    diagramLink: 'Link zum Diagramm',
+    diagramLinkPlaceholder: 'Diagramm auswählen…',
+    diagramLinkHint: 'Ein Klick auf diesen Knoten im Nur-Lese-Modus öffnet das verknüpfte Diagramm',
+    openDiagramLink: 'Verknüpftes Diagramm öffnen'
   },
   nodeStyleTab: {
     icon: 'Symbol',
@@ -337,7 +337,7 @@ const locale: LocaleProps = {
     addLink: 'Link hinzufügen',
     editNotes: 'Notizen bearbeiten',
     addNotes: 'Notizen hinzufügen',
-    startConnector: 'Start connector',
+    startConnector: 'Verbindung starten',
     delete: 'Löschen'
   },
   quickAddNodePopover: {
@@ -359,6 +359,7 @@ const locale: LocaleProps = {
   iconSelectionControls: {
     close: 'Schließen',
     importIcons: 'Symbole importieren',
+    addMoreIcons: 'Mehr Symbole hinzufügen',
     isometricLabel: 'Als isometrisch behandeln (3D-Ansicht)',
     isometricHint: 'Für flache Symbole deaktivieren (Logos, UI-Elemente)',
     dragHint:
@@ -406,14 +407,9 @@ const locale: LocaleProps = {
     text: 'Text'
   },
   quickIconSelector: {
-    searchPlaceholder: 'Symbole suchen (Enter zum Auswählen)',
     recentlyUsed: 'ZULETZT VERWENDET',
     searchResults: 'SUCHERGEBNISSE ({count} Symbole)',
-    noIconsFound: 'Keine Symbole für "{term}" gefunden',
-    helpSearch:
-      'Pfeiltasten zum Navigieren • Enter zum Auswählen • Doppelklick zum Auswählen und Schließen',
-    helpBrowse:
-      'Tippen zum Suchen • Kategorie anklicken zum Erweitern • Doppelklick zum Auswählen und Schließen'
+    noIconsFound: 'Keine Symbole für "{term}" gefunden'
   }
 };
 

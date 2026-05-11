@@ -7,7 +7,7 @@ const locale: LocaleProps = {
   mainMenu: {
     undo: 'Batalkan',
     redo: 'Ulangi',
-    new: 'New diagram',
+    new: 'Diagram baru',
     open: 'Buka',
     exportJson: 'Ekspor sebagai JSON',
     exportCompactJson: 'Ekspor sebagai JSON Ringkas',
@@ -46,20 +46,20 @@ const locale: LocaleProps = {
     panCanvasAction: 'Geser Kanvas',
     panCanvasShortcut: 'Klik Kiri + Seret',
     panCanvasDescription: 'Geser kanvas saat dalam mode Geser',
-    togglePanToolAction: 'Toggle Pan Tool',
-    togglePanToolShortcut: 'Right-click',
+    togglePanToolAction: 'Aktifkan/Nonaktifkan Alat Geser',
+    togglePanToolShortcut: 'Klik kanan',
     togglePanToolDescription:
-      'Toggle pan mode on/off; left-click to return to select mode',
-    lassoSelectAction: 'Lasso Select',
-    lassoSelectShortcut: 'Left-click + Drag (empty area)',
+      'Aktifkan/nonaktifkan mode geser; klik kiri untuk kembali ke mode pilih',
+    lassoSelectAction: 'Seleksi Lasso',
+    lassoSelectShortcut: 'Klik Kiri + Seret (area kosong)',
     lassoSelectDescription:
-      'Draw a rectangular selection box to select multiple items',
-    deselectAction: 'Deselect',
-    deselectShortcut: 'Left-click (empty area)',
+      'Gambar kotak seleksi persegi panjang untuk memilih beberapa item',
+    deselectAction: 'Batal Pilih',
+    deselectShortcut: 'Klik Kiri (area kosong)',
     deselectDescription:
-      'Deselect the current selection and return to select mode',
+      'Batalkan pilihan saat ini dan kembali ke mode pilih',
     addNodeGroupAction: 'Add Node / Group',
-    addNodeGroupShortcut: 'Double-click (empty area)',
+    addNodeGroupShortcut: 'Klik ganda (area kosong)',
     addNodeGroupDescription:
       'Opens the Add popover at the cursor: pick an icon to place a node, or click Group to add a background area for visually grouping nodes',
     // Mouse interactions
@@ -81,18 +81,18 @@ const locale: LocaleProps = {
     addTextAction: 'Tambah Teks',
     addTextShortcut: 'Klik tombol Teks',
     addTextDescription: 'Buat kotak teks baru',
-    deleteSelectedAction: 'Delete Selected',
-    deleteSelectedShortcut: 'Delete (Backspace on Mac)',
+    deleteSelectedAction: 'Hapus yang Dipilih',
+    deleteSelectedShortcut: 'Delete (Backspace di Mac)',
     deleteSelectedDescription:
-      'Delete the selected item or all items in a lasso selection; supports undo/redo',
-    cutAction: 'Cut',
+      'Hapus item yang dipilih atau semua item dalam seleksi lasso; mendukung undo/redo',
+    cutAction: 'Potong',
     cutDescription:
-      'Cut selected item(s) to clipboard — items are removed and can be pasted elsewhere; supports undo/redo',
-    copyAction: 'Copy',
-    copyDescription: 'Copy selected item(s) to clipboard',
-    pasteAction: 'Paste',
+      'Potong item yang dipilih ke clipboard — item dihapus dan dapat ditempel di tempat lain; mendukung undo/redo',
+    copyAction: 'Salin',
+    copyDescription: 'Salin item yang dipilih ke clipboard',
+    pasteAction: 'Tempel',
     pasteDescription:
-      'Paste clipboard items at mouse position; offsets to avoid overlap'
+      'Tempel item clipboard di posisi mouse; digeser untuk menghindari tumpang tindih'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'Tip: Membuat Konektor',
@@ -169,12 +169,12 @@ const locale: LocaleProps = {
       toolConnector: 'Konektor',
       toolText: 'Teks',
       note: 'Catatan: Pintasan berfungsi saat tidak mengetik di bidang teks',
-      fixedShortcutsTitle: 'Fixed Shortcuts (Always Active)',
-      fixedCut: 'Cut',
-      fixedCopy: 'Copy',
-      fixedPaste: 'Paste',
-      fixedUndo: 'Undo',
-      fixedRedo: 'Redo'
+      fixedShortcutsTitle: 'Pintasan Tetap (Selalu Aktif)',
+      fixedCut: 'Potong',
+      fixedCopy: 'Salin',
+      fixedPaste: 'Tempel',
+      fixedUndo: 'Batalkan',
+      fixedRedo: 'Ulangi'
     },
     pan: {
       title: 'Pengaturan Geser',
@@ -232,9 +232,9 @@ const locale: LocaleProps = {
     signature: '-Stan'
   },
   viewTabs: {
-    addPage: 'Add page',
-    deletePage: 'Delete page',
-    renameDiagram: 'Rename diagram'
+    addPage: 'Tambah halaman',
+    deletePage: 'Hapus halaman',
+    renameDiagram: 'Ganti nama diagram'
   },
   nodePanel: {
     details: 'Detail',
@@ -259,10 +259,10 @@ const locale: LocaleProps = {
     caption: 'Keterangan',
     captionHint: 'Ditampilkan di kanvas di bawah nama node',
     openLink: 'Buka tautan',
-    diagramLink: 'Link to diagram',
-    diagramLinkPlaceholder: 'Select a diagram…',
-    diagramLinkHint: 'Clicking this node in read-only mode opens the linked diagram',
-    openDiagramLink: 'Open linked diagram'
+    diagramLink: 'Tautan ke diagram',
+    diagramLinkPlaceholder: 'Pilih diagram…',
+    diagramLinkHint: 'Mengklik node ini dalam mode baca-saja membuka diagram yang ditautkan',
+    openDiagramLink: 'Buka diagram yang ditautkan'
   },
   nodeStyleTab: {
     icon: 'Ikon',
@@ -334,7 +334,7 @@ const locale: LocaleProps = {
     addLink: 'Tambah tautan',
     editNotes: 'Edit catatan',
     addNotes: 'Tambah catatan',
-    startConnector: 'Start connector',
+    startConnector: 'Mulai konektor',
     delete: 'Hapus'
   },
   quickAddNodePopover: {
@@ -356,6 +356,7 @@ const locale: LocaleProps = {
   iconSelectionControls: {
     close: 'Tutup',
     importIcons: 'Impor Ikon',
+    addMoreIcons: 'Tambah lebih banyak ikon',
     isometricLabel: 'Perlakukan sebagai isometrik (tampilan 3D)',
     isometricHint: 'Hapus centang untuk ikon datar (logo, elemen UI)',
     dragHint:
@@ -390,26 +391,21 @@ const locale: LocaleProps = {
     error: 'Tidak dapat mengekspor gambar'
   },
   toolMenu: {
-    undo: 'Undo',
-    redo: 'Redo',
-    select: 'Select',
-    lassoSelect: 'Lasso select',
-    freehandLasso: 'Freehand lasso',
-    pan: 'Pan',
-    addItem: 'Add item',
-    rectangle: 'Rectangle',
-    connector: 'Connector',
-    text: 'Text'
+    undo: 'Batalkan',
+    redo: 'Ulangi',
+    select: 'Pilih',
+    lassoSelect: 'Seleksi lasso',
+    freehandLasso: 'Lasso bebas',
+    pan: 'Geser',
+    addItem: 'Tambah item',
+    rectangle: 'Persegi panjang',
+    connector: 'Konektor',
+    text: 'Teks'
   },
   quickIconSelector: {
-    searchPlaceholder: 'Search icons (press Enter to select)',
-    recentlyUsed: 'RECENTLY USED',
-    searchResults: 'SEARCH RESULTS ({count} icons)',
-    noIconsFound: 'No icons found matching "{term}"',
-    helpSearch:
-      'Use arrow keys to navigate • Enter to select • Double-click to select and close',
-    helpBrowse:
-      'Type to search • Click category to expand • Double-click to select and close'
+    recentlyUsed: 'BARU DIGUNAKAN',
+    searchResults: 'HASIL PENCARIAN ({count} ikon)',
+    noIconsFound: 'Tidak ada ikon yang cocok dengan "{term}"'
   }
 };
 

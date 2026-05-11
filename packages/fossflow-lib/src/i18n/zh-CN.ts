@@ -7,7 +7,7 @@ const locale: LocaleProps = {
   mainMenu: {
     undo: '撤销',
     redo: '重做',
-    new: 'New diagram',
+    new: '新建图表',
     open: '打开',
     exportJson: '导出为 JSON',
     exportCompactJson: '导出为紧凑 JSON',
@@ -46,20 +46,17 @@ const locale: LocaleProps = {
     panCanvasAction: '平移画布',
     panCanvasShortcut: '左键拖拽',
     panCanvasDescription: '在平移模式下移动画布',
-    togglePanToolAction: 'Toggle Pan Tool',
-    togglePanToolShortcut: 'Right-click',
-    togglePanToolDescription:
-      'Toggle pan mode on/off; left-click to return to select mode',
-    lassoSelectAction: 'Lasso Select',
-    lassoSelectShortcut: 'Left-click + Drag (empty area)',
-    lassoSelectDescription:
-      'Draw a rectangular selection box to select multiple items',
-    deselectAction: 'Deselect',
-    deselectShortcut: 'Left-click (empty area)',
-    deselectDescription:
-      'Deselect the current selection and return to select mode',
+    togglePanToolAction: '切换平移工具',
+    togglePanToolShortcut: '右键单击',
+    togglePanToolDescription: '切换平移模式开/关；左键单击以返回选择模式',
+    lassoSelectAction: '套索选择',
+    lassoSelectShortcut: '左键单击 + 拖拽（空白区域）',
+    lassoSelectDescription: '绘制矩形选择框以选择多个项目',
+    deselectAction: '取消选择',
+    deselectShortcut: '左键单击（空白区域）',
+    deselectDescription: '取消当前选择并返回选择模式',
     addNodeGroupAction: 'Add Node / Group',
-    addNodeGroupShortcut: 'Double-click (empty area)',
+    addNodeGroupShortcut: '双击（空白区域）',
     addNodeGroupDescription:
       'Opens the Add popover at the cursor: pick an icon to place a node, or click Group to add a background area for visually grouping nodes',
     // Mouse interactions
@@ -81,18 +78,16 @@ const locale: LocaleProps = {
     addTextAction: '添加文本',
     addTextShortcut: '点击文本按钮',
     addTextDescription: '创建新的文本框',
-    deleteSelectedAction: 'Delete Selected',
-    deleteSelectedShortcut: 'Delete (Backspace on Mac)',
-    deleteSelectedDescription:
-      'Delete the selected item or all items in a lasso selection; supports undo/redo',
-    cutAction: 'Cut',
+    deleteSelectedAction: '删除所选',
+    deleteSelectedShortcut: 'Delete（Mac 上为 Backspace）',
+    deleteSelectedDescription: '删除所选项目或套索选择中的所有项目；支持撤销/重做',
+    cutAction: '剪切',
     cutDescription:
-      'Cut selected item(s) to clipboard — items are removed and can be pasted elsewhere; supports undo/redo',
-    copyAction: 'Copy',
-    copyDescription: 'Copy selected item(s) to clipboard',
-    pasteAction: 'Paste',
-    pasteDescription:
-      'Paste clipboard items at mouse position; offsets to avoid overlap'
+      '将所选项目剪切到剪贴板——项目被移除并可粘贴到其他位置；支持撤销/重做',
+    copyAction: '复制',
+    copyDescription: '将所选项目复制到剪贴板',
+    pasteAction: '粘贴',
+    pasteDescription: '将剪贴板项目粘贴到鼠标位置；偏移以避免重叠'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: '提示：创建连接器',
@@ -164,12 +159,12 @@ const locale: LocaleProps = {
       toolConnector: '连接器',
       toolText: '文本',
       note: '注意：在文本输入框中输入时快捷键不生效',
-      fixedShortcutsTitle: 'Fixed Shortcuts (Always Active)',
-      fixedCut: 'Cut',
-      fixedCopy: 'Copy',
-      fixedPaste: 'Paste',
-      fixedUndo: 'Undo',
-      fixedRedo: 'Redo'
+      fixedShortcutsTitle: '固定快捷键（始终有效）',
+      fixedCut: '剪切',
+      fixedCopy: '复制',
+      fixedPaste: '粘贴',
+      fixedUndo: '撤销',
+      fixedRedo: '重做'
     },
     pan: {
       title: '平移设置',
@@ -251,10 +246,10 @@ const locale: LocaleProps = {
     caption: '说明文字',
     captionHint: '显示在画布中节点名称下方',
     openLink: '打开链接',
-    diagramLink: 'Link to diagram',
-    diagramLinkPlaceholder: 'Select a diagram…',
-    diagramLinkHint: 'Clicking this node in read-only mode opens the linked diagram',
-    openDiagramLink: 'Open linked diagram'
+    diagramLink: '链接到图表',
+    diagramLinkPlaceholder: '选择图表…',
+    diagramLinkHint: '在只读模式下单击此节点将打开链接的图表',
+    openDiagramLink: '打开链接的图表'
   },
   nodeStyleTab: {
     icon: '图标',
@@ -326,7 +321,7 @@ const locale: LocaleProps = {
     addLink: '添加链接',
     editNotes: '编辑备注',
     addNotes: '添加备注',
-    startConnector: 'Start connector',
+    startConnector: '开始连接',
     delete: '删除'
   },
   quickAddNodePopover: {
@@ -347,6 +342,7 @@ const locale: LocaleProps = {
   iconSelectionControls: {
     close: '关闭',
     importIcons: '导入图标',
+    addMoreIcons: '添加更多图标',
     isometricLabel: '作为等轴测处理（3D 视图）',
     isometricHint: '取消勾选以使用平面图标（Logo、UI 元素）',
     dragHint: '您可以将下方任意项目拖放到画布上。'
@@ -391,12 +387,9 @@ const locale: LocaleProps = {
     text: '文本'
   },
   quickIconSelector: {
-    searchPlaceholder: '搜索图标（按 Enter 选择）',
     recentlyUsed: '最近使用',
     searchResults: '搜索结果（{count} 个图标）',
-    noIconsFound: '未找到匹配 "{term}" 的图标',
-    helpSearch: '使用方向键导航 • Enter 选择 • 双击选择并关闭',
-    helpBrowse: '输入以搜索 • 点击分类展开 • 双击选择并关闭'
+    noIconsFound: '未找到匹配 "{term}" 的图标'
   }
 };
 

@@ -7,7 +7,7 @@ const locale: LocaleProps = {
   mainMenu: {
     undo: 'পূর্বাবস্থায় ফেরান',
     redo: 'পুনরায় করুন',
-    new: 'New diagram',
+    new: 'নতুন ডায়াগ্রাম',
     open: 'খুলুন',
     exportJson: 'JSON হিসাবে রপ্তানি করুন',
     exportCompactJson: 'কমপ্যাক্ট JSON হিসাবে রপ্তানি করুন',
@@ -46,20 +46,20 @@ const locale: LocaleProps = {
     panCanvasAction: 'ক্যানভাস প্যান করুন',
     panCanvasShortcut: 'বাম-ক্লিক + টেনে আনুন',
     panCanvasDescription: 'প্যান মোডে ক্যানভাস প্যান করুন',
-    togglePanToolAction: 'Toggle Pan Tool',
-    togglePanToolShortcut: 'Right-click',
+    togglePanToolAction: 'প্যান টুল টগল করুন',
+    togglePanToolShortcut: 'ডান-ক্লিক',
     togglePanToolDescription:
-      'Toggle pan mode on/off; left-click to return to select mode',
-    lassoSelectAction: 'Lasso Select',
-    lassoSelectShortcut: 'Left-click + Drag (empty area)',
+      'প্যান মোড চালু/বন্ধ করুন; নির্বাচন মোডে ফিরতে বাম-ক্লিক করুন',
+    lassoSelectAction: 'ল্যাসো নির্বাচন',
+    lassoSelectShortcut: 'বাম-ক্লিক + টেনে আনুন (খালি এলাকা)',
     lassoSelectDescription:
-      'Draw a rectangular selection box to select multiple items',
-    deselectAction: 'Deselect',
-    deselectShortcut: 'Left-click (empty area)',
+      'একাধিক আইটেম নির্বাচন করতে একটি আয়তক্ষেত্রাকার নির্বাচন বক্স আঁকুন',
+    deselectAction: 'নির্বাচন বাতিল করুন',
+    deselectShortcut: 'বাম-ক্লিক (খালি এলাকা)',
     deselectDescription:
-      'Deselect the current selection and return to select mode',
+      'বর্তমান নির্বাচন বাতিল করুন এবং নির্বাচন মোডে ফিরুন',
     addNodeGroupAction: 'Add Node / Group',
-    addNodeGroupShortcut: 'Double-click (empty area)',
+    addNodeGroupShortcut: 'ডাবল-ক্লিক (খালি এলাকা)',
     addNodeGroupDescription:
       'Opens the Add popover at the cursor: pick an icon to place a node, or click Group to add a background area for visually grouping nodes',
     // Mouse interactions
@@ -81,18 +81,18 @@ const locale: LocaleProps = {
     addTextAction: 'পাঠ্য যোগ করুন',
     addTextShortcut: 'পাঠ্য বোতামে ক্লিক করুন',
     addTextDescription: 'একটি নতুন টেক্সট বক্স তৈরি করুন',
-    deleteSelectedAction: 'Delete Selected',
-    deleteSelectedShortcut: 'Delete (Backspace on Mac)',
+    deleteSelectedAction: 'নির্বাচিত মুছুন',
+    deleteSelectedShortcut: 'Delete (Mac-এ Backspace)',
     deleteSelectedDescription:
-      'Delete the selected item or all items in a lasso selection; supports undo/redo',
-    cutAction: 'Cut',
+      'নির্বাচিত আইটেম বা ল্যাসো নির্বাচনের সমস্ত আইটেম মুছুন; পূর্বাবস্থায় ফেরা/পুনরায় করা সমর্থন করে',
+    cutAction: 'কাটুন',
     cutDescription:
-      'Cut selected item(s) to clipboard — items are removed and can be pasted elsewhere; supports undo/redo',
-    copyAction: 'Copy',
-    copyDescription: 'Copy selected item(s) to clipboard',
-    pasteAction: 'Paste',
+      'নির্বাচিত আইটেম ক্লিপবোর্ডে কাটুন — আইটেম সরানো হবে এবং অন্য জায়গায় পেস্ট করা যাবে; পূর্বাবস্থায় ফেরা/পুনরায় করা সমর্থন করে',
+    copyAction: 'কপি করুন',
+    copyDescription: 'নির্বাচিত আইটেম ক্লিপবোর্ডে কপি করুন',
+    pasteAction: 'পেস্ট করুন',
     pasteDescription:
-      'Paste clipboard items at mouse position; offsets to avoid overlap'
+      'ক্লিপবোর্ড আইটেম মাউস অবস্থানে পেস্ট করুন; ওভারল্যাপ এড়াতে অফসেট'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'টিপ: সংযোগকারী তৈরি করা',
@@ -168,12 +168,12 @@ const locale: LocaleProps = {
       toolConnector: 'সংযোগকারী',
       toolText: 'পাঠ্য',
       note: 'নোট: টেক্সট ফিল্ডে টাইপ না করার সময় শর্টকাটগুলি কাজ করে',
-      fixedShortcutsTitle: 'Fixed Shortcuts (Always Active)',
-      fixedCut: 'Cut',
-      fixedCopy: 'Copy',
-      fixedPaste: 'Paste',
-      fixedUndo: 'Undo',
-      fixedRedo: 'Redo'
+      fixedShortcutsTitle: 'স্থায়ী শর্টকাট (সর্বদা সক্রিয়)',
+      fixedCut: 'কাটুন',
+      fixedCopy: 'কপি করুন',
+      fixedPaste: 'পেস্ট করুন',
+      fixedUndo: 'পূর্বাবস্থায় ফেরান',
+      fixedRedo: 'পুনরায় করুন'
     },
     pan: {
       title: 'প্যান সেটিংস',
@@ -231,9 +231,9 @@ const locale: LocaleProps = {
     signature: '-Stan'
   },
   viewTabs: {
-    addPage: 'Add page',
-    deletePage: 'Delete page',
-    renameDiagram: 'Rename diagram'
+    addPage: 'পৃষ্ঠা যোগ করুন',
+    deletePage: 'পৃষ্ঠা মুছুন',
+    renameDiagram: 'ডায়াগ্রাম নামকরণ করুন'
   },
   nodePanel: {
     details: 'বিবরণ',
@@ -258,10 +258,10 @@ const locale: LocaleProps = {
     caption: 'ক্যাপশন',
     captionHint: 'ক্যানভাসে নোডের নামের নিচে দেখানো হয়',
     openLink: 'লিঙ্ক খুলুন',
-    diagramLink: 'Link to diagram',
-    diagramLinkPlaceholder: 'Select a diagram…',
-    diagramLinkHint: 'Clicking this node in read-only mode opens the linked diagram',
-    openDiagramLink: 'Open linked diagram'
+    diagramLink: 'ডায়াগ্রামের লিঙ্ক',
+    diagramLinkPlaceholder: 'ডায়াগ্রাম নির্বাচন করুন…',
+    diagramLinkHint: 'শুধু-পড়া মোডে এই নোডে ক্লিক করলে সংযুক্ত ডায়াগ্রাম খুলবে',
+    openDiagramLink: 'সংযুক্ত ডায়াগ্রাম খুলুন'
   },
   nodeStyleTab: {
     icon: 'আইকন',
@@ -333,7 +333,7 @@ const locale: LocaleProps = {
     addLink: 'লিঙ্ক যোগ করুন',
     editNotes: 'নোট সম্পাদনা করুন',
     addNotes: 'নোট যোগ করুন',
-    startConnector: 'Start connector',
+    startConnector: 'সংযোগকারী শুরু করুন',
     delete: 'মুছুন'
   },
   quickAddNodePopover: {
@@ -355,6 +355,7 @@ const locale: LocaleProps = {
   iconSelectionControls: {
     close: 'বন্ধ করুন',
     importIcons: 'আইকন আমদানি করুন',
+    addMoreIcons: 'আরও আইকন যোগ করুন',
     isometricLabel: 'আইসোমেট্রিক হিসেবে বিবেচনা করুন (3D দৃশ্য)',
     isometricHint: 'সমতল আইকনের জন্য আনচেক করুন (লোগো, UI উপাদান)',
     dragHint: 'আপনি নিচের যেকোনো আইটেম ক্যানভাসে টেনে নামাতে পারেন।'
@@ -389,26 +390,21 @@ const locale: LocaleProps = {
     error: 'ছবি রপ্তানি করা যায়নি'
   },
   toolMenu: {
-    undo: 'Undo',
-    redo: 'Redo',
-    select: 'Select',
-    lassoSelect: 'Lasso select',
-    freehandLasso: 'Freehand lasso',
-    pan: 'Pan',
-    addItem: 'Add item',
-    rectangle: 'Rectangle',
-    connector: 'Connector',
-    text: 'Text'
+    undo: 'পূর্বাবস্থায় ফেরান',
+    redo: 'পুনরায় করুন',
+    select: 'নির্বাচন করুন',
+    lassoSelect: 'ল্যাসো নির্বাচন',
+    freehandLasso: 'ফ্রিহ্যান্ড ল্যাসো',
+    pan: 'প্যান করুন',
+    addItem: 'আইটেম যোগ করুন',
+    rectangle: 'আয়তক্ষেত্র',
+    connector: 'সংযোগকারী',
+    text: 'পাঠ্য'
   },
   quickIconSelector: {
-    searchPlaceholder: 'Search icons (press Enter to select)',
-    recentlyUsed: 'RECENTLY USED',
-    searchResults: 'SEARCH RESULTS ({count} icons)',
-    noIconsFound: 'No icons found matching "{term}"',
-    helpSearch:
-      'Use arrow keys to navigate • Enter to select • Double-click to select and close',
-    helpBrowse:
-      'Type to search • Click category to expand • Double-click to select and close'
+    recentlyUsed: 'সম্প্রতি ব্যবহৃত',
+    searchResults: 'অনুসন্ধান ফলাফল ({count}টি আইকন)',
+    noIconsFound: '"{term}" এর সাথে মিলে এমন কোনো আইকন পাওয়া যায়নি'
   }
 };
 

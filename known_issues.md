@@ -8,21 +8,6 @@
 
 **Status:** Open, pre-existing — predates the 2026-05 shake-out. Either the test should be guarded with `if (bundledFixtures.length === 0) return;` or seeded with a stub fixture. Filed for a future test cleanup.
 
-## i18n: "Add more icons" accordion title not translated outside en-US
-
-**Symptom:** The collapsible "Add more icons" accordion in the left dock (Elements panel) shows the literal key `addMoreIcons` instead of a translated string when the active locale is not `en-US`.
-
-**Workaround:** None — the affordance is still discoverable; only the label looks raw. Switch to English to see the proper title.
-
-**Status:** Open. Backfill the `iconSelectionControls.addMoreIcons` key in the 13 non-English locale files: `bn-BD`, `de-DE`, `es-ES`, `fr-FR`, `hi-IN`, `id-ID`, `it-IT`, `pl-PL`, `pt-BR`, `ru-RU`, `tr-TR`, `zh-CN` (plus `en-GB` if/when added). The English value is "Add more icons". Introduced in the 2026-05 UX shake-out — locale fan-out was deferred to keep the polish PR scoped.
-
-## i18n: orphan keys in non-English locales after QuickIconSelector refactor
-
-**Symptom:** None visible to users. The 13 non-English locale files still carry `quickIconSelector.searchPlaceholder`, `quickIconSelector.helpSearch`, and `quickIconSelector.helpBrowse` keys that no component reads anymore.
-
-**Workaround:** N/A.
-
-**Status:** Open. Strip those three keys from the 13 non-English locale files (already removed from `en-US.ts`). Cosmetic cleanup; no functional impact. Introduced alongside the accordion change above.
 
 ## File tree: double-click on a diagram does not enter rename mode
 

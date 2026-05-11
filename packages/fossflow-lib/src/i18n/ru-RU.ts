@@ -7,7 +7,7 @@ const locale: LocaleProps = {
   mainMenu: {
     undo: 'Отменить',
     redo: 'Повторить',
-    new: 'New diagram',
+    new: 'Новая диаграмма',
     open: 'Открыть',
     exportJson: 'Экспортировать как JSON',
     exportCompactJson: 'Экспортировать как компактный JSON',
@@ -46,20 +46,20 @@ const locale: LocaleProps = {
     panCanvasAction: 'Переместить холст',
     panCanvasShortcut: 'Левая кнопка + перетаскивание',
     panCanvasDescription: 'Переместить холст в режиме перемещения',
-    togglePanToolAction: 'Toggle Pan Tool',
-    togglePanToolShortcut: 'Right-click',
+    togglePanToolAction: 'Переключить инструмент перемещения',
+    togglePanToolShortcut: 'Правая кнопка мыши',
     togglePanToolDescription:
-      'Toggle pan mode on/off; left-click to return to select mode',
-    lassoSelectAction: 'Lasso Select',
-    lassoSelectShortcut: 'Left-click + Drag (empty area)',
+      'Включить/выключить режим перемещения; левая кнопка для возврата в режим выделения',
+    lassoSelectAction: 'Выделение лассо',
+    lassoSelectShortcut: 'Левая кнопка + перетаскивание (пустая область)',
     lassoSelectDescription:
-      'Draw a rectangular selection box to select multiple items',
-    deselectAction: 'Deselect',
-    deselectShortcut: 'Left-click (empty area)',
+      'Нарисуйте прямоугольную область для выделения нескольких элементов',
+    deselectAction: 'Снять выделение',
+    deselectShortcut: 'Левая кнопка (пустая область)',
     deselectDescription:
-      'Deselect the current selection and return to select mode',
+      'Снять текущее выделение и вернуться в режим выделения',
     addNodeGroupAction: 'Add Node / Group',
-    addNodeGroupShortcut: 'Double-click (empty area)',
+    addNodeGroupShortcut: 'Двойной щелчок (пустая область)',
     addNodeGroupDescription:
       'Opens the Add popover at the cursor: pick an icon to place a node, or click Group to add a background area for visually grouping nodes',
     // Mouse interactions
@@ -81,18 +81,18 @@ const locale: LocaleProps = {
     addTextAction: 'Добавить текст',
     addTextShortcut: 'Нажать кнопку Текст',
     addTextDescription: 'Создать новое текстовое поле',
-    deleteSelectedAction: 'Delete Selected',
-    deleteSelectedShortcut: 'Delete (Backspace on Mac)',
+    deleteSelectedAction: 'Удалить выделенное',
+    deleteSelectedShortcut: 'Delete (Backspace на Mac)',
     deleteSelectedDescription:
-      'Delete the selected item or all items in a lasso selection; supports undo/redo',
-    cutAction: 'Cut',
+      'Удалить выделенный элемент или все элементы в лассо-выделении; поддерживает отмену/повтор',
+    cutAction: 'Вырезать',
     cutDescription:
-      'Cut selected item(s) to clipboard — items are removed and can be pasted elsewhere; supports undo/redo',
-    copyAction: 'Copy',
-    copyDescription: 'Copy selected item(s) to clipboard',
-    pasteAction: 'Paste',
+      'Вырезать выделенные элементы в буфер обмена — элементы удаляются и могут быть вставлены в другое место; поддерживает отмену/повтор',
+    copyAction: 'Копировать',
+    copyDescription: 'Копировать выделенные элементы в буфер обмена',
+    pasteAction: 'Вставить',
     pasteDescription:
-      'Paste clipboard items at mouse position; offsets to avoid overlap'
+      'Вставить элементы буфера обмена в позицию мыши; смещение для избежания перекрытия'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'Совет: Создание соединителей',
@@ -170,12 +170,12 @@ const locale: LocaleProps = {
       toolConnector: 'Соединитель',
       toolText: 'Текст',
       note: 'Примечание: Горячие клавиши работают, когда вы не вводите текст в текстовых полях',
-      fixedShortcutsTitle: 'Fixed Shortcuts (Always Active)',
-      fixedCut: 'Cut',
-      fixedCopy: 'Copy',
-      fixedPaste: 'Paste',
-      fixedUndo: 'Undo',
-      fixedRedo: 'Redo'
+      fixedShortcutsTitle: 'Фиксированные сочетания (всегда активны)',
+      fixedCut: 'Вырезать',
+      fixedCopy: 'Копировать',
+      fixedPaste: 'Вставить',
+      fixedUndo: 'Отменить',
+      fixedRedo: 'Повторить'
     },
     pan: {
       title: 'Настройки перемещения',
@@ -233,9 +233,9 @@ const locale: LocaleProps = {
     signature: '-Stan'
   },
   viewTabs: {
-    addPage: 'Add page',
-    deletePage: 'Delete page',
-    renameDiagram: 'Rename diagram'
+    addPage: 'Добавить страницу',
+    deletePage: 'Удалить страницу',
+    renameDiagram: 'Переименовать диаграмму'
   },
   nodePanel: {
     details: 'Подробности',
@@ -260,10 +260,10 @@ const locale: LocaleProps = {
     caption: 'Подпись',
     captionHint: 'Отображается на холсте под именем узла',
     openLink: 'Открыть ссылку',
-    diagramLink: 'Link to diagram',
-    diagramLinkPlaceholder: 'Select a diagram…',
-    diagramLinkHint: 'Clicking this node in read-only mode opens the linked diagram',
-    openDiagramLink: 'Open linked diagram'
+    diagramLink: 'Ссылка на диаграмму',
+    diagramLinkPlaceholder: 'Выберите диаграмму…',
+    diagramLinkHint: 'Нажатие на этот узел в режиме только для чтения открывает связанную диаграмму',
+    openDiagramLink: 'Открыть связанную диаграмму'
   },
   nodeStyleTab: {
     icon: 'Иконка',
@@ -335,7 +335,7 @@ const locale: LocaleProps = {
     addLink: 'Добавить ссылку',
     editNotes: 'Редактировать заметки',
     addNotes: 'Добавить заметки',
-    startConnector: 'Start connector',
+    startConnector: 'Начать соединитель',
     delete: 'Удалить'
   },
   quickAddNodePopover: {
@@ -357,6 +357,7 @@ const locale: LocaleProps = {
   iconSelectionControls: {
     close: 'Закрыть',
     importIcons: 'Импортировать иконки',
+    addMoreIcons: 'Добавить больше иконок',
     isometricLabel: 'Использовать как изометрический (3D вид)',
     isometricHint: 'Снимите галочку для плоских иконок (логотипы, элементы UI)',
     dragHint: 'Вы можете перетащить любой элемент ниже на холст.'
@@ -391,26 +392,21 @@ const locale: LocaleProps = {
     error: 'Не удалось экспортировать изображение'
   },
   toolMenu: {
-    undo: 'Undo',
-    redo: 'Redo',
-    select: 'Select',
-    lassoSelect: 'Lasso select',
-    freehandLasso: 'Freehand lasso',
-    pan: 'Pan',
-    addItem: 'Add item',
-    rectangle: 'Rectangle',
-    connector: 'Connector',
-    text: 'Text'
+    undo: 'Отменить',
+    redo: 'Повторить',
+    select: 'Выделить',
+    lassoSelect: 'Выделение лассо',
+    freehandLasso: 'Произвольное лассо',
+    pan: 'Переместить',
+    addItem: 'Добавить элемент',
+    rectangle: 'Прямоугольник',
+    connector: 'Соединитель',
+    text: 'Текст'
   },
   quickIconSelector: {
-    searchPlaceholder: 'Search icons (press Enter to select)',
-    recentlyUsed: 'RECENTLY USED',
-    searchResults: 'SEARCH RESULTS ({count} icons)',
-    noIconsFound: 'No icons found matching "{term}"',
-    helpSearch:
-      'Use arrow keys to navigate • Enter to select • Double-click to select and close',
-    helpBrowse:
-      'Type to search • Click category to expand • Double-click to select and close'
+    recentlyUsed: 'НЕДАВНО ИСПОЛЬЗОВАННЫЕ',
+    searchResults: 'РЕЗУЛЬТАТЫ ПОИСКА ({count} иконок)',
+    noIconsFound: 'Иконки, соответствующие "{term}", не найдены'
   }
 };
 
