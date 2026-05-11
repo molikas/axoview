@@ -7,7 +7,7 @@ const locale: LocaleProps = {
   mainMenu: {
     undo: 'Geri Al',
     redo: 'Yinele',
-    new: 'New diagram',
+    new: 'Yeni diyagram',
     open: 'Aç',
     exportJson: 'JSON olarak dışa aktar',
     exportCompactJson: 'Kompakt JSON olarak dışa aktar',
@@ -46,20 +46,19 @@ const locale: LocaleProps = {
     panCanvasAction: 'Tuvali Kaydır',
     panCanvasShortcut: 'Sol tık + Sürükle',
     panCanvasDescription: 'Kaydırma modundayken tuvali kaydır',
-    togglePanToolAction: 'Toggle Pan Tool',
-    togglePanToolShortcut: 'Right-click',
+    togglePanToolAction: 'Kaydırma Aracını Aç/Kapat',
+    togglePanToolShortcut: 'Sağ tık',
     togglePanToolDescription:
-      'Toggle pan mode on/off; left-click to return to select mode',
-    lassoSelectAction: 'Lasso Select',
-    lassoSelectShortcut: 'Left-click + Drag (empty area)',
+      'Kaydırma modunu aç/kapat; seçim moduna dönmek için sol tık',
+    lassoSelectAction: 'Lasso Seçimi',
+    lassoSelectShortcut: 'Sol tık + Sürükle (boş alan)',
     lassoSelectDescription:
-      'Draw a rectangular selection box to select multiple items',
-    deselectAction: 'Deselect',
-    deselectShortcut: 'Left-click (empty area)',
-    deselectDescription:
-      'Deselect the current selection and return to select mode',
+      'Birden fazla öğe seçmek için dikdörtgen bir seçim kutusu çiz',
+    deselectAction: 'Seçimi Kaldır',
+    deselectShortcut: 'Sol tık (boş alan)',
+    deselectDescription: 'Mevcut seçimi kaldır ve seçim moduna dön',
     addNodeGroupAction: 'Add Node / Group',
-    addNodeGroupShortcut: 'Double-click (empty area)',
+    addNodeGroupShortcut: 'Çift tık (boş alan)',
     addNodeGroupDescription:
       'Opens the Add popover at the cursor: pick an icon to place a node, or click Group to add a background area for visually grouping nodes',
     // Mouse interactions
@@ -81,18 +80,18 @@ const locale: LocaleProps = {
     addTextAction: 'Metin Ekle',
     addTextShortcut: 'Metin butonuna tıkla',
     addTextDescription: 'Yeni bir metin kutusu oluştur',
-    deleteSelectedAction: 'Delete Selected',
-    deleteSelectedShortcut: 'Delete (Backspace on Mac)',
+    deleteSelectedAction: 'Seçilenleri Sil',
+    deleteSelectedShortcut: "Delete (Mac'te Backspace)",
     deleteSelectedDescription:
-      'Delete the selected item or all items in a lasso selection; supports undo/redo',
-    cutAction: 'Cut',
+      'Seçili öğeyi veya lasso seçimindeki tüm öğeleri sil; geri al/yinele desteklenir',
+    cutAction: 'Kes',
     cutDescription:
-      'Cut selected item(s) to clipboard — items are removed and can be pasted elsewhere; supports undo/redo',
-    copyAction: 'Copy',
-    copyDescription: 'Copy selected item(s) to clipboard',
-    pasteAction: 'Paste',
+      'Seçili öğeleri panoya kes — öğeler kaldırılır ve başka yere yapıştırılabilir; geri al/yinele desteklenir',
+    copyAction: 'Kopyala',
+    copyDescription: 'Seçili öğeleri panoya kopyala',
+    pasteAction: 'Yapıştır',
     pasteDescription:
-      'Paste clipboard items at mouse position; offsets to avoid overlap'
+      'Pano öğelerini fare konumuna yapıştır; üst üste binmeyi önlemek için kaydırılır'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'İpucu: Bağlayıcı Oluşturma',
@@ -171,12 +170,12 @@ const locale: LocaleProps = {
       toolConnector: 'Bağlayıcı',
       toolText: 'Metin',
       note: 'Not: Kısayol tuşları metin alanlarında yazarken çalışmaz',
-      fixedShortcutsTitle: 'Fixed Shortcuts (Always Active)',
-      fixedCut: 'Cut',
-      fixedCopy: 'Copy',
-      fixedPaste: 'Paste',
-      fixedUndo: 'Undo',
-      fixedRedo: 'Redo'
+      fixedShortcutsTitle: 'Sabit Kısayollar (Her Zaman Aktif)',
+      fixedCut: 'Kes',
+      fixedCopy: 'Kopyala',
+      fixedPaste: 'Yapıştır',
+      fixedUndo: 'Geri Al',
+      fixedRedo: 'Yinele'
     },
     pan: {
       title: 'Kaydırma Ayarları',
@@ -234,9 +233,9 @@ const locale: LocaleProps = {
     signature: '-Stan'
   },
   viewTabs: {
-    addPage: 'Add page',
-    deletePage: 'Delete page',
-    renameDiagram: 'Rename diagram'
+    addPage: 'Sayfa ekle',
+    deletePage: 'Sayfayı sil',
+    renameDiagram: 'Diyagramı yeniden adlandır'
   },
   nodePanel: {
     details: 'Ayrıntılar',
@@ -261,10 +260,10 @@ const locale: LocaleProps = {
     caption: 'Altyazı',
     captionHint: 'Tuvalde düğüm adının altında gösterilir',
     openLink: 'Bağlantıyı aç',
-    diagramLink: 'Link to diagram',
-    diagramLinkPlaceholder: 'Select a diagram…',
-    diagramLinkHint: 'Clicking this node in read-only mode opens the linked diagram',
-    openDiagramLink: 'Open linked diagram'
+    diagramLink: 'Diyagrama bağlantı',
+    diagramLinkPlaceholder: 'Diyagram seçin…',
+    diagramLinkHint: 'Salt okunur modda bu düğüme tıklamak bağlantılı diyagramı açar',
+    openDiagramLink: 'Bağlantılı diyagramı aç'
   },
   nodeStyleTab: {
     icon: 'Simge',
@@ -336,7 +335,7 @@ const locale: LocaleProps = {
     addLink: 'Bağlantı ekle',
     editNotes: 'Notları düzenle',
     addNotes: 'Not ekle',
-    startConnector: 'Start connector',
+    startConnector: 'Bağlayıcı başlat',
     delete: 'Sil'
   },
   quickAddNodePopover: {
@@ -358,6 +357,7 @@ const locale: LocaleProps = {
   iconSelectionControls: {
     close: 'Kapat',
     importIcons: 'Simge İçe Aktar',
+    addMoreIcons: 'Daha fazla simge ekle',
     isometricLabel: 'İzometrik olarak değerlendir (3D görünüm)',
     isometricHint: 'Düz simgeler için işareti kaldırın (logolar, UI öğeleri)',
     dragHint: 'Aşağıdaki herhangi bir öğeyi tuvale sürükleyip bırakabilirsiniz.'
@@ -392,26 +392,21 @@ const locale: LocaleProps = {
     error: 'Resim dışa aktarılamadı'
   },
   toolMenu: {
-    undo: 'Undo',
-    redo: 'Redo',
-    select: 'Select',
-    lassoSelect: 'Lasso select',
-    freehandLasso: 'Freehand lasso',
-    pan: 'Pan',
-    addItem: 'Add item',
-    rectangle: 'Rectangle',
-    connector: 'Connector',
-    text: 'Text'
+    undo: 'Geri Al',
+    redo: 'Yinele',
+    select: 'Seç',
+    lassoSelect: 'Lasso seçimi',
+    freehandLasso: 'Serbest lasso',
+    pan: 'Kaydır',
+    addItem: 'Öğe ekle',
+    rectangle: 'Dikdörtgen',
+    connector: 'Bağlayıcı',
+    text: 'Metin'
   },
   quickIconSelector: {
-    searchPlaceholder: 'Search icons (press Enter to select)',
-    recentlyUsed: 'RECENTLY USED',
-    searchResults: 'SEARCH RESULTS ({count} icons)',
-    noIconsFound: 'No icons found matching "{term}"',
-    helpSearch:
-      'Use arrow keys to navigate • Enter to select • Double-click to select and close',
-    helpBrowse:
-      'Type to search • Click category to expand • Double-click to select and close'
+    recentlyUsed: 'SON KULLANILAN',
+    searchResults: 'ARAMA SONUÇLARI ({count} simge)',
+    noIconsFound: '"{term}" ile eşleşen simge bulunamadı'
   }
 };
 

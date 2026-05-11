@@ -7,7 +7,7 @@ const locale: LocaleProps = {
   mainMenu: {
     undo: 'Cofnij',
     redo: 'Ponów',
-    new: 'New diagram',
+    new: 'Nowy diagram',
     open: 'Otwórz',
     exportJson: 'Eksportuj do JSON',
     exportCompactJson: 'Eksportuj jako kompaktowy JSON',
@@ -47,20 +47,20 @@ const locale: LocaleProps = {
     panCanvasAction: 'Przesuwanie obszaru roboczego',
     panCanvasShortcut: 'Kliknij lewym przyciskiem myszy + przeciągnij',
     panCanvasDescription: 'Przesuwaj obszar roboczy w trybie przesuwania',
-    togglePanToolAction: 'Toggle Pan Tool',
-    togglePanToolShortcut: 'Right-click',
+    togglePanToolAction: 'Przełącz narzędzie przesuwania',
+    togglePanToolShortcut: 'Prawy przycisk myszy',
     togglePanToolDescription:
-      'Toggle pan mode on/off; left-click to return to select mode',
-    lassoSelectAction: 'Lasso Select',
-    lassoSelectShortcut: 'Left-click + Drag (empty area)',
+      'Przełącz tryb przesuwania; lewy przycisk aby wrócić do trybu zaznaczania',
+    lassoSelectAction: 'Zaznaczanie lasso',
+    lassoSelectShortcut: 'Lewy przycisk + Przeciągnij (pusty obszar)',
     lassoSelectDescription:
-      'Draw a rectangular selection box to select multiple items',
-    deselectAction: 'Deselect',
-    deselectShortcut: 'Left-click (empty area)',
+      'Narysuj prostokątne pole zaznaczenia, aby wybrać wiele elementów',
+    deselectAction: 'Odznacz',
+    deselectShortcut: 'Lewy przycisk (pusty obszar)',
     deselectDescription:
-      'Deselect the current selection and return to select mode',
+      'Odznacz bieżące zaznaczenie i wróć do trybu zaznaczania',
     addNodeGroupAction: 'Add Node / Group',
-    addNodeGroupShortcut: 'Double-click (empty area)',
+    addNodeGroupShortcut: 'Podwójne kliknięcie (pusty obszar)',
     addNodeGroupDescription:
       'Opens the Add popover at the cursor: pick an icon to place a node, or click Group to add a background area for visually grouping nodes',
     // Mouse interactions
@@ -68,7 +68,7 @@ const locale: LocaleProps = {
     selectToolShortcut: 'Kliknij przycisk Wybierz',
     selectToolDescription: 'Przejdź do trybu wyboru',
     panToolAction: 'Narzędzie przesuwania',
-    panToolShortcut: 'Kliknij przycisk „Przesuwania”',
+    panToolShortcut: 'Kliknij przycisk „Przesuwania"',
     panToolDescription:
       'Przejdź do trybu przesuwania, aby przesuwać obszar roboczy',
     addItemAction: 'Dodaj element',
@@ -84,18 +84,18 @@ const locale: LocaleProps = {
     addTextAction: 'Dodaj Tekst',
     addTextShortcut: 'Kliknij przycisk Tekst',
     addTextDescription: 'Utwórz nowe pole tekstowe',
-    deleteSelectedAction: 'Delete Selected',
-    deleteSelectedShortcut: 'Delete (Backspace on Mac)',
+    deleteSelectedAction: 'Usuń zaznaczone',
+    deleteSelectedShortcut: 'Delete (Backspace na Mac)',
     deleteSelectedDescription:
-      'Delete the selected item or all items in a lasso selection; supports undo/redo',
-    cutAction: 'Cut',
+      'Usuń zaznaczony element lub wszystkie elementy w zaznaczeniu lasso; obsługuje cofanie/ponawianie',
+    cutAction: 'Wytnij',
     cutDescription:
-      'Cut selected item(s) to clipboard — items are removed and can be pasted elsewhere; supports undo/redo',
-    copyAction: 'Copy',
-    copyDescription: 'Copy selected item(s) to clipboard',
-    pasteAction: 'Paste',
+      'Wytnij zaznaczone elementy do schowka — elementy są usuwane i mogą być wklejone w innym miejscu; obsługuje cofanie/ponawianie',
+    copyAction: 'Kopiuj',
+    copyDescription: 'Kopiuj zaznaczone elementy do schowka',
+    pasteAction: 'Wklej',
     pasteDescription:
-      'Paste clipboard items at mouse position; offsets to avoid overlap'
+      'Wklej elementy ze schowka w pozycji myszy; przesunięte, aby uniknąć nakładania'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'Wskazówka: Tworzenie połączeń',
@@ -174,12 +174,12 @@ const locale: LocaleProps = {
       toolConnector: 'Połączenia',
       toolText: 'Tekst',
       note: 'Uwaga: Skróty klawiszowe działają, gdy nie wpisujesz tekstu w polach tekstowych.',
-      fixedShortcutsTitle: 'Fixed Shortcuts (Always Active)',
-      fixedCut: 'Cut',
-      fixedCopy: 'Copy',
-      fixedPaste: 'Paste',
-      fixedUndo: 'Undo',
-      fixedRedo: 'Redo'
+      fixedShortcutsTitle: 'Stałe skróty (zawsze aktywne)',
+      fixedCut: 'Wytnij',
+      fixedCopy: 'Kopiuj',
+      fixedPaste: 'Wklej',
+      fixedUndo: 'Cofnij',
+      fixedRedo: 'Ponów'
     },
     pan: {
       title: 'Ustawienia przesuwania',
@@ -215,10 +215,10 @@ const locale: LocaleProps = {
       availablePacks: 'Dostępne pakiety ikon',
       coreIsoflow: 'Core Isoflow (Zawsze wczytane)',
       alwaysEnabled: 'Zawsze włączone',
-      awsPack: 'AWS Icons',
-      gcpPack: 'Google Cloud Icons',
-      azurePack: 'Azure Icons',
-      kubernetesPack: 'Kubernetes Icons',
+      awsPack: 'Ikony AWS',
+      gcpPack: 'Ikony Google Cloud',
+      azurePack: 'Ikony Azure',
+      kubernetesPack: 'Ikony Kubernetes',
       loading: 'Wczytywanie...',
       loaded: 'Wczytane',
       notLoaded: 'Niewczytane',
@@ -231,16 +231,16 @@ const locale: LocaleProps = {
   lazyLoadingWelcome: {
     title: 'Nowa funkcja: Opóźnione ładowanie!',
     message:
-      'Hej! W odpowiedzi na liczne prośby wprowadziliśmy funkcję opóźnionego ładowania ikon, więc teraz, jeśli chcesz włączyć niestandardowe pakiety ikon, możesz to zrobić w sekcji „Ustawienia”.',
+      'Hej! W odpowiedzi na liczne prośby wprowadziliśmy funkcję opóźnionego ładowania ikon, więc teraz, jeśli chcesz włączyć niestandardowe pakiety ikon, możesz to zrobić w sekcji „Ustawienia".',
     configPath: 'Kliknij ikonę manu.',
     configPath2: 'w lewym górnym rogu, aby uzyskać dostęp do ustawień.',
     canDisable: 'Jeśli chcesz, możesz wyłączyć tę funkcję..',
     signature: '-Stan'
   },
   viewTabs: {
-    addPage: 'Add page',
-    deletePage: 'Delete page',
-    renameDiagram: 'Rename diagram'
+    addPage: 'Dodaj stronę',
+    deletePage: 'Usuń stronę',
+    renameDiagram: 'Zmień nazwę diagramu'
   },
   nodePanel: {
     details: 'Szczegóły',
@@ -265,10 +265,10 @@ const locale: LocaleProps = {
     caption: 'Podpis',
     captionHint: 'Wyświetlany na płótnie poniżej nazwy węzła',
     openLink: 'Otwórz link',
-    diagramLink: 'Link to diagram',
-    diagramLinkPlaceholder: 'Select a diagram…',
-    diagramLinkHint: 'Clicking this node in read-only mode opens the linked diagram',
-    openDiagramLink: 'Open linked diagram'
+    diagramLink: 'Link do diagramu',
+    diagramLinkPlaceholder: 'Wybierz diagram…',
+    diagramLinkHint: 'Kliknięcie tego węzła w trybie tylko do odczytu otwiera powiązany diagram',
+    openDiagramLink: 'Otwórz powiązany diagram'
   },
   nodeStyleTab: {
     icon: 'Ikona',
@@ -340,7 +340,7 @@ const locale: LocaleProps = {
     addLink: 'Dodaj link',
     editNotes: 'Edytuj notatki',
     addNotes: 'Dodaj notatki',
-    startConnector: 'Start connector',
+    startConnector: 'Rozpocznij połączenie',
     delete: 'Usuń'
   },
   quickAddNodePopover: {
@@ -362,6 +362,7 @@ const locale: LocaleProps = {
   iconSelectionControls: {
     close: 'Zamknij',
     importIcons: 'Importuj ikony',
+    addMoreIcons: 'Dodaj więcej ikon',
     isometricLabel: 'Traktuj jako izometryczny (widok 3D)',
     isometricHint: 'Odznacz dla płaskich ikon (loga, elementy UI)',
     dragHint: 'Możesz przeciągnąć i upuścić dowolny element poniżej na płótno.'
@@ -395,26 +396,21 @@ const locale: LocaleProps = {
     error: 'Nie można wyeksportować obrazu'
   },
   toolMenu: {
-    undo: 'Undo',
-    redo: 'Redo',
-    select: 'Select',
-    lassoSelect: 'Lasso select',
-    freehandLasso: 'Freehand lasso',
-    pan: 'Pan',
-    addItem: 'Add item',
-    rectangle: 'Rectangle',
-    connector: 'Connector',
-    text: 'Text'
+    undo: 'Cofnij',
+    redo: 'Ponów',
+    select: 'Wybierz',
+    lassoSelect: 'Zaznaczanie lasso',
+    freehandLasso: 'Lasso odręczne',
+    pan: 'Przesuń',
+    addItem: 'Dodaj element',
+    rectangle: 'Prostokąt',
+    connector: 'Połączenie',
+    text: 'Tekst'
   },
   quickIconSelector: {
-    searchPlaceholder: 'Search icons (press Enter to select)',
-    recentlyUsed: 'RECENTLY USED',
-    searchResults: 'SEARCH RESULTS ({count} icons)',
-    noIconsFound: 'No icons found matching "{term}"',
-    helpSearch:
-      'Use arrow keys to navigate • Enter to select • Double-click to select and close',
-    helpBrowse:
-      'Type to search • Click category to expand • Double-click to select and close'
+    recentlyUsed: 'OSTATNIO UŻYWANE',
+    searchResults: 'WYNIKI WYSZUKIWANIA ({count} ikon)',
+    noIconsFound: 'Nie znaleziono ikon pasujących do "{term}"'
   }
 };
 

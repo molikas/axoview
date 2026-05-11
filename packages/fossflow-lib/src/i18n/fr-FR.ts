@@ -7,7 +7,7 @@ const locale: LocaleProps = {
   mainMenu: {
     undo: 'Annuler',
     redo: 'Refaire',
-    new: 'New diagram',
+    new: 'Nouveau diagramme',
     open: 'Ouvrir',
     exportJson: 'Exporter en JSON',
     exportCompactJson: 'Exporter en JSON compact',
@@ -47,20 +47,20 @@ const locale: LocaleProps = {
     panCanvasAction: 'Déplacer le canevas',
     panCanvasShortcut: 'Clic gauche + Glisser',
     panCanvasDescription: 'Déplacer le canevas en mode déplacement',
-    togglePanToolAction: 'Toggle Pan Tool',
-    togglePanToolShortcut: 'Right-click',
+    togglePanToolAction: 'Activer/Désactiver le déplacement',
+    togglePanToolShortcut: 'Clic droit',
     togglePanToolDescription:
-      'Toggle pan mode on/off; left-click to return to select mode',
-    lassoSelectAction: 'Lasso Select',
-    lassoSelectShortcut: 'Left-click + Drag (empty area)',
+      'Activer/désactiver le mode déplacement ; clic gauche pour revenir au mode sélection',
+    lassoSelectAction: 'Sélection au lasso',
+    lassoSelectShortcut: 'Clic gauche + Glisser (zone vide)',
     lassoSelectDescription:
-      'Draw a rectangular selection box to select multiple items',
-    deselectAction: 'Deselect',
-    deselectShortcut: 'Left-click (empty area)',
+      'Dessiner un cadre de sélection rectangulaire pour sélectionner plusieurs éléments',
+    deselectAction: 'Désélectionner',
+    deselectShortcut: 'Clic gauche (zone vide)',
     deselectDescription:
-      'Deselect the current selection and return to select mode',
+      'Désélectionner la sélection actuelle et revenir au mode sélection',
     addNodeGroupAction: 'Add Node / Group',
-    addNodeGroupShortcut: 'Double-click (empty area)',
+    addNodeGroupShortcut: 'Double-clic (zone vide)',
     addNodeGroupDescription:
       'Opens the Add popover at the cursor: pick an icon to place a node, or click Group to add a background area for visually grouping nodes',
     // Mouse interactions
@@ -83,18 +83,18 @@ const locale: LocaleProps = {
     addTextAction: 'Ajouter du texte',
     addTextShortcut: 'Cliquer sur le bouton Texte',
     addTextDescription: 'Créer une nouvelle zone de texte',
-    deleteSelectedAction: 'Delete Selected',
-    deleteSelectedShortcut: 'Delete (Backspace on Mac)',
+    deleteSelectedAction: 'Supprimer la sélection',
+    deleteSelectedShortcut: 'Suppr (Retour arrière sur Mac)',
     deleteSelectedDescription:
-      'Delete the selected item or all items in a lasso selection; supports undo/redo',
-    cutAction: 'Cut',
+      "Supprimer l'élément sélectionné ou tous les éléments d'une sélection lasso ; supporte annuler/rétablir",
+    cutAction: 'Couper',
     cutDescription:
-      'Cut selected item(s) to clipboard — items are removed and can be pasted elsewhere; supports undo/redo',
-    copyAction: 'Copy',
-    copyDescription: 'Copy selected item(s) to clipboard',
-    pasteAction: 'Paste',
+      'Couper les éléments sélectionnés dans le presse-papiers — les éléments sont supprimés et peuvent être collés ailleurs ; supporte annuler/rétablir',
+    copyAction: 'Copier',
+    copyDescription: 'Copier les éléments sélectionnés dans le presse-papiers',
+    pasteAction: 'Coller',
     pasteDescription:
-      'Paste clipboard items at mouse position; offsets to avoid overlap'
+      'Coller les éléments du presse-papiers à la position de la souris ; décalage pour éviter les chevauchements'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'Astuce : Créer des connecteurs',
@@ -174,12 +174,12 @@ const locale: LocaleProps = {
       toolConnector: 'Connecteur',
       toolText: 'Texte',
       note: 'Remarque : Les raccourcis fonctionnent lorsque vous ne tapez pas dans des champs de texte',
-      fixedShortcutsTitle: 'Fixed Shortcuts (Always Active)',
-      fixedCut: 'Cut',
-      fixedCopy: 'Copy',
-      fixedPaste: 'Paste',
-      fixedUndo: 'Undo',
-      fixedRedo: 'Redo'
+      fixedShortcutsTitle: 'Raccourcis fixes (toujours actifs)',
+      fixedCut: 'Couper',
+      fixedCopy: 'Copier',
+      fixedPaste: 'Coller',
+      fixedUndo: 'Annuler',
+      fixedRedo: 'Refaire'
     },
     pan: {
       title: 'Paramètres de déplacement',
@@ -237,9 +237,9 @@ const locale: LocaleProps = {
     signature: '-Stan'
   },
   viewTabs: {
-    addPage: 'Add page',
-    deletePage: 'Delete page',
-    renameDiagram: 'Rename diagram'
+    addPage: 'Ajouter une page',
+    deletePage: 'Supprimer la page',
+    renameDiagram: 'Renommer le diagramme'
   },
   nodePanel: {
     details: 'Détails',
@@ -264,10 +264,10 @@ const locale: LocaleProps = {
     caption: 'Légende',
     captionHint: 'Affiché sur le canevas sous le nom du nœud',
     openLink: 'Ouvrir le lien',
-    diagramLink: 'Link to diagram',
-    diagramLinkPlaceholder: 'Select a diagram…',
-    diagramLinkHint: 'Clicking this node in read-only mode opens the linked diagram',
-    openDiagramLink: 'Open linked diagram'
+    diagramLink: 'Lien vers le diagramme',
+    diagramLinkPlaceholder: 'Sélectionner un diagramme…',
+    diagramLinkHint: 'Cliquer sur ce nœud en mode lecture seule ouvre le diagramme lié',
+    openDiagramLink: 'Ouvrir le diagramme lié'
   },
   nodeStyleTab: {
     icon: 'Icône',
@@ -339,7 +339,7 @@ const locale: LocaleProps = {
     addLink: 'Ajouter un lien',
     editNotes: 'Modifier les notes',
     addNotes: 'Ajouter des notes',
-    startConnector: 'Start connector',
+    startConnector: 'Commencer le connecteur',
     delete: 'Supprimer'
   },
   quickAddNodePopover: {
@@ -361,6 +361,7 @@ const locale: LocaleProps = {
   iconSelectionControls: {
     close: 'Fermer',
     importIcons: 'Importer des icônes',
+    addMoreIcons: "Ajouter d'autres icônes",
     isometricLabel: 'Traiter comme isométrique (vue 3D)',
     isometricHint: 'Décocher pour les icônes plates (logos, éléments UI)',
     dragHint:
@@ -396,26 +397,21 @@ const locale: LocaleProps = {
     error: "Impossible d'exporter l'image"
   },
   toolMenu: {
-    undo: 'Undo',
-    redo: 'Redo',
-    select: 'Select',
-    lassoSelect: 'Lasso select',
-    freehandLasso: 'Freehand lasso',
-    pan: 'Pan',
-    addItem: 'Add item',
+    undo: 'Annuler',
+    redo: 'Refaire',
+    select: 'Sélectionner',
+    lassoSelect: 'Sélection au lasso',
+    freehandLasso: 'Lasso libre',
+    pan: 'Déplacer',
+    addItem: 'Ajouter un élément',
     rectangle: 'Rectangle',
-    connector: 'Connector',
-    text: 'Text'
+    connector: 'Connecteur',
+    text: 'Texte'
   },
   quickIconSelector: {
-    searchPlaceholder: 'Search icons (press Enter to select)',
-    recentlyUsed: 'RECENTLY USED',
-    searchResults: 'SEARCH RESULTS ({count} icons)',
-    noIconsFound: 'No icons found matching "{term}"',
-    helpSearch:
-      'Use arrow keys to navigate • Enter to select • Double-click to select and close',
-    helpBrowse:
-      'Type to search • Click category to expand • Double-click to select and close'
+    recentlyUsed: 'RÉCEMMENT UTILISÉS',
+    searchResults: 'RÉSULTATS DE RECHERCHE ({count} icônes)',
+    noIconsFound: 'Aucune icône correspondant à "{term}"'
   }
 };
 

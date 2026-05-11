@@ -7,7 +7,7 @@ const locale: LocaleProps = {
   mainMenu: {
     undo: 'पूर्ववत करें',
     redo: 'फिर से करें',
-    new: 'New diagram',
+    new: 'नया आरेख',
     open: 'खोलें',
     exportJson: 'JSON के रूप में निर्यात करें',
     exportCompactJson: 'संक्षिप्त JSON के रूप में निर्यात करें',
@@ -46,20 +46,20 @@ const locale: LocaleProps = {
     panCanvasAction: 'कैनवास को पैन करें',
     panCanvasShortcut: 'बाएँ-क्लिक + ड्रैग',
     panCanvasDescription: 'पैन मोड में कैनवास को पैन करें',
-    togglePanToolAction: 'Toggle Pan Tool',
-    togglePanToolShortcut: 'Right-click',
+    togglePanToolAction: 'पैन टूल टॉगल करें',
+    togglePanToolShortcut: 'राइट-क्लिक',
     togglePanToolDescription:
-      'Toggle pan mode on/off; left-click to return to select mode',
-    lassoSelectAction: 'Lasso Select',
-    lassoSelectShortcut: 'Left-click + Drag (empty area)',
+      'पैन मोड चालू/बंद करें; चयन मोड में वापस जाने के लिए बाएँ-क्लिक करें',
+    lassoSelectAction: 'लासो चयन',
+    lassoSelectShortcut: 'बाएँ-क्लिक + ड्रैग (खाली क्षेत्र)',
     lassoSelectDescription:
-      'Draw a rectangular selection box to select multiple items',
-    deselectAction: 'Deselect',
-    deselectShortcut: 'Left-click (empty area)',
+      'कई आइटम चुनने के लिए एक आयताकार चयन बॉक्स खींचें',
+    deselectAction: 'चयन रद्द करें',
+    deselectShortcut: 'बाएँ-क्लिक (खाली क्षेत्र)',
     deselectDescription:
-      'Deselect the current selection and return to select mode',
+      'वर्तमान चयन रद्द करें और चयन मोड में वापस जाएं',
     addNodeGroupAction: 'Add Node / Group',
-    addNodeGroupShortcut: 'Double-click (empty area)',
+    addNodeGroupShortcut: 'डबल-क्लिक (खाली क्षेत्र)',
     addNodeGroupDescription:
       'Opens the Add popover at the cursor: pick an icon to place a node, or click Group to add a background area for visually grouping nodes',
     // Mouse interactions
@@ -82,18 +82,18 @@ const locale: LocaleProps = {
     addTextAction: 'टेक्स्ट जोड़ें',
     addTextShortcut: 'टेक्स्ट बटन क्लिक करें',
     addTextDescription: 'एक नया टेक्स्ट बॉक्स बनाएं',
-    deleteSelectedAction: 'Delete Selected',
-    deleteSelectedShortcut: 'Delete (Backspace on Mac)',
+    deleteSelectedAction: 'चयनित हटाएं',
+    deleteSelectedShortcut: 'Delete (Mac पर Backspace)',
     deleteSelectedDescription:
-      'Delete the selected item or all items in a lasso selection; supports undo/redo',
-    cutAction: 'Cut',
+      'चयनित आइटम या लासो चयन के सभी आइटम हटाएं; पूर्ववत/पुनः करें समर्थित है',
+    cutAction: 'काटें',
     cutDescription:
-      'Cut selected item(s) to clipboard — items are removed and can be pasted elsewhere; supports undo/redo',
-    copyAction: 'Copy',
-    copyDescription: 'Copy selected item(s) to clipboard',
-    pasteAction: 'Paste',
+      'चयनित आइटम क्लिपबोर्ड पर काटें — आइटम हटा दिए जाते हैं और कहीं और पेस्ट किए जा सकते हैं; पूर्ववत/पुनः करें समर्थित है',
+    copyAction: 'कॉपी करें',
+    copyDescription: 'चयनित आइटम क्लिपबोर्ड पर कॉपी करें',
+    pasteAction: 'पेस्ट करें',
     pasteDescription:
-      'Paste clipboard items at mouse position; offsets to avoid overlap'
+      'क्लिपबोर्ड आइटम माउस की स्थिति पर पेस्ट करें; ओवरलैप से बचने के लिए ऑफसेट'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'टिप: कनेक्टर बनाना',
@@ -171,12 +171,12 @@ const locale: LocaleProps = {
       toolConnector: 'कनेक्टर',
       toolText: 'टेक्स्ट',
       note: 'नोट: टेक्स्ट फ़ील्ड में टाइप न करने पर शॉर्टकट काम करते हैं',
-      fixedShortcutsTitle: 'Fixed Shortcuts (Always Active)',
-      fixedCut: 'Cut',
-      fixedCopy: 'Copy',
-      fixedPaste: 'Paste',
-      fixedUndo: 'Undo',
-      fixedRedo: 'Redo'
+      fixedShortcutsTitle: 'स्थायी शॉर्टकट (हमेशा सक्रिय)',
+      fixedCut: 'काटें',
+      fixedCopy: 'कॉपी करें',
+      fixedPaste: 'पेस्ट करें',
+      fixedUndo: 'पूर्ववत करें',
+      fixedRedo: 'फिर से करें'
     },
     pan: {
       title: 'पैन सेटिंग्स',
@@ -233,9 +233,9 @@ const locale: LocaleProps = {
     signature: '-Stan'
   },
   viewTabs: {
-    addPage: 'Add page',
-    deletePage: 'Delete page',
-    renameDiagram: 'Rename diagram'
+    addPage: 'पृष्ठ जोड़ें',
+    deletePage: 'पृष्ठ हटाएं',
+    renameDiagram: 'आरेख का नाम बदलें'
   },
   nodePanel: {
     details: 'विवरण',
@@ -260,10 +260,10 @@ const locale: LocaleProps = {
     caption: 'कैप्शन',
     captionHint: 'कैनवास पर नोड के नाम के नीचे दिखाया गया',
     openLink: 'लिंक खोलें',
-    diagramLink: 'Link to diagram',
-    diagramLinkPlaceholder: 'Select a diagram…',
-    diagramLinkHint: 'Clicking this node in read-only mode opens the linked diagram',
-    openDiagramLink: 'Open linked diagram'
+    diagramLink: 'आरेख का लिंक',
+    diagramLinkPlaceholder: 'आरेख चुनें…',
+    diagramLinkHint: 'केवल-पढ़ने योग्य मोड में इस नोड पर क्लिक करने से लिंक किया गया आरेख खुलता है',
+    openDiagramLink: 'लिंक किया गया आरेख खोलें'
   },
   nodeStyleTab: {
     icon: 'आइकन',
@@ -335,7 +335,7 @@ const locale: LocaleProps = {
     addLink: 'लिंक जोड़ें',
     editNotes: 'नोट्स संपादित करें',
     addNotes: 'नोट्स जोड़ें',
-    startConnector: 'Start connector',
+    startConnector: 'कनेक्टर शुरू करें',
     delete: 'हटाएं'
   },
   quickAddNodePopover: {
@@ -357,6 +357,7 @@ const locale: LocaleProps = {
   iconSelectionControls: {
     close: 'बंद करें',
     importIcons: 'आइकन आयात करें',
+    addMoreIcons: 'और आइकन जोड़ें',
     isometricLabel: 'आइसोमेट्रिक के रूप में मानें (3D दृश्य)',
     isometricHint: 'फ्लैट आइकन के लिए अनचेक करें (लोगो, UI तत्व)',
     dragHint: 'आप नीचे दिए किसी भी आइटम को कैनवास पर खींच और छोड़ सकते हैं।'
@@ -391,26 +392,21 @@ const locale: LocaleProps = {
     error: 'छवि निर्यात नहीं हो सकी'
   },
   toolMenu: {
-    undo: 'Undo',
-    redo: 'Redo',
-    select: 'Select',
-    lassoSelect: 'Lasso select',
-    freehandLasso: 'Freehand lasso',
-    pan: 'Pan',
-    addItem: 'Add item',
-    rectangle: 'Rectangle',
-    connector: 'Connector',
-    text: 'Text'
+    undo: 'पूर्ववत करें',
+    redo: 'फिर से करें',
+    select: 'चयन करें',
+    lassoSelect: 'लासो चयन',
+    freehandLasso: 'फ्रीहैंड लासो',
+    pan: 'पैन करें',
+    addItem: 'आइटम जोड़ें',
+    rectangle: 'आयत',
+    connector: 'कनेक्टर',
+    text: 'पाठ'
   },
   quickIconSelector: {
-    searchPlaceholder: 'Search icons (press Enter to select)',
-    recentlyUsed: 'RECENTLY USED',
-    searchResults: 'SEARCH RESULTS ({count} icons)',
-    noIconsFound: 'No icons found matching "{term}"',
-    helpSearch:
-      'Use arrow keys to navigate • Enter to select • Double-click to select and close',
-    helpBrowse:
-      'Type to search • Click category to expand • Double-click to select and close'
+    recentlyUsed: 'हाल ही में उपयोग किए गए',
+    searchResults: 'खोज परिणाम ({count} आइकन)',
+    noIconsFound: '"{term}" से मेल खाने वाला कोई आइकन नहीं मिला'
   }
 };
 
