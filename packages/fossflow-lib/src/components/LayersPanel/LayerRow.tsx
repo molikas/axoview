@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Box, IconButton, Tooltip, Typography, InputBase } from '@mui/material';
 import {
   VisibilityOutlined,
@@ -16,6 +16,10 @@ interface Props {
   isSelected: boolean;
   itemCount: number;
   isExpanded: boolean;
+  // Externally-driven edit signal (F2 from the panel). Parent flips to true,
+  // and onEditEnd is called when the row leaves edit mode (commit/cancel).
+  isEditingExternal?: boolean;
+  onEditEnd?: () => void;
   onSelect: (id: string) => void;
   onToggleExpand: (id: string) => void;
   onToggleVisible: (id: string) => void;
@@ -31,6 +35,8 @@ export const LayerRow = memo(
     isSelected,
     itemCount,
     isExpanded,
+    isEditingExternal,
+    onEditEnd,
     onSelect,
     onToggleExpand,
     onToggleVisible,
@@ -42,15 +48,30 @@ export const LayerRow = memo(
     const [draft, setDraft] = useState(layer.name);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const commitRename = useCallback(() => {
+    // External edit trigger (F2 from the panel) — sync into local state and
+    // prime the draft from the latest layer name.
+    useEffect(() => {
+      if (isEditingExternal && !editing) {
+        setDraft(layer.name);
+        setEditing(true);
+        setTimeout(() => inputRef.current?.select(), 0);
+      }
+    }, [isEditingExternal, editing, layer.name]);
+
+    const endEdit = useCallback(() => {
       setEditing(false);
+      onEditEnd?.();
+    }, [onEditEnd]);
+
+    const commitRename = useCallback(() => {
       const trimmed = draft.trim();
       if (trimmed && trimmed !== layer.name) {
         onRename(layer.id, trimmed);
       } else {
         setDraft(layer.name);
       }
-    }, [draft, layer.id, layer.name, onRename]);
+      endEdit();
+    }, [draft, layer.id, layer.name, onRename, endEdit]);
 
     const handleDoubleClick = useCallback(() => {
       setDraft(layer.name);
@@ -68,7 +89,15 @@ export const LayerRow = memo(
           py: 0.25,
           cursor: 'pointer',
           borderRadius: 1,
-          bgcolor: isSelected ? 'action.selected' : 'transparent',
+          bgcolor: isSelected
+            ? 'action.selected'
+            : layer.locked
+              ? 'action.hover'
+              : 'transparent',
+          // Locked rows get a left accent stripe so the state is unambiguous
+          // at a glance, not just a near-identical icon swap (mqa-results.md #2).
+          borderLeft: layer.locked ? '2px solid' : '2px solid transparent',
+          borderLeftColor: layer.locked ? 'warning.main' : 'transparent',
           opacity: layer.visible ? 1 : 0.45,
           '&:hover': {
             bgcolor: isSelected ? 'action.selected' : 'action.hover'
@@ -129,7 +158,7 @@ export const LayerRow = memo(
                 if (e.key === 'Enter') commitRename();
                 if (e.key === 'Escape') {
                   setDraft(layer.name);
-                  setEditing(false);
+                  endEdit();
                 }
                 e.stopPropagation();
               }}
@@ -201,7 +230,12 @@ export const LayerRow = memo(
               e.stopPropagation();
               onToggleLocked(layer.id);
             }}
-            sx={{ p: 0.25 }}
+            sx={{
+              p: 0.25,
+              // Saturate the icon when locked so the state is obvious next to
+              // a row of similar-looking outlines (mqa-results.md #2).
+              color: layer.locked ? 'warning.main' : 'action.active'
+            }}
           >
             {layer.locked ? (
               <LockOutlined sx={{ fontSize: 14 }} />

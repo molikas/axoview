@@ -239,7 +239,8 @@ const locale: LocaleProps = {
   viewTabs: {
     addPage: 'Ajouter une page',
     deletePage: 'Supprimer la page',
-    renameDiagram: 'Renommer le diagramme'
+    renameDiagram: 'Renommer le diagramme',
+    addPageDisabled: 'Limite de pages atteinte (5)'
   },
   nodePanel: {
     details: 'Détails',
@@ -365,7 +366,13 @@ const locale: LocaleProps = {
     isometricLabel: 'Traiter comme isométrique (vue 3D)',
     isometricHint: 'Décocher pour les icônes plates (logos, éléments UI)',
     dragHint:
-      "Vous pouvez faire glisser et déposer n'importe quel élément ci-dessous sur le canevas."
+      "Vous pouvez faire glisser et déposer n'importe quel élément ci-dessous sur le canevas.",
+    aiPromptTooltip: "Générer des icônes avec l'IA",
+    aiPromptTitle: "Générer des icônes isométriques avec l'IA",
+    aiPromptBody:
+      "Collez cette invite dans une IA de génération d'images. Remplacez « my object » par ce dont vous avez besoin, puis importez le PNG généré.",
+    aiPromptCopy: "Copier l'invite",
+    aiPromptCopied: 'Copié'
   },
   searchbox: {
     placeholder: 'Rechercher des icônes'

@@ -240,7 +240,8 @@ const locale: LocaleProps = {
   viewTabs: {
     addPage: 'Dodaj stronę',
     deletePage: 'Usuń stronę',
-    renameDiagram: 'Zmień nazwę diagramu'
+    renameDiagram: 'Zmień nazwę diagramu',
+    addPageDisabled: 'Osiągnięto limit stron (5)'
   },
   nodePanel: {
     details: 'Szczegóły',
@@ -365,7 +366,13 @@ const locale: LocaleProps = {
     addMoreIcons: 'Dodaj więcej ikon',
     isometricLabel: 'Traktuj jako izometryczny (widok 3D)',
     isometricHint: 'Odznacz dla płaskich ikon (loga, elementy UI)',
-    dragHint: 'Możesz przeciągnąć i upuścić dowolny element poniżej na płótno.'
+    dragHint: 'Możesz przeciągnąć i upuścić dowolny element poniżej na płótno.',
+    aiPromptTooltip: 'Generuj ikony za pomocą AI',
+    aiPromptTitle: 'Generuj ikony izometryczne za pomocą AI',
+    aiPromptBody:
+      "Wklej ten prompt do AI generującej obrazy. Zastąp 'my object' tym, czego potrzebujesz, a następnie zaimportuj wygenerowany PNG.",
+    aiPromptCopy: 'Kopiuj prompt',
+    aiPromptCopied: 'Skopiowano'
   },
   searchbox: {
     placeholder: 'Szukaj ikon'

@@ -213,6 +213,12 @@ export interface UiState {
   rightSidebarOpen: boolean;
   /** true when the right sidebar was opened automatically by node selection (not manually pinned) */
   rightSidebarAutoOpened: boolean;
+  /**
+   * Floating NodeActionBar visibility. The bar is opened by an explicit
+   * right-click on an item (mqa-results.md #1), not by every left-click
+   * selection. Cleared whenever the selection changes or is dismissed.
+   */
+  itemActionBarOpen: boolean;
   /** true when model has changed since last export-to-file or explicit save */
   isDirty: boolean;
   canvasMode: CanvasMode;
@@ -248,6 +254,7 @@ export interface UiStateActions {
   setNotification: (notification: Notification | null) => void;
   setActiveLeftTab: (tab: 'ELEMENTS' | 'LAYERS' | null) => void;
   setRightSidebarOpen: (open: boolean) => void;
+  setItemActionBarOpen: (open: boolean) => void;
   setIsDirty: (isDirty: boolean) => void;
   setCanvasMode: (mode: CanvasMode) => void;
 }

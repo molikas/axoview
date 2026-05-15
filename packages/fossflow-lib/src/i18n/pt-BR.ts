@@ -235,7 +235,8 @@ const locale: LocaleProps = {
   viewTabs: {
     addPage: 'Adicionar página',
     deletePage: 'Excluir página',
-    renameDiagram: 'Renomear diagrama'
+    renameDiagram: 'Renomear diagrama',
+    addPageDisabled: 'Limite de páginas atingido (5)'
   },
   nodePanel: {
     details: 'Detalhes',
@@ -360,7 +361,13 @@ const locale: LocaleProps = {
     addMoreIcons: 'Adicionar mais ícones',
     isometricLabel: 'Tratar como isométrico (visão 3D)',
     isometricHint: 'Desmarcar para ícones planos (logos, elementos de UI)',
-    dragHint: 'Você pode arrastar e soltar qualquer item abaixo na tela.'
+    dragHint: 'Você pode arrastar e soltar qualquer item abaixo na tela.',
+    aiPromptTooltip: 'Gerar ícones com IA',
+    aiPromptTitle: 'Gerar ícones isométricos com IA',
+    aiPromptBody:
+      "Cole este prompt em uma IA geradora de imagens. Substitua 'my object' pelo que você precisa e importe o PNG gerado.",
+    aiPromptCopy: 'Copiar prompt',
+    aiPromptCopied: 'Copiado'
   },
   searchbox: {
     placeholder: 'Pesquisar ícones'

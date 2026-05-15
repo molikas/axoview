@@ -237,7 +237,8 @@ const locale: LocaleProps = {
   viewTabs: {
     addPage: 'Aggiungi pagina',
     deletePage: 'Elimina pagina',
-    renameDiagram: 'Rinomina diagramma'
+    renameDiagram: 'Rinomina diagramma',
+    addPageDisabled: 'Limite di pagine raggiunto (5)'
   },
   nodePanel: {
     details: 'Dettagli',
@@ -363,7 +364,13 @@ const locale: LocaleProps = {
     isometricLabel: 'Tratta come isometrico (vista 3D)',
     isometricHint: 'Deseleziona per icone piatte (loghi, elementi UI)',
     dragHint:
-      'Puoi trascinare e rilasciare qualsiasi elemento qui sotto sulla tela.'
+      'Puoi trascinare e rilasciare qualsiasi elemento qui sotto sulla tela.',
+    aiPromptTooltip: "Genera icone con l'IA",
+    aiPromptTitle: "Genera icone isometriche con l'IA",
+    aiPromptBody:
+      "Incolla questo prompt in un'IA generatrice di immagini. Sostituisci 'my object' con ciò che ti serve, poi importa il PNG generato.",
+    aiPromptCopy: 'Copia prompt',
+    aiPromptCopied: 'Copiato'
   },
   searchbox: {
     placeholder: 'Cerca icone'

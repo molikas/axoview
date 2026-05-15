@@ -52,41 +52,56 @@ export function FileTreeToolbar({
         {providerLabel}
       </Typography>
 
-      <Tooltip title="Import" placement="bottom">
-        <IconButton size="small" onClick={onImport} sx={{ flexShrink: 0 }}>
-          <ImportIcon sx={{ fontSize: 16 }} />
-        </IconButton>
-      </Tooltip>
+      {/* Icons cluster — hover/focus-revealed (VS Code style) per mqa-results.md #27.
+          Visibility is driven by the FileExplorer outer container's :hover / :focus-within.
+          Kept in the DOM (opacity, not display:none) so layout doesn't reflow on reveal. */}
+      <Box
+        className="ff-file-toolbar-icons"
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.25,
+          opacity: 0,
+          transition: 'opacity 120ms ease',
+          '&:focus-within': { opacity: 1 }
+        }}
+      >
+        <Tooltip title="Import" placement="bottom">
+          <IconButton size="small" onClick={onImport} sx={{ flexShrink: 0 }}>
+            <ImportIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
 
-      <Tooltip title="Export project" placement="bottom">
-        <IconButton size="small" onClick={onExportProject} sx={{ flexShrink: 0 }}>
-          <ExportIcon sx={{ fontSize: 16 }} />
-        </IconButton>
-      </Tooltip>
+        <Tooltip title="Export project" placement="bottom">
+          <IconButton size="small" onClick={onExportProject} sx={{ flexShrink: 0 }}>
+            <ExportIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
 
-      <Tooltip title="New diagram" placement="bottom">
-        <IconButton size="small" onClick={onNewDiagram} sx={{ flexShrink: 0 }}>
-          <NewDiagramIcon sx={{ fontSize: 16 }} />
-        </IconButton>
-      </Tooltip>
+        <Tooltip title="New diagram" placement="bottom">
+          <IconButton size="small" onClick={onNewDiagram} sx={{ flexShrink: 0 }}>
+            <NewDiagramIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
 
-      <Tooltip title="New folder" placement="bottom">
-        <IconButton size="small" onClick={onNewFolder} sx={{ flexShrink: 0 }}>
-          <NewFolderIcon sx={{ fontSize: 16 }} />
-        </IconButton>
-      </Tooltip>
+        <Tooltip title="New folder" placement="bottom">
+          <IconButton size="small" onClick={onNewFolder} sx={{ flexShrink: 0 }}>
+            <NewFolderIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
 
-      <Tooltip title="Refresh" placement="bottom">
-        <IconButton size="small" onClick={onRefresh} sx={{ flexShrink: 0 }}>
-          <RefreshIcon sx={{ fontSize: 16 }} />
-        </IconButton>
-      </Tooltip>
+        <Tooltip title="Refresh" placement="bottom">
+          <IconButton size="small" onClick={onRefresh} sx={{ flexShrink: 0 }}>
+            <RefreshIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
 
-      <Tooltip title="Collapse all" placement="bottom">
-        <IconButton size="small" onClick={onCollapseAll} sx={{ flexShrink: 0 }}>
-          <CollapseAllIcon sx={{ fontSize: 16 }} />
-        </IconButton>
-      </Tooltip>
+        <Tooltip title="Collapse all" placement="bottom">
+          <IconButton size="small" onClick={onCollapseAll} sx={{ flexShrink: 0 }}>
+            <CollapseAllIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
     </Box>
   );
 }

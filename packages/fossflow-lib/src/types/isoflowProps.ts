@@ -225,6 +225,7 @@ export interface LocaleProps {
     addPage: string;
     deletePage: string;
     renameDiagram: string;
+    addPageDisabled: string;
   };
   nodePanel: {
     details: string;
@@ -349,6 +350,11 @@ export interface LocaleProps {
     isometricLabel: string;
     isometricHint: string;
     dragHint: string;
+    aiPromptTooltip: string;
+    aiPromptTitle: string;
+    aiPromptBody: string;
+    aiPromptCopy: string;
+    aiPromptCopied: string;
   };
   searchbox: {
     placeholder: string;

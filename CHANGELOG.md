@@ -9,6 +9,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Icon import: AI-prompt affordance in the Elements panel.** Sparkles ([`AutoAwesomeOutlined`](https://mui.com/material-ui/material-icons/?query=auto+awesome)) icon next to "Import Icons" opens a popover with a literal isometric-icon LLM prompt and a Copy-to-clipboard button. Prompt body intentionally not i18n'd (it's content the user pastes verbatim into an external tool); affordance text exists in all 12 locales. mqa-results.md #28.
+
+### Changed
+
+- **Floating action bar opens on right-click only.** Left-clicking a node / connector / rectangle / text-box now only sets selection — the floating `NodeActionBar` no longer appears unless the user right-clicks the item. Adds `itemActionBarOpen` to `uiStateStore`; `setItemControls` resets it on selection change so re-selecting another item doesn't carry the bar over. mqa-results.md #1.
+- **Lock + hide layers now enforce non-interaction across every selection path.** `isItemInteractable` (built in `useInteractionManager` from `lockedIds` + `visibleIds`) gates direct-click selection (`Cursor.mousedown`), marquee selection (`Lasso.getItemsInBounds`), freehand selection (`FreehandLasso.getItemsInFreehandBounds`), and right-click context-menu. Previously only `lockedIds` was checked and only at direct-click — lasso freely scooped up locked and hidden items. Locked rows now also get a warning-colored left accent stripe + tinted background + saturated lock icon so the state is unmistakable. Layers panel rows remain the escape hatch for selecting hidden/locked items. mqa-results.md #2.
+- **F2 renames the selected layer in the Layers panel.** Mirrors the file-explorer F2 pattern via a document-level `keydown` listener gated on focus being inside the panel or on `body` (so the file-explorer's own F2 stays authoritative when its container is focused). Edit state is lifted out of `LayerRow` so it can be triggered externally. mqa-results.md #3 / #15.
+- **Layers panel always shows the "Unassigned" section.** Previously hidden when no unassigned items existed — left users with no drop target to pull items back out of a layer. Empty state shows a dashed-outline drop hint; dragging onto the section unassigns the item. mqa-results.md #4.
+- **Folder explorer + Layers panel toolbar icons are hover-revealed (VS Code style).** Icons sit at `opacity: 0` and fade in (`120ms ease`) on container `:hover` / `:focus-within`. Keep their DOM space so layout doesn't reflow. Applies to file-explorer (new diagram/folder, import, export, refresh, collapse) and Layers (add layer, delete selected). mqa-results.md #27.
+- **Storage-gauge label drops to `0.75em`.** Documented inline as a typography-contract exception so future sweeps don't normalise it back. mqa-results.md #6.
+- **Share-link popover Copy button is sentence-case.** Explicit `textTransform: 'none'` override — the `AppToolbar` lives outside the lib's `ThemeProvider` scope so it would otherwise inherit MUI's default uppercase Buttons. mqa-results.md #23.
+- **Page (view) count hard-capped at 5.** Interim guard until the tab-overflow UX is rebuilt — the "+" button disables with an "Page limit reached (5)" tooltip beyond the cap. See [known_issues.md](known_issues.md). Page-overflow scroll/redesign deferred. mqa-results.md follow-up 2026-05-15.
+
 ---
 
 ## [2026.5.11] — 2026-05-10

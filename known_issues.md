@@ -1,5 +1,13 @@
 # Known Issues
 
+## Page tabs: hard cap of 5, no overflow-scroll UX
+
+**Symptom:** The ViewTabs strip ([`ViewTabs.tsx`](packages/fossflow-lib/src/components/ViewTabs/ViewTabs.tsx)) renders all pages inline with no horizontal scroll, overflow indicator, or dropdown. Beyond ~15 pages the tabs grow past the viewport and the right-most ones become unreachable.
+
+**Workaround:** Hard cap installed at `MAX_PAGES = 5`. The "+" button disables with a "Page limit reached (5)" tooltip beyond the cap. Sufficient for current usage; lifts trivially once a proper overflow UX exists.
+
+**Status:** Open. Proper redesign deferred — needs a real overflow story (horizontal scroll + chevrons, dropdown-with-search, or pinned + drawer) before raising the cap. Filed for a future ViewTabs refresh.
+
 ## leanSave test: `bundledFixtures[0]` undefined → 1 failing unit test
 
 **Symptom:** [`packages/fossflow-lib/src/utils/__tests__/leanSave.test.ts`](packages/fossflow-lib/src/utils/__tests__/leanSave.test.ts) — `mergeBundledFixtures (ADR 0002) › overridden default wins over bundled fixture` throws `TypeError: Cannot read properties of undefined (reading 'id')` because the bundled-fixtures source ([`packages/fossflow-lib/src/fixtures/icons.ts`](packages/fossflow-lib/src/fixtures/icons.ts)) is `export const icons: Model['icons'] = []` (empty), so `bundledFixtures[0]` is undefined.

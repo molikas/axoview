@@ -117,7 +117,9 @@ export function SessionStorageGauge({ onDeleteDiagram }: Props) {
         <Chip
           size="small"
           label={
-            <Typography variant="micro" component="span">
+            // Typography exception per mqa-results.md #6 — this glanceable status
+            // chip reads as oversized at the default micro size, drops to 0.75em.
+            <Typography variant="micro" component="span" sx={{ fontSize: '0.75em' }}>
               {percentLabel} · {usedLabel}
             </Typography>
           }

@@ -115,7 +115,8 @@ export const UiOverlay = ({
     editorMode,
     iconPackManager,
     contextMenu,
-    rightSidebarOpen
+    rightSidebarOpen,
+    itemActionBarOpen
   } = useUiStateStore(
     (state) => ({
       uiStateActions: state.actions,
@@ -126,7 +127,8 @@ export const UiOverlay = ({
       editorMode: state.editorMode,
       iconPackManager: state.iconPackManager,
       contextMenu: state.contextMenu,
-      rightSidebarOpen: state.rightSidebarOpen
+      rightSidebarOpen: state.rightSidebarOpen,
+      itemActionBarOpen: state.itemActionBarOpen
     }),
     shallow
   );
@@ -323,8 +325,11 @@ export const UiOverlay = ({
           anchorEl={contextMenu ? contextMenuAnchorRef.current : null}
         />
 
-        {/* Floating action bar — edit mode only, hidden while dragging */}
+        {/* Floating action bar — edit mode only, hidden while dragging.
+            Opened by right-click on an item (mqa-results.md #1); left-click
+            selection no longer auto-shows the bar. */}
         {editorMode === EditorModeEnum.EDITABLE &&
+          itemActionBarOpen &&
           itemControls?.type &&
           ['ITEM', 'CONNECTOR', 'TEXTBOX', 'RECTANGLE'].includes(itemControls.type) &&
           mode.type !== 'DRAG_ITEMS' && (

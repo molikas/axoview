@@ -455,7 +455,13 @@ export const useInteractionManager = () => {
 
       uiState.actions.setMouse(nextMouse);
 
-      const { lockedIds } = layerContext;
+      const { lockedIds, visibleIds } = layerContext;
+      // An item is interactable only if its layer is unlocked AND visible.
+      // `visibleIds.size === 0` is the "no layers configured" fallback (matches
+      // the SceneLayers render guards). mqa-results.md #2.
+      const isItemInteractable = (ref: { id: string; type?: unknown }) =>
+        !lockedIds.has(ref.id) &&
+        (visibleIds.size === 0 || visibleIds.has(ref.id));
       const baseState: State = {
         model,
         scene,
@@ -463,7 +469,7 @@ export const useInteractionManager = () => {
         rendererRef: rendererRef.current,
         rendererSize,
         isRendererInteraction: rendererRef.current === e.target,
-        isItemInteractable: (ref) => !lockedIds.has(ref.id),
+        isItemInteractable,
         screenToTile
       };
 
@@ -553,7 +559,24 @@ export const useInteractionManager = () => {
       const uiState = uiStateApi.getState();
       const tile = uiState.mouse.position.tile;
       const item = getItemAtTile({ tile, scene });
-      if (item) {
+      // Locked or hidden items are non-interactive (mqa-results.md #2) — fall
+      // through to the empty-canvas branch so right-click can't open their
+      // action bar.
+      const { lockedIds, visibleIds } = layerContext;
+      const itemIsInteractable =
+        !!item &&
+        !lockedIds.has(item.id) &&
+        (visibleIds.size === 0 || visibleIds.has(item.id));
+      if (item && itemIsInteractable) {
+        // Right-click on an item selects it AND opens the floating action bar.
+        // This is the only path that opens the bar — left-click only selects
+        // (mqa-results.md #1).
+        const controls: any =
+          item.type === 'CONNECTOR'
+            ? { type: 'CONNECTOR', id: item.id, tile }
+            : { type: item.type, id: item.id };
+        uiState.actions.setItemControls(controls);
+        uiState.actions.setItemActionBarOpen(true);
         uiState.actions.setContextMenu({
           type: 'ITEM',
           item: { type: 'ITEM', id: item.id },
@@ -563,7 +586,7 @@ export const useInteractionManager = () => {
         uiState.actions.setContextMenu({ type: 'EMPTY', tile });
       }
     },
-    [uiStateApi, scene]
+    [uiStateApi, scene, layerContext.lockedIds, layerContext.visibleIds]
   );
 
   useEffect(() => {

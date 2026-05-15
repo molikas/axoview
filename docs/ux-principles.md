@@ -144,15 +144,17 @@ The custom `micro` variant is registered via TypeScript module augmentation in [
 
 ### 2.1 In-row actions are visible at `opacity: 0.5`
 
-Action buttons inside dense lists (layer rows, file tree rows) default to half opacity. Full opacity on hover or when active. **Never `opacity: 0`** — undiscoverable affordances are bugs.
+Action buttons inside **dense lists** (layer rows, file tree rows, scene-item rows) default to half opacity. Full opacity on hover or when active. **Inside rows, never `opacity: 0`** — undiscoverable affordances are bugs when the row is just one of many similar siblings the user is scanning.
 
 ```tsx
 // ✅ Correct — discoverable
 sx={{ opacity: item.showLabel === false ? 1 : 0.5, '&:hover': { opacity: 1 } }}
 
-// ❌ Wrong — hidden until hover
+// ❌ Wrong inside rows — hidden until hover
 sx={{ opacity: 0, '&:hover': { opacity: 1 } }}
 ```
+
+This rule is scoped to **in-row** affordances. Panel-header action clusters (see §2.3) are a different surface and follow a different pattern.
 
 ### 2.2 Distinct icons for distinct concepts
 
@@ -166,6 +168,26 @@ Don't reuse icons across semantically different operations:
 | Inline rename trigger | F2 keyboard (no icon needed) |
 
 If a user sees the same icon in two places and it does different things, the icon's semantics are broken.
+
+### 2.3 Panel-header action clusters are hover-revealed
+
+Action clusters on **panel-chrome headers** (file explorer toolbar: new file/folder/import/export/refresh/collapse; Layers panel header: add-layer/delete-layer) render at `opacity: 0` and fade in (`120ms ease`) on the panel container's `:hover` or `:focus-within`. They keep their DOM space — invisible, not removed — so layout doesn't reflow on reveal. VS Code, Figma, and Linear behave the same way.
+
+```tsx
+// Panel container declares the reveal selector
+sx={{ '&:hover .ff-toolbar-actions, &:focus-within .ff-toolbar-actions': { opacity: 1 } }}
+
+// Action cluster sets base opacity + transition
+sx={{ opacity: 0, transition: 'opacity 120ms ease', '&:focus-within': { opacity: 1 } }}
+```
+
+This differs from §2.1 because:
+
+- Panel headers are **chrome**, not content. The list of rows is what the user is scanning; the chrome stays out of the way until needed.
+- Cluster has 5+ icons; always-visible would crowd the header and compete with the panel title.
+- The interaction is bound to the panel as a whole — entering the panel reveals all its secondary actions at once.
+
+`:focus-within` is required so keyboard navigation through the icons still reveals them. Reference: ADR-0005 §5b.
 
 ---
 
@@ -202,6 +224,21 @@ The file tree's selection has different semantics — it's "which diagram is ope
 
 - Canvas/layer selection: `bgcolor: 'primary.main'` (saturated blue)
 - File tree selection: `bgcolor: 'action.selected'` (subtle grey)
+
+### 4.3 Locked / hidden layer items are non-interactive — across every selection path
+
+When a layer is locked or hidden, its items must be **non-selectable, non-draggable, non-context-menu-able** from the canvas — regardless of which gesture the user employs. Locked = visible-but-protected; hidden = invisible. Both states are absolute from the canvas perspective. The Layers panel rows remain the user's escape hatch — they always let the user select an item back so they can un-lock or un-hide.
+
+The enforcement lives in a single helper, `isItemInteractable`, built in [`useInteractionManager`](../packages/fossflow-lib/src/interaction/useInteractionManager.ts) from `layerContext.lockedIds` + `layerContext.visibleIds` and injected into every mode's `State`. **Every selection path must consult it.** Today that means:
+
+- `Cursor.mousedown` — direct left-click selection
+- `Lasso.getItemsInBounds` — marquee selection
+- `FreehandLasso.getItemsInFreehandBounds` — freehand selection
+- `useInteractionManager.onContextMenu` — right-click selection
+
+If a future feature adds a new selection mechanism (keyboard arrow nav, "select all of type X", paste-into-selection, etc.), it **must** route through `isItemInteractable` too. A new selection path that doesn't consult it is the bug, not an oversight to be fixed later — it silently bypasses the lock/hide contract.
+
+Visual indicator for locked rows lives in [`LayerRow.tsx`](../packages/fossflow-lib/src/components/LayersPanel/LayerRow.tsx): left accent stripe + tinted background + saturated lock icon, so the state is unmistakable next to a row of similar outlines.
 
 ---
 

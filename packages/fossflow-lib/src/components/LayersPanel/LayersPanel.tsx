@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Typography,
@@ -71,9 +71,31 @@ export const LayersPanel = () => {
   const { updateModelItem, updateConnector, updateViewItem, updateTextBox, updateRectangle } = useScene();
   const sceneData = useSceneData();
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
+  const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
   const [expandedLayerIds, setExpandedLayerIds] = useState<Set<string>>(
     new Set()
   );
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // F2 → rename selected layer (mqa-results.md #3 / #15). Document-level so a
+  // click on a row (which doesn't move focus) still arms the shortcut. Gated
+  // on focus being either inside the panel or on body — keeps the file
+  // explorer's own F2 handler authoritative when its container is focused.
+  useEffect(() => {
+    if (!selectedLayerId) return;
+    const node = panelRef.current;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'F2') return;
+      const active = document.activeElement;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+      const focusOk = !active || active === document.body || (node ? node.contains(active) : false);
+      if (!focusOk) return;
+      e.preventDefault();
+      setEditingLayerId(selectedLayerId);
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [selectedLayerId]);
 
   // Bidirectional: read current canvas selection
   const itemControls = useUiStateStore((s) => s.itemControls);
@@ -302,7 +324,11 @@ export const LayersPanel = () => {
 
   const handleItemDragEnd = useCallback(() => {
     if (itemDragState?.overLayerId) {
-      assignLayerToItems(itemDragState.overLayerId, [
+      const target =
+        itemDragState.overLayerId === '__unassigned__'
+          ? undefined
+          : itemDragState.overLayerId;
+      assignLayerToItems(target, [
         { type: itemDragState.item.type, id: itemDragState.item.id }
       ]);
     }
@@ -349,11 +375,17 @@ export const LayersPanel = () => {
 
   return (
     <Box
+      tabIndex={-1}
       sx={{
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        minHeight: 0
+        minHeight: 0,
+        outline: 'none',
+        // VS Code-style hover-reveal for the layer-actions cluster (mqa-results.md #27).
+        '&:hover .ff-layers-header-actions, &:focus-within .ff-layers-header-actions': {
+          opacity: 1
+        }
       }}
       onMouseUp={() => {
         handleDragEnd();
@@ -363,6 +395,7 @@ export const LayersPanel = () => {
         handleDragEnd();
         handleItemDragEnd();
       }}
+      ref={panelRef}
     >
       {/* Header */}
       <Stack
@@ -374,7 +407,16 @@ export const LayersPanel = () => {
         <Typography variant="overline" color="text.secondary">
           Layers
         </Typography>
-        <Stack direction="row" spacing={0.25}>
+        <Stack
+          className="ff-layers-header-actions"
+          direction="row"
+          spacing={0.25}
+          sx={{
+            opacity: 0,
+            transition: 'opacity 120ms ease',
+            '&:focus-within': { opacity: 1 }
+          }}
+        >
           <Tooltip title="Add layer" placement="top">
             <IconButton size="small" onClick={handleAddLayer} sx={{ p: 0.5 }}>
               <AddOutlined fontSize="small" />
@@ -434,6 +476,8 @@ export const LayersPanel = () => {
                     layer={layer}
                     isSelected={selectedLayerId === layer.id}
                     isExpanded={isExpanded}
+                    isEditingExternal={editingLayerId === layer.id}
+                    onEditEnd={() => setEditingLayerId(null)}
                     itemCount={itemCountByLayerId.get(layer.id) ?? 0}
                     onSelect={setSelectedLayerId}
                     onToggleExpand={handleToggleExpand}
@@ -469,17 +513,40 @@ export const LayersPanel = () => {
           </>
         )}
 
-        {/* Unassigned group — always shown when there are unassigned items */}
-        {unassignedCount > 0 && (
-          <Box sx={{ mt: 0.5 }}>
+        {/* Unassigned group — always rendered so users have a drop target to
+            pull items back out of a layer (mqa-results.md #4). */}
+        <Box
+          onMouseEnter={() => {
+            if (itemDragState) handleItemDragOverLayer('__unassigned__');
+          }}
+          sx={{
+            mt: 0.5,
+            outline:
+              itemDragState?.overLayerId === '__unassigned__'
+                ? '2px dashed'
+                : 'none',
+            outlineColor: 'primary.main',
+            borderRadius: 1,
+            minHeight: unassignedCount === 0 ? 32 : undefined
+          }}
+        >
+          <Typography
+            variant="overline"
+            color="text.disabled"
+            sx={{ display: 'block', px: 0.5, pt: 0.5, pb: 0.25 }}
+          >
+            Unassigned ({unassignedCount})
+          </Typography>
+          {unassignedCount === 0 ? (
             <Typography
-              variant="overline"
+              variant="caption"
               color="text.disabled"
-              sx={{ display: 'block', px: 0.5, pt: 0.5, pb: 0.25 }}
+              sx={{ display: 'block', px: 1, pb: 0.75, fontStyle: 'italic' }}
             >
-              Unassigned ({unassignedCount})
+              Drop items here to unassign
             </Typography>
-            {unassignedItems.map((item) => (
+          ) : (
+            unassignedItems.map((item) => (
               <LayerItemRow
                 key={item.id}
                 item={item}
@@ -489,9 +556,9 @@ export const LayersPanel = () => {
                 onDragStart={handleItemDragStart}
                 onToggleLabel={handleToggleLabel}
               />
-            ))}
-          </Box>
-        )}
+            ))
+          )}
+        </Box>
       </Box>
     </Box>
   );

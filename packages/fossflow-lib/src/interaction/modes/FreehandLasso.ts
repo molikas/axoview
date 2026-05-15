@@ -18,10 +18,12 @@ interface FreehandScene {
   connectors: Connector[];
 }
 
-// Helper to find all items whose centers are within the freehand polygon
+// Helper to find all items whose centers are within the freehand polygon.
+// Items on locked or hidden layers are excluded (mqa-results.md #2).
 const getItemsInFreehandBounds = (
   pathTiles: Coords[],
-  scene: FreehandScene
+  scene: FreehandScene,
+  isItemInteractable: (ref: ItemReference) => boolean
 ): ItemReference[] => {
   const items: ItemReference[] = [];
 
@@ -30,7 +32,10 @@ const getItemsInFreehandBounds = (
   // Check all nodes/items
   const selectedNodeIds = new Set<string>();
   scene.items.forEach((item: ViewItem) => {
-    if (isPointInPolygon(item.tile, pathTiles)) {
+    if (
+      isPointInPolygon(item.tile, pathTiles) &&
+      isItemInteractable({ type: 'ITEM', id: item.id })
+    ) {
       items.push({ type: 'ITEM', id: item.id });
       selectedNodeIds.add(item.id);
     }
@@ -38,6 +43,7 @@ const getItemsInFreehandBounds = (
 
   // Check all rectangles - they must be FULLY enclosed (all 4 corners inside)
   scene.rectangles.forEach((rectangle: Rectangle) => {
+    if (!isItemInteractable({ type: 'RECTANGLE', id: rectangle.id })) return;
     const corners = [
       rectangle.from,
       { x: rectangle.to.x, y: rectangle.from.y },
@@ -57,7 +63,10 @@ const getItemsInFreehandBounds = (
 
   // Check all text boxes
   scene.textBoxes.forEach((textBox: TextBox) => {
-    if (isPointInPolygon(textBox.tile, pathTiles)) {
+    if (
+      isPointInPolygon(textBox.tile, pathTiles) &&
+      isItemInteractable({ type: 'TEXTBOX', id: textBox.id })
+    ) {
       items.push({ type: 'TEXTBOX', id: textBox.id });
     }
   });
@@ -65,6 +74,7 @@ const getItemsInFreehandBounds = (
   // Include a connector if both its endpoint anchors are within the selection.
   scene.connectors.forEach((connector: Connector) => {
     if (!connector.anchors || connector.anchors.length < 2) return;
+    if (!isItemInteractable({ type: 'CONNECTOR', id: connector.id })) return;
 
     const first = connector.anchors[0];
     const last = connector.anchors[connector.anchors.length - 1];
@@ -213,7 +223,7 @@ export const FreehandLasso: ModeActions = {
     );
   },
 
-  mouseup: ({ uiState, scene, screenToTile }) => {
+  mouseup: ({ uiState, scene, screenToTile, isItemInteractable }) => {
     if (uiState.mode.type !== 'FREEHAND_LASSO') return;
     if (!uiState.mouse.mousedown) return; // toolbar click — mousedown was stopped, skip
 
@@ -236,7 +246,8 @@ export const FreehandLasso: ModeActions = {
       });
 
       // Find all items within the freehand polygon
-      const items = getItemsInFreehandBounds(pathTiles, scene);
+      const gate = isItemInteractable ?? (() => true);
+      const items = getItemsInFreehandBounds(pathTiles, scene, gate);
 
       uiState.actions.setMode(
         produce(uiState.mode, (draft) => {

@@ -497,7 +497,18 @@ export function FileExplorer() {
   // ---------------------------------------------------------------------------
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        overflow: 'hidden',
+        // VS Code-style hover-reveal for toolbar icons (mqa-results.md #27).
+        '&:hover .ff-file-toolbar-icons, &:focus-within .ff-file-toolbar-icons': {
+          opacity: 1
+        }
+      }}
+    >
       <FileTreeToolbar
         providerLabel={providerLabel}
         onNewDiagram={handleNewDiagramInline}

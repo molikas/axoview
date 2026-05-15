@@ -235,7 +235,8 @@ const locale: LocaleProps = {
   viewTabs: {
     addPage: 'Sayfa ekle',
     deletePage: 'Sayfayı sil',
-    renameDiagram: 'Diyagramı yeniden adlandır'
+    renameDiagram: 'Diyagramı yeniden adlandır',
+    addPageDisabled: 'Sayfa sınırına ulaşıldı (5)'
   },
   nodePanel: {
     details: 'Ayrıntılar',
@@ -360,7 +361,13 @@ const locale: LocaleProps = {
     addMoreIcons: 'Daha fazla simge ekle',
     isometricLabel: 'İzometrik olarak değerlendir (3D görünüm)',
     isometricHint: 'Düz simgeler için işareti kaldırın (logolar, UI öğeleri)',
-    dragHint: 'Aşağıdaki herhangi bir öğeyi tuvale sürükleyip bırakabilirsiniz.'
+    dragHint: 'Aşağıdaki herhangi bir öğeyi tuvale sürükleyip bırakabilirsiniz.',
+    aiPromptTooltip: 'Yapay zekâ ile simge oluştur',
+    aiPromptTitle: 'Yapay zekâ ile izometrik simgeler oluştur',
+    aiPromptBody:
+      "Bu istemi bir görsel üreten yapay zekâya yapıştırın. 'my object' kısmını ihtiyacınızla değiştirin ve oluşturulan PNG'yi içe aktarın.",
+    aiPromptCopy: 'İstemi kopyala',
+    aiPromptCopied: 'Kopyalandı'
   },
   searchbox: {
     placeholder: 'Simge ara'
