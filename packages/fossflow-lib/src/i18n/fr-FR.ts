@@ -10,7 +10,6 @@ const locale: LocaleProps = {
     new: 'Nouveau diagramme',
     open: 'Ouvrir',
     exportJson: 'Exporter en JSON',
-    exportCompactJson: 'Exporter en JSON compact',
     exportImage: 'Exporter en image',
     clearCanvas: 'Effacer le canevas',
     settings: 'Paramètres',

@@ -1,10 +1,6 @@
 import { useRef, useState, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { Tree, TreeApi, NodeApi } from 'react-arborist';
-import {
-  exportAsJSON,
-  exportAsCompactJSON,
-  mergeBundledFixtures
-} from 'fossflow';
+import { exportAsJSON, mergeBundledFixtures } from 'fossflow';
 import {
   Box,
   Button,
@@ -28,6 +24,7 @@ import { ExportDialog } from './ExportDialog';
 import { ImportDialog } from './ImportDialog';
 import { notificationStore } from '../../stores/notificationStore';
 import { sequentialName, copySuffix, countDescendants, detectCollision } from '../../utils/fileOperations';
+import { shareUrlFromUuid } from '../../utils/shareUrl';
 import { ExportScope } from '../../services/project/projectZip';
 
 interface DeleteConfirm {
@@ -124,6 +121,7 @@ export function FileExplorer() {
     checkUnsavedBeforeNavigate,
     markProjectExported,
     notifyDiagramRenamedFromTree,
+    notifyDiagramDeletedFromTree,
     isoflowRef
   } = useDiagramLifecycle();
   const treeRef = useRef<TreeApi<FileNode> | undefined>(undefined);
@@ -327,19 +325,24 @@ export function FileExplorer() {
 
   const confirmDelete = useCallback(async () => {
     if (!deleteConfirm) return;
+    const target = deleteConfirm;
     setDeleteConfirm(null);
     try {
-      if (deleteConfirm.type === 'folder') {
-        await tree.deleteFolder(deleteConfirm.id, true);
-        notificationStore.push({ severity: 'success', message: `Folder "${deleteConfirm.name}" deleted` });
+      if (target.type === 'folder') {
+        await tree.deleteFolder(target.id, true);
+        notificationStore.push({ severity: 'success', message: `Folder "${target.name}" deleted` });
       } else {
-        await tree.hardDeleteDiagram(deleteConfirm.id);
-        notificationStore.push({ severity: 'success', message: `"${deleteConfirm.name}" deleted` });
+        // MQA #18: if the deleted diagram is the one currently on the canvas,
+        // reset the canvas BEFORE the storage delete so the in-flight autosave
+        // is canceled and can't recreate the diagram after we remove it.
+        notifyDiagramDeletedFromTree(target.id);
+        await tree.hardDeleteDiagram(target.id);
+        notificationStore.push({ severity: 'success', message: `"${target.name}" deleted` });
       }
     } catch {
       notificationStore.push({ severity: 'error', message: 'Delete failed' });
     }
-  }, [deleteConfirm, tree]);
+  }, [deleteConfirm, tree, notifyDiagramDeletedFromTree]);
 
   // ---------------------------------------------------------------------------
   // Copy share link
@@ -352,7 +355,8 @@ export function FileExplorer() {
       return;
     }
     try {
-      const { url } = await storage.shareDiagram(node.id);
+      const { uuid } = await storage.shareDiagram(node.id);
+      const url = shareUrlFromUuid(uuid);
       await navigator.clipboard.writeText(url);
       notificationStore.push({ severity: 'success', message: 'Share link copied to clipboard' });
     } catch (err) {
@@ -392,17 +396,16 @@ export function FileExplorer() {
   );
 
   // ---------------------------------------------------------------------------
-  // Export — JSON / compact JSON (direct download, no dialog)
+  // Export — JSON (direct download, no dialog)
   // ---------------------------------------------------------------------------
 
   const handleExportJsonNode = useCallback(
-    async (node: FileNode, compact: boolean) => {
+    async (node: FileNode) => {
       if (node.type !== 'diagram' || !storage) return;
       try {
         const raw = await storage.loadDiagram(node.id);
         const model = mergeBundledFixtures(raw as any);
-        if (compact) exportAsCompactJSON(model);
-        else exportAsJSON(model);
+        exportAsJSON(model);
       } catch {
         notificationStore.push({ severity: 'error', message: `Failed to export "${node.name}"` });
       }
@@ -603,8 +606,7 @@ export function FileExplorer() {
             onDuplicate={() => contextMenuNode && handleDuplicate(contextMenuNode)}
             onCopyShareLink={() => contextMenuNode && handleCopyShareLink(contextMenuNode)}
             onExportImage={() => contextMenuNode && handleExportImage(contextMenuNode)}
-            onExportJson={() => contextMenuNode && handleExportJsonNode(contextMenuNode, false)}
-            onExportCompactJson={() => contextMenuNode && handleExportJsonNode(contextMenuNode, true)}
+            onExportJson={() => contextMenuNode && handleExportJsonNode(contextMenuNode)}
             onExportFolder={() => {
               if (!contextMenuNode || contextMenuNode.type !== 'folder') return;
               setExportTarget({

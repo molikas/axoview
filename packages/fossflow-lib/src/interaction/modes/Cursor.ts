@@ -312,6 +312,20 @@ export const Cursor: ModeActions = {
   mouseup: ({ uiState, isRendererInteraction }) => {
     if (uiState.mode.type !== 'CURSOR' || !isRendererInteraction) return;
 
+    // MQA #16: drag started outside the canvas (e.g. text drag-select inside a
+    // properties-panel input that ended over the canvas). No canvas-side
+    // mousedown was tracked and no item was registered. Ignore the mouseup so
+    // the panel doesn't dismiss when the user just selected text past its edge.
+    if (!uiState.mouse.mousedown && !uiState.mode.mousedownHandled) {
+      uiState.actions.setMode(
+        produce(uiState.mode, (draft) => {
+          draft.mousedownItem = null;
+          draft.mousedownHandled = false;
+        })
+      );
+      return;
+    }
+
     const hasMoved = uiState.mouse.mousedown && hasMovedTile(uiState.mouse);
 
     if (uiState.mode.mousedownItem && !hasMoved) {

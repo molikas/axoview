@@ -18,11 +18,7 @@ import {
   AddOutlined as NewIcon
 } from '@mui/icons-material';
 import { useUiStateStore } from 'src/stores/uiStateStore';
-import {
-  exportAsJSON,
-  exportAsCompactJSON,
-  transformFromCompactFormat
-} from 'src/utils/exportOptions';
+import { exportAsJSON } from 'src/utils/exportOptions';
 import { saveModelLocally } from 'src/utils/localStorageSave';
 import { modelFromModelStore } from 'src/utils';
 import { useInitialDataManager } from 'src/hooks/useInitialDataManager';
@@ -133,11 +129,7 @@ export const MainMenu = () => {
 
       const fileReader = new FileReader();
       fileReader.onload = async (e) => {
-        const rawData = JSON.parse(e.target?.result as string);
-        let modelData = rawData;
-        if (rawData._?.f === 'compact') {
-          modelData = transformFromCompactFormat(rawData);
-        }
+        const modelData = JSON.parse(e.target?.result as string);
         load(modelData);
         clearHistory();
         uiStateActions.setIsDirty(false);
@@ -159,12 +151,6 @@ export const MainMenu = () => {
 
   const onExportAsJSON = useCallback(() => {
     exportAsJSON(model);
-    uiStateActions.setIsDirty(false);
-    closeMenu();
-  }, [model, uiStateActions, closeMenu]);
-
-  const onExportAsCompactJSON = useCallback(() => {
-    exportAsCompactJSON(model);
     uiStateActions.setIsDirty(false);
     closeMenu();
   }, [model, uiStateActions, closeMenu]);
@@ -247,12 +233,6 @@ export const MainMenu = () => {
           {mainMenuOptions.includes('EXPORT.JSON') && (
             <MenuItem onClick={onExportAsJSON} Icon={<ExportJsonIcon />}>
               {t('exportJson')}
-            </MenuItem>
-          )}
-
-          {mainMenuOptions.includes('EXPORT.JSON') && (
-            <MenuItem onClick={onExportAsCompactJSON} Icon={<ExportJsonIcon />}>
-              {t('exportCompactJson')}
             </MenuItem>
           )}
 

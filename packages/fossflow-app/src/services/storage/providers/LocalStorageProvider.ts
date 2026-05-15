@@ -379,11 +379,30 @@ export class LocalStorageProvider implements StorageProvider {
       });
       if (!response.ok) throw new Error(`Failed to rename diagram: ${response.status}`);
     } else {
+      // MQA #14: keep the per-diagram blob's `title` in sync with the list-level
+      // `name`. The export path reads from the blob (`loadDiagram`), so renaming
+      // only the listing left exports stuck on the old title for any diagram
+      // that wasn't reopened after rename. Update both atomically here.
       const list = this.sessionListDiagrams();
       const updated = list.map((d) =>
         d.id === id ? { ...d, name } : d
       );
       sessionStorage.setItem(SESSION_DIAGRAMS_KEY, JSON.stringify(updated));
+
+      const blobKey = `${SESSION_DIAGRAM_PREFIX}${id}`;
+      const blobRaw = sessionStorage.getItem(blobKey);
+      if (blobRaw) {
+        try {
+          const blob = JSON.parse(blobRaw);
+          if (blob && typeof blob === 'object') {
+            blob.title = name;
+            blob.name = name;
+            sessionStorage.setItem(blobKey, JSON.stringify(blob));
+          }
+        } catch {
+          // Corrupted blob — leave the listing rename in place but don't crash.
+        }
+      }
     }
   }
 

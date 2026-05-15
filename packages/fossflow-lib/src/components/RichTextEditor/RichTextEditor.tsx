@@ -50,7 +50,30 @@ export const RichTextEditor = ({
   const modules = useMemo(() => {
     if (!readOnly)
       return {
-        toolbar: tools
+        toolbar: tools,
+        // MQA #12: Quill's default `list autofill` keyboard binding converted
+        // `1. ` (or `* `, `- `) typed at the start of an empty line into an
+        // empty list block. Because the line had no content yet, the user only
+        // saw the typed `1. ` disappear with no list marker visible — perceived
+        // as "input erased". Override the binding by name so the same key
+        // triggers a no-op handler that returns true: the literal space is
+        // inserted and the autofill never fires. Lists are still reachable via
+        // the toolbar buttons. Bug only manifested on empty lines — typing the
+        // marker mid-text was unaffected by the original code path either.
+        keyboard: {
+          bindings: {
+            'list autofill': {
+              key: ' ',
+              shiftKey: null,
+              collapsed: true,
+              format: { list: false },
+              prefix: /^\s*?(\d+\.|-|\*|\[ ?\]|\[x\])$/,
+              handler() {
+                return true;
+              }
+            }
+          }
+        }
       };
 
     return { toolbar: false };

@@ -19,7 +19,6 @@ interface Props {
   onCopyShareLink: () => void;
   onExportImage: () => void;
   onExportJson: () => void;
-  onExportCompactJson: () => void;
   onExportFolder: () => void;
   onDelete: () => void;
   onClose: () => void;
@@ -34,7 +33,6 @@ export function ContextMenuItems({
   onCopyShareLink,
   onExportImage,
   onExportJson,
-  onExportCompactJson,
   onExportFolder,
   onDelete,
   onClose,
@@ -81,10 +79,6 @@ export function ContextMenuItems({
           <MenuItem dense onClick={handle(onExportJson)}>
             <ListItemIcon><JsonIcon fontSize="small" /></ListItemIcon>
             Export as JSON
-          </MenuItem>
-          <MenuItem dense onClick={handle(onExportCompactJson)}>
-            <ListItemIcon><JsonIcon fontSize="small" /></ListItemIcon>
-            Export as compact JSON
           </MenuItem>
         </>
       ) : (

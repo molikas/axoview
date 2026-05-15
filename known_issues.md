@@ -1,5 +1,21 @@
 # Known Issues
 
+## MQA #7: FPS drop dragging 6 elements
+
+**Symptom:** During a multi-element drag (≳6 nodes selected) FPS crashes from 60 → 18 within the first second, recovers after a major GC, and the drag feels janky throughout. Diagnostics file `ff-diag-ai-2026-05-11T14-31-30-029Z.json` shows ~115→130 MB heap growth over 5 s of dragging plus a 200 ms long-task burst.
+
+**Workaround:** None. Single-element drag and small multi-selects (≤4) stay smooth.
+
+**Status:** Open, deferred from MQA Bundle B (2026-05-15). Investigation needs a live profiling pass (Chrome DevTools Allocation Sampling) to identify the per-frame allocator. Companion issue: the diag exporter's `ni`/`nc`/`ntb` element counts read 0 throughout — fix that alongside so the metric becomes useful.
+
+## MQA diag exporter: element counts always read 0
+
+**Symptom:** The perf-diag JSON exporter records `ni: 0, nc: 0, ntb: 0` on every snapshot regardless of scene size, breaking the FPS-vs-complexity correlation it was meant to enable.
+
+**Workaround:** None. Other diag fields (heap, FPS, long-task budget) remain accurate.
+
+**Status:** Open, parked alongside MQA #7.
+
 ## Page tabs: hard cap of 5, no overflow-scroll UX
 
 **Symptom:** The ViewTabs strip ([`ViewTabs.tsx`](packages/fossflow-lib/src/components/ViewTabs/ViewTabs.tsx)) renders all pages inline with no horizontal scroll, overflow indicator, or dropdown. Beyond ~15 pages the tabs grow past the viewport and the right-most ones become unreachable.

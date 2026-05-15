@@ -163,6 +163,13 @@ const initialState = () => {
                 }
               );
 
+              // MQA #5: see modelStore. A no-op set() must not clobber `future`,
+              // otherwise undo+undo+redo+redo loses the trailing action whenever
+              // a transient inter-redo write produced no real change.
+              if (patches.length === 0) {
+                return { ...state, ...next };
+              }
+
               const newPast = [
                 ...state.history.past,
                 { patches, inversePatches }

@@ -263,30 +263,28 @@ export const Node = memo(({ node, order }: Props) => {
                 />
               )}
             {hasLink && (
-              <Tooltip title={diagramTooltip} placement="right" disableInteractive arrow>
-                <Box
-                  onMouseDown={handleBadgeMouseDown}
-                  onClick={handleBadgeClick}
-                  sx={{
-                    pointerEvents: 'auto',
-                    cursor: 'pointer',
-                    position: 'absolute',
-                    bottom: -4,
-                    right: -4,
-                    width: 16,
-                    height: 16,
-                    borderRadius: '50%',
-                    bgcolor: 'primary.main',
-                    border: '2px solid #fff',
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  <OpenInNewIcon sx={{ fontSize: 9, color: '#fff' }} />
-                </Box>
-              </Tooltip>
+              <Box
+                onMouseDown={handleBadgeMouseDown}
+                onClick={handleBadgeClick}
+                sx={{
+                  pointerEvents: 'auto',
+                  cursor: 'pointer',
+                  position: 'absolute',
+                  bottom: -4,
+                  right: -4,
+                  width: 16,
+                  height: 16,
+                  borderRadius: '50%',
+                  bgcolor: 'primary.main',
+                  border: '2px solid #fff',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <OpenInNewIcon sx={{ fontSize: 9, color: '#fff' }} />
+              </Box>
             )}
           </Box>
         )}

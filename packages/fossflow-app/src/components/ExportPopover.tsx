@@ -19,7 +19,6 @@ import { useDiagramLifecycle } from '../providers/DiagramLifecycleProvider';
 export function ExportPopover() {
   const {
     handleExportJSON,
-    handleExportCompactJSON,
     handleExportImage,
     handleExportProject,
     currentDiagram
@@ -60,10 +59,6 @@ export function ExportPopover() {
           <MenuItem onClick={() => handleOption(handleExportJSON)}>
             <ListItemIcon><JsonIcon fontSize="small" /></ListItemIcon>
             <ListItemText>Export JSON</ListItemText>
-          </MenuItem>
-          <MenuItem onClick={() => handleOption(handleExportCompactJSON)}>
-            <ListItemIcon><JsonIcon fontSize="small" /></ListItemIcon>
-            <ListItemText>Export Compact JSON</ListItemText>
           </MenuItem>
           <MenuItem onClick={() => handleOption(handleExportImage)}>
             <ListItemIcon><ImageIcon fontSize="small" /></ListItemIcon>

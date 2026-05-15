@@ -103,7 +103,20 @@ export async function getDiagram(adapter, ctx) {
 
 export async function createDiagram(adapter, ctx) {
   const body = ctx.body || {};
-  const id = body.id ? assertId(body.id) : `diagram_${Date.now()}`;
+  // MQA #21: same collision class as createFolder — a project import calls
+  // createDiagram in a sequential burst and `diagram_${Date.now()}` reused the
+  // same id within a millisecond, then 409'd on the second write. Use a random
+  // suffix so back-to-back creates produce distinct ids when the caller did
+  // not supply one explicitly.
+  let id;
+  if (body.id) {
+    id = assertId(body.id);
+  } else {
+    do {
+      const rand = Math.random().toString(36).slice(2, 10);
+      id = `diagram_${Date.now().toString(36)}_${rand}`;
+    } while (await adapter.get(`diagrams/${id}`));
+  }
   if (await adapter.get(`diagrams/${id}`)) {
     throw new HttpError(409, 'Diagram already exists');
   }
@@ -195,7 +208,18 @@ export async function createFolder(adapter, ctx) {
   }
   if (parentId !== null && parentId !== undefined) assertId(parentId, 'parentId');
   const folders = await readFolders(adapter);
-  const id = `folder_${Date.now()}`;
+  // MQA #21: project-import dispatches a sequential burst of createFolder calls.
+  // The previous `folder_${Date.now()}` id collided whenever two writes landed
+  // in the same millisecond, producing duplicate ids in folders.json that
+  // confused later move/delete/import passes. Generate a uniqueness suffix
+  // (random + collision check against the existing list) so back-to-back
+  // creates always yield distinct ids on the fs adapter.
+  const existingIds = new Set(folders.map((f) => f.id));
+  let id;
+  do {
+    const rand = Math.random().toString(36).slice(2, 10);
+    id = `folder_${Date.now().toString(36)}_${rand}`;
+  } while (existingIds.has(id));
   folders.push({ id, name, parentId: parentId ?? null });
   await writeFolders(adapter, folders);
   return { status: 201, body: { success: true, id } };

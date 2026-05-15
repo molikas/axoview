@@ -9,7 +9,6 @@ import {
 } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { transformFromCompactFormat } from 'fossflow';
 import { flattenCollections } from '@isoflow/isopacks/dist/utils';
 import isoflowIsopack from '@isoflow/isopacks/dist/isoflow';
 import type { IsoflowRef } from 'fossflow';
@@ -26,7 +25,7 @@ import { StorageManager } from '../StorageManager';
 import { notificationStore } from '../stores/notificationStore';
 import { sequentialName } from '../utils/fileOperations';
 import { apiBaseUrl } from '../utils/apiBaseUrl';
-import { exportAsJSON, exportAsCompactJSON } from 'fossflow';
+import { exportAsJSON } from 'fossflow';
 
 // Core icons — loaded once at module level
 const coreIcons = flattenCollections([isoflowIsopack]);
@@ -100,7 +99,6 @@ interface DiagramLifecycleContextValue {
   handlePreviewClick: () => Promise<void>;
   handleModelUpdated: (model: any) => void;
   handleExportJSON: () => void;
-  handleExportCompactJSON: () => void;
   handleExportImage: () => void;
   handleExportProject: () => void;
   isProjectExportOpen: boolean;
@@ -108,6 +106,7 @@ interface DiagramLifecycleContextValue {
   handleNewDiagram: () => Promise<void>;
   handleRenameCurrentDiagram: (newName: string) => Promise<void>;
   notifyDiagramRenamedFromTree: (id: string, newName: string) => void;
+  notifyDiagramDeletedFromTree: (id: string) => void;
   saveAllDirty: () => Promise<void>;
   handleCreateBlankDiagram: (folderId: string | null) => Promise<void>;
   checkUnsavedBeforeNavigate: (onProceed: () => void) => void;
@@ -767,11 +766,7 @@ export function DiagramLifecycleProvider({
   // ---------------------------------------------------------------------------
   const handleDiagramManagerLoad = useCallback(
     async (id: string, rawData: any, listingName: string) => {
-      const isCompact = rawData?._?.f === 'compact';
-      let data: any = rawData;
-      if (isCompact) {
-        data = transformFromCompactFormat(rawData);
-      }
+      const data: any = rawData;
 
       const loadedIcons = data.icons || [];
       await iconPackManager.loadPacksForDiagram(data);
@@ -929,6 +924,36 @@ export function DiagramLifecycleProvider({
     [serverStorageAvailable]
   );
 
+  // MQA #18: when the currently-open diagram is deleted from the file tree, the
+  // canvas was left holding stale data and the next autosave tick recreated the
+  // diagram (with the same scene under a new id). Reset everything synchronously:
+  // cancel any pending autosave, drop the scratch buffer + dirty bit, clear the
+  // active diagram reference, and load a blank scene so the empty-state condition
+  // routes to the initial-load screen.
+  const notifyDiagramDeletedFromTree = useCallback((id: string) => {
+    if (currentDiagramRef.current?.id !== id) return;
+    autoSave.resetStatus();
+    scratchBufferRef.current.delete(id);
+    setDirtyDiagramIds((prev) => setWithout(prev, id));
+    // Null the ref synchronously so any in-flight model update dispatched between
+    // here and the next render doesn't see a stale currentId and re-schedule a save.
+    currentDiagramRef.current = null;
+    setCurrentDiagram(null);
+    setDiagramName('');
+    setCurrentModel(null);
+    setLastSaved(null);
+    const blankData: DiagramData = {
+      title: '',
+      icons: iconPackManager.loadedIcons,
+      colors: defaultColors,
+      items: [],
+      views: [],
+      fitToScreen: true
+    };
+    isAfterLoadRef.current = true;
+    isoflowRef.current?.load(blankData as any);
+  }, [autoSave.resetStatus, iconPackManager.loadedIcons]);
+
   // Sync in-memory state (diagramName, currentDiagram, model store title) when
   // the file tree renames the currently-open diagram. Storage is already updated
   // by the caller — this only keeps the canvas breadcrumb in sync.
@@ -1038,10 +1063,6 @@ export function DiagramLifecycleProvider({
   // ---------------------------------------------------------------------------
   const handleExportJSON = useCallback(() => {
     exportAsJSON(buildSaveData() as any);
-  }, [buildSaveData]);
-
-  const handleExportCompactJSON = useCallback(() => {
-    exportAsCompactJSON(buildSaveData() as any);
   }, [buildSaveData]);
 
   const handleExportImage = useCallback(() => {
@@ -1267,7 +1288,6 @@ export function DiagramLifecycleProvider({
     handlePreviewClick,
     handleModelUpdated,
     handleExportJSON,
-    handleExportCompactJSON,
     handleExportImage,
     handleExportProject,
     isProjectExportOpen,
@@ -1275,6 +1295,7 @@ export function DiagramLifecycleProvider({
     handleNewDiagram,
     handleRenameCurrentDiagram,
     notifyDiagramRenamedFromTree,
+    notifyDiagramDeletedFromTree,
     saveAllDirty,
     handleCreateBlankDiagram,
     checkUnsavedBeforeNavigate,

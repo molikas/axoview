@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DiagramMeta, StorageProvider } from '../services/storage';
 import { ConfirmDialog } from './ConfirmDialog';
+import { shareUrlFromUuid } from '../utils/shareUrl';
+import { useDiagramLifecycle } from '../providers/DiagramLifecycleProvider';
 import './DiagramManager.css';
 
 interface Props {
@@ -18,6 +20,7 @@ export const DiagramManager: React.FC<Props> = ({
   onClose
 }) => {
   const { t } = useTranslation('app');
+  const { notifyDiagramDeletedFromTree } = useDiagramLifecycle();
   const [diagrams, setDiagrams] = useState<DiagramMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +75,9 @@ export const DiagramManager: React.FC<Props> = ({
     const { id } = pendingDelete;
     setPendingDelete(null);
     try {
+      // MQA #18: reset the canvas if this is the open diagram BEFORE the storage
+      // delete, so any pending autosave is canceled and can't resurrect it.
+      notifyDiagramDeletedFromTree(id);
       await storage.deleteDiagram(id);
       await loadDiagrams();
     } catch (err) {
@@ -89,7 +95,8 @@ export const DiagramManager: React.FC<Props> = ({
       return;
     }
     try {
-      const { url } = await storage.shareDiagram(id);
+      const { uuid } = await storage.shareDiagram(id);
+      const url = shareUrlFromUuid(uuid);
       await navigator.clipboard.writeText(url);
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
