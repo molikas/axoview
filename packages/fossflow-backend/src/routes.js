@@ -184,7 +184,28 @@ export async function deleteDiagram(adapter, ctx) {
 // ---------------------------------------------------------------------------
 
 async function readFolders(adapter) {
-  return (await getJson(adapter, 'folders')) ?? [];
+  // MQA #21: a `folders.json` written by an earlier shape (e.g. `{ folders: [...] }`
+  // from a tree-manifest-style payload) crashed every folder operation with
+  // `folders.map is not a function`. Always coerce to a flat array — accept the
+  // legacy `{ folders: [...] }` shape, otherwise fall back to empty so the next
+  // write heals the file. Log unexpected shapes once so we can trace where they
+  // came from on the rare deployments where this trips.
+  const raw = await getJson(adapter, 'folders');
+  if (Array.isArray(raw)) return raw;
+  if (raw && Array.isArray(raw.folders)) {
+    console.warn(
+      '[folders] coerced legacy {folders:[]} payload — next write will heal the file'
+    );
+    return raw.folders;
+  }
+  if (raw != null) {
+    console.warn(
+      `[folders] folders.json has unexpected shape (typeof=${typeof raw}, keys=${
+        typeof raw === 'object' ? Object.keys(raw).slice(0, 5).join(',') : 'n/a'
+      }) — falling back to empty array`
+    );
+  }
+  return [];
 }
 
 async function writeFolders(adapter, folders) {
