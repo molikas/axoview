@@ -53,6 +53,7 @@ const initialState = () => {
       activeLeftTab: null,
       rightSidebarOpen: false,
       rightSidebarAutoOpened: false,
+      itemActionBarOpen: false,
       isDirty: false,
 
       actions: {
@@ -76,6 +77,7 @@ const initialState = () => {
               offset: CoordsUtils.zero()
             },
             itemControls: null,
+            itemActionBarOpen: false,
             zoom: INITIAL_UI_STATE.zoom
           });
         },
@@ -110,12 +112,16 @@ const initialState = () => {
             set({
               itemControls,
               rightSidebarOpen: true,
+              // New / changed selection always closes the floating action bar.
+              // The bar is only opened by an explicit right-click (mqa-results.md #1).
+              itemActionBarOpen: false,
               ...(!alreadyPinned && { rightSidebarAutoOpened: true })
             });
           } else {
             const autoOpened = get().rightSidebarAutoOpened;
             set({
               itemControls,
+              itemActionBarOpen: false,
               ...(autoOpened && {
                 rightSidebarOpen: false,
                 rightSidebarAutoOpened: false
@@ -170,6 +176,9 @@ const initialState = () => {
         },
         setRightSidebarOpen: (rightSidebarOpen) => {
           set({ rightSidebarOpen, rightSidebarAutoOpened: false });
+        },
+        setItemActionBarOpen: (itemActionBarOpen) => {
+          set({ itemActionBarOpen });
         },
         setIsDirty: (isDirty) => {
           set({ isDirty });

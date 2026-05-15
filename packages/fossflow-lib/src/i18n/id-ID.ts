@@ -234,7 +234,8 @@ const locale: LocaleProps = {
   viewTabs: {
     addPage: 'Tambah halaman',
     deletePage: 'Hapus halaman',
-    renameDiagram: 'Ganti nama diagram'
+    renameDiagram: 'Ganti nama diagram',
+    addPageDisabled: 'Batas halaman tercapai (5)'
   },
   nodePanel: {
     details: 'Detail',
@@ -360,7 +361,13 @@ const locale: LocaleProps = {
     isometricLabel: 'Perlakukan sebagai isometrik (tampilan 3D)',
     isometricHint: 'Hapus centang untuk ikon datar (logo, elemen UI)',
     dragHint:
-      'Anda dapat menyeret dan menjatuhkan item mana pun di bawah ke kanvas.'
+      'Anda dapat menyeret dan menjatuhkan item mana pun di bawah ke kanvas.',
+    aiPromptTooltip: 'Buat ikon dengan AI',
+    aiPromptTitle: 'Buat ikon isometrik dengan AI',
+    aiPromptBody:
+      "Tempel prompt ini ke AI penghasil gambar. Ganti 'my object' dengan kebutuhan Anda, lalu impor PNG yang dihasilkan.",
+    aiPromptCopy: 'Salin prompt',
+    aiPromptCopied: 'Disalin'
   },
   searchbox: {
     placeholder: 'Cari ikon'

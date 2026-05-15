@@ -233,7 +233,8 @@ const locale: LocaleProps = {
   viewTabs: {
     addPage: 'পৃষ্ঠা যোগ করুন',
     deletePage: 'পৃষ্ঠা মুছুন',
-    renameDiagram: 'ডায়াগ্রাম নামকরণ করুন'
+    renameDiagram: 'ডায়াগ্রাম নামকরণ করুন',
+    addPageDisabled: 'পৃষ্ঠার সীমা পৌঁছেছে (৫)'
   },
   nodePanel: {
     details: 'বিবরণ',
@@ -358,7 +359,13 @@ const locale: LocaleProps = {
     addMoreIcons: 'আরও আইকন যোগ করুন',
     isometricLabel: 'আইসোমেট্রিক হিসেবে বিবেচনা করুন (3D দৃশ্য)',
     isometricHint: 'সমতল আইকনের জন্য আনচেক করুন (লোগো, UI উপাদান)',
-    dragHint: 'আপনি নিচের যেকোনো আইটেম ক্যানভাসে টেনে নামাতে পারেন।'
+    dragHint: 'আপনি নিচের যেকোনো আইটেম ক্যানভাসে টেনে নামাতে পারেন।',
+    aiPromptTooltip: 'AI দিয়ে আইকন তৈরি করুন',
+    aiPromptTitle: 'AI দিয়ে আইসোমেট্রিক আইকন তৈরি করুন',
+    aiPromptBody:
+      "এই প্রম্পটটি একটি ছবি-তৈরিকারী AI-তে পেস্ট করুন। 'my object' প্রতিস্থাপন করে প্রয়োজনীয় বস্তু লিখুন, তারপর তৈরি PNG আমদানি করুন।",
+    aiPromptCopy: 'প্রম্পট কপি করুন',
+    aiPromptCopied: 'কপি হয়েছে'
   },
   searchbox: {
     placeholder: 'আইকন খুঁজুন'

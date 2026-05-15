@@ -221,7 +221,8 @@ const locale: LocaleProps = {
   viewTabs: {
     addPage: '添加页面',
     deletePage: '删除页面',
-    renameDiagram: '重命名图表'
+    renameDiagram: '重命名图表',
+    addPageDisabled: '已达到页面上限 (5)'
   },
   nodePanel: {
     details: '详情',
@@ -345,7 +346,13 @@ const locale: LocaleProps = {
     addMoreIcons: '添加更多图标',
     isometricLabel: '作为等轴测处理（3D 视图）',
     isometricHint: '取消勾选以使用平面图标（Logo、UI 元素）',
-    dragHint: '您可以将下方任意项目拖放到画布上。'
+    dragHint: '您可以将下方任意项目拖放到画布上。',
+    aiPromptTooltip: '用 AI 生成图标',
+    aiPromptTitle: '用 AI 生成等距图标',
+    aiPromptBody:
+      "将此提示粘贴到图像生成 AI 中。将 'my object' 替换为你需要的内容，然后导入生成的 PNG。",
+    aiPromptCopy: '复制提示',
+    aiPromptCopied: '已复制'
   },
   searchbox: {
     placeholder: '搜索图标'

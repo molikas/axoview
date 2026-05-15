@@ -268,7 +268,7 @@ export function AppToolbar() {
                 size="small"
                 onClick={handleShareClick}
                 disabled={shareLoading}
-                sx={{ whiteSpace: 'nowrap', minWidth: 80 }}
+                sx={{ whiteSpace: 'nowrap', minWidth: 80, textTransform: 'none' }}
               >
                 {shareCopied ? t('share.copied', '✓ Copied!') : t('share.copy', 'Copy')}
               </Button>

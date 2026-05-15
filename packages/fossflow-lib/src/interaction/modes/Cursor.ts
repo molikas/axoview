@@ -100,7 +100,8 @@ const getAnchor = (
 const mousedown: ModeActionsAction = ({
   uiState,
   scene,
-  isRendererInteraction
+  isRendererInteraction,
+  isItemInteractable
 }) => {
   if (uiState.mode.type !== 'CURSOR' || !isRendererInteraction) return;
 
@@ -164,7 +165,15 @@ const mousedown: ModeActionsAction = ({
     scene
   });
 
-  if (itemAtTile) {
+  // Items on locked or hidden layers are treated as background — not
+  // selectable, not draggable (mqa-results.md #2). isItemInteractable may be
+  // undefined in tests that bypass the State type via `as any`. The non-null
+  // check on itemAtTile is critical — calling isItemInteractable(null) would
+  // throw and silently kill the cursor→lasso transition for empty-canvas drag.
+  if (
+    itemAtTile &&
+    (!isItemInteractable || isItemInteractable(itemAtTile))
+  ) {
     uiState.actions.setMode(
       produce(uiState.mode, (draft) => {
         draft.mousedownItem = itemAtTile;

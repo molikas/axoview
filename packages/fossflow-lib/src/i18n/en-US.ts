@@ -234,7 +234,8 @@ const locale: LocaleProps = {
   viewTabs: {
     addPage: 'Add page',
     deletePage: 'Delete page',
-    renameDiagram: 'Rename diagram'
+    renameDiagram: 'Rename diagram',
+    addPageDisabled: 'Page limit reached (5)'
   },
   nodePanel: {
     details: 'Details',
@@ -359,7 +360,13 @@ const locale: LocaleProps = {
     addMoreIcons: 'Add more icons',
     isometricLabel: 'Treat as isometric (3D view)',
     isometricHint: 'Uncheck for flat icons (logos, UI elements)',
-    dragHint: 'You can drag and drop any item below onto the canvas.'
+    dragHint: 'You can drag and drop any item below onto the canvas.',
+    aiPromptTooltip: 'Generate icons with AI',
+    aiPromptTitle: 'Generate isometric icons with AI',
+    aiPromptBody:
+      'Paste this prompt into an image-generating AI. Replace "my object" with what you need, then import the generated PNG.',
+    aiPromptCopy: 'Copy prompt',
+    aiPromptCopied: 'Copied'
   },
   searchbox: {
     placeholder: 'Search icons'

@@ -235,7 +235,8 @@ const locale: LocaleProps = {
   viewTabs: {
     addPage: 'Добавить страницу',
     deletePage: 'Удалить страницу',
-    renameDiagram: 'Переименовать диаграмму'
+    renameDiagram: 'Переименовать диаграмму',
+    addPageDisabled: 'Достигнут лимит страниц (5)'
   },
   nodePanel: {
     details: 'Подробности',
@@ -360,7 +361,13 @@ const locale: LocaleProps = {
     addMoreIcons: 'Добавить больше иконок',
     isometricLabel: 'Использовать как изометрический (3D вид)',
     isometricHint: 'Снимите галочку для плоских иконок (логотипы, элементы UI)',
-    dragHint: 'Вы можете перетащить любой элемент ниже на холст.'
+    dragHint: 'Вы можете перетащить любой элемент ниже на холст.',
+    aiPromptTooltip: 'Сгенерировать иконки с помощью ИИ',
+    aiPromptTitle: 'Сгенерировать изометрические иконки с помощью ИИ',
+    aiPromptBody:
+      "Вставьте этот промпт в ИИ для генерации изображений. Замените 'my object' на нужный объект и импортируйте получившийся PNG.",
+    aiPromptCopy: 'Копировать промпт',
+    aiPromptCopied: 'Скопировано'
   },
   searchbox: {
     placeholder: 'Поиск иконок'

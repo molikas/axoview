@@ -22,18 +22,23 @@ interface LassoScene {
   connectors: Connector[];
 }
 
-// Helper to find all items within the lasso bounds
+// Helper to find all items within the lasso bounds. Items on locked or hidden
+// layers are excluded via isItemInteractable (mqa-results.md #2).
 const getItemsInBounds = (
   startTile: Coords,
   endTile: Coords,
-  scene: LassoScene
+  scene: LassoScene,
+  isItemInteractable: (ref: ItemReference) => boolean
 ): ItemReference[] => {
   const items: ItemReference[] = [];
 
   // Check all nodes/items
   const selectedNodeIds = new Set<string>();
   scene.items.forEach((item: ViewItem) => {
-    if (isWithinBounds(item.tile, [startTile, endTile])) {
+    if (
+      isWithinBounds(item.tile, [startTile, endTile]) &&
+      isItemInteractable({ type: 'ITEM', id: item.id })
+    ) {
       items.push({ type: 'ITEM', id: item.id });
       selectedNodeIds.add(item.id);
     }
@@ -41,6 +46,7 @@ const getItemsInBounds = (
 
   // Check all rectangles - they must be FULLY enclosed (all 4 corners inside)
   scene.rectangles.forEach((rectangle: Rectangle) => {
+    if (!isItemInteractable({ type: 'RECTANGLE', id: rectangle.id })) return;
     const corners = [
       rectangle.from,
       { x: rectangle.to.x, y: rectangle.from.y },
@@ -60,7 +66,10 @@ const getItemsInBounds = (
 
   // Check all text boxes
   scene.textBoxes.forEach((textBox: TextBox) => {
-    if (isWithinBounds(textBox.tile, [startTile, endTile])) {
+    if (
+      isWithinBounds(textBox.tile, [startTile, endTile]) &&
+      isItemInteractable({ type: 'TEXTBOX', id: textBox.id })
+    ) {
       items.push({ type: 'TEXTBOX', id: textBox.id });
     }
   });
@@ -70,6 +79,7 @@ const getItemsInBounds = (
   // its free-floating tile is within bounds.
   scene.connectors.forEach((connector: Connector) => {
     if (!connector.anchors || connector.anchors.length < 2) return;
+    if (!isItemInteractable({ type: 'CONNECTOR', id: connector.id })) return;
 
     const first = connector.anchors[0];
     const last = connector.anchors[connector.anchors.length - 1];
@@ -100,7 +110,7 @@ const getItemsInBounds = (
 };
 
 export const Lasso: ModeActions = {
-  mousemove: ({ uiState, scene }) => {
+  mousemove: ({ uiState, scene, isItemInteractable }) => {
     if (uiState.mode.type !== 'LASSO' || !uiState.mouse.mousedown) return;
 
     if (!hasMovedTile(uiState.mouse)) return;
@@ -151,7 +161,9 @@ export const Lasso: ModeActions = {
     // User is creating/updating the selection box
     const startTile = uiState.mouse.mousedown.tile;
     const endTile = uiState.mouse.position.tile;
-    const items = getItemsInBounds(startTile, endTile, scene);
+    // Tolerate undefined in tests that bypass the State type via `as any`.
+    const gate = isItemInteractable ?? (() => true);
+    const items = getItemsInBounds(startTile, endTile, scene, gate);
 
     uiState.actions.setMode(
       produce(uiState.mode, (draft) => {

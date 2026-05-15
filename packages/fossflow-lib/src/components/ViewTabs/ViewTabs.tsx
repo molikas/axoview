@@ -16,6 +16,11 @@ import { useTranslation } from 'src/stores/localeStore';
 
 type EditingTarget = { kind: 'title' } | { kind: 'view'; id: string } | null;
 
+// Hard cap on pages until a proper overflow-scroll UX lands. Beyond ~15 the
+// tabs become unreachable; 5 is the agreed interim ceiling (mqa-results.md
+// follow-up, 2026-05-15).
+const MAX_PAGES = 5;
+
 export const ViewTabs = () => {
   const theme = useTheme();
   const { t } = useTranslation('viewTabs');
@@ -274,25 +279,32 @@ export const ViewTabs = () => {
         );
       })}
 
-      {/* Add view button — editable mode only */}
-      {!isReadonly && (
-        <Tooltip title={t('addPage')}>
-          <IconButton
-            size="small"
-            onClick={() => createView()}
-            sx={{
-              p: 0.75,
-              backgroundColor: '#ffffff',
-              border: 1,
-              borderColor: 'grey.300',
-              borderRadius: 1,
-              '&:hover': { backgroundColor: '#f5f5f5' }
-            }}
-          >
-            <Add sx={{ width: 16, height: 16 }} />
-          </IconButton>
-        </Tooltip>
-      )}
+      {/* Add view button — editable mode only. Capped at MAX_PAGES until the
+          tab-overflow UX is rebuilt. */}
+      {!isReadonly && (() => {
+        const atLimit = views.length >= MAX_PAGES;
+        return (
+          <Tooltip title={atLimit ? t('addPageDisabled') : t('addPage')}>
+            <span>
+              <IconButton
+                size="small"
+                onClick={() => createView()}
+                disabled={atLimit}
+                sx={{
+                  p: 0.75,
+                  backgroundColor: '#ffffff',
+                  border: 1,
+                  borderColor: 'grey.300',
+                  borderRadius: 1,
+                  '&:hover': { backgroundColor: '#f5f5f5' }
+                }}
+              >
+                <Add sx={{ width: 16, height: 16 }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+        );
+      })()}
     </Box>
   );
 };

@@ -235,7 +235,8 @@ const locale: LocaleProps = {
   viewTabs: {
     addPage: 'पृष्ठ जोड़ें',
     deletePage: 'पृष्ठ हटाएं',
-    renameDiagram: 'आरेख का नाम बदलें'
+    renameDiagram: 'आरेख का नाम बदलें',
+    addPageDisabled: 'पृष्ठ सीमा पहुंच गई (5)'
   },
   nodePanel: {
     details: 'विवरण',
@@ -360,7 +361,13 @@ const locale: LocaleProps = {
     addMoreIcons: 'और आइकन जोड़ें',
     isometricLabel: 'आइसोमेट्रिक के रूप में मानें (3D दृश्य)',
     isometricHint: 'फ्लैट आइकन के लिए अनचेक करें (लोगो, UI तत्व)',
-    dragHint: 'आप नीचे दिए किसी भी आइटम को कैनवास पर खींच और छोड़ सकते हैं।'
+    dragHint: 'आप नीचे दिए किसी भी आइटम को कैनवास पर खींच और छोड़ सकते हैं।',
+    aiPromptTooltip: 'AI से आइकन बनाएं',
+    aiPromptTitle: 'AI से आइसोमेट्रिक आइकन बनाएं',
+    aiPromptBody:
+      "इस प्रॉम्प्ट को किसी इमेज जनरेट करने वाली AI में पेस्ट करें। 'my object' को आवश्यकतानुसार बदलें, फिर बने PNG को इम्पोर्ट करें।",
+    aiPromptCopy: 'प्रॉम्प्ट कॉपी करें',
+    aiPromptCopied: 'कॉपी हुआ'
   },
   searchbox: {
     placeholder: 'आइकन खोजें'

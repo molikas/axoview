@@ -237,7 +237,8 @@ const locale: LocaleProps = {
   viewTabs: {
     addPage: 'Seite hinzufügen',
     deletePage: 'Seite löschen',
-    renameDiagram: 'Diagramm umbenennen'
+    renameDiagram: 'Diagramm umbenennen',
+    addPageDisabled: 'Seitenlimit erreicht (5)'
   },
   nodePanel: {
     details: 'Details',
@@ -363,7 +364,13 @@ const locale: LocaleProps = {
     isometricLabel: 'Als isometrisch behandeln (3D-Ansicht)',
     isometricHint: 'Für flache Symbole deaktivieren (Logos, UI-Elemente)',
     dragHint:
-      'Sie können beliebige Elemente unten per Drag & Drop auf die Leinwand ziehen.'
+      'Sie können beliebige Elemente unten per Drag & Drop auf die Leinwand ziehen.',
+    aiPromptTooltip: 'Symbole mit KI generieren',
+    aiPromptTitle: 'Isometrische Symbole mit KI erstellen',
+    aiPromptBody:
+      'Fügen Sie diese Eingabeaufforderung in eine bildgenerierende KI ein. Ersetzen Sie „my object" durch Ihr Motiv und importieren Sie dann das erzeugte PNG.',
+    aiPromptCopy: 'Prompt kopieren',
+    aiPromptCopied: 'Kopiert'
   },
   searchbox: {
     placeholder: 'Symbole suchen'

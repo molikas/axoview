@@ -100,6 +100,14 @@ The burger (`MainMenu` portal in AppToolbar) is removed from the application's c
 | `GitHub` link | SettingsDialog → new **About** tab. |
 | `Version` | SettingsDialog → new **About** tab. |
 
+### 5b. Panel-header toolbar visibility — hover-reveal (added 2026-05-15)
+
+Panel headers (file explorer, Layers panel) host clusters of secondary actions — new file/folder/import/export/refresh/collapse on the file explorer, add-layer/delete-layer on Layers. These don't belong in the left strip (they're scoped to a panel, not document-level) but they crowd the panel header chrome when always visible.
+
+**Rule:** secondary action clusters in a panel header are rendered with `opacity: 0`, fading in (`120ms ease`) on the panel container's `:hover` or `:focus-within`. They keep their DOM space — the cluster is invisible, not removed — so layout doesn't reflow on reveal. VS Code / Figma / Linear behave the same way.
+
+Implementation pattern: parent panel container declares the reveal selector (`&:hover .ff-…-actions, &:focus-within .ff-…-actions { opacity: 1 }`); the action cluster sets the base opacity + transition. Keyboard focus on any cluster icon reveals via `:focus-within`, so the pattern is keyboard-accessible. mqa-results.md #27.
+
 ### 6. Settings dialog gains two tabs
 
 To absorb redistributed burger items and to surface developer affordances that today live behind a dev-only prop, [`SettingsDialog.tsx`](../../packages/fossflow-lib/src/components/SettingsDialog/SettingsDialog.tsx) adds:
