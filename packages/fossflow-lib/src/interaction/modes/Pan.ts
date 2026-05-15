@@ -1,5 +1,5 @@
 import { produce } from 'immer';
-import { CoordsUtils, setWindowCursor, getItemAtTile } from 'src/utils';
+import { CoordsUtils, setWindowCursor } from 'src/utils';
 import { ModeActions } from 'src/types';
 
 export const Pan: ModeActions = {
@@ -27,38 +27,23 @@ export const Pan: ModeActions = {
 
     setWindowCursor('grabbing');
   },
-  mouseup: ({ uiState, scene, model }) => {
+  mouseup: ({ uiState }) => {
     if (uiState.mode.type !== 'PAN') return;
     setWindowCursor('grab');
     // Note: Mode switching is now handled by usePanHandlers
 
-    // In read-only mode, a left-click on a node opens the panel —
-    // but only if the node has a caption or notes worth showing.
+    // MQA #22 / #25 (Bundle B follow-up): EXPLORABLE_READONLY no longer
+    // navigates or opens a panel on node body click. The node's hover-revealed
+    // action chip ([NodeHoverChip] in Node.tsx) is now the canonical surface
+    // for opening the linked diagram, opening notes, or following the name's
+    // external link. The body click is intentionally inert so users selecting
+    // a node visually no longer trigger an unwanted navigation. We still clear
+    // any open itemControls on body click to dismiss leftover UI.
     if (uiState.editorMode === 'EXPLORABLE_READONLY') {
       const mousedownTile = uiState.mouse.mousedown?.tile;
       const currentTile = uiState.mouse.position.tile;
       if (mousedownTile && CoordsUtils.isEqual(mousedownTile, currentTile)) {
-        const item = getItemAtTile({ tile: currentTile, scene });
-        if (item?.type === 'ITEM') {
-          const modelItem = model.items.find((i) => i.id === item.id);
-          if (modelItem?.link) {
-            window.open(`/display/${modelItem.link}`, '_blank', 'noopener,noreferrer');
-            uiState.actions.setItemControls(null);
-            return;
-          }
-          const hasContent =
-            (!!modelItem?.description &&
-              modelItem.description.replace(/<[^>]*>/g, '').trim() !== '') ||
-            (!!modelItem?.notes &&
-              modelItem.notes.replace(/<[^>]*>/g, '').trim() !== '');
-          if (hasContent) {
-            uiState.actions.setItemControls({ type: 'ITEM', id: item.id });
-          } else {
-            uiState.actions.setItemControls(null);
-          }
-        } else {
-          uiState.actions.setItemControls(null);
-        }
+        uiState.actions.setItemControls(null);
       }
     }
   }

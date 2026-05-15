@@ -66,6 +66,7 @@ export const NodeActionBar = ({ type, id, tile: connectorTile }: Props) => {
     deleteRectangle,
     createConnector,
     updateViewItem,
+    beginDragTransaction,
     colors
   } = useScene();
   const uiStateActions = useUiStateStore((state) => state.actions);
@@ -118,6 +119,14 @@ export const NodeActionBar = ({ type, id, tile: connectorTile }: Props) => {
         { id: generateId(), ref: { item: id } }
       ]
     };
+    // MQA #5 (Bundle B follow-up): the right-click → "Add connection" path
+    // bypassed Connector.mousedown's beginDragTransaction, so every tile the
+    // user crossed while dragging the new connector to its target became its
+    // own history entry — undo had to step through each tile. Open the same
+    // drag-transaction bracket here so the entire create + drag + commit
+    // collapses into one undo step. Connector.mousedown's second-click branch
+    // already calls commitDragTransaction.
+    beginDragTransaction();
     createConnector(newConnector);
     uiStateActions.setItemControls(null);
     uiStateActions.setMode({
@@ -128,7 +137,7 @@ export const NodeActionBar = ({ type, id, tile: connectorTile }: Props) => {
       isConnecting: true,
       returnToCursor: true
     });
-  }, [id, colors, createConnector, uiStateActions]);
+  }, [id, colors, createConnector, beginDragTransaction, uiStateActions]);
 
   const handleBringForward = useCallback(() => {
     if (!viewItem) return;

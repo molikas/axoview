@@ -265,8 +265,9 @@ export async function deleteFolder(adapter, ctx) {
   const recursive =
     ctx?.query?.recursive === 'true' || ctx?.query?.recursive === true;
   let folders = await readFolders(adapter);
+  let toDelete;
   if (recursive) {
-    const toDelete = new Set();
+    toDelete = new Set();
     const collect = (fid) => {
       toDelete.add(fid);
       folders.filter((f) => f.parentId === fid).forEach((f) => collect(f.id));
@@ -277,8 +278,38 @@ export async function deleteFolder(adapter, ctx) {
     const idx = folders.findIndex((f) => f.id === id);
     if (idx < 0) throw new HttpError(404, 'Folder not found');
     folders.splice(idx, 1);
+    toDelete = new Set([id]);
   }
   await writeFolders(adapter, folders);
+
+  // MQA #14 (Bundle B follow-up): the previous behaviour orphaned every
+  // diagram inside the deleted folder — listDiagramMeta still returned them
+  // (with stale folderId), and a subsequent project import collided on the
+  // original ids. Sweep diagrams whose folderId pointed at any deleted
+  // folder. Best-effort: per-diagram failures are logged but do not block.
+  try {
+    const allDiagrams = await adapter.listDiagramMeta();
+    const orphans = allDiagrams.filter((d) => toDelete.has(d.folderId));
+    for (const meta of orphans) {
+      try {
+        const buf = await adapter.get(`diagrams/${meta.id}`);
+        if (buf) {
+          try {
+            const existing = JSON.parse(new TextDecoder().decode(buf));
+            if (existing?.shareUuid && UUID_PATTERN.test(existing.shareUuid)) {
+              try { await adapter.delete(`public/${existing.shareUuid}`); } catch {}
+            }
+          } catch {}
+        }
+        await adapter.delete(`diagrams/${meta.id}`);
+      } catch (e) {
+        console.warn(`[deleteFolder] failed to sweep diagram ${meta.id}:`, e);
+      }
+    }
+  } catch (e) {
+    console.warn('[deleteFolder] orphan sweep failed:', e);
+  }
+
   return { status: 200, body: { success: true } };
 }
 

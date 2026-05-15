@@ -202,7 +202,11 @@ describe('Pan.mouseup', () => {
     expect(uiState.actions.setItemControls).not.toHaveBeenCalled();
   });
 
-  it('EXPLORABLE_READONLY: opens panel when item has description content', () => {
+  // MQA #25 (Bundle B follow-up): EXPLORABLE_READONLY body-click no longer
+  // opens the properties panel. The hover chip on the node ([NodeHoverChip]
+  // in Node.tsx) is the canonical surface for description/notes/link affordances.
+  // Body click only dismisses any leftover open panel.
+  it('EXPLORABLE_READONLY: body click does NOT open panel even when item has description', () => {
     mockGetItemAtTile.mockReturnValue({ type: 'ITEM', id: 'n1' });
     const uiState = makeUiState({
       editorMode: 'EXPLORABLE_READONLY',
@@ -220,13 +224,10 @@ describe('Pan.mouseup', () => {
       scene: makeScene([{ type: 'ITEM', id: 'n1' }]),
       model
     } as any);
-    expect(uiState.actions.setItemControls).toHaveBeenCalledWith({
-      type: 'ITEM',
-      id: 'n1'
-    });
+    expect(uiState.actions.setItemControls).toHaveBeenCalledWith(null);
   });
 
-  it('EXPLORABLE_READONLY: opens panel when item has notes content', () => {
+  it('EXPLORABLE_READONLY: body click does NOT open panel even when item has notes', () => {
     mockGetItemAtTile.mockReturnValue({ type: 'ITEM', id: 'n2' });
     const uiState = makeUiState({
       editorMode: 'EXPLORABLE_READONLY',
@@ -239,10 +240,7 @@ describe('Pan.mouseup', () => {
       { id: 'n2', description: '', notes: 'Some notes here' }
     ]);
     Pan.mouseup!({ uiState, scene: makeScene(), model } as any);
-    expect(uiState.actions.setItemControls).toHaveBeenCalledWith({
-      type: 'ITEM',
-      id: 'n2'
-    });
+    expect(uiState.actions.setItemControls).toHaveBeenCalledWith(null);
   });
 
   it('EXPLORABLE_READONLY: clears panel when item has no description or notes', () => {

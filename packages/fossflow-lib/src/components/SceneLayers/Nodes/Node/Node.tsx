@@ -1,6 +1,10 @@
-import React, { useMemo, memo, useCallback, useEffect, useState } from 'react';
-import { Box, Typography, Stack, Tooltip } from '@mui/material';
-import { OpenInNew as OpenInNewIcon } from '@mui/icons-material';
+import React, { useMemo, memo, useCallback, useEffect, useState, useRef } from 'react';
+import { Box, Typography, Stack, Tooltip, IconButton, Popover } from '@mui/material';
+import {
+  OpenInNew as OpenInNewIcon,
+  ArticleOutlined as LinkedDiagramIcon,
+  StickyNote2Outlined as NotesIcon
+} from '@mui/icons-material';
 import { DEFAULT_LABEL_HEIGHT } from 'src/config';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useIcon } from 'src/hooks/useIcon';
@@ -71,26 +75,65 @@ export const Node = memo(({ node, order }: Props) => {
     ? (linkedDiagrams.find((d) => d.id === modelItem!.link)?.name ?? null)
     : null;
 
-  const diagramTooltip = linkedDiagramName
-    ? `Opens "${linkedDiagramName}" in a new tab`
-    : 'Opens linked diagram in a new tab';
+  // MQA #22 / #25: in preview mode the node body is no longer clickable for
+  // navigation. The hover-revealed action chip below surfaces up to three
+  // affordances (external link via name, linked-diagram navigation, notes).
+  const [isHovered, setIsHovered] = useState(false);
+  const [notesAnchor, setNotesAnchor] = useState<HTMLElement | null>(null);
+  const nodeBoxRef = useRef<HTMLDivElement | null>(null);
 
-  // Badge click: stop mousedown from reaching the window-level Pan handler so
-  // Pan.mouseup's tile-lookup doesn't also navigate (wrong tile for badge pixels).
-  const handleBadgeMouseDown = useCallback((e: React.MouseEvent) => {
+  const visibleNotes = useMemo(() => {
+    if (!modelItem?.notes) return null;
+    const stripped = modelItem.notes.replace(/<[^>]*>/g, '').trim();
+    return stripped ? modelItem.notes : null;
+  }, [modelItem?.notes]);
+
+  const headerLinkUrl = useMemo(() => {
+    if (!modelItem?.headerLink) return null;
+    return /^https?:\/\//i.test(modelItem.headerLink)
+      ? modelItem.headerLink
+      : `https://${modelItem.headerLink}`;
+  }, [modelItem?.headerLink]);
+
+  const stopMouseDown = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     e.nativeEvent.stopPropagation();
   }, []);
 
-  const handleBadgeClick = useCallback(
+  const handleOpenHeaderLink = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (headerLinkUrl) {
+        window.open(headerLinkUrl, '_blank', 'noopener,noreferrer');
+      }
+    },
+    [headerLinkUrl]
+  );
+
+  const handleOpenLinkedDiagram = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
       if (modelItem?.link) {
         window.open(`/display/${modelItem.link}`, '_blank', 'noopener,noreferrer');
       }
     },
-    [modelItem]
+    [modelItem?.link]
   );
+
+  const handleOpenNotes = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setNotesAnchor(nodeBoxRef.current);
+    },
+    []
+  );
+
+  const handleCloseNotes = useCallback(() => setNotesAnchor(null), []);
+
+  const showHoverChip =
+    isReadonly &&
+    isHovered &&
+    (!!headerLinkUrl || !!modelItem?.link || !!visibleNotes);
 
   const position = useMemo(() => {
     return getTilePosition({
@@ -116,13 +159,10 @@ export const Node = memo(({ node, order }: Props) => {
         zIndex: order
       }}
     >
-      <Tooltip
-        title={hasLink && !modelItem.headerLink ? diagramTooltip : ''}
-        placement="top"
-        disableInteractive
-        arrow
-      >
       <Box
+        ref={nodeBoxRef}
+        onMouseEnter={isReadonly ? () => setIsHovered(true) : undefined}
+        onMouseLeave={isReadonly ? () => setIsHovered(false) : undefined}
         sx={{
           position: 'absolute',
           display: 'flex',
@@ -130,10 +170,102 @@ export const Node = memo(({ node, order }: Props) => {
           alignItems: 'center',
           left: position.x,
           top: position.y,
-          cursor: hasLink ? 'pointer' : 'inherit',
-          ...(hasLink && { pointerEvents: 'auto' })
+          cursor: 'inherit',
+          ...(isReadonly && (!!modelItem?.link || !!headerLinkUrl || !!visibleNotes)
+            ? { pointerEvents: 'auto' }
+            : {})
         }}
       >
+        {showHoverChip && (
+          <Box
+            data-testid="node-hover-chip"
+            onMouseDown={stopMouseDown}
+            onClick={(e) => e.stopPropagation()}
+            sx={{
+              position: 'absolute',
+              bottom: '100%',
+              mb: 0.75,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.25,
+              px: 0.5,
+              py: 0.25,
+              borderRadius: 1,
+              bgcolor: 'background.paper',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+              border: '1px solid',
+              borderColor: 'divider',
+              pointerEvents: 'auto',
+              whiteSpace: 'nowrap',
+              zIndex: 1
+            }}
+          >
+            {headerLinkUrl && (
+              <Tooltip title={`Open link: ${modelItem.headerLink}`} disableInteractive arrow>
+                <IconButton
+                  size="small"
+                  onMouseDown={stopMouseDown}
+                  onClick={handleOpenHeaderLink}
+                  data-testid="node-hover-chip-link"
+                  sx={{ p: 0.5 }}
+                >
+                  <OpenInNewIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+            )}
+            {modelItem?.link && (
+              <Tooltip
+                title={
+                  linkedDiagramName
+                    ? `Open "${linkedDiagramName}" in a new tab`
+                    : 'Open linked diagram in a new tab'
+                }
+                disableInteractive
+                arrow
+              >
+                <IconButton
+                  size="small"
+                  onMouseDown={stopMouseDown}
+                  onClick={handleOpenLinkedDiagram}
+                  data-testid="node-hover-chip-diagram"
+                  sx={{ p: 0.5 }}
+                >
+                  <LinkedDiagramIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+            )}
+            {visibleNotes && (
+              <Tooltip title="Open notes" disableInteractive arrow>
+                <IconButton
+                  size="small"
+                  onMouseDown={stopMouseDown}
+                  onClick={handleOpenNotes}
+                  data-testid="node-hover-chip-notes"
+                  sx={{ p: 0.5 }}
+                >
+                  <NotesIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
+        )}
+        <Popover
+          open={!!notesAnchor && !!visibleNotes}
+          anchorEl={notesAnchor}
+          onClose={handleCloseNotes}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+          transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          slotProps={{
+            paper: {
+              sx: { p: 1.5, maxWidth: 360, minWidth: 220 },
+              onMouseDown: stopMouseDown
+            }
+          }}
+        >
+          {visibleNotes && (
+            <RichTextEditor value={visibleNotes} readOnly />
+          )}
+        </Popover>
         {node.showLabel !== false && (modelItem?.name || description || isEditingName) && (
           <Box data-testid="node-label" onDoubleClick={startInlineEdit}>
             <ExpandableLabel
@@ -264,11 +396,8 @@ export const Node = memo(({ node, order }: Props) => {
               )}
             {hasLink && (
               <Box
-                onMouseDown={handleBadgeMouseDown}
-                onClick={handleBadgeClick}
                 sx={{
-                  pointerEvents: 'auto',
-                  cursor: 'pointer',
+                  pointerEvents: 'none',
                   position: 'absolute',
                   bottom: -4,
                   right: -4,
@@ -289,7 +418,6 @@ export const Node = memo(({ node, order }: Props) => {
           </Box>
         )}
       </Box>
-      </Tooltip>
     </Box>
   );
 });

@@ -368,8 +368,18 @@ export const importProject = async (
 
   let diagramCount = 0;
   for (const d of rewritten.diagrams) {
-    const model = rewritten.models.get(d.newId);
-    if (model == null) continue;
+    const rawModel = rewritten.models.get(d.newId);
+    if (rawModel == null) continue;
+    // MQA #14 (Bundle B follow-up): the exported blob still carries its
+    // original `id`. If a diagram with that id still exists in storage
+    // (e.g. orphaned after a folder delete that didn't sweep its contents),
+    // the server 409s and the whole import aborts. Strip the original id
+    // and let the server allocate a fresh one — keeps import idempotent
+    // against pre-existing collisions and matches the duplicate flow.
+    const { id: _strippedId, ...model } =
+      rawModel && typeof rawModel === 'object'
+        ? (rawModel as Record<string, unknown>)
+        : { id: undefined };
     const folderId = d.folderId
       ? folderRemap.get(d.folderId) ?? d.folderId
       : rootOverride;
