@@ -78,16 +78,43 @@ describe('Pan mode — EXPLORABLE_READONLY click opens details panel (MQA #25)',
   });
 });
 
-describe('NodePanel readOnly — "Open linked diagram" affordance (MQA #25)', () => {
+describe('NodePanel readOnly — name-as-link + LINKED DIAGRAM section (MQA #25 4th pass)', () => {
   let src: string;
 
   beforeAll(() => {
     src = fs.readFileSync(NODE_PANEL_PATH, 'utf-8');
   });
 
-  it('renders a button that opens modelItem.link in a new tab', () => {
-    expect(src).toContain('data-testid="node-panel-open-linked-diagram"');
-    expect(src).toMatch(/href=\{`\/display\/\$\{modelItem\.link\}`\}/);
-    expect(src).toMatch(/target="_blank"/);
+  it('renders the node name in the header as a clickable link when headerLink is set', () => {
+    // Header link is the node name itself (no separate IconButton in the header).
+    expect(src).toContain('data-testid="node-panel-header-link"');
+    expect(src).toMatch(/href=\{headerLinkUrl\s*\?\?\s*'#'\}/);
+    // The URL is exposed via tooltip, not as a separate visible element.
+    expect(src).toMatch(/<Tooltip\s+title=\{headerLinkUrl[^>]*>/);
+  });
+
+  it('does NOT render the old open-link or open-diagram IconButtons in the header', () => {
+    // The icon-based affordances are gone; everything moves into the body or
+    // the name itself.
+    expect(src).not.toContain('data-testid="node-panel-open-linked-diagram"');
+    // OpenInNew icon import should be removed when no longer used.
+    expect(src).not.toMatch(/OpenInNew\s+as\s+OpenInNewIcon/);
+  });
+
+  it('renders a LINKED DIAGRAM body section when modelItem.link is set', () => {
+    expect(src).toContain('data-testid="node-panel-linked-diagram-section"');
+    expect(src).toContain('Linked diagram');
+  });
+
+  it('renders the resolved diagram name as a clickable link when found', () => {
+    expect(src).toContain('data-testid="node-panel-linked-diagram-link"');
+    expect(src).toMatch(/href=\{`\/display\/\$\{linkedDiagramId\}`\}/);
+    expect(src).toContain('linkedDiagramMeta.name');
+  });
+
+  it('shows an explicit error when the linked diagram cannot be resolved', () => {
+    // Never silent — user must see the broken-id message so they can act.
+    expect(src).toContain('data-testid="node-panel-linked-diagram-error"');
+    expect(src).toMatch(/Cannot resolve linked diagram with id:/);
   });
 });

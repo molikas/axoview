@@ -89,13 +89,6 @@ const initialState = () => {
         };
       });
 
-      // eslint-disable-next-line no-console
-      console.debug(
-        '[history.scene.undo] past=%d future=%d',
-        get().history.past.length,
-        get().history.future.length,
-      );
-
       return true;
     };
 
@@ -174,21 +167,6 @@ const initialState = () => {
               ];
               if (newPast.length > state.history.maxHistorySize)
                 newPast.shift();
-
-              // MQA #5 diagnostic — see modelStore counterpart. Log every scene
-              // write that wipes a non-empty future stack so we can identify
-              // the stray write that's eating redo state.
-              if (state.history.future.length > 0) {
-                // eslint-disable-next-line no-console
-                console.warn(
-                  '[history.scene.set] clearing future (%d entries) — patches: %s skipHistory=%s',
-                  state.history.future.length,
-                  patches.map((p) => `${p.op} ${p.path.join('.')}`).join(', '),
-                  skipHistory,
-                );
-                // eslint-disable-next-line no-console
-                console.trace('[history.scene.set] caller stack');
-              }
 
               return {
                 ...state,
