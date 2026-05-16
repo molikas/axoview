@@ -57,6 +57,18 @@ const initialState = () => {
       pendingPre = extractSceneData(get());
     };
 
+    // MQA #5 (Bundle B follow-up #3): scene store's undo/redo previously
+    // recomputed entry patches via `produceWithPatches(current, draft =>
+    // Object.assign(draft, applyPatches(current, entry.inversePatches)))`,
+    // which yielded patches in the WRONG direction (B → A, not A → B).
+    // Pushing those backwards-patches to future meant `redo` applied
+    // undo-direction patches to an already-undone state — a no-op. Model
+    // store stayed correct, so model.redo restored the connector to
+    // `views[].connectors` but scene.redo never re-populated
+    // `scene.connectors[id]`, leaving the connector with no path → invisible.
+    // The redo also consumed the future entry, disabling the redo button.
+    // Mirror the model store: push the ORIGINAL entry to future on undo,
+    // pop it back on redo. entry.patches always travel pre → post.
     const undo = (): boolean => {
       const { history } = get();
       if (history.past.length === 0) return false;
@@ -66,28 +78,23 @@ const initialState = () => {
 
       set((state) => {
         const currentScene = extractSceneData(state);
-        const [, redoPatches, redoInverse] = produceWithPatches(
-          currentScene,
-          (draft: Scene) => {
-            Object.assign(
-              draft,
-              applyPatches(currentScene, entry.inversePatches)
-            );
-          }
-        );
         const previousScene = applyPatches(currentScene, entry.inversePatches);
         return {
           ...previousScene,
           history: {
             ...state.history,
             past: newPast,
-            future: [
-              { patches: redoPatches, inversePatches: redoInverse },
-              ...state.history.future
-            ]
+            future: [entry, ...state.history.future]
           }
         };
       });
+
+      // eslint-disable-next-line no-console
+      console.debug(
+        '[history.scene.undo] past=%d future=%d',
+        get().history.past.length,
+        get().history.future.length,
+      );
 
       return true;
     };
@@ -101,21 +108,12 @@ const initialState = () => {
 
       set((state) => {
         const currentScene = extractSceneData(state);
-        const [, undoPatches, undoInverse] = produceWithPatches(
-          currentScene,
-          (draft: Scene) => {
-            Object.assign(draft, applyPatches(currentScene, entry.patches));
-          }
-        );
         const nextScene = applyPatches(currentScene, entry.patches);
         return {
           ...nextScene,
           history: {
             ...state.history,
-            past: [
-              ...state.history.past,
-              { patches: undoPatches, inversePatches: undoInverse }
-            ],
+            past: [...state.history.past, entry],
             future: newFuture
           }
         };
@@ -188,6 +186,8 @@ const initialState = () => {
                   patches.map((p) => `${p.op} ${p.path.join('.')}`).join(', '),
                   skipHistory,
                 );
+                // eslint-disable-next-line no-console
+                console.trace('[history.scene.set] caller stack');
               }
 
               return {

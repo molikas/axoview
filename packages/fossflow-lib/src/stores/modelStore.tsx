@@ -197,6 +197,8 @@ const initialState = () => {
                   patches.map((p) => `${p.op} ${p.path.join('.')}`).join(', '),
                   skipHistory,
                 );
+                // eslint-disable-next-line no-console
+                console.trace('[history.model.set] caller stack');
               }
 
               return {

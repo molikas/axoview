@@ -1,10 +1,6 @@
-import React, { useMemo, memo, useCallback, useEffect, useState, useRef } from 'react';
-import { Box, Typography, Stack, Tooltip, IconButton, Popover } from '@mui/material';
-import {
-  OpenInNew as OpenInNewIcon,
-  ArticleOutlined as LinkedDiagramIcon,
-  StickyNote2Outlined as NotesIcon
-} from '@mui/icons-material';
+import React, { useMemo, memo, useCallback, useEffect, useState } from 'react';
+import { Box, Typography, Stack } from '@mui/material';
+import { OpenInNew as OpenInNewIcon } from '@mui/icons-material';
 import { DEFAULT_LABEL_HEIGHT } from 'src/config';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useIcon } from 'src/hooks/useIcon';
@@ -27,7 +23,6 @@ export const Node = memo(({ node, order }: Props) => {
   const { iconComponent } = useIcon(modelItem?.icon);
   const { getTilePosition } = useCanvasMode();
   const editorMode = useUiStateStore((s) => s.editorMode);
-  const linkedDiagrams = useUiStateStore((s) => s.linkedDiagrams);
   const { updateModelItem } = useScene();
 
   const isReadonly = editorMode === 'EXPLORABLE_READONLY';
@@ -71,86 +66,13 @@ export const Node = memo(({ node, order }: Props) => {
     [updateModelItem, node.id, modelItem?.name]
   );
 
-  const linkedDiagramName = hasLink
-    ? (linkedDiagrams.find((d) => d.id === modelItem!.link)?.name ?? null)
-    : null;
-
-  // MQA #22 / #25: in preview mode the node body opens an action menu on
-  // left-click. The menu surfaces up to three affordances (external link via
-  // name, linked-diagram navigation, notes-popover) and is styled to match
-  // the canvas right-click NodeActionBar (Paper elevation + rounded pill).
-  // Click-outside dismisses; clicking an action also dismisses.
-  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
-  const [notesAnchor, setNotesAnchor] = useState<HTMLElement | null>(null);
-  const nodeBoxRef = useRef<HTMLDivElement | null>(null);
-
-  const visibleNotes = useMemo(() => {
-    if (!modelItem?.notes) return null;
-    const stripped = modelItem.notes.replace(/<[^>]*>/g, '').trim();
-    return stripped ? modelItem.notes : null;
-  }, [modelItem?.notes]);
-
-  const headerLinkUrl = useMemo(() => {
-    if (!modelItem?.headerLink) return null;
-    return /^https?:\/\//i.test(modelItem.headerLink)
-      ? modelItem.headerLink
-      : `https://${modelItem.headerLink}`;
-  }, [modelItem?.headerLink]);
-
-  const stopMouseDown = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.nativeEvent.stopPropagation();
-  }, []);
-
-  const hasActionMenu =
-    isReadonly &&
-    (!!headerLinkUrl || !!modelItem?.link || !!visibleNotes);
-
-  const handleOpenActionMenu = useCallback(
-    (e: React.MouseEvent) => {
-      if (!hasActionMenu) return;
-      e.stopPropagation();
-      e.nativeEvent.stopPropagation();
-      setMenuAnchor(nodeBoxRef.current);
-    },
-    [hasActionMenu]
-  );
-
-  const handleCloseActionMenu = useCallback(() => setMenuAnchor(null), []);
-
-  const handleOpenHeaderLink = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setMenuAnchor(null);
-      if (headerLinkUrl) {
-        window.open(headerLinkUrl, '_blank', 'noopener,noreferrer');
-      }
-    },
-    [headerLinkUrl]
-  );
-
-  const handleOpenLinkedDiagram = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setMenuAnchor(null);
-      if (modelItem?.link) {
-        window.open(`/display/${modelItem.link}`, '_blank', 'noopener,noreferrer');
-      }
-    },
-    [modelItem?.link]
-  );
-
-  const handleOpenNotes = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      const anchor = menuAnchor ?? nodeBoxRef.current;
-      setMenuAnchor(null);
-      setNotesAnchor(anchor);
-    },
-    [menuAnchor]
-  );
-
-  const handleCloseNotes = useCallback(() => setNotesAnchor(null), []);
+  // MQA #22 / #25 (3rd pass): the chip / hover-popover patterns were both
+  // wrong. The user wants the existing read-only details panel (NodePanel
+  // readOnly) to open on left-click of the node body — same component, same
+  // surface, augmented with an "Open linked diagram" affordance in its header.
+  // The body click itself is dispatched from Pan.mouseup (so right-drag pan
+  // continues to work). The Node component just renders the visual; it does
+  // not own the click handler anymore.
 
   const position = useMemo(() => {
     return getTilePosition({
@@ -177,9 +99,6 @@ export const Node = memo(({ node, order }: Props) => {
       }}
     >
       <Box
-        ref={nodeBoxRef}
-        onClick={hasActionMenu ? handleOpenActionMenu : undefined}
-        onMouseDown={hasActionMenu ? stopMouseDown : undefined}
         sx={{
           position: 'absolute',
           display: 'flex',
@@ -187,105 +106,9 @@ export const Node = memo(({ node, order }: Props) => {
           alignItems: 'center',
           left: position.x,
           top: position.y,
-          cursor: hasActionMenu ? 'pointer' : 'inherit',
-          ...(hasActionMenu ? { pointerEvents: 'auto' } : {})
+          cursor: 'inherit'
         }}
-        data-testid={hasActionMenu ? 'node-readonly-clickable' : undefined}
       >
-        <Popover
-          open={!!menuAnchor}
-          anchorEl={menuAnchor}
-          onClose={handleCloseActionMenu}
-          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-          transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-          slotProps={{
-            paper: {
-              elevation: 4,
-              sx: {
-                mb: 0.5,
-                borderRadius: '20px',
-                bgcolor: 'background.paper',
-                overflow: 'visible'
-              },
-              onMouseDown: stopMouseDown
-            }
-          }}
-          data-testid="node-action-menu"
-        >
-          <Box
-            sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              px: 0.75,
-              py: 0.25,
-              gap: 0
-            }}
-          >
-            {headerLinkUrl && (
-              <Tooltip title={`Open link: ${modelItem.headerLink}`} placement="top">
-                <IconButton
-                  size="small"
-                  onMouseDown={stopMouseDown}
-                  onClick={handleOpenHeaderLink}
-                  data-testid="node-action-menu-link"
-                  sx={{ p: 0.75 }}
-                >
-                  <OpenInNewIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-            )}
-            {modelItem?.link && (
-              <Tooltip
-                title={
-                  linkedDiagramName
-                    ? `Open "${linkedDiagramName}" in a new tab`
-                    : 'Open linked diagram in a new tab'
-                }
-                placement="top"
-              >
-                <IconButton
-                  size="small"
-                  onMouseDown={stopMouseDown}
-                  onClick={handleOpenLinkedDiagram}
-                  data-testid="node-action-menu-diagram"
-                  sx={{ p: 0.75 }}
-                >
-                  <LinkedDiagramIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-            )}
-            {visibleNotes && (
-              <Tooltip title="Open notes" placement="top">
-                <IconButton
-                  size="small"
-                  onMouseDown={stopMouseDown}
-                  onClick={handleOpenNotes}
-                  data-testid="node-action-menu-notes"
-                  sx={{ p: 0.75 }}
-                >
-                  <NotesIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-            )}
-          </Box>
-        </Popover>
-        <Popover
-          open={!!notesAnchor && !!visibleNotes}
-          anchorEl={notesAnchor}
-          onClose={handleCloseNotes}
-          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-          transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-          slotProps={{
-            paper: {
-              sx: { p: 1.5, maxWidth: 360, minWidth: 220 },
-              onMouseDown: stopMouseDown
-            }
-          }}
-        >
-          {visibleNotes && (
-            <RichTextEditor value={visibleNotes} readOnly />
-          )}
-        </Popover>
         {node.showLabel !== false && (modelItem?.name || description || isEditingName) && (
           <Box data-testid="node-label" onDoubleClick={startInlineEdit}>
             <ExpandableLabel

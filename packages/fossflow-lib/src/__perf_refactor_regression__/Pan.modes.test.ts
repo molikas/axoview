@@ -60,9 +60,23 @@ function makeModel(items: any[] = []) {
 describe('Pan.entry / exit', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('entry sets grab cursor', () => {
-    Pan.entry!({ uiState: makeUiState(), scene: makeScene() } as any);
+  it('entry sets grab cursor in EDITABLE mode', () => {
+    Pan.entry!({
+      uiState: makeUiState({ editorMode: 'EDITABLE' }),
+      scene: makeScene()
+    } as any);
     expect(mockSetWindowCursor).toHaveBeenCalledWith('grab');
+  });
+
+  // MQA #25 (3rd pass): EXPLORABLE_READONLY uses the default cursor so the
+  // grab affordance no longer suggests left-drag panning. Right-drag still
+  // pans via usePanHandlers.
+  it('entry sets default cursor in EXPLORABLE_READONLY mode', () => {
+    Pan.entry!({
+      uiState: makeUiState({ editorMode: 'EXPLORABLE_READONLY' }),
+      scene: makeScene()
+    } as any);
+    expect(mockSetWindowCursor).toHaveBeenCalledWith('default');
   });
 
   it('exit sets default cursor', () => {
@@ -77,14 +91,27 @@ describe('Pan.entry / exit', () => {
 describe('Pan.mousedown', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('sets grabbing cursor when isRendererInteraction is true', () => {
-    const uiState = makeUiState();
+  it('sets grabbing cursor when isRendererInteraction is true (EDITABLE)', () => {
+    const uiState = makeUiState({ editorMode: 'EDITABLE' });
     Pan.mousedown!({
       uiState,
       scene: makeScene(),
       isRendererInteraction: true
     } as any);
     expect(mockSetWindowCursor).toHaveBeenCalledWith('grabbing');
+  });
+
+  // MQA #25 (3rd pass): EXPLORABLE_READONLY reserves left-click for opening
+  // the details panel — flipping to grabbing on mousedown would visually
+  // suggest a drag-pan when the user actually just clicked a node.
+  it('does NOT flip to grabbing cursor in EXPLORABLE_READONLY mode', () => {
+    const uiState = makeUiState({ editorMode: 'EXPLORABLE_READONLY' });
+    Pan.mousedown!({
+      uiState,
+      scene: makeScene(),
+      isRendererInteraction: true
+    } as any);
+    expect(mockSetWindowCursor).not.toHaveBeenCalled();
   });
 
   it('does nothing when isRendererInteraction is false (toolbar click guard)', () => {
@@ -202,11 +229,10 @@ describe('Pan.mouseup', () => {
     expect(uiState.actions.setItemControls).not.toHaveBeenCalled();
   });
 
-  // MQA #25 (Bundle B follow-up): EXPLORABLE_READONLY body-click no longer
-  // opens the properties panel. The hover chip on the node ([NodeHoverChip]
-  // in Node.tsx) is the canonical surface for description/notes/link affordances.
-  // Body click only dismisses any leftover open panel.
-  it('EXPLORABLE_READONLY: body click does NOT open panel even when item has description', () => {
+  // MQA #25 (3rd pass): EXPLORABLE_READONLY body click opens the readOnly
+  // NodePanel for any node carrying content (link / headerLink / description /
+  // notes). Empty-content nodes dismiss the panel.
+  it('EXPLORABLE_READONLY: opens panel when item has description content', () => {
     mockGetItemAtTile.mockReturnValue({ type: 'ITEM', id: 'n1' });
     const uiState = makeUiState({
       editorMode: 'EXPLORABLE_READONLY',
@@ -224,10 +250,13 @@ describe('Pan.mouseup', () => {
       scene: makeScene([{ type: 'ITEM', id: 'n1' }]),
       model
     } as any);
-    expect(uiState.actions.setItemControls).toHaveBeenCalledWith(null);
+    expect(uiState.actions.setItemControls).toHaveBeenCalledWith({
+      type: 'ITEM',
+      id: 'n1'
+    });
   });
 
-  it('EXPLORABLE_READONLY: body click does NOT open panel even when item has notes', () => {
+  it('EXPLORABLE_READONLY: opens panel when item has notes content', () => {
     mockGetItemAtTile.mockReturnValue({ type: 'ITEM', id: 'n2' });
     const uiState = makeUiState({
       editorMode: 'EXPLORABLE_READONLY',
@@ -240,7 +269,29 @@ describe('Pan.mouseup', () => {
       { id: 'n2', description: '', notes: 'Some notes here' }
     ]);
     Pan.mouseup!({ uiState, scene: makeScene(), model } as any);
-    expect(uiState.actions.setItemControls).toHaveBeenCalledWith(null);
+    expect(uiState.actions.setItemControls).toHaveBeenCalledWith({
+      type: 'ITEM',
+      id: 'n2'
+    });
+  });
+
+  it('EXPLORABLE_READONLY: opens panel when item has a linked diagram even with no description/notes', () => {
+    mockGetItemAtTile.mockReturnValue({ type: 'ITEM', id: 'n5' });
+    const uiState = makeUiState({
+      editorMode: 'EXPLORABLE_READONLY',
+      mouse: {
+        position: { tile: { x: 3, y: 4 } },
+        mousedown: { tile: { x: 3, y: 4 } }
+      }
+    });
+    const model = makeModel([
+      { id: 'n5', description: '', notes: '', link: 'other-diagram-id' } as any
+    ]);
+    Pan.mouseup!({ uiState, scene: makeScene(), model } as any);
+    expect(uiState.actions.setItemControls).toHaveBeenCalledWith({
+      type: 'ITEM',
+      id: 'n5'
+    });
   });
 
   it('EXPLORABLE_READONLY: clears panel when item has no description or notes', () => {

@@ -11,7 +11,8 @@ import {
 } from '@mui/material';
 import {
   Close as CloseIcon,
-  OpenInNew as OpenInNewIcon
+  OpenInNew as OpenInNewIcon,
+  ArticleOutlined as LinkedDiagramIcon
 } from '@mui/icons-material';
 import { ModelItem, ViewItem } from 'src/types';
 import { useModelItem } from 'src/hooks/useModelItem';
@@ -185,6 +186,24 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
                   sx={{ p: 0.5 }}
                 >
                   <OpenInNewIcon sx={{ fontSize: 15 }} />
+                </IconButton>
+              </Tooltip>
+            )}
+            {/* MQA #22 / #25 (3rd pass): expose the previously-hidden
+                "open linked diagram" affordance directly in the readOnly
+                panel header. Opens the target diagram in a new tab. */}
+            {modelItem.link && (
+              <Tooltip title="Open linked diagram">
+                <IconButton
+                  size="small"
+                  component="a"
+                  href={`/display/${modelItem.link}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid="node-panel-open-linked-diagram"
+                  sx={{ p: 0.5 }}
+                >
+                  <LinkedDiagramIcon sx={{ fontSize: 15 }} />
                 </IconButton>
               </Tooltip>
             )}

@@ -1,21 +1,17 @@
 /**
- * REGRESSION — MQA #22 + #25: preview mode link interaction.
+ * REGRESSION — MQA #22 + #25 (3rd pass): preview-mode interaction is now:
+ *   - default cursor (not grab)
+ *   - right-drag = pan (canvas default)
+ *   - LEFT click on a node opens the existing readOnly NodePanel
+ *   - NodePanel header exposes external-link + open-linked-diagram buttons
  *
- * History:
- *   - #22 first pass (Bundle B initial): two `<Tooltip>` wrappers fired on the
- *     same badge area, producing two identical popups. Fix removed the inner one.
- *   - #25 redesign (Bundle B follow-up): replaced the bare body-click navigation
- *     with a hover-revealed action chip exposing up to three affordances —
- *     external link (name), linked diagram, notes (popover). The body click is
- *     now intentionally inert; the bottom-right link badge is a passive visual
- *     indicator only (`pointerEvents: none`).
- *
- * Structural pins:
- *   - Node.tsx must render the new hover chip (`data-testid="node-hover-chip"`).
- *   - The three action buttons must exist as separate testids so we know all
- *     three affordances survive future edits.
- *   - The link badge must NOT be a click target — `pointerEvents: 'none'` is the
- *     contract.
+ * Prior attempts:
+ *   - 1st pass added an inner Tooltip on the badge → duplicate tooltip (#22).
+ *   - 2nd pass added a hover-revealed chip; only triggered on the name (icon
+ *     was pointerEvents:none).
+ *   - 3rd pass (this) removes the chip entirely; click handling lives in
+ *     Pan.mouseup (EXPLORABLE_READONLY branch) and the readOnly NodePanel
+ *     gains an "Open linked diagram" affordance.
  */
 
 import * as fs from 'fs';
@@ -29,8 +25,12 @@ const PAN_PATH = path.resolve(
   __dirname,
   '../interaction/modes/Pan.ts',
 );
+const NODE_PANEL_PATH = path.resolve(
+  __dirname,
+  '../components/ItemControls/NodeControls/NodePanel/NodePanel.tsx',
+);
 
-describe('Node — preview-mode click action menu (MQA #22 + #25)', () => {
+describe('Node — no chip/popover; click handled by Pan mode (MQA #22 + #25 3rd pass)', () => {
   let src: string;
 
   beforeAll(() => {
@@ -41,27 +41,11 @@ describe('Node — preview-mode click action menu (MQA #22 + #25)', () => {
     expect(fs.existsSync(NODE_PATH)).toBe(true);
   });
 
-  it('opens the action menu on left-click of the node body (not hover)', () => {
-    // The outer Box must take onClick={handleOpenActionMenu} when hasActionMenu.
-    expect(src).toMatch(/onClick=\{hasActionMenu\s*\?\s*handleOpenActionMenu/);
-    // No mouseEnter/mouseLeave hover trigger remains — that was the failing
-    // pattern (user could only trigger the chip from the name area).
-    expect(src).not.toMatch(/onMouseEnter=\{isReadonly\s*\?/);
-  });
-
-  it('renders the action menu Popover with all three affordance testids', () => {
-    expect(src).toContain('data-testid="node-action-menu"');
-    expect(src).toContain('data-testid="node-action-menu-link"');
-    expect(src).toContain('data-testid="node-action-menu-diagram"');
-    expect(src).toContain('data-testid="node-action-menu-notes"');
-  });
-
-  it('Popover paper styles match canvas right-click NodeActionBar (elevation 4 + rounded pill)', () => {
-    const idx = src.indexOf('data-testid="node-action-menu"');
-    expect(idx).toBeGreaterThan(-1);
-    const slice = src.slice(Math.max(0, idx - 800), idx);
-    expect(slice).toMatch(/elevation:\s*4/);
-    expect(slice).toMatch(/borderRadius:\s*'20px'/);
+  it('does not render a hover chip or click-anchored Popover for the action menu', () => {
+    expect(src).not.toContain('node-hover-chip');
+    expect(src).not.toContain('node-action-menu');
+    // The Popover/IconButton/Tooltip imports are no longer needed.
+    expect(src).not.toMatch(/import\s*\{[^}]*\bPopover\b[^}]*\}\s*from\s*'@mui\/material'/);
   });
 
   it('the bottom-right link badge is non-interactive (passive indicator only)', () => {
@@ -69,37 +53,41 @@ describe('Node — preview-mode click action menu (MQA #22 + #25)', () => {
     expect(badgeIdx).toBeGreaterThan(-1);
     const slice = src.slice(Math.max(0, badgeIdx - 600), badgeIdx);
     expect(slice).toMatch(/pointerEvents:\s*'none'/);
-    expect(slice).not.toMatch(/onClick=\{handleBadgeClick\}/);
-  });
-
-  it('opens notes via a Popover anchored to the node, not via setItemControls', () => {
-    expect(src).toMatch(/anchorEl=\{notesAnchor\}/);
-    const notesBtnIdx = src.indexOf('node-action-menu-notes');
-    expect(notesBtnIdx).toBeGreaterThan(-1);
-    const window = src.slice(
-      Math.max(0, notesBtnIdx - 400),
-      notesBtnIdx + 200,
-    );
-    expect(window).toContain('handleOpenNotes');
   });
 });
 
-describe('Pan mode — preview body click is inert (MQA #25)', () => {
+describe('Pan mode — EXPLORABLE_READONLY click opens details panel (MQA #25)', () => {
   let src: string;
 
   beforeAll(() => {
     src = fs.readFileSync(PAN_PATH, 'utf-8');
   });
 
-  it('does NOT navigate on EXPLORABLE_READONLY body click', () => {
-    // The previous code called `window.open('/display/...')` from Pan.mouseup.
-    // The redesign removes it.
-    expect(src).not.toContain("window.open(`/display/${modelItem.link}`");
+  it('opens the readOnly details panel when the clicked node has any content', () => {
+    // The panel-open path must dispatch setItemControls({ type: 'ITEM', id })
+    // for any node carrying link / headerLink / description / notes content.
+    expect(src).toMatch(/setItemControls\(\{\s*type:\s*'ITEM',\s*id:\s*item\.id/);
   });
 
-  it('does NOT open the properties panel on EXPLORABLE_READONLY body click', () => {
-    // Previous behaviour: setItemControls({ type: 'ITEM', id }) when notes/desc.
-    // New behaviour: only setItemControls(null) (dismiss any leftover UI).
-    expect(src).not.toMatch(/setItemControls\(\{\s*type:\s*'ITEM'/);
+  it('default cursor in EXPLORABLE_READONLY is "default" (not "grab")', () => {
+    expect(src).toMatch(/EXPLORABLE_READONLY[\s\S]*?'default'/);
+  });
+
+  it('does NOT auto-navigate on body click (link navigation lives in the panel)', () => {
+    expect(src).not.toContain("window.open(`/display/${modelItem.link}`");
+  });
+});
+
+describe('NodePanel readOnly — "Open linked diagram" affordance (MQA #25)', () => {
+  let src: string;
+
+  beforeAll(() => {
+    src = fs.readFileSync(NODE_PANEL_PATH, 'utf-8');
+  });
+
+  it('renders a button that opens modelItem.link in a new tab', () => {
+    expect(src).toContain('data-testid="node-panel-open-linked-diagram"');
+    expect(src).toMatch(/href=\{`\/display\/\$\{modelItem\.link\}`\}/);
+    expect(src).toMatch(/target="_blank"/);
   });
 });
