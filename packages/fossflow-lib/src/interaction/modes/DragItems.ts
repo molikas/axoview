@@ -35,6 +35,11 @@ import { UNPROJECTED_TILE_SIZE, PROJECTED_TILE_SIZE } from 'src/config';
 // Module-level drag preview state. Cleared by entry/exit. Single-drag-at-a-
 // time invariant matches uiStateStore.mode === 'DRAG_ITEMS'.
 const previewTiles = new Map<string, Coords>();
+// Waypoint anchor preview tiles (anchorId → new tile). Routed through
+// previewConnectorPaths' synthetic view rather than scene.updateConnector
+// during drag — otherwise syncConnector runs against stale model items and
+// stomps the preview path with the wrong endpoints.
+const previewAnchorTiles = new Map<string, Coords>();
 
 function tileDeltaToPixels(
   dx: number,
@@ -127,13 +132,34 @@ const dragItems = (
       applyCssOffset(u.id, pixels.x, pixels.y);
       previewTiles.set(u.id, u.tile);
     }
-    // Refresh connector paths so wires visually follow the dragged endpoints.
-    // Direct scene-store write, no immer.
-    scene.previewConnectorPaths(previewTiles);
   }
 
-  // Textboxes / rectangles / connector anchors — existing path. Wrap only the
-  // ones that actually have updates.
+  // Accumulate waypoint anchor moves into the preview map (no model write).
+  // Only the "free-floating tile drag" branch goes through preview — the
+  // re-anchor-onto-item / onto-anchor cases below still go through
+  // scene.updateConnector (rare, single-anchor reconnect outside the drag
+  // hot path).
+  const anchorReconnects: ItemReference[] = [];
+  anchorRefs.forEach((item) => {
+    if (initialTiles[item.id]) {
+      const newTile = CoordsUtils.add(initialTiles[item.id], mouseOffset);
+      previewAnchorTiles.set(item.id, newTile);
+    } else {
+      anchorReconnects.push(item);
+    }
+  });
+
+  // Single preview-path update per frame covering both items and waypoints.
+  // Routing both through one synthetic view eliminates the race where
+  // scene.updateConnector → syncConnector would overwrite the preview with
+  // a path computed from stale model items.
+  if (previewTiles.size > 0 || previewAnchorTiles.size > 0) {
+    scene.previewConnectorPaths(previewTiles, previewAnchorTiles);
+  }
+
+  // Textboxes / rectangles / anchor reconnect (re-anchoring onto a different
+  // item or anchor) keep the existing reducer path. These are rare in the
+  // multi-element drag hot path; their immer cost is negligible.
   const textBoxUpdates = textBoxRefs.map((item) => ({
     id: item.id,
     tile: initialTiles[item.id]
@@ -157,7 +183,7 @@ const dragItems = (
   if (
     textBoxUpdates.length > 0 ||
     rectangleUpdates.length > 0 ||
-    anchorRefs.length > 0
+    anchorReconnects.length > 0
   ) {
     scene.transaction(() => {
       textBoxUpdates.forEach(({ id, tile: newTile }) => {
@@ -168,38 +194,30 @@ const dragItems = (
         scene.updateRectangle(id, { from, to });
       });
 
-      anchorRefs.forEach((item) => {
+      anchorReconnects.forEach((item) => {
         const connector = getAnchorParent(item.id, scene.connectors);
         const newConnector = produce(connector, (draft) => {
           const anchor = getItemByIdOrThrow(connector.anchors, item.id);
-          if (initialTiles[item.id]) {
-            const newTile = CoordsUtils.add(initialTiles[item.id], mouseOffset);
-            draft.anchors[anchor.index] = {
-              ...anchor.value,
-              ref: { tile: newTile }
-            };
-          } else {
-            const itemAtTile = getItemAtTile({ tile, scene });
-            switch (itemAtTile?.type) {
-              case 'ITEM':
-                draft.anchors[anchor.index] = {
-                  ...anchor.value,
-                  ref: { item: itemAtTile.id }
-                };
-                break;
-              case 'CONNECTOR_ANCHOR':
-                draft.anchors[anchor.index] = {
-                  ...anchor.value,
-                  ref: { anchor: itemAtTile.id }
-                };
-                break;
-              default:
-                draft.anchors[anchor.index] = {
-                  ...anchor.value,
-                  ref: { tile }
-                };
-                break;
-            }
+          const itemAtTile = getItemAtTile({ tile, scene });
+          switch (itemAtTile?.type) {
+            case 'ITEM':
+              draft.anchors[anchor.index] = {
+                ...anchor.value,
+                ref: { item: itemAtTile.id }
+              };
+              break;
+            case 'CONNECTOR_ANCHOR':
+              draft.anchors[anchor.index] = {
+                ...anchor.value,
+                ref: { anchor: itemAtTile.id }
+              };
+              break;
+            default:
+              draft.anchors[anchor.index] = {
+                ...anchor.value,
+                ref: { tile }
+              };
+              break;
           }
         });
         scene.updateConnector(connector.id, newConnector);
@@ -214,8 +232,9 @@ export const DragItems: ModeActions = {
     rendererRef.style.userSelect = 'none';
     setWindowCursor('grabbing');
     previewTiles.clear();
+    previewAnchorTiles.clear();
     // One history entry covers the whole drag; per-tick model writes (only
-    // textboxes/rectangles/anchors in the CSS-preview path) skip
+    // textboxes/rectangles/anchor reconnects in the CSS-preview path) skip
     // produceWithPatches while pendingPre is frozen.
     scene.beginDragTransaction();
   },
@@ -226,6 +245,7 @@ export const DragItems: ModeActions = {
     // a normal mouseup, clear the preview without committing.
     clearAllCssOffsets();
     previewTiles.clear();
+    previewAnchorTiles.clear();
     scene.commitDragTransaction();
   },
   mousemove: ({ uiState, scene }) => {
@@ -264,13 +284,44 @@ export const DragItems: ModeActions = {
   },
   mouseup: ({ uiState, scene }) => {
     // Commit any deferred CSS-preview node moves to the model BEFORE closing
-    // the drag transaction — that way commitDragTransaction captures one
-    // history entry covering the whole drag.
+    // the drag transaction — commitDragTransaction then captures one history
+    // entry covering the whole drag.
     if (previewTiles.size > 0) {
       const updates = Array.from(previewTiles, ([id, tile]) => ({ id, tile }));
       scene.batchUpdateViewItemTiles(updates);
       clearAllCssOffsets();
       previewTiles.clear();
+    }
+
+    // Commit waypoint anchor preview tiles. Group by parent connector so we
+    // make one scene.updateConnector call per connector (not per anchor),
+    // each carrying the full updated anchors array.
+    if (previewAnchorTiles.size > 0) {
+      const byConnector = new Map<string, ReturnType<typeof produce>>();
+      for (const [anchorId, tile] of previewAnchorTiles) {
+        const connector = getAnchorParent(anchorId, scene.connectors);
+        const accumulator = (byConnector.get(connector.id) ?? connector) as
+          | typeof connector
+          | undefined;
+        const next = produce(accumulator!, (draft) => {
+          const anchor = getItemByIdOrThrow(
+            (accumulator as typeof connector).anchors,
+            anchorId
+          );
+          draft.anchors[anchor.index] = {
+            ...anchor.value,
+            ref: { tile }
+          };
+        });
+        byConnector.set(connector.id, next);
+      }
+      for (const [id, newConnector] of byConnector) {
+        scene.updateConnector(
+          id,
+          newConnector as Parameters<typeof scene.updateConnector>[1]
+        );
+      }
+      previewAnchorTiles.clear();
     }
 
     scene.commitDragTransaction();

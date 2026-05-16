@@ -4,6 +4,7 @@
 // state automatically while inside a transaction.
 
 import { useCallback, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import {
   ModelItem,
   ViewItem,
@@ -199,39 +200,69 @@ export const useSceneActions = () => {
   // -------------------------------------------------------------------------
 
   const previewConnectorPaths = useCallback(
-    (previewTiles: Map<string, Coords>) => {
-      if (!currentViewId || previewTiles.size === 0) return;
+    (
+      previewTiles: Map<string, Coords>,
+      previewAnchorTiles?: Map<string, Coords>
+    ) => {
+      const hasItemPreviews = previewTiles.size > 0;
+      const hasAnchorPreviews =
+        previewAnchorTiles !== undefined && previewAnchorTiles.size > 0;
+      if (!currentViewId || (!hasItemPreviews && !hasAnchorPreviews)) return;
 
       const state = getState();
       const view = state.model.views.find((v) => v.id === currentViewId);
       if (!view) return;
 
-      const updatedIds = previewTiles;
-      const affectedConnectors = (view.connectors ?? []).filter((c) =>
-        c.anchors.some(
+      // A connector is "affected" if it references any moved item OR if any
+      // of its own anchors has a preview tile override (waypoint drag).
+      const affectedConnectors = (view.connectors ?? []).filter((c) => {
+        const touchesMovedItem = c.anchors.some(
           (a) =>
             a.ref &&
             typeof (a.ref as { item?: string }).item === 'string' &&
-            updatedIds.has((a.ref as { item: string }).item)
-        )
-      );
+            previewTiles.has((a.ref as { item: string }).item)
+        );
+        if (touchesMovedItem) return true;
+        if (!hasAnchorPreviews) return false;
+        return c.anchors.some((a) => previewAnchorTiles!.has(a.id));
+      });
       if (affectedConnectors.length === 0) return;
 
-      // Synthetic view: items overlaid with preview tiles. Used only for path
-      // computation; not persisted anywhere.
+      // Synthetic view: items overlaid with preview tiles. Connector anchors
+      // get their refs swapped to free-floating tile refs when in the anchor
+      // preview map, so getAnchorTile reads our overridden tile.
       const syntheticItems = (view.items ?? []).map((item) =>
-        updatedIds.has(item.id)
-          ? { ...item, tile: updatedIds.get(item.id)! }
+        previewTiles.has(item.id)
+          ? { ...item, tile: previewTiles.get(item.id)! }
           : item
       );
-      const syntheticView: View = { ...view, items: syntheticItems };
+      const syntheticConnectors = hasAnchorPreviews
+        ? (view.connectors ?? []).map((c) => ({
+            ...c,
+            anchors: c.anchors.map((a) =>
+              previewAnchorTiles!.has(a.id)
+                ? { ...a, ref: { tile: previewAnchorTiles!.get(a.id)! } }
+                : a
+            )
+          }))
+        : view.connectors;
+      const syntheticView: View = {
+        ...view,
+        items: syntheticItems,
+        connectors: syntheticConnectors
+      };
 
       const currentSceneConnectors = sceneStoreApi.getState().connectors;
       const nextSceneConnectors = { ...currentSceneConnectors };
       for (const c of affectedConnectors) {
+        // Use synthetic anchors (with anchor-tile overrides applied) for the
+        // path computation so the route honors the preview waypoint position.
+        const syntheticC = hasAnchorPreviews
+          ? syntheticConnectors!.find((sc) => sc.id === c.id) ?? c
+          : c;
         try {
           const path = getConnectorPath({
-            anchors: c.anchors,
+            anchors: syntheticC.anchors,
             view: syntheticView
           });
           nextSceneConnectors[c.id] = { path };
@@ -246,9 +277,14 @@ export const useSceneActions = () => {
         }
       }
 
-      sceneStoreApi
-        .getState()
-        .actions.set({ connectors: nextSceneConnectors }, true);
+      // flushSync — Connector subscribers re-render inside the same mousemove
+      // handler that mutated CSS variables on the Nodes; otherwise the
+      // connector visually lags one frame behind the nodes.
+      flushSync(() => {
+        sceneStoreApi
+          .getState()
+          .actions.set({ connectors: nextSceneConnectors }, true);
+      });
     },
     [currentViewId, getState, sceneStoreApi]
   );

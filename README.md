@@ -91,6 +91,18 @@ Source and issue tracker: [github.com/molikas/FossFLOW_V2](https://github.com/mo
 
 *How it works:* The async path dequeues A* pathfinding out of the paste transaction into `requestAnimationFrame` batches of 25 connectors each. Each connector appears routed as its batch completes. The browser stays responsive between batches, eliminating the main-thread block that triggered Chrome's "page is unresponsive" dialog. A* results are cached (LRU, 2 000 entries) so repeated paste of the same topology is instant. For the "1k node" edge case the routing window is still noticeable (~9 s), but the tab stays alive and a progress toast counts completion percentage.
 
+**Multi-element drag (6+ nodes lasso-selected, measured with DiagnosticsOverlay):**
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Worst FPS during drag | 9–13 fps | 24–44 fps |
+| Sustained sub-13 fps cliff | 12–19 s per drag | none |
+| Major GCs during a 5 s drag | ~5 | 1 |
+| Connector wires following dragged endpoints | one-frame visible lag, occasional flicker | locked in step, no flicker |
+| Undo after a multi-element drag | one undo per intermediate frame | single undo rewinds the whole drag |
+
+*How it works:* During a multi-element drag the model is no longer mutated per frame. Items move via CSS variables on `data-drag-id` DOM elements (compositor-only — no React reconciliation, no immer, no layout). Free-floating waypoint anchors accumulate in a separate preview map; both maps are passed to a single `previewConnectorPaths(items, anchors)` call that recomputes affected connector geometry against a synthetic view and writes directly to `scene.connectors[].path`. `flushSync` keeps Connector React subscribers in lockstep with the CSS mutations. Final tile values commit to the model on mouseup; one history entry covers the entire drag. Full architectural invariant in [docs/architecture.md §1 Drag Items](docs/architecture.md#1-feature-inventory); investigation playbook + diagnostic harness (`?perfprobe=1`) in [docs/perf-troubleshooting.md](docs/perf-troubleshooting.md).
+
 ### Internationalisation (i18n)
 
 - **13 languages** — English (default), Chinese Simplified, German, French, Spanish, Italian, Portuguese (Brazil), Polish, Turkish, Russian, Hindi, Indonesian, Bengali.

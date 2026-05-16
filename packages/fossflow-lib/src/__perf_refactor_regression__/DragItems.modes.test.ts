@@ -378,6 +378,154 @@ describe('DragItems.mousemove', () => {
     expect(call).toEqual([{ id: 'node1', tile: { x: 5, y: 5 } }]);
   });
 
+  // MQA #7 Path 4-true (waypoint preview) — when a connector waypoint anchor
+  // is also being dragged (lasso includes both endpoints + the waypoint),
+  // DragItems must route the waypoint move through previewConnectorPaths'
+  // second-argument anchor preview map — NOT through scene.transaction +
+  // scene.updateConnector. If we went through the reducer, syncConnector
+  // would re-route the connector against the STALE model item tiles (Path
+  // 4-true skips item-tile model writes), stomping the preview path. Visual
+  // bug: connector endpoints flicker between correct preview position and
+  // detour-to-stale-item-position path. See known_issues.md MQA #7 for the
+  // full diagnosis.
+  it('routes waypoint anchor drags through previewConnectorPaths (not scene.updateConnector)', () => {
+    mockGetItemAtTile.mockReturnValue(null);
+    const uiState = makeUiState({
+      mode: {
+        type: 'DRAG_ITEMS',
+        showCursor: true,
+        items: [
+          { type: 'ITEM', id: 'node1' },
+          { type: 'ITEM', id: 'node2' },
+          { type: 'CONNECTOR_ANCHOR', id: 'wp1' }
+        ],
+        initialTiles: {
+          node1: { x: 3, y: 3 },
+          node2: { x: 4, y: 3 },
+          wp1: { x: 5, y: 4 }
+        },
+        initialRectangles: {}
+      },
+      mouse: {
+        position: { tile: { x: 5, y: 5 } },
+        mousedown: { tile: { x: 3, y: 3 } }
+      }
+    });
+    const scene = makeScene({
+      items: [
+        { id: 'node1', tile: { x: 3, y: 3 } },
+        { id: 'node2', tile: { x: 4, y: 3 } }
+      ]
+    });
+    DragItems.mousemove!({ uiState, scene } as any);
+
+    // Critical: scene.updateConnector MUST NOT be called for the waypoint
+    // during the drag — otherwise its syncConnector races our preview write.
+    expect(scene.updateConnector).not.toHaveBeenCalled();
+    expect(scene.previewConnectorPaths).toHaveBeenCalledTimes(1);
+
+    // The waypoint's new tile must be in the anchor preview map (second arg).
+    const [itemPreview, anchorPreview] =
+      scene.previewConnectorPaths.mock.calls[0];
+    expect(anchorPreview).toBeInstanceOf(Map);
+    expect(anchorPreview.get('wp1')).toEqual({ x: 7, y: 6 });
+    // And items still in the item preview map (first arg).
+    expect(itemPreview.get('node1')).toEqual({ x: 5, y: 5 });
+    expect(itemPreview.get('node2')).toEqual({ x: 6, y: 5 });
+  });
+
+  // Anchor re-anchoring (drop onto another item / anchor / tile) is a
+  // separate, rare path that's NOT in the lasso drag hot path. It should
+  // still go through scene.updateConnector inside scene.transaction.
+  it('routes anchor RECONNECT (no initialTiles entry) through scene.transaction', () => {
+    mockGetItemAtTile.mockReturnValue(null);
+    const fakeConnector = {
+      id: 'conn1',
+      anchors: [
+        { id: 'wp1', ref: { tile: { x: 0, y: 0 } } },
+        { id: 'wp2', ref: { tile: { x: 5, y: 5 } } }
+      ]
+    };
+    mockGetAnchorParent.mockReturnValue(fakeConnector);
+    const uiState = makeUiState({
+      mode: {
+        type: 'DRAG_ITEMS',
+        showCursor: true,
+        items: [{ type: 'CONNECTOR_ANCHOR', id: 'wp1' }],
+        // No initialTiles entry for wp1 → triggers reconnect branch
+        initialTiles: {},
+        initialRectangles: {}
+      },
+      mouse: {
+        position: { tile: { x: 5, y: 5 } },
+        mousedown: { tile: { x: 3, y: 3 } }
+      }
+    });
+    const scene = makeScene({
+      items: [],
+      connectors: [fakeConnector]
+    });
+    DragItems.mousemove!({ uiState, scene } as any);
+    expect(scene.transaction).toHaveBeenCalledTimes(1);
+    expect(scene.updateConnector).toHaveBeenCalledTimes(1);
+    // No item preview, no waypoint preview either — nothing to overlay
+    expect(scene.previewConnectorPaths).not.toHaveBeenCalled();
+  });
+
+  it('mouseup commits accumulated waypoint preview to the model', () => {
+    mockGetItemAtTile.mockReturnValue(null);
+    const fakeConnector = {
+      id: 'conn1',
+      anchors: [
+        { id: 'ep1', ref: { item: 'node1' } },
+        { id: 'wp1', ref: { tile: { x: 5, y: 4 } } },
+        { id: 'ep2', ref: { item: 'node2' } }
+      ]
+    };
+    mockGetAnchorParent.mockReturnValue(fakeConnector);
+    const uiState = makeUiState({
+      mode: {
+        type: 'DRAG_ITEMS',
+        showCursor: true,
+        items: [
+          { type: 'ITEM', id: 'node1' },
+          { type: 'ITEM', id: 'node2' },
+          { type: 'CONNECTOR_ANCHOR', id: 'wp1' }
+        ],
+        initialTiles: {
+          node1: { x: 3, y: 3 },
+          node2: { x: 4, y: 3 },
+          wp1: { x: 5, y: 4 }
+        },
+        initialRectangles: {}
+      },
+      mouse: {
+        position: { tile: { x: 5, y: 5 } },
+        mousedown: { tile: { x: 3, y: 3 } }
+      }
+    });
+    const scene = makeScene({
+      items: [
+        { id: 'node1', tile: { x: 3, y: 3 } },
+        { id: 'node2', tile: { x: 4, y: 3 } }
+      ],
+      connectors: [fakeConnector]
+    });
+    DragItems.mousemove!({ uiState, scene } as any);
+    DragItems.mouseup!({ uiState, scene } as any);
+
+    // Items commit
+    expect(scene.batchUpdateViewItemTiles).toHaveBeenCalledTimes(1);
+    // Waypoint commit — one scene.updateConnector with the full updated
+    // anchors array (per-connector, not per-anchor).
+    expect(scene.updateConnector).toHaveBeenCalledTimes(1);
+    const [connId, newConnector] = scene.updateConnector.mock.calls[0];
+    expect(connId).toBe('conn1');
+    // Waypoint anchor ref should now be at the dragged tile.
+    const wp = newConnector.anchors.find((a: any) => a.id === 'wp1');
+    expect(wp.ref.tile).toEqual({ x: 7, y: 6 });
+  });
+
   it('does not call transaction when mode has no items', () => {
     mockGetItemAtTile.mockReturnValue(null);
 

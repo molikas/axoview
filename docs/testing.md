@@ -1,7 +1,7 @@
 # Regression Test Suite Reference
 
 **Last updated:** 2026-05-16
-**Total:** ~1025 tests · 95 suites · all passing (1 pre-existing failure tracked in [`known_issues.md`](../known_issues.md))
+**Total:** ~1031 tests · 95 suites · all passing (1 pre-existing failure tracked in [`known_issues.md`](../known_issues.md))
 **Run:** `npm test --workspace=packages/fossflow-lib` (lib) · `npm test --workspace=packages/fossflow-app` (app, project-zip + LocalStorageProvider)
 
 E2E tests are not currently run in CI — Selenium framework under `e2e-tests/` is being retired in favour of Playwright. Migration tracked at [docs/tactical/playwright-migration.md](tactical/playwright-migration.md).
