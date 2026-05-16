@@ -75,10 +75,12 @@ export const Node = memo(({ node, order }: Props) => {
     ? (linkedDiagrams.find((d) => d.id === modelItem!.link)?.name ?? null)
     : null;
 
-  // MQA #22 / #25: in preview mode the node body is no longer clickable for
-  // navigation. The hover-revealed action chip below surfaces up to three
-  // affordances (external link via name, linked-diagram navigation, notes).
-  const [isHovered, setIsHovered] = useState(false);
+  // MQA #22 / #25: in preview mode the node body opens an action menu on
+  // left-click. The menu surfaces up to three affordances (external link via
+  // name, linked-diagram navigation, notes-popover) and is styled to match
+  // the canvas right-click NodeActionBar (Paper elevation + rounded pill).
+  // Click-outside dismisses; clicking an action also dismisses.
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [notesAnchor, setNotesAnchor] = useState<HTMLElement | null>(null);
   const nodeBoxRef = useRef<HTMLDivElement | null>(null);
 
@@ -100,9 +102,26 @@ export const Node = memo(({ node, order }: Props) => {
     e.nativeEvent.stopPropagation();
   }, []);
 
+  const hasActionMenu =
+    isReadonly &&
+    (!!headerLinkUrl || !!modelItem?.link || !!visibleNotes);
+
+  const handleOpenActionMenu = useCallback(
+    (e: React.MouseEvent) => {
+      if (!hasActionMenu) return;
+      e.stopPropagation();
+      e.nativeEvent.stopPropagation();
+      setMenuAnchor(nodeBoxRef.current);
+    },
+    [hasActionMenu]
+  );
+
+  const handleCloseActionMenu = useCallback(() => setMenuAnchor(null), []);
+
   const handleOpenHeaderLink = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
+      setMenuAnchor(null);
       if (headerLinkUrl) {
         window.open(headerLinkUrl, '_blank', 'noopener,noreferrer');
       }
@@ -113,6 +132,7 @@ export const Node = memo(({ node, order }: Props) => {
   const handleOpenLinkedDiagram = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
+      setMenuAnchor(null);
       if (modelItem?.link) {
         window.open(`/display/${modelItem.link}`, '_blank', 'noopener,noreferrer');
       }
@@ -123,17 +143,14 @@ export const Node = memo(({ node, order }: Props) => {
   const handleOpenNotes = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      setNotesAnchor(nodeBoxRef.current);
+      const anchor = menuAnchor ?? nodeBoxRef.current;
+      setMenuAnchor(null);
+      setNotesAnchor(anchor);
     },
-    []
+    [menuAnchor]
   );
 
   const handleCloseNotes = useCallback(() => setNotesAnchor(null), []);
-
-  const showHoverChip =
-    isReadonly &&
-    isHovered &&
-    (!!headerLinkUrl || !!modelItem?.link || !!visibleNotes);
 
   const position = useMemo(() => {
     return getTilePosition({
@@ -161,8 +178,8 @@ export const Node = memo(({ node, order }: Props) => {
     >
       <Box
         ref={nodeBoxRef}
-        onMouseEnter={isReadonly ? () => setIsHovered(true) : undefined}
-        onMouseLeave={isReadonly ? () => setIsHovered(false) : undefined}
+        onClick={hasActionMenu ? handleOpenActionMenu : undefined}
+        onMouseDown={hasActionMenu ? stopMouseDown : undefined}
         sx={{
           position: 'absolute',
           display: 'flex',
@@ -170,44 +187,48 @@ export const Node = memo(({ node, order }: Props) => {
           alignItems: 'center',
           left: position.x,
           top: position.y,
-          cursor: 'inherit',
-          ...(isReadonly && (!!modelItem?.link || !!headerLinkUrl || !!visibleNotes)
-            ? { pointerEvents: 'auto' }
-            : {})
+          cursor: hasActionMenu ? 'pointer' : 'inherit',
+          ...(hasActionMenu ? { pointerEvents: 'auto' } : {})
         }}
+        data-testid={hasActionMenu ? 'node-readonly-clickable' : undefined}
       >
-        {showHoverChip && (
+        <Popover
+          open={!!menuAnchor}
+          anchorEl={menuAnchor}
+          onClose={handleCloseActionMenu}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+          transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          slotProps={{
+            paper: {
+              elevation: 4,
+              sx: {
+                mb: 0.5,
+                borderRadius: '20px',
+                bgcolor: 'background.paper',
+                overflow: 'visible'
+              },
+              onMouseDown: stopMouseDown
+            }
+          }}
+          data-testid="node-action-menu"
+        >
           <Box
-            data-testid="node-hover-chip"
-            onMouseDown={stopMouseDown}
-            onClick={(e) => e.stopPropagation()}
             sx={{
-              position: 'absolute',
-              bottom: '100%',
-              mb: 0.75,
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: 0.25,
-              px: 0.5,
+              px: 0.75,
               py: 0.25,
-              borderRadius: 1,
-              bgcolor: 'background.paper',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
-              border: '1px solid',
-              borderColor: 'divider',
-              pointerEvents: 'auto',
-              whiteSpace: 'nowrap',
-              zIndex: 1
+              gap: 0
             }}
           >
             {headerLinkUrl && (
-              <Tooltip title={`Open link: ${modelItem.headerLink}`} disableInteractive arrow>
+              <Tooltip title={`Open link: ${modelItem.headerLink}`} placement="top">
                 <IconButton
                   size="small"
                   onMouseDown={stopMouseDown}
                   onClick={handleOpenHeaderLink}
-                  data-testid="node-hover-chip-link"
-                  sx={{ p: 0.5 }}
+                  data-testid="node-action-menu-link"
+                  sx={{ p: 0.75 }}
                 >
                   <OpenInNewIcon sx={{ fontSize: 16 }} />
                 </IconButton>
@@ -220,35 +241,34 @@ export const Node = memo(({ node, order }: Props) => {
                     ? `Open "${linkedDiagramName}" in a new tab`
                     : 'Open linked diagram in a new tab'
                 }
-                disableInteractive
-                arrow
+                placement="top"
               >
                 <IconButton
                   size="small"
                   onMouseDown={stopMouseDown}
                   onClick={handleOpenLinkedDiagram}
-                  data-testid="node-hover-chip-diagram"
-                  sx={{ p: 0.5 }}
+                  data-testid="node-action-menu-diagram"
+                  sx={{ p: 0.75 }}
                 >
                   <LinkedDiagramIcon sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
             )}
             {visibleNotes && (
-              <Tooltip title="Open notes" disableInteractive arrow>
+              <Tooltip title="Open notes" placement="top">
                 <IconButton
                   size="small"
                   onMouseDown={stopMouseDown}
                   onClick={handleOpenNotes}
-                  data-testid="node-hover-chip-notes"
-                  sx={{ p: 0.5 }}
+                  data-testid="node-action-menu-notes"
+                  sx={{ p: 0.75 }}
                 >
                   <NotesIcon sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
             )}
           </Box>
-        )}
+        </Popover>
         <Popover
           open={!!notesAnchor && !!visibleNotes}
           anchorEl={notesAnchor}

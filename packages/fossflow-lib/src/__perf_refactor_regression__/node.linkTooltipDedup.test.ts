@@ -30,7 +30,7 @@ const PAN_PATH = path.resolve(
   '../interaction/modes/Pan.ts',
 );
 
-describe('Node — preview-mode hover chip (MQA #22 + #25)', () => {
+describe('Node — preview-mode click action menu (MQA #22 + #25)', () => {
   let src: string;
 
   beforeAll(() => {
@@ -41,31 +41,40 @@ describe('Node — preview-mode hover chip (MQA #22 + #25)', () => {
     expect(fs.existsSync(NODE_PATH)).toBe(true);
   });
 
-  it('renders the hover chip with all three affordance testids', () => {
-    expect(src).toContain('data-testid="node-hover-chip"');
-    expect(src).toContain('data-testid="node-hover-chip-link"');
-    expect(src).toContain('data-testid="node-hover-chip-diagram"');
-    expect(src).toContain('data-testid="node-hover-chip-notes"');
+  it('opens the action menu on left-click of the node body (not hover)', () => {
+    // The outer Box must take onClick={handleOpenActionMenu} when hasActionMenu.
+    expect(src).toMatch(/onClick=\{hasActionMenu\s*\?\s*handleOpenActionMenu/);
+    // No mouseEnter/mouseLeave hover trigger remains — that was the failing
+    // pattern (user could only trigger the chip from the name area).
+    expect(src).not.toMatch(/onMouseEnter=\{isReadonly\s*\?/);
+  });
+
+  it('renders the action menu Popover with all three affordance testids', () => {
+    expect(src).toContain('data-testid="node-action-menu"');
+    expect(src).toContain('data-testid="node-action-menu-link"');
+    expect(src).toContain('data-testid="node-action-menu-diagram"');
+    expect(src).toContain('data-testid="node-action-menu-notes"');
+  });
+
+  it('Popover paper styles match canvas right-click NodeActionBar (elevation 4 + rounded pill)', () => {
+    const idx = src.indexOf('data-testid="node-action-menu"');
+    expect(idx).toBeGreaterThan(-1);
+    const slice = src.slice(Math.max(0, idx - 800), idx);
+    expect(slice).toMatch(/elevation:\s*4/);
+    expect(slice).toMatch(/borderRadius:\s*'20px'/);
   });
 
   it('the bottom-right link badge is non-interactive (passive indicator only)', () => {
-    // Find the badge block (only present when hasLink) and assert pointerEvents none.
     const badgeIdx = src.indexOf('OpenInNewIcon sx={{ fontSize: 9');
     expect(badgeIdx).toBeGreaterThan(-1);
-    // Walk back to the enclosing <Box ... sx={{ ... }}>
     const slice = src.slice(Math.max(0, badgeIdx - 600), badgeIdx);
     expect(slice).toMatch(/pointerEvents:\s*'none'/);
-    // No onClick handler on the badge anymore.
     expect(slice).not.toMatch(/onClick=\{handleBadgeClick\}/);
   });
 
   it('opens notes via a Popover anchored to the node, not via setItemControls', () => {
-    expect(src).toContain('<Popover');
     expect(src).toMatch(/anchorEl=\{notesAnchor\}/);
-    // The hover-chip's notes button must NOT route through itemControls. The
-    // onClick={handleOpenNotes} sits ABOVE the testid in JSX source order, so
-    // grab a window straddling the testid and assert the handler is in scope.
-    const notesBtnIdx = src.indexOf('node-hover-chip-notes');
+    const notesBtnIdx = src.indexOf('node-action-menu-notes');
     expect(notesBtnIdx).toBeGreaterThan(-1);
     const window = src.slice(
       Math.max(0, notesBtnIdx - 400),

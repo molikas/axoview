@@ -92,6 +92,16 @@ const initialState = () => {
         };
       });
 
+      // MQA #5 diagnostic — left in temporarily so we can confirm in production
+      // logs that future is non-empty immediately after model undo. Will be
+      // removed once #5 is fully verified.
+      // eslint-disable-next-line no-console
+      console.debug(
+        '[history.model.undo] past=%d future=%d',
+        get().history.past.length,
+        get().history.future.length,
+      );
+
       return true;
     };
 
@@ -175,6 +185,19 @@ const initialState = () => {
               ];
               if (newPast.length > state.history.maxHistorySize)
                 newPast.shift();
+
+              // MQA #5 diagnostic — log every model write that pushes a real
+              // history entry and clears future. If future was non-empty before
+              // this clear, we've found a stray write that's eating redo state.
+              if (state.history.future.length > 0) {
+                // eslint-disable-next-line no-console
+                console.warn(
+                  '[history.model.set] clearing future (%d entries) — patches: %s skipHistory=%s',
+                  state.history.future.length,
+                  patches.map((p) => `${p.op} ${p.path.join('.')}`).join(', '),
+                  skipHistory,
+                );
+              }
 
               return {
                 ...state,

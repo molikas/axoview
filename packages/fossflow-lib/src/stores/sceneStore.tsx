@@ -177,6 +177,19 @@ const initialState = () => {
               if (newPast.length > state.history.maxHistorySize)
                 newPast.shift();
 
+              // MQA #5 diagnostic — see modelStore counterpart. Log every scene
+              // write that wipes a non-empty future stack so we can identify
+              // the stray write that's eating redo state.
+              if (state.history.future.length > 0) {
+                // eslint-disable-next-line no-console
+                console.warn(
+                  '[history.scene.set] clearing future (%d entries) — patches: %s skipHistory=%s',
+                  state.history.future.length,
+                  patches.map((p) => `${p.op} ${p.path.join('.')}`).join(', '),
+                  skipHistory,
+                );
+              }
+
               return {
                 ...state,
                 ...next,
