@@ -87,6 +87,25 @@ export const Node = memo(({ node, order }: Props) => {
     return visible ? modelItem.description : null;
   }, [modelItem?.description]);
 
+  // MQA #22 / #25 (final polish): in preview mode, give clickable nodes the
+  // pointing-finger cursor so the hover affordance matches Pan.mouseup's
+  // panel-opening logic. "Clickable" === any content that would populate
+  // the readOnly NodePanel: linked diagram, external link, notes, or
+  // description. EDITABLE mode is unaffected (cursor stays inherit so the
+  // canvas tooling sets its own cursor).
+  const visibleNotes = useMemo(() => {
+    if (!modelItem?.notes) return null;
+    const stripped = modelItem.notes.replace(/<[^>]*>/g, '').trim();
+    return stripped ? modelItem.notes : null;
+  }, [modelItem?.notes]);
+
+  const isClickableInReadonly =
+    isReadonly &&
+    (!!modelItem?.link ||
+      !!modelItem?.headerLink ||
+      !!description ||
+      !!visibleNotes);
+
   if (!modelItem) {
     return null;
   }
@@ -106,7 +125,7 @@ export const Node = memo(({ node, order }: Props) => {
           alignItems: 'center',
           left: position.x,
           top: position.y,
-          cursor: 'inherit'
+          cursor: isClickableInReadonly ? 'pointer' : 'inherit'
         }}
       >
         {node.showLabel !== false && (modelItem?.name || description || isEditingName) && (

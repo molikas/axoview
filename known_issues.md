@@ -1,5 +1,19 @@
 # Known Issues
 
+## Preview-mode passive badge does not cover all clickable nodes
+
+**Symptom:** In `EXPLORABLE_READONLY`, a node is clickable (opens the readOnly details panel) when it has any of: `link`, `headerLink`, `description`, or `notes`. But the passive visual indicators currently only cover two of these:
+
+- Bottom-right OpenInNew badge → only when `link` is set
+- Top-right blue dot → only when `notes` has visible content
+- Nothing for `headerLink`-only or `description`-only nodes
+
+The pointing-finger cursor on hover (added 2026-05-15) does cover all four cases, so the affordance is discoverable on hover — but at-a-glance scanning misses headerLink/description nodes.
+
+**Workaround:** None. Users can still hover and click to discover the panel.
+
+**Status:** Open. Decide on a unified badge story — either extend the existing badges to cover the missing cases, or replace both with one consolidated "more info" indicator that fires for any of the four content types.
+
 ## MQA #7: FPS drop dragging 6 elements
 
 **Symptom:** During a multi-element drag (≳6 nodes selected) FPS crashes from 60 → 18 within the first second, recovers after a major GC, and the drag feels janky throughout. Diagnostics file `ff-diag-ai-2026-05-11T14-31-30-029Z.json` shows ~115→130 MB heap growth over 5 s of dragging plus a 200 ms long-task burst.
