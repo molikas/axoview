@@ -7,6 +7,7 @@ import { useIsoProjection } from 'src/hooks/useIsoProjection';
 import type { useScene } from 'src/hooks/useScene';
 import { useColor } from 'src/hooks/useColor';
 import { useSceneStore } from 'src/stores/sceneStore';
+import { useRenderProbe } from 'src/utils/renderProbe';
 import { Connector as ConnectorType } from 'src/types';
 
 interface Props {
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export const Connector = memo(({ connector, currentView }: Props) => {
+  useRenderProbe('Connector', connector.id);
   const theme = useTheme();
 
   // Subscribe only to this connector's scene data — O(1) per path write instead of O(N).

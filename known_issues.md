@@ -14,13 +14,31 @@ The pointing-finger cursor on hover (added 2026-05-15) does cover all four cases
 
 **Status:** Open. Decide on a unified badge story — either extend the existing badges to cover the missing cases, or replace both with one consolidated "more info" indicator that fires for any of the four content types.
 
-## MQA #7: FPS drop dragging 6 elements
+## MQA #7: FPS drop dragging 6 elements (partially fixed 2026-05-16)
 
-**Symptom:** During a multi-element drag (≳6 nodes selected) FPS crashes from 60 → 18 within the first second, recovers after a major GC, and the drag feels janky throughout. Diagnostics file `ff-diag-ai-2026-05-11T14-31-30-029Z.json` shows ~115→130 MB heap growth over 5 s of dragging plus a 200 ms long-task burst.
+**Original symptom:** During a multi-element drag (≳6 nodes selected) FPS crashes from 60 → 18 within the first second, recovers after a major GC, drag feels janky.
 
 **Workaround:** None. Single-element drag and small multi-selects (≤4) stay smooth.
 
-**Status:** Open, deferred from MQA Bundle B (2026-05-15). Investigation needs a live profiling pass (Chrome DevTools Allocation Sampling) to identify the per-frame allocator. Companion issue: the diag exporter's `ni`/`nc`/`ntb` element counts read 0 throughout — fix that alongside so the metric becomes useful.
+**Status:** Open but materially improved. Two fixes shipped this session:
+
+1. **Fix A (commit `bba712c`)** — `DragItems` was the only drag mode not wrapped in `beginDragTransaction`/`commitDragTransaction`. Wired in matching the pattern shipped in `7164b3b` for connectors. Eliminates per-frame `saveToHistory` + `produceWithPatches` work and gives "one undo per drag" UX.
+
+2. **Path 2** — Split `Node` into a thin position shell (re-renders per drag tick, trivial cost) and a memoized `NodeContent` (icon + label + badges, bails on drag-only changes). Replaced inline `sx={{left, top}}` with module-level sx constants + inline `style` (bypasses emotion per-tick). Crucially, swapped `useScene()` → `useSceneActions()` inside `NodeContent` to remove a `views`-array subscription that was forcing the memo gate to bypass on every tick.
+
+**Measured impact** (6-node multi-drag, fresh build):
+| Metric | Pre-fix | Post-fix A | Post-Path 2 |
+|---|---|---|---|
+| Cliff duration @ ≤13 fps | 19 s | 12 s | 13 s |
+| Peak heap during cliff | 167 MB | 203 MB | 163 MB |
+| React commit total (flame chart) | 12.3 s | 7.4 s | 4.2 s |
+| `NodeContent` renders per dragged node (5 s drag, ~34 fps avg) | ~170 | ~170 | **2** |
+
+**Remaining bottleneck (deferred):** The cliff still occurs because the model/scene update path allocates per-tick — immer clones in `DragItems` reducers + `syncConnector` path recomputation for connectors touching dragged nodes. React reconciliation is no longer the dominant cost. Eliminating the cliff entirely would require a "CSS-only drag preview" pattern: dragged items get their position via a DOM-level CSS variable mutation; the model is updated only on `mouseup`. Same pattern as the deferred connector-drag refactor below. ~150-200 LOC, exceeds `/shake-out` scope-guard — file a tactical plan if/when this becomes user-visible again.
+
+**Diagnostic harness** added this session: `useRenderProbe('Component', id)` hook + `window.__fossflowRenderProbe.start() / stop() / dump()` console API, gated behind `?perfprobe=1` URL flag. Zero cost in normal use; invaluable for the next round.
+
+**Companion issue still open:** the diag exporter's `ni`/`nc`/`ntb` counts read 0 because `window.__fossflow__` is gated behind `enableDebugTools` (defaults to `false` in the app). Fix is two-line — expose `__fossflow__` in non-production builds (`process.env.NODE_ENV !== 'production'`) and fix `ni` in [DiagnosticsOverlay.tsx:46](packages/fossflow-app/src/components/DiagnosticsOverlay.tsx#L46) to read the active view's items instead of the model item catalog. Deferred to keep this session focused.
 
 ## MQA diag exporter: element counts always read 0
 
