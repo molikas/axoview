@@ -1825,6 +1825,20 @@ True 3D-iso art (Isoflow's built-in 37-icon pack, `isIsometric: true`) is unaffe
 
 ---
 
+### 7l. Scene store undo/redo entries must travel pre→post (load-bearing invariant — 2026-05-16)
+
+**Context (history):** `sceneStore.undo` previously recomputed the future-stack entry as `produceWithPatches(currentScene, draft => Object.assign(draft, applyPatches(currentScene, entry.inversePatches)))`. That produces patches in the **wrong direction** — they describe how to go from B back to A (an undo). Pushing those backwards patches to `future` meant `redo` then applied undo-direction patches to an already-undone state — a no-op.
+
+**Why the bug was invisible for so long:** `modelStore` had the correct pattern (push the original entry to future on undo; pop and re-apply forward on redo). For purely model-side actions (rename, color change, layer assignment) only the model store has an entry — redoing the model alone restored the state, so redo "worked." The bug only surfaced for actions that touch **both** stores at once: connectors (`model.views[].connectors` + `scene.connectors[id].path`), and to a lesser extent rectangles/text-boxes. After redo: model had the connector back, scene was missing the path entry, so the connector rendered with an empty path — visually invisible. The future entry was still consumed (redo button disabled) which is what made it user-visible.
+
+**The invariant going forward:** any new history-bearing store **must** push the original entry to `future` on undo (not a recomputed one). `redo` must apply `entry.patches` forward to the current state. The shape of the entry is `{ patches, inversePatches }` where `patches: currentState → entryAppliedState` and `inversePatches: entryAppliedState → currentState`. Both stores now follow this contract — see [`modelStore.tsx`](../packages/fossflow-lib/src/stores/modelStore.tsx) `undo` / `redo` and [`sceneStore.tsx`](../packages/fossflow-lib/src/stores/sceneStore.tsx) `undo` / `redo`.
+
+**Regression coverage:** [`__perf_refactor_regression__/connector.createUndoRedo.test.tsx`](../packages/fossflow-lib/src/__perf_refactor_regression__/connector.createUndoRedo.test.tsx) exercises the full begin/createConnector/updateConnector×N/commit/undo path on real stores and asserts both `model.canRedo()` and `scene.canRedo()` are true after undo, and that the connector reappears after redo.
+
+**Where this lives in the model layer:** see [`useSceneActions.ts`](../packages/fossflow-lib/src/hooks/useSceneActions.ts) for `beginDragTransaction` / `commitDragTransaction` — those bracket frozen-pre snapshots that the per-tick writes mutate without producing history entries. The pre-snapshot is consumed by the empty-update `set({}, true)` on commit, which is the call that actually computes the forward patches that get pushed to past.
+
+---
+
 ### 7k. Connector drag — partial fix landed, sustained-drag GC cliff deferred (2026-05-10)
 
 **Original symptom:** Dragging a connector on a moderately heavy diagram dropped FPS from 60 to 2–10 within seconds of drag start, with constant heap sawtooth (150 → 100 MB, every ~1 s). Hypothesis #4 in §7a ("connector re-render on every tile change") was empirically validated.
@@ -2196,7 +2210,7 @@ coverageProvider: 'v8'
 | `no-explicit-any` (112 warnings) | Widespread in storage service, model loading, and scene APIs where the data shape is runtime-validated by Zod. Addressing requires deep schema type propagation — deferred. |
 | `newDiagram` function in App.tsx | Defined but not wired to any button — likely a future "New" menu item placeholder. Left in place rather than deleted. |
 
-*End of document. Last updated: 2026-04-07.*
+*End of document. Last updated: 2026-05-16.*
 
 ---
 

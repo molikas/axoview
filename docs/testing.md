@@ -1,7 +1,7 @@
 # Regression Test Suite Reference
 
-**Last updated:** 2026-05-10
-**Total:** ~937 tests · 85 suites · all passing (1 pre-existing failure tracked in [`known_issues.md`](../known_issues.md))
+**Last updated:** 2026-05-16
+**Total:** ~1025 tests · 95 suites · all passing (1 pre-existing failure tracked in [`known_issues.md`](../known_issues.md))
 **Run:** `npm test --workspace=packages/fossflow-lib` (lib) · `npm test --workspace=packages/fossflow-app` (app, project-zip + LocalStorageProvider)
 
 E2E tests are not currently run in CI — Selenium framework under `e2e-tests/` is being retired in favour of Playwright. Migration tracked at [docs/tactical/playwright-migration.md](tactical/playwright-migration.md).
@@ -26,6 +26,20 @@ E2E tests are not currently run in CI — Selenium framework under `e2e-tests/` 
 (The 525 / 60 figure counts lib suites only — the **~745 / 76** total at the top includes app-side suites: `services/project/__tests__/projectZip.test.ts`, `services/storage/__tests__/LocalStorageProvider.test.ts`, and the lean-save / requiredPacks regressions.)
 
 ---
+
+## Branch additions (2026-05-15 → 2026-05-16) — MQA Bundle B + follow-ups
+
+| Suite | Coverage |
+|---|---|
+| [`packages/fossflow-lib/src/__perf_refactor_regression__/connector.createUndoRedo.test.tsx`](../packages/fossflow-lib/src/__perf_refactor_regression__/connector.createUndoRedo.test.tsx) | Real-store regression for MQA #5. Exercises the full begin / createConnector / updateConnector×N / commit / undo path on `ModelProvider` + `SceneProvider` + `UiStateProvider`, asserts both stores' `canRedo()` are true after undo, and that the connector reappears after redo. Pins the load-bearing scene-store undo/redo invariant ([architecture.md §7l](architecture.md)). |
+| [`packages/fossflow-lib/src/__perf_refactor_regression__/node.linkTooltipDedup.test.tsx`](../packages/fossflow-lib/src/__perf_refactor_regression__/node.linkTooltipDedup.test.ts) | Structural pin for MQA #22 + #25 final design: no chip / no click-Popover; bottom-right link badge is `pointerEvents: 'none'`; Pan.ts opens the readOnly NodePanel on body click for any content-bearing node; default cursor in EXPLORABLE_READONLY is `default`; NodePanel header renders the node name as a clickable link with URL in tooltip; LINKED DIAGRAM body section with resolved-name link or unresolved-id error. |
+| [`packages/fossflow-lib/src/__perf_refactor_regression__/f2.rendererScope.test.ts`](../packages/fossflow-lib/src/__perf_refactor_regression__/f2.rendererScope.test.ts) | MQA #13. Asserts the F2 → `inlineEditNodeName` dispatch in `useInteractionManager` is scoped to keystrokes originating inside the renderer, so a canvas-selected item can no longer steal focus from the file-explorer's edit input. |
+| [`packages/fossflow-app/src/utils/__tests__/shareUrl.test.ts`](../packages/fossflow-app/src/utils/__tests__/shareUrl.test.ts) | MQA #24. `shareUrlFromUuid(uuid)` always returns `window.location.origin + /display/p/<uuid>`; never leaks the backend port. |
+| [`packages/fossflow-app/src/components/fileExplorer/__tests__/delete.contract.test.ts`](../packages/fossflow-app/src/components/fileExplorer/__tests__/delete.contract.test.ts) | MQA #18. Calling-order contract: `notifyDiagramDeletedFromTree(id)` must fire **before** the storage delete in both `FileExplorer.confirmDelete` and `DiagramManager.confirmDelete`, and the provider implementation must cancel autosave, clear the scratch buffer, and reset `currentDiagram`. |
+| [`packages/fossflow-app/src/services/storage/__tests__/backendRoutes.contract.test.ts`](../packages/fossflow-app/src/services/storage/__tests__/backendRoutes.contract.test.ts) | MQA #21. Source-level contract: `createFolder` and `createDiagram` in `packages/fossflow-backend/src/routes.js` use random-suffix ids (`Math.random().toString(36)`) with a collision-retry loop, so sequential project-import bursts can't collide on `Date.now()`. |
+| [`packages/fossflow-lib/src/__perf_refactor_regression__/Pan.modes.test.ts`](../packages/fossflow-lib/src/__perf_refactor_regression__/Pan.modes.test.ts) | Extended for MQA #22 / #25: cursor switches between `default` (EXPLORABLE_READONLY) and `grab` (EDITABLE) on entry; mousedown does not flip to `grabbing` in preview; body click in preview opens panel for any content-bearing node including link-only. |
+| [`packages/fossflow-lib/src/components/RichTextEditor/__tests__/RichTextEditor.formats.test.ts`](../packages/fossflow-lib/src/components/RichTextEditor/__tests__/RichTextEditor.formats.test.ts) | Extended for MQA #12. Pins the `list autofill` keyboard-binding override (noop handler returns `true` so the literal space is inserted and the autofill never replaces an empty line with an empty `<ol>`). |
+| [`packages/fossflow-app/src/services/storage/__tests__/LocalStorageProvider.test.ts`](../packages/fossflow-app/src/services/storage/__tests__/LocalStorageProvider.test.ts) | Extended for MQA #14. Session-mode `renameDiagram` mirrors the new name into both the diagrams listing **and** the per-diagram blob (`blob.title` + `blob.name`). Corrupted-blob path leaves the listing rename in place without crashing. |
 
 ## Branch additions (2026-05-10)
 
