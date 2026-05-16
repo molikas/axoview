@@ -72,6 +72,8 @@ function makeScene(overrides: any = {}) {
     updateTextBox: jest.fn((_id: any, _update: any, state: any) => state),
     updateRectangle: jest.fn((_id: any, _update: any, state: any) => state),
     updateConnector: jest.fn(),
+    beginDragTransaction: jest.fn(),
+    commitDragTransaction: jest.fn(),
     ...overrides
   };
 }
@@ -109,6 +111,28 @@ describe('DragItems.entry', () => {
     expect(rendererRef.style.userSelect).toBe('');
     expect(mockSetWindowCursor).not.toHaveBeenCalled();
   });
+
+  // MQA #7 — DragItems must open a drag transaction on entry so per-tick
+  // model writes during a multi-element drag skip produceWithPatches and only
+  // one history entry covers the whole drag. Unwiring this re-introduces the
+  // GC cliff (heap climbs to ~160 MB, FPS collapses to ~10 fps).
+  it('opens a drag transaction on entry', () => {
+    const rendererRef = makeRendererRef();
+    const uiState = makeUiState();
+    const scene = makeScene();
+    DragItems.entry!({ uiState, rendererRef, scene } as any);
+    expect(scene.beginDragTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not open a drag transaction when entry early-returns', () => {
+    const rendererRef = makeRendererRef();
+    const uiState = makeUiState({
+      mode: { type: 'CURSOR', showCursor: true, mousedownItem: null }
+    });
+    const scene = makeScene();
+    DragItems.entry!({ uiState, rendererRef, scene } as any);
+    expect(scene.beginDragTransaction).not.toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -127,6 +151,20 @@ describe('DragItems.exit', () => {
     } as any);
     expect(rendererRef.style.userSelect).toBe('auto');
     expect(mockSetWindowCursor).toHaveBeenCalledWith('default');
+  });
+
+  // Safety net mirroring ReconnectAnchor: any mode exit (escape, programmatic
+  // switch, or normal mouseup) commits the open drag transaction. Without
+  // this, an interrupted drag would leave pendingPreFrozen=true and the next
+  // drag would mis-attribute its undo history.
+  it('commits the drag transaction on exit', () => {
+    const scene = makeScene();
+    DragItems.exit!({
+      rendererRef: makeRendererRef(),
+      uiState: makeUiState(),
+      scene
+    } as any);
+    expect(scene.commitDragTransaction).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -302,5 +340,18 @@ describe('DragItems.mouseup', () => {
     expect(uiState.actions.setMode).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'CURSOR' })
     );
+  });
+
+  // MQA #7 — Commit fires before the mode switch so the open drag transaction
+  // closes with one history entry. Matches Connector / ReconnectAnchor order:
+  // preview writes → commit → mode change.
+  it('commits drag transaction before switching mode', () => {
+    const uiState = makeUiState();
+    const scene = makeScene();
+    DragItems.mouseup!({ uiState, scene } as any);
+    expect(scene.commitDragTransaction).toHaveBeenCalledTimes(1);
+    const commitOrder = scene.commitDragTransaction.mock.invocationCallOrder[0];
+    const setModeOrder = uiState.actions.setMode.mock.invocationCallOrder[0];
+    expect(commitOrder).toBeLessThan(setModeOrder);
   });
 });

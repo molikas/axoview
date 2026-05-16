@@ -139,14 +139,21 @@ const dragItems = (
 };
 
 export const DragItems: ModeActions = {
-  entry: ({ uiState, rendererRef }) => {
+  entry: ({ uiState, rendererRef, scene }) => {
     if (uiState.mode.type !== 'DRAG_ITEMS' || !uiState.mouse.mousedown) return;
     rendererRef.style.userSelect = 'none';
     setWindowCursor('grabbing');
+    // One history entry covers the whole multi-element drag, and per-tick
+    // model set()s skip produceWithPatches while pendingPre is frozen — kills
+    // the GC cliff seen in MQA #7 (sustained 6+ node drag was ~10 fps).
+    scene.beginDragTransaction();
   },
-  exit: ({ rendererRef }) => {
+  exit: ({ rendererRef, scene }) => {
     rendererRef.style.userSelect = 'auto';
     setWindowCursor('default');
+    // Safety net: commit if mode change came from somewhere other than mouseup
+    // (e.g. escape, programmatic switch). No-op if already committed.
+    scene.commitDragTransaction();
   },
   mousemove: ({ uiState, scene }) => {
     if (uiState.mode.type !== 'DRAG_ITEMS' || !uiState.mouse.mousedown) return;
@@ -185,7 +192,10 @@ export const DragItems: ModeActions = {
       scene
     );
   },
-  mouseup: ({ uiState }) => {
+  mouseup: ({ uiState, scene }) => {
+    // Commit before mode switch — exit hook is a safety net but committing
+    // explicitly here keeps the order obvious (preview writes → commit → mode change).
+    scene.commitDragTransaction();
     uiState.actions.setItemControls(null);
     uiState.actions.setMode({
       type: 'CURSOR',
