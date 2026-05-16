@@ -57,7 +57,8 @@ function makeUiState(overrides: any = {}) {
     actions: overrides.actions ?? {
       setMode: jest.fn(),
       setItemControls: jest.fn()
-    }
+    },
+    canvasMode: overrides.canvasMode ?? 'ISOMETRIC'
   };
 }
 
@@ -74,8 +75,17 @@ function makeScene(overrides: any = {}) {
     updateConnector: jest.fn(),
     beginDragTransaction: jest.fn(),
     commitDragTransaction: jest.fn(),
+    batchUpdateViewItemTiles: jest.fn(),
+    previewConnectorPaths: jest.fn(),
     ...overrides
   };
+}
+
+function makeUiStateWithCanvasMode(
+  overrides: any = {},
+  canvasMode: 'ISOMETRIC' | '2D' = 'ISOMETRIC'
+) {
+  return { ...makeUiState(overrides), canvasMode };
 }
 
 // ---------------------------------------------------------------------------
@@ -173,6 +183,13 @@ describe('DragItems.exit', () => {
 // ---------------------------------------------------------------------------
 describe('DragItems.mousemove', () => {
   beforeEach(() => {
+    // Reset module-level previewTiles BEFORE clearing mocks, so the exit()
+    // call's side-effects don't leak into mock counts.
+    DragItems.exit!({
+      rendererRef: makeRendererRef(),
+      uiState: makeUiState(),
+      scene: makeScene()
+    } as any);
     jest.clearAllMocks();
     mockGetItemAtTile.mockReturnValue(null);
   });
@@ -263,7 +280,11 @@ describe('DragItems.mousemove', () => {
     expect(mockSetWindowCursor).toHaveBeenCalledWith('grabbing');
   });
 
-  it('calls scene.transaction when items have non-zero offset', () => {
+  // Path 4-true (experimental): mousemove no longer wraps node moves in
+  // scene.transaction — items use CSS preview, only textboxes/rectangles/
+  // anchors still go through the transaction path. With items-only drag,
+  // scene.transaction should NOT be called.
+  it('does NOT call scene.transaction for node-only drag (CSS preview path)', () => {
     mockGetItemAtTile.mockReturnValue(null);
 
     const uiState = makeUiState({
@@ -283,7 +304,78 @@ describe('DragItems.mousemove', () => {
       items: [{ id: 'node1', tile: { x: 3, y: 3 } }]
     });
     DragItems.mousemove!({ uiState, scene } as any);
-    expect(scene.transaction).toHaveBeenCalled();
+    expect(scene.transaction).not.toHaveBeenCalled();
+    expect(scene.previewConnectorPaths).toHaveBeenCalledTimes(1);
+  });
+
+  // MQA #7 Path 4-true (experimental) — DragItems must NOT write to the model
+  // during mousemove. It applies a CSS preview via direct DOM mutation and
+  // calls previewConnectorPaths to refresh wires; the model commit only
+  // happens on mouseup. Regressing here re-introduces immer-based per-tick
+  // reducer chains.
+  it('skips model writes during mousemove (CSS preview only) and calls previewConnectorPaths', () => {
+    mockGetItemAtTile.mockReturnValue(null);
+
+    const uiState = makeUiState({
+      mode: {
+        type: 'DRAG_ITEMS',
+        showCursor: true,
+        items: [
+          { type: 'ITEM', id: 'node1' },
+          { type: 'ITEM', id: 'node2' }
+        ],
+        initialTiles: {
+          node1: { x: 3, y: 3 },
+          node2: { x: 4, y: 3 }
+        },
+        initialRectangles: {}
+      },
+      mouse: {
+        position: { tile: { x: 5, y: 5 } },
+        mousedown: { tile: { x: 3, y: 3 } }
+      }
+    });
+    const scene = makeScene({
+      items: [
+        { id: 'node1', tile: { x: 3, y: 3 } },
+        { id: 'node2', tile: { x: 4, y: 3 } }
+      ]
+    });
+    DragItems.mousemove!({ uiState, scene } as any);
+    expect(scene.updateViewItem).not.toHaveBeenCalled();
+    expect(scene.batchUpdateViewItemTiles).not.toHaveBeenCalled();
+    expect(scene.previewConnectorPaths).toHaveBeenCalledTimes(1);
+    // Preview tiles map should contain both items at the expected target tiles.
+    const previewMap = scene.previewConnectorPaths.mock.calls[0][0];
+    expect(previewMap.get('node1')).toEqual({ x: 5, y: 5 });
+    expect(previewMap.get('node2')).toEqual({ x: 6, y: 5 });
+  });
+
+  it('mouseup commits accumulated preview tiles to model via batchUpdateViewItemTiles', () => {
+    mockGetItemAtTile.mockReturnValue(null);
+    const uiState = makeUiState({
+      mode: {
+        type: 'DRAG_ITEMS',
+        showCursor: true,
+        items: [{ type: 'ITEM', id: 'node1' }],
+        initialTiles: { node1: { x: 3, y: 3 } },
+        initialRectangles: {}
+      },
+      mouse: {
+        position: { tile: { x: 5, y: 5 } },
+        mousedown: { tile: { x: 3, y: 3 } }
+      }
+    });
+    const scene = makeScene({
+      items: [{ id: 'node1', tile: { x: 3, y: 3 } }]
+    });
+    // Establish preview via mousemove first.
+    DragItems.mousemove!({ uiState, scene } as any);
+    // Now mouseup should commit.
+    DragItems.mouseup!({ uiState, scene } as any);
+    expect(scene.batchUpdateViewItemTiles).toHaveBeenCalledTimes(1);
+    const call = scene.batchUpdateViewItemTiles.mock.calls[0][0];
+    expect(call).toEqual([{ id: 'node1', tile: { x: 5, y: 5 } }]);
   });
 
   it('does not call transaction when mode has no items', () => {

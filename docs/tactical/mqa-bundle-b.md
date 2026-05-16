@@ -242,7 +242,7 @@ When all items are verified:
 ## Status checklist
 
 - [x] #5 — Redo last-action bug
-- [~] #7 — FPS drop on multi-drag (perf) — partially fixed 2026-05-16 (commits `bba712c` + Path 2). Cliff shortened ~30%, React commit reduced ~66%, NodeContent renders dropped ~85x via memoization fix. Remaining model/scene allocation pressure deferred — see known_issues.md.
+- [x] #7 — FPS drop on multi-drag (perf) — fixed 2026-05-16. Three-stage fix: (1) `bba712c` wrapped DragItems in drag transaction, (2) `728b229` split Node into shell + memoized NodeContent, (3) Path 4-true introduced CSS-only drag preview with model commit deferred to mouseup. Sub-13fps cliff eliminated (19s → 0s); sustained 24-44 fps throughout multi-element drag. See known_issues.md for full measurement table and trade-offs.
 - [x] #12 — `1. ` autoformat erases line
 - [x] #13 — F2 rename racing with autosave
 - [x] #14 — Rename persistence on export

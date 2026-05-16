@@ -37,7 +37,18 @@ const OUTER_SX = { position: 'absolute' as const };
 
 // Position-only shell. Flex centering moved into NodeContent so the inner
 // Box stays trivial and cheap to re-render per drag tick.
-const INNER_SX = { position: 'absolute' as const };
+//
+// MQA #7 Path 4-true (experimental) — transform-based positioning that reads
+// from CSS variables. The base position (--ff-x, --ff-y) is written by React
+// from the model tile; the drag offset (--ff-drag-dx, --ff-drag-dy) is mutated
+// directly by DragItems via DOM during a drag. Both feed into one translate3d
+// for compositor-only updates — no layout, no React re-render per drag tick.
+const INNER_SX = {
+  position: 'absolute' as const,
+  transform:
+    'translate3d(calc(var(--ff-x, 0px) + var(--ff-drag-dx, 0px)), calc(var(--ff-y, 0px) + var(--ff-drag-dy, 0px)), 0)',
+  willChange: 'transform' as const
+};
 
 export const Node = memo(({ node, order }: Props) => {
   useRenderProbe('Node', node.id);
@@ -53,8 +64,16 @@ export const Node = memo(({ node, order }: Props) => {
   );
 
   return (
-    <Box sx={OUTER_SX} style={{ zIndex: order }}>
-      <Box sx={INNER_SX} style={{ left: position.x, top: position.y }}>
+    <Box sx={OUTER_SX} style={{ zIndex: order }} data-drag-id={node.id}>
+      <Box
+        sx={INNER_SX}
+        style={
+          {
+            '--ff-x': `${position.x}px`,
+            '--ff-y': `${position.y}px`
+          } as React.CSSProperties
+        }
+      >
         <NodeContent
           id={node.id}
           showLabel={node.showLabel}
