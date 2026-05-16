@@ -115,13 +115,19 @@ const App = forwardRef<IsoflowRef, IsoflowProps>(
     // actual change and once for the preceding saveToHistory call.
     const model = useModelStore((state) => modelFromModelStore(state), shallow);
 
-    // Expose Zustand store instances for Playwright e2e tests.
-    // Completely tree-shaken from production builds by the bundler.
+    // Expose Zustand store instances for Playwright e2e tests AND the
+    // DiagnosticsOverlay (which needs them to populate ni/nc/ntb scene counts
+    // in non-production builds). The `NODE_ENV !== 'production'` literal lets
+    // the bundler tree-shake the whole block out of prod builds; in prod the
+    // bridge only appears when the consumer explicitly opts in via
+    // `enableDebugTools`.
     const uiStore = useUiStateStoreApi();
     const modelStore = useModelStoreApi();
     const sceneStore = useSceneStoreApi();
     useEffect(() => {
-      if (!enableDebugTools) return;
+      const shouldExpose =
+        enableDebugTools || process.env.NODE_ENV !== 'production';
+      if (!shouldExpose) return;
       (window as any).__fossflow__ = {
         ui: uiStore,
         model: modelStore,

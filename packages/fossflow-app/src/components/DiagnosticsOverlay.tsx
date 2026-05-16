@@ -38,17 +38,23 @@ const MAX_EVENTS = 300; // circular — oldest dropped
 const FIELDS = ['dt', 'fps', 'hu', 'ht', 'lt', 'ni', 'nc', 'ntb'] as const;
 
 // ── store accessors ───────────────────────────────────────────────────────────
+// Counts reflect the ACTIVE view, not the whole document — that's what
+// correlates with frame budget. `model.items` is the icon catalog (not placed
+// nodes); placed nodes live in the current view's `items` array.
 function getSceneCounts(): { ni: number; nc: number; ntb: number } {
   try {
     const fw = (window as any).__fossflow__;
     if (!fw) return { ni: 0, nc: 0, ntb: 0 };
     const ms = fw.model?.getState?.();
-    const ni: number = ms?.items?.length ?? 0;
-    const views: any[] = ms?.views ?? [];
-    let nc = 0;
-    for (const v of views)
-      nc += (v?.value?.connectors ?? v?.connectors ?? []).length;
+    const us = fw.ui?.getState?.();
     const ss = fw.scene?.getState?.();
+    const currentViewId: string | undefined = us?.view;
+    const views: any[] = ms?.views ?? [];
+    const view = currentViewId
+      ? views.find((v: any) => v?.id === currentViewId)
+      : views[0];
+    const ni: number = view?.items?.length ?? 0;
+    const nc: number = view?.connectors?.length ?? 0;
     const ntb: number = ss?.textBoxes ? Object.keys(ss.textBoxes).length : 0;
     return { ni, nc, ntb };
   } catch {

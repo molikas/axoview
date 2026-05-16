@@ -45,7 +45,9 @@ The pointing-finger cursor on hover (added 2026-05-15) does cover all four cases
 
 **Diagnostic harness** kept from earlier in the session: `useRenderProbe('Component', id)` hook + `window.__fossflowRenderProbe.start() / stop() / dump()` console API, gated behind `?perfprobe=1` URL flag. Zero cost in normal use; invaluable for the next round of perf work.
 
-**Companion issue still open:** the diag exporter's `ni`/`nc`/`ntb` counts read 0 because `window.__fossflow__` is gated behind `enableDebugTools` (defaults to `false` in the app). Fix is two-line — expose `__fossflow__` in non-production builds (`process.env.NODE_ENV !== 'production'`) and fix `ni` in [DiagnosticsOverlay.tsx:46](packages/fossflow-app/src/components/DiagnosticsOverlay.tsx#L46) to read the active view's items instead of the model item catalog. Filed for next session.
+**Companion fix (also shipped this session):** the diag exporter's `ni`/`nc`/`ntb` counts used to read 0 because `window.__fossflow__` was gated behind `enableDebugTools` (defaults to `false` in the app) AND `ni` was reading the icon catalog rather than placed nodes. Both fixed:
+- [Isoflow.tsx](packages/fossflow-lib/src/Isoflow.tsx) now exposes `__fossflow__` whenever `process.env.NODE_ENV !== 'production'` OR `enableDebugTools` is set. The `NODE_ENV` literal tree-shakes the block from prod builds.
+- [DiagnosticsOverlay.tsx `getSceneCounts`](packages/fossflow-app/src/components/DiagnosticsOverlay.tsx) now reads the active view's `items.length` and `connectors.length` (resolved via `ui.view`) instead of the model item catalog.
 
 ## MQA diag exporter: element counts always read 0
 
