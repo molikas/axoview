@@ -22,6 +22,7 @@ import { useAppStorage } from '../providers/AppStorageContext';
 import { useDiagramLifecycle } from '../providers/DiagramLifecycleProvider';
 import { StatusCluster } from './StatusCluster';
 import { ExportPopover } from './ExportPopover';
+import { shareUrlFromUuid } from '../utils/shareUrl';
 
 export function AppToolbar() {
   const { t } = useTranslation('app');
@@ -65,7 +66,7 @@ export function AppToolbar() {
       try {
         setShareLoading(true);
         const result = await storage.shareDiagram(currentDiagramId);
-        url = result.url;
+        url = shareUrlFromUuid(result.uuid);
         setShareUrl(url);
       } catch (err) {
         setShareError(

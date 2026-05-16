@@ -113,6 +113,30 @@ describe('modelStore history — real store', () => {
     expect(api.getState().history.past.length).toBeLessThanOrEqual(50);
   });
 
+  // MQA #5 — undo+undo+redo+redo over two sequential actions must restore the
+  // second action. Previously a no-op set() between redos clobbered `future`,
+  // making the second redo a no-op (last action lost).
+  test('5a. undo+undo+redo+redo restores both actions, with a no-op set between redos', () => {
+    const { result } = setupModelApi();
+    const api = result.current;
+
+    act(() => { api.getState().actions.set({ title: 'A' }); });
+    act(() => { api.getState().actions.set({ title: 'B' }); });
+
+    act(() => { api.getState().actions.undo(); });
+    act(() => { api.getState().actions.undo(); });
+
+    expect(api.getState().actions.canRedo()).toBe(true);
+    act(() => { api.getState().actions.redo(); });
+    // Simulate an unrelated transient write (e.g. a re-render dispatching a
+    // selection-driven update) that produces no actual model change.
+    act(() => { api.getState().actions.set({ title: 'A' }); });
+    expect(api.getState().actions.canRedo()).toBe(true);
+    act(() => { api.getState().actions.redo(); });
+
+    expect(api.getState().title).toBe('B');
+  });
+
   test('5. redo round-trip: undo then redo returns to the later value', () => {
     const { result } = setupModelApi();
     const api = result.current;

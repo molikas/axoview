@@ -2,6 +2,7 @@ import React, { useMemo, memo } from 'react';
 import { Connector as ConnectorType } from 'src/types';
 import type { useScene } from 'src/hooks/useScene';
 import { useLayerContext } from 'src/hooks/useLayerContext';
+import { useRenderProbe } from 'src/utils/renderProbe';
 import { Connector } from './Connector';
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export const Connectors = memo(({ connectors, currentView }: Props) => {
+  useRenderProbe('Connectors');
   const { visibleIds } = useLayerContext();
 
   const visibleConnectors = useMemo(() => {

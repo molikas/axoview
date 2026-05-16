@@ -2,6 +2,7 @@ import React, { memo, useMemo } from 'react';
 import { ViewItem } from 'src/types';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { resolveRenderOrder, findLayer } from 'src/utils/renderOrder';
+import { useRenderProbe } from 'src/utils/renderProbe';
 import { Node } from './Node/Node';
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export const Nodes = memo(({ nodes }: Props) => {
+  useRenderProbe('Nodes');
   const { layers, visibleIds } = useLayerContext();
 
   const sortedNodes = useMemo(() => {

@@ -4,6 +4,7 @@
 // state automatically while inside a transaction.
 
 import { useCallback, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import {
   ModelItem,
   ViewItem,
@@ -11,7 +12,8 @@ import {
   Connector,
   TextBox,
   Rectangle,
-  ItemReference
+  ItemReference,
+  Coords
 } from 'src/types';
 import { PastePayload } from 'src/clipboard/clipboard';
 import { useUiStateStore } from 'src/stores/uiStateStore';
@@ -19,7 +21,7 @@ import { useModelStoreApi } from 'src/stores/modelStore';
 import { useSceneStoreApi } from 'src/stores/sceneStore';
 import * as reducers from 'src/stores/reducers';
 import type { State, ViewReducerContext } from 'src/stores/reducers/types';
-import { generateId } from 'src/utils';
+import { generateId, getConnectorPath } from 'src/utils';
 import { useView } from 'src/hooks/useView';
 import { VIEW_DEFAULTS } from 'src/config';
 
@@ -106,6 +108,186 @@ export const useSceneActions = () => {
     modelStoreApi.getState().actions.set({}, true);
     sceneStoreApi.getState().actions.set({}, true);
   }, [modelStoreApi, sceneStoreApi]);
+
+  // -------------------------------------------------------------------------
+  // MQA #7 Path 4 — batched, immer-free tile updater for the drag hot path.
+  //
+  // Why this exists. updateViewItem(id, { tile }) runs `produce(state, ...)` over
+  // the full state, then if `tile` is in updates it recursively dispatches
+  // UPDATE_CONNECTOR for every connector touching the item, each of which runs
+  // its own `produce`, each of which calls `syncConnector`, which runs YET
+  // another `produce`. For 6 dragged items × ~3 connectors that's ~50 nested
+  // immer-clones per drag frame — the dominant cliff fuel after Path 2.
+  //
+  // This action collapses N item updates + their connector path recomputes
+  // into ONE structural copy + direct getConnectorPath() calls. No immer.
+  //
+  // DRAG ONLY. Caller must be inside an open beginDragTransaction (so history
+  // is suppressed). Does not validate the resulting view — that runs on the
+  // mouseup commit path through the normal reducer.
+  // -------------------------------------------------------------------------
+
+  const batchUpdateViewItemTiles = useCallback(
+    (updates: { id: string; tile: Coords }[]) => {
+      if (!currentViewId || updates.length === 0) return;
+
+      const state = getState();
+      const viewIndex = state.model.views.findIndex(
+        (v) => v.id === currentViewId
+      );
+      if (viewIndex === -1) return;
+      const view = state.model.views[viewIndex];
+
+      const updateMap = new Map(updates.map((u) => [u.id, u.tile]));
+
+      // Structural copy of items array — only touched items get new refs.
+      const newItems = (view.items ?? []).map((item) =>
+        updateMap.has(item.id)
+          ? { ...item, tile: updateMap.get(item.id)! }
+          : item
+      );
+
+      const newView: View = { ...view, items: newItems };
+      const newViews = state.model.views.slice();
+      newViews[viewIndex] = newView;
+
+      // Recompute paths for connectors anchored to any moved item. Connector
+      // model is unchanged — anchors reference by id, not by tile.
+      const updatedIds = new Set(updates.map((u) => u.id));
+      const newSceneConnectors = { ...state.scene.connectors };
+      for (const c of view.connectors ?? []) {
+        const touches = c.anchors.some(
+          (a) =>
+            a.ref &&
+            typeof (a.ref as { item?: string }).item === 'string' &&
+            updatedIds.has((a.ref as { item: string }).item)
+        );
+        if (!touches) continue;
+        try {
+          const path = getConnectorPath({
+            anchors: c.anchors,
+            view: newView
+          });
+          newSceneConnectors[c.id] = { path };
+        } catch {
+          newSceneConnectors[c.id] = {
+            path: {
+              tiles: [],
+              rectangle: { from: { x: 0, y: 0 }, to: { x: 0, y: 0 } }
+            },
+            unroutable: true
+          };
+        }
+      }
+
+      const newState: State = {
+        model: { ...state.model, views: newViews },
+        scene: { ...state.scene, connectors: newSceneConnectors }
+      };
+
+      setState(newState);
+    },
+    [currentViewId, getState, setState]
+  );
+
+  // -------------------------------------------------------------------------
+  // EXPERIMENTAL — Path 4-true. Connector path preview without touching the
+  // model. Used by DragItems during CSS-preview drag: items move via CSS
+  // variables (no model write), connectors need their SVG path data refreshed
+  // so they visually follow. We compute paths against a synthetic view that
+  // overlays preview tiles onto the real items, and write only the resulting
+  // scene.connectors[].path entries — no immer, no model touch.
+  // -------------------------------------------------------------------------
+
+  const previewConnectorPaths = useCallback(
+    (
+      previewTiles: Map<string, Coords>,
+      previewAnchorTiles?: Map<string, Coords>
+    ) => {
+      const hasItemPreviews = previewTiles.size > 0;
+      const hasAnchorPreviews =
+        previewAnchorTiles !== undefined && previewAnchorTiles.size > 0;
+      if (!currentViewId || (!hasItemPreviews && !hasAnchorPreviews)) return;
+
+      const state = getState();
+      const view = state.model.views.find((v) => v.id === currentViewId);
+      if (!view) return;
+
+      // A connector is "affected" if it references any moved item OR if any
+      // of its own anchors has a preview tile override (waypoint drag).
+      const affectedConnectors = (view.connectors ?? []).filter((c) => {
+        const touchesMovedItem = c.anchors.some(
+          (a) =>
+            a.ref &&
+            typeof (a.ref as { item?: string }).item === 'string' &&
+            previewTiles.has((a.ref as { item: string }).item)
+        );
+        if (touchesMovedItem) return true;
+        if (!hasAnchorPreviews) return false;
+        return c.anchors.some((a) => previewAnchorTiles!.has(a.id));
+      });
+      if (affectedConnectors.length === 0) return;
+
+      // Synthetic view: items overlaid with preview tiles. Connector anchors
+      // get their refs swapped to free-floating tile refs when in the anchor
+      // preview map, so getAnchorTile reads our overridden tile.
+      const syntheticItems = (view.items ?? []).map((item) =>
+        previewTiles.has(item.id)
+          ? { ...item, tile: previewTiles.get(item.id)! }
+          : item
+      );
+      const syntheticConnectors = hasAnchorPreviews
+        ? (view.connectors ?? []).map((c) => ({
+            ...c,
+            anchors: c.anchors.map((a) =>
+              previewAnchorTiles!.has(a.id)
+                ? { ...a, ref: { tile: previewAnchorTiles!.get(a.id)! } }
+                : a
+            )
+          }))
+        : view.connectors;
+      const syntheticView: View = {
+        ...view,
+        items: syntheticItems,
+        connectors: syntheticConnectors
+      };
+
+      const currentSceneConnectors = sceneStoreApi.getState().connectors;
+      const nextSceneConnectors = { ...currentSceneConnectors };
+      for (const c of affectedConnectors) {
+        // Use synthetic anchors (with anchor-tile overrides applied) for the
+        // path computation so the route honors the preview waypoint position.
+        const syntheticC = hasAnchorPreviews
+          ? syntheticConnectors!.find((sc) => sc.id === c.id) ?? c
+          : c;
+        try {
+          const path = getConnectorPath({
+            anchors: syntheticC.anchors,
+            view: syntheticView
+          });
+          nextSceneConnectors[c.id] = { path };
+        } catch {
+          nextSceneConnectors[c.id] = {
+            path: {
+              tiles: [],
+              rectangle: { from: { x: 0, y: 0 }, to: { x: 0, y: 0 } }
+            },
+            unroutable: true
+          };
+        }
+      }
+
+      // flushSync — Connector subscribers re-render inside the same mousemove
+      // handler that mutated CSS variables on the Nodes; otherwise the
+      // connector visually lags one frame behind the nodes.
+      flushSync(() => {
+        sceneStoreApi
+          .getState()
+          .actions.set({ connectors: nextSceneConnectors }, true);
+      });
+    },
+    [currentViewId, getState, sceneStoreApi]
+  );
 
   // -------------------------------------------------------------------------
   // Transaction wrapper — try/finally ensures refs are always cleaned up
@@ -641,6 +823,8 @@ export const useSceneActions = () => {
     transaction,
     beginDragTransaction,
     commitDragTransaction,
+    batchUpdateViewItemTiles,
+    previewConnectorPaths,
     placeIcon,
     switchView,
     createView,

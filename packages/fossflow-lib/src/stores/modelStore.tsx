@@ -160,6 +160,15 @@ const initialState = () => {
                 }
               );
 
+              // MQA #5: a no-op set() (no patches → nothing actually changed)
+              // must not push an empty entry or clobber the redo stack. Without
+              // this guard, transient writes triggered between two redo cycles
+              // (e.g. selection-driven re-renders) silently dropped `future`,
+              // making the second redo a no-op.
+              if (patches.length === 0) {
+                return { ...state, ...next };
+              }
+
               const newPast = [
                 ...state.history.past,
                 { patches, inversePatches }

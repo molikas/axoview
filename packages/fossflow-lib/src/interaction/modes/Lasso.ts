@@ -93,8 +93,21 @@ const getItemsInBounds = (
 
     if (anchorInBounds(first) && anchorInBounds(last)) {
       items.push({ type: 'CONNECTOR', id: connector.id });
+      // Free-floating waypoints between selected endpoints must also be
+      // dragged — otherwise the connector's intermediate routing stays
+      // anchored to its old tile and the path looks pinched. Endpoints
+      // themselves move with their ref'd nodes; tile-based waypoints need
+      // an explicit CONNECTOR_ANCHOR drag entry.
+      connector.anchors.forEach((anchor: ConnectorAnchor, idx: number) => {
+        const isEndpoint = idx === 0 || idx === connector.anchors.length - 1;
+        if (isEndpoint) return;
+        if (anchor.ref?.tile) {
+          items.push({ type: 'CONNECTOR_ANCHOR', id: anchor.id });
+        }
+      });
     } else {
-      // Still capture any free-floating waypoint anchors
+      // Endpoint(s) not selected — still capture any free-floating waypoint
+      // anchors inside the lasso bounds.
       connector.anchors.forEach((anchor: ConnectorAnchor) => {
         if (
           anchor.ref?.tile &&

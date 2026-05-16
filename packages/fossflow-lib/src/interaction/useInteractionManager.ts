@@ -238,9 +238,22 @@ export const useInteractionManager = () => {
 
       if (e.key === 'F2') {
         const ctrl = uiState.itemControls;
+        // MQA #13: F2 originates from outside the renderer (e.g. file-explorer
+        // tree row) when the user wants to rename a *diagram*. If a canvas item
+        // happens to be selected, we used to steal focus by triggering the node
+        // inline-rename — which unmounted the explorer's edit input. Only fire
+        // the canvas inline-rename when the keystroke came from inside the
+        // renderer (or from the document itself with no other focus target).
+        const focusTarget = (e.target as HTMLElement | null) ?? null;
+        const renderer = rendererRef.current;
+        const cameFromRenderer =
+          !focusTarget ||
+          focusTarget === document.body ||
+          (renderer ? renderer.contains(focusTarget) : false);
         if (
           (ctrl?.type === 'ITEM' || ctrl?.type === 'TEXTBOX' || ctrl?.type === 'CONNECTOR') &&
-          uiState.editorMode === 'EDITABLE'
+          uiState.editorMode === 'EDITABLE' &&
+          cameFromRenderer
         ) {
           e.preventDefault();
           window.dispatchEvent(

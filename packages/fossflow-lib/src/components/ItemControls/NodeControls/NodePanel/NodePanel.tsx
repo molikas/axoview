@@ -6,13 +6,9 @@ import {
   IconButton,
   Tooltip,
   Typography,
-  Divider,
-  Stack
+  Divider
 } from '@mui/material';
-import {
-  Close as CloseIcon,
-  OpenInNew as OpenInNewIcon
-} from '@mui/icons-material';
+import { Close as CloseIcon } from '@mui/icons-material';
 import { ModelItem, ViewItem } from 'src/types';
 import { useModelItem } from 'src/hooks/useModelItem';
 import { useScene } from 'src/hooks/useScene';
@@ -61,6 +57,7 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
   const modelItem = useModelItem(viewItem.id);
   const { updateModelItem, updateViewItem } = useScene();
   const uiStateActions = useUiStateStore((state) => state.actions);
+  const linkedDiagrams = useUiStateStore((state) => state.linkedDiagrams);
   const { icon } = useIcon(modelItem?.icon || '');
 
   const [activeTab, setActiveTab] = useState(TAB_DETAILS);
@@ -126,6 +123,60 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
       !!modelItem.description &&
       modelItem.description.replace(/<[^>]*>/g, '').trim() !== '';
 
+    const hasHeaderLink = !!modelItem.headerLink;
+    const headerLinkUrl = hasHeaderLink
+      ? (/^https?:\/\//i.test(modelItem.headerLink!)
+          ? modelItem.headerLink!
+          : `https://${modelItem.headerLink}`)
+      : null;
+
+    // MQA #22 / #25 (4th pass — final UX): the node name in the header is
+    // itself the clickable affordance for the external link (tooltip carries
+    // the URL). The "Linked Diagram" lives in the scrollable body, mirroring
+    // the Caption / Notes section pattern — shows the resolved diagram name
+    // as a clickable link, or an explicit "cannot resolve id <id>" error when
+    // the linked diagram is missing from the project (never silent).
+    const linkedDiagramId = modelItem.link ?? null;
+    const linkedDiagramMeta = linkedDiagramId
+      ? linkedDiagrams.find((d) => d.id === linkedDiagramId)
+      : null;
+    const hasLinkedDiagram = !!linkedDiagramId;
+
+    const nameContent = hasHeaderLink ? (
+      <Tooltip title={headerLinkUrl ?? ''}>
+        <Box
+          component="a"
+          href={headerLinkUrl ?? '#'}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-testid="node-panel-header-link"
+          sx={{
+            color: 'primary.main',
+            textDecoration: 'underline',
+            cursor: 'pointer',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            display: 'block'
+          }}
+        >
+          {modelItem.name || '—'}
+        </Box>
+      </Tooltip>
+    ) : (
+      <Box
+        component="span"
+        sx={{
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          display: 'block'
+        }}
+      >
+        {modelItem.name || '—'}
+      </Box>
+    );
+
     return (
       <Box
         onMouseDown={(e) => e.stopPropagation()}
@@ -160,43 +211,19 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
           )}
           <Typography
             variant="subtitle2"
-            sx={{
-              flex: 1,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap'
-            }}
+            sx={{ flex: 1, minWidth: 0 }}
           >
-            {modelItem.name || '—'}
+            {nameContent}
           </Typography>
-          <Stack direction="row" spacing={0}>
-            {modelItem.headerLink && (
-              <Tooltip title={t('openLink')}>
-                <IconButton
-                  size="small"
-                  component="a"
-                  href={
-                    /^https?:\/\//i.test(modelItem.headerLink)
-                      ? modelItem.headerLink
-                      : `https://${modelItem.headerLink}`
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={{ p: 0.5 }}
-                >
-                  <OpenInNewIcon sx={{ fontSize: 15 }} />
-                </IconButton>
-              </Tooltip>
-            )}
-            <Tooltip title={t('close')}>
-              <IconButton size="small" onClick={handleClose} sx={{ p: 0.5 }}>
-                <CloseIcon sx={{ fontSize: 15 }} />
-              </IconButton>
-            </Tooltip>
-          </Stack>
+          <Tooltip title={t('close')}>
+            <IconButton size="small" onClick={handleClose} sx={{ p: 0.5 }}>
+              <CloseIcon sx={{ fontSize: 15 }} />
+            </IconButton>
+          </Tooltip>
         </Box>
 
-        {/* Scrollable body — caption then notes, no tabs */}
+        {/* Scrollable body — caption, linked diagram, notes (sections appear
+            only when content is available). */}
         <Box sx={{ overflowY: 'auto', flex: 1 }}>
           {hasCaption && (
             <Box sx={{ px: 2, pt: 2, pb: 1 }}>
@@ -210,7 +237,45 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
               <RichTextEditor value={modelItem.description} readOnly />
             </Box>
           )}
-          {hasCaption && hasNotes && <Divider sx={{ mx: 2 }} />}
+          {hasCaption && hasLinkedDiagram && <Divider sx={{ mx: 2 }} />}
+          {hasLinkedDiagram && (
+            <Box sx={{ px: 2, pt: 2, pb: 1 }} data-testid="node-panel-linked-diagram-section">
+              <Typography
+                variant="overline"
+                color="text.secondary"
+                sx={{ display: 'block', mb: 1 }}
+              >
+                Linked diagram
+              </Typography>
+              {linkedDiagramMeta ? (
+                <Box
+                  component="a"
+                  href={`/display/${linkedDiagramId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid="node-panel-linked-diagram-link"
+                  sx={{
+                    color: 'primary.main',
+                    textDecoration: 'underline',
+                    cursor: 'pointer',
+                    wordBreak: 'break-word'
+                  }}
+                >
+                  {linkedDiagramMeta.name}
+                </Box>
+              ) : (
+                <Typography
+                  variant="body2"
+                  color="error"
+                  data-testid="node-panel-linked-diagram-error"
+                  sx={{ wordBreak: 'break-word' }}
+                >
+                  Cannot resolve linked diagram with id: {linkedDiagramId}
+                </Typography>
+              )}
+            </Box>
+          )}
+          {(hasCaption || hasLinkedDiagram) && hasNotes && <Divider sx={{ mx: 2 }} />}
           {hasNotes && (
             <Box sx={{ px: 2, pt: 2, pb: 2 }}>
               <Typography

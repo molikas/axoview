@@ -103,7 +103,20 @@ export async function getDiagram(adapter, ctx) {
 
 export async function createDiagram(adapter, ctx) {
   const body = ctx.body || {};
-  const id = body.id ? assertId(body.id) : `diagram_${Date.now()}`;
+  // MQA #21: same collision class as createFolder — a project import calls
+  // createDiagram in a sequential burst and `diagram_${Date.now()}` reused the
+  // same id within a millisecond, then 409'd on the second write. Use a random
+  // suffix so back-to-back creates produce distinct ids when the caller did
+  // not supply one explicitly.
+  let id;
+  if (body.id) {
+    id = assertId(body.id);
+  } else {
+    do {
+      const rand = Math.random().toString(36).slice(2, 10);
+      id = `diagram_${Date.now().toString(36)}_${rand}`;
+    } while (await adapter.get(`diagrams/${id}`));
+  }
   if (await adapter.get(`diagrams/${id}`)) {
     throw new HttpError(409, 'Diagram already exists');
   }
@@ -171,7 +184,28 @@ export async function deleteDiagram(adapter, ctx) {
 // ---------------------------------------------------------------------------
 
 async function readFolders(adapter) {
-  return (await getJson(adapter, 'folders')) ?? [];
+  // MQA #21: a `folders.json` written by an earlier shape (e.g. `{ folders: [...] }`
+  // from a tree-manifest-style payload) crashed every folder operation with
+  // `folders.map is not a function`. Always coerce to a flat array — accept the
+  // legacy `{ folders: [...] }` shape, otherwise fall back to empty so the next
+  // write heals the file. Log unexpected shapes once so we can trace where they
+  // came from on the rare deployments where this trips.
+  const raw = await getJson(adapter, 'folders');
+  if (Array.isArray(raw)) return raw;
+  if (raw && Array.isArray(raw.folders)) {
+    console.warn(
+      '[folders] coerced legacy {folders:[]} payload — next write will heal the file'
+    );
+    return raw.folders;
+  }
+  if (raw != null) {
+    console.warn(
+      `[folders] folders.json has unexpected shape (typeof=${typeof raw}, keys=${
+        typeof raw === 'object' ? Object.keys(raw).slice(0, 5).join(',') : 'n/a'
+      }) — falling back to empty array`
+    );
+  }
+  return [];
 }
 
 async function writeFolders(adapter, folders) {
@@ -195,7 +229,18 @@ export async function createFolder(adapter, ctx) {
   }
   if (parentId !== null && parentId !== undefined) assertId(parentId, 'parentId');
   const folders = await readFolders(adapter);
-  const id = `folder_${Date.now()}`;
+  // MQA #21: project-import dispatches a sequential burst of createFolder calls.
+  // The previous `folder_${Date.now()}` id collided whenever two writes landed
+  // in the same millisecond, producing duplicate ids in folders.json that
+  // confused later move/delete/import passes. Generate a uniqueness suffix
+  // (random + collision check against the existing list) so back-to-back
+  // creates always yield distinct ids on the fs adapter.
+  const existingIds = new Set(folders.map((f) => f.id));
+  let id;
+  do {
+    const rand = Math.random().toString(36).slice(2, 10);
+    id = `folder_${Date.now().toString(36)}_${rand}`;
+  } while (existingIds.has(id));
   folders.push({ id, name, parentId: parentId ?? null });
   await writeFolders(adapter, folders);
   return { status: 201, body: { success: true, id } };
@@ -220,8 +265,9 @@ export async function deleteFolder(adapter, ctx) {
   const recursive =
     ctx?.query?.recursive === 'true' || ctx?.query?.recursive === true;
   let folders = await readFolders(adapter);
+  let toDelete;
   if (recursive) {
-    const toDelete = new Set();
+    toDelete = new Set();
     const collect = (fid) => {
       toDelete.add(fid);
       folders.filter((f) => f.parentId === fid).forEach((f) => collect(f.id));
@@ -232,8 +278,38 @@ export async function deleteFolder(adapter, ctx) {
     const idx = folders.findIndex((f) => f.id === id);
     if (idx < 0) throw new HttpError(404, 'Folder not found');
     folders.splice(idx, 1);
+    toDelete = new Set([id]);
   }
   await writeFolders(adapter, folders);
+
+  // MQA #14 (Bundle B follow-up): the previous behaviour orphaned every
+  // diagram inside the deleted folder — listDiagramMeta still returned them
+  // (with stale folderId), and a subsequent project import collided on the
+  // original ids. Sweep diagrams whose folderId pointed at any deleted
+  // folder. Best-effort: per-diagram failures are logged but do not block.
+  try {
+    const allDiagrams = await adapter.listDiagramMeta();
+    const orphans = allDiagrams.filter((d) => toDelete.has(d.folderId));
+    for (const meta of orphans) {
+      try {
+        const buf = await adapter.get(`diagrams/${meta.id}`);
+        if (buf) {
+          try {
+            const existing = JSON.parse(new TextDecoder().decode(buf));
+            if (existing?.shareUuid && UUID_PATTERN.test(existing.shareUuid)) {
+              try { await adapter.delete(`public/${existing.shareUuid}`); } catch {}
+            }
+          } catch {}
+        }
+        await adapter.delete(`diagrams/${meta.id}`);
+      } catch (e) {
+        console.warn(`[deleteFolder] failed to sweep diagram ${meta.id}:`, e);
+      }
+    }
+  } catch (e) {
+    console.warn('[deleteFolder] orphan sweep failed:', e);
+  }
+
   return { status: 200, body: { success: true } };
 }
 

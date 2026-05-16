@@ -47,3 +47,28 @@ describe('RichTextEditor — Quill formats config', () => {
     expect(formats).toHaveLength(9);
   });
 });
+
+// ---------------------------------------------------------------------------
+// MQA #12 — list autofill must be disabled (file-level structural check)
+// ---------------------------------------------------------------------------
+//
+// Reading the source rather than mounting Quill keeps this test cheap and
+// pins the contract: the `list autofill` binding override must remain in
+// place, and its handler must return true (so the literal space is inserted
+// and the autofill never replaces the line with an empty list block).
+describe('RichTextEditor — list autofill override (MQA #12)', () => {
+  it('overrides Quill list autofill with a noop handler', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const src = fs.readFileSync(
+      path.resolve(__dirname, '../RichTextEditor.tsx'),
+      'utf-8',
+    );
+    expect(src).toMatch(/'list autofill'\s*:/);
+    // Handler must propagate (return true) — never `return false` which would
+    // also swallow the literal space the user typed.
+    const sliceStart = src.indexOf("'list autofill'");
+    const slice = src.slice(sliceStart, sliceStart + 600);
+    expect(slice).toMatch(/handler\(\)\s*\{\s*return true;\s*\}/);
+  });
+});

@@ -261,6 +261,46 @@ describe('LocalStorageProvider', () => {
     expect((capturedBody as any).targetFolderId).toBe('folder-42');
   });
 
+  // ---- renameDiagram (session) ---------------------------------------------
+
+  // MQA #14: session-mode rename used to update the diagrams list only, leaving
+  // the per-diagram blob's `title` stuck on the old name. The export path reads
+  // from the blob, so any unopened-after-rename diagram exported with the old
+  // title. Rename must now mirror the new name into the blob.
+  test('renameDiagram (session) syncs blob.title + blob.name with new name', async () => {
+    const provider = await offlineProvider();
+    const meta = [
+      { id: 'sess-1', name: 'Old Name', lastModified: '2026-01-01T00:00:00Z', folderId: null }
+    ];
+    sessionStorage.setItem('fossflow_diagrams', JSON.stringify(meta));
+    sessionStorage.setItem(
+      'fossflow_diagram_sess-1',
+      JSON.stringify({ title: 'Old Name', items: [], views: [], icons: [], colors: [] })
+    );
+
+    await provider.renameDiagram('sess-1', 'New Name');
+
+    const listAfter = JSON.parse(sessionStorage.getItem('fossflow_diagrams') ?? '[]');
+    expect(listAfter[0].name).toBe('New Name');
+
+    const blobAfter = JSON.parse(sessionStorage.getItem('fossflow_diagram_sess-1') ?? '{}');
+    expect(blobAfter.title).toBe('New Name');
+    expect(blobAfter.name).toBe('New Name');
+  });
+
+  test('renameDiagram (session) leaves listing rename in place when blob is corrupted', async () => {
+    const provider = await offlineProvider();
+    const meta = [
+      { id: 'sess-1', name: 'Old Name', lastModified: '2026-01-01T00:00:00Z', folderId: null }
+    ];
+    sessionStorage.setItem('fossflow_diagrams', JSON.stringify(meta));
+    sessionStorage.setItem('fossflow_diagram_sess-1', 'not-json');
+
+    await expect(provider.renameDiagram('sess-1', 'New Name')).resolves.toBeUndefined();
+    const listAfter = JSON.parse(sessionStorage.getItem('fossflow_diagrams') ?? '[]');
+    expect(listAfter[0].name).toBe('New Name');
+  });
+
   // ---- server timeout fallback ----------------------------------------------
 
   test('server unavailability falls back to sessionStorage for listDiagrams', async () => {

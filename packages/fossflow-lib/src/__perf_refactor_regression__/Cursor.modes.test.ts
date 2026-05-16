@@ -272,6 +272,30 @@ describe('Cursor.mouseup (real module)', () => {
     expect(uiState.actions.setContextMenu).not.toHaveBeenCalled();
   });
 
+  // MQA #16 — drag-select inside a properties-panel input that crosses the
+  // panel edge into the canvas used to fire Cursor.mouseup with no canvas
+  // mousedown registered, which dismissed the panel. The fix is to ignore
+  // mouseup when neither uiState.mouse.mousedown nor mousedownHandled is set.
+  it('does NOT dismiss panel (no setItemControls call) when drag started outside the canvas', () => {
+    const uiState = makeUiState({
+      mode: {
+        type: 'CURSOR',
+        showCursor: true,
+        mousedownItem: null,
+        mousedownHandled: false // no canvas mousedown was registered
+      },
+      mouse: {
+        position: { tile: { x: 5, y: 5 }, screen: { x: 50, y: 50 } },
+        mousedown: null, // user dragged in from outside the renderer
+        delta: null
+      },
+      // Panel is open — would close if we incorrectly dispatched setItemControls(null)
+      itemControls: { type: 'ITEM', id: 'node-being-edited' }
+    });
+    callMouseup(uiState);
+    expect(uiState.actions.setItemControls).not.toHaveBeenCalled();
+  });
+
   it('resets mousedownItem and mousedownHandled to null/false after mouseup', () => {
     const uiState = makeUiState({
       mode: {

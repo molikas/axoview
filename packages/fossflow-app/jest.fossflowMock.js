@@ -5,13 +5,9 @@
 const stripDefaultIcons = (model) => model;
 const mergeBundledFixtures = (model) => model;
 const exportAsJSON = () => {};
-const exportAsCompactJSON = () => {};
-const transformFromCompactFormat = (m) => m;
 
 module.exports = {
   stripDefaultIcons,
   mergeBundledFixtures,
-  exportAsJSON,
-  exportAsCompactJSON,
-  transformFromCompactFormat
+  exportAsJSON
 };
