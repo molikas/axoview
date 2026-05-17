@@ -4,6 +4,7 @@ import { Box, IconButton, Tooltip } from '@mui/material';
 import { ZoomControls } from 'src/components/ZoomControls/ZoomControls';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { DialogTypeEnum } from 'src/types/ui';
+import { tooltipWithShortcut } from 'src/utils/tooltipWithShortcut';
 
 // Lucid-style help icon: circle with question mark
 const HelpSvg = () => (
@@ -61,7 +62,7 @@ export const BottomDock = ({ endSlot }: BottomDockProps = {}) => {
       {/* Right zone: zoom controls + help + optional end slot */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
         <ZoomControls />
-        <Tooltip title="Help" placement="top">
+        <Tooltip title={tooltipWithShortcut('Help', 'F1')} placement="top">
           <IconButton
             size="small"
             onClick={() => uiStateActions.setDialog(DialogTypeEnum.HELP)}

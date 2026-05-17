@@ -18,6 +18,7 @@ import { useHistory } from 'src/hooks/useHistory';
 import { HOTKEY_PROFILES } from 'src/config/hotkeys';
 import { useTranslation } from 'src/stores/localeStore';
 import { useDiagramUtils } from 'src/hooks/useDiagramUtils';
+import { tooltipWithShortcut } from 'src/utils/tooltipWithShortcut';
 
 export const ToolMenu = () => {
   const { t } = useTranslation('toolMenu');
@@ -62,13 +63,13 @@ export const ToolMenu = () => {
       <Stack direction="row" spacing={0.5} alignItems="center">
         {/* Undo/Redo Section */}
         <IconButton
-          name={`${t('undo')} (Ctrl+Z)`}
+          name={tooltipWithShortcut(t('undo'), 'Ctrl+Z')}
           Icon={<UndoIcon />}
           onClick={handleUndo}
           disabled={!canUndo}
         />
         <IconButton
-          name={`${t('redo')} (Ctrl+Y)`}
+          name={tooltipWithShortcut(t('redo'), 'Ctrl+Y')}
           Icon={<RedoIcon />}
           onClick={handleRedo}
           disabled={!canRedo}
@@ -76,7 +77,7 @@ export const ToolMenu = () => {
 
         {/* Main Tools */}
         <IconButton
-          name={`${t('select')}${hotkeys.select ? ` (${hotkeys.select.toUpperCase()})` : ''}`}
+          name={tooltipWithShortcut(t('select'), hotkeys.select?.toUpperCase())}
           Icon={<NearMeIcon />}
           onClick={() => {
             uiStateStoreActions.setMode({
@@ -88,7 +89,7 @@ export const ToolMenu = () => {
           isActive={mode.type === 'CURSOR' || mode.type === 'DRAG_ITEMS'}
         />
         <IconButton
-          name={`${t('lassoSelect')}${hotkeys.lasso ? ` (${hotkeys.lasso.toUpperCase()})` : ''}`}
+          name={tooltipWithShortcut(t('lassoSelect'), hotkeys.lasso?.toUpperCase())}
           Icon={<LassoIcon />}
           onClick={() => {
             uiStateStoreActions.setMode({
@@ -101,7 +102,7 @@ export const ToolMenu = () => {
           isActive={mode.type === 'LASSO'}
         />
         <IconButton
-          name={`${t('freehandLasso')}${hotkeys.freehandLasso ? ` (${hotkeys.freehandLasso.toUpperCase()})` : ''}`}
+          name={tooltipWithShortcut(t('freehandLasso'), hotkeys.freehandLasso?.toUpperCase())}
           Icon={<FreehandLassoIcon />}
           onClick={() => {
             uiStateStoreActions.setMode({
@@ -115,7 +116,7 @@ export const ToolMenu = () => {
           isActive={mode.type === 'FREEHAND_LASSO'}
         />
         <IconButton
-          name={`${t('pan')}${hotkeys.pan ? ` (${hotkeys.pan.toUpperCase()})` : ''}`}
+          name={tooltipWithShortcut(t('pan'), hotkeys.pan?.toUpperCase())}
           Icon={<PanToolIcon />}
           onClick={() => {
             uiStateStoreActions.setMode({
@@ -128,7 +129,7 @@ export const ToolMenu = () => {
           isActive={mode.type === 'PAN'}
         />
         <IconButton
-          name={`${t('connector')}${hotkeys.connector ? ` (${hotkeys.connector.toUpperCase()})` : ''}`}
+          name={tooltipWithShortcut(t('connector'), hotkeys.connector?.toUpperCase())}
           Icon={<ConnectorIcon />}
           onClick={() => {
             uiStateStoreActions.setMode({

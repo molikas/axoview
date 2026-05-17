@@ -265,17 +265,6 @@ export const useInteractionManager = () => {
       const hotkeyMapping = HOTKEY_PROFILES[uiState.hotkeyProfile];
       const key = e.key.toLowerCase();
 
-      if (
-        key === 'i' &&
-        uiState.itemControls &&
-        'id' in uiState.itemControls &&
-        uiState.itemControls.type === 'ITEM'
-      ) {
-        e.preventDefault();
-        const event = new CustomEvent('quickIconChange');
-        window.dispatchEvent(event);
-      }
-
       if (hotkeyMapping.select && key === hotkeyMapping.select) {
         e.preventDefault();
         uiState.actions.setMode({
