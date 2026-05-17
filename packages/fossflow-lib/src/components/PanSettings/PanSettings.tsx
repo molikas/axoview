@@ -36,10 +36,6 @@ export const PanSettings = () => {
 
   return (
     <Box sx={{ p: 2 }}>
-      <Typography variant="h6" gutterBottom>
-        {t('settings.pan.title')}
-      </Typography>
-
       <Paper sx={{ p: 2, mb: 2 }}>
         <Typography variant="subtitle2" gutterBottom>
           {t('settings.pan.mousePanOptions')}

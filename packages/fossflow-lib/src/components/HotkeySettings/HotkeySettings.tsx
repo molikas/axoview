@@ -45,10 +45,6 @@ export const HotkeySettings = () => {
 
   return (
     <Box sx={{ p: 2 }}>
-      <Typography variant="h6" gutterBottom>
-        {t('settings.hotkeys.title')}
-      </Typography>
-
       <FormControl fullWidth sx={{ mb: 1 }}>
         <InputLabel>{t('settings.hotkeys.profile')}</InputLabel>
         <Select

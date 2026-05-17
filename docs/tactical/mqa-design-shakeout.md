@@ -112,20 +112,15 @@ Resolve the 9 design-shaped items from the 2026-05-15 manual QA pass. These need
 
 ---
 
-### #20 — Settings dialog redesign
+### #20 — Settings dialog redesign  ✅ SHIPPED
 
 **Ask:** current tabular settings is excessive and hard to navigate; consider left-tabs.
 
-**Design options:**
-- **A. Left vertical tabs** (VS Code settings style) — scales to many categories, scannable.
-- **B. Search-first** (VS Code command palette style) — type to filter settings; tabs disappear when search is active.
-- **C. Single scrollable page** with section anchors — simplest, works only if total settings < ~25.
+**Outcome (2026-05-16):** Option A landed — left vertical rail (~200 px) with a divider above About/Diagnostics ("geeky tail"). Dialog now has a stable 60vh / min-480 height so switching tabs doesn't reflow. Each panel dropped its duplicate h6 title — the rail label is the title. Tab order: Keyboard shortcuts · Canvas · Connectors · Icon packs · Language ｜ About · Diagnostics. "Hotkeys" tab renamed to "Keyboard shortcuts" in en-US (other locales unchanged — value tweak, not a new key per ux-principles §7.1). Canvas tab now has internal `Section`s for Zoom and Labels.
 
-**Recommend A as the structural change; revisit B once category count is settled.** First step is auditing the current settings list (likely overlaps with #19 — both flow from the same inventory).
+**Retracted from proposal:** I claimed `PanSettings` subtitle2 rendered ALL CAPS — wrong, MUI default + theme override both leave it sentence case. No typography fix needed there.
 
-**Order of operations:** finish #19 inventory first → use the trimmed list to drive #20 layout.
-
-**ADR-worthy?** Yes once decided.
+**ADR:** deferred — same ADR can cover #19 + #20 + #8/#9 once selection contract lands.
 
 ---
 
@@ -189,6 +184,6 @@ When all items are decided and implemented:
 - [ ] #10 — New-icons-loaded visual feedback
 - [ ] #11 — Rich text / canvas typography redesign (spinoff plan likely)
 - [x] #19 — Shortcut + canvas-control inventory + tooltip hints
-- [ ] #20 — Settings dialog redesign
+- [x] #20 — Settings dialog redesign
 - [ ] #25 — Preview-mode notes vs diagram-link interaction
 - [ ] #26 — Imported icon delete + in-use guardrails
