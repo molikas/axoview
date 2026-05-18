@@ -208,6 +208,13 @@ export interface UiState {
   mainMenuOptions: MainMenuOptions;
   editorMode: keyof typeof EditorModeEnum;
   iconCategoriesState: IconCollectionState[];
+  /**
+   * Ids of icon categories that became visible during the most recent
+   * incremental load (e.g. a pack toggled on from the "Add more icons" panel).
+   * Drives the soft pulse on the category header so users notice freshly-arrived
+   * icons. Cleared on a short timer after the animation runs.
+   */
+  freshlyLoadedCategoryIds: string[];
   mode: Mode;
   dialog: keyof typeof DialogTypeEnum | null;
   isMainMenuOpen: boolean;
@@ -255,6 +262,7 @@ export interface UiStateActions {
   setMainMenuOptions: (options: MainMenuOptions) => void;
   setEditorMode: (mode: keyof typeof EditorModeEnum) => void;
   setIconCategoriesState: (iconCategoriesState: IconCollectionState[]) => void;
+  setFreshlyLoadedCategoryIds: (ids: string[]) => void;
   resetUiState: () => void;
   setMode: (mode: Mode) => void;
   incrementZoom: () => void;

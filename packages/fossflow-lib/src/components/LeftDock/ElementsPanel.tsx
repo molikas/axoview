@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Accordion,
   AccordionDetails,
@@ -45,6 +45,9 @@ export const ElementsPanel = () => {
   const iconCategoriesState = useUiStateStore((s) => s.iconCategoriesState);
   const iconPackManager = useUiStateStore((s) => s.iconPackManager);
   const iconUsageScan = useUiStateStore((s) => s.iconUsageScan);
+  const freshlyLoadedCategoryIds = useUiStateStore(
+    (s) => s.freshlyLoadedCategoryIds
+  );
   const modelActions = useModelStore((s) => s.actions);
   const currentIcons = useModelStore((s) => s.icons);
   const currentItems = useModelStore((s) => s.items);
@@ -226,6 +229,17 @@ export const ElementsPanel = () => {
     },
     [iconUsageScan, currentItems]
   );
+
+  // Clear the freshly-loaded marker after the header pulse animation finishes
+  // (animation is 1.6s; small buffer keeps the keyframe from being cut short
+  // if the user is mid-frame when state changes).
+  useEffect(() => {
+    if (freshlyLoadedCategoryIds.length === 0) return;
+    const t = window.setTimeout(() => {
+      uiStateActions.setFreshlyLoadedCategoryIds([]);
+    }, 1800);
+    return () => window.clearTimeout(t);
+  }, [freshlyLoadedCategoryIds, uiStateActions]);
 
   const handleDeleteCancel = useCallback(() => {
     setIconPendingDelete(null);
