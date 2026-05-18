@@ -124,21 +124,18 @@ Resolve the 9 design-shaped items from the 2026-05-15 manual QA pass. These need
 
 ---
 
-### #25 — Preview-mode interaction with diagram-link + notes
+### #25 — Preview-mode interaction with diagram-link + notes  ✅ SHIPPED (pre-session, 2026-05-15)
 
 **Symptom:** Node has both a link-to-another-diagram and notes. Clicking opens the link → user can never see the notes.
 
-**Design questions:**
-1. What's the primary action of a click in preview mode today? (Open link.) Should that change? If we put notes on click, opening the link becomes secondary — bad if links are the more common case.
-2. **Options:**
-   - **A.** Click opens notes popover; popover contains a "Go to linked diagram" button (link demoted).
-   - **B.** Single-click opens notes; double-click follows link.
-   - **C.** Hover shows a small "i" icon for notes + a separate icon for link; click on icon, not on body.
-   - **D.** A persistent info pip on the node body, click body = open link, click pip = open notes.
+**Outcome:** Solved by commit `d65f1a9` (2026-05-15, *fix: MQA #22/#25 panel UX polish*) — closer to **Option A** than the originally-recommended Option D. In `EXPLORABLE_READONLY`, left-click on the node opens the readOnly `NodePanel` instead of jumping straight to the link. The panel surfaces both content paths in one place:
 
-**Recommend D** — pip is a known UI affordance, doesn't break the "click → navigate" muscle memory. Aligns with UX principle of preserving primary actions while making secondary content discoverable.
+- **Header:** node name renders as a clickable link when `headerLink` is set (URL surfaces via tooltip).
+- **Body sections:** Caption → **Linked diagram** (clickable resolved-name link, or explicit `Cannot resolve linked diagram with id: <id>` error) → Notes. Dividers between adjacent sections only when both are present.
 
-**Touchpoint:** ADR-0004 (connector + node details panel) — extend with preview-mode interaction contract.
+So clicking now reveals notes **and** keeps the linked diagram one click away in the same panel — no "pip" needed. Pinned by [`node.linkTooltipDedup.test.ts`](../../packages/fossflow-lib/src/__perf_refactor_regression__/node.linkTooltipDedup.test.ts) (header-name-as-link, LINKED DIAGRAM section, absence of the old icon-based affordances).
+
+**Remaining (separate concern):** passive visual badges on the node body cover only `link` and `notes`, not `headerLink`-only or `description`-only nodes. Tracked in [`known_issues.md`](../../known_issues.md) — discoverability, not interaction.
 
 ---
 
@@ -185,5 +182,5 @@ When all items are decided and implemented:
 - [ ] #11 — Rich text / canvas typography redesign (spinoff plan likely)
 - [x] #19 — Shortcut + canvas-control inventory + tooltip hints
 - [x] #20 — Settings dialog redesign
-- [ ] #25 — Preview-mode notes vs diagram-link interaction
+- [x] #25 — Preview-mode notes vs diagram-link interaction (shipped 2026-05-15 in `d65f1a9`)
 - [ ] #26 — Imported icon delete + in-use guardrails
