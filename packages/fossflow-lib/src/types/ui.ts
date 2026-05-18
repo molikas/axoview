@@ -7,7 +7,7 @@ import {
   ZoomSettings,
   LabelSettings
 } from './settings';
-import { IconPackManagerProps } from './isoflowProps';
+import { IconPackManagerProps, IconUsageScan } from './isoflowProps';
 
 interface AddItemControls {
   type: 'ADD_ITEM';
@@ -232,6 +232,7 @@ export interface UiState {
   connectorInteractionMode: ConnectorInteractionMode;
   expandLabels: boolean;
   iconPackManager: IconPackManagerProps | null;
+  iconUsageScan: IconUsageScan | null;
   linkedDiagrams: Array<{ id: string; name: string }>;
   notification: Notification | null;
   activeLeftTab: 'ELEMENTS' | 'LAYERS' | null;
@@ -284,6 +285,7 @@ export interface UiStateActions {
   setConnectorInteractionMode: (mode: ConnectorInteractionMode) => void;
   setExpandLabels: (expand: boolean) => void;
   setIconPackManager: (iconPackManager: IconPackManagerProps | null) => void;
+  setIconUsageScan: (scan: IconUsageScan | null) => void;
   setLinkedDiagrams: (diagrams: Array<{ id: string; name: string }>) => void;
   setNotification: (notification: Notification | null) => void;
   setActiveLeftTab: (tab: 'ELEMENTS' | 'LAYERS' | null) => void;

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Tooltip, Typography } from '@mui/material';
+import { Close as CloseIcon } from '@mui/icons-material';
 import { Icon as IconI } from 'src/types';
 
 const GRID_SIZE = 36;
@@ -41,9 +42,26 @@ interface Props {
   onClick?: () => void;
   onMouseDown?: () => void;
   onDoubleClick?: () => void;
+  /**
+   * Imported icons only: when supplied, renders a hover-revealed × badge on
+   * the tile that invokes this callback. Tile's own click handlers are
+   * suppressed when the × is clicked so the delete gesture never doubles as
+   * a "place icon" gesture. See ADR-0002 lifecycle section.
+   */
+  onDelete?: () => void;
+  deleteTooltip?: string;
 }
 
-export const Icon = ({ icon, onClick, onMouseDown, onDoubleClick }: Props) => {
+export const Icon = ({
+  icon,
+  onClick,
+  onMouseDown,
+  onDoubleClick,
+  onDelete,
+  deleteTooltip
+}: Props) => {
+  const showDelete = !!onDelete && icon.collection === 'imported';
+
   return (
     <Tooltip
       title={<IconTooltipContent icon={icon} />}
@@ -57,6 +75,7 @@ export const Icon = ({ icon, onClick, onMouseDown, onDoubleClick }: Props) => {
         onMouseDown={onMouseDown}
         onDoubleClick={onDoubleClick}
         sx={{
+          position: 'relative',
           width: GRID_SIZE,
           height: GRID_SIZE,
           display: 'flex',
@@ -65,7 +84,10 @@ export const Icon = ({ icon, onClick, onMouseDown, onDoubleClick }: Props) => {
           borderRadius: 1,
           cursor: 'pointer',
           userSelect: 'none',
-          '&:hover': { bgcolor: 'action.hover' }
+          '&:hover': { bgcolor: 'action.hover' },
+          '&:hover .ff-icon-delete, &:focus-within .ff-icon-delete': {
+            opacity: 1
+          }
         }}
       >
         <Box
@@ -80,6 +102,43 @@ export const Icon = ({ icon, onClick, onMouseDown, onDoubleClick }: Props) => {
             pointerEvents: 'none'
           }}
         />
+        {showDelete && (
+          <Tooltip title={deleteTooltip ?? 'Delete imported icon'} arrow>
+            <Box
+              className="ff-icon-delete"
+              role="button"
+              aria-label={deleteTooltip ?? 'Delete imported icon'}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onDelete!();
+              }}
+              sx={{
+                position: 'absolute',
+                top: -2,
+                right: -2,
+                width: 14,
+                height: 14,
+                borderRadius: '50%',
+                bgcolor: 'error.main',
+                color: 'common.white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: 0.5,
+                transition: 'opacity 120ms ease',
+                cursor: 'pointer',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.35)',
+                '&:hover': { bgcolor: 'error.dark' }
+              }}
+            >
+              <CloseIcon sx={{ fontSize: 10 }} />
+            </Box>
+          </Tooltip>
+        )}
       </Box>
     </Tooltip>
   );

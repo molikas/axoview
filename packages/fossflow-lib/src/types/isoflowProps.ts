@@ -407,6 +407,25 @@ export interface LocaleProps {
   // other namespaces can be added here
 }
 
+/**
+ * Per-diagram usage report for a single icon id. Returned by IconUsageScan.
+ * `count` is the number of items in the diagram that reference the icon id.
+ */
+export interface IconUsageReport {
+  diagramId: string;
+  diagramName: string;
+  count: number;
+}
+
+/**
+ * Workspace-wide scan for icon usage. Implemented by the consuming app since
+ * the lib has no notion of "other diagrams" — only the currently loaded model.
+ * The result must include the current diagram if it uses the icon.
+ *
+ * When unset, ElementsPanel falls back to a current-diagram-only scan.
+ */
+export type IconUsageScan = (iconId: string) => Promise<IconUsageReport[]>;
+
 export interface IconPackManagerProps {
   lazyLoadingEnabled: boolean;
   onToggleLazyLoading: (enabled: boolean) => void;
@@ -433,6 +452,12 @@ export interface IsoflowProps {
   renderer?: RendererProps;
   locale?: LocaleProps;
   iconPackManager?: IconPackManagerProps;
+  /**
+   * Optional workspace-wide icon usage scan. When supplied, the imported-icon
+   * delete confirmation dialog lists every diagram that references the icon
+   * before allowing the user to proceed. See ADR-0002 lifecycle section.
+   */
+  iconUsageScan?: IconUsageScan;
   /** Diagrams available for node-to-diagram linking (Phase 2C). Each entry is {id, name}. */
   linkedDiagrams?: Array<{ id: string; name: string }>;
   /** Slot rendered inside the Settings dialog as a "Language" tab — pass your own language-picker component. */

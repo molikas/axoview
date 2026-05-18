@@ -6,7 +6,7 @@
 > - [docs/adr/0004-connector-name-and-details-panel.md](../adr/0004-connector-name-and-details-panel.md) — relevant to #25 (preview interaction with notes + links)
 > - [docs/adr/0002-icon-catalog-merge-on-load.md](../adr/0002-icon-catalog-merge-on-load.md) — relevant to #10 (new-icons-loaded feedback) and #26 (icon removal lifecycle)
 >
-> **Status:** Awaiting design proposals · **Owner:** Igor · **Last updated:** 2026-05-15
+> **Status:** Awaiting design proposals · **Owner:** Igor · **Last updated:** 2026-05-18
 >
 > Short-lived working doc. Delete after the work merges; durable decisions get ADR notes, not preserved here.
 
@@ -139,18 +139,20 @@ So clicking now reveals notes **and** keeps the linked diagram one click away in
 
 ---
 
-### #26 — Allow deleting imported icons + in-use guardrails
+### #26 — Allow deleting imported icons + in-use guardrails  ✅ SHIPPED
 
-**Ask:** remove imported icons. Warn if in use. What happens if user removes an in-use icon?
+**Outcome (2026-05-18):**
 
-**Design questions:**
-1. **Detection of in-use:** scan all diagrams in the project. Performance-OK because icon library is small.
-2. **Warn vs block:** warn-and-allow (with a list of diagrams that reference it) or block until references are removed? Recommend **warn-and-allow** — blocks frustrate, warnings preserve user agency.
-3. **What renders when an icon is missing?** Today: nothing? a placeholder? a tombstone? Recommend a **fallback tombstone glyph** with a tooltip "icon removed: <name>" so the user can recover by re-importing.
-4. **Catalog vs imported scope:** can we delete built-in catalog icons? Recommend no — only user-imported.
-5. **Undo:** is deletion undoable within session? Recommend yes — push into the history stack like any other destructive op.
+- **Affordance:** hover-revealed × badge on imported icon tiles (top-right, 0.5 opacity, red). Renders only when `icon.collection === 'imported'`. Lib gate lives in `Icon.tsx`, threaded through `IconGrid`/`IconCollection`/`Icons` → `ElementsPanel`.
+- **Workspace-wide scan:** new `iconUsageScan` prop on `<Isoflow>` (typed `IconUsageScan`) — injected by the PWA via `services/iconUsage.ts`, which uses `StorageProvider.listDiagrams() + loadDiagram(id)` to count refs across the workspace. The active diagram's in-memory items are preferred so unsaved edits count. Lib falls back to current-diagram-only when the callback isn't wired.
+- **Warn-and-allow:** new `DeleteIconConfirmDialog` shows the per-diagram usage list with a "in use by N items across M diagrams" warning before the user confirms. No block path.
+- **Tombstone:** `useIcon` now distinguishes "no id" (→ `DEFAULT_ICON`, today's behavior) from "id set but unresolved" (→ new `TOMBSTONE_ICON`, faded dashed-square SVG). Re-importing under the same id resurrects affected items automatically.
+- **Undo:** `modelActions.set({ icons })` pushes a history entry, so `Ctrl+Z` restores the icon and un-tombstones every item.
+- **Scope locked:** built-in fixtures + isopack icons are non-deletable (the × badge doesn't render for them). Isopack management stays in Settings → Icon Packs.
 
-**Touchpoint:** [ADR-0002](../adr/0002-icon-catalog-merge-on-load.md) and [ADR-0003](../adr/0003-session-storage-lean-icon-save.md). Likely a small new ADR or extension covering the lifecycle (import + delete + reference handling).
+**Out of scope (filed):** bulk delete of imported icons; "replace references with X" workflow; cross-session persistent undo.
+
+**ADR:** [ADR-0002](../adr/0002-icon-catalog-merge-on-load.md) gained a "Lifecycle" section covering delete, scan, tombstone, and undo.
 
 ---
 
@@ -183,4 +185,4 @@ When all items are decided and implemented:
 - [x] #19 — Shortcut + canvas-control inventory + tooltip hints
 - [x] #20 — Settings dialog redesign
 - [x] #25 — Preview-mode notes vs diagram-link interaction (shipped 2026-05-15 in `d65f1a9`)
-- [ ] #26 — Imported icon delete + in-use guardrails
+- [x] #26 — Imported icon delete + in-use guardrails (shipped 2026-05-18)

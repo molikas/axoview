@@ -77,6 +77,7 @@ const App = forwardRef<IsoflowRef, IsoflowProps>(
       renderer,
       locale = enUS,
       iconPackManager,
+      iconUsageScan,
       linkedDiagrams,
       toolbarPortalTarget,
       sidebarTogglePortalTarget,
@@ -230,6 +231,10 @@ const App = forwardRef<IsoflowRef, IsoflowProps>(
     useEffect(() => {
       uiStateActions.setIconPackManager(iconPackManager || null);
     }, [iconPackManager, uiStateActions]);
+
+    useEffect(() => {
+      uiStateActions.setIconUsageScan(iconUsageScan || null);
+    }, [iconUsageScan, uiStateActions]);
 
     useEffect(() => {
       uiStateActions.setLinkedDiagrams(linkedDiagrams || []);
