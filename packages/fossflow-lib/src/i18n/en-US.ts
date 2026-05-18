@@ -155,7 +155,7 @@ const locale: LocaleProps = {
         'When enabled, zoom in/out centered on the mouse cursor position. When disabled, zoom is centered on the canvas.'
     },
     hotkeys: {
-      title: 'Hotkey Settings',
+      title: 'Keyboard shortcuts',
       profile: 'Hotkey Profile',
       profileQwerty: 'QWERTY (Q, W, E, R, T, Y)',
       profileSmnrct: 'SMNRCT (S, M, N, R, C, T)',

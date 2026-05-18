@@ -39,6 +39,7 @@ const initialState = () => {
         delta: null
       },
       itemControls: null,
+      selectedIds: [],
       enableDebugTools: false,
       hotkeyProfile: persisted?.hotkeyProfile ?? DEFAULT_HOTKEY_PROFILE,
       panSettings: persisted?.panSettings ?? DEFAULT_PAN_SETTINGS,
@@ -77,6 +78,7 @@ const initialState = () => {
               offset: CoordsUtils.zero()
             },
             itemControls: null,
+            selectedIds: [],
             itemActionBarOpen: false,
             zoom: INITIAL_UI_STATE.zoom
           });
@@ -109,8 +111,16 @@ const initialState = () => {
             const { rightSidebarOpen, rightSidebarAutoOpened } = get();
             // If user manually pinned the panel open, don't mark it as auto-opened
             const alreadyPinned = rightSidebarOpen && !rightSidebarAutoOpened;
+            // Keep selectedIds coherent when itemControls is set directly
+            // (e.g. from a layer-row click). Multi-select stays as-is; single-
+            // item selection mirrors itemControls into selectedIds.
+            const nextSelected =
+              itemControls.type === 'ADD_ITEM'
+                ? get().selectedIds
+                : [{ type: itemControls.type, id: itemControls.id }];
             set({
               itemControls,
+              selectedIds: nextSelected,
               rightSidebarOpen: true,
               // New / changed selection always closes the floating action bar.
               // The bar is only opened by an explicit right-click (mqa-results.md #1).
@@ -128,6 +138,49 @@ const initialState = () => {
               })
             });
           }
+        },
+        setSelectedIds: (ids) => {
+          // Derive itemControls per the multi-select contract (ADR-0006):
+          //  - 0 items → no panel
+          //  - 1 item → panel mounted for that item
+          //  - >1   → no panel (heterogeneous edits aren't meaningful here)
+          if (ids.length === 1) {
+            const only = ids[0];
+            const { rightSidebarOpen, rightSidebarAutoOpened } = get();
+            const alreadyPinned = rightSidebarOpen && !rightSidebarAutoOpened;
+            set({
+              selectedIds: ids,
+              itemControls: { type: only.type, id: only.id },
+              rightSidebarOpen: true,
+              itemActionBarOpen: false,
+              ...(!alreadyPinned && { rightSidebarAutoOpened: true })
+            });
+          } else {
+            const autoOpened = get().rightSidebarAutoOpened;
+            set({
+              selectedIds: ids,
+              itemControls: null,
+              itemActionBarOpen: false,
+              ...(autoOpened && {
+                rightSidebarOpen: false,
+                rightSidebarAutoOpened: false
+              })
+            });
+          }
+        },
+        toggleSelected: (ref) => {
+          const current = get().selectedIds;
+          const idx = current.findIndex(
+            (r) => r.id === ref.id && r.type === ref.type
+          );
+          const next =
+            idx >= 0
+              ? [...current.slice(0, idx), ...current.slice(idx + 1)]
+              : [...current, ref];
+          get().actions.setSelectedIds(next);
+        },
+        clearSelection: () => {
+          get().actions.setSelectedIds([]);
         },
         setContextMenu: (contextMenu) => {
           set({ contextMenu });

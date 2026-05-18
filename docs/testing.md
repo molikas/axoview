@@ -1,7 +1,7 @@
 # Regression Test Suite Reference
 
-**Last updated:** 2026-05-16
-**Total:** ~1031 tests · 95 suites · all passing (1 pre-existing failure tracked in [`known_issues.md`](../known_issues.md))
+**Last updated:** 2026-05-17
+**Total:** ~1061 tests · 98 suites · all passing (1 pre-existing `leanSave.test.ts` failure unrelated to current work)
 **Run:** `npm test --workspace=packages/fossflow-lib` (lib) · `npm test --workspace=packages/fossflow-app` (app, project-zip + LocalStorageProvider)
 
 E2E tests are not currently run in CI — Selenium framework under `e2e-tests/` is being retired in favour of Playwright. Migration tracked at [docs/tactical/playwright-migration.md](tactical/playwright-migration.md).
@@ -26,6 +26,14 @@ E2E tests are not currently run in CI — Selenium framework under `e2e-tests/` 
 (The 525 / 60 figure counts lib suites only — the **~745 / 76** total at the top includes app-side suites: `services/project/__tests__/projectZip.test.ts`, `services/storage/__tests__/LocalStorageProvider.test.ts`, and the lean-save / requiredPacks regressions.)
 
 ---
+
+## Branch additions (2026-05-17) — MQA design shake-out (#19, #20, #8/#9)
+
+| Suite | Coverage |
+|---|---|
+| [`packages/fossflow-lib/src/__perf_refactor_regression__/multiSelect.contract.test.ts`](../packages/fossflow-lib/src/__perf_refactor_regression__/multiSelect.contract.test.ts) | 6 store-level tests pinning ADR-0006 invariants: `setSelectedIds([])` clears both slices; `setSelectedIds([single])` opens panel; `setSelectedIds([>1])` auto-hides panel (MQA #9); `toggleSelected` add/remove + auto-reopen on count→1; `clearSelection`; and `setItemControls(single)` mirroring into `selectedIds` for the layer-row click path. |
+| [`packages/fossflow-lib/src/utils/__tests__/connectorSelection.test.ts`](../packages/fossflow-lib/src/utils/__tests__/connectorSelection.test.ts) | 8 unit tests pinning the connector-with-waypoint helpers: `getConnectorWaypointRefs` (tile-bound middle anchors only, never endpoints), `isUserFacingRef` / `countUserFacingRefs` (waypoints don't inflate the badge), `filterUserFacingRefs` (drops waypoint refs for assign-to-layer dispatch). |
+| [`packages/fossflow-lib/src/__perf_refactor_regression__/Cursor.waypointGestures.test.ts`](../packages/fossflow-lib/src/__perf_refactor_regression__/Cursor.waypointGestures.test.ts) | 6 mode-action regression tests for MQA #8/#9 + waypoint-removal: Alt+click splice removes the clicked waypoint; subsequent mouseup preserves the connector selection (no spurious `clearSelection`); plain click still sets up drag; DOM-driven `targetAnchorId` lookup wins over tile-equality so off-tile clicks within the 32 px hit ring still resolve; Ctrl+click on a connector toggles connector + its waypoints as one atomic group. |
 
 ## Branch additions (2026-05-15 → 2026-05-16) — MQA Bundle B + follow-ups
 

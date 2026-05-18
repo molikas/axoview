@@ -14,6 +14,7 @@ import {
   hasMovedTile,
   getItemByIdOrThrow
 } from 'src/utils';
+import { getConnectorWaypointRefs } from 'src/utils/connectorSelection';
 
 interface LassoScene {
   items: ViewItem[];
@@ -93,18 +94,7 @@ const getItemsInBounds = (
 
     if (anchorInBounds(first) && anchorInBounds(last)) {
       items.push({ type: 'CONNECTOR', id: connector.id });
-      // Free-floating waypoints between selected endpoints must also be
-      // dragged — otherwise the connector's intermediate routing stays
-      // anchored to its old tile and the path looks pinched. Endpoints
-      // themselves move with their ref'd nodes; tile-based waypoints need
-      // an explicit CONNECTOR_ANCHOR drag entry.
-      connector.anchors.forEach((anchor: ConnectorAnchor, idx: number) => {
-        const isEndpoint = idx === 0 || idx === connector.anchors.length - 1;
-        if (isEndpoint) return;
-        if (anchor.ref?.tile) {
-          items.push({ type: 'CONNECTOR_ANCHOR', id: anchor.id });
-        }
-      });
+      items.push(...getConnectorWaypointRefs(connector));
     } else {
       // Endpoint(s) not selected — still capture any free-floating waypoint
       // anchors inside the lasso bounds.
@@ -258,5 +248,11 @@ export const Lasso: ModeActions = {
         }
       })
     );
+
+    // Mirror the lasso selection into the persistent multi-selection slice so
+    // tools that read selectedIds (delete, Ctrl+A, panel auto-hide, the
+    // BottomDock "N selected" badge) see the same set. ADR-0006. Optional-call
+    // so mode-action unit tests with a minimal actions mock keep working.
+    uiState.actions.setSelectedIds?.(uiState.mode.selection!.items);
   }
 };

@@ -10,6 +10,8 @@ import { useUiStateStore } from 'src/stores/uiStateStore';
 import { DialogTypeEnum } from 'src/types/ui';
 import { ElementsPanel } from './ElementsPanel';
 import { LayersPanel } from 'src/components/LayersPanel/LayersPanel';
+import { HOTKEY_PROFILES } from 'src/config/hotkeys';
+import { tooltipWithShortcut } from 'src/utils/tooltipWithShortcut';
 
 const STRIP_WIDTH = 40;
 const PANEL_WIDTH = 240;
@@ -45,6 +47,13 @@ export const LeftDock = ({
   const activeLeftTab = useUiStateStore((s) => s.activeLeftTab);
   const setActiveLeftTab = useUiStateStore((s) => s.actions.setActiveLeftTab);
   const setDialog = useUiStateStore((s) => s.actions.setDialog);
+  const hotkeyProfile = useUiStateStore((s) => s.hotkeyProfile);
+  const hotkeys = HOTKEY_PROFILES[hotkeyProfile];
+
+  const tabShortcut: Record<LeftTabId, string | null | undefined> = {
+    ELEMENTS: hotkeys.addItem?.toUpperCase(),
+    LAYERS: null
+  };
 
   const panelOpen = activeLeftTab !== null && !disableWorkingTabs;
   const panelLeftOffset = STRIP_WIDTH + (fileExplorerOpen ? FILE_EXPLORER_WIDTH : 0);
@@ -109,7 +118,7 @@ export const LeftDock = ({
           const isActive = activeLeftTab === tab.id && !disableWorkingTabs;
           const tooltipTitle = disableWorkingTabs
             ? `${tab.tooltip} — open or create a diagram first`
-            : tab.tooltip;
+            : tooltipWithShortcut(tab.tooltip, tabShortcut[tab.id]);
           return (
             <Tooltip key={tab.id} title={tooltipTitle} placement="right">
               <span>

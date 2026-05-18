@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Tooltip } from '@mui/material';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useScene } from 'src/hooks/useScene';
 import {
@@ -13,6 +14,16 @@ const ACCENT = '#a5b8f3';
 const ACCENT_DARK = '#7b96e8';
 const RADIUS = 11;
 const INNER_RADIUS = 4;
+// Waypoints used to render at RADIUS - 3 (8px) with a faded 5×5 dark square
+// inside — visually subordinate to endpoints. User feedback: too small and
+// hard to spot. Bring them closer to endpoint size (10px) with a clearly
+// visible accent-colored diamond so they read as interactive controls.
+const WAYPOINT_RADIUS = 10;
+const WAYPOINT_INNER = 7;
+// Invisible hit area extends beyond the visual so Alt+click / drag is more
+// forgiving without making the on-canvas dot bigger. Pattern matches Figma,
+// Excalidraw, draw.io handle controls.
+const WAYPOINT_HIT_RADIUS = 16;
 
 const pulseKeyframes = `
 @keyframes fossflow-anchor-pulse {
@@ -70,33 +81,55 @@ export const ConnectorAnchorOverlay = () => {
         }
 
         const pos = getTilePosition({ tile: globalTile });
-        const radius = isEndpoint ? RADIUS : RADIUS - 3;
+        const radius = isEndpoint ? RADIUS : WAYPOINT_RADIUS;
 
-        return (
+        // Waypoints get a "Alt+click to remove" tooltip on hover. To detect
+        // hover the div must accept pointer events, which would normally
+        // break the renderer-interaction check in Cursor.mousedown — handled
+        // by tagging the element with data-anchor-id and treating matching
+        // targets as renderer interactions in useInteractionManager. The
+        // outer wrapper is a larger transparent hit area; the inner div
+        // carries the visual.
+        const hitR = !isEndpoint ? WAYPOINT_HIT_RADIUS : radius;
+        const anchorEl = (
           <div
             key={anchor.id}
+            data-anchor-id={!isEndpoint ? anchor.id : undefined}
             style={{
               position: 'absolute',
-              left: pos.x - radius,
-              top: pos.y - radius,
-              width: radius * 2,
-              height: radius * 2,
+              left: pos.x - hitR,
+              top: pos.y - hitR,
+              width: hitR * 2,
+              height: hitR * 2,
               borderRadius: '50%',
-              background: 'rgba(255,255,255,0.82)',
-              backdropFilter: 'blur(4px)',
-              border: `1.5px solid rgba(0,0,0,0.10)`,
-              boxShadow: isReconnecting
-                ? `0 0 0 0 rgba(165,184,243,0.55), 0 2px 8px rgba(0,0,0,0.18)`
-                : `0 1px 4px rgba(0,0,0,0.14), 0 0 0 1px rgba(255,255,255,0.6)`,
-              animation: isReconnecting
-                ? 'fossflow-anchor-pulse 1.2s ease-out infinite'
-                : 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              pointerEvents: 'none'
+              pointerEvents: isEndpoint ? 'none' : 'auto',
+              cursor: isEndpoint ? 'default' : 'pointer',
+              background: 'transparent'
             }}
           >
+            <div
+              style={{
+                width: radius * 2,
+                height: radius * 2,
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.82)',
+                backdropFilter: 'blur(4px)',
+                border: `1.5px solid rgba(0,0,0,0.10)`,
+                boxShadow: isReconnecting
+                  ? `0 0 0 0 rgba(165,184,243,0.55), 0 2px 8px rgba(0,0,0,0.18)`
+                  : `0 1px 4px rgba(0,0,0,0.14), 0 0 0 1px rgba(255,255,255,0.6)`,
+                animation: isReconnecting
+                  ? 'fossflow-anchor-pulse 1.2s ease-out infinite'
+                  : 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'none'
+              }}
+            >
             {/* Inner dot: filled for source, hollow ring for target, small square for waypoint */}
             {isEndpoint ? (
               isSource ? (
@@ -122,17 +155,36 @@ export const ConnectorAnchorOverlay = () => {
                 />
               )
             ) : (
+              // Filled accent-colored diamond — clearly visible against the
+              // canvas and distinguishable from endpoints (which are circles).
               <div
                 style={{
-                  width: 5,
-                  height: 5,
-                  borderRadius: 1,
-                  backgroundColor: 'rgba(0,0,0,0.25)',
-                  flexShrink: 0
+                  width: WAYPOINT_INNER,
+                  height: WAYPOINT_INNER,
+                  backgroundColor: ACCENT,
+                  border: '1px solid rgba(0,0,0,0.18)',
+                  transform: 'rotate(45deg)',
+                  flexShrink: 0,
+                  pointerEvents: 'none'
                 }}
               />
             )}
+            </div>
           </div>
+        );
+
+        if (isEndpoint) return anchorEl;
+        return (
+          <Tooltip
+            key={anchor.id}
+            title="Alt+click to remove"
+            enterDelay={600}
+            enterNextDelay={600}
+            placement="top"
+            arrow
+          >
+            {anchorEl}
+          </Tooltip>
         );
       })}
     </>

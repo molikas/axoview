@@ -14,6 +14,7 @@ Source and issue tracker: [github.com/molikas/FossFLOW_V2](https://github.com/mo
 
 - **Cut, copy and paste** — `Ctrl+C` copies, `Ctrl+X` cuts, `Ctrl+V` pastes at cursor. Works on any combination of nodes, connectors, rectangles, and text boxes. Connectors between pasted nodes are included automatically. Full undo/redo support.
 - **Freehand lasso selection** — Draw a freehand polygon to select items, in addition to the standard rectangular lasso.
+- **Multi-element selection — Ctrl+click and Ctrl+A** — `Ctrl/⌘+click` toggles items in or out of the selection (Figma / Sketch / VS Code convention). `Ctrl/⌘+A` selects every visible, unlocked item in the active view (locked / hidden layers are skipped). `Esc` clears it; `Delete` removes the whole selection. Lasso and freehand-lasso both persist their selection into the same store slice so multi-select survives switching tools. Dragging any selected item moves the whole group. When more than one item is selected the right Properties panel auto-hides (it's per-item; bulk editing is deferred) and a `"N selected"` chip appears in the bottom-left dock. Full contract in [ADR 0006](docs/adr/0006-canvas-selection-contract.md).
 - **Drag precision** — Dragging responds instantly, tracks the grab point, and stops cleanly at the last valid position when blocked.
 - **Delete key** — `Delete` or `Backspace` removes selected items.
 - **Undo/redo** — Full multi-step history for all canvas changes.
@@ -35,7 +36,7 @@ Source and issue tracker: [github.com/molikas/FossFLOW_V2](https://github.com/mo
 - **Node label font size and color** — Adjust font size and text color from the Style tab.
 - **Text box rich text and color** — Text boxes support bold, italic, bullet lists, headers, and more. Text color is adjustable. The box auto-expands to fit its content.
 - **Connector label styling** — Per-label font size (8–24 px), text color, and position control. The color section is clearly labelled "Line Color" to distinguish it from label color.
-- **Connector anchor handles** — Selecting a connector shows glass-morphism anchor circles at each endpoint and waypoint (source = filled dot, target = hollow ring). Click any handle to enter reconnect mode; move the mouse to live-preview the new route, then click to finalize. Endpoint handles are always visible above node icons.
+- **Connector anchor handles** — Selecting a connector shows glass-morphism anchor circles at each endpoint and waypoint (source = filled dot, target = hollow ring, waypoint = accent diamond). Click an endpoint handle to enter reconnect mode; move the mouse to live-preview the new route, then click to finalize. Click + drag a waypoint to reposition it, or **Alt+click a waypoint to remove it** (a delayed *"Alt+click to remove"* tooltip surfaces on hover; cursor changes to pointing-finger). The hit ring around each waypoint is wider than the visual so clicks within it still register at any zoom. Endpoint handles are always visible above node icons.
 
 ### Canvas and navigation
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Box,
   Paper,
@@ -10,10 +10,17 @@ import {
 } from '@mui/material';
 import { LayersOutlined } from '@mui/icons-material';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
-import { useUiStateStore } from 'src/stores/uiStateStore';
+import {
+  useUiStateStore,
+  useUiStateStoreApi
+} from 'src/stores/uiStateStore';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { useLayerActions } from 'src/hooks/useLayerActions';
 import { ItemReference } from 'src/types';
+import {
+  countUserFacingRefs,
+  filterUserFacingRefs
+} from 'src/utils/connectorSelection';
 
 /** Derive an approximate "top-center" tile of the current lasso selection */
 const useSelectionInfo = (): {
@@ -47,12 +54,33 @@ export const LassoLayerBar = () => {
   const { layers } = useLayerContext();
   const { assignLayerToItems } = useLayerActions();
   const { getTilePosition } = useCanvasMode();
+  const uiStoreApi = useUiStateStoreApi();
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Counter-scale unconditionally so the bar stays at natural pixel size at
+  // every zoom level (UX §8.8). Mirrors NodeActionBar. Bypasses React render.
+  useEffect(() => {
+    const apply = (zoom: number) => {
+      if (!wrapperRef.current) return;
+      const counter = 1 / zoom;
+      wrapperRef.current.style.transform = `translateX(-50%) scale(${counter})`;
+    };
+    apply(uiStoreApi.getState().zoom);
+    return uiStoreApi.subscribe((state, prev) => {
+      if (state.zoom === prev.zoom) return;
+      apply(state.zoom);
+    });
+  }, [uiStoreApi]);
 
   const handleAssign = useCallback(
     (layerId: string | undefined) => {
       if (!selectionInfo) return;
-      assignLayerToItems(layerId, selectionInfo.items);
+      // Waypoint anchors aren't independently assignable to layers — strip
+      // them before dispatching so the reducer only sees ITEM/RECTANGLE/
+      // TEXTBOX/CONNECTOR ids. See utils/connectorSelection.
+      const assignable = filterUserFacingRefs(selectionInfo.items);
+      assignLayerToItems(layerId, assignable);
       setMenuAnchor(null);
     },
     [assignLayerToItems, selectionInfo]
@@ -64,15 +92,21 @@ export const LassoLayerBar = () => {
     tile: selectionInfo.centerTile,
     origin: 'TOP'
   });
-  const count = selectionInfo.items.length;
+  // Show user-facing item count — waypoints come along with their connector
+  // and shouldn't inflate the badge ("3 items" when the user lassoed 1
+  // connector with 2 waypoints is misleading).
+  const count = countUserFacingRefs(selectionInfo.items);
+  if (count === 0) return null;
 
   return (
     <Box
+      ref={wrapperRef}
       sx={{
         position: 'absolute',
         left: pos.x,
         top: pos.y - 44,
         transform: 'translateX(-50%)',
+        transformOrigin: 'center bottom',
         pointerEvents: 'auto',
         zIndex: 10
       }}

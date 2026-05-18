@@ -4,6 +4,7 @@ import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useDiagramUtils } from 'src/hooks/useDiagramUtils';
 import { MAX_ZOOM, MIN_ZOOM } from 'src/config';
 import { useTranslation } from 'src/stores/localeStore';
+import { tooltipWithShortcut } from 'src/utils/tooltipWithShortcut';
 
 // Minimal 16px inline SVG icons matching Lucid's style
 const MinusIcon = () => (
@@ -45,7 +46,7 @@ export const ZoomControls = () => {
 
   return (
     <Stack direction="row" spacing={0} alignItems="center">
-      <Tooltip title={t('zoomOut')} placement="top">
+      <Tooltip title={tooltipWithShortcut(t('zoomOut'), 'Wheel ↓')} placement="top">
         <span>
           <IconButton
             size="small"
@@ -72,7 +73,7 @@ export const ZoomControls = () => {
         {Math.ceil(zoom * 100)}%
       </Typography>
 
-      <Tooltip title={t('zoomIn')} placement="top">
+      <Tooltip title={tooltipWithShortcut(t('zoomIn'), 'Wheel ↑')} placement="top">
         <span>
           <IconButton
             size="small"

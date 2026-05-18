@@ -240,6 +240,29 @@ If a future feature adds a new selection mechanism (keyboard arrow nav, "select 
 
 Visual indicator for locked rows lives in [`LayerRow.tsx`](../packages/fossflow-lib/src/components/LayersPanel/LayerRow.tsx): left accent stripe + tinted background + saturated lock icon, so the state is unmistakable next to a row of similar outlines.
 
+### 4.4 Multi-select gesture matrix
+
+Persistent canvas multi-selection lives in `uiState.selectedIds: ItemReference[]`. The right Properties panel is per-item — so `selectedIds.length === 1` keeps `itemControls` in sync and the panel opens; `0` or `> 1` closes it. Bulk editing isn't part of this contract.
+
+| Gesture | Outcome |
+|---|---|
+| Left-click an item | replaces selection with `[item]` |
+| Ctrl/⌘+click an item | toggles `item` in/out (Figma/Sketch standard) |
+| Ctrl/⌘+click a **connector** | toggles connector **plus its tile-bound waypoint anchors** as one group |
+| Ctrl/⌘+A | selects every visible + unlocked item in the active view (respects §4.3) |
+| Left-click empty canvas | clears selection |
+| Esc (no panel / connector mid-flight) | clears selection |
+| Lasso / freehand-lasso (mouseup) | mirrors `mode.selection.items` into `selectedIds` so it survives leaving lasso mode |
+| Drag any item already in `selectedIds` (len > 1) | drags the whole group |
+| Delete / Backspace (selection len > 1) | deletes every selected item; CONNECTOR_ANCHOR refs are spliced from their parent connector |
+| Alt+click a waypoint (connector selected) | removes the waypoint without removing the connector |
+
+**Why waypoints come with their connector under Ctrl+click and Ctrl+A:** waypoint anchors carry `ref.tile` (absolute position) — they don't auto-follow the connector when it moves. Selection paths that include a connector MUST also include its waypoints, otherwise multi-drag pinches the path and bulk-delete leaves orphans. The single source of truth for that bookkeeping is `getConnectorWaypointRefs(connector)` in [`utils/connectorSelection.ts`](../packages/fossflow-lib/src/utils/connectorSelection.ts). Three call sites consume it: `Lasso.getItemsInBounds`, `FreehandLasso.getItemsInFreehandBounds`, and the `Ctrl+A` branch in `useInteractionManager`. **Any new selection path that includes a connector must call it too** — same rule as §4.3's `isItemInteractable`.
+
+**User-facing count vs. internal count:** badges and labels ("N selected", "Assign layer to N items") count user-facing refs via `countUserFacingRefs`, which excludes CONNECTOR_ANCHOR — those are implementation detail, not things the user thinks they selected. `filterUserFacingRefs` strips them before `assignLayerToItems` because waypoints aren't independently assignable to a layer.
+
+Full contract + rationale: [ADR 0006](adr/0006-canvas-selection-contract.md).
+
 ---
 
 ## 5. Item type parity

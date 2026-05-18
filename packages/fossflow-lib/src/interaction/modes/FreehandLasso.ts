@@ -10,6 +10,7 @@ import {
   ConnectorAnchor
 } from 'src/types';
 import { isPointInPolygon, getItemByIdOrThrow } from 'src/utils';
+import { getConnectorWaypointRefs } from 'src/utils/connectorSelection';
 
 interface FreehandScene {
   items: ViewItem[];
@@ -87,6 +88,9 @@ const getItemsInFreehandBounds = (
 
     if (anchorInBounds(first) && anchorInBounds(last)) {
       items.push({ type: 'CONNECTOR', id: connector.id });
+      // Same pinched-path bug Lasso fixed: tile-bound waypoints don't
+      // follow endpoints, so they need their own refs in the selection.
+      items.push(...getConnectorWaypointRefs(connector));
     } else {
       // Still capture any free-floating waypoint anchors
       connector.anchors.forEach((anchor: ConnectorAnchor) => {
@@ -260,6 +264,9 @@ export const FreehandLasso: ModeActions = {
           }
         })
       );
+      // Mirror into the persistent multi-selection (ADR-0006). Optional-call
+      // so mock uiState in unit tests doesn't need the new action.
+      uiState.actions.setSelectedIds?.(items);
     } else {
       // Reset dragging state but keep selection if it exists
       uiState.actions.setMode(

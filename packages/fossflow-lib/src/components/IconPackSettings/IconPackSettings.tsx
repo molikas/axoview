@@ -49,13 +49,9 @@ export const IconPackSettings: React.FC<IconPackSettingsProps> = ({
     };
 
   return (
-    <Box>
-      <Typography variant="h6" gutterBottom>
-        {t('settings.iconPacks.title')}
-      </Typography>
-
+    <Box sx={{ p: 2 }}>
       {/* Lazy Loading Toggle */}
-      <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+      <Paper variant="outlined" sx={{ p: 2 }}>
         <FormControl component="fieldset" fullWidth>
           <Box
             sx={{

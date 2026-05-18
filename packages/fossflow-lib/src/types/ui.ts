@@ -28,6 +28,25 @@ export interface Mouse {
     screen: Coords;
     tile: Coords;
   } | null;
+  /**
+   * Most recent keyboard modifiers seen on a canvas mouse event. Optional so
+   * existing test mocks that construct a Mouse object continue to compile.
+   * Mode actions read this to branch on Ctrl/Shift/Meta without needing the
+   * event passed through every layer.
+   */
+  modifiers?: {
+    ctrl: boolean;
+    shift: boolean;
+    meta: boolean;
+    alt: boolean;
+  };
+  /**
+   * data-anchor-id of the DOM element under the cursor, if any. Captured by
+   * useInteractionManager from each mouse event's target so mode actions can
+   * identify the clicked connector anchor by id rather than by tile match
+   * (the tile match is fragile near boundaries and at low zoom).
+   */
+  targetAnchorId?: string | null;
 }
 
 // Mode types
@@ -193,6 +212,12 @@ export interface UiState {
   dialog: keyof typeof DialogTypeEnum | null;
   isMainMenuOpen: boolean;
   itemControls: ItemControls | null;
+  /**
+   * Persistent multi-selection on the canvas. Single source of truth for which
+   * items are selected. Invariant: when length === 1, itemControls mirrors the
+   * single selected item; when 0 or > 1, itemControls is null. See ADR-0006.
+   */
+  selectedIds: ItemReference[];
   contextMenu: ContextMenu | null;
   zoom: number;
   scroll: Scroll;
@@ -238,6 +263,15 @@ export interface UiStateActions {
   setZoom: (zoom: number) => void;
   setScroll: (scroll: Scroll) => void;
   setItemControls: (itemControls: ItemControls | null) => void;
+  /**
+   * Replaces the current canvas selection. Internally derives itemControls
+   * (single-item case) or clears it (empty / multi-select).
+   */
+  setSelectedIds: (ids: ItemReference[]) => void;
+  /** Adds the item if absent, removes it if present. Updates itemControls accordingly. */
+  toggleSelected: (ref: ItemReference) => void;
+  /** Convenience: clears selectedIds and itemControls. */
+  clearSelection: () => void;
   setContextMenu: (contextMenu: ContextMenu | null) => void;
   setMouse: (mouse: Mouse) => void;
   setRendererEl: (el: HTMLDivElement) => void;

@@ -26,12 +26,8 @@ export const ConnectorSettings = () => {
   };
 
   return (
-    <Box>
-      <Typography variant="h6" gutterBottom>
-        {t('settings.connector.title')}
-      </Typography>
-
-      <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+    <Box sx={{ p: 2 }}>
+      <Paper variant="outlined" sx={{ p: 2 }}>
         <FormControl component="fieldset">
           <FormLabel component="legend">
             {t('settings.connector.connectionMode')}
