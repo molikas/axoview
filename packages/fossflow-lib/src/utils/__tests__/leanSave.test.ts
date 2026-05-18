@@ -66,12 +66,12 @@ describe('mergeBundledFixtures (ADR 0002)', () => {
     expect(merged.icons.some((i: any) => i.id === 'custom-1')).toBe(true);
   });
 
-  it('overridden default wins over bundled fixture (same id, changed metadata)', () => {
-    const overridden = { ...bundledFixtures[0], name: 'User-renamed' };
-    const merged = mergeBundledFixtures(baseModel([overridden]));
-    const found = merged.icons.find((i: any) => i.id === bundledFixtures[0].id);
-    expect(found?.name).toBe('User-renamed');
-  });
+  // The "override wins over bundled fixture" case is intentionally not tested
+  // here. Per ADR-0002 (2026-05-01), `bundledFixtures` is empty by design — the
+  // consuming app (PWA) injects @isoflow/isopacks instead. With no bundled
+  // defaults, the override path is unreachable in production. If bundled
+  // fixtures are ever re-added, re-introduce a test that mocks the import to
+  // provide a synthetic fixture and asserts merge precedence.
 });
 
 describe('round-trip: strip then merge', () => {
