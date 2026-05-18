@@ -18,6 +18,9 @@ interface Props {
   icons: IconI[];
   onClick?: (icon: IconI) => void;
   onMouseDown?: (icon: IconI) => void;
+  /** Per-icon delete handler — Icon.tsx only renders the badge for imported icons */
+  onDelete?: (icon: IconI) => void;
+  deleteTooltip?: string;
   isExpanded: boolean;
 }
 
@@ -26,6 +29,8 @@ export const IconCollection = ({
   icons,
   onClick,
   onMouseDown,
+  onDelete,
+  deleteTooltip,
   isExpanded: _isExpanded
 }: Props) => {
   const [isExpanded, setIsExpanded] = useState(_isExpanded);
@@ -79,6 +84,8 @@ export const IconCollection = ({
             icons={isLargePack ? icons.slice(0, PREVIEW_COUNT) : icons}
             onMouseDown={onMouseDown}
             onClick={onClick}
+            onDelete={onDelete}
+            deleteTooltip={deleteTooltip}
           />
           {isLargePack && (
             <Typography

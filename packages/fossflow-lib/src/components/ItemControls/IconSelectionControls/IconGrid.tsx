@@ -8,6 +8,9 @@ interface Props {
   onMouseDown?: (icon: IconI) => void;
   onClick?: (icon: IconI) => void;
   onDoubleClick?: (icon: IconI) => void;
+  /** Per-icon delete handler — only invoked for imported icons (Icon.tsx gates) */
+  onDelete?: (icon: IconI) => void;
+  deleteTooltip?: string;
   hoveredIndex?: number;
   onHover?: (index: number) => void;
 }
@@ -16,7 +19,9 @@ export const IconGrid = ({
   icons,
   onMouseDown,
   onClick,
-  onDoubleClick
+  onDoubleClick,
+  onDelete,
+  deleteTooltip
 }: Props) => {
   return (
     <Box
@@ -33,6 +38,8 @@ export const IconGrid = ({
           onClick={() => onClick?.(icon)}
           onMouseDown={() => onMouseDown?.(icon)}
           onDoubleClick={() => onDoubleClick?.(icon)}
+          onDelete={onDelete ? () => onDelete(icon) : undefined}
+          deleteTooltip={deleteTooltip}
         />
       ))}
     </Box>

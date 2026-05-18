@@ -68,3 +68,50 @@ When writing the model out (to storage, to export JSON), the lean-save pass stri
 - **Unit test:** load a diagram whose `icons[]` contains one custom icon; assert the merged array has `bundledFixtures.length + 1` entries and the custom icon is present.
 - **Unit test:** load a diagram whose `icons[]` contains an entry with the same `id` as a bundled icon but different metadata; assert the loaded version wins.
 - **Integration test:** export-then-import a diagram with a custom icon; assert the side dock contains both the custom icon and all defaults.
+
+## Lifecycle — imported-icon delete + missing-icon tombstone (2026-05-18, MQA #26)
+
+The merge contract above covers *additions* to the catalog. This section covers the inverse operation — the user removing an imported icon — and the rendering contract for items whose `icon` id no longer resolves.
+
+### Delete scope
+
+Only icons whose `collection === 'imported'` are deletable. Bundled-fixture icons and isopack icons (`aws`, `gcp`, `azure`, `kubernetes`, `material`) are non-deletable from the side dock:
+
+- Bundled fixtures would be re-merged on the next load anyway (Decision, above).
+- Isopack icons are managed at the *pack* level in Settings → Icon Packs.
+
+The × badge on the Elements panel tile is rendered only when `icon.collection === 'imported'` (see `Icon.tsx`).
+
+### Workspace-wide usage scan
+
+Before deletion, the confirm dialog lists every diagram that references the icon id. The scan is split:
+
+- The library has no notion of "other diagrams." It only knows the active model.
+- The consuming app injects an `iconUsageScan: (iconId) => Promise<IconUsageReport[]>` callback via the `<Isoflow>` prop. The PWA's `services/iconUsage.ts` uses `StorageProvider.listDiagrams()` + `loadDiagram(id)` to count references across the workspace, preferring the in-memory current diagram's items so unsaved edits count.
+- When no callback is injected (tests, stripped embeds), `ElementsPanel` falls back to a current-diagram-only scan.
+
+Failures inside the scan resolve to `[]` (with `console.error`) rather than blocking — the warning copy in the dialog already states the consequence of proceeding, so failing closed would frustrate without protecting.
+
+### Warn-and-allow, not block
+
+The dialog surfaces the usage list and lets the user proceed. The user retains agency; affected items remain in their diagrams and render the tombstone (below) until the icon is re-imported under the same id.
+
+### Tombstone fallback
+
+`useIcon(id)` now distinguishes three cases:
+
+1. `id` is `undefined` / falsy → `DEFAULT_ICON` (today's behavior; a freshly-created blank item).
+2. `id` resolves in `model.icons` → that icon.
+3. `id` is set but does not resolve → `TOMBSTONE_ICON` (new) — a faded dashed-square SVG so the canvas keeps the spatial layout.
+
+The tombstone path covers *both* the post-delete state and items pasted in from a diagram that referenced a never-imported id. One render path, no special case for "this was deleted."
+
+Re-importing an icon under the same `id` resurrects every tombstoned item automatically (the merge already covers this).
+
+### Undo
+
+`modelActions.set({ icons: filtered })` pushes a history entry (see `modelStore.tsx`). `Ctrl+Z` restores the icon, which un-tombstones every item that referenced it. Cross-diagram references aren't separately tracked — they un-tombstone in place once the id reappears in `model.icons`.
+
+### Why this can't bit-rot
+
+The delete path goes through the same `modelActions.set({ icons })` channel that the import path uses, so the lean-save (ADR 0003) and load-merge contracts apply unchanged. The only new invariant: `Icon.tsx` must keep its `icon.collection === 'imported'` gate — without it, the × would render on isopack tiles whose deletion isn't durable.

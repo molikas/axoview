@@ -135,6 +135,29 @@ export const DEFAULT_ICON: Icon = {
   url: ''
 };
 
+// Tombstone icon — rendered in place of any item.icon id that no longer
+// resolves against model.icons. Two cases produce a tombstone:
+//   1. an imported icon was deleted (ADR-0002 lifecycle section)
+//   2. a paste/import references an icon id that was never present
+// One render path covers both. Faded dashed-square SVG so the layout stays
+// stable and the user can recover by re-importing the icon under the same id.
+export const TOMBSTONE_ICON: Icon = {
+  id: '__tombstone__',
+  name: 'Icon removed',
+  isIsometric: false,
+  url:
+    'data:image/svg+xml;utf8,' +
+    encodeURIComponent(
+      "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>" +
+        "<rect x='6' y='6' width='52' height='52' rx='6' " +
+        "fill='none' stroke='%23999' stroke-width='2.5' " +
+        "stroke-dasharray='5 4' opacity='0.7'/>" +
+        "<path d='M22 22 L42 42 M42 22 L22 42' stroke='%23999' " +
+        "stroke-width='2' stroke-linecap='round' opacity='0.45'/>" +
+        '</svg>'
+    )
+};
+
 export const DEFAULT_LABEL_HEIGHT = 20;
 export const PROJECT_BOUNDING_BOX_PADDING = 3;
 export const MARKDOWN_EMPTY_VALUE = '<p><br></p>';

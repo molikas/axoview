@@ -32,6 +32,8 @@ import { generateId } from 'src/utils';
 import { useTranslation } from 'src/stores/localeStore';
 import { CommonElements } from './CommonElements';
 import { ImportIconsDialog } from './ImportIconsDialog';
+import { DeleteIconConfirmDialog } from './DeleteIconConfirmDialog';
+import { IconUsageReport } from 'src/types/isoflowProps';
 
 // Literal LLM prompt — intentionally NOT i18n'd. This is content the user
 // pastes verbatim into an external AI tool (mqa-results.md #28).
@@ -42,14 +44,21 @@ export const ElementsPanel = () => {
   const uiStateActions = useUiStateStore((s) => s.actions);
   const iconCategoriesState = useUiStateStore((s) => s.iconCategoriesState);
   const iconPackManager = useUiStateStore((s) => s.iconPackManager);
+  const iconUsageScan = useUiStateStore((s) => s.iconUsageScan);
   const modelActions = useModelStore((s) => s.actions);
   const currentIcons = useModelStore((s) => s.icons);
+  const currentItems = useModelStore((s) => s.items);
   const { setFilter, filteredIcons, filter } = useIconFiltering();
   const { iconCategories } = useIconCategories();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Pending files waiting for the import dialog confirmation
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+
+  // Delete-imported-icon confirm state
+  const [iconPendingDelete, setIconPendingDelete] = useState<Icon | null>(null);
+  const [deleteUsage, setDeleteUsage] = useState<IconUsageReport[] | null>(null);
+  const [deleteScanning, setDeleteScanning] = useState(false);
 
   // AI prompt popover state (mqa-results.md #28)
   const [aiPromptAnchor, setAiPromptAnchor] = useState<HTMLElement | null>(null);
@@ -184,6 +193,59 @@ export const ElementsPanel = () => {
     setPendingFiles([]);
   }, []);
 
+  // Open the delete confirm dialog and kick off the usage scan.
+  // Falls back to a current-diagram scan when the app hasn't injected
+  // iconUsageScan (e.g. in tests / stripped embeds).
+  const handleIconDelete = useCallback(
+    async (icon: Icon) => {
+      setIconPendingDelete(icon);
+      setDeleteUsage(null);
+      setDeleteScanning(true);
+      try {
+        if (iconUsageScan) {
+          const result = await iconUsageScan(icon.id);
+          setDeleteUsage(result);
+        } else {
+          // Local fallback: count refs in the currently loaded items only.
+          const count = currentItems.filter((it) => it.icon === icon.id).length;
+          setDeleteUsage(
+            count > 0
+              ? [{ diagramId: '__current__', diagramName: 'Current diagram', count }]
+              : []
+          );
+        }
+      } catch (e) {
+        // Surface failure as "no usage detected" — better to let the user
+        // proceed than to block on a broken scan. The warning copy in the
+        // dialog footer already makes the consequence explicit.
+        console.error('[ElementsPanel] icon usage scan failed:', e);
+        setDeleteUsage([]);
+      } finally {
+        setDeleteScanning(false);
+      }
+    },
+    [iconUsageScan, currentItems]
+  );
+
+  const handleDeleteCancel = useCallback(() => {
+    setIconPendingDelete(null);
+    setDeleteUsage(null);
+    setDeleteScanning(false);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(() => {
+    if (!iconPendingDelete) return;
+    // modelActions.set() defaults to skipHistory=false → pushes a history
+    // entry, so Ctrl+Z restores the icon (which un-tombstones any node that
+    // referenced it). See modelStore.tsx and ADR-0002 lifecycle section.
+    modelActions.set({
+      icons: currentIcons.filter((i) => i.id !== iconPendingDelete.id)
+    });
+    setIconPendingDelete(null);
+    setDeleteUsage(null);
+    setDeleteScanning(false);
+  }, [iconPendingDelete, currentIcons, modelActions]);
+
   return (
     <Box
       sx={{
@@ -220,12 +282,17 @@ export const ElementsPanel = () => {
       <Box sx={{ flex: 1, overflowY: 'auto', px: 1 }}>
         {filteredIcons ? (
           <Box sx={{ py: 1 }}>
-            <IconGrid icons={filteredIcons} onMouseDown={handleIconMouseDown} />
+            <IconGrid
+              icons={filteredIcons}
+              onMouseDown={handleIconMouseDown}
+              onDelete={handleIconDelete}
+            />
           </Box>
         ) : (
           <Icons
             iconCategories={iconCategories}
             onMouseDown={handleIconMouseDown}
+            onDelete={handleIconDelete}
           />
         )}
       </Box>
@@ -372,6 +439,15 @@ export const ElementsPanel = () => {
         fileCount={pendingFiles.length}
         onConfirm={handleImportConfirm}
         onCancel={handleImportCancel}
+      />
+
+      <DeleteIconConfirmDialog
+        open={!!iconPendingDelete}
+        icon={iconPendingDelete}
+        usage={deleteUsage}
+        scanning={deleteScanning}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
       />
     </Box>
   );

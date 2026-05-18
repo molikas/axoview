@@ -1,6 +1,6 @@
 # FossFLOW Community Edition — Architecture Reference
 
-**Last updated:** 2026-05-17 (rev 16)
+**Last updated:** 2026-05-18 (rev 17)
 **Codebase root:** `packages/fossflow-lib/src` (library) · `packages/fossflow-app/src` (application shell) · `packages/fossflow-backend/src` (Express + fs adapter) · `packages/fossflow-worker/src` (Hono + Cloudflare Pages Functions)
 **Purpose:** Living architecture reference — feature inventory, store/reducer/mode architecture, multi-target deployment contract, test audit, gap analysis, lessons learned, and key APIs. Update this document whenever significant architectural changes are made.
 
@@ -117,6 +117,7 @@ Both model and scene have **independent** history stacks (past/present/future, m
 | **Project zip — Import** | `importProject(parsed, { destination, newFolderName? })` | Three destinations: `root` (preserve relative tree shape) / `newFolder` (wrap in named folder) / `replaceAll` (typed-confirm gated, deletes everything first). Always rewrites IDs and updates cross-diagram link refs via a `Map<oldId, newId>`. |
 | **Lean icon save** | `packages/fossflow-lib/src/utils/leanSave.ts` → `stripDefaultIcons(model)` | Drops icons that are pure duplicates of `bundledFixtures.byId`. Preserves custom icons and overridden defaults verbatim. Wired into `LocalStorageProvider.sessionSaveDiagram`, server `PUT /api/diagrams/:id` callers, `exportAsJSON`, `exportAsCompactJSON`. See [ADR 0003](../docs/adr/0003-session-storage-lean-icon-save.md). |
 | **Load-time icon merge** | `packages/fossflow-lib/src/hooks/useInitialDataManager.ts` | Merges `bundledFixtures` into `modelData.icons` before writing to the store (union by id; overrides win). The merge runs on every load so it can't bit-rot. See [ADR 0002](../docs/adr/0002-icon-catalog-merge-on-load.md). |
+| **Delete imported icon + workspace usage scan** | `packages/fossflow-lib/src/components/ItemControls/IconSelectionControls/Icon.tsx` (hover-× badge, gated by `icon.collection === 'imported'`); `packages/fossflow-lib/src/components/LeftDock/DeleteIconConfirmDialog.tsx` (confirm + per-diagram usage list); `packages/fossflow-lib/src/components/LeftDock/ElementsPanel.tsx` (handler); `packages/fossflow-app/src/services/iconUsage.ts` (workspace scan implementation) | Hover an imported tile → red × top-right (0.5 → 1 opacity). Confirm dialog calls the injected `iconUsageScan` callback (new `<Isoflow>` prop, stored on `uiStateStore.iconUsageScan`) to list every workspace diagram referencing the icon, then `modelActions.set({ icons })` removes it from the active model — pushing a history entry so `Ctrl+Z` restores. **Fallback path:** when no callback is wired (tests, embeds) the dialog scans current-diagram items only. **Stale-render protection:** items with unresolved icon ids fall through to the new `TOMBSTONE_ICON` (config.ts) via `useIcon` — single render path for "deleted" + "paste-from-unknown-source". Re-importing under the same id resurrects items automatically (no special "rehydrate" logic — the merge in ADR-0002 does it). See [ADR 0002 Lifecycle](../docs/adr/0002-icon-catalog-merge-on-load.md). Per-diagram scope of imports themselves is a separate gap — see [§7k](#7k-imported-icons-are-scoped-per-diagram-not-per-project). |
 | **Session storage gauge** | `packages/fossflow-app/src/components/fileExplorer/SessionStorageGauge.tsx` | Chip leads with `%` (`<1% · 3.6 KB`); click opens a per-diagram size table (sorted by size desc, with quick-delete). Color thresholds at 60% / 90%. Listens to a custom `Event('fossflow-session-changed')` dispatched by `LocalStorageProvider` after each session mutation (sessionStorage has no native cross-mutation event in the same tab). |
 | **Session-mode banner** | `packages/fossflow-app/src/components/SessionModeBanner.tsx` | Shown when storage resolves to session AND ≥1 diagram exists. Dismissable per session only. |
 | **`sessionWorkUnexported` flag** | `DiagramLifecycleProvider` | Independent of `hasUnsavedChanges`. Drives the `beforeunload` prompt in session mode. Clears only on successful project-zip export. The 11 existing `hasUnsavedChanges` consumers behave unchanged. |
@@ -1795,6 +1796,18 @@ quill Cannot register "bullet" specified in "formats" config.
 **Workaround:** Select the row and press `F2`, or use the right-click context menu → Rename. Both work.
 
 **Status:** Open. Tracked in [known_issues.md](../known_issues.md). Rename via F2 and the context menu both work; only the double-click affordance is missing. The contentEditable F2 path on the canvas (Node + TextBox) is independent and works.
+
+---
+
+### 7k. Imported icons are scoped per-diagram, not per-project
+
+**Symptom:** An icon imported while diagram A is open is not visible in the Elements panel when diagram B is open. Each diagram persists its own copy of every imported icon it places, so the same SVG can end up duplicated across N diagram blobs in storage. Delete asymmetry: clicking × removes the icon from the current diagram only; other diagrams retain their independent copies.
+
+**Workaround:** Re-import the icon into each diagram that needs it, or round-trip via project zip.
+
+**Status:** Open, deferred. Considered during the MQA #26 session (2026-05-18) and explicitly chosen against — the proper fix needs a new `StorageProvider` slot for a project icon store, a one-shot hoisting migration across every existing diagram, a lean-save extension, and an export-path audit. ~2–3 days of work spanning lib + app + storage + ADR-0002 + ADR-0003. Filed in [known_issues.md](../known_issues.md) with the full risk/complexity matrix so the next implementer doesn't re-discover the surface.
+
+**Why the MQA #26 work didn't include this:** the delete affordance and tombstone fallback are layered on top of the existing per-diagram `model.icons` contract — they work the same regardless of whether scope is per-diagram or per-project. Shipping the user-visible delete UX was decoupled from the scope rework.
 
 ---
 

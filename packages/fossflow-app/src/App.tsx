@@ -1,7 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Isoflow, allLocales, type MainMenuOptions } from 'fossflow';
+import {
+  Isoflow,
+  allLocales,
+  type MainMenuOptions,
+  type IconUsageReport
+} from 'fossflow';
+import { scanIconUsage } from './services/iconUsage';
 import { AppStorageProvider, useAppStorage } from './providers/AppStorageContext';
 import {
   DiagramLifecycleProvider,
@@ -76,8 +82,36 @@ function EditorShell() {
     setFileExplorerOpen,
     markProjectExported,
     isProjectExportOpen,
-    closeProjectExport
+    closeProjectExport,
+    currentModel
   } = useDiagramLifecycle();
+
+  // Workspace-wide icon usage scan injected into <Isoflow>. The lib's
+  // ElementsPanel calls this from the delete-imported-icon confirm flow.
+  // Latest currentDiagram + currentModel are read via refs so the callback
+  // identity stays stable across renders (otherwise the store-update effect
+  // in Isoflow would fire on every render).
+  const scanRef = useRef({ storage, currentDiagram, currentModel });
+  useEffect(() => {
+    scanRef.current = { storage, currentDiagram, currentModel };
+  }, [storage, currentDiagram, currentModel]);
+  const iconUsageScan = useMemo(
+    () =>
+      async (iconId: string): Promise<IconUsageReport[]> => {
+        const ctx = scanRef.current;
+        if (!ctx.storage) return [];
+        return scanIconUsage({
+          storage: ctx.storage,
+          iconId,
+          currentDiagramId: ctx.currentDiagram?.id ?? null,
+          currentDiagramName: ctx.currentDiagram?.name ?? null,
+          currentDiagramItems:
+            (ctx.currentModel as { items?: Array<{ icon?: string }> } | null)
+              ?.items ?? null
+        });
+      },
+    []
+  );
 
   const [linkedDiagrams, setLinkedDiagrams] = useState<Array<{ id: string; name: string }>>([]);
   const [treeIsEmpty, setTreeIsEmpty] = useState(true);
@@ -165,6 +199,7 @@ function EditorShell() {
             editorMode={isReadonlyUrl ? 'EXPLORABLE_READONLY' : 'EDITABLE'}
             locale={currentLocale}
             iconPackManager={iconPackManagerProp}
+            iconUsageScan={iconUsageScan}
             linkedDiagrams={linkedDiagrams}
             sidebarTogglePortalTarget={sidebarTogglePortalTarget}
             languageSelector={<ChangeLanguage />}
