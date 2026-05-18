@@ -74,6 +74,7 @@ describe('useInitialDataManager - Orphaned Connector Handling', () => {
         setScroll: jest.fn(),
         setZoom: jest.fn(),
         setIconCategoriesState: jest.fn(),
+        setFreshlyLoadedCategoryIds: jest.fn(),
         resetUiState: jest.fn()
       },
       rendererEl: null,

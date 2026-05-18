@@ -28,6 +28,7 @@ const initialState = () => {
       editorMode: 'EXPLORABLE_READONLY',
       mode: getStartingMode('EXPLORABLE_READONLY'),
       iconCategoriesState: [],
+      freshlyLoadedCategoryIds: [],
       isMainMenuOpen: false,
       dialog: null,
       rendererEl: null,
@@ -70,6 +71,9 @@ const initialState = () => {
         },
         setIconCategoriesState: (iconCategoriesState) => {
           set({ iconCategoriesState });
+        },
+        setFreshlyLoadedCategoryIds: (ids) => {
+          set({ freshlyLoadedCategoryIds: ids });
         },
         resetUiState: () => {
           set({

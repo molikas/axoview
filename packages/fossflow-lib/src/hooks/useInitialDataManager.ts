@@ -174,29 +174,40 @@ export const useInitialDataManager = () => {
         }
 
         // Build the new categories list from the incoming icons.
-        // Preserve `isExpanded` for collections that were already in the UI
-        // (so expanded sections survive icon-pack reloads).
-        // Auto-expand any newly-introduced collection so freshly loaded packs
-        // are immediately visible without the user having to click the header.
+        // Two regimes:
+        //  - First load (existingCategoriesState empty): apply the size guard so
+        //    bulk-imported large packs (Material, AWS) don't auto-render thousands
+        //    of icons on first paint.
+        //  - Incremental load (user toggled a pack, swapped a diagram): user is
+        //    actively waiting on the result — auto-expand every new collection,
+        //    and mark it freshly-loaded so the header gets a soft pulse. The
+        //    PREVIEW_COUNT cap in IconCollection keeps the render bounded.
         const existingCategoriesState = uiStateStoreApi.getState().iconCategoriesState ?? [];
         const existingById = new Map(existingCategoriesState.map((c) => [c.id, c]));
+        const isIncrementalLoad = existingCategoriesState.length > 0;
+
+        const freshlyLoadedIds: string[] = [];
 
         const categoriesState: IconCollectionState[] = categoriseIcons(
           merged.icons
         ).map((collection) => {
           const existing = existingById.get(collection.name ?? '');
+          if (existing) {
+            return { id: collection.name, isExpanded: existing.isExpanded };
+          }
+          if (isIncrementalLoad && collection.name) {
+            freshlyLoadedIds.push(collection.name);
+          }
           return {
             id: collection.name,
-            // New collection → auto-expand (unless it's a large pack, to
-            // avoid rendering thousands of icons automatically).
-            // Existing collection → preserve user's current expanded state.
-            isExpanded: existing
-              ? existing.isExpanded
+            isExpanded: isIncrementalLoad
+              ? true
               : collection.icons.length <= LARGE_PACK_THRESHOLD
           };
         });
 
         uiStateActions.setIconCategoriesState(categoriesState);
+        uiStateActions.setFreshlyLoadedCategoryIds(freshlyLoadedIds);
 
         setIsReady(true);
       } catch (err) {

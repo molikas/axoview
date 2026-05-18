@@ -11,6 +11,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2026.5.19] — 2026-05-19
+
+### Changed
+
+- **Newly-loaded icon categories auto-expand + pulse (MQA #10).** When the user toggles on an isopack from the Elements panel's *"Add more icons"* loader (or a swapped diagram brings new categories with it), the freshly-arrived category accordion now auto-expands and its header runs a 1.6s soft pulse (≈18% primary-color alpha) so the user notices that the icons actually arrived. First-paint behavior is intentionally unchanged — large packs (>100 icons) still default to collapsed on the initial bulk load to avoid rendering thousands of tiles before the user has scrolled anywhere. New transient `freshlyLoadedCategoryIds` slice in `uiStateStore`, populated by `useInitialDataManager.load()` only when prior categories existed (incremental signal), cleared 1.8s after the pulse via `ElementsPanel` effect. The `LARGE_PACK_THRESHOLD` size guard now applies to first-load only; on incremental loads the `PREVIEW_COUNT = 60` cap in `IconCollection` is the render guard.
+
+---
+
 ## [2026.5.18] — 2026-05-18
 
 ### Added

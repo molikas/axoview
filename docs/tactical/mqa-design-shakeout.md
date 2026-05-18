@@ -6,7 +6,7 @@
 > - [docs/adr/0004-connector-name-and-details-panel.md](../adr/0004-connector-name-and-details-panel.md) — relevant to #25 (preview interaction with notes + links)
 > - [docs/adr/0002-icon-catalog-merge-on-load.md](../adr/0002-icon-catalog-merge-on-load.md) — relevant to #10 (new-icons-loaded feedback) and #26 (icon removal lifecycle)
 >
-> **Status:** Awaiting design proposals · **Owner:** Igor · **Last updated:** 2026-05-18
+> **Status:** Awaiting design proposals · **Owner:** Igor · **Last updated:** 2026-05-19
 >
 > Short-lived working doc. Delete after the work merges; durable decisions get ADR notes, not preserved here.
 
@@ -54,19 +54,20 @@ Resolve the 9 design-shaped items from the 2026-05-15 manual QA pass. These need
 
 ---
 
-### #10 — Visual feedback when new icons load
+### #10 — Visual feedback when new icons load  ✅ SHIPPED
 
 **Ask:** users don't notice icons loaded; consider "soft blink" on the accordion.
 
-**Design options:**
-- **A. Soft pulse** on the accordion header for ~1.5s after load (CSS keyframe, low-key).
-- **B. Auto-expand** the newly-loaded section (more intrusive but unambiguous).
-- **C. Badge with count** ("12 new") on the accordion header that clears on expand.
-- **D. Combined:** pulse + badge until first interaction with the section.
+**Outcome (2026-05-19):** Landed as **B + A** (auto-expand + soft pulse), scoped to *incremental* loads only:
 
-**Recommend D** for new-import sessions, **A only** when icons load from cached project import (less surprising). Aligns with UX principle of feedback proportional to the user's likely awareness state.
+- `useInitialDataManager.load()` now distinguishes first-load (`existingCategoriesState.length === 0` — keep the `LARGE_PACK_THRESHOLD` guard so bulk-imported Material/AWS don't auto-render thousands of tiles) from incremental loads (user toggled a pack from the *Add more icons* panel, or swapped a diagram — auto-expand every new collection, regardless of size, since the `PREVIEW_COUNT = 60` cap in `IconCollection` already bounds the render).
+- New `freshlyLoadedCategoryIds: string[]` slice in `uiStateStore`, populated by the load path with the ids of newly-introduced collections (incremental only). `IconCollection` reads it via selector and runs a 1.6s `fossflowIconPulse` keyframe (transparent → ~18% `primary.main` alpha → transparent) on the header button.
+- `ElementsPanel` effect clears the freshly-loaded set 1.8s after population (slight buffer past animation duration so the keyframe never gets cut short).
+- Test mock for `useInitialDataManager` updated to register the new action; no new test files — pulse animation is a visual artifact not worth unit-pinning.
 
-**Touchpoint:** [ADR-0002](../adr/0002-icon-catalog-merge-on-load.md) — add a "load-feedback" section.
+**Touchpoint considered:** ADR-0002 wasn't extended — this is a UI feedback concern around the existing catalog-merge contract, not a change to the contract itself. The lifecycle section there still describes the catalog rules.
+
+**Out of scope (filed mentally, no doc entry):** badge with "N new" count (option C/D) — implies "unread inventory" semantics that don't fit a catalog the user explicitly asked for.
 
 ---
 
@@ -180,7 +181,7 @@ When all items are decided and implemented:
 ## Status checklist
 
 - [x] #8 + #9 — Multi-select model + Ctrl+A + edit-panel auto-hide
-- [ ] #10 — New-icons-loaded visual feedback
+- [x] #10 — New-icons-loaded visual feedback (shipped 2026-05-19)
 - [ ] #11 — Rich text / canvas typography redesign (spinoff plan likely)
 - [x] #19 — Shortcut + canvas-control inventory + tooltip hints
 - [x] #20 — Settings dialog redesign

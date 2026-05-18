@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Box, Divider, Stack, Typography, Button } from '@mui/material';
+import { Box, Divider, Stack, Typography, Button, alpha } from '@mui/material';
 import {
   ExpandMore as ChevronDownIcon,
   ExpandLess as ChevronUpIcon
 } from '@mui/icons-material';
 import { Icon as IconI } from 'src/types';
 import { Section } from 'src/components/ItemControls/components/Section';
+import { useUiStateStore } from 'src/stores/uiStateStore';
 import { IconGrid } from './IconGrid';
 
 // Collections larger than this render a limited preview to avoid freezing the
@@ -35,13 +36,29 @@ export const IconCollection = ({
 }: Props) => {
   const [isExpanded, setIsExpanded] = useState(_isExpanded);
   const isLargePack = icons.length > LARGE_PACK_THRESHOLD;
+  const isFreshlyLoaded = useUiStateStore((s) =>
+    id ? s.freshlyLoadedCategoryIds.includes(id) : false
+  );
 
   return (
     <Section sx={{ py: 0 }}>
       <Button
         variant="text"
         fullWidth
-        sx={{ py: 0.5, minHeight: 32 }}
+        sx={(theme) => ({
+          py: 0.5,
+          minHeight: 32,
+          ...(isFreshlyLoaded && {
+            animation: 'fossflowIconPulse 1.6s ease-out 1',
+            '@keyframes fossflowIconPulse': {
+              '0%': { backgroundColor: 'transparent' },
+              '20%': {
+                backgroundColor: alpha(theme.palette.primary.main, 0.18)
+              },
+              '100%': { backgroundColor: 'transparent' }
+            }
+          })
+        })}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <Stack
