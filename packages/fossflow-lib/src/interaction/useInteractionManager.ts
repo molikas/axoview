@@ -18,6 +18,7 @@ import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { HOTKEY_PROFILES } from 'src/config/hotkeys';
 import { TEXTBOX_DEFAULTS } from 'src/config';
 import { useLayerContext } from 'src/hooks/useLayerContext';
+import { getConnectorWaypointRefs } from 'src/utils/connectorSelection';
 import { Cursor } from './modes/Cursor';
 import { DragItems } from './modes/DragItems';
 import { DrawRectangle } from './modes/Rectangle/DrawRectangle';
@@ -72,6 +73,13 @@ export const useInteractionManager = () => {
   const modelStoreApi = useModelStoreApi();
   const scene = useScene();
   const layerContext = useLayerContext();
+  // Ref mirrors of scene / layerContext for the keydown effect — keeps the
+  // effect's dep array stable (M-1 perf invariant) while still letting Ctrl+A
+  // and other handlers read live scene/layer data on each keypress.
+  const sceneRef = useRef(scene);
+  sceneRef.current = scene;
+  const layerContextRef = useRef(layerContext);
+  layerContextRef.current = layerContext;
   // Single ResizeObserver for rendererEl — result is stored in the Zustand store
   // so UiOverlay and useDiagramUtils can read it without creating their own observers.
   const { size: rendererSize } = useResizeObserver(rendererEl);
@@ -109,6 +117,13 @@ export const useInteractionManager = () => {
 
         if (uiState.itemControls) {
           uiState.actions.setItemControls(null);
+          return;
+        }
+
+        // Multi-selection: Esc clears it when no panel is open
+        // (panel-clear path above handles single-selection). ADR-0006.
+        if (uiState.selectedIds.length > 0) {
+          uiState.actions.clearSelection();
           return;
         }
 
@@ -154,8 +169,25 @@ export const useInteractionManager = () => {
             showCursor: true,
             mousedownItem: null
           });
-          uiState.actions.setItemControls(null);
+          uiState.actions.clearSelection();
           return;
+        }
+
+        // Multi-selection (CURSOR mode): delete every selected item. Guarded
+        // by the same text-field check below so input editing isn't hijacked.
+        if (uiState.selectedIds.length > 1) {
+          const target = e.target as HTMLElement;
+          const inTextField =
+            target.tagName === 'INPUT' ||
+            target.tagName === 'TEXTAREA' ||
+            target.contentEditable === 'true' ||
+            !!target.closest('.ql-editor');
+          if (!inTextField) {
+            e.preventDefault();
+            deleteSelectedItems(uiState.selectedIds);
+            uiState.actions.clearSelection();
+            return;
+          }
         }
 
         if (uiState.itemControls && uiState.itemControls.type !== 'ADD_ITEM') {
@@ -229,6 +261,46 @@ export const useInteractionManager = () => {
       if (isCtrlOrCmd && e.key.toLowerCase() === 'v') {
         e.preventDefault();
         handlePaste();
+      }
+
+      // Ctrl+A: select all visible + unlocked items in the active view.
+      // Respects ux-principles §4.3 (locked/hidden items are non-interactable)
+      // via isItemInteractable, mirroring lasso behaviour. ADR-0006.
+      // Reads scene/layer state via refs so the dep array stays stable
+      // (M-1 perf invariant).
+      if (isCtrlOrCmd && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        const liveScene = sceneRef.current;
+        const { lockedIds, visibleIds } = layerContextRef.current;
+        const isInteractable = (id: string) =>
+          !lockedIds.has(id) &&
+          (visibleIds.size === 0 || visibleIds.has(id));
+        const refs: import('src/types').ItemReference[] = [];
+        for (const item of liveScene.items) {
+          if (isInteractable(item.id)) refs.push({ type: 'ITEM', id: item.id });
+        }
+        for (const r of liveScene.rectangles) {
+          if (isInteractable(r.id)) refs.push({ type: 'RECTANGLE', id: r.id });
+        }
+        for (const tb of liveScene.textBoxes) {
+          if (isInteractable(tb.id)) refs.push({ type: 'TEXTBOX', id: tb.id });
+        }
+        for (const c of liveScene.connectors) {
+          if (!isInteractable(c.id)) continue;
+          refs.push({ type: 'CONNECTOR', id: c.id });
+          // Waypoints aren't free — see getConnectorWaypointRefs.
+          refs.push(...getConnectorWaypointRefs(c));
+        }
+        // Switch to CURSOR mode so the multi-selection visual + drag work.
+        if (uiState.mode.type !== 'CURSOR') {
+          uiState.actions.setMode({
+            type: 'CURSOR',
+            showCursor: true,
+            mousedownItem: null
+          });
+        }
+        uiState.actions.setSelectedIds(refs);
+        return;
       }
 
       if (e.key === 'F1') {
@@ -455,6 +527,15 @@ export const useInteractionManager = () => {
 
       if (!modeFunction) return;
 
+      // Capture keyboard modifiers per mouse event so mode actions can branch
+      // (e.g. Ctrl+click → toggle selection; Alt+click on waypoint → remove).
+      // See ADR-0006.
+      nextMouse.modifiers = {
+        ctrl: e.ctrlKey,
+        shift: e.shiftKey,
+        meta: e.metaKey,
+        alt: e.altKey
+      };
       uiState.actions.setMouse(nextMouse);
 
       const { lockedIds, visibleIds } = layerContext;
@@ -464,13 +545,29 @@ export const useInteractionManager = () => {
       const isItemInteractable = (ref: { id: string; type?: unknown }) =>
         !lockedIds.has(ref.id) &&
         (visibleIds.size === 0 || visibleIds.has(ref.id));
+      // Anchor overlay elements (data-anchor-id) need pointerEvents:'auto'
+      // so MUI Tooltip can detect hover, but they're conceptually part of
+      // the canvas — treat clicks on them as renderer interactions so
+      // Cursor.mousedown still runs its anchor-hit logic.
+      const target = e.target as HTMLElement | null;
+      const anchorTargetEl =
+        target && typeof target.closest === 'function'
+          ? (target.closest('[data-anchor-id]') as HTMLElement | null)
+          : null;
+      const isAnchorOverlay = anchorTargetEl !== null;
+      // Propagate the clicked anchor id via uiState.mouse so Cursor.mousedown
+      // can identify which anchor was hit without a fragile tile-equality
+      // check (the visual + hit ring extends beyond one tile at low zoom).
+      nextMouse.targetAnchorId =
+        anchorTargetEl?.dataset.anchorId ?? null;
       const baseState: State = {
         model,
         scene,
         uiState,
         rendererRef: rendererRef.current,
         rendererSize,
-        isRendererInteraction: rendererRef.current === e.target,
+        isRendererInteraction:
+          rendererRef.current === e.target || isAnchorOverlay,
         isItemInteractable,
         screenToTile
       };

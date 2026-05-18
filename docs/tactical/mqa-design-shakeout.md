@@ -180,7 +180,7 @@ When all items are decided and implemented:
 
 ## Status checklist
 
-- [ ] #8 + #9 — Multi-select model + Ctrl+A + edit-panel auto-hide
+- [x] #8 + #9 — Multi-select model + Ctrl+A + edit-panel auto-hide
 - [ ] #10 — New-icons-loaded visual feedback
 - [ ] #11 — Rich text / canvas typography redesign (spinoff plan likely)
 - [x] #19 — Shortcut + canvas-control inventory + tooltip hints

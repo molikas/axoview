@@ -674,8 +674,14 @@ export const useSceneActions = () => {
           (liveView?.rectangles ?? []).map((r) => r.id)
         );
 
+        // Track connectors being deleted so we can skip anchor splices on
+        // them (the connector is going away — splicing its anchors first is
+        // pointless and risks ordering issues against the cascade).
+        const deletingConnectorIds = new Set<string>();
+
         selectedItems.forEach((ref) => {
           if (ref.type === 'CONNECTOR' && existingConnectors.has(ref.id)) {
+            deletingConnectorIds.add(ref.id);
             deleteConnector(ref.id);
           } else if (ref.type === 'TEXTBOX' && existingTextBoxes.has(ref.id)) {
             deleteTextBox(ref.id);
@@ -686,6 +692,35 @@ export const useSceneActions = () => {
             deleteRectangle(ref.id);
           }
         });
+
+        // Free-floating waypoint anchors — splice from each parent connector.
+        // Group by parent so we issue one updateConnector per connector rather
+        // than per anchor. Skip anchors whose parent connector is also being
+        // deleted in this same transaction. ADR-0006.
+        const anchorIdsToRemove = selectedItems
+          .filter((ref) => ref.type === 'CONNECTOR_ANCHOR')
+          .map((ref) => ref.id);
+
+        if (anchorIdsToRemove.length > 0) {
+          // Re-read the view AFTER the connector deletes above so the live
+          // anchor lists reflect any cascaded changes from this transaction.
+          const viewAfter = getState().model.views.find(
+            (v) => v.id === currentViewId
+          );
+          const removeSet = new Set(anchorIdsToRemove);
+          for (const connector of viewAfter?.connectors ?? []) {
+            if (deletingConnectorIds.has(connector.id)) continue;
+            if (!connector.anchors?.some((a) => removeSet.has(a.id))) continue;
+            const nextAnchors = connector.anchors.filter(
+              (a) => !removeSet.has(a.id)
+            );
+            // Endpoints aren't in CONNECTOR_ANCHOR refs (they're node-bound
+            // and excluded by getConnectorWaypointRefs), so the splice can
+            // only ever remove middle waypoints — the connector keeps its
+            // first/last anchors and stays valid.
+            updateConnector(connector.id, { anchors: nextAnchors });
+          }
+        }
       });
     },
     [
@@ -695,6 +730,7 @@ export const useSceneActions = () => {
       deleteConnector,
       deleteTextBox,
       deleteRectangle,
+      updateConnector,
       getState
     ]
   );

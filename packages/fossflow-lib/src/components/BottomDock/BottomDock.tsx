@@ -1,10 +1,11 @@
 import React from 'react';
 import type { ReactNode } from 'react';
-import { Box, IconButton, Tooltip } from '@mui/material';
+import { Box, Chip, IconButton, Tooltip } from '@mui/material';
 import { ZoomControls } from 'src/components/ZoomControls/ZoomControls';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { DialogTypeEnum } from 'src/types/ui';
 import { tooltipWithShortcut } from 'src/utils/tooltipWithShortcut';
+import { countUserFacingRefs } from 'src/utils/connectorSelection';
 
 // Lucid-style help icon: circle with question mark
 const HelpSvg = () => (
@@ -37,6 +38,11 @@ interface BottomDockProps {
 
 export const BottomDock = ({ endSlot }: BottomDockProps = {}) => {
   const uiStateActions = useUiStateStore((s) => s.actions);
+  // Count user-facing refs only — waypoint CONNECTOR_ANCHORs are bookkeeping,
+  // not items the user thinks they selected. See utils/connectorSelection.
+  const selectedCount = useUiStateStore((s) =>
+    countUserFacingRefs(s.selectedIds)
+  );
 
   return (
     <Box
@@ -56,8 +62,22 @@ export const BottomDock = ({ endSlot }: BottomDockProps = {}) => {
         zIndex: 20
       }}
     >
-      {/* Left zone: empty / future use */}
-      <Box />
+      {/* Left zone: multi-selection feedback (anchor for future bulk-action UI) */}
+      <Box sx={{ display: 'flex', alignItems: 'center', minHeight: 24 }}>
+        {selectedCount > 1 && (
+          <Chip
+            label={`${selectedCount} selected`}
+            size="small"
+            color="primary"
+            sx={{
+              height: 24,
+              fontWeight: 500,
+              userSelect: 'none',
+              '& .MuiChip-label': { px: 1.25 }
+            }}
+          />
+        )}
+      </Box>
 
       {/* Right zone: zoom controls + help + optional end slot */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>

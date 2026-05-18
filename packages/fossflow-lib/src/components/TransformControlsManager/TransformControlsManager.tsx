@@ -5,9 +5,37 @@ import { TextBoxTransformControls } from './TextBoxTransformControls';
 import { NodeTransformControls } from './NodeTransformControls';
 
 export const TransformControlsManager = () => {
-  const itemControls = useUiStateStore((state) => {
-    return state.itemControls;
-  });
+  const itemControls = useUiStateStore((state) => state.itemControls);
+  const selectedIds = useUiStateStore((state) => state.selectedIds);
+
+  // Multi-selection: render an outline for each selected item (no anchor
+  // handlers — bulk-resize is out of scope per the MQA #8/#9 plan). ADR-0006.
+  if (selectedIds.length > 1) {
+    return (
+      <>
+        {selectedIds.map((ref) => {
+          switch (ref.type) {
+            case 'ITEM':
+              return <NodeTransformControls key={`item-${ref.id}`} id={ref.id} />;
+            case 'RECTANGLE':
+              return (
+                <RectangleTransformControls
+                  key={`rect-${ref.id}`}
+                  id={ref.id}
+                />
+              );
+            case 'TEXTBOX':
+              return (
+                <TextBoxTransformControls key={`tb-${ref.id}`} id={ref.id} />
+              );
+            // CONNECTOR / CONNECTOR_ANCHOR: no transform handles by design.
+            default:
+              return null;
+          }
+        })}
+      </>
+    );
+  }
 
   switch (itemControls?.type) {
     case 'ITEM':
