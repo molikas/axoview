@@ -113,7 +113,7 @@ canvasTest('U-7: draw rectangle → Undo → rectangle removed', async ({ canvas
   await canvas.activateCursor();
 
   // Left-click empty canvas → empty-canvas context menu
-  await page.locator('[data-testid="fossflow-canvas"]').click({ position: { x: 400, y: 350 } });
+  await page.locator('[data-testid="axoview-canvas"]').click({ position: { x: 400, y: 350 } });
   const addRectItem = page.getByRole('menuitem', { name: /Add Rectangle/i });
   await addRectItem.waitFor({ state: 'visible', timeout: 3000 });
   await addRectItem.click();

@@ -29,4 +29,4 @@ understand what was tested before touching the hot paths.
 - Do **not** modify these tests during the refactoring unless the behaviour being tested is
   intentionally being changed, and that change has been agreed in review.
 - All tests in this folder must be **green on the current codebase** before any refactoring begins.
-- Run with: `npm test --workspace=packages/fossflow-lib -- --testPathPattern=__perf_refactor_regression__`
+- Run with: `npm test --workspace=packages/axoview-lib -- --testPathPattern=__perf_refactor_regression__`

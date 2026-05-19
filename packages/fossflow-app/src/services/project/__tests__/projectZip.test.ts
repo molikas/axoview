@@ -131,7 +131,7 @@ describe('projectZip — round-trip (ADR 0001 acceptance)', () => {
     await seedWorkspace(src);
 
     const { blob } = await exportProject(
-      { storage: src, exporterTag: 'fossflow-app@test' },
+      { storage: src, exporterTag: 'axoview-app@test' },
       { scope: 'project' }
     );
 

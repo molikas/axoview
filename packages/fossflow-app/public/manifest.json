@@ -1,7 +1,7 @@
 {
-  "short_name": "FossFLOW",
-  "name": "FossFLOW - Isometric Diagramming Tool",
-  "description": "Create beautiful isometric diagrams with FossFLOW",
+  "short_name": "Axoview",
+  "name": "Axoview - Isometric Diagramming Tool",
+  "description": "Create beautiful isometric diagrams with Axoview",
   "icons": [
     {
       "src": "favicon.ico",

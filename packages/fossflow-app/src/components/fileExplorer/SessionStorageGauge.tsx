@@ -15,8 +15,8 @@ import {
 } from '@mui/material';
 import { DeleteOutline as DeleteIcon } from '@mui/icons-material';
 
-const SESSION_DIAGRAM_PREFIX = 'fossflow_diagram_';
-const SESSION_DIAGRAMS_KEY = 'fossflow_diagrams';
+const SESSION_DIAGRAM_PREFIX = 'axoview_diagram_';
+const SESSION_DIAGRAMS_KEY = 'axoview_diagrams';
 
 // Session storage budget is browser-dependent; ~5 MB per origin is the common
 // floor (Chromium/Firefox/Safari). The gauge is informational, not a hard limit.
@@ -58,7 +58,7 @@ const computeRows = (): { rows: DiagramRow[]; totalBytes: number } => {
   const rows: DiagramRow[] = [];
   for (let i = 0; i < sessionStorage.length; i++) {
     const key = sessionStorage.key(i);
-    if (!key || !key.startsWith('fossflow_')) continue;
+    if (!key || !key.startsWith('axoview_')) continue;
     const value = sessionStorage.getItem(key) ?? '';
     // UTF-16 code units × 2 bytes is the rough storage cost in browsers.
     const bytes = (key.length + value.length) * 2;
@@ -92,8 +92,8 @@ export function SessionStorageGauge({ onDeleteDiagram }: Props) {
 
   useEffect(() => {
     const handler = () => refresh();
-    window.addEventListener('fossflow-session-changed', handler);
-    return () => window.removeEventListener('fossflow-session-changed', handler);
+    window.addEventListener('axoview-session-changed', handler);
+    return () => window.removeEventListener('axoview-session-changed', handler);
   }, [refresh]);
 
   const usedLabel = useMemo(() => formatBytes(totalBytes), [totalBytes]);

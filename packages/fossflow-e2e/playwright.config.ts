@@ -50,7 +50,7 @@ export default defineConfig({
 
   // Auto-starts dev server; reuses if already running locally
   webServer: {
-    command: 'npm run dev --workspace=packages/fossflow-app',
+    command: 'npm run dev --workspace=packages/axoview-app',
     url: 'http://localhost:3000',
     reuseExistingServer: true,
     timeout: 60_000,

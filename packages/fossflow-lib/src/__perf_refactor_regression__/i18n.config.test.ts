@@ -16,7 +16,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const I18N_PATH = path.resolve(__dirname, '../../../fossflow-app/src/i18n.ts');
+const I18N_PATH = path.resolve(__dirname, '../../../axoview-app/src/i18n.ts');
 
 describe('i18n config — short-code locale prevention', () => {
   let src: string;

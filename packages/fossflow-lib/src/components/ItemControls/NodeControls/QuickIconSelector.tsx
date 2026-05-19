@@ -16,7 +16,7 @@ interface Props {
   currentIconId?: string;
 }
 
-const RECENT_ICONS_KEY = 'fossflow-recent-icons';
+const RECENT_ICONS_KEY = 'axoview-recent-icons';
 const MAX_RECENT_ICONS = 12;
 
 const getRecentIcons = (): string[] => {

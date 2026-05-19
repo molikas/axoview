@@ -161,7 +161,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   return (
     <Box
       ref={containerRef}
-      data-testid="fossflow-canvas"
+      data-testid="axoview-canvas"
       sx={{
         position: 'absolute',
         top: 0,

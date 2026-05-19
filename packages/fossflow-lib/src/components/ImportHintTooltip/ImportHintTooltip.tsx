@@ -6,7 +6,7 @@ import {
 } from '@mui/icons-material';
 import { useTranslation } from 'src/stores/localeStore';
 
-const STORAGE_KEY = 'fossflow_import_hint_dismissed';
+const STORAGE_KEY = 'axoview_import_hint_dismissed';
 
 interface Props {
   toolMenuRef?: React.RefObject<HTMLElement | null>;

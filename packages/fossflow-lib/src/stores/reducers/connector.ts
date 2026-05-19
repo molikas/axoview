@@ -36,7 +36,7 @@ export const syncConnector = (
       draft.scene.connectors[connector.value.id] = { path };
     } catch (error) {
       console.warn(
-        `[fossflow] connector ${connector.value.id} could not be routed`,
+        `[axoview] connector ${connector.value.id} could not be routed`,
         error
       );
       draft.scene.connectors[connector.value.id] = {

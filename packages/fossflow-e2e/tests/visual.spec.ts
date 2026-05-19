@@ -4,9 +4,9 @@
  * 5 tests, Visual project only (Chromium, fixed 1280×800 viewport).
  *
  * Run:            npm run test:visual
- * Update bases:   node_modules/.bin/playwright test --project=visual --update-snapshots --config packages/fossflow-e2e/playwright.config.ts
+ * Update bases:   node_modules/.bin/playwright test --project=visual --update-snapshots --config packages/axoview-e2e/playwright.config.ts
  *
- * Baselines are stored in packages/fossflow-e2e/snapshots/ and committed to the repo.
+ * Baselines are stored in packages/axoview-e2e/snapshots/ and committed to the repo.
  * A threshold of maxDiffPixelRatio: 0.02 (2%) tolerates minor anti-aliasing differences.
  */
 import { test, expect } from '@playwright/test';
@@ -17,7 +17,7 @@ const SCREENSHOT_OPTS = { maxDiffPixelRatio: 0.02 };
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
-  await page.locator('[data-testid="fossflow-canvas"]').waitFor({ state: 'visible', timeout: 15_000 });
+  await page.locator('[data-testid="axoview-canvas"]').waitFor({ state: 'visible', timeout: 15_000 });
   // Dismiss any hint tooltips
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
@@ -38,7 +38,7 @@ test('V-2: canvas with one node placed', async ({ page }) => {
   await canvas.placeNode(500, 350);
   await canvas.activateCursor();
   // Click away to deselect
-  await page.locator('[data-testid="fossflow-canvas"]').click({ position: { x: 100, y: 100 } });
+  await page.locator('[data-testid="axoview-canvas"]').click({ position: { x: 100, y: 100 } });
   await page.waitForTimeout(300);
 
   await expect(page).toHaveScreenshot('one-node.png', SCREENSHOT_OPTS);
@@ -55,14 +55,14 @@ test('V-3: canvas with two nodes and connector', async ({ page }) => {
 
   // Draw connector between them
   await page.getByRole('button', { name: /Connector/i }).click();
-  await page.locator('[data-testid="fossflow-canvas"]').click({ position: { x: 300, y: 350 } });
+  await page.locator('[data-testid="axoview-canvas"]').click({ position: { x: 300, y: 350 } });
   await page.waitForTimeout(150);
-  await page.locator('[data-testid="fossflow-canvas"]').click({ position: { x: 650, y: 350 } });
+  await page.locator('[data-testid="axoview-canvas"]').click({ position: { x: 650, y: 350 } });
   await page.waitForTimeout(300);
 
   // Click away to deselect
   await canvas.activateCursor();
-  await page.locator('[data-testid="fossflow-canvas"]').click({ position: { x: 100, y: 100 } });
+  await page.locator('[data-testid="axoview-canvas"]').click({ position: { x: 100, y: 100 } });
   await page.waitForTimeout(200);
 
   await expect(page).toHaveScreenshot('two-nodes-connector.png', SCREENSHOT_OPTS);

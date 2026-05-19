@@ -29,10 +29,10 @@ async function setupTwoNodesWithConnector(canvas: any, page: any) {
   await page.getByRole('button', { name: /Connector/i }).click();
 
   // Click first node tile to start connector
-  await page.locator('[data-testid="fossflow-canvas"]').click({ position: { x: NODE1_X, y: NODE1_Y } });
+  await page.locator('[data-testid="axoview-canvas"]').click({ position: { x: NODE1_X, y: NODE1_Y } });
   await page.waitForTimeout(150);
   // Click second node tile to end connector
-  await page.locator('[data-testid="fossflow-canvas"]').click({ position: { x: NODE2_X, y: NODE2_Y } });
+  await page.locator('[data-testid="axoview-canvas"]').click({ position: { x: NODE2_X, y: NODE2_Y } });
   await page.waitForTimeout(300);
 }
 
@@ -85,7 +85,7 @@ canvasTest('C-4: select connector + Delete key → removed', async ({ canvas, pa
   await canvas.activateCursor();
   const midX = Math.round((NODE1_X + NODE2_X) / 2);
   const midY = Math.round((NODE1_Y + NODE2_Y) / 2);
-  await page.locator('[data-testid="fossflow-canvas"]').click({ position: { x: midX, y: midY } });
+  await page.locator('[data-testid="axoview-canvas"]').click({ position: { x: midX, y: midY } });
   await page.waitForTimeout(150);
 
   await page.keyboard.press('Delete');

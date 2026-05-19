@@ -11,7 +11,7 @@ import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { flattenCollections } from '@isoflow/isopacks/dist/utils';
 import isoflowIsopack from '@isoflow/isopacks/dist/isoflow';
-import type { IsoflowRef } from 'fossflow';
+import type { IsoflowRef } from 'axoview';
 import { DiagramData } from '../diagramUtils';
 import { useIconPackManager } from '../services/iconPackManager';
 import { useAppStorage } from './AppStorageContext';
@@ -25,7 +25,7 @@ import { StorageManager } from '../StorageManager';
 import { notificationStore } from '../stores/notificationStore';
 import { sequentialName } from '../utils/fileOperations';
 import { apiBaseUrl } from '../utils/apiBaseUrl';
-import { exportAsJSON } from 'fossflow';
+import { exportAsJSON } from 'axoview';
 
 // Core icons — loaded once at module level
 const coreIcons = flattenCollections([isoflowIsopack]);
@@ -201,8 +201,8 @@ export function DiagramLifecycleProvider({
   useEffect(() => {
     if (serverStorageAvailable) return; // server mode does not use this flag
     const handler = () => setSessionWorkUnexported(true);
-    window.addEventListener('fossflow-session-changed', handler);
-    return () => window.removeEventListener('fossflow-session-changed', handler);
+    window.addEventListener('axoview-session-changed', handler);
+    return () => window.removeEventListener('axoview-session-changed', handler);
   }, [serverStorageAvailable]);
 
   // beforeunload — warn before leaving with unsaved/un-exported work.
@@ -266,12 +266,12 @@ export function DiagramLifecycleProvider({
       setFileExplorerOpen(false);
       return;
     }
-    const flag = localStorage.getItem('fossflow-explorer-initialized');
+    const flag = localStorage.getItem('axoview-explorer-initialized');
     if (!flag) {
-      localStorage.setItem('fossflow-explorer-initialized', '1');
+      localStorage.setItem('axoview-explorer-initialized', '1');
       setFileExplorerOpen(true);
     } else {
-      const saved = localStorage.getItem('fossflow-explorer-open');
+      const saved = localStorage.getItem('axoview-explorer-open');
       setFileExplorerOpen(saved === 'true');
     }
   }, [isInitialized, serverStorageAvailable]);
@@ -279,7 +279,7 @@ export function DiagramLifecycleProvider({
   // Persist fileExplorerOpen to localStorage (server mode only)
   useEffect(() => {
     if (!isInitialized || !serverStorageAvailable) return;
-    localStorage.setItem('fossflow-explorer-open', String(fileExplorerOpen));
+    localStorage.setItem('axoview-explorer-open', String(fileExplorerOpen));
   }, [fileExplorerOpen, isInitialized, serverStorageAvailable]);
 
   // ---------------------------------------------------------------------------
@@ -294,13 +294,13 @@ export function DiagramLifecycleProvider({
   // Initial diagram data (from localStorage, frozen on first render)
   // ---------------------------------------------------------------------------
   const [diagramData] = useState<DiagramData>(() => {
-    const lastOpenedData = localStorage.getItem('fossflow-last-opened-data');
+    const lastOpenedData = localStorage.getItem('axoview-last-opened-data');
     if (lastOpenedData) {
       try {
         const data = JSON.parse(lastOpenedData);
         if (!Array.isArray(data.items) || !Array.isArray(data.views)) {
-          console.warn('fossflow-last-opened-data had invalid structure, discarding.');
-          localStorage.removeItem('fossflow-last-opened-data');
+          console.warn('axoview-last-opened-data had invalid structure, discarding.');
+          localStorage.removeItem('axoview-last-opened-data');
           throw new Error('invalid structure');
         }
         const importedIcons = (data.icons || []).filter(
@@ -481,12 +481,12 @@ export function DiagramLifecycleProvider({
   // Load diagrams from localStorage (session mode)
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    const savedDiagrams = localStorage.getItem('fossflow-diagrams');
+    const savedDiagrams = localStorage.getItem('axoview-diagrams');
     if (savedDiagrams) {
       setDiagrams(JSON.parse(savedDiagrams));
       setIsDiagramsInitialized(true);
     }
-    const lastOpenedId = localStorage.getItem('fossflow-last-opened');
+    const lastOpenedId = localStorage.getItem('axoview-last-opened');
     if (lastOpenedId && savedDiagrams) {
       try {
         const allDiagrams = JSON.parse(savedDiagrams);
@@ -514,7 +514,7 @@ export function DiagramLifecycleProvider({
         ...d,
         data: { ...d.data, icons: [] }
       }));
-      localStorage.setItem('fossflow-diagrams', JSON.stringify(diagramsToStore));
+      localStorage.setItem('axoview-diagrams', JSON.stringify(diagramsToStore));
     } catch (e) {
       console.error('Failed to save diagrams:', e);
       if (e instanceof DOMException && e.name === 'QuotaExceededError') {
@@ -641,8 +641,8 @@ export function DiagramLifecycleProvider({
       setFileTreeRefreshToken((n) => n + 1);
       notificationStore.push({ severity: 'success', message: `"${diagramName}" saved` });
       try {
-        localStorage.setItem('fossflow-last-opened', newDiagram.id);
-        localStorage.setItem('fossflow-last-opened-data', JSON.stringify(newDiagram.data));
+        localStorage.setItem('axoview-last-opened', newDiagram.id);
+        localStorage.setItem('axoview-last-opened-data', JSON.stringify(newDiagram.data));
       } catch (e) {
         console.error('Failed to save diagram:', e);
         if (e instanceof DOMException && e.name === 'QuotaExceededError') {
@@ -693,8 +693,8 @@ export function DiagramLifecycleProvider({
       isAfterLoadRef.current = true;
       isoflowRef.current?.load(dataWithIcons as any);
       try {
-        localStorage.setItem('fossflow-last-opened', diagram.id);
-        localStorage.setItem('fossflow-last-opened-data', JSON.stringify(diagram.data));
+        localStorage.setItem('axoview-last-opened', diagram.id);
+        localStorage.setItem('axoview-last-opened-data', JSON.stringify(diagram.data));
       } catch (e) {
         console.error('Failed to save last opened:', e);
       }
@@ -874,7 +874,7 @@ export function DiagramLifecycleProvider({
   );
 
   // ---------------------------------------------------------------------------
-  // New Diagram (FossFlow-owned — replaces Isoflow's ACTION.NEW)
+  // New Diagram (Axoview-owned — replaces Isoflow's ACTION.NEW)
   // ---------------------------------------------------------------------------
   const handleNewDiagram = useCallback(async () => {
     await autoSave.saveNow();

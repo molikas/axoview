@@ -21,7 +21,7 @@ module.exports = {
     '^react/jsx-dev-runtime$': path.join(rootNodeModules, 'react/jsx-dev-runtime'),
     '\\.(css|less|scss|sass)$': path.join(__dirname, 'jest.cssMock.js'),
     '\\.(svg|png|jpg|jpeg|gif|webp)$': path.join(__dirname, 'jest.assetMock.js'),
-    '^fossflow$': path.join(__dirname, 'jest.fossflowMock.js')
+    '^axoview$': path.join(__dirname, 'jest.axoviewMock.js')
   },
   setupFilesAfterEnv: [path.join(__dirname, 'jest.setup.js')],
   testPathIgnorePatterns: ['/node_modules/', '/build/', '\\.d\\.ts$'],

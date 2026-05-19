@@ -1,5 +1,5 @@
 /**
- * Typed wrappers around window.__fossflow__ — the Zustand store instances
+ * Typed wrappers around window.__axoview__ — the Zustand store instances
  * exposed in development builds by Isoflow.tsx.
  *
  * These helpers are the single point of truth for reading app state in tests.
@@ -16,19 +16,19 @@ import { Page } from '@playwright/test';
 
 /** Returns the full mode state object (type, mousedownHandled, selection, etc.) */
 export const getUiMode = (page: Page) =>
-  page.evaluate(() => (window as any).__fossflow__.ui.getState().mode);
+  page.evaluate(() => (window as any).__axoview__.ui.getState().mode);
 
 /** Returns the current scroll position ({ x, y }). */
 export const getScroll = (page: Page) =>
-  page.evaluate(() => (window as any).__fossflow__.ui.getState().scroll);
+  page.evaluate(() => (window as any).__axoview__.ui.getState().scroll);
 
 /** Returns the current itemControls state (null when nothing is selected). */
 export const getItemControls = (page: Page) =>
-  page.evaluate(() => (window as any).__fossflow__.ui.getState().itemControls);
+  page.evaluate(() => (window as any).__axoview__.ui.getState().itemControls);
 
 /** Returns the zoom level (e.g. 0.9 for 90%). */
 export const getZoom = (page: Page) =>
-  page.evaluate(() => (window as any).__fossflow__.ui.getState().zoom);
+  page.evaluate(() => (window as any).__axoview__.ui.getState().zoom);
 
 // ---------------------------------------------------------------------------
 // Model / history reads
@@ -36,7 +36,7 @@ export const getZoom = (page: Page) =>
 
 /** Returns the number of undo steps available (past entries in history). */
 export const getModelHistoryLength = (page: Page) =>
-  page.evaluate(() => (window as any).__fossflow__.model.getState().history.past.length);
+  page.evaluate(() => (window as any).__axoview__.model.getState().history.past.length);
 
 // ---------------------------------------------------------------------------
 // UI state writes (for test setup, e.g. disabling pan settings)
@@ -45,5 +45,5 @@ export const getModelHistoryLength = (page: Page) =>
 /** Update pan settings without touching the UI. Useful for P-9 (rightClickPan=false). */
 export const setPanSettings = (page: Page, settings: Record<string, boolean>) =>
   page.evaluate((s) => {
-    (window as any).__fossflow__.ui.getState().actions.setPanSettings(s);
+    (window as any).__axoview__.ui.getState().actions.setPanSettings(s);
   }, settings);

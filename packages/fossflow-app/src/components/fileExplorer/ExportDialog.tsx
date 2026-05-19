@@ -11,7 +11,7 @@ import {
   Typography
 } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
-import { stripDefaultIcons } from 'fossflow';
+import { stripDefaultIcons } from 'axoview';
 import { StorageProvider } from '../../services/storage';
 import {
   exportProject,

@@ -28,5 +28,5 @@ root.render(
 // or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals();
 
-// FossFLOW does not use PWA/offline support — always unregister any active service worker.
+// Axoview does not use PWA/offline support — always unregister any active service worker.
 serviceWorkerRegistration.unregister();

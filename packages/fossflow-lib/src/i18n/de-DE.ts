@@ -225,13 +225,13 @@ const locale: LocaleProps = {
     }
   },
   lazyLoadingWelcome: {
-    title: 'Willkommen bei FossFLOW Community Edition',
+    title: 'Willkommen bei Axoview Community Edition',
     message:
-      'Dies ist ein von der Community modifizierter Fork von FossFLOW mit zusätzlichen Funktionen und Verbesserungen. Mehr über die Änderungen erfahren Sie und den Quellcode finden Sie unter https://github.com/molikas/FossFLOW_V2 — Bug gefunden oder Funktionswunsch? Öffnen Sie ein Issue auf GitHub!',
+      'Dies ist ein von der Community modifizierter Fork von Axoview mit zusätzlichen Funktionen und Verbesserungen. Mehr über die Änderungen erfahren Sie und den Quellcode finden Sie unter https://github.com/molikas/Axoview_V2 — Bug gefunden oder Funktionswunsch? Öffnen Sie ein Issue auf GitHub!',
     configPath: 'Klicken Sie auf das Hamburger-Symbol',
     configPath2: 'oben links, um auf die Konfiguration zuzugreifen.',
     canDisable: 'Viel Spaß beim Diagrammerstellen!',
-    signature: '— FossFLOW Community & Opus'
+    signature: '— Axoview Community & Opus'
   },
   viewTabs: {
     addPage: 'Seite hinzufügen',

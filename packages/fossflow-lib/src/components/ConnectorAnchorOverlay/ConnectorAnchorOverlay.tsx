@@ -26,7 +26,7 @@ const WAYPOINT_INNER = 7;
 const WAYPOINT_HIT_RADIUS = 16;
 
 const pulseKeyframes = `
-@keyframes fossflow-anchor-pulse {
+@keyframes axoview-anchor-pulse {
   0%   { box-shadow: 0 0 0 0 rgba(165,184,243,0.55), 0 2px 8px rgba(0,0,0,0.18); }
   70%  { box-shadow: 0 0 0 7px rgba(165,184,243,0), 0 2px 8px rgba(0,0,0,0.18); }
   100% { box-shadow: 0 0 0 0 rgba(165,184,243,0), 0 2px 8px rgba(0,0,0,0.18); }
@@ -122,7 +122,7 @@ export const ConnectorAnchorOverlay = () => {
                   ? `0 0 0 0 rgba(165,184,243,0.55), 0 2px 8px rgba(0,0,0,0.18)`
                   : `0 1px 4px rgba(0,0,0,0.14), 0 0 0 1px rgba(255,255,255,0.6)`,
                 animation: isReconnecting
-                  ? 'fossflow-anchor-pulse 1.2s ease-out infinite'
+                  ? 'axoview-anchor-pulse 1.2s ease-out infinite'
                   : 'none',
                 display: 'flex',
                 alignItems: 'center',

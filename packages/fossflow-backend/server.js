@@ -173,7 +173,7 @@ app.get('/api/public/diagrams/:uuid', adapt(routes.getPublicSnapshot, { requireS
 // Start server
 // ---------------------------------------------------------------------------
 app.listen(PORT, () => {
-  console.log(`FossFLOW Backend Server running on port ${PORT}`);
+  console.log(`Axoview Backend Server running on port ${PORT}`);
   console.log(`Server storage: ${STORAGE_ENABLED ? 'ENABLED' : 'DISABLED'}`);
   if (STORAGE_ENABLED) {
     console.log(`Storage path: ${STORAGE_PATH}`);

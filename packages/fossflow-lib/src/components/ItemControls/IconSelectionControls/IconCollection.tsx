@@ -49,8 +49,8 @@ export const IconCollection = ({
           py: 0.5,
           minHeight: 32,
           ...(isFreshlyLoaded && {
-            animation: 'fossflowIconPulse 1.6s ease-out 1',
-            '@keyframes fossflowIconPulse': {
+            animation: 'axoviewIconPulse 1.6s ease-out 1',
+            '@keyframes axoviewIconPulse': {
               '0%': { backgroundColor: 'transparent' },
               '20%': {
                 backgroundColor: alpha(theme.palette.primary.main, 0.18)

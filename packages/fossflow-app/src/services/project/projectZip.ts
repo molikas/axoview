@@ -10,7 +10,7 @@ import {
 // Format constants — see ADR 0001
 // ----------------------------------------------------------------------------
 
-export const PROJECT_FORMAT = 'fossflow-project';
+export const PROJECT_FORMAT = 'axoview-project';
 export const PROJECT_FORMAT_VERSION = '1';
 const SUPPORTED_VERSIONS = new Set([PROJECT_FORMAT_VERSION]);
 const ID_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
@@ -69,8 +69,8 @@ const slugify = (s: string) =>
 
 export const projectZipFilename = (scope: ExportScope, label?: string): string => {
   const ts = fsTimestamp();
-  if (scope === 'folder') return `fossflow-folder-${slugify(label ?? 'folder')}-${ts}.zip`;
-  return `fossflow-project-${ts}.zip`;
+  if (scope === 'folder') return `axoview-folder-${slugify(label ?? 'folder')}-${ts}.zip`;
+  return `axoview-project-${ts}.zip`;
 };
 
 // ----------------------------------------------------------------------------
@@ -197,7 +197,7 @@ export const parseProject = async (file: File | Blob): Promise<ParsedProject> =>
   }
   if (!SUPPORTED_VERSIONS.has(manifest.version)) {
     throw new ProjectZipError(
-      `This project was exported by a newer FossFLOW (version ${manifest.version}); please upgrade.`,
+      `This project was exported by a newer Axoview (version ${manifest.version}); please upgrade.`,
       'UNSUPPORTED_VERSION'
     );
   }

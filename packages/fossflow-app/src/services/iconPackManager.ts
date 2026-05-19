@@ -21,8 +21,8 @@ export interface IconPackManagerState {
 }
 
 // localStorage keys
-const LAZY_LOADING_KEY = 'fossflow-lazy-loading-enabled';
-const ENABLED_PACKS_KEY = 'fossflow-enabled-icon-packs';
+const LAZY_LOADING_KEY = 'axoview-lazy-loading-enabled';
+const ENABLED_PACKS_KEY = 'axoview-enabled-icon-packs';
 
 // Pack metadata
 const PACK_METADATA: Record<IconPackName, string> = {

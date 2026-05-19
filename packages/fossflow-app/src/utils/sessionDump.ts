@@ -1,9 +1,9 @@
-/** Download a raw dump of all fossflow sessionStorage entries. */
+/** Download a raw dump of all axoview sessionStorage entries. */
 export const downloadSessionDump = (): void => {
   const entries: Record<string, unknown> = {};
   for (let i = 0; i < sessionStorage.length; i++) {
     const key = sessionStorage.key(i);
-    if (!key || !key.startsWith('fossflow')) continue;
+    if (!key || !key.startsWith('axoview')) continue;
     const raw = sessionStorage.getItem(key) ?? '';
     try { entries[key] = JSON.parse(raw); } catch { entries[key] = raw; }
   }
@@ -14,7 +14,7 @@ export const downloadSessionDump = (): void => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `fossflow-session-dump-${Date.now()}.json`;
+  a.download = `axoview-session-dump-${Date.now()}.json`;
   a.click();
   URL.revokeObjectURL(url);
 };

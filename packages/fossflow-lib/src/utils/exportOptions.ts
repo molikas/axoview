@@ -4,7 +4,7 @@ import { stripDefaultIcons } from './leanSave';
 import { Model, Size } from '../types';
 
 export const generateGenericFilename = (extension: string) => {
-  return `fossflow-export-${new Date().toISOString()}.${extension}`;
+  return `axoview-export-${new Date().toISOString()}.${extension}`;
 };
 
 const slugifyTitle = (title: string): string => {

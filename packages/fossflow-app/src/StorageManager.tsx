@@ -32,7 +32,7 @@ export const StorageManager: React.FC<{ onClose: () => void }> = ({
         const size = new Blob([value]).size;
         totalSize += size;
 
-        if (key.startsWith('fossflow-')) {
+        if (key.startsWith('axoview-')) {
           diagramsSize += size;
         } else {
           otherSize += size;
@@ -63,7 +63,7 @@ export const StorageManager: React.FC<{ onClose: () => void }> = ({
     setShowClearConfirm(false);
     const keysToRemove = [];
     for (const key in localStorage) {
-      if (key.startsWith('fossflow-')) {
+      if (key.startsWith('axoview-')) {
         keysToRemove.push(key);
       }
     }
@@ -72,13 +72,13 @@ export const StorageManager: React.FC<{ onClose: () => void }> = ({
   };
 
   const exportAllDiagrams = () => {
-    const diagrams = localStorage.getItem('fossflow-diagrams');
+    const diagrams = localStorage.getItem('axoview-diagrams');
     if (diagrams) {
       const blob = new Blob([diagrams], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `fossflow-backup-${Date.now()}.json`;
+      a.download = `axoview-backup-${Date.now()}.json`;
       a.click();
       URL.revokeObjectURL(url);
     }
@@ -142,7 +142,7 @@ export const StorageManager: React.FC<{ onClose: () => void }> = ({
             {storagePercentage.toFixed(1)}%)
           </p>
           <ul style={{ fontSize: '14px' }}>
-            <li>FossFLOW diagrams: {formatBytes(storageInfo.diagrams)}</li>
+            <li>Axoview diagrams: {formatBytes(storageInfo.diagrams)}</li>
             <li>Other data: {formatBytes(storageInfo.otherData)}</li>
           </ul>
         </div>

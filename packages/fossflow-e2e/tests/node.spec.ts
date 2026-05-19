@@ -119,7 +119,7 @@ canvasTest('N-6: add description → label expands', async ({ canvas, page }) =>
   await descEditor.click();
   await descEditor.fill('This is a description');
   // Click outside to commit
-  await page.locator('[data-testid="fossflow-canvas"]').click({ position: { x: 200, y: 200 } });
+  await page.locator('[data-testid="axoview-canvas"]').click({ position: { x: 200, y: 200 } });
   await canvas.activateCursor();
   await canvas.selectAt(NODE_X, NODE_Y);
   await page.waitForTimeout(300);
@@ -146,7 +146,7 @@ canvasTest('N-7: clear description → label collapses', async ({ canvas, page }
   await page.waitForTimeout(200);
 
   // Measure label height with description
-  await page.locator('[data-testid="fossflow-canvas"]').click({ position: { x: 200, y: 200 } });
+  await page.locator('[data-testid="axoview-canvas"]').click({ position: { x: 200, y: 200 } });
   await canvas.activateCursor();
   await canvas.selectAt(NODE_X, NODE_Y);
   await page.waitForTimeout(200);
@@ -161,7 +161,7 @@ canvasTest('N-7: clear description → label collapses', async ({ canvas, page }
   await page.waitForTimeout(200);
 
   // Click outside to commit
-  await page.locator('[data-testid="fossflow-canvas"]').click({ position: { x: 200, y: 200 } });
+  await page.locator('[data-testid="axoview-canvas"]').click({ position: { x: 200, y: 200 } });
   await canvas.activateCursor();
   await canvas.selectAt(NODE_X, NODE_Y);
   await page.waitForTimeout(300);

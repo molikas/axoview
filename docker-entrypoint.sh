@@ -2,8 +2,8 @@
 
 # Start Node.js backend if server storage is enabled
 if [ "$ENABLE_SERVER_STORAGE" = "true" ]; then
-    echo "Starting FossFLOW backend server..."
-    cd /app/packages/fossflow-backend
+    echo "Starting Axoview backend server..."
+    cd /app/packages/axoview-backend
     npm install --production
     node server.js &
     echo "Backend server started"

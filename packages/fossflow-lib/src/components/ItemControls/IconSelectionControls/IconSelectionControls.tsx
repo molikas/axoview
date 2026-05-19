@@ -46,7 +46,7 @@ export const IconSelectionControls = () => {
   const [iconScale, _setIconScale] = useState(100);
   const [showAlert, setShowAlert] = useState(() => {
     // Check localStorage to see if user has dismissed the alert
-    return localStorage.getItem('fossflow-show-drag-hint') !== 'false';
+    return localStorage.getItem('axoview-show-drag-hint') !== 'false';
   });
 
   const onMouseDown = useCallback(
@@ -68,7 +68,7 @@ export const IconSelectionControls = () => {
 
   const dismissAlert = useCallback(() => {
     setShowAlert(false);
-    localStorage.setItem('fossflow-show-drag-hint', 'false');
+    localStorage.setItem('axoview-show-drag-hint', 'false');
   }, []);
 
   const handleFileSelect = useCallback(

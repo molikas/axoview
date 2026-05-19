@@ -6,7 +6,7 @@ import {
   allLocales,
   type MainMenuOptions,
   type IconUsageReport
-} from 'fossflow';
+} from 'axoview';
 import { scanIconUsage } from './services/iconUsage';
 import { AppStorageProvider, useAppStorage } from './providers/AppStorageContext';
 import {
@@ -39,7 +39,7 @@ const basename = publicUrl
 // Burger removed per ADR 0005 — app stops using mainMenuOptions so MainMenu short-circuits.
 const MAIN_MENU_OPTIONS: MainMenuOptions = [];
 
-const EXPORTER_TAG = `fossflow-app@${process.env.REACT_APP_VERSION ?? 'dev'}`;
+const EXPORTER_TAG = `axoview-app@${process.env.REACT_APP_VERSION ?? 'dev'}`;
 
 function App() {
   return (
@@ -208,7 +208,7 @@ function EditorShell() {
       {showSessionBanner && <SessionModeBanner />}
 
       <FileExplorerLayout>
-        <div className="fossflow-container" style={{ position: 'relative' }}>
+        <div className="axoview-container" style={{ position: 'relative' }}>
           <Isoflow
             ref={isoflowRef}
             initialData={frozenInitialDataRef.current}

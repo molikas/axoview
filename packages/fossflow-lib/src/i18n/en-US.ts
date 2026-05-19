@@ -222,13 +222,13 @@ const locale: LocaleProps = {
     }
   },
   lazyLoadingWelcome: {
-    title: 'Welcome to FossFLOW Community Edition',
+    title: 'Welcome to Axoview Community Edition',
     message:
-      "This is a community-modified fork of FossFLOW with additional features and improvements. Learn more about what's changed and find the source at https://github.com/molikas/FossFLOW_V2 — found a bug or have a feature request? Open an issue on GitHub!",
+      "This is a community-modified fork of Axoview with additional features and improvements. Learn more about what's changed and find the source at https://github.com/molikas/Axoview_V2 — found a bug or have a feature request? Open an issue on GitHub!",
     configPath: 'Click on the Hamburger icon',
     configPath2: 'in the top left to access Configuration.',
     canDisable: 'Happy diagramming!',
-    signature: '— FossFLOW Community & Opus'
+    signature: '— Axoview Community & Opus'
   },
   viewTabs: {
     addPage: 'Add page',

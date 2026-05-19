@@ -17,7 +17,7 @@ TEST_DIAGRAM = os.path.join(os.path.dirname(__file__), "..", "test-diagram.json"
 
 
 def get_base_url():
-    return os.getenv("FOSSFLOW_TEST_URL", "http://localhost:3000")
+    return os.getenv("AXOVIEW_TEST_URL", "http://localhost:3000")
 
 
 def get_webdriver_url():
@@ -140,7 +140,7 @@ def test_import_via_app_button(driver):
     print(f"   Expected from JSON: {expected}")
     driver.get(base_url)
     WebDriverWait(driver, 15).until(
-        EC.presence_of_element_located((By.CLASS_NAME, "fossflow-container"))
+        EC.presence_of_element_located((By.CLASS_NAME, "axoview-container"))
     )
     time.sleep(2)
     dismiss_modals(driver)
@@ -286,7 +286,7 @@ def test_import_via_app_button(driver):
 
     # Check for node images on canvas
     img_count = driver.execute_script("""
-        var c = document.querySelector('.fossflow-container');
+        var c = document.querySelector('.axoview-container');
         return c ? c.querySelectorAll('img').length : 0;
     """)
     print(f"   Canvas images (nodes): {img_count}")
@@ -296,14 +296,14 @@ def test_import_via_app_button(driver):
 
     # Check for connector polylines
     polyline_count = driver.execute_script("""
-        var c = document.querySelector('.fossflow-container');
+        var c = document.querySelector('.axoview-container');
         return c ? c.querySelectorAll('svg polyline').length : 0;
     """)
     print(f"   SVG polylines (connectors): {polyline_count}")
 
     # Check for rectangle polygons
     polygon_count = driver.execute_script("""
-        var c = document.querySelector('.fossflow-container');
+        var c = document.querySelector('.axoview-container');
         return c ? c.querySelectorAll('svg polygon').length : 0;
     """)
     print(f"   SVG polygons (rectangles): {polygon_count}")
@@ -334,7 +334,7 @@ def test_import_via_app_button(driver):
     print("\n7. Testing interaction with imported elements...")
 
     # Try clicking on a node image
-    node_imgs = driver.find_elements(By.CSS_SELECTOR, ".fossflow-container img")
+    node_imgs = driver.find_elements(By.CSS_SELECTOR, ".axoview-container img")
     if node_imgs:
         ActionChains(driver).click(node_imgs[0]).perform()
         time.sleep(0.5)

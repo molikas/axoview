@@ -41,13 +41,13 @@ The pointing-finger cursor on hover (added 2026-05-15) does cover all four cases
 - `Recalculate style` went up slightly (494 ms vs 244 ms pre-Path-4-true) — the `setProperty` calls per frame trigger style recalcs. Net is still hugely positive.
 - DragItems now uses a module-level `previewTiles` `Map`. Safe because uiState guarantees one drag at a time, but tests must reset it between cases via `DragItems.exit({...})`.
 
-**Related fix (waypoint dragging):** discovered while validating Path 4-true. [Lasso.ts](packages/fossflow-lib/src/interaction/modes/Lasso.ts) used to push only the `CONNECTOR` reference when both endpoints were in lasso bounds, orphaning intermediate waypoint anchors. They now also get pushed as `CONNECTOR_ANCHOR` items so DragItems' existing anchor path moves them with the group.
+**Related fix (waypoint dragging):** discovered while validating Path 4-true. [Lasso.ts](packages/axoview-lib/src/interaction/modes/Lasso.ts) used to push only the `CONNECTOR` reference when both endpoints were in lasso bounds, orphaning intermediate waypoint anchors. They now also get pushed as `CONNECTOR_ANCHOR` items so DragItems' existing anchor path moves them with the group.
 
-**Diagnostic harness** kept from earlier in the session: `useRenderProbe('Component', id)` hook + `window.__fossflowRenderProbe.start() / stop() / dump()` console API, gated behind `?perfprobe=1` URL flag. Zero cost in normal use; invaluable for the next round of perf work.
+**Diagnostic harness** kept from earlier in the session: `useRenderProbe('Component', id)` hook + `window.__axoviewRenderProbe.start() / stop() / dump()` console API, gated behind `?perfprobe=1` URL flag. Zero cost in normal use; invaluable for the next round of perf work.
 
-**Companion fix (also shipped this session):** the diag exporter's `ni`/`nc`/`ntb` counts used to read 0 because `window.__fossflow__` was gated behind `enableDebugTools` (defaults to `false` in the app) AND `ni` was reading the icon catalog rather than placed nodes. Both fixed:
-- [Isoflow.tsx](packages/fossflow-lib/src/Isoflow.tsx) now exposes `__fossflow__` whenever `process.env.NODE_ENV !== 'production'` OR `enableDebugTools` is set. The `NODE_ENV` literal tree-shakes the block from prod builds.
-- [DiagnosticsOverlay.tsx `getSceneCounts`](packages/fossflow-app/src/components/DiagnosticsOverlay.tsx) now reads the active view's `items.length` and `connectors.length` (resolved via `ui.view`) instead of the model item catalog.
+**Companion fix (also shipped this session):** the diag exporter's `ni`/`nc`/`ntb` counts used to read 0 because `window.__axoview__` was gated behind `enableDebugTools` (defaults to `false` in the app) AND `ni` was reading the icon catalog rather than placed nodes. Both fixed:
+- [Isoflow.tsx](packages/axoview-lib/src/Isoflow.tsx) now exposes `__axoview__` whenever `process.env.NODE_ENV !== 'production'` OR `enableDebugTools` is set. The `NODE_ENV` literal tree-shakes the block from prod builds.
+- [DiagnosticsOverlay.tsx `getSceneCounts`](packages/axoview-app/src/components/DiagnosticsOverlay.tsx) now reads the active view's `items.length` and `connectors.length` (resolved via `ui.view`) instead of the model item catalog.
 
 ## MQA diag exporter: element counts always read 0
 
@@ -59,7 +59,7 @@ The pointing-finger cursor on hover (added 2026-05-15) does cover all four cases
 
 ## Page tabs: hard cap of 5, no overflow-scroll UX
 
-**Symptom:** The ViewTabs strip ([`ViewTabs.tsx`](packages/fossflow-lib/src/components/ViewTabs/ViewTabs.tsx)) renders all pages inline with no horizontal scroll, overflow indicator, or dropdown. Beyond ~15 pages the tabs grow past the viewport and the right-most ones become unreachable.
+**Symptom:** The ViewTabs strip ([`ViewTabs.tsx`](packages/axoview-lib/src/components/ViewTabs/ViewTabs.tsx)) renders all pages inline with no horizontal scroll, overflow indicator, or dropdown. Beyond ~15 pages the tabs grow past the viewport and the right-most ones become unreachable.
 
 **Workaround:** Hard cap installed at `MAX_PAGES = 5`. The "+" button disables with a "Page limit reached (5)" tooltip beyond the cap. Sufficient for current usage; lifts trivially once a proper overflow UX exists.
 
@@ -67,7 +67,7 @@ The pointing-finger cursor on hover (added 2026-05-15) does cover all four cases
 
 ## leanSave test: `bundledFixtures[0]` undefined → 1 failing unit test
 
-**Symptom:** [`packages/fossflow-lib/src/utils/__tests__/leanSave.test.ts`](packages/fossflow-lib/src/utils/__tests__/leanSave.test.ts) — `mergeBundledFixtures (ADR 0002) › overridden default wins over bundled fixture` throws `TypeError: Cannot read properties of undefined (reading 'id')` because the bundled-fixtures source ([`packages/fossflow-lib/src/fixtures/icons.ts`](packages/fossflow-lib/src/fixtures/icons.ts)) is `export const icons: Model['icons'] = []` (empty), so `bundledFixtures[0]` is undefined.
+**Symptom:** [`packages/axoview-lib/src/utils/__tests__/leanSave.test.ts`](packages/axoview-lib/src/utils/__tests__/leanSave.test.ts) — `mergeBundledFixtures (ADR 0002) › overridden default wins over bundled fixture` throws `TypeError: Cannot read properties of undefined (reading 'id')` because the bundled-fixtures source ([`packages/axoview-lib/src/fixtures/icons.ts`](packages/axoview-lib/src/fixtures/icons.ts)) is `export const icons: Model['icons'] = []` (empty), so `bundledFixtures[0]` is undefined.
 
 **Workaround:** None for the test. The runtime path (App.tsx → iconPackManager) supplies real packs, so user-facing behavior is unaffected; only the unit assertion is wrong.
 
@@ -96,13 +96,13 @@ The icon catalog conflates two concerns (see [ADR-0002](docs/adr/0002-icon-catal
 
 | Layer | What changes |
 |---|---|
-| `StorageProvider` ([`types.ts`](packages/fossflow-app/src/services/storage/types.ts)) | New `getProjectIcons()` / `saveProjectIcons()` API. `LocalStorageProvider` gets a new key; `GoogleDriveProvider` stays stubbed. |
+| `StorageProvider` ([`types.ts`](packages/axoview-app/src/services/storage/types.ts)) | New `getProjectIcons()` / `saveProjectIcons()` API. `LocalStorageProvider` gets a new key; `GoogleDriveProvider` stays stubbed. |
 | Migration | One-shot scan across every existing diagram to hoist `collection === 'imported'` icons into the project store. Idempotent + versioned flag. |
-| Lib injection ([`Isoflow.tsx`](packages/fossflow-lib/src/Isoflow.tsx), [`uiStateStore.tsx`](packages/fossflow-lib/src/stores/uiStateStore.tsx)) | New `projectIcons` + `onProjectIconsChange` props mirroring the `iconPackManager` pattern. |
-| [`ElementsPanel.tsx`](packages/fossflow-lib/src/components/LeftDock/ElementsPanel.tsx) | Import + delete reroute from `modelActions.set` to the new callback. |
-| [`DiagramLifecycleProvider.tsx`](packages/fossflow-app/src/providers/DiagramLifecycleProvider.tsx) | ~9 call sites currently filter `data.icons` for `collection === 'imported'` and concat into the diagram's model. All become `[...packIcons, ...projectIcons]` instead. |
-| Lean-save ([`leanSave.ts`](packages/fossflow-lib/src/utils/leanSave.ts)) | Strip imported icons from per-diagram saves, but **not** from single-diagram JSON exports (which must stay self-contained for the recipient). Needs an explicit `stripProjectIcons` param so each call site is unambiguous. |
-| Project zip ([`projectZip.ts`](packages/fossflow-app/src/services/project/projectZip.ts)) | Add `project.json` at the zip root carrying the project icon store. Older clients fall back to scanning per-diagram icons during the transition window. |
+| Lib injection ([`Isoflow.tsx`](packages/axoview-lib/src/Isoflow.tsx), [`uiStateStore.tsx`](packages/axoview-lib/src/stores/uiStateStore.tsx)) | New `projectIcons` + `onProjectIconsChange` props mirroring the `iconPackManager` pattern. |
+| [`ElementsPanel.tsx`](packages/axoview-lib/src/components/LeftDock/ElementsPanel.tsx) | Import + delete reroute from `modelActions.set` to the new callback. |
+| [`DiagramLifecycleProvider.tsx`](packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx) | ~9 call sites currently filter `data.icons` for `collection === 'imported'` and concat into the diagram's model. All become `[...packIcons, ...projectIcons]` instead. |
+| Lean-save ([`leanSave.ts`](packages/axoview-lib/src/utils/leanSave.ts)) | Strip imported icons from per-diagram saves, but **not** from single-diagram JSON exports (which must stay self-contained for the recipient). Needs an explicit `stripProjectIcons` param so each call site is unambiguous. |
+| Project zip ([`projectZip.ts`](packages/axoview-app/src/services/project/projectZip.ts)) | Add `project.json` at the zip root carrying the project icon store. Older clients fall back to scanning per-diagram icons during the transition window. |
 | ADRs | ADR-0002 lifecycle section + ADR-0003 strip-rule both extend. |
 
 ### Behavioural decisions a future implementer must take
@@ -129,7 +129,7 @@ The icon catalog conflates two concerns (see [ADR-0002](docs/adr/0002-icon-catal
 
 ### Empirical findings (2026-05-10)
 
-Captured from the perf overlay using [packages/fossflow-e2e/fixtures/perf-stress-diagram.json](packages/fossflow-e2e/fixtures/perf-stress-diagram.json):
+Captured from the perf overlay using [packages/axoview-e2e/fixtures/perf-stress-diagram.json](packages/axoview-e2e/fixtures/perf-stress-diagram.json):
 
 | Window | FPS | Heap pattern |
 |---|---|---|
@@ -143,9 +143,9 @@ Pattern: **allocation-rate-limited GC pressure**, not a CPU bottleneck. V8 holds
 
 ### Why the shipped fix doesn't cover this
 
-- `beginDragTransaction` / `commitDragTransaction` (in [useSceneActions.ts](packages/fossflow-lib/src/hooks/useSceneActions.ts)) freezes `pendingPre` so per-tick `set()` calls skip `produceWithPatches`. That eliminated the patch-generation cost.
-- The closed-form router in [pathfinder.ts](packages/fossflow-lib/src/utils/pathfinder.ts) eliminated A\* + `PF.Grid` allocation per tick.
-- **What still happens per tick:** the anchor is mutated on the model. [`reducers/connector.updateConnector`](packages/fossflow-lib/src/stores/reducers/connector.ts#L62) runs `produce(state, ...)` over the entire `state` (model + scene), and a nested `produce` inside `syncConnector`. Each clone is ~100–200 KB on the stress fixture. At 60 fps that's ~12 MB/sec of fresh state objects. V8 catches up eventually, but on a long enough drag the heap outpaces it.
+- `beginDragTransaction` / `commitDragTransaction` (in [useSceneActions.ts](packages/axoview-lib/src/hooks/useSceneActions.ts)) freezes `pendingPre` so per-tick `set()` calls skip `produceWithPatches`. That eliminated the patch-generation cost.
+- The closed-form router in [pathfinder.ts](packages/axoview-lib/src/utils/pathfinder.ts) eliminated A\* + `PF.Grid` allocation per tick.
+- **What still happens per tick:** the anchor is mutated on the model. [`reducers/connector.updateConnector`](packages/axoview-lib/src/stores/reducers/connector.ts#L62) runs `produce(state, ...)` over the entire `state` (model + scene), and a nested `produce` inside `syncConnector`. Each clone is ~100–200 KB on the stress fixture. At 60 fps that's ~12 MB/sec of fresh state objects. V8 catches up eventually, but on a long enough drag the heap outpaces it.
 
 ### Refactor design context (for a future session)
 
@@ -155,16 +155,16 @@ Pattern: **allocation-rate-limited GC pressure**, not a CPU bottleneck. V8 holds
 
 | File | Role | What changes |
 |---|---|---|
-| [`interaction/modes/Connector.ts`](packages/fossflow-lib/src/interaction/modes/Connector.ts) | Drives the drag | mousemove must update only the preview path, not call `scene.updateConnector` (which writes the model). On commit: write final anchors once. |
-| [`interaction/modes/ReconnectAnchor.ts`](packages/fossflow-lib/src/interaction/modes/ReconnectAnchor.ts) | Anchor reconnect | Same pattern. |
-| [`stores/reducers/connector.ts`](packages/fossflow-lib/src/stores/reducers/connector.ts) | `updateConnector` reducer | Currently does both: writes anchors AND runs `syncConnector`. Needs a sibling reducer that updates `scene.connectors[id].path` only (no model clone). |
-| [`hooks/useSceneActions.ts`](packages/fossflow-lib/src/hooks/useSceneActions.ts) | Action API | Add `previewConnectorPath(id, anchors)` that bypasses the reducer's model write. |
-| [`components/SceneLayers/Connectors/Connector.tsx`](packages/fossflow-lib/src/components/SceneLayers/Connectors/Connector.tsx) | Renders the connector | Already reads `scenePath` from sceneStore — likely no change needed if preview lands there. |
-| [`components/ConnectorAnchorOverlay/ConnectorAnchorOverlay.tsx`](packages/fossflow-lib/src/components/ConnectorAnchorOverlay/ConnectorAnchorOverlay.tsx) | Endpoint hit-targets | Reads anchor refs from model. During drag the model anchors are stale until commit — the overlay needs a "preview anchor" override or to hide during drag. |
-| [`components/SceneLayers/ConnectorLabels/ConnectorLabel.tsx`](packages/fossflow-lib/src/components/SceneLayers/ConnectorLabels/ConnectorLabel.tsx) | Label positioning | Same concern: reads anchor positions from model. |
+| [`interaction/modes/Connector.ts`](packages/axoview-lib/src/interaction/modes/Connector.ts) | Drives the drag | mousemove must update only the preview path, not call `scene.updateConnector` (which writes the model). On commit: write final anchors once. |
+| [`interaction/modes/ReconnectAnchor.ts`](packages/axoview-lib/src/interaction/modes/ReconnectAnchor.ts) | Anchor reconnect | Same pattern. |
+| [`stores/reducers/connector.ts`](packages/axoview-lib/src/stores/reducers/connector.ts) | `updateConnector` reducer | Currently does both: writes anchors AND runs `syncConnector`. Needs a sibling reducer that updates `scene.connectors[id].path` only (no model clone). |
+| [`hooks/useSceneActions.ts`](packages/axoview-lib/src/hooks/useSceneActions.ts) | Action API | Add `previewConnectorPath(id, anchors)` that bypasses the reducer's model write. |
+| [`components/SceneLayers/Connectors/Connector.tsx`](packages/axoview-lib/src/components/SceneLayers/Connectors/Connector.tsx) | Renders the connector | Already reads `scenePath` from sceneStore — likely no change needed if preview lands there. |
+| [`components/ConnectorAnchorOverlay/ConnectorAnchorOverlay.tsx`](packages/axoview-lib/src/components/ConnectorAnchorOverlay/ConnectorAnchorOverlay.tsx) | Endpoint hit-targets | Reads anchor refs from model. During drag the model anchors are stale until commit — the overlay needs a "preview anchor" override or to hide during drag. |
+| [`components/SceneLayers/ConnectorLabels/ConnectorLabel.tsx`](packages/axoview-lib/src/components/SceneLayers/ConnectorLabels/ConnectorLabel.tsx) | Label positioning | Same concern: reads anchor positions from model. |
 
 **Invariant change.** Today: `view.connectors[].anchors` is the source of truth, scene path is derived. After the refactor: during a drag, model anchors are *committed-state-as-of-mousedown*; scene path is *current preview*. Two readers (overlay, label) need to know which to consult while a drag is open.
 
-**Test before/after.** The perf-stress fixture is wired into [`connector.dragPerf.test.tsx`](packages/fossflow-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx) and validated against `modelSchema` on load. Use the same fixture for manual before/after comparison; the fix should hold 60 fps for an arbitrarily long drag (no GC cliff). Add an explicit perf assertion (e.g. 500-tick drag under N ms) once the refactor lands so this can't regress silently.
+**Test before/after.** The perf-stress fixture is wired into [`connector.dragPerf.test.tsx`](packages/axoview-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx) and validated against `modelSchema` on load. Use the same fixture for manual before/after comparison; the fix should hold 60 fps for an arbitrarily long drag (no GC cliff). Add an explicit perf assertion (e.g. 500-tick drag under N ms) once the refactor lands so this can't regress silently.
 
 **Risk register.** The hardest part is the two-reader invariant. Anchor refs on the model can be `{ item }` or `{ tile }`; the preview must produce the same shape so downstream code (label positioning, anchor hit-testing, item-control panel) doesn't branch on "is a drag in progress". One option: extend `scene.connectors[id]` with `previewAnchors?: ConnectorAnchor[]`; readers fall back to model anchors when absent. That keeps the contract local to the scene store rather than leaking into UI state.

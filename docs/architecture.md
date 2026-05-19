@@ -1,7 +1,7 @@
-# FossFLOW Community Edition — Architecture Reference
+# Axoview Community Edition — Architecture Reference
 
 **Last updated:** 2026-05-19 (rev 18)
-**Codebase root:** `packages/fossflow-lib/src` (library) · `packages/fossflow-app/src` (application shell) · `packages/fossflow-backend/src` (Express + fs adapter) · `packages/fossflow-worker/src` (Hono + Cloudflare Pages Functions)
+**Codebase root:** `packages/axoview-lib/src` (library) · `packages/axoview-app/src` (application shell) · `packages/axoview-backend/src` (Express + fs adapter) · `packages/axoview-worker/src` (Hono + Cloudflare Pages Functions)
 **Purpose:** Living architecture reference — feature inventory, store/reducer/mode architecture, multi-target deployment contract, test audit, gap analysis, lessons learned, and key APIs. Update this document whenever significant architectural changes are made.
 
 **Companion documents:**
@@ -28,7 +28,7 @@
    - [2i. Event Propagation Architecture](#2i-event-propagation-architecture)
    - [2j. Configuration Layer](#2j-configuration-layer)
    - [2k. Internationalisation (i18n) Layer](#2k-internationalisation-i18n-layer)
-   - [2l. fossflow-app Provider Decomposition](#2l-fossflow-app-provider-decomposition-2026-04-27)
+   - [2l. axoview-app Provider Decomposition](#2l-axoview-app-provider-decomposition-2026-04-27)
    - [2m. Deployment & API Contract](#2m-deployment--api-contract-2026-04-29)
    - [2n. Workspace Bundles & Lean Icon Save](#2n-workspace-bundles--lean-icon-save-2026-05-01)
 3. [Test Audit](#3-test-audit)
@@ -88,7 +88,7 @@ Both model and scene have **independent** history stacks (past/present/future, m
 
 `createView` does **not** save to history (notable gap). `deleteView` saves to history and auto-switches to `views[0]` if current view is deleted. Cannot delete the last view.
 
-**ViewTabs title card (2026-03-27):** The diagram title shown in the ViewTabs bar is read-only. It is managed exclusively at the file/storage level via Save / Save As in the `fossflow-app` toolbar. Renaming the title inline was removed to keep the name in sync with the stored file name. View tab (page) names remain renameable inline.
+**ViewTabs title card (2026-03-27):** The diagram title shown in the ViewTabs bar is read-only. It is managed exclusively at the file/storage level via Save / Save As in the `axoview-app` toolbar. Renaming the title inline was removed to keep the name in sync with the stored file name. View tab (page) names remain renameable inline.
 
 ### Model Data
 
@@ -112,14 +112,14 @@ Both model and scene have **independent** history stacks (past/present/future, m
 
 | Feature | Source | Notes |
 |---|---|---|
-| **Project zip — Export** | `packages/fossflow-app/src/services/project/projectZip.ts` → `exportProject({ scope, folderId?, diagramId? })` | Three scopes: `project` / `folder` / `diagram`. Returns a `Blob` (manifest + `diagrams/<id>.json` + `tree-manifest.json`). Custom icons embedded as base64 inside each diagram (no separate `images/` folder at v1). See [ADR 0001](../docs/adr/0001-project-zip-format.md). |
+| **Project zip — Export** | `packages/axoview-app/src/services/project/projectZip.ts` → `exportProject({ scope, folderId?, diagramId? })` | Three scopes: `project` / `folder` / `diagram`. Returns a `Blob` (manifest + `diagrams/<id>.json` + `tree-manifest.json`). Custom icons embedded as base64 inside each diagram (no separate `images/` folder at v1). See [ADR 0001](../docs/adr/0001-project-zip-format.md). |
 | **Project zip — Parse** | `parseProject(file)` | Validates manifest **before** any state mutation. Rejects unknown `format` or `version`. Rejects diagram ids not matching `^[a-zA-Z0-9_-]{1,64}$` (defense in depth — IDs get rewritten anyway). |
 | **Project zip — Import** | `importProject(parsed, { destination, newFolderName? })` | Three destinations: `root` (preserve relative tree shape) / `newFolder` (wrap in named folder) / `replaceAll` (typed-confirm gated, deletes everything first). Always rewrites IDs and updates cross-diagram link refs via a `Map<oldId, newId>`. |
-| **Lean icon save** | `packages/fossflow-lib/src/utils/leanSave.ts` → `stripDefaultIcons(model)` | Drops icons that are pure duplicates of `bundledFixtures.byId`. Preserves custom icons and overridden defaults verbatim. Wired into `LocalStorageProvider.sessionSaveDiagram`, server `PUT /api/diagrams/:id` callers, `exportAsJSON`, `exportAsCompactJSON`. See [ADR 0003](../docs/adr/0003-session-storage-lean-icon-save.md). |
-| **Load-time icon merge** | `packages/fossflow-lib/src/hooks/useInitialDataManager.ts` | Merges `bundledFixtures` into `modelData.icons` before writing to the store (union by id; overrides win). The merge runs on every load so it can't bit-rot. See [ADR 0002](../docs/adr/0002-icon-catalog-merge-on-load.md). |
-| **Delete imported icon + workspace usage scan** | `packages/fossflow-lib/src/components/ItemControls/IconSelectionControls/Icon.tsx` (hover-× badge, gated by `icon.collection === 'imported'`); `packages/fossflow-lib/src/components/LeftDock/DeleteIconConfirmDialog.tsx` (confirm + per-diagram usage list); `packages/fossflow-lib/src/components/LeftDock/ElementsPanel.tsx` (handler); `packages/fossflow-app/src/services/iconUsage.ts` (workspace scan implementation) | Hover an imported tile → red × top-right (0.5 → 1 opacity). Confirm dialog calls the injected `iconUsageScan` callback (new `<Isoflow>` prop, stored on `uiStateStore.iconUsageScan`) to list every workspace diagram referencing the icon, then `modelActions.set({ icons })` removes it from the active model — pushing a history entry so `Ctrl+Z` restores. **Fallback path:** when no callback is wired (tests, embeds) the dialog scans current-diagram items only. **Stale-render protection:** items with unresolved icon ids fall through to the new `TOMBSTONE_ICON` (config.ts) via `useIcon` — single render path for "deleted" + "paste-from-unknown-source". Re-importing under the same id resurrects items automatically (no special "rehydrate" logic — the merge in ADR-0002 does it). See [ADR 0002 Lifecycle](../docs/adr/0002-icon-catalog-merge-on-load.md). Per-diagram scope of imports themselves is a separate gap — see [§7k](#7k-imported-icons-are-scoped-per-diagram-not-per-project). |
-| **Session storage gauge** | `packages/fossflow-app/src/components/fileExplorer/SessionStorageGauge.tsx` | Chip leads with `%` (`<1% · 3.6 KB`); click opens a per-diagram size table (sorted by size desc, with quick-delete). Color thresholds at 60% / 90%. Listens to a custom `Event('fossflow-session-changed')` dispatched by `LocalStorageProvider` after each session mutation (sessionStorage has no native cross-mutation event in the same tab). |
-| **Session-mode banner** | `packages/fossflow-app/src/components/SessionModeBanner.tsx` | Shown when storage resolves to session AND ≥1 diagram exists. Dismissable per session only. |
+| **Lean icon save** | `packages/axoview-lib/src/utils/leanSave.ts` → `stripDefaultIcons(model)` | Drops icons that are pure duplicates of `bundledFixtures.byId`. Preserves custom icons and overridden defaults verbatim. Wired into `LocalStorageProvider.sessionSaveDiagram`, server `PUT /api/diagrams/:id` callers, `exportAsJSON`, `exportAsCompactJSON`. See [ADR 0003](../docs/adr/0003-session-storage-lean-icon-save.md). |
+| **Load-time icon merge** | `packages/axoview-lib/src/hooks/useInitialDataManager.ts` | Merges `bundledFixtures` into `modelData.icons` before writing to the store (union by id; overrides win). The merge runs on every load so it can't bit-rot. See [ADR 0002](../docs/adr/0002-icon-catalog-merge-on-load.md). |
+| **Delete imported icon + workspace usage scan** | `packages/axoview-lib/src/components/ItemControls/IconSelectionControls/Icon.tsx` (hover-× badge, gated by `icon.collection === 'imported'`); `packages/axoview-lib/src/components/LeftDock/DeleteIconConfirmDialog.tsx` (confirm + per-diagram usage list); `packages/axoview-lib/src/components/LeftDock/ElementsPanel.tsx` (handler); `packages/axoview-app/src/services/iconUsage.ts` (workspace scan implementation) | Hover an imported tile → red × top-right (0.5 → 1 opacity). Confirm dialog calls the injected `iconUsageScan` callback (new `<Isoflow>` prop, stored on `uiStateStore.iconUsageScan`) to list every workspace diagram referencing the icon, then `modelActions.set({ icons })` removes it from the active model — pushing a history entry so `Ctrl+Z` restores. **Fallback path:** when no callback is wired (tests, embeds) the dialog scans current-diagram items only. **Stale-render protection:** items with unresolved icon ids fall through to the new `TOMBSTONE_ICON` (config.ts) via `useIcon` — single render path for "deleted" + "paste-from-unknown-source". Re-importing under the same id resurrects items automatically (no special "rehydrate" logic — the merge in ADR-0002 does it). See [ADR 0002 Lifecycle](../docs/adr/0002-icon-catalog-merge-on-load.md). Per-diagram scope of imports themselves is a separate gap — see [§7k](#7k-imported-icons-are-scoped-per-diagram-not-per-project). |
+| **Session storage gauge** | `packages/axoview-app/src/components/fileExplorer/SessionStorageGauge.tsx` | Chip leads with `%` (`<1% · 3.6 KB`); click opens a per-diagram size table (sorted by size desc, with quick-delete). Color thresholds at 60% / 90%. Listens to a custom `Event('axoview-session-changed')` dispatched by `LocalStorageProvider` after each session mutation (sessionStorage has no native cross-mutation event in the same tab). |
+| **Session-mode banner** | `packages/axoview-app/src/components/SessionModeBanner.tsx` | Shown when storage resolves to session AND ≥1 diagram exists. Dismissable per session only. |
 | **`sessionWorkUnexported` flag** | `DiagramLifecycleProvider` | Independent of `hasUnsavedChanges`. Drives the `beforeunload` prompt in session mode. Clears only on successful project-zip export. The 11 existing `hasUnsavedChanges` consumers behave unchanged. |
 
 ### Settings
@@ -149,14 +149,14 @@ Both model and scene have **independent** history stacks (past/present/future, m
 | Floating action bar | `NodeActionBar` (inside SceneLayer, `getTilePosition` origin TOP) | EDITABLE + `itemControls.type === 'ITEM'` + mode ≠ `DRAG_ITEMS`; 5 buttons: Style, Edit name, Link, Notes, Delete |
 | Note indicator dot | 14 px blue dot in `Node.tsx` at icon top-right | `modelItem.notes` non-empty |
 | Quick add popover | `QuickAddNodePopover` (MUI Popover at cursor) | EDITABLE; fires on `canvasEmptyDblClick` from dblclick on empty canvas; has **Rectangle** button (creates background rectangle) + icon picker (places node) |
-| Preview button | `IconButton` in `fossflow-app` toolbar | EDITABLE + server storage + saved diagram; if `hasUnsavedChanges`, saves first (same path as explicit Save), shows toast, then opens `/display/{id}` in new tab; tooltip: *"Save & Preview"* / *"Preview"* / *"Save first to preview"* |
+| Preview button | `IconButton` in `axoview-app` toolbar | EDITABLE + server storage + saved diagram; if `hasUnsavedChanges`, saves first (same path as explicit Save), shows toast, then opens `/display/{id}` in new tab; tooltip: *"Save & Preview"* / *"Preview"* / *"Save first to preview"* |
 | ToolMenu | `ToolMenu` | EDITABLE mode only; tools: Undo, Redo, Select, Lasso, Freehand lasso, Pan, Connector. **Rectangle and Text were removed** — both are in the Elements panel (LeftDock). |
 | MainMenu | `MainMenu` | EDITABLE mode only; options: **New diagram** (ACTION.NEW — opens ConfirmDiscardDialog if `isDirty`), Open, Export JSON, Export Compact JSON, Export Image, Clear canvas, Settings, GitHub |
 | ZoomControls | `ZoomControls` | EDITABLE + EXPLORABLE_READONLY |
 | ViewTabs | `ViewTabs` | EDITABLE only |
 | ViewTitle | Typography in `UiOverlay` | EXPLORABLE_READONLY only |
 | Hint tooltips (5 types) | `ConnectorHintTooltip`, `ConnectorEmptySpaceTooltip`, `ConnectorRerouteTooltip`, `ImportHintTooltip`, `LassoHintTooltip` | EDITABLE only |
-| Lazy loading welcome | `LazyLoadingWelcomeNotification` | When `iconPackManager` is provided AND `fossflow-lazy-loading-welcome-dismissed` is not `'true'` in localStorage (shown once per user) |
+| Lazy loading welcome | `LazyLoadingWelcomeNotification` | When `iconPackManager` is provided AND `axoview-lazy-loading-welcome-dismissed` is not `'true'` in localStorage (shown once per user) |
 | Debug utils | `DebugUtils` | `enableDebugTools === true` |
 
 ### Export
@@ -167,12 +167,12 @@ Both model and scene have **independent** history stacks (past/present/future, m
 
 `IsoflowProps.iconPackManager` (type `IconPackManagerProps`) is passed from outside. Stored in `uiState.iconPackManager`. `IconSelectionControls` and `IconGrid` consume it. Lazy loading welcome notification shown when present.
 
-**App-side icon pack manager** (`fossflow-app/src/services/iconPackManager.ts` → `useIconPackManager` hook):
+**App-side icon pack manager** (`axoview-app/src/services/iconPackManager.ts` → `useIconPackManager` hook):
 
 | Setting | Storage key | Default |
 |---|---|---|
-| Lazy loading enabled | `fossflow-lazy-loading-enabled` | `true` |
-| Enabled packs | `fossflow-enabled-icon-packs` | `['aws','gcp','azure','kubernetes']` |
+| Lazy loading enabled | `axoview-lazy-loading-enabled` | `true` |
+| Enabled packs | `axoview-enabled-icon-packs` | `['aws','gcp','azure','kubernetes']` |
 
 **Initialization strategy (2026-04-11, revised):**
 - **Canvas always renders immediately** — `frozenInitialDataRef` is set on the very first render with whatever icons are in memory (core isoflow icons, always available). `<Isoflow>` is mounted unconditionally — no loading screen, no gate.
@@ -194,7 +194,7 @@ This prevents the old diagram name bleeding into the toolbar after "New Diagram"
 
 **Compact format loading (2026-04-11):**
 
-`handleDiagramManagerLoad(id, rawData, listingName)` detects `rawData._?.f === 'compact'` and calls `transformFromCompactFormat(rawData)` (exported from `fossflow-lib`) before passing the model to Isoflow. The listing name (from the storage metadata) is used as the diagram name — always correct regardless of what field exists in the raw payload. `transformFromCompactFormat` is now exported from `fossflow-lib/src/index.ts`.
+`handleDiagramManagerLoad(id, rawData, listingName)` detects `rawData._?.f === 'compact'` and calls `transformFromCompactFormat(rawData)` (exported from `axoview-lib`) before passing the model to Isoflow. The listing name (from the storage metadata) is used as the diagram name — always correct regardless of what field exists in the raw payload. `transformFromCompactFormat` is now exported from `axoview-lib/src/index.ts`.
 
 ### Canvas Modes (2026-04-27)
 
@@ -213,9 +213,9 @@ App-side, separate from the library's `uiState.notification` snackbar.
 
 | Component | Source | Purpose |
 |---|---|---|
-| `notificationStore` | `fossflow-app/src/stores/notificationStore.ts` | Zustand, not persisted. `push(msg, severity?)`, `dismiss(id)`, `dismissAll()`. Replaces every `alert()` call in the app. |
-| `NotificationStack` | `fossflow-app/src/components/NotificationStack.tsx` | MUI Snackbar + Alert; max 3 visible at once, FIFO queue. Mounts at the app root. |
-| `ConfirmDialog` | `fossflow-app/src/components/ConfirmDialog.tsx` | Promise-returning confirm dialog for destructive actions (delete, discard). |
+| `notificationStore` | `axoview-app/src/stores/notificationStore.ts` | Zustand, not persisted. `push(msg, severity?)`, `dismiss(id)`, `dismissAll()`. Replaces every `alert()` call in the app. |
+| `NotificationStack` | `axoview-app/src/components/NotificationStack.tsx` | MUI Snackbar + Alert; max 3 visible at once, FIFO queue. Mounts at the app root. |
+| `ConfirmDialog` | `axoview-app/src/components/ConfirmDialog.tsx` | Promise-returning confirm dialog for destructive actions (delete, discard). |
 
 ### Storage Providers (2026-04-27)
 
@@ -226,11 +226,11 @@ All diagram and folder operations route through `StorageManager` (provider regis
 | `LocalStorageProvider` | `services/storage/providers/LocalStorageProvider.ts` | Server-backed when `/api/storage/*` is reachable; falls back to `sessionStorage`. Full folder CRUD + tree-manifest. **Shipped.** |
 | `GoogleDriveProvider` | `services/storage/providers/GoogleDriveProvider.ts` | `NotImplementedError` stub — full implementation lives on a separate branch. |
 
-**Backend support (`packages/fossflow-backend/server.js`):** folder CRUD, move (cross-folder), soft-delete patch, and tree-manifest endpoints. The `LocalStorageProvider` is the only client today; the manifest is the source of truth for tree shape so the UI never has to walk the filesystem.
+**Backend support (`packages/axoview-backend/server.js`):** folder CRUD, move (cross-folder), soft-delete patch, and tree-manifest endpoints. The `LocalStorageProvider` is the only client today; the manifest is the source of truth for tree shape so the UI never has to walk the filesystem.
 
 ### File Explorer (2026-04-27)
 
-VS Code-style left panel. Lives in `fossflow-app`, not in the library.
+VS Code-style left panel. Lives in `axoview-app`, not in the library.
 
 | Piece | Source | Notes |
 |---|---|---|
@@ -593,7 +593,7 @@ Rectangle center = { x: round((r.from.x + r.to.x) / 2), y: round((r.from.y + r.t
 
 **`ConfirmDiscardDialog`** (`components/ConfirmDiscardDialog/ConfirmDiscardDialog.tsx`): pure presentational component, props: `open`, `onSave`, `onDiscard`, `onCancel`.
 
-**`localStorageSave`** (`utils/localStorageSave.ts`): `saveModelLocally(model)` — tries `localStorage.setItem('fossflow-autosave', JSON.stringify(model))`, falls back to `exportAsJSON(model)` (download) if storage is unavailable.
+**`localStorageSave`** (`utils/localStorageSave.ts`): `saveModelLocally(model)` — tries `localStorage.setItem('axoview-autosave', JSON.stringify(model))`, falls back to `exportAsJSON(model)` (download) if storage is unavailable.
 
 ---
 
@@ -798,7 +798,7 @@ Touch events are synthesized: `touchstart` → mousedown (button:0), `touchmove`
 | `config/zoomSettings.ts` | Re-exports `ZoomSettings` from `types/settings`; exports `DEFAULT_ZOOM_SETTINGS` |
 | `config/labelSettings.ts` | Re-exports `LabelSettings` from `types/settings`; exports `DEFAULT_LABEL_SETTINGS` |
 | `config/shortcuts.ts` | Fixed shortcuts (non-configurable): copy/paste/undo/redo/help |
-| `config/persistedSettings.ts` | `loadPersistedSettings()` / `savePersistedSettings()` using `localStorage` key `'fossflow_user_settings'`. Errors silently swallowed (SSR / private browsing safe). Persists: `hotkeyProfile`, `panSettings`, `zoomSettings`, `labelSettings`, `connectorInteractionMode`, `expandLabels`. |
+| `config/persistedSettings.ts` | `loadPersistedSettings()` / `savePersistedSettings()` using `localStorage` key `'axoview_user_settings'`. Errors silently swallowed (SSR / private browsing safe). Persists: `hotkeyProfile`, `panSettings`, `zoomSettings`, `labelSettings`, `connectorInteractionMode`, `expandLabels`. |
 | `config.ts` | Tile size constants, defaults for View/ViewItem/Connector/TextBox/Rectangle, zoom constants (MIN=0.1, MAX=1, INCREMENT=0.05), initial data |
 | `types/settings.ts` | **Canonical location** for settings types: `HotkeyProfile`, `HotkeyMapping`, `PanSettings`, `ZoomSettings`, `LabelSettings`. Config files re-export from here for backwards compat. |
 
@@ -887,14 +887,14 @@ For pastes with ≥ 500 connectors, `useCopyPaste` passes an `onPathProgress(don
 
 **Two separate i18n systems** — one per package — connected via the `locale` prop on `<Isoflow>`.
 
-#### fossflow-app (react-i18next)
+#### axoview-app (react-i18next)
 
 | Item | Detail |
 |---|---|
 | Library | `react-i18next` v17 + `i18next-http-backend` |
 | Namespace | `app` |
-| JSON files | `packages/fossflow-app/src/i18n/*.json` (11 languages) — copied to `build/i18n/app/` at build time by rsbuild |
-| Config | `packages/fossflow-app/src/i18n.ts` — `load: 'currentOnly'` prevents short-code 404; `fallbackLng: 'en-US'` |
+| JSON files | `packages/axoview-app/src/i18n/*.json` (11 languages) — copied to `build/i18n/app/` at build time by rsbuild |
+| Config | `packages/axoview-app/src/i18n.ts` — `load: 'currentOnly'` prevents short-code 404; `fallbackLng: 'en-US'` |
 | Usage | `const { t, i18n } = useTranslation('app')` in `App.tsx` and `DiagramManager.tsx` |
 | Language switch | `ChangeLanguage/index.tsx` calls `i18n.changeLanguage(lang)` and writes to `localStorage('i18nextLng')`. Displays the active language's full label from `supportedLanguages`. |
 
@@ -906,14 +906,14 @@ For pastes with ≥ 500 connectors, `useCopyPaste` passes an `onPathProgress(don
 - `dialog.save.*` / `dialog.saveAs.*` / `dialog.load.*` / `dialog.export.*` / `dialog.readOnly.*` / `dialog.diagramManager.*`
 - `alert.*` — confirm/error strings
 
-#### fossflow-lib (localeStore)
+#### axoview-lib (localeStore)
 
 | Item | Detail |
 |---|---|
-| Store | `packages/fossflow-lib/src/stores/localeStore.tsx` — Zustand with React context |
-| Type | `LocaleProps` in `packages/fossflow-lib/src/types/isoflowProps.ts` |
-| TS locale files | `packages/fossflow-lib/src/i18n/*.ts` (13 languages: en-US + 12 others) |
-| Exported | `allLocales` from `packages/fossflow-lib/src/i18n/index.ts` |
+| Store | `packages/axoview-lib/src/stores/localeStore.tsx` — Zustand with React context |
+| Type | `LocaleProps` in `packages/axoview-lib/src/types/isoflowProps.ts` |
+| TS locale files | `packages/axoview-lib/src/i18n/*.ts` (13 languages: en-US + 12 others) |
+| Exported | `allLocales` from `packages/axoview-lib/src/i18n/index.ts` |
 | Usage | `const { t } = useTranslation('namespaceName')` in any lib component |
 | Prop | `<Isoflow locale={currentLocale}>` — App.tsx derives `currentLocale` from `allLocales[i18n.language]` with `en-US` fallback |
 
@@ -926,11 +926,11 @@ For pastes with ≥ 500 connectors, `useCopyPaste` passes an `onPathProgress(don
 
 ---
 
-### 2l. fossflow-app Provider Decomposition (2026-04-27)
+### 2l. axoview-app Provider Decomposition (2026-04-27)
 
 `App.tsx` was 744 lines of intermixed state, effects, and JSX. Phase 0A split it into a small composition root and two domain providers. `App.tsx` is now 103 lines — pure provider composition with no logic.
 
-**Provider tree (fossflow-app):**
+**Provider tree (axoview-app):**
 
 ```
 App
@@ -962,7 +962,7 @@ App
 3. Set it active. Drive is registered as a `NotImplementedError` stub and only becomes a candidate when Phase 3B lands. (**Update 2026-04-29:** S3 support was dropped — `S3Provider` and `@aws-sdk/*` / `minio` deps are gone. Phase 3C is no longer planned.)
 4. Set `isInitialized = true` — the session-only warning banner is gated on this so it doesn't flash before storage is known.
 
-**Update 2026-05-19 — Startup probe contract.** `fetchRuntimeConfig()` and `manager.initialize()` are run in parallel via `Promise.all` (they're independent — one hits `/api/config`, the other hits `/api/storage/status`). Each probe is hard-capped at **800 ms** via `AbortSignal.timeout(800)` in [`useRuntimeConfig.ts`](../packages/fossflow-app/src/hooks/useRuntimeConfig.ts) and [`LocalStorageProvider.isAvailable()`](../packages/fossflow-app/src/services/storage/providers/LocalStorageProvider.ts). Rationale: a healthy backend answers in <50 ms; an absent backend can otherwise let Chrome/Windows spend ~2.3 s on a dual-stack connect probe before reporting `ERR_CONNECTION_REFUSED` to JS. Worst-case storage init is therefore ≈ 800 ms (single probe times out) rather than the prior ≈ 2.7 s (Chrome retry × 2, sequential). Pinned by `providers/__tests__/AppStorageContext.test.tsx` (parallelism) + `hooks/__tests__/useRuntimeConfig.test.ts` (timeout) + the extended `LocalStorageProvider.test.ts`.
+**Update 2026-05-19 — Startup probe contract.** `fetchRuntimeConfig()` and `manager.initialize()` are run in parallel via `Promise.all` (they're independent — one hits `/api/config`, the other hits `/api/storage/status`). Each probe is hard-capped at **800 ms** via `AbortSignal.timeout(800)` in [`useRuntimeConfig.ts`](../packages/axoview-app/src/hooks/useRuntimeConfig.ts) and [`LocalStorageProvider.isAvailable()`](../packages/axoview-app/src/services/storage/providers/LocalStorageProvider.ts). Rationale: a healthy backend answers in <50 ms; an absent backend can otherwise let Chrome/Windows spend ~2.3 s on a dual-stack connect probe before reporting `ERR_CONNECTION_REFUSED` to JS. Worst-case storage init is therefore ≈ 800 ms (single probe times out) rather than the prior ≈ 2.7 s (Chrome retry × 2, sequential). Pinned by `providers/__tests__/AppStorageContext.test.tsx` (parallelism) + `hooks/__tests__/useRuntimeConfig.test.ts` (timeout) + the extended `LocalStorageProvider.test.ts`.
 
 A startup splash screen is rendered inline in `public/index.html` (visible at first paint, ~500 ms) and removed by `App.tsx` after `isInitialized` flips and the editor's first paint flushes (two RAFs). This covers the bundle-parse + probe gap with a branded surface instead of a white screen.
 
@@ -970,7 +970,7 @@ A startup splash screen is rendered inline in `public/index.html` (visible at fi
 
 ## 2m. Deployment & API Contract (2026-04-29)
 
-FossFLOW runs from a single codebase on three targets, sharing one `/api/*` HTTP contract. The frontend is byte-identical at the network boundary across targets; runtime config (`GET /api/config`) replaces build-time env injection. Full from-scratch walkthrough: [docs/deployment.md](deployment.md). Decision rationale: [flare_plan.md](../flare_plan.md).
+Axoview runs from a single codebase on three targets, sharing one `/api/*` HTTP contract. The frontend is byte-identical at the network boundary across targets; runtime config (`GET /api/config`) replaces build-time env injection. Full from-scratch walkthrough: [docs/deployment.md](deployment.md). Decision rationale: [flare_plan.md](../flare_plan.md).
 
 ### Targets
 
@@ -1009,7 +1009,7 @@ GET    /api/public/diagrams/:uuid  — unauth snapshot read
 ### Key-based StorageAdapter (no paths in the interface)
 
 ```ts
-// packages/fossflow-backend/src/adapters/types.ts
+// packages/axoview-backend/src/adapters/types.ts
 export interface StorageAdapter {
   get(key: string): Promise<Uint8Array | null>;
   put(key: string, value: Uint8Array): Promise<void>;
@@ -1019,7 +1019,7 @@ export interface StorageAdapter {
 }
 ```
 
-- `fsAdapter` ([packages/fossflow-backend/src/adapters/fs.js](../packages/fossflow-backend/src/adapters/fs.js)) converts `diagrams/abc123` → `path.join(STORAGE_PATH, 'diagrams', 'abc123.json')`. The route layer cannot construct a path.
+- `fsAdapter` ([packages/axoview-backend/src/adapters/fs.js](../packages/axoview-backend/src/adapters/fs.js)) converts `diagrams/abc123` → `path.join(STORAGE_PATH, 'diagrams', 'abc123.json')`. The route layer cannot construct a path.
 - `r2Adapter` (deferred — file removed from the worker after the storage-less revert) used keys verbatim against the R2 binding.
 - `listDiagramMeta` is a method, not a derived list, because the two adapters implement it very differently (fs walks the directory; R2 reads a denormalized `diagrams-index.json`).
 - **Path-traversal blocked** by ID regex `^[a-zA-Z0-9_-]{1,64}$` enforced at the route layer.
@@ -1031,7 +1031,7 @@ Express does not run cleanly on Workers even with `nodejs_compat`. Hono is ~14 k
 ```ts
 // functions/api/[[path]].ts
 import { handle } from 'hono/cloudflare-pages';
-import app from '../../packages/fossflow-worker/src/app';
+import app from '../../packages/axoview-worker/src/app';
 export const onRequest = handle(app);
 ```
 
@@ -1043,14 +1043,14 @@ export const onRequest = handle(app);
 |---|---|---|
 | `none` | Both | No auth check. Default for local dev and storage-less Cloudflare PoC. |
 | `shared-token` | Both | `Authorization: Bearer <secret>` compared with constant-time equality. Single shared secret across all editors. |
-| `cf-access` | **Cloudflare only** (Express rejects at request time) | Full JWKS RS256 verification of the Cloudflare Access JWT in [packages/fossflow-worker/src/auth.ts](../packages/fossflow-worker/src/auth.ts). Verifies `iss`, `aud`, `exp`, signature against the Access team's published JWKS. |
+| `cf-access` | **Cloudflare only** (Express rejects at request time) | Full JWKS RS256 verification of the Cloudflare Access JWT in [packages/axoview-worker/src/auth.ts](../packages/axoview-worker/src/auth.ts). Verifies `iss`, `aud`, `exp`, signature against the Access team's published JWKS. |
 
 `/api/config` and `/api/storage/status` bypass all auth modes — the SPA needs them to boot under `shared-token`.
 
 ### Frontend integration
 
-- `packages/fossflow-app/src/utils/apiBaseUrl.ts` — auto-redirects `/api/*` to `:3001` when the host is `localhost:3000`; same-origin relative paths everywhere else. Consolidates three previously inline copies.
-- `packages/fossflow-app/src/hooks/useRuntimeConfig.ts` — fetches `/api/config` once on mount; downstream code reads `serverStorage`, `googleClientId`, etc. from the resulting context.
+- `packages/axoview-app/src/utils/apiBaseUrl.ts` — auto-redirects `/api/*` to `:3001` when the host is `localhost:3000`; same-origin relative paths everywhere else. Consolidates three previously inline copies.
+- `packages/axoview-app/src/hooks/useRuntimeConfig.ts` — fetches `/api/config` once on mount; downstream code reads `serverStorage`, `googleClientId`, etc. from the resulting context.
 - The legacy `storageService.ts` (build-time env injection) was removed in `f0590f3` — runtime config is now the only path.
 
 ### Hardening
@@ -1064,19 +1064,19 @@ export const onRequest = handle(app);
 
 ## 2n. Workspace Bundles & Lean Icon Save (2026-05-01)
 
-Three ADRs lock the contract for FossFLOW's persistence layer. They're load-bearing — read them when touching anything in `services/project/`, `LocalStorageProvider`, `useInitialDataManager`, or `utils/leanSave.ts`.
+Three ADRs lock the contract for Axoview's persistence layer. They're load-bearing — read them when touching anything in `services/project/`, `LocalStorageProvider`, `useInitialDataManager`, or `utils/leanSave.ts`.
 
 | ADR | Concern | Where it lives |
 |---|---|---|
-| [0001](adr/0001-project-zip-format.md) | Project zip format (manifest + `diagrams/<id>.json` + `tree-manifest.json`); ID rewriting on import; destination picker; versioning | [packages/fossflow-app/src/services/project/projectZip.ts](../packages/fossflow-app/src/services/project/projectZip.ts) |
-| [0002](adr/0002-icon-catalog-merge-on-load.md) | `sideDockCatalog = bundledFixtures ∪ model.icons`; merge runs on every load | [packages/fossflow-lib/src/hooks/useInitialDataManager.ts](../packages/fossflow-lib/src/hooks/useInitialDataManager.ts) |
-| [0003](adr/0003-session-storage-lean-icon-save.md) | Strip default-catalog icons on every write (session, server, exports); preserve custom + overrides; `requiredPacks: string[]` companion field | [packages/fossflow-lib/src/utils/leanSave.ts](../packages/fossflow-lib/src/utils/leanSave.ts) |
+| [0001](adr/0001-project-zip-format.md) | Project zip format (manifest + `diagrams/<id>.json` + `tree-manifest.json`); ID rewriting on import; destination picker; versioning | [packages/axoview-app/src/services/project/projectZip.ts](../packages/axoview-app/src/services/project/projectZip.ts) |
+| [0002](adr/0002-icon-catalog-merge-on-load.md) | `sideDockCatalog = bundledFixtures ∪ model.icons`; merge runs on every load | [packages/axoview-lib/src/hooks/useInitialDataManager.ts](../packages/axoview-lib/src/hooks/useInitialDataManager.ts) |
+| [0003](adr/0003-session-storage-lean-icon-save.md) | Strip default-catalog icons on every write (session, server, exports); preserve custom + overrides; `requiredPacks: string[]` companion field | [packages/axoview-lib/src/utils/leanSave.ts](../packages/axoview-lib/src/utils/leanSave.ts) |
 
 The contract is symmetric: ADR 0003 strips at write time, ADR 0002 rehydrates at read time. Either side broken in isolation surfaces as "side dock empties after load" or "every diagram gets fatter on every save." Both have unit tests pinning the round-trip identity.
 
 The `requiredPacks` field is a **derived-but-preserved** signal. Authoritative re-derivation only runs when every `item.icon` resolves against `model.icons` (i.e. you're saving a hydrated, fully-loaded model). Otherwise the existing field is preserved verbatim, so a lean round-trip — autosave-before-pack-loads, project-zip-import-then-save — doesn't blow it away. Loaders consult it to lazy-fetch the right icon packs **before** the merge in ADR 0002 runs.
 
-The legacy phantom `Icon1` / `Icon2` URL stubs in `packages/fossflow-lib/src/fixtures/icons.ts` were removed (`5f6a70e`). The real catalog comes from `@isoflow/isopacks` injected at app level. ADR 0002's contract still holds because the bundled catalog is whatever the app provides — the lib doesn't ship icons of its own.
+The legacy phantom `Icon1` / `Icon2` URL stubs in `packages/axoview-lib/src/fixtures/icons.ts` were removed (`5f6a70e`). The real catalog comes from `@isoflow/isopacks` injected at app level. ADR 0002's contract still holds because the bundled catalog is whatever the app provides — the lib doesn't ship icons of its own.
 
 ---
 
@@ -1209,7 +1209,7 @@ The legacy phantom `Icon1` / `Icon2` URL stubs in `packages/fossflow-lib/src/fix
 |---|---|---|---|
 | `clipboard/__tests__/useCopyPaste.test.ts` | 18 | mock updated | Mock changed from `'../clipboard'` module singleton to `'../ClipboardContext'` context API |
 
-**Total test count as of 2026-04-07:** 392 tests (fossflow-lib only, excluding `__perf_refactor_regression__`), 39 suites, all passing.
+**Total test count as of 2026-04-07:** 392 tests (axoview-lib only, excluding `__perf_refactor_regression__`), 39 suites, all passing.
 
 **Updated suites — round 10 (2026-04-10, UX & icon elevation fixes):**
 
@@ -1223,14 +1223,14 @@ The legacy phantom `Icon1` / `Icon2` URL stubs in `packages/fossflow-lib/src/fix
 
 | Area | Change | File(s) |
 |---|---|---|
-| Canvas startup | `frozenInitialDataRef` set unconditionally on first render; `<Isoflow>` mounted without any loading gate — canvas shows immediately | `fossflow-app/src/App.tsx` |
-| "More icons" in Elements panel | Unloaded packs listed as one-click load buttons with inline `CircularProgress` spinner; disappear when loaded | `fossflow-lib/src/components/LeftDock/ElementsPanel.tsx` |
-| LeftDock bottom offset | `bottom: 40` stops panel above BottomDock; Import Icons button no longer clipped | `fossflow-lib/src/components/LeftDock/LeftDock.tsx` |
-| Diagram name sync | `handleModelUpdated` detects title drift from library's New/Open actions; resets `diagramName`, `currentDiagram`, `lastSaved` | `fossflow-app/src/App.tsx` |
-| Compact format loading | `handleDiagramManagerLoad` calls `transformFromCompactFormat` on compact payloads; listing name used as canonical name | `fossflow-app/src/App.tsx` |
-| `transformFromCompactFormat` export | Added to `fossflow-lib/src/index.ts` public exports | `fossflow-lib/src/index.ts` |
-| DiagramManager callback | `onLoadDiagram` gains `listingName` third arg; `handleLoad` passes `diagram.name` | `fossflow-app/src/components/DiagramManager.tsx` |
-| Debug logging | Temporary `console.log` in `handleModelUpdated`, `handleDiagramManagerLoad`, `loadDiagram` | `fossflow-app/src/App.tsx` |
+| Canvas startup | `frozenInitialDataRef` set unconditionally on first render; `<Isoflow>` mounted without any loading gate — canvas shows immediately | `axoview-app/src/App.tsx` |
+| "More icons" in Elements panel | Unloaded packs listed as one-click load buttons with inline `CircularProgress` spinner; disappear when loaded | `axoview-lib/src/components/LeftDock/ElementsPanel.tsx` |
+| LeftDock bottom offset | `bottom: 40` stops panel above BottomDock; Import Icons button no longer clipped | `axoview-lib/src/components/LeftDock/LeftDock.tsx` |
+| Diagram name sync | `handleModelUpdated` detects title drift from library's New/Open actions; resets `diagramName`, `currentDiagram`, `lastSaved` | `axoview-app/src/App.tsx` |
+| Compact format loading | `handleDiagramManagerLoad` calls `transformFromCompactFormat` on compact payloads; listing name used as canonical name | `axoview-app/src/App.tsx` |
+| `transformFromCompactFormat` export | Added to `axoview-lib/src/index.ts` public exports | `axoview-lib/src/index.ts` |
+| DiagramManager callback | `onLoadDiagram` gains `listingName` third arg; `handleLoad` passes `diagram.name` | `axoview-app/src/components/DiagramManager.tsx` |
+| Debug logging | Temporary `console.log` in `handleModelUpdated`, `handleDiagramManagerLoad`, `loadDiagram` | `axoview-app/src/App.tsx` |
 
 **Full regression suite documentation:** See `regression_tests.md` at repo root — suites listed with production targets, test counts, classifications, coverage notes, and known gaps.
 
@@ -1304,7 +1304,7 @@ The legacy phantom `Icon1` / `Icon2` URL stubs in `packages/fossflow-lib/src/fix
 
 ### 1. The Quill/ReactQuill Mount-Time onChange Bug
 
-**What happens:** When ReactQuill mounts, it fires its `onChange` callback once during initialization with the initial content, before any user input. In FossFLOW, this fires `saveToHistoryBeforeChange()` on mount — creating a spurious history checkpoint. On undo, the user steps back through this phantom state.
+**What happens:** When ReactQuill mounts, it fires its `onChange` callback once during initialization with the initial content, before any user input. In Axoview, this fires `saveToHistoryBeforeChange()` on mount — creating a spurious history checkpoint. On undo, the user steps back through this phantom state.
 
 **How fixed:** `RichTextEditor` tracks `isFirstRender` via a ref, ignores the first `onChange` call, and only starts forwarding changes after mount.
 
@@ -1375,7 +1375,7 @@ When a user clicks on a Node, the DOM event target is the Node's HTML element (a
 
 ### 7. Zustand Context Pattern — Testing Implications
 
-FossFLOW ships as a library with multiple independent instances possible. The context pattern (`createStore` inside `useRef` inside Provider) gives each mounted `<Isoflow>` tree its own private store instance.
+Axoview ships as a library with multiple independent instances possible. The context pattern (`createStore` inside `useRef` inside Provider) gives each mounted `<Isoflow>` tree its own private store instance.
 
 **Testing implications:**
 - Tests cannot simply `import { useUiStateStore }` and use it — the hook throws if there is no Provider.
@@ -1403,7 +1403,7 @@ The first frame of a pan gesture has `mouse.mousedown` correctly set (from the `
 
 ### 10. Dev Server + Lib Build Dependency
 
-**The problem:** The consumer app imports from the lib's **built** output (`dist/`), not TypeScript sources directly. Editing `packages/fossflow-lib/src/` is NOT immediately visible in the dev server. `npm run build:lib` must be run before changes are reflected. Hot-reload does NOT work for library changes.
+**The problem:** The consumer app imports from the lib's **built** output (`dist/`), not TypeScript sources directly. Editing `packages/axoview-lib/src/` is NOT immediately visible in the dev server. `npm run build:lib` must be run before changes are reflected. Hot-reload does NOT work for library changes.
 
 ---
 
@@ -1419,7 +1419,7 @@ Creates a **sparse array** (`[item0, undefined, item2]`). `model.items.length` i
 The redundant `updateModelItem` call inside `createModelItem` was removed. The item is now written once when pushed to the draft.
 
 **Connector path with empty tiles (improved 2026-04-07):**
-`syncConnector` wraps `getConnectorPath` in a try/catch. On error it now: (1) emits `console.warn('[fossflow] connector {id} could not be routed', error)` and (2) sets `scene.connectors[id].unroutable = true` alongside the empty path. `<Connector>` renders a dashed red `Box` indicator when `isUnroutable === true` — the failure is now visible on the canvas instead of silent. Previously, connectors with empty paths were "ghost" connectors: invisible, zero-size, and hard to discover or delete.
+`syncConnector` wraps `getConnectorPath` in a try/catch. On error it now: (1) emits `console.warn('[axoview] connector {id} could not be routed', error)` and (2) sets `scene.connectors[id].unroutable = true` alongside the empty path. `<Connector>` renders a dashed red `Box` indicator when `isUnroutable === true` — the failure is now visible on the canvas instead of silent. Previously, connectors with empty paths were "ghost" connectors: invisible, zero-size, and hard to discover or delete.
 
 **`updateViewItem` throws on validation failure:**
 A validation failure mid-drag crashes the interaction. No catch block in `DragItems.mousemove`. No user feedback.
@@ -1449,7 +1449,7 @@ Opening the main menu automatically closes any open item controls panel. May be 
 
 ### 5. Stacking-context trap: `transform: translateZ(0)` on `Isoflow`'s outer Box (2026-05-09)
 
-**What happens:** Children of [`Isoflow.tsx`](../packages/fossflow-lib/src/Isoflow.tsx)'s outer `<Box>` (`LeftDock` strip, `BottomDock`, etc.) cannot raise themselves above `Isoflow`'s app-level siblings via z-index alone. A `LeftDock` strip with `zIndex: 20` still rendered behind an `EmptyStateScreen` overlay at `zIndex: 5` — the chrome was completely hidden on first load.
+**What happens:** Children of [`Isoflow.tsx`](../packages/axoview-lib/src/Isoflow.tsx)'s outer `<Box>` (`LeftDock` strip, `BottomDock`, etc.) cannot raise themselves above `Isoflow`'s app-level siblings via z-index alone. A `LeftDock` strip with `zIndex: 20` still rendered behind an `EmptyStateScreen` overlay at `zIndex: 5` — the chrome was completely hidden on first load.
 
 **Root cause:** `Isoflow`'s outer Box uses `transform: translateZ(0)` (a GPU compositing hint). Per the CSS spec, any non-`none` `transform` creates a new **stacking context**. All inner z-indexes (LeftDock 20, BottomDock 20) are scoped to that context. Externally, `Isoflow` itself ranks at `auto`. An app-level sibling with explicit `zIndex: 5` therefore wins over `Isoflow` regardless of how high the strip's internal z-index is.
 
@@ -1457,7 +1457,7 @@ Opening the main menu automatically closes any open item controls panel. May be 
 
 **Why z-index alone could not work:** Bumping `Isoflow`'s outer Box to `zIndex: > 5` would have raised the entire canvas above `EmptyStateScreen`, defeating the overlay. The only z-index-based fix would have been removing the `translateZ(0)` (giving up its compositing benefit) or threading every chrome element through to a separate sibling outside `Isoflow` — a much larger refactor.
 
-**Why non-obvious:** `transform: translateZ(0)` reads as a performance hint, not a layering directive. Developers add it for GPU-layer promotion and assume z-index continues to behave globally. The stacking-context side-effect is documented but easy to forget. A second hidden trap: `.fossflow-container > div { height: 100% }` in `App.css` was overriding inline `bottom: 40` on the new overlay siblings (CSS `height` wins over implicit height-from-top+bottom). The CSS rule was redundant — Isoflow's inner `<Box>` sets `height: '100%'` itself — and was removed.
+**Why non-obvious:** `transform: translateZ(0)` reads as a performance hint, not a layering directive. Developers add it for GPU-layer promotion and assume z-index continues to behave globally. The stacking-context side-effect is documented but easy to forget. A second hidden trap: `.axoview-container > div { height: 100% }` in `App.css` was overriding inline `bottom: 40` on the new overlay siblings (CSS `height` wins over implicit height-from-top+bottom). The CSS rule was redundant — Isoflow's inner `<Box>` sets `height: '100%'` itself — and was removed.
 
 **Heuristic for future overlays:** If you find yourself fighting z-index across the `Isoflow` boundary, reach for geometric exclusion (position the overlay so it doesn't cover the chrome pixels in the first place). Trust the CSS box-model over stacking arithmetic.
 
@@ -1752,7 +1752,7 @@ i18next::backendConnector: loading namespace app for language en failed
 
 **Root cause:** i18next's default behavior strips `en-US` to the short-code `en` and tries to load `/i18n/app/en.json` first. The dev server returns `index.html` for unknown routes, causing a JSON parse failure.
 
-**Fix applied:** Added `load: 'currentOnly'` to `packages/fossflow-app/src/i18n.ts`. This instructs i18next to load only the exact locale string (e.g. `en-US`) without attempting the short-code variant.
+**Fix applied:** Added `load: 'currentOnly'` to `packages/axoview-app/src/i18n.ts`. This instructs i18next to load only the exact locale string (e.g. `en-US`) without attempting the short-code variant.
 
 **Regression test:** `__perf_refactor_regression__/i18n.config.test.ts` — reads the app package's `i18n.ts` source and asserts `load: 'currentOnly'` and `fallbackLng: 'en-US'` are present.
 
@@ -1849,11 +1849,11 @@ True 3D-iso art (Isoflow's built-in 37-icon pack, `isIsometric: true`) is unaffe
 
 **Why the bug was invisible for so long:** `modelStore` had the correct pattern (push the original entry to future on undo; pop and re-apply forward on redo). For purely model-side actions (rename, color change, layer assignment) only the model store has an entry — redoing the model alone restored the state, so redo "worked." The bug only surfaced for actions that touch **both** stores at once: connectors (`model.views[].connectors` + `scene.connectors[id].path`), and to a lesser extent rectangles/text-boxes. After redo: model had the connector back, scene was missing the path entry, so the connector rendered with an empty path — visually invisible. The future entry was still consumed (redo button disabled) which is what made it user-visible.
 
-**The invariant going forward:** any new history-bearing store **must** push the original entry to `future` on undo (not a recomputed one). `redo` must apply `entry.patches` forward to the current state. The shape of the entry is `{ patches, inversePatches }` where `patches: currentState → entryAppliedState` and `inversePatches: entryAppliedState → currentState`. Both stores now follow this contract — see [`modelStore.tsx`](../packages/fossflow-lib/src/stores/modelStore.tsx) `undo` / `redo` and [`sceneStore.tsx`](../packages/fossflow-lib/src/stores/sceneStore.tsx) `undo` / `redo`.
+**The invariant going forward:** any new history-bearing store **must** push the original entry to `future` on undo (not a recomputed one). `redo` must apply `entry.patches` forward to the current state. The shape of the entry is `{ patches, inversePatches }` where `patches: currentState → entryAppliedState` and `inversePatches: entryAppliedState → currentState`. Both stores now follow this contract — see [`modelStore.tsx`](../packages/axoview-lib/src/stores/modelStore.tsx) `undo` / `redo` and [`sceneStore.tsx`](../packages/axoview-lib/src/stores/sceneStore.tsx) `undo` / `redo`.
 
-**Regression coverage:** [`__perf_refactor_regression__/connector.createUndoRedo.test.tsx`](../packages/fossflow-lib/src/__perf_refactor_regression__/connector.createUndoRedo.test.tsx) exercises the full begin/createConnector/updateConnector×N/commit/undo path on real stores and asserts both `model.canRedo()` and `scene.canRedo()` are true after undo, and that the connector reappears after redo.
+**Regression coverage:** [`__perf_refactor_regression__/connector.createUndoRedo.test.tsx`](../packages/axoview-lib/src/__perf_refactor_regression__/connector.createUndoRedo.test.tsx) exercises the full begin/createConnector/updateConnector×N/commit/undo path on real stores and asserts both `model.canRedo()` and `scene.canRedo()` are true after undo, and that the connector reappears after redo.
 
-**Where this lives in the model layer:** see [`useSceneActions.ts`](../packages/fossflow-lib/src/hooks/useSceneActions.ts) for `beginDragTransaction` / `commitDragTransaction` — those bracket frozen-pre snapshots that the per-tick writes mutate without producing history entries. The pre-snapshot is consumed by the empty-update `set({}, true)` on commit, which is the call that actually computes the forward patches that get pushed to past.
+**Where this lives in the model layer:** see [`useSceneActions.ts`](../packages/axoview-lib/src/hooks/useSceneActions.ts) for `beginDragTransaction` / `commitDragTransaction` — those bracket frozen-pre snapshots that the per-tick writes mutate without producing history entries. The pre-snapshot is consumed by the empty-update `set({}, true)` on commit, which is the call that actually computes the forward patches that get pushed to past.
 
 ---
 
@@ -1863,12 +1863,12 @@ True 3D-iso art (Isoflow's built-in 37-icon pack, `isIsometric: true`) is unaffe
 
 **Two-part fix landed in 2026.5.10:**
 
-1. **Drag transactions** ([`useSceneActions.ts`](../packages/fossflow-lib/src/hooks/useSceneActions.ts) — `beginDragTransaction` / `commitDragTransaction`). Every tile crossed during a drag used to push a separate undo entry, computing immer patches across the entire model per tick. Now collapsed to one entry per drag via a `pendingPreFrozen` flag on both `modelStore` and `sceneStore`. Side benefit: `Ctrl+Z` after a drag rewinds the whole drag, not one tile.
-2. **Closed-form connector router** ([`utils/pathfinder.ts`](../packages/fossflow-lib/src/utils/pathfinder.ts)). The pathfinding grid never had obstacles, so A\* over it was busywork. Replaced with a deterministic diagonal-then-orthogonal walker. Eliminates per-tick `PF.Grid` + `Node` allocation.
+1. **Drag transactions** ([`useSceneActions.ts`](../packages/axoview-lib/src/hooks/useSceneActions.ts) — `beginDragTransaction` / `commitDragTransaction`). Every tile crossed during a drag used to push a separate undo entry, computing immer patches across the entire model per tick. Now collapsed to one entry per drag via a `pendingPreFrozen` flag on both `modelStore` and `sceneStore`. Side benefit: `Ctrl+Z` after a drag rewinds the whole drag, not one tile.
+2. **Closed-form connector router** ([`utils/pathfinder.ts`](../packages/axoview-lib/src/utils/pathfinder.ts)). The pathfinding grid never had obstacles, so A\* over it was busywork. Replaced with a deterministic diagonal-then-orthogonal walker. Eliminates per-tick `PF.Grid` + `Node` allocation.
 
 Wired into `Connector.ts` (drag mode + click mode) and `ReconnectAnchor.ts` (entry/exit + mouseup).
 
-**Validation:** [`packages/fossflow-e2e/fixtures/perf-stress-diagram.json`](../packages/fossflow-e2e/fixtures/perf-stress-diagram.json) (80 nodes / 120 connectors) and [`__perf_refactor_regression__/connector.dragPerf.test.tsx`](../packages/fossflow-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx). Test loads the JSON and `modelSchema.safeParse`s it on setup so the manual fixture cannot drift out of schema.
+**Validation:** [`packages/axoview-e2e/fixtures/perf-stress-diagram.json`](../packages/axoview-e2e/fixtures/perf-stress-diagram.json) (80 nodes / 120 connectors) and [`__perf_refactor_regression__/connector.dragPerf.test.tsx`](../packages/axoview-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx). Test loads the JSON and `modelSchema.safeParse`s it on setup so the manual fixture cannot drift out of schema.
 
 **What's left — sustained-drag GC cliff:** A drag that runs ≳50 s without committing accumulates ~12 MB/sec of immer-cloned model state (the anchor mutation forces `produce(state, ...)` to clone the spine of model + scene every tick). V8 holds GC during sustained sync work; heap climbs to ~336 MB; one stop-the-world collection produces a ~5 s 4 fps stall, then recovery. Not a regression introduced by the fix — it's the next layer underneath. Refactor design (deferred): keep the in-progress preview in `scene.connectors[id]` only and don't write `view.connectors[].anchors` until commit. Two-reader invariant for `ConnectorAnchorOverlay` and `ConnectorLabel` is the hard part. Full context in [known_issues.md](../known_issues.md).
 
@@ -1878,7 +1878,7 @@ Wired into `Connector.ts` (drag mode + click mode) and `ReconnectAnchor.ts` (ent
 
 ## Section 8: DiagnosticsOverlay — Performance Monitoring System
 
-**File:** `packages/fossflow-app/src/components/DiagnosticsOverlay.tsx`
+**File:** `packages/axoview-app/src/components/DiagnosticsOverlay.tsx`
 
 ### Purpose
 
@@ -1889,7 +1889,7 @@ A lightweight, always-available performance monitoring overlay for collecting qu
 - Always rendered in `App.tsx`; visible as a collapsible pill button in the bottom-right corner regardless of dev/prod mode.
 - All mutable state lives in `useRef` objects — no state updates during collection, which avoids the overlay itself adding to the render churn it is measuring.
 - A single `setInterval` (1 second) calls `setLatest(Date.now())` once per second to trigger a React re-render for display. The actual data arrays are mutated in `requestAnimationFrame` callbacks.
-- `window.__fossflow__` (exposed by `Isoflow.tsx`) provides access to the three Zustand store instances (ui, model, scene) without importing from the lib package directly.
+- `window.__axoview__` (exposed by `Isoflow.tsx`) provides access to the three Zustand store instances (ui, model, scene) without importing from the lib package directly.
 
 ### Data collection
 
@@ -1924,7 +1924,7 @@ Events are embedded as a compact string list in the sample row for the AI downlo
 
 ### Production safety
 
-- **Disabled by default in production.** Monitoring loop does not start until the user enables it via the "Enable performance monitoring" checkbox. State persists in `localStorage` (`fossflow_perf_enabled`).
+- **Disabled by default in production.** Monitoring loop does not start until the user enables it via the "Enable performance monitoring" checkbox. State persists in `localStorage` (`axoview_perf_enabled`).
 - **Always on in development.** The checkbox is shown but disabled with a "(always on in dev)" label.
 - **Memory ceiling enforced.** Circular buffers hard-cap at 600 samples + 300 events regardless of how long monitoring runs.
 - **No background work when disabled.** The `requestAnimationFrame` callback and `PerformanceObserver` are only registered while monitoring is active. Disabling monitoring cancels the rAF loop and disconnects the observer.
@@ -2062,7 +2062,7 @@ const iconPackManagerProp = useMemo(
 
 **Fix:** Replaced the native anchor navigation with an explicit `window.open` call in the `onClick` handler. URL is normalised: if it does not start with `http://` or `https://`, `https://` is prepended. Added `onMouseDown stopPropagation` to prevent the canvas from intercepting the click.
 
-**Files:** `packages/fossflow-lib/src/components/SceneLayers/Nodes/Node/Node.tsx`
+**Files:** `packages/axoview-lib/src/components/SceneLayers/Nodes/Node/Node.tsx`
 
 ---
 
@@ -2074,7 +2074,7 @@ const iconPackManagerProp = useMemo(
 
 **Fix:** In `useScene.pasteItems`, rectangles are pasted in reverse clipboard order — `[...payload.rectangles].reverse().forEach(r => createRectangle(r))`. The last `unshift` wins the front position; reverse rendering then places it on top, matching the original order.
 
-**Files:** `packages/fossflow-lib/src/hooks/useScene.ts`
+**Files:** `packages/axoview-lib/src/hooks/useScene.ts`
 
 ---
 
@@ -2086,7 +2086,7 @@ const iconPackManagerProp = useMemo(
 
 **Fix:** Changed to `[...scene.rectangles].reverse().find(...)` so the search order matches the render order — the last element (topmost) is checked first.
 
-**Files:** `packages/fossflow-lib/src/utils/renderer.ts`
+**Files:** `packages/axoview-lib/src/utils/renderer.ts`
 
 ---
 
@@ -2098,7 +2098,7 @@ const iconPackManagerProp = useMemo(
 
 **Fix:** The entered `saveName` is compared to the current diagram's stored name. An exact match triggers `saveDiagram` (overwrite). Any other name triggers `createDiagram` (new file). The existing "name already exists as a different diagram" confirmation path is unaffected.
 
-**Files:** `packages/fossflow-app/src/components/DiagramManager.tsx`
+**Files:** `packages/axoview-app/src/components/DiagramManager.tsx`
 
 ---
 
@@ -2115,7 +2115,7 @@ Additionally, connector anchor updates ran outside the `scene.transaction()` blo
 2. **`Lasso.ts` and `FreehandLasso.ts`** — When switching to `DRAG_ITEMS` (`isDragging = true`), `CONNECTOR_ANCHOR` items now have their initial tile looked up from `connector.anchors[].ref.tile` and recorded in `initialTiles`.
 3. **`DragItems.ts`** — Connector anchor updates moved inside `scene.transaction()`. Group lasso drags now use `CoordsUtils.add(initialTiles[item.id], mouseOffset)` (same offset math as nodes). Single-anchor cursor drags (no `initialTiles` entry) continue to snap to the cursor tile.
 
-**Files:** `packages/fossflow-lib/src/interaction/modes/Lasso.ts`, `FreehandLasso.ts`, `DragItems.ts`
+**Files:** `packages/axoview-lib/src/interaction/modes/Lasso.ts`, `FreehandLasso.ts`, `DragItems.ts`
 
 ---
 
@@ -2127,7 +2127,7 @@ Additionally, connector anchor updates ran outside the `scene.transaction()` blo
 
 **Fix:** Moved the `!isRendererInteraction` guard to only protect the "exit to CURSOR" path. The within-selection check now runs for all mousedown events regardless of `isRendererInteraction`. If the click is within the selection bounding box (Lasso) or polygon (FreehandLasso), `isDragging = true` is set regardless of whether the click landed on a node, connector, or canvas element. Non-renderer clicks outside the selection are ignored (selection preserved). Only genuine canvas clicks outside the selection trigger the CURSOR reset.
 
-**Files:** `packages/fossflow-lib/src/interaction/modes/Lasso.ts`, `FreehandLasso.ts`
+**Files:** `packages/axoview-lib/src/interaction/modes/Lasso.ts`, `FreehandLasso.ts`
 
 ---
 
@@ -2157,7 +2157,7 @@ A `•` dot appends to the label when `hasUnsavedChanges` is true. Label is hidd
 
 **Toast:** Fixed-position, bottom-center, slides up with `save-toast-in` CSS keyframe animation, `z-index: 9999`, `pointer-events: none`. Dismissed automatically after 2.5 s.
 
-**Files:** `packages/fossflow-app/src/App.tsx`, `packages/fossflow-app/src/App.css`
+**Files:** `packages/axoview-app/src/App.tsx`, `packages/axoview-app/src/App.css`
 
 ---
 
@@ -2171,10 +2171,10 @@ A `•` dot appends to the label when `hasUnsavedChanges` is true. Label is hidd
 
 | Tool | Config | Run | Report |
 |------|--------|-----|--------|
-| **ESLint v10** | `eslint.config.mjs` (flat config) | `npx eslint packages/fossflow-lib/src packages/fossflow-app/src` | `reports/eslint.txt` |
+| **ESLint v10** | `eslint.config.mjs` (flat config) | `npx eslint packages/axoview-lib/src packages/axoview-app/src` | `reports/eslint.txt` |
 | **Knip v6** | `knip.json` | `npx knip` | `reports/knip.txt` |
 | **npm audit** | — | `npm audit` | `reports/audit.txt` |
-| **Jest coverage** | `jest.config.ts` → `collectCoverageFrom`, `coverageThreshold` | `npm test --workspace=packages/fossflow-lib -- --coverage` | `packages/fossflow-lib/coverage/` |
+| **Jest coverage** | `jest.config.ts` → `collectCoverageFrom`, `coverageThreshold` | `npm test --workspace=packages/axoview-lib -- --coverage` | `packages/axoview-lib/coverage/` |
 
 **ESLint rules in force (both packages):**
 - `react-hooks/rules-of-hooks`: error — catches conditional hook calls
@@ -2183,11 +2183,11 @@ A `•` dot appends to the label when `hasUnsavedChanges` is true. Label is hidd
 - `@typescript-eslint/no-unused-vars`: warn (allows `_`-prefixed exceptions)
 - `no-console`: warn (allows `console.error` and `console.warn`)
 
-**Knip scope:** covers both `fossflow-lib` and `fossflow-app`. Tracks unused files, unused exports, unused devDependencies, and unlisted (undeclared) dependencies.
+**Knip scope:** covers both `axoview-lib` and `axoview-app`. Tracks unused files, unused exports, unused devDependencies, and unlisted (undeclared) dependencies.
 
 ### 8b. Coverage Configuration
 
-Coverage is configured in `packages/fossflow-lib/jest.config.ts`:
+Coverage is configured in `packages/axoview-lib/jest.config.ts`:
 
 ```ts
 collectCoverageFrom: [
@@ -2240,7 +2240,7 @@ Peer-reviewed ratings across 8 dimensions, scored 1–10. Ratings are compared a
 |---|---|---|---|---|
 | **Module size / god-object risk** | 4 | 7 | +3 | `renderer.ts` 866→210 lines; `useScene.ts` 697→13 lines (split into 3 files). Largest file is now ~280 lines. |
 | **Type safety & type reuse** | 5 | 7 | +2 | `types/settings.ts` is now the single source of truth for all settings types. Config files re-export from there. `ConnectorInteractionMode` properly propagated through `PersistedSettings`. |
-| **State management clarity** | 5 | 8 | +3 | Clipboard is instance-scoped via React context (no more global singleton). `window.__fossflow__` gated behind `enableDebugTools`. User preferences persisted to localStorage automatically. |
+| **State management clarity** | 5 | 8 | +3 | Clipboard is instance-scoped via React context (no more global singleton). `window.__axoview__` gated behind `enableDebugTools`. User preferences persisted to localStorage automatically. |
 | **Error handling & observability** | 4 | 7 | +3 | Unroutable connectors now render a dashed-red indicator on canvas + `console.warn`. Previously they were silent zero-size ghosts with no feedback path. |
 | **Code cohesion (SRP)** | 4 | 7 | +3 | `useScene` properly split into data / actions / combiner. `renderer.ts` split into isoMath (coordinate math) / hitDetection (spatial index) / renderer (screen-space helpers). Each file has one clearly stated purpose. |
 | **Testability** | 5 | 8 | +3 | Clipboard context is mockable per-test in isolation. Focused modules are straightforward to test without needing full provider trees. `useCopyPaste` tests updated to mock context instead of singleton. |

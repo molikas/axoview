@@ -1,4 +1,4 @@
-// Lightweight stub of the fossflow lib for jest. The lib's bundled dist pulls
+// Lightweight stub of the axoview lib for jest. The lib's bundled dist pulls
 // in CSS, SVG, and react-quill-new — none of which the unit tests need. Only the
 // pure functions we actually call from app code are reproduced here.
 

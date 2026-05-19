@@ -1,5 +1,5 @@
 /**
- * Mouse gesture helpers for FossFLOW e2e tests.
+ * Mouse gesture helpers for Axoview e2e tests.
  *
  * Playwright's page.mouse API maps directly to real browser events, making it
  * reliable for right-click drag, middle-click pan, and other gestures that

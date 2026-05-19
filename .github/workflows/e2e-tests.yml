@@ -41,10 +41,10 @@ jobs:
           cd e2e-tests
           pip install -r requirements.txt
 
-      - name: Build FossFLOW library
+      - name: Build Axoview library
         run: npm run build:lib
 
-      - name: Build FossFLOW app
+      - name: Build Axoview app
         run: npm run build:app
 
       - name: Install serve globally
@@ -67,9 +67,9 @@ jobs:
           echo "Selenium is ready"
           curl -s http://localhost:4444/status | jq '.' || true
 
-      - name: Start FossFLOW server in background
+      - name: Start Axoview server in background
         run: |
-          cd packages/fossflow-app/build
+          cd packages/axoview-app/build
           nohup serve -s . -l 3000 > /tmp/server.log 2>&1 &
           echo $! > /tmp/server.pid
           echo "Server PID: $(cat /tmp/server.pid)"
@@ -98,10 +98,10 @@ jobs:
           cd e2e-tests
           pytest -v --tb=short
         env:
-          FOSSFLOW_TEST_URL: http://localhost:3000
+          AXOVIEW_TEST_URL: http://localhost:3000
           WEBDRIVER_URL: http://localhost:4444
 
-      - name: Stop Selenium and FossFLOW server
+      - name: Stop Selenium and Axoview server
         if: always()
         run: |
           echo "Stopping Selenium container..."

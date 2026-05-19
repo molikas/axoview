@@ -11,7 +11,7 @@ import { getZoom } from '../helpers/store';
 test.describe('Smoke — app is alive', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await page.locator('[data-testid="fossflow-canvas"]').waitFor({ state: 'visible', timeout: 15_000 });
+    await page.locator('[data-testid="axoview-canvas"]').waitFor({ state: 'visible', timeout: 15_000 });
   });
 
   test('S-1: app loads without JS errors', async ({ page }) => {
@@ -22,7 +22,7 @@ test.describe('Smoke — app is alive', () => {
 
     // Re-load after attaching the listener to catch any new errors
     // (beforeEach already confirmed the canvas is visible on initial load)
-    await expect(page.locator('[data-testid="fossflow-canvas"]')).toBeVisible();
+    await expect(page.locator('[data-testid="axoview-canvas"]')).toBeVisible();
     expect(errors.filter((e) => !e.includes('favicon'))).toHaveLength(0);
   });
 
@@ -41,7 +41,7 @@ test.describe('Smoke — app is alive', () => {
   });
 
   test('S-3: canvas has non-zero dimensions', async ({ page }) => {
-    const canvas = page.locator('[data-testid="fossflow-canvas"]');
+    const canvas = page.locator('[data-testid="axoview-canvas"]');
     const box = await canvas.boundingBox();
     expect(box).not.toBeNull();
     expect(box!.width).toBeGreaterThan(0);

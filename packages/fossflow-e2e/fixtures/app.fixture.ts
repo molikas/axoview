@@ -15,7 +15,7 @@ export class AppPage {
 
 async function waitForMount(page: Page) {
   // Wait for the canvas container to be present and visible
-  await page.locator('[data-testid="fossflow-canvas"]').waitFor({ state: 'visible', timeout: 15_000 });
+  await page.locator('[data-testid="axoview-canvas"]').waitFor({ state: 'visible', timeout: 15_000 });
 }
 
 export const appTest = base.extend<{ app: AppPage }>({

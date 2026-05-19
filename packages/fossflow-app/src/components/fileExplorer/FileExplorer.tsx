@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { Tree, TreeApi, NodeApi } from 'react-arborist';
-import { exportAsJSON, mergeBundledFixtures } from 'fossflow';
+import { exportAsJSON, mergeBundledFixtures } from 'axoview';
 import {
   Box,
   Button,
@@ -670,7 +670,7 @@ export function FileExplorer() {
           folderId={exportTarget.folderId}
           folderName={exportTarget.folderName}
           storage={storage}
-          exporterTag={`fossflow-app@${process.env.REACT_APP_VERSION ?? 'dev'}`}
+          exporterTag={`axoview-app@${process.env.REACT_APP_VERSION ?? 'dev'}`}
           onProjectZipExported={() => markProjectExported?.()}
         />
       )}

@@ -1,4 +1,4 @@
-# FossFLOW — Cloudflare + Docker Dual-Target Deployment Plan
+# Axoview — Cloudflare + Docker Dual-Target Deployment Plan
 
 > **Living document.** Sister to `PLAN.md` (which tracks feature work). This file tracks the multi-runtime deployment effort (Phase 5*).
 > Last updated: 2026-04-29
@@ -9,7 +9,7 @@
 
 ## Goal
 
-Run the same FossFLOW app on:
+Run the same Axoview app on:
 
 1. **Cloudflare Pages free tier** — static + Pages Functions (Hono) + R2. Near-zero-config "Deploy to Cloudflare" flow.
 2. **Docker** — existing nginx + Express + filesystem. Self-hosters keep what they have.
@@ -51,7 +51,7 @@ Conventions match `PLAN.md`: `[ ]` not started · `[~]` in progress · `[x]` don
 ### 1. One HTTP contract, two backends
 
 Both targets serve the routes the frontend already calls in
-[LocalStorageProvider.ts](packages/fossflow-app/src/services/storage/providers/LocalStorageProvider.ts):
+[LocalStorageProvider.ts](packages/axoview-app/src/services/storage/providers/LocalStorageProvider.ts):
 
 ```
 GET    /api/storage/status
@@ -75,14 +75,14 @@ DELETE /api/diagrams/:id/share      (NEW — unpublish snapshot)
 GET    /api/public/diagrams/:uuid   (NEW — unauth snapshot read)
 ```
 
-Note: `/api/storage/status` is consumed by [LocalStorageProvider.ts:64](packages/fossflow-app/src/services/storage/providers/LocalStorageProvider.ts#L64) and must be answered by both adapters (Worker always returns `{ enabled: true }` since R2 is always present).
+Note: `/api/storage/status` is consumed by [LocalStorageProvider.ts:64](packages/axoview-app/src/services/storage/providers/LocalStorageProvider.ts#L64) and must be answered by both adapters (Worker always returns `{ enabled: true }` since R2 is always present).
 
 ### 2. Key-based StorageAdapter (no paths in the interface)
 
 The adapter never sees a filesystem path. It only knows opaque keys:
 
 ```ts
-// packages/fossflow-backend/src/adapters/types.ts
+// packages/axoview-backend/src/adapters/types.ts
 export interface StorageAdapter {
   get(key: string): Promise<Uint8Array | null>;
   put(key: string, value: Uint8Array): Promise<void>;
@@ -103,7 +103,7 @@ Express does not run cleanly on Workers even with `nodejs_compat`. Hono is ~14 k
 ```ts
 // functions/api/[[path]].ts
 import { handle } from 'hono/cloudflare-pages';
-import app from '../../packages/fossflow-worker/src/app';
+import app from '../../packages/axoview-worker/src/app';
 export const onRequest = handle(app);
 ```
 
@@ -153,11 +153,11 @@ New `GET /api/config` returns:
 
 The frontend boots, calls `/api/config` first, then constructs `GoogleDriveProvider` with the values. **Swapping client ID requires no rebuild** — that's the autoconfig piece. Client ID is public by design (browser-embedded). API keys with elevated scopes never leave the server.
 
-### 7. No `fossflow-core` package — colocate, don't extract
+### 7. No `axoview-core` package — colocate, don't extract
 
-Routing logic lives in `packages/fossflow-backend/src/routes.js` with **zero Node-specific imports**. Express stays in `server.js`; fs stays in `adapters/fs.js`. The Worker imports `../fossflow-backend/src/routes.js` directly. Tree-shaking is a non-issue because `routes.js` doesn't import Express or fs at all.
+Routing logic lives in `packages/axoview-backend/src/routes.js` with **zero Node-specific imports**. Express stays in `server.js`; fs stays in `adapters/fs.js`. The Worker imports `../axoview-backend/src/routes.js` directly. Tree-shaking is a non-issue because `routes.js` doesn't import Express or fs at all.
 
-If shared surface grows beyond one file, promote to `fossflow-core` then. Not now.
+If shared surface grows beyond one file, promote to `axoview-core` then. Not now.
 
 ### 8. Sharing model: snapshot to a public namespace
 
@@ -179,7 +179,7 @@ Endpoints:
 Frontend:
 
 - Share link becomes `/display/p/<uuid>` (not `/display/<id>`). New readonly route fetches `/api/public/diagrams/:uuid`. The existing `/display/<id>` stays — it's the authed "open in new tab" path for the owner.
-- `handleCopyShareLink` in [FileExplorer.tsx:299](packages/fossflow-app/src/components/fileExplorer/FileExplorer.tsx#L299) calls `POST /api/diagrams/:id/share` first, then copies the returned `url`.
+- `handleCopyShareLink` in [FileExplorer.tsx:299](packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx#L299) calls `POST /api/diagrams/:id/share` first, then copies the returned `url`.
 
 Validation and storage:
 
@@ -193,15 +193,15 @@ Validation and storage:
 
 ```
 packages/
-  fossflow-app/                     # unchanged at the boundary
-  fossflow-backend/
+  axoview-app/                     # unchanged at the boundary
+  axoview-backend/
     server.js                       # Express bootstrap
     src/
       routes.js                     # framework-agnostic, zero Node imports
       adapters/
         types.ts                    # StorageAdapter interface
         fs.js                       # Node fs adapter (Docker)
-  fossflow-worker/                  # NEW
+  axoview-worker/                  # NEW
     src/
       app.ts                        # Hono app
       r2Adapter.ts                  # R2 binding adapter
@@ -224,10 +224,10 @@ wrangler.toml                       # repo-root, used by "Deploy to Cloudflare"
 
 **Why first:** unblocks everything; also fixes a real path-traversal bug.
 
-- [ ] Define `StorageAdapter` interface in `packages/fossflow-backend/src/adapters/types.ts`.
+- [ ] Define `StorageAdapter` interface in `packages/axoview-backend/src/adapters/types.ts`.
 - [ ] Move all logic from `server.js` into `routes.js` taking `(adapter, req, res)`. No Express types in `routes.js`.
 - [ ] Implement `fsAdapter.js` from existing fs code in `server.js`.
-- [ ] **Security: validate every `:id` and `parentId`** with `/^[a-zA-Z0-9_-]{1,64}$/` before passing to the adapter. Currently [server.js:118](packages/fossflow-backend/server.js#L118), [server.js:174](packages/fossflow-backend/server.js#L174), and several other handlers feed user input straight to `path.join`. Combined with the key abstraction in (2), this gives defense in depth.
+- [ ] **Security: validate every `:id` and `parentId`** with `/^[a-zA-Z0-9_-]{1,64}$/` before passing to the adapter. Currently [server.js:118](packages/axoview-backend/server.js#L118), [server.js:174](packages/axoview-backend/server.js#L174), and several other handlers feed user input straight to `path.join`. Combined with the key abstraction in (2), this gives defense in depth.
 - [ ] Add `GET /api/config` endpoint reading `GOOGLE_CLIENT_ID`, `DRIVE_SCOPES`, `AUTH_MODE`, `SERVER_STORAGE` from env.
 - [ ] Add `GET /api/storage/status` to the route table (already served by `server.js` — keep behavior identical via the adapter).
 - [ ] Add share endpoints (`POST`/`DELETE /api/diagrams/:id/share`, `GET /api/public/diagrams/:uuid`) backed by `fsAdapter` writing to `STORAGE_PATH/public/<uuid>.json`. Validate `uuid` per #8.
@@ -239,7 +239,7 @@ wrangler.toml                       # repo-root, used by "Deploy to Cloudflare"
 
 ### Phase 5B — Cloudflare Worker package + R2 adapter
 
-- [ ] New `packages/fossflow-worker` with `hono`, `@hono/zod-validator`, `wrangler`.
+- [ ] New `packages/axoview-worker` with `hono`, `@hono/zod-validator`, `wrangler`.
 - [ ] `app.ts`: Hono router that imports `routes.js` and dispatches per route. Use `bodyLimit` middleware (10 MB).
 - [ ] `r2Adapter.ts` implementing `StorageAdapter`:
   - `diagrams/<id>` → R2 object key.
@@ -249,7 +249,7 @@ wrangler.toml                       # repo-root, used by "Deploy to Cloudflare"
   - Every diagram `put`/`patch`/`delete` updates `diagrams-index.json`.
 - [ ] Implement share routes in `routes.js` (shared with Docker per 5A): `POST /api/diagrams/:id/share` writes `public/<uuid>.json` and persists `shareUuid` on the source diagram; `DELETE` cleans both; `GET /api/public/diagrams/:uuid` is the only unauth route.
 - [ ] `wrangler.toml` bindings: `R2_BUCKET`, `GOOGLE_CLIENT_ID`, `AUTH_MODE`, optionally `AUTH_SHARED_SECRET`, `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`.
-- [ ] Local dev: `wrangler pages dev` against `packages/fossflow-app/build`.
+- [ ] Local dev: `wrangler pages dev` against `packages/axoview-app/build`.
 - [ ] Stub deploy and confirm bundle size < 1 MB.
 
 **Done when:** Worker can list/read/write/delete a diagram in R2; index stays consistent across CRUD; `wrangler pages dev` serves the SPA + API end to end.
@@ -257,7 +257,7 @@ wrangler.toml                       # repo-root, used by "Deploy to Cloudflare"
 ### Phase 5C — Build & deploy pipeline
 
 - [ ] Repo-root `wrangler.toml` so the [Deploy to Cloudflare button](https://developers.cloudflare.com/workers/platform/deploy-buttons/) works against the GitHub repo.
-- [ ] Build command (Cloudflare Pages dashboard): `npm install && npm run build`. Output: `packages/fossflow-app/build`.
+- [ ] Build command (Cloudflare Pages dashboard): `npm install && npm run build`. Output: `packages/axoview-app/build`.
 - [ ] `functions/api/[[path]].ts` exporting the Hono app via `hono/cloudflare-pages`.
 - [ ] `_routes.json`: include `/api/*`, exclude everything else (so static is served by CDN, Worker isn't invoked for assets).
 - [ ] `_headers` file:
@@ -293,10 +293,10 @@ When Phase 3B (Drive provider) lands, Drive sign-in is *identity*, not access co
 
 - [ ] New `useRuntimeConfig()` hook. Fetches `/api/config` once, caches in `AppStorageContext`, exposes `googleClientId`, `authMode`.
 - [ ] `AppStorageContext` waits for `useRuntimeConfig()` before initializing providers; pass `googleClientId` into `GoogleDriveProvider` constructor (consumed when Phase 3B lands).
-- [ ] **Delete legacy** [storageService.ts](packages/fossflow-app/src/services/storageService.ts). Already superseded by [storage/StorageManager.ts](packages/fossflow-app/src/services/storage/StorageManager.ts). Keeping it doubles risk surface and is a known source of drift.
+- [ ] **Delete legacy** [storageService.ts](packages/axoview-app/src/services/storageService.ts). Already superseded by [storage/StorageManager.ts](packages/axoview-app/src/services/storage/StorageManager.ts). Keeping it doubles risk surface and is a known source of drift.
 - [ ] Rewire share UX per #8:
-  - [FileExplorer.tsx:299](packages/fossflow-app/src/components/fileExplorer/FileExplorer.tsx#L299) calls `POST /api/diagrams/:id/share`, copies the returned `url`. Same change in [AppToolbar.tsx:65](packages/fossflow-app/src/components/AppToolbar.tsx#L65) and [DiagramManager.tsx:87](packages/fossflow-app/src/components/DiagramManager.tsx#L87).
-  - Add `/display/p/:shareUuid` route in [App.tsx:45](packages/fossflow-app/src/App.tsx#L45). The readonly path in [DiagramLifecycleProvider.tsx:135](packages/fossflow-app/src/providers/DiagramLifecycleProvider.tsx#L135) loads via `GET /api/public/diagrams/:uuid` and **must skip** the diagram-list/folder/tree-manifest fetches (otherwise unauth viewers trigger 401s and 3 wasted Worker invocations per share view).
+  - [FileExplorer.tsx:299](packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx#L299) calls `POST /api/diagrams/:id/share`, copies the returned `url`. Same change in [AppToolbar.tsx:65](packages/axoview-app/src/components/AppToolbar.tsx#L65) and [DiagramManager.tsx:87](packages/axoview-app/src/components/DiagramManager.tsx#L87).
+  - Add `/display/p/:shareUuid` route in [App.tsx:45](packages/axoview-app/src/App.tsx#L45). The readonly path in [DiagramLifecycleProvider.tsx:135](packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx#L135) loads via `GET /api/public/diagrams/:uuid` and **must skip** the diagram-list/folder/tree-manifest fetches (otherwise unauth viewers trigger 401s and 3 wasted Worker invocations per share view).
   - Existing `/display/:id` stays for owner-side "open in new tab"; no change.
 - [ ] Confirm relative `/api/*` paths work everywhere — `devBaseUrl()` only redirects on `localhost:3000`, so production builds already use relative paths.
 

@@ -4,7 +4,7 @@
  * createDiagram requests — `${prefix}_${Date.now()}` reused the same id within
  * a millisecond, producing duplicate folder ids and 409 conflicts on diagrams.
  *
- * The fix lives server-side in `packages/fossflow-backend/src/routes.js`:
+ * The fix lives server-side in `packages/axoview-backend/src/routes.js`:
  * append a random suffix and bail out on the (vanishingly rare) collision.
  *
  * Backend has no jest harness of its own, so we pin the contract from here by
@@ -16,7 +16,7 @@ import * as path from 'path';
 
 const ROUTES_PATH = path.resolve(
   __dirname,
-  '../../../../../fossflow-backend/src/routes.js',
+  '../../../../../axoview-backend/src/routes.js',
 );
 
 describe('backend routes — burst-safe id generation (MQA #21)', () => {

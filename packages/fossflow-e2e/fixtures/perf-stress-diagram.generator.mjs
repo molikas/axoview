@@ -4,7 +4,7 @@
 // the model so per-tick immer clones become measurable.
 //
 // Tweak NODE_COUNT / CONNECTOR_COUNT below and re-run with:
-//   node packages/fossflow-e2e/fixtures/perf-stress-diagram.generator.mjs
+//   node packages/axoview-e2e/fixtures/perf-stress-diagram.generator.mjs
 
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

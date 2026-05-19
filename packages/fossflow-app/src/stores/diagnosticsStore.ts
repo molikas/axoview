@@ -8,7 +8,7 @@
 
 // ── env / persistence ─────────────────────────────────────────────────────────
 const IS_DEV = process.env.NODE_ENV !== 'production';
-const STORE_KEY = 'fossflow_perf_enabled';
+const STORE_KEY = 'axoview_perf_enabled';
 
 function readEnabled(): boolean {
   if (IS_DEV) return true;

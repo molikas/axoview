@@ -14,7 +14,7 @@
  * must be done first.
  *
  * Once extracted, run:
- *   npm test --workspace=packages/fossflow-lib -- --testPathPattern=useRAFThrottle
+ *   npm test --workspace=packages/axoview-lib -- --testPathPattern=useRAFThrottle
  */
 
 import { renderHook, act } from '@testing-library/react';

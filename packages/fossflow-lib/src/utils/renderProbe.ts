@@ -7,10 +7,10 @@
 //   useRenderProbe('Node', node.id);
 //
 // At runtime (in DevTools console):
-//   __fossflowRenderProbe.dump()    // grouped table
-//   __fossflowRenderProbe.reset()   // zero counters
-//   __fossflowRenderProbe.start()   // start fresh (resets + marks t0)
-//   __fossflowRenderProbe.stop()    // logs summary since start()
+//   __axoviewRenderProbe.dump()    // grouped table
+//   __axoviewRenderProbe.reset()   // zero counters
+//   __axoviewRenderProbe.start()   // start fresh (resets + marks t0)
+//   __axoviewRenderProbe.stop()    // logs summary since start()
 
 let enabled = false;
 if (typeof window !== 'undefined') {
@@ -48,7 +48,7 @@ function start() {
   reset();
   t0 = performance.now();
   // eslint-disable-next-line no-console
-  console.log('[renderProbe] started — reproduce the scenario, then call __fossflowRenderProbe.stop()');
+  console.log('[renderProbe] started — reproduce the scenario, then call __axoviewRenderProbe.stop()');
 }
 
 function stop() {
@@ -57,9 +57,9 @@ function stop() {
 }
 
 if (typeof window !== 'undefined' && enabled) {
-  (window as any).__fossflowRenderProbe = { dump, reset, start, stop };
+  (window as any).__axoviewRenderProbe = { dump, reset, start, stop };
   // eslint-disable-next-line no-console
-  console.log('[renderProbe] enabled. Call window.__fossflowRenderProbe.start(), reproduce, then .stop().');
+  console.log('[renderProbe] enabled. Call window.__axoviewRenderProbe.start(), reproduce, then .stop().');
 }
 
 export function useRenderProbe(component: string, id = '') {

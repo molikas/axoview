@@ -14,7 +14,7 @@ SCREENSHOT_DIR = os.path.join(os.path.dirname(__file__), "..", "screenshots")
 
 
 def get_base_url():
-    return os.getenv("FOSSFLOW_TEST_URL", "http://localhost:3000")
+    return os.getenv("AXOVIEW_TEST_URL", "http://localhost:3000")
 
 
 def get_webdriver_url():
@@ -82,16 +82,16 @@ def dismiss_modals(driver):
 
 def count_canvas_images(driver):
     return driver.execute_script("""
-        const c = document.querySelector('.fossflow-container');
+        const c = document.querySelector('.axoview-container');
         if (!c) return 0;
         return c.querySelectorAll('img').length;
     """)
 
 
 def count_connector_polylines(driver):
-    """Count SVG polylines inside the fossflow container (connector paths)."""
+    """Count SVG polylines inside the axoview container (connector paths)."""
     return driver.execute_script("""
-        const c = document.querySelector('.fossflow-container');
+        const c = document.querySelector('.axoview-container');
         if (!c) return 0;
         return c.querySelectorAll('svg polyline').length;
     """)
@@ -188,7 +188,7 @@ def place_node_at(driver, x_offset, y_offset):
     ActionChains(driver).click(first_icon_btn).perform()
     time.sleep(0.5)
 
-    canvas = driver.find_element(By.CLASS_NAME, "fossflow-container")
+    canvas = driver.find_element(By.CLASS_NAME, "axoview-container")
     ActionChains(driver).move_to_element_with_offset(canvas, x_offset, y_offset).click().perform()
     time.sleep(1)
     return True
@@ -236,7 +236,7 @@ def test_connector_undo_redo(driver):
     print(f"\n1. Loading app at {base_url}")
     driver.get(base_url)
     WebDriverWait(driver, 15).until(
-        EC.presence_of_element_located((By.CLASS_NAME, "fossflow-container"))
+        EC.presence_of_element_located((By.CLASS_NAME, "axoview-container"))
     )
     time.sleep(2)
     dismiss_modals(driver)
@@ -266,7 +266,7 @@ def test_connector_undo_redo(driver):
     save_screenshot(driver, "conn_01b_before_connect")
 
     # --- Get node image elements for clicking ---
-    node_imgs = driver.find_elements(By.CSS_SELECTOR, ".fossflow-container img")
+    node_imgs = driver.find_elements(By.CSS_SELECTOR, ".axoview-container img")
     print(f"   Found {len(node_imgs)} node images")
     assert len(node_imgs) >= 2, f"Expected 2+ node images, got {len(node_imgs)}"
 

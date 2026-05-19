@@ -4,7 +4,7 @@ import { Close as CloseIcon } from '@mui/icons-material';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useTranslation } from 'src/stores/localeStore';
 
-const STORAGE_KEY = 'fossflow_connector_hint_dismissed';
+const STORAGE_KEY = 'axoview_connector_hint_dismissed';
 
 interface Props {
   toolMenuRef?: React.RefObject<HTMLElement | null>;

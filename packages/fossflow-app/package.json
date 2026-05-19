@@ -1,5 +1,5 @@
 {
-  "name": "fossflow-app",
+  "name": "axoview-app",
   "version": "2026.5.21",
   "private": true,
   "description": "Progressive Web App for creating isometric diagrams",
@@ -9,7 +9,7 @@
     "@isoflow/isopacks": "^0.0.10",
     "@mui/icons-material": "^7.3.9",
     "@mui/material": "^7.3.9",
-    "fossflow": "*",
+    "axoview": "*",
     "i18next": "^26.0.3",
     "i18next-browser-languagedetector": "^8.2.1",
     "i18next-http-backend": "^3.0.4",

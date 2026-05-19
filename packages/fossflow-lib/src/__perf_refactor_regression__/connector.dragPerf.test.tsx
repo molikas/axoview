@@ -56,7 +56,7 @@ const useTestHarness = () => ({
 // ---------------------------------------------------------------------------
 const FIXTURE_PATH = resolve(
   __dirname,
-  '../../../fossflow-e2e/fixtures/perf-stress-diagram.json'
+  '../../../axoview-e2e/fixtures/perf-stress-diagram.json'
 );
 
 const SEED_MODEL = (() => {

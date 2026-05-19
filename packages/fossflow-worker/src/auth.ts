@@ -4,7 +4,7 @@ interface JwtHeader { alg: string; kid?: string; typ?: string }
 interface JwtPayload { aud?: string | string[]; exp?: number; iss?: string }
 
 /**
- * Auth middleware for FossFLOW Worker. Three modes selected by env.AUTH_MODE:
+ * Auth middleware for Axoview Worker. Three modes selected by env.AUTH_MODE:
  *
  *   none           — no auth. Worker logs a warning at startup. Dev only.
  *   shared-token   — requires `Authorization: Bearer <env.AUTH_SHARED_SECRET>`.

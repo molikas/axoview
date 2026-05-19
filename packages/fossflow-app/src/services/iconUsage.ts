@@ -1,4 +1,4 @@
-import type { IconUsageReport } from 'fossflow';
+import type { IconUsageReport } from 'axoview';
 import type { StorageProvider } from './storage/types';
 
 /**

@@ -40,12 +40,12 @@ jobs:
         env:
           # do not report warnings as errors
           CI: false
-          PUBLIC_URL: /FossFLOW/
+          PUBLIC_URL: /Axoview/
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
           # Upload from the app's build directory in monorepo
-          path: './packages/fossflow-app/build/'
+          path: './packages/axoview-app/build/'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

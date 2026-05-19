@@ -1,9 +1,9 @@
-# FossFLOW UX Principles
+# Axoview UX Principles
 
 **Status:** Living reference. Update when principles evolve.
 **Audience:** Anyone (or any agent) building UI surfaces, fixing bugs, or reviewing PRs that touch the canvas, side panels, file explorer, or layers.
 
-This is the design language that governs FossFLOW's UI. It's not opinion — it's the consolidated set of choices already shipped, expressed as principles so new work doesn't drift.
+This is the design language that governs Axoview's UI. It's not opinion — it's the consolidated set of choices already shipped, expressed as principles so new work doesn't drift.
 
 When in doubt, **mirror what already exists** in the reference implementations listed at the bottom.
 
@@ -13,7 +13,7 @@ When in doubt, **mirror what already exists** in the reference implementations l
 
 ### 1.1 Section is the layout primitive
 
-Every titled control group in the right sidebar uses [`Section`](../packages/fossflow-lib/src/components/ItemControls/components/Section.tsx). Never inline a header:
+Every titled control group in the right sidebar uses [`Section`](../packages/axoview-lib/src/components/ItemControls/components/Section.tsx). Never inline a header:
 
 ```tsx
 // ✅ Correct
@@ -84,7 +84,7 @@ This bites with MUI `Slider`: the thumb's `::after` pseudo-element is a 42 × 42
 <Box sx={{ overflowY: 'auto', flex: 1 }}>
 ```
 
-Reference: [`ConnectorControls.tsx`](../packages/fossflow-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx) and [`NodePanel.tsx`](../packages/fossflow-lib/src/components/ItemControls/NodeControls/NodePanel/NodePanel.tsx) `TabPanel`.
+Reference: [`ConnectorControls.tsx`](../packages/axoview-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx) and [`NodePanel.tsx`](../packages/axoview-lib/src/components/ItemControls/NodeControls/NodePanel/NodePanel.tsx) `TabPanel`.
 
 ### 1.5 Typography is theme-driven — six tiers, picked by role
 
@@ -136,7 +136,7 @@ The theme owns every font size and weight. Components pick a `<Typography varian
 
 **Note on `overline`:** the variant intentionally renders **sentence case** in this codebase, against MUI's default. The visual differentiation that signals "region header" comes from weight 600 + tracked-out spacing + smaller size — not uppercase. This satisfies §1.2 and §7.2.
 
-The custom `micro` variant is registered via TypeScript module augmentation in [`theme.ts`](../packages/fossflow-lib/src/styles/theme.ts) so it is callable as `<Typography variant="micro">` like any built-in variant.
+The custom `micro` variant is registered via TypeScript module augmentation in [`theme.ts`](../packages/axoview-lib/src/styles/theme.ts) so it is callable as `<Typography variant="micro">` like any built-in variant.
 
 ---
 
@@ -202,11 +202,11 @@ When implementing F2:
 - Focus the row on click (`ref.focus()`)
 - `e.stopPropagation()` in the row's `onKeyDown` to prevent canvas-level F2 from also firing
 
-Reference: [`LayerItemRow.tsx`](../packages/fossflow-lib/src/components/LayersPanel/LayerItemRow.tsx).
+Reference: [`LayerItemRow.tsx`](../packages/axoview-lib/src/components/LayersPanel/LayerItemRow.tsx).
 
 ### 3.2 Enter confirms, Escape cancels — in every dialog
 
-Built into [`ConfirmDialog`](../packages/fossflow-app/src/components/ConfirmDialog.tsx) at the dialog level. New dialogs should reuse `ConfirmDialog` rather than rolling their own. If a custom dialog is unavoidable, copy the keyboard handler.
+Built into [`ConfirmDialog`](../packages/axoview-app/src/components/ConfirmDialog.tsx) at the dialog level. New dialogs should reuse `ConfirmDialog` rather than rolling their own. If a custom dialog is unavoidable, copy the keyboard handler.
 
 ---
 
@@ -229,7 +229,7 @@ The file tree's selection has different semantics — it's "which diagram is ope
 
 When a layer is locked or hidden, its items must be **non-selectable, non-draggable, non-context-menu-able** from the canvas — regardless of which gesture the user employs. Locked = visible-but-protected; hidden = invisible. Both states are absolute from the canvas perspective. The Layers panel rows remain the user's escape hatch — they always let the user select an item back so they can un-lock or un-hide.
 
-The enforcement lives in a single helper, `isItemInteractable`, built in [`useInteractionManager`](../packages/fossflow-lib/src/interaction/useInteractionManager.ts) from `layerContext.lockedIds` + `layerContext.visibleIds` and injected into every mode's `State`. **Every selection path must consult it.** Today that means:
+The enforcement lives in a single helper, `isItemInteractable`, built in [`useInteractionManager`](../packages/axoview-lib/src/interaction/useInteractionManager.ts) from `layerContext.lockedIds` + `layerContext.visibleIds` and injected into every mode's `State`. **Every selection path must consult it.** Today that means:
 
 - `Cursor.mousedown` — direct left-click selection
 - `Lasso.getItemsInBounds` — marquee selection
@@ -238,7 +238,7 @@ The enforcement lives in a single helper, `isItemInteractable`, built in [`useIn
 
 If a future feature adds a new selection mechanism (keyboard arrow nav, "select all of type X", paste-into-selection, etc.), it **must** route through `isItemInteractable` too. A new selection path that doesn't consult it is the bug, not an oversight to be fixed later — it silently bypasses the lock/hide contract.
 
-Visual indicator for locked rows lives in [`LayerRow.tsx`](../packages/fossflow-lib/src/components/LayersPanel/LayerRow.tsx): left accent stripe + tinted background + saturated lock icon, so the state is unmistakable next to a row of similar outlines.
+Visual indicator for locked rows lives in [`LayerRow.tsx`](../packages/axoview-lib/src/components/LayersPanel/LayerRow.tsx): left accent stripe + tinted background + saturated lock icon, so the state is unmistakable next to a row of similar outlines.
 
 ### 4.4 Multi-select gesture matrix
 
@@ -257,7 +257,7 @@ Persistent canvas multi-selection lives in `uiState.selectedIds: ItemReference[]
 | Delete / Backspace (selection len > 1) | deletes every selected item; CONNECTOR_ANCHOR refs are spliced from their parent connector |
 | Alt+click a waypoint (connector selected) | removes the waypoint without removing the connector |
 
-**Why waypoints come with their connector under Ctrl+click and Ctrl+A:** waypoint anchors carry `ref.tile` (absolute position) — they don't auto-follow the connector when it moves. Selection paths that include a connector MUST also include its waypoints, otherwise multi-drag pinches the path and bulk-delete leaves orphans. The single source of truth for that bookkeeping is `getConnectorWaypointRefs(connector)` in [`utils/connectorSelection.ts`](../packages/fossflow-lib/src/utils/connectorSelection.ts). Three call sites consume it: `Lasso.getItemsInBounds`, `FreehandLasso.getItemsInFreehandBounds`, and the `Ctrl+A` branch in `useInteractionManager`. **Any new selection path that includes a connector must call it too** — same rule as §4.3's `isItemInteractable`.
+**Why waypoints come with their connector under Ctrl+click and Ctrl+A:** waypoint anchors carry `ref.tile` (absolute position) — they don't auto-follow the connector when it moves. Selection paths that include a connector MUST also include its waypoints, otherwise multi-drag pinches the path and bulk-delete leaves orphans. The single source of truth for that bookkeeping is `getConnectorWaypointRefs(connector)` in [`utils/connectorSelection.ts`](../packages/axoview-lib/src/utils/connectorSelection.ts). Three call sites consume it: `Lasso.getItemsInBounds`, `FreehandLasso.getItemsInFreehandBounds`, and the `Ctrl+A` branch in `useInteractionManager`. **Any new selection path that includes a connector must call it too** — same rule as §4.3's `isItemInteractable`.
 
 **User-facing count vs. internal count:** badges and labels ("N selected", "Assign layer to N items") count user-facing refs via `countUserFacingRefs`, which excludes CONNECTOR_ANCHOR — those are implementation detail, not things the user thinks they selected. `filterUserFacingRefs` strips them before `assignLayerToItems` because waypoints aren't independently assignable to a layer.
 
@@ -328,7 +328,7 @@ if (!validationResult.success) {
 }
 ```
 
-Reference: [`useInitialDataManager.ts`](../packages/fossflow-lib/src/hooks/useInitialDataManager.ts) surfaces zod issues this way.
+Reference: [`useInitialDataManager.ts`](../packages/axoview-lib/src/hooks/useInitialDataManager.ts) surfaces zod issues this way.
 
 ### 6.4 Cover the cold-start gap with a branded splash
 
@@ -350,7 +350,7 @@ Reference: [docs/perf-troubleshooting.md → Startup cold-start gap (2026-05-19)
 
 ### 7.1 All UI strings go through locales
 
-14 locale files in `packages/fossflow-lib/src/i18n/`. Type definition in `packages/fossflow-lib/src/types/isoflowProps.ts`. When adding strings:
+14 locale files in `packages/axoview-lib/src/i18n/`. Type definition in `packages/axoview-lib/src/types/isoflowProps.ts`. When adding strings:
 
 1. Add the key to the type definition
 2. Add an English translation in `en-US.ts`
@@ -444,7 +444,7 @@ A single mode badge (here: the orange `SESSION` chip) is enough to communicate t
 
 Conditional content should render conditionally. Don't reserve space with an empty `<Typography>` — render nothing when there is nothing to say.
 
-The same principle applies to mode banners outside the cluster (e.g. [`SessionModeBanner`](../packages/fossflow-app/src/components/SessionModeBanner.tsx)). The badge in the cluster is the load-bearing signal; a banner that reinforces it should be quiet — accent stripe, caption typography, outlined or no button — not a tinted bar that competes with the chip.
+The same principle applies to mode banners outside the cluster (e.g. [`SessionModeBanner`](../packages/axoview-app/src/components/SessionModeBanner.tsx)). The badge in the cluster is the load-bearing signal; a banner that reinforces it should be quiet — accent stripe, caption typography, outlined or no button — not a tinted bar that competes with the chip.
 
 ### 8.6 Save action sits flush against StatusCluster — they are one group
 
@@ -460,11 +460,11 @@ If you need to set a child's height generically, target a class or component sel
 
 ### 8.8 Canvas-anchored chrome is screen-pixel-stable
 
-Floating chrome positioned in canvas-tile coordinates ([`NodeActionBar`](../packages/fossflow-lib/src/components/NodeActionBar/NodeActionBar.tsx), future right-click menus) must counter-scale the `SceneLayer`'s `transform: scale(zoom)` so it stays at natural pixel size at every zoom level.
+Floating chrome positioned in canvas-tile coordinates ([`NodeActionBar`](../packages/axoview-lib/src/components/NodeActionBar/NodeActionBar.tsx), future right-click menus) must counter-scale the `SceneLayer`'s `transform: scale(zoom)` so it stays at natural pixel size at every zoom level.
 
 Pattern:
 
-- Subscribe to `useUiStateStoreApi` zoom the same way [`SceneLayer`](../packages/fossflow-lib/src/components/SceneLayer/SceneLayer.tsx) does — direct DOM ref, bypassing React render.
+- Subscribe to `useUiStateStoreApi` zoom the same way [`SceneLayer`](../packages/axoview-lib/src/components/SceneLayer/SceneLayer.tsx) does — direct DOM ref, bypassing React render.
 - Apply `transform: ... scale(${1 / zoom})` unconditionally so the bar is screen-pixel-stable at all zoom levels.
 - Set `transformOrigin` to the corner that should stay visually anchored to the node (typically `center bottom` for top-anchored bars).
 
@@ -496,18 +496,18 @@ When building parallel surfaces, **read these first**:
 
 | Pattern | Reference file |
 |---|---|
-| Layout primitive | [`Section.tsx`](../packages/fossflow-lib/src/components/ItemControls/components/Section.tsx) |
-| Tabbed item panel | [`NodePanel.tsx`](../packages/fossflow-lib/src/components/ItemControls/NodeControls/NodePanel/NodePanel.tsx) |
-| Name field + inline action buttons | [`NodeInfoTab.tsx`](../packages/fossflow-lib/src/components/ItemControls/NodeControls/NodeInfoTab/NodeInfoTab.tsx) |
-| Connector parity with node | [`ConnectorControls.tsx`](../packages/fossflow-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx) |
-| Layer row with rename + action toggle | [`LayerItemRow.tsx`](../packages/fossflow-lib/src/components/LayersPanel/LayerItemRow.tsx) |
-| Keyboard-first dialog | [`ConfirmDialog.tsx`](../packages/fossflow-app/src/components/ConfirmDialog.tsx) |
-| Inline canvas rename | [`Node.tsx`](../packages/fossflow-lib/src/components/SceneLayers/Nodes/Node/Node.tsx) (search `inlineEditNodeName`) |
-| Theme-driven typography contract | [`theme.ts`](../packages/fossflow-lib/src/styles/theme.ts) — see §1.5 |
-| Standard search input (panel-level) | [`Searchbox.tsx`](../packages/fossflow-lib/src/components/ItemControls/IconSelectionControls/Searchbox.tsx) |
-| Counter-scaled canvas-anchored chrome | [`NodeActionBar.tsx`](../packages/fossflow-lib/src/components/NodeActionBar/NodeActionBar.tsx) — see §8.8 |
-| Quiet mode banner | [`SessionModeBanner.tsx`](../packages/fossflow-app/src/components/SessionModeBanner.tsx) — see §8.5 |
-| Validation surfacing | [`useInitialDataManager.ts`](../packages/fossflow-lib/src/hooks/useInitialDataManager.ts) — see §6.3 |
+| Layout primitive | [`Section.tsx`](../packages/axoview-lib/src/components/ItemControls/components/Section.tsx) |
+| Tabbed item panel | [`NodePanel.tsx`](../packages/axoview-lib/src/components/ItemControls/NodeControls/NodePanel/NodePanel.tsx) |
+| Name field + inline action buttons | [`NodeInfoTab.tsx`](../packages/axoview-lib/src/components/ItemControls/NodeControls/NodeInfoTab/NodeInfoTab.tsx) |
+| Connector parity with node | [`ConnectorControls.tsx`](../packages/axoview-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx) |
+| Layer row with rename + action toggle | [`LayerItemRow.tsx`](../packages/axoview-lib/src/components/LayersPanel/LayerItemRow.tsx) |
+| Keyboard-first dialog | [`ConfirmDialog.tsx`](../packages/axoview-app/src/components/ConfirmDialog.tsx) |
+| Inline canvas rename | [`Node.tsx`](../packages/axoview-lib/src/components/SceneLayers/Nodes/Node/Node.tsx) (search `inlineEditNodeName`) |
+| Theme-driven typography contract | [`theme.ts`](../packages/axoview-lib/src/styles/theme.ts) — see §1.5 |
+| Standard search input (panel-level) | [`Searchbox.tsx`](../packages/axoview-lib/src/components/ItemControls/IconSelectionControls/Searchbox.tsx) |
+| Counter-scaled canvas-anchored chrome | [`NodeActionBar.tsx`](../packages/axoview-lib/src/components/NodeActionBar/NodeActionBar.tsx) — see §8.8 |
+| Quiet mode banner | [`SessionModeBanner.tsx`](../packages/axoview-app/src/components/SessionModeBanner.tsx) — see §8.5 |
+| Validation surfacing | [`useInitialDataManager.ts`](../packages/axoview-lib/src/hooks/useInitialDataManager.ts) — see §6.3 |
 
 ---
 

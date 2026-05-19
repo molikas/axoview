@@ -73,10 +73,10 @@ const leanIfModel = (data: unknown): unknown => {
   return data;
 };
 
-const SESSION_DIAGRAMS_KEY = 'fossflow_diagrams';
-const SESSION_DIAGRAM_PREFIX = 'fossflow_diagram_';
-const LOCAL_FOLDERS_KEY = 'fossflow-folders';
-const LOCAL_MANIFEST_KEY = 'fossflow-tree-manifest';
+const SESSION_DIAGRAMS_KEY = 'axoview_diagrams';
+const SESSION_DIAGRAM_PREFIX = 'axoview_diagram_';
+const LOCAL_FOLDERS_KEY = 'axoview-folders';
+const LOCAL_MANIFEST_KEY = 'axoview-tree-manifest';
 
 // Date.now() alone collides when many ids are minted in the same tick (e.g.
 // during a project import loop). A collision on folder ids lets the import's
@@ -267,7 +267,7 @@ export class LocalStorageProvider implements StorageProvider {
     sessionStorage.setItem(SESSION_DIAGRAMS_KEY, JSON.stringify(list));
     // Notify subscribers (storage gauge) — sessionStorage has no native cross-component event.
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('fossflow-session-changed'));
+      window.dispatchEvent(new Event('axoview-session-changed'));
     }
   }
 
@@ -292,7 +292,7 @@ export class LocalStorageProvider implements StorageProvider {
       );
     }
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('fossflow-session-changed'));
+      window.dispatchEvent(new Event('axoview-session-changed'));
     }
   }
 

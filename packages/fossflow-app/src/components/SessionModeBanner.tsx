@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Box, IconButton, Typography } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
 
-const DISMISS_KEY = 'fossflow-session-banner-dismissed';
+const DISMISS_KEY = 'axoview-session-banner-dismissed';
 
 export function SessionModeBanner() {
   const [dismissed, setDismissed] = useState<boolean>(() => {

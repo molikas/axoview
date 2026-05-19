@@ -24,7 +24,7 @@ import * as path from 'path';
 
 const APP_PATH = path.resolve(
   __dirname,
-  '../../../fossflow-app/src/providers/DiagramLifecycleProvider.tsx'
+  '../../../axoview-app/src/providers/DiagramLifecycleProvider.tsx'
 );
 
 describe('Save tracking — isAfterLoadRef pattern', () => {

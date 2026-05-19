@@ -1,5 +1,5 @@
 /**
- * Centralised locator builders for FossFLOW.
+ * Centralised locator builders for Axoview.
  *
  * Strategy:
  *   - Role-based locators (`getByRole`) are the primary choice — resilient to
@@ -28,7 +28,7 @@ export const toolbar = {
 // ---------------------------------------------------------------------------
 
 /** The main canvas container (interaction + render area). */
-export const canvas      = (p: Page) => p.locator('[data-testid="fossflow-canvas"]');
+export const canvas      = (p: Page) => p.locator('[data-testid="axoview-canvas"]');
 
 /** The item controls side panel (node/connector/textbox/rectangle settings). */
 export const itemPanel   = (p: Page) => p.locator('[data-testid="item-controls-panel"]');

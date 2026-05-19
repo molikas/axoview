@@ -1,8 +1,8 @@
 {
-  "name": "@fossflow/e2e",
+  "name": "@axoview/e2e",
   "version": "1.0.0",
   "private": true,
-  "description": "Playwright end-to-end tests for FossFLOW",
+  "description": "Playwright end-to-end tests for Axoview",
   "scripts": {
     "test": "playwright test --config playwright.config.ts",
     "test:smoke": "playwright test --project=smoke --config playwright.config.ts",

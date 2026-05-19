@@ -2,7 +2,7 @@
  * DiagnosticsOverlay — performance + scene telemetry.
  *
  * Dev:  always enabled (cannot be turned off).
- * Prod: disabled by default; toggle persisted in localStorage (fossflow_perf_enabled).
+ * Prod: disabled by default; toggle persisted in localStorage (axoview_perf_enabled).
  *
  * ── Memory budget (hard ceiling) ─────────────────────────────────────────────
  *   Samples : MAX_SAMPLES(600) × 8 fields × 8 bytes  ≈  38 KB
@@ -43,7 +43,7 @@ const FIELDS = ['dt', 'fps', 'hu', 'ht', 'lt', 'ni', 'nc', 'ntb'] as const;
 // nodes); placed nodes live in the current view's `items` array.
 function getSceneCounts(): { ni: number; nc: number; ntb: number } {
   try {
-    const fw = (window as any).__fossflow__;
+    const fw = (window as any).__axoview__;
     if (!fw) return { ni: 0, nc: 0, ntb: 0 };
     const ms = fw.model?.getState?.();
     const us = fw.ui?.getState?.();
@@ -68,7 +68,7 @@ function getUiSnapshot(): {
   isDragging: boolean;
 } {
   try {
-    const us = (window as any).__fossflow__?.ui?.getState?.();
+    const us = (window as any).__axoview__?.ui?.getState?.();
     return {
       zoom: us?.zoom ?? 1,
       viewId: us?.view ?? '',
@@ -81,7 +81,7 @@ function getUiSnapshot(): {
 
 function getHistoryLengths(): { past: number; future: number } {
   try {
-    const ms = (window as any).__fossflow__?.model?.getState?.();
+    const ms = (window as any).__axoview__?.model?.getState?.();
     return {
       past: ms?.history?.past?.length ?? 0,
       future: ms?.history?.future?.length ?? 0
@@ -441,7 +441,7 @@ export function DiagnosticsOverlay() {
             letterSpacing: 1
           }}
         >
-          FOSSFLOW DIAG&nbsp;
+          AXOVIEW DIAG&nbsp;
           <span style={{ color: '#444' }}>{IS_DEV ? 'DEV' : 'PROD'}</span>
         </span>
         <button

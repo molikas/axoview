@@ -107,7 +107,7 @@ describe('LocalStorageProvider', () => {
     const meta = [
       { id: 'sess-1', name: 'Session Diagram', lastModified: '2026-01-01T00:00:00Z', folderId: null }
     ];
-    sessionStorage.setItem('fossflow_diagrams', JSON.stringify(meta));
+    sessionStorage.setItem('axoview_diagrams', JSON.stringify(meta));
 
     const list = await provider.listDiagrams();
 
@@ -292,18 +292,18 @@ describe('LocalStorageProvider', () => {
     const meta = [
       { id: 'sess-1', name: 'Old Name', lastModified: '2026-01-01T00:00:00Z', folderId: null }
     ];
-    sessionStorage.setItem('fossflow_diagrams', JSON.stringify(meta));
+    sessionStorage.setItem('axoview_diagrams', JSON.stringify(meta));
     sessionStorage.setItem(
-      'fossflow_diagram_sess-1',
+      'axoview_diagram_sess-1',
       JSON.stringify({ title: 'Old Name', items: [], views: [], icons: [], colors: [] })
     );
 
     await provider.renameDiagram('sess-1', 'New Name');
 
-    const listAfter = JSON.parse(sessionStorage.getItem('fossflow_diagrams') ?? '[]');
+    const listAfter = JSON.parse(sessionStorage.getItem('axoview_diagrams') ?? '[]');
     expect(listAfter[0].name).toBe('New Name');
 
-    const blobAfter = JSON.parse(sessionStorage.getItem('fossflow_diagram_sess-1') ?? '{}');
+    const blobAfter = JSON.parse(sessionStorage.getItem('axoview_diagram_sess-1') ?? '{}');
     expect(blobAfter.title).toBe('New Name');
     expect(blobAfter.name).toBe('New Name');
   });
@@ -313,11 +313,11 @@ describe('LocalStorageProvider', () => {
     const meta = [
       { id: 'sess-1', name: 'Old Name', lastModified: '2026-01-01T00:00:00Z', folderId: null }
     ];
-    sessionStorage.setItem('fossflow_diagrams', JSON.stringify(meta));
-    sessionStorage.setItem('fossflow_diagram_sess-1', 'not-json');
+    sessionStorage.setItem('axoview_diagrams', JSON.stringify(meta));
+    sessionStorage.setItem('axoview_diagram_sess-1', 'not-json');
 
     await expect(provider.renameDiagram('sess-1', 'New Name')).resolves.toBeUndefined();
-    const listAfter = JSON.parse(sessionStorage.getItem('fossflow_diagrams') ?? '[]');
+    const listAfter = JSON.parse(sessionStorage.getItem('axoview_diagrams') ?? '[]');
     expect(listAfter[0].name).toBe('New Name');
   });
 
@@ -329,7 +329,7 @@ describe('LocalStorageProvider', () => {
     const meta = [
       { id: 'fallback-1', name: 'Fallback', lastModified: '2026-01-01T00:00:00Z', folderId: null }
     ];
-    sessionStorage.setItem('fossflow_diagrams', JSON.stringify(meta));
+    sessionStorage.setItem('axoview_diagrams', JSON.stringify(meta));
 
     const list = await provider.listDiagrams();
 

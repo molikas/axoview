@@ -1,7 +1,7 @@
 import { Model } from 'src/types';
 import { exportAsJSON } from './exportOptions';
 
-const AUTOSAVE_KEY = 'fossflow-autosave';
+const AUTOSAVE_KEY = 'axoview-autosave';
 
 /**
  * Attempts to persist the model to localStorage.

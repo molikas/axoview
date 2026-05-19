@@ -1,12 +1,12 @@
 {
-  "name": "fossflow",
+  "name": "axoview",
   "version": "2026.5.21",
   "private": false,
   "description": "An open-source React component for drawing network diagrams - forked from isoflow.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/molikas/FossFLOW_V2"
+    "url": "https://github.com/molikas/Axoview_V2"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

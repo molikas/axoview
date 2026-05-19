@@ -16,7 +16,7 @@ import * as path from 'path';
 
 const CSS_PATH = path.resolve(
   __dirname,
-  '../../../fossflow-app/src/components/ChangeLanguage/styles.css'
+  '../../../axoview-app/src/components/ChangeLanguage/styles.css'
 );
 
 describe('Language dropdown — right-anchored positioning', () => {

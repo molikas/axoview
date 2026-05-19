@@ -30,7 +30,7 @@ describe('Splash screen — community edition branding (en-US)', () => {
   });
 
   it('message references the fork repository URL', () => {
-    expect(src).toContain('github.com/molikas/FossFLOW_V2');
+    expect(src).toContain('github.com/molikas/Axoview_V2');
   });
 
   it('signature credits the community', () => {

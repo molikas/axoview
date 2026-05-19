@@ -1,13 +1,13 @@
 {
-  "name": "fossflow-worker",
+  "name": "axoview-worker",
   "version": "2026.5.21",
-  "description": "Cloudflare Worker (Hono) backend for FossFLOW Pages deploy",
+  "description": "Cloudflare Worker (Hono) backend for Axoview Pages deploy",
   "private": true,
   "type": "module",
   "main": "src/app.ts",
   "scripts": {
     "deploy": "wrangler deploy",
-    "dev": "wrangler pages dev ../fossflow-app/build --compatibility-date=2025-01-01 --binding-from-toml"
+    "dev": "wrangler pages dev ../axoview-app/build --compatibility-date=2025-01-01 --binding-from-toml"
   },
   "dependencies": {
     "hono": "^4.7.0"

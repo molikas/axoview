@@ -129,13 +129,13 @@ const App = forwardRef<IsoflowRef, IsoflowProps>(
       const shouldExpose =
         enableDebugTools || process.env.NODE_ENV !== 'production';
       if (!shouldExpose) return;
-      (window as any).__fossflow__ = {
+      (window as any).__axoview__ = {
         ui: uiStore,
         model: modelStore,
         scene: sceneStore
       };
       return () => {
-        delete (window as any).__fossflow__;
+        delete (window as any).__axoview__;
       };
       // Store instances are stable (created once in Provider via useRef)
       // eslint-disable-next-line react-hooks/exhaustive-deps

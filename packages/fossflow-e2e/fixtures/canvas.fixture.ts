@@ -19,7 +19,7 @@ export class CanvasPage extends AppPage {
     await this.page.getByRole('button', { name: /Add item/i }).click();
     const firstIcon = this.page.locator('[data-testid="icon-grid-item"]').first();
     await firstIcon.waitFor({ state: 'visible' });
-    const canvas = this.page.locator('[data-testid="fossflow-canvas"]');
+    const canvas = this.page.locator('[data-testid="axoview-canvas"]');
     // dragTo: mousedown on icon (selects icon id) → move → mouseup at canvas position (places node)
     await firstIcon.dragTo(canvas, { targetPosition: { x, y } });
     // Brief wait for React to re-render the new node
@@ -39,7 +39,7 @@ export class CanvasPage extends AppPage {
    * Requires CURSOR mode to be active — call activateCursor() first.
    */
   async selectAt(x: number, y: number) {
-    await this.page.locator('[data-testid="fossflow-canvas"]').click({ position: { x, y } });
+    await this.page.locator('[data-testid="axoview-canvas"]').click({ position: { x, y } });
     // Wait for itemControls to populate
     await this.page.waitForTimeout(150);
   }
@@ -53,7 +53,7 @@ export class CanvasPage extends AppPage {
     // Ensure CURSOR mode
     await this.activateCursor();
     // Left-click empty canvas to trigger context menu
-    await this.page.locator('[data-testid="fossflow-canvas"]').click({ position: { x, y } });
+    await this.page.locator('[data-testid="axoview-canvas"]').click({ position: { x, y } });
     const addRect = this.page.getByRole('menuitem', { name: /Add Rectangle/i });
     await addRect.waitFor({ state: 'visible', timeout: 3000 });
     await addRect.click();
@@ -62,12 +62,12 @@ export class CanvasPage extends AppPage {
 
   /** Count the number of node images currently on the canvas. */
   async countNodes(): Promise<number> {
-    return this.page.locator('[data-testid="fossflow-canvas"] img').count();
+    return this.page.locator('[data-testid="axoview-canvas"] img').count();
   }
 
   /** Count the number of rectangle elements on the canvas. */
   async countRectangles(): Promise<number> {
-    return this.page.locator('[data-testid="fossflow-canvas"] rect[width]').count();
+    return this.page.locator('[data-testid="axoview-canvas"] rect[width]').count();
   }
 
   /** Read the current UI mode from the Zustand store. */

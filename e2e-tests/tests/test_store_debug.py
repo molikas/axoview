@@ -61,7 +61,7 @@ def dump_store(d, label):
 def count_dom_nodes(d):
     """Count images and 'Untitled' labels in the DOM."""
     return d.execute_script("""
-        var c = document.querySelector('.fossflow-container');
+        var c = document.querySelector('.axoview-container');
         if (!c) return {images: 0, labels: 0};
         var imgs = c.querySelectorAll('img').length;
         var spans = Array.from(c.querySelectorAll('span, p'));
@@ -113,7 +113,7 @@ def place_node(d):
     time.sleep(0.5)
 
     # Click on canvas
-    canvas = d.find_element(By.CLASS_NAME, "fossflow-container")
+    canvas = d.find_element(By.CLASS_NAME, "axoview-container")
     ActionChains(d).move_to_element_with_offset(canvas, 500, 400).click().perform()
     time.sleep(1)
     return True
@@ -124,7 +124,7 @@ def main():
     try:
         d.get("http://localhost:3000")
         WebDriverWait(d, 15).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "fossflow-container"))
+            EC.presence_of_element_located((By.CLASS_NAME, "axoview-container"))
         )
         time.sleep(3)
 

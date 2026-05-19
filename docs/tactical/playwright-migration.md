@@ -19,7 +19,7 @@
 
 ## Goal
 
-Replace the Selenium + Python + pytest + Docker E2E framework (`e2e-tests/`) with a TypeScript-native Playwright suite (`packages/fossflow-e2e/`). Eliminate the 100-line React fiber-tree injection hack; replace with `window.__fossflow__` store exposure.
+Replace the Selenium + Python + pytest + Docker E2E framework (`e2e-tests/`) with a TypeScript-native Playwright suite (`packages/axoview-e2e/`). Eliminate the 100-line React fiber-tree injection hack; replace with `window.__axoview__` store exposure.
 
 **Out of scope:** New test scenarios beyond the existing Selenium coverage — port first, extend later.
 
@@ -28,7 +28,7 @@ Replace the Selenium + Python + pytest + Docker E2E framework (`e2e-tests/`) wit
 ## Original plan content
 
 **Replaces:** `e2e-tests/` (Selenium + Python + pytest + Docker)
-**New location:** `packages/fossflow-e2e/` (npm workspace, TypeScript, Playwright)
+**New location:** `packages/axoview-e2e/` (npm workspace, TypeScript, Playwright)
 
 ---
 
@@ -37,10 +37,10 @@ Replace the Selenium + Python + pytest + Docker E2E framework (`e2e-tests/`) wit
 | # | Decision |
 |---|---|
 | 1 | **`data-testid` attributes** — yes, add them to all key interactive elements as part of Phase 0. Role-based locators are preferred but `data-testid` provides a stable fallback for elements that don't have meaningful accessible roles (e.g. the canvas container, icon grid items). |
-| 2 | **Store exposure** — use `window.__fossflow__` gated by `process.env.NODE_ENV !== 'production'`. The bundler tree-shakes this block entirely from production builds — zero user impact. This replaces the ~100-line React fiber-tree injection used by Selenium and gives precise typed access to mode, history, and item controls state. |
+| 2 | **Store exposure** — use `window.__axoview__` gated by `process.env.NODE_ENV !== 'production'`. The bundler tree-shakes this block entirely from production builds — zero user impact. This replaces the ~100-line React fiber-tree injection used by Selenium and gives precise typed access to mode, history, and item controls state. |
 | 3 | **Selenium retirement** — drop per spec (phased): delete the matching Python file as soon as its Playwright replacement passes locally and in CI. |
 | 4 | **Firefox coverage** — yes, add a `firefox` project to `playwright.config.ts`. All interaction specs run on both Chromium and Firefox. Catches browser-specific event handling differences in mouse gestures and right-click behaviour. |
-| 5 | **Visual regression** — yes, add `visual.spec.ts` now. Playwright's `toHaveScreenshot()` is cheap to add alongside other specs. Baselines stored in `packages/fossflow-e2e/snapshots/`. Run as a separate `visual` project so it doesn't slow the main e2e suite. |
+| 5 | **Visual regression** — yes, add `visual.spec.ts` now. Playwright's `toHaveScreenshot()` is cheap to add alongside other specs. Baselines stored in `packages/axoview-e2e/snapshots/`. Run as a separate `visual` project so it doesn't slow the main e2e suite. |
 
 ---
 
@@ -66,7 +66,7 @@ Replace the Selenium + Python + pytest + Docker E2E framework (`e2e-tests/`) wit
 | `time.sleep(3)` / `time.sleep(5)` throughout | Slow (~60s total), brittle on slow CI runners |
 | Driver fixture duplicated in all 8 test files | Any change needs to be made 8 times |
 | Store state read via ~100-line React fiber tree injection | Breaks on any React internals change |
-| MUI CSS class selectors (`fossflow-container`, `[class*="MuiDialog"]`) | Style refactors silently break tests |
+| MUI CSS class selectors (`axoview-container`, `[class*="MuiDialog"]`) | Style refactors silently break tests |
 | Python ↔ TypeScript language boundary | Can't share types, selectors, or constants with the app |
 | Requires Docker Selenium Grid to run locally | Developers skip running e2e locally |
 | Mouse gesture tests (right-click drag, pan) are unreliable in Selenium | Core new features are untestable |
@@ -152,38 +152,38 @@ npm run test:e2e:ci
 
 | Script | Command |
 |---|---|
-| `test:unit` | `npm test --workspace=packages/fossflow-lib` |
-| `test:smoke` | `playwright test --project=smoke --config packages/fossflow-e2e/playwright.config.ts` |
-| `test:e2e` | `playwright test --project=chromium --project=firefox --config packages/fossflow-e2e/playwright.config.ts` |
-| `test:visual` | `playwright test --project=visual --config packages/fossflow-e2e/playwright.config.ts` |
+| `test:unit` | `npm test --workspace=packages/axoview-lib` |
+| `test:smoke` | `playwright test --project=smoke --config packages/axoview-e2e/playwright.config.ts` |
+| `test:e2e` | `playwright test --project=chromium --project=firefox --config packages/axoview-e2e/playwright.config.ts` |
+| `test:visual` | `playwright test --project=visual --config packages/axoview-e2e/playwright.config.ts` |
 | `test:regression` | `npm run test:unit && npm run test:e2e` |
-| `test:e2e:ui` | `playwright test --ui --config packages/fossflow-e2e/playwright.config.ts` |
-| `test:e2e:ci` | `playwright test --config packages/fossflow-e2e/playwright.config.ts --trace on-first-retry` |
+| `test:e2e:ui` | `playwright test --ui --config packages/axoview-e2e/playwright.config.ts` |
+| `test:e2e:ci` | `playwright test --config packages/axoview-e2e/playwright.config.ts --trace on-first-retry` |
 
 ### Running a single spec or test during development
 
 ```bash
 # Specific spec file (from repo root)
-npx playwright test node --config packages/fossflow-e2e/playwright.config.ts
+npx playwright test node --config packages/axoview-e2e/playwright.config.ts
 
 # Specific test by name
-npx playwright test -g "right-click without drag" --config packages/fossflow-e2e/playwright.config.ts
+npx playwright test -g "right-click without drag" --config packages/axoview-e2e/playwright.config.ts
 
 # From the e2e package directory
-cd packages/fossflow-e2e
+cd packages/axoview-e2e
 npx playwright test tests/pan.spec.ts
 npx playwright test tests/pan.spec.ts --headed        # visible browser
 npx playwright test tests/pan.spec.ts --debug         # step-through debugger
 npx playwright test tests/pan.spec.ts --project=firefox  # specific browser
 
 # Update visual regression baselines (after intentional visual change)
-npx playwright test --project=visual --update-snapshots --config packages/fossflow-e2e/playwright.config.ts
+npx playwright test --project=visual --update-snapshots --config packages/axoview-e2e/playwright.config.ts
 ```
 
 ### Viewing traces after a failure
 
 ```bash
-npx playwright show-trace packages/fossflow-e2e/test-results/*/trace.zip
+npx playwright show-trace packages/axoview-e2e/test-results/*/trace.zip
 ```
 
 ---
@@ -191,9 +191,9 @@ npx playwright show-trace packages/fossflow-e2e/test-results/*/trace.zip
 ## 4. Package structure
 
 ```
-packages/fossflow-e2e/
+packages/axoview-e2e/
 ├── package.json                     # @playwright/test, typescript
-├── tsconfig.json                    # path aliases matching fossflow-lib
+├── tsconfig.json                    # path aliases matching axoview-lib
 ├── playwright.config.ts             # projects (smoke/chromium/firefox/visual), webServer
 │
 ├── fixtures/
@@ -275,7 +275,7 @@ export default defineConfig({
 
   // Auto-starts dev server; reuses if already running locally
   webServer: {
-    command: 'npm run dev --workspace=packages/fossflow-app',
+    command: 'npm run dev --workspace=packages/axoview-app',
     url: 'http://localhost:3000',
     reuseExistingServer: true,
     timeout: 60_000,
@@ -302,7 +302,7 @@ Loads the app, waits for the React root to mount, and dismisses the hint tooltip
 export const appTest = base.extend<{ app: AppPage }>({
   app: async ({ page }, use) => {
     await page.goto('/');
-    await page.locator('[data-testid="fossflow-canvas"]').waitFor();
+    await page.locator('[data-testid="axoview-canvas"]').waitFor();
     await dismissHintTooltips(page);
     await use(new AppPage(page));
   },
@@ -315,33 +315,33 @@ export const appTest = base.extend<{ app: AppPage }>({
 // Provided methods:
 placeNode(x?: number, y?: number)  // opens icon panel, picks first icon, clicks canvas
 countNodes(): Promise<number>       // counts rendered node img elements
-getMode(): Promise<ModeState>       // reads uiState.mode from __fossflow__ store
+getMode(): Promise<ModeState>       // reads uiState.mode from __axoview__ store
 getItemControls()                   // reads uiState.itemControls from store
 getScroll()                         // reads uiState.scroll for pan assertions
 getHistoryLength()                  // reads model history.past.length for undo assertions
 ```
 
-### `helpers/store.ts` — typed store reads via `window.__fossflow__`
+### `helpers/store.ts` — typed store reads via `window.__axoview__`
 
 The stores are exposed in `Isoflow.tsx` under `process.env.NODE_ENV !== 'production'` — completely tree-shaken from production bundles. Tests read live state without any fiber-tree hacks.
 
 ```typescript
 // helpers/store.ts
 export const getUiMode = (page: Page) =>
-  page.evaluate(() => (window as any).__fossflow__.ui.getState().mode);
+  page.evaluate(() => (window as any).__axoview__.ui.getState().mode);
 
 export const getScroll = (page: Page) =>
-  page.evaluate(() => (window as any).__fossflow__.ui.getState().scroll);
+  page.evaluate(() => (window as any).__axoview__.ui.getState().scroll);
 
 export const getItemControls = (page: Page) =>
-  page.evaluate(() => (window as any).__fossflow__.ui.getState().itemControls);
+  page.evaluate(() => (window as any).__axoview__.ui.getState().itemControls);
 
 export const getModelHistoryLength = (page: Page) =>
-  page.evaluate(() => (window as any).__fossflow__.model.getState().history.past.length);
+  page.evaluate(() => (window as any).__axoview__.model.getState().history.past.length);
 
 export const setPanSettings = (page: Page, settings: Partial<PanSettings>) =>
   page.evaluate((s) => {
-    (window as any).__fossflow__.ui.getState().actions.setPanSettings(s);
+    (window as any).__axoview__.ui.getState().actions.setPanSettings(s);
   }, settings);
 ```
 
@@ -361,7 +361,7 @@ export const toolbar = {
   redo:      (p: Page) => p.getByRole('button', { name: /Redo/i }),
 };
 
-export const canvas      = (p: Page) => p.locator('[data-testid="fossflow-canvas"]');
+export const canvas      = (p: Page) => p.locator('[data-testid="axoview-canvas"]');
 export const itemPanel   = (p: Page) => p.locator('[data-testid="item-controls-panel"]');
 export const contextMenu = (p: Page) => p.locator('[data-testid="context-menu"]');
 export const nodeImages  = (p: Page) => canvas(p).locator('img');
@@ -394,11 +394,11 @@ export const middleClickDrag = async (page: Page, from: Coords, to: Coords) => {
 
 These attributes need to be added to the source during Phase 0. They are the stable anchor points for tests — role-based locators are preferred where available, but these cover elements that have no accessible role or need extra precision.
 
-### `fossflow-lib` components
+### `axoview-lib` components
 
 | `data-testid` value | Component / element | Used by |
 |---|---|---|
-| `fossflow-canvas` | The main canvas container div in `Renderer.tsx` | All specs — app load gate |
+| `axoview-canvas` | The main canvas container div in `Renderer.tsx` | All specs — app load gate |
 | `item-controls-panel` | The `ControlsContainer` wrapper in `ItemControlsManager.tsx` | N-2, P-3, L-3 |
 | `context-menu` | The `ContextMenu` root div | L-3 (assert it does NOT appear) |
 | `node-label` | The label `Box` in `Node.tsx` | N-6, N-7 (description collapse) |
@@ -406,7 +406,7 @@ These attributes need to be added to the source during Phase 0. They are the sta
 | `lasso-selection` | The lasso rectangle `Box` in `Lasso.tsx` | L-1 (assert visible during drag) |
 | `connector-path` | The SVG path in `Connector.tsx` | C-1, C-2, C-3 |
 
-### `fossflow-app` components
+### `axoview-app` components
 
 | `data-testid` value | Component / element | Used by |
 |---|---|---|
@@ -424,9 +424,9 @@ The minimum bar for "is the app alive". These run on every CI push, before e2e.
 
 | # | Test name | What it asserts |
 |---|---|---|
-| S-1 | App loads without JS errors | `page.goto('/')` → no `console.error`, `[data-testid="fossflow-canvas"]` visible |
+| S-1 | App loads without JS errors | `page.goto('/')` → no `console.error`, `[data-testid="axoview-canvas"]` visible |
 | S-2 | Tool menu is visible and enabled | All toolbar buttons visible and not `disabled` |
-| S-3 | Canvas has non-zero dimensions | `fossflow-canvas` `clientWidth > 0` and `clientHeight > 0` |
+| S-3 | Canvas has non-zero dimensions | `axoview-canvas` `clientWidth > 0` and `clientHeight > 0` |
 | S-4 | Default zoom is 90% | `getUiMode()` → `zoom === 0.9` |
 
 ---
@@ -511,7 +511,7 @@ The minimum bar for "is the app alive". These run on every CI push, before e2e.
 
 ### `visual.spec.ts` — 5 tests · Visual project · Chromium · Fixed 1280×800 · ~3–4 min
 
-Screenshot baselines are committed to `packages/fossflow-e2e/snapshots/`. On first run they are created; subsequent runs compare pixel-by-pixel with a configurable threshold. Run with `npm run test:visual`. Update baselines with `--update-snapshots` after intentional visual changes.
+Screenshot baselines are committed to `packages/axoview-e2e/snapshots/`. On first run they are created; subsequent runs compare pixel-by-pixel with a configurable threshold. Run with `npm run test:visual`. Update baselines with `--update-snapshots` after intentional visual changes.
 
 | # | Test name | What it captures |
 |---|---|---|
@@ -570,7 +570,7 @@ jobs:
       - run: npm run test:e2e:ci -- --project=smoke
       - uses: actions/upload-artifact@v4
         if: failure()
-        with: { name: smoke-traces, path: packages/fossflow-e2e/test-results/ }
+        with: { name: smoke-traces, path: packages/axoview-e2e/test-results/ }
 
   e2e-tests:
     needs: smoke-tests
@@ -590,7 +590,7 @@ jobs:
         if: failure()
         with:
           name: e2e-traces-${{ matrix.project }}
-          path: packages/fossflow-e2e/test-results/
+          path: packages/axoview-e2e/test-results/
 ```
 
 **Pipeline flow:**
@@ -623,7 +623,7 @@ jobs:
       - run: npm run test:visual
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: visual-report, path: packages/fossflow-e2e/playwright-report/ }
+        with: { name: visual-report, path: packages/axoview-e2e/playwright-report/ }
 ```
 
 ### Selenium retention
@@ -635,29 +635,29 @@ During migration, the existing `e2e-tests.yml` (Selenium) continues to run. A Py
 ## 10. Implementation checklist
 
 ### Phase 0 — Foundation *(nothing else starts until this is green)*
-- [ ] Add `packages/fossflow-e2e` to root `package.json` workspaces
-- [ ] Create `packages/fossflow-e2e/package.json` (`@playwright/test`, `typescript`)
-- [ ] Create `packages/fossflow-e2e/playwright.config.ts` (all 4 projects, webServer)
-- [ ] Create `packages/fossflow-e2e/tsconfig.json`
+- [ ] Add `packages/axoview-e2e` to root `package.json` workspaces
+- [ ] Create `packages/axoview-e2e/package.json` (`@playwright/test`, `typescript`)
+- [ ] Create `packages/axoview-e2e/playwright.config.ts` (all 4 projects, webServer)
+- [ ] Create `packages/axoview-e2e/tsconfig.json`
 - [ ] Add all `test:*` scripts to root `package.json`
-- [ ] Create `packages/fossflow-e2e/fixtures/app.fixture.ts`
-- [ ] Create `packages/fossflow-e2e/fixtures/canvas.fixture.ts`
-- [ ] Create `packages/fossflow-e2e/fixtures/index.ts`
-- [ ] Create `packages/fossflow-e2e/helpers/store.ts`
-- [ ] Create `packages/fossflow-e2e/helpers/selectors.ts`
-- [ ] Create `packages/fossflow-e2e/helpers/mouse.ts`
-- [ ] Add `window.__fossflow__` store exposure to `Isoflow.tsx`
-- [ ] Add `data-testid="fossflow-canvas"` to `Renderer.tsx` interaction div
+- [ ] Create `packages/axoview-e2e/fixtures/app.fixture.ts`
+- [ ] Create `packages/axoview-e2e/fixtures/canvas.fixture.ts`
+- [ ] Create `packages/axoview-e2e/fixtures/index.ts`
+- [ ] Create `packages/axoview-e2e/helpers/store.ts`
+- [ ] Create `packages/axoview-e2e/helpers/selectors.ts`
+- [ ] Create `packages/axoview-e2e/helpers/mouse.ts`
+- [ ] Add `window.__axoview__` store exposure to `Isoflow.tsx`
+- [ ] Add `data-testid="axoview-canvas"` to `Renderer.tsx` interaction div
 - [ ] Add `data-testid="item-controls-panel"` to `ItemControlsManager.tsx`
 - [ ] Add `data-testid="context-menu"` to `ContextMenu.tsx`
 - [ ] Add `data-testid="node-label"` to `Node.tsx` label `Box`
 - [ ] Add `data-testid="node-header-link"` to `Node.tsx` `<a>`
 - [ ] Add `data-testid="lasso-selection"` to `Lasso.tsx`
 - [ ] Add `data-testid="connector-path"` to `Connector.tsx` SVG path
-- [ ] Add `data-testid="icon-grid-item"` to icon picker buttons in fossflow-app
+- [ ] Add `data-testid="icon-grid-item"` to icon picker buttons in axoview-app
 - [ ] Add `data-testid="export-svg-button"` to `ExportImageDialog.tsx`
-- [ ] Add `data-testid="import-json-input"` to the import file input in fossflow-app
-- [ ] Run `npx playwright test --list --config packages/fossflow-e2e/playwright.config.ts` — confirms setup
+- [ ] Add `data-testid="import-json-input"` to the import file input in axoview-app
+- [ ] Run `npx playwright test --list --config packages/axoview-e2e/playwright.config.ts` — confirms setup
 
 ### Phase 1 — Smoke
 - [ ] Write `tests/smoke.spec.ts` (S-1 → S-4)
@@ -700,7 +700,7 @@ During migration, the existing `e2e-tests.yml` (Selenium) continues to run. A Py
 - [ ] Delete `e2e-tests/requirements.txt`, `pytest.ini`, `run-tests.sh`, `Cargo.lock`
 - [ ] Remove Python/Docker steps from CI workflow; delete old `e2e-tests.yml`
 - [ ] Update `regression_tests.md` — add Playwright spec table, update totals
-- [ ] Update `FOSSFLOW_ENCYCLOPEDIA.md` — testing section
+- [ ] Update `AXOVIEW_ENCYCLOPEDIA.md` — testing section
 - [ ] Update `current_architecture.md` — test audit section
 - [ ] Commit and push
 
@@ -712,7 +712,7 @@ When all phases complete and the Playwright suite is green in CI:
 
 1. Add a single line under `PLAN.md` POST phase:
    ```
-   - Playwright E2E migration shipped — Selenium retired, `packages/fossflow-e2e/` is canonical E2E suite.
+   - Playwright E2E migration shipped — Selenium retired, `packages/axoview-e2e/` is canonical E2E suite.
    ```
 2. Delete `e2e-tests/` directory entirely (all Selenium artifacts).
 3. Delete this file. The commit history and `docs/testing.md` are the durable record.
@@ -721,7 +721,7 @@ When all phases complete and the Playwright suite is green in CI:
 
 ## Notes for Claude
 
-- `window.__fossflow__` is gated by `process.env.NODE_ENV !== 'production'` — the bundler tree-shakes it from production builds. Never expose in production.
+- `window.__axoview__` is gated by `process.env.NODE_ENV !== 'production'` — the bundler tree-shakes it from production builds. Never expose in production.
 - The React fiber-tree injection in the old Selenium suite is the thing being replaced — do not port it.
 - When porting a Selenium test, delete the Python file in the same commit as the passing Playwright spec. Keeping both alive risks them diverging.
 - `data-testid` attributes take precedence when accessible roles are insufficient. Add them to the source component, not the test — they survive refactors better.

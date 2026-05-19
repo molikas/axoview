@@ -9,7 +9,7 @@ import type {
 } from 'src/types/settings';
 import type { CanvasMode, ConnectorInteractionMode } from 'src/types/ui';
 
-const STORAGE_KEY = 'fossflow_user_settings';
+const STORAGE_KEY = 'axoview_user_settings';
 
 export interface PersistedSettings {
   hotkeyProfile?: HotkeyProfile;
