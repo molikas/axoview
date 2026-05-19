@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+---
+
+## [2026.5.20] — 2026-05-19
+
 ### Added
 
 - **Inline splash screen on page load.** White-background splash with the *FossFLOW* wordmark (slate `#1f2937` + brand-blue `#2563eb` accent) and a CSS-only ring spinner is rendered directly in `public/index.html`, so it appears at the browser's first paint (~500 ms) instead of after the JS bundle has parsed (~2.5–4 s in session mode). `App.tsx` fades it out and removes it from the DOM after the editor's first paint via two `requestAnimationFrame` ticks. Replaces the prior white-screen gap. No React component required — survives bundle-parse, storage probe, and React mount.
