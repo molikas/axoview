@@ -77,7 +77,7 @@ export const IconPackSettings: React.FC<IconPackSettingsProps> = ({
         </FormControl>
       </Paper>
 
-      {/* Core Axoview (Always Loaded) */}
+      {/* Core Isoflow (Always Loaded) */}
       <Paper variant="outlined" sx={{ p: 2, mt: 2, bgcolor: 'action.hover' }}>
         <Box
           sx={{

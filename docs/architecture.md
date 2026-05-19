@@ -8,7 +8,6 @@
 - [docs/adr/](adr/) — durable architectural decisions (project zip format, icon catalog merge, lean icon save, connector parity, toolbar + dock layout contract).
 - [docs/deployment.md](deployment.md) — from-scratch deploy walkthroughs.
 - [docs/testing.md](testing.md) — regression suite reference.
-- [flare_plan.md](../flare_plan.md) — Cloudflare + Docker dual-target deployment plan (Phase 5*).
 - [PLAN.md](../PLAN.md) — strategic phase roadmap.
 
 ---
@@ -970,7 +969,7 @@ A startup splash screen is rendered inline in `public/index.html` (visible at fi
 
 ## 2m. Deployment & API Contract (2026-04-29)
 
-Axoview runs from a single codebase on three targets, sharing one `/api/*` HTTP contract. The frontend is byte-identical at the network boundary across targets; runtime config (`GET /api/config`) replaces build-time env injection. Full from-scratch walkthrough: [docs/deployment.md](deployment.md). Decision rationale: [flare_plan.md](../flare_plan.md).
+Axoview runs from a single codebase on three targets, sharing one `/api/*` HTTP contract. The frontend is byte-identical at the network boundary across targets; runtime config (`GET /api/config`) replaces build-time env injection. Full from-scratch walkthrough: [docs/deployment.md](deployment.md).
 
 ### Targets
 

@@ -144,7 +144,7 @@ FossFLOW runs from a single codebase on three targets, sharing one `/api/*` HTTP
 
 The frontend bundle is identical across all three. Runtime config (`GET /api/config`) replaces build-time env injection. The Cloudflare deployment is currently storage-less; persistent storage on Cloudflare will return via the Drive provider on a separate branch.
 
-For the from-scratch deploy walkthrough, see [docs/deployment.md](docs/deployment.md). For the architectural decisions behind the multi-target design, see [flare_plan.md](flare_plan.md).
+For the from-scratch deploy walkthrough, see [docs/deployment.md](docs/deployment.md). 
 
 ---
 
@@ -173,7 +173,6 @@ For local development without Docker, or for Cloudflare deploys, see [docs/deplo
 - [docs/testing.md](docs/testing.md) — regression suite reference (~729 tests, 72 suites).
 - [docs/adr/](docs/adr/) — architectural decision records (project zip format, icon catalog merge, lean save).
 - [PLAN.md](PLAN.md) — strategic phased roadmap (Phases 0A → 4A).
-- [flare_plan.md](flare_plan.md) — Cloudflare + Docker deployment plan (Phase 5*).
 - [CHANGELOG.md](CHANGELOG.md) — fork-only changelog (Keep a Changelog format).
 - [docs/upstream-changelog.md](docs/upstream-changelog.md) — pre-fork upstream history (preserved for traceability).
 

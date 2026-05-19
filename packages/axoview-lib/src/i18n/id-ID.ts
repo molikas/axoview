@@ -206,7 +206,7 @@ const locale: LocaleProps = {
       lazyLoadingDesc:
         'Muat paket ikon sesuai permintaan untuk startup yang lebih cepat',
       availablePacks: 'Paket Ikon Tersedia',
-      coreIsoflow: 'Core Axoview (Selalu Dimuat)',
+      coreIsoflow: 'Core Isoflow (Selalu Dimuat)',
       alwaysEnabled: 'Selalu diaktifkan',
       awsPack: 'Ikon AWS',
       gcpPack: 'Ikon Google Cloud',

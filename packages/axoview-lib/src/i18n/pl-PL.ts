@@ -212,7 +212,7 @@ const locale: LocaleProps = {
       lazyLoadingDesc:
         'Wczytuj pakiety ikon na żądanie, aby przyspieszyć uruchamianie',
       availablePacks: 'Dostępne pakiety ikon',
-      coreIsoflow: 'Core Axoview (Zawsze wczytane)',
+      coreIsoflow: 'Core Isoflow (Zawsze wczytane)',
       alwaysEnabled: 'Zawsze włączone',
       awsPack: 'Ikony AWS',
       gcpPack: 'Ikony Google Cloud',

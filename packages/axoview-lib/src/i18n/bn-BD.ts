@@ -205,7 +205,7 @@ const locale: LocaleProps = {
       lazyLoadingDesc:
         'দ্রুত স্টার্টআপের জন্য চাহিদা অনুযায়ী আইকন প্যাক লোড করুন',
       availablePacks: 'উপলব্ধ আইকন প্যাক',
-      coreIsoflow: 'Core Axoview (সর্বদা লোড)',
+      coreIsoflow: 'Core Isoflow (সর্বদা লোড)',
       alwaysEnabled: 'সর্বদা সক্রিয়',
       awsPack: 'AWS আইকন',
       gcpPack: 'Google Cloud আইকন',
