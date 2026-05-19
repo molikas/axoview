@@ -11,6 +11,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2026.5.20] — 2026-05-19
+
+### Added
+
+- **Inline splash screen on page load.** White-background splash with the *FossFLOW* wordmark (slate `#1f2937` + brand-blue `#2563eb` accent) and a CSS-only ring spinner is rendered directly in `public/index.html`, so it appears at the browser's first paint (~500 ms) instead of after the JS bundle has parsed (~2.5–4 s in session mode). `App.tsx` fades it out and removes it from the DOM after the editor's first paint via two `requestAnimationFrame` ticks. Replaces the prior white-screen gap. No React component required — survives bundle-parse, storage probe, and React mount.
+
+### Performance
+
+- **Storage init probes parallelised + 800 ms timeout cap.** `AppStorageProvider` was awaiting `fetchRuntimeConfig()` then `manager.initialize()` sequentially; switched to `Promise.all` (both probes are independent — see [architecture.md §2l](docs/architecture.md#2l-fossflow-app-provider-decomposition-2026-04-27)). Per-probe `AbortSignal.timeout` dropped from **5000 ms → 800 ms** in `useRuntimeConfig.ts` and `LocalStorageProvider.isAvailable()`. Why 800 ms: a healthy backend answers in <50 ms (docker measured ~45 ms each); when the backend is absent, Chrome/Windows can spend ~2.3 s on a dual-stack connect probe before reporting `ERR_CONNECTION_REFUSED` to JS, and the app-level timeout cuts that short. Measured impact on session-mode cold start (no backend on `:3001`): storage init **2700 ms → 800 ms**, end-to-end FCP **7100 ms → 540 ms** (splash visible), editor-canvas-mounted **7100 ms → ~4000 ms** (bundle parse is now the dominant cost).
+
+### Fixed
+
+- **`reportWebVitals` repaired for web-vitals v5 API.** Pre-existing breakage — the file imported `getCLS / getFID / getFCP / getLCP / getTTFB`, but v3+ renamed them to `onCLS / onFCP / onLCP / onTTFB` and removed FID in favour of INP. The call was previously dormant because `reportWebVitals()` was invoked without an argument and the `instanceof Function` guard skipped the broken import; the bug only surfaced once a callback was passed. Now imports `onCLS / onFCP / onINP / onLCP / onTTFB`.
+- **`UiOverlay` no longer triggers `Invalid prop children supplied to ForwardRef(Box)` in dev.** Two `createPortal(...)` expressions sat as children of an outer positioning `<Box>`; MUI's `PropTypes.node` check rejects `ReactPortal` because its `$$typeof` is `react.portal` (not `react.element`). Hoisted both portals out of the `<Box>` to siblings inside the wrapping fragment — portals render into their target node regardless of JSX position, so behavior is unchanged. Dev-only warning; never affected production builds (PropTypes are stripped).
+
+### Tests
+
+- **3 new app-side suites pinning the startup-perf invariants** (5 new tests + jsdom polyfill): `hooks/__tests__/useRuntimeConfig.test.ts` (rejection fallback, 800 ms `AbortSignal` abort, singleton cache), `services/storage/__tests__/LocalStorageProvider.test.ts` extended for `isAvailable()` hanging-fetch timeout, `providers/__tests__/AppStorageContext.test.tsx` (render-based parallel-probes pin — total init ≈ max not sum). `jest.setup.js` polyfills `AbortSignal.timeout` for jsdom 20 which ships an AbortSignal missing the static method.
+
+---
+
 ## [2026.5.19] — 2026-05-19
 
 ### Changed

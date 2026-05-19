@@ -1,6 +1,6 @@
 {
   "name": "fossflow-monorepo",
-  "version": "2026.5.20",
+  "version": "2026.5.21",
   "private": true,
   "description": "Monorepo for FossFLOW diagram editor and library",
   "packageManager": "npm@10.9.2",

@@ -38,9 +38,13 @@ export function AppStorageProvider({ children }: { children: React.ReactNode }) 
     initStarted.current = true;
 
     (async () => {
-      const config = await fetchRuntimeConfig();
+      // Run independent probes in parallel — both hit apiBaseUrl() and have
+      // no ordering dependency on each other.
+      const [config] = await Promise.all([
+        fetchRuntimeConfig(),
+        manager.initialize()
+      ]);
       setRuntimeConfig(config);
-      await manager.initialize();
       setIsServerStorage(manager.serverStorageAvailable);
       setIsInitialized(true);
     })();
