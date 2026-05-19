@@ -84,7 +84,27 @@ export const TEXTBOX_DEFAULTS: Required<
 };
 
 export const TEXTBOX_PADDING = 0.2;
-export const TEXTBOX_FONT_WEIGHT = 'bold';
+export const TEXTBOX_FONT_WEIGHT = 'normal';
+
+// Canvas rich-text typography scale (MQA #11). Mirrored in:
+//   - useTextBoxProps.ts (visual styles applied to dangerouslySetInnerHTML span)
+//   - isoMath.ts (dimension measurement so the textbox bounds contain the
+//     rendered content)
+// Values are em-multipliers applied on top of the user's base fontSize.
+// Keep the two consumers in sync — drift here means the rendered content
+// overflows the auto-grown bounds.
+export const CANVAS_RICHTEXT_SCALE = {
+  h1: 1.875,
+  h2: 1.5,
+  h3: 1.25,
+  h4: 1.1,
+  h5: 1.0,
+  h6: 1.0,
+  p: 1.0,
+  li: 1.0,
+  blockquote: 1.0,
+  pre: 0.9
+} as const;
 
 export const RECTANGLE_DEFAULTS: Required<
   Omit<Rectangle, 'id' | 'from' | 'to' | 'color' | 'layerId' | 'name'>

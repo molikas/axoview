@@ -65,21 +65,48 @@ export const useIsoProjection = ({
 
   const projectionCss = getProjectionCss(orientation);
 
-  return useMemo(
-    () => ({
+  return useMemo(() => {
+    // MQA #11: Y-orientation textboxes need explicit rotation in 2D mode.
+    // In iso, the projection matrix from getProjectionCss rotates the
+    // underlying horizontal rect onto the Y face. In 2D, no matrix runs —
+    // without this branch, Y-orientation text would render horizontally
+    // while the selection bounds extend vertically (visible mismatch in
+    // the user's MQA #11 screenshot).
+    //
+    // CSS order applies right-to-left: rotate(90deg) executes first
+    // (around transform-origin 'top left'), then translateX shifts the
+    // rotated content right by pxSize.height so it ends up in the +x/+y
+    // region from the textbox tile origin. Net effect: text reads top-to-
+    // bottom (first character at the top), matching the user's screen-y-
+    // axis convention for "left to right on the y-axis".
+    const twoDOrientationY =
+      strategy.projectionName === '2D' && orientation === 'Y';
+    const transform = projectionCss
+      ? projectionCss
+      : twoDOrientationY
+        ? `translateX(${pxSize.height}px) rotate(90deg)`
+        : null;
+
+    return {
       css: {
         position: 'absolute' as const,
         left: position.x,
         top: position.y,
         width: `${pxSize.width}px`,
         height: `${pxSize.height}px`,
-        ...(projectionCss ? { transform: projectionCss } : {}),
+        ...(transform ? { transform } : {}),
         transformOrigin: 'top left'
       },
       position,
       gridSize,
       pxSize
-    }),
-    [position, pxSize, gridSize, projectionCss]
-  );
+    };
+  }, [
+    position,
+    pxSize,
+    gridSize,
+    projectionCss,
+    strategy.projectionName,
+    orientation
+  ]);
 };
