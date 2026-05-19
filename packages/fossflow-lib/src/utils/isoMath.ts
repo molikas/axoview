@@ -12,7 +12,8 @@ import {
   CONNECTOR_SEARCH_OFFSET,
   DEFAULT_FONT_FAMILY,
   TEXTBOX_DEFAULTS,
-  TEXTBOX_FONT_WEIGHT
+  TEXTBOX_FONT_WEIGHT,
+  CANVAS_RICHTEXT_SCALE
 } from 'src/config';
 import {
   Coords,
@@ -419,10 +420,67 @@ const getPlainTextForMeasurement = (content: string): string => {
   return lines.reduce((a, b) => (a.length > b.length ? a : b), '');
 };
 
-const countHtmlLines = (content: string): number => {
+// Approximate vertical space (in user-fontSize units) each block contributes
+// once rendered with CANVAS_RICHTEXT_SCALE + the margins declared in
+// useTextBoxProps. Computed as: font-size-em × line-height + margin-top-em
+// + margin-bottom-em. Keep in sync with richTextStyles in useTextBoxProps.ts
+// — drift here means the auto-grown bounds clip the rendered content.
+const BLOCK_HEIGHT_UNITS: Record<string, number> = {
+  h1: 1.875 * 1.2 + 0.8 + 0.3, // 3.35
+  h2: 1.5 * 1.25 + 0.7 + 0.25, // 2.825
+  h3: 1.25 * 1.3 + 0.6 + 0.2, // 2.425
+  h4: 1.1 * 1.4 + 0.4 + 0.2, // 2.14
+  h5: 1.0 * 1.4 + 0.3 + 0.2, // 1.9
+  h6: 1.0 * 1.4 + 0.3 + 0.2, // 1.9
+  p: 1.0 * 1.5 + 0 + 0.4, // 1.9
+  li: 1.0 * 1.5 + 0 + 0.2, // 1.7
+  blockquote: 1.0 * 1.5 + 0.5 + 0.5, // 2.5
+  pre: 0.9 * 1.5 + 0.5 + 0.5 // 2.35
+};
+
+/** @internal exported for unit-testing the per-block weighting only. */
+export const countHtmlLines = (content: string): number => {
   if (!content?.trim().startsWith('<')) return 1;
-  const matches = content.match(/<\/(p|li|h[1-6])>/gi);
-  return Math.max(1, matches ? matches.length : 1);
+  const re = /<\/(p|li|h[1-6]|blockquote|pre)>/gi;
+  let total = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(content)) !== null) {
+    const tag = m[1].toLowerCase();
+    total += BLOCK_HEIGHT_UNITS[tag] ?? 1.0;
+  }
+  return Math.max(1, total);
+};
+
+// Extract per-block plain text + scale so width measurement can account for
+// headers rendering bigger than body. Returns at least one block so callers
+// can always measure something; falls back to the longest-line heuristic for
+// HTML the regex doesn't recognise.
+/** @internal exported for unit-testing the per-block scaling only. */
+export const splitIntoMeasurableBlocks = (
+  content: string
+): Array<{ text: string; scale: number }> => {
+  if (!content?.trim().startsWith('<')) {
+    return [{ text: content || '', scale: 1.0 }];
+  }
+  const blocks: Array<{ text: string; scale: number }> = [];
+  const re =
+    /<(p|li|h([1-6])|blockquote|pre)(?:\s[^>]*)?>([\s\S]*?)<\/\1>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(content)) !== null) {
+    const tag = m[1].toLowerCase();
+    const text = m[3]
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .trim();
+    if (!text) continue;
+    const scale =
+      CANVAS_RICHTEXT_SCALE[tag as keyof typeof CANVAS_RICHTEXT_SCALE] ?? 1.0;
+    blocks.push({ text, scale });
+  }
+  if (blocks.length === 0) {
+    return [{ text: getPlainTextForMeasurement(content), scale: 1.0 }];
+  }
+  return blocks;
 };
 
 export const getTextWidth = (
@@ -447,12 +505,22 @@ export const getTextWidth = (
 
 export const getTextBoxDimensions = (textBox: TextBox): Size => {
   const fontSize = textBox.fontSize ?? TEXTBOX_DEFAULTS.fontSize;
-  const width = getTextWidth(getPlainTextForMeasurement(textBox.content), {
-    fontSize,
-    fontFamily: DEFAULT_FONT_FAMILY,
-    fontWeight: TEXTBOX_FONT_WEIGHT
-  });
-  const lineCount = countHtmlLines(textBox.content);
-  const height = Math.max(1, Math.ceil(lineCount * fontSize));
+  // Measure each block at its CANVAS_RICHTEXT_SCALE-scaled size and take the
+  // widest. A long <h1> at scale 1.6 needs 60% more horizontal room than a
+  // body paragraph with the same character count.
+  const blocks = splitIntoMeasurableBlocks(textBox.content);
+  let width = 0;
+  for (const b of blocks) {
+    const w = getTextWidth(b.text, {
+      fontSize: fontSize * b.scale,
+      fontFamily: DEFAULT_FONT_FAMILY,
+      fontWeight: TEXTBOX_FONT_WEIGHT
+    });
+    if (w > width) width = w;
+  }
+  // countHtmlLines now returns a weighted unit total (headers count for more);
+  // multiplying by fontSize gives the rendered height in tile units.
+  const lineUnits = countHtmlLines(textBox.content);
+  const height = Math.max(1, Math.ceil(lineUnits * fontSize));
   return { width, height };
 };

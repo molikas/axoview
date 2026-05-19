@@ -86,7 +86,7 @@ export const TextBoxControls = ({ id }: Props) => {
             <Slider
               marks
               step={0.15}
-              min={0.3}
+              min={0.15}
               max={0.9}
               value={textBox.fontSize}
               onChange={(e, newSize) =>

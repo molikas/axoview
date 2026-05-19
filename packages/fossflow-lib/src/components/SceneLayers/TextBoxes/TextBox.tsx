@@ -5,6 +5,7 @@ import { useIsoProjection } from 'src/hooks/useIsoProjection';
 import { useTextBoxProps } from 'src/hooks/useTextBoxProps';
 import { useScene } from 'src/hooks/useScene';
 import { useUiStateStore } from 'src/stores/uiStateStore';
+import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 
 const INLINE_EDIT_EVENT = 'inlineEditNodeName';
 
@@ -65,12 +66,23 @@ export const TextBox = memo(({ textBox }: Props) => {
     [updateTextBox, textBox.id, textBox.content]
   );
 
+  const { strategy } = useCanvasMode();
+  // 2D-Y orientation renders as a wide-and-short rectangle that
+  // useIsoProjection then rotates 90° (see MQA #11 in useIsoProjection.ts).
+  // The wrapper bounds must match the dashed selection box, which for Y
+  // orientation is 1 tile wide × size.width tall — so `from = tile` (no y
+  // offset) and `to = tile + {size.width, 0}` (same shape as the X-mode
+  // single-line rect, just at the tile itself).
+  const isTwoDY =
+    strategy.projectionName === '2D' && textBox.orientation === 'Y';
+
   const from = useMemo(() => {
+    if (isTwoDY) return textBox.tile;
     return CoordsUtils.add(textBox.tile, {
       x: 0,
       y: -(textBox.size.height - 1)
     });
-  }, [textBox.tile, textBox.size.height]);
+  }, [textBox.tile, textBox.size.height, isTwoDY]);
 
   const to = useMemo(() => {
     return CoordsUtils.add(textBox.tile, {

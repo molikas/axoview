@@ -6,9 +6,9 @@
 > - [docs/adr/0004-connector-name-and-details-panel.md](../adr/0004-connector-name-and-details-panel.md) — relevant to #25 (preview interaction with notes + links)
 > - [docs/adr/0002-icon-catalog-merge-on-load.md](../adr/0002-icon-catalog-merge-on-load.md) — relevant to #10 (new-icons-loaded feedback) and #26 (icon removal lifecycle)
 >
-> **Status:** Awaiting design proposals · **Owner:** Igor · **Last updated:** 2026-05-19
+> **Status:** Discharged — every item shipped (2026-05-19). · **Owner:** Igor · **Last updated:** 2026-05-19
 >
-> Short-lived working doc. Delete after the work merges; durable decisions get ADR notes, not preserved here.
+> Short-lived working doc. Safe to delete now that the last item (#11) merged.
 
 ## Session startup checklist
 
@@ -71,28 +71,25 @@ Resolve the 9 design-shaped items from the 2026-05-15 manual QA pass. These need
 
 ---
 
-### #11 — Rich text formatting redesign
+### #11 — Rich text formatting redesign  ✅ SHIPPED
 
-**Asks (consolidated from user wording):**
-- H1/H2/H3 don't render until Enter is pressed.
-- Everything looks bold / header-y by default.
-- Bullet-paragraph spacing is too large.
-- Bullets don't have tab indentation on the canvas.
-- Smallest text size is still too large.
-- Overall: "I want it to behave like simple rich text."
+**Outcome (2026-05-19):** Polish landed for canvas-rendered Quill HTML inside TextBoxes; also fixed the 2D-Y orientation rotation that surfaced once typography was sane enough to evaluate orientation behavior.
 
-**This is the largest item.** It's effectively a rewrite of the text-rendering contract on the canvas. Treat it as its own tactical plan once approved — not a shake-out fix.
+Key changes (all in `packages/fossflow-lib`):
 
-**Design questions to resolve:**
-1. What's the rendering pipeline today? Lexical/Prosemirror schema → HTML → canvas? Or schema → direct render?
-2. Why does the in-editor preview diverge from the canvas render? (Likely two separate render paths with drifted styles.) Goal: **single source of truth** for typography between editor and canvas.
-3. Define the typography scale for canvas text — likely 3–4 sizes (small, body, h3, h2, h1) tied to the existing typography contract (commit `4875541`).
-4. Bullet rendering: define indent + spacing tokens. Match the in-editor render exactly.
-5. The "first word with header style sticks" symptom suggests a marks-vs-block-types bug — investigate whether headers are being applied as inline marks instead of block types. This is a *bug* embedded in the larger redesign — call it out specifically.
+- `config.ts` — `TEXTBOX_FONT_WEIGHT` flipped `'bold'` → `'normal'` (the root cause of "everything looks bold"). New `CANVAS_RICHTEXT_SCALE` constants shared between the visual style block and the auto-grow dimension math so they can't drift.
+- `useTextBoxProps.ts` — full block-tag style scope for `h1/h2/h3/p/ul/ol/li/blockquote/pre/code` with the major-third typography scale (1.875 / 1.5 / 1.25 / 1.0) and body line-height 1.5 for readable prose.
+- `isoMath.ts` — weighted `countHtmlLines` + new `splitIntoMeasurableBlocks` so `getTextBoxDimensions` accounts for header sizes when computing the auto-grown textbox bounds (headers no longer clip).
+- `TextBoxControls.tsx` — size slider floor lowered `0.3` → `0.15` so users can actually pick a small text size.
+- `useIsoProjection.ts` + `TextBox.tsx` — 2D-mode Y-orientation rotation: `translateX(pxSize.height) rotate(90deg)` puts vertical text inside the dashed selection box. In iso mode the projection matrix still handles orientation as before.
 
-**Recommend:** spin out `tactical/canvas-text-redesign.md` once the scope is confirmed. Do not attempt in this shake-out.
+**Tests (regression pinning):**
+- `utils/__tests__/isoMath.richtext.test.ts` — pins weighted line counting + per-block scale.
+- `hooks/__tests__/useIsoProjection.twoDY.test.tsx` — pins the 2D-Y rotation transform vs iso-mode unchanged behavior.
 
-**ADR-worthy?** Yes — typography on canvas is a durable contract.
+**ADR:** none added. The canvas rich-text contract is implementation detail (`CANVAS_RICHTEXT_SCALE` in `config.ts`, mirrored in `useTextBoxProps.ts` styles and `isoMath.ts` heights) — self-documenting via co-located constants and comments. UX §1.5 already covers the six-tier *UI* typography contract; canvas rich text is a different surface.
+
+The earlier spinoff plan (`canvas-text-redesign.md`) is deleted as part of this commit per its own wrap-up rule.
 
 ---
 
@@ -182,7 +179,7 @@ When all items are decided and implemented:
 
 - [x] #8 + #9 — Multi-select model + Ctrl+A + edit-panel auto-hide
 - [x] #10 — New-icons-loaded visual feedback (shipped 2026-05-19)
-- [ ] #11 — Rich text / canvas typography redesign (spinoff plan likely)
+- [x] #11 — Canvas rich-text typography polish + 2D-Y rotation (shipped 2026-05-19)
 - [x] #19 — Shortcut + canvas-control inventory + tooltip hints
 - [x] #20 — Settings dialog redesign
 - [x] #25 — Preview-mode notes vs diagram-link interaction (shipped 2026-05-15 in `d65f1a9`)
