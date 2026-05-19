@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a defect in Axoview_V2
+about: Report a defect in axoview
 labels: bug
 assignees: ''
 ---

@@ -5,9 +5,9 @@ export * as reducers from 'src/stores/reducers';
 export { INITIAL_DATA, INITIAL_SCENE_STATE } from 'src/config';
 export * from 'src/schemas';
 export type {
-  IsoflowProps,
+  AxoviewProps,
   InitialData,
-  IsoflowRef,
+  AxoviewRef,
   LoadOptions,
   MainMenuOptions,
   IconUsageReport,

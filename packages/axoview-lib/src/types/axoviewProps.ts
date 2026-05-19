@@ -441,7 +441,7 @@ export interface IconPackManagerProps {
   onTogglePack: (packName: string, enabled: boolean) => void;
 }
 
-export interface IsoflowProps {
+export interface AxoviewProps {
   initialData?: InitialData;
   mainMenuOptions?: MainMenuOptions;
   onModelUpdated?: (Model: Model) => void;
@@ -487,7 +487,7 @@ export interface LoadOptions {
   preserveViewport?: boolean;
 }
 
-export interface IsoflowRef {
+export interface AxoviewRef {
   load: (data: InitialData, options?: LoadOptions) => void;
   /** Opens the built-in image export dialog for the currently-loaded diagram. */
   openExportImageDialog: () => void;
