@@ -6,7 +6,7 @@ export const AboutTab = () => {
     <Box sx={{ px: 2, py: 2 }}>
       <Stack spacing={2}>
         <Typography variant="body2" color="text.secondary">
-          Axoview Community Edition
+          Axoview
         </Typography>
         <Typography variant="body2">
           Version: <strong>v{PACKAGE_VERSION}</strong>

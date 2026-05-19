@@ -1,4 +1,4 @@
-# Axoview Community Edition — Architecture Reference
+# Axoview — Architecture Reference
 
 **Last updated:** 2026-05-19 (rev 18)
 **Codebase root:** `packages/axoview-lib/src` (library) · `packages/axoview-app/src` (application shell) · `packages/axoview-backend/src` (Express + fs adapter) · `packages/axoview-worker/src` (Hono + Cloudflare Pages Functions)
@@ -1160,7 +1160,7 @@ The legacy phantom `Icon1` / `Icon2` URL stubs in `packages/axoview-lib/src/fixt
 |---|---|---|---|
 | `components/IconButton/__tests__/IconButton.color.test.tsx` | 6 | new | VALID — icon colour logic (was inverted bug) |
 | `__perf_refactor_regression__/viewTabs.titleReadonly.test.ts` | 6 | new | VALID — title card read-only contract |
-| `__perf_refactor_regression__/splashScreen.communityEdition.test.ts` | 6 | new | VALID — community edition branding pins |
+| `__perf_refactor_regression__/splashScreen.welcomeNotification.test.ts` | 6 | new | VALID — Axoview branding pins |
 | `__perf_refactor_regression__/languageDropdown.positioning.test.ts` | 4 | new | VALID — right:0 anchoring (overflow fix) |
 | `__perf_refactor_regression__/saveTracking.isAfterLoad.test.ts` | 5 | new | VALID — isAfterLoadRef contract + auto-save removal |
 

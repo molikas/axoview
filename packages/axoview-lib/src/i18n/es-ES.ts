@@ -226,14 +226,14 @@ const locale: LocaleProps = {
     }
   },
   lazyLoadingWelcome: {
-    title: 'Nueva Funcionalidad: ¡Carga Diferida!',
+    title: 'Bienvenido a Axoview',
     message:
       "¡Hola! Después de la demanda popular, hemos implementado la Carga Diferida de iconos, así que ahora si quieres activar paquetes de iconos no estándar puedes activarlos en la sección 'Configuración'.",
     configPath: 'Haz clic en el icono de Hamburguesa',
     configPath2:
       'en la esquina superior izquierda para acceder a la Configuración.',
     canDisable: 'Puedes desactivar este comportamiento si lo deseas.',
-    signature: '-Stan'
+    signature: '— Axoview'
   },
   viewTabs: {
     addPage: 'Añadir página',

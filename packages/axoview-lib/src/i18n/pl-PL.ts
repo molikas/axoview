@@ -228,13 +228,13 @@ const locale: LocaleProps = {
     }
   },
   lazyLoadingWelcome: {
-    title: 'Nowa funkcja: Opóźnione ładowanie!',
+    title: 'Witamy w Axoview',
     message:
       'Hej! W odpowiedzi na liczne prośby wprowadziliśmy funkcję opóźnionego ładowania ikon, więc teraz, jeśli chcesz włączyć niestandardowe pakiety ikon, możesz to zrobić w sekcji „Ustawienia".',
     configPath: 'Kliknij ikonę manu.',
     configPath2: 'w lewym górnym rogu, aby uzyskać dostęp do ustawień.',
     canDisable: 'Jeśli chcesz, możesz wyłączyć tę funkcję..',
-    signature: '-Stan'
+    signature: '— Axoview'
   },
   viewTabs: {
     addPage: 'Dodaj stronę',

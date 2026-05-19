@@ -223,13 +223,13 @@ const locale: LocaleProps = {
     }
   },
   lazyLoadingWelcome: {
-    title: 'Novo Recurso: Carregamento Sob Demanda!',
+    title: 'Bem-vindo ao Axoview',
     message:
       "Ei! Após demanda popular, implementamos o Carregamento Sob Demanda de ícones, então agora se você quiser ativar pacotes de ícones não padrão, você pode ativá-los na seção 'Configuração'.",
     configPath: 'Clique no ícone do Menu',
     configPath2: 'no canto superior esquerdo para acessar a Configuração.',
     canDisable: 'Você pode desativar esse comportamento se desejar.',
-    signature: '-Stan'
+    signature: '— Axoview'
   },
   viewTabs: {
     addPage: 'Adicionar página',

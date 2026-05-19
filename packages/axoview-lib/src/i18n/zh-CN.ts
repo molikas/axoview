@@ -209,13 +209,13 @@ const locale: LocaleProps = {
     }
   },
   lazyLoadingWelcome: {
-    title: '新功能：延迟加载！',
+    title: '欢迎使用 Axoview',
     message:
       '嘿！应大家的要求，我们实现了图标的延迟加载功能，现在如果您想启用非标准图标包，可以在「配置」部分中启用它们。',
     configPath: '点击左上角的汉堡菜单图标',
     configPath2: '以访问配置。',
     canDisable: '如果您愿意，可以禁用此行为。',
-    signature: '-Stan'
+    signature: '— Axoview'
   },
   viewTabs: {
     addPage: '添加页面',

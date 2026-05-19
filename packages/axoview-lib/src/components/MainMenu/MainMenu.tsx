@@ -280,7 +280,7 @@ export const MainMenu = () => {
               {mainMenuOptions.includes('VERSION') && (
                 <MenuItem>
                   <Typography variant="body2" color="text.secondary">
-                    Axoview Community Edition v{PACKAGE_VERSION}
+                    Axoview v{PACKAGE_VERSION}
                   </Typography>
                 </MenuItem>
               )}

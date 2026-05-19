@@ -223,13 +223,13 @@ const locale: LocaleProps = {
     }
   },
   lazyLoadingWelcome: {
-    title: 'Yeni Özellik: Tembel Yükleme!',
+    title: "Axoview'a Hoş Geldiniz",
     message:
       "Merhaba! Popüler talep üzerine, simgelerin Tembel Yüklenmesini uyguladık, bu yüzden artık standart olmayan simge paketlerini etkinleştirmek isterseniz bunları 'Yapılandırma' bölümünde etkinleştirebilirsiniz.",
     configPath: 'Yapılandırmaya erişmek için',
     configPath2: 'sol üstteki Hamburger simgesine tıklayın.',
     canDisable: 'İsterseniz bu davranışı devre dışı bırakabilirsiniz.',
-    signature: '-Stan'
+    signature: '— Axoview'
   },
   viewTabs: {
     addPage: 'Sayfa ekle',

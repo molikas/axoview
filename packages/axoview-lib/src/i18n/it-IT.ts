@@ -225,13 +225,13 @@ const locale: LocaleProps = {
     }
   },
   lazyLoadingWelcome: {
-    title: 'Nuova funzione: Lazy Loading!',
+    title: 'Benvenuto in Axoview',
     message:
       "Ciao! Su grande richiesta, abbiamo implementato il caricamento ritardato (Lazy Loading) delle icone. Ora, se desideri abilitare pacchetti di icone non standard, puoi farlo nella sezione 'Configurazione'.",
     configPath: "Clicca sull'icona dell'hamburger",
     configPath2: 'in alto a sinistra per accedere alla Configurazione.',
     canDisable: 'Puoi disattivare questo comportamento se lo desideri.',
-    signature: '-Stan'
+    signature: '— Axoview'
   },
   viewTabs: {
     addPage: 'Aggiungi pagina',

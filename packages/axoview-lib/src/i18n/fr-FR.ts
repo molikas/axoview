@@ -227,13 +227,13 @@ const locale: LocaleProps = {
     }
   },
   lazyLoadingWelcome: {
-    title: 'Nouvelle Fonctionnalité : Chargement Paresseux !',
+    title: 'Bienvenue dans Axoview',
     message:
       "Salut ! Suite à une forte demande, nous avons implémenté le Chargement Paresseux des icônes, donc maintenant si vous voulez activer des packs d'icônes non standard, vous pouvez les activer dans la section 'Configuration'.",
     configPath: "Cliquez sur l'icône Hamburger",
     configPath2: 'en haut à gauche pour accéder à la Configuration.',
     canDisable: 'Vous pouvez désactiver ce comportement si vous le souhaitez.',
-    signature: '-Stan'
+    signature: '— Axoview'
   },
   viewTabs: {
     addPage: 'Ajouter une page',

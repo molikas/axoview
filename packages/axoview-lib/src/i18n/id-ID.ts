@@ -222,13 +222,13 @@ const locale: LocaleProps = {
     }
   },
   lazyLoadingWelcome: {
-    title: 'Fitur Baru: Lazy Loading!',
+    title: 'Selamat Datang di Axoview',
     message:
       "Hai! Setelah banyak permintaan, kami telah mengimplementasikan Lazy Loading ikon, jadi sekarang jika Anda ingin mengaktifkan paket ikon non-standar, Anda dapat mengaktifkannya di bagian 'Konfigurasi'.",
     configPath: 'Klik pada ikon Hamburger',
     configPath2: 'di kiri atas untuk mengakses Konfigurasi.',
     canDisable: 'Anda dapat menonaktifkan perilaku ini jika diinginkan.',
-    signature: '-Stan'
+    signature: '— Axoview'
   },
   viewTabs: {
     addPage: 'Tambah halaman',

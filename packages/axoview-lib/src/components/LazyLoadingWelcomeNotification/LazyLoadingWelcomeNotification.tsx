@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Box, IconButton, Paper, Typography, useTheme } from '@mui/material';
-import { Close as CloseIcon, Menu as MenuIcon } from '@mui/icons-material';
+import { Close as CloseIcon } from '@mui/icons-material';
 import { useTranslation } from 'src/stores/localeStore';
 
 const STORAGE_KEY = 'axoview-lazy-loading-welcome-dismissed';
@@ -67,23 +67,6 @@ export const LazyLoadingWelcomeNotification = () => {
         <Typography variant="body1" sx={{ mb: 2, lineHeight: 1.6 }}>
           {t('message')}
         </Typography>
-
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            mb: 2,
-            p: 1.5,
-            bgcolor: 'action.hover',
-            borderRadius: 1
-          }}
-        >
-          <MenuIcon sx={{ color: 'primary.main' }} />
-          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-            {t('configPath')} <strong>{t('configPath2')}</strong>
-          </Typography>
-        </Box>
 
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
           {t('canDisable')}
