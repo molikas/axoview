@@ -25,6 +25,8 @@ The application chrome has four shells, each with a defined ownership rule. Any 
 
 The diagram name is rendered on the canvas (existing behavior); the toolbar does not duplicate it. With no center anchor, LEFT and CENTER zones are intentionally empty. All controls collapse into the RIGHT zone, organized into four groups separated by dividers, ordered left → right:
 
+> **Amendment 2026-05-19** — LEFT zone now carries a subtle brand mark: 18px favicon SVG + muted `Axoview` wordmark (body2, `text.secondary`). Non-interactive. Reads as a quiet header, does not compete with canvas diagram name. CENTER remains empty.
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ TOP TOOLBAR                                                                  │

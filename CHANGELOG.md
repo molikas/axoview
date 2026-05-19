@@ -9,11 +9,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+---
+
+## [2026.5.21] — 2026-05-19
+
+### Added
+
+- **Subtle brand mark in the top toolbar's LEFT zone.** 24px favicon SVG + `Axoview` wordmark using the splash style (weight 600, letter-spacing 0.02em, "Axo" in `#1f2937` + "view" in `#2563eb` accent). Non-interactive, does not compete with the canvas diagram name. Amends [ADR 0005](docs/adr/0005-toolbar-and-dock-layout-contract.md) which previously declared LEFT intentionally empty.
+- **New Axoview brand icon set.** `favicon.svg` (vector source-of-truth) + raster sizes 96×96, 180×180 (apple-touch), 192×192, 512×512 (maskable PWA icons) shipped from `packages/axoview-app/public/`. `index.html` prefers SVG with a 96px PNG fallback; `manifest.json` exposes the full set for installable PWA contexts.
+
 ### Changed
 
 - **Project renamed from FossFLOW to Axoview.** Public API symbols renamed: `Isoflow` → `Axoview`, `IsoflowProps` → `AxoviewProps`, `IsoflowRef` → `AxoviewRef`, `useIsoflow` → `useAxoview`. Workspace folders renamed `packages/fossflow-*` → `packages/axoview-*`. npm package name `fossflow` → `axoview`. Upstream lineage attribution (FossFLOW + Isoflow) preserved across README, LICENSE, and the in-app About tab. The `@isoflow/isopacks` icon-pack dependency is intentionally NOT renamed; icons remain attributed to Isoflow.
 - **Backwards-compatible importer for legacy FossFLOW project ZIPs.** New exports write `format: "axoview-project"`; the importer accepts both `axoview-project` and `fossflow-project` manifests. Filenames change from `fossflow-*.zip` to `axoview-*.zip` for new exports.
 - **One-shot localStorage migration shim.** On first boot after upgrade, keys with `fossflow_*` / `fossflow-*` prefixes are copied to the `axoview_*` equivalents (without overwriting existing keys) and the originals deleted. Runs at most once per browser profile, gated by `axoview_migration_v1`. `window.__fossflow__` remains as an alias for `window.__axoview__` with a one-time deprecation warning; will be removed in two releases.
+
+### Removed
+
+- **Legacy FossFLOW raster icons.** `favicon.ico`, `logo192.png`, `logo512.png` deleted from `packages/axoview-app/public/`. Modern browsers fall back cleanly through the SVG → 96px PNG chain; the auto-`/favicon.ico` 404 is already in the e2e console-error ignore list.
 
 ---
 

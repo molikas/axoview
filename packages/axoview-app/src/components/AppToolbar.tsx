@@ -123,8 +123,38 @@ export function AppToolbar() {
         gap: 0
       }}
     >
-      {/* LEFT: intentionally empty per ADR 0005 */}
-      <Box className="toolbar-left" sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }} />
+      {/* LEFT: subtle brand mark (ADR 0005 amendment 2026-05-19 — logo + muted wordmark only) */}
+      <Box
+        className="toolbar-left"
+        aria-label="Axoview"
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.75,
+          flexShrink: 0,
+          userSelect: 'none',
+          pr: 1
+        }}
+      >
+        <Box
+          component="img"
+          src={`${process.env.PUBLIC_URL || ''}/favicon.svg`.replace(/\/+/g, '/')}
+          alt=""
+          sx={{ width: 24, height: 24, display: 'block' }}
+        />
+        <Typography
+          component="span"
+          sx={{
+            fontSize: 16,
+            fontWeight: 600,
+            letterSpacing: '0.02em',
+            color: '#1f2937',
+            lineHeight: 1
+          }}
+        >
+          Axo<Box component="span" sx={{ color: '#2563eb' }}>view</Box>
+        </Typography>
+      </Box>
 
       {/* CENTER: intentionally empty per ADR 0005 */}
       <Box className="toolbar-center" sx={{ flex: 1 }} />
