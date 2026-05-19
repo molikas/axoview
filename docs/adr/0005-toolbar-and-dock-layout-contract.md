@@ -142,7 +142,7 @@ This co-locates all developer/diagnostic gestures under one tab — no need to r
 - `SettingsDialog.tsx` gains two tabs:
   - `About` renders GitHub link + `PACKAGE_VERSION` constant.
   - `Diagnostics` renders three controls: debug overlay toggle (drives `useUiStateStore.actions.setEnableDebugTools`), model dump button, session dump button.
-- The app stops passing `mainMenuOptions` to `<Isoflow>` (or passes `[]`), causing `MainMenu` to short-circuit (`if (mainMenuOptions.length === 0) return null;`). The portal `toolbarPortalTarget` becomes unused; the prop stays in the lib's API for backward compatibility.
+- The app stops passing `mainMenuOptions` to `<Axoview>` (or passes `[]`), causing `MainMenu` to short-circuit (`if (mainMenuOptions.length === 0) return null;`). The portal `toolbarPortalTarget` becomes unused; the prop stays in the lib's API for backward compatibility.
 - The diagram name is *not* added to the toolbar — the canvas already shows it via [`UiOverlay`'s VIEW_TITLE](../../packages/axoview-lib/src/components/UiOverlay/UiOverlay.tsx).
 - View modes group (`𝐀 Format`, `◐ View`) renders no buttons in this phase. The position is reserved; future ADRs (formatting, presentation/annotation) add the buttons.
 - Read-only URL mode rendering is unchanged — its branch in `AppToolbar` already short-circuits all interactive content.

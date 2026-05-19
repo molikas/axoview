@@ -33,7 +33,7 @@ import { useTranslation } from 'src/stores/localeStore';
 import { CommonElements } from './CommonElements';
 import { ImportIconsDialog } from './ImportIconsDialog';
 import { DeleteIconConfirmDialog } from './DeleteIconConfirmDialog';
-import { IconUsageReport } from 'src/types/isoflowProps';
+import { IconUsageReport } from 'src/types/axoviewProps';
 
 // Literal LLM prompt — intentionally NOT i18n'd. This is content the user
 // pastes verbatim into an external AI tool (mqa-results.md #28).

@@ -56,7 +56,7 @@ c:\myTemp\Axoview\
 ├── packages/
 │   ├── axoview-lib/          # Core React library (published as "axoview")
 │   │   └── src/
-│   │       ├── Isoflow.tsx            # Main library export (forwardRef, ~200 lines)
+│   │       ├── Axoview.tsx            # Main library export (forwardRef, ~200 lines)
 │   │       ├── stores/
 │   │       │   ├── modelStore.tsx     # Diagram data + undo/redo (Immer patches)
 │   │       │   ├── sceneStore.tsx     # Computed scene data
@@ -73,7 +73,7 @@ c:\myTemp\Axoview\
 │   │       │   └── ContextMenu/       # Right-click menu
 │   │       ├── types/
 │   │       │   ├── model.ts           # Model, Icon, Connector, Item types
-│   │       │   ├── isoflowProps.ts    # Library component props
+│   │       │   ├── axoviewProps.ts    # Library component props
 │   │       │   └── ui.ts              # UI state types
 │   │       └── config.ts              # Constants (tile size, zoom limits, etc.)
 │   │
@@ -316,7 +316,7 @@ setCanvasMode(mode: 'ISOMETRIC' | '2D'): void
 - [x] Add `canvasMode: 'ISOMETRIC' | '2D'` to `uiStateStore` persisted settings (default: `'ISOMETRIC'`)
 - [x] Create `utils/coordinateTransforms.ts` with both strategies
 - [x] Create `contexts/CanvasModeContext.tsx` — provides active strategy based on `canvasMode`
-- [x] Wrap renderer root in `CanvasModeContext.Provider` (in `Isoflow.tsx` or `Renderer.tsx`)
+- [x] Wrap renderer root in `CanvasModeContext.Provider` (in `Axoview.tsx` or `Renderer.tsx`)
 - [x] Update all `isoToScreen` / `screenToIso` call sites to read from context
 - [x] Update `Grid.tsx` to switch SVG tile background when mode changes
 - [x] Create `assets/grid-tile-2d.svg` (standard square grid tile, matching existing tile dimensions)
@@ -821,11 +821,11 @@ Before coding, read these files:
 - [x] Add `link?: string` (diagramId) to `modelItemSchema` Zod schema in `axoview-lib/src/schemas/modelItems.ts`
 - [x] Update UI types: add `linkedDiagrams` to `UiState` + `UiStateActions` in `types/ui.ts`
 - [x] Add `linkedDiagrams` state + `setLinkedDiagrams` action to `uiStateStore.tsx`
-- [x] Add `linkedDiagrams` prop to `IsoflowProps` (isoflowProps.ts) and wire via useEffect in Isoflow.tsx
+- [x] Add `linkedDiagrams` prop to `AxoviewProps` (axoviewProps.ts) and wire via useEffect in Axoview.tsx
 - [x] Add "Link to diagram" dropdown in `NodeInfoTab.tsx` (edit mode, only shown when linkedDiagrams non-empty)
 - [x] Add locale strings: `diagramLink`, `diagramLinkPlaceholder`, `diagramLinkHint`, `openDiagramLink` to all locales
 - [x] In `Node.tsx`: in `EXPLORABLE_READONLY` mode, nodes with `modelItem.link` are clickable → opens `/display/{link}` in `_blank`; show small primary-colored badge with ExternalLink icon
-- [x] In `App.tsx` EditorShell: load `linkedDiagrams` from `storage.listDiagrams()`, refresh on `fileTreeRefreshToken`, pass as prop to `<Isoflow>`
+- [x] In `App.tsx` EditorShell: load `linkedDiagrams` from `storage.listDiagrams()`, refresh on `fileTreeRefreshToken`, pass as prop to `<Axoview>`
 
 ### Done criteria
 - [x] Node can be linked to another diagram via right sidebar (Details tab dropdown)

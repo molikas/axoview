@@ -1,7 +1,7 @@
 /**
  * REGRESSION — Save tracking: isAfterLoadRef suppresses post-load dirty flag
  *
- * Problem: every call to isoflowRef.current.load() fires onModelUpdated, which
+ * Problem: every call to axoviewRef.current.load() fires onModelUpdated, which
  * was triggering dirty-state mutations (setDirtyDiagramIds / autoSave.scheduleSave).
  * This caused a false-positive unsaved state after every programmatic load.
  *
@@ -43,7 +43,7 @@ describe('Save tracking — isAfterLoadRef pattern', () => {
     expect(src).toMatch(/isAfterLoadRef\s*=\s*useRef\(true\)/);
   });
 
-  it('sets isAfterLoadRef.current = true before every isoflowRef.current.load() call', () => {
+  it('sets isAfterLoadRef.current = true before every axoviewRef.current.load() call', () => {
     const setTrueCount = (
       src.match(/isAfterLoadRef\.current\s*=\s*true/g) || []
     ).length;
@@ -51,7 +51,7 @@ describe('Save tracking — isAfterLoadRef pattern', () => {
     const loadCallCount = src
       .split('\n')
       .filter((line) => !line.trimStart().startsWith('//'))
-      .filter((line) => /isoflowRef\.current[?.].*?load\(/.test(line)).length;
+      .filter((line) => /axoviewRef\.current[?.].*?load\(/.test(line)).length;
     // Every load call must be guarded by a preceding ref assignment
     expect(setTrueCount).toBeGreaterThanOrEqual(loadCallCount);
     expect(setTrueCount).toBeGreaterThan(0);

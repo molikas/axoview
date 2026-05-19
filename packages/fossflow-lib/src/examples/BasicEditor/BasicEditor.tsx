@@ -1,7 +1,7 @@
 import React from 'react';
-import Isoflow from 'src/Isoflow';
+import Axoview from 'src/Axoview';
 import { initialData } from '../initialData';
 
 export const BasicEditor = () => {
-  return <Isoflow initialData={{ ...initialData, fitToView: true }} />;
+  return <Axoview initialData={{ ...initialData, fitToView: true }} />;
 };

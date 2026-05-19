@@ -1,4 +1,4 @@
-import { LocaleProps } from '../types/isoflowProps';
+import { LocaleProps } from '../types/axoviewProps';
 
 const locale: LocaleProps = {
   common: {
@@ -206,7 +206,7 @@ const locale: LocaleProps = {
       lazyLoading: 'Enable Lazy Loading',
       lazyLoadingDesc: 'Load icon packs on demand for faster startup',
       availablePacks: 'Available Icon Packs',
-      coreIsoflow: 'Core Isoflow (Always Loaded)',
+      coreIsoflow: 'Core Axoview (Always Loaded)',
       alwaysEnabled: 'Always enabled',
       awsPack: 'AWS Icons',
       gcpPack: 'Google Cloud Icons',

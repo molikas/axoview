@@ -1,11 +1,11 @@
 # Isopacks
 
-**Isopacks** are add-on modules for Isoflow that contain icons and other assets.  You can easily build your own from scratch or create and load your own.
+**Isopacks** are add-on modules for Axoview that contain icons and other assets.  You can easily build your own from scratch or create and load your own.
 
 ### Cloud & Network Isopacks
 
 These are available as a separately maintained project on [Github](https://github.com/markmanx/isopacks).
-Below is a sample of icons available in the **Isoflow** Isopack:
+Below is a sample of icons available in the **Axoview** Isopack:
 
 <div style={{ display: 'flex', paddingTop: 15 }}>
 <img src="https://isoflow-public.s3.eu-west-2.amazonaws.com/isopacks/isoflow/server.svg" alt="server" width="100"/>
@@ -16,7 +16,7 @@ Below is a sample of icons available in the **Isoflow** Isopack:
 In addition, Isopacks for **AWS**, **Azure**, **GCP**, and **Kubernetes** are included.
 You can choose which Isopacks to import into your app and which to leave out.
 
-### Loading Isopacks into Isoflow
+### Loading Isopacks into Axoview
 
 1. Install the `npm` package:
 
@@ -27,7 +27,7 @@ npm i @isoflow/isopacks
 2. Import your selected Isopacks:
 
 ```jsx showLineNumbers
-import Isoflow from 'isoflow';
+import Axoview from 'axoview';
 import { flattenCollections } from '@isoflow/isopacks/dist/utils';
 import isoflowIsopack from '@isoflow/isopacks/dist/isoflow';
 import awsIsopack from '@isoflow/isopacks/dist/aws';
@@ -45,7 +45,7 @@ const icons = flattenCollections([
 
 const App = () => {
   return (
-    <Isoflow initialData={{
+    <Axoview initialData={{
       title: 'Example scene',
       icons,
       colors: [],
@@ -58,9 +58,9 @@ const App = () => {
 export default App;
 ```
 
-## Usage without Isoflow
+## Usage without Axoview
 
-Isopacks can also be used without Isoflow or React (for example, you can simply drag and drop the images into slides or documents, or import into your vanilla Javascript / Typescript project).
+Isopacks can also be used without Axoview or React (for example, you can simply drag and drop the images into slides or documents, or import into your vanilla Javascript / Typescript project).
 See the [Isopacks Github project](https://github.com/markmanx/isopacks) for more information.
 
 ## Self-hosting vs importing icons

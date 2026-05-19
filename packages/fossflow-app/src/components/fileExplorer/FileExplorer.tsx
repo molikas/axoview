@@ -122,7 +122,7 @@ export function FileExplorer() {
     markProjectExported,
     notifyDiagramRenamedFromTree,
     notifyDiagramDeletedFromTree,
-    isoflowRef
+    axoviewRef
   } = useDiagramLifecycle();
   const treeRef = useRef<TreeApi<FileNode> | undefined>(undefined);
   const treeContainerRef = useRef<HTMLDivElement>(null);
@@ -376,7 +376,7 @@ export function FileExplorer() {
   const handleExportImage = useCallback(
     (node: FileNode) => {
       if (node.type !== 'diagram' || !node.diagramMeta) return;
-      const openDialog = () => isoflowRef.current?.openExportImageDialog();
+      const openDialog = () => axoviewRef.current?.openExportImageDialog();
       if (currentDiagram?.id === node.id) {
         openDialog();
         return;
@@ -385,14 +385,14 @@ export function FileExplorer() {
         try {
           await openDiagramById(node.diagramMeta!.id, node.diagramMeta!.name);
           // Wait one tick so the model store finishes hydrating before the
-          // hidden Isoflow inside the dialog reads from it.
+          // hidden Axoview inside the dialog reads from it.
           requestAnimationFrame(() => openDialog());
         } catch {
           notificationStore.push({ severity: 'error', message: `Failed to open "${node.name}"` });
         }
       });
     },
-    [currentDiagram, openDiagramById, checkUnsavedBeforeNavigate, isoflowRef]
+    [currentDiagram, openDiagramById, checkUnsavedBeforeNavigate, axoviewRef]
   );
 
   // ---------------------------------------------------------------------------

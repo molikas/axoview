@@ -73,7 +73,7 @@ export const IconCollection = ({
             color="text.secondary"
           >
             {/* Capitalize first char only — preserves TLA casing in upstream
-                pack ids like "AWS", "GCP" while rendering "isoflow" → "Isoflow". */}
+                pack ids like "AWS", "GCP" while rendering "isoflow" → "Axoview". */}
             {id ? id.charAt(0).toUpperCase() + id.slice(1) : id}
             {isLargePack && (
               <Typography

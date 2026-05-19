@@ -31,7 +31,7 @@ import { useScene } from 'src/hooks/useScene';
 import { modelSchema } from 'src/schemas/model';
 
 // ---------------------------------------------------------------------------
-// Provider stack — same nesting as Isoflow.tsx
+// Provider stack — same nesting as Axoview.tsx
 // ---------------------------------------------------------------------------
 const Providers = ({ children }: { children: React.ReactNode }) => (
   <ModelProvider>

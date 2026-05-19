@@ -9,7 +9,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import { Box } from '@mui/material';
 import { shallow } from 'zustand/shallow';
 import { theme } from 'src/styles/theme';
-import { IsoflowProps, IsoflowRef } from 'src/types';
+import { AxoviewProps, AxoviewRef } from 'src/types';
 import { setWindowCursor, modelFromModelStore } from 'src/utils';
 import {
   useModelStore,
@@ -64,7 +64,7 @@ const BottomDockSlot = ({ endSlot }: { endSlot?: React.ReactNode }) => (
   <BottomDock endSlot={endSlot} />
 );
 
-const App = forwardRef<IsoflowRef, IsoflowProps>(
+const App = forwardRef<AxoviewRef, AxoviewProps>(
   (
     {
       initialData,
@@ -144,8 +144,8 @@ const App = forwardRef<IsoflowRef, IsoflowProps>(
     const { load } = initialDataManager;
     const { markClean } = useDirtyTracker(initialDataManager.isReady);
 
-    // Wrap the exposed load so every programmatic load resets Isoflow's
-    // internal dirty flag.  Without this, isoflowRef.current.load() triggers
+    // Wrap the exposed load so every programmatic load resets Axoview's
+    // internal dirty flag.  Without this, axoviewRef.current.load() triggers
     // useDirtyTracker's modelStore subscription and marks the diagram dirty
     // even though no user edit occurred, causing the MainMenu "New diagram"
     // guard to fire spuriously.
@@ -284,7 +284,7 @@ const App = forwardRef<IsoflowRef, IsoflowProps>(
   }
 );
 
-export const Isoflow = forwardRef<IsoflowRef, IsoflowProps>((props, ref) => {
+export const Axoview = forwardRef<AxoviewRef, AxoviewProps>((props, ref) => {
   return (
     <ThemeProvider theme={theme}>
       <LocaleProvider locale={props.locale || enUS}>
@@ -302,7 +302,7 @@ export const Isoflow = forwardRef<IsoflowRef, IsoflowProps>((props, ref) => {
   );
 });
 
-const useIsoflow = () => {
+const useAxoview = () => {
   const rendererEl = useUiStateStore((state) => {
     return state.rendererEl;
   });
@@ -322,6 +322,6 @@ const useIsoflow = () => {
   };
 };
 
-export { useIsoflow };
+export { useAxoview };
 export * from 'src/standaloneExports';
-export default Isoflow;
+export default Axoview;

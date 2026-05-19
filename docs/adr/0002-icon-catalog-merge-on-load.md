@@ -87,7 +87,7 @@ The × badge on the Elements panel tile is rendered only when `icon.collection =
 Before deletion, the confirm dialog lists every diagram that references the icon id. The scan is split:
 
 - The library has no notion of "other diagrams." It only knows the active model.
-- The consuming app injects an `iconUsageScan: (iconId) => Promise<IconUsageReport[]>` callback via the `<Isoflow>` prop. The PWA's `services/iconUsage.ts` uses `StorageProvider.listDiagrams()` + `loadDiagram(id)` to count references across the workspace, preferring the in-memory current diagram's items so unsaved edits count.
+- The consuming app injects an `iconUsageScan: (iconId) => Promise<IconUsageReport[]>` callback via the `<Axoview>` prop. The PWA's `services/iconUsage.ts` uses `StorageProvider.listDiagrams()` + `loadDiagram(id)` to count references across the workspace, preferring the in-memory current diagram's items so unsaved edits count.
 - When no callback is injected (tests, stripped embeds), `ElementsPanel` falls back to a current-diagram-only scan.
 
 Failures inside the scan resolve to `[]` (with `console.error`) rather than blocking — the warning copy in the dialog already states the consequence of proceeding, so failing closed would frustrate without protecting.

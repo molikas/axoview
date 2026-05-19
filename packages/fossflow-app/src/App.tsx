@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  Isoflow,
+  Axoview,
   allLocales,
   type MainMenuOptions,
   type IconUsageReport
@@ -67,7 +67,7 @@ function EditorShell() {
   const { i18n } = useTranslation('app');
   const { storage, serverStorageAvailable, isInitialized } = useAppStorage();
   const {
-    isoflowRef,
+    axoviewRef,
     frozenInitialDataRef,
     iconPackManagerProp,
     handleModelUpdated,
@@ -86,11 +86,11 @@ function EditorShell() {
     currentModel
   } = useDiagramLifecycle();
 
-  // Workspace-wide icon usage scan injected into <Isoflow>. The lib's
+  // Workspace-wide icon usage scan injected into <Axoview>. The lib's
   // ElementsPanel calls this from the delete-imported-icon confirm flow.
   // Latest currentDiagram + currentModel are read via refs so the callback
   // identity stays stable across renders (otherwise the store-update effect
-  // in Isoflow would fire on every render).
+  // in Axoview would fire on every render).
   const scanRef = useRef({ storage, currentDiagram, currentModel });
   useEffect(() => {
     scanRef.current = { storage, currentDiagram, currentModel };
@@ -209,8 +209,8 @@ function EditorShell() {
 
       <FileExplorerLayout>
         <div className="axoview-container" style={{ position: 'relative' }}>
-          <Isoflow
-            ref={isoflowRef}
+          <Axoview
+            ref={axoviewRef}
             initialData={frozenInitialDataRef.current}
             onModelUpdated={handleModelUpdated}
             editorMode={isReadonlyUrl ? 'EXPLORABLE_READONLY' : 'EDITABLE'}
@@ -254,7 +254,7 @@ function EditorShell() {
           {!currentDiagram && !isReadonlyUrl && (
             // Confined to the canvas area only — leaves left strip (40px) and
             // bottom dock (40px) visually uncovered, which sidesteps the
-            // stacking-context trap created by Isoflow's translateZ(0).
+            // stacking-context trap created by Axoview's translateZ(0).
             <div
               style={{
                 position: 'absolute',

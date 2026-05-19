@@ -1,5 +1,5 @@
 // Instance-scoped clipboard — replaces the global module singleton.
-// Providing via React context means multiple Isoflow instances on the same
+// Providing via React context means multiple Axoview instances on the same
 // page each have their own clipboard, and testing is order-independent.
 
 import React, { createContext, useContext, useRef, useMemo } from 'react';

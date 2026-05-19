@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { Icon as IconI } from 'src/types';
-import { IconUsageReport } from 'src/types/isoflowProps';
+import { IconUsageReport } from 'src/types/axoviewProps';
 
 interface Props {
   open: boolean;

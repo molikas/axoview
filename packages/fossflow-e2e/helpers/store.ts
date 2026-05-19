@@ -1,11 +1,11 @@
 /**
  * Typed wrappers around window.__axoview__ — the Zustand store instances
- * exposed in development builds by Isoflow.tsx.
+ * exposed in development builds by Axoview.tsx.
  *
  * These helpers are the single point of truth for reading app state in tests.
  * They replace the ~100-line React fiber-tree injection used by the old Selenium suite.
  *
- * Production builds are completely unaffected: the exposure block in Isoflow.tsx
+ * Production builds are completely unaffected: the exposure block in Axoview.tsx
  * is inside `process.env.NODE_ENV !== 'production'` which the bundler tree-shakes.
  */
 import { Page } from '@playwright/test';

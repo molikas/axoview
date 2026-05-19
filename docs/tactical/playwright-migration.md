@@ -323,7 +323,7 @@ getHistoryLength()                  // reads model history.past.length for undo 
 
 ### `helpers/store.ts` — typed store reads via `window.__axoview__`
 
-The stores are exposed in `Isoflow.tsx` under `process.env.NODE_ENV !== 'production'` — completely tree-shaken from production bundles. Tests read live state without any fiber-tree hacks.
+The stores are exposed in `Axoview.tsx` under `process.env.NODE_ENV !== 'production'` — completely tree-shaken from production bundles. Tests read live state without any fiber-tree hacks.
 
 ```typescript
 // helpers/store.ts
@@ -646,7 +646,7 @@ During migration, the existing `e2e-tests.yml` (Selenium) continues to run. A Py
 - [ ] Create `packages/axoview-e2e/helpers/store.ts`
 - [ ] Create `packages/axoview-e2e/helpers/selectors.ts`
 - [ ] Create `packages/axoview-e2e/helpers/mouse.ts`
-- [ ] Add `window.__axoview__` store exposure to `Isoflow.tsx`
+- [ ] Add `window.__axoview__` store exposure to `Axoview.tsx`
 - [ ] Add `data-testid="axoview-canvas"` to `Renderer.tsx` interaction div
 - [ ] Add `data-testid="item-controls-panel"` to `ItemControlsManager.tsx`
 - [ ] Add `data-testid="context-menu"` to `ContextMenu.tsx`

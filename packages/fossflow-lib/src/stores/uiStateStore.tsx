@@ -49,8 +49,8 @@ const initialState = () => {
       connectorInteractionMode: persisted?.connectorInteractionMode ?? 'click',
       expandLabels: persisted?.expandLabels ?? false,
       canvasMode: persisted?.canvasMode ?? 'ISOMETRIC',
-      iconPackManager: null, // Will be set by Isoflow if provided
-      iconUsageScan: null, // Will be set by Isoflow if provided
+      iconPackManager: null, // Will be set by Axoview if provided
+      iconUsageScan: null, // Will be set by Axoview if provided
       linkedDiagrams: [],
       notification: null,
       activeLeftTab: null,

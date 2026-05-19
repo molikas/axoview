@@ -3,7 +3,7 @@
  *
  * Shared between DiagnosticsOverlay (the panel) and DiagnosticsToggleButton
  * (rendered in the BottomDock).  Using a module-level store avoids prop-drilling
- * through Isoflow while keeping state coherent.
+ * through Axoview while keeping state coherent.
  */
 
 // ── env / persistence ─────────────────────────────────────────────────────────

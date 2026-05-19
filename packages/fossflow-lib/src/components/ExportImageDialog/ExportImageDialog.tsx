@@ -34,7 +34,7 @@ import {
 import { ModelStore, Size, Coords } from 'src/types';
 import { useDiagramUtils } from 'src/hooks/useDiagramUtils';
 import { useUiStateStore } from 'src/stores/uiStateStore';
-import { Isoflow } from 'src/Isoflow';
+import { Axoview } from 'src/Axoview';
 import { Loader } from 'src/components/Loader/Loader';
 import { customVars } from 'src/styles/theme';
 import { ColorPicker } from 'src/components/ColorSelector/ColorPicker';
@@ -93,15 +93,15 @@ export const ExportImageDialog = memo(({ onClose, quality = 1.5 }: Props) => {
     return getUnprojectedBounds();
   }, [getUnprojectedBounds]);
 
-  // Track when the hidden Isoflow has finished its first render cycle
-  const isoflowLoadedRef = useRef(false);
-  const [isoflowReadySignal, setIsoflowReadySignal] = useState(0);
+  // Track when the hidden Axoview has finished its first render cycle
+  const axoviewLoadedRef = useRef(false);
+  const [axoviewReadySignal, setIsoflowReadySignal] = useState(0);
 
-  // Called by the hidden Isoflow's onModelUpdated — fires after its model store
+  // Called by the hidden Axoview's onModelUpdated — fires after its model store
   // is first populated, meaning React has the data and will paint next rAF
-  const handleHiddenIsoflowReady = useCallback(() => {
-    if (!isoflowLoadedRef.current) {
-      isoflowLoadedRef.current = true;
+  const handleHiddenAxoviewReady = useCallback(() => {
+    if (!axoviewLoadedRef.current) {
+      axoviewLoadedRef.current = true;
       setIsoflowReadySignal((s) => s + 1);
     }
   }, []);
@@ -450,9 +450,9 @@ export const ExportImageDialog = memo(({ onClose, quality = 1.5 }: Props) => {
     setIsInCropMode(false);
   };
 
-  // Initial export: fire once when the hidden Isoflow signals it has rendered
+  // Initial export: fire once when the hidden Axoview signals it has rendered
   useEffect(() => {
-    if (isoflowReadySignal === 0) return;
+    if (axoviewReadySignal === 0) return;
     setImageData(undefined);
     setSvgData(undefined);
     setExportError(false);
@@ -463,11 +463,11 @@ export const ExportImageDialog = memo(({ onClose, quality = 1.5 }: Props) => {
       exportImageRef.current();
     });
     return () => cancelAnimationFrame(id);
-  }, [isoflowReadySignal]);
+  }, [axoviewReadySignal]);
 
   // Re-export when options change — only after the initial load has completed
   useEffect(() => {
-    if (!isoflowLoadedRef.current || cropToContent) return;
+    if (!axoviewLoadedRef.current || cropToContent) return;
     setImageData(undefined);
     setSvgData(undefined);
     setExportError(false);
@@ -547,8 +547,8 @@ export const ExportImageDialog = memo(({ onClose, quality = 1.5 }: Props) => {
               }}
             >
               <DOMErrorBoundary>
-                <Isoflow
-                  key="export-dialog-isoflow"
+                <Axoview
+                  key="export-dialog-axoview"
                   editorMode="NON_INTERACTIVE"
                   initialData={{
                     ...model,
@@ -560,7 +560,7 @@ export const ExportImageDialog = memo(({ onClose, quality = 1.5 }: Props) => {
                     backgroundColor,
                     expandLabels
                   }}
-                  onModelUpdated={handleHiddenIsoflowReady}
+                  onModelUpdated={handleHiddenAxoviewReady}
                 />
               </DOMErrorBoundary>
             </Box>

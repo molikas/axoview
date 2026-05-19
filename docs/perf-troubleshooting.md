@@ -39,7 +39,7 @@ What to read off the JSON:
 - **Long-task accumulation rate** — `(lt_last - lt_first) / duration_seconds`. > 5/sec sustained means the main thread is stalled.
 - **GC events** — listed in the `events` array. Multiple Major GCs during a drag = allocation pressure.
 
-If `ni / nc / ntb` are all 0, the `__axoview__` bridge isn't exposed — that's the `Isoflow.tsx` `enableDebugTools` gate. In dev (`NODE_ENV !== 'production'`) it should auto-expose; if not, check whether Isoflow was reached by the consumer.
+If `ni / nc / ntb` are all 0, the `__axoview__` bridge isn't exposed — that's the `Axoview.tsx` `enableDebugTools` gate. In dev (`NODE_ENV !== 'production'`) it should auto-expose; if not, check whether Axoview was reached by the consumer.
 
 ### Step 2 — render-count probe (1 minute)
 

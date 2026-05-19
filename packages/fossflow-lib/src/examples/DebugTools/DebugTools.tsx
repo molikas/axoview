@@ -1,10 +1,10 @@
 import React from 'react';
-import Isoflow from 'src/Isoflow';
+import Axoview from 'src/Axoview';
 import { initialData } from '../initialData';
 
 export const DebugTools = () => {
   return (
-    <Isoflow
+    <Axoview
       initialData={{ ...initialData, fitToView: true }}
       enableDebugTools
       height="100%"

@@ -8,7 +8,7 @@ import { useCallback } from 'react';
 export function useThumbnail() {
   const generateThumbnail = useCallback(async (): Promise<string | null> => {
     try {
-      // Find the main SVG/canvas element rendered by Isoflow
+      // Find the main SVG/canvas element rendered by Axoview
       const canvas = document.querySelector('.isoflow-renderer') as HTMLElement | null;
       if (!canvas) return null;
 

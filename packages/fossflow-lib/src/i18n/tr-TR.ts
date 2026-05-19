@@ -1,4 +1,4 @@
-import { LocaleProps } from '../types/isoflowProps';
+import { LocaleProps } from '../types/axoviewProps';
 
 const locale: LocaleProps = {
   common: {
@@ -207,7 +207,7 @@ const locale: LocaleProps = {
       lazyLoadingDesc:
         'Daha hızlı başlangıç için simge paketlerini isteğe bağlı yükle',
       availablePacks: 'Mevcut Simge Paketleri',
-      coreIsoflow: 'Çekirdek Isoflow (Her Zaman Yüklenir)',
+      coreIsoflow: 'Çekirdek Axoview (Her Zaman Yüklenir)',
       alwaysEnabled: 'Her zaman etkin',
       awsPack: 'AWS Simgeleri',
       gcpPack: 'Google Cloud Simgeleri',

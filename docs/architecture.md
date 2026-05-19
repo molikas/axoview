@@ -117,7 +117,7 @@ Both model and scene have **independent** history stacks (past/present/future, m
 | **Project zip — Import** | `importProject(parsed, { destination, newFolderName? })` | Three destinations: `root` (preserve relative tree shape) / `newFolder` (wrap in named folder) / `replaceAll` (typed-confirm gated, deletes everything first). Always rewrites IDs and updates cross-diagram link refs via a `Map<oldId, newId>`. |
 | **Lean icon save** | `packages/axoview-lib/src/utils/leanSave.ts` → `stripDefaultIcons(model)` | Drops icons that are pure duplicates of `bundledFixtures.byId`. Preserves custom icons and overridden defaults verbatim. Wired into `LocalStorageProvider.sessionSaveDiagram`, server `PUT /api/diagrams/:id` callers, `exportAsJSON`, `exportAsCompactJSON`. See [ADR 0003](../docs/adr/0003-session-storage-lean-icon-save.md). |
 | **Load-time icon merge** | `packages/axoview-lib/src/hooks/useInitialDataManager.ts` | Merges `bundledFixtures` into `modelData.icons` before writing to the store (union by id; overrides win). The merge runs on every load so it can't bit-rot. See [ADR 0002](../docs/adr/0002-icon-catalog-merge-on-load.md). |
-| **Delete imported icon + workspace usage scan** | `packages/axoview-lib/src/components/ItemControls/IconSelectionControls/Icon.tsx` (hover-× badge, gated by `icon.collection === 'imported'`); `packages/axoview-lib/src/components/LeftDock/DeleteIconConfirmDialog.tsx` (confirm + per-diagram usage list); `packages/axoview-lib/src/components/LeftDock/ElementsPanel.tsx` (handler); `packages/axoview-app/src/services/iconUsage.ts` (workspace scan implementation) | Hover an imported tile → red × top-right (0.5 → 1 opacity). Confirm dialog calls the injected `iconUsageScan` callback (new `<Isoflow>` prop, stored on `uiStateStore.iconUsageScan`) to list every workspace diagram referencing the icon, then `modelActions.set({ icons })` removes it from the active model — pushing a history entry so `Ctrl+Z` restores. **Fallback path:** when no callback is wired (tests, embeds) the dialog scans current-diagram items only. **Stale-render protection:** items with unresolved icon ids fall through to the new `TOMBSTONE_ICON` (config.ts) via `useIcon` — single render path for "deleted" + "paste-from-unknown-source". Re-importing under the same id resurrects items automatically (no special "rehydrate" logic — the merge in ADR-0002 does it). See [ADR 0002 Lifecycle](../docs/adr/0002-icon-catalog-merge-on-load.md). Per-diagram scope of imports themselves is a separate gap — see [§7k](#7k-imported-icons-are-scoped-per-diagram-not-per-project). |
+| **Delete imported icon + workspace usage scan** | `packages/axoview-lib/src/components/ItemControls/IconSelectionControls/Icon.tsx` (hover-× badge, gated by `icon.collection === 'imported'`); `packages/axoview-lib/src/components/LeftDock/DeleteIconConfirmDialog.tsx` (confirm + per-diagram usage list); `packages/axoview-lib/src/components/LeftDock/ElementsPanel.tsx` (handler); `packages/axoview-app/src/services/iconUsage.ts` (workspace scan implementation) | Hover an imported tile → red × top-right (0.5 → 1 opacity). Confirm dialog calls the injected `iconUsageScan` callback (new `<Axoview>` prop, stored on `uiStateStore.iconUsageScan`) to list every workspace diagram referencing the icon, then `modelActions.set({ icons })` removes it from the active model — pushing a history entry so `Ctrl+Z` restores. **Fallback path:** when no callback is wired (tests, embeds) the dialog scans current-diagram items only. **Stale-render protection:** items with unresolved icon ids fall through to the new `TOMBSTONE_ICON` (config.ts) via `useIcon` — single render path for "deleted" + "paste-from-unknown-source". Re-importing under the same id resurrects items automatically (no special "rehydrate" logic — the merge in ADR-0002 does it). See [ADR 0002 Lifecycle](../docs/adr/0002-icon-catalog-merge-on-load.md). Per-diagram scope of imports themselves is a separate gap — see [§7k](#7k-imported-icons-are-scoped-per-diagram-not-per-project). |
 | **Session storage gauge** | `packages/axoview-app/src/components/fileExplorer/SessionStorageGauge.tsx` | Chip leads with `%` (`<1% · 3.6 KB`); click opens a per-diagram size table (sorted by size desc, with quick-delete). Color thresholds at 60% / 90%. Listens to a custom `Event('axoview-session-changed')` dispatched by `LocalStorageProvider` after each session mutation (sessionStorage has no native cross-mutation event in the same tab). |
 | **Session-mode banner** | `packages/axoview-app/src/components/SessionModeBanner.tsx` | Shown when storage resolves to session AND ≥1 diagram exists. Dismissable per session only. |
 | **`sessionWorkUnexported` flag** | `DiagramLifecycleProvider` | Independent of `hasUnsavedChanges`. Drives the `beforeunload` prompt in session mode. Clears only on successful project-zip export. The 11 existing `hasUnsavedChanges` consumers behave unchanged. |
@@ -165,7 +165,7 @@ Both model and scene have **independent** history stacks (past/present/future, m
 
 ### Icon Packs
 
-`IsoflowProps.iconPackManager` (type `IconPackManagerProps`) is passed from outside. Stored in `uiState.iconPackManager`. `IconSelectionControls` and `IconGrid` consume it. Lazy loading welcome notification shown when present.
+`AxoviewProps.iconPackManager` (type `IconPackManagerProps`) is passed from outside. Stored in `uiState.iconPackManager`. `IconSelectionControls` and `IconGrid` consume it. Lazy loading welcome notification shown when present.
 
 **App-side icon pack manager** (`axoview-app/src/services/iconPackManager.ts` → `useIconPackManager` hook):
 
@@ -175,11 +175,11 @@ Both model and scene have **independent** history stacks (past/present/future, m
 | Enabled packs | `axoview-enabled-icon-packs` | `['aws','gcp','azure','kubernetes']` |
 
 **Initialization strategy (2026-04-11, revised):**
-- **Canvas always renders immediately** — `frozenInitialDataRef` is set on the very first render with whatever icons are in memory (core isoflow icons, always available). `<Isoflow>` is mounted unconditionally — no loading screen, no gate.
+- **Canvas always renders immediately** — `frozenInitialDataRef` is set on the very first render with whatever icons are in memory (core isoflow icons, always available). `<Axoview>` is mounted unconditionally — no loading screen, no gate.
 - **Lazy mode** (`lazyLoadingEnabled=true`, default): `isInitialized` is set immediately. No packs are fetched at startup. Unloaded packs appear as one-click load buttons in the Elements panel "More icons" section (see below). When the user clicks a pack button, `togglePack(name, true)` is called → `loadPack(name)` fires → the button shows an inline MUI `CircularProgress` spinner (disabled) until the dynamic `import()` resolves → button disappears and icons appear in the grid above.
 - **Non-lazy mode**: `loadAllPacks()` is awaited before `isInitialized=true`. All packs are in memory before the hook returns; the canvas renders with all icons available.
 - **On diagram load**: `loadPacksForDiagram(items)` fires before applying the model. It inspects each item's `icon.collection` and loads any referenced pack not yet in memory — silent, automatic, no user action needed.
-- **When a pack finishes loading**: `setLoadedIcons(prev => [...prev, ...flattenedIcons])` triggers the `iconPackManager.loadedIcons` effect in `EditorPage`, which calls `isoflowRef.current.load({...currentModel, icons: merged})` with `isAfterLoadRef.current = true` to suppress the unsaved-changes flag.
+- **When a pack finishes loading**: `setLoadedIcons(prev => [...prev, ...flattenedIcons])` triggers the `iconPackManager.loadedIcons` effect in `EditorPage`, which calls `axoviewRef.current.load({...currentModel, icons: merged})` with `isAfterLoadRef.current = true` to suppress the unsaved-changes flag.
 
 **LeftDock bottom offset (2026-04-11):** `LeftDock` now has `bottom: 40` (was `bottom: 0`) so it stops above the `BottomDock` (height 40 px, `position: absolute, bottom: 0`). This ensures the Import Icons button at the bottom of `ElementsPanel` is always fully visible and not clipped by the zoom/help bar.
 
@@ -194,7 +194,7 @@ This prevents the old diagram name bleeding into the toolbar after "New Diagram"
 
 **Compact format loading (2026-04-11):**
 
-`handleDiagramManagerLoad(id, rawData, listingName)` detects `rawData._?.f === 'compact'` and calls `transformFromCompactFormat(rawData)` (exported from `axoview-lib`) before passing the model to Isoflow. The listing name (from the storage metadata) is used as the diagram name — always correct regardless of what field exists in the raw payload. `transformFromCompactFormat` is now exported from `axoview-lib/src/index.ts`.
+`handleDiagramManagerLoad(id, rawData, listingName)` detects `rawData._?.f === 'compact'` and calls `transformFromCompactFormat(rawData)` (exported from `axoview-lib`) before passing the model to Axoview. The listing name (from the storage metadata) is used as the diagram name — always correct regardless of what field exists in the raw payload. `transformFromCompactFormat` is now exported from `axoview-lib/src/index.ts`.
 
 ### Canvas Modes (2026-04-27)
 
@@ -252,7 +252,7 @@ VS Code-style left panel. Lives in `axoview-app`, not in the library.
 
 A node can store a reference to another diagram in this workspace.
 
-- `linkedDiagrams` is wired through `IsoflowProps` → `uiStateStore`.
+- `linkedDiagrams` is wired through `AxoviewProps` → `uiStateStore`.
 - In `EXPLORABLE_READONLY`, clicking a node with a diagram link opens the target in a new tab (`interaction/modes/Pan.ts`).
 - A blue badge on the node icon signals the link. The badge has its own click handler so it doesn't suffer the underlying tile-mismatch issue.
 - Tooltip text resolves to *"Opens "X" in a new tab"* using the linked diagram's name; falls back to a generic string if the name isn't yet hydrated.
@@ -278,7 +278,7 @@ Starting mode determined by `getStartingMode()` in `utils`.
 
 **Pattern**: `createStore` inside a `useRef` inside `UiStateProvider`. The store instance is created once per provider tree mount, never recreated. `useUiStateStore(selector)` reads from `useContext(UiStateContext)`. `useUiStateStoreApi()` returns the raw store for imperative `getState()`/`setState()` access without subscribing.
 
-**Why context-based (not global singleton):** Multiple independent Isoflow instances on the same page get separate state trees. Global singletons would bleed state between instances. Also enables SSR safety and easy testing (mount with fresh providers).
+**Why context-based (not global singleton):** Multiple independent Axoview instances on the same page get separate state trees. Global singletons would bleed state between instances. Also enables SSR safety and easy testing (mount with fresh providers).
 
 **UiState fields:**
 
@@ -541,7 +541,7 @@ Located in `src/schemas/`. Uses **Zod** for validation.
 
 ### 2f. Clipboard Module
 
-**Storage mechanism (2026-04-07)**: Instance-scoped React context via `ClipboardProvider` (in `clipboard/ClipboardContext.tsx`). A `useRef<ClipboardPayload | null>` is wrapped in a stable `useMemo` value with three methods: `get()`, `set()`, and `has()`. The provider is mounted inside `<Isoflow>`, so each mounted editor instance has its own clipboard — no cross-tab bleed, no test-order interference.
+**Storage mechanism (2026-04-07)**: Instance-scoped React context via `ClipboardProvider` (in `clipboard/ClipboardContext.tsx`). A `useRef<ClipboardPayload | null>` is wrapped in a stable `useMemo` value with three methods: `get()`, `set()`, and `has()`. The provider is mounted inside `<Axoview>`, so each mounted editor instance has its own clipboard — no cross-tab bleed, no test-order interference.
 
 **Before (deprecated)**: Module-level singleton `let _clipboard: ClipboardPayload | null` in `clipboard/clipboard.ts`. Caused test-ordering bugs — one test's `set()` leaked into another's `get()`. The singleton is kept in the module file for backwards compatibility but is no longer used by `useCopyPaste`.
 
@@ -620,7 +620,7 @@ Rectangle center = { x: round((r.from.x + r.to.x) / 2), y: round((r.from.y + r.t
 
 ### 2h. Component Tree
 
-**Provider tree (from `Isoflow.tsx`):**
+**Provider tree (from `Axoview.tsx`):**
 ```
 ThemeProvider
   LocaleProvider
@@ -804,7 +804,7 @@ Touch events are synthesized: `touchstart` → mousedown (button:0), `touchmove`
 
 **Settings persistence flow (2026-04-07):**
 1. `UiStateProvider` calls `loadPersistedSettings()` at init — persisted values hydrate `hotkeyProfile`, `panSettings`, `zoomSettings`, `labelSettings`, `connectorInteractionMode`, `expandLabels` via `?? fallback` to defaults.
-2. `Isoflow.tsx` selects the 6 persistable fields with `shallow` equality and calls `savePersistedSettings()` in a `useEffect` whenever they change.
+2. `Axoview.tsx` selects the 6 persistable fields with `shallow` equality and calls `savePersistedSettings()` in a `useEffect` whenever they change.
 3. On next load, step 1 reads back the saved values — preferences survive page reload.
 
 **Utils split (2026-04-07):** `utils/renderer.ts` (was 866 lines) is now three focused files:
@@ -885,7 +885,7 @@ For pastes with ≥ 500 connectors, `useCopyPaste` passes an `onPathProgress(don
 
 ### 2k. Internationalisation (i18n) Layer
 
-**Two separate i18n systems** — one per package — connected via the `locale` prop on `<Isoflow>`.
+**Two separate i18n systems** — one per package — connected via the `locale` prop on `<Axoview>`.
 
 #### axoview-app (react-i18next)
 
@@ -911,11 +911,11 @@ For pastes with ≥ 500 connectors, `useCopyPaste` passes an `onPathProgress(don
 | Item | Detail |
 |---|---|
 | Store | `packages/axoview-lib/src/stores/localeStore.tsx` — Zustand with React context |
-| Type | `LocaleProps` in `packages/axoview-lib/src/types/isoflowProps.ts` |
+| Type | `LocaleProps` in `packages/axoview-lib/src/types/axoviewProps.ts` |
 | TS locale files | `packages/axoview-lib/src/i18n/*.ts` (13 languages: en-US + 12 others) |
 | Exported | `allLocales` from `packages/axoview-lib/src/i18n/index.ts` |
 | Usage | `const { t } = useTranslation('namespaceName')` in any lib component |
-| Prop | `<Isoflow locale={currentLocale}>` — App.tsx derives `currentLocale` from `allLocales[i18n.language]` with `en-US` fallback |
+| Prop | `<Axoview locale={currentLocale}>` — App.tsx derives `currentLocale` from `allLocales[i18n.language]` with `en-US` fallback |
 
 **Lib namespaces** (all defined in `LocaleProps`, all 13 locale files must contain each):
 `common`, `mainMenu`, `helpDialog`, `connectorHintTooltip`, `lassoHintTooltip`, `importHintTooltip`, `connectorRerouteTooltip`, `connectorEmptySpaceTooltip`, `settings`, `lazyLoadingWelcome`, `viewTabs`, `nodePanel`, `nodeInfoTab`, `nodeStyleTab`, `connectorControls`, `textBoxControls`, `rectangleControls`, `labelColorPicker`, `deleteButton`, `nodeActionBar`, `quickAddNodePopover`, `zoomControls`, `labelSettings`, `iconSelectionControls`, `searchbox`, `exportImageDialog`, `toolMenu`, `quickIconSelector`
@@ -943,7 +943,7 @@ App
       AuthProvider*       (only if REACT_APP_GOOGLE_CLIENT_ID is set; otherwise transparent)
         FileExplorerLayout
           AppToolbar      (reads useAppStorage / useDiagramLifecycle — no props)
-          <Isoflow>       (library)
+          <Axoview>       (library)
           NotificationStack
 ```
 
@@ -1196,7 +1196,7 @@ The legacy phantom `Icon1` / `Icon2` URL stubs in `packages/axoview-lib/src/fixt
 
 | Suite | Tests | Status | What it covers |
 |---|---|---|---|
-| `__perf_refactor_regression__/exportImageDialog.initialLoad.test.ts` | 8 | new | Pins the ready-signal mechanism: `isoflowLoadedRef` guard, `isoflowReadySignal` state, `onModelUpdated` wiring, `exportImageRef` stable-ref pattern, unconditional Isoflow mount |
+| `__perf_refactor_regression__/exportImageDialog.initialLoad.test.ts` | 8 | new | Pins the ready-signal mechanism: `axoviewLoadedRef` guard, `axoviewReadySignal` state, `onModelUpdated` wiring, `exportImageRef` stable-ref pattern, unconditional Axoview mount |
 | `__perf_refactor_regression__/i18n.localeCompleteness.test.ts` | 1 + N | new | Iterates all 13 locale TS files; asserts every top-level namespace in `en-US.ts` is present in each file. Catches missing sections (e.g. `toolMenu`, `quickIconSelector`) at CI time |
 | `__perf_refactor_regression__/toolMenu.i18n.test.ts` | 11 | new | No hardcoded English tool-name strings; all 10 tools (`select`, `lassoSelect`, `freehandLasso`, `pan`, `addItem`, `rectangle`, `connector`, `text`, `undo`, `redo`) use `t()` from `toolMenu` namespace |
 | `__perf_refactor_regression__/quickIconSelector.i18n.test.ts` | 12 | new | All 6 hardcoded strings replaced; `.replace()` interpolation used for `{count}` and `{term}` since lib `t()` has no object interpolation |
@@ -1223,7 +1223,7 @@ The legacy phantom `Icon1` / `Icon2` URL stubs in `packages/axoview-lib/src/fixt
 
 | Area | Change | File(s) |
 |---|---|---|
-| Canvas startup | `frozenInitialDataRef` set unconditionally on first render; `<Isoflow>` mounted without any loading gate — canvas shows immediately | `axoview-app/src/App.tsx` |
+| Canvas startup | `frozenInitialDataRef` set unconditionally on first render; `<Axoview>` mounted without any loading gate — canvas shows immediately | `axoview-app/src/App.tsx` |
 | "More icons" in Elements panel | Unloaded packs listed as one-click load buttons with inline `CircularProgress` spinner; disappear when loaded | `axoview-lib/src/components/LeftDock/ElementsPanel.tsx` |
 | LeftDock bottom offset | `bottom: 40` stops panel above BottomDock; Import Icons button no longer clipped | `axoview-lib/src/components/LeftDock/LeftDock.tsx` |
 | Diagram name sync | `handleModelUpdated` detects title drift from library's New/Open actions; resets `diagramName`, `currentDiagram`, `lastSaved` | `axoview-app/src/App.tsx` |
@@ -1375,7 +1375,7 @@ When a user clicks on a Node, the DOM event target is the Node's HTML element (a
 
 ### 7. Zustand Context Pattern — Testing Implications
 
-Axoview ships as a library with multiple independent instances possible. The context pattern (`createStore` inside `useRef` inside Provider) gives each mounted `<Isoflow>` tree its own private store instance.
+Axoview ships as a library with multiple independent instances possible. The context pattern (`createStore` inside `useRef` inside Provider) gives each mounted `<Axoview>` tree its own private store instance.
 
 **Testing implications:**
 - Tests cannot simply `import { useUiStateStore }` and use it — the hook throws if there is no Provider.
@@ -1447,19 +1447,19 @@ Opening the main menu automatically closes any open item controls panel. May be 
 
 ---
 
-### 5. Stacking-context trap: `transform: translateZ(0)` on `Isoflow`'s outer Box (2026-05-09)
+### 5. Stacking-context trap: `transform: translateZ(0)` on `Axoview`'s outer Box (2026-05-09)
 
-**What happens:** Children of [`Isoflow.tsx`](../packages/axoview-lib/src/Isoflow.tsx)'s outer `<Box>` (`LeftDock` strip, `BottomDock`, etc.) cannot raise themselves above `Isoflow`'s app-level siblings via z-index alone. A `LeftDock` strip with `zIndex: 20` still rendered behind an `EmptyStateScreen` overlay at `zIndex: 5` — the chrome was completely hidden on first load.
+**What happens:** Children of [`Axoview.tsx`](../packages/axoview-lib/src/Axoview.tsx)'s outer `<Box>` (`LeftDock` strip, `BottomDock`, etc.) cannot raise themselves above `Axoview`'s app-level siblings via z-index alone. A `LeftDock` strip with `zIndex: 20` still rendered behind an `EmptyStateScreen` overlay at `zIndex: 5` — the chrome was completely hidden on first load.
 
-**Root cause:** `Isoflow`'s outer Box uses `transform: translateZ(0)` (a GPU compositing hint). Per the CSS spec, any non-`none` `transform` creates a new **stacking context**. All inner z-indexes (LeftDock 20, BottomDock 20) are scoped to that context. Externally, `Isoflow` itself ranks at `auto`. An app-level sibling with explicit `zIndex: 5` therefore wins over `Isoflow` regardless of how high the strip's internal z-index is.
+**Root cause:** `Axoview`'s outer Box uses `transform: translateZ(0)` (a GPU compositing hint). Per the CSS spec, any non-`none` `transform` creates a new **stacking context**. All inner z-indexes (LeftDock 20, BottomDock 20) are scoped to that context. Externally, `Axoview` itself ranks at `auto`. An app-level sibling with explicit `zIndex: 5` therefore wins over `Axoview` regardless of how high the strip's internal z-index is.
 
 **How fixed:** Geometric exclusion, not z-index. The `EmptyStateScreen` overlay was repositioned from `inset: 0` to `top: 0, left: 40, right: 0, bottom: 40` so it occupies only canvas pixels — the left strip (40 px wide) and BottomDock (40 px tall) are visually uncovered. Z-index becomes irrelevant for the chrome-visibility question.
 
-**Why z-index alone could not work:** Bumping `Isoflow`'s outer Box to `zIndex: > 5` would have raised the entire canvas above `EmptyStateScreen`, defeating the overlay. The only z-index-based fix would have been removing the `translateZ(0)` (giving up its compositing benefit) or threading every chrome element through to a separate sibling outside `Isoflow` — a much larger refactor.
+**Why z-index alone could not work:** Bumping `Axoview`'s outer Box to `zIndex: > 5` would have raised the entire canvas above `EmptyStateScreen`, defeating the overlay. The only z-index-based fix would have been removing the `translateZ(0)` (giving up its compositing benefit) or threading every chrome element through to a separate sibling outside `Axoview` — a much larger refactor.
 
-**Why non-obvious:** `transform: translateZ(0)` reads as a performance hint, not a layering directive. Developers add it for GPU-layer promotion and assume z-index continues to behave globally. The stacking-context side-effect is documented but easy to forget. A second hidden trap: `.axoview-container > div { height: 100% }` in `App.css` was overriding inline `bottom: 40` on the new overlay siblings (CSS `height` wins over implicit height-from-top+bottom). The CSS rule was redundant — Isoflow's inner `<Box>` sets `height: '100%'` itself — and was removed.
+**Why non-obvious:** `transform: translateZ(0)` reads as a performance hint, not a layering directive. Developers add it for GPU-layer promotion and assume z-index continues to behave globally. The stacking-context side-effect is documented but easy to forget. A second hidden trap: `.axoview-container > div { height: 100% }` in `App.css` was overriding inline `bottom: 40` on the new overlay siblings (CSS `height` wins over implicit height-from-top+bottom). The CSS rule was redundant — Axoview's inner `<Box>` sets `height: '100%'` itself — and was removed.
 
-**Heuristic for future overlays:** If you find yourself fighting z-index across the `Isoflow` boundary, reach for geometric exclusion (position the overlay so it doesn't cover the chrome pixels in the first place). Trust the CSS box-model over stacking arithmetic.
+**Heuristic for future overlays:** If you find yourself fighting z-index across the `Axoview` boundary, reach for geometric exclusion (position the overlay so it doesn't cover the chrome pixels in the first place). Trust the CSS box-model over stacking arithmetic.
 
 ---
 
@@ -1698,9 +1698,9 @@ Source: `scheduler.development.js` — this is React's cooperative scheduler run
 [useInitialDataManager] load complete, isReady=true
 ```
 
-**Root cause:** React 18 StrictMode intentionally mounts components twice (mount → unmount → remount). `Isoflow.tsx` had a `useEffect` with `load` in its dependency array; `load` was recreated on every Zustand store update, causing the effect to re-trigger on every store change.
+**Root cause:** React 18 StrictMode intentionally mounts components twice (mount → unmount → remount). `Axoview.tsx` had a `useEffect` with `load` in its dependency array; `load` was recreated on every Zustand store update, causing the effect to re-trigger on every store change.
 
-**Fix applied:** `loadRef` pattern in `Isoflow.tsx` — `load` is stored in a ref, and the effect dependency is the stable ref rather than the function. The effect now fires only once per genuine `mergedInitialData` prop change (different object reference), not on store updates or StrictMode remount.
+**Fix applied:** `loadRef` pattern in `Axoview.tsx` — `load` is stored in a ref, and the effect dependency is the stable ref rather than the function. The effect now fires only once per genuine `mergedInitialData` prop change (different object reference), not on store updates or StrictMode remount.
 
 Also fixed: `useInitialDataManager.ts` hardcoded `uiStateActions.setZoom(1)` — changed to `uiStateActions.setZoom(INITIAL_UI_STATE.zoom)` so the configured default zoom (currently 0.9) is respected on diagram load.
 
@@ -1728,12 +1728,12 @@ Source: The `useStore(store, selector, equalityFn)` call in all three stores.
 
 **Symptom:** On first open, the export preview shows only the background colour — no diagram nodes or connectors. Toggling "Show Grid" or "Expand Descriptions" triggers a re-export that works correctly.
 
-**Root cause:** `exportImage()` was called after a fixed 100 ms `setTimeout` + double `requestAnimationFrame` on mount. This timing was insufficient — Isoflow's React tree had not yet populated its model store, so `html2canvas` captured an empty canvas (just the blue background).
+**Root cause:** `exportImage()` was called after a fixed 100 ms `setTimeout` + double `requestAnimationFrame` on mount. This timing was insufficient — Axoview's React tree had not yet populated its model store, so `html2canvas` captured an empty canvas (just the blue background).
 
 **Fix applied:**
-1. The hidden Isoflow receives `onModelUpdated={handleHiddenIsoflowReady}` — a callback that fires exactly once (guarded by `isoflowLoadedRef`) when Isoflow's model store is first populated. This guarantees at least one full render cycle has completed.
-2. A dedicated `isoflowReadySignal` state drives a separate initial-load effect that fires a single `requestAnimationFrame` then calls `exportImage()`.
-3. The options-change effect (`showGrid`, `backgroundColor`, etc.) is guarded by `isoflowLoadedRef.current` so it cannot fire before the initial load.
+1. The hidden Axoview receives `onModelUpdated={handleHiddenAxoviewReady}` — a callback that fires exactly once (guarded by `axoviewLoadedRef`) when Axoview's model store is first populated. This guarantees at least one full render cycle has completed.
+2. A dedicated `axoviewReadySignal` state drives a separate initial-load effect that fires a single `requestAnimationFrame` then calls `exportImage()`.
+3. The options-change effect (`showGrid`, `backgroundColor`, etc.) is guarded by `axoviewLoadedRef.current` so it cannot fire before the initial load.
 4. Both effects call `exportImage` via `exportImageRef` (a stable ref kept current via a sync effect) to avoid re-firing when `exportImage` itself changes due to option updates.
 
 **Regression test:** `__perf_refactor_regression__/exportImageDialog.initialLoad.test.ts` — 8 structural assertions.
@@ -1823,7 +1823,7 @@ Three independent issues in 2D mode were addressed in `1927764` and `a6a627b`:
 2. **`TransformAnchor` rotated to iso diamond** — unconditionally applied the iso CSS matrix. Fixed by skipping the projection in 2D so anchors render as upright rounded squares.
 3. **Rectangle resize handles landed on edge midpoints** — `TransformControls` used cardinal-axis `TileOrigin` offsets (`BOTTOM` / `RIGHT` / `TOP` / `LEFT`) per corner tile to place anchors. That maps to the outer points of an iso diamond, but in 2D the tiles are squares and the visible outer corners are diagonals. Fixed by offsetting each corner tile's center by `(±halfTile, ±halfTile)` in 2D; iso mode keeps the original behaviour.
 
-True 3D-iso art (Isoflow's built-in 37-icon pack, `isIsometric: true`) is unaffected — it still renders via `IsometricIcon` and continues to look the same in both modes.
+True 3D-iso art (Axoview's built-in 37-icon pack, `isIsometric: true`) is unaffected — it still renders via `IsometricIcon` and continues to look the same in both modes.
 
 ---
 
@@ -1889,7 +1889,7 @@ A lightweight, always-available performance monitoring overlay for collecting qu
 - Always rendered in `App.tsx`; visible as a collapsible pill button in the bottom-right corner regardless of dev/prod mode.
 - All mutable state lives in `useRef` objects — no state updates during collection, which avoids the overlay itself adding to the render churn it is measuring.
 - A single `setInterval` (1 second) calls `setLatest(Date.now())` once per second to trigger a React re-render for display. The actual data arrays are mutated in `requestAnimationFrame` callbacks.
-- `window.__axoview__` (exposed by `Isoflow.tsx`) provides access to the three Zustand store instances (ui, model, scene) without importing from the lib package directly.
+- `window.__axoview__` (exposed by `Axoview.tsx`) provides access to the three Zustand store instances (ui, model, scene) without importing from the lib package directly.
 
 ### Data collection
 
@@ -1944,7 +1944,7 @@ Events are embedded as a compact string list in the sample row for the AI downlo
 
 All measurements taken on a real diagram: **85 nodes, 54 connectors, 10 text boxes**. DiagnosticsOverlay was used to collect before/after data.
 
-### Fix 1 — `onModelUpdated` double-fire (`Isoflow.tsx`)
+### Fix 1 — `onModelUpdated` double-fire (`Axoview.tsx`)
 
 **Root cause:** `useModelStore((state) => modelFromModelStore(state))` was called without an equality function. `modelFromModelStore` always returns a new object (new reference), so the selector's default `Object.is` check always reports a change. `saveToHistory` is called before every user action and writes to `history.past` — this alone was enough to trigger a new model reference on every store update, causing `onModelUpdated` (and anything downstream of it in the host `App`) to fire twice per user action.
 
@@ -1963,10 +1963,10 @@ const model = useModelStore(
 
 ### Fix 2 — `iconPackManager` prop churn (`App.tsx`)
 
-**Root cause:** The `iconPackManager` prop passed to `<Isoflow>` was an inline object literal:
+**Root cause:** The `iconPackManager` prop passed to `<Axoview>` was an inline object literal:
 
 ```tsx
-<Isoflow
+<Axoview
   iconPackManager={{
     lazyLoadingEnabled: iconPackManager.lazyLoadingEnabled,
     onToggleLazyLoading: iconPackManager.toggleLazyLoading,
@@ -1975,7 +1975,7 @@ const model = useModelStore(
 />
 ```
 
-React recreates inline object literals on every render, so the prop reference always changed. `Isoflow.tsx` has a `useEffect` that calls `uiStateActions.setIconPackManager(iconPackManager)` when the prop changes. Every `App` render → new prop reference → `setIconPackManager` → Zustand store write → re-render → repeat.
+React recreates inline object literals on every render, so the prop reference always changed. `Axoview.tsx` has a `useEffect` that calls `uiStateActions.setIconPackManager(iconPackManager)` when the prop changes. Every `App` render → new prop reference → `setIconPackManager` → Zustand store write → re-render → repeat.
 
 **Fix:** Wrapped the object in `useMemo` and the callback in `useCallback`:
 

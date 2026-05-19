@@ -1,4 +1,4 @@
-import { Colors, Icons, InitialData } from 'src/Isoflow';
+import { Colors, Icons, InitialData } from 'src/Axoview';
 import { flattenCollections } from '@isoflow/isopacks/dist/utils';
 import isoflowIsopack from '@isoflow/isopacks/dist/isoflow';
 import awsIsopack from '@isoflow/isopacks/dist/aws';

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, ReactNode } from 'react';
-import { LocaleProps } from '../types/isoflowProps';
+import { LocaleProps } from '../types/axoviewProps';
 import enUS from '../i18n/en-US';
 
 const LocaleContext = createContext<LocaleProps>(enUS);

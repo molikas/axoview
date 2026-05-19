@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { InitialData, IconCollectionState } from 'src/types';
-import type { LoadOptions } from 'src/types/isoflowProps';
+import type { LoadOptions } from 'src/types/axoviewProps';
 import {
   INITIAL_DATA,
   INITIAL_SCENE_STATE,

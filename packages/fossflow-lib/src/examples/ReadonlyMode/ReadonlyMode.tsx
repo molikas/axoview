@@ -1,10 +1,10 @@
 import React from 'react';
-import Isoflow from 'src/Isoflow';
+import Axoview from 'src/Axoview';
 import { initialData } from '../initialData';
 
 export const ReadonlyMode = () => {
   return (
-    <Isoflow
+    <Axoview
       initialData={{ ...initialData, fitToView: true }}
       editorMode="EXPLORABLE_READONLY"
     />

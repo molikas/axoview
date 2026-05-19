@@ -7,7 +7,7 @@ import {
   ZoomSettings,
   LabelSettings
 } from './settings';
-import { IconPackManagerProps, IconUsageScan } from './isoflowProps';
+import { IconPackManagerProps, IconUsageScan } from './axoviewProps';
 
 interface AddItemControls {
   type: 'ADD_ITEM';

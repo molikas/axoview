@@ -350,7 +350,7 @@ Reference: [docs/perf-troubleshooting.md → Startup cold-start gap (2026-05-19)
 
 ### 7.1 All UI strings go through locales
 
-14 locale files in `packages/axoview-lib/src/i18n/`. Type definition in `packages/axoview-lib/src/types/isoflowProps.ts`. When adding strings:
+14 locale files in `packages/axoview-lib/src/i18n/`. Type definition in `packages/axoview-lib/src/types/axoviewProps.ts`. When adding strings:
 
 1. Add the key to the type definition
 2. Add an English translation in `en-US.ts`
@@ -397,7 +397,7 @@ Left-side panels appear and disappear instantly. No `transform`/`transition` sli
 
 When opening a panel would land the user on nothing useful, disable the trigger rather than letting the panel open empty.
 
-Example: when no diagram is loaded, Elements and Layers icons are disabled with a tooltip *"Open or create a diagram first"*. File Explorer stays enabled — it's the way to *exit* the empty state. (See `disableLeftDockWorkingTabs` prop on `<Isoflow>`.)
+Example: when no diagram is loaded, Elements and Layers icons are disabled with a tooltip *"Open or create a diagram first"*. File Explorer stays enabled — it's the way to *exit* the empty state. (See `disableLeftDockWorkingTabs` prop on `<Axoview>`.)
 
 Don't introduce dead-end clicks: the user's first interaction with an empty app should land somewhere productive.
 
@@ -417,9 +417,9 @@ The empty-state overlay must not cover the chrome (left strip, bottom dock). It 
 </div>
 ```
 
-**Why this is geometric, not z-index:** `Isoflow`'s outer Box uses `transform: translateZ(0)` which creates a stacking context — any z-index on inner chrome (the strip, the BottomDock) is trapped inside it and cannot beat an app-level overlay's z-index. Geometric exclusion sidesteps the problem entirely. See [docs/architecture.md §5.5](architecture.md#5-lessons-learned).
+**Why this is geometric, not z-index:** `Axoview`'s outer Box uses `transform: translateZ(0)` which creates a stacking context — any z-index on inner chrome (the strip, the BottomDock) is trapped inside it and cannot beat an app-level overlay's z-index. Geometric exclusion sidesteps the problem entirely. See [docs/architecture.md §5.5](architecture.md#5-lessons-learned).
 
-Apply the same rule to any future full-canvas overlay (modal-backdrop variants, tutorial spotlight, etc.): if the chrome must remain visible, position the overlay to leave the chrome's pixels uncovered. Don't reach for z-index across the `Isoflow` boundary.
+Apply the same rule to any future full-canvas overlay (modal-backdrop variants, tutorial spotlight, etc.): if the chrome must remain visible, position the overlay to leave the chrome's pixels uncovered. Don't reach for z-index across the `Axoview` boundary.
 
 ### 8.5 Status cluster — chip carries the mode signal, not the wrapper
 

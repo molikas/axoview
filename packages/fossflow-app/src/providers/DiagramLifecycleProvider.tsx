@@ -11,7 +11,7 @@ import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { flattenCollections } from '@isoflow/isopacks/dist/utils';
 import isoflowIsopack from '@isoflow/isopacks/dist/isoflow';
-import type { IsoflowRef } from 'axoview';
+import type { AxoviewRef } from 'axoview';
 import { DiagramData } from '../diagramUtils';
 import { useIconPackManager } from '../services/iconPackManager';
 import { useAppStorage } from './AppStorageContext';
@@ -85,7 +85,7 @@ interface DiagramLifecycleContextValue {
   showExportDialog: boolean;
   setShowExportDialog: (v: boolean) => void;
   // Refs
-  isoflowRef: React.RefObject<IsoflowRef | null>;
+  axoviewRef: React.RefObject<AxoviewRef | null>;
   isAfterLoadRef: React.MutableRefObject<boolean>;
   frozenInitialDataRef: React.MutableRefObject<DiagramData | null>;
   // Portal state
@@ -157,7 +157,7 @@ export function DiagramLifecycleProvider({
     isPublicShareUrl ||
     (window.location.pathname.startsWith('/display/') && !!readonlyDiagramId);
 
-  const isoflowRef = useRef<IsoflowRef>(null);
+  const axoviewRef = useRef<AxoviewRef>(null);
 
   // ---------------------------------------------------------------------------
   // Diagram list state
@@ -351,7 +351,7 @@ export function DiagramLifecycleProvider({
   useEffect(() => { storageRef.current = storage; }, [storage]);
 
   // ---------------------------------------------------------------------------
-  // Frozen initial data for Isoflow
+  // Frozen initial data for Axoview
   // ---------------------------------------------------------------------------
   const frozenInitialDataRef = useRef<DiagramData | null>(null);
   if (frozenInitialDataRef.current === null) {
@@ -400,10 +400,10 @@ export function DiagramLifecycleProvider({
         setCurrentModel(dataWithIcons);
         setLastSaved(new Date(sharedDiagram.updatedAt));
         isAfterLoadRef.current = true;
-        if (!isoflowRef.current) {
+        if (!axoviewRef.current) {
           frozenInitialDataRef.current = dataWithIcons;
         }
-        isoflowRef.current?.load(dataWithIcons as any);
+        axoviewRef.current?.load(dataWithIcons as any);
       } catch (_error) {
         notificationStore.push({
           severity: 'error',
@@ -444,7 +444,7 @@ export function DiagramLifecycleProvider({
         setCurrentModel(dataWithIcons as DiagramData);
         setLastSaved(new Date(readonlyDiagram.updatedAt));
         isAfterLoadRef.current = true;
-        isoflowRef.current?.load(dataWithIcons as any);
+        axoviewRef.current?.load(dataWithIcons as any);
       } catch (_error) {
         notificationStore.push({
           severity: 'error',
@@ -465,13 +465,13 @@ export function DiagramLifecycleProvider({
       iconPackEffectMountedRef.current = true;
       return;
     }
-    if (!isoflowRef.current || !currentModelRef.current) return;
+    if (!axoviewRef.current || !currentModelRef.current) return;
     const importedIcons = (currentModelRef.current.icons || []).filter(
       (icon: any) => icon.collection === 'imported'
     );
     const mergedIcons = [...iconPackManager.loadedIcons, ...importedIcons];
     isAfterLoadRef.current = true;
-    isoflowRef.current.load(
+    axoviewRef.current.load(
       { ...currentModelRef.current, icons: mergedIcons } as any,
       { preserveViewport: true }
     );
@@ -691,7 +691,7 @@ export function DiagramLifecycleProvider({
       setShowLoadDialog(false);
       setLastSaved(new Date(diagram.updatedAt));
       isAfterLoadRef.current = true;
-      isoflowRef.current?.load(dataWithIcons as any);
+      axoviewRef.current?.load(dataWithIcons as any);
       try {
         localStorage.setItem('axoview-last-opened', diagram.id);
         localStorage.setItem('axoview-last-opened-data', JSON.stringify(diagram.data));
@@ -807,12 +807,12 @@ export function DiagramLifecycleProvider({
       setLastSaved(new Date(newDiagram.updatedAt));
       autoSave.resetStatus();
       isAfterLoadRef.current = true;
-      if (!isoflowRef.current) {
-        // Isoflow not mounted yet (EmptyStateScreen showing) — seed initialData so it
+      if (!axoviewRef.current) {
+        // Axoview not mounted yet (EmptyStateScreen showing) — seed initialData so it
         // mounts with the correct diagram instead of the stale frozen data.
         frozenInitialDataRef.current = mergedData;
       }
-      isoflowRef.current?.load(mergedData as any);
+      axoviewRef.current?.load(mergedData as any);
       if (!hasDefaultIcons && storageRef.current) {
         storageRef.current.saveDiagram(id, mergedData as any).catch(() => {});
       }
@@ -874,7 +874,7 @@ export function DiagramLifecycleProvider({
   );
 
   // ---------------------------------------------------------------------------
-  // New Diagram (Axoview-owned — replaces Isoflow's ACTION.NEW)
+  // New Diagram (Axoview-owned — replaces Axoview's ACTION.NEW)
   // ---------------------------------------------------------------------------
   const handleNewDiagram = useCallback(async () => {
     await autoSave.saveNow();
@@ -897,7 +897,7 @@ export function DiagramLifecycleProvider({
       fitToScreen: true
     };
     isAfterLoadRef.current = true;
-    isoflowRef.current?.load(blankData as any);
+    axoviewRef.current?.load(blankData as any);
   }, [autoSave.saveNow, autoSave.resetStatus, iconPackManager.loadedIcons]);
 
   // ---------------------------------------------------------------------------
@@ -951,7 +951,7 @@ export function DiagramLifecycleProvider({
       fitToScreen: true
     };
     isAfterLoadRef.current = true;
-    isoflowRef.current?.load(blankData as any);
+    axoviewRef.current?.load(blankData as any);
   }, [autoSave.resetStatus, iconPackManager.loadedIcons]);
 
   // Sync in-memory state (diagramName, currentDiagram, model store title) when
@@ -963,11 +963,11 @@ export function DiagramLifecycleProvider({
     if (!trimmed) return;
     setDiagramName(trimmed);
     setCurrentDiagram((prev) => (prev ? { ...prev, name: trimmed } : prev));
-    if (isoflowRef.current && currentModelRef.current) {
+    if (axoviewRef.current && currentModelRef.current) {
       const updatedModel = { ...currentModelRef.current, title: trimmed };
       setCurrentModel(updatedModel);
       isAfterLoadRef.current = true;
-      isoflowRef.current.load(updatedModel as any, { preserveViewport: true });
+      axoviewRef.current.load(updatedModel as any, { preserveViewport: true });
     }
   }, []);
 
@@ -1066,7 +1066,7 @@ export function DiagramLifecycleProvider({
   }, [buildSaveData]);
 
   const handleExportImage = useCallback(() => {
-    isoflowRef.current?.openExportImageDialog();
+    axoviewRef.current?.openExportImageDialog();
   }, []);
 
   // "Export project" — full bundled-zip export. State lives here so the toolbar
@@ -1276,7 +1276,7 @@ export function DiagramLifecycleProvider({
     saveStatus: autoSave.saveStatus,
     showExportDialog,
     setShowExportDialog,
-    isoflowRef,
+    axoviewRef,
     isAfterLoadRef,
     frozenInitialDataRef,
     toolbarPortalTarget,

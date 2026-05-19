@@ -46,7 +46,7 @@ The pointing-finger cursor on hover (added 2026-05-15) does cover all four cases
 **Diagnostic harness** kept from earlier in the session: `useRenderProbe('Component', id)` hook + `window.__axoviewRenderProbe.start() / stop() / dump()` console API, gated behind `?perfprobe=1` URL flag. Zero cost in normal use; invaluable for the next round of perf work.
 
 **Companion fix (also shipped this session):** the diag exporter's `ni`/`nc`/`ntb` counts used to read 0 because `window.__axoview__` was gated behind `enableDebugTools` (defaults to `false` in the app) AND `ni` was reading the icon catalog rather than placed nodes. Both fixed:
-- [Isoflow.tsx](packages/axoview-lib/src/Isoflow.tsx) now exposes `__axoview__` whenever `process.env.NODE_ENV !== 'production'` OR `enableDebugTools` is set. The `NODE_ENV` literal tree-shakes the block from prod builds.
+- [Axoview.tsx](packages/axoview-lib/src/Axoview.tsx) now exposes `__axoview__` whenever `process.env.NODE_ENV !== 'production'` OR `enableDebugTools` is set. The `NODE_ENV` literal tree-shakes the block from prod builds.
 - [DiagnosticsOverlay.tsx `getSceneCounts`](packages/axoview-app/src/components/DiagnosticsOverlay.tsx) now reads the active view's `items.length` and `connectors.length` (resolved via `ui.view`) instead of the model item catalog.
 
 ## MQA diag exporter: element counts always read 0
@@ -98,7 +98,7 @@ The icon catalog conflates two concerns (see [ADR-0002](docs/adr/0002-icon-catal
 |---|---|
 | `StorageProvider` ([`types.ts`](packages/axoview-app/src/services/storage/types.ts)) | New `getProjectIcons()` / `saveProjectIcons()` API. `LocalStorageProvider` gets a new key; `GoogleDriveProvider` stays stubbed. |
 | Migration | One-shot scan across every existing diagram to hoist `collection === 'imported'` icons into the project store. Idempotent + versioned flag. |
-| Lib injection ([`Isoflow.tsx`](packages/axoview-lib/src/Isoflow.tsx), [`uiStateStore.tsx`](packages/axoview-lib/src/stores/uiStateStore.tsx)) | New `projectIcons` + `onProjectIconsChange` props mirroring the `iconPackManager` pattern. |
+| Lib injection ([`Axoview.tsx`](packages/axoview-lib/src/Axoview.tsx), [`uiStateStore.tsx`](packages/axoview-lib/src/stores/uiStateStore.tsx)) | New `projectIcons` + `onProjectIconsChange` props mirroring the `iconPackManager` pattern. |
 | [`ElementsPanel.tsx`](packages/axoview-lib/src/components/LeftDock/ElementsPanel.tsx) | Import + delete reroute from `modelActions.set` to the new callback. |
 | [`DiagramLifecycleProvider.tsx`](packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx) | ~9 call sites currently filter `data.icons` for `collection === 'imported'` and concat into the diagram's model. All become `[...packIcons, ...projectIcons]` instead. |
 | Lean-save ([`leanSave.ts`](packages/axoview-lib/src/utils/leanSave.ts)) | Strip imported icons from per-diagram saves, but **not** from single-diagram JSON exports (which must stay self-contained for the recipient). Needs an explicit `stripProjectIcons` param so each call site is unambiguous. |
