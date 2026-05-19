@@ -64,6 +64,26 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('LocalStorageProvider', () => {
+  // ---- isAvailable ----------------------------------------------------------
+
+  test('isAvailable() aborts a hanging /api/storage/status probe within ~1s and stays offline', async () => {
+    // Mimic a downed backend that never responds — only the AbortSignal kills it.
+    (global as any).fetch = (_url: string, init: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () =>
+          reject(new DOMException('aborted', 'AbortError'))
+        );
+      });
+    const provider = new LocalStorageProvider(BASE);
+    const t0 = Date.now();
+    await provider.isAvailable();
+    const elapsed = Date.now() - t0;
+    // 800ms timeout + jitter — must NOT take the old 5000ms.
+    expect(elapsed).toBeLessThan(1500);
+    expect(elapsed).toBeGreaterThanOrEqual(700);
+    expect(provider.usingServer).toBe(false);
+  }, 3000);
+
   // ---- listDiagrams ---------------------------------------------------------
 
   test('listDiagrams() returns parsed list from server', async () => {

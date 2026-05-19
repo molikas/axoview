@@ -179,32 +179,6 @@ export const UiOverlay = ({
             <MainMenu />
           </Box>
         )}
-        {/* MainMenu portal — left zone */}
-        {portalTarget &&
-          availableTools.includes('MAIN_MENU') &&
-          createPortal(<MainMenu />, portalTarget)}
-
-        {/* Sidebar toggle portal — Properties panel toggle only (Layers is in the LeftDock strip) */}
-        {(sidebarTogglePortalTarget ?? portalTarget) &&
-          createPortal(
-            <Tooltip title="Toggle Properties panel" placement="bottom">
-              <IconButton
-                size="small"
-                onClick={() =>
-                  uiStateActions.setRightSidebarOpen(!rightSidebarOpen)
-                }
-                sx={{
-                  borderRadius: 1,
-                  color: 'inherit',
-                  bgcolor: rightSidebarOpen ? 'action.selected' : 'transparent'
-                }}
-              >
-                <ViewSidebarOutlined sx={{ fontSize: 18 }} />
-              </IconButton>
-            </Tooltip>,
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            (sidebarTogglePortalTarget ?? portalTarget)!
-          )}
 
         {availableTools.includes('VIEW_TITLE') && (
           <Box
@@ -278,6 +252,35 @@ export const UiOverlay = ({
           </UiElement>
         )}
       </Box>
+
+      {/* Portals — hoisted out of the positioning <Box> above because MUI's
+          PropTypes.node check on Box's children rejects ReactPortal (its
+          $$typeof is react.portal, not react.element). Portals render into
+          their target node regardless of where they sit in the JSX tree. */}
+      {portalTarget &&
+        availableTools.includes('MAIN_MENU') &&
+        createPortal(<MainMenu />, portalTarget)}
+
+      {(sidebarTogglePortalTarget ?? portalTarget) &&
+        createPortal(
+          <Tooltip title="Toggle Properties panel" placement="bottom">
+            <IconButton
+              size="small"
+              onClick={() =>
+                uiStateActions.setRightSidebarOpen(!rightSidebarOpen)
+              }
+              sx={{
+                borderRadius: 1,
+                color: 'inherit',
+                bgcolor: rightSidebarOpen ? 'action.selected' : 'transparent'
+              }}
+            >
+              <ViewSidebarOutlined sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>,
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          (sidebarTogglePortalTarget ?? portalTarget)!
+        )}
 
       <PlaceIconLayer />
 

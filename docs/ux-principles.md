@@ -330,6 +330,20 @@ if (!validationResult.success) {
 
 Reference: [`useInitialDataManager.ts`](../packages/fossflow-lib/src/hooks/useInitialDataManager.ts) surfaces zod issues this way.
 
+### 6.4 Cover the cold-start gap with a branded splash
+
+The browser paints first at ~500 ms; the JS bundle parses + the editor mounts somewhere between 1 s (docker, prod) and 4 s (dev / session mode). Don't let the user stare at a white page during that gap.
+
+`public/index.html` carries an inline `<div id="ff-splash">` rendered before the React tree exists — wordmark + a CSS-only spinner on a white background. `App.tsx` adds `.ff-splash-hidden` after `isInitialized` and two RAFs (the editor's first paint has flushed), then removes the node from the DOM 250 ms later (CSS fade).
+
+**Why inline, not a React component:** the splash must paint without waiting for the JS bundle to parse. A `<Splash />` component shows up at T+2 s — that's the same problem with extra steps.
+
+**Why no fake progress bar:** we don't have a real progress signal. A spinner says "working" honestly; a percent indicator we made up would lie.
+
+**Don't add a splash to:** modal opens, tab switches, sub-views, or any in-app navigation. Those are sub-second and a spinner becomes flicker. Splashes are for *first paint after page reload* only.
+
+Reference: [docs/perf-troubleshooting.md → Startup cold-start gap (2026-05-19)](perf-troubleshooting.md#case-study--startup-cold-start-gap-2026-05-19) for the diagnostic walk-through and measured impact.
+
 ---
 
 ## 7. Localization

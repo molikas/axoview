@@ -23,8 +23,12 @@ export async function fetchRuntimeConfig(): Promise<RuntimeConfig> {
   if (inflight) return inflight;
   inflight = (async () => {
     try {
+      // 800ms is generous for any healthy backend (docker prod ≈45ms) and
+      // caps the worst case when the backend is absent — Chrome/Windows can
+      // otherwise spend ~2s on a dual-stack connect probe before reporting
+      // ECONNREFUSED to JS.
       const response = await fetch(`${apiBaseUrl()}/api/config`, {
-        signal: AbortSignal.timeout(5000)
+        signal: AbortSignal.timeout(800)
       });
       if (!response.ok) throw new Error(String(response.status));
       const data = (await response.json()) as Partial<RuntimeConfig>;

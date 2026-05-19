@@ -186,6 +186,49 @@ Use sparingly — `flushSync` defeats React's batching and *will* hurt perf if c
 
 ---
 
+## Case study — Startup cold-start gap (2026-05-19)
+
+A different shape of perf problem from the MQA #7 drag cliff — useful as a contrasting walkthrough because the fix here was *not* in code we wrote.
+
+### Reported symptom
+
+Session-mode page load showed a white screen for ~5–7 seconds after `html:head-script`. Docker mode felt fine.
+
+### Diagnostic order
+
+1. **Instrument the timeline first, don't theorise.** Added a small `window.__ffPerf.mark(name)` helper in `public/index.html` (inline `<script>` at the top of `<head>` — runs before the bundle parses) and a `PerformanceObserver` for paint events. Sprinkled marks at `bundle:evaluated`, `react:render-called`, `editor-shell:mount`, `editor:storage-initialized`, `editor:first-screen-rendered`, `editor:first-paint-after-mount`. Auto-dumped `console.table` summary after first paint.
+
+2. **Compared session vs docker.** The instrumentation immediately revealed that session-mode storage init took ~2700 ms vs ~93 ms in docker — same code, same machine, same JS bundle. So the problem was external to the app.
+
+3. **Split the probe.** Storage init contains two `fetch` calls — `/api/config` (`useRuntimeConfig`) and `/api/storage/status` (`LocalStorageProvider.isAvailable`). Added per-probe marks. The first probe consumed 2346 ms; the second only 254 ms — same dead host, **wildly asymmetric**.
+
+4. **Root cause identified by the asymmetry.** Chrome on Windows runs a dual-stack (IPv6→IPv4) connect probe on the *first* request to a host. Once it knows the host is dead, subsequent requests fail fast. The 5000 ms `AbortSignal.timeout` never tripped — the OS gave up at ~2.3 s on its own. The full cost was lower-level than anything our code controlled.
+
+### Fix shape
+
+- **Probe timeouts dropped 5000 ms → 800 ms** in [`useRuntimeConfig.ts`](../packages/fossflow-app/src/hooks/useRuntimeConfig.ts) and [`LocalStorageProvider.ts`](../packages/fossflow-app/src/services/storage/providers/LocalStorageProvider.ts). 800 ms gives ~17× headroom over a healthy backend (~45 ms in docker) and caps the OS-level probe.
+- **Probes parallelised** with `Promise.all` in `AppStorageContext.tsx` — they're independent, so worst-case storage init = max(p1, p2) not p1+p2.
+- **Inline splash screen** in `public/index.html` (visible from first paint, no React required) covers the remaining bundle-parse + probe gap with a branded surface.
+
+### Measured impact
+
+| Metric (session mode, no backend) | Before | After |
+|---|---|---|
+| First paint (something on screen) | ~7100 ms (canvas) | ~540 ms (splash) |
+| Storage init total | ~2700 ms | ~800 ms |
+| Editor canvas mounted | ~7100 ms | ~4000 ms |
+
+Docker mode (~1400 ms FCP) was already in the borderline range; the splash now covers that gap too.
+
+### Lessons
+
+- **An app-level timeout that's larger than the OS-level connect retry is a placebo.** The signal never fires in the steady state — the OS short-circuits the request itself. If you're relying on `AbortSignal.timeout` for fail-fast UX, calibrate against the *OS-level* worst case, not your own ideal of "generous."
+- **Asymmetric latency to the same dead host is the tell.** When two identical-shape requests to the same downed endpoint take wildly different time, it's almost always Chrome's connect-cache: first request pays the probe, subsequent requests fail fast. Don't theorise about your code path — that asymmetry **names** the bottleneck before you read any source.
+- **Instrument before changing code.** Five minutes of marker plumbing in `public/index.html` told us which probe was slow, which OS-level cliff was eating the time, and let us prove the fix worked. Without that, the same fix would have been a guess.
+- **Splash ≠ progress bar.** A static branded surface that's visible at first paint solves "the white screen problem" without a real progress signal. Don't fake progress you don't have — show a brand mark and a spinner, hide on first useful paint.
+
+---
+
 ## Case study — MQA #7 (2026-05-16)
 
 The full multi-element drag FPS cliff investigation. Captured here as a reference walkthrough for the diagnostic pyramid above.

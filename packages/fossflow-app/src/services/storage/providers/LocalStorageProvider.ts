@@ -130,8 +130,9 @@ export class LocalStorageProvider implements StorageProvider {
     }
 
     try {
+      // 800ms matches the budget in fetchRuntimeConfig — see comment there.
       const response = await fetch(`${this.baseUrl}/api/storage/status`, {
-        signal: timeoutSignal(5000)
+        signal: timeoutSignal(800)
       });
       const data = await response.json();
       this.serverAvailable = !!data.enabled;

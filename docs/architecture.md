@@ -1,6 +1,6 @@
 # FossFLOW Community Edition — Architecture Reference
 
-**Last updated:** 2026-05-18 (rev 17)
+**Last updated:** 2026-05-19 (rev 18)
 **Codebase root:** `packages/fossflow-lib/src` (library) · `packages/fossflow-app/src` (application shell) · `packages/fossflow-backend/src` (Express + fs adapter) · `packages/fossflow-worker/src` (Hono + Cloudflare Pages Functions)
 **Purpose:** Living architecture reference — feature inventory, store/reducer/mode architecture, multi-target deployment contract, test audit, gap analysis, lessons learned, and key APIs. Update this document whenever significant architectural changes are made.
 
@@ -961,6 +961,10 @@ App
 2. Register the `LocalStorageProvider` (server-backed if `/api/storage/status` is reachable; falls back to `sessionStorage`).
 3. Set it active. Drive is registered as a `NotImplementedError` stub and only becomes a candidate when Phase 3B lands. (**Update 2026-04-29:** S3 support was dropped — `S3Provider` and `@aws-sdk/*` / `minio` deps are gone. Phase 3C is no longer planned.)
 4. Set `isInitialized = true` — the session-only warning banner is gated on this so it doesn't flash before storage is known.
+
+**Update 2026-05-19 — Startup probe contract.** `fetchRuntimeConfig()` and `manager.initialize()` are run in parallel via `Promise.all` (they're independent — one hits `/api/config`, the other hits `/api/storage/status`). Each probe is hard-capped at **800 ms** via `AbortSignal.timeout(800)` in [`useRuntimeConfig.ts`](../packages/fossflow-app/src/hooks/useRuntimeConfig.ts) and [`LocalStorageProvider.isAvailable()`](../packages/fossflow-app/src/services/storage/providers/LocalStorageProvider.ts). Rationale: a healthy backend answers in <50 ms; an absent backend can otherwise let Chrome/Windows spend ~2.3 s on a dual-stack connect probe before reporting `ERR_CONNECTION_REFUSED` to JS. Worst-case storage init is therefore ≈ 800 ms (single probe times out) rather than the prior ≈ 2.7 s (Chrome retry × 2, sequential). Pinned by `providers/__tests__/AppStorageContext.test.tsx` (parallelism) + `hooks/__tests__/useRuntimeConfig.test.ts` (timeout) + the extended `LocalStorageProvider.test.ts`.
+
+A startup splash screen is rendered inline in `public/index.html` (visible at first paint, ~500 ms) and removed by `App.tsx` after `isInitialized` flips and the editor's first paint flushes (two RAFs). This covers the bundle-parse + probe gap with a branded surface instead of a white screen.
 
 ---
 

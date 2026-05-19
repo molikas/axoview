@@ -1,7 +1,7 @@
 # Regression Test Suite Reference
 
 **Last updated:** 2026-05-19
-**Total:** ~1061 tests · 98 suites · all passing
+**Total:** ~1085 tests · 103 suites · all passing
 **Run:** `npm test --workspace=packages/fossflow-lib` (lib) · `npm test --workspace=packages/fossflow-app` (app, project-zip + LocalStorageProvider)
 
 E2E tests are not currently run in CI — Selenium framework under `e2e-tests/` is being retired in favour of Playwright. Migration tracked at [docs/tactical/playwright-migration.md](tactical/playwright-migration.md).
@@ -26,6 +26,16 @@ E2E tests are not currently run in CI — Selenium framework under `e2e-tests/` 
 (The 525 / 60 figure counts lib suites only — the **~745 / 76** total at the top includes app-side suites: `services/project/__tests__/projectZip.test.ts`, `services/storage/__tests__/LocalStorageProvider.test.ts`, and the lean-save / requiredPacks regressions.)
 
 ---
+
+## Branch additions (2026-05-19) — Startup perf + splash screen
+
+| Suite | Coverage |
+|---|---|
+| [`packages/fossflow-app/src/hooks/__tests__/useRuntimeConfig.test.ts`](../packages/fossflow-app/src/hooks/__tests__/useRuntimeConfig.test.ts) | 3 tests pinning `fetchRuntimeConfig` behavior: falls back to defaults on fetch rejection; aborts a hanging fetch via `AbortSignal.timeout(800)` within ~1 s (the load-bearing assertion — caps Chrome/Windows dual-stack connect-probe latency); singleton cache returns the same instance and hits fetch only once. |
+| [`packages/fossflow-app/src/providers/__tests__/AppStorageContext.test.tsx`](../packages/fossflow-app/src/providers/__tests__/AppStorageContext.test.tsx) | Render-based regression for the `Promise.all` parallelism contract: with both `/api/config` and `/api/storage/status` mocked to delay 200 ms, fetches must be initiated within 50 ms of each other and `isInitialized` flips to `true` within ~1.8 × the per-probe delay (≈360 ms, not the sequential ≈400 ms). Catches a regression to `await … await …`. |
+| [`packages/fossflow-app/src/services/storage/__tests__/LocalStorageProvider.test.ts`](../packages/fossflow-app/src/services/storage/__tests__/LocalStorageProvider.test.ts) (extended) | Adds `isAvailable() aborts a hanging /api/storage/status probe within ~1 s and stays offline` — the mirror of the `useRuntimeConfig` timeout pin for the second startup probe. |
+
+> Note: `jest.setup.js` now polyfills `AbortSignal.timeout` because jsdom 20 (bundled with `jest-environment-jsdom@29`) ships an `AbortSignal` missing the static `.timeout()` method. Without the polyfill, the `timeoutSignal()` helper in `LocalStorageProvider.ts` falls back to `undefined` in tests and the abort path can't be observed.
 
 ## Branch additions (2026-05-17) — MQA design shake-out (#19, #20, #8/#9)
 

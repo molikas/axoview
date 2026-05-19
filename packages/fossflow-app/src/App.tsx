@@ -118,6 +118,23 @@ function EditorShell() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const importFileInputRef = useRef<HTMLInputElement>(null);
 
+  const splashFadedRef = useRef(false);
+  useEffect(() => {
+    if (!isInitialized || splashFadedRef.current) return;
+    splashFadedRef.current = true;
+    // Two RAFs ≈ first paint has flushed → fade out the inline splash from
+    // public/index.html, then remove it from the DOM after the CSS transition.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const splash = document.getElementById('ff-splash');
+        if (splash) {
+          splash.classList.add('ff-splash-hidden');
+          setTimeout(() => splash.remove(), 250);
+        }
+      });
+    });
+  }, [isInitialized]);
+
   useEffect(() => {
     if (!storage || !isInitialized) return;
     // Re-fetch whenever the file tree refreshes (diagram created/deleted/renamed)
