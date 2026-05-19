@@ -11,6 +11,10 @@ import {
 // ----------------------------------------------------------------------------
 
 export const PROJECT_FORMAT = 'axoview-project';
+// Pre-rename format string. Accepted on import for backwards compatibility
+// with project ZIPs exported before the FossFLOW → Axoview rename.
+// New exports always write PROJECT_FORMAT.
+export const LEGACY_PROJECT_FORMATS = new Set(['fossflow-project']);
 export const PROJECT_FORMAT_VERSION = '1';
 const SUPPORTED_VERSIONS = new Set([PROJECT_FORMAT_VERSION]);
 const ID_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
@@ -189,7 +193,7 @@ export const parseProject = async (file: File | Blob): Promise<ParsedProject> =>
     throw new ProjectZipError('manifest.json is not valid JSON', 'BAD_MANIFEST');
   }
 
-  if (manifest.format !== PROJECT_FORMAT) {
+  if (manifest.format !== PROJECT_FORMAT && !LEGACY_PROJECT_FORMATS.has(manifest.format)) {
     throw new ProjectZipError(
       `Unrecognized format "${manifest.format}" — expected "${PROJECT_FORMAT}"`,
       'BAD_FORMAT'

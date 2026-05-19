@@ -129,13 +129,45 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
       const shouldExpose =
         enableDebugTools || process.env.NODE_ENV !== 'production';
       if (!shouldExpose) return;
-      (window as any).__axoview__ = {
+      const debugBridge = {
         ui: uiStore,
         model: modelStore,
         scene: sceneStore
       };
+      (window as any).__axoview__ = debugBridge;
+
+      // Backwards-compat alias: `window.__fossflow__` is the pre-rename name.
+      // Keep as a getter that warns once on first access, so any external
+      // tooling (Selenium fragments, browser snippets, README copy-paste)
+      // surviving the rename still works for one release window.
+      let warned = false;
+      try {
+        Object.defineProperty(window, '__fossflow__', {
+          configurable: true,
+          get() {
+            if (!warned) {
+              warned = true;
+              // eslint-disable-next-line no-console
+              console.warn(
+                '[Axoview] window.__fossflow__ is deprecated; use window.__axoview__. ' +
+                  'The alias will be removed in a future release.'
+              );
+            }
+            return debugBridge;
+          }
+        });
+      } catch {
+        // defineProperty can throw if a non-configurable __fossflow__ was set
+        // already (e.g. by a userscript). Best-effort only.
+      }
+
       return () => {
         delete (window as any).__axoview__;
+        try {
+          delete (window as any).__fossflow__;
+        } catch {
+          // ignore
+        }
       };
       // Store instances are stable (created once in Provider via useRef)
       // eslint-disable-next-line react-hooks/exhaustive-deps

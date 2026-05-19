@@ -384,3 +384,87 @@ describe('exportProject — diagram scope', () => {
     expect(parsed.manifest.scope).toBe('diagram');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Backwards compatibility — accept pre-rename "fossflow-project" manifests
+// ---------------------------------------------------------------------------
+
+describe('parseProject — legacy fossflow-project format', () => {
+  const buildLegacyZip = async (manifestExtras: object = {}) => {
+    const zip = new JSZip();
+    zip.file(
+      'manifest.json',
+      JSON.stringify({
+        format: 'fossflow-project',
+        version: PROJECT_FORMAT_VERSION,
+        exportedAt: '2026-04-01T00:00:00.000Z',
+        exportedBy: 'fossflow-app@2026.4.0',
+        scope: 'project',
+        folders: [{ id: 'folder_legacy', name: 'Legacy', parentId: null }],
+        diagrams: [
+          {
+            id: 'diagram_legacy',
+            name: 'Legacy diagram',
+            folderId: 'folder_legacy',
+            lastModified: '2026-04-01T00:00:00.000Z',
+            file: 'diagrams/diagram_legacy.json'
+          }
+        ],
+        ...manifestExtras
+      })
+    );
+    zip.file('diagrams/diagram_legacy.json', JSON.stringify(sampleModel('Legacy diagram')));
+    return await zip.generateAsync({ type: 'blob' });
+  };
+
+  it('accepts a manifest with format="fossflow-project" (legacy)', async () => {
+    const blob = await buildLegacyZip();
+    const parsed = await parseProject(blob);
+    expect(parsed.manifest.format).toBe('fossflow-project');
+    expect(parsed.manifest.folders.length).toBe(1);
+    expect(parsed.manifest.diagrams.length).toBe(1);
+    expect(parsed.diagrams.get('diagram_legacy')).toBeDefined();
+  });
+
+  it('imports a legacy fossflow-project ZIP into a fresh workspace', async () => {
+    const blob = await buildLegacyZip();
+    const parsed = await parseProject(blob);
+    const dst = new FakeStorage();
+    const result = await importProject({ storage: dst }, parsed, {
+      destination: { kind: 'root' }
+    });
+    expect(result.folderCount).toBe(1);
+    expect(result.diagramCount).toBe(1);
+    const folders = await dst.listFolders();
+    expect(folders[0].name).toBe('Legacy');
+  });
+
+  it('still rejects truly unknown formats', async () => {
+    const zip = new JSZip();
+    zip.file(
+      'manifest.json',
+      JSON.stringify({
+        format: 'random-tool-project',
+        version: '1',
+        diagrams: [],
+        folders: []
+      })
+    );
+    const blob = await zip.generateAsync({ type: 'blob' });
+    await expect(parseProject(blob)).rejects.toMatchObject({ code: 'BAD_FORMAT' });
+  });
+});
+
+describe('exportProject — new exports emit "axoview-project" format', () => {
+  it('manifest.format is the new value and filename uses axoview prefix', async () => {
+    const src = new FakeStorage();
+    await seedWorkspace(src);
+    const { blob, filename } = await exportProject(
+      { storage: src, exporterTag: 'test' },
+      { scope: 'project' }
+    );
+    expect(filename).toMatch(/^axoview-project-/);
+    const parsed = await parseProject(blob);
+    expect(parsed.manifest.format).toBe('axoview-project');
+  });
+});
