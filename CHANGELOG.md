@@ -9,6 +9,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Project renamed from FossFLOW to Axoview.** Public API symbols renamed: `Isoflow` → `Axoview`, `IsoflowProps` → `AxoviewProps`, `IsoflowRef` → `AxoviewRef`, `useIsoflow` → `useAxoview`. Workspace folders renamed `packages/fossflow-*` → `packages/axoview-*`. npm package name `fossflow` → `axoview`. Upstream lineage attribution (FossFLOW + Isoflow) preserved across README, LICENSE, and the in-app About tab. The `@isoflow/isopacks` icon-pack dependency is intentionally NOT renamed; icons remain attributed to Isoflow.
+- **Backwards-compatible importer for legacy FossFLOW project ZIPs.** New exports write `format: "axoview-project"`; the importer accepts both `axoview-project` and `fossflow-project` manifests. Filenames change from `fossflow-*.zip` to `axoview-*.zip` for new exports.
+- **One-shot localStorage migration shim.** On first boot after upgrade, keys with `fossflow_*` / `fossflow-*` prefixes are copied to the `axoview_*` equivalents (without overwriting existing keys) and the originals deleted. Runs at most once per browser profile, gated by `axoview_migration_v1`. `window.__fossflow__` remains as an alias for `window.__axoview__` with a one-time deprecation warning; will be removed in two releases.
+
 ---
 
 ## [2026.5.20] — 2026-05-19

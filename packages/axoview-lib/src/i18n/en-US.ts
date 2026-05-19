@@ -224,7 +224,7 @@ const locale: LocaleProps = {
   lazyLoadingWelcome: {
     title: 'Welcome to Axoview Community Edition',
     message:
-      "This is a community-modified fork of Axoview with additional features and improvements. Learn more about what's changed and find the source at https://github.com/molikas/axoview — found a bug or have a feature request? Open an issue on GitHub!",
+      "Axoview is a community-modified fork of FossFLOW (itself forked from Isoflow) with additional features and improvements. Learn more about what's changed and find the source at https://github.com/molikas/axoview — found a bug or have a feature request? Open an issue on GitHub!",
     configPath: 'Click on the Hamburger icon',
     configPath2: 'in the top left to access Configuration.',
     canDisable: 'Happy diagramming!',

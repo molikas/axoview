@@ -126,9 +126,9 @@ function EditorShell() {
     // public/index.html, then remove it from the DOM after the CSS transition.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        const splash = document.getElementById('ff-splash');
+        const splash = document.getElementById('ax-splash');
         if (splash) {
-          splash.classList.add('ff-splash-hidden');
+          splash.classList.add('ax-splash-hidden');
           setTimeout(() => splash.remove(), 250);
         }
       });

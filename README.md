@@ -1,8 +1,10 @@
-An "experimental" community fork of [FossFLOW](https://github.com/stan-smith/FossFLOW) with expanded editing features, file management, full internationalisation, project-zip workspace bundles, multi-target deployment (Docker / Cloudflare Pages), and large performance improvements.
+**Axoview** is an isometric diagramming tool — a community fork of [FossFLOW](https://github.com/stan-smith/FossFLOW) (which is itself a fork of [Isoflow](https://github.com/markmanx/isoflow)) — with expanded editing features, file management, full internationalisation, project-zip workspace bundles, multi-target deployment (Docker / Cloudflare Pages), and large performance improvements.
+
+Icons bundled under `@isoflow/isopacks` (the AWS / GCP / Azure / Kubernetes / core packs) remain attributed to the Isoflow project; see the in-app **Settings → About** tab and [LICENSE](LICENSE) for the full lineage.
 
 **[Try the live demo →](https://demo-fce.pages.dev/)** — deployed from `master`, always reflects the latest shipped version.
 
-Source and issue tracker: [github.com/molikas/FossFLOW_V2](https://github.com/molikas/FossFLOW_V2).
+Source and issue tracker: [github.com/molikas/axoview](https://github.com/molikas/axoview).
 
 **Performance highlight:** On a real 85-node / 54-connector diagram, idle FPS improved from 5–18 to a consistent 60 fps after fixing two root-cause render bugs. See the [Performance section](#performance) below.
 

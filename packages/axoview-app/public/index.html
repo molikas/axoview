@@ -28,7 +28,7 @@
     <style>
       /* Splash screen — visible from first paint until React commits the editor
          shell, then faded by App.tsx on `editor:first-paint-after-mount`. */
-      #ff-splash {
+      #ax-splash {
         position: fixed;
         inset: 0;
         z-index: 9999;
@@ -40,34 +40,34 @@
           -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         transition: opacity 200ms ease;
       }
-      #ff-splash.ff-splash-hidden {
+      #ax-splash.ax-splash-hidden {
         opacity: 0;
         pointer-events: none;
       }
-      .ff-splash-inner {
+      .ax-splash-inner {
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 22px;
       }
-      .ff-splash-logo {
+      .ax-splash-logo {
         font-size: 30px;
         font-weight: 600;
         letter-spacing: 0.02em;
         color: #1f2937;
       }
-      .ff-splash-logo .ff-splash-logo-accent {
+      .ax-splash-logo .ax-splash-logo-accent {
         color: #2563eb;
       }
-      .ff-splash-spinner {
+      .ax-splash-spinner {
         width: 32px;
         height: 32px;
         border: 3px solid #e5e7eb;
         border-top-color: #2563eb;
         border-radius: 50%;
-        animation: ff-splash-spin 800ms linear infinite;
+        animation: ax-splash-spin 800ms linear infinite;
       }
-      @keyframes ff-splash-spin {
+      @keyframes ax-splash-spin {
         to {
           transform: rotate(360deg);
         }
@@ -76,10 +76,10 @@
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="ff-splash">
-      <div class="ff-splash-inner">
-        <div class="ff-splash-logo">Foss<span class="ff-splash-logo-accent">FLOW</span></div>
-        <div class="ff-splash-spinner" role="progressbar" aria-label="Loading Axoview"></div>
+    <div id="ax-splash">
+      <div class="ax-splash-inner">
+        <div class="ax-splash-logo">Axo<span class="ax-splash-logo-accent">view</span></div>
+        <div class="ax-splash-spinner" role="progressbar" aria-label="Loading Axoview"></div>
       </div>
     </div>
     <div id="root"></div>
