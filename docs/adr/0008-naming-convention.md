@@ -1,6 +1,6 @@
 # ADR 0008 — Naming Convention
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-05-20
 **Supersedes:** none (codifies existing patterns + closes real-finding gaps)
 **Superseded by:** none
@@ -48,7 +48,8 @@ A.3 surfaced four interchangeable terms (`Dialog`, `Modal`, `Popover`, `Panel`) 
 | **Modal** | Same as Dialog. **Use `Dialog` in new code.** Existing names with `Modal` (none currently) should rename if encountered. | (none) |
 | **Popover** | Anchored to a trigger element, dismisses on outside click, no backdrop. | `ExportPopover`, `QuickAddNodePopover` |
 | **Panel** | Persistent or toggle-revealed region of the layout, not focus-trapped, lives inside the existing chrome. | `NodePanel`, `LayersPanel`, `FileExplorer` (left pane), `RightSidebar` |
-| **Banner** | Inline horizontal callout occupying full layout width; advisory, not interactive. | `LocalModeBanner` (post-rename), `EmptyStateScreen` |
+| **Banner** | Inline horizontal callout occupying full layout width; advisory, not interactive. | `LocalModeBanner` (post-rename) |
+| **Screen** | Full-area placeholder or state-when-empty. Occupies the canvas region; signals an absent or pre-content state rather than overlaying interactive content. | `EmptyStateScreen` |
 
 **Rule:** new components pick the term that matches the visual contract. `Modal` is reserved as a synonym during transition only; do not introduce new `*Modal` names.
 
@@ -82,10 +83,10 @@ M4 deferred the question of whether to retrofit `data-axoview-id` attributes on 
 
 **Rule:**
 
-- **`data-axoview-id` is reserved for E2E test anchors and trace-harness mount points.** It is not a general-purpose component metadata attribute.
+- **`data-axoview-id` is the single product-namespaced attribute for both E2E selectors and trace-harness mounts.** Do not introduce `data-testid` in parallel — one anchor namespace, two consumers.
 - A surface gets `data-axoview-id="<kebab-case>"` when (a) it is referenced by a test in `packages/axoview-e2e/` or `__perf_refactor_regression__/`, OR (b) it is named as a trace event mount in ADR 0007 (when accepted).
 - The attribute value is **kebab-case, namespaced by surface family**: `toolbar-save`, `toolbar-share`, `panel-layers`, `dialog-export-single-diagram`, `popover-quick-add`, `banner-local-mode`.
-- Forbidden: using the attribute for styling (use a class), using it for logic gating (use a prop / context), naming it `data-test-id` or `data-testid` (those are common but conflict with the namespace we want for product-side telemetry vs test-side selectors — `data-axoview-id` is the product-side namespace).
+- Forbidden: using the attribute for styling (use a class) or for logic gating (use a prop / context). One attribute, one purpose — selector + mount anchor.
 - C.5 (Playwright E2E rewrite) inventories which surfaces actually need anchors; the retrofit happens lazily as tests are written, not as a sweep.
 
 This decision satisfies M4's gate without committing to a blanket attribute retrofit.
