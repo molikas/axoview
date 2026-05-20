@@ -2014,7 +2014,7 @@ Below are the **cross-workstream themes** — patterns visible only when multipl
 | Subsection | State | Artifact |
 |---|---|---|
 | C.1 — Naming convention ADR + ADR 0008 | **Accepted 2026-05-20** | [ADR 0008](../adr/0008-naming-convention.md) — 8 decisions driven by A.3/A.4/A.6/A.9 inventories per Theme 5; 4 file renames locked (ExportDialog ×2, StorageManager.tsx, SessionModeBanner); `// LIB-ONLY` marker forward-looking; `data-axoview-id` selective-not-blanket retrofit (post-acceptance polish: `Screen` vocabulary row added; `data-testid` non-introduction clause added) |
-| C.2 — Cleanup plan | **drafted 2026-05-20** (3 Q/I user decisions locked: Q5 delete FUNDING.yml, Q9 delete legacy ISSUE_TEMPLATE .md pair, I8 gate = first axoview-lib npm publish) | [C.2 section above](#c2-cleanup-plan-drafted-2026-05-20) — 4-section spine (9 quick-wins · 3 bugs · 9 ADR-implementation rows · 4 spawned tacticals) + sequencing recommendation |
+| C.2 — Cleanup plan | **drafted 2026-05-20; Section 1 complete 2026-05-20** (Bundle A `264887a` Q1/Q3/Q4/Q6/Q7/Q8; Bundle B `39a44c1` Q2/Q5/Q9). Section 2 (B1–B3) next. | [C.2 section above](#c2-cleanup-plan-drafted-2026-05-20) — 4-section spine (9 quick-wins · 3 bugs · 9 ADR-implementation rows · 4 spawned tacticals) + sequencing recommendation |
 | C.3 — architecture.md + ux-principles.md cross-references | **completed 2026-05-20** | [docs/architecture.md § 2m](../architecture.md) gained ADR 0009/0010 cross-ref with "post-cleanup state to be amended after C.2 I1+I2+I3" note; [docs/ux-principles.md § 1](../ux-principles.md) gained ADR 0008 Decision 2 surface-vocabulary cross-ref |
 | C.4 — Skill body cross-references (on-disk only) | **completed 2026-05-20** | `audit.md` gained workflow.md process-consistency block; `notes.md` gained ADRs 0008–0010 reference list; `shake-out.md` gained ADR 0008 Decision 2 vocabulary cross-ref; `feature.md` C.9.4 template confirmed landed; `ship.md` no edit needed. Note: `.claude/` is gitignored, so skill edits propagate on-disk only — limitation tracked in workflow.md Process debt |
 | C.6 — Memory refresh | **completed 2026-05-20** | Deleted `project_flare_plan.md`; added `project_workflow.md`; rewrote `project_docs_convention.md` (ADRs 0008/0009/0010 moved to Existing; productization-audit entry refreshed; FUNDING.yml + ISSUE_TEMPLATE .md pair locks recorded); updated `MEMORY.md` index. `project_2br_decisions.md` retained — rejection rationale is durable knowledge for future FileExplorer work |
@@ -2039,19 +2039,19 @@ Sequenced cleanup spine driven by the Phase A synthesis themes + the ADRs Phase 
 - **Gate:** the ADR (or finding) the row depends on. `none` = independently shippable.
 - **Bundle:** rows that should land in a single commit / PR for atomic safety.
 
-### Section 1 — Quick wins (no risk gating; ship individually)
+### Section 1 — Quick wins (no risk gating; ship individually) — **complete 2026-05-20**
 
 | # | Action | Surface | Driving finding | Risk | Bundle |
 |---|---|---|---|---|---|
 | Q1 | **[x] `264887a`** Drop 6 of 8 root deps (root `package.json` is bloated with deps that belong in `axoview-app` or `axoview-lib`; the workspace resolver picks them up regardless). Keep only the truly cross-cutting two. | [package.json](../../package.json) | A.5.5 / P1 | low | Q1 |
-| Q2 | **[ ]** Close G1 — rewrite [`packages/axoview-lib/LICENSE`](../../packages/axoview-lib/LICENSE) to match the post-rename MIT shape: lead with Igor 2026 / Axoview attribution, retain upstream attribution to Mark Mankarious (Isoflow original) below. Same body as root + app LICENSE. | `packages/axoview-lib/LICENSE` | A.7 row 12 + G1 (partial) | low | Q2 |
+| Q2 | **[x] `39a44c1`** Close G1 — rewrote [`packages/axoview-lib/LICENSE`](../../packages/axoview-lib/LICENSE): replaced `Copyright (c) 2025 Mark Mankarious` with `Copyright (c) 2026 Igor Sidenica — Axoview project`; MIT permission body verbatim from root LICENSE; separated attribution paragraph below names Mark/Isoflow lineage. | `packages/axoview-lib/LICENSE` | A.7 row 12 + G1 (partial) | low | Q2 |
 | Q3 | **[x] `264887a`** Add `.gitattributes` at repo root: `* text=auto eol=lf`, `*.png binary`, `*.svg text`, `*.snap text eol=lf`. Closes G6 (highest-impact Windows-dev CI risk). | `.gitattributes` (new) | A.7 row 2 + G6 | low | Q3 |
 | Q4 | **[x] `264887a`** Update `.nvmrc` from `20` → `22`. Aligns with [test.yml:24](../../.github/workflows/test.yml#L24), [release.yml:32](../../.github/workflows/release.yml#L32), [Dockerfile:51](../../Dockerfile#L51). | [.nvmrc](../../.nvmrc) | A.5.1 / P4 | low | Q4 |
-| Q5 | **[ ] Delete [`.github/FUNDING.yml`](../../.github/FUNDING.yml) (locked 2026-05-20).** Axoview does not accept funding; no README callout needed. Closes G2. | [.github/FUNDING.yml](../../.github/FUNDING.yml) | A.7 row 10 + G2 | low | Q5 |
+| Q5 | **[x] `39a44c1`** Deleted `.github/FUNDING.yml` (locked 2026-05-20). Axoview does not accept funding; no README callout. Closes G2. | `.github/FUNDING.yml` (deleted) | A.7 row 10 + G2 | low | Q5 |
 | Q6 | **[x] `264887a`** Fix `README.md:5` — replace dead `demo-fce.pages.dev` link with `axoview.pages.dev`. Master already has the fix; this row is the integration-branch backport for the next ship cycle. | [README.md:5](../../README.md#L5) | A.7 row 15 verification 2026-05-20 | low | Q6 |
 | Q7 | **[x] `264887a`** Sweep [`.github/ISSUE_TEMPLATE/config.yml`](../../.github/ISSUE_TEMPLATE/config.yml) for upstream URLs (`stan-smith` / `fossflow`); rewrite to `molikas/axoview`. Closes G4 partially. | `.github/ISSUE_TEMPLATE/config.yml` | A.7 row 6 + G4 | low | Q7 |
 | Q8 | **[x] `264887a`** Delete `.github/workflows/e2e-tests.yml.backup` — `.backup` suffix is an anti-pattern; git history holds the snapshot. Closes A.8 #A4. | `.github/workflows/e2e-tests.yml.backup` | A.8 #A4 | low | Q8 |
-| Q9 | **[ ] Delete legacy `.md` pair (locked 2026-05-20)** — `bug-report.md` + `feature-request.md`. YAML form (`bug_report.yml` + `feature_request.yml`) is canonical. Closes G3. | `.github/ISSUE_TEMPLATE/*.md` | A.7 row 5 + G3 | low | Q9 |
+| Q9 | **[x] `39a44c1`** Deleted legacy `.md` pair (locked 2026-05-20) — `bug-report.md` + `feature-request.md`. YAML form (`bug_report.yml` + `feature_request.yml`) is canonical. Closes G3. | `.github/ISSUE_TEMPLATE/*.md` (deleted) | A.7 row 5 + G3 | low | Q9 |
 
 ### Section 2 — Real shipping bugs (prioritized)
 
