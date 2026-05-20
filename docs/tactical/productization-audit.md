@@ -2012,8 +2012,8 @@ Below are the **cross-workstream themes** — patterns visible only when multipl
 
 | Subsection | State | Artifact |
 |---|---|---|
-| C.1 — Naming convention ADR + ADR 0008 | not started | gated on A.3 + A.4 surface inventories |
-| C.2 — Cleanup plan | not started | gated on Phase C ADRs being Accepted |
+| C.1 — Naming convention ADR + ADR 0008 | **completed 2026-05-20** (Proposed; awaiting user gate) | [ADR 0008](../adr/0008-naming-convention.md) — 8 decisions driven by A.3/A.4/A.6/A.9 inventories per Theme 5; 4 file renames locked (ExportDialog ×2, StorageManager.tsx, SessionModeBanner); `// LIB-ONLY` marker forward-looking; `data-axoview-id` selective-not-blanket retrofit |
+| C.2 — Cleanup plan | **drafted 2026-05-20** | [C.2 section above](#c2-cleanup-plan-drafted-2026-05-20) — 4-section spine (9 quick-wins · 3 bugs · 9 ADR-implementation rows · 4 spawned tacticals) + sequencing recommendation |
 | C.5 — E2E rewrite tactical | not started | spawned tactical, gated on M9 |
 | C.6 — Memory refresh | not started | includes retiring `project_flare_plan.md` |
 | C.7.1 — ADR 0009 Deployment topology | **Accepted 2026-05-20** | [ADR 0009](../adr/0009-deployment-topology.md) (Decision 5 downgraded post-review: worker-package wrangler.toml retained for local dev) |
@@ -2025,8 +2025,75 @@ C.7 + C.9 deliverables were chosen first because their inputs were the most-comp
 
 ---
 
-## C.2 Cleanup plan
-> *To be filled by workstream C.2 after Phases A and B are complete. Sequenced list of cleanup actions with risk class, dependency, and target tactical/ADR if any.*
+## C.2 Cleanup plan (drafted 2026-05-20)
+
+Sequenced cleanup spine driven by the Phase A synthesis themes + the ADRs Phase C accepted (0008 Proposed; 0009, 0010 Accepted 2026-05-20). Four sections; rows within each are independently executable.
+
+**Conventions:**
+
+- **Risk class:** `low` (no behaviour change visible to user) · `med` (visible-but-additive — explicit error UI, new endpoint) · `high` (contract change; coordinated deploy required).
+- **Gate:** the ADR (or finding) the row depends on. `none` = independently shippable.
+- **Bundle:** rows that should land in a single commit / PR for atomic safety.
+
+### Section 1 — Quick wins (no risk gating; ship individually)
+
+| # | Action | Surface | Driving finding | Risk | Bundle |
+|---|---|---|---|---|---|
+| Q1 | Drop 6 of 8 root deps (root `package.json` is bloated with deps that belong in `axoview-app` or `axoview-lib`; the workspace resolver picks them up regardless). Keep only the truly cross-cutting two. | [package.json](../../package.json) | A.5.5 / P1 | low | Q1 |
+| Q2 | Close G1 — rewrite [`packages/axoview-lib/LICENSE`](../../packages/axoview-lib/LICENSE) to match the post-rename MIT shape: lead with Igor 2026 / Axoview attribution, retain upstream attribution to Mark Mankarious (Isoflow original) below. Same body as root + app LICENSE. | `packages/axoview-lib/LICENSE` | A.7 row 12 + G1 (partial) | low | Q2 |
+| Q3 | Add `.gitattributes` at repo root: `* text=auto eol=lf`, `*.png binary`, `*.svg text`, `*.snap text eol=lf`. Closes G6 (highest-impact Windows-dev CI risk). | `.gitattributes` (new) | A.7 row 2 + G6 | low | Q3 |
+| Q4 | Update `.nvmrc` from `20` → `22`. Aligns with [test.yml:24](../../.github/workflows/test.yml#L24), [release.yml:32](../../.github/workflows/release.yml#L32), [Dockerfile:51](../../Dockerfile#L51). | [.nvmrc](../../.nvmrc) | A.5.1 / P4 | low | Q4 |
+| Q5 | Decide [`.github/FUNDING.yml`](../../.github/FUNDING.yml) — three options: (a) delete the file (Axoview does not accept funding); (b) point at Igor's funding channels; (c) leave intentionally pointing at upstream FossFLOW with a README "support upstream" callout. **User decision required before this row executes.** | [.github/FUNDING.yml](../../.github/FUNDING.yml) | A.7 row 10 + G2 | low | Q5 |
+| Q6 | Fix `README.md:5` — replace dead `demo-fce.pages.dev` link with `axoview.pages.dev`. Master already has the fix; this row is the integration-branch backport for the next ship cycle. | [README.md:5](../../README.md#L5) | A.7 row 15 verification 2026-05-20 | low | Q6 |
+| Q7 | Sweep [`.github/ISSUE_TEMPLATE/config.yml`](../../.github/ISSUE_TEMPLATE/config.yml) for upstream URLs (`stan-smith` / `fossflow`); rewrite to `molikas/axoview`. Closes G4 partially. | `.github/ISSUE_TEMPLATE/config.yml` | A.7 row 6 + G4 | low | Q7 |
+| Q8 | Delete [`.github/workflows/e2e-tests.yml.backup`](../../.github/workflows/e2e-tests.yml.backup) — `.backup` suffix is an anti-pattern; git history holds the snapshot. Closes A.8 #A4. | `.github/workflows/e2e-tests.yml.backup` | A.8 #A4 | low | Q8 |
+| Q9 | Decide `.github/ISSUE_TEMPLATE/` dedup — modern `.yml` form supersedes legacy `.md` pair. Delete `bug-report.md` + `feature-request.md` or accept the dual format and document in CONTRIBUTING. **User decision required.** | `.github/ISSUE_TEMPLATE/*.md` | A.7 row 5 + G3 | low | Q9 |
+
+### Section 2 — Real shipping bugs (prioritized)
+
+| # | Action | Surface | Driving finding | Risk | Bundle |
+|---|---|---|---|---|---|
+| B1 | **Rename `SessionModeBanner` → `LocalModeBanner`** (per ADR 0008 Decision 1). One file rename + one import update in [`packages/axoview-app/src/App.tsx:201-202`](../../packages/axoview-app/src/App.tsx#L201). Semantic-correctness fix — the banner only fires in LOCAL mode despite its name. | [packages/axoview-app/src/components/SessionModeBanner.tsx](../../packages/axoview-app/src/components/SessionModeBanner.tsx), App.tsx | A.4 #C2 | low | B1 |
+| B2 | **Local-mode share-uuid explicit error** — implement per ADR 0009 Decision 3. When `isReadonlyUrl && !serverStorageAvailable`, render an explicit error dialog instead of an empty diagram. Single dismiss action that strips `?share=<uuid>` and boots Local mode normally. | frontend share-link consumer (likely [`App.tsx`](../../packages/axoview-app/src/App.tsx) or `DiagramLifecycleProvider.tsx`) | A.4 #C5, ADR 0009 Decision 3 | med | B2 |
+| B3 | **nginx `/api/public/*` auth-bypass** — fix per ADR 0010 Decision 4's single-tenant assumption. Add nested `location /api/public/ { auth_basic off; }` blocks to [`nginx.conf:4-5`](../../nginx.conf#L4) so share-link viewers can read public-namespace diagrams without entering the basic-auth password. | [nginx.conf](../../nginx.conf) | A.6 #D3, ADR 0010 Decision 4 | med | B3 |
+
+### Section 3 — ADR-implementation rows (gated on ADR acceptance)
+
+| # | Action | Surface | Gate | Risk | Bundle |
+|---|---|---|---|---|---|
+| I1 | **Collapse the dual-probe** + delete `/api/storage/status` route + remove dead `RuntimeConfig.serverStorage` field. Single PR touching: [`AppStorageContext.tsx:43-46`](../../packages/axoview-app/src/providers/AppStorageContext.tsx#L43) (single probe), [`useRuntimeConfig.ts:5-15`](../../packages/axoview-app/src/hooks/useRuntimeConfig.ts) (field removal), [`packages/axoview-backend/src/routes.js`](../../packages/axoview-backend/src/routes.js) (delete `/api/storage/status` handler), [`packages/axoview-worker/src/app.ts:29-31`](../../packages/axoview-worker/src/app.ts#L29) (delete `/api/storage/status` handler). Saves ~100-200ms cold-start latency. Closes A.4 #C1+C4, A.6 #D1+D2, Theme 1. | mode-detection (4 files) | ADR 0009 Decision 2 (Accepted) | med | I1 |
+| I2 | **fs adapter atomicity** — replace direct `fs.writeFile` at [`packages/axoview-backend/src/adapters/fs.js:45`](../../packages/axoview-backend/src/adapters/fs.js#L45) with tmp-file + rename pattern. Single file edit. | [fs.js](../../packages/axoview-backend/src/adapters/fs.js) | ADR 0010 Decision 3 (Accepted) | med | I2 |
+| I3 | **`/healthz` endpoint + Dockerfile HEALTHCHECK + compose healthcheck** — implement per ADR 0010 Decision 8. Three files: (a) add `/healthz` route to `server.js` (returns `{ ok, adapter, storage_writable }`); (b) add `HEALTHCHECK CMD curl -f http://localhost:${BACKEND_PORT}/healthz` to [Dockerfile](../../Dockerfile); (c) add `healthcheck:` block to [compose.yml](../../compose.yml) + [compose.dev.yml](../../compose.dev.yml). Closes the A.6.2 HEALTHCHECK gap. | server.js + Dockerfile + compose.yml + compose.dev.yml | ADR 0010 Decision 8 (Accepted) | med | I3 |
+| I4 | **Worker-package wrangler.toml drift callout** (per ADR 0009 Decision 5 post-review). Add a top-of-file comment block to [`packages/axoview-worker/wrangler.toml`](../../packages/axoview-worker/wrangler.toml) noting: "Retained for local dev (`npm run dev` uses `--binding-from-toml`). Keep `[vars]` and `compatibility_date` in lockstep with repo-root `wrangler.toml` — drift between the two is a known risk per ADR 0009." Single-file comment edit; no structural change. | [packages/axoview-worker/wrangler.toml](../../packages/axoview-worker/wrangler.toml) | ADR 0009 Decision 5 (Accepted, post-review downgrade) | low | I4 |
+| I5 | **Rename the two `ExportDialog.tsx` files + the `StorageManager.tsx` modal** (per ADR 0008 Decision 1). Three file renames + every import site (~6–10 imports total): `ExportDialog` → `ExportSingleDiagramDialog`, `fileExplorer/ExportDialog` → `ExportProjectZipDialog`, `StorageManager.tsx` (modal) → `LocalStorageInspector.tsx`. Tests update with the imports. | 3 component files + import sites | ADR 0008 Decision 1 (Proposed; pending acceptance) | low | I5 |
+| I6 | **Delete `LeftSidebar.tsx`** (A.3 #3, pure orphan with zero importers). Single-file deletion; sanity-check no string-based `lazy()` resolves the path. | [packages/axoview-lib/src/components/Sidebars/LeftSidebar.tsx](../../packages/axoview-lib/src/components/Sidebars/LeftSidebar.tsx) | A.3 #3 | low | I6 |
+| I7 | **Delete `paymentFlowExample.json`** (A.5.4 / A.6.7 — zero importers; relocated to app/src/ but still dead). | `packages/axoview-app/src/paymentFlowExample.json` | A.6.7 row 15 | low | I7 |
+| I8 | **`__fossflow__` deprecation alias + `migrationShim.ts` removal** — schedule for the next release window per A.3 #10 + #13. Single deletion in [`packages/axoview-lib/src/Axoview.tsx:143-162`](../../packages/axoview-lib/src/Axoview.tsx#L143) + [`migrationShim.ts`](../../packages/axoview-app/src/utils/migrationShim.ts) + its test. **Hold until release-window decision.** | Axoview.tsx + migrationShim | A.3 #10, #13 | low | I8 |
+| I9 | **Delete `e2e-tests/`** (legacy Python/Selenium suite). Locked-decision #4 — nuclear option; replaced by C.5 Playwright rewrite. **Bundle with the new E2E workflow landing.** | `e2e-tests/` directory + [`.github/workflows/e2e-tests.yml`](../../.github/workflows/e2e-tests.yml) | locked-decision #4 + C.5 | high | I9 + C.5 |
+
+### Section 4 — Spawned tacticals (separate work units)
+
+| # | Spawned tactical | Scope summary | Driving finding | Status |
+|---|---|---|---|---|
+| T1 | **C.5 — E2E rewrite (Playwright)** | New `packages/axoview-e2e/` (existing one slated for deletion per audit-locked-decision #4); new `.github/workflows/e2e-playwright.yml` to replace the Python suite; surface-anchor sweep using `data-axoview-id` per ADR 0008 Decision 5. **Gated on M9.** | locked-decision #4, ADR 0008 Decision 5 | not started |
+| T2 | **C.8 — Git automation hardening** | Add ESLint to CI (closes A.8 #A1); remove `\|\| npm test` coverage fallback (closes A.8 #A2); add `commitlint` + simple-git-hooks (closes A.8 #A7); add `codeql.yml` (closes A.8 #A8 + #A4); add Cloudflare Pages deploy automation (closes A.8 #A5 — productization blocker for M10); add container scanning (Trivy/Snyk/Docker Scout) (closes A.8 #A4); add CI bundle-size check for Worker per ADR 0009 Decision 8; add CI verification that `_routes.json` + `_headers` are emitted by build per ADR 0009 Decision 5. **Gated on Phase C ADRs accepted (now satisfied).** | A.8 #A1, #A2, #A4, #A5, #A7, #A8, ADR 0009 | not started |
+| T3 | **C.5 supplement — `axoview-lib` deletion bundle: MainMenu + ConfirmDiscardDialog + MenuItem + MainMenuOptions type** | Single PR deletes `packages/axoview-lib/src/components/MainMenu/` (including `MenuItem.tsx` per A.2.5 #17), `packages/axoview-lib/src/components/ConfirmDiscardDialog/`, the `MainMenuOptions` type from `types/ui.ts`, the `availableTools.includes('MAIN_MENU')` gate in `UiOverlay.tsx`, and the `MAIN_MENU_OPTIONS` declaration in [`App.tsx:39-40`](../../packages/axoview-app/src/App.tsx#L39). Pre-1.0 breaking change is acceptable — lib has not been npm-published (verified by audit 2026-05-20 via `npm view axoview-lib` → 404). Spawned as separate tactical only if the lib deletion touches more than one consumer surface. | A.3 #1 + #2, A.2.5 #17, A.4 #24 + #25 | not started |
+| T4 | **GitHub-dashboard checklist (out-of-repo)** per Theme 8 — branch protection on `master` (require PR, require status checks, no force push, signed-commits optional), repo Description + Topics + Homepage URL set, CodeQL enabled in repo settings, **`NPM_TOKEN` secret present on the Release workflow's GitHub Actions environment** (the A.8 #A9 follow-up flagged in the pre-Phase-C bundle). One-pass action list for the user; no code change. | A.7 rows 19 + 20, A.8 #A8 + #A9, Theme 8 | not started |
+
+### Section 5 — Sequencing recommendation
+
+The four sections are independently executable, but a recommended ship order minimises cross-bundle risk:
+
+1. **Section 1 (Q1–Q9) first** — no gates, no behaviour change, fastest path to a cleaner baseline.
+2. **Section 2 (B1–B3) next** — three real shipping bugs; B1 is trivial, B2 + B3 are user-visible additions (explicit error, auth-bypass fix). Each row is independently shippable.
+3. **Section 3 in two waves:**
+   - **Wave 3a (low/med risk, fast):** I2 (fs atomicity), I3 (`/healthz`), I4 (wrangler drift callout), I5 (renames), I6 (LeftSidebar), I7 (paymentFlowExample), I8 (hold per release-window). These can ride a single integration → master cycle.
+   - **Wave 3b (high risk, coordinated):** I1 (dual-probe + endpoint deletion — visible-to-deployers contract change) and I9 (legacy E2E suite deletion). Wave 3b ships after Wave 3a has been live long enough to catch regressions.
+4. **Section 4 tacticals** spawn at their own gates per the Status column. T2 (C.8 git-automation) is the M8 productization gate; T4 (GitHub-dashboard) is the M9–M10 ship gate.
+
+### M5 (cleanup tacticals spawned) gate
+
+This C.2 deliverable + the four ADRs Phase C produced (0008 Proposed, 0009 + 0010 Accepted, 0007 outlined — pending Phase B) satisfy the M5 milestone definition: **every confirmed dead/dupe/anomalous item has a target** — either an inline row in this plan (sections 1–3) or its own tactical (section 4).
 
 ---
 

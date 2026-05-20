@@ -1,0 +1,222 @@
+# Workflow — Canonical session cadence
+
+> **Status:** Authoritative · **Last updated:** 2026-05-20 · **Audience:** anyone (human or Claude) opening a session against this repo.
+>
+> This doc names the canonical sequence of a working session: which skill fires when, where the artifacts land, and what the design principles are. It is the single source of truth for "how we work here." Skill bodies cross-reference this doc; this doc does not duplicate skill bodies.
+
+## Read-first
+
+- [docs/architecture.md](architecture.md) — what the codebase actually contains. Open before any structural decision.
+- [docs/ux-principles.md](ux-principles.md) — design language. Every UI-touching session reads this.
+- [MEMORY.md](../../../Users/isidenica/.claude/projects/c--myTemp-FossFLOW/memory/MEMORY.md) — the persistent context index (auto-loaded by Claude Code).
+- [PLAN.md](../PLAN.md) — phase dashboard. **Read for context; never edit phase content outside `/feature wrap`.**
+- [docs/adr/](adr/) — every locked decision. New work starts by reading the relevant ADR header.
+- [docs/tactical/](tactical/) — short-lived working docs. Each tactical's "Read first" block names the ADRs it implements.
+
+## Stages of a session
+
+A session moves left-to-right through the stages below. Most sessions skip stages — that's normal. The diagram is the **canonical sequence**, not a mandatory walkthrough.
+
+```
+                     ┌─────────────────────────────────────────────┐
+                     │  Session start                              │
+                     │  - Read MEMORY.md (auto-loaded)             │
+                     │  - Read PLAN.md / relevant tactical         │
+                     │  - Pick the unit of work                    │
+                     │  - TodoWrite the sub-task list              │
+                     └────────────────────────────┬────────────────┘
+                                                  │
+                          ┌───────────────────────┴───────────────────────┐
+                          ▼                                               ▼
+              ┌─────────────────────────┐                  ┌─────────────────────────┐
+              │  Feature scaffolding    │                  │  Direct work            │
+              │  (ADR-worthy new work)  │                  │  (most sessions)        │
+              │                         │                  │                         │
+              │  /feature start         │                  │  Reads + edits + builds │
+              │  /feature extend        │                  │  Dev server + browser   │
+              │  /feature supersede     │                  │  for UI work            │
+              └────────────┬────────────┘                  └────────────┬────────────┘
+                           │                                            │
+                           └────────────────────┬───────────────────────┘
+                                                ▼
+                              ┌──────────────────────────────────┐
+                              │  Verify                          │
+                              │  - tsc --noEmit / build          │
+                              │  - jest (per-package)            │
+                              │  - manual UI check               │
+                              └────────────────┬─────────────────┘
+                                               │
+                                       ┌───────┴───────┐
+                                       ▼               ▼
+                              ┌────────────┐    ┌─────────────┐
+                              │  /audit    │    │ /shake-out  │
+                              │  (heavy    │    │ (iterative  │
+                              │   sweep)   │    │  polish)    │
+                              └─────┬──────┘    └──────┬──────┘
+                                    │                  │
+                                    │  ┌───────────────┘
+                                    │  │
+                                    ▼  ▼
+                              ┌──────────────────────┐
+                              │  /review or          │   (built-in skills,
+                              │  /security-review    │    plugin-provided)
+                              └─────────┬────────────┘
+                                        ▼
+                              ┌──────────────────────────┐
+                              │  /notes                  │
+                              │  CHANGELOG + docs sync   │
+                              │  (optional release cut)  │
+                              └─────────┬────────────────┘
+                                        ▼
+                              ┌──────────────────────────┐
+                              │  /feature wrap           │
+                              │  (only for tactical docs │
+                              │   that fully completed)  │
+                              └─────────┬────────────────┘
+                                        ▼
+                              ┌──────────────────────────┐
+                              │  /ship                   │
+                              │  integration → master    │
+                              └──────────────────────────┘
+```
+
+**Cadence anchors (in order):** Session start · Feature scaffolding · Direct work · Verify · Polish · Review · Doc sync · Tactical wrap · Promotion.
+
+## Decision table — which skill when
+
+| Situation | Skill | Why |
+|---|---|---|
+| Opening a new ADR-worthy decision | `/feature start <topic>` | Scaffolds ADR + tactical with the canonical template. |
+| Modifying an accepted ADR | `/feature extend <NNNN>` | Adds a dated addendum without touching prose. |
+| Replacing an accepted ADR | `/feature supersede <NNNN>` | New ADR with the cross-link; old one marked superseded. |
+| Tactical doc finished | `/feature wrap <topic>` | Adds PLAN.md line, deletes the tactical, retires its memory pointer. |
+| End-of-session doc sync | `/notes` | CHANGELOG · README · architecture.md · testing.md · known_issues.md. Optional release cut. |
+| Heavy multi-dimension review | `/audit` | Static analysis + security + coverage + build + architecture + UX/perf greps. Pre-release or quarterly. |
+| Iterative bug-fix / polish loop on shipped surfaces | `/shake-out` | Per-issue verification loop; one coherent commit per bundle. |
+| Pre-merge code or security review | `/review` / `/security-review` | Built-in skills; fire just before `/ship`. |
+| Promote `integration` → `master` | `/ship` | Test gate + version-coherence check + interactive plan. Doesn't bump versions. |
+
+**Boundaries that have caused confusion before:**
+
+- `/audit` vs `/shake-out` — both "find and fix." `/audit` is the heavy sweep that produces an executive report; `/shake-out` is the per-issue polish loop. Pick `/audit` when the problem isn't named yet; pick `/shake-out` when the issues are listed.
+- `/notes` vs `/ship` — `/notes` cuts versions (Q4 release cut bumps 5 package.jsons + CHANGELOG); `/ship` promotes. **/notes cuts; /ship promotes; never the other way around.** /ship's version-coherence check still passes when /notes skipped the cut (no bump = all five stay aligned). That asymmetry is intentional.
+- `/feature start` (convention-memory write) vs `/notes` Phase 4 (convention-memory edit). `/feature` owns writes during scaffolding; `/notes` Phase 4 only deletes bullets during wrap. Don't run both back-to-back on the same convention-memory entry.
+
+## Verify — what to run before committing
+
+Build/test scope by change class:
+
+| Change class | Required | Optional |
+|---|---|---|
+| `axoview-lib/src/` | `npm test --workspace=packages/axoview-lib`, `npm run build` (both libs) | `tsc --noEmit` in lib root |
+| `axoview-app/src/` | `npm run build`, dev server + browser walkthrough | `npm test --workspace=packages/axoview-app` (where coverage exists) |
+| `axoview-backend/` | `npm run build`, manual backend smoke (curl `/api/config`) | (no jest config today — gap tracked in C.8) |
+| `axoview-worker/` | `npx wrangler dev` smoke | (no jest config today — gap tracked in C.8) |
+| Cross-package | Both lib + app builds; full test suite | `/audit` Phase 4 |
+| Docs only | None | None |
+| Deployment artifacts (Dockerfile / compose / nginx / wrangler) | Manual deploy smoke against the affected target | `/deploy-check` (deferred per A.9.4 #3) |
+
+**UI verification is mandatory** for any change touching `packages/axoview-*/src/components/` — start the dev server, exercise the feature in a browser, monitor for regressions in neighbouring surfaces. Type-check + test suite verify code correctness; the browser is the only thing that verifies feature correctness.
+
+## Tactical-driven sessions
+
+Some work is too large for a single ADR scaffold but too narrow for PLAN.md. That's a tactical doc. Recent examples in the canonical pattern:
+
+- [docs/tactical/productization-audit.md](tactical/productization-audit.md) (this audit) — 8 workstreams, 9 cross-cutting themes, ADRs 0007–0010 spawned, multiple cleanup tacticals queued. Lives until M10 ships; deleted at wrap-up.
+- [docs/tactical/layout-revamp.md](tactical/layout-revamp.md) — locked-decision exemplar; references back from `/feature` template.
+
+**The tactical-driven session pattern:**
+
+1. `/feature start <topic>` scaffolds the tactical (and any ADRs it forks off).
+2. Each working session reads the tactical's "Read first" block, picks a workstream, appends to its Findings register.
+3. Discovery hygiene rule (see Design principle 1): every Findings register row cites `file:line` or a grep result. No theory without evidence.
+4. Synthesis happens once discovery is "definition of done" complete. Cross-workstream themes go in a `## Synthesis` section.
+5. Synthesis spawns the durable artifacts (ADRs) and the downstream cleanup tacticals.
+6. `/feature wrap <topic>` retires the tactical once every downstream artifact has shipped.
+
+This audit (`productization-audit.md`) is the most recent worked example. Future audits or large initiatives should reproduce its shape: Phase A discovery → Phase A synthesis → Phase C artifact authoring → wrap.
+
+## Design principles
+
+### 1. Discovery hygiene — every claim is grounded
+
+**Rule:** every Findings register row, every theme, every observation cites a file path with line number, a grep result, or a runtime artifact. No "I think" without "here's where I'm looking."
+
+**Why:** the audit's value is reproducibility. If a finding can't be re-walked by a fresh reader running the same grep, it isn't a finding — it's an intuition. The discrepancies between intuition and code are where bugs hide.
+
+**Practiced version:** when a session falls into "I keep reading the same file and the answer isn't there," the move is to instrument (logging, a script, a screenshot) and let the runtime answer. See [feedback_diagnose_with_logs](../../../Users/isidenica/.claude/projects/c--myTemp-FossFLOW/memory/feedback_diagnose_with_logs.md) for the memory.
+
+### 2. Screenshot-driven, not theory-driven
+
+**Rule:** when working on a visible surface, the screenshot or the live browser is the source of truth. Theories about what code "should" do are subordinate to what the user sees.
+
+**Why:** see [feedback_be_serious_not_eager](../../../Users/isidenica/.claude/projects/c--myTemp-FossFLOW/memory/feedback_be_serious_not_eager.md). Multiple past sessions piled extra moves onto a delivered artifact because the agent felt eager; that pattern degrades trust and burns context. **Plans aren't fixes.** Bundling extra moves after a delivered artifact is anti-pattern.
+
+This principle is why `/audit` and `/shake-out` both emphasize "verify, don't pile on" — the design didn't accidentally converge there; the memory was the driver.
+
+### 3. Intent verification — stop signs
+
+**Rule:** a why-question from the user about a chosen approach is a stop. A visual/words mismatch in the user's request is a question, not a decision to pick a side. See [feedback_intent_verification](../../../Users/isidenica/.claude/projects/c--myTemp-FossFLOW/memory/feedback_intent_verification.md).
+
+### 4. Decisions live in ADRs; status lives in PLAN.md; details live in tacticals
+
+The three-tier doc convention is the project's most-used pattern. See [project_docs_convention](../../../Users/isidenica/.claude/projects/c--myTemp-FossFLOW/memory/project_docs_convention.md).
+
+- **ADRs** — durable. One concern per ADR. Status: Proposed → Accepted → Superseded.
+- **Tacticals** — short-lived. Deleted at wrap; PLAN.md gets a one-line entry pointing to the ADRs.
+- **PLAN.md** — strategic dashboard. Never edited outside `/feature wrap`.
+
+### 5. Post-rename memory-pointer policy
+
+When a file is retired (deleted, renamed, or absorbed), the memory pointer that references it MUST be updated in the same commit. Two consequences:
+
+- **Skill bodies that reference retired files are stale references.** Fix them at the retirement boundary, not at the next session's discovery.
+- **Memory entries that point to retired files must be removed or rewritten.** A memory entry that points at a non-existent file degrades all future agents that load it.
+
+This is why C.9.2 (skill stale-ref pass) ran together with C.9.1 (this doc) — the retirement of `flare_plan.md`, `session-ux-revamp.md`, and `current_architecture.md` left pointers in three skill bodies that this audit identified and closed.
+
+### 6. Bash idioms are the lingua franca
+
+Skill bodies use `cd packages/...`, `npm run ...`, `grep`. Claude Code's harness translates `cd` cleanly across Windows/PowerShell + Bash, so the pattern works on the active dev platform. **A strict-PowerShell-only environment would trip.** This is documented friction, not a rewrite target.
+
+## Review gate
+
+`/review` and `/security-review` (built-in plugin skills) fire **between `/notes` doc sync and `/ship` promotion**. Both are surfaced by the Claude Code system reminder when relevant. The cadence diagram shows the slot; the skills themselves are plugin-provided and not in `.claude/commands/`.
+
+## Process debt — deferred skills
+
+Per [productization-audit.md A.9.4](tactical/productization-audit.md), nine missing-skill candidates were catalogued. The triage:
+
+| # | Candidate | Disposition | Gate |
+|---|---|---|---|
+| 1 | `/release-check` (pre-M10 ship gate) | **defer** | Build after the first productized release ships. |
+| 2 | `/trace` (Phase B verification harness) | **defer** | Gated on ADR 0007 acceptance + `trace.ts` landing in `axoview-lib`. |
+| 3 | `/deploy-check` (verify Dockerfile/compose/wrangler against ADRs) | **defer** | Build alongside C.8 git-automation tactical; gated on ADRs 0009/0010 accepted. |
+| 4 | `/regression-snapshot` (behavioural baseline pre-cleanup) | **defer** | Gated on M9 (Playwright suite live). |
+| 5 | `/spawn-tactical` (scaffold tactical from register row) | **reject** | `/feature start` covers the canonical path; the row→tactical translation resists templating. |
+| 6 | `/cwd-rename` (one-shot folder rename + memory rewrite) | **reject** | One-shot ops task; encoding it adds maintenance load for zero future value. |
+| 7 | `/workflow-check` (print cadence + decision table) | **defer** | Fold into a "Quick reference" section here instead of a skill; saves skill-list bloat. |
+| 8 | `/ux-baseline` (Phase 5b grep extract) | **defer** | Fold into `/shake-out` as an optional first-step flag. |
+| 9 | `/perf-baseline` (Phase 5c grep extract) | **defer** | Same fold-into-/shake-out treatment as #8. |
+
+**Net effect on productization gate (M8):** zero new skills must be built. The productization baseline blocks on alignment-and-cadence work (this doc + C.9.2 stale-ref pass), not on skill construction.
+
+## Cadence anomalies — locked resolutions
+
+The audit identified nine anomalies (A.9.5 S1–S9). The ones with a written resolution:
+
+- **S1 — `/audit` produces no persistent artifact.** Resolution: high-value findings get filed via `/notes` Q2 immediately after; raw audit-run output is ephemeral. `reports/audit-YYYY-MM-DD.md` may be added later as a low-cost alternative.
+- **S2 — No skill covers session-start.** Resolution: this doc's "Stages of a session" section is the explicit 4-step (memory · plan · pick · TodoWrite) sequence. No new skill needed.
+- **S3 — `/feature start` and `/notes` Phase 4 both touch convention memory.** Resolution: locked above ("`/feature` owns writes; `/notes` Phase 4 only deletes bullets during wrap").
+- **S4 — Build-verification scope is implicit.** Resolution: the change-class table under "Verify" above is the explicit per-class scope.
+- **S5 — UI verification not skill-encoded.** Resolution: documented above as **mandatory** for any `packages/axoview-*/src/components/` edit.
+- **S6 — `/ship` test gate excludes backend + worker.** Resolution: documented as a scope choice (no tests exist there yet); C.8 git-automation tactical adds backend + worker test scaffolding as a future expansion.
+- **S7 — No skill names the Phase B trace harness path.** Resolution: reserved slot in the cadence; `/trace` (deferred A.9.4 #2) plugs in when ADR 0007 lands.
+- **S8 — Built-in `/review` and `/security-review` integration undocumented.** Resolution: "Review gate" section above names both as the canonical pre-merge step.
+- **S9 — `/notes` opt-in cut vs `/ship` mandatory version-coherence.** Resolution: locked above ("/notes cuts; /ship promotes; never the other way around").
+
+## See also
+
+- [productization-audit.md A.9](tactical/productization-audit.md) — the audit pass that produced this doc.
+- [MEMORY.md](../../../Users/isidenica/.claude/projects/c--myTemp-FossFLOW/memory/MEMORY.md) — memory index. Every design principle above links to its memory backing.
+- [.claude/commands/](../.claude/commands/) — the in-scope skill bodies. Each one's behaviour is its own source of truth; this doc references but does not duplicate.
