@@ -20,7 +20,7 @@ import { EmptyStateScreen } from './components/EmptyStateScreen';
 import { DiagnosticsOverlay } from './components/DiagnosticsOverlay';
 import { DiagnosticsToggleButton } from './components/DiagnosticsToggleButton';
 import { NotificationStack } from './components/NotificationStack';
-import { SessionModeBanner } from './components/SessionModeBanner';
+import { LocalModeBanner } from './components/LocalModeBanner';
 import { ExportDialog } from './components/fileExplorer/ExportDialog';
 import { ImportDialog } from './components/fileExplorer/ImportDialog';
 import { parseProject, importProject } from './services/project/projectZip';
@@ -198,14 +198,14 @@ function EditorShell() {
   // briefly appearing before EmptyStateScreen takes over.
   if (!isInitialized) return null;
 
-  const showSessionBanner =
+  const showLocalModeBanner =
     !serverStorageAvailable && !isReadonlyUrl && linkedDiagrams.length > 0;
 
   return (
     <div className="App">
       <AppToolbar />
 
-      {showSessionBanner && <SessionModeBanner />}
+      {showLocalModeBanner && <LocalModeBanner />}
 
       <FileExplorerLayout>
         <div className="axoview-container" style={{ position: 'relative' }}>

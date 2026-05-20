@@ -4,7 +4,7 @@ import { Close as CloseIcon } from '@mui/icons-material';
 
 const DISMISS_KEY = 'axoview-session-banner-dismissed';
 
-export function SessionModeBanner() {
+export function LocalModeBanner() {
   const [dismissed, setDismissed] = useState<boolean>(() => {
     try {
       return localStorage.getItem(DISMISS_KEY) === '1';
