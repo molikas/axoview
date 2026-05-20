@@ -2,7 +2,7 @@
 
 Icons bundled under `@isoflow/isopacks` (the AWS / GCP / Azure / Kubernetes / core packs) remain attributed to the Isoflow project; see the in-app **Settings → About** tab and [LICENSE](LICENSE) for the full lineage.
 
-**[Try the live demo →](https://demo-fce.pages.dev/)** — deployed from `master`, always reflects the latest shipped version.
+**[Try the live demo →](https://axoview.pages.dev/)** — deployed from `master`, always reflects the latest shipped version.
 
 Source and issue tracker: [github.com/molikas/axoview](https://github.com/molikas/axoview).
 
