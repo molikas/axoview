@@ -201,6 +201,11 @@ Per [productization-audit.md A.9.4](tactical/productization-audit.md), nine miss
 
 **Net effect on productization gate (M8):** zero new skills must be built. The productization baseline blocks on alignment-and-cadence work (this doc + C.9.2 stale-ref pass), not on skill construction.
 
+### Empirical notes
+
+- **Adding `.gitattributes` mid-project is safe when the existing tree is already LF-coherent** — verify with `git diff --stat` or `git status --short` immediately post-add before committing. C.2 Q3 (2026-05-20 / commit `264887a`) confirmed no CRLF renormalization storm on the Windows-dev tree, suggesting prior commits had already respected the LF convention. The risk pattern to watch for is `git status` showing dozens of unrelated paths as modified after the file lands — that is the renormalization tax, and it should be staged as its own follow-up commit so the audit's actual content edits aren't drowned in CRLF noise.
+- **PLAN.md edits should commit eagerly with the surrounding work.** Two PLAN.md blocks ("Completed alongside 2D" + "Playwright migration shipped") sat uncommitted for several sessions and finally landed in commit `39c5130` only because they happened to be in the same file as an unrelated audit-driven edit. Process debt: future sessions should commit PLAN.md alongside the work that motivated the edit rather than letting it accumulate uncommitted.
+
 ## Cadence anomalies — locked resolutions
 
 The audit identified nine anomalies (A.9.5 S1–S9). The ones with a written resolution:
