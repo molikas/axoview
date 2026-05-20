@@ -13,3 +13,9 @@ services:
       - HTTP_AUTH_PASSWORD=${HTTP_AUTH_PASSWORD:-}
     volumes:
       - ./diagrams:/data/diagrams
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3

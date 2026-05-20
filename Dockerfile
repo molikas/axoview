@@ -51,5 +51,10 @@ ENV ENABLE_SERVER_STORAGE=true
 ENV STORAGE_PATH=/data/diagrams
 ENV BACKEND_PORT=3001
 
+# Container health probe (ADR 0010 Decision 8). wget ships in node:22-alpine;
+# /healthz returns 503 if STORAGE_PATH is unwritable.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://localhost:${BACKEND_PORT:-3001}/healthz || exit 1
+
 # Start services
 ENTRYPOINT ["/docker-entrypoint.sh"]

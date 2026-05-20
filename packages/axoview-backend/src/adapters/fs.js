@@ -41,8 +41,20 @@ export function createFsAdapter(storagePath) {
 
     async put(key, value) {
       const filePath = keyToPath(storagePath, key);
-      await fs.mkdir(path.dirname(filePath), { recursive: true });
-      await fs.writeFile(filePath, Buffer.from(value));
+      const dir = path.dirname(filePath);
+      const name = path.basename(filePath);
+      await fs.mkdir(dir, { recursive: true });
+      // Atomicity contract (ADR 0010 Decision 3): tmp-file + rename so a crash
+      // mid-write cannot leave a truncated target. Per-pid tmp name avoids
+      // collisions between concurrent processes touching the same key.
+      const tmp = path.join(dir, `.${name}.${process.pid}.tmp`);
+      try {
+        await fs.writeFile(tmp, Buffer.from(value));
+        await fs.rename(tmp, filePath);
+      } catch (e) {
+        await fs.unlink(tmp).catch(() => {});
+        throw e;
+      }
     },
 
     async delete(key) {
