@@ -1976,6 +1976,55 @@ Below are the **cross-workstream themes** — patterns visible only when multipl
 
 ---
 
+## Phase C — Synthesis (in-progress)
+
+> Phase C authors the durable artifacts the Phase A discovery + synthesis pointed at. Each subsection records the deliverable's completion + the artifact path. Subsections are appended as the work lands; the section as a whole is "done" when every Phase A theme has a target ADR / tactical / doc.
+
+### C.7 — Deployment ADRs (completed 2026-05-20)
+
+**Deliverables:**
+
+- [ADR 0009 — Deployment topology](../adr/0009-deployment-topology.md) — **Proposed.** Eight locked decisions: runtime asymmetry naming (Theme 7), dual-probe collapse + `RuntimeConfig.serverStorage` deletion (Theme 1 / A.4 #C1 + #C4), Local-mode share-link error UX (A.4 #C5), env-var contract per target (Docker / Cloudflare / Local-dev), authoritative `wrangler.toml` + mandatory `_routes.json` + canonical `_headers`, per-runtime observability boundary (including the Worker `c.executionCtx.waitUntil` shape), TLS termination posture, Worker bundle-size budget.
+- [ADR 0010 — Session backend contract](../adr/0010-session-backend-contract.md) — **Proposed.** Nine locked decisions: five-method `StorageAdapter` interface, opaque keys + `KEY_PATTERN` runtime invariant ([fs.js:4](../../packages/axoview-backend/src/adapters/fs.js#L4)), atomicity via tmp-file + rename, single-tenant-per-deploy isolation (v1; multi-user explicitly deferred), reserved-key list, snapshots + share namespace cutout, last-writer-wins concurrency with conditional-write pattern dormant (Drive-branch precedent per flare Architectural #5), `/healthz` endpoint shape coordinating with C.2's Dockerfile HEALTHCHECK addition, Phase 3B (Drive) extension contract.
+
+**Inputs absorbed:** A.6.1 flare classification table (the historical source); A.6.8 ADR outlines; the Phase A synthesis Theme 1 + Theme 7.
+
+**Downstream gates:** both ADRs are **Proposed**. User gate at next pause: review the drafts before they advance to Accepted. The cleanup edits that adopt the ADRs (delete `/api/storage/status`, collapse the dual probe, add `/healthz`, fs.js atomicity, nginx `/api/public/*` cutout) land in C.2.
+
+### C.9 — Workflow doc + skill alignment (completed 2026-05-20)
+
+**Deliverables:**
+
+- [docs/workflow.md](../workflow.md) — **Authoritative.** Canonical session cadence (reproduces A.9.2's reconstructed diagram + cadence anchors), decision table for "which skill when" (W5 + W7 as the design backbone), tactical-driven-session pattern (this audit as the worked example), six design principles (discovery hygiene per Theme 9; screenshot-driven per `feedback_be_serious_not_eager`; intent verification stop-signs per `feedback_intent_verification`; ADR / PLAN.md / tactical three-tier convention; post-rename memory-pointer policy; Bash idioms as the lingua franca), Review gate + Process debt (deferred skills) sections, locked resolutions for A.9.5 S1–S9.
+- **Skill body edits (A.9.3):**
+  - `audit.md:88` — replaced `current_architecture.md` with [docs/architecture.md](../architecture.md) (header + Section 1).
+  - `feature.md:88` — replaced retired `session-ux-revamp.md` reference with [layout-revamp.md](layout-revamp.md); added requirement that new tacticals link `docs/workflow.md` in their "Read first" block.
+  - `feature.md:192` — replaced retired `flare_plan.md` hard-rule with a generalised "Never edit a retired tactical doc without confirmation" rule that cross-links ADRs 0009 + 0010 as the durable Cloudflare-track record.
+  - `notes.md:236` — deleted the retired `flare_plan.md` hard-rule (file no longer exists; Phase 5* is absorbed by this audit and now lives in ADRs 0009/0010).
+- **/feature template (C.9.4):** the template scaffolded by `/feature start` now instructs new tactical docs to link `docs/workflow.md` in their "Read first" block by default.
+- **Missing-skill triage (A.9.4):** the nine candidates' dispositions (0 build / 7 defer / 2 reject) are captured in [docs/workflow.md § "Process debt — deferred skills"](../workflow.md#process-debt--deferred-skills). Each row carries the gate that would unblock the rebuild.
+
+**Inputs absorbed:** A.9.2 (reconstructed cadence); A.9.3 (per-skill stale references); A.9.4 (missing-skill catalogue); A.9.5 (S1–S9 anomalies); Theme 9 (discovery-hygiene self-corrections during A.6 elevated to a design principle in workflow.md).
+
+**Downstream gates:** none — this work is independently complete. Future sessions read `docs/workflow.md` first; the three skill bodies are rename-clean and retired-file-clean.
+
+### Phase C status
+
+| Subsection | State | Artifact |
+|---|---|---|
+| C.1 — Naming convention ADR + ADR 0008 | not started | gated on A.3 + A.4 surface inventories |
+| C.2 — Cleanup plan | not started | gated on Phase C ADRs being Accepted |
+| C.5 — E2E rewrite tactical | not started | spawned tactical, gated on M9 |
+| C.6 — Memory refresh | not started | includes retiring `project_flare_plan.md` |
+| C.7.1 — ADR 0009 Deployment topology | **Accepted 2026-05-20** | [ADR 0009](../adr/0009-deployment-topology.md) (Decision 5 downgraded post-review: worker-package wrangler.toml retained for local dev) |
+| C.7.2 — ADR 0010 Session backend contract | **Accepted 2026-05-20** | [ADR 0010](../adr/0010-session-backend-contract.md) (Decision 9 amended post-review: Drive `list(prefix)` requires folder model, not literal `q=prefix`) |
+| C.8 — Git-automation tactical | not started | gated on Phase C ADRs being Accepted |
+| C.9 — Workflow doc + skill alignment | **completed 2026-05-20** | [docs/workflow.md](../workflow.md), 4 skill body edits |
+
+C.7 + C.9 deliverables were chosen first because their inputs were the most-completed coming out of Phase A. They unblock C.1 (which references the naming surface inventory + the workflow doc) and C.2 (which sequences the cleanup edits the ADRs prescribe).
+
+---
+
 ## C.2 Cleanup plan
 > *To be filled by workstream C.2 after Phases A and B are complete. Sequenced list of cleanup actions with risk class, dependency, and target tactical/ADR if any.*
 
