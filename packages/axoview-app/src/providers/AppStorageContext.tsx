@@ -38,12 +38,13 @@ export function AppStorageProvider({ children }: { children: React.ReactNode }) 
     initStarted.current = true;
 
     (async () => {
-      // Run independent probes in parallel — both hit apiBaseUrl() and have
-      // no ordering dependency on each other.
-      const [config] = await Promise.all([
-        fetchRuntimeConfig(),
-        manager.initialize()
-      ]);
+      // ADR 0009 D2: single /api/config probe. The serverStorage boolean in
+      // that response is the canonical mode signal — no second probe to
+      // /api/storage/status. fetchRuntimeConfig itself swallows network
+      // errors and warns; on failure its result is DEFAULT_CONFIG (serverStorage:
+      // false), which is exactly the Local-mode fallback the ADR specifies.
+      const config = await fetchRuntimeConfig();
+      manager.setServerStorage(config.serverStorage);
       setRuntimeConfig(config);
       setIsServerStorage(manager.serverStorageAvailable);
       setIsInitialized(true);

@@ -33,7 +33,13 @@ export async function fetchRuntimeConfig(): Promise<RuntimeConfig> {
       if (!response.ok) throw new Error(String(response.status));
       const data = (await response.json()) as Partial<RuntimeConfig>;
       cached = { ...DEFAULT_CONFIG, ...data };
-    } catch {
+    } catch (err) {
+      // ADR 0009 D2: explicit Local-mode fallback on /api/config failure.
+      // The previous silent swallow hid backend outages on boot.
+      console.warn(
+        '[useRuntimeConfig] /api/config probe failed; falling back to defaults (Local mode)',
+        err
+      );
       cached = { ...DEFAULT_CONFIG };
     }
     return cached;

@@ -2,11 +2,14 @@ import React from 'react';
 import { act, render, waitFor } from '@testing-library/react';
 import { AppStorageProvider, useAppStorage } from '../AppStorageContext';
 
-// AppStorageProvider runs `fetchRuntimeConfig()` and `manager.initialize()` in
-// parallel via Promise.all (see AppStorageContext.tsx). This test pins that
-// invariant so a regression to sequential `await` would be caught: with both
-// endpoints mocked to delay ~200ms each, total init must be ≈200ms (parallel),
-// not ≈400ms (sequential).
+// Post-collapse single-probe contract (ADR 0009 D2). The previous version of
+// this test pinned dual-probe parallelism; that invariant is no longer
+// relevant because /api/storage/status is gone and mode now comes from a
+// single /api/config response. The replacement test asserts:
+//   1. exactly one fetch fires during boot,
+//   2. its URL is /api/config,
+//   3. AppStorageContext propagates the serverStorage flag from that response
+//      onto isServerStorage (so consumers gate the session-mode UI correctly).
 //
 // Single test per file by design — AppStorageProvider uses a module-level
 // `manager` singleton and fetchRuntimeConfig caches its result, neither of
@@ -14,38 +17,34 @@ import { AppStorageProvider, useAppStorage } from '../AppStorageContext';
 // dispatcher via jest.resetModules.
 
 describe('AppStorageProvider', () => {
-  test('runs runtime-config and storage probes in parallel during init', async () => {
-    const PROBE_DELAY = 200;
-    const callTimes: number[] = [];
+  test('issues a single /api/config probe and derives mode from its serverStorage flag', async () => {
+    const fetchedUrls: string[] = [];
     (global as any).fetch = async (input: RequestInfo | URL) => {
-      callTimes.push(Date.now());
       const url = String(input);
-      await new Promise((r) => setTimeout(r, PROBE_DELAY));
+      fetchedUrls.push(url);
       if (url.includes('/api/config')) {
         return {
           ok: true,
           status: 200,
-          json: async () => ({ authMode: 'none' })
+          json: async () => ({ authMode: 'shared-token', serverStorage: true })
         } as Response;
       }
-      // /api/storage/status
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ enabled: false })
-      } as Response;
+      throw new Error(`unexpected fetch during boot: ${url}`);
     };
 
     let observedInitialized = false;
+    let observedServerStorage: boolean | null = null;
     function InitObserver() {
-      const { isInitialized } = useAppStorage();
+      const { isInitialized, isServerStorage } = useAppStorage();
       React.useEffect(() => {
-        if (isInitialized) observedInitialized = true;
-      }, [isInitialized]);
+        if (isInitialized) {
+          observedInitialized = true;
+          observedServerStorage = isServerStorage;
+        }
+      }, [isInitialized, isServerStorage]);
       return null;
     }
 
-    const t0 = Date.now();
     await act(async () => {
       render(
         <AppStorageProvider>
@@ -56,17 +55,13 @@ describe('AppStorageProvider', () => {
     await waitFor(() => expect(observedInitialized).toBe(true), {
       timeout: 2000
     });
-    const elapsed = Date.now() - t0;
 
-    // Both fetches must have been kicked off within a small window of each
-    // other (parallel) — not one-after-the-other.
-    expect(callTimes.length).toBeGreaterThanOrEqual(2);
-    const callGap = Math.abs(callTimes[1] - callTimes[0]);
-    expect(callGap).toBeLessThan(50);
-
-    // Total init must be ≈ PROBE_DELAY, not 2 × PROBE_DELAY.
-    // Generous upper bound to absorb React/jest overhead.
-    expect(elapsed).toBeLessThan(PROBE_DELAY * 1.8);
-    expect(elapsed).toBeGreaterThanOrEqual(PROBE_DELAY - 20);
+    // Exactly one boot probe.
+    expect(fetchedUrls).toHaveLength(1);
+    expect(fetchedUrls[0]).toMatch(/\/api\/config$/);
+    // No legacy /api/storage/status probe.
+    expect(fetchedUrls.some((u) => u.includes('/api/storage/status'))).toBe(false);
+    // Mode derived from the config's serverStorage boolean.
+    expect(observedServerStorage).toBe(true);
   }, 5000);
 });

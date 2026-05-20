@@ -57,7 +57,6 @@ function constantTimeEquals(a, b) {
 function isPublicRoute(req) {
   // Always-public endpoints
   if (req.path === '/api/config') return true;
-  if (req.path === '/api/storage/status') return true;
   if (req.method === 'GET' && req.path.startsWith('/api/public/diagrams/')) return true;
   return false;
 }
@@ -177,8 +176,7 @@ app.get('/healthz', async (_req, res) => {
 // Routes
 // ---------------------------------------------------------------------------
 
-// Status / config — never gated by STORAGE_ENABLED
-app.get('/api/storage/status', adapt(routes.getStorageStatus, { requireStorage: false }));
+// Config — never gated by STORAGE_ENABLED; sole boot probe per ADR 0009 D2
 app.get('/api/config', adapt(routes.getConfig, { requireStorage: false }));
 
 // Diagrams
