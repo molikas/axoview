@@ -19,9 +19,9 @@ import { useAutoSave, SaveStatus } from '../hooks/useAutoSave';
 import { DiagramManager } from '../components/DiagramManager';
 import { SaveDialog } from '../components/SaveDialog';
 import { LoadDialog } from '../components/LoadDialog';
-import { ExportDialog } from '../components/ExportDialog';
+import { ExportSingleDiagramDialog } from '../components/ExportSingleDiagramDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { StorageManager } from '../StorageManager';
+import { LocalStorageInspector } from '../LocalStorageInspector';
 import { notificationStore } from '../stores/notificationStore';
 import { sequentialName } from '../utils/fileOperations';
 import { apiBaseUrl } from '../utils/apiBaseUrl';
@@ -1337,14 +1337,14 @@ export function DiagramLifecycleProvider({
       )}
 
       {showExportDialog && (
-        <ExportDialog
+        <ExportSingleDiagramDialog
           onExport={exportDiagram}
           onClose={() => setShowExportDialog(false)}
         />
       )}
 
       {showStorageManager && (
-        <StorageManager onClose={() => setShowStorageManager(false)} />
+        <LocalStorageInspector onClose={() => setShowStorageManager(false)} />
       )}
 
       {showDiagramManager && storage && (

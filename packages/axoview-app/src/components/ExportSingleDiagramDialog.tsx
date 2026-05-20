@@ -17,7 +17,7 @@ interface Props {
   onClose: () => void;
 }
 
-export function ExportDialog({ onExport, onClose }: Props) {
+export function ExportSingleDiagramDialog({ onExport, onClose }: Props) {
   const { t } = useTranslation('app');
 
   return (

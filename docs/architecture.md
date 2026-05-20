@@ -701,8 +701,6 @@ Properties panel on the right edge. `position:absolute`, right:0, top:0, bottom:
 - When `itemControls !== null` → renders `<ItemControlsManager readOnly={readOnly} />` (full-height scrollable)
 - When `itemControls === null` → empty-state: `TuneOutlined` icon + "Select a node, connector or shape to view its properties"
 
-**`LeftSidebar`** (`components/Sidebars/LeftSidebar.tsx`): legacy wrapper that renders only `<LayersPanel>`. Superseded by `LeftDock` which integrates both Elements and Layers tabs. Kept in the codebase but not used in the main render path.
-
 ---
 
 ### 2h.3 Layer System

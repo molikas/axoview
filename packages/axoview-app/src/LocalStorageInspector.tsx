@@ -7,7 +7,7 @@ interface StorageInfo {
   otherData: number;
 }
 
-export const StorageManager: React.FC<{ onClose: () => void }> = ({
+export const LocalStorageInspector: React.FC<{ onClose: () => void }> = ({
   onClose
 }) => {
   const [storageInfo, setStorageInfo] = useState<StorageInfo>({

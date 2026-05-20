@@ -20,7 +20,7 @@ import { useFileTree, FileNode } from '../../hooks/useFileTree';
 import { FileTreeNode } from './FileTreeNode';
 import { FileTreeToolbar } from './FileTreeToolbar';
 import { ContextMenuItems } from './ContextMenuItems';
-import { ExportDialog } from './ExportDialog';
+import { ExportProjectZipDialog } from './ExportProjectZipDialog';
 import { ImportDialog } from './ImportDialog';
 import { notificationStore } from '../../stores/notificationStore';
 import { sequentialName, copySuffix, countDescendants, detectCollision } from '../../utils/fileOperations';
@@ -663,7 +663,7 @@ export function FileExplorer() {
 
       {/* Export dialog (project / folder zip only) */}
       {exportTarget && storage && (
-        <ExportDialog
+        <ExportProjectZipDialog
           open
           onClose={() => setExportTarget(null)}
           scope={exportTarget.scope}

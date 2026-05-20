@@ -22,7 +22,7 @@ import { DiagnosticsToggleButton } from './components/DiagnosticsToggleButton';
 import { NotificationStack } from './components/NotificationStack';
 import { LocalModeBanner } from './components/LocalModeBanner';
 import { LocalModeShareErrorDialog } from './components/LocalModeShareErrorDialog';
-import { ExportDialog } from './components/fileExplorer/ExportDialog';
+import { ExportProjectZipDialog } from './components/fileExplorer/ExportProjectZipDialog';
 import { ImportDialog } from './components/fileExplorer/ImportDialog';
 import { parseProject, importProject } from './services/project/projectZip';
 import { notificationStore } from './stores/notificationStore';
@@ -317,7 +317,7 @@ function EditorShell() {
       )}
 
       {storage && (
-        <ExportDialog
+        <ExportProjectZipDialog
           open={isProjectExportOpen}
           onClose={closeProjectExport}
           scope="project"

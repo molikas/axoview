@@ -31,7 +31,7 @@ interface Props {
   onProjectZipExported?: () => void;
 }
 
-export function ExportDialog({
+export function ExportProjectZipDialog({
   open,
   onClose,
   scope,
