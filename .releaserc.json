@@ -56,12 +56,6 @@
         "prepareCmd": "npm run update-version ${nextRelease.version} && npm run build"
       }
     ],
-    [
-      "@semantic-release/npm",
-      {
-        "pkgRoot": "packages/axoview-lib"
-      }
-    ],
     "@semantic-release/github",
     [
       "@semantic-release/git",

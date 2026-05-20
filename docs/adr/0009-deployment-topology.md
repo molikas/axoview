@@ -167,6 +167,8 @@ The Worker bundle's deployed size is part of this contract. Target: **< 1 MB** u
 - [packages/axoview-worker/wrangler.toml](../../packages/axoview-worker/wrangler.toml) — retained for local dev (`wrangler pages dev --binding-from-toml`). Drift-risk callout added to the file header; no structural change.
 - [docs/deployment.md](../deployment.md) — refresh env-var sections to match the locked table above.
 
+**Distribution model:** containerized app (Docker Hub) + CDN-deployed SPA (Cloudflare Pages). `axoview-lib` is consumed within the monorepo only; not published to npm per [productization-audit Locked Decision #11](../tactical/productization-audit.md#locked-decisions-from-scoping-discussion-2026-05-19).
+
 The actual edits land in the C.2 cleanup tactical (single-file rows) and the C.8 git-automation tactical (CI bundle-size + `_routes.json` presence check).
 
 ## See also
