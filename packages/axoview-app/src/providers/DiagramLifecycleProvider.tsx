@@ -369,6 +369,10 @@ export function DiagramLifecycleProvider({
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!isPublicShareUrl || !shareUuid) return;
+    // ADR 0009 Decision 3: share routes are session-mode only. In Local mode
+    // the LocalModeShareErrorDialog handles the user-visible feedback;
+    // suppress the fetch so the generic error toast doesn't also fire.
+    if (!serverStorageAvailable) return;
     const loadPublicSnapshot = async () => {
       try {
         const response = await fetch(`${apiBaseUrl()}/api/public/diagrams/${shareUuid}`);
@@ -412,7 +416,7 @@ export function DiagramLifecycleProvider({
       }
     };
     loadPublicSnapshot();
-  }, [isPublicShareUrl, shareUuid]);
+  }, [isPublicShareUrl, shareUuid, serverStorageAvailable]);
 
   // ---------------------------------------------------------------------------
   // Load readonly diagram from URL (owner-only, requires auth)

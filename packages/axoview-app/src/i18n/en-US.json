@@ -73,6 +73,11 @@
             "mode": "View-Only Mode",
             "failed": "Failed to load diagram"
         },
+        "localModeShareError": {
+            "headline": "This share link needs a session backend.",
+            "body": "Share links can only be opened from an Axoview instance running with server storage. Deploy via Docker or Cloudflare to view shared diagrams.",
+            "btnDismiss": "OK"
+        },
         "diagramManager": {
             "title": "Open Diagram",
             "serverStorage": "🌐 Server Storage",

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Axoview,
@@ -21,6 +21,7 @@ import { DiagnosticsOverlay } from './components/DiagnosticsOverlay';
 import { DiagnosticsToggleButton } from './components/DiagnosticsToggleButton';
 import { NotificationStack } from './components/NotificationStack';
 import { LocalModeBanner } from './components/LocalModeBanner';
+import { LocalModeShareErrorDialog } from './components/LocalModeShareErrorDialog';
 import { ExportDialog } from './components/fileExplorer/ExportDialog';
 import { ImportDialog } from './components/fileExplorer/ImportDialog';
 import { parseProject, importProject } from './services/project/projectZip';
@@ -65,6 +66,7 @@ function EditorPage() {
 
 function EditorShell() {
   const { i18n } = useTranslation('app');
+  const navigate = useNavigate();
   const { storage, serverStorageAvailable, isInitialized } = useAppStorage();
   const {
     axoviewRef,
@@ -201,6 +203,11 @@ function EditorShell() {
   const showLocalModeBanner =
     !serverStorageAvailable && !isReadonlyUrl && linkedDiagrams.length > 0;
 
+  // ADR 0009 Decision 3: share routes are session-mode only. In Local mode,
+  // a /display/* URL renders an explicit dialog; dismissing strips the path
+  // and boots the app normally.
+  const showLocalModeShareError = isReadonlyUrl && !serverStorageAvailable;
+
   return (
     <div className="App">
       <AppToolbar />
@@ -319,6 +326,11 @@ function EditorShell() {
           onProjectZipExported={() => markProjectExported?.()}
         />
       )}
+
+      <LocalModeShareErrorDialog
+        open={showLocalModeShareError}
+        onDismiss={() => navigate('/', { replace: true })}
+      />
 
       <DiagnosticsOverlay />
       <NotificationStack />
