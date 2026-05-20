@@ -1,0 +1,21 @@
+# Normalize line endings on commit (LF) regardless of dev OS (Windows / macOS / Linux).
+# Critical on a Windows-developed repo so CRLF doesn't leak into commits and break CI.
+* text=auto eol=lf
+
+# Binary assets — never normalize.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.zip binary
+*.pdf binary
+
+# Text-but-treat-specifically.
+*.svg text
+*.snap text eol=lf
