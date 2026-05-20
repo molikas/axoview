@@ -969,6 +969,8 @@ A startup splash screen is rendered inline in `public/index.html` (visible at fi
 
 ## 2m. Deployment & API Contract (2026-04-29)
 
+> **Durable contract source (2026-05-20):** [ADR 0009 — Deployment topology](adr/0009-deployment-topology.md) (runtime asymmetry, env-var contract per target, mode-detection probe, observability boundary) and [ADR 0010 — Session backend contract](adr/0010-session-backend-contract.md) (storage adapter interface, atomicity, single-tenant scope, `/healthz` shape, GDrive extension contract) are the locked references. This section documents **current state**; the post-cleanup state (dual-probe collapsed, `/api/storage/status` removed, `RuntimeConfig.serverStorage` field deleted, fs adapter atomic via tmp-file + rename, `/healthz` route live) is **to be amended after C.2 I1 + I2 + I3 land**. Until then, the route list and adapter shape below describe what runs today.
+
 Axoview runs from a single codebase on three targets, sharing one `/api/*` HTTP contract. The frontend is byte-identical at the network boundary across targets; runtime config (`GET /api/config`) replaces build-time env injection. Full from-scratch walkthrough: [docs/deployment.md](deployment.md).
 
 ### Targets
