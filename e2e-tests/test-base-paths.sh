@@ -1,10 +1,10 @@
 #!/bin/bash
-# Test FossFLOW deployment at different base paths
+# Test Axoview deployment at different base paths
 # This simulates how the app will be served on GitHub Pages or other platforms with subpaths
 
 set -e
 
-echo "Testing FossFLOW at multiple base paths..."
+echo "Testing Axoview at multiple base paths..."
 
 # Colors for output
 RED='\033[0;31m'
@@ -13,7 +13,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Base paths to test
-BASE_PATHS=("/" "/fossflow" "/apps/fossflow" "/my-org/projects/fossflow")
+BASE_PATHS=("/" "/axoview" "/apps/axoview" "/my-org/projects/axoview")
 
 # Function to cleanup
 cleanup() {
@@ -93,7 +93,7 @@ EOF
     docker run -d \
         --name nginx-test \
         -p 3001:80 \
-        -v $(pwd)/../packages/fossflow-app/build:/usr/share/nginx/html:ro \
+        -v $(pwd)/../packages/axoview-app/build:/usr/share/nginx/html:ro \
         -v /tmp/nginx.conf:/etc/nginx/nginx.conf:ro \
         nginx:alpine
 
@@ -114,8 +114,8 @@ EOF
     # Run E2E tests if Selenium is available
     if docker ps | grep selenium-test > /dev/null; then
         echo "Running E2E tests..."
-        FOSSFLOW_TEST_URL="http://localhost:3001${BASE_PATH}" \
-        FOSSFLOW_BASE_PATH="${BASE_PATH}" \
+        AXOVIEW_TEST_URL="http://localhost:3001${BASE_PATH}" \
+        AXOVIEW_BASE_PATH="${BASE_PATH}" \
         WEBDRIVER_URL="http://localhost:4444" \
         pytest tests/test_base_path_routing.py -v --tb=short || {
             echo -e "${RED}✗ E2E tests failed for base path: ${BASE_PATH}${NC}"

@@ -1,6 +1,6 @@
 services:
-  fossflow:
-    image: stnsmith/fossflow:latest
+  axoview:
+    image: molikas/axoview:latest
     pull_policy: always
     ports:
       - 80:80

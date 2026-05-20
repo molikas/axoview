@@ -1,5 +1,5 @@
 """
-Basic E2E tests for FossFLOW application.
+Basic E2E tests for Axoview application.
 Tests basic page loading, canvas presence, and rendering.
 """
 import os
@@ -14,7 +14,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 def get_base_url():
     """Get the base URL from environment or use default."""
-    return os.getenv("FOSSFLOW_TEST_URL", "http://localhost:3000")
+    return os.getenv("AXOVIEW_TEST_URL", "http://localhost:3000")
 
 
 def get_webdriver_url():
@@ -169,22 +169,22 @@ def test_javascript_is_executing(driver):
 
 
 def test_app_renders_diagram_components(driver):
-    """Test that the app renders SVG-based diagram components (FossFLOW uses SVG)."""
+    """Test that the app renders SVG-based diagram components (Axoview uses SVG)."""
     base_url = get_base_url()
 
     # Navigate to homepage
     driver.get(base_url)
 
-    print("\nWaiting for FossFLOW app to render diagram components...")
+    print("\nWaiting for Axoview app to render diagram components...")
 
-    # Wait for the fossflow-container div to appear (max 10 seconds)
+    # Wait for the axoview-container div to appear (max 10 seconds)
     try:
         container = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "fossflow-container"))
+            EC.presence_of_element_located((By.CLASS_NAME, "axoview-container"))
         )
-        print("✓ FossFLOW container element found")
+        print("✓ Axoview container element found")
     except Exception as e:
-        print(f"❌ FossFLOW container not found: {e}")
+        print(f"❌ Axoview container not found: {e}")
 
         # Get diagnostics
         logs = driver.get_log('browser')
@@ -194,7 +194,7 @@ def test_app_renders_diagram_components(driver):
             for log in errors[:5]:
                 print(f"  {log['message'][:100]}")
 
-        pytest.fail("FossFLOW container div not found - React may not have rendered")
+        pytest.fail("Axoview container div not found - React may not have rendered")
 
     # Check that the app has rendered its UI components
     dom_info = driver.execute_script("""
@@ -202,7 +202,7 @@ def test_app_renders_diagram_components(driver):
             divs: document.querySelectorAll('div').length,
             buttons: document.querySelectorAll('button').length,
             svgs: document.querySelectorAll('svg').length,
-            hasFossflowContainer: document.querySelector('.fossflow-container') !== null
+            hasFossflowContainer: document.querySelector('.axoview-container') !== null
         };
     """)
 
@@ -210,7 +210,7 @@ def test_app_renders_diagram_components(driver):
     print(f"  Divs: {dom_info['divs']}")
     print(f"  Buttons: {dom_info['buttons']}")
     print(f"  SVG elements: {dom_info['svgs']}")
-    print(f"  FossFLOW container: {dom_info['hasFossflowContainer']}")
+    print(f"  Axoview container: {dom_info['hasFossflowContainer']}")
 
     # Check for console errors
     logs = driver.get_log('browser')
@@ -224,9 +224,9 @@ def test_app_renders_diagram_components(driver):
     # Verify the app has rendered meaningful content
     assert dom_info['divs'] > 10, f"Expected many div elements, got {dom_info['divs']}"
     assert dom_info['buttons'] > 0, f"Expected buttons in the UI, got {dom_info['buttons']}"
-    assert dom_info['hasFossflowContainer'], "FossFLOW container div should exist"
+    assert dom_info['hasFossflowContainer'], "Axoview container div should exist"
 
-    print("\n✓ SUCCESS: FossFLOW app has rendered with UI components")
+    print("\n✓ SUCCESS: Axoview app has rendered with UI components")
 
 
 if __name__ == "__main__":

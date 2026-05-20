@@ -9,9 +9,9 @@
 
 Three signals drove this revision:
 
-1. **The burger menu in the top toolbar is a junk drawer.** [`MainMenu.tsx`](../../packages/fossflow-lib/src/components/MainMenu/MainMenu.tsx) currently mixes `New / Open / Clear canvas` (lifecycle) with `Settings` (system) with `GitHub / Version` (footer-class info) with `Export JSON / Compact / Image` (document actions). The app portals it into the top-left zone of [`AppToolbar.tsx`](../../packages/fossflow-app/src/components/AppToolbar.tsx). Each item has a better natural home elsewhere; co-locating them under one icon hurts discoverability.
+1. **The burger menu in the top toolbar is a junk drawer.** [`MainMenu.tsx`](../../packages/axoview-lib/src/components/MainMenu/MainMenu.tsx) currently mixes `New / Open / Clear canvas` (lifecycle) with `Settings` (system) with `GitHub / Version` (footer-class info) with `Export JSON / Compact / Image` (document actions). The app portals it into the top-left zone of [`AppToolbar.tsx`](../../packages/axoview-app/src/components/AppToolbar.tsx). Each item has a better natural home elsewhere; co-locating them under one icon hurts discoverability.
 
-2. **The file-explorer toggle lives in the wrong region.** It's currently in the top-left of [`AppToolbar.tsx`](../../packages/fossflow-app/src/components/AppToolbar.tsx), but it semantically opens a left-side navigation panel and belongs in the same strip as Elements + Layers — see [`LeftDock.tsx`](../../packages/fossflow-lib/src/components/LeftDock/LeftDock.tsx). Industry convention (VS Code, Figma, Linear) co-locates all panel toggles in a single vertical activity strip.
+2. **The file-explorer toggle lives in the wrong region.** It's currently in the top-left of [`AppToolbar.tsx`](../../packages/axoview-app/src/components/AppToolbar.tsx), but it semantically opens a left-side navigation panel and belongs in the same strip as Elements + Layers — see [`LeftDock.tsx`](../../packages/axoview-lib/src/components/LeftDock/LeftDock.tsx). Industry convention (VS Code, Figma, Linear) co-locates all panel toggles in a single vertical activity strip.
 
 3. **Future controls (text/node sizing, focus mode, annotation overlay, format toggles) need a reserved place.** Without a layout contract, every new toolbar control gets bolted on ad hoc, repeating the burger-junk-drawer pattern. We need named regions with stable ownership rules so future ADRs can say "this control goes in the View modes group" without re-litigating the layout.
 
@@ -24,6 +24,8 @@ The application chrome has four shells, each with a defined ownership rule. Any 
 ### 1. Top toolbar — three zones, only RIGHT is used
 
 The diagram name is rendered on the canvas (existing behavior); the toolbar does not duplicate it. With no center anchor, LEFT and CENTER zones are intentionally empty. All controls collapse into the RIGHT zone, organized into four groups separated by dividers, ordered left → right:
+
+> **Amendment 2026-05-19** — LEFT zone now carries a subtle brand mark: 18px favicon SVG + muted `Axoview` wordmark (body2, `text.secondary`). Non-interactive. Reads as a quiet header, does not compete with canvas diagram name. CENTER remains empty.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -47,7 +49,7 @@ The diagram name is rendered on the canvas (existing behavior); the toolbar does
 
 **Status cluster contents:**
 - Server mode: `saved 14:32` / `⟳ saving…` / `⚠ save failed [Retry]`
-- Session mode: `unsaved •` (or `saved 14:32`) `· SESSION · 12% 0.6/5MB`. Background gets a faint warning tint to reinforce the "manual save needed" mode. The gauge chip stays clickable and opens the existing per-diagram breakdown popover (preserved from [`SessionStorageGauge.tsx`](../../packages/fossflow-app/src/components/fileExplorer/SessionStorageGauge.tsx)).
+- Session mode: `unsaved •` (or `saved 14:32`) `· SESSION · 12% 0.6/5MB`. Background gets a faint warning tint to reinforce the "manual save needed" mode. The gauge chip stays clickable and opens the existing per-diagram breakdown popover (preserved from [`SessionStorageGauge.tsx`](../../packages/axoview-app/src/components/fileExplorer/SessionStorageGauge.tsx)).
 
 **Save action and save state are visually adjacent.** The Save button sits flush against the status cluster in session mode so a user reads "💾 unsaved · SESSION · 12% 0.6/5MB" as one group. Action and state must be in the same visual cluster.
 
@@ -80,11 +82,11 @@ The strip is reorganized into named regions with a visual separator between them
 
 ### 3. Floating ToolMenu — unchanged
 
-[`ToolMenu.tsx`](../../packages/fossflow-lib/src/components/ToolMenu/ToolMenu.tsx) keeps its current contents (undo/redo, select/lasso/freehand-lasso/pan/connector, ISO↔2D toggle). Its purpose is *canvas-tool mode selection* — mutually exclusive states the user cycles between while editing. That is a different mental model from document-level actions and view modes, and it stays separated visually by living as a centered floating control over the canvas.
+[`ToolMenu.tsx`](../../packages/axoview-lib/src/components/ToolMenu/ToolMenu.tsx) keeps its current contents (undo/redo, select/lasso/freehand-lasso/pan/connector, ISO↔2D toggle). Its purpose is *canvas-tool mode selection* — mutually exclusive states the user cycles between while editing. That is a different mental model from document-level actions and view modes, and it stays separated visually by living as a centered floating control over the canvas.
 
 ### 4. BottomDock — unchanged
 
-[`BottomDock.tsx`](../../packages/fossflow-lib/src/components/BottomDock/BottomDock.tsx) keeps its current right-aligned cluster (zoom controls + help). Reserved for future viewport-state controls (fit-to-view, minimap toggle).
+[`BottomDock.tsx`](../../packages/axoview-lib/src/components/BottomDock/BottomDock.tsx) keeps its current right-aligned cluster (zoom controls + help). Reserved for future viewport-state controls (fit-to-view, minimap toggle).
 
 ### 5. Burger redistribution
 
@@ -110,7 +112,7 @@ Implementation pattern: parent panel container declares the reveal selector (`&:
 
 ### 6. Settings dialog gains two tabs
 
-To absorb redistributed burger items and to surface developer affordances that today live behind a dev-only prop, [`SettingsDialog.tsx`](../../packages/fossflow-lib/src/components/SettingsDialog/SettingsDialog.tsx) adds:
+To absorb redistributed burger items and to surface developer affordances that today live behind a dev-only prop, [`SettingsDialog.tsx`](../../packages/axoview-lib/src/components/SettingsDialog/SettingsDialog.tsx) adds:
 
 - **About** tab — GitHub link, version string.
 - **Diagnostics** tab — debug overlay toggle (writes `enableDebugTools` via `uiStateStore.actions.setEnableDebugTools`), model JSON dump (download current model), session storage dump (re-homed from the gauge popover; gauge keeps its per-diagram breakdown but the dump action lives only in Diagnostics).
@@ -136,14 +138,14 @@ This co-locates all developer/diagnostic gestures under one tab — no need to r
 ## Implementation notes (non-binding)
 
 - **AppToolbar.tsx** restructured into `RIGHT`-only zone with four groups separated by `tb-divider`. LEFT and CENTER zones become empty `<Box>` placeholders (kept for grid alignment).
-- A new `StatusCluster` component (or inline `<Box>`) bundles save state, SESSION pill, and storage gauge. Mode-aware via `serverStorageAvailable`. Existing [`SessionStorageGauge.tsx`](../../packages/fossflow-app/src/components/fileExplorer/SessionStorageGauge.tsx) integrates inside it.
+- A new `StatusCluster` component (or inline `<Box>`) bundles save state, SESSION pill, and storage gauge. Mode-aware via `serverStorageAvailable`. Existing [`SessionStorageGauge.tsx`](../../packages/axoview-app/src/components/fileExplorer/SessionStorageGauge.tsx) integrates inside it.
 - A new `ExportPopover` component holds the three export options (replaces three separate burger items).
-- `LeftDock.tsx` adds a `region` prop or simply a CSS-based separator between top and middle items, plus a `mt: auto` Settings button. The 📁 File Explorer toggle moves out of `AppToolbar.tsx` into here, wired to the existing `fileExplorerOpen` state in [`DiagramLifecycleProvider.tsx`](../../packages/fossflow-app/src/providers/DiagramLifecycleProvider.tsx).
+- `LeftDock.tsx` adds a `region` prop or simply a CSS-based separator between top and middle items, plus a `mt: auto` Settings button. The 📁 File Explorer toggle moves out of `AppToolbar.tsx` into here, wired to the existing `fileExplorerOpen` state in [`DiagramLifecycleProvider.tsx`](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx).
 - `SettingsDialog.tsx` gains two tabs:
   - `About` renders GitHub link + `PACKAGE_VERSION` constant.
   - `Diagnostics` renders three controls: debug overlay toggle (drives `useUiStateStore.actions.setEnableDebugTools`), model dump button, session dump button.
-- The app stops passing `mainMenuOptions` to `<Isoflow>` (or passes `[]`), causing `MainMenu` to short-circuit (`if (mainMenuOptions.length === 0) return null;`). The portal `toolbarPortalTarget` becomes unused; the prop stays in the lib's API for backward compatibility.
-- The diagram name is *not* added to the toolbar — the canvas already shows it via [`UiOverlay`'s VIEW_TITLE](../../packages/fossflow-lib/src/components/UiOverlay/UiOverlay.tsx).
+- The app stops passing `mainMenuOptions` to `<Axoview>` (or passes `[]`), causing `MainMenu` to short-circuit (`if (mainMenuOptions.length === 0) return null;`). The portal `toolbarPortalTarget` becomes unused; the prop stays in the lib's API for backward compatibility.
+- The diagram name is *not* added to the toolbar — the canvas already shows it via [`UiOverlay`'s VIEW_TITLE](../../packages/axoview-lib/src/components/UiOverlay/UiOverlay.tsx).
 - View modes group (`𝐀 Format`, `◐ View`) renders no buttons in this phase. The position is reserved; future ADRs (formatting, presentation/annotation) add the buttons.
 - Read-only URL mode rendering is unchanged — its branch in `AppToolbar` already short-circuits all interactive content.
 

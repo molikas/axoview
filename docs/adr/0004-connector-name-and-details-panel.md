@@ -7,9 +7,9 @@
 
 ## Context
 
-Today the connector model in [packages/fossflow-lib/src/schemas/connector.ts](../../packages/fossflow-lib/src/schemas/connector.ts) has no notion of a primary "name." Identification on the canvas relies on the `labels[]` array (up to 256 positioned label entries per connector — see [packages/fossflow-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx](../../packages/fossflow-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx)). Practically, users type one label and never use the rest; the multi-label surface is power-user territory that most users do not reach for.
+Today the connector model in [packages/axoview-lib/src/schemas/connector.ts](../../packages/axoview-lib/src/schemas/connector.ts) has no notion of a primary "name." Identification on the canvas relies on the `labels[]` array (up to 256 positioned label entries per connector — see [packages/axoview-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx](../../packages/axoview-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx)). Practically, users type one label and never use the rest; the multi-label surface is power-user territory that most users do not reach for.
 
-Nodes do the opposite: a node's `name` is the canonical identifier. F2 inline-rename works on it ([packages/fossflow-lib/src/components/SceneLayers/Nodes/Node/Node.tsx](../../packages/fossflow-lib/src/components/SceneLayers/Nodes/Node/Node.tsx)), the right-side panel is tabbed Details/Style/Notes ([NodePanel.tsx](../../packages/fossflow-lib/src/components/ItemControls/NodeControls/NodePanel/NodePanel.tsx)), and an empty `name` hides the canvas label entirely.
+Nodes do the opposite: a node's `name` is the canonical identifier. F2 inline-rename works on it ([packages/axoview-lib/src/components/SceneLayers/Nodes/Node/Node.tsx](../../packages/axoview-lib/src/components/SceneLayers/Nodes/Node/Node.tsx)), the right-side panel is tabbed Details/Style/Notes ([NodePanel.tsx](../../packages/axoview-lib/src/components/ItemControls/NodeControls/NodePanel/NodePanel.tsx)), and an empty `name` hides the canvas label entirely.
 
 The asymmetry forces users to learn two different mental models for "the thing on the canvas." It also blocks F2-rename for connectors and prevents notes-on-connector, which is a natural extension of the node parity work.
 
@@ -29,17 +29,17 @@ Add two fields to `connectorSchema`:
 
 ### Rendering rules
 
-- The connector's `name`, when non-empty, is rendered as a **single label at the path midpoint** (position 50, line '1') by [ConnectorLabel.tsx](../../packages/fossflow-lib/src/components/SceneLayers/ConnectorLabels/ConnectorLabel.tsx) using the same `<Label>` component the existing per-position labels use.
+- The connector's `name`, when non-empty, is rendered as a **single label at the path midpoint** (position 50, line '1') by [ConnectorLabel.tsx](../../packages/axoview-lib/src/components/SceneLayers/ConnectorLabels/ConnectorLabel.tsx) using the same `<Label>` component the existing per-position labels use.
 - An empty or whitespace-only `name` hides the canvas name label entirely — mirroring node behaviour where empty `modelItem.name` hides the node label.
 - `labels[]` continues to render as before. The name label and entries in `labels[]` coexist on the canvas; users opting in to multi-label keep their layout. Visual conflict (a `labels[]` entry near position 50) is acceptable — `labels[]` is treated as the "advanced" surface.
 
 ### F2 inline-rename
 
-[packages/fossflow-lib/src/interaction/useInteractionManager.ts](../../packages/fossflow-lib/src/interaction/useInteractionManager.ts) extends the existing F2 dispatch to include `CONNECTOR` selections. The same `inlineEditNodeName` `CustomEvent` is reused (the event name is intentionally retained for symmetry rather than introducing a parallel `inlineEditConnectorName`). The connector's name label listens for the event by id.
+[packages/axoview-lib/src/interaction/useInteractionManager.ts](../../packages/axoview-lib/src/interaction/useInteractionManager.ts) extends the existing F2 dispatch to include `CONNECTOR` selections. The same `inlineEditNodeName` `CustomEvent` is reused (the event name is intentionally retained for symmetry rather than introducing a parallel `inlineEditConnectorName`). The connector's name label listens for the event by id.
 
 ### Right-sidebar panel
 
-[ConnectorControls.tsx](../../packages/fossflow-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx) is restructured into a tabbed panel matching `NodePanel`:
+[ConnectorControls.tsx](../../packages/axoview-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx) is restructured into a tabbed panel matching `NodePanel`:
 
 - **Details** — Name (TextField, F2-focusable), Additional labels (current Add Label / position / line / height / font size / color / show line — verbatim, just relocated).
 - **Style** — Line Color, Width, Line Style, Line Type, Show Arrow, Delete button.
@@ -67,7 +67,7 @@ No migration of existing `labels[]` content into `name` runs at load time. The u
 
 ## Implementation notes (non-binding)
 
-- Connector schema: append `name: z.string().max(200).optional()` and `notes: z.string().max(NOTES_MAX_LENGTH).optional()` to [connector.ts](../../packages/fossflow-lib/src/schemas/connector.ts). Reuse the same `NOTES_MAX_LENGTH` constant nodes use.
+- Connector schema: append `name: z.string().max(200).optional()` and `notes: z.string().max(NOTES_MAX_LENGTH).optional()` to [connector.ts](../../packages/axoview-lib/src/schemas/connector.ts). Reuse the same `NOTES_MAX_LENGTH` constant nodes use.
 - Render the name label by extending `ConnectorLabel.tsx` to compose a synthetic label `{ id: '__name__', text: name, position: 50, line: '1', height: 0 }` when `connector.name?.trim()` is non-empty, prepended to `labels`. Skip the name label entirely if `labels[]` already contains an entry near position 50 — no, *don't* — coexistence is fine; spec says they are allowed to overlap.
 - F2 dispatch: in `useInteractionManager.ts` the `e.key === 'F2'` branch, allow `ctrl?.type === 'CONNECTOR'` in addition to `'ITEM' | 'TEXTBOX'`.
 - Inline edit on canvas: connector name listener can live in `ConnectorLabel.tsx` (or a new `ConnectorNameLabel.tsx` if cleaner) — it must commit `name` via `useScene().updateConnector`, Enter to commit, Escape to cancel.

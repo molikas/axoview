@@ -14,7 +14,7 @@ SCREENSHOT_DIR = os.path.join(os.path.dirname(__file__), "..", "screenshots")
 
 
 def get_base_url():
-    return os.getenv("FOSSFLOW_TEST_URL", "http://localhost:3000")
+    return os.getenv("AXOVIEW_TEST_URL", "http://localhost:3000")
 
 
 def get_webdriver_url():
@@ -60,7 +60,7 @@ def dismiss_modals(driver):
 
 def count_canvas_images(driver):
     return driver.execute_script("""
-        const c = document.querySelector('.fossflow-container');
+        const c = document.querySelector('.axoview-container');
         if (!c) return 0;
         return c.querySelectorAll('img').length;
     """)
@@ -131,7 +131,7 @@ def place_node_at(driver, x_offset, y_offset):
     time.sleep(0.5)
 
     # Click on canvas at specific offset
-    canvas = driver.find_element(By.CLASS_NAME, "fossflow-container")
+    canvas = driver.find_element(By.CLASS_NAME, "axoview-container")
     ActionChains(driver).move_to_element_with_offset(canvas, x_offset, y_offset).click().perform()
     time.sleep(1)
     return True
@@ -166,7 +166,7 @@ def test_multi_node_undo_redo(driver):
     print(f"\n1. Loading app at {base_url}")
     driver.get(base_url)
     WebDriverWait(driver, 15).until(
-        EC.presence_of_element_located((By.CLASS_NAME, "fossflow-container"))
+        EC.presence_of_element_located((By.CLASS_NAME, "axoview-container"))
     )
     time.sleep(2)
     dismiss_modals(driver)

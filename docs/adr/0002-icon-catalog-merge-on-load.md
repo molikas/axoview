@@ -7,7 +7,7 @@
 
 ## Context
 
-The FossFLOW model carries an `icons[]` array. This array is two things conflated:
+The Axoview model carries an `icons[]` array. This array is two things conflated:
 
 1. **The side-dock catalog** — what the user can drag onto the canvas.
 2. **The persistence shape** — what gets saved to JSON when a diagram is exported or written to storage.
@@ -28,7 +28,7 @@ sideDockCatalog = bundledFixtures ∪ model.icons
 
 Where:
 
-- `bundledFixtures` is the static array exported from [packages/fossflow-lib/src/fixtures/icons.ts](../../packages/fossflow-lib/src/fixtures/icons.ts). **As of 2026-05-01 this array is empty by design** — the real catalog is supplied by the consuming app (the FossFlow PWA injects `@isoflow/isopacks` into the model at create-time). The merge contract still holds: an empty `bundledFixtures` makes the union `≡ model.icons`, and any future library-bundled defaults can be added to the file without changing call sites.
+- `bundledFixtures` is the static array exported from [packages/axoview-lib/src/fixtures/icons.ts](../../packages/axoview-lib/src/fixtures/icons.ts). **As of 2026-05-01 this array is empty by design** — the real catalog is supplied by the consuming app (the Axoview PWA injects `@isoflow/isopacks` into the model at create-time). The merge contract still holds: an empty `bundledFixtures` makes the union `≡ model.icons`, and any future library-bundled defaults can be added to the file without changing call sites.
 - `model.icons` is whatever was loaded from JSON (post-strip, may be empty or contain only custom icons).
 - Union is by `id`, with `model.icons` taking precedence on collision (so a user override of a default icon's metadata wins).
 
@@ -40,7 +40,7 @@ The merge belongs in the loader, not in every consumer. Consumers (the side dock
 
 Concretely:
 
-- The `load(modelData)` flow in [useInitialDataManager](../../packages/fossflow-lib/src/hooks/useInitialDataManager.ts) is the single entry point for hydrating the model store.
+- The `load(modelData)` flow in [useInitialDataManager](../../packages/axoview-lib/src/hooks/useInitialDataManager.ts) is the single entry point for hydrating the model store.
 - Before writing to `useModelStore`, `load` merges `bundledFixtures` into `modelData.icons` per the rule above.
 - Every other consumer reads `useModelStore(state => state.icons)` and gets the merged array. No consumer reaches into `bundledFixtures` directly.
 
@@ -87,7 +87,7 @@ The × badge on the Elements panel tile is rendered only when `icon.collection =
 Before deletion, the confirm dialog lists every diagram that references the icon id. The scan is split:
 
 - The library has no notion of "other diagrams." It only knows the active model.
-- The consuming app injects an `iconUsageScan: (iconId) => Promise<IconUsageReport[]>` callback via the `<Isoflow>` prop. The PWA's `services/iconUsage.ts` uses `StorageProvider.listDiagrams()` + `loadDiagram(id)` to count references across the workspace, preferring the in-memory current diagram's items so unsaved edits count.
+- The consuming app injects an `iconUsageScan: (iconId) => Promise<IconUsageReport[]>` callback via the `<Axoview>` prop. The PWA's `services/iconUsage.ts` uses `StorageProvider.listDiagrams()` + `loadDiagram(id)` to count references across the workspace, preferring the in-memory current diagram's items so unsaved edits count.
 - When no callback is injected (tests, stripped embeds), `ElementsPanel` falls back to a current-diagram-only scan.
 
 Failures inside the scan resolve to `[]` (with `console.error`) rather than blocking — the warning copy in the dialog already states the consequence of proceeding, so failing closed would frustrate without protecting.

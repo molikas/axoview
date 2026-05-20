@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-05-16
-**Supersedes:** implicit single-selection assumption baked into [`ItemControls`](../../packages/fossflow-lib/src/types/ui.ts)
+**Supersedes:** implicit single-selection assumption baked into [`ItemControls`](../../packages/axoview-lib/src/types/ui.ts)
 **Superseded by:** none
 
 ## Context
@@ -83,13 +83,13 @@ This is the only widening of the `Mouse` type from this change. Existing tests t
 
 ## Files changed by this ADR's adoption
 
-- [`types/ui.ts`](../../packages/fossflow-lib/src/types/ui.ts) — new `selectedIds`, new actions, optional `Mouse.modifiers`.
-- [`stores/uiStateStore.tsx`](../../packages/fossflow-lib/src/stores/uiStateStore.tsx) — `setSelectedIds` / `toggleSelected` / `clearSelection`; `setItemControls` keeps `selectedIds` coherent for single-item updates.
-- [`interaction/modes/Cursor.ts`](../../packages/fossflow-lib/src/interaction/modes/Cursor.ts) — Ctrl+click branch; multi-drag from `selectedIds`.
-- [`interaction/modes/Lasso.ts`](../../packages/fossflow-lib/src/interaction/modes/Lasso.ts) + [`FreehandLasso.ts`](../../packages/fossflow-lib/src/interaction/modes/FreehandLasso.ts) — mirror selection into `selectedIds` on finalise.
-- [`interaction/useInteractionManager.ts`](../../packages/fossflow-lib/src/interaction/useInteractionManager.ts) — modifier capture, Ctrl+A, Esc extension, Delete extension.
-- [`components/TransformControlsManager/TransformControlsManager.tsx`](../../packages/fossflow-lib/src/components/TransformControlsManager/TransformControlsManager.tsx) — render outline per selected item when `length > 1`.
-- [`components/BottomDock/BottomDock.tsx`](../../packages/fossflow-lib/src/components/BottomDock/BottomDock.tsx) — `"N selected"` badge.
+- [`types/ui.ts`](../../packages/axoview-lib/src/types/ui.ts) — new `selectedIds`, new actions, optional `Mouse.modifiers`.
+- [`stores/uiStateStore.tsx`](../../packages/axoview-lib/src/stores/uiStateStore.tsx) — `setSelectedIds` / `toggleSelected` / `clearSelection`; `setItemControls` keeps `selectedIds` coherent for single-item updates.
+- [`interaction/modes/Cursor.ts`](../../packages/axoview-lib/src/interaction/modes/Cursor.ts) — Ctrl+click branch; multi-drag from `selectedIds`.
+- [`interaction/modes/Lasso.ts`](../../packages/axoview-lib/src/interaction/modes/Lasso.ts) + [`FreehandLasso.ts`](../../packages/axoview-lib/src/interaction/modes/FreehandLasso.ts) — mirror selection into `selectedIds` on finalise.
+- [`interaction/useInteractionManager.ts`](../../packages/axoview-lib/src/interaction/useInteractionManager.ts) — modifier capture, Ctrl+A, Esc extension, Delete extension.
+- [`components/TransformControlsManager/TransformControlsManager.tsx`](../../packages/axoview-lib/src/components/TransformControlsManager/TransformControlsManager.tsx) — render outline per selected item when `length > 1`.
+- [`components/BottomDock/BottomDock.tsx`](../../packages/axoview-lib/src/components/BottomDock/BottomDock.tsx) — `"N selected"` badge.
 
 ## See also
 

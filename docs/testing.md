@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-05-19
 **Total:** ~1085 tests · 103 suites · all passing
-**Run:** `npm test --workspace=packages/fossflow-lib` (lib) · `npm test --workspace=packages/fossflow-app` (app, project-zip + LocalStorageProvider)
+**Run:** `npm test --workspace=packages/axoview-lib` (lib) · `npm test --workspace=packages/axoview-app` (app, project-zip + LocalStorageProvider)
 
 E2E tests are not currently run in CI — Selenium framework under `e2e-tests/` is being retired in favour of Playwright. Migration tracked at [docs/tactical/playwright-migration.md](tactical/playwright-migration.md).
 
@@ -31,9 +31,9 @@ E2E tests are not currently run in CI — Selenium framework under `e2e-tests/` 
 
 | Suite | Coverage |
 |---|---|
-| [`packages/fossflow-app/src/hooks/__tests__/useRuntimeConfig.test.ts`](../packages/fossflow-app/src/hooks/__tests__/useRuntimeConfig.test.ts) | 3 tests pinning `fetchRuntimeConfig` behavior: falls back to defaults on fetch rejection; aborts a hanging fetch via `AbortSignal.timeout(800)` within ~1 s (the load-bearing assertion — caps Chrome/Windows dual-stack connect-probe latency); singleton cache returns the same instance and hits fetch only once. |
-| [`packages/fossflow-app/src/providers/__tests__/AppStorageContext.test.tsx`](../packages/fossflow-app/src/providers/__tests__/AppStorageContext.test.tsx) | Render-based regression for the `Promise.all` parallelism contract: with both `/api/config` and `/api/storage/status` mocked to delay 200 ms, fetches must be initiated within 50 ms of each other and `isInitialized` flips to `true` within ~1.8 × the per-probe delay (≈360 ms, not the sequential ≈400 ms). Catches a regression to `await … await …`. |
-| [`packages/fossflow-app/src/services/storage/__tests__/LocalStorageProvider.test.ts`](../packages/fossflow-app/src/services/storage/__tests__/LocalStorageProvider.test.ts) (extended) | Adds `isAvailable() aborts a hanging /api/storage/status probe within ~1 s and stays offline` — the mirror of the `useRuntimeConfig` timeout pin for the second startup probe. |
+| [`packages/axoview-app/src/hooks/__tests__/useRuntimeConfig.test.ts`](../packages/axoview-app/src/hooks/__tests__/useRuntimeConfig.test.ts) | 3 tests pinning `fetchRuntimeConfig` behavior: falls back to defaults on fetch rejection; aborts a hanging fetch via `AbortSignal.timeout(800)` within ~1 s (the load-bearing assertion — caps Chrome/Windows dual-stack connect-probe latency); singleton cache returns the same instance and hits fetch only once. |
+| [`packages/axoview-app/src/providers/__tests__/AppStorageContext.test.tsx`](../packages/axoview-app/src/providers/__tests__/AppStorageContext.test.tsx) | Render-based regression for the `Promise.all` parallelism contract: with both `/api/config` and `/api/storage/status` mocked to delay 200 ms, fetches must be initiated within 50 ms of each other and `isInitialized` flips to `true` within ~1.8 × the per-probe delay (≈360 ms, not the sequential ≈400 ms). Catches a regression to `await … await …`. |
+| [`packages/axoview-app/src/services/storage/__tests__/LocalStorageProvider.test.ts`](../packages/axoview-app/src/services/storage/__tests__/LocalStorageProvider.test.ts) (extended) | Adds `isAvailable() aborts a hanging /api/storage/status probe within ~1 s and stays offline` — the mirror of the `useRuntimeConfig` timeout pin for the second startup probe. |
 
 > Note: `jest.setup.js` now polyfills `AbortSignal.timeout` because jsdom 20 (bundled with `jest-environment-jsdom@29`) ships an `AbortSignal` missing the static `.timeout()` method. Without the polyfill, the `timeoutSignal()` helper in `LocalStorageProvider.ts` falls back to `undefined` in tests and the abort path can't be observed.
 
@@ -41,29 +41,29 @@ E2E tests are not currently run in CI — Selenium framework under `e2e-tests/` 
 
 | Suite | Coverage |
 |---|---|
-| [`packages/fossflow-lib/src/__perf_refactor_regression__/multiSelect.contract.test.ts`](../packages/fossflow-lib/src/__perf_refactor_regression__/multiSelect.contract.test.ts) | 6 store-level tests pinning ADR-0006 invariants: `setSelectedIds([])` clears both slices; `setSelectedIds([single])` opens panel; `setSelectedIds([>1])` auto-hides panel (MQA #9); `toggleSelected` add/remove + auto-reopen on count→1; `clearSelection`; and `setItemControls(single)` mirroring into `selectedIds` for the layer-row click path. |
-| [`packages/fossflow-lib/src/utils/__tests__/connectorSelection.test.ts`](../packages/fossflow-lib/src/utils/__tests__/connectorSelection.test.ts) | 8 unit tests pinning the connector-with-waypoint helpers: `getConnectorWaypointRefs` (tile-bound middle anchors only, never endpoints), `isUserFacingRef` / `countUserFacingRefs` (waypoints don't inflate the badge), `filterUserFacingRefs` (drops waypoint refs for assign-to-layer dispatch). |
-| [`packages/fossflow-lib/src/__perf_refactor_regression__/Cursor.waypointGestures.test.ts`](../packages/fossflow-lib/src/__perf_refactor_regression__/Cursor.waypointGestures.test.ts) | 6 mode-action regression tests for MQA #8/#9 + waypoint-removal: Alt+click splice removes the clicked waypoint; subsequent mouseup preserves the connector selection (no spurious `clearSelection`); plain click still sets up drag; DOM-driven `targetAnchorId` lookup wins over tile-equality so off-tile clicks within the 32 px hit ring still resolve; Ctrl+click on a connector toggles connector + its waypoints as one atomic group. |
+| [`packages/axoview-lib/src/__perf_refactor_regression__/multiSelect.contract.test.ts`](../packages/axoview-lib/src/__perf_refactor_regression__/multiSelect.contract.test.ts) | 6 store-level tests pinning ADR-0006 invariants: `setSelectedIds([])` clears both slices; `setSelectedIds([single])` opens panel; `setSelectedIds([>1])` auto-hides panel (MQA #9); `toggleSelected` add/remove + auto-reopen on count→1; `clearSelection`; and `setItemControls(single)` mirroring into `selectedIds` for the layer-row click path. |
+| [`packages/axoview-lib/src/utils/__tests__/connectorSelection.test.ts`](../packages/axoview-lib/src/utils/__tests__/connectorSelection.test.ts) | 8 unit tests pinning the connector-with-waypoint helpers: `getConnectorWaypointRefs` (tile-bound middle anchors only, never endpoints), `isUserFacingRef` / `countUserFacingRefs` (waypoints don't inflate the badge), `filterUserFacingRefs` (drops waypoint refs for assign-to-layer dispatch). |
+| [`packages/axoview-lib/src/__perf_refactor_regression__/Cursor.waypointGestures.test.ts`](../packages/axoview-lib/src/__perf_refactor_regression__/Cursor.waypointGestures.test.ts) | 6 mode-action regression tests for MQA #8/#9 + waypoint-removal: Alt+click splice removes the clicked waypoint; subsequent mouseup preserves the connector selection (no spurious `clearSelection`); plain click still sets up drag; DOM-driven `targetAnchorId` lookup wins over tile-equality so off-tile clicks within the 32 px hit ring still resolve; Ctrl+click on a connector toggles connector + its waypoints as one atomic group. |
 
 ## Branch additions (2026-05-15 → 2026-05-16) — MQA Bundle B + follow-ups
 
 | Suite | Coverage |
 |---|---|
-| [`packages/fossflow-lib/src/__perf_refactor_regression__/connector.createUndoRedo.test.tsx`](../packages/fossflow-lib/src/__perf_refactor_regression__/connector.createUndoRedo.test.tsx) | Real-store regression for MQA #5. Exercises the full begin / createConnector / updateConnector×N / commit / undo path on `ModelProvider` + `SceneProvider` + `UiStateProvider`, asserts both stores' `canRedo()` are true after undo, and that the connector reappears after redo. Pins the load-bearing scene-store undo/redo invariant ([architecture.md §7l](architecture.md)). |
-| [`packages/fossflow-lib/src/__perf_refactor_regression__/node.linkTooltipDedup.test.tsx`](../packages/fossflow-lib/src/__perf_refactor_regression__/node.linkTooltipDedup.test.ts) | Structural pin for MQA #22 + #25 final design: no chip / no click-Popover; bottom-right link badge is `pointerEvents: 'none'`; Pan.ts opens the readOnly NodePanel on body click for any content-bearing node; default cursor in EXPLORABLE_READONLY is `default`; NodePanel header renders the node name as a clickable link with URL in tooltip; LINKED DIAGRAM body section with resolved-name link or unresolved-id error. |
-| [`packages/fossflow-lib/src/__perf_refactor_regression__/f2.rendererScope.test.ts`](../packages/fossflow-lib/src/__perf_refactor_regression__/f2.rendererScope.test.ts) | MQA #13. Asserts the F2 → `inlineEditNodeName` dispatch in `useInteractionManager` is scoped to keystrokes originating inside the renderer, so a canvas-selected item can no longer steal focus from the file-explorer's edit input. |
-| [`packages/fossflow-app/src/utils/__tests__/shareUrl.test.ts`](../packages/fossflow-app/src/utils/__tests__/shareUrl.test.ts) | MQA #24. `shareUrlFromUuid(uuid)` always returns `window.location.origin + /display/p/<uuid>`; never leaks the backend port. |
-| [`packages/fossflow-app/src/components/fileExplorer/__tests__/delete.contract.test.ts`](../packages/fossflow-app/src/components/fileExplorer/__tests__/delete.contract.test.ts) | MQA #18. Calling-order contract: `notifyDiagramDeletedFromTree(id)` must fire **before** the storage delete in both `FileExplorer.confirmDelete` and `DiagramManager.confirmDelete`, and the provider implementation must cancel autosave, clear the scratch buffer, and reset `currentDiagram`. |
-| [`packages/fossflow-app/src/services/storage/__tests__/backendRoutes.contract.test.ts`](../packages/fossflow-app/src/services/storage/__tests__/backendRoutes.contract.test.ts) | MQA #21. Source-level contract: `createFolder` and `createDiagram` in `packages/fossflow-backend/src/routes.js` use random-suffix ids (`Math.random().toString(36)`) with a collision-retry loop, so sequential project-import bursts can't collide on `Date.now()`. |
-| [`packages/fossflow-lib/src/__perf_refactor_regression__/Pan.modes.test.ts`](../packages/fossflow-lib/src/__perf_refactor_regression__/Pan.modes.test.ts) | Extended for MQA #22 / #25: cursor switches between `default` (EXPLORABLE_READONLY) and `grab` (EDITABLE) on entry; mousedown does not flip to `grabbing` in preview; body click in preview opens panel for any content-bearing node including link-only. |
-| [`packages/fossflow-lib/src/components/RichTextEditor/__tests__/RichTextEditor.formats.test.ts`](../packages/fossflow-lib/src/components/RichTextEditor/__tests__/RichTextEditor.formats.test.ts) | Extended for MQA #12. Pins the `list autofill` keyboard-binding override (noop handler returns `true` so the literal space is inserted and the autofill never replaces an empty line with an empty `<ol>`). |
-| [`packages/fossflow-app/src/services/storage/__tests__/LocalStorageProvider.test.ts`](../packages/fossflow-app/src/services/storage/__tests__/LocalStorageProvider.test.ts) | Extended for MQA #14. Session-mode `renameDiagram` mirrors the new name into both the diagrams listing **and** the per-diagram blob (`blob.title` + `blob.name`). Corrupted-blob path leaves the listing rename in place without crashing. |
+| [`packages/axoview-lib/src/__perf_refactor_regression__/connector.createUndoRedo.test.tsx`](../packages/axoview-lib/src/__perf_refactor_regression__/connector.createUndoRedo.test.tsx) | Real-store regression for MQA #5. Exercises the full begin / createConnector / updateConnector×N / commit / undo path on `ModelProvider` + `SceneProvider` + `UiStateProvider`, asserts both stores' `canRedo()` are true after undo, and that the connector reappears after redo. Pins the load-bearing scene-store undo/redo invariant ([architecture.md §7l](architecture.md)). |
+| [`packages/axoview-lib/src/__perf_refactor_regression__/node.linkTooltipDedup.test.tsx`](../packages/axoview-lib/src/__perf_refactor_regression__/node.linkTooltipDedup.test.ts) | Structural pin for MQA #22 + #25 final design: no chip / no click-Popover; bottom-right link badge is `pointerEvents: 'none'`; Pan.ts opens the readOnly NodePanel on body click for any content-bearing node; default cursor in EXPLORABLE_READONLY is `default`; NodePanel header renders the node name as a clickable link with URL in tooltip; LINKED DIAGRAM body section with resolved-name link or unresolved-id error. |
+| [`packages/axoview-lib/src/__perf_refactor_regression__/f2.rendererScope.test.ts`](../packages/axoview-lib/src/__perf_refactor_regression__/f2.rendererScope.test.ts) | MQA #13. Asserts the F2 → `inlineEditNodeName` dispatch in `useInteractionManager` is scoped to keystrokes originating inside the renderer, so a canvas-selected item can no longer steal focus from the file-explorer's edit input. |
+| [`packages/axoview-app/src/utils/__tests__/shareUrl.test.ts`](../packages/axoview-app/src/utils/__tests__/shareUrl.test.ts) | MQA #24. `shareUrlFromUuid(uuid)` always returns `window.location.origin + /display/p/<uuid>`; never leaks the backend port. |
+| [`packages/axoview-app/src/components/fileExplorer/__tests__/delete.contract.test.ts`](../packages/axoview-app/src/components/fileExplorer/__tests__/delete.contract.test.ts) | MQA #18. Calling-order contract: `notifyDiagramDeletedFromTree(id)` must fire **before** the storage delete in both `FileExplorer.confirmDelete` and `DiagramManager.confirmDelete`, and the provider implementation must cancel autosave, clear the scratch buffer, and reset `currentDiagram`. |
+| [`packages/axoview-app/src/services/storage/__tests__/backendRoutes.contract.test.ts`](../packages/axoview-app/src/services/storage/__tests__/backendRoutes.contract.test.ts) | MQA #21. Source-level contract: `createFolder` and `createDiagram` in `packages/axoview-backend/src/routes.js` use random-suffix ids (`Math.random().toString(36)`) with a collision-retry loop, so sequential project-import bursts can't collide on `Date.now()`. |
+| [`packages/axoview-lib/src/__perf_refactor_regression__/Pan.modes.test.ts`](../packages/axoview-lib/src/__perf_refactor_regression__/Pan.modes.test.ts) | Extended for MQA #22 / #25: cursor switches between `default` (EXPLORABLE_READONLY) and `grab` (EDITABLE) on entry; mousedown does not flip to `grabbing` in preview; body click in preview opens panel for any content-bearing node including link-only. |
+| [`packages/axoview-lib/src/components/RichTextEditor/__tests__/RichTextEditor.formats.test.ts`](../packages/axoview-lib/src/components/RichTextEditor/__tests__/RichTextEditor.formats.test.ts) | Extended for MQA #12. Pins the `list autofill` keyboard-binding override (noop handler returns `true` so the literal space is inserted and the autofill never replaces an empty line with an empty `<ol>`). |
+| [`packages/axoview-app/src/services/storage/__tests__/LocalStorageProvider.test.ts`](../packages/axoview-app/src/services/storage/__tests__/LocalStorageProvider.test.ts) | Extended for MQA #14. Session-mode `renameDiagram` mirrors the new name into both the diagrams listing **and** the per-diagram blob (`blob.title` + `blob.name`). Corrupted-blob path leaves the listing rename in place without crashing. |
 
 ## Branch additions (2026-05-10)
 
 | Suite | Coverage |
 |---|---|
-| [`packages/fossflow-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx`](../packages/fossflow-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx) | 4 tests against the real provider stack (`ModelProvider` + `SceneProvider` + `UiStateProvider`): drag transaction collapses N tile updates into 1 history entry; baseline (no transaction) still pushes N entries; `pendingPre` stays alive across intermediate ticks (per-tick history.past stays flat); 40-tick drag completes under 1500 ms. The fixture is loaded from [`packages/fossflow-e2e/fixtures/perf-stress-diagram.json`](../packages/fossflow-e2e/fixtures/perf-stress-diagram.json) and `modelSchema.safeParse`'d on setup — the manual import file cannot drift out of schema. |
+| [`packages/axoview-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx`](../packages/axoview-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx) | 4 tests against the real provider stack (`ModelProvider` + `SceneProvider` + `UiStateProvider`): drag transaction collapses N tile updates into 1 history entry; baseline (no transaction) still pushes N entries; `pendingPre` stays alive across intermediate ticks (per-tick history.past stays flat); 40-tick drag completes under 1500 ms. The fixture is loaded from [`packages/axoview-e2e/fixtures/perf-stress-diagram.json`](../packages/axoview-e2e/fixtures/perf-stress-diagram.json) and `modelSchema.safeParse`'d on setup — the manual import file cannot drift out of schema. |
 
 ---
 
@@ -73,9 +73,9 @@ New suites shipped with Phase 5* + the session-mode UX revamp:
 
 | Suite | Coverage |
 |---|---|
-| [`packages/fossflow-lib/src/utils/__tests__/leanSave.test.ts`](../packages/fossflow-lib/src/utils/__tests__/leanSave.test.ts) | ADR 0003 round-trip identity (strip-then-merge), strip drops pure duplicates, custom + override icons preserved, empty `icons[]` produces full catalog after merge, `requiredPacks` derivation from full icons, **preservation contract for already-lean inputs** (the regression that broke icon-pack auto-load on import) |
-| [`packages/fossflow-app/src/services/project/__tests__/projectZip.test.ts`](../packages/fossflow-app/src/services/project/__tests__/projectZip.test.ts) | ADR 0001 round-trip (export → parse → import → identical workspace modulo IDs and `lastModified`), ID rewriting + cross-reference update, malformed zip rejection, unknown version rejection, replace-all typed-confirm gate |
-| [`packages/fossflow-app/src/services/storage/__tests__/LocalStorageProvider.test.ts`](../packages/fossflow-app/src/services/storage/__tests__/LocalStorageProvider.test.ts) (updated) | Unique-id minting (random suffix prevents same-ms collisions), `sessionSaveDiagram` preserves existing `folderId` when payload doesn't carry one |
+| [`packages/axoview-lib/src/utils/__tests__/leanSave.test.ts`](../packages/axoview-lib/src/utils/__tests__/leanSave.test.ts) | ADR 0003 round-trip identity (strip-then-merge), strip drops pure duplicates, custom + override icons preserved, empty `icons[]` produces full catalog after merge, `requiredPacks` derivation from full icons, **preservation contract for already-lean inputs** (the regression that broke icon-pack auto-load on import) |
+| [`packages/axoview-app/src/services/project/__tests__/projectZip.test.ts`](../packages/axoview-app/src/services/project/__tests__/projectZip.test.ts) | ADR 0001 round-trip (export → parse → import → identical workspace modulo IDs and `lastModified`), ID rewriting + cross-reference update, malformed zip rejection, unknown version rejection, replace-all typed-confirm gate |
+| [`packages/axoview-app/src/services/storage/__tests__/LocalStorageProvider.test.ts`](../packages/axoview-app/src/services/storage/__tests__/LocalStorageProvider.test.ts) (updated) | Unique-id minting (random suffix prevents same-ms collisions), `sessionSaveDiagram` preserves existing `folderId` when payload doesn't carry one |
 
 ---
 
@@ -92,7 +92,7 @@ New suites shipped with Phase 5* + the session-mode UX revamp:
 
 These tests cover the mode state machine, mouse event routing, and keyboard dispatch. They use real module imports with minimal mocking (`src/utils` only).
 
-### [Cursor.modes.test.ts](packages/fossflow-lib/src/__perf_refactor_regression__/Cursor.modes.test.ts) · 16 tests · ✅ VALID
+### [Cursor.modes.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/Cursor.modes.test.ts) · 16 tests · ✅ VALID
 
 **Production target:** `src/interaction/modes/Cursor.ts`
 
@@ -106,7 +106,7 @@ These tests cover the mode state machine, mouse event routing, and keyboard disp
 
 ---
 
-### [Lasso.modes.test.ts](packages/fossflow-lib/src/__perf_refactor_regression__/Lasso.modes.test.ts) · 15 tests · ✅ VALID
+### [Lasso.modes.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/Lasso.modes.test.ts) · 15 tests · ✅ VALID
 
 **Production target:** `src/interaction/modes/Lasso.ts`
 
@@ -120,7 +120,7 @@ These tests cover the mode state machine, mouse event routing, and keyboard disp
 
 ---
 
-### [toolMenu.propagation.test.tsx](packages/fossflow-lib/src/__perf_refactor_regression__/toolMenu.propagation.test.tsx) · 8 tests · ✅ VALID
+### [toolMenu.propagation.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/toolMenu.propagation.test.tsx) · 8 tests · ✅ VALID
 
 **Production targets:** `src/interaction/modes/Lasso.ts`, ToolMenu `onMouseDown` wrapper in `UiOverlay.tsx`
 
@@ -134,7 +134,7 @@ These tests cover the mode state machine, mouse event routing, and keyboard disp
 
 ---
 
-### [keyboard.dispatch.test.tsx](packages/fossflow-lib/src/__perf_refactor_regression__/keyboard.dispatch.test.tsx) · 25 tests · ✅ VALID
+### [keyboard.dispatch.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/keyboard.dispatch.test.tsx) · 25 tests · ✅ VALID
 
 **Production targets:** `src/interaction/useInteractionManager.ts`, `src/interaction/usePanHandlers.ts`
 
@@ -142,7 +142,7 @@ Covers: keyboard shortcut dispatch, pan key combos, Delete key, Escape key, mode
 
 ---
 
-### [interactionManager.depStability.test.tsx](packages/fossflow-lib/src/__perf_refactor_regression__/interactionManager.depStability.test.tsx) · 2 tests · ✅ VALID
+### [interactionManager.depStability.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/interactionManager.depStability.test.tsx) · 2 tests · ✅ VALID
 
 **Production target:** `src/interaction/useInteractionManager.ts`
 
@@ -150,7 +150,7 @@ Pins that `useCallback`/`useMemo` dependency arrays in `useInteractionManager` d
 
 ---
 
-### [usePanHandlers.test.ts](packages/fossflow-lib/src/interaction/__tests__/usePanHandlers.test.ts) · 20 tests · ✅ VALID
+### [usePanHandlers.test.ts](packages/axoview-lib/src/interaction/__tests__/usePanHandlers.test.ts) · 20 tests · ✅ VALID
 
 **Production target:** `src/interaction/usePanHandlers.ts`
 
@@ -169,7 +169,7 @@ Pins that `useCallback`/`useMemo` dependency arrays in `useInteractionManager` d
 
 These tests cover the public API of `useScene`, view operations, clipboard history, and the initialization sequence.
 
-### [useScene.listShape.test.tsx](packages/fossflow-lib/src/__perf_refactor_regression__/useScene.listShape.test.tsx) · 17 tests · ✅ VALID
+### [useScene.listShape.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/useScene.listShape.test.tsx) · 17 tests · ✅ VALID
 
 **Production target:** `src/hooks/useScene.ts`
 
@@ -177,7 +177,7 @@ Covers: `currentView` shape contract (items, connectors, rectangles, textBoxes a
 
 ---
 
-### [useScene.referenceStability.test.tsx](packages/fossflow-lib/src/__perf_refactor_regression__/useScene.referenceStability.test.tsx) · 7 tests · ✅ VALID
+### [useScene.referenceStability.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/useScene.referenceStability.test.tsx) · 7 tests · ✅ VALID
 
 **Production target:** `src/hooks/useScene.ts`
 
@@ -185,7 +185,7 @@ Covers: `currentView` reference stability — object identity must not change wh
 
 ---
 
-### [viewOps.integration.test.tsx](packages/fossflow-lib/src/__perf_refactor_regression__/viewOps.integration.test.tsx) · 16 tests · ✅ VALID
+### [viewOps.integration.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/viewOps.integration.test.tsx) · 16 tests · ✅ VALID
 
 **Production target:** `src/stores/reducers/view.ts`
 
@@ -193,7 +193,7 @@ Covers: `createView`, `updateView`, `deleteView`, `setActiveView` full lifecycle
 
 ---
 
-### [useHistory.test.tsx](packages/fossflow-lib/src/hooks/__tests__/useHistory.test.tsx) · 16 tests · ✅ VALID
+### [useHistory.test.tsx](packages/axoview-lib/src/hooks/__tests__/useHistory.test.tsx) · 16 tests · ✅ VALID
 
 **Production target:** `src/hooks/useHistory.ts`
 
@@ -201,7 +201,7 @@ Covers (mocked stores): `saveToHistory`/`undo`/`redo` delegation to stores; `can
 
 ---
 
-### [useHistory.realStore.test.tsx](packages/fossflow-lib/src/hooks/__tests__/useHistory.realStore.test.tsx) · 7 tests · ✅ VALID
+### [useHistory.realStore.test.tsx](packages/axoview-lib/src/hooks/__tests__/useHistory.realStore.test.tsx) · 7 tests · ✅ VALID
 
 **Production targets:** `src/hooks/useHistory.ts`, `src/stores/modelStore.tsx`
 
@@ -216,7 +216,7 @@ Uses real `ModelProvider` + `SceneProvider` wrappers — tests actual Zustand st
 
 ---
 
-### [useInitialDataManager.test.tsx](packages/fossflow-lib/src/hooks/__tests__/useInitialDataManager.test.tsx) · 8 tests · ✅ VALID
+### [useInitialDataManager.test.tsx](packages/axoview-lib/src/hooks/__tests__/useInitialDataManager.test.tsx) · 8 tests · ✅ VALID
 
 **Production target:** `src/hooks/useInitialDataManager.ts`
 
@@ -228,7 +228,7 @@ Covers: orphaned connector filtering on load (connectors referencing non-existen
 
 All reducer tests use real Immer-based functions with no mocking of the reducer logic itself. They verify immutability (input state unchanged), return-value correctness, and cascade behavior.
 
-### [connector.test.ts](packages/fossflow-lib/src/stores/reducers/__tests__/connector.test.ts) · 21 tests · ✅ VALID
+### [connector.test.ts](packages/axoview-lib/src/stores/reducers/__tests__/connector.test.ts) · 21 tests · ✅ VALID
 
 **Production target:** `src/stores/reducers/connector.ts`
 
@@ -238,7 +238,7 @@ Covers: `createConnector`, `updateConnector`, `deleteConnector`, `syncConnector`
 
 ---
 
-### [modelItem.test.ts](packages/fossflow-lib/src/stores/reducers/__tests__/modelItem.test.ts) · 8 tests · ✅ VALID
+### [modelItem.test.ts](packages/axoview-lib/src/stores/reducers/__tests__/modelItem.test.ts) · 8 tests · ✅ VALID
 
 **Production target:** `src/stores/reducers/modelItem.ts`
 
@@ -250,7 +250,7 @@ Covers: `createConnector`, `updateConnector`, `deleteConnector`, `syncConnector`
 
 ---
 
-### [viewItem.test.ts](packages/fossflow-lib/src/stores/reducers/__tests__/viewItem.test.ts) · 21 tests · ✅ VALID
+### [viewItem.test.ts](packages/axoview-lib/src/stores/reducers/__tests__/viewItem.test.ts) · 21 tests · ✅ VALID
 
 **Production target:** `src/stores/reducers/viewItem.ts`
 
@@ -258,7 +258,7 @@ Covers: `createViewItem`, `updateViewItem`, `deleteViewItem` with connector casc
 
 ---
 
-### [view.test.ts](packages/fossflow-lib/src/stores/reducers/__tests__/view.test.ts) · 13 tests · ✅ VALID
+### [view.test.ts](packages/axoview-lib/src/stores/reducers/__tests__/view.test.ts) · 13 tests · ✅ VALID
 
 **Production target:** `src/stores/reducers/view.ts`
 
@@ -266,7 +266,7 @@ Covers: view CRUD, action dispatcher, rename idempotency, delete-with-items casc
 
 ---
 
-### [rectangle.test.ts](packages/fossflow-lib/src/stores/reducers/__tests__/rectangle.test.ts) · 20 tests · ✅ VALID
+### [rectangle.test.ts](packages/axoview-lib/src/stores/reducers/__tests__/rectangle.test.ts) · 20 tests · ✅ VALID
 
 **Production target:** `src/stores/reducers/rectangle.ts`
 
@@ -274,7 +274,7 @@ Covers: CRUD, sync with scene store, immutability, not-found throws.
 
 ---
 
-### [textBox.test.ts](packages/fossflow-lib/src/stores/reducers/__tests__/textBox.test.ts) · 23 tests · ✅ VALID
+### [textBox.test.ts](packages/axoview-lib/src/stores/reducers/__tests__/textBox.test.ts) · 23 tests · ✅ VALID
 
 **Production target:** `src/stores/reducers/textBox.ts`
 
@@ -288,15 +288,15 @@ All schema tests use Zod's `.parse()` / `.safeParse()` directly. They act as liv
 
 | File | Production target | Tests | What's pinned |
 |---|---|---|---|
-| [colors.test.ts](packages/fossflow-lib/src/schemas/__tests__/colors.test.ts) | `schemas/colors.ts` | 4 | colorSchema fields, colorsSchema array |
-| [layer.test.ts](packages/fossflow-lib/src/schemas/__tests__/layer.test.ts) | `schemas/layer.ts` | 9 | layerSchema required fields (id, visible, locked, order); order must be integer; round-trip; layersSchema empty array + invalid member |
-| [connector.test.ts](packages/fossflow-lib/src/schemas/__tests__/connector.test.ts) | `schemas/connector.ts` | 9 | anchorSchema (valid anchor, missing id); anchorSchema ref contracts (tile-only, empty ref, simultaneous item+tile — no exclusivity guard at schema level); connectorSchema (valid, missing anchors); connector anchor count (0 anchors allowed, 1 anchor allowed — minimum is app-level invariant only) |
-| [icons.test.ts](packages/fossflow-lib/src/schemas/__tests__/icons.test.ts) | `schemas/icons.ts` | 4 | iconSchema, iconsSchema |
-| [modelItems.test.ts](packages/fossflow-lib/src/schemas/__tests__/modelItems.test.ts) | `schemas/modelItems.ts` | 10 | modelItemSchema including `headerLink` optional URL field |
-| [rectangle.test.ts](packages/fossflow-lib/src/schemas/__tests__/rectangle.test.ts) | `schemas/rectangle.ts` | 2 | rectangleSchema required fields |
-| [textBox.test.ts](packages/fossflow-lib/src/schemas/__tests__/textBox.test.ts) | `schemas/textBox.ts` | 2 | textBoxSchema required fields |
-| [validation.test.ts](packages/fossflow-lib/src/schemas/__tests__/validation.test.ts) | `schemas/validation.ts` | 10 | Full model validation, Zod coercion, invalid model rejection |
-| [views.test.ts](packages/fossflow-lib/src/schemas/__tests__/views.test.ts) | `schemas/views.ts` | 6 | viewItemSchema, viewSchema, viewsSchema |
+| [colors.test.ts](packages/axoview-lib/src/schemas/__tests__/colors.test.ts) | `schemas/colors.ts` | 4 | colorSchema fields, colorsSchema array |
+| [layer.test.ts](packages/axoview-lib/src/schemas/__tests__/layer.test.ts) | `schemas/layer.ts` | 9 | layerSchema required fields (id, visible, locked, order); order must be integer; round-trip; layersSchema empty array + invalid member |
+| [connector.test.ts](packages/axoview-lib/src/schemas/__tests__/connector.test.ts) | `schemas/connector.ts` | 9 | anchorSchema (valid anchor, missing id); anchorSchema ref contracts (tile-only, empty ref, simultaneous item+tile — no exclusivity guard at schema level); connectorSchema (valid, missing anchors); connector anchor count (0 anchors allowed, 1 anchor allowed — minimum is app-level invariant only) |
+| [icons.test.ts](packages/axoview-lib/src/schemas/__tests__/icons.test.ts) | `schemas/icons.ts` | 4 | iconSchema, iconsSchema |
+| [modelItems.test.ts](packages/axoview-lib/src/schemas/__tests__/modelItems.test.ts) | `schemas/modelItems.ts` | 10 | modelItemSchema including `headerLink` optional URL field |
+| [rectangle.test.ts](packages/axoview-lib/src/schemas/__tests__/rectangle.test.ts) | `schemas/rectangle.ts` | 2 | rectangleSchema required fields |
+| [textBox.test.ts](packages/axoview-lib/src/schemas/__tests__/textBox.test.ts) | `schemas/textBox.ts` | 2 | textBoxSchema required fields |
+| [validation.test.ts](packages/axoview-lib/src/schemas/__tests__/validation.test.ts) | `schemas/validation.ts` | 10 | Full model validation, Zod coercion, invalid model rejection |
+| [views.test.ts](packages/axoview-lib/src/schemas/__tests__/views.test.ts) | `schemas/views.ts` | 6 | viewItemSchema, viewSchema, viewsSchema |
 
 **Total: 56 tests** (layer.test.ts added; prior count was 47)
 
@@ -304,7 +304,7 @@ All schema tests use Zod's `.parse()` / `.safeParse()` directly. They act as liv
 
 ## Layer 5 — Components
 
-### [uiOverlay.editorModes.test.ts](packages/fossflow-lib/src/__perf_refactor_regression__/uiOverlay.editorModes.test.ts) · 19 tests · ⚠️ SEMI-VALID
+### [uiOverlay.editorModes.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/uiOverlay.editorModes.test.ts) · 19 tests · ⚠️ SEMI-VALID
 
 **Production target:** `src/components/UiOverlay/UiOverlay.tsx` (`EDITOR_MODE_MAPPING`)
 
@@ -315,7 +315,7 @@ Covers: tool visibility per editor mode (EDITABLE, EXPLORABLE_READONLY, NON_INTE
 
 ---
 
-### [RichTextEditor.formats.test.ts](packages/fossflow-lib/src/components/RichTextEditor/__tests__/RichTextEditor.formats.test.ts) · 4 tests · ✅ VALID
+### [RichTextEditor.formats.test.ts](packages/axoview-lib/src/components/RichTextEditor/__tests__/RichTextEditor.formats.test.ts) · 4 tests · ✅ VALID
 
 **Production target:** `src/components/RichTextEditor/RichTextEditor.tsx` (`formats` export)
 
@@ -323,8 +323,8 @@ Covers: `'bullet'` absent (Quill unregistered alias); `'list'` present; all 9 ex
 
 ---
 
-### [ColorSelector.test.tsx](packages/fossflow-lib/src/components/ColorSelector/__tests__/ColorSelector.test.tsx) · 14 tests · ✅ VALID
-### [CustomColorInput.test.tsx](packages/fossflow-lib/src/components/ColorSelector/__tests__/CustomColorInput.test.tsx) · 11 tests · ✅ VALID
+### [ColorSelector.test.tsx](packages/axoview-lib/src/components/ColorSelector/__tests__/ColorSelector.test.tsx) · 14 tests · ✅ VALID
+### [CustomColorInput.test.tsx](packages/axoview-lib/src/components/ColorSelector/__tests__/CustomColorInput.test.tsx) · 11 tests · ✅ VALID
 
 **Production targets:** `ColorSelector`, `CustomColorInput`
 
@@ -336,12 +336,12 @@ Covers: color picker render, hex input validation, EyeDropper API integration, o
 
 | File | Production target | Tests |
 |---|---|---|
-| [DebugUtils.test.tsx](packages/fossflow-lib/src/components/DebugUtils/__tests__/DebugUtils.test.tsx) | `DebugUtils` | 2 |
-| [LineItem.test.tsx](packages/fossflow-lib/src/components/DebugUtils/__tests__/LineItem.test.tsx) | `LineItem` | 2 |
-| [SizeIndicator.test.tsx](packages/fossflow-lib/src/components/DebugUtils/__tests__/SizeIndicator.test.tsx) | `SizeIndicator` | 2 |
-| [Value.test.tsx](packages/fossflow-lib/src/components/DebugUtils/__tests__/Value.test.tsx) | `Value` | 2 |
-| [Icon.test.tsx](packages/fossflow-lib/src/components/ItemControls/IconSelectionControls/__tests__/Icon.test.tsx) | `IconSelectionControls/Icon` | 2 |
-| [Label.test.tsx](packages/fossflow-lib/src/components/Label/__tests__/Label.test.tsx) | `Label` | 4 |
+| [DebugUtils.test.tsx](packages/axoview-lib/src/components/DebugUtils/__tests__/DebugUtils.test.tsx) | `DebugUtils` | 2 |
+| [LineItem.test.tsx](packages/axoview-lib/src/components/DebugUtils/__tests__/LineItem.test.tsx) | `LineItem` | 2 |
+| [SizeIndicator.test.tsx](packages/axoview-lib/src/components/DebugUtils/__tests__/SizeIndicator.test.tsx) | `SizeIndicator` | 2 |
+| [Value.test.tsx](packages/axoview-lib/src/components/DebugUtils/__tests__/Value.test.tsx) | `Value` | 2 |
+| [Icon.test.tsx](packages/axoview-lib/src/components/ItemControls/IconSelectionControls/__tests__/Icon.test.tsx) | `IconSelectionControls/Icon` | 2 |
+| [Label.test.tsx](packages/axoview-lib/src/components/Label/__tests__/Label.test.tsx) | `Label` | 4 |
 
 ---
 
@@ -351,20 +351,20 @@ These tests pin the fixes from the performance refactoring session. They primari
 
 | File | Production target | Tests | What's pinned |
 |---|---|---|---|
-| [connector.renderIsolation.test.tsx](packages/fossflow-lib/src/__perf_refactor_regression__/connector.renderIsolation.test.tsx) | `Connectors.tsx`, `Connector.tsx` | 5 | N-2/N-3: `Connector` is `React.memo`; `Connectors` passes stable selector |
-| [expandableLabel.selectorConsolidation.test.tsx](packages/fossflow-lib/src/__perf_refactor_regression__/expandableLabel.selectorConsolidation.test.tsx) | `ExpandableLabel.tsx` | 3 | N-4: single `useUiStateStore` call (was two — caused double re-render) |
-| [exportImageDialog.memo.test.ts](packages/fossflow-lib/src/__perf_refactor_regression__/exportImageDialog.memo.test.ts) | `ExportImageDialog.tsx` | 2 | H-3: component is wrapped in `React.memo` |
-| [grid.backgroundFormula.test.ts](packages/fossflow-lib/src/__perf_refactor_regression__/grid.backgroundFormula.test.ts) | `Grid.tsx` | 14 | C-1: CSS background-size formula, tile size, zoom scaling |
-| [gsap.dependency.test.ts](packages/fossflow-lib/src/__perf_refactor_regression__/gsap.dependency.test.ts) | `package.json`, source files | 2 | N-5: GSAP removed from dependencies; no remaining imports |
-| [rendererSize.sharedObserver.test.tsx](packages/fossflow-lib/src/__perf_refactor_regression__/rendererSize.sharedObserver.test.tsx) | `uiStateStore.tsx` | 4 | N-1: single ResizeObserver writes `rendererSize`; all other components read from store |
-| [useRAFThrottle.cleanup.test.ts](packages/fossflow-lib/src/__perf_refactor_regression__/useRAFThrottle.cleanup.test.ts) | `src/interaction/useRAFThrottle.ts` | 8 | M-2: RAF handle cancelled on unmount; no stale callbacks; throttle contract |
-| [useResizeObserver.lifecycle.test.ts](packages/fossflow-lib/src/__perf_refactor_regression__/useResizeObserver.lifecycle.test.ts) | `src/hooks/useResizeObserver.ts` | 10 | H-2: observer registered on mount, disconnected on unmount, reconnected on ref change |
+| [connector.renderIsolation.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/connector.renderIsolation.test.tsx) | `Connectors.tsx`, `Connector.tsx` | 5 | N-2/N-3: `Connector` is `React.memo`; `Connectors` passes stable selector |
+| [expandableLabel.selectorConsolidation.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/expandableLabel.selectorConsolidation.test.tsx) | `ExpandableLabel.tsx` | 3 | N-4: single `useUiStateStore` call (was two — caused double re-render) |
+| [exportImageDialog.memo.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/exportImageDialog.memo.test.ts) | `ExportImageDialog.tsx` | 2 | H-3: component is wrapped in `React.memo` |
+| [grid.backgroundFormula.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/grid.backgroundFormula.test.ts) | `Grid.tsx` | 14 | C-1: CSS background-size formula, tile size, zoom scaling |
+| [gsap.dependency.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/gsap.dependency.test.ts) | `package.json`, source files | 2 | N-5: GSAP removed from dependencies; no remaining imports |
+| [rendererSize.sharedObserver.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/rendererSize.sharedObserver.test.tsx) | `uiStateStore.tsx` | 4 | N-1: single ResizeObserver writes `rendererSize`; all other components read from store |
+| [useRAFThrottle.cleanup.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/useRAFThrottle.cleanup.test.ts) | `src/interaction/useRAFThrottle.ts` | 8 | M-2: RAF handle cancelled on unmount; no stale callbacks; throttle contract |
+| [useResizeObserver.lifecycle.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/useResizeObserver.lifecycle.test.ts) | `src/hooks/useResizeObserver.ts` | 10 | H-2: observer registered on mount, disconnected on unmount, reconnected on ref change |
 
 ---
 
 ## Layer 7 — Utilities & Config
 
-### [svgOptimizer.test.ts](packages/fossflow-lib/src/utils/svgOptimizer.test.ts) · 30 tests · ✅ VALID
+### [svgOptimizer.test.ts](packages/axoview-lib/src/utils/svgOptimizer.test.ts) · 30 tests · ✅ VALID
 
 **Production target:** `src/utils/svgOptimizer.ts`
 
@@ -375,13 +375,13 @@ Covers all three SVG export optimization phases:
 
 ---
 
-### [keyboard.dispatch.test.tsx](packages/fossflow-lib/src/__perf_refactor_regression__/keyboard.dispatch.test.tsx) · 25 tests · ✅ VALID
+### [keyboard.dispatch.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/keyboard.dispatch.test.tsx) · 25 tests · ✅ VALID
 
 (See Layer 1 — listed here also as it covers utility-level keyboard routing.)
 
 ---
 
-### [shortcuts.test.ts](packages/fossflow-lib/src/__perf_refactor_regression__/shortcuts.test.ts) · 7 tests · ✅ VALID
+### [shortcuts.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/shortcuts.test.ts) · 7 tests · ✅ VALID
 
 **Production target:** `src/config/shortcuts.ts`
 
@@ -389,7 +389,7 @@ Pins all `FIXED_SHORTCUTS` constant values (Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y, Dele
 
 ---
 
-### [settings.defaults.test.ts](packages/fossflow-lib/src/__perf_refactor_regression__/settings.defaults.test.ts) · 14 tests · ✅ VALID
+### [settings.defaults.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/settings.defaults.test.ts) · 14 tests · ✅ VALID
 
 **Production targets:** `src/config/hotkeys.ts`, `src/config/panSettings.ts`, `src/config/zoomSettings.ts`
 
@@ -397,9 +397,9 @@ Pins: `DEFAULT_HOTKEY_PROFILE = 'smnrct'`; all pan toggle defaults (middleClick,
 
 ---
 
-### [i18n.config.test.ts](packages/fossflow-lib/src/__perf_refactor_regression__/i18n.config.test.ts) · 3 tests · ✅ VALID
+### [i18n.config.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/i18n.config.test.ts) · 3 tests · ✅ VALID
 
-**Production target:** `packages/fossflow-app/src/i18n.ts`
+**Production target:** `packages/axoview-app/src/i18n.ts`
 
 Pins `load: 'currentOnly'` (prevents short-code `en` 404) and `fallbackLng: 'en-US'`.
 
@@ -409,15 +409,15 @@ Pins `load: 'currentOnly'` (prevents short-code `en` 404) and `fallbackLng: 'en-
 
 | File | Production target | Tests | What's covered |
 |---|---|---|---|
-| [renderer.test.ts](packages/fossflow-lib/src/utils/__tests__/renderer.test.ts) | `utils/renderer.ts` | 16 | Grid subset, bounds checking, screen-to-isometric coordinate conversion; `incrementZoom`/`decrementZoom` boundary enforcement (clamped at MIN_ZOOM/MAX_ZOOM, correct step, no float drift across full range) |
-| [common.test.ts](packages/fossflow-lib/src/utils/__tests__/common.test.ts) | `utils/common.ts` | 1 | `clamp()` function |
-| [immer.test.ts](packages/fossflow-lib/src/utils/__tests__/immer.test.ts) | Immer (third-party) | 2 | Array reference stability with Immer drafts |
+| [renderer.test.ts](packages/axoview-lib/src/utils/__tests__/renderer.test.ts) | `utils/renderer.ts` | 16 | Grid subset, bounds checking, screen-to-isometric coordinate conversion; `incrementZoom`/`decrementZoom` boundary enforcement (clamped at MIN_ZOOM/MAX_ZOOM, correct step, no float drift across full range) |
+| [common.test.ts](packages/axoview-lib/src/utils/__tests__/common.test.ts) | `utils/common.ts` | 1 | `clamp()` function |
+| [immer.test.ts](packages/axoview-lib/src/utils/__tests__/immer.test.ts) | Immer (third-party) | 2 | Array reference stability with Immer drafts |
 
 ---
 
 ## Layer 8 — Stores & Infrastructure
 
-### [zustand.deprecation.test.ts](packages/fossflow-lib/src/stores/__tests__/zustand.deprecation.test.ts) · 4 tests · ✅ VALID
+### [zustand.deprecation.test.ts](packages/axoview-lib/src/stores/__tests__/zustand.deprecation.test.ts) · 4 tests · ✅ VALID
 
 **Production targets:** `stores/uiStateStore.tsx`, `stores/modelStore.tsx`, `stores/sceneStore.tsx`
 
@@ -425,7 +425,7 @@ Covers: no `[DEPRECATED]` console.warn fired when loading any of the 3 stores; s
 
 ---
 
-### [clipboard.test.ts](packages/fossflow-lib/src/clipboard/__tests__/clipboard.test.ts) · 7 tests · ✅ VALID
+### [clipboard.test.ts](packages/axoview-lib/src/clipboard/__tests__/clipboard.test.ts) · 7 tests · ✅ VALID
 
 **Production target:** `src/clipboard/clipboard.ts`
 
@@ -433,7 +433,7 @@ Covers: `setClipboard` / `getClipboard` round-trip; null/undefined handling; cli
 
 ---
 
-### [useCopyPaste.test.ts](packages/fossflow-lib/src/clipboard/__tests__/useCopyPaste.test.ts) · 10 tests · ✅ VALID
+### [useCopyPaste.test.ts](packages/axoview-lib/src/clipboard/__tests__/useCopyPaste.test.ts) · 10 tests · ✅ VALID
 
 **Production target:** `src/clipboard/useCopyPaste.ts`
 
@@ -450,7 +450,7 @@ Covers: `setClipboard` / `getClipboard` round-trip; null/undefined handling; cli
 
 ## Round 10 Changes (2026-04-10)
 
-### Updated: [toolMenu.i18n.test.ts](packages/fossflow-lib/src/__perf_refactor_regression__/toolMenu.i18n.test.ts) · 8 active assertions · ✅ VALID
+### Updated: [toolMenu.i18n.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/toolMenu.i18n.test.ts) · 8 active assertions · ✅ VALID
 
 **Production target:** `src/components/ToolMenu/ToolMenu.tsx`
 
@@ -460,7 +460,7 @@ Remaining assertions: `useTranslation` import, `useTranslation('toolMenu')` name
 
 ---
 
-### Updated: [quickAdd.groupButton.test.ts](packages/fossflow-lib/src/__perf_refactor_regression__/quickAdd.groupButton.test.ts) · 10 tests · ✅ VALID
+### Updated: [quickAdd.groupButton.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/quickAdd.groupButton.test.ts) · 10 tests · ✅ VALID
 
 **Production target:** `QuickAddNodePopover` rectangle-creation logic
 
@@ -468,7 +468,7 @@ Comments updated from "Group button" to "Rectangle button". All 10 tests unchang
 
 ---
 
-### Updated: [Icon.test.tsx](packages/fossflow-lib/src/components/ItemControls/IconSelectionControls/__tests__/Icon.test.tsx) · 2 tests · ✅ VALID
+### Updated: [Icon.test.tsx](packages/axoview-lib/src/components/ItemControls/IconSelectionControls/__tests__/Icon.test.tsx) · 2 tests · ✅ VALID
 
 **Production target:** `IconSelectionControls/Icon.tsx`
 
@@ -510,7 +510,7 @@ The following critical paths have **no regression tests** yet. See `current_arch
 
 ```bash
 # All tests
-npm test --workspace=packages/fossflow-lib
+npm test --workspace=packages/axoview-lib
 
 # Specific suite
 npx jest <pattern> --no-coverage          # e.g. Cursor.modes
@@ -521,14 +521,14 @@ npx jest stores/reducers --no-coverage    # reducer layer only
 npx jest --coverage
 ```
 
-Run from `packages/fossflow-lib/`.
+Run from `packages/axoview-lib/`.
 
 ---
 
 ## Code coverage
 
 ```bash
-npm test --workspace=packages/fossflow-lib -- --coverage
+npm test --workspace=packages/axoview-lib -- --coverage
 ```
 
-HTML report: `packages/fossflow-lib/coverage/lcov-report/index.html`. Current global statement coverage ~32%. Thresholds set at 10% global minimum — intentionally low while the suite grows. Additional static analysis tools (ESLint, Knip, `npm audit`) output to `reports/`.
+HTML report: `packages/axoview-lib/coverage/lcov-report/index.html`. Current global statement coverage ~32%. Thresholds set at 10% global minimum — intentionally low while the suite grows. Additional static analysis tools (ESLint, Knip, `npm audit`) output to `reports/`.

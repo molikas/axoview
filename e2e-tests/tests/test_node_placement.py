@@ -1,5 +1,5 @@
 """
-E2E tests for placing nodes on the FossFLOW canvas and undo/redo.
+E2E tests for placing nodes on the Axoview canvas and undo/redo.
 Takes screenshots at each step to visually verify state.
 """
 import os
@@ -17,7 +17,7 @@ SCREENSHOT_DIR = os.path.join(os.path.dirname(__file__), "..", "screenshots")
 
 
 def get_base_url():
-    return os.getenv("FOSSFLOW_TEST_URL", "http://localhost:3000")
+    return os.getenv("AXOVIEW_TEST_URL", "http://localhost:3000")
 
 
 def get_webdriver_url():
@@ -98,7 +98,7 @@ def dismiss_tips(driver):
 def count_canvas_nodes(driver):
     """Count placed nodes on the canvas by checking for node images and labels."""
     return driver.execute_script("""
-        const container = document.querySelector('.fossflow-container');
+        const container = document.querySelector('.axoview-container');
         if (!container) return { images: 0, untitledLabels: 0, hasUntitled: false };
 
         const allImgs = container.querySelectorAll('img');
@@ -174,7 +174,7 @@ def place_node(driver, screenshot_prefix=""):
     time.sleep(0.5)
 
     # Click on the canvas to place
-    canvas = driver.find_element(By.CLASS_NAME, "fossflow-container")
+    canvas = driver.find_element(By.CLASS_NAME, "axoview-container")
     actions = ActionChains(driver)
     actions.move_to_element_with_offset(canvas, 500, 400)
     actions.click()
@@ -315,7 +315,7 @@ def test_place_node_on_canvas(driver):
     print(f"\n1. Loading app at {base_url}")
     driver.get(base_url)
     WebDriverWait(driver, 15).until(
-        EC.presence_of_element_located((By.CLASS_NAME, "fossflow-container"))
+        EC.presence_of_element_located((By.CLASS_NAME, "axoview-container"))
     )
     time.sleep(2)
 
@@ -354,7 +354,7 @@ def test_undo_redo_node(driver):
     print(f"\n1. Loading app at {base_url}")
     driver.get(base_url)
     WebDriverWait(driver, 15).until(
-        EC.presence_of_element_located((By.CLASS_NAME, "fossflow-container"))
+        EC.presence_of_element_located((By.CLASS_NAME, "axoview-container"))
     )
     time.sleep(2)
 

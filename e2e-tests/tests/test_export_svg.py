@@ -12,11 +12,11 @@ from selenium.webdriver.common.action_chains import ActionChains
 
 
 SCREENSHOT_DIR = os.path.join(os.path.dirname(__file__), "..", "screenshots")
-DOWNLOAD_DIR = "/tmp/fossflow-e2e-downloads"
+DOWNLOAD_DIR = "/tmp/axoview-e2e-downloads"
 
 
 def get_base_url():
-    return os.getenv("FOSSFLOW_TEST_URL", "http://localhost:3000")
+    return os.getenv("AXOVIEW_TEST_URL", "http://localhost:3000")
 
 
 def get_webdriver_url():
@@ -138,7 +138,7 @@ def place_node_at(driver, x_offset, y_offset):
     ActionChains(driver).click(first_icon_btn).perform()
     time.sleep(0.5)
 
-    canvas = driver.find_element(By.CLASS_NAME, "fossflow-container")
+    canvas = driver.find_element(By.CLASS_NAME, "axoview-container")
     ActionChains(driver).move_to_element_with_offset(canvas, x_offset, y_offset).click().perform()
     time.sleep(1)
     return True
@@ -154,7 +154,7 @@ def draw_rectangle(driver, x, y, width, height):
     rect_btn.click()
     time.sleep(0.5)
 
-    canvas = driver.find_element(By.CLASS_NAME, "fossflow-container")
+    canvas = driver.find_element(By.CLASS_NAME, "axoview-container")
     actions = ActionChains(driver)
     actions.move_to_element_with_offset(canvas, x, y)
     actions.click_and_hold()
@@ -175,7 +175,7 @@ def place_textbox(driver, x, y):
     text_btn.click()
     time.sleep(0.5)
 
-    canvas = driver.find_element(By.CLASS_NAME, "fossflow-container")
+    canvas = driver.find_element(By.CLASS_NAME, "axoview-container")
     ActionChains(driver).move_to_element_with_offset(canvas, x, y).click().perform()
     time.sleep(1)
 
@@ -224,14 +224,14 @@ def test_export_svg(driver):
 
     # Clean up any previous downloads
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
-    for f in glob.glob(os.path.join(DOWNLOAD_DIR, "fossflow-export-*")):
+    for f in glob.glob(os.path.join(DOWNLOAD_DIR, "axoview-export-*")):
         os.remove(f)
 
     # --- Load app ---
     print(f"\n1. Loading app at {base_url}")
     driver.get(base_url)
     WebDriverWait(driver, 15).until(
-        EC.presence_of_element_located((By.CLASS_NAME, "fossflow-container"))
+        EC.presence_of_element_located((By.CLASS_NAME, "axoview-container"))
     )
     time.sleep(2)
     dismiss_modals(driver)
@@ -373,7 +373,7 @@ def test_export_svg(driver):
     print("\n10. Checking for downloaded SVG file...")
 
     # Method 1: Check filesystem (works when download dir is accessible)
-    svg_files = glob.glob(os.path.join(DOWNLOAD_DIR, "fossflow-export-*.svg"))
+    svg_files = glob.glob(os.path.join(DOWNLOAD_DIR, "axoview-export-*.svg"))
     if svg_files:
         svg_path = svg_files[0]
         svg_size = os.path.getsize(svg_path)

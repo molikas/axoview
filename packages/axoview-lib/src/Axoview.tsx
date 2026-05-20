@@ -1,0 +1,359 @@
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  forwardRef,
+  useImperativeHandle
+} from 'react';
+import { ThemeProvider } from '@mui/material/styles';
+import { Box } from '@mui/material';
+import { shallow } from 'zustand/shallow';
+import { theme } from 'src/styles/theme';
+import { AxoviewProps, AxoviewRef } from 'src/types';
+import { setWindowCursor, modelFromModelStore } from 'src/utils';
+import {
+  useModelStore,
+  ModelProvider,
+  useModelStoreApi
+} from 'src/stores/modelStore';
+import { SceneProvider, useSceneStoreApi } from 'src/stores/sceneStore';
+import { LocaleProvider } from 'src/stores/localeStore';
+import { GlobalStyles } from 'src/styles/GlobalStyles';
+import { Renderer } from 'src/components/Renderer/Renderer';
+import { UiOverlay } from 'src/components/UiOverlay/UiOverlay';
+import {
+  UiStateProvider,
+  useUiStateStore,
+  useUiStateStoreApi
+} from 'src/stores/uiStateStore';
+import { INITIAL_DATA, MAIN_MENU_OPTIONS } from 'src/config';
+import { savePersistedSettings } from 'src/config/persistedSettings';
+import { useInitialDataManager } from 'src/hooks/useInitialDataManager';
+import { useDirtyTracker } from 'src/hooks/useDirtyTracker';
+import { ClipboardProvider } from 'src/clipboard/ClipboardContext';
+import { LayerContextProvider } from 'src/hooks/useLayerContext';
+import { CanvasModeProvider } from 'src/contexts/CanvasModeContext';
+import { LeftDock } from 'src/components/LeftDock/LeftDock';
+import { RightSidebar } from 'src/components/Sidebars/RightSidebar';
+import { BottomDock } from 'src/components/BottomDock/BottomDock';
+import enUS from 'src/i18n/en-US';
+
+// Dock/sidebar slots — rendered inside the LayerContextProvider so they have full store access.
+const LeftDockSlot = ({
+  fileExplorerOpen,
+  onFileExplorerToggle,
+  disableWorkingTabs
+}: {
+  fileExplorerOpen?: boolean;
+  onFileExplorerToggle?: () => void;
+  disableWorkingTabs?: boolean;
+}) => (
+  <LeftDock
+    fileExplorerOpen={fileExplorerOpen}
+    onFileExplorerToggle={onFileExplorerToggle}
+    disableWorkingTabs={disableWorkingTabs}
+  />
+);
+
+const RightSidebarSlot = ({ editorMode }: { editorMode: string }) => {
+  const open = useUiStateStore((s) => s.rightSidebarOpen);
+  return <RightSidebar open={open} editorMode={editorMode} />;
+};
+
+const BottomDockSlot = ({ endSlot }: { endSlot?: React.ReactNode }) => (
+  <BottomDock endSlot={endSlot} />
+);
+
+const App = forwardRef<AxoviewRef, AxoviewProps>(
+  (
+    {
+      initialData,
+      mainMenuOptions = MAIN_MENU_OPTIONS,
+      width = '100%',
+      height = '100%',
+      onModelUpdated,
+      enableDebugTools = false,
+      editorMode = 'EDITABLE',
+      renderer,
+      locale = enUS,
+      iconPackManager,
+      iconUsageScan,
+      linkedDiagrams,
+      toolbarPortalTarget,
+      sidebarTogglePortalTarget,
+      languageSelector,
+      bottomDockEnd,
+      suppressOnboardingHints,
+      fileExplorerOpen,
+      onFileExplorerToggle,
+      disableLeftDockWorkingTabs,
+      onSessionDump,
+      /** @deprecated use toolbarPortalTarget */
+      menuPortalTarget
+    },
+    ref
+  ) => {
+    const portalTarget = toolbarPortalTarget ?? menuPortalTarget;
+    const uiStateActions = useUiStateStore((state) => {
+      return state.actions;
+    });
+    const persistableSettings = useUiStateStore(
+      (state) => ({
+        hotkeyProfile: state.hotkeyProfile,
+        panSettings: state.panSettings,
+        zoomSettings: state.zoomSettings,
+        labelSettings: state.labelSettings,
+        connectorInteractionMode: state.connectorInteractionMode,
+        expandLabels: state.expandLabels,
+        canvasMode: state.canvasMode
+      }),
+      shallow
+    );
+    const initialDataManager = useInitialDataManager();
+    // Use shallow equality so that history-only store writes (saveToHistory updating
+    // history.past) do not produce a new model reference and fire onModelUpdated.
+    // Without this, every user action triggers onModelUpdated twice: once for the
+    // actual change and once for the preceding saveToHistory call.
+    const model = useModelStore((state) => modelFromModelStore(state), shallow);
+
+    // Expose Zustand store instances for Playwright e2e tests AND the
+    // DiagnosticsOverlay (which needs them to populate ni/nc/ntb scene counts
+    // in non-production builds). The `NODE_ENV !== 'production'` literal lets
+    // the bundler tree-shake the whole block out of prod builds; in prod the
+    // bridge only appears when the consumer explicitly opts in via
+    // `enableDebugTools`.
+    const uiStore = useUiStateStoreApi();
+    const modelStore = useModelStoreApi();
+    const sceneStore = useSceneStoreApi();
+    useEffect(() => {
+      const shouldExpose =
+        enableDebugTools || process.env.NODE_ENV !== 'production';
+      if (!shouldExpose) return;
+      const debugBridge = {
+        ui: uiStore,
+        model: modelStore,
+        scene: sceneStore
+      };
+      (window as any).__axoview__ = debugBridge;
+
+      // Backwards-compat alias: `window.__fossflow__` is the pre-rename name.
+      // Keep as a getter that warns once on first access, so any external
+      // tooling (Selenium fragments, browser snippets, README copy-paste)
+      // surviving the rename still works for one release window.
+      let warned = false;
+      try {
+        Object.defineProperty(window, '__fossflow__', {
+          configurable: true,
+          get() {
+            if (!warned) {
+              warned = true;
+              // eslint-disable-next-line no-console
+              console.warn(
+                '[Axoview] window.__fossflow__ is deprecated; use window.__axoview__. ' +
+                  'The alias will be removed in a future release.'
+              );
+            }
+            return debugBridge;
+          }
+        });
+      } catch {
+        // defineProperty can throw if a non-configurable __fossflow__ was set
+        // already (e.g. by a userscript). Best-effort only.
+      }
+
+      return () => {
+        delete (window as any).__axoview__;
+        try {
+          delete (window as any).__fossflow__;
+        } catch {
+          // ignore
+        }
+      };
+      // Store instances are stable (created once in Provider via useRef)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [enableDebugTools]);
+
+    const { load } = initialDataManager;
+    const { markClean } = useDirtyTracker(initialDataManager.isReady);
+
+    // Wrap the exposed load so every programmatic load resets Axoview's
+    // internal dirty flag.  Without this, axoviewRef.current.load() triggers
+    // useDirtyTracker's modelStore subscription and marks the diagram dirty
+    // even though no user edit occurred, causing the MainMenu "New diagram"
+    // guard to fire spuriously.
+    useImperativeHandle(
+      ref,
+      () => ({
+        load: (data, opts) => {
+          load(data, opts);
+          markClean();
+        },
+        openExportImageDialog: () => {
+          uiStateActions.setDialog('EXPORT_IMAGE');
+        }
+      }),
+      [load, markClean, uiStateActions]
+    );
+
+    const mergedInitialData = useMemo(() => {
+      // Strip undefined values so they don't override INITIAL_DATA defaults
+      // (e.g. saved data missing 'title' should fall back to INITIAL_DATA.title, not override with undefined)
+      const defined = Object.fromEntries(
+        Object.entries(initialData || {}).filter(([, v]) => v !== undefined)
+      ) as Partial<typeof INITIAL_DATA>;
+      return { ...INITIAL_DATA, ...defined };
+    }, [initialData]);
+
+    // Keep a ref to the latest load function so we can call it without adding it to effect deps.
+    // This prevents load-reference churn (from cascading store updates) from re-triggering the effect.
+    const loadRef = useRef(load);
+    useEffect(() => {
+      loadRef.current = load;
+    });
+
+    // Guard against React 18 StrictMode double-invoke: track which data ref was last loaded.
+    // Same object reference → already loaded (StrictMode remount). New reference → real prop change.
+    // Effect only depends on mergedInitialData, not load, so load-ref churn never triggers a reload.
+    const loadedForRef = useRef<typeof mergedInitialData | null>(null);
+    useEffect(() => {
+      if (loadedForRef.current === mergedInitialData) return;
+      loadedForRef.current = mergedInitialData;
+      loadRef.current(mergedInitialData);
+    }, [mergedInitialData]);
+
+    useEffect(() => {
+      uiStateActions.setEditorMode(editorMode);
+      uiStateActions.setMainMenuOptions(mainMenuOptions);
+    }, [editorMode, uiStateActions, mainMenuOptions]);
+
+    useEffect(() => {
+      return () => {
+        setWindowCursor('default');
+      };
+    }, []);
+
+    // Use a ref so onModelUpdated changes never re-trigger this effect (prevents infinite re-render loop)
+    const onModelUpdatedRef = useRef(onModelUpdated);
+    useEffect(() => {
+      onModelUpdatedRef.current = onModelUpdated;
+    });
+
+    useEffect(() => {
+      if (!initialDataManager.isReady || !onModelUpdatedRef.current) return;
+
+      onModelUpdatedRef.current(model);
+    }, [model, initialDataManager.isReady]);
+
+    useEffect(() => {
+      uiStateActions.setEnableDebugTools(enableDebugTools);
+    }, [enableDebugTools, uiStateActions]);
+
+    // Persist user preferences to localStorage whenever they change.
+    // Uses shallow equality on the selector above so this only fires on real changes.
+    useEffect(() => {
+      savePersistedSettings(persistableSettings);
+    }, [persistableSettings]);
+
+    useEffect(() => {
+      if (renderer?.expandLabels !== undefined) {
+        uiStateActions.setExpandLabels(renderer.expandLabels);
+      }
+    }, [renderer?.expandLabels, uiStateActions]);
+
+    useEffect(() => {
+      uiStateActions.setIconPackManager(iconPackManager || null);
+    }, [iconPackManager, uiStateActions]);
+
+    useEffect(() => {
+      uiStateActions.setIconUsageScan(iconUsageScan || null);
+    }, [iconUsageScan, uiStateActions]);
+
+    useEffect(() => {
+      uiStateActions.setLinkedDiagrams(linkedDiagrams || []);
+    }, [linkedDiagrams, uiStateActions]);
+
+    if (!initialDataManager.isReady) return null;
+
+    return (
+      <>
+        <GlobalStyles />
+        <Box
+          sx={{
+            width,
+            height,
+            position: 'relative',
+            overflow: 'hidden',
+            transform: 'translateZ(0)'
+          }}
+        >
+          <CanvasModeProvider>
+          <LayerContextProvider>
+            {/* Canvas always fills the full container — sidebars overlay on top */}
+            <Box sx={{ position: 'absolute', inset: 0 }}>
+              <Renderer {...renderer} />
+              <UiOverlay
+                toolbarPortalTarget={portalTarget}
+                sidebarTogglePortalTarget={sidebarTogglePortalTarget}
+                languageSelector={languageSelector}
+                suppressOnboardingHints={suppressOnboardingHints}
+                onSessionDump={onSessionDump}
+              />
+            </Box>
+            {editorMode !== 'EXPLORABLE_READONLY' && (
+              <LeftDockSlot
+                fileExplorerOpen={fileExplorerOpen}
+                onFileExplorerToggle={onFileExplorerToggle}
+                disableWorkingTabs={disableLeftDockWorkingTabs}
+              />
+            )}
+            <RightSidebarSlot editorMode={editorMode} />
+            <BottomDockSlot endSlot={bottomDockEnd} />
+          </LayerContextProvider>
+          </CanvasModeProvider>
+        </Box>
+      </>
+    );
+  }
+);
+
+export const Axoview = forwardRef<AxoviewRef, AxoviewProps>((props, ref) => {
+  return (
+    <ThemeProvider theme={theme}>
+      <LocaleProvider locale={props.locale || enUS}>
+        <ModelProvider>
+          <SceneProvider>
+            <UiStateProvider>
+              <ClipboardProvider>
+                <App {...props} ref={ref} />
+              </ClipboardProvider>
+            </UiStateProvider>
+          </SceneProvider>
+        </ModelProvider>
+      </LocaleProvider>
+    </ThemeProvider>
+  );
+});
+
+const useAxoview = () => {
+  const rendererEl = useUiStateStore((state) => {
+    return state.rendererEl;
+  });
+
+  const ModelActions = useModelStore((state) => {
+    return state.actions;
+  });
+
+  const uiStateActions = useUiStateStore((state) => {
+    return state.actions;
+  });
+
+  return {
+    Model: ModelActions,
+    uiState: uiStateActions,
+    rendererEl
+  };
+};
+
+export { useAxoview };
+export * from 'src/standaloneExports';
+export default Axoview;

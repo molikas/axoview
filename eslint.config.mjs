@@ -18,7 +18,7 @@ export default [
     ]
   },
   {
-    files: ['packages/fossflow-lib/src/**/*.{ts,tsx}', 'packages/fossflow-app/src/**/*.{ts,tsx}'],
+    files: ['packages/axoview-lib/src/**/*.{ts,tsx}', 'packages/axoview-app/src/**/*.{ts,tsx}'],
     languageOptions: {
       parser: tsparser,
       parserOptions: {

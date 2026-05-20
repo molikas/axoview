@@ -4,11 +4,11 @@
 
 set -e
 
-SELENIUM_CONTAINER="fossflow-selenium"
+SELENIUM_CONTAINER="axoview-selenium"
 APP_PORT=3000
 SELENIUM_PORT=4444
 
-echo "FossFLOW E2E Test Runner"
+echo "Axoview E2E Test Runner"
 
 
 # Check if Docker is available
@@ -54,9 +54,9 @@ else
     echo "Selenium container is already running"
 fi
 
-# Check if FossFLOW is running
+# Check if Axoview is running
 if ! curl -sf http://localhost:$APP_PORT > /dev/null; then
-    echo "⚠️  FossFLOW app is not running on port $APP_PORT"
+    echo "⚠️  Axoview app is not running on port $APP_PORT"
     echo "Please start it with: npm run dev"
     echo ""
     read -p "Start the app now in another terminal and press Enter to continue..."
@@ -64,12 +64,12 @@ fi
 
 # Verify app is accessible
 if ! curl -sf http://localhost:$APP_PORT > /dev/null; then
-    echo "❌ FossFLOW app is still not accessible on http://localhost:$APP_PORT"
+    echo "❌ Axoview app is still not accessible on http://localhost:$APP_PORT"
     docker stop $SELENIUM_CONTAINER 2>/dev/null || true
     exit 1
 fi
 
-echo "✅ FossFLOW app is accessible"
+echo "✅ Axoview app is accessible"
 echo ""
 
 # Install Python dependencies if needed
@@ -86,7 +86,7 @@ fi
 echo "Running E2E tests..."
 echo ""
 
-FOSSFLOW_TEST_URL="http://localhost:$APP_PORT" \
+AXOVIEW_TEST_URL="http://localhost:$APP_PORT" \
 WEBDRIVER_URL="http://localhost:$SELENIUM_PORT" \
 pytest -v --tb=short "$@"
 

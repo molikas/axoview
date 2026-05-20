@@ -6,8 +6,8 @@ WORKDIR /app
 
 # Copy package files for the monorepo
 COPY package*.json ./
-COPY packages/fossflow-lib/package*.json ./packages/fossflow-lib/
-COPY packages/fossflow-app/package*.json ./packages/fossflow-app/
+COPY packages/axoview-lib/package*.json ./packages/axoview-lib/
+COPY packages/axoview-app/package*.json ./packages/axoview-app/
 
 #Update NPM
 RUN npm install -g npm@11.5.2
@@ -28,10 +28,10 @@ FROM node:22-alpine
 RUN apk add --no-cache nginx openssl
 
 # Copy backend code
-COPY --from=build /app/packages/fossflow-backend /app/packages/fossflow-backend
+COPY --from=build /app/packages/axoview-backend /app/packages/axoview-backend
 
 # Copy the built React app to Nginx's web server directory
-COPY --from=build /app/packages/fossflow-app/build /usr/share/nginx/html
+COPY --from=build /app/packages/axoview-app/build /usr/share/nginx/html
 
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/http.d/default.conf

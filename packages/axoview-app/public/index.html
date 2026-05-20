@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="<%= assetPrefix %>favicon.svg" />
+    <link rel="icon" type="image/png" sizes="96x96" href="<%= assetPrefix %>favicon-96x96.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta
+      name="description"
+      content="Create beautiful isometric diagrams with Axoview - A powerful open-source diagramming tool for creating stunning isometric illustrations"
+    />
+    <link rel="apple-touch-icon" sizes="180x180" href="<%= assetPrefix %>apple-touch-icon.png" />
+    <!--
+      manifest.json provides metadata used when your web app is installed on a
+      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+    -->
+    <link rel="manifest" href="<%= assetPrefix %>manifest.json" />
+    <!--
+      The `<%= assetPrefix %>` placeholder is replaced at build time with the
+      configured public URL prefix, so asset links work under any base path.
+      Only files inside the `public` folder can be referenced from the HTML.
+    -->
+    <title>Axoview - Isometric Diagramming Tool</title>
+    <style>
+      /* Splash screen — visible from first paint until React commits the editor
+         shell, then faded by App.tsx on `editor:first-paint-after-mount`. */
+      #ax-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #ffffff;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        transition: opacity 200ms ease;
+      }
+      #ax-splash.ax-splash-hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .ax-splash-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 22px;
+      }
+      .ax-splash-logo {
+        font-size: 30px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: #1f2937;
+      }
+      .ax-splash-logo .ax-splash-logo-accent {
+        color: #2563eb;
+      }
+      .ax-splash-spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid #e5e7eb;
+        border-top-color: #2563eb;
+        border-radius: 50%;
+        animation: ax-splash-spin 800ms linear infinite;
+      }
+      @keyframes ax-splash-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="ax-splash">
+      <div class="ax-splash-inner">
+        <div class="ax-splash-logo">Axo<span class="ax-splash-logo-accent">view</span></div>
+        <div class="ax-splash-spinner" role="progressbar" aria-label="Loading Axoview"></div>
+      </div>
+    </div>
+    <div id="root"></div>
+    <!--
+      This HTML file is a template.
+      If you open it directly in the browser, you will see an empty page.
+
+      You can add webfonts, meta tags, or analytics to this file.
+      The build step will place the bundled scripts into the <body> tag.
+
+      To begin the development, run `npm start` or `yarn start`.
+      To create a production bundle, use `npm run build` or `yarn build`.
+    -->
+  </body>
+</html>

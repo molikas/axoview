@@ -14,7 +14,7 @@ SCREENSHOT_DIR = os.path.join(os.path.dirname(__file__), "..", "screenshots")
 
 
 def get_base_url():
-    return os.getenv("FOSSFLOW_TEST_URL", "http://localhost:3000")
+    return os.getenv("AXOVIEW_TEST_URL", "http://localhost:3000")
 
 
 def get_webdriver_url():
@@ -103,7 +103,7 @@ def get_scene_state(driver):
 def count_svg_polygons(driver):
     """Count SVG polygon/path elements that represent rectangles."""
     return driver.execute_script("""
-        var c = document.querySelector('.fossflow-container');
+        var c = document.querySelector('.axoview-container');
         if (!c) return 0;
         // Rectangles render as SVG with polygon elements inside IsoTileArea
         return c.querySelectorAll('svg polygon').length;
@@ -116,7 +116,7 @@ def count_text_elements(driver):
     Default content is 'Text' from TEXTBOX_DEFAULTS.
     """
     return driver.execute_script("""
-        var c = document.querySelector('.fossflow-container');
+        var c = document.querySelector('.axoview-container');
         if (!c) return 0;
         var all = c.querySelectorAll('p.MuiTypography-root, span.MuiTypography-root');
         // Filter to actual textbox content (not UI labels like 'Untitled')
@@ -162,7 +162,7 @@ def test_rectangle_undo_redo(driver):
     print(f"\n1. Loading app at {base_url}")
     driver.get(base_url)
     WebDriverWait(driver, 15).until(
-        EC.presence_of_element_located((By.CLASS_NAME, "fossflow-container"))
+        EC.presence_of_element_located((By.CLASS_NAME, "axoview-container"))
     )
     time.sleep(2)
     dismiss_modals(driver)
@@ -184,7 +184,7 @@ def test_rectangle_undo_redo(driver):
 
     # --- Draw rectangle: mousedown, drag, mouseup ---
     print("   Drawing rectangle by drag...")
-    canvas = driver.find_element(By.CLASS_NAME, "fossflow-container")
+    canvas = driver.find_element(By.CLASS_NAME, "axoview-container")
     actions = ActionChains(driver)
     actions.move_to_element_with_offset(canvas, 400, 250)
     actions.click_and_hold()
@@ -275,7 +275,7 @@ def test_textbox_undo_redo(driver):
     print(f"\n1. Loading app at {base_url}")
     driver.get(base_url)
     WebDriverWait(driver, 15).until(
-        EC.presence_of_element_located((By.CLASS_NAME, "fossflow-container"))
+        EC.presence_of_element_located((By.CLASS_NAME, "axoview-container"))
     )
     time.sleep(2)
     dismiss_modals(driver)
@@ -297,7 +297,7 @@ def test_textbox_undo_redo(driver):
     # The textbox is created and follows the cursor in TEXTBOX mode.
     # We need to click on the canvas to place it (mouseup handler).
     print("   Clicking canvas to place text box...")
-    canvas = driver.find_element(By.CLASS_NAME, "fossflow-container")
+    canvas = driver.find_element(By.CLASS_NAME, "axoview-container")
     ActionChains(driver).move_to_element_with_offset(canvas, 500, 350).click().perform()
     time.sleep(1)
     save_screenshot(driver, "text_02_placed")

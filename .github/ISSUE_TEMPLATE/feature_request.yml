@@ -6,15 +6,15 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the suggestion! Before submitting, please understand that FossFLOW is a **simple, privacy-first diagramming tool**. 
+        Thanks for the suggestion! Before submitting, please understand that Axoview is a **simple, privacy-first diagramming tool**. 
         
         The following are **out of scope** and will be closed immediately:
         - Authentication, RBAC, OIDC, or multi-tenancy
         - User accounts or team management
         - Cloud hosting or SaaS features
-        - Anything that fundamentally changes what FossFLOW is
+        - Anything that fundamentally changes what Axoview is
         
-        If you're unsure whether your idea fits, open a [Discussion](https://github.com/stan-smith/FossFLOW/discussions) first.
+        If you're unsure whether your idea fits, open a [Discussion](https://github.com/stan-smith/Axoview/discussions) first.
 
   - type: checkboxes
     id: preflight
@@ -25,7 +25,7 @@ body:
           required: true
         - label: This feature is within the scope described above
           required: true
-        - label: I have checked [Discussions](https://github.com/stan-smith/FossFLOW/discussions) for related topics
+        - label: I have checked [Discussions](https://github.com/stan-smith/Axoview/discussions) for related topics
           required: true
 
   - type: textarea

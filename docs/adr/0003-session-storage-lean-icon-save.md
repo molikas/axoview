@@ -7,11 +7,11 @@
 
 ## Context
 
-`LocalStorageProvider.sessionSaveDiagram` and the server save paths persist the full FossFLOW model, including the entire `icons[]` array. The `icons[]` array conflates two concerns (see [ADR 0002](0002-icon-catalog-merge-on-load.md)) — the side-dock catalog and per-diagram persistence.
+`LocalStorageProvider.sessionSaveDiagram` and the server save paths persist the full Axoview model, including the entire `icons[]` array. The `icons[]` array conflates two concerns (see [ADR 0002](0002-icon-catalog-merge-on-load.md)) — the side-dock catalog and per-diagram persistence.
 
 Today every saved diagram carries a copy of the bundled icon catalog. For default icons (`{ id, name, url: 'https://...' }`) the cost is small but non-zero — a few hundred bytes per icon, dozens of icons, persisted in every diagram, every save. For session storage the budget is ~5 MB total, shared across all diagrams; this overhead matters. For exports it bloats every JSON download.
 
-The bundled catalog already exists in code at [packages/fossflow-lib/src/fixtures/icons.ts](../../packages/fossflow-lib/src/fixtures/icons.ts). Persisting it is pure redundancy.
+The bundled catalog already exists in code at [packages/axoview-lib/src/fixtures/icons.ts](../../packages/axoview-lib/src/fixtures/icons.ts). Persisting it is pure redundancy.
 
 ## Decision
 
@@ -53,10 +53,10 @@ Load-time rehydration is handled by [ADR 0002](0002-icon-catalog-merge-on-load.m
 
 ## Implementation notes (non-binding)
 
-- The strip helper lives in `packages/fossflow-lib/src/utils/leanSave.ts` (new) so server, session, and export call sites share one implementation.
+- The strip helper lives in `packages/axoview-lib/src/utils/leanSave.ts` (new) so server, session, and export call sites share one implementation.
 - `bundledFixtures.byId` is a memoized `Map<string, Icon>` derived from the fixture array.
 - "Differs in any user-visible field" compares: `name`, `url`, `collection`, `category` — but **not** any future runtime-only fields (e.g. cached SVG dimensions). Keep the comparison conservative — a diff defaults to "keep."
-- The opposite of strip — the merge — already has its home in [useInitialDataManager](../../packages/fossflow-lib/src/hooks/useInitialDataManager.ts) per ADR 0002.
+- The opposite of strip — the merge — already has its home in [useInitialDataManager](../../packages/axoview-lib/src/hooks/useInitialDataManager.ts) per ADR 0002.
 
 ## Acceptance criteria
 

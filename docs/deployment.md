@@ -1,6 +1,6 @@
-# FossFLOW — Deployment Guide
+# Axoview — Deployment Guide
 
-FossFLOW runs on three targets from a single codebase:
+Axoview runs on three targets from a single codebase:
 
 | Target | Runtime | Storage | Auth options |
 |---|---|---|---|
@@ -28,7 +28,7 @@ npm run dev              # SPA on http://localhost:3000
 npm run dev:backend      # Express on http://localhost:3001 (separate terminal)
 ```
 
-The SPA's `apiBaseUrl()` ([packages/fossflow-app/src/utils/apiBaseUrl.ts](packages/fossflow-app/src/utils/apiBaseUrl.ts)) auto-redirects `/api/*` to `:3001` when the host is `localhost:3000`. In every other context it uses same-origin relative paths.
+The SPA's `apiBaseUrl()` ([packages/axoview-app/src/utils/apiBaseUrl.ts](packages/axoview-app/src/utils/apiBaseUrl.ts)) auto-redirects `/api/*` to `:3001` when the host is `localhost:3000`. In every other context it uses same-origin relative paths.
 
 To exercise the filesystem path, run the backend with:
 
@@ -89,12 +89,12 @@ npx wrangler pages secret put AUTH_SHARED_SECRET
 # paste the token when prompted
 ```
 
-In [packages/fossflow-worker/wrangler.toml](packages/fossflow-worker/wrangler.toml) keep `AUTH_MODE = "shared-token"` (the default).
+In [packages/axoview-worker/wrangler.toml](packages/axoview-worker/wrangler.toml) keep `AUTH_MODE = "shared-token"` (the default).
 
 **`cf-access`** — Cloudflare Access JWT (zero-trust). Set up an Access application that fronts your `*.pages.dev` (or custom) domain, then:
 
 ```toml
-# packages/fossflow-worker/wrangler.toml
+# packages/axoview-worker/wrangler.toml
 [vars]
 AUTH_MODE = "cf-access"
 CF_ACCESS_TEAM_DOMAIN = "your-team"     # the subdomain in <team>.cloudflareaccess.com
@@ -116,7 +116,7 @@ The frontend reads this at runtime via `GET /api/config` — no rebuild needed w
 ```bash
 npm install
 npm run build
-npx wrangler pages deploy packages/fossflow-app/build --project-name fossflow
+npx wrangler pages deploy packages/axoview-app/build --project-name axoview
 ```
 
 The first deploy creates the Pages project. Subsequent deploys reuse it.
@@ -124,7 +124,7 @@ The first deploy creates the Pages project. Subsequent deploys reuse it.
 ### C5. Smoke test
 
 ```bash
-BASE=https://fossflow.pages.dev
+BASE=https://axoview.pages.dev
 curl "$BASE/api/config"             # always public, returns serverStorage: false
 curl "$BASE/api/storage/status"     # always public, returns enabled: false
 curl -i "$BASE/api/diagrams"        # 503 — storage disabled
@@ -137,7 +137,7 @@ With `AUTH_MODE=shared-token`, both `/api/config` and `/api/storage/status` rema
 The repo-root [wrangler.toml](wrangler.toml) is set up so the deploy button works against a fork:
 
 ```markdown
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/<your-fork>/FossFLOW)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/<your-fork>/Axoview)
 ```
 
 ---
@@ -171,4 +171,4 @@ The repo-root [wrangler.toml](wrangler.toml) is set up so the deploy button work
 
 **Path-traversal `400 Invalid id`** (Docker) — expected. IDs are strict NanoID-like alphanum; do not relax `assertId`.
 
-**Build succeeds locally but `wrangler pages deploy` 404s on `/api/*`** — check that [packages/fossflow-app/public/_routes.json](packages/fossflow-app/public/_routes.json) was copied into `build/`. Rsbuild copies the `public/` tree by default.
+**Build succeeds locally but `wrangler pages deploy` 404s on `/api/*`** — check that [packages/axoview-app/public/_routes.json](packages/axoview-app/public/_routes.json) was copied into `build/`. Rsbuild copies the `public/` tree by default.

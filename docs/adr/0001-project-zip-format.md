@@ -7,7 +7,7 @@
 
 ## Context
 
-FossFLOW today imports/exports a single diagram as JSON. With the file explorer (Phase 2B-R), a workspace contains many diagrams in a folder tree plus UI state. There is no way to export the whole workspace, nor to hand it to someone else, nor to back it up.
+Axoview today imports/exports a single diagram as JSON. With the file explorer (Phase 2B-R), a workspace contains many diagrams in a folder tree plus UI state. There is no way to export the whole workspace, nor to hand it to someone else, nor to back it up.
 
 In session-storage mode this is acute — sessionStorage dies with the tab, so the only durable persistence is download-and-reimport. Even in server mode, "give me my whole workspace as a file" is a missing primitive.
 
@@ -20,7 +20,7 @@ We need a workspace bundle format that is:
 
 ## Decision
 
-A FossFLOW project is a single `.zip` file with this layout:
+A Axoview project is a single `.zip` file with this layout:
 
 ```
 project.zip
@@ -36,10 +36,10 @@ project.zip
 
 ```jsonc
 {
-  "format": "fossflow-project",
+  "format": "axoview-project",
   "version": "1",
   "exportedAt": "2026-04-30T14:32:11.123Z",
-  "exportedBy": "fossflow-app@1.11.0",
+  "exportedBy": "axoview-app@1.11.0",
   "scope": "project",                 // "project" | "folder" | "diagram"
   "folders": [                        // mirrors /api/folders shape
     { "id": "folder_abc", "name": "Networking", "parentId": null },
@@ -57,7 +57,7 @@ project.zip
 }
 ```
 
-`format` is the magic string used to detect that a `.zip` is a FossFLOW project (vs an arbitrary archive). `version` enables migration on import.
+`format` is the magic string used to detect that a `.zip` is a Axoview project (vs an arbitrary archive). `version` enables migration on import.
 
 ### `diagrams/<id>.json`
 
@@ -71,9 +71,9 @@ The UI state from `GET /api/tree-manifest` (folder open/closed flags, ordering h
 
 ### Filename convention
 
-`fossflow-project-<YYYY-MM-DDTHH-mm-ss>.zip` for full-project exports.
-`fossflow-folder-<folderName>-<timestamp>.zip` for folder scope.
-`fossflow-diagram-<diagramName>-<timestamp>.json` for single-diagram (no zip — backwards-compatible with current export).
+`axoview-project-<YYYY-MM-DDTHH-mm-ss>.zip` for full-project exports.
+`axoview-folder-<folderName>-<timestamp>.zip` for folder scope.
+`axoview-diagram-<diagramName>-<timestamp>.json` for single-diagram (no zip — backwards-compatible with current export).
 
 ## Import semantics
 
@@ -88,7 +88,7 @@ Re-import is the messy half. The contract:
    - **Merge into root** — folders and diagrams attach at the workspace root, preserving relative tree shape.
    - **New folder** — a single new folder named after the zip filename is created at root, everything attaches under it.
    - **Replace all** — destructive; deletes every existing diagram and folder, then imports. Requires the user to type the literal string `replace` to confirm.
-3. **Validation.** Reject the zip if `manifest.json` is missing, `format !== "fossflow-project"`, or `version` is unknown. Reject any diagram whose `id` doesn't match `^[a-zA-Z0-9_-]{1,64}$` (defense in depth — the IDs get rewritten, but a malformed ID could still appear in cross-references).
+3. **Validation.** Reject the zip if `manifest.json` is missing, `format !== "axoview-project"`, or `version` is unknown. Reject any diagram whose `id` doesn't match `^[a-zA-Z0-9_-]{1,64}$` (defense in depth — the IDs get rewritten, but a malformed ID could still appear in cross-references).
 4. **Single-JSON imports** stay supported. Dragging a `.json` (current or compact format) into the explorer imports one diagram into the selected folder, no manifest required.
 
 ## Versioning
@@ -96,7 +96,7 @@ Re-import is the messy half. The contract:
 `manifest.json#version` is a string. Future bumps:
 
 - `"1"` → `"2"`: breaking change to a diagram field. Importer reads `version`, runs `migrate_v1_to_v2()` per diagram, then proceeds normally.
-- The importer never refuses an older version; it migrates. Newer versions are refused with a clear error ("This project was exported by a newer FossFLOW; please upgrade").
+- The importer never refuses an older version; it migrates. Newer versions are refused with a clear error ("This project was exported by a newer Axoview; please upgrade").
 
 ## Consequences
 

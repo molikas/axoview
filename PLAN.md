@@ -1,4 +1,4 @@
-# FossFlow — Implementation Plan
+# Axoview — Implementation Plan
 > **Living document.** Point Claude to this file at the start of any session: "read PLAN.md and implement the next incomplete phase."
 > Last updated: 2026-04-29
 
@@ -43,7 +43,7 @@ Claude should then:
 | **3B** | Google Drive Provider (E4) | `[ ]` | High | Depends on 3A |
 | **3C** | ~~S3 Provider + Backend (E4)~~ | 🚫 DROPPED (2026-04-29) | — | S3 support dropped — see Phase 3C section |
 | **4A** | External Diagram Registry (E6) | `[ ]` | Low | Depends on 3A |
-| **5***  | Cloudflare + Docker dual-target deploy | `[x]` | High | See [flare_plan.md](flare_plan.md) and [DEPLOY.md](DEPLOY.md) |
+| **5***  | Cloudflare + Docker dual-target deploy | `[x]` | High | See [docs/deployment.md](docs/deployment.md) |
 | **POST** | E2E Test Suite | 🚫 OUT OF SCOPE | — | Pick up after full UX ships |
 
 ---
@@ -52,11 +52,11 @@ Claude should then:
 
 ### Monorepo structure
 ```
-c:\myTemp\FossFLOW\
+c:\myTemp\Axoview\
 ├── packages/
-│   ├── fossflow-lib/          # Core React library (published as "fossflow")
+│   ├── axoview-lib/          # Core React library (published as "axoview")
 │   │   └── src/
-│   │       ├── Isoflow.tsx            # Main library export (forwardRef, ~200 lines)
+│   │       ├── Axoview.tsx            # Main library export (forwardRef, ~200 lines)
 │   │       ├── stores/
 │   │       │   ├── modelStore.tsx     # Diagram data + undo/redo (Immer patches)
 │   │       │   ├── sceneStore.tsx     # Computed scene data
@@ -73,11 +73,11 @@ c:\myTemp\FossFLOW\
 │   │       │   └── ContextMenu/       # Right-click menu
 │   │       ├── types/
 │   │       │   ├── model.ts           # Model, Icon, Connector, Item types
-│   │       │   ├── isoflowProps.ts    # Library component props
+│   │       │   ├── axoviewProps.ts    # Library component props
 │   │       │   └── ui.ts              # UI state types
 │   │       └── config.ts              # Constants (tile size, zoom limits, etc.)
 │   │
-│   ├── fossflow-app/          # Web application consuming the library
+│   ├── axoview-app/          # Web application consuming the library
 │   │   └── src/
 │   │       ├── App.tsx                # ⚠️ 745 lines — decompose in Phase 0A
 │   │       ├── index.tsx              # Entry: ErrorBoundary > I18n > App
@@ -92,10 +92,10 @@ c:\myTemp\FossFLOW\
 │   │           ├── storage/             # StorageManager + provider registry (replaces legacy storageService.ts, deleted 2026-04-29)
 │   │           └── iconPackManager.ts # Lazy icon pack loader
 │   │
-│   ├── fossflow-backend/      # Express server
+│   ├── axoview-backend/      # Express server
 │   │   └── server.js          # /api/diagrams/*, /api/storage/status
 │   │
-│   └── fossflow-e2e/          # Playwright tests (OUT OF SCOPE this phase)
+│   └── axoview-e2e/          # Playwright tests (OUT OF SCOPE this phase)
 │       └── tests/             # smoke, connector, node, pan, undo-redo, visual
 │
 ├── new_features.md            # Original feature spec
@@ -104,10 +104,10 @@ c:\myTemp\FossFLOW\
 ```
 
 ### Key existing patterns (Claude must follow these)
-- **State**: Zustand stores. Add new stores in `fossflow-app/src/stores/` (app-level) or `fossflow-lib/src/stores/` (library-level). Never add app-level state to lib stores.
+- **State**: Zustand stores. Add new stores in `axoview-app/src/stores/` (app-level) or `axoview-lib/src/stores/` (library-level). Never add app-level state to lib stores.
 - **UI**: MUI v7. Use MUI components exclusively — no raw HTML divs for layout.
 - **Error handling**: After Phase 0B, always use `notificationStore.push()` — never `alert()` or custom toasts.
-- **Icons**: Only modify `fossflow-app/src/services/iconPackManager.ts` to register new packs.
+- **Icons**: Only modify `axoview-app/src/services/iconPackManager.ts` to register new packs.
 - **Storage**: Only interact with storage via `StorageManager` — never import `ServerStorage` or `SessionStorage` directly in components.
 - **Async**: All async storage calls need try/catch. Re-throw to caller. Caller shows notification.
 - **Testing (unit)**: Jest + ts-jest + jsdom. Place tests in `__tests__/` adjacent to the file under test.
@@ -119,7 +119,7 @@ c:\myTemp\FossFLOW\
 - Zoom range: MIN_ZOOM (0.1) to MAX_ZOOM (1.0)
 - Storage server check timeout: 5s availability, 10s load, 15s save
 - History limit: 50 entries (Immer patches)
-- localStorage key prefix: `fossflow-`
+- localStorage key prefix: `axoview-`
 
 ---
 
@@ -139,15 +139,15 @@ c:\myTemp\FossFLOW\
 ### Session startup checklist
 ```
 Before coding, read these files:
-  packages/fossflow-app/src/App.tsx                (full)
-  packages/fossflow-app/src/index.tsx              (full)
-  packages/fossflow-app/src/services/storageService.ts  (full)
-  packages/fossflow-app/src/components/AppToolbar.tsx   (full)
+  packages/axoview-app/src/App.tsx                (full)
+  packages/axoview-app/src/index.tsx              (full)
+  packages/axoview-app/src/services/storageService.ts  (full)
+  packages/axoview-app/src/components/AppToolbar.tsx   (full)
 ```
 
 ### Target file structure after this phase
 ```
-packages/fossflow-app/src/
+packages/axoview-app/src/
 ├── App.tsx                          # Slim shell: ~100 lines, composes providers
 ├── providers/
 │   ├── DiagramLifecycleProvider.tsx # save/load/delete/create + unsaved-changes guard
@@ -165,7 +165,7 @@ packages/fossflow-app/src/
 - [x] Create `layout/FileExplorerLayout.tsx` — empty shell with a left-panel placeholder div
 - [x] Rewrite `App.tsx` to compose the above providers
 - [x] Update `AppToolbar.tsx` to consume `DiagramLifecycleProvider` context instead of prop-drilling
-- [x] Verify `yarn build` passes in `fossflow-app`
+- [x] Verify `yarn build` passes in `axoview-app`
 - [x] Verify `yarn build` passes in root
 
 ### Done criteria
@@ -185,14 +185,14 @@ Current code has ~6 `alert()` calls and a custom inline toast. Every new feature
 ### Session startup checklist
 ```
 Before coding, read these files:
-  packages/fossflow-app/src/App.tsx                          (relevant sections: alert() calls)
-  packages/fossflow-app/src/components/AppToolbar.tsx        (current save toast implementation)
-  packages/fossflow-app/src/components/DiagramManager.tsx    (current error display)
+  packages/axoview-app/src/App.tsx                          (relevant sections: alert() calls)
+  packages/axoview-app/src/components/AppToolbar.tsx        (current save toast implementation)
+  packages/axoview-app/src/components/DiagramManager.tsx    (current error display)
 ```
 
 ### Target file structure
 ```
-packages/fossflow-app/src/
+packages/axoview-app/src/
 ├── stores/
 │   └── notificationStore.ts         # New Zustand store
 └── components/
@@ -254,7 +254,7 @@ notificationStore.test.ts:
 ```
 
 ### Done criteria
-- [x] Zero `alert()` or `window.confirm()` calls remain in fossflow-app (except browser beforeunload which can't be replaced)
+- [x] Zero `alert()` or `window.confirm()` calls remain in axoview-app (except browser beforeunload which can't be replaced)
 - [x] All save/load error feedback uses `notificationStore`
 - [x] Unit tests pass (10/10)
 - [x] `yarn build` clean
@@ -270,11 +270,11 @@ User toggles between isometric view (current) and standard 2D cartesian grid. To
 ### Session startup checklist
 ```
 Before coding, read these files:
-  packages/fossflow-lib/src/components/Grid/Grid.tsx        (full)
-  packages/fossflow-lib/src/stores/uiStateStore.tsx         (full — note persisted settings)
-  packages/fossflow-lib/src/components/ToolMenu/ToolMenu.tsx (full)
-  packages/fossflow-lib/src/config.ts                       (tile size constants)
-  packages/fossflow-lib/src/utils/isoMath.ts                (or wherever isoToScreen/screenToIso live)
+  packages/axoview-lib/src/components/Grid/Grid.tsx        (full)
+  packages/axoview-lib/src/stores/uiStateStore.tsx         (full — note persisted settings)
+  packages/axoview-lib/src/components/ToolMenu/ToolMenu.tsx (full)
+  packages/axoview-lib/src/config.ts                       (tile size constants)
+  packages/axoview-lib/src/utils/isoMath.ts                (or wherever isoToScreen/screenToIso live)
 ```
 
 ### Key insight (do not miss this)
@@ -282,7 +282,7 @@ Node positions are stored as abstract tile coordinates `(tileX, tileY)`. Only th
 
 ### Target file structure (changes only)
 ```
-packages/fossflow-lib/src/
+packages/axoview-lib/src/
 ├── utils/
 │   └── coordinateTransforms.ts      # NEW: strategy pattern for ISO vs 2D
 ├── contexts/
@@ -316,7 +316,7 @@ setCanvasMode(mode: 'ISOMETRIC' | '2D'): void
 - [x] Add `canvasMode: 'ISOMETRIC' | '2D'` to `uiStateStore` persisted settings (default: `'ISOMETRIC'`)
 - [x] Create `utils/coordinateTransforms.ts` with both strategies
 - [x] Create `contexts/CanvasModeContext.tsx` — provides active strategy based on `canvasMode`
-- [x] Wrap renderer root in `CanvasModeContext.Provider` (in `Isoflow.tsx` or `Renderer.tsx`)
+- [x] Wrap renderer root in `CanvasModeContext.Provider` (in `Axoview.tsx` or `Renderer.tsx`)
 - [x] Update all `isoToScreen` / `screenToIso` call sites to read from context
 - [x] Update `Grid.tsx` to switch SVG tile background when mode changes
 - [x] Create `assets/grid-tile-2d.svg` (standard square grid tile, matching existing tile dimensions)
@@ -354,9 +354,9 @@ A "Material Icons" category appears in the left dock `ElementsPanel`. Icons are 
 ### Session startup checklist
 ```
 Before coding, read these files:
-  packages/fossflow-app/src/services/iconPackManager.ts    (full)
-  packages/fossflow-lib/src/components/LeftDock/           (understand ElementsPanel structure)
-  packages/fossflow-lib/src/types/model.ts                 (Icon type definition)
+  packages/axoview-app/src/services/iconPackManager.ts    (full)
+  packages/axoview-lib/src/components/LeftDock/           (understand ElementsPanel structure)
+  packages/axoview-lib/src/types/model.ts                 (Icon type definition)
   node_modules/@mui/icons-material/index.js                (first 50 lines — understand export shape)
 ```
 
@@ -365,7 +365,7 @@ MUI icons ship as React components. The canvas needs SVG path data. **Build a st
 
 ### Target file structure
 ```
-packages/fossflow-app/
+packages/axoview-app/
 ├── scripts/
 │   └── generateMaterialIconPack.ts  # NEW: runs at prebuild
 └── src/
@@ -374,7 +374,7 @@ packages/fossflow-app/
 ```
 
 ```
-packages/fossflow-app/package.json:
+packages/axoview-app/package.json:
   "prebuild": "ts-node scripts/generateMaterialIconPack.ts"
 ```
 
@@ -419,14 +419,14 @@ generateMaterialIconPack.test.ts:
 ### Session startup checklist
 ```
 Before coding, read these files:
-  packages/fossflow-app/src/services/storageService.ts      (full)
-  packages/fossflow-app/src/providers/AppStorageContext.tsx (from Phase 0A)
-  packages/fossflow-backend/server.js                       (full — understand existing endpoints)
+  packages/axoview-app/src/services/storageService.ts      (full)
+  packages/axoview-app/src/providers/AppStorageContext.tsx (from Phase 0A)
+  packages/axoview-backend/server.js                       (full — understand existing endpoints)
 ```
 
 ### Target file structure
 ```
-packages/fossflow-app/src/services/storage/
+packages/axoview-app/src/services/storage/
 ├── types.ts                         # StorageProvider interface + shared types
 ├── StorageManager.ts                # Refactored: provider registry + active provider delegation
 ├── providers/
@@ -495,12 +495,12 @@ export interface StorageProvider {
 ### Sub-tasks
 - [x] Create `services/storage/types.ts` with all interfaces above
 - [x] Create `services/storage/providers/LocalStorageProvider.ts` — merge existing `ServerStorage` + `SessionStorage` logic into one provider implementing `StorageProvider`
-- [x] Add folder support to `LocalStorageProvider`: folders stored as `fossflow_folders` JSON in localStorage (key: `fossflow-folders`), folder membership stored as `folderId` on diagram metadata
+- [x] Add folder support to `LocalStorageProvider`: folders stored as `axoview_folders` JSON in localStorage (key: `axoview-folders`), folder membership stored as `folderId` on diagram metadata
 - [x] Create stub `services/storage/providers/GoogleDriveProvider.ts` — throws `NotImplementedError` on all methods
 - [~] ~~Create stub `services/storage/providers/S3Provider.ts`~~ — created in Phase 2A, deleted 2026-04-29 with Phase 3C drop
 - [x] Refactor `services/storage/StorageManager.ts` — provider registry pattern, `registerProvider()`, `setActiveProvider()`, delegates all calls to active provider
 - [x] Update `providers/AppStorageContext.tsx` to initialize `StorageManager` with `LocalStorageProvider` as default
-- [x] Update `fossflow-backend/server.js` — add folder endpoints:
+- [x] Update `axoview-backend/server.js` — add folder endpoints:
   - `GET /api/folders` → list folders
   - `POST /api/folders` → create folder
   - `PUT /api/folders/:id` → rename folder
@@ -545,16 +545,16 @@ LocalStorageProvider.test.ts (use MSW to mock fetch):
 ### Session startup checklist
 ```
 Before coding, read these files:
-  packages/fossflow-app/src/layout/FileExplorerLayout.tsx   (from Phase 0A — shell to fill)
-  packages/fossflow-app/src/services/storage/types.ts       (from Phase 2A — data model)
-  packages/fossflow-app/src/providers/DiagramLifecycleProvider.tsx  (from Phase 0A)
-  packages/fossflow-app/src/stores/notificationStore.ts     (from Phase 0B)
+  packages/axoview-app/src/layout/FileExplorerLayout.tsx   (from Phase 0A — shell to fill)
+  packages/axoview-app/src/services/storage/types.ts       (from Phase 2A — data model)
+  packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx  (from Phase 0A)
+  packages/axoview-app/src/stores/notificationStore.ts     (from Phase 0B)
   https://github.com/jameskerr/react-arborist               (README — understand API)
 ```
 
 ### Target file structure
 ```
-packages/fossflow-app/src/
+packages/axoview-app/src/
 ├── layout/
 │   └── FileExplorerLayout.tsx        # MODIFY: fill shell with actual panel + toggle
 ├── components/fileExplorer/
@@ -607,7 +607,7 @@ propagateDirty(tree: TreeManifest, diagrams: DiagramMeta[]): Map<string, boolean
 ```
 
 ### Sub-tasks (Session 1 — basic tree)
-- [x] `yarn add react-arborist` in fossflow-app
+- [x] `yarn add react-arborist` in axoview-app
 - [x] Implement `useFileTree.ts` — loads tree manifest + diagram list, builds arborist-compatible node array
 - [x] Implement `FileTreeNode.tsx` — renders folder (ChevronRight icon) and diagram (ArticleOutlined icon) nodes
 - [x] Wire `FileExplorer.tsx` with `<Tree>` from react-arborist
@@ -669,13 +669,13 @@ Phase 2B shipped a "draft auto-creation" model where editing an unsaved canvas a
 ### Session startup checklist
 ```
 Before coding, read these files:
-  packages/fossflow-app/src/providers/DiagramLifecycleProvider.tsx   (full)
-  packages/fossflow-app/src/components/fileExplorer/FileExplorer.tsx  (full)
-  packages/fossflow-app/src/components/fileExplorer/FileTreeToolbar.tsx
-  packages/fossflow-app/src/components/fileExplorer/FileTreeNode.tsx
-  packages/fossflow-app/src/hooks/useFileTree.ts
-  packages/fossflow-app/src/App.tsx
-  packages/fossflow-app/src/components/AppToolbar.tsx
+  packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx   (full)
+  packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx  (full)
+  packages/axoview-app/src/components/fileExplorer/FileTreeToolbar.tsx
+  packages/axoview-app/src/components/fileExplorer/FileTreeNode.tsx
+  packages/axoview-app/src/hooks/useFileTree.ts
+  packages/axoview-app/src/App.tsx
+  packages/axoview-app/src/components/AppToolbar.tsx
 ```
 
 ### Decisions & constraints (do not revisit)
@@ -686,7 +686,7 @@ Before coding, read these files:
 | DnD | Cross-folder move only — same-parent reorder silently rejected (`currentParentId === parentId` guard) |
 | Draft auto-creation | Removed entirely — no auto-draft, no DraftsSection |
 | Explorer header label | Dynamic from `storage.id`: `local` → "DIAGRAMS", `google-drive` → "GOOGLE DRIVE", `s3` → "S3" |
-| Explorer default open | First server-mode session only (localStorage `fossflow-explorer-initialized` flag); persisted after |
+| Explorer default open | First server-mode session only (localStorage `axoview-explorer-initialized` flag); persisted after |
 | Session mode | Explorer defaults closed; no "Blank diagram" canvas card — old canvas behavior |
 | Canvas "Blank diagram" card | Shown when `serverStorageAvailable && currentDiagram === null && !isReadonlyUrl` |
 | AppToolbar "New diagram" button | Removed |
@@ -699,15 +699,15 @@ Before coding, read these files:
 ### Target file structure changes
 ```
 DELETED:
-  packages/fossflow-app/src/components/fileExplorer/DraftsSection.tsx
+  packages/axoview-app/src/components/fileExplorer/DraftsSection.tsx
 
 REWRITTEN:
-  packages/fossflow-app/src/components/fileExplorer/FileTreeToolbar.tsx
+  packages/axoview-app/src/components/fileExplorer/FileTreeToolbar.tsx
     — VS Code-style: [PROVIDER LABEL] + [New Diagram] [New Folder] [Refresh] [Collapse All]
     — Props: { providerLabel, onNewDiagram, onNewFolder, onRefresh, onCollapseAll }
 
 NEW:
-  packages/fossflow-app/src/components/EmptyStateScreen.tsx
+  packages/axoview-app/src/components/EmptyStateScreen.tsx
     — Full canvas replacement (not overlay) when serverStorageAvailable && !currentDiagram
     — ISO grid CSS background + centered Paper card with AddCircleOutline icon + "New diagram" button
     — Props: { onCreate: () => void }
@@ -723,7 +723,7 @@ MODIFIED:
   ConfirmDialog.tsx             — add optional onDiscard prop for 3-button variant; standardized dialog style (soft shadow, X button, h6 600 title, body2 body)
 
 DELETED:
-  packages/fossflow-app/src/components/fileExplorer/TrashSection.tsx
+  packages/axoview-app/src/components/fileExplorer/TrashSection.tsx
     — Removed: no trash UX; delete is immediate (hard delete) with confirmation dialog
 ```
 
@@ -732,8 +732,8 @@ DELETED:
   its pre-fetch `useEffect`, auto-draft block in `handleModelUpdated` (the `else if (!isCreatingDraftRef.current)` branch),
   `draftsFolderId` from context interface + value
 - **Change `handleModelUpdated` server-mode block:** when `currentDiagram === null`, do nothing (no draft, no save)
-- **Change `fileExplorerOpen` init:** first server session → `true`; subsequent → read `fossflow-explorer-open` from localStorage; session mode → always `false`
-- **Add `useEffect`** persisting `fileExplorerOpen` to `fossflow-explorer-open` in localStorage
+- **Change `fileExplorerOpen` init:** first server session → `true`; subsequent → read `axoview-explorer-open` from localStorage; session mode → always `false`
+- **Add `useEffect`** persisting `fileExplorerOpen` to `axoview-explorer-open` in localStorage
 - **Add `handleCreateBlankDiagram(folderId: string | null)`:** sequential-named "Untitled", creates in storage, calls `handleDiagramManagerLoad`, opens explorer, fires refresh token
 - **Add `checkUnsavedBeforeNavigate(onProceed: () => void)`:** no-op in server mode; in session mode with `hasUnsavedChanges` → ConfirmDialog (Save / Discard / Cancel)
 - **Expose** `handleCreateBlankDiagram` and `checkUnsavedBeforeNavigate` in context interface + value
@@ -812,20 +812,20 @@ In the right sidebar, a node can be assigned a link to another diagram. In read-
 ### Session startup checklist
 ```
 Before coding, read these files:
-  packages/fossflow-lib/src/types/model.ts            (Item/Node type)
-  packages/fossflow-lib/src/components/RightSidebar/  (node controls panel)
-  packages/fossflow-app/src/App.tsx                   (read-only route handler)
+  packages/axoview-lib/src/types/model.ts            (Item/Node type)
+  packages/axoview-lib/src/components/RightSidebar/  (node controls panel)
+  packages/axoview-app/src/App.tsx                   (read-only route handler)
 ```
 
 ### Sub-tasks
-- [x] Add `link?: string` (diagramId) to `modelItemSchema` Zod schema in `fossflow-lib/src/schemas/modelItems.ts`
+- [x] Add `link?: string` (diagramId) to `modelItemSchema` Zod schema in `axoview-lib/src/schemas/modelItems.ts`
 - [x] Update UI types: add `linkedDiagrams` to `UiState` + `UiStateActions` in `types/ui.ts`
 - [x] Add `linkedDiagrams` state + `setLinkedDiagrams` action to `uiStateStore.tsx`
-- [x] Add `linkedDiagrams` prop to `IsoflowProps` (isoflowProps.ts) and wire via useEffect in Isoflow.tsx
+- [x] Add `linkedDiagrams` prop to `AxoviewProps` (axoviewProps.ts) and wire via useEffect in Axoview.tsx
 - [x] Add "Link to diagram" dropdown in `NodeInfoTab.tsx` (edit mode, only shown when linkedDiagrams non-empty)
 - [x] Add locale strings: `diagramLink`, `diagramLinkPlaceholder`, `diagramLinkHint`, `openDiagramLink` to all locales
 - [x] In `Node.tsx`: in `EXPLORABLE_READONLY` mode, nodes with `modelItem.link` are clickable → opens `/display/{link}` in `_blank`; show small primary-colored badge with ExternalLink icon
-- [x] In `App.tsx` EditorShell: load `linkedDiagrams` from `storage.listDiagrams()`, refresh on `fileTreeRefreshToken`, pass as prop to `<Isoflow>`
+- [x] In `App.tsx` EditorShell: load `linkedDiagrams` from `storage.listDiagrams()`, refresh on `fileTreeRefreshToken`, pass as prop to `<Axoview>`
 
 ### Done criteria
 - [x] Node can be linked to another diagram via right sidebar (Details tab dropdown)
@@ -856,10 +856,10 @@ Before coding, read these files:
   docs/adr/0005-toolbar-and-dock-layout-contract.md       (full)
   docs/tactical/layout-revamp.md                          (full — sub-tasks live here)
   docs/ux-principles.md                                   (full — design language)
-  packages/fossflow-app/src/components/AppToolbar.tsx     (full)
-  packages/fossflow-lib/src/components/LeftDock/LeftDock.tsx        (full)
-  packages/fossflow-lib/src/components/SettingsDialog/SettingsDialog.tsx  (full)
-  packages/fossflow-lib/src/components/MainMenu/MainMenu.tsx        (skim — for burger items being redistributed)
+  packages/axoview-app/src/components/AppToolbar.tsx     (full)
+  packages/axoview-lib/src/components/LeftDock/LeftDock.tsx        (full)
+  packages/axoview-lib/src/components/SettingsDialog/SettingsDialog.tsx  (full)
+  packages/axoview-lib/src/components/MainMenu/MainMenu.tsx        (skim — for burger items being redistributed)
 ```
 
 ### Sub-tasks (high-level)
@@ -893,15 +893,15 @@ Detailed sub-tasks live in [docs/tactical/layout-revamp.md](docs/tactical/layout
 ### Session startup checklist
 ```
 Before coding, read these files:
-  packages/fossflow-app/src/providers/AppStorageContext.tsx  (from Phase 0A)
-  packages/fossflow-app/src/components/AppToolbar.tsx        (where avatar goes)
-  packages/fossflow-app/src/stores/notificationStore.ts      (from Phase 0B)
+  packages/axoview-app/src/providers/AppStorageContext.tsx  (from Phase 0A)
+  packages/axoview-app/src/components/AppToolbar.tsx        (where avatar goes)
+  packages/axoview-app/src/stores/notificationStore.ts      (from Phase 0B)
   https://www.npmjs.com/package/@react-oauth/google          (README — GoogleOAuthProvider setup)
 ```
 
 ### Target file structure
 ```
-packages/fossflow-app/src/
+packages/axoview-app/src/
 ├── stores/
 │   └── authStore.ts                  # NEW Zustand store (NOT persisted)
 ├── providers/
@@ -959,7 +959,7 @@ interface AuthStore {
 4. On sign-out: call `authStore.signOut()` which nulls the token, then switch storage to local
 
 ### Sub-tasks
-- [ ] `yarn add @react-oauth/google` in fossflow-app
+- [ ] `yarn add @react-oauth/google` in axoview-app
 - [ ] Create `stores/authStore.ts` with Zustand (no persist middleware)
 - [ ] Create `providers/AuthProvider.tsx` — wraps `<GoogleOAuthProvider clientId={...}>`, attempts silent token refresh on mount
 - [ ] Mount `AuthProvider` in `App.tsx` (above `AppStorageContext`)
@@ -1008,10 +1008,10 @@ authStore.test.ts (mock @react-oauth/google):
 ### Session startup checklist
 ```
 Before coding, read these files:
-  packages/fossflow-app/src/services/storage/types.ts          (StorageProvider interface)
-  packages/fossflow-app/src/services/storage/providers/GoogleDriveProvider.ts  (current stub)
-  packages/fossflow-app/src/stores/authStore.ts                (getValidToken())
-  packages/fossflow-app/src/stores/notificationStore.ts
+  packages/axoview-app/src/services/storage/types.ts          (StorageProvider interface)
+  packages/axoview-app/src/services/storage/providers/GoogleDriveProvider.ts  (current stub)
+  packages/axoview-app/src/stores/authStore.ts                (getValidToken())
+  packages/axoview-app/src/stores/notificationStore.ts
 ```
 
 ### Drive API mapping
@@ -1024,10 +1024,10 @@ Before coding, read these files:
 | `deleteDiagram(id, soft)` | soft: update `appProperties.deletedAt`. hard: `DELETE /drive/v3/files/{id}` |
 | `listFolders(parentId)` | `GET /drive/v3/files?q=mimeType='application/vnd.google-apps.folder' and '{parentId}' in parents` |
 | `createFolder(name, parentId)` | `POST /drive/v3/files` (mimeType: vnd.google-apps.folder) |
-| `getTreeManifest()` | `GET /drive/v3/files?q=name='fossflow-manifest.json'` then `GET .../alt=media` |
+| `getTreeManifest()` | `GET /drive/v3/files?q=name='axoview-manifest.json'` then `GET .../alt=media` |
 | `saveTreeManifest(m)` | `PATCH /upload/drive/v3/files/{manifestId}` |
 
-**Root folder:** All FossFlow files live under a `FossFlow/` folder in the user's Drive, created on first use.
+**Root folder:** All Axoview files live under a `Axoview/` folder in the user's Drive, created on first use.
 
 ### Sub-tasks
 - [ ] Set up MSW Drive API handlers in `src/mocks/handlers/driveHandlers.ts`
@@ -1081,8 +1081,8 @@ Users can add external diagram URLs (draw.io, Lucidchart, Miro) to the file tree
 ### Session startup checklist
 ```
 Before coding, read these files:
-  packages/fossflow-app/src/components/fileExplorer/FileExplorer.tsx  (from Phase 2B)
-  packages/fossflow-app/src/services/storage/types.ts                  (extend with ExternalDiagramNode)
+  packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx  (from Phase 2B)
+  packages/axoview-app/src/services/storage/types.ts                  (extend with ExternalDiagramNode)
 ```
 
 ### Sub-tasks
@@ -1105,10 +1105,10 @@ Before coding, read these files:
 ## E2E Test Suite — POST-UX PHASE (Out of Scope Now)
 🚫 **Do not implement during the above phases.**
 
-When the new UX ships, pick up this section. The Playwright infrastructure already exists at `packages/fossflow-e2e/`. All existing tests continue to run. New test files to add:
+When the new UX ships, pick up this section. The Playwright infrastructure already exists at `packages/axoview-e2e/`. All existing tests continue to run. New test files to add:
 
 ```
-packages/fossflow-e2e/tests/
+packages/axoview-e2e/tests/
 ├── file-explorer.spec.ts       # Create folder, rename, DnD, delete, trash, search
 ├── 2d-canvas-mode.spec.ts      # Toggle, visual regression, export in 2D mode
 ├── material-icons.spec.ts      # Search, drag to canvas
@@ -1173,13 +1173,13 @@ Playwright mock approach:
 
 | Library | Package | Phase | Install in |
 |---|---|---|---|
-| `react-arborist` | `react-arborist` | 2B | fossflow-app |
-| `@react-oauth/google` | `@react-oauth/google` | 3A | fossflow-app |
-| `gapi-script` or raw GIS | `gapi-script` | 3B | fossflow-app |
+| `react-arborist` | `react-arborist` | 2B | axoview-app |
+| `@react-oauth/google` | `@react-oauth/google` | 3A | axoview-app |
+| `gapi-script` or raw GIS | `gapi-script` | 3B | axoview-app |
 | ~~`@aws-sdk/client-s3`~~ | — | 🚫 3C dropped (2026-04-29) | — |
 | ~~`@aws-sdk/s3-request-presigner`~~ | — | 🚫 3C dropped (2026-04-29) | — |
 | ~~`express-rate-limit`~~ | — | 🚫 3C dropped (2026-04-29) | — |
-| `msw` | `msw@^2` | 2A | fossflow-app (devDep) |
+| `msw` | `msw@^2` | 2A | axoview-app (devDep) |
 | ~~`helmet`~~ | — | 🚫 3C dropped (2026-04-29) | — |
 
 ---

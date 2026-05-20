@@ -24,7 +24,7 @@ Three basic tests to verify the application loads correctly:
 
 1. **test_homepage_loads** - Verifies:
    - Page loads successfully
-   - Title contains "FossFLOW" or "isometric"
+   - Title contains "Axoview" or "isometric"
    - Body element exists
    - React root element exists
 
@@ -42,7 +42,7 @@ Updated `.github/workflows/e2e-tests.yml` to:
 - Run on push/PR to master/main branches
 - Set up Python 3.11 with pip caching
 - Spin up Selenium standalone Chrome in Docker
-- Build the FossFLOW app
+- Build the Axoview app
 - Serve the built app with nohup for persistence
 - Install Python test dependencies
 - Run all E2E tests with pytest
@@ -57,7 +57,7 @@ Updated `.github/workflows/e2e-tests.yml` to:
 
 **External services:**
 - Selenium Server (via Docker)
-- Running FossFLOW instance
+- Running Axoview instance
 
 ## Quick Start
 
@@ -83,7 +83,7 @@ cd e2e-tests
 # 1. Start Selenium (in Docker)
 docker run -d -p 4444:4444 -p 7900:7900 --shm-size=2g selenium/standalone-chrome
 
-# 2. Start FossFLOW dev server (in another terminal)
+# 2. Start Axoview dev server (in another terminal)
 npm run dev
 
 # 3. Set up Python environment

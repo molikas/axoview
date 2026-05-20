@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for FossFLOW_V2
+about: Suggest an idea for axoview
 labels: enhancement
 assignees: ''
 ---

@@ -1,6 +1,6 @@
-# FossFLOW E2E Tests
+# Axoview E2E Tests
 
-End-to-end tests for FossFLOW using Selenium WebDriver with Python and pytest.
+End-to-end tests for Axoview using Selenium WebDriver with Python and pytest.
 
 ## Prerequisites
 
@@ -24,7 +24,7 @@ The script will:
 - Start Selenium container automatically
 - Create a Python virtual environment
 - Install test dependencies
-- Prompt you to start the FossFLOW app if not running
+- Prompt you to start the Axoview app if not running
 - Run the tests
 - Clean up Selenium container
 
@@ -32,10 +32,10 @@ The script will:
 
 1. Start Selenium server with Chrome:
    ```bash
-   docker run -d --name fossflow-selenium -p 4444:4444 -p 7900:7900 --shm-size="2g" selenium/standalone-chrome:latest
+   docker run -d --name axoview-selenium -p 4444:4444 -p 7900:7900 --shm-size="2g" selenium/standalone-chrome:latest
    ```
 
-2. Start the FossFLOW dev server:
+2. Start the Axoview dev server:
    ```bash
    cd ..  # Go to project root
    npm run dev
@@ -56,12 +56,12 @@ The script will:
 
 ## Environment Variables
 
-- `FOSSFLOW_TEST_URL` - Base URL of the app (default: `http://localhost:3000`)
+- `AXOVIEW_TEST_URL` - Base URL of the app (default: `http://localhost:3000`)
 - `WEBDRIVER_URL` - WebDriver endpoint (default: `http://localhost:4444`)
 
 Example:
 ```bash
-FOSSFLOW_TEST_URL=http://localhost:8080 pytest -v
+AXOVIEW_TEST_URL=http://localhost:8080 pytest -v
 ```
 
 ## Available Tests
@@ -158,7 +158,7 @@ pytest -k "canvas" -v
 ### Connection refused errors
 - Ensure Selenium is running: `docker ps | grep selenium`
 - Check Selenium status: `curl http://localhost:4444/status`
-- Ensure FossFLOW app is running: `curl http://localhost:3000`
+- Ensure Axoview app is running: `curl http://localhost:3000`
 
 ### Element not found errors
 - Increase wait times in tests
@@ -170,7 +170,7 @@ pytest -k "canvas" -v
 - Install dependencies: `pip install -r requirements.txt`
 
 ### Docker container conflicts
-- Remove existing container: `docker rm -f fossflow-selenium`
+- Remove existing container: `docker rm -f axoview-selenium`
 - Check for port conflicts: `lsof -i :4444`
 
 ## Dependencies

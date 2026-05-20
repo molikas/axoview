@@ -1,0 +1,14 @@
+# Standalone wrangler config for the Worker package itself (used by
+# `wrangler pages dev` from this directory). The repo-root wrangler.toml is
+# what the "Deploy to Cloudflare" button consumes for Pages.
+
+name = "axoview"
+compatibility_date = "2025-01-01"
+pages_build_output_dir = "../axoview-app/build"
+
+# Storage-less deployment: no R2 binding. See repo-root wrangler.toml.
+
+[vars]
+AUTH_MODE = "shared-token"
+# AUTH_SHARED_SECRET, CF_ACCESS_*, GOOGLE_CLIENT_ID are configured as secrets
+# via `wrangler secret put` — never commit them.

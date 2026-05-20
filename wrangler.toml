@@ -1,11 +1,11 @@
 # Cloudflare Pages config (consumed by the "Deploy to Cloudflare" button and
 # by `wrangler pages deploy` from the repo root). Pages Functions live under
 # /functions and are scoped to /api/* via _routes.json (see
-# packages/fossflow-app/public/_routes.json after build).
+# packages/axoview-app/public/_routes.json after build).
 
-name = "fossflow"
+name = "axoview"
 compatibility_date = "2025-01-01"
-pages_build_output_dir = "packages/fossflow-app/build"
+pages_build_output_dir = "packages/axoview-app/build"
 
 # Storage-less deployment: no R2 binding. The Worker reports
 # serverStorage=false via /api/config and the frontend falls back to

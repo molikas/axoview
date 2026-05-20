@@ -1,4 +1,4 @@
-# FossFLOW Performance Troubleshooting Playbook
+# Axoview Performance Troubleshooting Playbook
 
 **Last updated:** 2026-05-16
 **Status:** Living doc. Add a new "Case study" subsection whenever a perf investigation lands.
@@ -31,7 +31,7 @@ When a user reports slow drag / janky interaction / FPS drop:
 
 ### Step 1 — capture a baseline diag (1 minute)
 
-The app has a built-in `DiagnosticsOverlay` (toggle from BottomDock or via `localStorage.setItem('fossflow_perf_enabled', 'true')` in prod). It writes a circular buffer of FPS / heap / long-task / scene-count samples. Download via the **↓ AI** button — the compact format is ~80% smaller than the human format and Claude can ingest it directly.
+The app has a built-in `DiagnosticsOverlay` (toggle from BottomDock or via `localStorage.setItem('axoview_perf_enabled', 'true')` in prod). It writes a circular buffer of FPS / heap / long-task / scene-count samples. Download via the **↓ AI** button — the compact format is ~80% smaller than the human format and Claude can ingest it directly.
 
 What to read off the JSON:
 - **Cliff duration** — count contiguous samples with `fps < 20`. Anything > 2 seconds is user-visible.
@@ -39,13 +39,13 @@ What to read off the JSON:
 - **Long-task accumulation rate** — `(lt_last - lt_first) / duration_seconds`. > 5/sec sustained means the main thread is stalled.
 - **GC events** — listed in the `events` array. Multiple Major GCs during a drag = allocation pressure.
 
-If `ni / nc / ntb` are all 0, the `__fossflow__` bridge isn't exposed — that's the `Isoflow.tsx` `enableDebugTools` gate. In dev (`NODE_ENV !== 'production'`) it should auto-expose; if not, check whether Isoflow was reached by the consumer.
+If `ni / nc / ntb` are all 0, the `__axoview__` bridge isn't exposed — that's the `Axoview.tsx` `enableDebugTools` gate. In dev (`NODE_ENV !== 'production'`) it should auto-expose; if not, check whether Axoview was reached by the consumer.
 
 ### Step 2 — render-count probe (1 minute)
 
 Distinguishes "too many things re-rendering" from "each render is too expensive". Two very different fixes.
 
-The probe lives at [`src/utils/renderProbe.ts`](../packages/fossflow-lib/src/utils/renderProbe.ts). Gated by `?perfprobe=1` URL flag (zero cost when disabled). Already wired into Nodes / Node / NodeContent / Connectors / Connector. To add it to a new hot-path component:
+The probe lives at [`src/utils/renderProbe.ts`](../packages/axoview-lib/src/utils/renderProbe.ts). Gated by `?perfprobe=1` URL flag (zero cost when disabled). Already wired into Nodes / Node / NodeContent / Connectors / Connector. To add it to a new hot-path component:
 
 ```ts
 import { useRenderProbe } from 'src/utils/renderProbe';
@@ -58,9 +58,9 @@ export const MyComponent = memo(({ id, ... }: Props) => {
 
 Run:
 1. Visit `?perfprobe=1`.
-2. Console: `__fossflowRenderProbe.start()`.
+2. Console: `__axoviewRenderProbe.start()`.
 3. Reproduce the slow interaction (e.g. drag 6 nodes for 5 s).
-4. Console: `__fossflowRenderProbe.stop()`.
+4. Console: `__axoviewRenderProbe.stop()`.
 5. The `console.table` shows render count per (component, id).
 
 **How to read it:**
@@ -128,7 +128,7 @@ if (!__w.__myDiagLast || __now - __w.__myDiagLast > 250) {
 
 **Root cause:** A single user action triggers a chain of reducers, each running its own `produce(state, ...)` over the full state. For `updateViewItem(tile)` → `updateConnector` per touching connector → `syncConnector` per connector, 6 items × 3 connectors = up to ~50 full-graph clones per drag frame.
 
-**Fix:** For the hot path specifically, write a batched, immer-free action that takes all updates and does ONE structural copy + direct path/scene recomputation. Example: `batchUpdateViewItemTiles` and `previewConnectorPaths` in [useSceneActions.ts](../packages/fossflow-lib/src/hooks/useSceneActions.ts).
+**Fix:** For the hot path specifically, write a batched, immer-free action that takes all updates and does ONE structural copy + direct path/scene recomputation. Example: `batchUpdateViewItemTiles` and `previewConnectorPaths` in [useSceneActions.ts](../packages/axoview-lib/src/hooks/useSceneActions.ts).
 
 **The general principle:** the regular reducer chain is correct and convenient for one-shot user actions (click, keypress). But for 30-60fps mousemove handlers, the immer cost compounds. Have a fast-path action that bypasses immer for tile-only or path-only updates.
 
@@ -141,7 +141,7 @@ if (!__w.__myDiagLast || __now - __w.__myDiagLast > 250) {
 2. Even the components that *should* render are doing too much work — repeatedly re-creating sx object literals, mounting heavy MUI subtrees per frame.
 
 **Fix:**
-1. Split the component into a thin shell (re-renders per tick, trivial output) and a memoized inner that takes only stable primitive props. See [Node.tsx](../packages/fossflow-lib/src/components/SceneLayers/Nodes/Node/Node.tsx) — `Node` (shell) vs `NodeContent` (memoized).
+1. Split the component into a thin shell (re-renders per tick, trivial output) and a memoized inner that takes only stable primitive props. See [Node.tsx](../packages/axoview-lib/src/components/SceneLayers/Nodes/Node/Node.tsx) — `Node` (shell) vs `NodeContent` (memoized).
 2. Move all static `sx` objects to module-level constants (emotion's class hash hits cache).
 3. Move dynamic per-frame values (position, z-index) to inline `style={{ ... }}` (bypasses emotion entirely).
 4. Move compositor-only changes (transform, opacity) into CSS variables read by the static `sx`.
@@ -182,7 +182,7 @@ Use sparingly — `flushSync` defeats React's batching and *will* hurt perf if c
 
 **Fix:**
 - **Persistent diagnostics** (kept indefinitely for future investigations): gate behind a URL flag and put them in a dedicated module. Pattern: `useRenderProbe` reads `?perfprobe=1` once at module load; zero cost when off. Safe to ship.
-- **One-off troubleshooting** (added during an active investigation): MUST be stripped before commit. Run `git grep -n "console\." packages/fossflow-lib/src` immediately before committing perf work. Use `--include='!*.test.*'` to ignore tests. If anything beyond intentional handlers shows up, strip it.
+- **One-off troubleshooting** (added during an active investigation): MUST be stripped before commit. Run `git grep -n "console\." packages/axoview-lib/src` immediately before committing perf work. Use `--include='!*.test.*'` to ignore tests. If anything beyond intentional handlers shows up, strip it.
 
 ---
 
@@ -206,7 +206,7 @@ Session-mode page load showed a white screen for ~5–7 seconds after `html:head
 
 ### Fix shape
 
-- **Probe timeouts dropped 5000 ms → 800 ms** in [`useRuntimeConfig.ts`](../packages/fossflow-app/src/hooks/useRuntimeConfig.ts) and [`LocalStorageProvider.ts`](../packages/fossflow-app/src/services/storage/providers/LocalStorageProvider.ts). 800 ms gives ~17× headroom over a healthy backend (~45 ms in docker) and caps the OS-level probe.
+- **Probe timeouts dropped 5000 ms → 800 ms** in [`useRuntimeConfig.ts`](../packages/axoview-app/src/hooks/useRuntimeConfig.ts) and [`LocalStorageProvider.ts`](../packages/axoview-app/src/services/storage/providers/LocalStorageProvider.ts). 800 ms gives ~17× headroom over a healthy backend (~45 ms in docker) and caps the OS-level probe.
 - **Probes parallelised** with `Promise.all` in `AppStorageContext.tsx` — they're independent, so worst-case storage init = max(p1, p2) not p1+p2.
 - **Inline splash screen** in `public/index.html` (visible from first paint, no React required) covers the remaining bundle-parse + probe gap with a branded surface.
 
