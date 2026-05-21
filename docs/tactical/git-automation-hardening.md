@@ -5,7 +5,7 @@
 > - [docs/tactical/productization-audit.md § A.8 Git automation findings](productization-audit.md#a8-git-automation-findings) — source register for every row below (A1–A10 cross-cutting observations).
 > - [docs/tactical/productization-audit.md § C.2 Section 4 row T2](productization-audit.md#section-4--spawned-tacticals-separate-work-units) — the spawn entry that authorised this tactical.
 > - [ADR 0009 — Deployment topology](../adr/0009-deployment-topology.md) — Decision 5 (`_routes.json` / `_headers` build-output contract) and Decision 8 (Worker bundle-size budget < 1 MB) are CI-asserted by G7 + G8.
-> - [ADR 0010 — Session backend contract](../adr/0010-session-backend-contract.md) — cross-referenced by G6 (container image scanning of the shipped backend image) and G8 (`/healthz` shape, indirectly verified by Docker HEALTHCHECK already in place).
+> - [ADR 0010 — Session backend contract](../adr/0010-session-backend-contract.md) — cross-referenced by G8 (`/healthz` shape, indirectly verified by Docker HEALTHCHECK already in place).
 >
 > **Status:** Scaffolded 2026-05-21 · awaiting execution · **Owner:** Igor · **Last updated:** 2026-05-21
 >
@@ -25,10 +25,11 @@
 Close the eight critical gaps in the CI / release / security-scan chain identified in productization-audit § A.8, plus two productization-relevant additions (compose build fallback for self-hosters; continuous knip in CI). The output is a CI pipeline that:
 
 - Enforces lint + coverage + bundle-size + build-output shape on every PR;
-- Scans the shipped container image for HIGH/CRITICAL CVEs before publish;
 - Auto-deploys to Cloudflare Pages on `master` push (the M10 productization ship-gate blocker);
 - Catches malformed conventional-commit subjects locally before they reach semantic-release;
 - Adds CodeQL static analysis to the security-scan surface.
+
+**Container image scanning is out of scope** as of 2026-05-21 — Docker Hub publish has been deferred to its own future feature (locked decision #12 in the productization audit); the container-scan workflow will land alongside that feature when it spawns.
 
 **Explicitly NOT a goal:**
 
@@ -66,7 +67,7 @@ Close the eight critical gaps in the CI / release / security-scan chain identifi
 | 5 | **Extend `test.yml` for the ESLint step (G1)**, do not spawn a separate `lint.yml`. Fewer workflow runs; per-PR cost stays bounded. Revisit only if matrix-fan-out (Node 20/22/24 × ESLint) noticeably slows the gate. |
 | 6 | **Cloudflare Pages deploy (G5) is the highest-priority row** — M10 ship-gate blocker. Recommend executing G5 + G2 first. |
 | 7 | **Knip continuous mode (G10) starts as soft-fail** (warns but doesn't block). Promote to hard-fail only after one full week of green runs against `master`. |
-| 8 | **Container scanner choice (Trivy vs Docker Scout vs Snyk for G6) is execution-time:** the row writer picks based on Docker Hub free-tier integration and CVE-DB freshness at execution time. Default lean: Trivy (well-supported GH Action, no rate-limit concerns). |
+| 8 | ~~Container scanner choice~~ — **dropped 2026-05-21**: G6 removed entirely with the Docker Hub publish deferral (audit locked decision #12). Container scanning re-enters scope when Docker Hub publish spawns as its own feature. |
 | 9 | **Worker bundle-size threshold = 1 MB uncompressed** per ADR 0009 Decision 8. The CI step asserts the *uncompressed* size; gzip / brotli ratios are downstream of the Cloudflare runtime, not this CI gate. |
 
 ## Sub-tasks
@@ -88,7 +89,7 @@ Ten rows, grouped by surface. Each row carries: closing commit SHA (on completio
 | # | Action | Surface | Driving finding | Priority | Status |
 |---|---|---|---|---|---|
 | G4 | **Add a CodeQL workflow.** Use GitHub's provided default template; trigger on push to `master`, on `pull_request`, and weekly cron. Free for public repos. Verify by reviewing the Code Scanning tab once the first run completes; expect zero blockers (codebase is small + audited). | `.github/workflows/codeql.yml` (new) | A.8 #A8 | medium | [ ] |
-| G6 | **Add container image scanning to [docker.yml](../../.github/workflows/docker.yml).** Default to Trivy (per Locked Decision 8) — `aquasecurity/trivy-action` step after the build, before the push. Fail on HIGH or CRITICAL CVEs. **Pause and flag** if the first run surfaces unfixable base-image CVEs (e.g. transitive `node:22-alpine` issues); the row writer doesn't unilaterally choose between "downgrade severity threshold" and "accept the risk in writing." Verify by reviewing the scan artifact for the first post-merge run. | `docker.yml` | A.8 #A4 | medium | [ ] |
+| ~~G6~~ | ~~Add container image scanning to docker.yml~~ — **dropped 2026-05-21** with the Docker Hub publish deferral (audit locked decision #12). `docker.yml` was deleted; container scanning re-enters scope when Docker Hub publish spawns its own feature. | ~~`docker.yml`~~ | A.8 #A4 (deferred) | n/a | dropped |
 
 ### C. Release + commit hygiene
 
@@ -101,29 +102,28 @@ Ten rows, grouped by surface. Each row carries: closing commit SHA (on completio
 
 | # | Action | Surface | Driving finding | Priority | Status |
 |---|---|---|---|---|---|
-| G9 | **Add `build: .` fallback to root [compose.yml](../../compose.yml)** alongside the `image: molikas/axoview:latest` declaration so `docker compose up --build` works for deployers without Docker Hub pull access. Tiny YAML edit. Verify by running `docker compose up --build` on a fresh checkout (no Hub login) and confirming the local build succeeds. | `compose.yml` | discovered 2026-05-20 during B3 smoke (post-execution finding, folded into T2 per spawn brief) | low | [ ] |
+| G9 | **[x] `8ee387a`** Replaced `image: molikas/axoview:latest` with `build: .` in root [compose.yml](../../compose.yml) (and deleted `.github/workflows/docker.yml`) per audit locked decision #12 / baseline B-6. `docker compose up --build` now works on a fresh checkout without Docker Hub access. | `compose.yml` | discovered 2026-05-20 during B3 smoke (post-execution finding, folded into T2 per spawn brief); executed via baseline B-6 2026-05-21 | low | [x] |
 
-## External-action checklist (out-of-repo, blocks G5 + Docker Hub publish)
+## External-action checklist (out-of-repo, blocks G5)
 
 These items cannot be closed by editing repo files — the user owns them. Track here; migrate to T4's GitHub-dashboard checklist on wrap. Note dates as items complete.
 
 - [ ] **Cloudflare API token** — create a scoped token with `Pages: Edit` permission for the `axoview` project; add as repo secret `CLOUDFLARE_API_TOKEN`. **Blocks G5.**
 - [ ] **Cloudflare Account ID** — copy from the Cloudflare dashboard; add as repo secret `CLOUDFLARE_ACCOUNT_ID`. **Blocks G5.**
-- [ ] **DOCKERHUB_USERNAME secret** — exists on the Release workflow's GitHub Actions environment? Verify before the first Docker Hub publish fires. **Blocks the first `docker.yml` push after T2 ships** (G6 scanning step gates on the push step, which gates on the secret).
-- [ ] **DOCKERHUB_TOKEN secret** — same verification as above. **Blocks Docker Hub publish.**
 - [ ] **CodeQL enabled in GitHub repo settings** (`Settings → Code security → Code scanning`) — may need to be toggled on even after `codeql.yml` lands. **Blocks G4 first run from posting results.**
+
+**Removed 2026-05-21:** `DOCKERHUB_USERNAME` + `DOCKERHUB_TOKEN` — dropped with the Docker Hub publish deferral (audit locked decision #12).
 
 ## Notes for Claude
 
 - **Don't bundle rows.** Each G-row ships its own commit so a regression bisect points at one workflow change, not five. Exception: G7 + G8 may bundle if both land as new steps in the same `test.yml` job and the diff stays single-purpose.
-- **Verify red, not just green.** For every gate row (G1, G2, G6, G7, G8, G10), the verification step is "push a deliberately-broken throwaway commit on a side branch and confirm the workflow fails red." A row that's only verified green is unverified — coverage gates and lint gates have failed silently in the past (that's literally A.8 #A2's failure mode).
+- **Verify red, not just green.** For every gate row (G1, G2, G7, G8, G10), the verification step is "push a deliberately-broken throwaway commit on a side branch and confirm the workflow fails red." A row that's only verified green is unverified — coverage gates and lint gates have failed silently in the past (that's literally A.8 #A2's failure mode).
 - **Pause-and-flag triggers (not blanket continuation):**
   - G3 contributor-hook-install ceremony question.
-  - G6 first-run surfaces unfixable base-image CVEs.
   - G10 soft-fail → hard-fail promotion (after one week of green; user gates the flip).
   - Any G-row that touches more than one workflow file in a single edit (means the row needs splitting).
 - **Skill body edits (`.claude/`) are gitignored** — this is a known limitation per [docs/workflow.md § "Process debt — deferred skills"](../workflow.md#process-debt--deferred-skills). T2 does **not** fix it; it just notes it for the eventual "skills-in-repo" decision. If a row's execution surfaces a skill-edit need (e.g. a new `/lint-check` skill), park it for the future skills-in-repo decision, do not write to `.claude/`.
-- **Recommended execution order** (per spawn brief + Locked Decision 6): **G5 → G2 → G7 → G8 → G4 → G6 → G1 → G3 → G10 → G9.** G5 + G2 unblock M10; G7/G8 close the ADR 0009 CI gaps; G4/G6 close the security-scan surface; G1 + G3 + G10 + G9 land in any order after.
+- **Recommended execution order** (per spawn brief + Locked Decision 6): **G5 → G2 → G7 → G8 → G4 → G1 → G3 → G10.** G5 + G2 unblock M10; G7/G8 close the ADR 0009 CI gaps; G4 closes the security-scan surface (G6 dropped 2026-05-21 with the Docker Hub deferral); G1 + G3 + G10 land in any order after. G9 already shipped 2026-05-21 via baseline B-6.
 - **The C.2 ledger gets a row-by-row status update**, not just a final tick. As each G-row lands, append its commit SHA to the corresponding entry here AND to the C.2 Section 4 T2 row's running status note.
 
 ## Wrap-up
