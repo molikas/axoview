@@ -2084,7 +2084,20 @@ Sequenced cleanup spine driven by the Phase A synthesis themes + the ADRs Phase 
 | T3 | **C.5 supplement — `axoview-lib` deletion bundle: MainMenu + ConfirmDiscardDialog + MenuItem + MainMenuOptions type** | Single PR deletes `packages/axoview-lib/src/components/MainMenu/` (including `MenuItem.tsx` per A.2.5 #17), `packages/axoview-lib/src/components/ConfirmDiscardDialog/`, the `MainMenuOptions` type from `types/ui.ts`, the `availableTools.includes('MAIN_MENU')` gate in `UiOverlay.tsx`, and the `MAIN_MENU_OPTIONS` declaration in [`App.tsx:39-40`](../../packages/axoview-app/src/App.tsx#L39). Pre-1.0 breaking change is acceptable — lib has not been npm-published (verified by audit 2026-05-20 via `npm view axoview-lib` → 404). Spawned as separate tactical only if the lib deletion touches more than one consumer surface. | A.3 #1 + #2, A.2.5 #17, A.4 #24 + #25 | not started |
 | T4 | **GitHub-dashboard checklist (out-of-repo)** per Theme 8 — branch protection on `master` (require PR, require status checks, no force push, signed-commits optional), repo Description + Topics + Homepage URL set, CodeQL enabled in repo settings. One-pass action list for the user; no code change. (NPM_TOKEN bullet dropped 2026-05-20 per Locked Decision #11 — lib stays monorepo-only.) | A.7 rows 19 + 20, A.8 #A8, Theme 8 | not started |
 
-### Section 5 — Sequencing recommendation
+### Section 5 — Post-baseline-pass findings (added 2026-05-21)
+
+Six rows seeded from the [manual-test-baseline](../manual-test-baseline.md) walk (Igor, 2026-05-21). All dispositions are **bug**; numbering is local (B-1..B-6) to avoid colliding with prior Q/I/B/T sequences. B-5 + B-6 execute this session; B-1..B-4 are queued for later cleanup waves under the audit's "investigate before action" hygiene.
+
+| # | Action | Surface | Driving finding | Risk | Bundle |
+|---|---|---|---|---|---|
+| B-1 | Diagram-link UX bugs (no preview affordance in Local; preview link opens current diagram in edit mode in Session; view-only navigation broken via `/display/<diagramId>` while `/display/p/<uuid>` works). Investigate first; likely one PR fixes all three. | App.tsx route handlers + node link UI | manual-test-baseline #1, #3, #4 | med | B-1 |
+| B-2 | Diagram-link self-reference prevention (filter current diagram from link picker). | NodeInfoTab link picker | manual-test-baseline #2 | low | B-2 (or bundle with B-1) |
+| B-3 | Share dialog popover focus management — popover stays open while interacting with inputs. | Share dialog/popover (location TBD on code-read) | manual-test-baseline #5 | low-med | B-3 |
+| B-4 | HelpDialog shortcut completeness — add Alt+click and any other missing canonical shortcuts. | HelpDialog.tsx | manual-test-baseline #6 | low | B-4 |
+| B-5 | SettingsDialog DiagnosticsTab deletion (executed in commit 3 of this session). | SettingsDialog tabs + diagnosticsStore review | manual-test-baseline #7 | low | (this session) |
+| B-6 | Docker Hub publish deferral execution (executed in commit 2 of this session). | docker.yml + compose.yml + README + T2 tactical | manual-test-baseline #8 | low | (this session) |
+
+### Section 6 — Sequencing recommendation
 
 The four sections are independently executable, but a recommended ship order minimises cross-bundle risk:
 
