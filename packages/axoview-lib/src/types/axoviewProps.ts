@@ -478,8 +478,6 @@ export interface AxoviewProps {
   onFileExplorerToggle?: () => void;
   /** When true, the LeftDock's Elements/Layers icons are disabled (e.g. no diagram is loaded yet). */
   disableLeftDockWorkingTabs?: boolean;
-  /** Called when the user clicks "Download session dump" in Settings → Diagnostics. */
-  onSessionDump?: () => void;
 }
 
 export interface LoadOptions {

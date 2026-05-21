@@ -27,7 +27,6 @@ import { ImportDialog } from './components/fileExplorer/ImportDialog';
 import { parseProject, importProject } from './services/project/projectZip';
 import { notificationStore } from './stores/notificationStore';
 import ChangeLanguage from './components/ChangeLanguage';
-import { downloadSessionDump } from './utils/sessionDump';
 import './App.css';
 
 const publicUrl = process.env.PUBLIC_URL || '';
@@ -233,7 +232,6 @@ function EditorShell() {
             fileExplorerOpen={fileExplorerOpen}
             onFileExplorerToggle={() => setFileExplorerOpen(!fileExplorerOpen)}
             disableLeftDockWorkingTabs={!currentDiagram}
-            onSessionDump={downloadSessionDump}
           />
           {/* File Explorer overlay — sits to the right of the LeftDock strip,
               never pushes the canvas. z=15 places it above the canvas/empty
