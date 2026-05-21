@@ -1,7 +1,6 @@
 services:
   axoview:
-    image: molikas/axoview:latest
-    pull_policy: always
+    build: .
     ports:
       - 80:80
     environment:
