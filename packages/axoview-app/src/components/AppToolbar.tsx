@@ -101,18 +101,6 @@ export function AppToolbar() {
     (e.target as HTMLInputElement).select();
   };
 
-  useEffect(() => {
-    if (!showSharePopover) return;
-    const handleOutside = (e: MouseEvent) => {
-      const btn = shareButtonRef.current;
-      if (btn && !btn.parentElement?.contains(e.target as Node)) {
-        setShowSharePopover(false);
-      }
-    };
-    document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, [showSharePopover]);
-
   return (
     <Box
       className="toolbar"
