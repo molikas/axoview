@@ -1,6 +1,7 @@
 node_modules/
 dist/
 build/
+.worker-build/
 *.log
 .env
 .env.local
