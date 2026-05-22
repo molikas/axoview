@@ -1,0 +1,55 @@
+# CodeQL static analysis — closes A.8 #A8 (T2 G4).
+#
+# Trigger: push to master + PRs targeting master + weekly cron (Saturday 06:17 UTC,
+# off-peak to avoid actions queue contention).
+#
+# javascript-typescript covers both languages in a single analysis (GitHub
+# merged them — the legacy `javascript` and `typescript` values still resolve
+# to the same set, but `javascript-typescript` is the canonical id).
+#
+# Repo-level CodeQL must be enabled in GitHub repo settings
+# (Settings → Code security and analysis → CodeQL) for results to surface on
+# the Security tab — see T4 external-action checklist.
+
+name: "CodeQL"
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+  schedule:
+    - cron: '17 6 * * 6'
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: javascript-typescript
+            build-mode: none
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
