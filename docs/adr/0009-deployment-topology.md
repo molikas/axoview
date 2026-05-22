@@ -79,6 +79,13 @@ The current Local-mode share behaviour (A.4 #C5) is a silent failure: the SPA re
 
 The exact dialog component is the cleanup row's choice; the contract is that **no share-uuid deeplink may render as an empty diagram.**
 
+**Addendum (2026-05-22, productization-audit C.2 row B-1):** within the `/display/*` URL namespace there are two distinct routes:
+
+- `/display/p/<shareUuid>` — the **public-share** route. Resolves through `/api/public/diagrams/<uuid>` (no auth). **Session-mode only**, as locked above.
+- `/display/<diagramId>` — the **owner-readonly** route. Resolves through `storage.loadDiagram(id)`. Works in **both** modes: in Session mode it hits `/api/diagrams/<id>` (owner auth via `AUTH_MODE`); in Local mode it reads from `localStorage`. This route is **not** a share route — it requires no public-namespace fetch, and is reachable only by someone who already knows the diagram exists in their own storage.
+
+The Local-mode share-error dialog therefore guards `/display/p/<shareUuid>` only, never `/display/<diagramId>`. The owner-readonly load failure (404, deleted diagram, network error) is surfaced by a separate `ReadonlyLoadErrorDialog` — same explicit-error contract as the share-error dialog, but a different cause and a different user-recovery path ("back to editor" rather than "this needs a session backend").
+
 ### 4. Env-var contract — one section per target
 
 #### 4a. Self-host (Docker / compose)

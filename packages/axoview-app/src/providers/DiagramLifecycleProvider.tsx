@@ -79,6 +79,9 @@ interface DiagramLifecycleContextValue {
   diagrams: SavedDiagram[];
   currentModel: DiagramData | null;
   isReadonlyUrl: boolean;
+  isPublicShareUrl: boolean;
+  readonlyLoadFailed: boolean;
+  clearReadonlyLoadFailed: () => void;
   // Auto-save status (server mode)
   saveStatus: SaveStatus;
   // Dialog state
@@ -166,6 +169,8 @@ export function DiagramLifecycleProvider({
   const [isDiagramsInitialized, setIsDiagramsInitialized] = useState(false);
   const [currentDiagram, setCurrentDiagram] = useState<SavedDiagram | null>(null);
   const [diagramName, setDiagramName] = useState('');
+  const [readonlyLoadFailed, setReadonlyLoadFailed] = useState(false);
+  const clearReadonlyLoadFailed = useCallback(() => setReadonlyLoadFailed(false), []);
 
   // ---------------------------------------------------------------------------
   // UI state
@@ -429,32 +434,36 @@ export function DiagramLifecycleProvider({
         const diagramList = await storage.listDiagrams();
         const diagramInfo = diagramList.find((d) => d.id === readonlyDiagramId);
         const data = await storage.loadDiagram(readonlyDiagramId!);
-        const readonlyDiagram: SavedDiagram = {
-          id: readonlyDiagramId!,
-          name: diagramInfo?.name || (data as any).title || 'Readonly Diagram',
-          data,
-          createdAt: new Date().toISOString(),
-          updatedAt: diagramInfo?.lastModified || new Date().toISOString()
-        };
+        await iconPackManager.loadPacksForDiagram(data);
         const importedIcons = ((data as any).icons || []).filter(
           (icon: any) => icon.collection === 'imported'
         );
-        const dataWithIcons = {
+        const dataWithIcons: DiagramData = {
           ...(data as any),
-          icons: [...iconPackManager.loadedIcons, ...importedIcons]
+          icons: [...iconPackManager.loadedIcons, ...importedIcons],
+          colors: (data as any)?.colors?.length ? (data as any).colors : defaultColors,
+          items: Array.isArray((data as any)?.items) ? (data as any).items : [],
+          views: Array.isArray((data as any)?.views) ? (data as any).views : [],
+          fitToScreen: (data as any)?.fitToScreen !== false
+        };
+        const readonlyDiagram: SavedDiagram = {
+          id: readonlyDiagramId!,
+          name: diagramInfo?.name || (data as any).title || 'Readonly Diagram',
+          data: dataWithIcons,
+          createdAt: new Date().toISOString(),
+          updatedAt: diagramInfo?.lastModified || new Date().toISOString()
         };
         setCurrentDiagram(readonlyDiagram);
         setDiagramName(readonlyDiagram.name);
-        setCurrentModel(dataWithIcons as DiagramData);
+        setCurrentModel(dataWithIcons);
         setLastSaved(new Date(readonlyDiagram.updatedAt));
         isAfterLoadRef.current = true;
+        if (!axoviewRef.current) {
+          frozenInitialDataRef.current = dataWithIcons;
+        }
         axoviewRef.current?.load(dataWithIcons as any);
       } catch (_error) {
-        notificationStore.push({
-          severity: 'error',
-          message: t('dialog.readOnly.failed')
-        });
-        window.location.href = '/';
+        setReadonlyLoadFailed(true);
       }
     };
     loadReadonlyDiagram();
@@ -1277,6 +1286,9 @@ export function DiagramLifecycleProvider({
     diagrams,
     currentModel,
     isReadonlyUrl,
+    isPublicShareUrl,
+    readonlyLoadFailed,
+    clearReadonlyLoadFailed,
     saveStatus: autoSave.saveStatus,
     showExportDialog,
     setShowExportDialog,

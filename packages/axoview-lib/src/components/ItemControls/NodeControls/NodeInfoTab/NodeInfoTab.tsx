@@ -177,24 +177,41 @@ export const NodeInfoTab = ({
           >
             {t('diagramLinkHint')}
           </Typography>
-          <Autocomplete
-            size="small"
-            options={linkedDiagrams}
-            getOptionLabel={(opt) => (typeof opt === 'string' ? opt : opt.name)}
-            isOptionEqualToValue={(opt, val) => opt.id === val.id}
-            value={linkedDiagrams.find((d) => d.id === modelItem.link) ?? null}
-            onChange={(_e, newVal) => {
-              onModelItemUpdated({ link: newVal?.id ?? undefined });
-            }}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                placeholder={t('diagramLinkPlaceholder')}
-              />
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <Autocomplete
+              size="small"
+              sx={{ flex: 1 }}
+              options={linkedDiagrams}
+              getOptionLabel={(opt) => (typeof opt === 'string' ? opt : opt.name)}
+              isOptionEqualToValue={(opt, val) => opt.id === val.id}
+              value={linkedDiagrams.find((d) => d.id === modelItem.link) ?? null}
+              onChange={(_e, newVal) => {
+                onModelItemUpdated({ link: newVal?.id ?? undefined });
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  placeholder={t('diagramLinkPlaceholder')}
+                />
+              )}
+              clearOnEscape
+              handleHomeEndKeys={false}
+            />
+            {modelItem.link && (
+              <Tooltip title={t('openDiagramLink')}>
+                <IconButton
+                  size="small"
+                  component="a"
+                  href={`/display/${modelItem.link}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid="node-info-tab-open-linked-diagram"
+                >
+                  <OpenInNewIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
             )}
-            clearOnEscape
-            handleHomeEndKeys={false}
-          />
+          </Stack>
         </Section>
       )}
 

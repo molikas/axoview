@@ -22,6 +22,7 @@ import { DiagnosticsToggleButton } from './components/DiagnosticsToggleButton';
 import { NotificationStack } from './components/NotificationStack';
 import { LocalModeBanner } from './components/LocalModeBanner';
 import { LocalModeShareErrorDialog } from './components/LocalModeShareErrorDialog';
+import { ReadonlyLoadErrorDialog } from './components/ReadonlyLoadErrorDialog';
 import { ExportProjectZipDialog } from './components/fileExplorer/ExportProjectZipDialog';
 import { ImportDialog } from './components/fileExplorer/ImportDialog';
 import { parseProject, importProject } from './services/project/projectZip';
@@ -75,6 +76,9 @@ function EditorShell() {
     handleCreateBlankDiagram,
     sidebarTogglePortalTarget,
     isReadonlyUrl,
+    isPublicShareUrl,
+    readonlyLoadFailed,
+    clearReadonlyLoadFailed,
     currentDiagram,
     fileTreeRefreshToken,
     refreshFileTree,
@@ -202,10 +206,11 @@ function EditorShell() {
   const showLocalModeBanner =
     !serverStorageAvailable && !isReadonlyUrl && linkedDiagrams.length > 0;
 
-  // ADR 0009 Decision 3: share routes are session-mode only. In Local mode,
-  // a /display/* URL renders an explicit dialog; dismissing strips the path
-  // and boots the app normally.
-  const showLocalModeShareError = isReadonlyUrl && !serverStorageAvailable;
+  // ADR 0009 Decision 3 (addendum 2026-05-22): only the share-UUID form
+  // `/display/p/<uuid>` requires a session backend. The owner-readonly form
+  // `/display/<diagramId>` works in Local mode against localStorage, so it
+  // must NOT trigger the share-error dialog.
+  const showLocalModeShareError = isPublicShareUrl && !serverStorageAvailable;
 
   return (
     <div className="App">
@@ -328,6 +333,14 @@ function EditorShell() {
       <LocalModeShareErrorDialog
         open={showLocalModeShareError}
         onDismiss={() => navigate('/', { replace: true })}
+      />
+
+      <ReadonlyLoadErrorDialog
+        open={readonlyLoadFailed}
+        onDismiss={() => {
+          clearReadonlyLoadFailed();
+          navigate('/', { replace: true });
+        }}
       />
 
       <DiagnosticsOverlay />
