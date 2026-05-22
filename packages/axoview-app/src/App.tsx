@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BrowserRouter, Route, Routes, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Axoview,
@@ -123,19 +123,37 @@ function EditorShell() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const importFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Lib dispatches `axoview-navigate-to-diagram` (from the NodePanel readonly
-  // link + the NodeInfoTab "open linked diagram" button); the app turns it
-  // into a same-window SPA navigation. Plain left-click hits this path;
-  // Ctrl/Cmd/Shift/middle-click stays in the browser-native open-in-new-tab
-  // path because the lib leaves those modifiers unhandled.
+  // Lib dispatches two custom events for diagram-link affordances:
+  // - `axoview-navigate-to-diagram` (from the NodePanel readonly link) →
+  //   navigate to /display/<id> (readonly). Propagate the `fromEditor`
+  //   location-state flag so the "Back to editing" button survives across
+  //   readonly→readonly hops.
+  // - `axoview-open-diagram-in-editor` (from the NodeInfoTab edit-mode
+  //   picker's open-linked-diagram button) → swap the editor onto the
+  //   linked diagram via openDiagramById (no URL change; same tab; stays
+  //   in edit mode).
+  const location = useLocation();
   useEffect(() => {
     const handler = (e: Event) => {
       const id = (e as CustomEvent<{ id?: string }>).detail?.id;
-      if (id) navigate(`/display/${id}`);
+      if (!id) return;
+      const fromEditor = (location.state as { fromEditor?: boolean } | null)?.fromEditor;
+      navigate(`/display/${id}`, fromEditor ? { state: { fromEditor: true } } : undefined);
     };
     window.addEventListener('axoview-navigate-to-diagram', handler);
     return () => window.removeEventListener('axoview-navigate-to-diagram', handler);
-  }, [navigate]);
+  }, [navigate, location.state]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const id = (e as CustomEvent<{ id?: string }>).detail?.id;
+      if (!id) return;
+      const meta = linkedDiagrams.find((d) => d.id === id);
+      openDiagramById(id, meta?.name ?? 'Diagram');
+    };
+    window.addEventListener('axoview-open-diagram-in-editor', handler);
+    return () => window.removeEventListener('axoview-open-diagram-in-editor', handler);
+  }, [openDiagramById, linkedDiagrams]);
 
   const splashFadedRef = useRef(false);
   useEffect(() => {

@@ -26,7 +26,8 @@
     "toolbar": {
         "previewSaveFirst": "Save first to preview",
         "saveAndPreview": "Save & Preview",
-        "preview": "Preview"
+        "preview": "Preview",
+        "backToEditing": "Back to editing"
     },
     "share": {
         "title": "Share Diagram",

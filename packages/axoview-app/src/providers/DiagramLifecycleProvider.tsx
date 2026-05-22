@@ -1069,7 +1069,11 @@ export function DiagramLifecycleProvider({
   const handlePreviewClick = useCallback(async () => {
     if (!currentDiagram || !storage) return;
     await autoSave.saveNow();
-    navigate(`/display/${currentDiagram.id}`);
+    // `fromEditor: true` tells the readonly toolbar (AppToolbar) to render
+    // the "Back to editing" button. The flag rides location.state so direct
+    // /display/<id> URLs (typed, shared, opened in a new tab) don't grow a
+    // back button that would go somewhere the user didn't come from.
+    navigate(`/display/${currentDiagram.id}`, { state: { fromEditor: true } });
   }, [currentDiagram, storage, autoSave.saveNow, navigate]);
 
   // ---------------------------------------------------------------------------

@@ -201,13 +201,12 @@ export const NodeInfoTab = ({
               <Tooltip title={t('openDiagramLink')}>
                 <IconButton
                   size="small"
-                  component="a"
-                  href={`/display/${modelItem.link}`}
-                  onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
-                    e.preventDefault();
+                  onClick={() => {
+                    // Edit-mode picker → open the linked diagram in the
+                    // editor (not the readonly view), same tab. App.tsx
+                    // listener resolves the name and calls openDiagramById.
                     window.dispatchEvent(
-                      new CustomEvent('axoview-navigate-to-diagram', {
+                      new CustomEvent('axoview-open-diagram-in-editor', {
                         detail: { id: modelItem.link }
                       })
                     );

@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
   Chip,
@@ -16,7 +17,8 @@ import {
   SaveOutlined as SaveIcon,
   ShareOutlined as ShareIcon,
   Close as CloseIcon,
-  VisibilityOutlined as PreviewIcon
+  VisibilityOutlined as PreviewIcon,
+  ArrowBack as ArrowBackIcon
 } from '@mui/icons-material';
 import { useAppStorage } from '../providers/AppStorageContext';
 import { useDiagramLifecycle } from '../providers/DiagramLifecycleProvider';
@@ -26,6 +28,8 @@ import { shareUrlFromUuid } from '../utils/shareUrl';
 
 export function AppToolbar() {
   const { t } = useTranslation('app');
+  const location = useLocation();
+  const navigate = useNavigate();
   const { serverStorageAvailable, storage } = useAppStorage();
   const {
     hasUnsavedChanges,
@@ -165,12 +169,25 @@ export function AppToolbar() {
         sx={{ display: 'flex', alignItems: 'center', gap: 0.25, flexShrink: 0 }}
       >
         {isReadonlyUrl ? (
-          <Chip
-            label={t('dialog.readOnly.mode')}
-            variant="outlined"
-            size="small"
-            sx={{ ml: 1 }}
-          />
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ ml: 1 }}>
+            <Chip
+              label={t('dialog.readOnly.mode')}
+              variant="outlined"
+              size="small"
+            />
+            {(location.state as { fromEditor?: boolean } | null)?.fromEditor && (
+              <Tooltip title={t('toolbar.backToEditing', 'Back to editing')}>
+                <Button
+                  size="small"
+                  startIcon={<ArrowBackIcon sx={{ fontSize: 16 }} />}
+                  onClick={() => navigate(-1)}
+                  sx={{ textTransform: 'none' }}
+                >
+                  {t('toolbar.backToEditing', 'Back to editing')}
+                </Button>
+              </Tooltip>
+            )}
+          </Stack>
         ) : (
           <>
             {/* Group 1: View modes — reserved per ADR 0005, future ADRs add controls here */}
