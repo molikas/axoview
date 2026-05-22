@@ -144,11 +144,18 @@ function EditorShell() {
     if (!storage || !isInitialized) return;
     // Re-fetch whenever the file tree refreshes (diagram created/deleted/renamed)
     // or when the current diagram changes (covers session-mode saves).
+    // Filter out the current diagram so the link picker cannot self-reference
+    // (baseline finding #2 / B-2).
     Promise.all([
       storage.listDiagrams(),
       storage.listFolders()
     ]).then(([diagrams, folders]) => {
-      setLinkedDiagrams(diagrams.map((d) => ({ id: d.id, name: d.name })));
+      const currentId = currentDiagram?.id;
+      setLinkedDiagrams(
+        diagrams
+          .filter((d) => d.id !== currentId)
+          .map((d) => ({ id: d.id, name: d.name }))
+      );
       setTreeIsEmpty(diagrams.length === 0 && folders.length === 0);
     }).catch(() => {});
   }, [storage, isInitialized, fileTreeRefreshToken, currentDiagram]);
