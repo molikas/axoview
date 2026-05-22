@@ -65,7 +65,7 @@ Close the eight critical gaps in the CI / release / security-scan chain identifi
 | 3 | **PLAN.md phase = 2D.** Wrap-up line appends under Phase 2D when the last row closes. |
 | 4 | **`simple-git-hooks` over Husky** (G3 row default lean). Lighter footprint, no postinstall ceremony. Revisit only if a row's execution surfaces a blocker. |
 | 5 | **Extend `test.yml` for the ESLint step (G1)**, do not spawn a separate `lint.yml`. Fewer workflow runs; per-PR cost stays bounded. Revisit only if matrix-fan-out (Node 20/22/24 × ESLint) noticeably slows the gate. |
-| 6 | **Cloudflare Pages deploy (G5) is the highest-priority row** — M10 ship-gate blocker. Recommend executing G5 + G2 first. |
+| 6 | ~~Cloudflare Pages deploy (G5) is the highest-priority row~~ — **dropped 2026-05-22**: G5 removed entirely per audit Locked Decision #14. Cloudflare's native git integration already deploys `axoview.pages.dev` on master push; no GH Actions workflow needed. A future GH-Actions-mediated CF deploy is a separate feature with its own ADR if ever wanted. After this drop the recommended start is **G2 (coverage gate)** — already shipped 2026-05-22. |
 | 7 | **Knip continuous mode (G10) starts as soft-fail** (warns but doesn't block). Promote to hard-fail only after one full week of green runs against `master`. |
 | 8 | ~~Container scanner choice~~ — **dropped 2026-05-21**: G6 removed entirely with the Docker Hub publish deferral (audit locked decision #12). Container scanning re-enters scope when Docker Hub publish spawns as its own feature. |
 | 9 | **Worker bundle-size threshold = 1 MB uncompressed** per ADR 0009 Decision 8. The CI step asserts the *uncompressed* size; gzip / brotli ratios are downstream of the Cloudflare runtime, not this CI gate. |
@@ -79,7 +79,7 @@ Ten rows, grouped by surface. Each row carries: closing commit SHA (on completio
 | # | Action | Surface | Driving finding | Priority | Status |
 |---|---|---|---|---|---|
 | G1 | **Add an ESLint step to [.github/workflows/test.yml](../../.github/workflows/test.yml).** Extend the existing matrix job: insert `npx eslint .` (or `npm run lint` if the root script is rewired to invoke ESLint) between `npm ci` and `npm test`. Verify by deliberately pushing a lint-error commit on a throwaway branch and confirming the workflow fails red. | `test.yml` | A.8 #A1 | medium | [ ] |
-| G2 | **Remove the `\|\| npm test` coverage fallback at [test.yml:31](../../.github/workflows/test.yml#L31).** Single-line edit — strip the `\|\|`-clause so a `coverageThreshold` failure becomes a real CI failure. Verify by inspecting the `axoview-lib` jest config's threshold and confirming the new workflow run honours it (push a deliberate coverage-drop commit; expect red). | `test.yml` | A.8 #A2 | **M10 blocker** | [ ] |
+| G2 | **[x] `967b2c7`** Removed the `\|\| npm test` coverage fallback at `test.yml:31`. `npm test -- --coverage` now runs without a fallback clause; lib's `coverageThreshold: 10%` failures will be real CI failures. Verified locally: `npm run build` + 93/93 jest suites / 1009 passes — identical to pre-edit. Closes A.8 #A2. | `test.yml` | A.8 #A2 | **M10 blocker** | [x] |
 | G7 | **Add Worker bundle-size CI check** per ADR 0009 Decision 8. New step (in `test.yml` or a small dedicated workflow): build `packages/axoview-worker`, measure the emitted bundle, fail if > 1 MB uncompressed. Recommend using a small shell snippet over a third-party action (lower supply-chain surface). Verify by temporarily inflating the worker bundle and confirming red. | `test.yml` (new step) + `packages/axoview-worker/` build artifact | ADR 0009 D8 | medium | [ ] |
 | G8 | **Add build-output verification step:** after `npm run build`, assert that `packages/axoview-app/build/_routes.json` AND `packages/axoview-app/build/_headers` exist. One-liner shell test; fail with a clear message if either is missing. Verify by deleting one of the two locally, running the build, and observing the workflow red. | `test.yml` (new step) | ADR 0009 D5 | medium | [ ] |
 | G10 | **Continuous knip in CI** — new step that runs `npx knip` and posts the output. **Soft-fail mode initially** (per Locked Decision 7): the step's exit code is suppressed (`|| true` or equivalent), output is uploaded as a workflow artifact. Promote to hard-fail after one full week of green `master` runs. Verify by intentionally orphaning a file and confirming the step's artifact shows the new entry. | `test.yml` (new step) + `knip.json` (already present per A.2) | A.2 findings + productization-audit follow-up (new row, not in original A.8) | low | [ ] |
@@ -96,7 +96,7 @@ Ten rows, grouped by surface. Each row carries: closing commit SHA (on completio
 | # | Action | Surface | Driving finding | Priority | Status |
 |---|---|---|---|---|---|
 | G3 | **Add commitlint + simple-git-hooks** at the repo root. Install `@commitlint/cli` + `@commitlint/config-conventional` + `simple-git-hooks` as root devDeps; add a `.commitlintrc.json` with the conventional preset; wire `simple-git-hooks` to run commitlint on `commit-msg`. Verify locally by attempting a malformed commit subject (e.g. `feature: foo`) and observing the hook fail. **Decision deferred to execution time** if a contributor hook-install ceremony question surfaces (e.g. should it run on `postinstall`?) — pause and ask. | root `package.json` + `.commitlintrc.json` (new) + `.simple-git-hooks.json` or `package.json` `simple-git-hooks` field | A.8 #A7 | medium | [ ] |
-| G5 | **Add Cloudflare Pages deploy automation.** New workflow `.github/workflows/cloudflare-pages.yml` triggered on push to `master` (and optionally `workflow_run: Run Tests` success-gated). Uses `cloudflare/pages-action@v1` (or `wrangler pages deploy`) to publish `packages/axoview-app/build` to the `axoview` CF Pages project. **External-action checklist (see below)** must complete before the first run can succeed — needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repo secrets. Verify by pushing a master-bound commit and watching `axoview.pages.dev` update within ~3 min. | `.github/workflows/cloudflare-pages.yml` (new) | A.8 #A5 + M10 ship-gate | **M10 blocker** | [ ] |
+| ~~G5~~ | ~~Add Cloudflare Pages deploy automation~~ — **dropped 2026-05-22** per audit Locked Decision #14. Resolved by reality: Cloudflare's native git integration already deploys `axoview.pages.dev` on every master push. No GH Actions workflow is needed; A.8 #A5 was based on the audit missing the live native-integration deploy. A future GH-Actions-mediated CF deploy is a separate feature with its own ADR if ever wanted. | ~~`.github/workflows/cloudflare-pages.yml`~~ | A.8 #A5 (superseded) | n/a | dropped |
 
 ### D. Deployer ergonomics
 
@@ -104,15 +104,15 @@ Ten rows, grouped by surface. Each row carries: closing commit SHA (on completio
 |---|---|---|---|---|---|
 | G9 | **[x] `8ee387a`** Replaced `image: molikas/axoview:latest` with `build: .` in root [compose.yml](../../compose.yml) (and deleted `.github/workflows/docker.yml`) per audit locked decision #12 / baseline B-6. `docker compose up --build` now works on a fresh checkout without Docker Hub access. | `compose.yml` | discovered 2026-05-20 during B3 smoke (post-execution finding, folded into T2 per spawn brief); executed via baseline B-6 2026-05-21 | low | [x] |
 
-## External-action checklist (out-of-repo, blocks G5)
+## External-action checklist (out-of-repo)
 
 These items cannot be closed by editing repo files — the user owns them. Track here; migrate to T4's GitHub-dashboard checklist on wrap. Note dates as items complete.
 
-- [ ] **Cloudflare API token** — create a scoped token with `Pages: Edit` permission for the `axoview` project; add as repo secret `CLOUDFLARE_API_TOKEN`. **Blocks G5.**
-- [ ] **Cloudflare Account ID** — copy from the Cloudflare dashboard; add as repo secret `CLOUDFLARE_ACCOUNT_ID`. **Blocks G5.**
 - [ ] **CodeQL enabled in GitHub repo settings** (`Settings → Code security → Code scanning`) — may need to be toggled on even after `codeql.yml` lands. **Blocks G4 first run from posting results.**
 
 **Removed 2026-05-21:** `DOCKERHUB_USERNAME` + `DOCKERHUB_TOKEN` — dropped with the Docker Hub publish deferral (audit locked decision #12).
+
+**Removed 2026-05-22:** `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` — dropped with G5 per audit Locked Decision #14. Cloudflare's native git integration handles master-push deploys without GH Actions credentials.
 
 ## Notes for Claude
 
@@ -123,7 +123,7 @@ These items cannot be closed by editing repo files — the user owns them. Track
   - G10 soft-fail → hard-fail promotion (after one week of green; user gates the flip).
   - Any G-row that touches more than one workflow file in a single edit (means the row needs splitting).
 - **Skill body edits (`.claude/`) are gitignored** — this is a known limitation per [docs/workflow.md § "Process debt — deferred skills"](../workflow.md#process-debt--deferred-skills). T2 does **not** fix it; it just notes it for the eventual "skills-in-repo" decision. If a row's execution surfaces a skill-edit need (e.g. a new `/lint-check` skill), park it for the future skills-in-repo decision, do not write to `.claude/`.
-- **Recommended execution order** (per spawn brief + Locked Decision 6): **G5 → G2 → G7 → G8 → G4 → G1 → G3 → G10.** G5 + G2 unblock M10; G7/G8 close the ADR 0009 CI gaps; G4 closes the security-scan surface (G6 dropped 2026-05-21 with the Docker Hub deferral); G1 + G3 + G10 land in any order after. G9 already shipped 2026-05-21 via baseline B-6.
+- **Recommended execution order** (per spawn brief + Locked Decision 6, post G5 drop): **~~G5~~ → G2 → G7 → G8 → G4 → G1 → G3 → G10.** G2 shipped 2026-05-22 (`967b2c7`); the remaining rows close in priority order. G7/G8 close the ADR 0009 CI gaps; G4 closes the security-scan surface (G6 dropped 2026-05-21 with the Docker Hub deferral; G5 dropped 2026-05-22 per audit Locked Decision #14 — CF Pages native git integration is the canonical deploy mechanism); G1 + G3 + G10 land in any order after. G9 already shipped 2026-05-21 via baseline B-6.
 - **The C.2 ledger gets a row-by-row status update**, not just a final tick. As each G-row lands, append its commit SHA to the corresponding entry here AND to the C.2 Section 4 T2 row's running status note.
 
 ## Wrap-up
