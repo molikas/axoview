@@ -59,3 +59,8 @@ jobs:
 
       - name: Run NPM build to check there are no build errors
         run: npm run build
+
+      - name: Verify build output
+        run: |
+          test -f packages/axoview-app/build/_routes.json || (echo "::error::_routes.json missing from build output" && exit 1)
+          test -f packages/axoview-app/build/_headers || (echo "::error::_headers missing from build output" && exit 1)
