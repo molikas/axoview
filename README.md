@@ -156,14 +156,12 @@ Requires [Docker Desktop](https://www.docker.com/get-started/) and [Git](https:/
 git clone https://github.com/molikas/axoview.git
 cd axoview
 cat > .env <<EOF
-HTTP_AUTH_USER=admin
-HTTP_AUTH_PASSWORD=changeme
 ENABLE_SERVER_STORAGE=true
 EOF
 docker compose up --build           # first run — takes 3–5 min
 ```
 
-Open **http://localhost** (port 80) and sign in with the credentials from `.env`. Subsequent starts omit `--build`. Diagrams are saved to a `diagrams/` folder in the project directory.
+Open **http://localhost** (port 80). No authentication is enabled by default. To require auth, set `AUTH_MODE=shared-token` + `AUTH_SHARED_SECRET` per [docs/deployment.md](docs/deployment.md). Subsequent starts omit `--build`. Diagrams are saved to a `diagrams/` folder in the project directory.
 
 To stop: `Ctrl+C`, or `docker compose down` from another terminal.
 

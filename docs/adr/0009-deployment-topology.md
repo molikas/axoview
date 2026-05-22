@@ -166,6 +166,9 @@ The Worker bundle's deployed size is part of this contract. Target: **< 1 MB** u
 - Frontend share-link consumer (path to be confirmed in cleanup) — Local-mode share-uuid error UI.
 - [packages/axoview-worker/wrangler.toml](../../packages/axoview-worker/wrangler.toml) — retained for local dev (`wrangler pages dev --binding-from-toml`). Drift-risk callout added to the file header; no structural change.
 - [docs/deployment.md](../deployment.md) — refresh env-var sections to match the locked table above.
+- [nginx.conf](../../nginx.conf) — Basic Auth fully removed (2026-05-22, productization-audit Locked Decision #13). The nested `location /api/public/ { auth_basic off; ... }` carve-out added by C.2 row B3 to keep share viewers reachable is **rolled back** as part of that removal — it was correct under the prior two-auth-layer contract, and moot once Basic Auth is gone. `AUTH_MODE` per Decision 4 is now the only auth surface.
+- [docker-entrypoint.sh](../../docker-entrypoint.sh) — `HTTP_AUTH_USER` / `HTTP_AUTH_PASSWORD` handling + `.htpasswd` generation removed alongside nginx Basic Auth.
+- [.env.example](../../.env.example), [README.md](../../README.md) — `HTTP_AUTH_*` env-var documentation removed; README "Quick start (Docker)" rewritten around `AUTH_MODE`.
 
 **Distribution model:** containerized app (Docker Hub) + CDN-deployed SPA (Cloudflare Pages). `axoview-lib` is consumed within the monorepo only; not published to npm per [productization-audit Locked Decision #11](../tactical/productization-audit.md#locked-decisions-from-scoping-discussion-2026-05-19).
 
