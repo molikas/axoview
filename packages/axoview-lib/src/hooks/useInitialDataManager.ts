@@ -138,12 +138,17 @@ export const useInitialDataManager = () => {
 
         // Reset scroll/zoom for a clean slate on each load, unless the caller
         // explicitly preserves the current viewport (e.g. icon-pack updates).
+        // Selection is reset on the same condition — selectedIds carried over
+        // from the previous diagram point at items that no longer exist in
+        // the new model, leaving the properties panel "open but blank" instead
+        // of showing the no-selection placeholder.
         if (!options?.preserveViewport) {
           uiStateActions.setScroll({
             position: CoordsUtils.zero(),
             offset: CoordsUtils.zero()
           });
           uiStateActions.setZoom(INITIAL_UI_STATE.zoom);
+          uiStateActions.setSelectedIds([]);
         }
 
         const activeViewId = uiStateStoreApi.getState().view;
