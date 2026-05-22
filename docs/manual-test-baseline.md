@@ -184,8 +184,8 @@ Every anomaly noticed gets one row. Disposition on the spot.
 | 2 | Diagram-to-diagram link — **self-reference allowed** (J5) | Local | "Diagram A" can link to "Diagram A" — meaningful only if multiple views exist, but most diagrams have one view by default | Prevent self-reference at the UI level (filter current diagram out of the link picker) | **bug** _(Resolved 2026-05-22, commit `84f4e09`)_ | C.2 B-2 |
 | 3 | Diagram-to-diagram link — **preview opens edit mode** (J5) | Session-Docker, Session-CF | Clicking the preview link in the right details deck opens the same diagram in edit mode instead of preview/read-only | Should navigate to the linked diagram in read-only view at `/display/<diagramId>` and actually render it | **bug** _(Resolved 2026-05-22, commit `2a04061`)_ | C.2 B-1 |
 | 4 | Diagram-to-diagram link — **view-only navigation broken** (J5) | Session-Docker, Session-CF | URL `/display/diagram_1775916857851` does not navigate properly; the share-style URL `/display/p/<uuid>` works fine | Both URL forms should resolve to a working read-only view (or the link should use the working URL form) | **bug** _(Resolved 2026-05-22, commit `2a04061`)_ | C.2 B-1 |
-| 5 | Share dialog popover — **closes on input click** (J14) | Session-Docker, Session-CF | Clicking the input box or empty space inside the share popover closes the popover; copy button still works | Popover should stay open while interacting with its inputs (focus management bug) | **bug** | new C.2 row |
-| 6 | HelpDialog — **missing shortcuts** (J17) | All modes | Alt+click (remove waypoint) and likely other shortcuts are not listed in the HelpDialog | All canonical shortcuts should be documented in HelpDialog | **bug** (small) | new C.2 row |
+| 5 | Share dialog popover — **closes on input click** (J14) | Session-Docker, Session-CF | Clicking the input box or empty space inside the share popover closes the popover; copy button still works | Popover should stay open while interacting with its inputs (focus management bug) | **bug** _(Resolved 2026-05-22, commit `95a0fd5`)_ | C.2 B-3 |
+| 6 | HelpDialog — **missing shortcuts** (J17) | All modes | Alt+click (remove waypoint) and likely other shortcuts are not listed in the HelpDialog | All canonical shortcuts should be documented in HelpDialog | **bug** (small) _(Resolved 2026-05-22, commit `0c9a1f9` — added Ctrl+A, Alt+click waypoint, Ctrl/Cmd+click multi-select)_ | C.2 B-4 |
 | 7 | Diagnostics overlay duplication (J18) | All modes | Two diagnostics surfaces exist: SettingsDialog DiagnosticsTab (never used) + the floating performance debug overlay (FPS / heap / long-tasks / nodes-connectors-textboxes counts / GC events / AI+Human export — actively used) | Two surfaces collapse to one: keep the performance overlay AS-IS (DiagnosticsOverlay + DiagnosticsToggleButton); delete the SettingsDialog tab and any code that exists only for it | **bug** _(triage resolved 2026-05-21)_ | new C.2 row — delete DiagnosticsTab + verify diagnosticsStore.ts and any helpers are still referenced by the overlay; if only the tab referenced them, delete those too (no dead code) |
 | 8 | `compose.yml` requires Docker Hub pull (onboarding friction) | Self-host | `docker compose up --build` fails for new deployers because `molikas/axoview` is not published | **Docker Hub publish deferred to a future feature** (own ADR + tactical when wanted). Today: people check out the repo, run `docker compose up --build`, deploy the locally-built image somewhere. No tech debt left for the future feature — anything that exists only to support publishing gets removed cleanly now. | **bug** _(scope resolved 2026-05-21)_ | C.2 row: delete `.github/workflows/docker.yml` + drop `image:` line + add `build: .` to `compose.yml` + README onboarding instructions + drop T2 G6 (container scanning) + drop T4 `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` external-action items |
 
@@ -199,7 +199,7 @@ After the walk: bucket totals.
 
 | Disposition | Count |
 |---|---|
-| bug | 8 (after both triage items resolved → bug); **4 resolved 2026-05-22 (findings #1–#4 via B-1 + B-2); 4 remaining (#5–#8)** |
+| bug | 8 (after both triage items resolved → bug); **all 8 resolved** — #1–#4 via B-1 + B-2 (2026-05-22 `2a04061` + `84f4e09`); #5 via B-3 (2026-05-22 `95a0fd5`); #6 via B-4 (2026-05-22 `0c9a1f9`); #7 via B-5 (2026-05-21 `315f395`); #8 via B-6 + B-7 (2026-05-21 `8ee387a` + 2026-05-22 `4bc0005`) |
 | cosmetic | 0 |
 | intentional | 0 |
 | triage | 0 _(both resolved 2026-05-21)_ |
@@ -223,7 +223,7 @@ Drop file paths or notes here. Inline references look like `![Settings dialog](s
 - [x] B2 smoke verified (J13 ✓ in Local)
 - [x] B3 + I3 smokes verified during Session-Docker setup
 - [x] All findings triaged _(8 bugs, 0 triage remaining)_
-- [ ] Any **bug**-bucket items added as new C.2 rows _(pending — see "Next" section below; next agent session executes this)_
+- [x] Any **bug**-bucket items added as new C.2 rows _(B-1..B-8 all filed in Section 5; B-1..B-7 shipped, B-8 shipped partial with screenshots deferred to user)_
 - [x] Any **triage**-bucket items resolved _(both resolved 2026-05-21)_
 - [x] Per-mode observation sections have at least 3 bullets each
 
