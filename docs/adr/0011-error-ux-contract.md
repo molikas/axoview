@@ -1,6 +1,6 @@
 # ADR 0011 — Error UX Contract
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-05-22
 **Supersedes:** none
 **Superseded by:** none
