@@ -4,11 +4,6 @@
   "description": "Create beautiful isometric diagrams with Axoview",
   "icons": [
     {
-      "src": "favicon.svg",
-      "type": "image/svg+xml",
-      "sizes": "any"
-    },
-    {
       "src": "favicon-96x96.png",
       "type": "image/png",
       "sizes": "96x96"
