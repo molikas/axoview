@@ -1,9 +1,11 @@
 name: Release
 
 on:
-  # Runs after Pages deployment completes successfully
+  # Runs after the unit-test workflow completes successfully on push to master.
+  # (Cloudflare Pages deploy is handled by CF's native git integration, not GH Actions —
+  # see Locked Decision #14 in docs/tactical/productization-audit.md.)
   workflow_run:
-    workflows: ["Deploy static content to Pages"]
+    workflows: ["Run Tests"]
     types:
       - completed
     branches: ["main", "master"]
