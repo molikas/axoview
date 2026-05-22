@@ -177,6 +177,16 @@ export function DiagramLifecycleProvider({
   const [publicShareLoadFailed, setPublicShareLoadFailed] = useState(false);
   const clearPublicShareLoadFailed = useCallback(() => setPublicShareLoadFailed(false), []);
 
+  // Clear stale failure flags when the user leaves the readonly route — covers
+  // the preview → back-to-editing case where an in-flight load could surface
+  // its error dialog on the editor route in spite of the cancel guard.
+  useEffect(() => {
+    if (!isReadonlyUrl) {
+      setReadonlyLoadFailed(false);
+      setPublicShareLoadFailed(false);
+    }
+  }, [isReadonlyUrl]);
+
   // ---------------------------------------------------------------------------
   // UI state
   // ---------------------------------------------------------------------------
@@ -431,12 +441,21 @@ export function DiagramLifecycleProvider({
   useEffect(() => {
     if (isPublicShareUrl) return; // public-share path uses the effect above
     if (!isReadonlyUrl || !storage) return;
+    // Cancel the in-flight load if the user navigates away (Back to editing)
+    // before the async chain settles — otherwise a late-resolving catch
+    // surfaces ReadonlyLoadErrorDialog on the editor route after the readonly
+    // view already unmounted, which is what the user reported on the
+    // preview → back-to-editing flow.
+    let cancelled = false;
     const loadReadonlyDiagram = async () => {
       try {
         const diagramList = await storage.listDiagrams();
+        if (cancelled) return;
         const diagramInfo = diagramList.find((d) => d.id === readonlyDiagramId);
         const data = await storage.loadDiagram(readonlyDiagramId!);
+        if (cancelled) return;
         await iconPackManager.loadPacksForDiagram(data);
+        if (cancelled) return;
         const importedIcons = ((data as any).icons || []).filter(
           (icon: any) => icon.collection === 'imported'
         );
@@ -465,10 +484,14 @@ export function DiagramLifecycleProvider({
         }
         axoviewRef.current?.load(dataWithIcons as any);
       } catch (_error) {
+        if (cancelled) return;
         setReadonlyLoadFailed(true);
       }
     };
     loadReadonlyDiagram();
+    return () => {
+      cancelled = true;
+    };
   }, [readonlyDiagramId, storage]);
 
   // ---------------------------------------------------------------------------
