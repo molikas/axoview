@@ -7,7 +7,7 @@
 > - [ADR 0009 — Deployment topology](../adr/0009-deployment-topology.md) — Decision 5 (`_routes.json` / `_headers` build-output contract) and Decision 8 (Worker bundle-size budget < 1 MB) are CI-asserted by G7 + G8.
 > - [ADR 0010 — Session backend contract](../adr/0010-session-backend-contract.md) — cross-referenced by G8 (`/healthz` shape, indirectly verified by Docker HEALTHCHECK already in place).
 >
-> **Status:** Scaffolded 2026-05-21 · awaiting execution · **Owner:** Igor · **Last updated:** 2026-05-21
+> **Status:** All in-scope rows complete 2026-05-22 (final wave: G4 `228bb5f`, G7 `01286f8`, G10 `32c43b8`). · **Owner:** Igor · **Last updated:** 2026-05-22
 >
 > This is a **short-lived working doc.** Delete it after every row below merges; ADRs 0009/0010 + the productization-audit C.2 ledger are the durable record. PLAN.md gets a one-line entry under Phase 2D once the last row ships — see "Wrap-up" below.
 
@@ -80,15 +80,15 @@ Ten rows, grouped by surface. Each row carries: closing commit SHA (on completio
 |---|---|---|---|---|---|
 | G1 | **[x] `4d74093`** Added `npx eslint .` hard-fail step between `npm ci` and the test step in `test.yml`. Lint baseline captured pre-commit (`89b423a`): 0 errors, 196 warnings (lib=92, app=104; top rules: no-explicit-any 133, no-unused-vars 30, exhaustive-deps 26). With zero errors today the gate is green; warnings stay informational (no `--max-warnings` flag) and can be ratcheted down in a future cleanup wave. Closes A.8 #A1. | `test.yml` | A.8 #A1 | medium | [x] |
 | G2 | **[x] `967b2c7`** Removed the `\|\| npm test` coverage fallback at `test.yml:31`. `npm test -- --coverage` now runs without a fallback clause; lib's `coverageThreshold: 10%` failures will be real CI failures. Verified locally: `npm run build` + 93/93 jest suites / 1009 passes — identical to pre-edit. Closes A.8 #A2. | `test.yml` | A.8 #A2 | **M10 blocker** | [x] |
-| G7 | **Add Worker bundle-size CI check** per ADR 0009 Decision 8. New step (in `test.yml` or a small dedicated workflow): build `packages/axoview-worker`, measure the emitted bundle, fail if > 1 MB uncompressed. Recommend using a small shell snippet over a third-party action (lower supply-chain surface). Verify by temporarily inflating the worker bundle and confirming red. | `test.yml` (new step) + `packages/axoview-worker/` build artifact | ADR 0009 D8 | medium | [ ] |
+| G7 | **[x] `01286f8`** Added `Build Worker bundle and check size (ADR 0009 D8)` step to `test.yml` after the build-output verification. Uses `npx wrangler pages functions build --outdir .worker-build` to compile `functions/api/[[path]].ts` (which imports the worker app from `packages/axoview-worker/src/app.ts`) into a single bundle, then `du -sb` measures the directory and fails the job with a GitHub `::error::` annotation if it exceeds `1048576` bytes (1 MB uncompressed). Baseline measured locally 2026-05-22: **91,421 bytes (~89 KB), ~9 % of the 1 MB budget** — substantial headroom. `.worker-build/` added to `.gitignore`. Closes ADR 0009 D8 CI gap. | `test.yml` (new step) + `packages/axoview-worker/` build artifact | ADR 0009 D8 | medium | [x] |
 | G8 | **[x] `72f12de`** Added a post-build `Verify build output` step in `test.yml` that asserts both `packages/axoview-app/build/_routes.json` and `packages/axoview-app/build/_headers` exist, failing with a GitHub `::error::` annotation if either is missing. Closes the ADR 0009 D5 CI gap. | `test.yml` (new step) | ADR 0009 D5 | medium | [x] |
-| G10 | **Continuous knip in CI** — new step that runs `npx knip` and posts the output. **Soft-fail mode initially** (per Locked Decision 7): the step's exit code is suppressed (`|| true` or equivalent), output is uploaded as a workflow artifact. Promote to hard-fail after one full week of green `master` runs. Verify by intentionally orphaning a file and confirming the step's artifact shows the new entry. | `test.yml` (new step) + `knip.json` (already present per A.2) | A.2 findings + productization-audit follow-up (new row, not in original A.8) | low | [ ] |
+| G10 | **[x] `32c43b8`** Added `Knip — dead-code report (soft-fail)` step to `test.yml` running `npx knip --reporter compact` with `continue-on-error: true`. Report visible in run log; does not gate the workflow per Locked Decision 7. Promote to hard-fail after one full week of green `master` runs. Baseline knip report captured 2026-05-22 (exit 1, 124-line report): 15 unused files, 3 unused deps, 8 unused devDeps, 2 unlisted deps, 2 unlisted binaries (`playwright` + `wrangler` — the latter is induced by the G7 step), 1 unresolved import, 23 unused exports, 22 unused exported types, 1 duplicate export. A triage cleanup row is a candidate for the next polish wave; intentionally not bundled here. | `test.yml` (new step) + `knip.json` (already present per A.2) | A.2 findings + productization-audit follow-up (new row, not in original A.8) | low | [x] |
 
 ### B. Security scanning
 
 | # | Action | Surface | Driving finding | Priority | Status |
 |---|---|---|---|---|---|
-| G4 | **Add a CodeQL workflow.** Use GitHub's provided default template; trigger on push to `master`, on `pull_request`, and weekly cron. Free for public repos. Verify by reviewing the Code Scanning tab once the first run completes; expect zero blockers (codebase is small + audited). | `.github/workflows/codeql.yml` (new) | A.8 #A8 | medium | [ ] |
+| G4 | **[x] `228bb5f`** Added `.github/workflows/codeql.yml`. Triggers: push to `master`, PRs targeting `master`, weekly cron (Sat 06:17 UTC). Single `javascript-typescript` matrix entry with `build-mode: none` covers the full repo (GitHub's canonical merged-language id). **Does not run until the repo-level CodeQL toggle is enabled** (Settings → Code security and analysis → CodeQL) — see external-action checklist below. Closes A.8 #A8. | `.github/workflows/codeql.yml` (new) | A.8 #A8 | medium | [x] |
 | ~~G6~~ | ~~Add container image scanning to docker.yml~~ — **dropped 2026-05-21** with the Docker Hub publish deferral (audit locked decision #12). `docker.yml` was deleted; container scanning re-enters scope when Docker Hub publish spawns its own feature. | ~~`docker.yml`~~ | A.8 #A4 (deferred) | n/a | dropped |
 
 ### C. Release + commit hygiene
@@ -108,13 +108,15 @@ Ten rows, grouped by surface. Each row carries: closing commit SHA (on completio
 
 These items cannot be closed by editing repo files — the user owns them. Track here; migrate to T4's GitHub-dashboard checklist on wrap. Note dates as items complete.
 
-- [ ] **CodeQL enabled in GitHub repo settings** (`Settings → Code security → Code scanning`) — may need to be toggled on even after `codeql.yml` lands. **Blocks G4 first run from posting results.**
+- [ ] **CodeQL enabled in GitHub repo settings** (`Settings → Code security and analysis → CodeQL`) — must be toggled on for the `codeql.yml` workflow (landed 2026-05-22, commit `228bb5f`) to post results to the Security tab. ~30 seconds in the GitHub UI. **Blocks G4 first-run results from surfacing.** Migrates to T4's GitHub-dashboard checklist on wrap.
 
 **Removed 2026-05-21:** `DOCKERHUB_USERNAME` + `DOCKERHUB_TOKEN` — dropped with the Docker Hub publish deferral (audit locked decision #12).
 
 **Removed 2026-05-22:** `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` — dropped with G5 per audit Locked Decision #14. Cloudflare's native git integration handles master-push deploys without GH Actions credentials.
 
 **No new external dependencies introduced by the G1+G3+G8 batch (2026-05-22).** G1 + G8 are pure `test.yml` additions; G3 added `@commitlint/cli`, `@commitlint/config-conventional`, and `simple-git-hooks` as root devDeps (no new GitHub Actions, no new secrets, no external services).
+
+**No new external dependencies introduced by the G4+G7+G10 final batch (2026-05-22).** G4 adds `.github/workflows/codeql.yml` (uses only the official `github/codeql-action`); G7 adds a `wrangler pages functions build` step using the `wrangler` binary already pulled in by the `axoview-worker` workspace; G10 adds a `knip` step using the existing dev devDep. The only out-of-repo follow-up is the CodeQL repo-toggle bullet above.
 
 ## Notes for Claude
 
@@ -125,7 +127,7 @@ These items cannot be closed by editing repo files — the user owns them. Track
   - G10 soft-fail → hard-fail promotion (after one week of green; user gates the flip).
   - Any G-row that touches more than one workflow file in a single edit (means the row needs splitting).
 - **Skill body edits (`.claude/`) are gitignored** — this is a known limitation per [docs/workflow.md § "Process debt — deferred skills"](../workflow.md#process-debt--deferred-skills). T2 does **not** fix it; it just notes it for the eventual "skills-in-repo" decision. If a row's execution surfaces a skill-edit need (e.g. a new `/lint-check` skill), park it for the future skills-in-repo decision, do not write to `.claude/`.
-- **Recommended execution order** (per spawn brief + Locked Decision 6, post G5 drop): **~~G5~~ → G2 → G7 → G8 → G4 → G1 → G3 → G10.** G2 shipped 2026-05-22 (`967b2c7`); G1 + G3 + G8 shipped 2026-05-22 (`4d74093`, `8574fca`, `72f12de`); remaining: G4 (CodeQL), G7 (Worker bundle-size), G10 (continuous knip). G9 already shipped 2026-05-21 via baseline B-6.
+- **Recommended execution order** (per spawn brief + Locked Decision 6, post G5 drop): **~~G5~~ → G2 → G7 → G8 → G4 → G1 → G3 → G10.** G2 shipped 2026-05-22 (`967b2c7`); G1 + G3 + G8 shipped 2026-05-22 (`4d74093`, `8574fca`, `72f12de`); G4 + G7 + G10 shipped 2026-05-22 (`228bb5f`, `01286f8`, `32c43b8`). G9 already shipped 2026-05-21 via baseline B-6. **All in-scope rows complete.**
 - **The C.2 ledger gets a row-by-row status update**, not just a final tick. As each G-row lands, append its commit SHA to the corresponding entry here AND to the C.2 Section 4 T2 row's running status note.
 
 ## Wrap-up
