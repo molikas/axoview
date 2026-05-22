@@ -118,6 +118,8 @@ Build/test scope by change class:
 
 **UI verification is mandatory** for any change touching `packages/axoview-*/src/components/` — start the dev server, exercise the feature in a browser, monitor for regressions in neighbouring surfaces. Type-check + test suite verify code correctness; the browser is the only thing that verifies feature correctness.
 
+**Commit subject convention** — `@commitlint/config-conventional`'s `subject-case` rule rejects upper-case sentence-style subjects. Reference codes like `T2`, `B-9a`, `M8`, `ADR 0011 pass` are exempt (not English words); narrative phrases inside the subject must be lower-case (e.g. `locked decision #16` rather than `Locked Decision #16`). The convention is enforced locally by simple-git-hooks (G8) and in CI by commitlint (T2 G3).
+
 ## Tactical-driven sessions
 
 Some work is too large for a single ADR scaffold but too narrow for PLAN.md. That's a tactical doc. Recent examples in the canonical pattern:
