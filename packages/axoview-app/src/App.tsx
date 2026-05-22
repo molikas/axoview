@@ -23,6 +23,7 @@ import { NotificationStack } from './components/NotificationStack';
 import { LocalModeBanner } from './components/LocalModeBanner';
 import { LocalModeShareErrorDialog } from './components/LocalModeShareErrorDialog';
 import { ReadonlyLoadErrorDialog } from './components/ReadonlyLoadErrorDialog';
+import { PublicShareLoadErrorDialog } from './components/PublicShareLoadErrorDialog';
 import { ExportProjectZipDialog } from './components/fileExplorer/ExportProjectZipDialog';
 import { ImportDialog } from './components/fileExplorer/ImportDialog';
 import { parseProject, importProject } from './services/project/projectZip';
@@ -79,6 +80,8 @@ function EditorShell() {
     isPublicShareUrl,
     readonlyLoadFailed,
     clearReadonlyLoadFailed,
+    publicShareLoadFailed,
+    clearPublicShareLoadFailed,
     currentDiagram,
     fileTreeRefreshToken,
     refreshFileTree,
@@ -378,6 +381,14 @@ function EditorShell() {
         open={readonlyLoadFailed}
         onDismiss={() => {
           clearReadonlyLoadFailed();
+          navigate('/', { replace: true });
+        }}
+      />
+
+      <PublicShareLoadErrorDialog
+        open={publicShareLoadFailed}
+        onDismiss={() => {
+          clearPublicShareLoadFailed();
           navigate('/', { replace: true });
         }}
       />

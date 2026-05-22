@@ -82,6 +82,8 @@ interface DiagramLifecycleContextValue {
   isPublicShareUrl: boolean;
   readonlyLoadFailed: boolean;
   clearReadonlyLoadFailed: () => void;
+  publicShareLoadFailed: boolean;
+  clearPublicShareLoadFailed: () => void;
   // Auto-save status (server mode)
   saveStatus: SaveStatus;
   // Dialog state
@@ -172,6 +174,8 @@ export function DiagramLifecycleProvider({
   const [diagramName, setDiagramName] = useState('');
   const [readonlyLoadFailed, setReadonlyLoadFailed] = useState(false);
   const clearReadonlyLoadFailed = useCallback(() => setReadonlyLoadFailed(false), []);
+  const [publicShareLoadFailed, setPublicShareLoadFailed] = useState(false);
+  const clearPublicShareLoadFailed = useCallback(() => setPublicShareLoadFailed(false), []);
 
   // ---------------------------------------------------------------------------
   // UI state
@@ -415,10 +419,7 @@ export function DiagramLifecycleProvider({
         }
         axoviewRef.current?.load(dataWithIcons as any);
       } catch (_error) {
-        notificationStore.push({
-          severity: 'error',
-          message: t('dialog.readOnly.failed', 'Failed to load shared diagram')
-        });
+        setPublicShareLoadFailed(true);
       }
     };
     loadPublicSnapshot();
@@ -1294,6 +1295,8 @@ export function DiagramLifecycleProvider({
     isPublicShareUrl,
     readonlyLoadFailed,
     clearReadonlyLoadFailed,
+    publicShareLoadFailed,
+    clearPublicShareLoadFailed,
     saveStatus: autoSave.saveStatus,
     showExportDialog,
     setShowExportDialog,

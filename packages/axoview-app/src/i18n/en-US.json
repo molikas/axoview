@@ -71,8 +71,7 @@
             "btnCancel": "Cancel"
         },
         "readOnly": {
-            "mode": "View-Only Mode",
-            "failed": "Failed to load diagram"
+            "mode": "View-Only Mode"
         },
         "localModeShareError": {
             "headline": "This share link needs a session backend.",
@@ -82,6 +81,11 @@
         "readonlyLoadError": {
             "headline": "Could not open this diagram.",
             "body": "The diagram may have been deleted, or you may not have access to it.",
+            "btnDismiss": "Back to editor"
+        },
+        "publicShareLoadError": {
+            "headline": "Could not open this shared diagram.",
+            "body": "The share link may have expired, been revoked, or the diagram may no longer exist.",
             "btnDismiss": "Back to editor"
         },
         "diagramManager": {
