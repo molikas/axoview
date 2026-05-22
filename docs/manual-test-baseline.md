@@ -180,10 +180,10 @@ Every anomaly noticed gets one row. Disposition on the spot.
 
 | # | Surface | Mode(s) | What happened | Expected? | Disposition | Action target |
 |---|---|---|---|---|---|---|
-| 1 | Diagram-to-diagram link — **no preview surface** (J5) | Local | Diagram-link node can be created but there's no preview affordance — the feature is essentially unreachable | Preview link should open the linked diagram in read-only view | **bug** | new C.2 row |
-| 2 | Diagram-to-diagram link — **self-reference allowed** (J5) | Local | "Diagram A" can link to "Diagram A" — meaningful only if multiple views exist, but most diagrams have one view by default | Prevent self-reference at the UI level (filter current diagram out of the link picker) | **bug** _(triage resolved 2026-05-21)_ | new C.2 row |
-| 3 | Diagram-to-diagram link — **preview opens edit mode** (J5) | Session-Docker, Session-CF | Clicking the preview link in the right details deck opens the same diagram in edit mode instead of preview/read-only | Should navigate to the linked diagram in read-only view at `/display/<diagramId>` and actually render it | **bug** | new C.2 row |
-| 4 | Diagram-to-diagram link — **view-only navigation broken** (J5) | Session-Docker, Session-CF | URL `/display/diagram_1775916857851` does not navigate properly; the share-style URL `/display/p/<uuid>` works fine | Both URL forms should resolve to a working read-only view (or the link should use the working URL form) | **bug** | new C.2 row |
+| 1 | Diagram-to-diagram link — **no preview surface** (J5) | Local | Diagram-link node can be created but there's no preview affordance — the feature is essentially unreachable | Preview link should open the linked diagram in read-only view | **bug** _(Resolved 2026-05-22, commit `2a04061`)_ | C.2 B-1 |
+| 2 | Diagram-to-diagram link — **self-reference allowed** (J5) | Local | "Diagram A" can link to "Diagram A" — meaningful only if multiple views exist, but most diagrams have one view by default | Prevent self-reference at the UI level (filter current diagram out of the link picker) | **bug** _(Resolved 2026-05-22, commit `84f4e09`)_ | C.2 B-2 |
+| 3 | Diagram-to-diagram link — **preview opens edit mode** (J5) | Session-Docker, Session-CF | Clicking the preview link in the right details deck opens the same diagram in edit mode instead of preview/read-only | Should navigate to the linked diagram in read-only view at `/display/<diagramId>` and actually render it | **bug** _(Resolved 2026-05-22, commit `2a04061`)_ | C.2 B-1 |
+| 4 | Diagram-to-diagram link — **view-only navigation broken** (J5) | Session-Docker, Session-CF | URL `/display/diagram_1775916857851` does not navigate properly; the share-style URL `/display/p/<uuid>` works fine | Both URL forms should resolve to a working read-only view (or the link should use the working URL form) | **bug** _(Resolved 2026-05-22, commit `2a04061`)_ | C.2 B-1 |
 | 5 | Share dialog popover — **closes on input click** (J14) | Session-Docker, Session-CF | Clicking the input box or empty space inside the share popover closes the popover; copy button still works | Popover should stay open while interacting with its inputs (focus management bug) | **bug** | new C.2 row |
 | 6 | HelpDialog — **missing shortcuts** (J17) | All modes | Alt+click (remove waypoint) and likely other shortcuts are not listed in the HelpDialog | All canonical shortcuts should be documented in HelpDialog | **bug** (small) | new C.2 row |
 | 7 | Diagnostics overlay duplication (J18) | All modes | Two diagnostics surfaces exist: SettingsDialog DiagnosticsTab (never used) + the floating performance debug overlay (FPS / heap / long-tasks / nodes-connectors-textboxes counts / GC events / AI+Human export — actively used) | Two surfaces collapse to one: keep the performance overlay AS-IS (DiagnosticsOverlay + DiagnosticsToggleButton); delete the SettingsDialog tab and any code that exists only for it | **bug** _(triage resolved 2026-05-21)_ | new C.2 row — delete DiagnosticsTab + verify diagnosticsStore.ts and any helpers are still referenced by the overlay; if only the tab referenced them, delete those too (no dead code) |
@@ -199,7 +199,7 @@ After the walk: bucket totals.
 
 | Disposition | Count |
 |---|---|
-| bug | 8 (after both triage items resolved → bug) |
+| bug | 8 (after both triage items resolved → bug); **4 resolved 2026-05-22 (findings #1–#4 via B-1 + B-2); 4 remaining (#5–#8)** |
 | cosmetic | 0 |
 | intentional | 0 |
 | triage | 0 _(both resolved 2026-05-21)_ |
