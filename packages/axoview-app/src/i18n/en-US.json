@@ -27,13 +27,22 @@
         "previewSaveFirst": "Save first to preview",
         "saveAndPreview": "Save & Preview",
         "preview": "Preview",
-        "backToEditing": "Back to editing"
+        "backToEditing": "Back to editing",
+        "share": {
+            "disabled": {
+                "needsServerStorage": "Share requires server storage. Run Axoview self-hosted (Docker) or on Cloudflare to enable shareable links.",
+                "needsDiagram": "Open or create a diagram first to share it."
+            }
+        }
     },
     "share": {
         "title": "Share Diagram",
         "hint": "Anyone with this link can view the diagram in read-only mode.",
         "copy": "Copy",
-        "copied": "✓ Copied!"
+        "copied": "✓ Copied!",
+        "creating": "Creating link…",
+        "unavailable": "Sharing is not available",
+        "failed": "Failed to create share link"
     },
     "dialog": {
         "save": {
