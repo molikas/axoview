@@ -251,8 +251,18 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
                 <Box
                   component="a"
                   href={`/display/${linkedDiagramId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                    // Ctrl/Cmd/Shift/middle-click → let the browser do its
+                    // native new-tab/window behaviour. Plain left-click →
+                    // same-window SPA navigation via the app's router.
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+                    e.preventDefault();
+                    window.dispatchEvent(
+                      new CustomEvent('axoview-navigate-to-diagram', {
+                        detail: { id: linkedDiagramId }
+                      })
+                    );
+                  }}
                   data-testid="node-panel-linked-diagram-link"
                   sx={{
                     color: 'primary.main',

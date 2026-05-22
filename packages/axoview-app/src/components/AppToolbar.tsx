@@ -221,7 +221,7 @@ export function AppToolbar() {
             </Tooltip>
             <Tooltip
               title={
-                !serverStorageAvailable || !currentDiagramId
+                !currentDiagramId
                   ? t('toolbar.previewSaveFirst', 'Save first to preview')
                   : t('toolbar.preview', 'Preview')
               }
@@ -231,7 +231,7 @@ export function AppToolbar() {
                 <IconButton
                   size="small"
                   onClick={handlePreviewClick}
-                  disabled={!serverStorageAvailable || !currentDiagramId}
+                  disabled={!currentDiagramId}
                   sx={{ borderRadius: 1, color: 'inherit' }}
                 >
                   <PreviewIcon sx={{ fontSize: 18 }} />

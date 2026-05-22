@@ -203,8 +203,15 @@ export const NodeInfoTab = ({
                   size="small"
                   component="a"
                   href={`/display/${modelItem.link}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+                    e.preventDefault();
+                    window.dispatchEvent(
+                      new CustomEvent('axoview-navigate-to-diagram', {
+                        detail: { id: modelItem.link }
+                      })
+                    );
+                  }}
                   data-testid="node-info-tab-open-linked-diagram"
                 >
                   <OpenInNewIcon sx={{ fontSize: 16 }} />

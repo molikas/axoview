@@ -7,7 +7,7 @@ import {
   useRef,
   useState
 } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { flattenCollections } from '@isoflow/isopacks/dist/utils';
 import isoflowIsopack from '@isoflow/isopacks/dist/isoflow';
@@ -151,6 +151,7 @@ export function DiagramLifecycleProvider({
     readonlyDiagramId: string;
     shareUuid: string;
   }>();
+  const navigate = useNavigate();
   const { t } = useTranslation('app');
   const { storage, serverStorageAvailable, isInitialized } = useAppStorage();
   const iconPackManager = useIconPackManager(coreIcons);
@@ -1066,10 +1067,10 @@ export function DiagramLifecycleProvider({
   );
 
   const handlePreviewClick = useCallback(async () => {
-    if (!serverStorageAvailable || !currentDiagram || !storage) return;
+    if (!currentDiagram || !storage) return;
     await autoSave.saveNow();
-    window.open(`/display/${currentDiagram.id}`, '_blank');
-  }, [serverStorageAvailable, currentDiagram, storage, autoSave.saveNow]);
+    navigate(`/display/${currentDiagram.id}`);
+  }, [currentDiagram, storage, autoSave.saveNow, navigate]);
 
   // ---------------------------------------------------------------------------
   // Export actions (toolbar Export popover)

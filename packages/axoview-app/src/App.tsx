@@ -123,6 +123,20 @@ function EditorShell() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const importFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Lib dispatches `axoview-navigate-to-diagram` (from the NodePanel readonly
+  // link + the NodeInfoTab "open linked diagram" button); the app turns it
+  // into a same-window SPA navigation. Plain left-click hits this path;
+  // Ctrl/Cmd/Shift/middle-click stays in the browser-native open-in-new-tab
+  // path because the lib leaves those modifiers unhandled.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const id = (e as CustomEvent<{ id?: string }>).detail?.id;
+      if (id) navigate(`/display/${id}`);
+    };
+    window.addEventListener('axoview-navigate-to-diagram', handler);
+    return () => window.removeEventListener('axoview-navigate-to-diagram', handler);
+  }, [navigate]);
+
   const splashFadedRef = useRef(false);
   useEffect(() => {
     if (!isInitialized || splashFadedRef.current) return;
