@@ -2154,6 +2154,99 @@ The Local-mode preview affordance has two materially-different shapes. The user 
 
 **Awaiting user decision: Option A (inline switch) or Option B (new-tab `/display/<id>`)?**
 
+#### B-9a investigation findings (2026-05-22) — Error UX contract pre-work
+
+Code-walk per design principle 1 — every claim cites `file:line`.
+
+**1. Catalog of the two existing error-dialog precedents.**
+
+The two dialogs that shipped in B2 (`cff3942`) and B-1 (`2a04061` follow-up) converged on the same shape by accident. The contract this session formalises is reverse-engineered from them.
+
+| Field | LocalModeShareErrorDialog | ReadonlyLoadErrorDialog |
+|---|---|---|
+| File | [LocalModeShareErrorDialog.tsx](../../packages/axoview-app/src/components/LocalModeShareErrorDialog.tsx) (55 lines) | [ReadonlyLoadErrorDialog.tsx](../../packages/axoview-app/src/components/ReadonlyLoadErrorDialog.tsx) (55 lines) |
+| Trigger | `isPublicShareUrl && !serverStorageAvailable` ([App.tsx:252](../../packages/axoview-app/src/App.tsx#L252)) | `setReadonlyLoadFailed(true)` in owner-readonly catch ([DiagramLifecycleProvider.tsx:466-468](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx#L466-L468)) |
+| Headline | "This share link needs a session backend." | "Could not open this diagram." |
+| Body | "Share links can only be opened from an Axoview instance running with server storage. Deploy via Docker or Cloudflare to view shared diagrams." | "The diagram may have been deleted, or you may not have access to it." |
+| Primary action label | `dialog.localModeShareError.btnDismiss` → "OK" | `dialog.readonlyLoadError.btnDismiss` → "Back to editor" |
+| Secondary action | none | none |
+| Mount site | [App.tsx:372-375](../../packages/axoview-app/src/App.tsx#L372-L375) (always-mounted; `open` prop derived) | [App.tsx:377-383](../../packages/axoview-app/src/App.tsx#L377-L383) (always-mounted; `open` prop derived) |
+| Dismiss handler | `navigate('/', { replace: true })` — strips share-uuid from URL, returns to root | `clearReadonlyLoadFailed(); navigate('/', { replace: true })` — clears flag + returns to root |
+| State owner | derived inline from `isPublicShareUrl + !serverStorageAvailable` | `readonlyLoadFailed: boolean` in `DiagramLifecycleContext` ([provider line 83-84](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx#L83-L84)); cleared via `clearReadonlyLoadFailed()` setter |
+| MUI primitives | `Dialog`, `DialogTitle`, `DialogContent`, `DialogActions`, `Typography`, `Button variant="contained"` | same |
+| Styling | `maxWidth="xs" fullWidth`; `boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)'`; `borderRadius: 2`; `DialogActions` `px: 2.5 pb: 2.5 pt: 1` | same |
+| i18n namespace | `dialog.localModeShareError.*` | `dialog.readonlyLoadError.*` |
+| Per-ADR-0008 vocabulary | Dialog (focus-trapped, explicit user action) — Decision 2 conformant | Dialog — Decision 2 conformant |
+| Per-ADR-0008 naming | `<Scenario>ErrorDialog.tsx` per Decision 1 — conformant | conformant |
+
+Both dialogs are **mechanically identical** outside copy + dismiss semantics. The MUI structure, the styling sx, the `useTranslation('app')` namespace, the prop shape (`{ open, onDismiss }`), the autofocus on the primary button — all converged independently. The 55-line component shells are line-for-line equivalent.
+
+**2. Silent-failure inventory (codebase sweep 2026-05-22).**
+
+Grep patterns: `.catch(`, `} catch (`, `} catch {`, redirect-on-error, `fetch(`/`apiBaseUrl()` callsites. Classification per the brief:
+
+- **Already-correct** — uses an explicit Dialog or in-context inline error UI that fits the contract.
+- **Silent-failure (notification-only / fire-and-forget)** — failure-of-intent that surfaces only via toast or is fully swallowed.
+- **Intentional-silent** — genuinely OK to swallow; documented why.
+
+| # | File:line | Trigger | Current handling | Classification |
+|---|---|---|---|---|
+| E1 | [LocalModeShareErrorDialog.tsx](../../packages/axoview-app/src/components/LocalModeShareErrorDialog.tsx) | share URL in Local mode | explicit Dialog | **already-correct** |
+| E2 | [ReadonlyLoadErrorDialog.tsx](../../packages/axoview-app/src/components/ReadonlyLoadErrorDialog.tsx) | owner-readonly load 404/error | explicit Dialog | **already-correct** |
+| E3 | [ImportDialog.tsx:50,118,146,162](../../packages/axoview-app/src/components/fileExplorer/ImportDialog.tsx#L118) | import parse / ingest failure | inline `setError` state inside the dialog itself (dialog *is* the recovery context) | **already-correct** (in-dialog inline) |
+| E4 | [AppToolbar.tsx:75-88](../../packages/axoview-app/src/components/AppToolbar.tsx#L75-L88) | share-link create failure | inline `shareError` state inside the share popover | **already-correct** (in-popover inline) |
+| E5 | [ExportImageDialog.tsx:149,510](../../packages/axoview-lib/src/components/ExportImageDialog/ExportImageDialog.tsx#L149) | image export PNG/SVG failure | inline `setExportError(true)` state inside the dialog | **already-correct** (in-dialog inline) |
+| E6 | [ExportProjectZipDialog.tsx:68](../../packages/axoview-app/src/components/fileExplorer/ExportProjectZipDialog.tsx#L68) | project-zip export failure | inline error state inside the dialog | **already-correct** (in-dialog inline) |
+| S1 | [DiagramLifecycleProvider.tsx:417-422](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx#L417-L422) | public-share `/api/public/diagrams/<uuid>` fetch failure | `notificationStore.push` toast `'Failed to load shared diagram'`; canvas is left empty | **silent-failure** — direct analogue of the readonly-load case E2 already handles via Dialog. Asymmetric. |
+| S2 | [DiagramLifecycleProvider.tsx:622-625](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx#L622-L625) | `executeSave` storage op failure (session mode) | toast `t('alert.saveFailed')` | **silent-failure** |
+| S3 | [DiagramLifecycleProvider.tsx:860-862](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx#L860-L862) | `handleCreateBlankDiagram` failed | toast 'Failed to create diagram' | **silent-failure** |
+| S4 | [DiagramLifecycleProvider.tsx:931-934](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx#L931-L934) | server-mode rename failed | toast 'Rename failed' (also rolls back optimistic UI) | **silent-failure** (recoverable in tree context) |
+| S5 | [DiagramLifecycleProvider.tsx:1002-1004](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx#L1002-L1004) | toolbar `handleSaveClick` storage op failure | toast `t('alert.saveFailed')` | **silent-failure** |
+| S6 | [DiagramLifecycleProvider.tsx:1061-1064](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx#L1061-L1064) | `openDiagramById` failed | toast `Failed to open "${name}"` | **silent-failure** |
+| S7 | [DiagramLifecycleProvider.tsx:1160-1162](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx#L1160-L1162) | `saveAllDirty` per-id storage failure (one of N) | aggregate toast `${savedCount} saved, ${failedIds.length} failed` | **silent-failure** — but multi-item; a Dialog per-id would spam |
+| S8 | [App.tsx:224-227](../../packages/axoview-app/src/App.tsx#L224-L227) | `handleDirectImportFile` parse/import failure (empty-tree drag-target import) | toast with `err.message` | **silent-failure** (caller is not a dialog) |
+| S9 | [FileExplorer.tsx:202-204](../../packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx#L202-L204) | tree-row open failure | toast `Failed to open "${name}"` | **silent-failure** |
+| S10 | [FileExplorer.tsx:234-236](../../packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx#L234-L236) | inline create-folder failure | toast 'Failed to create folder' | **silent-failure** (recoverable in tree context) |
+| S11 | [FileExplorer.tsx:248-250](../../packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx#L248-L250) | inline create-diagram failure (via rename-submit) | toast 'Failed to create diagram' | **silent-failure** |
+| S12 | [FileExplorer.tsx:268-271](../../packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx#L268-L271) | tree-row rename failure | toast 'Rename failed'; falls back via `tree.refresh()` | **silent-failure** (recoverable in tree context) |
+| S13 | [FileExplorer.tsx:342-344](../../packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx#L342-L344) | confirm-delete (folder or diagram) failure | toast 'Delete failed' | **silent-failure** |
+| S14 | [FileExplorer.tsx:362-365](../../packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx#L362-L365) | context-menu share-link copy failure | toast with `err.message` | **silent-failure** |
+| S15 | [FileExplorer.tsx:390-392](../../packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx#L390-L392) | export-image open failed (non-current row) | toast `Failed to open "${name}"` | **silent-failure** |
+| S16 | [FileExplorer.tsx:409-411](../../packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx#L409-L411) | export-JSON-direct failure | toast `Failed to export "${name}"` | **silent-failure** |
+| S17 | [FileExplorer.tsx:433-435](../../packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx#L433-L435) | duplicate-diagram failure | toast 'Duplicate failed' | **silent-failure** |
+| S18 | [FileExplorer.tsx:480-482](../../packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx#L480-L482) | drag-drop move failure | toast `Failed to move "${nodeName}"` | **silent-failure** (drag context — a modal mid-drag would be jarring) |
+| S19 | [FileExplorer.tsx:493-495](../../packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx#L493-L495) | post-collision-confirm move failure | toast 'Move failed' | **silent-failure** |
+| S20 | [DiagramManager.tsx:40,58,83,103](../../packages/axoview-app/src/components/DiagramManager.tsx#L40) | four catch-arms in the legacy DiagramManager modal (load list, delete, etc.) | toast | **silent-failure** (legacy modal; D2 cleanup likely deprecates this surface — verify before retrofit) |
+| I1 | [App.tsx:192](../../packages/axoview-app/src/App.tsx#L192) | linkedDiagrams `listDiagrams + listFolders` failure on boot/refresh | `.catch(() => {})` — fully silent | **intentional-silent** — boot side-effect that populates an autocomplete; failure ≈ "no link picker options" which is degraded but not blocking. Defensible. |
+| I2 | [DiagramLifecycleProvider.tsx:831](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx#L831) | icon-pack rehydration save (fire-and-forget after lazy pack load on diagram open) | `.catch(() => {})` | **intentional-silent** — background side-effect: the diagram is already loaded; this just saves the now-resolved icon refs back. Failure leaves the next open to repeat the rehydration. Matches the brief's "save retried" carve-out. |
+| I3 | [useThumbnail.ts:16,26](../../packages/axoview-app/src/components/fileExplorer/useThumbnail.ts#L16) | dom-to-image dynamic import + render failure (thumbnail generation) | `.catch(() => null)` then no-op | **intentional-silent** — UI degrades to no thumbnail; failure is non-blocking. |
+| I4 | [useRuntimeConfig.ts:36-44](../../packages/axoview-app/src/hooks/useRuntimeConfig.ts#L36-L44) | `/api/config` boot probe failure | console.warn + fallback to DEFAULT_CONFIG (Local mode) | **intentional-silent** — explicit ADR 0009 D2 contract. Documented behaviour. |
+| I5 | [serviceWorkerRegistration.ts:76,100,113](../../packages/axoview-app/src/serviceWorkerRegistration.ts#L76) | service-worker register / update / unregister failures | console only | **intentional-silent** — PWA infrastructure; not user-visible operations. |
+
+**Rollup:**
+
+- **Already-correct: 6** (E1–E6) — the two dialogs + 4 in-dialog/in-popover inline error states.
+- **Silent-failure (notification-only): 20** (S1–S20). Of those, **S1 is the highest-priority** (direct analogue of the case E2 already handles via Dialog — asymmetry between owner-readonly and public-share load failures); the rest are recoverable inline operations in the file tree / toolbar / save flow.
+- **Intentional-silent: 5** (I1–I5) — documented carve-outs.
+
+**3. Checkpoint outcome.**
+
+The silent-failure count is **20**, well above the brief's threshold of 8. Per the session brief, this session pauses after commit 1 to let the user choose between:
+
+- **Path α — Land contract + retrofit existing + apply to S1 only** (the asymmetric high-priority case). Commits 2 + 3 land; commit 4 narrows to a single new dialog (`PublicShareLoadErrorDialog` matching the `ReadonlyLoadErrorDialog` shape). Remaining S2–S20 move to B-9b, queued behind T1 (E2E scenario catalogue will sharpen the dialog-vs-toast judgement for inline tree operations).
+- **Path β — Land contract + retrofit existing only, no S surfaces in this session**. Commits 2 + 3 + 5 land; commit 4 skipped. The contract becomes the gate for future error-surface work; the entire S inventory backfills in B-9b. This is the "shrink scope" branch the checkpoint explicitly names.
+- **Path γ — Land contract + retrofit + apply to a curated S subset** (e.g., S1 + S6 + S8 — the "user lost their content" failures, excluding the inline tree operations where a toast is arguably the right affordance). Requires a user judgement call on which S rows are dialog-worthy.
+
+**Recommendation: Path α.** Reasoning:
+
+- The contract's value is the *written-down rule*, not the back-fill. Once ADR 0011 is Accepted, future error surfaces inherit the shape automatically and existing toasts can be reclassified in B-9b without urgency.
+- **S1 is genuinely asymmetric** with E2: both are diagram-load failures on `/display/*` routes, but one renders a Dialog (owner-readonly) and the other renders a toast (public-share). Both leave the canvas empty; the user has no recovery affordance other than browser back. Fixing S1 in this session locks the "diagram-load failure surfaces a Dialog" precedent and gives the contract two parallel implementations that the next dialog inherits.
+- **S2–S20 deserve case-by-case judgement** that benefits from T1's scenario catalogue. Many are inline tree operations (rename, delete, move) where a modal Dialog would interrupt the user's recovery context (the inline editor / drag is the recovery context). The contract should not pre-decide that — Path α lets B-9b make those calls with T1's scenarios in hand.
+
+**Path β is also defensible** if the user wants the absolute minimum surface change this session (e.g., they want the contract reviewed before any retrofit). The two existing dialogs already conform by accident, so commit 3 is a no-op verification + i18n confirmation.
+
+**Awaiting user decision: Path α, β, or γ?**
+
 ### Section 6 — Sequencing recommendation
 
 The four sections are independently executable, but a recommended ship order minimises cross-bundle risk:
