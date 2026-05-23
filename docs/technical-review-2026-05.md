@@ -1,6 +1,69 @@
 # Axoview Technical Review — 2026-05
 
-> **Status:** Sessions A + B complete (sections 0–4 + 7 + 9). Session C populates sections 5, 6, 8, 10, 11. Last updated 2026-05-23.
+> **Status:** Artifact frozen 2026-05-23 (Sessions A + B + C complete). Reviewer-ready. This document is a snapshot of the post-M10 v1.0.0 state — it does not track ongoing changes; the [ADRs](adr/), [PLAN.md](../PLAN.md), and [docs/architecture.md](architecture.md) are the living artifacts.
+
+## Table of contents
+
+- [0. How to use this document](#0-how-to-use-this-document)
+- [1. Executive summary](#1-executive-summary)
+- [2. Before / After](#2-before--after)
+  - [2.1 At-a-glance comparison](#21-at-a-glance-comparison)
+  - [2.2 What did *not* change](#22-what-did-not-change)
+- [3. Architecture overview](#3-architecture-overview)
+  - [3a. System diagram](#3a-system-diagram)
+  - [3b. Package responsibilities](#3b-package-responsibilities)
+  - [3c. State management](#3c-state-management)
+  - [3d. Component tree (high level, lib-side)](#3d-component-tree-high-level-lib-side)
+  - [3e. Interaction modes](#3e-interaction-modes)
+- [4. Sequence diagrams](#4-sequence-diagrams)
+  - [4a. App boot + mode detection (single `/api/config` probe)](#4a-app-boot--mode-detection-single-apiconfig-probe)
+  - [4b. Save diagram — browser-only mode](#4b-save-diagram--browser-only-mode)
+  - [4c. Save diagram — server-backed mode](#4c-save-diagram--server-backed-mode)
+  - [4d. Share link generation + public consumption](#4d-share-link-generation--public-consumption)
+  - [4e. Diagram-to-diagram link navigation](#4e-diagram-to-diagram-link-navigation)
+  - [4f. Error UX — failure-of-intent flow (per ADR 0011)](#4f-error-ux--failure-of-intent-flow-per-adr-0011)
+- [5. Deployment topology](#5-deployment-topology)
+  - [5a. Three deploy targets](#5a-three-deploy-targets)
+  - [5b. Mode detection contract](#5b-mode-detection-contract)
+  - [5c. CI/CD chain](#5c-cicd-chain)
+  - [5d. Env-var contract per target](#5d-env-var-contract-per-target)
+  - [5e. Bundle-size budget](#5e-bundle-size-budget)
+  - [5f. Dual `wrangler.toml`](#5f-dual-wranglertoml)
+  - [5g. Distribution model](#5g-distribution-model)
+- [6. Security posture](#6-security-posture)
+  - [6a. Auth model](#6a-auth-model)
+  - [6b. Storage isolation — single-tenant per deploy](#6b-storage-isolation--single-tenant-per-deploy)
+  - [6c. Public-namespace cutout](#6c-public-namespace-cutout)
+  - [6d. CSP + security headers](#6d-csp--security-headers)
+  - [6e. Concurrent-write semantics](#6e-concurrent-write-semantics)
+  - [6f. Atomicity](#6f-atomicity)
+  - [6g. CI security scanning](#6g-ci-security-scanning)
+  - [6h. Known security gaps (tracked, not blocking)](#6h-known-security-gaps-tracked-not-blocking)
+- [7. File-by-file inventory](#7-file-by-file-inventory)
+  - [7.1 `packages/axoview-lib`](#71-packagesaxoview-lib)
+  - [7.2 `packages/axoview-app`](#72-packagesaxoview-app)
+  - [7.3 `packages/axoview-backend`](#73-packagesaxoview-backend)
+  - [7.4 `packages/axoview-worker`](#74-packagesaxoview-worker)
+  - [7.5 `packages/axoview-e2e`](#75-packagesaxoview-e2e)
+  - [7.6 Repo shell — deployment artifacts, CI, root configuration](#76-repo-shell--deployment-artifacts-ci-root-configuration)
+  - [7.7 `docs/`](#77-docs)
+  - [7.8 Cross-package observations](#78-cross-package-observations)
+  - [7.9 Inventory totals](#79-inventory-totals)
+- [8. Quality KPIs aggregate](#8-quality-kpis-aggregate)
+  - [8a. Test inventory](#8a-test-inventory)
+  - [8b. CI gate inventory](#8b-ci-gate-inventory)
+  - [8c. LOC + file totals](#8c-loc--file-totals)
+  - [8d. Test:source ratio — by package](#8d-testsource-ratio--by-package)
+  - [8e. Lint debt](#8e-lint-debt)
+  - [8f. Knip residual](#8f-knip-residual)
+  - [8g. Production runtime metrics](#8g-production-runtime-metrics)
+- [9. Decisions catalog](#9-decisions-catalog)
+  - [9.1 ADRs](#91-adrs)
+  - [9.2 Locked decisions (productization audit)](#92-locked-decisions-productization-audit)
+- [10. Reviewer prompts](#10-reviewer-prompts)
+  - [10a. General quality + architecture review (broad lens)](#10a-general-quality--architecture-review-broad-lens)
+  - [10b. Productization-readiness review (narrow lens)](#10b-productization-readiness-review-narrow-lens)
+- [11. Open known issues](#11-open-known-issues)
 
 ---
 
@@ -554,7 +617,7 @@ flowchart TB
 
 Two notes the diagram glosses over:
 
-- **Cloudflare deploy isn't a CI step.** It's external automation triggered by the same `master` push. Per Locked Decision #14, GitHub Actions has no visibility into CF's build status — if the CF build fails, the GH side stays green. The deployment safety net for "tests pass but CF fails" is currently *operator vigilance*, not automated cross-check. Worth flagging to reviewers (and asked explicitly in [§10b](#10b-productization-readiness-lens-narrow)).
+- **Cloudflare deploy isn't a CI step.** It's external automation triggered by the same `master` push. Per Locked Decision #14, GitHub Actions has no visibility into CF's build status — if the CF build fails, the GH side stays green. The deployment safety net for "tests pass but CF fails" is currently *operator vigilance*, not automated cross-check. Worth flagging to reviewers (and asked explicitly in [§10b](#10b-productization-readiness-review-narrow-lens)).
 - **`release.yml` is gated on `workflow_run` from the Run Tests workflow.** semantic-release won't fire if tests aren't green. The chain is `master push → test.yml + e2e-playwright.yml + codeql.yml in parallel → all green → workflow_run trigger → release.yml`.
 
 ### 5d. Env-var contract per target
@@ -707,7 +770,7 @@ Three items the audit named and explicitly left open. None block M10; all are re
 - **No structured request logging on Express.** [`server.js`](../packages/axoview-backend/server.js) does not wire `morgan` or an equivalent; per-request audit trails on self-host depend on whatever the operator's reverse-proxy emits. Tracked in [ADR 0009 D6 "observability boundary"](adr/0009-deployment-topology.md#6-observability-boundary--per-runtime). Cloudflare side gets per-request invocation metrics automatically via the platform dashboard.
 - **The single-tenant lock will surprise multi-user self-host operators.** [ADR 0010 D4 "Negative / open"](adr/0010-session-backend-contract.md#negative--open) names this directly. [`docs/deployment.md`](deployment.md) does not currently lead with a "single-tenant per deploy" callout — the operator who reads the auth-modes table and thinks "shared-token = team password" is the one who needs the warning. Action item for the next docs pass; not a code change.
 
-The reviewer should weigh these against the v1 scope: the audit treated them as conscious deferrals, not unknowns. The corresponding prompts in [§10b](#10b-productization-readiness-lens-narrow) name each one as a question the reviewer should answer with operator-impact framing, not a "must fix before merge" framing.
+The reviewer should weigh these against the v1 scope: the audit treated them as conscious deferrals, not unknowns. The corresponding prompts in [§10b](#10b-productization-readiness-review-narrow-lens) name each one as a question the reviewer should answer with operator-impact framing, not a "must fix before merge" framing.
 
 ---
 
@@ -1505,7 +1568,7 @@ Knip is soft-fail today by design — the audit's recommendation is to *measure*
 - Self-host: no `morgan` or equivalent on Express ([§6h](#6h-known-security-gaps-tracked-not-blocking) lists it as a known security-adjacent gap); operators get whatever their reverse proxy emits.
 - Cloudflare: per-request invocation metrics + bundle-size + cold-start are visible via the Cloudflare dashboard. No application-level metrics (saves per minute, dialog-open rates, mode-detection probe failures) are emitted.
 
-The reviewer prompt in [§10b](#10b-productization-readiness-lens-narrow) asks specifically: "what's the minimum-viable runtime instrumentation for v1?" — the honest answer the audit landed on is "nothing yet, by design — instrumentation lands once we have a real user complaint to ground it in." A future observability ADR would lock the request-logging format, the metric set, and the export path. None of that is built today.
+The reviewer prompt in [§10b](#10b-productization-readiness-review-narrow-lens) asks specifically: "what's the minimum-viable runtime instrumentation for v1?" — the honest answer the audit landed on is "nothing yet, by design — instrumentation lands once we have a real user complaint to ground it in." A future observability ADR would lock the request-logging format, the metric set, and the export path. None of that is built today.
 
 ---
 
@@ -1555,10 +1618,180 @@ The audit doc's [Locked decisions table](tactical/productization-audit.md#locked
 
 ## 10. Reviewer prompts
 
-<!-- TBD Session C — Will split into two checklists per the dual-lens design: (A) general code-quality review (architecture coherence, test depth, performance contracts, known-issues impact); (B) productization-readiness review (deployment + auth + error UX + CI gates + LICENSE + docs). Each prompt cites the §3/§4/§9 location it grounds in so the reviewer can verify with one click. -->
+Two checklists. The reviewer (likely another AI agent) works through them to produce a written review. Each prompt is a complete question the reviewer can answer from the artifact + the codebase without additional context. Read the rest of the document first; these are the prompts you answer once you have the model.
+
+### 10a. General quality + architecture review (broad lens)
+
+1. **Architectural patterns — over-engineered or misapplied?** Walk [§3](#3-architecture-overview) + [§7](#7-file-by-file-inventory). Does the four-package monorepo split (lib / app / backend / worker / e2e) carry its weight, or is there a subset that could be collapsed without functional loss? Specifically: is `axoview-app` actually distinct enough from `axoview-lib` to deserve a separate package, given the lib is monorepo-only (LD #11)?
+2. **State management — Zustand contract.** [§3c](#3c-state-management) lists five stores across two packages, plus the `react-context-wrapped Zustand` pattern for per-mount isolation. Walk the store boundaries: any subscribe-and-derive patterns that should be selectors instead? Any selectors that should be computed memoized values? Any cross-store dependencies that suggest a store should be split or merged?
+3. **Interaction modes — state-machine review.** [§3e](#3e-interaction-modes) diagrams the 11-mode machine. Identify (a) any missing transitions a user could trigger today, (b) any dead transitions (mode A → B that the code declares but nothing fires), (c) any state that's a mode but feels like it should be a flag instead (e.g., `INTERACTIONS_DISABLED`).
+4. **`DiagramLifecycleProvider.tsx` — 1,333 LOC god-provider.** [§7.2](#72-packagesaxoview-app) flags this as "the largest file in the package by far." Walk the file. What concerns can be extracted into hooks or sibling providers without breaking the dirty-tracking contract? Suggest a decomposition plan with a 3-step minimum that doesn't break user-visible behaviour.
+5. **`useSceneActions.ts` + `useInteractionManager.ts` — 789 + 741 LOC hooks.** Both flagged as refactor candidates in [§7.1](#71-packagesaxoview-lib). Are these too large to test cleanly? Suggest splits along reducer-domain boundaries (`useSceneActions`) or per-mode handlers (`useInteractionManager`).
+6. **Burger-menu retirement dead-code cluster.** [§7.8](#78-cross-package-observations) bullet 8 names `MainMenu.tsx` + `MenuItem.tsx` + `ConfirmDiscardDialog.tsx` as locked for deletion plus adjacent candidates (`reportWebVitals.ts`, half of `serviceWorkerRegistration.ts`, the `.ts` twin of `generateMaterialIconPack`). Verify the residue is bounded — grep for surviving imports of each candidate, and recommend the cleanup-wave order (anchor file first, cascades after).
+7. **i18n triplication.** [§7.8](#78-cross-package-observations) bullet 1 names three locale surfaces (lib `.ts` × 14 + app `.json` × 13 + rsbuild copy to `dist/`). Walk the lib × app coverage matrix — which locales are short which strings? Is the orphan `pl-PL.json` a translation that wasn't wired in, or genuinely dead? Recommend either a coverage-matrix linter (CI-enforced) or a deliberate per-locale freeze.
+8. **The "published-shape but private" lib posture.** [Locked Decision #11](tactical/productization-audit.md#locked-decisions-from-scoping-discussion-2026-05-19) keeps `axoview-lib` monorepo-only despite the `main` / `types` / `files` advertising publishability. Walk `axoview-lib/src/index.ts` + `standaloneExports.ts`. If publish ever happened, would the surface be coherent? Any internals leaking through that should be marked `@internal` / re-exported under a narrower public API?
+9. **Single source of truth audit.** Pick four signals the SPA carries across surfaces: mode-detection (`serverStorage` boolean), `AUTH_MODE` state, `selectedIds`, `currentDiagramId`. For each: where does it live, who reads it, who mutates it? Any drift (two places setting the same value, two places reading slightly different forms)?
+10. **Bundle composition for the Worker.** [§5e](#5e-bundle-size-budget) reports the bundle at ~89 KB (~9 % of budget). Run `wrangler pages functions build`, inspect the output, and report: what dependencies dominate the bundle? Anything unexpected (transitive imports of dev-only modules, polyfills for runtimes that Hono on CF Workers doesn't need)?
+11. **Reducer-pattern adherence.** [§3c](#3c-state-management) describes the reducer convention: pure `(payload, state) → State`, immer `produce()`, no I/O. Walk `packages/axoview-lib/src/stores/reducers/`. Any reducer that violates the contract (reads from a store, performs async work, mutates input)? Any that should be reducers but live elsewhere (e.g., in `useSceneActions`)?
+12. **Zustand patches + history.** [§3c](#3c-state-management) names the immer-patch-based history stack (max 50 entries) on `modelStore`. Walk the `transaction()` boundary in [`useHistory.ts`](../packages/axoview-lib/src/hooks/useHistory.ts) and find any mutation paths that should collapse N operations into one history entry but don't (the canonical example was the multi-element drag in MQA #7).
+13. **Test architecture — over-mocked surfaces.** [`docs/testing.md`](testing.md) labels suites VALID vs SEMI-VALID; SEMI-VALID means a local copy of a production constant is asserted (the production module can't be imported in Jest). Walk the SEMI-VALID list. For each, is the divergence risk worth the test, or is the test actively misleading?
+14. **Type surface for consumers.** [`axoviewProps.ts`](../packages/axoview-lib/src/types/axoviewProps.ts) is 484 LOC — the largest types file. Is the surface coherent? Any prop that should be narrower (e.g., a union when a string would do), any prop that's effectively unused by callers but advertised on the public API?
+
+### 10b. Productization-readiness review (narrow lens)
+
+1. **What's the first thing that breaks when a self-host operator hits load?** Quantify: how many concurrent saves can the fs adapter sustain before its tmp-file + rename starts colliding? At what disk-fill % does the `STORAGE_PATH` mount become a problem? Where does the 10 MB body-limit ([nginx.conf](../nginx.conf), [Express](../packages/axoview-backend/server.js)) become the bottleneck?
+2. **Observability gap — minimum-viable runtime instrumentation.** [§6h](#6h-known-security-gaps-tracked-not-blocking) names "no structured request logging on Express" as known-and-deferred. Propose the minimum set for v1: which routes need logs (every storage-touching one? or just failures?), which fields (auth mode, key, size, latency, status code), which sink (stdout for `docker logs`, file under `STORAGE_PATH`, both)?
+3. **The single-tenant assumption — operator-impact framing.** [ADR 0010 D4](adr/0010-session-backend-contract.md#4-session-isolation--single-tenant-per-deploy-v1) locks it, [§6b](#6b-storage-isolation--single-tenant-per-deploy) frames it honestly, but [`docs/deployment.md`](deployment.md) doesn't lead with it. Draft the exact callout that should appear in deployment.md so an operator setting up `AUTH_MODE=shared-token` for a team doesn't accidentally invite 5 collaborators into one global namespace.
+4. **Backup/restore for self-host.** `STORAGE_PATH` is a Docker volume. What's the operator runbook for: (a) routine snapshot (cron + tar?), (b) restore-from-corruption, (c) cross-host migration? None of this is documented; recommend the minimum viable doc.
+5. **Upgrade path between v1.0.0 → v1.0.x.** semantic-release fires on every `master` merge with a `fix:` or `feat:` subject. How does a self-host operator running v1.0.0 today actually upgrade to v1.0.5 (or v1.1.0 if a feat ships)? Is there a documented `docker compose pull && docker compose up -d`? Is there a data-migration story if the storage shape changes between minor versions?
+6. **Cloudflare deploy safety net.** [§5c](#5c-cicd-chain) notes: GH Actions has no visibility into CF's build status; if CF build fails but GH tests pass, GH stays green and the deploy is silently stale. What's the minimum monitoring an operator can wire up to catch this? Cloudflare webhook into a Slack/email? A polling check via `curl axoview.pages.dev/api/config`?
+7. **Cold-start latency budget.** The 89 KB Worker bundle is small, but: has actual cold-start time been measured against the budget? What budget does Cloudflare publish? Recommend a measurement protocol (e.g., `wrangler tail` during a forced cold start, three samples, p50/p99) and a CI gate (or explicit rejection of CI-gating cold start with a rationale).
+8. **`*.pages.dev` preview-deploy exposure.** [§6h](#6h-known-security-gaps-tracked-not-blocking) names this gap. What's the right mitigation for the v1.0 polish wave: (a) block preview deploys via `_routes.json` or Pages settings, (b) auto-tag previews with a banner, (c) require `AUTH_MODE != none` via a deploy-time assertion? Pick one and write the implementation sketch.
+9. **CSP — the `'unsafe-inline'` in `style-src`.** [§6d](#6d-csp--security-headers) names this as the residual MUI-emotion legacy and "most likely tightening target." Walk MUI's emotion integration — is there a path to a strict CSP (nonce-based, hash-based, or emotion's `cache.compat`)? What does the operator/deployer pay if `'unsafe-inline'` is removed today (visual regressions, runtime errors)?
+10. **The two `wrangler.toml` files.** [§5f](#5f-dual-wranglertoml) names this as drift-prone. Recommend the right consolidation: symlink (Windows-fragile), pre-deploy generator script (added tooling), or accept the drift with a CI gate that diffs the two files on every PR (cheap, mechanical)?
+11. **Container scanning re-entry.** [§8b](#8b-ci-gate-inventory) notes T2 G6 was dropped with the Docker Hub deferral. What's the trigger for re-introducing container scanning — does it have to wait for the Docker Hub publish ADR, or can `docker scout` / `trivy` run against the local-build image in CI on every PR today (catching base-image CVEs before any publish decision)?
+12. **README + deployment.md drift.** [`docs/deployment.md`](deployment.md) is the operator-facing source of truth, but [§5d](#5d-env-var-contract-per-target) replicates the env-var contract from [ADR 0009 §4](adr/0009-deployment-topology.md). Cross-check the three: does any of `BACKEND_PORT` / `STORAGE_PATH` / `ENABLE_SERVER_STORAGE` / `AUTH_MODE` / `AUTH_SHARED_SECRET` / `GOOGLE_CLIENT_ID` have a different documented default in any of the three locations? Recommend the single canonical reference (probably the ADR, with the others linking to it).
 
 ---
 
 ## 11. Open known issues
 
-<!-- TBD Session C — Will compose from known_issues.md + the deferred-by-design rows from the audit closeout. Notable categories: partial-coverage i18n locales (de-DE + id-ID); PWA install card is plain; preview-mode passive badge incomplete; page tabs hard cap of 5 with no overflow UX; pre-existing failing leanSave unit test (bundledFixtures[0] undefined); double-click rename in file tree; imported icons per-diagram (deferred); connector drag sustained-GC cliff (deferred); B-9b silent-failure retrofit catalogue (S2–S20); leanSave test seeding gap. -->
+Every named open item in the v1.0.0 state. Sources: [`known_issues.md`](../known_issues.md), the audit's deferred-by-design rows ([B-9b](tactical/productization-audit.md), [B-10](tactical/productization-audit.md), [B-14](tactical/productization-audit.md), [I8](tactical/productization-audit.md)), [§7.8](#78-cross-package-observations) cross-package observations that are explicitly tech debt, the "Negative / open" subsections of [ADRs 0009](adr/0009-deployment-topology.md), [0010](adr/0010-session-backend-contract.md), [0011](adr/0011-error-ux-contract.md). Severity: **low** = cosmetic / latent / no user impact today; **med** = visible to operators or specific users; **high** = blocks a documented workflow.
+
+### Partial-coverage i18n locales (de-DE + id-ID)
+- **Origin**: [`known_issues.md`](../known_issues.md) — pre-existing.
+- **Severity**: low (locale switching itself works; affected users see mixed German/English or Indonesian/English UI).
+- **Tracking**: filed alongside B-13 closure in [audit Section 5](tactical/productization-audit.md).
+- **Next-action owner**: defer — resolved when translators refresh those locales.
+
+### PWA install card is plain (cosmetic)
+- **Origin**: [`known_issues.md`](../known_issues.md) — pre-existing.
+- **Severity**: low (install still works; just a plain card).
+- **Tracking**: filed alongside B-8 closure in [audit Section 5](tactical/productization-audit.md).
+- **Next-action owner**: defer — addressed when there's a marketing push for PWA installs.
+
+### Preview-mode passive badges do not cover all clickable nodes
+- **Origin**: [`known_issues.md`](../known_issues.md).
+- **Severity**: med (at-a-glance scanning misses `headerLink`-only and `description`-only nodes; hover cursor still works).
+- **Tracking**: `known_issues.md` — open; no specific audit row.
+- **Next-action owner**: user-call — decide between extending the existing badges or replacing both with one consolidated "more info" indicator.
+
+### Page tabs hard cap of 5, no overflow UX
+- **Origin**: [`known_issues.md`](../known_issues.md).
+- **Severity**: med (workaround in place; cap holds at `MAX_PAGES = 5` with a "limit reached" tooltip).
+- **Tracking**: [`ViewTabs.tsx`](../packages/axoview-lib/src/components/ViewTabs/ViewTabs.tsx) — cap inline.
+- **Next-action owner**: defer — needs a real overflow UX (horizontal scroll + chevrons, dropdown-with-search, or pinned + drawer) before raising the cap.
+
+### leanSave unit test: `bundledFixtures[0]` undefined
+- **Origin**: [`known_issues.md`](../known_issues.md) — predates the 2026-05 shake-out.
+- **Severity**: low (the single skipped test in §8a; runtime path is unaffected because real packs are supplied via `iconPackManager`).
+- **Tracking**: [`packages/axoview-lib/src/utils/__tests__/leanSave.test.ts`](../packages/axoview-lib/src/utils/__tests__/leanSave.test.ts).
+- **Next-action owner**: defer — guard with `if (bundledFixtures.length === 0) return;` or seed a stub fixture; future test-cleanup.
+
+### File tree: double-click does not enter rename mode
+- **Origin**: [`known_issues.md`](../known_issues.md).
+- **Severity**: low (F2 + right-click → Rename both work; only the double-click affordance is missing).
+- **Tracking**: [`FileExplorer.tsx`](../packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx) inline.
+- **Next-action owner**: defer — polish backlog.
+
+### Imported icons are scoped per-diagram, not per-project
+- **Origin**: [`known_issues.md`](../known_issues.md) — explicitly deferred during the MQA #26 session.
+- **Severity**: med (icons duplicated across diagram blobs; users re-import or use project-zip round-trip).
+- **Tracking**: `known_issues.md` carries a multi-layer refactor design sketch (storage API, migration, lib injection, lean-save extension, project-zip schema bump).
+- **Next-action owner**: defer — a future feature with its own ADR (touches ADR 0002 + ADR 0003 + ADR 0001).
+
+### Connector drag sustained-GC cliff (~50 s)
+- **Origin**: [`known_issues.md`](../known_issues.md) — MQA #7 partial follow-up.
+- **Severity**: low (only triggers on marathon drags > 50 s; typical drags hold 60 fps end-to-end).
+- **Tracking**: `known_issues.md` empirical findings + refactor design context section.
+- **Next-action owner**: defer — filed for a future refactor session; design context is captured.
+
+### MQA diag exporter: element counts read 0
+- **Origin**: [`known_issues.md`](../known_issues.md) — parked alongside MQA #7.
+- **Severity**: low (other diag fields remain accurate).
+- **Tracking**: [`DiagnosticsOverlay.tsx`](../packages/axoview-app/src/components/DiagnosticsOverlay.tsx).
+- **Next-action owner**: defer.
+
+### B-9b silent-failure retrofit catalogue (S2–S20)
+- **Origin**: [Audit B-9a investigation](tactical/productization-audit.md) — 20 toast-only or `.catch(() => {})` paths catalogued.
+- **Severity**: med (each is a UX inconsistency relative to [ADR 0011](adr/0011-error-ux-contract.md)'s explicit-error contract; not user-blocking).
+- **Tracking**: audit register S2–S20.
+- **Next-action owner**: defer — deferred-by-design per [closeout disposition](tactical/productization-audit.md#phase-c-status). Retrofitted opportunistically; not a single-PR sweep.
+
+### B-10 knip residual triage
+- **Origin**: [§8f](#8f-knip-residual) baseline (15 unused files / 23 unused exports / 22 unused types).
+- **Severity**: low (CI is soft-fail; no user impact).
+- **Tracking**: [T2 G10 baseline](tactical/git-automation-hardening.md).
+- **Next-action owner**: defer — needs a separation pass between genuine dead code and false positives (lib's public-API exports) before promotion to hard-fail.
+
+### Server-runtime no-test-config gap (backend + worker)
+- **Origin**: [§7.8](#78-cross-package-observations) bullet 2 + [§8d](#8d-testsource-ratio--by-package).
+- **Severity**: high (the most-load-bearing surface in the repo — shared `routes.js`, 325 LOC — has zero tests).
+- **Tracking**: [audit C.8](tactical/productization-audit.md) — open gap.
+- **Next-action owner**: defer — needs a contract-test harness with separate Express + Hono adapters; high-leverage investment, not on the v1.0 polish wave.
+
+### Single-tenant lock — deployment docs callout missing
+- **Origin**: [ADR 0010 "Negative / open"](adr/0010-session-backend-contract.md#negative--open) + [§6h](#6h-known-security-gaps-tracked-not-blocking).
+- **Severity**: med (a multi-user self-host operator who reads `AUTH_MODE=shared-token` as "team password" gets a surprise).
+- **Tracking**: action item for the next [`docs/deployment.md`](deployment.md) pass.
+- **Next-action owner**: user-call — draft the callout per [§10b prompt 3](#10b-productization-readiness-review-narrow-lens).
+
+### `*.pages.dev` preview-deploy exposure with `AUTH_MODE=none`
+- **Origin**: [ADR 0009 "Negative / open"](adr/0009-deployment-topology.md#negative--open) + [§6h](#6h-known-security-gaps-tracked-not-blocking).
+- **Severity**: med (default `wrangler.toml` ships `AUTH_MODE=shared-token`; risk only if a deployer overrides to `none`).
+- **Tracking**: ADR 0009 negative consequence.
+- **Next-action owner**: defer — deploy-time warning or preview-deploy block is the next-step polish; not built today.
+
+### Express no-structured-logging gap
+- **Origin**: [ADR 0009 D6 observability boundary](adr/0009-deployment-topology.md#6-observability-boundary--per-runtime) + [§6h](#6h-known-security-gaps-tracked-not-blocking).
+- **Severity**: med (operator's audit/debug surface depends on whatever the reverse proxy emits).
+- **Tracking**: audit follow-up; ADR 0009 names it.
+- **Next-action owner**: defer — awaits a real user complaint to ground the observability ADR.
+
+### CSP `'unsafe-inline'` in `style-src`
+- **Origin**: [§6d](#6d-csp--security-headers) — residual MUI-emotion legacy.
+- **Severity**: low (CSP is otherwise tight; the loosening is scoped to inline styles, not script).
+- **Tracking**: `_headers` inline.
+- **Next-action owner**: defer — needs MUI emotion's nonce/hash/`cache.compat` integration; addressed in a future polish ADR.
+
+### Worker-package `axoview-worker/wrangler.toml` drift risk
+- **Origin**: [§5f](#5f-dual-wranglertoml) + [§7.8](#78-cross-package-observations) bullet 7 + [ADR 0009 D5](adr/0009-deployment-topology.md#5-authoritative-wranglertoml-mandatory-_routesjson-and-the-asset-pipeline).
+- **Severity**: low (both files match today; drift is operator-visible at next deploy).
+- **Tracking**: ADR 0009 D5 lock + worker-package file's header comment.
+- **Next-action owner**: defer — consolidation (symlink or generator script) is a polish-wave item; per-PR diff CI gate is the cheapest interim option.
+
+### CodeQL repo-toggle not yet enabled (T4 external action)
+- **Origin**: [Audit Locked Decision #16](tactical/productization-audit.md#locked-decisions-from-scoping-discussion-2026-05-19) — last outstanding T4 item.
+- **Severity**: low (workflow exists; just doesn't fire until repo setting flips).
+- **Tracking**: [`codeql.yml`](../.github/workflows/codeql.yml) lands the workflow; toggle lives in GitHub Settings → Code security and analysis.
+- **Next-action owner**: user-call — one-click in the GitHub UI.
+
+### Branch protection on `master` not yet enforced (T4 external action)
+- **Origin**: [Audit Locked Decision #17](tactical/productization-audit.md#locked-decisions-from-scoping-discussion-2026-05-19) wrap-up sequencing.
+- **Severity**: med (semantic-release fires on master push; nothing prevents a direct push that skips PR review).
+- **Tracking**: GitHub Settings → Branches.
+- **Next-action owner**: user-call — required statuses (Run Tests / E2E / CodeQL once enabled) + require PR review.
+
+### Repo metadata (Description / Topics / Homepage URL) not set
+- **Origin**: [Audit Locked Decision #17](tactical/productization-audit.md#locked-decisions-from-scoping-discussion-2026-05-19) wrap-up sequencing.
+- **Severity**: low (discoverability only).
+- **Tracking**: GitHub Settings → General.
+- **Next-action owner**: user-call.
+
+### `axoview-lib/docs/` legacy Next.js scaffold (dead)
+- **Origin**: [§7.1](#71-packagesaxoview-lib) — 13 files / own `package-lock.json`; cascades from audit N2.
+- **Severity**: low (no user impact; misleading "installation via npm publish" prose in the dead MDX).
+- **Tracking**: audit C.2 — slated for deletion.
+- **Next-action owner**: defer — bundled into the next dead-code cleanup wave.
+
+### Pre-ADR-0008 naming residue (`CoordsUtils.ts`, `SizeUtils.ts`, `Sidebars/` folder)
+- **Origin**: [§7.8](#78-cross-package-observations) bullet 9.
+- **Severity**: low (no functional impact; inconsistency with the rest of `utils/` lowercase + post-LeftSidebar-deletion folder name).
+- **Tracking**: [ADR 0008](adr/0008-naming-convention.md) cleanup cascade.
+- **Next-action owner**: defer — next ADR 0008 cleanup pass.
+
+### `dom-to-image-more` is a transitive-only dependency
+- **Origin**: [§7.2](#72-packagesaxoview-app) — `useThumbnail.ts` dynamically imports it but it's not declared in `package.json`.
+- **Severity**: low (works today via npm's transitive resolution; would break under a stricter resolver).
+- **Tracking**: app package.json.
+- **Next-action owner**: defer — add as direct devDep in next maintenance pass.
