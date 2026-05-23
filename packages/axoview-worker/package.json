@@ -1,6 +1,6 @@
 {
   "name": "axoview-worker",
-  "version": "2026.5.21",
+  "version": "1.0.0",
   "description": "Cloudflare Worker (Hono) backend for Axoview Pages deploy",
   "private": true,
   "type": "module",
