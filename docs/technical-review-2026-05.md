@@ -1007,7 +1007,13 @@ Node 22 + Express 5 + filesystem adapter. Owns the canonical `/api/*` HTTP contr
 
 Hono on Cloudflare Pages Functions. Imports `routes.js` from `axoview-backend` (the cross-package import is the single source of truth) but short-circuits every storage route to 503 at [`app.ts`](../packages/axoview-worker/src/app.ts) per [ADR 0009 D1](adr/0009-deployment-topology.md) — Cloudflare deploys are storage-less today; end users land on the browser-only path. Implements `cf-access` auth (JWKS RS256 verify). Bundle-size budget <1 MB uncompressed (CI-enforced per [ADR 0009 D8](adr/0009-deployment-topology.md)).
 
-<!-- WORKER_TABLE_PLACEHOLDER -->
+| Path | Type | LOC | Purpose | Flags |
+|---|---|---|---|---|
+| `packages/axoview-worker/package.json` | config | 19 | Declares the `axoview-worker` package, its Hono runtime dependency, and `deploy`/`dev` scripts consumed by Wrangler and CI. | — |
+| `packages/axoview-worker/src/app.ts` | source | 25 | Hono entry point that wires `secureHeaders`, body-limit, and `authMiddleware` onto `/api/*`, serves `/api/config` (advertising `serverStorage: false`), and short-circuits every other `/api/*` route to 503 per ADR 0009 D1 — making end users hit the browser-only path even with a Worker deploy. | No test coverage (no jest config; audit C.8 gap). |
+| `packages/axoview-worker/src/auth.ts` | source | 132 | Auth middleware supporting `none` / `shared-token` / `cf-access` modes, with a public-namespace bypass for `GET /api/public/diagrams/:uuid` and full RS256 JWKS verification (Web Crypto) of Cloudflare Access JWTs, consumed by `app.ts`. | No test coverage (no jest config; audit C.8 gap); JWKS verify path is dead code until storage routes return (audit notes worker is storage-less today). |
+| `packages/axoview-worker/tsconfig.json` | config | 16 | Worker-scoped TypeScript config (ES2022 + WebWorker libs, `@cloudflare/workers-types`) that also includes `../axoview-backend/src/**/*` so the shared `routes.js` typechecks against the worker build. | — |
+| `packages/axoview-worker/wrangler.toml` | config | 11 | Standalone Wrangler config for local `wrangler pages dev`, kept in lockstep with the repo-root `wrangler.toml`; declares no R2 binding (storage-less) and defaults `AUTH_MODE=shared-token`. | Drift risk vs repo-root `wrangler.toml` flagged by ADR 0009 D5. |
 
 ### 7.5 `packages/axoview-e2e`
 
