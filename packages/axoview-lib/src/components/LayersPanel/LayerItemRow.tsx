@@ -94,6 +94,9 @@ export const LayerItemRow = memo(
       <Box
         ref={rowRef}
         tabIndex={0}
+        data-axoview-id="layer-item-row"
+        data-layer-item-id={item.id}
+        data-layer-item-type={item.type}
         onClick={(e) => {
           if (!editing) {
             onClick(item, { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey });

@@ -418,7 +418,12 @@ export const LayersPanel = () => {
           }}
         >
           <Tooltip title="Add layer" placement="top">
-            <IconButton size="small" onClick={handleAddLayer} sx={{ p: 0.5 }}>
+            <IconButton
+              size="small"
+              onClick={handleAddLayer}
+              data-axoview-id="layers-panel-add"
+              sx={{ p: 0.5 }}
+            >
               <AddOutlined fontSize="small" />
             </IconButton>
           </Tooltip>

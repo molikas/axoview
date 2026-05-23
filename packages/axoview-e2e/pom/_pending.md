@@ -34,12 +34,16 @@ spec can see them.
 | 16 | `dock-file-explorer-toggle`            | `axoview-lib/.../LeftDock/LeftDock.tsx`                     | 5 | J4 (rename.spec) — FileExplorerPOM.open() |
 | 17 | `file-explorer-row` + `data-diagram-name` + `data-diagram-type` | `axoview-app/.../fileExplorer/FileTreeNode.tsx` | 5 | J4 (rename.spec) — FileExplorerPOM.getRowByName |
 | 18 | `file-explorer-rename-input`           | `axoview-app/.../fileExplorer/FileTreeNode.tsx`             | 5 | J4 (rename.spec) — FileExplorerPOM.renameDiagram |
+| 19 | `layers-panel-add`                     | `axoview-lib/.../LayersPanel/LayersPanel.tsx`               | 5 | J6 (layers.spec) — LayersPanelPOM.addLayer |
+| 20 | `layer-row` + `data-layer-name`        | `axoview-lib/.../LayersPanel/LayerRow.tsx`                  | 5 | J6 (layers.spec) — LayersPanelPOM.getLayerRow |
+| 21 | `layer-toggle-visibility`              | `axoview-lib/.../LayersPanel/LayerRow.tsx`                  | 5 | J6 (layers.spec) — LayersPanelPOM.toggleVisibility |
+| 22 | `layer-toggle-lock`                    | `axoview-lib/.../LayersPanel/LayerRow.tsx`                  | 5 | J6 (layers.spec) — LayersPanelPOM.toggleLock |
+| 23 | `layer-item-row` + `data-layer-item-id` + `data-layer-item-type` | `axoview-lib/.../LayersPanel/LayerItemRow.tsx` | 5 | J6 (layers.spec) — LayersPanelPOM.getItemRow |
 
-Lib rebuild cycles to date: 4 (Sessions 2 / 3 / 4 / 5 — one each).
-Session 5 split into two rebuilds (one for J4, one for J6) because the
-file-explorer-toggle landed in the rename commit and the layers panel
-retrofits land in the layers commit. Within each commit the lib-side
-retrofits are batched.
+Lib rebuild cycles to date: 5 (Sessions 2 / 3 / 4 / 5J4 / 5J6 — one each).
+Session 5 used **two** rebuilds because the file-explorer-toggle landed in
+the rename commit and the five layers-panel retrofits batched into the
+layers commit. Within each commit the lib-side retrofits are batched.
 
 ## POMs not yet authored
 
@@ -51,7 +55,7 @@ retrofits are batched.
 | ~~`CanvasPOM`~~ | ~~5~~ | ~~`placeIcon(x, y)`, `selectAt(x, y)`, `placeRectangle(x, y)`, `countNodes()`, `dragNode(from, to)`, `drawConnector(a, b)`~~ | **✅ initial body authored Session 5 (J3) as `pom/CanvasPOM.ts`** — covers `interactionsLayer()`, `dispatchAt(events, point)`, `clickAt(point)`, `dragFromTo(from, to)`, `switchToRectangleMode()`, `pressTextBoxHotkey()`, `placeTextBoxAt(point)`. Pending for future sessions: `placeIcon` (helper currently inlined in smoke/connector/hotkeys/icons specs — extracts cleanly once a button-driven spec needs the elements-panel mode buttons), `dragNode`/`drawConnector` (Session 6 candidates), `canvas-tool-*` button retrofits + `canvas-root` rename of `data-testid="axoview-canvas"`. |
 | ~~`FileExplorerPOM`~~ | ~~5 (rename) + 4 (import/export)~~ | ~~`selectDiagram(name)`, `pressF2Rename(name)`, `contextMenu(name)`, `expectVisible(name)`~~ | **✅ initial body authored Session 5 (J4) as `pom/FileExplorerPOM.ts`** — covers `toggleButton()`, `panelRoot()`, `getRowByName(name, type)`, `renameInput()`, `open()`, `selectRow(name, type)`, `pressF2()`, `renameDiagram(oldName, newName)`. Pending for future sessions: `contextMenu(name)` (Session 6 candidate alongside the share-link / export-image flows from the row context menu — `panel-file-explorer-context-menu*` attributes deferred). |
 | `NodeInfoTabPOM` | 6 (multi-diagram) | `setLinkedDiagram(name)`, `clickOpenLinkedDiagram()`, `setNodeName(text)` | `panel-node-info-link-picker`, `panel-node-info-open-linked` |
-| `LayersPanelPOM` | 5 (layers) | `addLayer(name)`, `toggleVisibility(name)`, `toggleLock(name)`, `assignSelection(name)` | `panel-layers-row`, `panel-layers-visibility`, `panel-layers-lock` |
+| ~~`LayersPanelPOM`~~ | ~~5 (layers)~~ | ~~`addLayer(name)`, `toggleVisibility(name)`, `toggleLock(name)`, `assignSelection(name)`~~ | **✅ initial body authored Session 5 (J6) as `pom/LayersPanelPOM.ts`** — covers `toggleButton()`, `addLayerButton()`, `getLayerRow(name)`, `getItemRow(id)`, `renameInput()`-free flow, `open()`, `addLayer()`, `dragItemToLayer(itemId, layerName)`, `toggleVisibility(name)`, `toggleLock(name)`. Pending: layer drag-reorder coverage, item-rename / item-label-toggle via the panel's hover-revealed surfaces (Session 6+ candidates). |
 | `SettingsDialogPOM` | 6 (dialogs) | `open()`, `selectTab(name)`, `close()` | `dialog-settings`, `dialog-settings-tab-{about,diagnostics}` |
 | `HelpDialogPOM` | 6 (dialogs) | `open()`, `expectShortcutListed(label)`, `close()` | `dialog-help`, `dialog-help-shortcut-row` |
 
