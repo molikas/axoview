@@ -9,10 +9,15 @@ import { defineConfig, devices } from '@playwright/test';
  *   - Retries=0 locally and in CI for now — flake hunting comes in Session 8.
  *   - webServer auto-starts `npm run dev` from the repo root; reuses an
  *     existing server when the dev port is already bound.
+ *   - workers=1: shared dev server, sequential rsbuild HMR clients. Parallel
+ *     contexts overwhelm the dev pipeline (Loading-Axoview stall observed
+ *     Session 3 with 2 parallel workers); revisit in Session 8 if/when the
+ *     CI build serves a precompiled bundle instead.
  */
 export default defineConfig({
   testDir: './tests',
-  fullyParallel: true,
+  fullyParallel: false,
+  workers: 1,
   retries: 0,
   reporter: process.env.CI
     ? [['github'], ['html', { open: 'never' }]]

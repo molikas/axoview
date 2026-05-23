@@ -4,13 +4,13 @@ Per ADR 0008 Decision 5, `data-axoview-id` attributes are added the moment a
 POM declares them AND a spec exercises that path. This file tracks the
 declared-but-deferred work so Sessions 3–6 know what to author next.
 
-Last updated: Session 2 (2026-05-22).
+Last updated: Session 3 (2026-05-22).
 
 ## POMs not yet authored
 
 | POM | Owning session | Surfaces / methods needed | data-axoview-id retrofits required |
 |---|---|---|---|
-| `EmptyStateScreenPOM` | 3 (J20) | `clickCreate()`, `clickImport()` | `screen-empty-create` (✅ landed Session 2 for J1 smoke), `screen-empty-import` (pending) |
+| ~~`EmptyStateScreenPOM`~~ | ~~3 (J20)~~ | ~~`clickCreate()`, `clickImport()`~~ | ~~`screen-empty-create` + `screen-empty-import`~~ — **✅ authored Session 3 (J20 smoke green) as `pom/EmptyStateScreenPOM.ts`; `screen-empty-import` landed alongside.** |
 | `LeftDockPOM` | 5 (layers / elements) | `openElementsPanel()`, `openLayersPanel()`, `closeWorkingPanel()` | `dock-elements-toggle` (✅ landed Session 2 — used inline in smoke spec), `dock-layers-toggle` (✅ landed Session 2 alongside, paired with Session-5 spec) |
 | `CanvasPOM` | 5 | `placeIcon(x, y)`, `selectAt(x, y)`, `placeRectangle(x, y)`, `countNodes()`, `dragNode(from, to)`, `drawConnector(a, b)` | `canvas-root` (replace lib `data-testid="axoview-canvas"`), `canvas-icon-grid-item` (✅ landed Session 2), `canvas-tool-select`, `canvas-tool-connector`, `canvas-tool-lasso`, `canvas-tool-undo`, `canvas-tool-redo` |
 | `FileExplorerPOM` | 5 (rename) + 4 (import/export) | `selectDiagram(name)`, `pressF2Rename(name)`, `contextMenu(name)`, `expectVisible(name)` | `panel-file-explorer-row`, `panel-file-explorer-rename-input` |

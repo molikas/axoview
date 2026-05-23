@@ -1,20 +1,28 @@
 /**
- * smoke.spec.ts — Tier 1 J1 only.
+ * smoke.spec.ts — Tier 1 J1 + J20.
  *
  * J1 (per docs/manual-test-baseline.md): new diagram → place a few icons →
  * save → close → reopen → state preserved.
  *
- * Session 2 lands J1. Session 3 extends this file with J20 (empty state →
- * New/Import buttons) per docs/tactical/e2e-suite-rewrite.md.
+ * J20: empty state → EmptyStateScreen renders → "New / Import" buttons work.
+ *
+ * Session 2 landed J1. Session 3 added J20.
  *
  * J1 verification: after reload the persisted localStorage diagram is
  * rehydrated by DiagramLifecycleProvider (frozen on first render via
  * `axoview-last-opened-data`). Asserting the model item count from the
  * debug bridge is the load-bearing check — counting DOM <img> nodes is
  * also done as a cross-check on the visual layer.
+ *
+ * J20 verification: with all storage cleared the boot lands on
+ * EmptyStateScreen; the New button creates a blank diagram (canvas mounts
+ * + debug bridge attaches), and the Import button triggers a native file
+ * chooser (intercepted via `page.waitForEvent('filechooser')` — the empty-
+ * tree path bypasses the in-tree ImportDialog per App.tsx handleImportClick).
  */
 import { appTest as test, expect } from '../fixtures/app.fixture';
 import { AppToolbarPOM } from '../pom/AppToolbarPOM';
+import { EmptyStateScreenPOM } from '../pom/EmptyStateScreenPOM';
 import { byAxoviewId, byLibTestId } from '../helpers/selectors';
 import { getModelItemCount, waitForDebugBridge } from '../helpers/store';
 
@@ -152,5 +160,49 @@ test.describe('Smoke — J1: new diagram, save, reopen, state preserved', () => 
 
     // 8. State preserved: model carries 3 items after reload.
     await expect.poll(() => getModelItemCount(page), { timeout: 5_000 }).toBe(3);
+  });
+});
+
+test.describe('Smoke — J20: empty state → New / Import buttons work', () => {
+  test.beforeEach(async ({ page }) => {
+    await pinOnboardingDismissed(page);
+  });
+
+  test('J20 (new): empty state renders, New opens a blank diagram', async ({ page, app }) => {
+    void app;
+    // Reset to the canonical empty-state boot.
+    await clearDiagramStorage(page);
+    await page.reload();
+
+    // EmptyStateScreen overlays the canvas (z=5 in App.tsx) when no diagram
+    // is open. The canvas DOM node is mounted but covered; we assert on the
+    // empty-state affordance, not on canvas absence.
+    const emptyState = new EmptyStateScreenPOM(page);
+    await emptyState.expectVisible();
+
+    // Click New → diagram opens, debug bridge attaches, model is empty.
+    await emptyState.clickCreate();
+    await byLibTestId(page, 'axoview-canvas').waitFor({ state: 'visible', timeout: 10_000 });
+    await waitForDebugBridge(page);
+    await expect.poll(() => getModelItemCount(page), { timeout: 5_000 }).toBe(0);
+  });
+
+  test('J20 (import): empty state Import button triggers file chooser', async ({ page, app }) => {
+    void app;
+    await clearDiagramStorage(page);
+    await page.reload();
+
+    const emptyState = new EmptyStateScreenPOM(page);
+    await emptyState.expectVisible();
+
+    // The empty-tree Import path fires `importFileInputRef.current?.click()`
+    // — a native file picker that doesn't render a visible dialog. Playwright
+    // surfaces this via a `filechooser` event; arming the listener before
+    // the click is the canonical pattern (race-free).
+    const [fileChooser] = await Promise.all([
+      page.waitForEvent('filechooser', { timeout: 5_000 }),
+      emptyState.clickImport()
+    ]);
+    expect(fileChooser.isMultiple()).toBe(false);
   });
 });
