@@ -1061,7 +1061,39 @@ Playwright Chromium against the local dev server — 13 spec files / 33 tests co
 
 Everything outside the packages: deployment artifacts (Dockerfile, compose stacks, nginx, wrangler, docker-entrypoint), the `.github/` workflows + issue templates + Dependabot config, root build/lint/release tooling (ESLint, commitlint, semantic-release, tsconfig.base, prettier), and the root-level prose files (LICENSE, CHANGELOG, README, PLAN, known_issues).
 
-<!-- INFRA_TABLE_PLACEHOLDER -->
+| Path | Type | LOC | Purpose | Flags |
+|---|---|---|---|---|
+| `.github/ISSUE_TEMPLATE/bug_report.yml` | config | 110 | GitHub issue-form template for bug reports; consumed by github.com when contributors open a new issue. | — |
+| `.github/ISSUE_TEMPLATE/config.yml` | config | 8 | Disables blank issues and routes general questions to GitHub Discussions; consumed by github.com. | — |
+| `.github/ISSUE_TEMPLATE/feature_request.yml` | config | 70 | GitHub issue-form template for feature requests, including out-of-scope warnings; consumed by github.com. | — |
+| `.github/dependabot.yml` | config | 21 | Configures Dependabot to raise weekly grouped npm + github-actions PRs; consumed by GitHub's Dependabot service. | — |
+| `.github/workflows/codeql.yml` | config | 50 | CodeQL static analysis workflow (push/PR to master + weekly Saturday cron) closing audit A.8 / T2 G4; consumed by GitHub Actions. | — |
+| `.github/workflows/dependabot-automerge.yml` | config | 23 | Auto-merges (squash) minor and patch Dependabot PRs; consumed by GitHub Actions. | — |
+| `.github/workflows/e2e-playwright.yml` | config | 50 | Playwright E2E suite (chromium) on PRs to master/integration; spawns dev server via `webServer` block; consumed by GitHub Actions. Replaced legacy Python/Selenium `e2e-tests.yml` per Locked Decision #4. | — |
+| `.github/workflows/release.yml` | config | 30 | semantic-release on push to master, gated on the `Run Tests` workflow conclusion; consumed by GitHub Actions. Cloudflare deploy intentionally not here (handled by CF native git integration per ADR 0009 / Locked Decision #14). | — |
+| `.github/workflows/test.yml` | config | 60 | Lint + unit tests (Node 20/22/24 matrix) + build + Worker bundle size check (1 MB / ADR 0009 D8) + soft-fail Knip; consumed by GitHub Actions and gates `release.yml`. | — |
+| `.gitattributes` | config | 12 | Forces LF line endings on commit and marks binary asset types; consumed by git. Critical on a Windows-developed repo. | — |
+| `.gitignore` | config | 22 | Excludes build outputs, IDE/OS junk, generated icon packs, reports, and `diagrams/` from the working tree; consumed by git. | — |
+| `.nvmrc` | config | 1 | Pins the Node toolchain to v22 for nvm/fnm/Volta users; consumed by local devs. | Audit row A.7.5 flagged a 20-vs-22 drift; the file now reads `22`, matching workflows + Dockerfile. |
+| `.prettierrc` | config | 7 | Prettier formatter defaults (semicolons, single quotes, 80-col, 2-space indent); consumed by Prettier in IDEs. | — |
+| `.releaserc.json` | config | 75 | semantic-release pipeline (commit-analyzer, release-notes, changelog, exec → `update-version` + build, github with disabled comments, git); consumed by `npx semantic-release` in `release.yml`. | — |
+| `CHANGELOG.md` | doc | — | Keep-a-Changelog history of releases since the Axoview fork; consumed by humans + linked from README. | Auto-generated/appended by `@semantic-release/changelog`. |
+| `Dockerfile` | config | 30 | Multi-stage Node 22 → nginx-alpine image building the server-backed (self-host) deployment with backend + nginx + healthcheck on `/healthz` (ADR 0010 D8); consumed by `docker compose up --build`. | Audit A.6.2 flagged that build stage uses `npm install` rather than `npm ci`. |
+| `LICENSE` | doc | — | MIT license with attribution to Igor Sidenica (Axoview), Stan Smith (FossFLOW fork), and Mark Mankarious (Isoflow original); consumed by humans + GitHub. | — |
+| `PLAN.md` | doc | — | Living strategic phase plan (phases 0A→4A); consumed by contributors at session start. | Out-of-scope for audit content edits per audit table. |
+| `README.md` | doc | — | Project intro, demo link, feature list, performance notes; consumed by humans on GitHub + npm. | — |
+| `commitlint.config.js` | config | 1 | Extends `@commitlint/config-conventional` for commit-message linting; consumed by simple-git-hooks `commit-msg` hook. | — |
+| `compose.dev.yml` | config | 21 | Dev variant of the server-backed (self-host) stack exposing ports 3000/3001 with `NODE_ENV=development`; consumed by `npm run docker:run` / `docker compose -f compose.dev.yml up`. | — |
+| `compose.yml` | config | 20 | Production server-backed (self-host) stack: single `axoview` service binding port 80, mounting `./diagrams`, with healthcheck on `/healthz`; consumed by `docker compose up`. | — |
+| `docker-entrypoint.sh` | source | 10 | Container entrypoint: conditionally starts the Node backend (when `ENABLE_SERVER_STORAGE=true`) then runs nginx in the foreground; consumed by the Docker image. | — |
+| `eslint.config.mjs` | config | 42 | Flat-config ESLint setup (TypeScript + react-hooks, no type-aware rules) scoped to `axoview-lib/src` and `axoview-app/src`; consumed by `npx eslint .` in CI and IDEs. | — |
+| `known_issues.md` | doc | — | Live registry of accepted limitations (e.g. partial-coverage i18n locales); consumed by humans + linked from audit + README. | — |
+| `nginx.conf` | config | 22 | Single-server nginx config for the server-backed (self-host) image: SPA `try_files` fallback + `/api/` reverse proxy to Node backend on :3001 + 10 MB body limit; consumed by nginx inside the Docker image. | — |
+| `package-lock.json` | lockfile | — | npm v3 lockfile pinning the entire workspace dependency graph; consumed by `npm ci` in workflows and Docker builds. | Auto-generated by npm. |
+| `package.json` | config | 70 | Root monorepo manifest: workspaces, dev/build/test/e2e scripts, semantic-release/commitlint devDeps, Node `>=22` engine, simple-git-hooks `commit-msg`; consumed by npm + all CI workflows. | — |
+| `test-base-paths.sh` | source | 130 | Bash smoke harness that rebuilds the app under several `PUBLIC_URL` base paths, serves each via an nginx container, and optionally runs legacy Selenium E2E; consumed manually by devs. | Audit A.6.7 / row 1168 recommends moving to `scripts/smoke/`; still references the legacy Python/Selenium suite that Locked Decision #4 retired. |
+| `tsconfig.base.json` | config | 22 | Shared TypeScript compiler baseline (ES6 target, strict, react-jsx, declaration + sourcemaps) extended by each workspace package; consumed by `tsc` in package builds. | — |
+| `wrangler.toml` | config | 8 | Cloudflare Pages config (browser-only deploy target): `pages_build_output_dir`, `AUTH_MODE=shared-token`, no R2 binding; consumed by Cloudflare Pages' native git integration and the "Deploy to Cloudflare" button. Per ADR 0009 this is the canonical CF config (no `pages.yml` workflow). | A second `wrangler.toml` exists under `packages/axoview-worker/`; audit A.6.5 tracks the dual-config story (ADR 0009 resolves which is authoritative). |
 
 ### 7.7 `docs/`
 
