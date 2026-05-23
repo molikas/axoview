@@ -109,6 +109,7 @@ export const Icon = ({
               className="ff-icon-delete"
               role="button"
               aria-label={deleteTooltip ?? 'Delete imported icon'}
+              data-axoview-id="canvas-icon-grid-delete"
               onMouseDown={(e) => {
                 e.stopPropagation();
               }}

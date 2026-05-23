@@ -265,9 +265,18 @@ test.describe('Import / Export project ZIP — J9 + J10', () => {
     const exportedDiagramNames: string[] = manifest.diagrams.map((d: any) => d.name);
     const preWipeCount = manifest.diagrams.length;
 
-    // Wipe + reload — fresh empty state.
+    // Wipe + reload — fresh empty state. addInitScript runs again on the
+    // reload, so the onboarding flags are pinned before the React tree
+    // boots; clearAllStorage was already called above, but a defensive
+    // re-clear AFTER the reload covers the case where the addInitScript
+    // re-set keys we just removed (it pins onboarding flags only — not the
+    // diagram-bearing keys — but the assertion below verifies).
     await clearAllStorage(page);
     await page.reload();
+    await clearAllStorage(page);
+    await page.reload();
+    const emptyStateCreate = byAxoviewId(page, 'screen-empty-create');
+    await emptyStateCreate.waitFor({ state: 'visible', timeout: 10_000 });
 
     // Re-import the freshly-exported zip via the empty-state path.
     await importZipFromEmptyState(page, exportedZipPath);

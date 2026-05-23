@@ -387,6 +387,7 @@ export const ElementsPanel = () => {
                   onClick={() => fileInputRef.current?.click()}
                   sx={{ flex: 1 }}
                   size="small"
+                  data-axoview-id="dock-elements-import-icons"
                 >
                   {t('importIcons')}
                 </Button>
