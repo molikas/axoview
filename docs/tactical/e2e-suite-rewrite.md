@@ -8,7 +8,7 @@
 > - [docs/tactical/productization-audit.md § C.2 Section 4 row T1](productization-audit.md#section-4--spawned-tacticals-separate-work-units) — the spawn entry that authorised this tactical.
 > - [docs/tactical/productization-audit.md § C.2 Section 3 row I9](productization-audit.md#section-3--cleanups--renames--deletions) — the bundled-deletion row for the existing `packages/axoview-e2e/` and `e2e-tests/` directories; both delete together with this suite landing in CI.
 >
-> **Status:** Editor-surfaces set complete (Sessions 2 + 3 + 4 + 5 done 2026-05-23) · **Owner:** Igor · **Last updated:** 2026-05-23
+> **Status:** All 13 spec files complete (Sessions 2 + 3 + 4 + 5 + 6 done 2026-05-23) · **Owner:** Igor · **Last updated:** 2026-05-23
 >
 > This is a **short-lived working doc.** Delete it after M9 (suite green in CI) lands; ADRs 0008 + 0011 + the productization-audit C.2 ledger are the durable record. PLAN.md gets a one-line entry under Phase 2D once the suite is green — see "Wrap-up" below.
 
@@ -118,7 +118,7 @@ Eight sessions, ~270K tokens total. Tactical doc tracks actual cost per session 
 | 3 | Smoke complete | finish `smoke.spec.ts` (J20) + `connector.spec.ts` + `hotkeys.spec.ts` | ~30K | ~55K (overran ~25K) | **[x] done 2026-05-22 (4 commits: `ddb14d7` J20 + EmptyStateScreenPOM + workers=1 pin, `f611aa2` J2 connector + `canvas-interactions` lib retrofit + getModelConnectorCount, `67571c4` J15 7-hotkey spec + getViewItemCount, this commit doc-sync). 11/11 tests green locally in ~2.6 min. Lazy retrofits this session: `screen-empty-import` (app, no rebuild) + `canvas-interactions` (lib, 1 rebuild cycle). One Playwright config pin: `workers: 1` + `fullyParallel: false` — two parallel contexts against the shared rsbuild dev server stalled the Loading-Axoview path once the suite grew past one spec.** |
 | 4 | File ops | `import-export-json.spec.ts` + `import-export-zip.spec.ts` + `icons.spec.ts` | ~30K | ~75K (overran ~45K) | **[x] done 2026-05-22 (4 commits: `4014e59` J7+J8 JSON spec + ExportPopover retrofits, `d92aeee` J9+J10 ZIP spec + DialogsPOM + ExportProjectZipDialog retrofit + programmatic JSZip fixture, `88242dc` J11+J12 icons spec + 4 lib-side retrofits + J10 wipe-and-reload stability fix, this commit doc-sync). 17/17 tests green locally in ~4.4 min. Eight lazy retrofits this session: 4 app-side (`toolbar-export`, `toolbar-export-json`, `toolbar-export-project-zip`, `dialog-export-project-zip-confirm`) + 4 lib-side (`dock-elements-import-icons`, `dialog-import-icons-confirm`, `dialog-delete-icon-confirm`, `canvas-icon-grid-delete`). Lib rebuild cycles this session: 1 (all four icons retrofits batched).** |
 | 5 | Editor surfaces | `shapes.spec.ts` + `rename.spec.ts` + `layers.spec.ts` | ~30K (revised ~35K) | ~38K (overran ~3K vs revised, ~8K vs original) | **[x] done 2026-05-23 (4 commits: `d11bc8e` J3 shapes spec + CanvasPOM debut + getViewRectangleCount/getViewTextBoxCount, `d0ffc3e` J4 rename spec + FileExplorerPOM debut + 3 retrofits, `f502a62` J6 layers spec + LayersPanelPOM debut + 5 lib retrofits + drag-detection RAF finding, this commit doc-sync). 22/22 tests green locally in ~5.1 min. Six lazy retrofits this session: 1 rename-commit (dock-file-explorer-toggle lib + file-explorer-row app + file-explorer-rename-input app — split per ADR 0008 D5's "retrofit with the consuming spec" rule) + 5 layers-commit (layers-panel-add + layer-row + layer-toggle-visibility + layer-toggle-lock + layer-item-row, all lib, batched). J3 path used keyboard hotkeys (r + t) so it cost 0 retrofits.** |
-| 6 | Diagram-link + dialogs | `multi-diagram.spec.ts` + `dialogs.spec.ts` + `share.spec.ts` + `canvas-modes.spec.ts` | ~40K | _(record)_ | not started |
+| 6 | Diagram-link + dialogs | `multi-diagram.spec.ts` + `dialogs.spec.ts` + `share.spec.ts` + `canvas-modes.spec.ts` | ~45K (revised, was ~40K) | ~55K (overran ~10K vs revised) | **[x] done 2026-05-23 (5 commits: `d0cfd78` J5 multi-diagram, `943d10c` J16/J17/J18 dialogs, `ad2a6b2` J13/J14 share, `e5927e6` J19 canvas-modes, this commit doc-sync). 33/33 tests green locally in ~5.3 min. Four POMs authored: NodeInfoTabPOM, SettingsDialogPOM, HelpDialogPOM (+ DialogsPOM + AppToolbarPOM + CanvasPOM extended). 13 spec files now exist — milestone reached. Lib rebuild cycles this session: 3 (one per commit with lib retrofits).** |
 | 7 | CI wiring | `.github/workflows/e2e-playwright.yml`; replace dropped `e2e-tests.yml.backup`; delete old `packages/axoview-e2e/` per I9 bundle; delete `e2e-tests/` root directory; remove from `release.yml` workflow chain if needed | ~30K | _(record)_ | not started |
 | 8 | Debug pass | User runs locally + on CI; agent fixes flakes | ~30K | _(record)_ | not started |
 
@@ -266,6 +266,75 @@ DRAG_ITEMS mode is never entered, no tile write fires. The pre-lock
 
 Sessions 6–7 estimate revision: **no further adjustment** — both
 findings amortise. Running total stays at ~300K.
+
+**Session 6 actual-vs-estimate note (2026-05-23):** Session 6 ran ~55K
+(revised estimate ~45K, original ~40K — overran ~10K vs revised, ~15K
+vs original) for three durable reasons worth carrying forward:
+
+1. **The lib's IconButton wrapper does NOT pass through arbitrary
+   props.** `src/components/IconButton/IconButton.tsx` defines a tight
+   `Props` interface (name, Icon, isActive, onClick, tooltipPosition,
+   disabled). Any spec needing a `data-axoview-id` on a ToolMenu button
+   (J19 hit this first via the canvas-mode toggle) must either wrap the
+   IconButton in a Box-with-attribute or extend the IconButton API.
+   Session 6 took the second route — added an optional `dataAxoviewId`
+   prop forwarded to the underlying `<Button>`. Existing call sites stay
+   untouched; new specs opt in per ADR 0008 D5. Sessions 7+ that need a
+   `canvas-tool-*` retrofit (drag-mode buttons, undo/redo etc.) inherit
+   this opt-in pattern with zero further IconButton edits.
+
+2. **Bridge-driven zustand action calls return silently across
+   page.evaluate.** J5.3 (multi-diagram readonly NodePanel) needed to
+   open the right sidebar programmatically in readonly mode because the
+   seeded icon was a placeholder (`isoflow:cube` doesn't resolve to a
+   real pack icon → tombstone img → unclickable). Calling
+   `ui.getState().actions.setItemControls({type:'ITEM', id})` across the
+   bridge had no observable effect — the action function executes inside
+   the page context but the `set` it closes over isn't wired to the
+   subscribers React mounted against. Direct `ui.setState({itemControls,
+   rightSidebarOpen, selectedIds})` writes through the store API the
+   subscribers ARE bound to. Documented inline in `tests/multi-diagram.spec.ts`
+   (J5.3) so Sessions 7+ that need bridge writes use the same pattern.
+
+3. **Mocked-backend share flows (J14) need per-context route
+   installation.** `browser.newContext()` creates an isolated request
+   pipeline; `page.route()` registered on context A does NOT apply to
+   context B. The J14 incognito leg installs the same mocks on the
+   second context separately. Combined with `permissions:
+   ['clipboard-read', 'clipboard-write']` on context options, this
+   pattern lets server-mode specs run fully under the local dev server
+   without docker / wrangler. Sessions 7+ that touch readonly /
+   public-share routes inherit the same recipe.
+
+Bonus carry-forward: **MUI's `Dialog` and `Popover` `PaperProps`
+typing doesn't expose `data-*`, but the runtime forwards them onto
+the underlying `<Paper>`.** Stamp via `PaperProps={{ ..., 'data-axoview-id':
+'...' } as any}`. Used in Session 6 for SettingsDialog, HelpDialog,
+LocalModeShareErrorDialog, and the AppToolbar share Popover.
+
+Three new POMs authored this session: `NodeInfoTabPOM`,
+`SettingsDialogPOM`, `HelpDialogPOM`. Existing POMs extended:
+`AppToolbarPOM` (Preview / Back-to-editing / Share methods),
+`DialogsPOM` (LocalModeShareErrorDialog methods), `CanvasPOM`
+(canvas-mode toggle).
+
+Lib rebuild cycles this session: **3** (one per commit that touched
+lib source — multi-diagram commit batched 3 NodeInfoTab retrofits;
+dialogs commit batched 8 retrofits across LeftDock + BottomDock +
+HelpDialog + SettingsDialog; canvas-modes commit batched the
+IconButton prop + ToolMenu retrofit). Running total to date: **8**
+(Sessions 2 / 3 / 4 / 5J4 / 5J6 / 6J5 / 6dialogs / 6J19).
+
+Sessions 7–8 estimate revision: **no further adjustment** — all
+three findings amortise into recipes future specs can copy. Running
+total stays at ~300K.
+
+**All 13 spec files now exist:** smoke + connector + hotkeys +
+shapes + rename + layers + import-export-json + import-export-zip +
+icons + multi-diagram + dialogs + share + canvas-modes. M9 (in-repo)
+is met for the spec-authoring half; Session 7 wires CI + deletes the
+legacy directories, Session 8 closes flakes (J10 wipe-and-reload
+race is the only known pre-existing flake).
 
 **Session 3 actual-vs-estimate note (2026-05-22):** Session 3 ran ~25K over the
 30K estimate (~55K actual) for one durable reason — the connector spec exposed
