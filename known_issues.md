@@ -145,7 +145,7 @@ The icon catalog conflates two concerns (see [ADR-0002](docs/adr/0002-icon-catal
 
 ### Empirical findings (2026-05-10)
 
-Captured from the perf overlay using [packages/axoview-e2e/fixtures/perf-stress-diagram.json](packages/axoview-e2e/fixtures/perf-stress-diagram.json):
+Captured from the perf overlay using [packages/axoview-lib/src/__perf_refactor_regression__/fixtures/perf-stress-diagram.json](packages/axoview-lib/src/__perf_refactor_regression__/fixtures/perf-stress-diagram.json):
 
 | Window | FPS | Heap pattern |
 |---|---|---|

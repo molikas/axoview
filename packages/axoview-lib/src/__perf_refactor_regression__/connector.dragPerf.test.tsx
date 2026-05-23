@@ -50,13 +50,14 @@ const useTestHarness = () => ({
 });
 
 // ---------------------------------------------------------------------------
-// Fixture — load the same JSON that ships for manual import. Sharing a single
-// fixture between manual stress test and CI perf coverage means schema drift
-// or missing fields surface immediately (this test schema-validates on load).
+// Fixture — 80 nodes / 120 connectors, schema-validated on load. Originally
+// shared with the legacy e2e suite; that suite was deleted in T1 Session 2
+// (`3ff4110`), so the fixture now lives alongside its sole consumer (this
+// test) and the cross-package read is gone.
 // ---------------------------------------------------------------------------
 const FIXTURE_PATH = resolve(
   __dirname,
-  '../../../axoview-e2e/fixtures/perf-stress-diagram.json'
+  'fixtures/perf-stress-diagram.json'
 );
 
 const SEED_MODEL = (() => {
