@@ -1385,7 +1385,127 @@ Raw counts across all seven segments. Excludes `node_modules`, build outputs (`d
 
 ## 8. Quality KPIs aggregate
 
-<!-- TBD Session C — Will cover: test counts (1009 passing + 1 skipped across 93 jest suites monorepo-wide + 33 Playwright E2E specs; ~32% global statement coverage with 10% global minimum threshold), build outputs (axoview-app build, axoview-lib dist), bundle sizes (Worker <1 MB uncompressed per ADR 0009 D8), CI duration, lint findings, knip soft-fail surface, CodeQL findings. Cross-references: docs/testing.md, T2 git-automation tactical for the CI gate list. -->
+Everything quantifiable about the v1.0.0 state, in one place. Numbers come from existing sources ([§7.9](#79-inventory-totals), [`docs/testing.md`](testing.md), [`git-automation-hardening.md`](tactical/git-automation-hardening.md), measured CI output); this section's value is putting them on a single page for the reviewer.
+
+### 8a. Test inventory
+
+| Surface | Files | Count | Notes |
+|---|---|---|---|
+| Jest spec files | 117 | — | Across `axoview-lib` (93 source-tree specs) + `axoview-app` (11 specs) + `axoview-e2e` POM scaffolding (13 spec files — counted under E2E below). Some spec files declare multiple jest suites via nested `describe()`. |
+| Jest suites | — | 93 | Suite-count from `npm test --workspaces` (2026-05-23). |
+| Jest assertions | — | 1009 passing + 1 skipped | The single skipped test is the pre-existing `leanSave bundledFixtures[0] undefined` row in [known_issues.md](../known_issues.md) — predates the productization arc; pinned for future test-cleanup. |
+| Playwright E2E specs | 13 | 33 tests | Chromium-only ([`playwright.config.ts`](../packages/axoview-e2e/playwright.config.ts) pins `workers=1`, `fullyParallel=false`); covers J1–J20 in [`docs/manual-test-baseline.md`](manual-test-baseline.md). Runs on PR + master push via [`e2e-playwright.yml`](../.github/workflows/e2e-playwright.yml). |
+| Coverage threshold | — | 10% (global lines/branches/functions/statements) | Hard-fail gate per T2 G2; the `|| npm test` fallback that hid threshold failures was removed in commit `967b2c7`. Lib jest config at [`packages/axoview-lib/jest.config.js`](../packages/axoview-lib/jest.config.js#L36-L43). |
+
+The 10% threshold is intentionally low while the suite grows; raising it is a polish-wave item, not a productization gate. Current global statement coverage on `axoview-lib` is ~32% per [`docs/testing.md`](testing.md#code-coverage) — comfortably over the threshold but well below "comprehensive."
+
+### 8b. CI gate inventory
+
+| Gate | Workflow | Mode | Closing commit / origin |
+|---|---|---|---|
+| ESLint | `test.yml` (T2 G1) | hard-fail (`npx eslint .`) | `4d74093`. Baseline at G1 lock: 0 errors / 196 warnings. |
+| Jest coverage threshold | `test.yml` (T2 G2) | hard-fail (10% global) | `967b2c7`. |
+| Build-output shape | `test.yml` (T2 G8) | hard-fail (`_routes.json` + `_headers` must ship) | `72f12de`. Enforces ADR 0009 D5. |
+| Worker bundle size | `test.yml` (T2 G7) | hard-fail (≤ 1 MB uncompressed) | `01286f8`. Enforces ADR 0009 D8. Baseline ~89 KB (~9% of budget). |
+| commitlint | local `commit-msg` hook via `simple-git-hooks` (T2 G3) | hard-fail locally; not re-validated server-side | `8574fca`. Extends `@commitlint/config-conventional` via root [`commitlint.config.js`](../commitlint.config.js). |
+| CodeQL | `codeql.yml` (T2 G4) | hard-fail when active | `228bb5f`. **Does not run until the repo-level toggle is enabled** (Settings → Code security and analysis → CodeQL — the only T4 external action that's still outstanding for in-repo scope). |
+| Knip dead-code | `test.yml` (T2 G10) | continuous **soft-fail** | `32c43b8`. Promotion to hard-fail gated on one full week of green master runs; baseline knip report at lock-time = 15 unused files, 23 unused exports, 22 unused exported types, 3 unused deps, 8 unused devDeps. |
+| Dependabot | `dependabot.yml` + `dependabot-automerge.yml` | weekly grouped npm + GH Actions PRs; minor/patch auto-merged | Pre-T2; reaffirmed clean. |
+| E2E Playwright | `e2e-playwright.yml` | hard-fail on PR + master | T1 / Locked Decision #4 + #14. |
+| Container image scanning | — | **intentionally absent** | T2 G6 dropped per Locked Decision #12; re-enters scope when Docker Hub publish spawns. |
+
+The gate inventory has been frozen since 2026-05-22 (T2 wrap per [Locked Decision #16](tactical/productization-audit.md#locked-decisions-from-scoping-discussion-2026-05-19)). The only outstanding *in-repo* lever is promoting Knip from soft- to hard-fail; the only outstanding *external* action is the CodeQL repo-toggle.
+
+### 8c. LOC + file totals
+
+Lifted verbatim from [§7.9](#79-inventory-totals); included here for the reviewer who lands on §8 first.
+
+| Type | Files | Code LOC (sum) |
+|---|---|---|
+| `source` | 297 | ~33,830 |
+| `test` | 117 | ~17,600 |
+| `config` | 57 | ~1,120 |
+| `doc` | 38 | — |
+| `i18n` | 26 | — |
+| `fixture` | 16 | ~924 |
+| `style` | 7 | ~691 |
+| `asset` | 7 | — |
+| `lockfile` | 3 | — |
+| **Total** | **568** | **~54,165** |
+
+| Segment | Files | Source LOC | Test LOC | Test:source ratio |
+|---|---|---|---|---|
+| `axoview-lib` | 365 | ~23,900 | ~14,940 | **63 %** |
+| `axoview-app` | 105 | ~8,530 | ~1,260 | **15 %** |
+| `axoview-e2e` | 35 | ~490 (POM) | ~1,400 (specs) | (E2E surface — see §8d) |
+| Repo shell (`infra`) | 31 | ~140 | 0 | 0 % |
+| `docs/` | 22 | 0 | 0 | — |
+| `axoview-backend` | 5 | ~600 | 0 | **0 %** |
+| `axoview-worker` | 5 | ~160 | 0 | **0 %** |
+
+### 8d. Test:source ratio — by package
+
+The headline ratio across the monorepo is ~17.6k / 33.8k = **~52 %**, but that average hides the asymmetry that [§7.8](#78-cross-package-observations) names directly:
+
+- **`axoview-lib` carries the bulk of the test investment** — 63 % test:source by LOC. The renderer + interaction modes + reducers + schemas + scene/store layers all have substantive coverage; the perf-refactor regression suite alone is 19 files / ~4,800 test LOC pinning specific behaviour after a major refactor.
+- **`axoview-app` is at 15 %** — the well-tested surfaces are `LocalStorageProvider`, the project-zip parser/builder (`projectZip.test.ts`, 420 LOC against ~341 source LOC — the highest density in the package), the notification store, and the post-2026-05 productization-audit additions (`useRuntimeConfig`, `AppStorageContext`, file-explorer delete contract, share-URL helper, backend-routes contract). The large components — `App.tsx`, `AppToolbar.tsx`, `FileExplorer.tsx` (~670 LOC), `DiagramLifecycleProvider.tsx` (~1,330 LOC) — have no direct unit tests; they're exercised through integration only.
+- **`axoview-backend` + `axoview-worker` carry zero jest configuration.** [§7.8](#78-cross-package-observations) names this the canonical inversion: the shared `routes.js` (325 LOC) is the most-load-bearing surface in the monorepo *without a single test*, while `LocalStorageProvider.ts` (the most-substitutable storage surface, given browser-only is the default mode) carries 262 LOC of jest tests. Closing this gap with contract tests against `routes.js` (separate adapters for Express + Hono in the test harness) is the highest-leverage test investment the project can make.
+- **`axoview-e2e` is unusual** in that its "test LOC" (specs, 1,402 LOC) exceeds its "source LOC" (POM scaffolding, 493 LOC) — the inversion is intentional and tracks how Playwright suites scale: POM helpers are deliberately thin, specs carry the orchestration. The 284 % ratio is not directly comparable to the others.
+
+### 8e. Lint debt
+
+Baseline captured at T2 G1 lock (commit `89b423a`, 2026-05-22):
+
+| Metric | Value |
+|---|---|
+| Errors | 0 |
+| Warnings | 196 |
+
+Top three rules by occurrence:
+
+| Rule | Count |
+|---|---|
+| `@typescript-eslint/no-explicit-any` | 133 |
+| `@typescript-eslint/no-unused-vars` | 30 |
+| `react-hooks/exhaustive-deps` | 26 |
+
+Distribution:
+
+| Package | Warnings |
+|---|---|
+| `axoview-lib` | 92 |
+| `axoview-app` | 104 |
+| `axoview-backend` | 0 |
+| `axoview-worker` | 0 |
+
+The ESLint config is scoped to `axoview-lib/src` and `axoview-app/src` only (see [`eslint.config.mjs`](../eslint.config.mjs)) — the backend + worker 0-counts are by-scope, not because those packages are clean. Warnings don't fail CI today; promotion to hard-fail (e.g. via `--max-warnings 0` plus a ratchet-down of the three offending rules) is a polish-wave item rather than a productization gate.
+
+### 8f. Knip residual
+
+Per [T2 G10's baseline](tactical/git-automation-hardening.md) (2026-05-22 first-run report; exit 1, 124-line output):
+
+| Category | Count |
+|---|---|
+| Unused files | 15 |
+| Unused exports | 23 |
+| Unused exported types | 22 |
+| Unused dependencies | 3 |
+| Unused devDependencies | 8 |
+| Unlisted dependencies | 2 (`playwright`, `wrangler` — `wrangler` is induced by the T2 G7 bundle-size build step) |
+| Unlisted binaries | 2 (same two) |
+| Unresolved imports | 1 |
+| Duplicate exports | 1 |
+
+Knip is soft-fail today by design — the audit's recommendation is to *measure*, then drive the count to zero through a single triage row (the audit's B-10 row) before promoting to hard-fail. Many of the "unused exports" are false positives (lib's public API; see [§7.8](#78-cross-package-observations) — knip flags publicly-exported helpers as unused if no in-repo consumer happens to use them, which is the wrong heuristic for a "published-shape" lib). The B-10 cleanup wave would separate the genuine dead code from the false positives.
+
+### 8g. Production runtime metrics
+
+**None today.** The observability gap is named explicitly:
+
+- Self-host: no `morgan` or equivalent on Express ([§6h](#6h-known-security-gaps-tracked-not-blocking) lists it as a known security-adjacent gap); operators get whatever their reverse proxy emits.
+- Cloudflare: per-request invocation metrics + bundle-size + cold-start are visible via the Cloudflare dashboard. No application-level metrics (saves per minute, dialog-open rates, mode-detection probe failures) are emitted.
+
+The reviewer prompt in [§10b](#10b-productization-readiness-lens-narrow) asks specifically: "what's the minimum-viable runtime instrumentation for v1?" — the honest answer the audit landed on is "nothing yet, by design — instrumentation lands once we have a real user complaint to ground it in." A future observability ADR would lock the request-logging format, the metric set, and the export path. None of that is built today.
 
 ---
 
