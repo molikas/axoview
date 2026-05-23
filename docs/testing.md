@@ -4,7 +4,7 @@
 **Total:** ~1085 tests · 103 suites · all passing
 **Run:** `npm test --workspace=packages/axoview-lib` (lib) · `npm test --workspace=packages/axoview-app` (app, project-zip + LocalStorageProvider)
 
-E2E tests are not currently run in CI — Selenium framework under `e2e-tests/` is being retired in favour of Playwright. Migration tracked at [docs/tactical/playwright-migration.md](tactical/playwright-migration.md).
+E2E suite lives at [`packages/axoview-e2e/`](../packages/axoview-e2e/) (Playwright, 13 spec files / 33 tests covering canonical journeys J1–J20). Runs on PRs + master push via [`.github/workflows/e2e-playwright.yml`](../.github/workflows/e2e-playwright.yml). Locally: `npm run test:e2e:ci` from repo root, or `npx playwright test --ui` from the package. The legacy Python/Selenium suite at `e2e-tests/` was deleted 2026-05-23 (audit C.2 I9 + tactical [docs/tactical/e2e-suite-rewrite.md](tactical/e2e-suite-rewrite.md) Session 7).
 
 ---
 
