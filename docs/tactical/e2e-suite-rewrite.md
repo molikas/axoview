@@ -8,7 +8,7 @@
 > - [docs/tactical/productization-audit.md § C.2 Section 4 row T1](productization-audit.md#section-4--spawned-tacticals-separate-work-units) — the spawn entry that authorised this tactical.
 > - [docs/tactical/productization-audit.md § C.2 Section 3 row I9](productization-audit.md#section-3--cleanups--renames--deletions) — the bundled-deletion row for the existing `packages/axoview-e2e/` and `e2e-tests/` directories; both delete together with this suite landing in CI.
 >
-> **Status:** File-ops set complete (Sessions 2 + 3 + 4 done 2026-05-22) · **Owner:** Igor · **Last updated:** 2026-05-22
+> **Status:** Editor-surfaces set complete (Sessions 2 + 3 + 4 + 5 done 2026-05-23) · **Owner:** Igor · **Last updated:** 2026-05-23
 >
 > This is a **short-lived working doc.** Delete it after M9 (suite green in CI) lands; ADRs 0008 + 0011 + the productization-audit C.2 ledger are the durable record. PLAN.md gets a one-line entry under Phase 2D once the suite is green — see "Wrap-up" below.
 
@@ -117,7 +117,7 @@ Eight sessions, ~270K tokens total. Tactical doc tracks actual cost per session 
 | 2 | Skeleton | delete old `packages/axoview-e2e/`, scaffold new, Playwright config, fixtures, POM stubs, `smoke.spec.ts` (J1 only); verify locally | ~50K | ~65K (mid-context-window estimate) | **[x] done 2026-05-22 (5 commits: `3ff4110` delete, `3f087c8` skeleton, `62d9705` fixtures+helpers, `cce1dda` AppToolbarPOM+J1 smoke green locally in ~13s, this commit doc-sync). Lazy data-axoview-id retrofits landed: `toolbar-save` (AppToolbar) · `screen-empty-create` (EmptyStateScreen) · `dock-elements-toggle` + `dock-layers-toggle` (LeftDock) · `canvas-icon-grid-item` (IconSelectionControls/Icon). Pending POMs/attributes tracked in `packages/axoview-e2e/pom/_pending.md`.** |
 | 3 | Smoke complete | finish `smoke.spec.ts` (J20) + `connector.spec.ts` + `hotkeys.spec.ts` | ~30K | ~55K (overran ~25K) | **[x] done 2026-05-22 (4 commits: `ddb14d7` J20 + EmptyStateScreenPOM + workers=1 pin, `f611aa2` J2 connector + `canvas-interactions` lib retrofit + getModelConnectorCount, `67571c4` J15 7-hotkey spec + getViewItemCount, this commit doc-sync). 11/11 tests green locally in ~2.6 min. Lazy retrofits this session: `screen-empty-import` (app, no rebuild) + `canvas-interactions` (lib, 1 rebuild cycle). One Playwright config pin: `workers: 1` + `fullyParallel: false` — two parallel contexts against the shared rsbuild dev server stalled the Loading-Axoview path once the suite grew past one spec.** |
 | 4 | File ops | `import-export-json.spec.ts` + `import-export-zip.spec.ts` + `icons.spec.ts` | ~30K | ~75K (overran ~45K) | **[x] done 2026-05-22 (4 commits: `4014e59` J7+J8 JSON spec + ExportPopover retrofits, `d92aeee` J9+J10 ZIP spec + DialogsPOM + ExportProjectZipDialog retrofit + programmatic JSZip fixture, `88242dc` J11+J12 icons spec + 4 lib-side retrofits + J10 wipe-and-reload stability fix, this commit doc-sync). 17/17 tests green locally in ~4.4 min. Eight lazy retrofits this session: 4 app-side (`toolbar-export`, `toolbar-export-json`, `toolbar-export-project-zip`, `dialog-export-project-zip-confirm`) + 4 lib-side (`dock-elements-import-icons`, `dialog-import-icons-confirm`, `dialog-delete-icon-confirm`, `canvas-icon-grid-delete`). Lib rebuild cycles this session: 1 (all four icons retrofits batched).** |
-| 5 | Editor surfaces | `shapes.spec.ts` + `rename.spec.ts` + `layers.spec.ts` | ~30K | _(record)_ | not started |
+| 5 | Editor surfaces | `shapes.spec.ts` + `rename.spec.ts` + `layers.spec.ts` | ~30K (revised ~35K) | ~38K (overran ~3K vs revised, ~8K vs original) | **[x] done 2026-05-23 (4 commits: `d11bc8e` J3 shapes spec + CanvasPOM debut + getViewRectangleCount/getViewTextBoxCount, `d0ffc3e` J4 rename spec + FileExplorerPOM debut + 3 retrofits, `f502a62` J6 layers spec + LayersPanelPOM debut + 5 lib retrofits + drag-detection RAF finding, this commit doc-sync). 22/22 tests green locally in ~5.1 min. Six lazy retrofits this session: 1 rename-commit (dock-file-explorer-toggle lib + file-explorer-row app + file-explorer-rename-input app — split per ADR 0008 D5's "retrofit with the consuming spec" rule) + 5 layers-commit (layers-panel-add + layer-row + layer-toggle-visibility + layer-toggle-lock + layer-item-row, all lib, batched). J3 path used keyboard hotkeys (r + t) so it cost 0 retrofits.** |
 | 6 | Diagram-link + dialogs | `multi-diagram.spec.ts` + `dialogs.spec.ts` + `share.spec.ts` + `canvas-modes.spec.ts` | ~40K | _(record)_ | not started |
 | 7 | CI wiring | `.github/workflows/e2e-playwright.yml`; replace dropped `e2e-tests.yml.backup`; delete old `packages/axoview-e2e/` per I9 bundle; delete `e2e-tests/` root directory; remove from `release.yml` workflow chain if needed | ~30K | _(record)_ | not started |
 | 8 | Debug pass | User runs locally + on CI; agent fixes flakes | ~30K | _(record)_ | not started |
@@ -193,6 +193,79 @@ Sessions 5–6 estimate revision: **+5K per session** for the wipe-and-
 reload pattern and the download-filename copy pattern to become muscle
 memory. Bringing the running total from ~290K to ~300K. No change to
 session ordering or scope.
+
+**Session 5 actual-vs-estimate note (2026-05-23):** Session 5 ran ~38K
+(revised estimate ~35K, original ~30K — overran ~3K vs revised, ~8K vs
+original) for one durable reason and one cheap surprise:
+
+1. **Synthetic mouse drags MUST dispatch each MouseEvent in a separate
+   `page.evaluate` call.** The lib's RAF-throttled mouse-update scheduler
+   (`interaction/useRAFThrottle.ts`) only flushes once per RAF tick — so
+   bundling `mousemove → mousedown → mousemove → mousemove → mouseup`
+   into one `page.evaluate` block dispatches the events synchronously
+   without RAF ticks between them. `processMouseUpdate` snapshots
+   `uiStateApi.getState()` BEFORE calling `setMouse(nextMouse)`, so
+   `baseState.uiState` is the OLD state. With no intervening RAF tick,
+   Cursor.mousemove reads `uiState.mouse.position.tile === uiState.mouse
+   .mousedown.tile` (both = `from`), `hasDragged` stays false, no
+   transition to DRAG_ITEMS, model item tile stays unchanged. The fix is
+   to dispatch each event in its own evaluate (CanvasPOM.dragFromTo does
+   this). Carries forward as the canonical pattern for any future
+   synthetic-drag spec — Session 6's diagram-link drag and Session 7's
+   canvas-modes drag both inherit the rule. Documented in
+   `pom/CanvasPOM.ts#dragFromTo` and in the layers-spec commit body
+   (`f502a62`).
+
+2. **Model items don't carry a `tile` field — only view items do.**
+   `placeIcon` (modes/PlaceIcon.ts) writes the tile onto the view-item
+   only; the model-level catalogue entry has `{id, name, icon}` and that's
+   it. The first lock-test draft read `model.items[0].tile` and got
+   `undefined`, falsely making the lock assertion pass. Specs asserting
+   drag / move semantics must read `model.views[*].items[*].tile` via
+   the view-items array. The two new helpers `getViewRectangleCount` and
+   `getViewTextBoxCount` follow the same view-vs-model rule for J3.
+
+Six lazy retrofits this session, split across two commits:
+
+- `d0ffc3e` (rename): **3 retrofits — 1 lib + 2 app.** Lib:
+  `dock-file-explorer-toggle` (LeftDock.tsx). App: `file-explorer-row`
+  + `data-diagram-name` + `data-diagram-type` (FileTreeNode.tsx label
+  Box) and `file-explorer-rename-input` (FileTreeNode.tsx inline
+  input). Lib rebuild cycles: 1.
+- `f502a62` (layers): **5 retrofits — all lib, batched.**
+  `layers-panel-add` (LayersPanel.tsx Add IconButton), `layer-row` +
+  `data-layer-name` (LayerRow.tsx outer Box),
+  `layer-toggle-visibility` + `layer-toggle-lock` (LayerRow.tsx
+  IconButtons), `layer-item-row` + `data-layer-item-id` +
+  `data-layer-item-type` (LayerItemRow.tsx outer Box). Lib rebuild
+  cycles: 1.
+- `d11bc8e` (shapes / J3): **0 retrofits.** Hotkey-driven mode
+  switches (`r` for rectangle, `t` for textbox) avoid the lib's
+  ToolMenu button retrofit ('canvas-tool-rectangle' / 'canvas-tool-
+  textbox' stay deferred). The bound binding `t` in `smnrct` profile
+  doesn't even render a ToolMenu button — rectangle + textbox are
+  keyboard-only today.
+
+Lib rebuild cycles this session: **2** (one per commit; rename's
+file-explorer-toggle landed independently of layers' five batched
+attributes). Running total to date: **5** (Session 2: 1, Session 3: 1,
+Session 4: 1, Session 5J4: 1, Session 5J6: 1).
+
+Approach pick for J6 layer assignment: **drag-drop** (sole UX path —
+LayersPanel.tsx exposes no context menu). The drag-drop flow uses
+ordinary `page.mouse.{down,move,up}` because the panel's pointer
+handlers don't gate on `isRendererInteraction` (no rendererRef gate at
+the panel level).
+
+Approach pick for J6 drag-lock assertion: **model.views[*].items[*]
+.tile poll**, not DOM. Cursor.mousedown's isItemInteractable filter
+rejects the locked item entirely — `mousedownItem` stays null,
+DRAG_ITEMS mode is never entered, no tile write fires. The pre-lock
+"sanity-check drag actually moves the item" leg keeps the post-lock
+"tile unchanged" assertion from being a false positive.
+
+Sessions 6–7 estimate revision: **no further adjustment** — both
+findings amortise. Running total stays at ~300K.
 
 **Session 3 actual-vs-estimate note (2026-05-22):** Session 3 ran ~25K over the
 30K estimate (~55K actual) for one durable reason — the connector spec exposed
