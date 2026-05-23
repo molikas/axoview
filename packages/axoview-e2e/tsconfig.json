@@ -6,13 +6,7 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "outDir": "./dist",
-    "baseUrl": ".",
-    "paths": {
-      "@fixtures/*": ["./fixtures/*"],
-      "@helpers/*": ["./helpers/*"],
-      "@pom/*": ["./pom/*"]
-    }
+    "outDir": "./dist"
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules", "dist", "test-results", "playwright-report"]
