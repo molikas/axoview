@@ -62,26 +62,47 @@ export class CanvasPOM {
    * .{left,top} + point`. Caller picks the event types; events bubble to the
    * window-level listener (where useInteractionManager binds), and `e.target`
    * is deterministically the interactions Box so isRendererInteraction is true.
+   *
+   * Awaits one `requestAnimationFrame` tick AFTER EACH dispatched event so the
+   * lib's RAF-throttled mouse-update scheduler (`interaction/useRAFThrottle.ts`)
+   * has actually flushed its snapshot to `uiState.mouse` before the next event
+   * lands. Session 5 (commit `f502a62`) discovered the RAF race and addressed
+   * it by dispatching each event in a separate `page.evaluate` so the Playwright
+   * client→server roundtrip would let RAF tick between dispatches. That holds
+   * locally (~50–100 ms roundtrip on Windows + browser IPC) but breaks on
+   * headless Linux CI where the roundtrip is <16 ms (sub-frame), the snapshot
+   * stays stale, and the next event's mode handler reads the wrong
+   * `mouse.position.tile`. Session 8 (commit `0c5f7dc` instrumentation)
+   * confirmed: post-placeIcon mode = PLACE_ICON, but its mousedown handler at
+   * the existing item's tile read a stale position, so `getItemAtTile` returned
+   * nothing, `mousedownItem` was null, and the drag had no target. Awaiting RAF
+   * inside the evaluate makes the dispatch synchronous w.r.t. the lib's
+   * observable state regardless of CI vs local roundtrip latency.
    */
   async dispatchAt(
     events: Array<'mousemove' | 'mousedown' | 'mouseup'>,
     point: CanvasPoint
   ) {
     await this.interactionsLayer().evaluate(
-      (el, args: { types: string[]; x: number; y: number }) => {
-        const rect = el.getBoundingClientRect();
-        for (const type of args.types) {
-          el.dispatchEvent(
-            new MouseEvent(type, {
-              bubbles: true,
-              cancelable: true,
-              clientX: rect.left + args.x,
-              clientY: rect.top + args.y,
-              button: 0
-            })
-          );
-        }
-      },
+      (el, args: { types: string[]; x: number; y: number }) =>
+        new Promise<void>(async (resolve) => {
+          const rect = el.getBoundingClientRect();
+          const raf = () =>
+            new Promise<void>((r) => requestAnimationFrame(() => r()));
+          for (const type of args.types) {
+            el.dispatchEvent(
+              new MouseEvent(type, {
+                bubbles: true,
+                cancelable: true,
+                clientX: rect.left + args.x,
+                clientY: rect.top + args.y,
+                button: 0
+              })
+            );
+            await raf();
+          }
+          resolve();
+        }),
       { types: events, x: point.x, y: point.y }
     );
   }
