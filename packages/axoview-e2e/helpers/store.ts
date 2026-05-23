@@ -50,6 +50,26 @@ export const getModelConnectorCount = (page: Page): Promise<number> =>
     return Array.isArray(view?.connectors) ? view.connectors.length : 0;
   });
 
+/**
+ * Counts view-items in the active view — i.e., visible canvas instances.
+ *
+ * `getModelItemCount` reads the model-level `items` array (the library of
+ * placed icons). Deleting an item via the Delete key or Ctrl+X removes the
+ * VIEW item from `model.views[*].items` but leaves the model-level item
+ * untouched; the user sees the icon disappear because the renderer reads
+ * view items. Tests that assert deletion semantics must therefore poll
+ * this helper, not `getModelItemCount`.
+ */
+export const getViewItemCount = (page: Page): Promise<number> =>
+  page.evaluate(() => {
+    const viewId = (window as any).__axoview__.ui.getState().view;
+    const views = (window as any).__axoview__.model.getState().views;
+    if (!Array.isArray(views) || views.length === 0) return 0;
+    const view =
+      (viewId && views.find((v: any) => v.id === viewId)) ?? views[0];
+    return Array.isArray(view?.items) ? view.items.length : 0;
+  });
+
 export const getModelHistoryLength = (page: Page) =>
   page.evaluate(() => (window as any).__axoview__.model.getState().history.past.length);
 
