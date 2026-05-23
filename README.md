@@ -34,7 +34,7 @@ Source and issue tracker: [github.com/molikas/axoview](https://github.com/molika
 - **Read-only node panel** — In `EXPLORABLE_READONLY` mode, clicking a node opens a single-scroll panel showing **Caption** and **Notes** sections (only when non-empty). Header shows the node icon, name, and optional link button. Nodes with no caption and no notes are not clickable at all — the panel stays closed.
 - **Double-click to place node or rectangle** — Double-clicking empty canvas opens a compact "Add" popover at the cursor. A **Rectangle** button at the top creates a background rectangle for visually grouping nodes. Below it, an icon picker lets you place a node — selecting an icon places it and immediately opens its Details tab for naming. Single left-click on empty canvas just deselects; no context menu.
 - **Clickable node links** — Attach a URL to any node; its label becomes a clickable link in the diagram.
-- **Cross-diagram links** — A node can link to another diagram in this workspace. In `EXPLORABLE_READONLY`, clicking the node opens the target diagram in a new tab; a blue badge on the icon indicates the link, and the tooltip reads *"Opens "X" in a new tab"* using the linked diagram's name. Header URL and diagram link coexist without showing two tooltips.
+- **Cross-diagram links** — A node can link to another diagram in this workspace. In `EXPLORABLE_READONLY`, clicking the node navigates to the target diagram in the same window (React Router SPA navigation); a blue badge on the icon indicates the link, and the tooltip reads *"Opens "X""* using the linked diagram's name. Ctrl/Cmd/Shift/middle-click still triggers browser-native open-in-new-tab. Header URL and diagram link coexist without showing two tooltips.
 - **Node label font size and color** — Adjust font size and text color from the Style tab.
 - **Text box rich text and color** — Text boxes support bold, italic, bullet lists, headers, and more. Text color is adjustable. The box auto-expands to fit its content.
 - **Connector label styling** — Per-label font size (8–24 px), text color, and position control. The color section is clearly labelled "Line Color" to distinguish it from label color.
@@ -57,7 +57,7 @@ Source and issue tracker: [github.com/molikas/axoview](https://github.com/molika
 - **Diagrams panel** — Browse, load, and delete all saved diagrams from a single panel. Share any diagram as a read-only link (server mode).
 - **Save status indicator** — Shows when the diagram was last saved and whether there are unsaved changes. Displayed in the toolbar right section as `Saved at HH:MM`, `Saved yesterday at HH:MM`, or `Saved Mon DD at HH:MM` for older diagrams. A `•` dot appears when there are pending changes. No auto-save in server mode — only explicit Save updates the timestamp.
 - **Save confirmation toast** — A brief `✓ [Name] saved` notification slides up from the bottom on every explicit save.
-- **Share link** — Generates a read-only URL for the current diagram (requires server storage; hidden in session mode).
+- **Share link** — Generates a read-only URL for the current diagram (requires server storage). The toolbar Share button stays visible in local mode but is render-disabled, with a reason-guarded popover explaining why.
 - **New diagram with unsaved-changes guard** — File explorer "New diagram" clears the canvas. Pending edits trigger a three-button dialog: *Save & continue* (autosaves to `localStorage`, falls back to a JSON download), *Discard changes*, or *Cancel*. Tab-close also shows a native browser warning when there are unsaved edits (in session mode, the prompt is gated by `sessionWorkUnexported`).
 - **Diagram name always in sync** — The toolbar name tracks the active diagram correctly across all flows: Save, Save As, Load (session and server), New Diagram, and file Open via the library's own menu.
 - **Compact diagram format** — Diagrams exported in ultra-compact LLM-friendly format (`{"t":…,"i":…,"v":…,"_":{"f":"compact","v":"1.0"}}`) are fully supported when loading via the Diagrams panel or file Open. The format is auto-detected and expanded before rendering; names come from the storage listing or the embedded `t` field — never lost on round-trip.
@@ -69,8 +69,8 @@ Source and issue tracker: [github.com/molikas/axoview](https://github.com/molika
 - **Delete imported icons with workspace-aware warning** — Hover any imported icon tile in the Elements panel for a red × badge top-right. Confirming opens a dialog that scans every diagram in the workspace and lists each one referencing the icon (with per-diagram counts) before deletion. Items whose icon id no longer resolves render a faded dashed-square **tombstone** so canvas layout stays stable; re-importing under the same id resurrects them. Built-in pack icons stay non-deletable — pack management is in Settings → Icon Packs. `Ctrl+Z` restores. Imports are still scoped per-diagram (project-level imports tracked in [known_issues.md](known_issues.md)). See [ADR-0002 Lifecycle](docs/adr/0002-icon-catalog-merge-on-load.md).
 - **`requiredPacks` field** — Lean saves persist the list of icon packs (AWS / GCP / Azure / K8s / Material) the diagram references. Importers auto-load the right packs before merging the catalog, so AWS icons render on first paint after a re-import.
 - **Session storage gauge** — File-explorer header shows a chip leading with `%` (e.g. `<1% · 3.6 KB`); click for a per-diagram size table. Color thresholds at 60 / 90 %. Tooltip carries the full `X% used (size of ~limit)`.
-- **Session-mode banner** — Persistent dismissable warning when storage resolves to session and the workspace has content.
-- **Session-mode autosave** — Session work is auto-saved within the tab and survives reloads; the toolbar Save button is a manual flush for peace of mind. The browser-native dirty prompt fires only when there's session work that has not been exported to a file.
+- **Local-mode banner** — Persistent dismissable warning when storage resolves to local (browser-only) and the workspace has content, reminding the user that work lives in `localStorage` only.
+- **Local-mode autosave** — Local-mode work is auto-saved to `localStorage` within the tab and survives reloads; the toolbar Save button is a manual flush for peace of mind. The browser-native dirty prompt fires only when there's local work that has not been exported to a file. (Server mode has no autosave — only explicit Save persists.)
 
 ### Performance
 
@@ -125,7 +125,7 @@ Source and issue tracker: [github.com/molikas/axoview](https://github.com/molika
 - **Material Icons pack** — ~2,179 Material Design icons available as a loadable pack alongside AWS, GCP, Azure, and Kubernetes. Generated at prebuild time. Large packs (>100 icons) render a 60-icon preview to keep section expansion fast; the full set is searchable.
 - **On-demand icon packs** — AWS, GCP, Azure, Kubernetes, and Material packs are not loaded at startup. The Elements panel shows a "More icons" section listing each unloaded pack; clicking one loads it on the spot. Opening a diagram that references a pack triggers auto-loading silently via `requiredPacks`.
 - **Help dialog (`F1` / `?`)** documents all keyboard shortcuts.
-- **Burger menu removed** from the app chrome. Open / Export / Clear actions live in the file explorer; **Settings** moved to the left strip ⚙; GitHub link + version moved into Settings → **About** tab; **Diagnostics** tab in Settings exposes the debug-overlay toggle and model / session JSON dumps. See [ADR 0005](docs/adr/0005-toolbar-and-dock-layout-contract.md).
+- **Burger menu removed** from the app chrome. Open / Export / Clear actions live in the file explorer; **Settings** moved to the left strip ⚙; GitHub link + version moved into Settings → **About** tab. The floating DiagnosticsOverlay (toggled by a dedicated button) carries debug instrumentation when `enableDebugTools` is on. See [ADR 0005](docs/adr/0005-toolbar-and-dock-layout-contract.md).
 - **Default new-view name** — `"Page 1"` (was `"Untitled view"`).
 - **Sentence case across all property panels** — Section primitive enforces caption + semibold + secondary-color titles; ALL CAPS legacy retired. See [docs/ux-principles.md](docs/ux-principles.md) for the design language driving this and other panel-consistency rules.
 - **Enter-to-confirm on dialogs** — `ConfirmDialog` returns on Enter, cancels on Escape, in every destructive-action prompt.
@@ -134,7 +134,7 @@ Source and issue tracker: [github.com/molikas/axoview](https://github.com/molika
 
 ## Deployment targets
 
-FossFLOW runs from a single codebase on three targets, sharing one `/api/*` HTTP contract:
+Axoview runs from a single codebase on three targets, sharing one `/api/*` HTTP contract:
 
 | Target | Runtime | Storage | Auth options |
 |---|---|---|---|
@@ -173,8 +173,8 @@ For local development without Docker, or for Cloudflare deploys, see [docs/deplo
 
 - [docs/architecture.md](docs/architecture.md) — feature inventory, store/reducer/mode architecture, test audit, gap analysis.
 - [docs/deployment.md](docs/deployment.md) — local / Docker / Cloudflare deploy walkthroughs.
-- [docs/testing.md](docs/testing.md) — regression suite reference (~729 tests, 72 suites).
-- [docs/adr/](docs/adr/) — architectural decision records (project zip format, icon catalog merge, lean save).
+- [docs/testing.md](docs/testing.md) — regression suite reference (~1009 tests across 93 jest suites; Playwright E2E in `packages/axoview-e2e/`).
+- [docs/adr/](docs/adr/) — architectural decision records (10 ADRs covering project zip format, icon catalog merge, lean save, connector parity, toolbar/dock contract, canvas selection, naming convention, deployment topology, session backend contract, error UX contract).
 - [PLAN.md](PLAN.md) — strategic phased roadmap (Phases 0A → 4A).
 - [CHANGELOG.md](CHANGELOG.md) — fork-only changelog (Keep a Changelog format).
 - [docs/upstream-changelog.md](docs/upstream-changelog.md) — pre-fork upstream history (preserved for traceability).
@@ -184,16 +184,16 @@ For local development without Docker, or for Cloudflare deploys, see [docs/deplo
 ## Code coverage
 
 ```bash
-npm test --workspace=packages/fossflow-lib -- --coverage
+npm test --workspace=packages/axoview-lib -- --coverage
 ```
 
-HTML report: `packages/fossflow-lib/coverage/lcov-report/index.html`. Current global statement coverage ~32%. Thresholds set at 10% global minimum — intentionally low while the suite grows. Additional static analysis tools (ESLint, Knip, `npm audit`) output to `reports/`.
+HTML report: `packages/axoview-lib/coverage/lcov-report/index.html`. Current global statement coverage ~32%. Thresholds set at 10% global minimum — intentionally low while the suite grows. Additional static analysis tools (ESLint, Knip, `npm audit`) output to `reports/`.
 
 ---
 
 ## Issues and feedback
 
-Bug reports and feature requests are welcome at [github.com/molikas/FossFLOW_V2/issues](https://github.com/molikas/FossFLOW_V2/issues). Use the **Bug report** or **Feature request** templates.
+Bug reports and feature requests are welcome at [github.com/molikas/axoview/issues](https://github.com/molikas/axoview/issues). Use the **Bug report** or **Feature request** templates.
 
 **Code pull requests are not accepted** — this is a personal fork. If you want to build on top, fork it.
 
