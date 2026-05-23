@@ -1,6 +1,6 @@
 # Axoview Technical Review — 2026-05
 
-> **Status:** Session A complete (sections 0–4 + 9). Sessions B + C populate sections 5–8 + 10–11. Last updated 2026-05-23.
+> **Status:** Sessions A + B complete (sections 0–4 + 7 + 9). Session C populates sections 5, 6, 8, 10, 11. Last updated 2026-05-23.
 
 ---
 
@@ -1126,11 +1126,47 @@ The three-tier doc tree per [`docs/workflow.md`](workflow.md) design principle 4
 
 ### 7.8 Cross-package observations
 
-<!-- CROSS_PACKAGE_PLACEHOLDER -->
+Patterns the per-segment tables can't show on their own — they only emerge from comparing rows across segments.
+
+- **i18n is triplicated across three locale surfaces.** `axoview-lib/src/i18n/*.ts` ships 14 bundles (the canonical set, tested by `i18n.localeCompleteness.test.ts`); `axoview-app/src/i18n/*.json` ships 13 (no Bengali, plus an orphan `pl-PL.json` that isn't listed in `supportedLanguages`); rsbuild then copies the app set to `dist/i18n/app/` at build time. The locale-bundle drift is the long-tail of audit B-13 ([known_issues.md](../known_issues.md) covers the German + Indonesian partial-coverage rows) — the catalogues themselves have at least one orphan + one missing locale before any per-string coverage analysis. Reviewer leverage: a coverage matrix `lib × app` would catch the orphan + missing locales in one pass and shrink the long tail.
+- **The "no test config" gap is concentrated in the server runtimes.** Both `axoview-backend` (5 files) and `axoview-worker` (5 files) carry zero jest configuration today — every `source` row in §7.3 and §7.4 is flagged `no-test-coverage`. The canonical `/api/*` contract (`packages/axoview-backend/src/routes.js`, 325 LOC) is the most-load-bearing surface in the repo *without a single test* — both Express and Worker runtimes import it directly. Audit [C.8](tactical/productization-audit.md) names this as the open gap; the [git-automation tactical](tactical/git-automation-hardening.md) was scoped to leave it open. Reviewer leverage: contract tests against `routes.js` (separate adapters for Express + Hono in the test harness) close both packages' gaps at once.
+- **"Published-shape, monorepo-only"** — `axoview-lib/package.json` advertises `main` / `types` / `files` like a publishable npm package but carries `"private": true` per [Locked Decision #11](tactical/productization-audit.md#locked-decisions-from-scoping-discussion-2026-05-19). The legacy `packages/axoview-lib/docs/` Next.js scaffold (13 files / its own `package-lock.json`) reinforces the npm-publish framing — it's dead per audit N2 / C.2 and slated for deletion. Together these form a coherent "ready to publish but intentionally not" surface; the reviewer should not interpret the publishable shape as an unstated intent. The day-1 productization surface is Docker + Cloudflare, not npm.
+- **Storage code is split across three packages, each with a different test posture.** `axoview-app/src/services/storage/providers/LocalStorageProvider.ts` (557 LOC, well-tested with 262 LOC of jest tests) is the only fully-tested storage surface in the monorepo. `axoview-backend/src/adapters/fs.js` (95 LOC) is the *only* server-backed adapter and is untested. `axoview-worker/src/app.ts` 503-short-circuits all storage routes — also untested but the surface area is tiny. The asymmetry is by design (browser-only is the operational default; server-backed Docker is for self-hosters; Worker is storage-less until Phase 3B) but it lands the heaviest test investment on the most-substitutable component — the audit's call to invest in `routes.js` tests is the right inversion.
+- **Two tacticals are wrap-pending and one carries header drift.** `docs/tactical/e2e-suite-rewrite.md` and `docs/tactical/git-automation-hardening.md` both completed (M9 and T2 row exits respectively, on 2026-05-22/23) but are still committed — per the [docs convention](workflow.md#4-decisions-live-in-adrs-status-lives-in-planmd-details-live-in-tacticals) tacticals are deleted at wrap. `productization-audit.md` is still active but its status header lags the actual Findings register progress. None of these block M10, but they are the visible loose ends for the C.9 / closeout phase.
+- **Configuration drift across the four packages.** Per-package `tsconfig.json` settings diverge in non-trivial ways: `axoview-app/tsconfig.json` pins `target: es5` (low enough to have caused a ts-jest `Set` polyfill workaround in source); `axoview-worker/tsconfig.json` reaches *across* package boundaries to include `../axoview-backend/src/**/*` (so the shared `routes.js` typechecks against the worker build); `axoview-e2e/tsconfig.json` declares path aliases (`@fixtures/*`, `@helpers/*`, `@pom/*`) that no source file uses. Three different `jest.config.*` files (lib, app, and the inline Playwright config) each pin `node_modules` differently to dodge React/jsdom duplicate-instance bugs. The drift is intentional and explained inline at each site, but a reviewer scanning configs in isolation would see five different "fix this oddity" candidates that are all load-bearing — a single tsconfig/jest-config concordance doc in `docs/` would short-circuit that triage.
+- **The Cloudflare config story has two `wrangler.toml` files.** Repo-root `wrangler.toml` (8 lines, consumed by native git integration + "Deploy to Cloudflare" button) and `packages/axoview-worker/wrangler.toml` (11 lines, consumed by local `wrangler pages dev`). They are kept in lockstep by hand. Audit A.6.5 catalogued this; [ADR 0009 D5](adr/0009-deployment-topology.md) names the repo-root file as authoritative. The reviewer should flag any future change that lands in one and not the other.
+- **Dead-code candidates cluster around the burger-menu retirement.** `axoview-lib/src/components/MainMenu/MainMenu.tsx` (260 LOC), `MainMenu/MenuItem.tsx` (21 LOC), and `ConfirmDiscardDialog/ConfirmDiscardDialog.tsx` (58 LOC) form the cascade locked for deletion in audit C.2 — the burger menu was removed per [ADR 0005](adr/0005-toolbar-and-dock-layout-contract.md) and the only mount sites were inside the menu. Adjacent latent dead-code candidates in the same neighbourhood: `axoview-app/src/serviceWorkerRegistration.ts` (`register` export is dead — only `unregister` is live), `axoview-app/src/diagramUtils.ts` (`validateDiagramData` possibly dead), `axoview-app/src/reportWebVitals.ts` (call site uses no handler — effectively a no-op), `axoview-app/scripts/generateMaterialIconPack.ts` (the `.js` twin is what `prebuild` actually runs), and the unused `axoview-e2e/fixtures/canvas.fixture.ts` + `fixtures/index.ts` + `helpers/mouse.ts`. Knip catches some of these as soft-fail; an aggregated dead-code wave (post-MainMenu) is the natural follow-up cleanup tactical.
+- **Naming-inconsistency residue from before ADR 0008.** `axoview-lib/src/utils/CoordsUtils.ts` + `SizeUtils.ts` are the last two PascalCase filenames inside otherwise-lowercase `utils/`; the `Sidebars/` folder still carries that plural name even though only `RightSidebar.tsx` remains (LeftSidebar was deleted per audit register #3). Both are direct candidates for the next ADR 0008 cleanup pass.
+- **Auto-generated artifacts a reviewer should not red-pen.** `CHANGELOG.md` (root, appended by `@semantic-release/changelog`), root `package-lock.json` + `packages/axoview-app/package-lock.json` + `packages/axoview-lib/docs/package-lock.json` (npm-generated), every `__snapshots__/*.snap` under `axoview-lib/src/components/DebugUtils/__tests__/`. Worth naming explicitly because their LOC dominates raw line-count summaries and a reviewer not familiar with the conventions would otherwise spend cycles asking about them.
 
 ### 7.9 Inventory totals
 
-<!-- TOTALS_PLACEHOLDER -->
+Raw counts across all seven segments. Excludes `node_modules`, build outputs (`dist/`, `build/`), `playwright-report/`, `test-results/`, `.wrangler/`, `coverage/`. LOC sums are code lines only (blanks + comment-only excluded) for `source` / `test` / `config-with-logic`; `—`-LOC types (i18n bundles, lockfiles, assets, prose markdown) are file-count only.
+
+| Type | Files | Code LOC (sum) |
+|---|---|---|
+| `source` | 297 | ~33,830 |
+| `test` | 117 | ~17,600 |
+| `config` | 57 | ~1,120 |
+| `doc` | 38 | — |
+| `i18n` | 26 | — |
+| `fixture` | 16 | ~924 |
+| `style` | 7 | ~691 |
+| `asset` | 7 | — |
+| `lockfile` | 3 | — |
+| **Total** | **568** | **~54,165** |
+
+| Segment | Files | Notable shape |
+|---|---|---|
+| `axoview-lib` | 365 | 218 source · 93 test · 14 config · 13 i18n · 12 fixture · 9 doc · 3 asset · 2 style · 1 lockfile |
+| `axoview-app` | 105 | 58 source · 13 i18n · 12 config · 11 test · 5 style · 4 asset · 1 doc · 1 lockfile |
+| `axoview-e2e` | 35 | 13 test · 13 source · 4 fixture · 4 config · 1 doc |
+| Repo shell (`infra`) | 31 | 23 config · 5 doc · 2 source · 1 lockfile |
+| `docs/` | 22 | 22 doc (10 ADRs · 3 tacticals · 7 living references · 1 review artifact · 1 frozen upstream changelog) |
+| `axoview-backend` | 5 | 4 source · 1 config |
+| `axoview-worker` | 5 | 3 config · 2 source |
+
+**Sanity checks.** Test count (117 jest specs) cross-references the measured `npm test --workspaces` total of 93 jest *suites* (a single spec file can hold multiple jest suites via nested `describe()` blocks; 117 spec files + 1009 passing assertions matches the discovered figure). E2E (33 Playwright tests across 13 specs) is counted separately under §7.5. The 568 file-count total is the *git-tracked* artifact surface for the review; reviewer scope.
 
 ---
 
