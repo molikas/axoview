@@ -15,6 +15,10 @@
  *   - `toolbar-export-json`        (Export JSON MenuItem)        ← clickExportJson()
  *   - `toolbar-export-project-zip` (Export Project MenuItem)     ← clickExportProjectZip()
  *
+ * Lazy data-axoview-id retrofits — Session 6:
+ *   - `toolbar-preview`            (Preview IconButton)          ← clickPreview()
+ *   - `toolbar-back-to-editing`    (Back-to-editing Button)      ← clickBackToEditing()
+ *
  * Methods left as `not-yet-implemented` stubs are declared so consumer specs
  * in Sessions 5–6 know the API surface; each stub names the attribute it
  * will require. Adding an attribute without an exercising spec is forbidden
@@ -84,9 +88,31 @@ export class AppToolbarPOM {
     throw new Error('AppToolbarPOM.clickShare: not implemented — Session 6 adds toolbar-share attribute + body.');
   }
 
-  /** Stub — `data-axoview-id="toolbar-preview"`. Lights up when multi-diagram spec lands (Session 6). */
-  async clickPreview(): Promise<never> {
-    throw new Error('AppToolbarPOM.clickPreview: not implemented — Session 6 adds toolbar-preview attribute + body.');
+  previewButton() {
+    return byAxoviewId(this.page, 'toolbar-preview');
+  }
+
+  backToEditingButton() {
+    return byAxoviewId(this.page, 'toolbar-back-to-editing');
+  }
+
+  /**
+   * Clicks the Preview IconButton. handlePreviewClick (DiagramLifecycleProvider)
+   * autosaves the current diagram, then navigates to `/display/<currentId>`
+   * with `state: { fromEditor: true }`. The fromEditor flag is what makes
+   * the Back-to-editing affordance render on the readonly toolbar.
+   */
+  async clickPreview() {
+    await this.previewButton().click();
+  }
+
+  /**
+   * Clicks the Back-to-editing Button. Only renders on readonly routes when
+   * `location.state.fromEditor === true`; the handler calls `navigate(-1)`,
+   * which in the canonical "Preview from editor" flow returns to `/`.
+   */
+  async clickBackToEditing() {
+    await this.backToEditingButton().click();
   }
 
   /**

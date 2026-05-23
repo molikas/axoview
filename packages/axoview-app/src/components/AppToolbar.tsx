@@ -183,6 +183,7 @@ export function AppToolbar() {
                   size="small"
                   startIcon={<ArrowBackIcon sx={{ fontSize: 16 }} />}
                   onClick={() => navigate(-1)}
+                  data-axoview-id="toolbar-back-to-editing"
                   sx={{ textTransform: 'none' }}
                 >
                   {t('toolbar.backToEditing', 'Back to editing')}
@@ -247,6 +248,7 @@ export function AppToolbar() {
                   size="small"
                   onClick={handlePreviewClick}
                   disabled={!currentDiagramId}
+                  data-axoview-id="toolbar-preview"
                   sx={{ borderRadius: 1, color: 'inherit' }}
                 >
                   <PreviewIcon sx={{ fontSize: 18 }} />

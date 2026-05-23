@@ -192,8 +192,15 @@ export const NodeInfoTab = ({
                 <TextField
                   {...params}
                   placeholder={t('diagramLinkPlaceholder')}
+                  inputProps={{
+                    ...params.inputProps,
+                    'data-axoview-id': 'node-info-tab-link-picker'
+                  }}
                 />
               )}
+              slotProps={{
+                listbox: { 'data-axoview-id': 'node-info-tab-link-picker-listbox' } as any
+              }}
               clearOnEscape
               handleHomeEndKeys={false}
             />
@@ -211,6 +218,7 @@ export const NodeInfoTab = ({
                       })
                     );
                   }}
+                  data-axoview-id="node-info-tab-open-linked"
                   data-testid="node-info-tab-open-linked-diagram"
                 >
                   <OpenInNewIcon sx={{ fontSize: 16 }} />
