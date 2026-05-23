@@ -80,6 +80,10 @@ export const supportedLanguages = [
   {
     label: 'Türkçe',
     value: 'tr-TR'
+  },
+  {
+    label: 'Polski',
+    value: 'pl-PL'
   }
 ];
 
