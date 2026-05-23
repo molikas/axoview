@@ -1,7 +1,8 @@
 # ADR 0005 — Toolbar and Dock Layout Contract
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-05-09
+**Accepted on:** 2026-05-09
 **Supersedes:** none
 **Superseded by:** none
 
