@@ -34,6 +34,22 @@ export const getModelItemCount = (page: Page): Promise<number> =>
     return Array.isArray(items) ? items.length : 0;
   });
 
+/**
+ * Counts connectors in the currently-active view. Connectors live on
+ * `model.views[*].connectors`, not at the model root — the active view is
+ * named by `ui.getState().view`. Falls back to the first view if the active
+ * view id isn't set (covers boot races).
+ */
+export const getModelConnectorCount = (page: Page): Promise<number> =>
+  page.evaluate(() => {
+    const viewId = (window as any).__axoview__.ui.getState().view;
+    const views = (window as any).__axoview__.model.getState().views;
+    if (!Array.isArray(views) || views.length === 0) return 0;
+    const view =
+      (viewId && views.find((v: any) => v.id === viewId)) ?? views[0];
+    return Array.isArray(view?.connectors) ? view.connectors.length : 0;
+  });
+
 export const getModelHistoryLength = (page: Page) =>
   page.evaluate(() => (window as any).__axoview__.model.getState().history.past.length);
 
