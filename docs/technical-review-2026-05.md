@@ -1099,7 +1099,30 @@ Everything outside the packages: deployment artifacts (Dockerfile, compose stack
 
 The three-tier doc tree per [`docs/workflow.md`](workflow.md) design principle 4: ADRs in `docs/adr/` (durable, status-tracked), tacticals in `docs/tactical/` (short-lived, deleted at wrap), root-level living references (`architecture.md`, `workflow.md`, `testing.md`, `ux-principles.md`, `deployment.md`, `manual-test-baseline.md`, `perf-troubleshooting.md`), plus the frozen `upstream-changelog.md` and this artifact.
 
-<!-- DOCS_TABLE_PLACEHOLDER -->
+| Path | Type | LOC | Purpose | Flags |
+|---|---|---|---|---|
+| `docs/adr/0001-project-zip-format.md` | doc | — | Status: Accepted. Locked decision-record specifying the `.axoview.zip` project bundle format; consumed by future agents touching import/export and by external reviewers. | — |
+| `docs/adr/0002-icon-catalog-merge-on-load.md` | doc | — | Status: Accepted. Locked decision-record for icon catalog merge-on-load semantics; consumed by future agents touching icon loading and by reviewers. | — |
+| `docs/adr/0003-session-storage-lean-icon-save.md` | doc | — | Status: Accepted. Locked decision-record for stripping default-catalog icons before sessionStorage persist; consumed by future agents touching session persistence and by reviewers. | — |
+| `docs/adr/0004-connector-name-and-details-panel.md` | doc | — | Status: Accepted. Locked decision-record establishing connector naming + details-panel parity with nodes; consumed by future agents touching the details panel and by reviewers. | — |
+| `docs/adr/0005-toolbar-and-dock-layout-contract.md` | doc | — | Status: Accepted. Locked decision-record for the toolbar/dock layout contract; consumed by future agents touching chrome layout and by reviewers. | — |
+| `docs/adr/0006-canvas-selection-contract.md` | doc | — | Status: Accepted. Locked decision-record for canvas single + multi-select semantics; consumed by future agents touching selection state and by reviewers. | — |
+| `docs/adr/0008-naming-convention.md` | doc | — | Status: Accepted. Locked decision-record for the Axoview naming convention (incl. Decision 5 `data-axoview-id` selective retrofit, the E2E selector contract); consumed by future agents touching naming + E2E selectors and by reviewers. | Numbering gap — no ADR 0007 in the tree (trace-harness ADR was never authored; gap acknowledged in audit wrap-up) |
+| `docs/adr/0009-deployment-topology.md` | doc | — | Status: Accepted. Locked decision-record for deployment topology (Cloudflare Pages + Worker, `_routes.json`/`_headers` build-output contract, Worker bundle-size budget); consumed by future agents touching deploy/CI and by reviewers. | — |
+| `docs/adr/0010-session-backend-contract.md` | doc | — | Status: Accepted. Locked decision-record for the session backend HTTP contract (incl. `/healthz` shape); consumed by future agents touching the Worker / self-host adapter and by reviewers. | — |
+| `docs/adr/0011-error-ux-contract.md` | doc | — | Status: Accepted. Locked decision-record for the error-UX contract (every failure-of-intent surface); consumed by future agents touching error surfaces, the E2E suite, and reviewers. | — |
+| `docs/architecture.md` | doc | — | Authoritative living architecture reference — feature inventory, store/mode map, deployment contract; consumed by every onboarding agent + reviewers. | — |
+| `docs/deployment.md` | doc | — | Authoritative living deployment guide — from-scratch local / Docker / Cloudflare walkthroughs; consumed by operators + reviewers assessing productization posture. | — |
+| `docs/manual-test-baseline.md` | doc | — | Authoritative living manual-QA scenario catalog (J1–J20 user journeys + per-mode observations); load-bearing source for the E2E suite and consumed by reviewers + manual-QA passes. | — |
+| `docs/perf-troubleshooting.md` | doc | — | Living perf playbook — diagnostic order, instrumentation, architectural invariants; appended to whenever a perf investigation lands. Consumed by future agents triaging perf regressions. | — |
+| `docs/tactical/e2e-suite-rewrite.md` | doc | — | Short-lived working doc for the T1/C.5 E2E suite rewrite workstream — **Status: Complete (M9 met 2026-05-23)**, wrap-pending: per its own instructions it should be deleted now that the suite is green in CI. | Wrap-pending — slated for deletion per its own wrap-up section |
+| `docs/tactical/git-automation-hardening.md` | doc | — | Short-lived working doc for the T2 git/CI/release hardening workstream — **Status: Complete (all rows shipped 2026-05-22)**, wrap-pending: per its own instructions it should be deleted now that the last row has merged. | Wrap-pending — slated for deletion per its own wrap-up section |
+| `docs/tactical/productization-audit.md` | doc | — | Canonical active tactical — productization audit & dead-code hunt; the only tactical currently in flight (Phase A + most of Phase C done; C.2 Section 1 still queued per the audit's own Findings register). Consumed by the current session-author + spawned tacticals + reviewers. | Header status string lags audit Findings register progress; cleanup pending at audit wrap |
+| `docs/technical-review-2026-05.md` | doc | — | Frozen (non-living) review artifact for the 3-session external technical review — Session A complete, Sessions B+C in progress; consumed by the external reviewer (another AI agent) and by the review-session author. | — |
+| `docs/testing.md` | doc | — | Authoritative living regression-test-suite reference (unit/integration/E2E commands + coverage targets); consumed by every onboarding agent + reviewers. | — |
+| `docs/upstream-changelog.md` | doc | — | Frozen verbatim copy of the upstream `stan-smith/FossFLOW` changelog at the fork point; preserved for pre-fork traceability and not maintained going forward. Consumed by anyone tracing pre-fork history. | — |
+| `docs/ux-principles.md` | doc | — | Authoritative living UX-principles reference (design language); consumed by every UX-touching agent + reviewers. | — |
+| `docs/workflow.md` | doc | — | Authoritative living workflow doc — canonical session cadence, skill decision table, six design principles (Accepted 2026-05-20); consumed by every agent starting a session + reviewers. | — |
 
 ### 7.8 Cross-package observations
 
