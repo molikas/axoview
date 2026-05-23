@@ -229,6 +229,7 @@ export function AppToolbar() {
                   size="small"
                   onClick={handleShareClick}
                   disabled={!serverStorageAvailable || !currentDiagramId}
+                  data-axoview-id="toolbar-share"
                   sx={{ borderRadius: 1, color: 'inherit' }}
                 >
                   <ShareIcon sx={{ fontSize: 18 }} />
@@ -290,14 +291,21 @@ export function AppToolbar() {
           }}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-          PaperProps={{ sx: { p: 2, width: 380, mt: 0.5 } }}
+          PaperProps={{
+            sx: { p: 2, width: 380, mt: 0.5 },
+            'data-axoview-id': 'share-popover'
+          } as any}
         >
           <Stack spacing={1.5}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Typography variant="subtitle2">
                 {t('share.title', 'Share Diagram')}
               </Typography>
-              <IconButton size="small" onClick={() => setShowSharePopover(false)}>
+              <IconButton
+                size="small"
+                onClick={() => setShowSharePopover(false)}
+                data-axoview-id="share-popover-close"
+              >
                 <CloseIcon />
               </IconButton>
             </Stack>
@@ -316,6 +324,7 @@ export function AppToolbar() {
                 value={shareLoading ? t('share.creating', 'Creating link…') : shareUrl}
                 inputProps={{
                   readOnly: true,
+                  'data-axoview-id': 'share-url-input',
                   style: { fontFamily: 'monospace', fontSize: 12 }
                 }}
                 onClick={handleShareUrlClick}
@@ -326,6 +335,7 @@ export function AppToolbar() {
                 size="small"
                 onClick={handleShareClick}
                 disabled={shareLoading}
+                data-axoview-id="share-copy-button"
                 sx={{ whiteSpace: 'nowrap', minWidth: 80, textTransform: 'none' }}
               >
                 {shareCopied ? t('share.copied', '✓ Copied!') : t('share.copy', 'Copy')}

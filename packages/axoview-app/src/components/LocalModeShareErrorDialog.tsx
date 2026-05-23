@@ -26,8 +26,9 @@ export function LocalModeShareErrorDialog({
       maxWidth="xs"
       fullWidth
       PaperProps={{
-        sx: { boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)', borderRadius: 2 }
-      }}
+        sx: { boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)', borderRadius: 2 },
+        'data-axoview-id': 'dialog-local-mode-share-error'
+      } as any}
     >
       <DialogTitle sx={{ pb: 1 }}>
         <Typography variant="h6" component="span">
@@ -46,7 +47,12 @@ export function LocalModeShareErrorDialog({
         </Typography>
       </DialogContent>
       <DialogActions sx={{ px: 2.5, pb: 2.5, pt: 1 }}>
-        <Button variant="contained" onClick={onDismiss} autoFocus>
+        <Button
+          variant="contained"
+          onClick={onDismiss}
+          autoFocus
+          data-axoview-id="dialog-local-mode-share-error-dismiss"
+        >
           {t('dialog.localModeShareError.btnDismiss', 'OK')}
         </Button>
       </DialogActions>

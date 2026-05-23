@@ -18,6 +18,11 @@
  * Lazy data-axoview-id retrofits — Session 6:
  *   - `toolbar-preview`            (Preview IconButton)          ← clickPreview()
  *   - `toolbar-back-to-editing`    (Back-to-editing Button)      ← clickBackToEditing()
+ *   - `toolbar-share`              (Share IconButton)            ← openShareDialog()
+ *   - `share-popover`              (Popover Paper)               ← sharePopover()
+ *   - `share-popover-close`        (Popover close IconButton)    ← closeShareDialog()
+ *   - `share-url-input`            (TextField input)             ← shareUrlInput()
+ *   - `share-copy-button`          (Copy Button)                 ← copyShareUrl()
  *
  * Methods left as `not-yet-implemented` stubs are declared so consumer specs
  * in Sessions 5–6 know the API surface; each stub names the attribute it
@@ -83,9 +88,56 @@ export class AppToolbarPOM {
     await this.exportProjectZipMenuItem().click();
   }
 
-  /** Stub — `data-axoview-id="toolbar-share"`. Lights up when share spec lands (Session 6). */
-  async clickShare(): Promise<never> {
-    throw new Error('AppToolbarPOM.clickShare: not implemented — Session 6 adds toolbar-share attribute + body.');
+  shareButton() {
+    return byAxoviewId(this.page, 'toolbar-share');
+  }
+
+  sharePopover() {
+    return byAxoviewId(this.page, 'share-popover');
+  }
+
+  sharePopoverCloseButton() {
+    return byAxoviewId(this.page, 'share-popover-close');
+  }
+
+  shareUrlInput() {
+    return byAxoviewId(this.page, 'share-url-input');
+  }
+
+  shareCopyButton() {
+    return byAxoviewId(this.page, 'share-copy-button');
+  }
+
+  /**
+   * Opens the Share popover via the toolbar Share IconButton.
+   *
+   * In Local mode the Share button is render-disabled (per
+   * `!serverStorageAvailable || !currentDiagramId`); the share spec relies
+   * on mocked `/api/config` to flip `serverStorageAvailable=true` so this
+   * affordance becomes clickable. See share.spec.ts for the mock setup.
+   *
+   * The handler triggers `storage.shareDiagram(currentDiagramId)` which
+   * POSTs to `/api/diagrams/<id>/share`; specs mock that endpoint to return
+   * a deterministic UUID so the URL input asserts against a known value.
+   */
+  async openShareDialog() {
+    await this.shareButton().click();
+    await this.sharePopover().waitFor({ state: 'visible', timeout: 5_000 });
+  }
+
+  async closeShareDialog() {
+    await this.sharePopoverCloseButton().click();
+    await this.sharePopover().waitFor({ state: 'hidden', timeout: 3_000 });
+  }
+
+  /** Reads the current share URL out of the popover input field. */
+  async getShareUrl(): Promise<string> {
+    return (await this.shareUrlInput().inputValue()).trim();
+  }
+
+  /** Clicks the Copy button. Caller must `context.grantPermissions(['clipboard-read', 'clipboard-write'])` to use the navigator.clipboard read-back. */
+  async copyShareUrl() {
+    await this.shareCopyButton().click();
   }
 
   previewButton() {

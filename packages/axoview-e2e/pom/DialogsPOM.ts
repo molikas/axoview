@@ -18,6 +18,10 @@
  *   - `dialog-export-project-zip-confirm` (Session 4, Commit 2)
  *   - `dialog-import-icons-confirm`       (Session 4, Commit 3)
  *   - `dialog-delete-icon-confirm`        (Session 4, Commit 3)
+ *
+ * Session 6 additions (Commit 3 — share spec):
+ *   - `dialog-local-mode-share-error`           (LocalModeShareErrorDialog Dialog)
+ *   - `dialog-local-mode-share-error-dismiss`   (LocalModeShareErrorDialog OK Button)
  */
 import { Page } from '@playwright/test';
 import { byAxoviewId } from '../helpers/selectors';
@@ -58,5 +62,22 @@ export class DialogsPOM {
    *  the count copy inline; no separate attribute needed). */
   async confirmDeleteIcon() {
     await this.deleteIconConfirmButton().click();
+  }
+
+  localModeShareError() {
+    return byAxoviewId(this.page, 'dialog-local-mode-share-error');
+  }
+
+  localModeShareErrorDismissButton() {
+    return byAxoviewId(this.page, 'dialog-local-mode-share-error-dismiss');
+  }
+
+  /**
+   * Dismisses the LocalModeShareErrorDialog. The handler calls
+   * `navigate('/', { replace: true })` so the URL strips back to the
+   * editor root.
+   */
+  async dismissLocalModeShareError() {
+    await this.localModeShareErrorDismissButton().click();
   }
 }
