@@ -1,4 +1,4 @@
-import { Coords, Size, EditorModeEnum, MainMenuOptions } from './common';
+import { Coords, Size, EditorModeEnum } from './common';
 import { Icon } from './model';
 import { ItemReference } from './scene';
 import {
@@ -205,7 +205,6 @@ export type CanvasMode = 'ISOMETRIC' | '2D';
 
 export interface UiState {
   view: string;
-  mainMenuOptions: MainMenuOptions;
   editorMode: keyof typeof EditorModeEnum;
   iconCategoriesState: IconCollectionState[];
   /**
@@ -217,7 +216,6 @@ export interface UiState {
   freshlyLoadedCategoryIds: string[];
   mode: Mode;
   dialog: keyof typeof DialogTypeEnum | null;
-  isMainMenuOpen: boolean;
   itemControls: ItemControls | null;
   /**
    * Persistent multi-selection on the canvas. Single source of truth for which
@@ -259,7 +257,6 @@ export interface UiState {
 
 export interface UiStateActions {
   setView: (view: string) => void;
-  setMainMenuOptions: (options: MainMenuOptions) => void;
   setEditorMode: (mode: keyof typeof EditorModeEnum) => void;
   setIconCategoriesState: (iconCategoriesState: IconCollectionState[]) => void;
   setFreshlyLoadedCategoryIds: (ids: string[]) => void;
@@ -267,7 +264,6 @@ export interface UiStateActions {
   setMode: (mode: Mode) => void;
   incrementZoom: () => void;
   decrementZoom: () => void;
-  setIsMainMenuOpen: (isOpen: boolean) => void;
   setDialog: (dialog: keyof typeof DialogTypeEnum | null) => void;
   setZoom: (zoom: number) => void;
   setScroll: (scroll: Scroll) => void;

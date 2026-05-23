@@ -1,7 +1,6 @@
 import {
   Size,
   InitialData,
-  MainMenuOptions,
   Icon,
   Connector,
   TextBox,
@@ -137,16 +136,6 @@ export const INITIAL_SCENE_STATE = {
   connectors: {},
   textBoxes: {}
 };
-export const MAIN_MENU_OPTIONS: MainMenuOptions = [
-  'ACTION.NEW',
-  'ACTION.OPEN',
-  'EXPORT.JSON',
-  'EXPORT.PNG',
-  'ACTION.CLEAR_CANVAS',
-  'LINK.DISCORD',
-  'LINK.GITHUB',
-  'VERSION'
-];
 
 export const DEFAULT_ICON: Icon = {
   id: 'default',

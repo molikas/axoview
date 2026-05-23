@@ -1,5 +1,5 @@
-export * from './CoordsUtils';
-export * from './SizeUtils';
+export * from './coordsUtils';
+export * from './sizeUtils';
 export * from './common';
 export * from './pathfinder';
 export * from './isoMath';

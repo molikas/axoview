@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Box } from '@mui/material';
 import {
   Axoview,
   allLocales,
-  type MainMenuOptions,
   type IconUsageReport
 } from 'axoview';
 import { scanIconUsage } from './services/iconUsage';
@@ -13,7 +13,6 @@ import {
   DiagramLifecycleProvider,
   useDiagramLifecycle
 } from './providers/DiagramLifecycleProvider';
-import { FileExplorerLayout } from './layout/FileExplorerLayout';
 import { FileExplorer } from './components/fileExplorer/FileExplorer';
 import { AppToolbar } from './components/AppToolbar';
 import { EmptyStateScreen } from './components/EmptyStateScreen';
@@ -37,9 +36,6 @@ const basename = publicUrl
     ? publicUrl.slice(0, -1)
     : publicUrl
   : '/';
-
-// Burger removed per ADR 0005 — app stops using mainMenuOptions so MainMenu short-circuits.
-const MAIN_MENU_OPTIONS: MainMenuOptions = [];
 
 const EXPORTER_TAG = `axoview-app@${process.env.REACT_APP_VERSION ?? 'dev'}`;
 
@@ -260,7 +256,20 @@ function EditorShell() {
 
       {showLocalModeBanner && <LocalModeBanner />}
 
-      <FileExplorerLayout>
+      {/* Main flex region for the canvas. The file explorer renders as an
+          absolute overlay inside .axoview-container — it does not push the
+          canvas. */}
+      <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <Box
+          component="main"
+          sx={{
+            flex: 1,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            minWidth: 0
+          }}
+        >
         <div className="axoview-container" style={{ position: 'relative' }}>
           <Axoview
             ref={axoviewRef}
@@ -275,7 +284,6 @@ function EditorShell() {
             languageSelector={<ChangeLanguage />}
             bottomDockEnd={<DiagnosticsToggleButton />}
             suppressOnboardingHints={!!currentDiagram || isReadonlyUrl}
-            mainMenuOptions={MAIN_MENU_OPTIONS}
             fileExplorerOpen={fileExplorerOpen}
             onFileExplorerToggle={() => setFileExplorerOpen(!fileExplorerOpen)}
             disableLeftDockWorkingTabs={!currentDiagram}
@@ -324,7 +332,8 @@ function EditorShell() {
             </div>
           )}
         </div>
-      </FileExplorerLayout>
+        </Box>
+      </Box>
 
       {/* Hidden file input for empty-tree direct import */}
       <input

@@ -52,15 +52,3 @@ export function extractSavableData(fullData: DiagramData): DiagramData {
     fitToScreen: fullData.fitToScreen !== false
   };
 }
-
-// Validate diagram data structure
-export function validateDiagramData(data: any): data is DiagramData {
-  return (
-    typeof data === 'object' &&
-    data !== null &&
-    Array.isArray(data.icons) &&
-    Array.isArray(data.colors) &&
-    Array.isArray(data.items) &&
-    Array.isArray(data.views)
-  );
-}

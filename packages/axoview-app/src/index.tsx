@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import 'react-quill-new/dist/quill.snow.css';
 import App from './App';
-import reportWebVitals from './reportWebVitals';
 import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 import { ErrorBoundary } from 'react-error-boundary';
 import ErrorBoundaryFallbackUI from './components/ErrorBoundary';
@@ -27,11 +26,6 @@ root.render(
     </I18nextProvider>
   </React.StrictMode>
 );
-
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
 
 // Axoview does not use PWA/offline support — always unregister any active service worker.
 serviceWorkerRegistration.unregister();

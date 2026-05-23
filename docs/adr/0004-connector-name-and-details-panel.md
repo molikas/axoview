@@ -1,7 +1,8 @@
 # ADR 0004 — Connector Name and Details Panel Parity
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-05-03
+**Accepted on:** 2026-05-05
 **Supersedes:** none
 **Superseded by:** none
 

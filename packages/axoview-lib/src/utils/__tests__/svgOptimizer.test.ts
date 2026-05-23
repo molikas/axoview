@@ -3,7 +3,7 @@ import {
   roundNumbers,
   roundStyleDeclarations,
   pruneHiddenElements
-} from './svgOptimizer';
+} from '../svgOptimizer';
 
 // ---------------------------------------------------------------------------
 // Phase 1 — stripIrrelevantProperties

@@ -26,7 +26,7 @@ import {
   useUiStateStore,
   useUiStateStoreApi
 } from 'src/stores/uiStateStore';
-import { INITIAL_DATA, MAIN_MENU_OPTIONS } from 'src/config';
+import { INITIAL_DATA } from 'src/config';
 import { savePersistedSettings } from 'src/config/persistedSettings';
 import { useInitialDataManager } from 'src/hooks/useInitialDataManager';
 import { useDirtyTracker } from 'src/hooks/useDirtyTracker';
@@ -34,7 +34,7 @@ import { ClipboardProvider } from 'src/clipboard/ClipboardContext';
 import { LayerContextProvider } from 'src/hooks/useLayerContext';
 import { CanvasModeProvider } from 'src/contexts/CanvasModeContext';
 import { LeftDock } from 'src/components/LeftDock/LeftDock';
-import { RightSidebar } from 'src/components/Sidebars/RightSidebar';
+import { RightSidebar } from 'src/components/RightSidebar';
 import { BottomDock } from 'src/components/BottomDock/BottomDock';
 import enUS from 'src/i18n/en-US';
 
@@ -68,7 +68,6 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
   (
     {
       initialData,
-      mainMenuOptions = MAIN_MENU_OPTIONS,
       width = '100%',
       height = '100%',
       onModelUpdated,
@@ -178,8 +177,8 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
     // Wrap the exposed load so every programmatic load resets Axoview's
     // internal dirty flag.  Without this, axoviewRef.current.load() triggers
     // useDirtyTracker's modelStore subscription and marks the diagram dirty
-    // even though no user edit occurred, causing the MainMenu "New diagram"
-    // guard to fire spuriously.
+    // even though no user edit occurred, causing dirty-state guards to fire
+    // spuriously.
     useImperativeHandle(
       ref,
       () => ({
@@ -222,8 +221,7 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
 
     useEffect(() => {
       uiStateActions.setEditorMode(editorMode);
-      uiStateActions.setMainMenuOptions(mainMenuOptions);
-    }, [editorMode, uiStateActions, mainMenuOptions]);
+    }, [editorMode, uiStateActions]);
 
     useEffect(() => {
       return () => {

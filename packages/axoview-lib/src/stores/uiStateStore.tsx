@@ -24,12 +24,10 @@ const initialState = () => {
       zoom: INITIAL_UI_STATE.zoom,
       scroll: INITIAL_UI_STATE.scroll,
       view: '',
-      mainMenuOptions: [],
       editorMode: 'EXPLORABLE_READONLY',
       mode: getStartingMode('EXPLORABLE_READONLY'),
       iconCategoriesState: [],
       freshlyLoadedCategoryIds: [],
-      isMainMenuOpen: false,
       dialog: null,
       rendererEl: null,
       rendererSize: { width: 0, height: 0 },
@@ -63,9 +61,6 @@ const initialState = () => {
         setView: (view) => {
           set({ view });
         },
-        setMainMenuOptions: (mainMenuOptions) => {
-          set({ mainMenuOptions });
-        },
         setEditorMode: (mode) => {
           set({ editorMode: mode, mode: getStartingMode(mode) });
         },
@@ -93,9 +88,6 @@ const initialState = () => {
         },
         setDialog: (dialog) => {
           set({ dialog });
-        },
-        setIsMainMenuOpen: (isMainMenuOpen) => {
-          set({ isMainMenuOpen, itemControls: null });
         },
         incrementZoom: () => {
           const { zoom } = get();
