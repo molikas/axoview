@@ -25,9 +25,6 @@ app.use(
 );
 app.use('/api/*', authMiddleware());
 
-app.get('/api/storage/status', (c) =>
-  c.json({ enabled: false, gitBackup: false, version: '1.0.0' }, 200)
-);
 app.get('/api/config', (c) =>
   c.json(
     {

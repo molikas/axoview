@@ -885,6 +885,11 @@ Detailed sub-tasks live in [docs/tactical/layout-revamp.md](docs/tactical/layout
 - [ ] All new strings localized in 14 languages
 - [ ] `yarn build` clean
 
+**Completed alongside 2D (tacticals retired 2026-05-19):**
+- **Rename FossFLOW → Axoview** — Phases 0–9 shipped on `rename/axoview` (merged `72fa120`). Phase 10 (npm publish, Docker Hub, Cloudflare Pages deploy, cwd rename) absorbed into `docs/tactical/productization-audit.md` milestones M7/M8/M10.
+  — Phase 10 "npm publish" item closed 2026-05-20 with decision not to publish; `axoview-lib` stays monorepo-only per productization-audit Locked Decision #11.
+- **Manual QA bundle (28 items)** — Bundles A + B (2026-05-15) plus follow-ups through 2026-05-19; all items closed. Five late-flagged items (#8, #9, #19, #20, #26) confirmed resolved.
+
 ---
 
 ## Phase 3A — Google Authentication (E5)
@@ -1104,6 +1109,8 @@ Before coding, read these files:
 
 ## E2E Test Suite — POST-UX PHASE (Out of Scope Now)
 🚫 **Do not implement during the above phases.**
+
+**Playwright migration shipped 2026-05 (tactical retired 2026-05-19):** Playwright suite operational at `packages/axoview-e2e/`; legacy Selenium suite at `e2e-tests/` retained interim. **Superseded by productization-audit decision #4** — both suites will be deleted and the E2E suite rewritten from zero against the locked naming convention (ADR 0008) once the productization audit reaches milestone M9.
 
 When the new UX ships, pick up this section. The Playwright infrastructure already exists at `packages/axoview-e2e/`. All existing tests continue to run. New test files to add:
 

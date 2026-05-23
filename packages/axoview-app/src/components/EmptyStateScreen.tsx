@@ -64,14 +64,26 @@ export function EmptyStateScreen({ onCreate, onImport }: Props) {
     >
       <Paper elevation={3} sx={cardSx}>
         <AddIcon sx={{ fontSize: 72, color: SKY_BLUE }} />
-        <Button variant="contained" size="large" onClick={onCreate} sx={buttonSx}>
+        <Button
+          variant="contained"
+          size="large"
+          onClick={onCreate}
+          data-axoview-id="screen-empty-create"
+          sx={buttonSx}
+        >
           New diagram
         </Button>
       </Paper>
 
       <Paper elevation={3} sx={cardSx}>
         <ImportIcon sx={{ fontSize: 72, color: SKY_BLUE }} />
-        <Button variant="contained" size="large" onClick={onImport} sx={buttonSx}>
+        <Button
+          variant="contained"
+          size="large"
+          onClick={onImport}
+          data-axoview-id="screen-empty-import"
+          sx={buttonSx}
+        >
           Import
         </Button>
       </Paper>

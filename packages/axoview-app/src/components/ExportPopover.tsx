@@ -40,6 +40,7 @@ export function ExportPopover() {
             size="small"
             onClick={() => setOpen(true)}
             disabled={!currentDiagram}
+            data-axoview-id="toolbar-export"
             sx={{ borderRadius: 1, color: 'inherit' }}
           >
             <DownloadIcon sx={{ fontSize: 18 }} />
@@ -56,7 +57,10 @@ export function ExportPopover() {
         PaperProps={{ sx: { mt: 0.5, minWidth: 200 } }}
       >
         <MenuList dense sx={{ py: 0.5 }}>
-          <MenuItem onClick={() => handleOption(handleExportJSON)}>
+          <MenuItem
+            onClick={() => handleOption(handleExportJSON)}
+            data-axoview-id="toolbar-export-json"
+          >
             <ListItemIcon><JsonIcon fontSize="small" /></ListItemIcon>
             <ListItemText>Export JSON</ListItemText>
           </MenuItem>
@@ -64,7 +68,10 @@ export function ExportPopover() {
             <ListItemIcon><ImageIcon fontSize="small" /></ListItemIcon>
             <ListItemText>Export Image</ListItemText>
           </MenuItem>
-          <MenuItem onClick={() => handleOption(handleExportProject)}>
+          <MenuItem
+            onClick={() => handleOption(handleExportProject)}
+            data-axoview-id="toolbar-export-project-zip"
+          >
             <ListItemIcon><ProjectZipIcon fontSize="small" /></ListItemIcon>
             <ListItemText>Export Project (.zip)</ListItemText>
           </MenuItem>

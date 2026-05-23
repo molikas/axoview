@@ -26,9 +26,12 @@ jobs:
       
       - name: Install dependencies
         run: npm ci
-      
+
+      - name: Lint
+        run: npx eslint .
+
       - name: Run tests with coverage
-        run: npm test -- --coverage || npm test
+        run: npm test -- --coverage
         env:
           CI: true
       
@@ -56,3 +59,25 @@ jobs:
 
       - name: Run NPM build to check there are no build errors
         run: npm run build
+
+      - name: Verify build output
+        run: |
+          test -f packages/axoview-app/build/_routes.json || (echo "::error::_routes.json missing from build output" && exit 1)
+          test -f packages/axoview-app/build/_headers || (echo "::error::_headers missing from build output" && exit 1)
+
+      # Soft-fail mode 2026-05-22; promote to hard-fail after a clean run
+      # per T2 G10 locked decision (git-automation-hardening.md).
+      - name: Knip — dead-code report (soft-fail)
+        run: npx knip --reporter compact
+        continue-on-error: true
+
+      - name: Build Worker bundle and check size (ADR 0009 D8)
+        run: |
+          npx wrangler pages functions build --outdir .worker-build
+          SIZE=$(du -sb .worker-build | cut -f1)
+          LIMIT=1048576
+          echo "Worker bundle size: ${SIZE} bytes (limit ${LIMIT} bytes / 1 MB uncompressed)"
+          if [ "$SIZE" -gt "$LIMIT" ]; then
+            echo "::error::Worker bundle ${SIZE} bytes exceeds 1 MB uncompressed budget (ADR 0009 Decision 8)"
+            exit 1
+          fi

@@ -9,6 +9,10 @@ interface Props {
   onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
   tooltipPosition?: TooltipProps['placement'];
   disabled?: boolean;
+  /** Optional `data-axoview-id` value forwarded to the underlying <button>.
+   *  Per ADR 0008 Decision 5 (lazy retrofit), callers add this on the spot
+   *  for E2E coverage; existing call sites continue to work without it. */
+  dataAxoviewId?: string;
 }
 
 export const IconButton = ({
@@ -17,7 +21,8 @@ export const IconButton = ({
   onClick,
   isActive = false,
   disabled = false,
-  tooltipPosition = 'bottom'
+  tooltipPosition = 'bottom',
+  dataAxoviewId
 }: Props) => {
   const theme = useTheme();
   const iconColor = useMemo(() => {
@@ -50,6 +55,7 @@ export const IconButton = ({
           variant="text"
           onClick={onClick}
           disabled={disabled}
+          data-axoview-id={dataAxoviewId}
           sx={{
             borderRadius: 0,
             height: theme.customVars.toolMenu.height,

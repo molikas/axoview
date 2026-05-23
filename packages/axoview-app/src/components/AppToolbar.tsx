@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
   Chip,
@@ -16,7 +17,8 @@ import {
   SaveOutlined as SaveIcon,
   ShareOutlined as ShareIcon,
   Close as CloseIcon,
-  VisibilityOutlined as PreviewIcon
+  VisibilityOutlined as PreviewIcon,
+  ArrowBack as ArrowBackIcon
 } from '@mui/icons-material';
 import { useAppStorage } from '../providers/AppStorageContext';
 import { useDiagramLifecycle } from '../providers/DiagramLifecycleProvider';
@@ -26,6 +28,8 @@ import { shareUrlFromUuid } from '../utils/shareUrl';
 
 export function AppToolbar() {
   const { t } = useTranslation('app');
+  const location = useLocation();
+  const navigate = useNavigate();
   const { serverStorageAvailable, storage } = useAppStorage();
   const {
     hasUnsavedChanges,
@@ -97,17 +101,19 @@ export function AppToolbar() {
     (e.target as HTMLInputElement).select();
   };
 
-  useEffect(() => {
-    if (!showSharePopover) return;
-    const handleOutside = (e: MouseEvent) => {
-      const btn = shareButtonRef.current;
-      if (btn && !btn.parentElement?.contains(e.target as Node)) {
-        setShowSharePopover(false);
-      }
-    };
-    document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, [showSharePopover]);
+  // User-facing copy never says "session mode" — see workflow + ADR 0008 D1:
+  // end users read "session" as something different from the audit's mode name.
+  const shareTooltip = !serverStorageAvailable
+    ? t(
+        'toolbar.share.disabled.needsServerStorage',
+        'Share requires server storage. Run Axoview self-hosted (Docker) or on Cloudflare to enable shareable links.'
+      )
+    : !currentDiagramId
+      ? t(
+          'toolbar.share.disabled.needsDiagram',
+          'Open or create a diagram first to share it.'
+        )
+      : t('nav.share', 'Share');
 
   return (
     <Box
@@ -138,7 +144,7 @@ export function AppToolbar() {
       >
         <Box
           component="img"
-          src={`${process.env.PUBLIC_URL || ''}/favicon.svg`.replace(/\/+/g, '/')}
+          src={`${process.env.PUBLIC_URL || ''}/favicon-96x96.png`.replace(/\/+/g, '/')}
           alt=""
           sx={{ width: 24, height: 24, display: 'block' }}
         />
@@ -165,17 +171,31 @@ export function AppToolbar() {
         sx={{ display: 'flex', alignItems: 'center', gap: 0.25, flexShrink: 0 }}
       >
         {isReadonlyUrl ? (
-          <Chip
-            label={t('dialog.readOnly.mode')}
-            variant="outlined"
-            size="small"
-            sx={{ ml: 1 }}
-          />
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ ml: 1 }}>
+            <Chip
+              label={t('dialog.readOnly.mode')}
+              variant="outlined"
+              size="small"
+            />
+            {(location.state as { fromEditor?: boolean } | null)?.fromEditor && (
+              <Tooltip title={t('toolbar.backToEditing', 'Back to editing')}>
+                <Button
+                  size="small"
+                  startIcon={<ArrowBackIcon sx={{ fontSize: 16 }} />}
+                  onClick={() => navigate(-1)}
+                  data-axoview-id="toolbar-back-to-editing"
+                  sx={{ textTransform: 'none' }}
+                >
+                  {t('toolbar.backToEditing', 'Back to editing')}
+                </Button>
+              </Tooltip>
+            )}
+          </Stack>
         ) : (
           <>
             {/* Group 1: View modes — reserved per ADR 0005, future ADRs add controls here */}
 
-            {/* Group 2: Save group — Save action (session mode only) + StatusCluster */}
+            {/* Group 2: Save group — Save action (local mode only) + StatusCluster */}
             {!serverStorageAvailable && (
               <Tooltip
                 title={t('nav.save', 'Save') + ' (Ctrl+S)'}
@@ -186,6 +206,7 @@ export function AppToolbar() {
                     size="small"
                     onClick={handleSaveClick}
                     disabled={!!currentDiagramId && !hasUnsavedChanges}
+                    data-axoview-id="toolbar-save"
                     sx={{ borderRadius: 1, color: 'primary.main' }}
                   >
                     <SaveIcon sx={{ fontSize: 18 }} />
@@ -197,22 +218,18 @@ export function AppToolbar() {
 
             <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
-            {/* Group 3: Document actions — Export + Share + Preview */}
+            {/* Group 3: Document actions — Export + Share + Preview. Share is
+                render-disabled (not hidden) without server storage so the
+                affordance still signals the feature exists. */}
             <ExportPopover />
-            <Tooltip
-              title={
-                !serverStorageAvailable || !currentDiagramId
-                  ? t('nav.share', 'Share') + ' (requires server)'
-                  : t('nav.share', 'Share')
-              }
-              placement="bottom"
-            >
+            <Tooltip title={shareTooltip} placement="bottom">
               <span>
                 <IconButton
                   ref={shareButtonRef}
                   size="small"
                   onClick={handleShareClick}
                   disabled={!serverStorageAvailable || !currentDiagramId}
+                  data-axoview-id="toolbar-share"
                   sx={{ borderRadius: 1, color: 'inherit' }}
                 >
                   <ShareIcon sx={{ fontSize: 18 }} />
@@ -221,7 +238,7 @@ export function AppToolbar() {
             </Tooltip>
             <Tooltip
               title={
-                !serverStorageAvailable || !currentDiagramId
+                !currentDiagramId
                   ? t('toolbar.previewSaveFirst', 'Save first to preview')
                   : t('toolbar.preview', 'Preview')
               }
@@ -231,7 +248,8 @@ export function AppToolbar() {
                 <IconButton
                   size="small"
                   onClick={handlePreviewClick}
-                  disabled={!serverStorageAvailable || !currentDiagramId}
+                  disabled={!currentDiagramId}
+                  data-axoview-id="toolbar-preview"
                   sx={{ borderRadius: 1, color: 'inherit' }}
                 >
                   <PreviewIcon sx={{ fontSize: 18 }} />
@@ -255,22 +273,39 @@ export function AppToolbar() {
         )}
       </Box>
 
-      {/* Share popover */}
+      {/* Share popover. onClose reason-guarded — only backdrop click + Escape
+          dismiss; any other path (focus shifts, internal MUI dispatches) keeps
+          it open. B-3 original symptom: clicks inside the TextField closed the
+          popover; the underlying cause was a custom document mousedown listener
+          (removed in 95a0fd5) that treated portaled content as outside. This
+          reason guard is the defense-in-depth for any future MUI behaviour
+          drift. */}
       {!isReadonlyUrl && (
         <Popover
           open={showSharePopover && !!currentDiagramId}
           anchorEl={shareButtonRef.current}
-          onClose={() => setShowSharePopover(false)}
+          onClose={(_event, reason) => {
+            if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+              setShowSharePopover(false);
+            }
+          }}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-          PaperProps={{ sx: { p: 2, width: 380, mt: 0.5 } }}
+          PaperProps={{
+            sx: { p: 2, width: 380, mt: 0.5 },
+            'data-axoview-id': 'share-popover'
+          } as any}
         >
           <Stack spacing={1.5}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Typography variant="subtitle2">
                 {t('share.title', 'Share Diagram')}
               </Typography>
-              <IconButton size="small" onClick={() => setShowSharePopover(false)}>
+              <IconButton
+                size="small"
+                onClick={() => setShowSharePopover(false)}
+                data-axoview-id="share-popover-close"
+              >
                 <CloseIcon />
               </IconButton>
             </Stack>
@@ -289,6 +324,7 @@ export function AppToolbar() {
                 value={shareLoading ? t('share.creating', 'Creating link…') : shareUrl}
                 inputProps={{
                   readOnly: true,
+                  'data-axoview-id': 'share-url-input',
                   style: { fontFamily: 'monospace', fontSize: 12 }
                 }}
                 onClick={handleShareUrlClick}
@@ -299,6 +335,7 @@ export function AppToolbar() {
                 size="small"
                 onClick={handleShareClick}
                 disabled={shareLoading}
+                data-axoview-id="share-copy-button"
                 sx={{ whiteSpace: 'nowrap', minWidth: 80, textTransform: 'none' }}
               >
                 {shareCopied ? t('share.copied', '✓ Copied!') : t('share.copy', 'Copy')}

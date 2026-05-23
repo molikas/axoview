@@ -81,7 +81,6 @@ interface UiOverlayProps {
   sidebarTogglePortalTarget?: HTMLElement | null;
   languageSelector?: React.ReactNode;
   suppressOnboardingHints?: boolean;
-  onSessionDump?: () => void;
   /** @deprecated use toolbarPortalTarget */
   menuPortalTarget?: HTMLElement | null;
 }
@@ -91,7 +90,6 @@ export const UiOverlay = ({
   sidebarTogglePortalTarget,
   languageSelector,
   suppressOnboardingHints,
-  onSessionDump,
   menuPortalTarget
 }: UiOverlayProps = {}) => {
   const portalTarget = toolbarPortalTarget ?? menuPortalTarget ?? null;
@@ -298,7 +296,6 @@ export const UiOverlay = ({
         <SettingsDialog
           iconPackManager={iconPackManager || undefined}
           languageSelector={languageSelector}
-          onSessionDump={onSessionDump}
         />
       )}
 

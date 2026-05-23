@@ -22,7 +22,6 @@ import { LabelSettings } from '../LabelSettings/LabelSettings';
 import { ConnectorSettings } from '../ConnectorSettings/ConnectorSettings';
 import { IconPackSettings } from '../IconPackSettings/IconPackSettings';
 import { AboutTab } from './AboutTab';
-import { DiagnosticsTab } from './DiagnosticsTab';
 import { useTranslation } from 'src/stores/localeStore';
 import { Section } from 'src/components/ItemControls/components/Section';
 
@@ -43,8 +42,6 @@ export interface SettingsDialogProps {
   };
   /** Optional language selector component rendered on the Language tab. */
   languageSelector?: React.ReactNode;
-  /** Called when the user clicks "Download session dump" in the Diagnostics tab. */
-  onSessionDump?: () => void;
 }
 
 type SettingsTab = {
@@ -57,8 +54,7 @@ type SettingsTab = {
 
 export const SettingsDialog = ({
   iconPackManager,
-  languageSelector,
-  onSessionDump
+  languageSelector
 }: SettingsDialogProps) => {
   const dialog = useUiStateStore((state) => state.dialog);
   const setDialog = useUiStateStore((state) => state.actions.setDialog);
@@ -132,12 +128,6 @@ export const SettingsDialog = ({
 
   // "Geeky tail" — rendered under a divider in the rail
   tabs.push({ id: 'about', label: 'About', content: <AboutTab />, tail: true });
-  tabs.push({
-    id: 'diagnostics',
-    label: 'Diagnostics',
-    content: <DiagnosticsTab onSessionDump={onSessionDump} />,
-    tail: true
-  });
 
   const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
   const firstTailIndex = tabs.findIndex((tab) => tab.tail);
@@ -148,13 +138,17 @@ export const SettingsDialog = ({
       onClose={handleClose}
       maxWidth="md"
       fullWidth
-      PaperProps={{ sx: { height: '60vh', minHeight: 480 } }}
+      PaperProps={{
+        sx: { height: '60vh', minHeight: 480 },
+        'data-axoview-id': 'dialog-settings'
+      } as any}
     >
       <DialogTitle sx={{ pr: 6 }}>
         Settings
         <IconButton
           aria-label="close"
           onClick={handleClose}
+          data-axoview-id="dialog-settings-close"
           sx={{
             position: 'absolute',
             right: 8,
@@ -188,6 +182,7 @@ export const SettingsDialog = ({
                   <ListItemButton
                     selected={tab.id === activeId}
                     onClick={() => setActiveId(tab.id)}
+                    data-axoview-id={`dialog-settings-tab-${tab.id}`}
                     sx={{
                       py: 0.5,
                       px: 2,

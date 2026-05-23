@@ -87,7 +87,6 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
       fileExplorerOpen,
       onFileExplorerToggle,
       disableLeftDockWorkingTabs,
-      onSessionDump,
       /** @deprecated use toolbarPortalTarget */
       menuPortalTarget
     },
@@ -296,7 +295,6 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
                 sidebarTogglePortalTarget={sidebarTogglePortalTarget}
                 languageSelector={languageSelector}
                 suppressOnboardingHints={suppressOnboardingHints}
-                onSessionDump={onSessionDump}
               />
             </Box>
             {editorMode !== 'EXPLORABLE_READONLY' && (

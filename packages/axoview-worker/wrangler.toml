@@ -1,6 +1,10 @@
 # Standalone wrangler config for the Worker package itself (used by
 # `wrangler pages dev` from this directory). The repo-root wrangler.toml is
 # what the "Deploy to Cloudflare" button consumes for Pages.
+#
+# Retained for local dev (`npx wrangler dev --config packages/axoview-worker/wrangler.toml`).
+# Keep [vars] and compatibility_date in lockstep with the repo-root wrangler.toml —
+# drift between the two is a known operational risk per ADR 0009 Decision 5.
 
 name = "axoview"
 compatibility_date = "2025-01-01"

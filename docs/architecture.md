@@ -701,8 +701,6 @@ Properties panel on the right edge. `position:absolute`, right:0, top:0, bottom:
 - When `itemControls !== null` → renders `<ItemControlsManager readOnly={readOnly} />` (full-height scrollable)
 - When `itemControls === null` → empty-state: `TuneOutlined` icon + "Select a node, connector or shape to view its properties"
 
-**`LeftSidebar`** (`components/Sidebars/LeftSidebar.tsx`): legacy wrapper that renders only `<LayersPanel>`. Superseded by `LeftDock` which integrates both Elements and Layers tabs. Kept in the codebase but not used in the main render path.
-
 ---
 
 ### 2h.3 Layer System
@@ -968,6 +966,8 @@ A startup splash screen is rendered inline in `public/index.html` (visible at fi
 ---
 
 ## 2m. Deployment & API Contract (2026-04-29)
+
+> **Durable contract source (2026-05-20):** [ADR 0009 — Deployment topology](adr/0009-deployment-topology.md) (runtime asymmetry, env-var contract per target, mode-detection probe, observability boundary) and [ADR 0010 — Session backend contract](adr/0010-session-backend-contract.md) (storage adapter interface, atomicity, single-tenant scope, `/healthz` shape, GDrive extension contract) are the locked references. This section documents **current state**; the post-cleanup state (dual-probe collapsed, `/api/storage/status` removed, `RuntimeConfig.serverStorage` field deleted, fs adapter atomic via tmp-file + rename, `/healthz` route live) is **to be amended after C.2 I1 + I2 + I3 land**. Until then, the route list and adapter shape below describe what runs today.
 
 Axoview runs from a single codebase on three targets, sharing one `/api/*` HTTP contract. The frontend is byte-identical at the network boundary across targets; runtime config (`GET /api/config`) replaces build-time env injection. Full from-scratch walkthrough: [docs/deployment.md](deployment.md).
 
@@ -1867,7 +1867,7 @@ True 3D-iso art (Axoview's built-in 37-icon pack, `isIsometric: true`) is unaffe
 
 Wired into `Connector.ts` (drag mode + click mode) and `ReconnectAnchor.ts` (entry/exit + mouseup).
 
-**Validation:** [`packages/axoview-e2e/fixtures/perf-stress-diagram.json`](../packages/axoview-e2e/fixtures/perf-stress-diagram.json) (80 nodes / 120 connectors) and [`__perf_refactor_regression__/connector.dragPerf.test.tsx`](../packages/axoview-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx). Test loads the JSON and `modelSchema.safeParse`s it on setup so the manual fixture cannot drift out of schema.
+**Validation:** [`packages/axoview-lib/src/__perf_refactor_regression__/fixtures/perf-stress-diagram.json`](../packages/axoview-lib/src/__perf_refactor_regression__/fixtures/perf-stress-diagram.json) (80 nodes / 120 connectors) and [`__perf_refactor_regression__/connector.dragPerf.test.tsx`](../packages/axoview-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx). Test loads the JSON and `modelSchema.safeParse`s it on setup so the manual fixture cannot drift out of schema.
 
 **What's left — sustained-drag GC cliff:** A drag that runs ≳50 s without committing accumulates ~12 MB/sec of immer-cloned model state (the anchor mutation forces `produce(state, ...)` to clone the spine of model + scene every tick). V8 holds GC during sustained sync work; heap climbs to ~336 MB; one stop-the-world collection produces a ~5 s 4 fps stall, then recovery. Not a regression introduced by the fix — it's the next layer underneath. Refactor design (deferred): keep the in-progress preview in `scene.connectors[id]` only and don't write `view.connectors[].anchors` until commit. Two-reader invariant for `ConnectorAnchorOverlay` and `ConnectorLabel` is the hard part. Full context in [known_issues.md](../known_issues.md).
 

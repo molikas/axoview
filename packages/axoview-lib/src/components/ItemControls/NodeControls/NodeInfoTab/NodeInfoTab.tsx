@@ -177,24 +177,55 @@ export const NodeInfoTab = ({
           >
             {t('diagramLinkHint')}
           </Typography>
-          <Autocomplete
-            size="small"
-            options={linkedDiagrams}
-            getOptionLabel={(opt) => (typeof opt === 'string' ? opt : opt.name)}
-            isOptionEqualToValue={(opt, val) => opt.id === val.id}
-            value={linkedDiagrams.find((d) => d.id === modelItem.link) ?? null}
-            onChange={(_e, newVal) => {
-              onModelItemUpdated({ link: newVal?.id ?? undefined });
-            }}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                placeholder={t('diagramLinkPlaceholder')}
-              />
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <Autocomplete
+              size="small"
+              sx={{ flex: 1 }}
+              options={linkedDiagrams}
+              getOptionLabel={(opt) => (typeof opt === 'string' ? opt : opt.name)}
+              isOptionEqualToValue={(opt, val) => opt.id === val.id}
+              value={linkedDiagrams.find((d) => d.id === modelItem.link) ?? null}
+              onChange={(_e, newVal) => {
+                onModelItemUpdated({ link: newVal?.id ?? undefined });
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  placeholder={t('diagramLinkPlaceholder')}
+                  inputProps={{
+                    ...params.inputProps,
+                    'data-axoview-id': 'node-info-tab-link-picker'
+                  }}
+                />
+              )}
+              slotProps={{
+                listbox: { 'data-axoview-id': 'node-info-tab-link-picker-listbox' } as any
+              }}
+              clearOnEscape
+              handleHomeEndKeys={false}
+            />
+            {modelItem.link && (
+              <Tooltip title={t('openDiagramLink')}>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    // Edit-mode picker → open the linked diagram in the
+                    // editor (not the readonly view), same tab. App.tsx
+                    // listener resolves the name and calls openDiagramById.
+                    window.dispatchEvent(
+                      new CustomEvent('axoview-open-diagram-in-editor', {
+                        detail: { id: modelItem.link }
+                      })
+                    );
+                  }}
+                  data-axoview-id="node-info-tab-open-linked"
+                  data-testid="node-info-tab-open-linked-diagram"
+                >
+                  <OpenInNewIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
             )}
-            clearOnEscape
-            handleHomeEndKeys={false}
-          />
+          </Stack>
         </Section>
       )}
 

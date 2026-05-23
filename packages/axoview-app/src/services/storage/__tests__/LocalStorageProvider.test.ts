@@ -33,19 +33,18 @@ function setFetchSequence(...responses: Array<Response | Error>) {
 // Provider factory
 // ---------------------------------------------------------------------------
 
+// ADR 0009 D2: usingServer is set externally by AppStorageContext after the
+// single /api/config probe — the provider no longer auto-probes
+// /api/storage/status. Tests inject the mode directly to mimic boot.
 async function serverProvider(): Promise<LocalStorageProvider> {
-  setFetchSequence(mockResponse({ enabled: true, version: '1.0.0' }));
   const p = new LocalStorageProvider(BASE);
-  await p.isAvailable();
-  expect(p.usingServer).toBe(true);
+  p.usingServer = true;
   return p;
 }
 
 async function offlineProvider(): Promise<LocalStorageProvider> {
-  setFetchSequence(new Error('Network error'));
   const p = new LocalStorageProvider(BASE);
-  await p.isAvailable();
-  expect(p.usingServer).toBe(false);
+  p.usingServer = false;
   return p;
 }
 
@@ -66,23 +65,21 @@ beforeEach(() => {
 describe('LocalStorageProvider', () => {
   // ---- isAvailable ----------------------------------------------------------
 
-  test('isAvailable() aborts a hanging /api/storage/status probe within ~1s and stays offline', async () => {
-    // Mimic a downed backend that never responds — only the AbortSignal kills it.
-    (global as any).fetch = (_url: string, init: RequestInit) =>
-      new Promise((_resolve, reject) => {
-        init.signal?.addEventListener('abort', () =>
-          reject(new DOMException('aborted', 'AbortError'))
-        );
-      });
+  // Post-collapse (ADR 0009 D2): isAvailable() is a no-op that returns true.
+  // The legacy /api/storage/status timeout-and-abort behaviour moved upstream
+  // to fetchRuntimeConfig (see useRuntimeConfig.test.ts), which is now the
+  // sole boot probe.
+  test('isAvailable() returns true without issuing any fetch', async () => {
+    let calls = 0;
+    (global as any).fetch = () => {
+      calls++;
+      return Promise.reject(new Error('fetch should not be called'));
+    };
     const provider = new LocalStorageProvider(BASE);
-    const t0 = Date.now();
-    await provider.isAvailable();
-    const elapsed = Date.now() - t0;
-    // 800ms timeout + jitter — must NOT take the old 5000ms.
-    expect(elapsed).toBeLessThan(1500);
-    expect(elapsed).toBeGreaterThanOrEqual(700);
+    await expect(provider.isAvailable()).resolves.toBe(true);
+    expect(calls).toBe(0);
     expect(provider.usingServer).toBe(false);
-  }, 3000);
+  });
 
   // ---- listDiagrams ---------------------------------------------------------
 

@@ -95,6 +95,12 @@ export const HelpDialog = () => {
       description: t('addNodeGroupDescription')
     },
     {
+      action: 'Select All',
+      shortcut: 'Ctrl+A',
+      description:
+        'Select every visible, unlocked item in the active view (items, rectangles, text boxes, connectors + their waypoints)'
+    },
+    {
       action: t('deleteSelectedAction'),
       shortcut: t('deleteSelectedShortcut'),
       description: t('deleteSelectedDescription')
@@ -146,6 +152,18 @@ export const HelpDialog = () => {
       action: t('addTextAction'),
       shortcut: t('addTextShortcut'),
       description: t('addTextDescription')
+    },
+    {
+      action: 'Remove Waypoint',
+      shortcut: 'Alt + Left-click',
+      description:
+        'Alt+click a connector waypoint (with the connector selected) to splice it out; endpoint anchors are preserved'
+    },
+    {
+      action: 'Toggle Selection',
+      shortcut: 'Ctrl/Cmd + Left-click',
+      description:
+        'Add or remove an item or connector from the persistent multi-selection; clicking a connector toggles it together with its waypoints'
     }
   ];
 
@@ -158,8 +176,9 @@ export const HelpDialog = () => {
       PaperProps={{
         sx: {
           minHeight: '60vh'
-        }
-      }}
+        },
+        'data-axoview-id': 'dialog-help'
+      } as any}
     >
       <DialogTitle>
         <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -284,7 +303,11 @@ export const HelpDialog = () => {
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={handleClose} variant="contained">
+        <Button
+          onClick={handleClose}
+          variant="contained"
+          data-axoview-id="dialog-help-close"
+        >
           {t('close')}
         </Button>
       </DialogActions>

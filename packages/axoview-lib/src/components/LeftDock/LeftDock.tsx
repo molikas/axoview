@@ -95,6 +95,7 @@ export const LeftDock = ({
             <IconButton
               size="small"
               onClick={onFileExplorerToggle}
+              data-axoview-id="dock-file-explorer-toggle"
               sx={{
                 borderRadius: 1,
                 color: fileExplorerOpen ? 'primary.main' : 'text.secondary',
@@ -128,6 +129,7 @@ export const LeftDock = ({
                   onClick={() =>
                     setActiveLeftTab(activeLeftTab === tab.id ? null : tab.id)
                   }
+                  data-axoview-id={`dock-${tab.id.toLowerCase()}-toggle`}
                   sx={{
                     borderRadius: 1,
                     color: isActive ? 'primary.main' : 'text.secondary',
@@ -149,6 +151,7 @@ export const LeftDock = ({
             <IconButton
               size="small"
               onClick={() => setDialog(DialogTypeEnum.SETTINGS)}
+              data-axoview-id="dock-settings"
               sx={{
                 borderRadius: 1,
                 color: 'text.secondary',

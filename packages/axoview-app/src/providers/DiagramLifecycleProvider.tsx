@@ -7,7 +7,7 @@ import {
   useRef,
   useState
 } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { flattenCollections } from '@isoflow/isopacks/dist/utils';
 import isoflowIsopack from '@isoflow/isopacks/dist/isoflow';
@@ -19,9 +19,9 @@ import { useAutoSave, SaveStatus } from '../hooks/useAutoSave';
 import { DiagramManager } from '../components/DiagramManager';
 import { SaveDialog } from '../components/SaveDialog';
 import { LoadDialog } from '../components/LoadDialog';
-import { ExportDialog } from '../components/ExportDialog';
+import { ExportSingleDiagramDialog } from '../components/ExportSingleDiagramDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { StorageManager } from '../StorageManager';
+import { LocalStorageInspector } from '../LocalStorageInspector';
 import { notificationStore } from '../stores/notificationStore';
 import { sequentialName } from '../utils/fileOperations';
 import { apiBaseUrl } from '../utils/apiBaseUrl';
@@ -79,6 +79,11 @@ interface DiagramLifecycleContextValue {
   diagrams: SavedDiagram[];
   currentModel: DiagramData | null;
   isReadonlyUrl: boolean;
+  isPublicShareUrl: boolean;
+  readonlyLoadFailed: boolean;
+  clearReadonlyLoadFailed: () => void;
+  publicShareLoadFailed: boolean;
+  clearPublicShareLoadFailed: () => void;
   // Auto-save status (server mode)
   saveStatus: SaveStatus;
   // Dialog state
@@ -148,6 +153,7 @@ export function DiagramLifecycleProvider({
     readonlyDiagramId: string;
     shareUuid: string;
   }>();
+  const navigate = useNavigate();
   const { t } = useTranslation('app');
   const { storage, serverStorageAvailable, isInitialized } = useAppStorage();
   const iconPackManager = useIconPackManager(coreIcons);
@@ -166,6 +172,20 @@ export function DiagramLifecycleProvider({
   const [isDiagramsInitialized, setIsDiagramsInitialized] = useState(false);
   const [currentDiagram, setCurrentDiagram] = useState<SavedDiagram | null>(null);
   const [diagramName, setDiagramName] = useState('');
+  const [readonlyLoadFailed, setReadonlyLoadFailed] = useState(false);
+  const clearReadonlyLoadFailed = useCallback(() => setReadonlyLoadFailed(false), []);
+  const [publicShareLoadFailed, setPublicShareLoadFailed] = useState(false);
+  const clearPublicShareLoadFailed = useCallback(() => setPublicShareLoadFailed(false), []);
+
+  // Clear stale failure flags when the user leaves the readonly route — covers
+  // the preview → back-to-editing case where an in-flight load could surface
+  // its error dialog on the editor route in spite of the cancel guard.
+  useEffect(() => {
+    if (!isReadonlyUrl) {
+      setReadonlyLoadFailed(false);
+      setPublicShareLoadFailed(false);
+    }
+  }, [isReadonlyUrl]);
 
   // ---------------------------------------------------------------------------
   // UI state
@@ -369,6 +389,10 @@ export function DiagramLifecycleProvider({
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!isPublicShareUrl || !shareUuid) return;
+    // ADR 0009 Decision 3: share routes are session-mode only. In Local mode
+    // the LocalModeShareErrorDialog handles the user-visible feedback;
+    // suppress the fetch so the generic error toast doesn't also fire.
+    if (!serverStorageAvailable) return;
     const loadPublicSnapshot = async () => {
       try {
         const response = await fetch(`${apiBaseUrl()}/api/public/diagrams/${shareUuid}`);
@@ -405,14 +429,11 @@ export function DiagramLifecycleProvider({
         }
         axoviewRef.current?.load(dataWithIcons as any);
       } catch (_error) {
-        notificationStore.push({
-          severity: 'error',
-          message: t('dialog.readOnly.failed', 'Failed to load shared diagram')
-        });
+        setPublicShareLoadFailed(true);
       }
     };
     loadPublicSnapshot();
-  }, [isPublicShareUrl, shareUuid]);
+  }, [isPublicShareUrl, shareUuid, serverStorageAvailable]);
 
   // ---------------------------------------------------------------------------
   // Load readonly diagram from URL (owner-only, requires auth)
@@ -420,40 +441,57 @@ export function DiagramLifecycleProvider({
   useEffect(() => {
     if (isPublicShareUrl) return; // public-share path uses the effect above
     if (!isReadonlyUrl || !storage) return;
+    // Cancel the in-flight load if the user navigates away (Back to editing)
+    // before the async chain settles — otherwise a late-resolving catch
+    // surfaces ReadonlyLoadErrorDialog on the editor route after the readonly
+    // view already unmounted, which is what the user reported on the
+    // preview → back-to-editing flow.
+    let cancelled = false;
     const loadReadonlyDiagram = async () => {
       try {
         const diagramList = await storage.listDiagrams();
+        if (cancelled) return;
         const diagramInfo = diagramList.find((d) => d.id === readonlyDiagramId);
         const data = await storage.loadDiagram(readonlyDiagramId!);
-        const readonlyDiagram: SavedDiagram = {
-          id: readonlyDiagramId!,
-          name: diagramInfo?.name || (data as any).title || 'Readonly Diagram',
-          data,
-          createdAt: new Date().toISOString(),
-          updatedAt: diagramInfo?.lastModified || new Date().toISOString()
-        };
+        if (cancelled) return;
+        await iconPackManager.loadPacksForDiagram(data);
+        if (cancelled) return;
         const importedIcons = ((data as any).icons || []).filter(
           (icon: any) => icon.collection === 'imported'
         );
-        const dataWithIcons = {
+        const dataWithIcons: DiagramData = {
           ...(data as any),
-          icons: [...iconPackManager.loadedIcons, ...importedIcons]
+          icons: [...iconPackManager.loadedIcons, ...importedIcons],
+          colors: (data as any)?.colors?.length ? (data as any).colors : defaultColors,
+          items: Array.isArray((data as any)?.items) ? (data as any).items : [],
+          views: Array.isArray((data as any)?.views) ? (data as any).views : [],
+          fitToScreen: (data as any)?.fitToScreen !== false
+        };
+        const readonlyDiagram: SavedDiagram = {
+          id: readonlyDiagramId!,
+          name: diagramInfo?.name || (data as any).title || 'Readonly Diagram',
+          data: dataWithIcons,
+          createdAt: new Date().toISOString(),
+          updatedAt: diagramInfo?.lastModified || new Date().toISOString()
         };
         setCurrentDiagram(readonlyDiagram);
         setDiagramName(readonlyDiagram.name);
-        setCurrentModel(dataWithIcons as DiagramData);
+        setCurrentModel(dataWithIcons);
         setLastSaved(new Date(readonlyDiagram.updatedAt));
         isAfterLoadRef.current = true;
+        if (!axoviewRef.current) {
+          frozenInitialDataRef.current = dataWithIcons;
+        }
         axoviewRef.current?.load(dataWithIcons as any);
       } catch (_error) {
-        notificationStore.push({
-          severity: 'error',
-          message: t('dialog.readOnly.failed')
-        });
-        window.location.href = '/';
+        if (cancelled) return;
+        setReadonlyLoadFailed(true);
       }
     };
     loadReadonlyDiagram();
+    return () => {
+      cancelled = true;
+    };
   }, [readonlyDiagramId, storage]);
 
   // ---------------------------------------------------------------------------
@@ -1053,10 +1091,14 @@ export function DiagramLifecycleProvider({
   );
 
   const handlePreviewClick = useCallback(async () => {
-    if (!serverStorageAvailable || !currentDiagram || !storage) return;
+    if (!currentDiagram || !storage) return;
     await autoSave.saveNow();
-    window.open(`/display/${currentDiagram.id}`, '_blank');
-  }, [serverStorageAvailable, currentDiagram, storage, autoSave.saveNow]);
+    // `fromEditor: true` tells the readonly toolbar (AppToolbar) to render
+    // the "Back to editing" button. The flag rides location.state so direct
+    // /display/<id> URLs (typed, shared, opened in a new tab) don't grow a
+    // back button that would go somewhere the user didn't come from.
+    navigate(`/display/${currentDiagram.id}`, { state: { fromEditor: true } });
+  }, [currentDiagram, storage, autoSave.saveNow, navigate]);
 
   // ---------------------------------------------------------------------------
   // Export actions (toolbar Export popover)
@@ -1273,6 +1315,11 @@ export function DiagramLifecycleProvider({
     diagrams,
     currentModel,
     isReadonlyUrl,
+    isPublicShareUrl,
+    readonlyLoadFailed,
+    clearReadonlyLoadFailed,
+    publicShareLoadFailed,
+    clearPublicShareLoadFailed,
     saveStatus: autoSave.saveStatus,
     showExportDialog,
     setShowExportDialog,
@@ -1333,14 +1380,14 @@ export function DiagramLifecycleProvider({
       )}
 
       {showExportDialog && (
-        <ExportDialog
+        <ExportSingleDiagramDialog
           onExport={exportDiagram}
           onClose={() => setShowExportDialog(false)}
         />
       )}
 
       {showStorageManager && (
-        <StorageManager onClose={() => setShowStorageManager(false)} />
+        <LocalStorageInspector onClose={() => setShowStorageManager(false)} />
       )}
 
       {showDiagramManager && storage && (

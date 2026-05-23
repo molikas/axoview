@@ -10,7 +10,8 @@
     "baseUrl": ".",
     "paths": {
       "@fixtures/*": ["./fixtures/*"],
-      "@helpers/*": ["./helpers/*"]
+      "@helpers/*": ["./helpers/*"],
+      "@pom/*": ["./pom/*"]
     }
   },
   "include": ["**/*.ts"],

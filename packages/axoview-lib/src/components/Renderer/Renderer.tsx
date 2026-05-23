@@ -215,6 +215,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
       {/* Interaction layer: this is where events are detected */}
       <Box
         ref={interactionsRef}
+        data-axoview-id="canvas-interactions"
         sx={{
           position: 'absolute',
           left: 0,

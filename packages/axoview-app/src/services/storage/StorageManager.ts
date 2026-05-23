@@ -41,15 +41,16 @@ export class StorageManager implements StorageProvider {
   }
 
   /**
-   * Call once after registering providers. Resolves server availability and
-   * sets serverStorageAvailable.
+   * Boot-time setter (ADR 0009 D2 — dual-probe collapse). AppStorageContext
+   * derives this from `/api/config`'s `serverStorage` flag and pushes it into
+   * the manager + the active provider's `usingServer` field. Replaces the
+   * prior `initialize()` flow that probed `/api/storage/status`.
    */
-  async initialize(): Promise<void> {
+  setServerStorage(available: boolean): void {
+    this.serverStorageAvailable = available;
     const provider = this.getActiveProvider();
-    await provider.isAvailable();
-    // Check if the active local provider resolved to server mode
     if ('usingServer' in provider) {
-      this.serverStorageAvailable = (provider as any).usingServer === true;
+      (provider as any).usingServer = available;
     }
   }
 

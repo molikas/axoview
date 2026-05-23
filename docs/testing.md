@@ -4,7 +4,7 @@
 **Total:** ~1085 tests · 103 suites · all passing
 **Run:** `npm test --workspace=packages/axoview-lib` (lib) · `npm test --workspace=packages/axoview-app` (app, project-zip + LocalStorageProvider)
 
-E2E tests are not currently run in CI — Selenium framework under `e2e-tests/` is being retired in favour of Playwright. Migration tracked at [docs/tactical/playwright-migration.md](tactical/playwright-migration.md).
+E2E suite lives at [`packages/axoview-e2e/`](../packages/axoview-e2e/) (Playwright, 13 spec files / 33 tests covering canonical journeys J1–J20). Runs on PRs + master push via [`.github/workflows/e2e-playwright.yml`](../.github/workflows/e2e-playwright.yml). Locally: `npm run test:e2e:ci` from repo root, or `npx playwright test --ui` from the package. The legacy Python/Selenium suite at `e2e-tests/` was deleted 2026-05-23 (audit C.2 I9 + tactical [docs/tactical/e2e-suite-rewrite.md](tactical/e2e-suite-rewrite.md) Session 7).
 
 ---
 
@@ -63,7 +63,7 @@ E2E tests are not currently run in CI — Selenium framework under `e2e-tests/` 
 
 | Suite | Coverage |
 |---|---|
-| [`packages/axoview-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx`](../packages/axoview-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx) | 4 tests against the real provider stack (`ModelProvider` + `SceneProvider` + `UiStateProvider`): drag transaction collapses N tile updates into 1 history entry; baseline (no transaction) still pushes N entries; `pendingPre` stays alive across intermediate ticks (per-tick history.past stays flat); 40-tick drag completes under 1500 ms. The fixture is loaded from [`packages/axoview-e2e/fixtures/perf-stress-diagram.json`](../packages/axoview-e2e/fixtures/perf-stress-diagram.json) and `modelSchema.safeParse`'d on setup — the manual import file cannot drift out of schema. |
+| [`packages/axoview-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx`](../packages/axoview-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx) | 4 tests against the real provider stack (`ModelProvider` + `SceneProvider` + `UiStateProvider`): drag transaction collapses N tile updates into 1 history entry; baseline (no transaction) still pushes N entries; `pendingPre` stays alive across intermediate ticks (per-tick history.past stays flat); 40-tick drag completes under 1500 ms. The fixture is loaded from [`packages/axoview-lib/src/__perf_refactor_regression__/fixtures/perf-stress-diagram.json`](../packages/axoview-lib/src/__perf_refactor_regression__/fixtures/perf-stress-diagram.json) and `modelSchema.safeParse`'d on setup — the file cannot drift out of schema. (Relocated 2026-05-23 from `packages/axoview-e2e/fixtures/` when the legacy e2e suite was deleted; this test is the sole consumer.) |
 
 ---
 

@@ -1,68 +1,29 @@
 /**
- * Centralised locator builders for Axoview.
+ * Locator builders anchored on the locked surface vocabulary.
  *
- * Strategy:
- *   - Role-based locators (`getByRole`) are the primary choice — resilient to
- *     MUI class renames and style refactors.
- *   - `data-testid` locators are used as stable fallbacks for elements that
- *     have no meaningful accessible role (canvas container, icon grid, etc.).
+ * Per ADR 0008 Decision 5, the canonical anchor is `data-axoview-id`. Each
+ * POM owns the kebab-case ids it queries; tests consume the POM, not this
+ * module directly. The `byAxoviewId` builder exists so the POM declarations
+ * stay one-liners.
+ *
+ * Existing `data-testid` attributes inside `axoview-lib` (Renderer canvas,
+ * icon-grid items, label/connector test hooks) remain in place for the
+ * library's Jest unit tests. The new E2E suite does NOT add or query
+ * `data-testid` in new code (per ADR 0008 D5's one-namespace rule). Where a
+ * smoke-required surface still lacks a `data-axoview-id` anchor — e.g. the
+ * canvas mount, the icon grid — the gap is captured in `pom/_pending.md` and
+ * closed when the consuming POM is authored in Sessions 3–6.
  */
-import { Page } from '@playwright/test';
+import { Locator, Page } from '@playwright/test';
 
-// ---------------------------------------------------------------------------
-// Toolbar buttons
-// ---------------------------------------------------------------------------
+export const byAxoviewId = (page: Page, id: string): Locator =>
+  page.locator(`[data-axoview-id="${id}"]`);
 
-export const toolbar = {
-  addItem:   (p: Page) => p.getByRole('button', { name: /Add item/i }),
-  select:    (p: Page) => p.getByRole('button', { name: /Select/i }),
-  pan:       (p: Page) => p.getByRole('button', { name: /Pan/i }),
-  connector: (p: Page) => p.getByRole('button', { name: /Connector/i }),
-  lasso:     (p: Page) => p.getByRole('button', { name: /Lasso/i }),
-  undo:      (p: Page) => p.getByRole('button', { name: /Undo/i }),
-  redo:      (p: Page) => p.getByRole('button', { name: /Redo/i }),
-};
-
-// ---------------------------------------------------------------------------
-// Canvas and scene elements
-// ---------------------------------------------------------------------------
-
-/** The main canvas container (interaction + render area). */
-export const canvas      = (p: Page) => p.locator('[data-testid="axoview-canvas"]');
-
-/** The item controls side panel (node/connector/textbox/rectangle settings). */
-export const itemPanel   = (p: Page) => p.locator('[data-testid="item-controls-panel"]');
-
-/** The empty-canvas context menu (Add Node / Add Rectangle). */
-export const contextMenu = (p: Page) => p.locator('[data-testid="context-menu"]');
-
-/** All node icon images currently on the canvas. */
-export const nodeImages  = (p: Page) => canvas(p).locator('img');
-
-/** The lasso selection rectangle (only visible while Lasso mode is active). */
-export const lassoRect   = (p: Page) => p.locator('[data-testid="lasso-selection"]');
-
-/** All connector SVG wrappers currently on the canvas. */
-export const connectorPaths = (p: Page) => p.locator('[data-testid="connector-path"]');
-
-/** The node label container for a specific node (by index, 0-based). */
-export const nodeLabel   = (p: Page, index = 0) =>
-  p.locator('[data-testid="node-label"]').nth(index);
-
-/** The header link anchor for a specific node (by index, 0-based). */
-export const nodeHeaderLink = (p: Page, index = 0) =>
-  p.locator('[data-testid="node-header-link"]').nth(index);
-
-// ---------------------------------------------------------------------------
-// Icon picker (Add Item panel)
-// ---------------------------------------------------------------------------
-
-/** All icon buttons in the icon picker grid. */
-export const iconGridItems = (p: Page) => p.locator('[data-testid="icon-grid-item"]');
-
-// ---------------------------------------------------------------------------
-// Export dialog
-// ---------------------------------------------------------------------------
-
-/** The "Download as SVG" button inside the Export Image dialog. */
-export const exportSvgButton = (p: Page) => p.locator('[data-testid="export-svg-button"]');
+/**
+ * Transitional accessor for surfaces inside `axoview-lib` that still expose
+ * only `data-testid` because no consuming POM has retrofitted them yet.
+ * Every call site is a candidate for a `data-axoview-id` migration; the
+ * `pom/_pending.md` register lists which POMs will close each gap.
+ */
+export const byLibTestId = (page: Page, id: string): Locator =>
+  page.locator(`[data-testid="${id}"]`);

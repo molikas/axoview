@@ -72,7 +72,11 @@ export const ImportIconsDialog = ({
         <Button variant="text" onClick={handleCancel}>
           Cancel
         </Button>
-        <Button variant="contained" onClick={handleConfirm}>
+        <Button
+          variant="contained"
+          onClick={handleConfirm}
+          data-axoview-id="dialog-import-icons-confirm"
+        >
           Import
         </Button>
       </DialogActions>

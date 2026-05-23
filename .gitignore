@@ -1,11 +1,14 @@
 node_modules/
 dist/
 build/
+.worker-build/
 *.log
 .env
 .env.local
 .DS_Store
 coverage/
+test-results/
+playwright-report/
 .vscode/
 .idea/
 *.swp
@@ -14,7 +17,6 @@ coverage/
 .npm
 .eslintcache
 *.tsbuildinfo
-/e2e-tests/target
 *.snap
 parts/
 prime/

@@ -57,7 +57,6 @@ function constantTimeEquals(a, b) {
 function isPublicRoute(req) {
   // Always-public endpoints
   if (req.path === '/api/config') return true;
-  if (req.path === '/api/storage/status') return true;
   if (req.method === 'GET' && req.path.startsWith('/api/public/diagrams/')) return true;
   return false;
 }
@@ -137,11 +136,47 @@ function adapt(handler, { requireStorage = true } = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// Health probe (ADR 0010 Decision 8)
+// ---------------------------------------------------------------------------
+// Cached probe — orchestrators may poll every few seconds; we don't want to
+// touch the disk on every request.
+const HEALTH_TTL_MS = 10_000;
+let healthCache = { ts: 0, ok: false, reason: 'not-yet-probed' };
+
+async function probeStorage() {
+  if (!STORAGE_ENABLED) return { ok: true };
+  const probePath = path.join(STORAGE_PATH, `.healthz.${process.pid}.tmp`);
+  try {
+    await fs.mkdir(STORAGE_PATH, { recursive: true });
+    await fs.writeFile(probePath, '');
+    await fs.unlink(probePath);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, reason: e.code || 'storage-unreachable' };
+  }
+}
+
+app.get('/healthz', async (_req, res) => {
+  const now = Date.now();
+  if (now - healthCache.ts > HEALTH_TTL_MS) {
+    const probe = await probeStorage();
+    healthCache = { ts: now, ...probe };
+  }
+  if (healthCache.ok) {
+    return res.status(200).json({
+      ok: true,
+      adapter: 'fs',
+      storage_writable: STORAGE_ENABLED
+    });
+  }
+  return res.status(503).json({ ok: false, reason: healthCache.reason });
+});
+
+// ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
 
-// Status / config — never gated by STORAGE_ENABLED
-app.get('/api/storage/status', adapt(routes.getStorageStatus, { requireStorage: false }));
+// Config — never gated by STORAGE_ENABLED; sole boot probe per ADR 0009 D2
 app.get('/api/config', adapt(routes.getConfig, { requireStorage: false }));
 
 // Diagrams

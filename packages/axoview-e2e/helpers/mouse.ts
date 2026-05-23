@@ -1,9 +1,10 @@
 /**
- * Mouse gesture helpers for Axoview e2e tests.
+ * Mouse gesture helpers. Playwright's page.mouse API maps directly to real
+ * browser events, which made the right-click and middle-click flows that the
+ * deleted Selenium suite struggled with reliable here.
  *
- * Playwright's page.mouse API maps directly to real browser events, making it
- * reliable for right-click drag, middle-click pan, and other gestures that
- * were unreliable in the old Selenium suite.
+ * These are generic — no selector strategy dependency. POMs compose them
+ * with locator-derived coordinates.
  */
 import { Page } from '@playwright/test';
 
@@ -12,13 +13,6 @@ export interface Coords {
   y: number;
 }
 
-/**
- * Performs a right-button drag from `from` to `to`.
- * Used to test the transient right-click pan feature (FF-001).
- *
- * @param steps - Number of intermediate mouse positions (default 10).
- *   More steps = smoother movement, important for threshold detection.
- */
 export const rightDrag = async (
   page: Page,
   from: Coords,
@@ -31,20 +25,12 @@ export const rightDrag = async (
   await page.mouse.up({ button: 'right' });
 };
 
-/**
- * Performs a right-click (press and release) without any drag movement.
- * Used to test deselect / context menu suppression behaviour.
- */
 export const rightClick = async (page: Page, coords: Coords) => {
   await page.mouse.move(coords.x, coords.y);
   await page.mouse.down({ button: 'right' });
   await page.mouse.up({ button: 'right' });
 };
 
-/**
- * Performs a middle-button drag from `from` to `to`.
- * Used to test middle-click pan.
- */
 export const middleClickDrag = async (
   page: Page,
   from: Coords,
@@ -57,10 +43,6 @@ export const middleClickDrag = async (
   await page.mouse.up({ button: 'middle' });
 };
 
-/**
- * Performs a left-button drag from `from` to `to`.
- * Used to test lasso selection.
- */
 export const leftDrag = async (
   page: Page,
   from: Coords,

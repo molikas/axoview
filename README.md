@@ -153,14 +153,17 @@ For the from-scratch deploy walkthrough, see [docs/deployment.md](docs/deploymen
 Requires [Docker Desktop](https://www.docker.com/get-started/) and [Git](https://git-scm.com/downloads). No Node.js needed.
 
 ```bash
-git clone https://github.com/molikas/FossFLOW_V2.git
-cd FossFLOW_V2
-docker compose -f compose.dev.yml up --build   # first run — takes 3–5 min
+git clone https://github.com/molikas/axoview.git
+cd axoview
+cat > .env <<EOF
+ENABLE_SERVER_STORAGE=true
+EOF
+docker compose up --build           # first run — takes 3–5 min
 ```
 
-Open **http://localhost:3000**. Subsequent starts omit `--build`.
+Open **http://localhost** (port 80). No authentication is enabled by default. To require auth, set `AUTH_MODE=shared-token` + `AUTH_SHARED_SECRET` per [docs/deployment.md](docs/deployment.md). Subsequent starts omit `--build`. Diagrams are saved to a `diagrams/` folder in the project directory.
 
-To stop: `Ctrl+C`, or `docker compose -f compose.dev.yml down` from another terminal. Diagrams are saved to a `diagrams/` folder in the project directory.
+To stop: `Ctrl+C`, or `docker compose down` from another terminal.
 
 For local development without Docker, or for Cloudflare deploys, see [docs/deployment.md](docs/deployment.md).
 

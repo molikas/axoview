@@ -11,6 +11,8 @@ When in doubt, **mirror what already exists** in the reference implementations l
 
 ## 1. Layout
 
+> **Surface vocabulary (2026-05-20):** the canonical Modal / Dialog / Popover / Panel / Banner / Screen vocabulary is locked in [ADR 0008 — Naming Convention](adr/0008-naming-convention.md) Decision 2. When naming a new overlay or full-area surface, pick the term whose visual contract matches yours — do not invent a sixth.
+
 ### 1.1 Section is the layout primitive
 
 Every titled control group in the right sidebar uses [`Section`](../packages/axoview-lib/src/components/ItemControls/components/Section.tsx). Never inline a header:

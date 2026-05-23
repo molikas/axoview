@@ -18,7 +18,7 @@ interface JwtPayload { aud?: string | string[]; exp?: number; iss?: string }
  * publish/unpublish snapshots — the bypass is read-only.
  */
 export function isPublicRoute(method: string, pathname: string): boolean {
-  if (method === 'GET' && (pathname === '/api/config' || pathname === '/api/storage/status')) {
+  if (method === 'GET' && pathname === '/api/config') {
     return true;
   }
   return method === 'GET' && /^\/api\/public\/diagrams\/[A-Za-z0-9_-]{21,64}$/.test(pathname);

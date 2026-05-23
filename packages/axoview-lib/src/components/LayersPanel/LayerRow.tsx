@@ -82,6 +82,8 @@ export const LayerRow = memo(
     return (
       <Box
         onClick={() => onSelect(layer.id)}
+        data-axoview-id="layer-row"
+        data-layer-name={layer.name}
         sx={{
           display: 'flex',
           alignItems: 'center',
@@ -209,6 +211,7 @@ export const LayerRow = memo(
               e.stopPropagation();
               onToggleVisible(layer.id);
             }}
+            data-axoview-id="layer-toggle-visibility"
             sx={{ p: 0.25 }}
           >
             {layer.visible ? (
@@ -230,6 +233,7 @@ export const LayerRow = memo(
               e.stopPropagation();
               onToggleLocked(layer.id);
             }}
+            data-axoview-id="layer-toggle-lock"
             sx={{
               p: 0.25,
               // Saturate the icon when locked so the state is obvious next to

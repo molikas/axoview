@@ -74,6 +74,7 @@ export const Icon = ({
         onClick={onClick}
         onMouseDown={onMouseDown}
         onDoubleClick={onDoubleClick}
+        data-axoview-id="canvas-icon-grid-item"
         sx={{
           position: 'relative',
           width: GRID_SIZE,
@@ -108,6 +109,7 @@ export const Icon = ({
               className="ff-icon-delete"
               role="button"
               aria-label={deleteTooltip ?? 'Delete imported icon'}
+              data-axoview-id="canvas-icon-grid-delete"
               onMouseDown={(e) => {
                 e.stopPropagation();
               }}

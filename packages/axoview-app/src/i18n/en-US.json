@@ -26,13 +26,23 @@
     "toolbar": {
         "previewSaveFirst": "Save first to preview",
         "saveAndPreview": "Save & Preview",
-        "preview": "Preview"
+        "preview": "Preview",
+        "backToEditing": "Back to editing",
+        "share": {
+            "disabled": {
+                "needsServerStorage": "Share requires server storage. Run Axoview self-hosted (Docker) or on Cloudflare to enable shareable links.",
+                "needsDiagram": "Open or create a diagram first to share it."
+            }
+        }
     },
     "share": {
         "title": "Share Diagram",
         "hint": "Anyone with this link can view the diagram in read-only mode.",
         "copy": "Copy",
-        "copied": "✓ Copied!"
+        "copied": "✓ Copied!",
+        "creating": "Creating link…",
+        "unavailable": "Sharing is not available",
+        "failed": "Failed to create share link"
     },
     "dialog": {
         "save": {
@@ -70,8 +80,22 @@
             "btnCancel": "Cancel"
         },
         "readOnly": {
-            "mode": "View-Only Mode",
-            "failed": "Failed to load diagram"
+            "mode": "View-Only Mode"
+        },
+        "localModeShareError": {
+            "headline": "This share link needs a session backend.",
+            "body": "Share links can only be opened from an Axoview instance running with server storage. Deploy via Docker or Cloudflare to view shared diagrams.",
+            "btnDismiss": "OK"
+        },
+        "readonlyLoadError": {
+            "headline": "Could not open this diagram.",
+            "body": "The diagram may have been deleted, or you may not have access to it.",
+            "btnDismiss": "Back to editor"
+        },
+        "publicShareLoadError": {
+            "headline": "Could not open this shared diagram.",
+            "body": "The share link may have expired, been revoked, or the diagram may no longer exist.",
+            "btnDismiss": "Back to editor"
         },
         "diagramManager": {
             "title": "Open Diagram",

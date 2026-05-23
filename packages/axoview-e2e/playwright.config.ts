@@ -1,61 +1,49 @@
 import { defineConfig, devices } from '@playwright/test';
 
+/**
+ * Playwright config for the T1 rewrite suite.
+ *
+ * Scope (see docs/tactical/e2e-suite-rewrite.md):
+ *   - Chromium only for the initial green; Firefox/WebKit may land post-M9.
+ *   - One project, one testDir; per-journey spec files live under ./tests.
+ *   - Retries=0 locally and in CI for now — flake hunting comes in Session 8.
+ *   - webServer auto-starts `npm run dev` from the repo root; reuses an
+ *     existing server when the dev port is already bound.
+ *   - workers=1: shared dev server, sequential rsbuild HMR clients. Parallel
+ *     contexts overwhelm the dev pipeline (Loading-Axoview stall observed
+ *     Session 3 with 2 parallel workers); revisit in Session 8 if/when the
+ *     CI build serves a precompiled bundle instead.
+ */
 export default defineConfig({
   testDir: './tests',
-  fullyParallel: true,
-  retries: process.env.CI ? 2 : 0,
+  fullyParallel: false,
+  workers: 1,
+  retries: 0,
   reporter: process.env.CI
     ? [['github'], ['html', { open: 'never' }]]
-    : [['html', { open: 'never' }]],
+    : [['list'], ['html', { open: 'never' }]],
 
   use: {
     baseURL: 'http://localhost:3000',
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    video: 'on-first-retry',
+    video: 'retain-on-failure'
   },
 
   projects: [
-    // Tier 2: smoke — fast gate, Chromium only, smoke.spec.ts only
-    {
-      name: 'smoke',
-      testMatch: '**/smoke.spec.ts',
-      use: { ...devices['Desktop Chrome'] },
-    },
-
-    // Tier 3: full e2e — all specs except smoke and visual
     {
       name: 'chromium',
-      testIgnore: ['**/smoke.spec.ts', '**/visual.spec.ts'],
-      use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'firefox',
-      testIgnore: ['**/smoke.spec.ts', '**/visual.spec.ts'],
-      use: { ...devices['Desktop Firefox'] },
-    },
-
-    // Visual regression — separate project, separate command
-    {
-      name: 'visual',
-      testMatch: '**/visual.spec.ts',
-      use: {
-        ...devices['Desktop Chrome'],
-        // Fixed viewport for pixel-stable screenshots
-        viewport: { width: 1280, height: 800 },
-      },
-      snapshotDir: './snapshots',
-    },
+      use: { ...devices['Desktop Chrome'] }
+    }
   ],
 
-  // Auto-starts dev server; reuses if already running locally
   webServer: {
-    command: 'npm run dev --workspace=packages/axoview-app',
+    command: 'npm run dev',
     url: 'http://localhost:3000',
     reuseExistingServer: true,
-    timeout: 60_000,
-    cwd: '../..',
+    timeout: 120_000,
+    cwd: '../..'
   },
 
-  outputDir: './test-results',
+  outputDir: './test-results'
 });

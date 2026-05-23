@@ -103,52 +103,20 @@ export class LocalStorageProvider implements StorageProvider {
   readonly displayName = 'Local Storage';
   readonly requiresAuth = false;
 
-  /** True when server storage resolved as available during the last isAvailable() call */
+  // Set externally during boot by AppStorageContext from /api/config's
+  // `serverStorage` flag (ADR 0009 D2 — dual-probe collapse). Default `false`
+  // means "fall back to per-tab sessionStorage" — safe if init is skipped.
   usingServer = false;
 
   private readonly baseUrl: string;
-  private serverAvailable: boolean | null = null;
-  private serverCheckedAt: number | null = null;
-  private readonly AVAILABILITY_CACHE_MS = 60000;
 
   constructor(baseUrl?: string) {
     this.baseUrl = baseUrl ?? apiBaseUrl();
   }
 
-  // ---------------------------------------------------------------------------
-  // Availability
-  // ---------------------------------------------------------------------------
-
+  // Provider is always available — server-or-fallback is set externally now.
   async isAvailable(): Promise<boolean> {
-    const now = Date.now();
-    if (
-      this.serverAvailable !== null &&
-      this.serverCheckedAt !== null &&
-      now - this.serverCheckedAt < this.AVAILABILITY_CACHE_MS
-    ) {
-      return true; // provider is always available (server or fallback)
-    }
-
-    try {
-      // 800ms matches the budget in fetchRuntimeConfig — see comment there.
-      const response = await fetch(`${this.baseUrl}/api/storage/status`, {
-        signal: timeoutSignal(800)
-      });
-      const data = await response.json();
-      this.serverAvailable = !!data.enabled;
-    } catch {
-      this.serverAvailable = false;
-    }
-
-    this.usingServer = this.serverAvailable === true;
-    this.serverCheckedAt = Date.now();
-    return true; // always available
-  }
-
-  private async ensureChecked(): Promise<void> {
-    if (this.serverAvailable === null) {
-      await this.isAvailable();
-    }
+    return true;
   }
 
   // ---------------------------------------------------------------------------
@@ -301,7 +269,6 @@ export class LocalStorageProvider implements StorageProvider {
   // ---------------------------------------------------------------------------
 
   async listDiagrams(folderId?: string | null): Promise<DiagramMeta[]> {
-    await this.ensureChecked();
     if (this.usingServer) {
       try {
         return await this.serverListDiagrams(folderId);
@@ -313,7 +280,6 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async loadDiagram(id: string): Promise<unknown> {
-    await this.ensureChecked();
     if (this.usingServer) {
       try {
         return await this.serverLoadDiagram(id);
@@ -325,7 +291,6 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async saveDiagram(id: string, data: unknown): Promise<void> {
-    await this.ensureChecked();
     if (this.usingServer) {
       await this.serverSaveDiagram(id, data);
     } else {
@@ -334,7 +299,6 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async createDiagram(data: unknown, folderId?: string | null): Promise<string> {
-    await this.ensureChecked();
     if (this.usingServer) {
       return this.serverCreateDiagram(data, folderId);
     }
@@ -342,7 +306,6 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async deleteDiagram(id: string, soft = false): Promise<void> {
-    await this.ensureChecked();
     if (this.usingServer) {
       await this.serverDeleteDiagram(id, soft);
     } else {
@@ -351,7 +314,6 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async restoreDiagram(id: string): Promise<void> {
-    await this.ensureChecked();
     if (this.usingServer) {
       const response = await fetch(`${this.baseUrl}/api/diagrams/${id}`, {
         method: 'PATCH',
@@ -370,7 +332,6 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async renameDiagram(id: string, name: string): Promise<void> {
-    await this.ensureChecked();
     if (this.usingServer) {
       const response = await fetch(`${this.baseUrl}/api/diagrams/${id}`, {
         method: 'PATCH',
@@ -545,7 +506,6 @@ export class LocalStorageProvider implements StorageProvider {
   // ---------------------------------------------------------------------------
 
   async listFolders(parentId?: string | null): Promise<FolderMeta[]> {
-    await this.ensureChecked();
     if (this.usingServer) {
       try {
         return await this.serverListFolders(parentId);
@@ -557,7 +517,6 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async createFolder(name: string, parentId?: string | null): Promise<string> {
-    await this.ensureChecked();
     if (this.usingServer) {
       return this.serverCreateFolder(name, parentId);
     }
@@ -565,7 +524,6 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async deleteFolder(id: string, recursive: boolean): Promise<void> {
-    await this.ensureChecked();
     if (this.usingServer) {
       await this.serverDeleteFolder(id, recursive);
     } else {
@@ -574,7 +532,6 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async renameFolder(id: string, name: string): Promise<void> {
-    await this.ensureChecked();
     if (this.usingServer) {
       await this.serverRenameFolder(id, name);
     } else {
@@ -587,7 +544,6 @@ export class LocalStorageProvider implements StorageProvider {
     type: 'diagram' | 'folder',
     targetFolderId: string | null
   ): Promise<void> {
-    await this.ensureChecked();
     if (this.usingServer) {
       await this.serverMoveItem(id, type, targetFolderId);
     } else {
@@ -600,7 +556,6 @@ export class LocalStorageProvider implements StorageProvider {
   // ---------------------------------------------------------------------------
 
   async getTreeManifest(): Promise<TreeManifest> {
-    await this.ensureChecked();
     if (this.usingServer) {
       try {
         const response = await fetch(`${this.baseUrl}/api/tree-manifest`, {
@@ -621,7 +576,6 @@ export class LocalStorageProvider implements StorageProvider {
   // ---------------------------------------------------------------------------
 
   async shareDiagram(id: string): Promise<{ uuid: string; url: string; sharedAt: string }> {
-    await this.ensureChecked();
     if (!this.usingServer) {
       throw new Error('Sharing requires server storage');
     }
@@ -635,7 +589,6 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async unshareDiagram(id: string): Promise<void> {
-    await this.ensureChecked();
     if (!this.usingServer) return;
     const response = await fetch(`${this.baseUrl}/api/diagrams/${id}/share`, {
       method: 'DELETE',
@@ -645,7 +598,6 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async saveTreeManifest(manifest: TreeManifest): Promise<void> {
-    await this.ensureChecked();
     if (this.usingServer) {
       try {
         const response = await fetch(`${this.baseUrl}/api/tree-manifest`, {

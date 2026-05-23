@@ -160,6 +160,7 @@ export const ToolMenu = () => {
           Icon={canvasMode === 'ISOMETRIC' ? <CartesianIcon /> : <IsometricIcon />}
           onClick={handleToggleCanvasMode}
           isActive={false}
+          dataAxoviewId="canvas-mode-toggle"
         />
       </Stack>
     </UiElement>

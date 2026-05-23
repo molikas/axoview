@@ -182,6 +182,7 @@ export const DeleteIconConfirmDialog = ({
           onClick={onConfirm}
           disabled={scanning}
           autoFocus
+          data-axoview-id="dialog-delete-icon-confirm"
         >
           Delete
         </Button>

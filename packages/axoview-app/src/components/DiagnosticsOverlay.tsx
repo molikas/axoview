@@ -407,6 +407,7 @@ export function DiagnosticsOverlay() {
 
   return (
     <div
+      data-axoview-id="diagnostics-overlay"
       style={{
         position: 'fixed',
         bottom: 10,
@@ -446,6 +447,7 @@ export function DiagnosticsOverlay() {
         </span>
         <button
           onClick={() => diagnosticsStore.setOpen(false)}
+          data-axoview-id="diagnostics-overlay-close"
           style={{
             background: 'none',
             border: 'none',

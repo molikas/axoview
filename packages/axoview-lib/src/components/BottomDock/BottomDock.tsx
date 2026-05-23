@@ -86,6 +86,7 @@ export const BottomDock = ({ endSlot }: BottomDockProps = {}) => {
           <IconButton
             size="small"
             onClick={() => uiStateActions.setDialog(DialogTypeEnum.HELP)}
+            data-axoview-id="dock-help"
             sx={btnSx}
           >
             <HelpSvg />

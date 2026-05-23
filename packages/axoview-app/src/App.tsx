@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Axoview,
@@ -20,13 +20,15 @@ import { EmptyStateScreen } from './components/EmptyStateScreen';
 import { DiagnosticsOverlay } from './components/DiagnosticsOverlay';
 import { DiagnosticsToggleButton } from './components/DiagnosticsToggleButton';
 import { NotificationStack } from './components/NotificationStack';
-import { SessionModeBanner } from './components/SessionModeBanner';
-import { ExportDialog } from './components/fileExplorer/ExportDialog';
+import { LocalModeBanner } from './components/LocalModeBanner';
+import { LocalModeShareErrorDialog } from './components/LocalModeShareErrorDialog';
+import { ReadonlyLoadErrorDialog } from './components/ReadonlyLoadErrorDialog';
+import { PublicShareLoadErrorDialog } from './components/PublicShareLoadErrorDialog';
+import { ExportProjectZipDialog } from './components/fileExplorer/ExportProjectZipDialog';
 import { ImportDialog } from './components/fileExplorer/ImportDialog';
 import { parseProject, importProject } from './services/project/projectZip';
 import { notificationStore } from './stores/notificationStore';
 import ChangeLanguage from './components/ChangeLanguage';
-import { downloadSessionDump } from './utils/sessionDump';
 import './App.css';
 
 const publicUrl = process.env.PUBLIC_URL || '';
@@ -65,6 +67,7 @@ function EditorPage() {
 
 function EditorShell() {
   const { i18n } = useTranslation('app');
+  const navigate = useNavigate();
   const { storage, serverStorageAvailable, isInitialized } = useAppStorage();
   const {
     axoviewRef,
@@ -74,6 +77,11 @@ function EditorShell() {
     handleCreateBlankDiagram,
     sidebarTogglePortalTarget,
     isReadonlyUrl,
+    isPublicShareUrl,
+    readonlyLoadFailed,
+    clearReadonlyLoadFailed,
+    publicShareLoadFailed,
+    clearPublicShareLoadFailed,
     currentDiagram,
     fileTreeRefreshToken,
     refreshFileTree,
@@ -118,6 +126,38 @@ function EditorShell() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const importFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Lib dispatches two custom events for diagram-link affordances:
+  // - `axoview-navigate-to-diagram` (from the NodePanel readonly link) →
+  //   navigate to /display/<id> (readonly). Propagate the `fromEditor`
+  //   location-state flag so the "Back to editing" button survives across
+  //   readonly→readonly hops.
+  // - `axoview-open-diagram-in-editor` (from the NodeInfoTab edit-mode
+  //   picker's open-linked-diagram button) → swap the editor onto the
+  //   linked diagram via openDiagramById (no URL change; same tab; stays
+  //   in edit mode).
+  const location = useLocation();
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const id = (e as CustomEvent<{ id?: string }>).detail?.id;
+      if (!id) return;
+      const fromEditor = (location.state as { fromEditor?: boolean } | null)?.fromEditor;
+      navigate(`/display/${id}`, fromEditor ? { state: { fromEditor: true } } : undefined);
+    };
+    window.addEventListener('axoview-navigate-to-diagram', handler);
+    return () => window.removeEventListener('axoview-navigate-to-diagram', handler);
+  }, [navigate, location.state]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const id = (e as CustomEvent<{ id?: string }>).detail?.id;
+      if (!id) return;
+      const meta = linkedDiagrams.find((d) => d.id === id);
+      openDiagramById(id, meta?.name ?? 'Diagram');
+    };
+    window.addEventListener('axoview-open-diagram-in-editor', handler);
+    return () => window.removeEventListener('axoview-open-diagram-in-editor', handler);
+  }, [openDiagramById, linkedDiagrams]);
+
   const splashFadedRef = useRef(false);
   useEffect(() => {
     if (!isInitialized || splashFadedRef.current) return;
@@ -139,11 +179,18 @@ function EditorShell() {
     if (!storage || !isInitialized) return;
     // Re-fetch whenever the file tree refreshes (diagram created/deleted/renamed)
     // or when the current diagram changes (covers session-mode saves).
+    // Filter out the current diagram so the link picker cannot self-reference
+    // (baseline finding #2 / B-2).
     Promise.all([
       storage.listDiagrams(),
       storage.listFolders()
     ]).then(([diagrams, folders]) => {
-      setLinkedDiagrams(diagrams.map((d) => ({ id: d.id, name: d.name })));
+      const currentId = currentDiagram?.id;
+      setLinkedDiagrams(
+        diagrams
+          .filter((d) => d.id !== currentId)
+          .map((d) => ({ id: d.id, name: d.name }))
+      );
       setTreeIsEmpty(diagrams.length === 0 && folders.length === 0);
     }).catch(() => {});
   }, [storage, isInitialized, fileTreeRefreshToken, currentDiagram]);
@@ -198,14 +245,20 @@ function EditorShell() {
   // briefly appearing before EmptyStateScreen takes over.
   if (!isInitialized) return null;
 
-  const showSessionBanner =
+  const showLocalModeBanner =
     !serverStorageAvailable && !isReadonlyUrl && linkedDiagrams.length > 0;
+
+  // ADR 0009 Decision 3 (addendum 2026-05-22): only the share-UUID form
+  // `/display/p/<uuid>` requires a session backend. The owner-readonly form
+  // `/display/<diagramId>` works in Local mode against localStorage, so it
+  // must NOT trigger the share-error dialog.
+  const showLocalModeShareError = isPublicShareUrl && !serverStorageAvailable;
 
   return (
     <div className="App">
       <AppToolbar />
 
-      {showSessionBanner && <SessionModeBanner />}
+      {showLocalModeBanner && <LocalModeBanner />}
 
       <FileExplorerLayout>
         <div className="axoview-container" style={{ position: 'relative' }}>
@@ -226,7 +279,6 @@ function EditorShell() {
             fileExplorerOpen={fileExplorerOpen}
             onFileExplorerToggle={() => setFileExplorerOpen(!fileExplorerOpen)}
             disableLeftDockWorkingTabs={!currentDiagram}
-            onSessionDump={downloadSessionDump}
           />
           {/* File Explorer overlay — sits to the right of the LeftDock strip,
               never pushes the canvas. z=15 places it above the canvas/empty
@@ -310,7 +362,7 @@ function EditorShell() {
       )}
 
       {storage && (
-        <ExportDialog
+        <ExportProjectZipDialog
           open={isProjectExportOpen}
           onClose={closeProjectExport}
           scope="project"
@@ -319,6 +371,27 @@ function EditorShell() {
           onProjectZipExported={() => markProjectExported?.()}
         />
       )}
+
+      <LocalModeShareErrorDialog
+        open={showLocalModeShareError}
+        onDismiss={() => navigate('/', { replace: true })}
+      />
+
+      <ReadonlyLoadErrorDialog
+        open={readonlyLoadFailed}
+        onDismiss={() => {
+          clearReadonlyLoadFailed();
+          navigate('/', { replace: true });
+        }}
+      />
+
+      <PublicShareLoadErrorDialog
+        open={publicShareLoadFailed}
+        onDismiss={() => {
+          clearPublicShareLoadFailed();
+          navigate('/', { replace: true });
+        }}
+      />
 
       <DiagnosticsOverlay />
       <NotificationStack />

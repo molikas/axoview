@@ -45,6 +45,9 @@ export function FileTreeNode({ node, style, dragHandle, selectedId, onContextMen
 
   const label = (
     <Box
+      data-axoview-id="file-explorer-row"
+      data-diagram-name={node.data.name}
+      data-diagram-type={node.data.type}
       sx={{
         display: 'flex',
         alignItems: 'center',
@@ -82,6 +85,7 @@ export function FileTreeNode({ node, style, dragHandle, selectedId, onContextMen
       {node.isEditing ? (
         <input
           autoFocus
+          data-axoview-id="file-explorer-rename-input"
           defaultValue={node.data.name}
           onFocus={(e) => e.currentTarget.select()}
           onBlur={(e) => {

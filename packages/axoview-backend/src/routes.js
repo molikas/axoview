@@ -57,20 +57,8 @@ async function putJson(adapter, key, value) {
 }
 
 // ---------------------------------------------------------------------------
-// Status / config
+// Config (ADR 0009 D2: single boot probe — /api/storage/status removed)
 // ---------------------------------------------------------------------------
-
-export function getStorageStatus(_adapter, ctx) {
-  const env = ctx?.env || {};
-  return {
-    status: 200,
-    body: {
-      enabled: env.STORAGE_ENABLED !== false,
-      gitBackup: env.ENABLE_GIT_BACKUP === true,
-      version: '1.0.0'
-    }
-  };
-}
 
 export function getConfig(_adapter, ctx) {
   const env = ctx?.env || {};
