@@ -98,7 +98,12 @@ export function ExportProjectZipDialog({
         <Button onClick={onClose} disabled={busy}>
           Cancel
         </Button>
-        <Button variant="contained" onClick={handleExport} disabled={busy}>
+        <Button
+          variant="contained"
+          onClick={handleExport}
+          disabled={busy}
+          data-axoview-id="dialog-export-project-zip-confirm"
+        >
           {busy ? 'Exporting…' : 'Download .zip'}
         </Button>
       </DialogActions>
