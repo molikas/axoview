@@ -29,8 +29,8 @@ import {
   View,
   AnchorPosition
 } from 'src/types';
-import { CoordsUtils } from 'src/utils/CoordsUtils';
-import { SizeUtils } from 'src/utils/SizeUtils';
+import { CoordsUtils } from 'src/utils/coordsUtils';
+import { SizeUtils } from 'src/utils/sizeUtils';
 import { findPath } from 'src/utils/pathfinder';
 import {
   clamp,

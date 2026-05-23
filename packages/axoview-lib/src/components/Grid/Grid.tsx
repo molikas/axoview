@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Box } from '@mui/material';
 import { useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { PROJECTED_TILE_SIZE, UNPROJECTED_TILE_SIZE } from 'src/config';
-import { SizeUtils } from 'src/utils/SizeUtils';
+import { SizeUtils } from 'src/utils/sizeUtils';
 import { useResizeObserver } from 'src/hooks/useResizeObserver';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 

@@ -14,8 +14,8 @@ import {
   MAX_ZOOM
 } from 'src/config';
 import { Coords, Size, Scroll, Mouse, SlimMouseEvent, View } from 'src/types';
-import { CoordsUtils } from 'src/utils/CoordsUtils';
-import { SizeUtils } from 'src/utils/SizeUtils';
+import { CoordsUtils } from 'src/utils/coordsUtils';
+import { SizeUtils } from 'src/utils/sizeUtils';
 import { clamp } from 'src/utils/common';
 import {
   screenToIso,

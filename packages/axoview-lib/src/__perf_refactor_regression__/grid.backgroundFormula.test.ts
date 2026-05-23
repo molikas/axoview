@@ -15,7 +15,7 @@
  *   backgroundPosition = `${bgPos.x}px ${bgPos.y}px`
  */
 
-import { SizeUtils } from 'src/utils/SizeUtils';
+import { SizeUtils } from 'src/utils/sizeUtils';
 import { PROJECTED_TILE_SIZE } from 'src/config';
 
 // ---------------------------------------------------------------------------

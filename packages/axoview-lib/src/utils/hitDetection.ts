@@ -2,7 +2,7 @@
 // Kept separate from isoMath.ts so the WeakMap spatial index is isolated and testable.
 
 import { Coords, Size, ItemReference, TextBox } from 'src/types';
-import { CoordsUtils } from 'src/utils/CoordsUtils';
+import { CoordsUtils } from 'src/utils/coordsUtils';
 import {
   getBoundingBox,
   isWithinBounds,

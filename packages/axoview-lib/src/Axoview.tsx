@@ -34,7 +34,7 @@ import { ClipboardProvider } from 'src/clipboard/ClipboardContext';
 import { LayerContextProvider } from 'src/hooks/useLayerContext';
 import { CanvasModeProvider } from 'src/contexts/CanvasModeContext';
 import { LeftDock } from 'src/components/LeftDock/LeftDock';
-import { RightSidebar } from 'src/components/Sidebars/RightSidebar';
+import { RightSidebar } from 'src/components/RightSidebar';
 import { BottomDock } from 'src/components/BottomDock/BottomDock';
 import enUS from 'src/i18n/en-US';
 
