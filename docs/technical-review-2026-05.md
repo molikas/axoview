@@ -503,7 +503,425 @@ Three dialogs ship per the contract: `LocalModeShareErrorDialog` (browser-only +
 
 ## 7. File-by-file inventory
 
-<!-- TBD Session B — Comprehensive walk of every tracked file in the repo, grouped by package per §3b. For each file: purpose (one line), key entry points / exports, primary consumers, notable contracts. Token-heavy; the planned fan-out shape depends on §3b's segmentation (already clean: 4 packages + e2e + repo-level deployment artifacts + .github + docs). -->
+Every git-tracked file in the repo, segmented by the seven units described in [§3b](#3b-package-responsibilities) plus the repo shell and `docs/`. Columns: **Path** · **Type** (`source` | `config` | `test` | `fixture` | `doc` | `asset` | `lockfile` | `style` | `i18n`) · **LOC** (code lines for source/test/config-with-logic; `—` for assets/lockfiles/locales/markdown) · **Purpose** (what the file does and who consumes it) · **Flags** (audit cross-references, duplication smells, no-test-coverage callouts, anomalies a reviewer would ask about). Build outputs, `node_modules`, Playwright report/results, and `.wrangler/` are excluded by design.
+
+Cross-package patterns surfaced only after assembling the seven tables live in [§7.8](#78-cross-package-observations); raw counts roll up in [§7.9](#79-inventory-totals). Where a Flag column cites "audit C.2 / B-10" etc., the reference is to the corresponding row in [docs/tactical/productization-audit.md](tactical/productization-audit.md).
+
+### 7.1 `packages/axoview-lib`
+
+The React canvas library — owns the renderer, scene layers (Nodes, Connectors, Rectangles, TextBoxes), the 11-state interaction machine, the three Zustand stores (model, scene, uiState), the 14-locale i18n layer, and every component inside the canvas chrome. Per [Locked Decision #11](tactical/productization-audit.md#locked-decisions-from-scoping-discussion-2026-05-19) the lib is monorepo-only (not npm-published); `axoview-app` is its sole consumer today.
+
+| Path | Type | LOC | Purpose | Flags |
+|---|---|---|---|---|
+| `packages/axoview-lib/.gitignore` | config | — | Git ignore rules for the axoview-lib package. | — |
+| `packages/axoview-lib/LICENSE` | doc | — | MIT license file for the library; verified by audit row 4 to match repo and app LICENSE. | — |
+| `packages/axoview-lib/docs/.gitignore` | config | — | Git ignore inside the legacy Next.js docs scaffold. | Lives inside dead `docs/` scaffold (audit N2 — slated for deletion). |
+| `packages/axoview-lib/docs/package.json` | config | — | Standalone package.json for the legacy Next.js docs site. | Dead — audit N2 / C.2 marks the whole `docs/` directory for removal. |
+| `packages/axoview-lib/docs/package-lock.json` | lockfile | — | Lockfile for the legacy Next.js docs site. | Dead — cascades with `docs/` deletion (N2). |
+| `packages/axoview-lib/docs/pages/_meta.json` | config | — | Nextra navigation metadata for legacy docs site. | Dead — cascades with N2. |
+| `packages/axoview-lib/docs/pages/docs/_meta.json` | config | — | Nextra navigation metadata for docs section. | Dead — cascades with N2. |
+| `packages/axoview-lib/docs/pages/docs/api/_meta.json` | config | — | Nextra navigation metadata for API docs. | Dead — cascades with N2. |
+| `packages/axoview-lib/docs/pages/docs/api/index.mdx` | doc | — | Legacy MDX API reference page consumed by Nextra. | Dead — cascades with N2. |
+| `packages/axoview-lib/docs/pages/docs/api/initialData.mdx` | doc | — | Legacy MDX docs for the `initialData` prop. | Dead — cascades with N2. |
+| `packages/axoview-lib/docs/pages/docs/contributing.mdx` | doc | — | Legacy MDX contributing guide for library docs site. | Dead — cascades with N2. |
+| `packages/axoview-lib/docs/pages/docs/index.mdx` | doc | — | Legacy MDX docs landing page. | Dead — cascades with N2. |
+| `packages/axoview-lib/docs/pages/docs/installation.mdx` | doc | — | Legacy MDX install instructions (npm publish flow). | Dead — cascades with N2; also misleading given lib is not actually npm-published (Locked Decision #11). |
+| `packages/axoview-lib/docs/pages/docs/isopacks.mdx` | doc | — | Legacy MDX docs on isopack icon usage. | Dead — cascades with N2. |
+| `packages/axoview-lib/docs/pages/docs/quickstart.mdx` | doc | — | Legacy MDX quickstart page. | Dead — cascades with N2. |
+| `packages/axoview-lib/docs/tsconfig.json` | config | — | TS config for the legacy Nextra docs site. | Dead — cascades with N2. |
+| `packages/axoview-lib/jest.config.js` | config | ~40 | Jest configuration for the library's unit + regression test suites; consumed by `npm test`. | — |
+| `packages/axoview-lib/jest.setup.js` | config | ~30 | Jest setup (jest-dom matchers, polyfills) loaded by `jest.config.js`. | — |
+| `packages/axoview-lib/package.json` | config | — | Package manifest declaring `axoview` v2026.5.21, marked `"private": true` per Locked Decision #11 (not actually npm-published despite "published-shape"). | `"main"`/`"types"`/`"files"` advertise a publishable shape but `private: true` blocks publish — intentional but worth a reviewer flag. |
+| `packages/axoview-lib/rslib.config.ts` | config | ~30 | Rslib build configuration producing `dist/` consumed by axoview-app via workspace symlink. | Tied to the dev-server lib-rebuild friction documented in MEMORY. |
+| `packages/axoview-lib/tsconfig.declaration.json` | config | — | TS config used by `tsc --project` step in `build` to emit `.d.ts` types. | — |
+| `packages/axoview-lib/tsconfig.dev.json` | config | — | TS config variant for development (less strict / different paths) consumed by dev tooling. | Unclear which tool actually consumes it — worth verifying it's not orphaned. |
+| `packages/axoview-lib/tsconfig.json` | config | — | Base TS config for the library; extended by other tsconfigs and used by the editor. | — |
+| `packages/axoview-lib/src/Axoview.tsx` | source | 326 | Main `<Axoview>` React component plus `useAxoview` imperative-handle hook — the library's primary entry point consumed by axoview-app and external embedders. | Large central component; no dedicated unit test (only covered via integration/regression suites). |
+| `packages/axoview-lib/src/__mocks__/fileMock.ts` | fixture | 4 | Jest module-mock that maps SVG/image imports to a stub during tests. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/Connector.modes.test.ts` | test | 521 | Regression suite for the Connector interaction mode's drag/route/anchor behavior. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/Cursor.modes.test.ts` | test | 548 | Regression suite for the Cursor interaction mode (selection, click, hover). | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/Cursor.waypointGestures.test.ts` | test | 266 | Regression for cursor-driven connector waypoint add/move/delete gestures. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/DragItems.modes.test.ts` | test | 555 | Regression for the DragItems interaction mode covering multi-item drag. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/Lasso.modes.test.ts` | test | 407 | Regression for the rectangular Lasso interaction mode. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/Pan.modes.test.ts` | test | 336 | Regression for the Pan interaction mode. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/README.md` | doc | — | Explains intent and conventions of the `__perf_refactor_regression__` suite. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/ReconnectAnchor.modes.test.ts` | test | 216 | Regression for the ReconnectAnchor interaction mode. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/connector.createUndoRedo.test.tsx` | test | 128 | Regression that connector create flows produce single undo/redo entries. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx` | test | 235 | Performance regression around connector drag re-renders. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/connector.renderIsolation.test.tsx` | test | 66 | Asserts connector renders are isolated from unrelated state updates. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/dragStart.prevention.test.ts` | test | 36 | Regression that drag-start is correctly prevented in certain modes. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/expandableLabel.selectorConsolidation.test.tsx` | test | 45 | Regression for ExpandableLabel selector consolidation refactor. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/exportImageDialog.initialLoad.test.ts` | test | 89 | Regression around ExportImageDialog initial load behavior. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/exportImageDialog.memo.test.ts` | test | 40 | Regression that ExportImageDialog memoization holds. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/f2.rendererScope.test.ts` | test | 35 | Regression for F2-rename scope being limited to the renderer. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/fixtures/perf-stress-diagram.json` | fixture | — | Large diagram JSON used as a stress fixture by perf regression tests. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/grid.backgroundFormula.test.ts` | test | 226 | Regression for the grid background-CSS formula used by the renderer. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/gsap.dependency.test.ts` | test | 64 | Asserts GSAP was successfully removed (no GSAP imports remain). | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/i18n.config.test.ts` | test | 32 | Regression for i18n config shape. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/i18n.localeCompleteness.test.ts` | test | 46 | Regression that all locales contain the same keys (no missing translations). | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/interactionManager.depStability.test.tsx` | test | 74 | Regression for `useInteractionManager` dependency-array stability. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/keyboard.dispatch.test.tsx` | test | 295 | Regression for keyboard event dispatch and shortcut routing. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/languageDropdown.positioning.test.ts` | test | 40 | Regression for language dropdown positioning fix. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/multiSelect.contract.test.ts` | test | 107 | Regression for multi-select API contract. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/node.linkTooltipDedup.test.ts` | test | 101 | Regression that node link tooltips are properly deduplicated. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/quickAdd.groupButton.test.ts` | test | 142 | Regression for QuickAdd popover group-button behavior. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/quickIconSelector.i18n.test.ts` | test | 71 | Regression that QuickIconSelector strings come from i18n. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/rendererSize.sharedObserver.test.tsx` | test | 106 | Regression that renderer size uses a shared ResizeObserver. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/saveTracking.isAfterLoad.test.ts` | test | 72 | Regression for dirty-tracking after a load (no spurious dirty). | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/settings.defaults.test.ts` | test | 80 | Regression that persisted-settings defaults match expected; pinned by audit. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/shortcuts.test.ts` | test | 33 | Regression that fixed-shortcut mappings match `config/shortcuts.ts`; pinned by audit. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/splashScreen.welcomeNotification.test.ts` | test | 45 | Regression for the splash-screen welcome notification trigger. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/toolMenu.i18n.test.ts` | test | 67 | Regression that ToolMenu copy comes from i18n. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/toolMenu.propagation.test.tsx` | test | 155 | Regression for ToolMenu event propagation behavior. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/uiOverlay.editorModes.test.ts` | test | 102 | Regression for UiOverlay conditional rendering across editor modes. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/useRAFThrottle.cleanup.test.ts` | test | 198 | Regression that `useRAFThrottle` cleans up RAFs on unmount. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/useResizeObserver.lifecycle.test.ts` | test | 166 | Regression for `useResizeObserver` lifecycle. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/useScene.listShape.test.tsx` | test | 282 | Regression that `useScene` returns stable list-shape references. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/useScene.referenceStability.test.tsx` | test | 189 | Regression for `useScene` reference stability across renders. | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/viewOps.integration.test.tsx` | test | 204 | Integration regression for view-ops (add/rename/delete view). | — |
+| `packages/axoview-lib/src/__perf_refactor_regression__/viewTabs.titleReadonly.test.ts` | test | 46 | Regression that ViewTabs honors title-readonly state. | — |
+| `packages/axoview-lib/src/assets/grid-tile-2d.svg` | asset | — | SVG tile used as the 2D-mode grid background. | — |
+| `packages/axoview-lib/src/assets/grid-tile-bg.svg` | asset | — | SVG tile used as the isometric grid background. | — |
+| `packages/axoview-lib/src/clipboard/ClipboardContext.tsx` | source | 39 | React context wiring clipboard state for copy/paste consumers in the canvas. | — |
+| `packages/axoview-lib/src/clipboard/__tests__/clipboard.test.ts` | test | 69 | Unit tests for the low-level `clipboard.ts` helpers. | — |
+| `packages/axoview-lib/src/clipboard/__tests__/useCopyPaste.test.ts` | test | 558 | Unit tests for the `useCopyPaste` hook covering copy/paste/duplicate flows. | — |
+| `packages/axoview-lib/src/clipboard/clipboard.ts` | source | 31 | Low-level serialize/deserialize helpers for clipboard payloads. | — |
+| `packages/axoview-lib/src/clipboard/useCopyPaste.ts` | source | 316 | `useCopyPaste` hook driving copy/paste/duplicate actions consumed by the canvas. | — |
+| `packages/axoview-lib/src/components/BottomDock/BottomDock.tsx` | source | 93 | Bottom-of-canvas dock (mode buttons / status) consumed by `UiOverlay`. | No unit test. |
+| `packages/axoview-lib/src/components/Circle/Circle.tsx` | source | 13 | Tiny SVG-circle primitive used by anchors/markers. | No unit test (trivial). |
+| `packages/axoview-lib/src/components/ColorSelector/ColorPicker.tsx` | source | 24 | Wrapper around `mui-color-input` color picker, consumed by `ColorSelector`. | — |
+| `packages/axoview-lib/src/components/ColorSelector/ColorSelector.tsx` | source | 27 | Color-selection control composing swatches + custom-color input, consumed by item-controls panels. | — |
+| `packages/axoview-lib/src/components/ColorSelector/ColorSwatch.tsx` | source | 32 | Single color-swatch button used inside `ColorSelector`. | — |
+| `packages/axoview-lib/src/components/ColorSelector/CustomColorInput.tsx` | source | 77 | Hex/text input for custom colors used by `ColorSelector`. | — |
+| `packages/axoview-lib/src/components/ColorSelector/__tests__/ColorSelector.test.tsx` | test | 217 | Unit tests for `ColorSelector`. | — |
+| `packages/axoview-lib/src/components/ColorSelector/__tests__/CustomColorInput.test.tsx` | test | 144 | Unit tests for `CustomColorInput`. | — |
+| `packages/axoview-lib/src/components/ConfirmDiscardDialog/ConfirmDiscardDialog.tsx` | source | 58 | Dialog confirming discard of unsaved changes. | Audit row 18 / N4 — orphan-by-cascade from MainMenu deletion; **delete candidate** in C.2. |
+| `packages/axoview-lib/src/components/ConnectorAnchorOverlay/ConnectorAnchorOverlay.tsx` | source | 179 | Overlay rendering anchor handles on connectors, consumed by the renderer. | No unit test. |
+| `packages/axoview-lib/src/components/ConnectorEmptySpaceTooltip/ConnectorEmptySpaceTooltip.tsx` | source | 98 | Tooltip shown when hovering empty connector tracks. | No unit test. |
+| `packages/axoview-lib/src/components/ConnectorHintTooltip/ConnectorHintTooltip.tsx` | source | 131 | Tooltip with hints for connector usage. | No unit test. |
+| `packages/axoview-lib/src/components/ConnectorRerouteTooltip/ConnectorRerouteTooltip.tsx` | source | 125 | Tooltip prompting connector reroute. | No unit test. |
+| `packages/axoview-lib/src/components/ConnectorSettings/ConnectorSettings.tsx` | source | 74 | Settings-dialog tab for connector defaults. | No unit test. |
+| `packages/axoview-lib/src/components/ContextMenu/ContextMenu.tsx` | source | 37 | Canvas right-click context menu UI. | Audit listed `ContextMenu/`/`ContextMenuManager.tsx` for review — confirm mount path. |
+| `packages/axoview-lib/src/components/ContextMenu/ContextMenuManager.tsx` | source | 7 | Mount/manager wrapping `ContextMenu`. | Suspiciously small (7 LOC) — verify it's not a stub or unused. |
+| `packages/axoview-lib/src/components/Cursor/Cursor.tsx` | source | 23 | Renders the active-tile cursor overlay on the canvas. | — |
+| `packages/axoview-lib/src/components/DOMErrorBoundary/DOMErrorBoundary.tsx` | source | 110 | React error boundary catching DOM/render errors, consumed by the canvas root. | No unit test. |
+| `packages/axoview-lib/src/components/DOMErrorBoundary/index.ts` | source | 1 | Barrel re-export for `DOMErrorBoundary`. | — |
+| `packages/axoview-lib/src/components/DebugUtils/DebugUtils.tsx` | source | 65 | Debug overlay component used during development; gated. | — |
+| `packages/axoview-lib/src/components/DebugUtils/LineItem.tsx` | source | 36 | Single labeled-line row inside debug overlay. | — |
+| `packages/axoview-lib/src/components/DebugUtils/SizeIndicator.tsx` | source | 24 | Debug widget showing element sizes. | — |
+| `packages/axoview-lib/src/components/DebugUtils/Value.tsx` | source | 27 | Debug widget showing a labeled value. | — |
+| `packages/axoview-lib/src/components/DebugUtils/__tests__/DebugUtils.test.tsx` | test | 37 | Snapshot test for `DebugUtils`. | — |
+| `packages/axoview-lib/src/components/DebugUtils/__tests__/LineItem.test.tsx` | test | 21 | Snapshot test for `LineItem`. | — |
+| `packages/axoview-lib/src/components/DebugUtils/__tests__/SizeIndicator.test.tsx` | test | 42 | Snapshot test for `SizeIndicator`. | — |
+| `packages/axoview-lib/src/components/DebugUtils/__tests__/Value.test.tsx` | test | 18 | Snapshot test for `Value`. | — |
+| `packages/axoview-lib/src/components/DebugUtils/__tests__/__snapshots__/DebugUtils.test.tsx.snap` | fixture | — | Jest snapshot artifact. | Auto-generated. |
+| `packages/axoview-lib/src/components/DebugUtils/__tests__/__snapshots__/LineItem.test.tsx.snap` | fixture | — | Jest snapshot artifact. | Auto-generated. |
+| `packages/axoview-lib/src/components/DebugUtils/__tests__/__snapshots__/SizeIndicator.test.tsx.snap` | fixture | — | Jest snapshot artifact. | Auto-generated. |
+| `packages/axoview-lib/src/components/DebugUtils/__tests__/__snapshots__/Value.test.tsx.snap` | fixture | — | Jest snapshot artifact. | Auto-generated. |
+| `packages/axoview-lib/src/components/DragAndDrop/DragAndDrop.tsx` | source | 34 | Drag-and-drop file/icon handler for the canvas root. | No unit test. |
+| `packages/axoview-lib/src/components/ExportImageDialog/ExportImageDialog.tsx` | source | 760 | Dialog to export canvas to PNG/SVG with options; consumed by main menu. | Very large for a single dialog — refactor candidate. No direct unit test (only memo/initial-load regressions). |
+| `packages/axoview-lib/src/components/FreehandLasso/FreehandLasso.tsx` | source | 46 | Renders the freehand-lasso path overlay during selection. | — |
+| `packages/axoview-lib/src/components/Gradient/Gradient.tsx` | source | 16 | SVG-gradient primitive used by nodes/connectors. | — |
+| `packages/axoview-lib/src/components/Grid/Grid.tsx` | source | 76 | Renders the isometric grid background using SVG tiles + CSS formula. | — |
+| `packages/axoview-lib/src/components/HelpDialog/HelpDialog.tsx` | source | 304 | Help dialog listing shortcuts + hotkey table; consumed by main menu. | No dedicated unit test (covered indirectly by shortcuts regression). |
+| `packages/axoview-lib/src/components/HotkeySettings/HotkeySettings.tsx` | source | 164 | Settings tab letting users switch hotkey profile (qwerty/smnrct/none). | — |
+| `packages/axoview-lib/src/components/IconButton/IconButton.tsx` | source | 85 | Shared icon-button primitive used across the UI. | — |
+| `packages/axoview-lib/src/components/IconButton/__tests__/IconButton.color.test.tsx` | test | 49 | Unit test for IconButton color behavior. | — |
+| `packages/axoview-lib/src/components/IconPackSettings/IconPackSettings.tsx` | source | 173 | Settings tab managing installed icon packs. | — |
+| `packages/axoview-lib/src/components/ImportHintTooltip/ImportHintTooltip.tsx` | source | 76 | Tooltip explaining icon-import affordance. | — |
+| `packages/axoview-lib/src/components/IsoTileArea/IsoTileArea.tsx` | source | 46 | Renders an isometric tile-shaped area (selection/lasso highlight). | — |
+| `packages/axoview-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx` | source | 557 | Right-sidebar control panel for editing a selected connector. | Large component; no direct unit test. |
+| `packages/axoview-lib/src/components/ItemControls/IconSelectionControls/Icon.tsx` | source | 142 | Icon-tile rendered inside the icon-picker grid. | — |
+| `packages/axoview-lib/src/components/ItemControls/IconSelectionControls/IconCollection.tsx` | source | 116 | Container rendering a category of icons inside the picker. | — |
+| `packages/axoview-lib/src/components/ItemControls/IconSelectionControls/IconGrid.tsx` | source | 45 | Grid layout for the icon picker. | — |
+| `packages/axoview-lib/src/components/ItemControls/IconSelectionControls/IconSelectionControls.tsx` | source | 285 | Icon-picker top-level component consumed by node controls + left dock. | — |
+| `packages/axoview-lib/src/components/ItemControls/IconSelectionControls/Icons.tsx` | source | 37 | List rendering icons inside a category. | — |
+| `packages/axoview-lib/src/components/ItemControls/IconSelectionControls/Searchbox.tsx` | source | 34 | Search input for filtering icons. | — |
+| `packages/axoview-lib/src/components/ItemControls/IconSelectionControls/__tests__/Icon.test.tsx` | test | 26 | Unit test for the picker `Icon` tile. | — |
+| `packages/axoview-lib/src/components/ItemControls/ItemControlsManager.tsx` | source | 48 | Selects the correct item-controls panel based on the selected item type. | — |
+| `packages/axoview-lib/src/components/ItemControls/NodeControls/NodeInfoTab/NodeInfoTab.tsx` | source | 247 | Node-controls tab for info/metadata editing (label, description, link). | No unit test. |
+| `packages/axoview-lib/src/components/ItemControls/NodeControls/NodePanel/NodePanel.tsx` | source | 377 | Node-controls top-level panel hosting info/style tabs. | No unit test. |
+| `packages/axoview-lib/src/components/ItemControls/NodeControls/NodeStyleTab/NodeStyleTab.tsx` | source | 142 | Node-controls tab for visual style (color, icon, label). | No unit test. |
+| `packages/axoview-lib/src/components/ItemControls/NodeControls/QuickIconSelector.tsx` | source | 170 | Inline icon-quick-pick used inside the node panel. | — |
+| `packages/axoview-lib/src/components/ItemControls/RectangleControls/RectangleControls.tsx` | source | 101 | Right-sidebar control panel for the selected rectangle. | No unit test. |
+| `packages/axoview-lib/src/components/ItemControls/TextBoxControls/TextBoxControls.tsx` | source | 123 | Right-sidebar control panel for the selected text box. | No unit test. |
+| `packages/axoview-lib/src/components/ItemControls/components/ControlsContainer.tsx` | source | 45 | Shared container layout for item-controls panels. | — |
+| `packages/axoview-lib/src/components/ItemControls/components/DeleteButton.tsx` | source | 21 | Shared delete-button used inside item-controls panels. | — |
+| `packages/axoview-lib/src/components/ItemControls/components/LabelColorPicker.tsx` | source | 81 | Color picker for labels used by item-controls panels. | — |
+| `packages/axoview-lib/src/components/ItemControls/components/Section.tsx` | source | 31 | Section header layout primitive inside item-controls panels. | — |
+| `packages/axoview-lib/src/components/Label/ExpandButton.tsx` | source | 35 | Expand/collapse button used by `ExpandableLabel`. | — |
+| `packages/axoview-lib/src/components/Label/ExpandableLabel.tsx` | source | 112 | Label that can expand to a richer multi-line view. | — |
+| `packages/axoview-lib/src/components/Label/Label.tsx` | source | 81 | Primary label component used on nodes/rectangles/connectors. | — |
+| `packages/axoview-lib/src/components/Label/__tests__/Label.test.tsx` | test | 53 | Unit test for `Label`. | — |
+| `packages/axoview-lib/src/components/LabelSettings/LabelSettings.tsx` | source | 49 | Settings tab for label defaults. | No unit test. |
+| `packages/axoview-lib/src/components/Lasso/Lasso.tsx` | source | 29 | Renders the rectangular-lasso overlay during selection. | — |
+| `packages/axoview-lib/src/components/LassoHintTooltip/LassoHintTooltip.tsx` | source | 116 | Tooltip with hints for lasso usage. | No unit test. |
+| `packages/axoview-lib/src/components/LassoLayerBar/LassoLayerBar.tsx` | source | 178 | Contextual action bar shown when a lasso selection is active. | No unit test. |
+| `packages/axoview-lib/src/components/LayersPanel/LayerItemRow.tsx` | source | 186 | Row rendering an individual item inside the layers panel. | No unit test. |
+| `packages/axoview-lib/src/components/LayersPanel/LayerRow.tsx` | source | 243 | Row rendering a layer (with its items) in the layers panel. | No unit test. |
+| `packages/axoview-lib/src/components/LayersPanel/LayersPanel.tsx` | source | 535 | Right-sidebar panel listing layers + items; major UI surface. | Large; no direct unit test. |
+| `packages/axoview-lib/src/components/LazyLoadingWelcomeNotification/LazyLoadingWelcomeNotification.tsx` | source | 81 | Lazy-loaded welcome notification snackbar. | No unit test (covered by splash regression). |
+| `packages/axoview-lib/src/components/LeftDock/CommonElements.tsx` | source | 187 | Common-elements (rectangles, text, connectors) tile picker inside left dock. | No unit test. |
+| `packages/axoview-lib/src/components/LeftDock/DeleteIconConfirmDialog.tsx` | source | 184 | Confirm-delete dialog for user-imported icons. | No unit test. |
+| `packages/axoview-lib/src/components/LeftDock/ElementsPanel.tsx` | source | 440 | Left-dock panel listing draggable icons/elements. | Large; no direct unit test. |
+| `packages/axoview-lib/src/components/LeftDock/ImportIconsDialog.tsx` | source | 80 | Dialog flow for importing user-supplied icons. | No unit test. |
+| `packages/axoview-lib/src/components/LeftDock/LeftDock.tsx` | source | 182 | Left-edge dock container hosting elements panel + actions. | No unit test. |
+| `packages/axoview-lib/src/components/Loader/Loader.tsx` | source | 22 | Loading-spinner overlay used during async init. | — |
+| `packages/axoview-lib/src/components/MainMenu/MainMenu.tsx` | source | 260 | Main menu (file ops, settings, help) component. | Audit row 17 / N4 — flagged dead-by-config, **locked for deletion** in C.2 (anchor decision). |
+| `packages/axoview-lib/src/components/MainMenu/MenuItem.tsx` | source | 21 | Menu-item primitive used by `MainMenu`. | Cascades with MainMenu deletion (audit C.2). |
+| `packages/axoview-lib/src/components/NodeActionBar/NodeActionBar.tsx` | source | 366 | Floating action bar shown next to a selected node. | No unit test. |
+| `packages/axoview-lib/src/components/NotificationSnackbar/NotificationSnackbar.tsx` | source | 30 | Global MUI snackbar for transient notifications. | — |
+| `packages/axoview-lib/src/components/PanSettings/PanSettings.tsx` | source | 141 | Settings tab for pan-behavior configuration. | No unit test. |
+| `packages/axoview-lib/src/components/QuickAddNodePopover/QuickAddNodePopover.tsx` | source | 127 | Popover for quick-adding a new node by icon. | — |
+| `packages/axoview-lib/src/components/Renderer/Renderer.tsx` | source | 223 | The isometric scene renderer hosting all scene layers; central canvas component. | Central component; no direct unit test (covered by integration). |
+| `packages/axoview-lib/src/components/RichTextEditor/RichTextEditor.tsx` | source | 131 | Quill-based rich text editor used by labels/text boxes. | — |
+| `packages/axoview-lib/src/components/RichTextEditor/RichTextEditorErrorBoundary.tsx` | source | 102 | Error boundary wrapping Quill to catch its known crash modes. | — |
+| `packages/axoview-lib/src/components/RichTextEditor/__tests__/RichTextEditor.formats.test.ts` | test | 67 | Unit test for the rich-text format whitelist. | — |
+| `packages/axoview-lib/src/components/SceneLayer/SceneLayer.tsx` | source | 50 | Generic positioned scene-layer container used by all scene layers. | — |
+| `packages/axoview-lib/src/components/SceneLayers/ConnectorLabels/ConnectorLabel.tsx` | source | 243 | Renders a single connector label on the canvas. | No unit test. |
+| `packages/axoview-lib/src/components/SceneLayers/ConnectorLabels/ConnectorLabels.tsx` | source | 28 | Maps the connector list to `ConnectorLabel` components. | — |
+| `packages/axoview-lib/src/components/SceneLayers/Connectors/Connector.tsx` | source | 281 | Renders a single connector path with anchors/labels. | No unit test (covered by mode/regression suites). |
+| `packages/axoview-lib/src/components/SceneLayers/Connectors/Connectors.tsx` | source | 31 | Maps the connector list to `Connector` components. | — |
+| `packages/axoview-lib/src/components/SceneLayers/Nodes/Node/IconTypes/IsometricIcon.tsx` | source | 31 | Renders an isometric-style icon for a node. | — |
+| `packages/axoview-lib/src/components/SceneLayers/Nodes/Node/IconTypes/NonIsometricIcon.tsx` | source | 46 | Renders a non-isometric (2D) icon for a node. | — |
+| `packages/axoview-lib/src/components/SceneLayers/Nodes/Node/Node.tsx` | source | 350 | Renders a single node with its icon + label + selection state. | No unit test (covered by regression). |
+| `packages/axoview-lib/src/components/SceneLayers/Nodes/Nodes.tsx` | source | 47 | Maps the node list to `Node` components. | — |
+| `packages/axoview-lib/src/components/SceneLayers/Rectangles/Rectangle.tsx` | source | 28 | Renders a single rectangle on the canvas. | — |
+| `packages/axoview-lib/src/components/SceneLayers/Rectangles/Rectangles.tsx` | source | 23 | Maps the rectangle list to `Rectangle` components. | — |
+| `packages/axoview-lib/src/components/SceneLayers/TextBoxes/TextBox.tsx` | source | 165 | Renders a single text box on the canvas. | — |
+| `packages/axoview-lib/src/components/SceneLayers/TextBoxes/TextBoxes.tsx` | source | 23 | Maps the text-box list to `TextBox` components. | — |
+| `packages/axoview-lib/src/components/SettingsDialog/AboutTab.tsx` | source | 64 | About-tab content shown inside the settings dialog. | — |
+| `packages/axoview-lib/src/components/SettingsDialog/SettingsDialog.tsx` | source | 213 | Main settings dialog host wiring tabs (hotkeys, icon packs, label, pan, zoom, about). | — |
+| `packages/axoview-lib/src/components/Sidebars/RightSidebar.tsx` | source | 64 | Right-sidebar host wrapping item controls + layers panel. | Note: `Sidebars/LeftSidebar.tsx` is **deleted** per audit register #3 — only RightSidebar remains; folder name now arguably stale. |
+| `packages/axoview-lib/src/components/Svg/Svg.tsx` | source | 27 | Shared SVG root primitive used by scene layers. | — |
+| `packages/axoview-lib/src/components/ToolMenu/ToolMenu.tsx` | source | 159 | Mode-switcher tool menu (cursor/pan/rectangle/connector/etc.). | — |
+| `packages/axoview-lib/src/components/TransformControlsManager/NodeTransformControls.tsx` | source | 13 | Thin wrapper assembling transform anchors for nodes. | — |
+| `packages/axoview-lib/src/components/TransformControlsManager/RectangleTransformControls.tsx` | source | 36 | Transform anchors for rectangles. | — |
+| `packages/axoview-lib/src/components/TransformControlsManager/TextBoxTransformControls.tsx` | source | 18 | Transform anchors for text boxes. | — |
+| `packages/axoview-lib/src/components/TransformControlsManager/TransformAnchor.tsx` | source | 61 | A single transform-anchor handle. | — |
+| `packages/axoview-lib/src/components/TransformControlsManager/TransformControls.tsx` | source | 83 | Generic transform-controls overlay composed of anchors. | — |
+| `packages/axoview-lib/src/components/TransformControlsManager/TransformControlsManager.tsx` | source | 47 | Dispatches to per-type transform-control components based on selection. | — |
+| `packages/axoview-lib/src/components/UiElement/UiElement.tsx` | source | 23 | DOM positioning primitive used by UI overlays. | — |
+| `packages/axoview-lib/src/components/UiOverlay/UiOverlay.tsx` | source | 321 | Top-level UI overlay hosting docks/menus/sidebars over the canvas. | — |
+| `packages/axoview-lib/src/components/ViewTabs/ViewTabs.tsx` | source | 291 | Tab bar for switching between views in the diagram. | No unit test (covered by viewTabs regression). |
+| `packages/axoview-lib/src/components/ZoomControls/ZoomControls.tsx` | source | 88 | Zoom in/out/reset control buttons. | — |
+| `packages/axoview-lib/src/components/ZoomSettings/ZoomSettings.tsx` | source | 53 | Settings tab for zoom defaults/behavior. | — |
+| `packages/axoview-lib/src/config.ts` | source | 168 | Library-wide constants (sizes, defaults, modes); broadly consumed. | — |
+| `packages/axoview-lib/src/config/hotkeys.ts` | source | 36 | Hotkey-profile definitions (`qwerty`/`smnrct`/`none`); consumed by HotkeySettings + interaction layer. | Pinned by audit (locked decision #15 area). |
+| `packages/axoview-lib/src/config/labelSettings.ts` | source | 6 | Label-setting defaults. | — |
+| `packages/axoview-lib/src/config/panSettings.ts` | source | 14 | Pan-setting defaults. | — |
+| `packages/axoview-lib/src/config/persistedSettings.ts` | source | 34 | Persisted-settings schema + defaults stored in localStorage. | — |
+| `packages/axoview-lib/src/config/shortcuts.ts` | source | 9 | Fixed-shortcut mapping (cut/copy/paste/undo/redo/help). | Pinned by audit. |
+| `packages/axoview-lib/src/config/zoomSettings.ts` | source | 6 | Zoom-setting defaults. | — |
+| `packages/axoview-lib/src/contexts/CanvasModeContext.tsx` | source | 83 | React context tracking current canvas interaction mode. | — |
+| `packages/axoview-lib/src/examples/BasicEditor/BasicEditor.tsx` | source | 6 | Minimal example mounting `<Axoview>` for dev playground. | Dev-only; not shipped to consumers. |
+| `packages/axoview-lib/src/examples/DebugTools/DebugTools.tsx` | source | 12 | Dev-playground example showcasing debug tools. | Dev-only. |
+| `packages/axoview-lib/src/examples/ReadonlyMode/ReadonlyMode.tsx` | source | 11 | Dev-playground example for readonly mode. | Dev-only. |
+| `packages/axoview-lib/src/examples/index.tsx` | source | 42 | Router/index for the dev-playground examples consumed by `src/index.tsx`. | Dev-only. |
+| `packages/axoview-lib/src/examples/initialData.ts` | fixture | 767 | Large example diagram (initial data) used by playground examples. | Dev-only; large but justified as a fixture. |
+| `packages/axoview-lib/src/fixtures/colors.ts` | fixture | 11 | Default color palette used by the library at runtime + as a fixture. | Despite the `fixtures/` location these are consumed at runtime, not just by tests. |
+| `packages/axoview-lib/src/fixtures/icons.ts` | fixture | 2 | Empty bundled-icons array (icons are loaded via isopacks). | — |
+| `packages/axoview-lib/src/fixtures/model.ts` | fixture | 14 | Default empty-model template used to bootstrap new diagrams. | Runtime-consumed despite `fixtures/` path. |
+| `packages/axoview-lib/src/fixtures/modelItems.ts` | fixture | 19 | Default model-item templates. | Runtime-consumed despite `fixtures/` path. |
+| `packages/axoview-lib/src/fixtures/views.ts` | fixture | 61 | Default-view template used when creating new views. | Runtime-consumed despite `fixtures/` path. |
+| `packages/axoview-lib/src/global.d.ts` | source | 38 | Ambient global type declarations (window globals, etc.). | — |
+| `packages/axoview-lib/src/hooks/__tests__/useHistory.realStore.test.tsx` | test | 180 | Tests `useHistory` against a real zustand store. | — |
+| `packages/axoview-lib/src/hooks/__tests__/useHistory.test.tsx` | test | 260 | Unit tests for `useHistory` (undo/redo). | — |
+| `packages/axoview-lib/src/hooks/__tests__/useInitialDataManager.test.tsx` | test | 414 | Unit tests for `useInitialDataManager`. | — |
+| `packages/axoview-lib/src/hooks/__tests__/useIsoProjection.twoDY.test.tsx` | test | 125 | Tests 2D-Y mode behavior of `useIsoProjection`. | — |
+| `packages/axoview-lib/src/hooks/useColor.ts` | source | 14 | Hook resolving color tokens to display values. | No unit test. |
+| `packages/axoview-lib/src/hooks/useConnector.ts` | source | 12 | Selector hook returning a connector by id. | No unit test (trivial). |
+| `packages/axoview-lib/src/hooks/useDiagramUtils.ts` | source | 46 | Hook exposing diagram-wide utilities to UI. | No unit test. |
+| `packages/axoview-lib/src/hooks/useDirtyTracker.ts` | source | 55 | Tracks dirty state of the diagram across edits; consumed by save UI. | No direct unit test (covered by saveTracking regression). |
+| `packages/axoview-lib/src/hooks/useHistory.ts` | source | 105 | Undo/redo history hook backed by the model store. | — |
+| `packages/axoview-lib/src/hooks/useIcon.tsx` | source | 44 | Hook resolving an icon by id from installed icon packs. | No unit test. |
+| `packages/axoview-lib/src/hooks/useIconCategories.ts` | source | 25 | Hook returning grouped icon categories. | No unit test. |
+| `packages/axoview-lib/src/hooks/useIconFiltering.ts` | source | 26 | Hook filtering icons by search/category. | No unit test. |
+| `packages/axoview-lib/src/hooks/useInitialDataManager.ts` | source | 201 | Manages initial-data hydration into the model store; consumed by `<Axoview>`. | — |
+| `packages/axoview-lib/src/hooks/useIsoProjection.ts` | source | 101 | Hook computing isometric ↔ screen projection used by the renderer. | — |
+| `packages/axoview-lib/src/hooks/useLayerActions.ts` | source | 99 | Hook exposing layer CRUD actions to the layers UI. | No unit test. |
+| `packages/axoview-lib/src/hooks/useLayerContext.ts` | source | 172 | Provides per-layer context (selection, visibility) to layer rows. | No unit test. |
+| `packages/axoview-lib/src/hooks/useModelItem.ts` | source | 18 | Selector hook returning a model item by id. | No unit test. |
+| `packages/axoview-lib/src/hooks/useRectangle.ts` | source | 11 | Selector hook returning a rectangle by id. | No unit test (trivial). |
+| `packages/axoview-lib/src/hooks/useResizeObserver.ts` | source | 35 | Wraps shared ResizeObserver instance for components. | — |
+| `packages/axoview-lib/src/hooks/useScene.ts` | source | 12 | Selector hook returning the current scene snapshot. | — |
+| `packages/axoview-lib/src/hooks/useSceneActions.ts` | source | 789 | Largest action-hook in the lib; aggregates scene mutations consumed across components. | Very large surface; **refactor candidate** — split per-domain. No direct unit test. |
+| `packages/axoview-lib/src/hooks/useSceneData.ts` | source | 107 | Hook returning derived scene data (counts, bounds, etc.). | No unit test. |
+| `packages/axoview-lib/src/hooks/useTextBox.ts` | source | 11 | Selector hook returning a text box by id. | No unit test (trivial). |
+| `packages/axoview-lib/src/hooks/useTextBoxProps.ts` | source | 116 | Hook deriving text-box render props. | No unit test. |
+| `packages/axoview-lib/src/hooks/useView.ts` | source | 29 | Selector hook returning the current view. | No unit test. |
+| `packages/axoview-lib/src/hooks/useViewItem.ts` | source | 11 | Selector hook returning a view item by id. | No unit test (trivial). |
+| `packages/axoview-lib/src/i18n/bn-BD.ts` | i18n | — | Bengali (Bangladesh) translation bundle. | — |
+| `packages/axoview-lib/src/i18n/de-DE.ts` | i18n | — | German translation bundle. | — |
+| `packages/axoview-lib/src/i18n/en-US.ts` | i18n | — | English (US) translation bundle — canonical reference for locale-completeness test. | — |
+| `packages/axoview-lib/src/i18n/es-ES.ts` | i18n | — | Spanish (Spain) translation bundle. | — |
+| `packages/axoview-lib/src/i18n/fr-FR.ts` | i18n | — | French translation bundle. | — |
+| `packages/axoview-lib/src/i18n/hi-IN.ts` | i18n | — | Hindi translation bundle. | — |
+| `packages/axoview-lib/src/i18n/id-ID.ts` | i18n | — | Indonesian translation bundle. | — |
+| `packages/axoview-lib/src/i18n/index.ts` | source | 29 | i18n registry exporting all locale bundles + helpers. | Audit C.2 note: i18n locales are also duplicated in `axoview-app` — three locale surfaces total. |
+| `packages/axoview-lib/src/i18n/it-IT.ts` | i18n | — | Italian translation bundle. | — |
+| `packages/axoview-lib/src/i18n/pl-PL.ts` | i18n | — | Polish translation bundle. | — |
+| `packages/axoview-lib/src/i18n/pt-BR.ts` | i18n | — | Portuguese (Brazil) translation bundle. | — |
+| `packages/axoview-lib/src/i18n/ru-RU.ts` | i18n | — | Russian translation bundle. | — |
+| `packages/axoview-lib/src/i18n/tr-TR.ts` | i18n | — | Turkish translation bundle. | — |
+| `packages/axoview-lib/src/i18n/zh-CN.ts` | i18n | — | Chinese (Simplified) translation bundle. | — |
+| `packages/axoview-lib/src/index.html` | asset | — | Dev-server HTML shell loaded by `src/index.tsx`. | Dev-only; not part of the published lib. |
+| `packages/axoview-lib/src/index.ts` | source | 6 | Library public-API barrel — primary import surface for consumers. | — |
+| `packages/axoview-lib/src/index.tsx` | source | 24 | Dev-server entry mounting the `Examples` playground. | Dev-only; intentionally separate from the library `index.ts` (different file ext disambiguates). |
+| `packages/axoview-lib/src/interaction/__tests__/DrawRectangle.test.ts` | test | 148 | Unit tests for the DrawRectangle interaction mode. | — |
+| `packages/axoview-lib/src/interaction/__tests__/FreehandLasso.test.ts` | test | 294 | Unit tests for the FreehandLasso interaction mode. | — |
+| `packages/axoview-lib/src/interaction/__tests__/PlaceIcon.test.ts` | test | 168 | Unit tests for the PlaceIcon interaction mode. | — |
+| `packages/axoview-lib/src/interaction/__tests__/TransformRectangle.test.ts` | test | 168 | Unit tests for the TransformRectangle interaction mode. | — |
+| `packages/axoview-lib/src/interaction/__tests__/usePanHandlers.test.ts` | test | 434 | Unit tests for `usePanHandlers`. | — |
+| `packages/axoview-lib/src/interaction/modes/Connector.ts` | source | 208 | Connector interaction-mode state machine (mousedown/move/up). | — |
+| `packages/axoview-lib/src/interaction/modes/Cursor.ts` | source | 458 | Cursor interaction-mode state machine (selection/click/hover). | Large; no direct mode-level unit test (covered only by regression suite). |
+| `packages/axoview-lib/src/interaction/modes/DragItems.ts` | source | 310 | DragItems interaction-mode handling multi-item drag. | No direct unit test (covered by regression). |
+| `packages/axoview-lib/src/interaction/modes/FreehandLasso.ts` | source | 252 | FreehandLasso interaction-mode. | — |
+| `packages/axoview-lib/src/interaction/modes/Lasso.ts` | source | 231 | Rectangular Lasso interaction-mode. | No direct mode unit test (covered by regression). |
+| `packages/axoview-lib/src/interaction/modes/Pan.ts` | source | 71 | Pan interaction-mode. | No direct mode unit test. |
+| `packages/axoview-lib/src/interaction/modes/PlaceIcon.ts` | source | 57 | PlaceIcon interaction-mode (drag-from-dock placement). | — |
+| `packages/axoview-lib/src/interaction/modes/Rectangle/DrawRectangle.ts` | source | 46 | Rectangle-drawing interaction mode. | — |
+| `packages/axoview-lib/src/interaction/modes/Rectangle/TransformRectangle.ts` | source | 69 | Rectangle-transform interaction mode. | — |
+| `packages/axoview-lib/src/interaction/modes/ReconnectAnchor.ts` | source | 47 | Reconnect-anchor interaction mode (drag connector endpoint). | — |
+| `packages/axoview-lib/src/interaction/modes/TextBox.ts` | source | 32 | TextBox placement interaction-mode. | — |
+| `packages/axoview-lib/src/interaction/useInteractionManager.ts` | source | 741 | Central interaction-manager hook routing pointer/keyboard events to active mode. | Very large; **refactor candidate**. No direct unit test (only depStability regression). |
+| `packages/axoview-lib/src/interaction/usePanHandlers.ts` | source | 249 | Pan-gesture handlers used by canvas root. | — |
+| `packages/axoview-lib/src/interaction/useRAFThrottle.ts` | source | 60 | RAF-throttle hook used by interaction loops. | — |
+| `packages/axoview-lib/src/module.d.ts` | source | 4 | Ambient module declarations (e.g., for SVG imports). | — |
+| `packages/axoview-lib/src/schemas/__tests__/colors.test.ts` | test | 43 | Schema-validation tests for colors. | — |
+| `packages/axoview-lib/src/schemas/__tests__/connector.test.ts` | test | 157 | Schema-validation tests for connectors. | — |
+| `packages/axoview-lib/src/schemas/__tests__/icons.test.ts` | test | 43 | Schema-validation tests for icons. | — |
+| `packages/axoview-lib/src/schemas/__tests__/layer.test.ts` | test | 58 | Schema-validation tests for layers. | — |
+| `packages/axoview-lib/src/schemas/__tests__/modelItems.test.ts` | test | 102 | Schema-validation tests for model items. | — |
+| `packages/axoview-lib/src/schemas/__tests__/rectangle.test.ts` | test | 19 | Schema-validation tests for rectangles. | — |
+| `packages/axoview-lib/src/schemas/__tests__/textBox.test.ts` | test | 38 | Schema-validation tests for text boxes. | — |
+| `packages/axoview-lib/src/schemas/__tests__/validation.test.ts` | test | 145 | Schema-validation tests for the high-level `validation.ts` API. | — |
+| `packages/axoview-lib/src/schemas/__tests__/views.test.ts` | test | 133 | Schema-validation tests for views. | — |
+| `packages/axoview-lib/src/schemas/colors.ts` | source | 7 | Zod schema for color values. | — |
+| `packages/axoview-lib/src/schemas/common.ts` | source | 12 | Shared zod schema primitives. | — |
+| `packages/axoview-lib/src/schemas/connector.ts` | source | 52 | Zod schema for connectors. | — |
+| `packages/axoview-lib/src/schemas/icons.ts` | source | 11 | Zod schema for icons. | — |
+| `packages/axoview-lib/src/schemas/index.ts` | source | 9 | Barrel re-export of all zod schemas. | — |
+| `packages/axoview-lib/src/schemas/layer.ts` | source | 10 | Zod schema for layers. | — |
+| `packages/axoview-lib/src/schemas/model.ts` | source | 28 | Zod schema for the top-level model. | — |
+| `packages/axoview-lib/src/schemas/modelItems.ts` | source | 12 | Zod schema for model items. | — |
+| `packages/axoview-lib/src/schemas/rectangle.ts` | source | 11 | Zod schema for rectangles. | — |
+| `packages/axoview-lib/src/schemas/textBox.ts` | source | 21 | Zod schema for text boxes. | — |
+| `packages/axoview-lib/src/schemas/validation.ts` | source | 258 | High-level validate-input API (`validateConnector`/`validateRectangle`/etc.) consumed by store reducers + public API. | Knip flagged some of these exports as unused (audit row 5) — false positive; kept as lib public API. |
+| `packages/axoview-lib/src/schemas/views.ts` | source | 28 | Zod schema for views. | — |
+| `packages/axoview-lib/src/standaloneExports.ts` | source | 20 | Re-exports a curated set of internals (utils/types/schemas) for external consumers via `index.ts`. | Defines the lib's "public-API surface" referenced by audit row 7. |
+| `packages/axoview-lib/src/stores/__tests__/sceneStore.test.ts` | test | 246 | Tests for the scene zustand store. | — |
+| `packages/axoview-lib/src/stores/__tests__/zustand.deprecation.test.ts` | test | 60 | Pin-tests for zustand deprecation warnings (locked dep version). | — |
+| `packages/axoview-lib/src/stores/localeStore.tsx` | source | 65 | Zustand store holding active locale + i18n bundle. | — |
+| `packages/axoview-lib/src/stores/modelStore.tsx` | source | 209 | Zustand store holding the diagram model; central state. | — |
+| `packages/axoview-lib/src/stores/reducers/__tests__/connector.test.ts` | test | 281 | Reducer tests for connectors. | — |
+| `packages/axoview-lib/src/stores/reducers/__tests__/layer.test.ts` | test | 232 | Reducer tests for layers. | — |
+| `packages/axoview-lib/src/stores/reducers/__tests__/modelItem.test.ts` | test | 87 | Reducer tests for model items. | — |
+| `packages/axoview-lib/src/stores/reducers/__tests__/rectangle.test.ts` | test | 263 | Reducer tests for rectangles. | — |
+| `packages/axoview-lib/src/stores/reducers/__tests__/textBox.test.ts` | test | 332 | Reducer tests for text boxes. | — |
+| `packages/axoview-lib/src/stores/reducers/__tests__/view.test.ts` | test | 160 | Reducer tests for views. | — |
+| `packages/axoview-lib/src/stores/reducers/__tests__/viewItem.test.ts` | test | 377 | Reducer tests for view items. | — |
+| `packages/axoview-lib/src/stores/reducers/__tests__/viewReducers.branches.test.ts` | test | 215 | Branch-coverage tests for view reducers. | — |
+| `packages/axoview-lib/src/stores/reducers/connector.ts` | source | 103 | Reducer functions for connector mutations. | — |
+| `packages/axoview-lib/src/stores/reducers/index.ts` | source | 6 | Barrel for reducers. | — |
+| `packages/axoview-lib/src/stores/reducers/modelItem.ts` | source | 30 | Reducer functions for model-item mutations. | — |
+| `packages/axoview-lib/src/stores/reducers/rectangle.ts` | source | 48 | Reducer functions for rectangle mutations. | — |
+| `packages/axoview-lib/src/stores/reducers/textBox.ts` | source | 65 | Reducer functions for text-box mutations. | — |
+| `packages/axoview-lib/src/stores/reducers/types.ts` | source | 108 | Shared reducer type definitions. | — |
+| `packages/axoview-lib/src/stores/reducers/view.ts` | source | 271 | Reducer functions for view mutations (incl. `updateViewTimestamp`, `syncScene` audited as live). | Knip flagged some exports as unused (audit row 4) — false positive risk; kept. |
+| `packages/axoview-lib/src/stores/reducers/viewItem.ts` | source | 84 | Reducer functions for view-item mutations. | — |
+| `packages/axoview-lib/src/stores/sceneStore.tsx` | source | 200 | Zustand store holding the derived scene (projected positions, etc.). | — |
+| `packages/axoview-lib/src/stores/uiStateStore.tsx` | source | 290 | Zustand store holding UI state (selected, mode, dialogs). | No direct unit test. |
+| `packages/axoview-lib/src/styles/GlobalStyles.tsx` | style | 14 | MUI `GlobalStyles` injection for the library. | — |
+| `packages/axoview-lib/src/styles/theme.ts` | style | 248 | MUI theme config consumed by the lib's `ThemeProvider`. | — |
+| `packages/axoview-lib/src/types/axoviewProps.ts` | source | 484 | Public type for `<Axoview>` props; central type-surface for consumers. | Largest types file; surface area that consumers depend on. |
+| `packages/axoview-lib/src/types/common.ts` | source | 46 | Shared common types (Coord, Size, etc.). | — |
+| `packages/axoview-lib/src/types/dom-to-image-more.d.ts` | source | 31 | Ambient types for the `dom-to-image-more` dep (no upstream types). | — |
+| `packages/axoview-lib/src/types/index.ts` | source | 7 | Types barrel re-export. | — |
+| `packages/axoview-lib/src/types/interactions.ts` | source | 34 | Types for interaction events / mode states. | — |
+| `packages/axoview-lib/src/types/model.ts` | source | 55 | Types for the diagram model. | — |
+| `packages/axoview-lib/src/types/rendererProps.ts` | source | 5 | Renderer prop types. | Very small; verify it's not over-fragmented (5 LOC for its own file). |
+| `packages/axoview-lib/src/types/scene.ts` | source | 47 | Types for the derived scene. | — |
+| `packages/axoview-lib/src/types/settings.ts` | source | 30 | Types for persisted user settings. | — |
+| `packages/axoview-lib/src/types/ui.ts` | source | 279 | Types for UI state (dialogs, selection, modes, etc.). | — |
+| `packages/axoview-lib/src/utils/CoordsUtils.ts` | source | 24 | Small coord-math helpers; consumed by interaction/renderer. | Capitalized filename inconsistent with the rest of `utils/` (lowercase) — naming inconsistency flagged by audit's ADR 0008 naming-convention work. |
+| `packages/axoview-lib/src/utils/SizeUtils.ts` | source | 27 | Small size-math helpers. | Capitalized filename; same naming inconsistency as `CoordsUtils.ts`. |
+| `packages/axoview-lib/src/utils/__tests__/common.test.ts` | test | 15 | Unit tests for `utils/common.ts`. | — |
+| `packages/axoview-lib/src/utils/__tests__/connectorSelection.test.ts` | test | 117 | Unit tests for connector-selection helpers. | — |
+| `packages/axoview-lib/src/utils/__tests__/coordinateTransforms.test.ts` | test | 216 | Unit tests for coordinate-transform helpers. | — |
+| `packages/axoview-lib/src/utils/__tests__/findNearestUnoccupiedTile.test.ts` | test | 194 | Unit tests for tile-occupancy finder. | — |
+| `packages/axoview-lib/src/utils/__tests__/immer.test.ts` | test | 23 | Pin-test for immer behavior. | — |
+| `packages/axoview-lib/src/utils/__tests__/isoMath.richtext.test.ts` | test | 135 | Isomath tests for rich-text content. | — |
+| `packages/axoview-lib/src/utils/__tests__/isoMath.test.ts` | test | 343 | Unit tests for the core `isoMath` library. | — |
+| `packages/axoview-lib/src/utils/__tests__/leanSave.test.ts` | test | 96 | Unit tests for the lean-save serializer. | — |
+| `packages/axoview-lib/src/utils/__tests__/model.test.ts` | test | 148 | Unit tests for model helpers. | — |
+| `packages/axoview-lib/src/utils/__tests__/pointInPolygon.test.ts` | test | 180 | Unit tests for point-in-polygon helper. | — |
+| `packages/axoview-lib/src/utils/__tests__/renderOrder.test.ts` | test | 56 | Unit tests for render-order helper. | — |
+| `packages/axoview-lib/src/utils/__tests__/renderer.test.ts` | test | 246 | Unit tests for the public `utils/renderer.ts` API surface. | — |
+| `packages/axoview-lib/src/utils/common.ts` | source | 100 | Generic small utilities (math/id/array). | — |
+| `packages/axoview-lib/src/utils/connectorLabels.ts` | source | 62 | Helpers for connector-label positioning. | — |
+| `packages/axoview-lib/src/utils/connectorSelection.ts` | source | 44 | Helpers for connector hit/selection logic. | — |
+| `packages/axoview-lib/src/utils/coordinateTransforms.ts` | source | 189 | Iso↔screen coordinate transform helpers. | — |
+| `packages/axoview-lib/src/utils/exportOptions.ts` | source | 129 | Export-to-JSON serialization options + helpers; re-exported via `index.ts`. | — |
+| `packages/axoview-lib/src/utils/findNearestUnoccupiedTile.ts` | source | 97 | Finds the nearest unoccupied tile for placement. | — |
+| `packages/axoview-lib/src/utils/hitDetection.ts` | source | 82 | Pointer hit-detection helpers. | No direct unit test. |
+| `packages/axoview-lib/src/utils/index.ts` | source | 14 | Barrel for utils. | — |
+| `packages/axoview-lib/src/utils/isoMath.ts` | source | 465 | Core isometric math library (projection, intersection, bounds). | Large; well-tested. |
+| `packages/axoview-lib/src/utils/leanSave.ts` | source | 43 | Lean-save serializer (`stripDefaultIcons`/`mergeBundledFixtures`) re-exported via `index.ts`. | — |
+| `packages/axoview-lib/src/utils/localStorageSave.ts` | source | 18 | localStorage save/load helpers used by persisted settings + diagram autosave. | No direct unit test. Foundation for the "browser-only" persistence path. |
+| `packages/axoview-lib/src/utils/model.ts` | source | 45 | Model-manipulation helpers. | — |
+| `packages/axoview-lib/src/utils/pathfinder.ts` | source | 29 | Wrapper around `pathfinding` lib for connector routing. | — |
+| `packages/axoview-lib/src/utils/pointInPolygon.ts` | source | 63 | Point-in-polygon geometry helper. | — |
+| `packages/axoview-lib/src/utils/renderOrder.ts` | source | 36 | Computes z-order of scene items. | — |
+| `packages/axoview-lib/src/utils/renderProbe.ts` | source | 61 | Render-probe utility for measuring render performance (dev). | Audit M2 trace harness lives at `utils/trace.ts` — this `renderProbe.ts` is separate; verify it's not duplicate-purpose with planned trace. |
+| `packages/axoview-lib/src/utils/renderer.ts` | source | 238 | Renderer helper library (isoToScreen, sortByPosition, bounds, etc.) — large public-API surface. | Knip flagged many exports as unused (audit row 7) — kept as lib public API; candidates for narrowing per ADR 0008. |
+| `packages/axoview-lib/src/utils/svgOptimizer.test.ts` | test | 222 | Unit tests for the SVG optimizer (note: test file lives outside `__tests__/` — only test in `utils/` doing this). | Test-file placement inconsistent — should arguably move to `utils/__tests__/svgOptimizer.test.ts` for consistency. |
+| `packages/axoview-lib/src/utils/svgOptimizer.ts` | source | 352 | SVG-optimizer used by ExportImageDialog. | — |
+| `packages/axoview-lib/src/utils/tooltipWithShortcut.ts` | source | 7 | Helper composing tooltip text with shortcut suffix. | — |
+
+### 7.2 `packages/axoview-app`
+
+The SPA application shell — owns storage providers (`StorageManager` + `LocalStorageProvider` + the Drive stub), the file explorer UI, the app toolbar, the notification stack, the diagram lifecycle (save / load / unsaved-changes guard / autosave), the share-URL handler, and the three error dialogs from [ADR 0011](adr/0011-error-ux-contract.md). Deploys as a static bundle to either Cloudflare Pages or nginx (inside the Docker compose stack).
+
+<!-- APP_TABLE_PLACEHOLDER -->
+
+### 7.3 `packages/axoview-backend`
+
+Node 22 + Express 5 + filesystem adapter. Owns the canonical `/api/*` HTTP contract (every route defined in [`routes.js`](../packages/axoview-backend/src/routes.js); the Worker imports the same file). Atomicity via tmp-file + rename per [ADR 0010 D3](adr/0010-session-backend-contract.md#3-atomicity--every-put-is-all-or-nothing); auth via `AUTH_MODE`; health probe at `/healthz`. Deploys behind nginx inside the server-backed Docker image.
+
+<!-- BACKEND_TABLE_PLACEHOLDER -->
+
+### 7.4 `packages/axoview-worker`
+
+Hono on Cloudflare Pages Functions. Imports `routes.js` from `axoview-backend` (the cross-package import is the single source of truth) but short-circuits every storage route to 503 at [`app.ts`](../packages/axoview-worker/src/app.ts) per [ADR 0009 D1](adr/0009-deployment-topology.md) — Cloudflare deploys are storage-less today; end users land on the browser-only path. Implements `cf-access` auth (JWKS RS256 verify). Bundle-size budget <1 MB uncompressed (CI-enforced per [ADR 0009 D8](adr/0009-deployment-topology.md)).
+
+<!-- WORKER_TABLE_PLACEHOLDER -->
+
+### 7.5 `packages/axoview-e2e`
+
+Playwright Chromium against the local dev server — 13 spec files / 33 tests covering canonical user journeys J1–J20 from [`docs/manual-test-baseline.md`](manual-test-baseline.md). Page Object Model per surface (AppToolbar, FileExplorer, Canvas, NodeInfoTab, LayersPanel, dialogs); per [ADR 0008 D5](adr/0008-naming-convention.md#5-data-axoview-id-attribute--selective-not-blanket-reserved-for-e2e-and-trace-harness-anchors) `data-axoview-id` is added lazily. Runs on PRs + master push.
+
+<!-- E2E_TABLE_PLACEHOLDER -->
+
+### 7.6 Repo shell — deployment artifacts, CI, root configuration
+
+Everything outside the packages: deployment artifacts (Dockerfile, compose stacks, nginx, wrangler, docker-entrypoint), the `.github/` workflows + issue templates + Dependabot config, root build/lint/release tooling (ESLint, commitlint, semantic-release, tsconfig.base, prettier), and the root-level prose files (LICENSE, CHANGELOG, README, PLAN, known_issues).
+
+<!-- INFRA_TABLE_PLACEHOLDER -->
+
+### 7.7 `docs/`
+
+The three-tier doc tree per [`docs/workflow.md`](workflow.md) design principle 4: ADRs in `docs/adr/` (durable, status-tracked), tacticals in `docs/tactical/` (short-lived, deleted at wrap), root-level living references (`architecture.md`, `workflow.md`, `testing.md`, `ux-principles.md`, `deployment.md`, `manual-test-baseline.md`, `perf-troubleshooting.md`), plus the frozen `upstream-changelog.md` and this artifact.
+
+<!-- DOCS_TABLE_PLACEHOLDER -->
+
+### 7.8 Cross-package observations
+
+<!-- CROSS_PACKAGE_PLACEHOLDER -->
+
+### 7.9 Inventory totals
+
+<!-- TOTALS_PLACEHOLDER -->
 
 ---
 
