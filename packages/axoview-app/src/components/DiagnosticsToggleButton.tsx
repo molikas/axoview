@@ -35,6 +35,7 @@ export function DiagnosticsToggleButton() {
       <IconButton
         size="small"
         onClick={() => diagnosticsStore.setOpen(true)}
+        data-axoview-id="diagnostics-toggle"
         sx={{
           ...btnSx,
           color: enabled ? 'success.main' : 'text.disabled'

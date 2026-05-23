@@ -176,8 +176,9 @@ export const HelpDialog = () => {
       PaperProps={{
         sx: {
           minHeight: '60vh'
-        }
-      }}
+        },
+        'data-axoview-id': 'dialog-help'
+      } as any}
     >
       <DialogTitle>
         <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -302,7 +303,11 @@ export const HelpDialog = () => {
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={handleClose} variant="contained">
+        <Button
+          onClick={handleClose}
+          variant="contained"
+          data-axoview-id="dialog-help-close"
+        >
           {t('close')}
         </Button>
       </DialogActions>

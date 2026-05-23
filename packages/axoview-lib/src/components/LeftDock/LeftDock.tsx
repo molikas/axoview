@@ -151,6 +151,7 @@ export const LeftDock = ({
             <IconButton
               size="small"
               onClick={() => setDialog(DialogTypeEnum.SETTINGS)}
+              data-axoview-id="dock-settings"
               sx={{
                 borderRadius: 1,
                 color: 'text.secondary',

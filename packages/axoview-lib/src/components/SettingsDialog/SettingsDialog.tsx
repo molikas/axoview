@@ -138,13 +138,17 @@ export const SettingsDialog = ({
       onClose={handleClose}
       maxWidth="md"
       fullWidth
-      PaperProps={{ sx: { height: '60vh', minHeight: 480 } }}
+      PaperProps={{
+        sx: { height: '60vh', minHeight: 480 },
+        'data-axoview-id': 'dialog-settings'
+      } as any}
     >
       <DialogTitle sx={{ pr: 6 }}>
         Settings
         <IconButton
           aria-label="close"
           onClick={handleClose}
+          data-axoview-id="dialog-settings-close"
           sx={{
             position: 'absolute',
             right: 8,
@@ -178,6 +182,7 @@ export const SettingsDialog = ({
                   <ListItemButton
                     selected={tab.id === activeId}
                     onClick={() => setActiveId(tab.id)}
+                    data-axoview-id={`dialog-settings-tab-${tab.id}`}
                     sx={{
                       py: 0.5,
                       px: 2,
