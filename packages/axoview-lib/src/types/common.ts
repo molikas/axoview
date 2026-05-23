@@ -39,16 +39,3 @@ export const EditorModeEnum = {
   EXPLORABLE_READONLY: 'EXPLORABLE_READONLY',
   EDITABLE: 'EDITABLE'
 } as const;
-
-export const MainMenuOptionsEnum = {
-  'ACTION.NEW': 'ACTION.NEW',
-  'ACTION.OPEN': 'ACTION.OPEN',
-  'EXPORT.JSON': 'EXPORT.JSON',
-  'EXPORT.PNG': 'EXPORT.PNG',
-  'ACTION.CLEAR_CANVAS': 'ACTION.CLEAR_CANVAS',
-  'LINK.GITHUB': 'LINK.GITHUB',
-  'LINK.DISCORD': 'LINK.DISCORD',
-  VERSION: 'VERSION'
-} as const;
-
-export type MainMenuOptions = (keyof typeof MainMenuOptionsEnum)[];

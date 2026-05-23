@@ -16,7 +16,6 @@ import { SceneLayer } from 'src/components/SceneLayer/SceneLayer';
 import { DragAndDrop } from 'src/components/DragAndDrop/DragAndDrop';
 import { ToolMenu } from 'src/components/ToolMenu/ToolMenu';
 import { useUiStateStore } from 'src/stores/uiStateStore';
-import { MainMenu } from 'src/components/MainMenu/MainMenu';
 import { DebugUtils } from 'src/components/DebugUtils/DebugUtils';
 import { ContextMenuManager } from 'src/components/ContextMenu/ContextMenuManager';
 import { useScene } from 'src/hooks/useScene';
@@ -32,7 +31,6 @@ import { NodeActionBar } from 'src/components/NodeActionBar/NodeActionBar';
 import { LassoLayerBar } from 'src/components/LassoLayerBar/LassoLayerBar';
 
 const ToolsEnum = {
-  MAIN_MENU: 'MAIN_MENU',
   TOOL_MENU: 'TOOL_MENU',
   ITEM_CONTROLS: 'ITEM_CONTROLS',
   VIEW_TITLE: 'VIEW_TITLE',
@@ -44,12 +42,7 @@ interface EditorModeMapping {
 }
 
 const EDITOR_MODE_MAPPING: EditorModeMapping = {
-  [EditorModeEnum.EDITABLE]: [
-    'ITEM_CONTROLS',
-    'TOOL_MENU',
-    'MAIN_MENU',
-    'VIEW_TABS'
-  ],
+  [EditorModeEnum.EDITABLE]: ['ITEM_CONTROLS', 'TOOL_MENU', 'VIEW_TABS'],
   [EditorModeEnum.EXPLORABLE_READONLY]: ['ITEM_CONTROLS', 'VIEW_TABS'],
   [EditorModeEnum.NON_INTERACTIVE]: []
 };
@@ -169,15 +162,6 @@ export const UiOverlay = ({
           </Box>
         )}
 
-        {availableTools.includes('MAIN_MENU') && !portalTarget && (
-          <Box
-            sx={{ position: 'absolute' }}
-            style={{ top: appPadding.y, left: appPadding.x }}
-          >
-            <MainMenu />
-          </Box>
-        )}
-
         {availableTools.includes('VIEW_TITLE') && (
           <Box
             sx={{
@@ -255,10 +239,6 @@ export const UiOverlay = ({
           PropTypes.node check on Box's children rejects ReactPortal (its
           $$typeof is react.portal, not react.element). Portals render into
           their target node regardless of where they sit in the JSX tree. */}
-      {portalTarget &&
-        availableTools.includes('MAIN_MENU') &&
-        createPortal(<MainMenu />, portalTarget)}
-
       {(sidebarTogglePortalTarget ?? portalTarget) &&
         createPortal(
           <Tooltip title="Toggle Properties panel" placement="bottom">

@@ -9,7 +9,6 @@ export type {
   InitialData,
   AxoviewRef,
   LoadOptions,
-  MainMenuOptions,
   IconUsageReport,
   IconUsageScan
 } from 'src/types';

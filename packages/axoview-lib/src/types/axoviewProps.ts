@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { EditorModeEnum, MainMenuOptions } from './common';
+import type { EditorModeEnum } from './common';
 import type { Model } from './model';
 import type { RendererProps } from './rendererProps';
 
@@ -443,7 +443,6 @@ export interface IconPackManagerProps {
 
 export interface AxoviewProps {
   initialData?: InitialData;
-  mainMenuOptions?: MainMenuOptions;
   onModelUpdated?: (Model: Model) => void;
   width?: number | string;
   height?: number | string;
@@ -462,9 +461,9 @@ export interface AxoviewProps {
   linkedDiagrams?: Array<{ id: string; name: string }>;
   /** Slot rendered inside the Settings dialog as a "Language" tab — pass your own language-picker component. */
   languageSelector?: React.ReactNode;
-  /** Portal target for the MainMenu hamburger button (left zone). */
+  /** Portal target for the left-zone toolbar slot (currently hosts only the sidebar toggle fallback when sidebarTogglePortalTarget is omitted). */
   toolbarPortalTarget?: HTMLElement | null;
-  /** Portal target for the sidebar toggle buttons (right zone). When omitted, toggles render alongside MainMenu in toolbarPortalTarget. */
+  /** Portal target for the sidebar toggle buttons (right zone). When omitted, toggles render in toolbarPortalTarget. */
   sidebarTogglePortalTarget?: HTMLElement | null;
   /** @deprecated use toolbarPortalTarget */
   menuPortalTarget?: HTMLElement | null;

@@ -17,7 +17,6 @@
 import { EditorModeEnum } from 'src/types';
 
 type Tool =
-  | 'MAIN_MENU'
   | 'ZOOM_CONTROLS'
   | 'TOOL_MENU'
   | 'ITEM_CONTROLS'
@@ -30,7 +29,6 @@ const EDITOR_MODE_MAPPING: Record<string, Tool[]> = {
     'ITEM_CONTROLS',
     'ZOOM_CONTROLS',
     'TOOL_MENU',
-    'MAIN_MENU',
     'VIEW_TABS'
   ],
   [EditorModeEnum.EXPLORABLE_READONLY]: ['ZOOM_CONTROLS', 'VIEW_TITLE'],
@@ -41,7 +39,6 @@ describe('UiOverlay editor mode mapping', () => {
   describe('EDITABLE mode', () => {
     const tools = EDITOR_MODE_MAPPING[EditorModeEnum.EDITABLE];
 
-    it('includes MAIN_MENU', () => expect(tools).toContain('MAIN_MENU'));
     it('includes TOOL_MENU', () => expect(tools).toContain('TOOL_MENU'));
     it('includes ZOOM_CONTROLS', () =>
       expect(tools).toContain('ZOOM_CONTROLS'));
@@ -50,7 +47,7 @@ describe('UiOverlay editor mode mapping', () => {
     it('includes VIEW_TABS', () => expect(tools).toContain('VIEW_TABS'));
     it('does NOT include VIEW_TITLE', () =>
       expect(tools).not.toContain('VIEW_TITLE'));
-    it('contains exactly 5 tools', () => expect(tools).toHaveLength(5));
+    it('contains exactly 4 tools', () => expect(tools).toHaveLength(4));
   });
 
   describe('EXPLORABLE_READONLY mode', () => {
@@ -59,8 +56,6 @@ describe('UiOverlay editor mode mapping', () => {
     it('includes ZOOM_CONTROLS', () =>
       expect(tools).toContain('ZOOM_CONTROLS'));
     it('includes VIEW_TITLE', () => expect(tools).toContain('VIEW_TITLE'));
-    it('does NOT include MAIN_MENU', () =>
-      expect(tools).not.toContain('MAIN_MENU'));
     it('does NOT include TOOL_MENU', () =>
       expect(tools).not.toContain('TOOL_MENU'));
     it('does NOT include ITEM_CONTROLS', () =>

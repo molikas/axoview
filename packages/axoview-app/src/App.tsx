@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import {
   Axoview,
   allLocales,
-  type MainMenuOptions,
   type IconUsageReport
 } from 'axoview';
 import { scanIconUsage } from './services/iconUsage';
@@ -37,9 +36,6 @@ const basename = publicUrl
     ? publicUrl.slice(0, -1)
     : publicUrl
   : '/';
-
-// Burger removed per ADR 0005 — app stops using mainMenuOptions so MainMenu short-circuits.
-const MAIN_MENU_OPTIONS: MainMenuOptions = [];
 
 const EXPORTER_TAG = `axoview-app@${process.env.REACT_APP_VERSION ?? 'dev'}`;
 
@@ -275,7 +271,6 @@ function EditorShell() {
             languageSelector={<ChangeLanguage />}
             bottomDockEnd={<DiagnosticsToggleButton />}
             suppressOnboardingHints={!!currentDiagram || isReadonlyUrl}
-            mainMenuOptions={MAIN_MENU_OPTIONS}
             fileExplorerOpen={fileExplorerOpen}
             onFileExplorerToggle={() => setFileExplorerOpen(!fileExplorerOpen)}
             disableLeftDockWorkingTabs={!currentDiagram}
