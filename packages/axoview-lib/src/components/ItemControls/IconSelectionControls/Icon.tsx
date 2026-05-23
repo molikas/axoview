@@ -74,6 +74,7 @@ export const Icon = ({
         onClick={onClick}
         onMouseDown={onMouseDown}
         onDoubleClick={onDoubleClick}
+        data-axoview-id="canvas-icon-grid-item"
         sx={{
           position: 'relative',
           width: GRID_SIZE,

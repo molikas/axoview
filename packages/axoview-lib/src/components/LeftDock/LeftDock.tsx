@@ -128,6 +128,7 @@ export const LeftDock = ({
                   onClick={() =>
                     setActiveLeftTab(activeLeftTab === tab.id ? null : tab.id)
                   }
+                  data-axoview-id={`dock-${tab.id.toLowerCase()}-toggle`}
                   sx={{
                     borderRadius: 1,
                     color: isActive ? 'primary.main' : 'text.secondary',
