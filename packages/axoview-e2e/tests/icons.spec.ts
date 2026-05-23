@@ -202,57 +202,11 @@ async function dragIconToCanvas(
   const tileBox = await tile.boundingBox();
   const canvasBox = await canvas.boundingBox();
   if (!tileBox || !canvasBox) throw new Error('dragIconToCanvas: missing bounding box');
-
-  // [S8/INSTRUMENT] remove in cleanup commit. Logs viewport, boxes, drop coord.
-  const viewport = page.viewportSize();
-  const elementAtDrop = await page.evaluate(
-    ({ x, y }) => {
-      const el = document.elementFromPoint(x, y);
-      return el
-        ? {
-            tag: el.tagName,
-            id: el.id || null,
-            cls: (el as HTMLElement).className || null,
-            axId: el.getAttribute('data-axoview-id'),
-            alt: el.getAttribute('alt')
-          }
-        : null;
-    },
-    { x: canvasBox.x + point.x, y: canvasBox.y + point.y }
-  );
-  // eslint-disable-next-line no-console
-  console.log('[S8/icons/dragIconToCanvas/pre]', JSON.stringify({
-    viewport, tileBox, canvasBox, point,
-    dropX: canvasBox.x + point.x, dropY: canvasBox.y + point.y,
-    elementAtDrop
-  }));
-
   await page.mouse.move(tileBox.x + tileBox.width / 2, tileBox.y + tileBox.height / 2);
   await page.mouse.down();
   await page.mouse.move(canvasBox.x + point.x, canvasBox.y + point.y, { steps: 10 });
   await page.mouse.up();
   await page.waitForTimeout(200);
-
-  // [S8/INSTRUMENT] remove in cleanup commit. Post-drag store snapshot.
-  const post = await page.evaluate(() => {
-    const w = window as any;
-    const ui = w.__axoview__?.ui?.getState?.();
-    const model = w.__axoview__?.model?.getState?.();
-    const views = model?.views;
-    const viewId = ui?.view;
-    const view = (viewId && views?.find((v: any) => v.id === viewId)) ?? views?.[0];
-    return {
-      mode: ui?.mode?.type,
-      mousePosition: ui?.mouse?.position,
-      mousedown: ui?.mouse?.mousedown,
-      itemControls: ui?.itemControls,
-      modelItemsCount: model?.items?.length,
-      viewItemsCount: view?.items?.length,
-      iconsCount: model?.icons?.length
-    };
-  });
-  // eslint-disable-next-line no-console
-  console.log('[S8/icons/dragIconToCanvas/post]', JSON.stringify(post));
 }
 
 test.describe('Custom icons — J11 + J12', () => {
