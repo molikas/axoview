@@ -51,6 +51,36 @@ export const getModelConnectorCount = (page: Page): Promise<number> =>
   });
 
 /**
+ * Counts rectangles in the active view. Rectangles live on
+ * `model.views[*].rectangles` (array; undefined on freshly-created views until
+ * the first DrawRectangle commit). Used by shapes.spec to assert rectangle
+ * creation + persistence.
+ */
+export const getViewRectangleCount = (page: Page): Promise<number> =>
+  page.evaluate(() => {
+    const viewId = (window as any).__axoview__.ui.getState().view;
+    const views = (window as any).__axoview__.model.getState().views;
+    if (!Array.isArray(views) || views.length === 0) return 0;
+    const view =
+      (viewId && views.find((v: any) => v.id === viewId)) ?? views[0];
+    return Array.isArray(view?.rectangles) ? view.rectangles.length : 0;
+  });
+
+/**
+ * Counts text boxes in the active view. Text boxes live on
+ * `model.views[*].textBoxes` (array; undefined until first TextBox commit).
+ */
+export const getViewTextBoxCount = (page: Page): Promise<number> =>
+  page.evaluate(() => {
+    const viewId = (window as any).__axoview__.ui.getState().view;
+    const views = (window as any).__axoview__.model.getState().views;
+    if (!Array.isArray(views) || views.length === 0) return 0;
+    const view =
+      (viewId && views.find((v: any) => v.id === viewId)) ?? views[0];
+    return Array.isArray(view?.textBoxes) ? view.textBoxes.length : 0;
+  });
+
+/**
  * Counts view-items in the active view — i.e., visible canvas instances.
  *
  * `getModelItemCount` reads the model-level `items` array (the library of
