@@ -8,7 +8,7 @@
 > - [docs/tactical/productization-audit.md § C.2 Section 4 row T1](productization-audit.md#section-4--spawned-tacticals-separate-work-units) — the spawn entry that authorised this tactical.
 > - [docs/tactical/productization-audit.md § C.2 Section 3 row I9](productization-audit.md#section-3--cleanups--renames--deletions) — the bundled-deletion row for the existing `packages/axoview-e2e/` and `e2e-tests/` directories; both delete together with this suite landing in CI.
 >
-> **Status:** All 13 spec files complete (Sessions 2 + 3 + 4 + 5 + 6 done 2026-05-23) · **Owner:** Igor · **Last updated:** 2026-05-23
+> **Status:** Complete — 13 spec files / 33 tests green locally + on CI (Sessions 2–8 done 2026-05-23). M9 met. · **Owner:** Igor · **Last updated:** 2026-05-23
 >
 > This is a **short-lived working doc.** Delete it after M9 (suite green in CI) lands; ADRs 0008 + 0011 + the productization-audit C.2 ledger are the durable record. PLAN.md gets a one-line entry under Phase 2D once the suite is green — see "Wrap-up" below.
 
@@ -120,7 +120,7 @@ Eight sessions, ~270K tokens total. Tactical doc tracks actual cost per session 
 | 5 | Editor surfaces | `shapes.spec.ts` + `rename.spec.ts` + `layers.spec.ts` | ~30K (revised ~35K) | ~38K (overran ~3K vs revised, ~8K vs original) | **[x] done 2026-05-23 (4 commits: `d11bc8e` J3 shapes spec + CanvasPOM debut + getViewRectangleCount/getViewTextBoxCount, `d0ffc3e` J4 rename spec + FileExplorerPOM debut + 3 retrofits, `f502a62` J6 layers spec + LayersPanelPOM debut + 5 lib retrofits + drag-detection RAF finding, this commit doc-sync). 22/22 tests green locally in ~5.1 min. Six lazy retrofits this session: 1 rename-commit (dock-file-explorer-toggle lib + file-explorer-row app + file-explorer-rename-input app — split per ADR 0008 D5's "retrofit with the consuming spec" rule) + 5 layers-commit (layers-panel-add + layer-row + layer-toggle-visibility + layer-toggle-lock + layer-item-row, all lib, batched). J3 path used keyboard hotkeys (r + t) so it cost 0 retrofits.** |
 | 6 | Diagram-link + dialogs | `multi-diagram.spec.ts` + `dialogs.spec.ts` + `share.spec.ts` + `canvas-modes.spec.ts` | ~45K (revised, was ~40K) | ~55K (overran ~10K vs revised) | **[x] done 2026-05-23 (5 commits: `d0cfd78` J5 multi-diagram, `943d10c` J16/J17/J18 dialogs, `ad2a6b2` J13/J14 share, `e5927e6` J19 canvas-modes, this commit doc-sync). 33/33 tests green locally in ~5.3 min. Four POMs authored: NodeInfoTabPOM, SettingsDialogPOM, HelpDialogPOM (+ DialogsPOM + AppToolbarPOM + CanvasPOM extended). 13 spec files now exist — milestone reached. Lib rebuild cycles this session: 3 (one per commit with lib retrofits).** |
 | 7 | CI wiring | `.github/workflows/e2e-playwright.yml`; replace dropped `e2e-tests.yml.backup`; delete old `packages/axoview-e2e/` per I9 bundle; delete `e2e-tests/` root directory; remove from `release.yml` workflow chain if needed | ~30K | ~50K (overran ~20K) | **[x] done 2026-05-23 (3 commits: `213b492` add `.github/workflows/e2e-playwright.yml` (Shape A), `f45e677` delete `e2e-tests/` + `.github/workflows/e2e-tests.yml` (I9), this commit doc-sync). CI shape pick: **A** — webServer block was already configured in `playwright.config.ts` to spawn `npm run dev`, so the workflow stays small (no explicit serve / wait-on lifecycle). Spec count unchanged at 13 files / 33 tests, all green locally. CI first-trigger pending (first PR or push to master). Release chain verified clean — `release.yml` already pinned to `workflow_run: ["Run Tests"]` (commit `71a4b32`); E2E is not a Release prerequisite. Knip baseline post-deletion: roughly flat (the Python suite wasn't in knip's JS/TS scope; one new unlisted-binary entry for `playwright` in the new workflow). Lib rebuild cycles this session: 0 (pure workflow + deletion + doc work; no code retrofits). Running total to date: **8** (Sessions 2 / 3 / 4 / 5J4 / 5J6 / 6J5 / 6dialogs / 6J19). Session 8 = debug pass for J10 wipe-and-reload race + any CI-only flakes that surface on first trigger.** |
-| 8 | Debug pass | User runs locally + on CI; agent fixes flakes | ~30K | _(record)_ | not started |
+| 8 | Debug pass | User runs locally + on CI; agent fixes flakes | ~30K | ~55K | **[x] done 2026-05-23 (5 commits: `0c5f7dc` instrumentation, `307a8d7` layers J6-lock RAF-tick fix, `2232860` icons J11/J12 dialog-detach fix, `21029bf` instrumentation removal, this commit doc-sync). 33/33 green locally + on CI (run `26335821105`, ~3.0 min). M9 met. Two durable root causes — both NOT in the prompt's three pre-session hypotheses (DPI/viewport, RAF-per-event, pointer-event semantics); see Session 8 actual-vs-estimate block below.** |
 
 **Budget total: ~270K tokens.**
 
@@ -335,6 +335,116 @@ icons + multi-diagram + dialogs + share + canvas-modes. M9 (in-repo)
 is met for the spec-authoring half; Session 7 wires CI + deletes the
 legacy directories, Session 8 closes flakes (J10 wipe-and-reload
 race is the only known pre-existing flake).
+
+**Session 8 actual-vs-estimate note (2026-05-23):** Session 8 ran ~55K
+against the ~30K estimate (overran ~25K) for one structural reason —
+both CI-only failures had root causes NOT in the prompt's three
+pre-session hypotheses (DPI/viewport, RAF-per-event timing, headless
+pointer-event semantics). The actual root causes were both
+discovered via one instrumentation push that disambiguated both
+failures in a single CI cycle:
+
+1. **Layers J6 (lock) — pre-lock sanity drag failed because
+   CanvasPOM.dispatchAt did not guarantee a RAF tick between
+   successive synthetic events on CI.** Session 5's mitigation
+   (each event in its own `page.evaluate`) relied on the Playwright
+   client→server roundtrip (~50-100 ms on Windows + IPC) being
+   slower than one RAF frame (~16 ms) — true locally, false on
+   headless Linux CI where the roundtrip is sub-frame. Without an
+   intervening RAF tick the lib's `processMouseUpdate` snapshot
+   stayed stale; PLACE_ICON.mousedown read the old
+   `uiState.mouse.position.tile` ({3, 8} = the previous placement
+   cursor tile, not {-2, 4} = the new item tile), `getItemAtTile`
+   returned nothing, mode transitioned to CURSOR with
+   `mousedownItem = null`, drag had no target. Fix in commit
+   `307a8d7`: inside the dispatchAt evaluate, await one
+   `requestAnimationFrame` after each event before the next.
+   Makes the dispatch synchronous w.r.t. the lib's observable
+   mouse state regardless of CI vs local roundtrip latency. No
+   `if (CI)` branch — local + CI converge. **Carries forward:**
+   any future synthetic drag spec inherits this fix automatically
+   via the shared POM; Session 5's separate-evaluate rule is now
+   subsumed by the always-on per-event RAF wait.
+
+2. **Icons J11 + J12 — imported-icon drag onto canvas failed
+   because the ImportIconsDialog's MuiDialog-container was still
+   mounted over the canvas when `dragIconToCanvas` fired
+   immediately after `importTestIcon`.** Instrumentation revealed
+   `elementFromPoint(dropX, dropY)` returned `{tag:"DIV",
+   cls:"MuiDialog-container MuiDialog-scrollPaper..."}` — the
+   mouse events landed on the dialog backdrop, not the icon
+   tile; the icon-drag handler never fired, mode stayed CURSOR
+   with mousedown=null, modelItemsCount=0. MUI Dialog uses
+   TransitionGroup with a ~225 ms fade-out; locally the timing
+   between confirm-click → poll-for-icon-landed → return-from-
+   importTestIcon absorbed the transition, but headless Linux CI
+   completes faster than the fade-out. Fix in commit `2232860`:
+   in DialogsPOM.confirmImportIcons (and confirmDeleteIcon for
+   symmetry), await the confirm button's `waitFor({state:
+   'detached'})` after click. Button detach implies the dialog
+   has fully unmounted — no lib retrofit required.
+   **Carries forward:** the same wait-for-detach pattern should
+   be the default for any POM method that confirms a Dialog if
+   downstream actions touch the same viewport region. Session 4's
+   `ExportProjectZipDialog` confirm was extended with the same
+   pattern in this commit for consistency.
+
+**Why neither hypothesis matched the prompt's three pre-session
+candidates:**
+
+- **"DPI/viewport drift"** would have affected `placeIcon` in the
+  J6 (assign+hide) test, which uses identical
+  `page.mouse.move/down/move/up` mechanics with the same
+  canvas-relative target coords — but that test passed on CI.
+  Viewport ruled out at the first instrumentation read
+  (1280×720, identical local + CI).
+- **"RAF-per-event timing"** was structurally close to the
+  layers fix but the prompt framed it as "add a 16ms timeout
+  between events" — the actual fix needed RAF inside the
+  evaluate so the lib's `processMouseUpdate` flushed BEFORE
+  the next event landed, not after. A wall-clock timeout
+  outside the dispatch wouldn't force the page-side RAF.
+- **"Headless pointer-event semantics"** was on the right
+  axis for the icons failure but in the wrong layer — the
+  events fired correctly, the issue was a portaled overlay
+  intercepting them before the lib saw anything. A pointer-
+  events-vs-mouse-events swap wouldn't have helped; only
+  waiting for the overlay to detach did.
+
+**Durable lesson:** instrument first, hypothesise second. The
+3-hypothesis frame would have cost 1-2 wrong-track CI cycles
+(~10-20 minutes wall-clock + ~30K tokens) before landing on
+either root cause. One instrumentation push (mouse coords +
+elementFromPoint + post-drag store snapshot) named both root
+causes in 3 minutes of CI wall-clock + ~10K tokens. Memory:
+`feedback_diagnose_with_logs`.
+
+**Token cost decomposition:**
+
+- ~12K reading the failed-CI Playwright report + crafting
+  instrumentation.
+- ~8K per CI iteration cycle (4 cycles: instrumentation,
+  layers fix verify, icons fix verify, instrumentation removal
+  verify) = ~32K.
+- ~8K writing this actual-vs-estimate block + the audit doc
+  bookkeeping.
+- Total ~52K (over by ~22K vs the ~30K estimate; budget
+  closed at ~322K against the ~290-300K running running
+  total through Session 7 + Session 5's revised total).
+
+**J10 wipe-and-reload preemptive hardening (Commit 4) was
+skipped** — no symptom reproduced in any of Session 8's four
+CI cycles. The Session 4 double-clear-and-reload pattern is
+already in place in `tests/import-export-zip.spec.ts`. Adding
+a speculative stress test when CI is now green would be the
+"plans aren't fixes" anti-pattern (memory:
+`feedback_be_serious_not_eager`). If the flake reappears in a
+future CI run, file it as a fresh B-row.
+
+**Lib rebuild cycles this session: 0** (pure POM + spec
+edits; no lib source touched). Running total unchanged at
+**8** (Sessions 2 / 3 / 4 / 5J4 / 5J6 / 6J5 / 6dialogs /
+6J19).
 
 **Session 3 actual-vs-estimate note (2026-05-22):** Session 3 ran ~25K over the
 30K estimate (~55K actual) for one durable reason — the connector spec exposed
