@@ -22,6 +22,12 @@
  *   - `canvas-interactions` (lib, Session 3)
  *   - `canvas-icon-grid-item`  (lib, Session 2)
  *
+ * Session-6 addition (Commit 4 — canvas-modes spec):
+ *   - `canvas-mode-toggle` (lib, ToolMenu.tsx — drives toggle2DMode())
+ *     Forwarded to the IconButton's underlying <button> via a new
+ *     `dataAxoviewId` pass-through prop on src/components/IconButton/
+ *     IconButton.tsx. Existing call sites stay untouched.
+ *
  * Pending CanvasPOM retrofits (per `pom/_pending.md`): `canvas-tool-{select,
  * connector,lasso,undo,redo}` lit by future button-driven specs; `canvas-root`
  * replaces lib `data-testid="axoview-canvas"` when a spec needs it (none yet —
@@ -157,5 +163,19 @@ export class CanvasPOM {
     await this.dispatchAt(['mousemove'], point);
     await this.pressTextBoxHotkey();
     await this.dispatchAt(['mouseup'], point);
+  }
+
+  canvasModeToggleButton(): Locator {
+    return byAxoviewId(this.page, 'canvas-mode-toggle');
+  }
+
+  /**
+   * Clicks the ToolMenu's canvas-mode toggle. Flips
+   * `uiState.canvasMode` between ISOMETRIC ↔ 2D and triggers a
+   * fit-to-view post-switch (see ToolMenu.tsx#L43-48 — prevCanvasModeRef
+   * detects the transition and calls fitToView).
+   */
+  async toggleCanvasMode() {
+    await this.canvasModeToggleButton().click();
   }
 }
