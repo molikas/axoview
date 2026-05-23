@@ -95,6 +95,7 @@ export const LeftDock = ({
             <IconButton
               size="small"
               onClick={onFileExplorerToggle}
+              data-axoview-id="dock-file-explorer-toggle"
               sx={{
                 borderRadius: 1,
                 color: fileExplorerOpen ? 'primary.main' : 'text.secondary',
