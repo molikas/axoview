@@ -5,6 +5,29 @@ All notable changes to Axoview will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0](https://github.com/molikas/axoview/compare/v1.0.0...v2.0.0) (2026-05-23)
+
+### ⚠ BREAKING CHANGES
+
+* **v1.1:** deployers running custom backends must update any
+health-monitoring that polls /api/storage/status. The /healthz endpoint
+(added in Wave 3a per ADR 0010 D8) is the canonical liveness probe.
+* **v1.1:** removes HTTP_AUTH_USER/HTTP_AUTH_PASSWORD env vars and
+the nginx-level Basic Auth layer. Deployers who relied on Basic Auth
+must switch to AUTH_MODE=shared-token (per ADR 0009 D4) before
+upgrading.
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
+
+* chore: stage long-pending tactical deletions + gitignore playwright artifacts
+
+- Add packages/axoview-e2e/.gitignore covering playwright-report/ and
+  test-results/. Defense in depth even though the whole packages/axoview-e2e/
+
+### Chores
+
+* **v1.1:** dead-code wave — Track 0 (clusters 0a-0h, ~9.4k LOC removed) ([#3](https://github.com/molikas/axoview/issues/3)) ([6d33f1b](https://github.com/molikas/axoview/commit/6d33f1b0d4e8fa8b869d6d04d4ab7d6805912b25)), closes [#A9](https://github.com/molikas/axoview/issues/A9) [#A3](https://github.com/molikas/axoview/issues/A3) [#A9](https://github.com/molikas/axoview/issues/A9) [#C2](https://github.com/molikas/axoview/issues/C2) [#4](https://github.com/molikas/axoview/issues/4) [#5](https://github.com/molikas/axoview/issues/5) [#11](https://github.com/molikas/axoview/issues/11) [#11](https://github.com/molikas/axoview/issues/11) [#C2](https://github.com/molikas/axoview/issues/C2) [#C5](https://github.com/molikas/axoview/issues/C5) [#D3](https://github.com/molikas/axoview/issues/D3) [#C1](https://github.com/molikas/axoview/issues/C1) [#C1](https://github.com/molikas/axoview/issues/C1) [#C4](https://github.com/molikas/axoview/issues/C4) [#D1](https://github.com/molikas/axoview/issues/D1) [#D2](https://github.com/molikas/axoview/issues/D2) [#12](https://github.com/molikas/axoview/issues/12) [#12](https://github.com/molikas/axoview/issues/12) [#13](https://github.com/molikas/axoview/issues/13) [#8](https://github.com/molikas/axoview/issues/8) [#4](https://github.com/molikas/axoview/issues/4) [#A2](https://github.com/molikas/axoview/issues/A2) [#14](https://github.com/molikas/axoview/issues/14) [#A5](https://github.com/molikas/axoview/issues/A5) [#14](https://github.com/molikas/axoview/issues/14) [#A5](https://github.com/molikas/axoview/issues/A5) [#A5](https://github.com/molikas/axoview/issues/A5) [#A1](https://github.com/molikas/axoview/issues/A1) [#A1](https://github.com/molikas/axoview/issues/A1) [#1](https://github.com/molikas/axoview/issues/1) [#4](https://github.com/molikas/axoview/issues/4) [#2](https://github.com/molikas/axoview/issues/2) [#15](https://github.com/molikas/axoview/issues/15) [#15](https://github.com/molikas/axoview/issues/15) [#A8](https://github.com/molikas/axoview/issues/A8) [#A8](https://github.com/molikas/axoview/issues/A8) [#16](https://github.com/molikas/axoview/issues/16) [#A1](https://github.com/molikas/axoview/issues/A1) [#A7](https://github.com/molikas/axoview/issues/A7) [#16](https://github.com/molikas/axoview/issues/16) [#5](https://github.com/molikas/axoview/issues/5) [#6](https://github.com/molikas/axoview/issues/6) [#5](https://github.com/molikas/axoview/issues/5) [#6](https://github.com/molikas/axoview/issues/6)
+
 ## 1.0.0 (2026-05-23)
 
 ### ⚠ BREAKING CHANGES
