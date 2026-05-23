@@ -192,7 +192,52 @@ async function syntheticDrag(
   to: CanvasPoint
 ) {
   const canvas = new CanvasPOM(page);
+
+  // [S8/INSTRUMENT] remove in cleanup commit. Bounding box of the dispatch
+  // target (interactions Box) + pre-drag store state.
+  const interactionsBox = await canvas.interactionsLayer().boundingBox();
+  const canvasBox = await canvas.canvas().boundingBox();
+  const viewport = page.viewportSize();
+  const pre = await page.evaluate(() => {
+    const w = window as any;
+    const ui = w.__axoview__?.ui?.getState?.();
+    const model = w.__axoview__?.model?.getState?.();
+    const views = model?.views;
+    const viewId = ui?.view;
+    const view = (viewId && views?.find((v: any) => v.id === viewId)) ?? views?.[0];
+    return {
+      mode: ui?.mode?.type,
+      mousePosition: ui?.mouse?.position,
+      mousedown: ui?.mouse?.mousedown,
+      firstViewItemTile: view?.items?.[0]?.tile,
+      firstViewItemId: view?.items?.[0]?.id
+    };
+  });
+  // eslint-disable-next-line no-console
+  console.log('[S8/layers/syntheticDrag/pre]', JSON.stringify({
+    viewport, interactionsBox, canvasBox, from, to, pre
+  }));
+
   await canvas.dragFromTo(from, to);
+
+  // [S8/INSTRUMENT] remove in cleanup commit. Post-drag store snapshot.
+  await page.waitForTimeout(100);
+  const post = await page.evaluate(() => {
+    const w = window as any;
+    const ui = w.__axoview__?.ui?.getState?.();
+    const model = w.__axoview__?.model?.getState?.();
+    const views = model?.views;
+    const viewId = ui?.view;
+    const view = (viewId && views?.find((v: any) => v.id === viewId)) ?? views?.[0];
+    return {
+      mode: ui?.mode?.type,
+      mousePosition: ui?.mouse?.position,
+      mousedown: ui?.mouse?.mousedown,
+      firstViewItemTile: view?.items?.[0]?.tile
+    };
+  });
+  // eslint-disable-next-line no-console
+  console.log('[S8/layers/syntheticDrag/post]', JSON.stringify(post));
 }
 
 test.describe('Layers — J6: assign + hide + lock', () => {
