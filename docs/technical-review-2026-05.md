@@ -491,13 +491,226 @@ Three dialogs ship per the contract: `LocalModeShareErrorDialog` (browser-only +
 
 ## 5. Deployment topology
 
-<!-- TBD Session C — Will cover: Docker compose stack (nginx + Express + filesystem volume); Cloudflare Pages deployment (Worker + Pages Functions + native git integration); env-var contract per target (per ADR 0009 §4); TLS termination per target; bundle-size budget; deploy automation (CF native git integration is canonical per Locked Decision #14). Cross-references: ADR 0009 §§1, 4, 5, 7, 8; docs/deployment.md. -->
+This section consolidates the operator-facing view of [ADR 0009](adr/0009-deployment-topology.md) and [`docs/deployment.md`](deployment.md). Every claim is grounded against one or the other; treat those as the living source of truth and this section as the reviewer's quick map.
+
+### 5a. Three deploy targets
+
+| Target | What runs | Who owns the runtime | Storage | Day-1 command |
+|---|---|---|---|---|
+| **Browser-only** | The SPA bundle served from any static host. No backend. Same `axoview-app` build that the other targets ship — the runtime mode is selected by the `/api/config` probe failing. | Whoever publishes the static bundle (could be a one-off `npx serve build/`, a personal nginx, S3+CDN, GH Pages, etc.). | Browser `localStorage` + `sessionStorage`. Each tab is an island; project ZIPs are the only persistence beyond the tab. | `npm run build` then drop `packages/axoview-app/build/` on a static host. |
+| **Self-host (Docker)** | nginx (static + reverse proxy) + Express (`/api/*` handlers + `fs.js` adapter against `STORAGE_PATH`) inside one container per [`Dockerfile`](../Dockerfile) + [`compose.yml`](../compose.yml). | The operator: container lifecycle, TLS termination (sidecar / cloudflared / platform TLS — ADR 0009 §7 explicitly punts this), `STORAGE_PATH` volume, backup discipline. | Filesystem under `STORAGE_PATH` (default `/data/diagrams` mounted as a named volume); atomic per-key writes via tmp-file + rename ([ADR 0010 D3](adr/0010-session-backend-contract.md#3-atomicity--every-put-is-all-or-nothing)). | `docker compose up --build` per [Locked Decision #12](tactical/productization-audit.md#locked-decisions-from-scoping-discussion-2026-05-19) — no Docker Hub image is published, deploy = `git clone` then build locally. |
+| **Cloudflare Pages** | Static bundle on Cloudflare's CDN; `/api/*` routed to a Hono Worker via Pages Functions (`functions/api/[[path]].ts`). The Worker imports [`packages/axoview-backend/src/routes.js`](../packages/axoview-backend/src/routes.js) but [short-circuits every storage route to 503](../packages/axoview-worker/src/app.ts) — **storage-less by design today**. End-users still get a functional editor via the browser-only fallback. | Cloudflare (TLS, CDN, Worker scheduling, observability) + operator (env-vars / secrets, `wrangler.toml`, optional CF Access policy). | None today. Persistent storage on Cloudflare returns when the Google Drive provider lands ([Phase 3B](../PLAN.md)); ADR 0010 §9 spells out the extension contract. | Native git integration on `master` push per [Locked Decision #14](tactical/productization-audit.md#locked-decisions-from-scoping-discussion-2026-05-19) — no GH Actions workflow, no `wrangler pages deploy` from CI. The one-click "Deploy to Cloudflare" button (README) covers fork-to-deploy. |
+
+The frontend bundle is byte-identical across all three. The runtime difference is which `/api/config` flag values it receives at boot, which selects the `StorageProvider` mode.
+
+### 5b. Mode detection contract
+
+Per [ADR 0009 D2](adr/0009-deployment-topology.md#2-mode-detection-collapses-to-a-single-probe-runtimeconfigserverstorage-is-removed) the SPA fires **one** `GET /api/config` request with an 800 ms `AbortSignal.timeout` cap (verified in [`useRuntimeConfig.ts`](../packages/axoview-app/src/hooks/useRuntimeConfig.ts)). The boolean `serverStorage` field in the response selects the path:
+
+| `/api/config` outcome | Resulting mode | What the user sees |
+|---|---|---|
+| 200 OK · `serverStorage: true` | server-backed | Diagrams persist to backend; LocalModeBanner is hidden; share links work. |
+| 200 OK · `serverStorage: false` | browser-only | LocalModeBanner is shown; share links surface `LocalModeShareErrorDialog` per [ADR 0009 D3](adr/0009-deployment-topology.md#3-readonly--share-link-is-a-session-mode-only-overlay-local-mode-must-error-explicitly). |
+| Timeout or network error | browser-only (fallback) | Console warning is logged; `LocalStorageProvider` runs with `usingServer=false`. |
+
+Cloudflare Worker deploys always return `serverStorage: false` until Phase 3B; that's what makes them functionally indistinguishable from a static-only deploy from the user's perspective. The dual-probe collapse (`/api/storage/status` deleted from both runtimes) drops ~100–200 ms of avoidable cold-start latency on Cloudflare and was the audit's single most measurable correctness-and-performance win. The boot sequence diagram in [§4a](#4a-app-boot--mode-detection-single-apiconfig-probe) is the canonical reference.
+
+### 5c. CI/CD chain
+
+```mermaid
+flowchart TB
+    PR["PR / push to master or integration"]
+    PR --> CI_TEST["Run Tests workflow<br/>(test.yml)"]
+    PR --> CI_E2E["E2E Tests workflow<br/>(e2e-playwright.yml)"]
+    PR --> CI_CQ["CodeQL workflow<br/>(codeql.yml)"]
+
+    CI_TEST -->|matrix Node 20/22/24| LINT["ESLint hard-fail<br/>(T2 G1)"]
+    LINT --> UNIT["Jest --coverage<br/>10% threshold hard-fail (T2 G2)"]
+    UNIT --> BUILD["npm run build"]
+    BUILD --> SHAPE["Verify _routes.json + _headers<br/>(T2 G8)"]
+    SHAPE --> KNIP["Knip soft-fail<br/>(T2 G10)"]
+    KNIP --> BUNDLE["Worker bundle size ≤ 1 MB<br/>(T2 G7 / ADR 0009 D8)"]
+
+    CI_E2E -->|chromium-only| PLAYWRIGHT["13 specs / 33 tests<br/>(J1–J20 baseline)"]
+
+    CI_CQ -->|push to master + weekly cron| CODEQL["javascript-typescript<br/>(T2 G4)"]
+
+    BUNDLE --> ALL_GREEN{All workflows green?}
+    PLAYWRIGHT --> ALL_GREEN
+    CODEQL --> ALL_GREEN
+
+    ALL_GREEN -->|push to master, all green| RELEASE["Release workflow<br/>(release.yml)"]
+    RELEASE --> SR["semantic-release"]
+    SR --> NPM["npm publish<br/>(intentionally disabled<br/>per LD #11)"]
+    SR --> GHREL["GitHub Release + tag + CHANGELOG bump"]
+
+    ALL_GREEN -->|master push, parallel| CF_NATIVE["Cloudflare native git integration<br/>(LD #14 — no GH Actions step)"]
+    CF_NATIVE --> CF_BUILD["CF builds packages/axoview-app/build/<br/>+ Functions from functions/api/"]
+    CF_BUILD --> CF_DEPLOY["axoview.pages.dev live"]
+
+    classDef disabled fill:#fee,stroke:#c66,stroke-dasharray:3 3
+    class NPM disabled
+```
+
+Two notes the diagram glosses over:
+
+- **Cloudflare deploy isn't a CI step.** It's external automation triggered by the same `master` push. Per Locked Decision #14, GitHub Actions has no visibility into CF's build status — if the CF build fails, the GH side stays green. The deployment safety net for "tests pass but CF fails" is currently *operator vigilance*, not automated cross-check. Worth flagging to reviewers (and asked explicitly in [§10b](#10b-productization-readiness-lens-narrow)).
+- **`release.yml` is gated on `workflow_run` from the Run Tests workflow.** semantic-release won't fire if tests aren't green. The chain is `master push → test.yml + e2e-playwright.yml + codeql.yml in parallel → all green → workflow_run trigger → release.yml`.
+
+### 5d. Env-var contract per target
+
+#### Self-host (Docker / compose)
+
+| Variable | Required | Default | Notes |
+|---|---|---|---|
+| `BACKEND_PORT` | no | `3001` | Express listen port; container exposes this to the network. |
+| `STORAGE_PATH` | no | `/data/diagrams` | Filesystem root for `fs.js`. **Must be backed by a container volume** for persistence across restarts. |
+| `ENABLE_SERVER_STORAGE` | yes | `false` | `"true"` switches `/api/config` to report `serverStorage: true` and gates all storage routes. The implicit-off default is intentional — a fresh container without this flag behaves as a static-only deploy. |
+| `AUTH_MODE` | no | `'none'` | One of `none` / `shared-token` / `cf-access`. Express rejects `cf-access` at request time (Cloudflare-only). |
+| `AUTH_SHARED_SECRET` | required when `AUTH_MODE=shared-token` | — | Compared against `Authorization: Bearer <token>` via constant-time compare ([server.js:50-55](../packages/axoview-backend/server.js#L50-L55)). Public-namespace routes exempt. |
+| `GOOGLE_CLIENT_ID` | no | empty | Echoed in `/api/config` for the (Phase 3B) Drive provider. Empty value hides Drive UI in the frontend. |
+| `ENABLE_GIT_BACKUP` | no | `false` | Reserved for a future git-backed snapshot path; today no-op. |
+
+#### Cloudflare Pages
+
+| Variable | Source | Notes |
+|---|---|---|
+| `AUTH_MODE` | `[vars]` in `wrangler.toml` (default `shared-token`) | Same set as self-host. |
+| `AUTH_SHARED_SECRET` | secret via `wrangler pages secret put` | When `AUTH_MODE=shared-token`. |
+| `CF_ACCESS_TEAM_DOMAIN` | secret | When `AUTH_MODE=cf-access`; subdomain that resolves to `<team>.cloudflareaccess.com`. |
+| `CF_ACCESS_AUD` | secret | When `AUTH_MODE=cf-access`; the Access application AUD tag. |
+| `GOOGLE_CLIENT_ID` | secret or var (treat as var only if non-sensitive) | Same `/api/config` echo semantics as self-host. |
+
+`STORAGE_PATH` and `ENABLE_SERVER_STORAGE` have no Cloudflare equivalent today — every storage route 503s at [`app.ts`](../packages/axoview-worker/src/app.ts). A future Drive/R2/D1 path will introduce a binding via `wrangler.toml` *and* a new `StorageAdapter` per ADR 0010; that env-var contract belongs to the Phase 3B ADR.
+
+#### Local dev (browser-only / `npm run dev`)
+
+None required. The SPA boots, `/api/config` either fails (no backend) or returns `serverStorage: false`, and the app falls back to browser-only mode. For end-to-end dev of the server-backed path, run `npm run dev:backend` with `ENABLE_SERVER_STORAGE=true STORAGE_PATH=./diagrams`.
+
+### 5e. Bundle-size budget
+
+Worker bundle is the only built artefact with a hard ceiling: **< 1 MB uncompressed** per [ADR 0009 D8](adr/0009-deployment-topology.md). The CI gate landed in test.yml (T2 G7, commit `01286f8`) runs `npx wrangler pages functions build --outdir .worker-build` and fails the job if `du -sb` returns > 1 048 576 bytes.
+
+**Current baseline (2026-05-22):** 91 421 bytes — **~89 KB, ~9% of budget**. Substantial headroom but not unlimited: the next planned consumer is the Phase 3B Google Drive provider, whose canonical dependency `google-auth-library` and friends will be the first real stress test of the budget. The 1 MB Cloudflare free-tier ceiling is on *compressed* size; this CI assertion on uncompressed size keeps an explicit margin in front of the platform's hard limit.
+
+### 5f. Dual `wrangler.toml`
+
+There are two Cloudflare config files; they are kept in lockstep by hand. Per [ADR 0009 D5](adr/0009-deployment-topology.md):
+
+- **Repo-root [`wrangler.toml`](../wrangler.toml) is authoritative for deploy** — the "Deploy to Cloudflare" button and `wrangler pages deploy` from the repo root both read it. 8 lines today (`pages_build_output_dir`, `AUTH_MODE=shared-token`, no R2 binding).
+- **Worker-package [`packages/axoview-worker/wrangler.toml`](../packages/axoview-worker/wrangler.toml) is retained for local-dev workflows** — the package's `npm run dev` invokes `wrangler pages dev ../axoview-app/build --binding-from-toml`, which reads bindings from the `wrangler.toml` in cwd. Killing this file would break that workflow.
+
+The drift risk is real: any change to `[vars]` or `compatibility_date` MUST be applied to both. A future consolidation (symlink or generator script) is a follow-up, not an ADR. This is flagged in [§7.8](#78-cross-package-observations) and named explicitly here as a reviewer-watch item.
+
+### 5g. Distribution model
+
+Three deferred-by-design distribution surfaces, each with its own future ADR + tactical when the user need surfaces:
+
+- **No npm publish for `axoview-lib`** — [Locked Decision #11](tactical/productization-audit.md#locked-decisions-from-scoping-discussion-2026-05-19). The lib is monorepo-only; `@semantic-release/npm` was explicitly removed; `axoview-lib/package.json` carries `"private": true`. The "published-shape" file layout (`main` / `types` / `files`) is a coincidence of structure, not a deferred intent. If `axoview-lib` ever needs external consumers, that's a new feature with its own ADR (the public-API audit, the changelog cadence, the dist channel — none of which exist today).
+- **No Docker Hub image** — [Locked Decision #12](tactical/productization-audit.md#locked-decisions-from-scoping-discussion-2026-05-19). Day-1 self-host = `git clone + docker compose up --build`. Container image scanning (T2 G6) was *removed* from the CI tactical the day this decision locked, on the grounds that scanning matters when a registry-published image is the product surface — until then, the `docker compose build` runtime is local to the operator's machine, and the existing CodeQL + npm audit + dependabot chain covers the source-side.
+- **No GH-Actions-mediated Cloudflare deploy** — [Locked Decision #14](tactical/productization-audit.md#locked-decisions-from-scoping-discussion-2026-05-19). Cloudflare's native git integration is the canonical deploy mechanism; the audit's original "missing CF deploy automation" finding (A.8 #A5) was superseded by the discovery that the native integration was already live.
+
+These are not gaps. The reviewer should flag the *intentional deferral* only if a concrete user need exists that one of these would unblock — otherwise treat them as decided.
 
 ---
 
 ## 6. Security posture
 
-<!-- TBD Session C — Will cover: auth modes (none / shared-token / cf-access — Cloudflare-only); single-tenant-per-deploy lock (ADR 0010 D4); public-namespace cutout (the only auth exception); CSP delivery per target (Helmet on Express, _headers on Cloudflare, nginx.conf for self-host); CodeQL static analysis; nginx Basic Auth removal (Locked Decision #13); path-traversal blocked at adapter boundary via KEY_PATTERN regex; 10 MB body limit. Cross-references: ADR 0009 §4/§7, ADR 0010 §2/§4/§6. -->
+This section covers what stops unauthorised access today and what's explicitly out of scope. Cross-references are to [ADR 0009](adr/0009-deployment-topology.md), [ADR 0010](adr/0010-session-backend-contract.md), and [ADR 0011](adr/0011-error-ux-contract.md) (error UX as the security-adjacent surface).
+
+### 6a. Auth model
+
+Single contract: **`AUTH_MODE`** per [ADR 0009 D4](adr/0009-deployment-topology.md#4-env-var-contract--one-section-per-target). The nginx HTTP Basic Auth layer that overlapped with `AUTH_MODE` in earlier builds was removed per [Locked Decision #13](tactical/productization-audit.md#locked-decisions-from-scoping-discussion-2026-05-19) — one auth surface is comprehensible, two were not, and the overlap had forced B3-style nested-`location` carve-outs to keep share routes reachable.
+
+| `AUTH_MODE` value | Behaviour | Runtimes |
+|---|---|---|
+| `none` (default) | No auth on `/api/*`. Shared instance — anyone reaching the deploy can read/write everything in the (single) tenant. | Express + Worker |
+| `shared-token` | Single bearer token. `Authorization: Bearer <AUTH_SHARED_SECRET>` required on every non-public route. Express compares with constant-time equals ([server.js:50-55](../packages/axoview-backend/server.js#L50-L55)); Worker does the same in [auth.ts](../packages/axoview-worker/src/auth.ts). | Express + Worker |
+| `cf-access` | Cloudflare Access JWT verified against the team JWKS (RS256). Audience must match `CF_ACCESS_AUD`. | **Worker only.** Express rejects this mode at request time per [server.js:76-77](../packages/axoview-backend/server.js#L76-L77). |
+
+The public-namespace carve-out lives in both runtimes' middleware: `GET /api/config` and `GET /api/public/diagrams/:uuid` always bypass auth ([server.js:57-62](../packages/axoview-backend/server.js#L57-L62), [auth.ts:20-25](../packages/axoview-worker/src/auth.ts#L20-L25)). This is the **only** auth exception in the contract per [ADR 0010 D6](adr/0010-session-backend-contract.md#6-snapshots-and-share-namespace) — every other route is gated.
+
+### 6b. Storage isolation — single-tenant per deploy
+
+Per [ADR 0010 D4](adr/0010-session-backend-contract.md#4-session-isolation--single-tenant-per-deploy-v1) a deploy is **single-tenant**. There is no `userId` in any key, no per-user prefix, no auth-derived path scoping. Within a tenant, every diagram is visible to anyone with `AUTH_MODE` clearance.
+
+This is the single biggest "how do you scale to multiple users?" question the reviewer will have. The honest answer: **you don't, in v1.** Multi-user collaboration on a shared deploy is explicitly out of scope; the deployment model is "one tenant per deploy", and the operator's responsibility (NOT the adapter's) is to ensure only the intended user(s) reach the storage — mechanisms include one container per user, a CF Access policy that pins a single user identity, or a network ACL.
+
+Multi-user isolation within a deploy (per-user namespaces, per-user auth, ACLs) is a future ADR if/when the user need surfaces. The reviewer should *not* treat this as an implementation gap — it's a scoped product decision. The deployment-doc callout that surfaces this is currently thin (named in [ADR 0010 "Negative / open"](adr/0010-session-backend-contract.md#negative--open) and called out again in [§6h](#6h-known-security-gaps-tracked-not-blocking) below).
+
+### 6c. Public-namespace cutout
+
+`public/<uuid>` keys are world-readable. They exist *only* to support unauthenticated share-link viewers. Per [ADR 0010 D6](adr/0010-session-backend-contract.md#6-snapshots-and-share-namespace):
+
+- Snapshots live under the `public/` prefix and are **never** enumerated by `listDiagramMeta()` or returned in a logged-in user's diagram list.
+- Deletion of a parent diagram (`DELETE /api/diagrams/:id`) cascades to its snapshots — the route layer owns the cascade; the adapter doesn't infer relationships.
+- The UUID space is 256-bit (generated via `crypto.getRandomValues` in [routes.js](../packages/axoview-backend/src/routes.js)); enumeration is computationally infeasible. The threat model is "leaked URL gives view access", not "guessing URLs gives view access".
+
+### 6d. CSP + security headers
+
+Canonical set lives in [`packages/axoview-app/public/_headers`](../packages/axoview-app/public/_headers) — that's the one source of truth per [ADR 0009 D5](adr/0009-deployment-topology.md). The three layers echo the same set:
+
+| Layer | Mechanism | Verification |
+|---|---|---|
+| **Cloudflare** | `_headers` is read directly by Pages | Built into Cloudflare's static-serving path; no per-request work in the Worker. |
+| **Worker (`/api/*`)** | Hono `secureHeaders()` middleware in [`app.ts`](../packages/axoview-worker/src/app.ts) | Matches the static set; CI verifies neither layer drifts. |
+| **nginx (self-host)** | Headers in [`nginx.conf`](../nginx.conf) | Equivalent set; **divergence between layers is a bug** per ADR 0009 D5. |
+
+Current canonical headers (from `_headers`):
+```
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: geolocation=(), microphone=(), camera=()
+Content-Security-Policy: default-src 'self'; script-src 'self' https://accounts.google.com https://apis.google.com; connect-src 'self' https://www.googleapis.com https://oauth2.googleapis.com https://*.cloudflareaccess.com; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; frame-src https://accounts.google.com; object-src 'none'; base-uri 'self'
+```
+
+Plus `Cache-Control: no-store` on `/api/*` to prevent CDN caching of authenticated responses.
+
+The CSP's Google + Cloudflare Access exceptions are the surface the reviewer should scrutinize: they exist for the (Phase 3B) Drive OAuth flow and the `cf-access` auth mode, respectively. Both are necessary; the `'unsafe-inline'` in `style-src` is the residual MUI-emotion legacy and is the most likely tightening target in a future polish wave.
+
+### 6e. Concurrent-write semantics
+
+Last-writer-wins per [ADR 0010 D7](adr/0010-session-backend-contract.md#7-concurrent-write-semantics). Acceptable for a single-tenant deploy where realistic concurrency is "the user has two tabs open." Adapters do not promise transactional integrity across keys.
+
+The **conditional-write retry pattern** (etag-based; 3-attempt cap; preserved from the retired flare plan's Architectural #5 row) is **dormant in this ADR**. It is the prescribed shape for any adapter whose underlying primitive exposes an `If-Match` semantic — Drive supports this natively, R2 supports this natively. The fs adapter does not implement it today and doesn't need to because the filesystem's own write barrier (decision 3) is sufficient for the single-tenant local case. The pattern becomes normative when Phase 3B (Drive) ships, in a follow-up ADR.
+
+This is deliberately conservative: the MQA #21 folders-collision class of bugs is real but rare today; if a multi-tab user reports a regression, that's the trigger to amend the contract.
+
+### 6f. Atomicity
+
+`put` is atomic per [ADR 0010 D3](adr/0010-session-backend-contract.md#3-atomicity--every-put-is-all-or-nothing). The fs adapter implements this via tmp-file + rename ([fs.js:45](../packages/axoview-backend/src/adapters/fs.js#L45)):
+
+```js
+const tmp = path.join(dir, `.${name}.${process.pid}.tmp`);
+await fs.writeFile(tmp, value);
+await fs.rename(tmp, target);
+```
+
+A crash or power loss mid-write leaves the original file intact; a half-written tmp file is the worst case. Drive, R2, and D1 are atomic by API contract — the fs adapter is the only place the atomicity shim has to be explicit.
+
+### 6g. CI security scanning
+
+| Surface | Status | Notes |
+|---|---|---|
+| **CodeQL** (`javascript-typescript`) | Workflow live ([codeql.yml](../.github/workflows/codeql.yml), T2 G4); push to master + PRs targeting master + weekly Saturday cron. | **Does not run until the repo-level CodeQL toggle is enabled** (Settings → Code security and analysis → CodeQL). This is the last T4 external-action item the user owns. |
+| **Container image scanning** | Intentionally not in CI. T2 G6 was dropped with the Docker Hub deferral per [Locked Decision #12](tactical/productization-audit.md#locked-decisions-from-scoping-discussion-2026-05-19). | Re-enters scope when Docker Hub publish spawns as a future feature. |
+| **`npm audit`** | Not in CI; covered indirectly by Dependabot. | Weekly grouped Dependabot PRs ([dependabot.yml](../.github/dependabot.yml)) for `npm` + `github-actions`; minor/patch auto-merged per [dependabot-automerge.yml](../.github/workflows/dependabot-automerge.yml). Major-version bumps fall through to manual review. |
+| **Secret scanning** | GitHub's native secret-scanning is implicit (repo setting). | Not asserted by CI; no per-PR gate beyond the default GitHub behaviour. |
+| **SBOM generation** | Out of scope for v1 (A.8.4 row 5). | Deferrable; productization gate doesn't depend on it. |
+
+### 6h. Known security gaps (tracked, not blocking)
+
+Three items the audit named and explicitly left open. None block M10; all are reviewer-visible:
+
+- **`*.pages.dev` preview-deploy exposure if `AUTH_MODE=none`.** Every Pages preview deploy inherits the same Worker config as production. If a deployer switches `AUTH_MODE` to `none` for an inline experiment, every preview URL becomes a world-readable instance. Documented in [ADR 0009 "Negative / open"](adr/0009-deployment-topology.md#negative--open) and mitigated by the default `wrangler.toml` keeping `AUTH_MODE=shared-token`. A future deploy-time warning is the next step; not built today.
+- **No structured request logging on Express.** [`server.js`](../packages/axoview-backend/server.js) does not wire `morgan` or an equivalent; per-request audit trails on self-host depend on whatever the operator's reverse-proxy emits. Tracked in [ADR 0009 D6 "observability boundary"](adr/0009-deployment-topology.md#6-observability-boundary--per-runtime). Cloudflare side gets per-request invocation metrics automatically via the platform dashboard.
+- **The single-tenant lock will surprise multi-user self-host operators.** [ADR 0010 D4 "Negative / open"](adr/0010-session-backend-contract.md#negative--open) names this directly. [`docs/deployment.md`](deployment.md) does not currently lead with a "single-tenant per deploy" callout — the operator who reads the auth-modes table and thinks "shared-token = team password" is the one who needs the warning. Action item for the next docs pass; not a code change.
+
+The reviewer should weigh these against the v1 scope: the audit treated them as conscious deferrals, not unknowns. The corresponding prompts in [§10b](#10b-productization-readiness-lens-narrow) name each one as a question the reviewer should answer with operator-impact framing, not a "must fix before merge" framing.
+
+---
+
 
 ---
 
