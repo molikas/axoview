@@ -6,6 +6,27 @@ declared-but-deferred work so Sessions 3–6 know what to author next.
 
 Last updated: Session 3 (2026-05-22).
 
+## data-axoview-id retrofit inventory (running total)
+
+Each retrofit cites the session it landed in and the spec method that
+motivated it. Source files all live under `packages/axoview-app/` or
+`packages/axoview-lib/` — app-side retrofits hot-reload; lib-side
+retrofits require a `npm run build:lib` + dev-server restart before the
+spec can see them.
+
+| # | Attribute | Source | Session | Motivating spec |
+|---|---|---|---|---|
+| 1 | `toolbar-save`                   | `axoview-app/.../AppToolbar.tsx`                | 2 | J1 (smoke.spec) — AppToolbarPOM.clickSave |
+| 2 | `screen-empty-create`            | `axoview-app/.../EmptyStateScreen.tsx`          | 2 | J1 + J20 (smoke.spec) — EmptyStateScreenPOM.clickCreate |
+| 3 | `dock-elements-toggle`           | `axoview-lib/.../LeftDock/LeftDock.tsx`         | 2 | J1 (smoke.spec) — openElementsPanel helper |
+| 4 | `dock-layers-toggle`             | `axoview-lib/.../LeftDock/LeftDock.tsx`         | 2 | Session 5 LayersPanelPOM (declared alongside dock-elements-toggle) |
+| 5 | `canvas-icon-grid-item`          | `axoview-lib/.../IconSelectionControls/Icon.tsx`| 2 | J1 (smoke.spec) — placeIcon helper |
+| 6 | `screen-empty-import`            | `axoview-app/.../EmptyStateScreen.tsx`          | 3 | J20 (smoke.spec) — EmptyStateScreenPOM.clickImport |
+| 7 | `canvas-interactions`            | `axoview-lib/.../Renderer/Renderer.tsx`         | 3 | J2 (connector.spec) — synthetic MouseEvent dispatch at rendererRef |
+
+Lib rebuild cycles to date: 2 (one in Session 2 for the first lib-side
+retrofit, one in Session 3 for `canvas-interactions`).
+
 ## POMs not yet authored
 
 | POM | Owning session | Surfaces / methods needed | data-axoview-id retrofits required |
