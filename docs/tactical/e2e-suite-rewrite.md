@@ -8,7 +8,7 @@
 > - [docs/tactical/productization-audit.md § C.2 Section 4 row T1](productization-audit.md#section-4--spawned-tacticals-separate-work-units) — the spawn entry that authorised this tactical.
 > - [docs/tactical/productization-audit.md § C.2 Section 3 row I9](productization-audit.md#section-3--cleanups--renames--deletions) — the bundled-deletion row for the existing `packages/axoview-e2e/` and `e2e-tests/` directories; both delete together with this suite landing in CI.
 >
-> **Status:** Smoke set complete (Sessions 2 + 3 done 2026-05-22) · **Owner:** Igor · **Last updated:** 2026-05-22
+> **Status:** File-ops set complete (Sessions 2 + 3 + 4 done 2026-05-22) · **Owner:** Igor · **Last updated:** 2026-05-22
 >
 > This is a **short-lived working doc.** Delete it after M9 (suite green in CI) lands; ADRs 0008 + 0011 + the productization-audit C.2 ledger are the durable record. PLAN.md gets a one-line entry under Phase 2D once the suite is green — see "Wrap-up" below.
 
@@ -116,7 +116,7 @@ Eight sessions, ~270K tokens total. Tactical doc tracks actual cost per session 
 | 1 | Scope (this session) | tactical doc | ~30K | _(record at session end)_ | **[~] scaffolded 2026-05-22** |
 | 2 | Skeleton | delete old `packages/axoview-e2e/`, scaffold new, Playwright config, fixtures, POM stubs, `smoke.spec.ts` (J1 only); verify locally | ~50K | ~65K (mid-context-window estimate) | **[x] done 2026-05-22 (5 commits: `3ff4110` delete, `3f087c8` skeleton, `62d9705` fixtures+helpers, `cce1dda` AppToolbarPOM+J1 smoke green locally in ~13s, this commit doc-sync). Lazy data-axoview-id retrofits landed: `toolbar-save` (AppToolbar) · `screen-empty-create` (EmptyStateScreen) · `dock-elements-toggle` + `dock-layers-toggle` (LeftDock) · `canvas-icon-grid-item` (IconSelectionControls/Icon). Pending POMs/attributes tracked in `packages/axoview-e2e/pom/_pending.md`.** |
 | 3 | Smoke complete | finish `smoke.spec.ts` (J20) + `connector.spec.ts` + `hotkeys.spec.ts` | ~30K | ~55K (overran ~25K) | **[x] done 2026-05-22 (4 commits: `ddb14d7` J20 + EmptyStateScreenPOM + workers=1 pin, `f611aa2` J2 connector + `canvas-interactions` lib retrofit + getModelConnectorCount, `67571c4` J15 7-hotkey spec + getViewItemCount, this commit doc-sync). 11/11 tests green locally in ~2.6 min. Lazy retrofits this session: `screen-empty-import` (app, no rebuild) + `canvas-interactions` (lib, 1 rebuild cycle). One Playwright config pin: `workers: 1` + `fullyParallel: false` — two parallel contexts against the shared rsbuild dev server stalled the Loading-Axoview path once the suite grew past one spec.** |
-| 4 | File ops | `import-export-json.spec.ts` + `import-export-zip.spec.ts` + `icons.spec.ts` | ~30K | _(record)_ | not started |
+| 4 | File ops | `import-export-json.spec.ts` + `import-export-zip.spec.ts` + `icons.spec.ts` | ~30K | ~75K (overran ~45K) | **[x] done 2026-05-22 (4 commits: `4014e59` J7+J8 JSON spec + ExportPopover retrofits, `d92aeee` J9+J10 ZIP spec + DialogsPOM + ExportProjectZipDialog retrofit + programmatic JSZip fixture, `88242dc` J11+J12 icons spec + 4 lib-side retrofits + J10 wipe-and-reload stability fix, this commit doc-sync). 17/17 tests green locally in ~4.4 min. Eight lazy retrofits this session: 4 app-side (`toolbar-export`, `toolbar-export-json`, `toolbar-export-project-zip`, `dialog-export-project-zip-confirm`) + 4 lib-side (`dock-elements-import-icons`, `dialog-import-icons-confirm`, `dialog-delete-icon-confirm`, `canvas-icon-grid-delete`). Lib rebuild cycles this session: 1 (all four icons retrofits batched).** |
 | 5 | Editor surfaces | `shapes.spec.ts` + `rename.spec.ts` + `layers.spec.ts` | ~30K | _(record)_ | not started |
 | 6 | Diagram-link + dialogs | `multi-diagram.spec.ts` + `dialogs.spec.ts` + `share.spec.ts` + `canvas-modes.spec.ts` | ~40K | _(record)_ | not started |
 | 7 | CI wiring | `.github/workflows/e2e-playwright.yml`; replace dropped `e2e-tests.yml.backup`; delete old `packages/axoview-e2e/` per I9 bundle; delete `e2e-tests/` root directory; remove from `release.yml` workflow chain if needed | ~30K | _(record)_ | not started |
@@ -136,6 +136,63 @@ diagram before the assertion runs. Each is documented in the commit body (`cce1d
 so Sessions 3-6 don't re-discover them. Adjusting Sessions 3-6 estimates: **+5K
 per session** for the "second spec in the file" patterns to stabilise — bringing
 the running total from ~270K to ~290K. No change to session ordering or scope.
+
+**Session 4 actual-vs-estimate note (2026-05-22):** Session 4 ran ~45K over the
+30K estimate (~75K actual) for three durable reasons worth carrying into
+Sessions 5/6:
+
+1. **Playwright `download.path()` strips the original filename.** The downloaded
+   bytes are written to a UUID-named tempfile without the `.zip` (or any)
+   extension; feeding that path back into a file picker that routes by
+   extension (App.tsx#handleDirectImportFile uses `/\.zip$/i`) mis-routes
+   the second leg of any round-trip spec. Resolution: copy the bytes to a
+   `${os.tmpdir()}/.../${download.suggestedFilename()}` before re-feeding.
+   Documented inline in `tests/import-export-zip.spec.ts` and in the
+   commit body of `d92aeee`. Sessions 5/6 share-link + export-image specs
+   inherit the same gotcha — the pattern is reusable as-is.
+
+2. **`clearAllStorage()` between in-test legs needs a double clear-and-reload.**
+   The J10 round-trip leg (export → wipe → reload → re-import in the same
+   context) showed an intermittent rehydration race: addInitScript runs
+   before every navigation, and DiagramLifecycleProvider can re-pick state
+   between our clear and the next assertion. Single clear + reload was
+   sometimes enough (passed in isolation in Commit 2) but not under
+   parallel-spec pressure from the icons rebuild (broke in the full-suite
+   run after Commit 3). Resolution: clear, reload, clear, reload. Pattern
+   only required for specs that wipe and re-import in the same context;
+   independent `beforeEach` paths don't trigger the race.
+
+3. **Imported icons land below the bundled fixtures in the panel scroll
+   container, often off-screen.** `placeIcon` works for bundled icons
+   because the first tile is always in-viewport, but a name-specific tile
+   lookup needs `scrollIntoViewIfNeeded` before the boundingBox read — an
+   off-screen tile's `boundingBox()` returns valid coords, but the mouse
+   events at those coords land on whatever element actually occupies that
+   viewport pixel, not the tile. First run of `icons.spec.ts` hit exactly
+   that (model item count 0 after the drag). Documented inline in
+   `tests/icons.spec.ts#dragIconToCanvas`.
+
+Beyond those three, the ZIP-fixture choice fell to **programmatic** —
+`helpers/projectZip.ts` builds the project zip in-process with JSZip
+(hoisted to the repo root by workspaces, no local devDependency entry
+required). The static-vs-programmatic trade-off was about ~80 LOC of
+helper code vs an opaque binary fixture; programmatic keeps the fixture
+in lockstep with ADR 0001's format and tracks future format-version
+bumps alongside the lib. The static JSON fixture for J7 stayed static
+because a single-diagram fixture doesn't benefit from in-sync round-
+tripping. Sessions 5/6 spec-pair fixtures (rename, layers, multi-diagram
+preview) inherit the same rule of thumb: programmatic where round-trip
+benefits, static where the assertion shape is fixed.
+
+Lib rebuild cycles this session: **1** (four icons retrofits batched into
+one `npm run build:lib` + dev-server restart — under the 5-cycle warning
+threshold called out in Session 3). Running total to date: **3**
+(Session 2: 1, Session 3: 1, Session 4: 1).
+
+Sessions 5–6 estimate revision: **+5K per session** for the wipe-and-
+reload pattern and the download-filename copy pattern to become muscle
+memory. Bringing the running total from ~290K to ~300K. No change to
+session ordering or scope.
 
 **Session 3 actual-vs-estimate note (2026-05-22):** Session 3 ran ~25K over the
 30K estimate (~55K actual) for one durable reason — the connector spec exposed
