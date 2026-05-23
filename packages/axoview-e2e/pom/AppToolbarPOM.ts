@@ -10,8 +10,13 @@
  * Lazy data-axoview-id retrofits — Session 2:
  *   - `toolbar-save` (Save IconButton)  ← paired with clickSave()
  *
+ * Lazy data-axoview-id retrofits — Session 4:
+ *   - `toolbar-export`             (ExportPopover IconButton)   ← clickExport()
+ *   - `toolbar-export-json`        (Export JSON MenuItem)        ← clickExportJson()
+ *   - `toolbar-export-project-zip` (Export Project MenuItem)     ← clickExportProjectZip()
+ *
  * Methods left as `not-yet-implemented` stubs are declared so consumer specs
- * in Sessions 3–6 know the API surface; each stub names the attribute it
+ * in Sessions 5–6 know the API surface; each stub names the attribute it
  * will require. Adding an attribute without an exercising spec is forbidden
  * by ADR 0008 Decision 5, so the stubs do NOT pre-stamp `data-axoview-id`
  * onto the source — the retrofit lands in the same commit as the method
@@ -37,9 +42,41 @@ export class AppToolbarPOM {
     await this.page.keyboard.press('Control+S');
   }
 
-  /** Stub — `data-axoview-id="toolbar-export"`. Lights up when import-export specs land (Session 4). */
-  async clickExport(): Promise<never> {
-    throw new Error('AppToolbarPOM.clickExport: not implemented — Session 4 adds toolbar-export attribute + body.');
+  exportButton() {
+    return byAxoviewId(this.page, 'toolbar-export');
+  }
+
+  exportJsonMenuItem() {
+    return byAxoviewId(this.page, 'toolbar-export-json');
+  }
+
+  exportProjectZipMenuItem() {
+    return byAxoviewId(this.page, 'toolbar-export-project-zip');
+  }
+
+  /** Opens the Export popover. The popover renders the JSON / Image / Project ZIP menu items. */
+  async clickExport() {
+    await this.exportButton().click();
+  }
+
+  /**
+   * Triggers a JSON download via the Export popover's "Export JSON" menu item.
+   * Callers MUST arm `page.waitForEvent('download')` BEFORE invoking this so
+   * the synchronous `<a download>` click isn't missed.
+   */
+  async clickExportJson() {
+    await this.clickExport();
+    await this.exportJsonMenuItem().click();
+  }
+
+  /**
+   * Opens the project-ZIP export dialog via the Export popover's
+   * "Export Project (.zip)" menu item. The dialog is then driven by
+   * DialogsPOM.confirmExportProjectZip().
+   */
+  async clickExportProjectZip() {
+    await this.clickExport();
+    await this.exportProjectZipMenuItem().click();
   }
 
   /** Stub — `data-axoview-id="toolbar-share"`. Lights up when share spec lands (Session 6). */

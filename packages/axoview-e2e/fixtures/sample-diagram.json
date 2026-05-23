@@ -1,0 +1,42 @@
+{
+  "title": "T1 J7 Sample Diagram",
+  "description": "Static JSON fixture for the e2e suite (J7 import + J10 ZIP round-trip).",
+  "version": "",
+  "items": [
+    { "id": "fixture-item-a", "name": "Alpha", "icon": "fixture-icon-a" },
+    { "id": "fixture-item-b", "name": "Beta", "icon": "fixture-icon-a" }
+  ],
+  "views": [
+    {
+      "id": "fixture-view-main",
+      "name": "Main view",
+      "items": [
+        { "id": "fixture-item-a", "tile": { "x": 0, "y": 0 } },
+        { "id": "fixture-item-b", "tile": { "x": 2, "y": 0 } }
+      ],
+      "connectors": [
+        {
+          "id": "fixture-connector-1",
+          "anchors": [
+            { "id": "fixture-anchor-1", "ref": { "item": "fixture-item-a" } },
+            { "id": "fixture-anchor-2", "ref": { "item": "fixture-item-b" } }
+          ]
+        }
+      ],
+      "rectangles": [],
+      "textBoxes": []
+    }
+  ],
+  "icons": [
+    {
+      "id": "fixture-icon-a",
+      "name": "fixture",
+      "url": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%23999'/></svg>",
+      "collection": "imported",
+      "isIsometric": false
+    }
+  ],
+  "colors": [
+    { "id": "color-default", "value": "#000000" }
+  ]
+}
