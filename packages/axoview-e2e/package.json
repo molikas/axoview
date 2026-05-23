@@ -1,0 +1,16 @@
+{
+  "name": "@axoview/e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright end-to-end tests for Axoview (T1 rewrite — per docs/tactical/e2e-suite-rewrite.md)",
+  "scripts": {
+    "test": "playwright test",
+    "test:smoke": "playwright test smoke.spec.ts",
+    "test:ui": "playwright test --ui",
+    "test:ci": "playwright test --trace on-first-retry"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.59.1",
+    "typescript": "^5.9.3"
+  }
+}
