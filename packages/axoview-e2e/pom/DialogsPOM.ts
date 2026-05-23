@@ -52,16 +52,32 @@ export class DialogsPOM {
   }
 
   /** Confirms the icon-import dialog. The dialog opens via setFiles() on the
-   *  hidden picker, NOT via this POM — the picker fires a native chooser. */
+   *  hidden picker, NOT via this POM — the picker fires a native chooser.
+   *
+   *  Awaits the confirm button's detach AFTER click so callers (and any
+   *  subsequent drag onto the canvas) don't race the dialog's exit animation.
+   *  Session 8 (commit `0c5f7dc` instrumentation) confirmed: post-confirm the
+   *  `MuiDialog-container` was still mounted over the canvas on CI when
+   *  `dragIconToCanvas` fired, intercepting the mouse.down on the imported
+   *  icon tile (elementAtDrop = MuiDialog-container, mode stayed CURSOR,
+   *  modelItemsCount = 0). MUI Dialog uses TransitionGroup with a ~225 ms
+   *  fade-out; locally the timing absorbed it, headless CI did not. Waiting
+   *  for the button to leave the DOM is a clean detach signal — by definition
+   *  the dialog has fully unmounted. */
   async confirmImportIcons() {
-    await this.importIconsConfirmButton().click();
+    const btn = this.importIconsConfirmButton();
+    await btn.click();
+    await btn.waitFor({ state: 'detached', timeout: 5_000 });
   }
 
   /** Confirms the icon deletion. The "in-use" warning text is asserted by
    *  the spec directly via locator role/name (DeleteIconConfirmDialog renders
-   *  the count copy inline; no separate attribute needed). */
+   *  the count copy inline; no separate attribute needed). Awaits detach for
+   *  the same reason as confirmImportIcons — see that method's body. */
   async confirmDeleteIcon() {
-    await this.deleteIconConfirmButton().click();
+    const btn = this.deleteIconConfirmButton();
+    await btn.click();
+    await btn.waitFor({ state: 'detached', timeout: 5_000 });
   }
 
   localModeShareError() {
