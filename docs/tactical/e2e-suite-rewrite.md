@@ -8,7 +8,7 @@
 > - [docs/tactical/productization-audit.md § C.2 Section 4 row T1](productization-audit.md#section-4--spawned-tacticals-separate-work-units) — the spawn entry that authorised this tactical.
 > - [docs/tactical/productization-audit.md § C.2 Section 3 row I9](productization-audit.md#section-3--cleanups--renames--deletions) — the bundled-deletion row for the existing `packages/axoview-e2e/` and `e2e-tests/` directories; both delete together with this suite landing in CI.
 >
-> **Status:** Scaffolded 2026-05-22 · **Owner:** Igor · **Last updated:** 2026-05-22
+> **Status:** Foundation laid (Session 2 done 2026-05-22) · **Owner:** Igor · **Last updated:** 2026-05-22
 >
 > This is a **short-lived working doc.** Delete it after M9 (suite green in CI) lands; ADRs 0008 + 0011 + the productization-audit C.2 ledger are the durable record. PLAN.md gets a one-line entry under Phase 2D once the suite is green — see "Wrap-up" below.
 
@@ -114,7 +114,7 @@ Eight sessions, ~270K tokens total. Tactical doc tracks actual cost per session 
 | # | Session | Deliverable | Tokens (est.) | Tokens (actual) | Status |
 |---|---|---|---|---|---|
 | 1 | Scope (this session) | tactical doc | ~30K | _(record at session end)_ | **[~] scaffolded 2026-05-22** |
-| 2 | Skeleton | delete old `packages/axoview-e2e/`, scaffold new, Playwright config, fixtures, POM stubs, `smoke.spec.ts` (J1 only); verify locally | ~50K | _(record)_ | not started |
+| 2 | Skeleton | delete old `packages/axoview-e2e/`, scaffold new, Playwright config, fixtures, POM stubs, `smoke.spec.ts` (J1 only); verify locally | ~50K | ~65K (mid-context-window estimate) | **[x] done 2026-05-22 (5 commits: `3ff4110` delete, `3f087c8` skeleton, `62d9705` fixtures+helpers, `cce1dda` AppToolbarPOM+J1 smoke green locally in ~13s, this commit doc-sync). Lazy data-axoview-id retrofits landed: `toolbar-save` (AppToolbar) · `screen-empty-create` (EmptyStateScreen) · `dock-elements-toggle` + `dock-layers-toggle` (LeftDock) · `canvas-icon-grid-item` (IconSelectionControls/Icon). Pending POMs/attributes tracked in `packages/axoview-e2e/pom/_pending.md`.** |
 | 3 | Smoke complete | finish `smoke.spec.ts` (J20) + `connector.spec.ts` + `hotkeys.spec.ts` | ~30K | _(record)_ | not started |
 | 4 | File ops | `import-export-json.spec.ts` + `import-export-zip.spec.ts` + `icons.spec.ts` | ~30K | _(record)_ | not started |
 | 5 | Editor surfaces | `shapes.spec.ts` + `rename.spec.ts` + `layers.spec.ts` | ~30K | _(record)_ | not started |
@@ -123,6 +123,19 @@ Eight sessions, ~270K tokens total. Tactical doc tracks actual cost per session 
 | 8 | Debug pass | User runs locally + on CI; agent fixes flakes | ~30K | _(record)_ | not started |
 
 **Budget total: ~270K tokens.**
+
+**Session 2 actual-vs-estimate note (2026-05-22):** Session 2 ran ~30% over the
+50K estimate primarily because the I-am-a-fresh-suite world had to (a) discover
+that the dev server consumes `axoview-lib` via its built `dist/`, not source,
+so the first lib-attribute retrofit required a full `npm run build:lib` + dev
+restart before the spec could see the attribute; (b) absorb three runtime
+surprises that the deleted suite had pre-amortised — the welcome notification
+intercepts the empty-state click, the icon tile's MUI Tooltip portals over the
+drag path, and `addInitScript`-based storage clearing wipes the reload-leg
+diagram before the assertion runs. Each is documented in the commit body (`cce1dda`)
+so Sessions 3-6 don't re-discover them. Adjusting Sessions 3-6 estimates: **+5K
+per session** for the "second spec in the file" patterns to stabilise — bringing
+the running total from ~270K to ~290K. No change to session ordering or scope.
 
 ## Wrap-up
 
