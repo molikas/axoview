@@ -955,7 +955,7 @@ App
 **`AppStorageContext` initialisation:**
 
 1. Construct `StorageManager`.
-2. Register the `LocalStorageProvider` (server-backed if `/api/storage/status` is reachable; falls back to `sessionStorage`).
+2. Register the `LocalStorageProvider` (server-backed if `/api/config` reports `serverStorage: true`; falls back to `sessionStorage`).
 3. Set it active. Drive is registered as a `NotImplementedError` stub and only becomes a candidate when Phase 3B lands. (**Update 2026-04-29:** S3 support was dropped — `S3Provider` and `@aws-sdk/*` / `minio` deps are gone. Phase 3C is no longer planned.)
 4. Set `isInitialized = true` — the session-only warning banner is gated on this so it doesn't flash before storage is known.
 
@@ -984,7 +984,6 @@ The Cloudflare runtime is currently storage-less (R2 was dropped to keep the fre
 ### HTTP routes (one contract, two adapters)
 
 ```
-GET    /api/storage/status         — { enabled: boolean }; auth-bypass
 GET    /api/config                 — runtime config; auth-bypass
 GET    /api/diagrams
 GET    /api/diagrams/:id
@@ -1044,7 +1043,7 @@ export const onRequest = handle(app);
 | `shared-token` | Both | `Authorization: Bearer <secret>` compared with constant-time equality. Single shared secret across all editors. |
 | `cf-access` | **Cloudflare only** (Express rejects at request time) | Full JWKS RS256 verification of the Cloudflare Access JWT in [packages/axoview-worker/src/auth.ts](../packages/axoview-worker/src/auth.ts). Verifies `iss`, `aud`, `exp`, signature against the Access team's published JWKS. |
 
-`/api/config` and `/api/storage/status` bypass all auth modes — the SPA needs them to boot under `shared-token`.
+`/api/config` bypasses all auth modes — the SPA needs it to boot under `shared-token`. (`GET /api/public/diagrams/:uuid` is also public, but as a read-only share-snapshot route, not a boot probe.)
 
 ### Frontend integration
 

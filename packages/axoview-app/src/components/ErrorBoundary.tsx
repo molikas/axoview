@@ -21,7 +21,7 @@ export default function ErrorBoundaryFallbackUI({
     };
 
     const githubUrl = new URL(
-      'https://github.com/stan-smith/Axoview/issues/new'
+      'https://github.com/molikas/axoview/issues/new'
     );
     githubUrl.searchParams.set('title', `Error: ${error.message}`);
     githubUrl.searchParams.set(
@@ -84,7 +84,7 @@ export default function ErrorBoundaryFallbackUI({
             <li>
               Check if this error has already been reported{' '}
               <a
-                href="https://github.com/stan-smith/Axoview/issues"
+                href="https://github.com/molikas/axoview/issues"
                 target="_"
               >
                 here👀
