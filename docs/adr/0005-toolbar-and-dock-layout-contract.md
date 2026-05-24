@@ -91,6 +91,8 @@ The strip is reorganized into named regions with a visual separator between them
 
 ### 5. Burger redistribution
 
+> **Amendment 2026-05-23:** The MainMenu cascade (`MainMenu` + `MenuItem` + `ConfirmDiscardDialog`) was fully deleted from `axoview-lib` per audit C.2 and v1.1 tech-debt Track 0b. The "remains for other consumers" framing below (and the `mainMenuOptions`/`MainMenu` references in §Consequences and §Implementation notes) is superseded — the lib no longer exports the burger menu, and the `mainMenuOptions` prop on `<Axoview>` is gone. Future consumers needing a similar menu must implement their own.
+
 The burger (`MainMenu` portal in AppToolbar) is removed from the application's chrome. The lib's `MainMenu` component remains for other consumers; the app simply stops portaling it.
 
 | Item (was in burger) | New home |
