@@ -10,6 +10,8 @@ Axoview runs on three targets from a single codebase:
 
 The frontend bundle is identical across all three. The Cloudflare deployment is currently storage-less — `/api/config` returns `serverStorage: false` and the client falls back to session storage. A persistent backend on Cloudflare (Drive integration) is tracked on a separate branch.
 
+> ⚠️ **Single-tenant per deploy.** Axoview's storage layer assumes **one user per deployment** (see [ADR 0010 §D4](adr/0010-session-backend-contract.md)). Multi-user self-host requires operator-managed isolation — one container per user, a Cloudflare Access policy, or a network ACL. **`AUTH_MODE=shared-token` is not a team password — it is a single bearer token.** A team using one Docker deploy + `shared-token` will share every diagram across every user. If you need per-user isolation, deploy one instance per user (or wait for the Drive provider).
+
 Both backends share a single `/api/*` HTTP contract. Two routes are public on every target:
 
 - `GET /api/config`
