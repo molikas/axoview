@@ -4,17 +4,6 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'Questo è un testo di esempio'
   },
-  mainMenu: {
-    undo: 'Annulla',
-    redo: 'Ripeti',
-    new: 'Nuovo diagramma',
-    open: 'Apri',
-    exportJson: 'Esporta come JSON',
-    exportImage: 'Esporta come immagine',
-    clearCanvas: 'Pulisci la tela',
-    settings: 'Impostazioni',
-    gitHub: 'GitHub'
-  },
   helpDialog: {
     title: 'Scorciatoie da tastiera e aiuto',
     close: 'Chiudi',

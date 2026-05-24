@@ -4,17 +4,6 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'This is an example text'
   },
-  mainMenu: {
-    undo: 'Undo',
-    redo: 'Redo',
-    new: 'New diagram',
-    open: 'Open',
-    exportJson: 'Export as JSON',
-    exportImage: 'Export as image',
-    clearCanvas: 'Clear the canvas',
-    settings: 'Settings',
-    gitHub: 'GitHub'
-  },
   helpDialog: {
     title: 'Keyboard Shortcuts & Help',
     close: 'Close',

@@ -4,17 +4,6 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'Bu bir örnek metindir'
   },
-  mainMenu: {
-    undo: 'Geri Al',
-    redo: 'Yinele',
-    new: 'Yeni diyagram',
-    open: 'Aç',
-    exportJson: 'JSON olarak dışa aktar',
-    exportImage: 'Görüntü olarak dışa aktar',
-    clearCanvas: 'Tuvali temizle',
-    settings: 'Ayarlar',
-    gitHub: 'GitHub'
-  },
   helpDialog: {
     title: 'Klavye Kısayolları ve Yardım',
     close: 'Kapat',

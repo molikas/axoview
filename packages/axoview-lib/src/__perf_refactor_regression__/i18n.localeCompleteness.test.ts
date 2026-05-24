@@ -36,7 +36,6 @@ describe('i18n locale completeness — all namespaces present in every locale', 
     expect(enUSSections).toContain('exportImageDialog');
     expect(enUSSections).toContain('viewTabs');
     expect(enUSSections).toContain('nodePanel');
-    expect(enUSSections).toContain('mainMenu');
     expect(enUSSections).toContain('helpDialog');
     expect(enUSSections).toContain('zoomControls');
   });

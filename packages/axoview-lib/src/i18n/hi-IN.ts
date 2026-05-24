@@ -4,17 +4,6 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'यह एक उदाहरण पाठ है'
   },
-  mainMenu: {
-    undo: 'पूर्ववत करें',
-    redo: 'फिर से करें',
-    new: 'नया आरेख',
-    open: 'खोलें',
-    exportJson: 'JSON के रूप में निर्यात करें',
-    exportImage: 'छवि के रूप में निर्यात करें',
-    clearCanvas: 'कैनवास साफ़ करें',
-    settings: 'सेटिंग्स',
-    gitHub: 'GitHub'
-  },
   helpDialog: {
     title: 'कीबोर्ड शॉर्टकट और सहायता',
     close: 'बंद करें',
