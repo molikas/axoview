@@ -197,4 +197,67 @@ export class CanvasPOM {
   async toggleCanvasMode() {
     await this.canvasModeToggleButton().click();
   }
+
+  /**
+   * Iso (or 2D) projection: tile coords → interactions-box screen pixels
+   * suitable for `clickAt` / `dispatchAt` / `dragFromTo`.
+   *
+   * Mirrors the lib's canonical `toScreen` math from
+   * `packages/axoview-lib/src/utils/coordinateTransforms.ts:94-105` (ISO) /
+   * `:132-141` (2D). Constants come from `packages/axoview-lib/src/config.ts:16-24`
+   * (`UNPROJECTED_TILE_SIZE`, `TILE_PROJECTION_MULTIPLIERS`).
+   *
+   * Forward derivation (inverse of `coordinateTransforms.ts:108-121`
+   * `fromScreen`): the SceneLayer applies `translate(rendererSize/2 + scroll)`
+   * then `scale(zoom)`, so for canvas-space `(canvas_x, canvas_y)` the
+   * interactions-box pixel is
+   *   screenX = rendererSize.width  / 2 + scroll.position.x + canvas_x * zoom
+   *   screenY = rendererSize.height / 2 + scroll.position.y + canvas_y * zoom.
+   * The interactions Box and Renderer share the same bbox
+   * (Renderer.tsx:216-225 — `width:100% height:100%` over the canvas
+   * container), so the interactions-box origin is the rendererSize origin.
+   *
+   * Note: the lib's debug bridge does not expose `getTilePosition` directly
+   * (it's bound inside `CanvasModeContext` via `makeTilePositionFn`), so
+   * this helper mirrors the math. If the iso math ever changes in the lib,
+   * this helper diverges silently — the smoke spec
+   * `iso-helper-smoke.spec.ts` is the load-bearing canary.
+   */
+  async tileToScreen(tile: { x: number; y: number }): Promise<CanvasPoint> {
+    return this.page.evaluate((args: { tileX: number; tileY: number }) => {
+      const ui = (window as any).__axoview__.ui.getState();
+      const canvasMode: 'ISOMETRIC' | '2D' = ui.canvasMode ?? 'ISOMETRIC';
+      const rendererSize: { width: number; height: number } = ui.rendererSize;
+      const zoom: number = ui.zoom;
+      const scroll: { position: { x: number; y: number } } = ui.scroll;
+
+      // Mirrors src/config.ts:16-24 — UNPROJECTED_TILE_SIZE=100,
+      // TILE_PROJECTION_MULTIPLIERS={width:1.415, height:0.819}.
+      const UNPROJECTED_TILE_SIZE = 100;
+      const halfW =
+        canvasMode === 'ISOMETRIC'
+          ? (UNPROJECTED_TILE_SIZE * 1.415) / 2
+          : UNPROJECTED_TILE_SIZE / 2;
+      const halfH =
+        canvasMode === 'ISOMETRIC'
+          ? (UNPROJECTED_TILE_SIZE * 0.819) / 2
+          : UNPROJECTED_TILE_SIZE / 2;
+
+      let canvasX: number;
+      let canvasY: number;
+      if (canvasMode === 'ISOMETRIC') {
+        canvasX = halfW * args.tileX - halfW * args.tileY;
+        canvasY = -(halfH * args.tileX + halfH * args.tileY);
+      } else {
+        canvasX = args.tileX * UNPROJECTED_TILE_SIZE;
+        canvasY = -args.tileY * UNPROJECTED_TILE_SIZE;
+      }
+
+      const screenX =
+        rendererSize.width / 2 + scroll.position.x + canvasX * zoom;
+      const screenY =
+        rendererSize.height / 2 + scroll.position.y + canvasY * zoom;
+      return { x: screenX, y: screenY };
+    }, { tileX: tile.x, tileY: tile.y });
+  }
 }

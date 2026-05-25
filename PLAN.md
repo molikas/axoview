@@ -890,7 +890,23 @@ Detailed sub-tasks live in [docs/tactical/layout-revamp.md](docs/tactical/layout
 - **Rename FossFLOW → Axoview** — Phases 0–9 shipped on `rename/axoview` (merged `72fa120`). Phase 10 (npm publish, Docker Hub, Cloudflare Pages deploy, cwd rename) absorbed into `docs/tactical/productization-audit.md` milestones M7/M8/M10.
   — Phase 10 "npm publish" item closed 2026-05-20 with decision not to publish; `axoview-lib` stays monorepo-only per productization-audit Locked Decision #11.
 - **Manual QA bundle (28 items)** — Bundles A + B (2026-05-15) plus follow-ups through 2026-05-19; all items closed. Five late-flagged items (#8, #9, #19, #20, #26) confirmed resolved.
+- **v1.1 test-coverage** — shipped 2026-05-26 → 2026-05-27 across PRs #8 (5a backend + worker contract tests) + #9 (KR1+KR2+KR3 bundled E2E expansion) + this PR (KR1 iso tile→screen helper unlock + Findings #4–#7 deferred specs + Finding #8 partial — delete-with-confirmation). Closes the §11 HIGH-severity test gaps named in the post-v1.0.0 review for backend + worker (5a) and canvas cross-interaction (5e). Two narrow residuals remain catalogued in this PLAN: (a) `ADR 0011 Dialogs` (deferred-features register row 1 below — net-new product work, not test debt); (b) file-explorer `drag-into-folder` E2E coverage blocked on the well-known Playwright + react-dnd HTML5 backend testing limitation, deferred to a future session that either swaps to react-dnd's test backend in tests or exposes the tree API through the debug bridge; the multi-select-tree sub-row of Finding #8 was scope-corrected (app uses single-select; arborist hooks support multi-select but app-side wiring is needed first). Tactical `docs/tactical/v1.1-test-coverage.md` retired per convention; durable record lives in the commit history of those three PRs plus the deferred-features register row.
 - **v1.1 tech-debt cleanup** — shipped 2026-05-23 → 2026-05-25 across PRs #3–#7. Track 0 (dead-code wave, ~9.4k LOC removed across 8 clusters), Track 1 (audit-truth fixes — nginx security headers, `isPublicRoute` alignment, ADR 0005 amendment, web-vitals dep removal, i18n `mainMenu` cascade), Track 2 (productization decisions — backend `npm ci` at build time + committed lockfile, drop `NPM_TOKEN` from `release.yml`, drop Node 20 from CI matrix, compose `name: axoview` + service rename `axoview` → `app`), Track 3 (`docs/technical-review-2026-05.md` §12 corrections appendix — B2 / B5 / M6 / M7 / anomaly #31 / published-posture / version notes), Track 4 (CodeQL toggle + master branch protection + single-tenant deployment callout). Mid-cleanup discovery: lasso connector-delete regression + path-hit selection semantics fixed in PR #6 (`2ed5f79`). Tracks 5 (test coverage incl. canvas cross-interaction E2E), 6 (refactor candidates for files > 300 LOC — **superseded 2026-05-26 by Sonar-driven refactor priorities; see catalogued workstream below**), and 7 (new audit workstreams incl. `no-explicit-any` baseline cleanup) catalogued; each spawns its own tactical when authorized. Durable corrections record lives in [`docs/technical-review-2026-05.md`](docs/technical-review-2026-05.md) §12. Tactical `docs/tactical/v1.1-tech-debt.md` retired per convention.
+
+**Deferred features (product decisions needed before any work can start):**
+
+This register exists because some gaps surface during test/audit/cleanup work that are **net-new product functionality**, not test debt or refactor debt. They need a product decision (which feature to build, what shape, what UX) BEFORE engineering work can start. Distinct from catalogued workstreams (which are AUTHORIZED engineering waiting for a tactical spawn).
+
+Triage rule for this register (per user 2026-05-26):
+- **Bug** → fix immediately (own commit / opportunistic / next PR).
+- **Minor improvement** → fix (catalogued workstream).
+- **New functionality** → this register; product decision first, engineering later.
+
+| # | Feature gap | Source | Status |
+|---|---|---|---|
+| 1 | **Failure-of-intent Dialogs for `ADR 0011` contract gaps** — ADR 0011 says "every failure-of-intent surfaces an explicit Dialog," but no Dialog exists for: (a) save failure (e.g., localStorage quota exceeded); (b) malformed-import (corrupted JSON / corrupted ZIP / unsupported file); (c) share-POST 500 (Worker / backend returns 5xx during share-link generation). Each scenario needs: which Dialog component, copy, dismiss UX, retry affordance if any. Once built, the Track 5e bundle's KR4 specs can land. | PR #9 / v1.1-test-coverage Finding #3 (2026-05-26) | Awaits product decision |
+
+---
 
 **Catalogued next-workstreams (each spawns its own tactical when authorized — see `feedback_okr_prompt_header.md` discipline):**
 
