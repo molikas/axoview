@@ -85,7 +85,12 @@ export function FileTreeToolbar({
         </Tooltip>
 
         <Tooltip title="New folder" placement="bottom">
-          <IconButton size="small" onClick={onNewFolder} sx={{ flexShrink: 0 }}>
+          <IconButton
+            size="small"
+            onClick={onNewFolder}
+            sx={{ flexShrink: 0 }}
+            data-axoview-id="file-explorer-new-folder"
+          >
             <NewFolderIcon sx={{ fontSize: 16 }} />
           </IconButton>
         </Tooltip>
