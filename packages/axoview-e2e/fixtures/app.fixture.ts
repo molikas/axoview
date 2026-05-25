@@ -7,9 +7,28 @@
  * `page.addInitScript` BEFORE invoking the fixture — the fixture itself
  * preserves whatever state localStorage carries so suites can opt into
  * persisted-state scenarios (e.g. the J1 reopen leg).
+ *
+ * `canvasReadyTest` is the DP4-locked (v1.1-test-coverage tactical
+ * 2026-05-25) extension that centralises the boot-blank-diagram cycle
+ * that rename/shapes/connector/canvas-modes specs each duplicate today.
+ * New canvas-cross-interaction specs (5e, 5f, 5h) consume this directly
+ * — the existing specs stay on their inline boots until their next edit.
  */
 import { test as base, Page } from '@playwright/test';
 import { waitForDebugBridge } from '../helpers/store';
+
+const LOCAL_STORAGE_KEYS = [
+  'axoview-diagrams',
+  'axoview-last-opened',
+  'axoview-last-opened-data',
+  'axoview-explorer-initialized',
+  'axoview-explorer-open'
+];
+
+const ONBOARDING_DISMISS_FLAGS: Array<[string, string]> = [
+  ['axoview-lazy-loading-welcome-dismissed', 'true'],
+  ['axoview-show-drag-hint', 'false']
+];
 
 export class AppPage {
   constructor(readonly page: Page) {}
@@ -36,6 +55,44 @@ export const appTest = base.extend<{ app: AppPage }>({
   app: async ({ page }, use) => {
     await page.goto('/');
     await waitForAppReady(page);
+    await waitForDebugBridge(page);
+    const app = new AppPage(page);
+    await app.dismissHintTooltips();
+    await use(app);
+  }
+});
+
+/**
+ * Canvas-ready fixture (DP4): boots to a freshly-created blank diagram so
+ * the canvas surface is mounted, the debug bridge is attached, and the
+ * onboarding tooltips are dismissed before the test body runs. Idempotent
+ * across runs because `LOCAL_STORAGE_KEYS` is cleared post-navigation and
+ * the empty-state Create button is clicked unconditionally.
+ *
+ * The two-step navigate(`/`) → clearStorage → reload sequence is necessary
+ * because clearing localStorage requires a navigation to the origin first
+ * (Playwright cannot evaluate against `about:blank`).
+ */
+export const canvasReadyTest = base.extend<{ app: AppPage }>({
+  app: async ({ page }, use) => {
+    await page.addInitScript((flags: Array<[string, string]>) => {
+      try {
+        for (const [k, v] of flags) localStorage.setItem(k, v);
+      } catch {
+        /* localStorage may not be available pre-navigation */
+      }
+    }, ONBOARDING_DISMISS_FLAGS);
+    await page.goto('/');
+    await page.evaluate((keys: string[]) => {
+      for (const k of keys) localStorage.removeItem(k);
+    }, LOCAL_STORAGE_KEYS);
+    await page.reload();
+    const createBtn = page.locator('[data-axoview-id="screen-empty-create"]');
+    await createBtn.waitFor({ state: 'visible', timeout: 10_000 });
+    await createBtn.click();
+    await page
+      .locator('[data-testid="axoview-canvas"]')
+      .waitFor({ state: 'visible', timeout: 10_000 });
     await waitForDebugBridge(page);
     const app = new AppPage(page);
     await app.dismissHintTooltips();
