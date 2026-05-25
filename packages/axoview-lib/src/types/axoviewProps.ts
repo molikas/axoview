@@ -12,17 +12,6 @@ export interface LocaleProps {
   common: {
     exampleText: string;
   };
-  mainMenu: {
-    undo: string;
-    redo: string;
-    new: string;
-    open: string;
-    exportJson: string;
-    exportImage: string;
-    clearCanvas: string;
-    settings: string;
-    gitHub: string;
-  };
   helpDialog: {
     title: string;
     close: string;

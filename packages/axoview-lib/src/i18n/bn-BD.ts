@@ -4,17 +4,6 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'এটি একটি উদাহরণ পাঠ্য'
   },
-  mainMenu: {
-    undo: 'পূর্বাবস্থায় ফেরান',
-    redo: 'পুনরায় করুন',
-    new: 'নতুন ডায়াগ্রাম',
-    open: 'খুলুন',
-    exportJson: 'JSON হিসাবে রপ্তানি করুন',
-    exportImage: 'ছবি হিসাবে রপ্তানি করুন',
-    clearCanvas: 'ক্যানভাস পরিষ্কার করুন',
-    settings: 'সেটিংস',
-    gitHub: 'GitHub'
-  },
   helpDialog: {
     title: 'কীবোর্ড শর্টকাট এবং সহায়তা',
     close: 'বন্ধ করুন',

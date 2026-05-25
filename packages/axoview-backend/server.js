@@ -55,8 +55,9 @@ function constantTimeEquals(a, b) {
 }
 
 function isPublicRoute(req) {
-  // Always-public endpoints
-  if (req.path === '/api/config') return true;
+  // Always-public endpoints. Per ADR 0010 D6, the public namespace is read-only;
+  // both endpoints are GET-only to match the Worker (packages/axoview-worker/src/auth.ts).
+  if (req.method === 'GET' && req.path === '/api/config') return true;
   if (req.method === 'GET' && req.path.startsWith('/api/public/diagrams/')) return true;
   return false;
 }

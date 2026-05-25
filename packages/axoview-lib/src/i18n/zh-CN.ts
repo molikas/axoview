@@ -4,17 +4,6 @@ const locale: LocaleProps = {
   common: {
     exampleText: '这是一段示例文本'
   },
-  mainMenu: {
-    undo: '撤销',
-    redo: '重做',
-    new: '新建图表',
-    open: '打开',
-    exportJson: '导出为 JSON',
-    exportImage: '导出为图片',
-    clearCanvas: '清空画布',
-    settings: '设置',
-    gitHub: 'GitHub'
-  },
   helpDialog: {
     title: '键盘快捷键和帮助',
     close: '关闭',

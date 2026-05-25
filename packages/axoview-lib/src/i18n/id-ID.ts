@@ -4,17 +4,6 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'Ini adalah contoh teks'
   },
-  mainMenu: {
-    undo: 'Batalkan',
-    redo: 'Ulangi',
-    new: 'Diagram baru',
-    open: 'Buka',
-    exportJson: 'Ekspor sebagai JSON',
-    exportImage: 'Ekspor sebagai gambar',
-    clearCanvas: 'Bersihkan kanvas',
-    settings: 'Pengaturan',
-    gitHub: 'GitHub'
-  },
   helpDialog: {
     title: 'Pintasan Keyboard & Bantuan',
     close: 'Tutup',

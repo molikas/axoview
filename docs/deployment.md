@@ -10,10 +10,11 @@ Axoview runs on three targets from a single codebase:
 
 The frontend bundle is identical across all three. The Cloudflare deployment is currently storage-less — `/api/config` returns `serverStorage: false` and the client falls back to session storage. A persistent backend on Cloudflare (Drive integration) is tracked on a separate branch.
 
-Both backends share a single `/api/*` HTTP contract. Three routes are public on every target:
+> ⚠️ **Single-tenant per deploy.** Axoview's storage layer assumes **one user per deployment** (see [ADR 0010 §D4](adr/0010-session-backend-contract.md)). Multi-user self-host requires operator-managed isolation — one container per user, a Cloudflare Access policy, or a network ACL. **`AUTH_MODE=shared-token` is not a team password — it is a single bearer token.** A team using one Docker deploy + `shared-token` will share every diagram across every user. If you need per-user isolation, deploy one instance per user (or wait for the Drive provider).
+
+Both backends share a single `/api/*` HTTP contract. Two routes are public on every target:
 
 - `GET /api/config`
-- `GET /api/storage/status`
 - `GET /api/public/diagrams/:uuid`
 
 Everything else is gated by `AUTH_MODE`.
@@ -126,11 +127,10 @@ The first deploy creates the Pages project. Subsequent deploys reuse it.
 ```bash
 BASE=https://axoview.pages.dev
 curl "$BASE/api/config"             # always public, returns serverStorage: false
-curl "$BASE/api/storage/status"     # always public, returns enabled: false
 curl -i "$BASE/api/diagrams"        # 503 — storage disabled
 ```
 
-With `AUTH_MODE=shared-token`, both `/api/config` and `/api/storage/status` remain unauthenticated so the SPA can boot. Every other `/api/*` route requires the bearer token.
+With `AUTH_MODE=shared-token`, `/api/config` remains unauthenticated so the SPA can boot. Every other `/api/*` route requires the bearer token (`GET /api/public/diagrams/:uuid` is also public, but is the read-only share-snapshot route, not a boot probe).
 
 ### C6. One-click "Deploy to Cloudflare"
 
@@ -145,7 +145,7 @@ The repo-root [wrangler.toml](wrangler.toml) is set up so the deploy button work
 ## D. What's the same on every target
 
 - HTTP contract for every `/api/*` endpoint the frontend calls.
-- Public routes that bypass auth: `GET /api/config`, `GET /api/storage/status`, `GET /api/public/diagrams/:uuid`.
+- Public routes that bypass auth: `GET /api/config`, `GET /api/public/diagrams/:uuid`.
 - Body limit: 10 MB per request.
 - ID validation: `^[a-zA-Z0-9_-]{1,64}$` — anything else is `400 Invalid id` (Docker only; Cloudflare 503s before reaching the validator).
 - Drive OAuth scope is locked to `drive.file` (per-file consent only) once the Drive branch lands.

@@ -150,7 +150,6 @@ Both model and scene have **independent** history stacks (past/present/future, m
 | Quick add popover | `QuickAddNodePopover` (MUI Popover at cursor) | EDITABLE; fires on `canvasEmptyDblClick` from dblclick on empty canvas; has **Rectangle** button (creates background rectangle) + icon picker (places node) |
 | Preview button | `IconButton` in `axoview-app` toolbar | EDITABLE + server storage + saved diagram; if `hasUnsavedChanges`, saves first (same path as explicit Save), shows toast, then opens `/display/{id}` in new tab; tooltip: *"Save & Preview"* / *"Preview"* / *"Save first to preview"* |
 | ToolMenu | `ToolMenu` | EDITABLE mode only; tools: Undo, Redo, Select, Lasso, Freehand lasso, Pan, Connector. **Rectangle and Text were removed** — both are in the Elements panel (LeftDock). |
-| MainMenu | `MainMenu` | EDITABLE mode only; options: **New diagram** (ACTION.NEW — opens ConfirmDiscardDialog if `isDirty`), Open, Export JSON, Export Compact JSON, Export Image, Clear canvas, Settings, GitHub |
 | ZoomControls | `ZoomControls` | EDITABLE + EXPLORABLE_READONLY |
 | ViewTabs | `ViewTabs` | EDITABLE only |
 | ViewTitle | Typography in `UiOverlay` | EXPLORABLE_READONLY only |
@@ -184,12 +183,12 @@ Both model and scene have **independent** history stacks (past/present/future, m
 
 **Diagram name / title synchronization (2026-04-11):**
 
-`handleModelUpdated` in `EditorPage` now detects title drift — when the library fires `onModelUpdated` with a title that differs from `diagramName` and `isAfterLoadRef.current` is false, it means the library's own MainMenu triggered an action (New Diagram, Open file). In that case:
+`handleModelUpdated` in `EditorPage` detects title drift — when the library fires `onModelUpdated` with a title that differs from `diagramName` and `isAfterLoadRef.current` is false, the toolbar name re-syncs:
 - `setDiagramName(model.title)` — syncs toolbar name to the new canvas title
 - `setCurrentDiagram(null)` — invalidates the stale save reference
 - `setLastSaved(null)` — clears the stale save timestamp
 
-This prevents the old diagram name bleeding into the toolbar after "New Diagram" or file-open from the library's menu.
+(Historically this guarded against title changes from the lib's own burger menu — New Diagram, Open file. That menu was deleted in v1.1 Track 0b; the guard remains as a defensive sync against any future external `<Axoview>.load()` caller mutating `model.title`.)
 
 **Compact format loading (2026-04-11):**
 
@@ -261,7 +260,7 @@ A node can store a reference to another diagram in this workspace.
 
 | Mode | Interactions |
 |---|---|
-| `EDITABLE` | All modes active; ToolMenu, MainMenu, ItemControls (Details/Style/Notes tabs), ViewTabs, NodeActionBar, double-click popover shown |
+| `EDITABLE` | All modes active; ToolMenu, ItemControls (Details/Style/Notes tabs), ViewTabs, NodeActionBar, double-click popover shown |
 | `EXPLORABLE_READONLY` | Pan+Zoom only; no editing tools; clicking a node with caption or notes opens single-scroll read-only panel (Caption + Notes sections); nodes with neither caption nor notes are not clickable; ViewTabs shown |
 | `NON_INTERACTIVE` | No interactions; no UI tools (`INTERACTIONS_DISABLED` mode) |
 
@@ -284,12 +283,10 @@ Starting mode determined by `getStartingMode()` in `utils`.
 | Field | Type | Category |
 |---|---|---|
 | `view` | `string` (current view id) | Transient (UI) |
-| `mainMenuOptions` | `MainMenuOptions` | Transient |
 | `editorMode` | `'EDITABLE'/'EXPLORABLE_READONLY'/'NON_INTERACTIVE'` | Transient (set from props) |
 | `iconCategoriesState` | `IconCollectionState[]` | Transient |
 | `mode` | `Mode` (union of 11 mode types) | Transient |
 | `dialog` | `'EXPORT_IMAGE'/'HELP'/'SETTINGS' \| null` | Transient |
-| `isMainMenuOpen` | `boolean` | Transient |
 | `itemControls` | `ItemControls \| null` | Transient |
 | `contextMenu` | `ContextMenu \| null` | Transient |
 | `zoom` | `number` | Transient (reset on `resetUiState`) |
@@ -312,7 +309,6 @@ Starting mode determined by `getStartingMode()` in `utils`.
 
 **UiState actions — non-trivial ones:**
 - `setEditorMode`: also calls `getStartingMode(mode)` to reset mode
-- `setIsMainMenuOpen`: also clears `itemControls`
 - `incrementZoom`/`decrementZoom`: reads current zoom then applies util function
 - `setScroll`: merges `offset` from current state if not provided
 - `resetUiState`: resets mode to starting mode, zeros scroll, clears itemControls, resets zoom to 1
@@ -586,11 +582,7 @@ Rectangle center = { x: round((r.from.x + r.to.x) / 2), y: round((r.from.y + r.t
 1. Waits 100 ms after `isReady=true` before subscribing (avoids false-dirty on initial model load).
 2. Subscribes to `modelStore` changes; any change calls `uiStateActions.setIsDirty(true)`.
 3. Installs a `window.beforeunload` handler that returns a warning string when `isDirty=true` (shows native browser "Leave site?" dialog on tab close).
-4. Returns `markClean()` — resets `isDirty` to false. Called by `MainMenu` after a successful export or new-diagram flow.
-
-`MainMenu` reads `isDirty` from `uiStateStore`. Clicking "New diagram", "Open", or "Clear canvas" when dirty opens `ConfirmDiscardDialog` (three buttons: *Save & continue* / *Discard changes* / *Cancel*).
-
-**`ConfirmDiscardDialog`** (`components/ConfirmDiscardDialog/ConfirmDiscardDialog.tsx`): pure presentational component, props: `open`, `onSave`, `onDiscard`, `onCancel`.
+4. Returns `markClean()` — resets `isDirty` to false. Called by app-side export and save flows after a successful write. (Pre-v1.1 the lib's burger menu also called it; that menu was deleted in Track 0b.)
 
 **`localStorageSave`** (`utils/localStorageSave.ts`): `saveModelLocally(model)` — tries `localStorage.setItem('axoview-autosave', JSON.stringify(model))`, falls back to `exportAsJSON(model)` (download) if storage is unavailable.
 
@@ -955,7 +947,7 @@ App
 **`AppStorageContext` initialisation:**
 
 1. Construct `StorageManager`.
-2. Register the `LocalStorageProvider` (server-backed if `/api/storage/status` is reachable; falls back to `sessionStorage`).
+2. Register the `LocalStorageProvider` (server-backed if `/api/config` reports `serverStorage: true`; falls back to `sessionStorage`).
 3. Set it active. Drive is registered as a `NotImplementedError` stub and only becomes a candidate when Phase 3B lands. (**Update 2026-04-29:** S3 support was dropped — `S3Provider` and `@aws-sdk/*` / `minio` deps are gone. Phase 3C is no longer planned.)
 4. Set `isInitialized = true` — the session-only warning banner is gated on this so it doesn't flash before storage is known.
 
@@ -984,7 +976,6 @@ The Cloudflare runtime is currently storage-less (R2 was dropped to keep the fre
 ### HTTP routes (one contract, two adapters)
 
 ```
-GET    /api/storage/status         — { enabled: boolean }; auth-bypass
 GET    /api/config                 — runtime config; auth-bypass
 GET    /api/diagrams
 GET    /api/diagrams/:id
@@ -1044,7 +1035,7 @@ export const onRequest = handle(app);
 | `shared-token` | Both | `Authorization: Bearer <secret>` compared with constant-time equality. Single shared secret across all editors. |
 | `cf-access` | **Cloudflare only** (Express rejects at request time) | Full JWKS RS256 verification of the Cloudflare Access JWT in [packages/axoview-worker/src/auth.ts](../packages/axoview-worker/src/auth.ts). Verifies `iss`, `aud`, `exp`, signature against the Access team's published JWKS. |
 
-`/api/config` and `/api/storage/status` bypass all auth modes — the SPA needs them to boot under `shared-token`.
+`/api/config` bypasses all auth modes — the SPA needs it to boot under `shared-token`. (`GET /api/public/diagrams/:uuid` is also public, but as a read-only share-snapshot route, not a boot probe.)
 
 ### Frontend integration
 
@@ -1440,9 +1431,6 @@ No `ModeActions` handler for it in the `modes` map in `useInteractionManager`. T
 
 **ViewTabs and EXPLORABLE_READONLY:**
 `VIEW_TABS` only shown in `EDITABLE` mode. Users cannot switch views in `EXPLORABLE_READONLY` mode. In `EDITABLE` mode, the title card in ViewTabs is read-only (2026-03-27) — diagram name is managed at the file level via Save / Save As. Page (view tab) names are still renameable inline.
-
-**`setIsMainMenuOpen` clears `itemControls`:**
-Opening the main menu automatically closes any open item controls panel. May be surprising if the user has unsaved property edits.
 
 ---
 

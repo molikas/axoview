@@ -4,17 +4,6 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'To jest przykładowy tekst'
   },
-  mainMenu: {
-    undo: 'Cofnij',
-    redo: 'Ponów',
-    new: 'Nowy diagram',
-    open: 'Otwórz',
-    exportJson: 'Eksportuj do JSON',
-    exportImage: 'Eksportuj do obrazu',
-    clearCanvas: 'Wyczyść obszar roboczy',
-    settings: 'Ustawienia',
-    gitHub: 'GitHub'
-  },
   helpDialog: {
     title: 'Skróty klawiaturowe i Pomoc',
     close: 'Zamknij',
