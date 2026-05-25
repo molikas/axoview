@@ -9,7 +9,11 @@ import {
   Connector,
   ConnectorAnchor
 } from 'src/types';
-import { isPointInPolygon, getItemByIdOrThrow } from 'src/utils';
+import {
+  isPointInPolygon,
+  getItemByIdOrThrow,
+  segmentIntersectsPolygon
+} from 'src/utils';
 import { getConnectorWaypointRefs } from 'src/utils/connectorSelection';
 
 interface FreehandScene {
@@ -31,14 +35,12 @@ const getItemsInFreehandBounds = (
   if (pathTiles.length < 3) return items;
 
   // Check all nodes/items
-  const selectedNodeIds = new Set<string>();
   scene.items.forEach((item: ViewItem) => {
     if (
       isPointInPolygon(item.tile, pathTiles) &&
       isItemInteractable({ type: 'ITEM', id: item.id })
     ) {
       items.push({ type: 'ITEM', id: item.id });
-      selectedNodeIds.add(item.id);
     }
   });
 
@@ -72,37 +74,52 @@ const getItemsInFreehandBounds = (
     }
   });
 
-  // Include a connector if both its endpoint anchors are within the selection.
+  // Include a connector if any segment of its path intersects the freehand
+  // polygon (path-hit semantics — mirrors Lasso.ts and click selection).
+  // See Lasso.ts for the full rationale; this is the polygon analogue.
+  const anchorToTile = (
+    anchor: ConnectorAnchor,
+    nodeItems: ViewItem[]
+  ): Coords | null => {
+    if (anchor.ref?.item) {
+      const item = nodeItems.find((it) => it.id === anchor.ref.item);
+      return item ? item.tile : null;
+    }
+    if (anchor.ref?.tile) return anchor.ref.tile;
+    return null;
+  };
+
   scene.connectors.forEach((connector: Connector) => {
     if (!connector.anchors || connector.anchors.length < 2) return;
     if (!isItemInteractable({ type: 'CONNECTOR', id: connector.id })) return;
 
-    const first = connector.anchors[0];
-    const last = connector.anchors[connector.anchors.length - 1];
+    const tiles = connector.anchors.map((a) => anchorToTile(a, scene.items));
 
-    const anchorInBounds = (anchor: ConnectorAnchor): boolean => {
-      if (anchor.ref?.item) return selectedNodeIds.has(anchor.ref.item);
-      if (anchor.ref?.tile) return isPointInPolygon(anchor.ref.tile, pathTiles);
-      return false;
-    };
+    let pathHits = false;
+    for (let i = 0; i < tiles.length - 1; i += 1) {
+      const a = tiles[i];
+      const b = tiles[i + 1];
+      if (!a || !b) continue;
+      if (segmentIntersectsPolygon(a, b, pathTiles)) {
+        pathHits = true;
+        break;
+      }
+    }
 
-    if (anchorInBounds(first) && anchorInBounds(last)) {
+    if (pathHits) {
       items.push({ type: 'CONNECTOR', id: connector.id });
-      // Same pinched-path bug Lasso fixed: tile-bound waypoints don't
-      // follow endpoints, so they need their own refs in the selection.
       items.push(...getConnectorWaypointRefs(connector));
-    } else {
-      // Still capture any free-floating MIDDLE waypoint anchors. Endpoints
-      // (index 0 and length-1) are skipped per the contract in
-      // connectorSelection.ts — splicing an endpoint would leave the
-      // connector with <2 anchors and corrupt the scene (isoMath throws
-      // "Connector needs at least two anchors"). Tile-bound endpoints exist
-      // when a connector is drawn between two free tiles.
-      for (let i = 1; i < connector.anchors.length - 1; i += 1) {
-        const anchor = connector.anchors[i];
-        if (anchor.ref?.tile && isPointInPolygon(anchor.ref.tile, pathTiles)) {
-          items.push({ type: 'CONNECTOR_ANCHOR', id: anchor.id });
-        }
+      return;
+    }
+
+    // Defensive fallback (see Lasso.ts for the analogous comment): with
+    // path-hit semantics a tile-bound middle waypoint inside the polygon
+    // implies an adjacent segment intersects, so this loop is largely
+    // redundant — kept for edge-case safety.
+    for (let i = 1; i < connector.anchors.length - 1; i += 1) {
+      const anchor = connector.anchors[i];
+      if (anchor.ref?.tile && isPointInPolygon(anchor.ref.tile, pathTiles)) {
+        items.push({ type: 'CONNECTOR_ANCHOR', id: anchor.id });
       }
     }
   });

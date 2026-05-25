@@ -12,7 +12,8 @@ import {
 import {
   isWithinBounds,
   hasMovedTile,
-  getItemByIdOrThrow
+  getItemByIdOrThrow,
+  segmentIntersectsRect
 } from 'src/utils';
 import { getConnectorWaypointRefs } from 'src/utils/connectorSelection';
 
@@ -34,14 +35,12 @@ const getItemsInBounds = (
   const items: ItemReference[] = [];
 
   // Check all nodes/items
-  const selectedNodeIds = new Set<string>();
   scene.items.forEach((item: ViewItem) => {
     if (
       isWithinBounds(item.tile, [startTile, endTile]) &&
       isItemInteractable({ type: 'ITEM', id: item.id })
     ) {
       items.push({ type: 'ITEM', id: item.id });
-      selectedNodeIds.add(item.id);
     }
   });
 
@@ -75,42 +74,69 @@ const getItemsInBounds = (
     }
   });
 
-  // Include a connector if both its endpoint anchors are within the selection.
-  // An endpoint anchor is within bounds if it references a selected node, or
-  // its free-floating tile is within bounds.
+  // Include a connector if any segment of its path intersects the lasso
+  // rectangle (path-hit semantics — mirrors click selection). A "segment"
+  // is the straight line between consecutive anchors after resolving each
+  // anchor to its current tile position. This covers:
+  //   - Both endpoints inside (first segment trivially intersects)
+  //   - Endpoints outside but the connector crosses through the lasso
+  //     (regression 2026-05-25: previously missed)
+  //   - One endpoint inside, the other out
+  //   - Sub-paths that loop in and out via waypoints
+  // Routing decoration (Manhattan bends, curve smoothing) is a render
+  // concern; selection works on the anchor-defined path.
+  const anchorToTile = (
+    anchor: ConnectorAnchor,
+    nodeItems: ViewItem[]
+  ): Coords | null => {
+    if (anchor.ref?.item) {
+      const item = nodeItems.find((it) => it.id === anchor.ref.item);
+      return item ? item.tile : null;
+    }
+    if (anchor.ref?.tile) return anchor.ref.tile;
+    return null;
+  };
+
   scene.connectors.forEach((connector: Connector) => {
     if (!connector.anchors || connector.anchors.length < 2) return;
     if (!isItemInteractable({ type: 'CONNECTOR', id: connector.id })) return;
 
-    const first = connector.anchors[0];
-    const last = connector.anchors[connector.anchors.length - 1];
+    const tiles = connector.anchors.map((a) => anchorToTile(a, scene.items));
 
-    const anchorInBounds = (anchor: ConnectorAnchor): boolean => {
-      if (anchor.ref?.item) return selectedNodeIds.has(anchor.ref.item);
-      if (anchor.ref?.tile)
-        return isWithinBounds(anchor.ref.tile, [startTile, endTile]);
-      return false;
-    };
+    let pathHits = false;
+    for (let i = 0; i < tiles.length - 1; i += 1) {
+      const a = tiles[i];
+      const b = tiles[i + 1];
+      if (!a || !b) continue; // anchor with unresolvable ref — skip that segment
+      if (segmentIntersectsRect(a, b, [startTile, endTile])) {
+        pathHits = true;
+        break;
+      }
+    }
 
-    if (anchorInBounds(first) && anchorInBounds(last)) {
+    if (pathHits) {
       items.push({ type: 'CONNECTOR', id: connector.id });
       items.push(...getConnectorWaypointRefs(connector));
-    } else {
-      // Endpoint(s) not selected — still capture any free-floating MIDDLE
-      // waypoint anchors inside the lasso bounds. Endpoints (index 0 and
-      // length-1) are skipped per the contract in connectorSelection.ts:
-      // splicing an endpoint would leave the connector with <2 anchors and
-      // corrupt the scene (isoMath throws "Connector needs at least two
-      // anchors"). Tile-bound endpoints exist when a connector is drawn
-      // between two free tiles (no source/target node).
-      for (let i = 1; i < connector.anchors.length - 1; i += 1) {
-        const anchor = connector.anchors[i];
-        if (
-          anchor.ref?.tile &&
-          isWithinBounds(anchor.ref.tile, [startTile, endTile])
-        ) {
-          items.push({ type: 'CONNECTOR_ANCHOR', id: anchor.id });
-        }
+      return;
+    }
+
+    // Connector path doesn't intersect the lasso. Still capture any free-
+    // floating MIDDLE waypoint anchors inside the rect (a user could lasso
+    // just a waypoint to drag it independently). Endpoints (index 0 and
+    // length-1) are skipped per the contract in connectorSelection.ts —
+    // splicing an endpoint would leave the connector with <2 anchors and
+    // corrupt the scene (regression 2026-05-25). NOTE: with path-hit
+    // semantics this branch is largely defensive; a tile-bound middle
+    // waypoint inside the rect makes at least one adjacent segment touch
+    // the rect, so pathHits is true and we never reach here. Kept as a
+    // belt-and-suspenders fallback for edge cases.
+    for (let i = 1; i < connector.anchors.length - 1; i += 1) {
+      const anchor = connector.anchors[i];
+      if (
+        anchor.ref?.tile &&
+        isWithinBounds(anchor.ref.tile, [startTile, endTile])
+      ) {
+        items.push({ type: 'CONNECTOR_ANCHOR', id: anchor.id });
       }
     }
   });
