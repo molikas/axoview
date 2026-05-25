@@ -52,6 +52,7 @@ spec can see them.
 | 34 | `toolbar-share` + `share-popover` + `share-popover-close` + `share-url-input` + `share-copy-button` | `axoview-app/.../AppToolbar.tsx` | 6 | J14 (share.spec) — AppToolbarPOM share-* methods |
 | 35 | `dialog-local-mode-share-error` + `dialog-local-mode-share-error-dismiss` | `axoview-app/.../LocalModeShareErrorDialog.tsx` | 6 | J13 (share.spec) — DialogsPOM.localModeShareError |
 | 36 | `canvas-mode-toggle` | `axoview-lib/.../ToolMenu/ToolMenu.tsx` | 6 | J19 (canvas-modes.spec) — CanvasPOM.canvasModeToggleButton |
+| 37 | `canvas-zoom-out` + `canvas-zoom-percent` + `canvas-zoom-in` + `canvas-zoom-fit` | `axoview-lib/.../ZoomControls/ZoomControls.tsx` | 7 | KR2 5f (viewport.spec) — zoom-controls bar |
 
 Lib rebuild cycles to date: 8 (Sessions 2 / 3 / 4 / 5J4 / 5J6 / 6J5 / 6dialogs / 6J19).
 Session 5 used **two** rebuilds because the file-explorer-toggle landed in
