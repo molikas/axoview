@@ -16,6 +16,7 @@ import { Lasso } from 'src/interaction/modes/Lasso';
 // ---------------------------------------------------------------------------
 const mockIsWithinBounds = jest.fn(() => false);
 const mockHasMovedTile = jest.fn(() => false);
+const mockSegmentIntersectsRect = jest.fn(() => false);
 
 jest.mock('src/utils', () => ({
   isWithinBounds: (...args: any[]) => mockIsWithinBounds(...args),
@@ -25,7 +26,8 @@ jest.mock('src/utils', () => ({
     const found = (arr as any[]).find((item: any) => item.id === id);
     if (!found) throw new Error(`Not found: ${id}`);
     return { index: 0, value: found };
-  })
+  }),
+  segmentIntersectsRect: (...args: any[]) => mockSegmentIntersectsRect(...args)
 }));
 
 // ---------------------------------------------------------------------------
@@ -333,7 +335,11 @@ describe('Lasso connector anchor — selection and DRAG_ITEMS initialTiles', () 
     mockIsWithinBounds.mockReturnValue(true); // all tiles within lasso bounds
   });
 
-  it('draws selection — tile-based anchor included as CONNECTOR_ANCHOR, item-based excluded', () => {
+  it('draws selection — tile-based MIDDLE waypoint included as CONNECTOR_ANCHOR, endpoints excluded', () => {
+    // Partial-selection (endpoints not both inside the lasso) MUST only
+    // collect middle waypoints. Endpoints are owned by the connector's
+    // lifecycle and would corrupt the scene if spliced — see regression
+    // test below + the comment in Lasso.ts's else-branch.
     const uiState = makeUiState({
       mode: { type: 'LASSO', selection: null, isDragging: false },
       mouse: {
@@ -349,8 +355,9 @@ describe('Lasso connector anchor — selection and DRAG_ITEMS initialTiles', () 
         {
           id: 'c1',
           anchors: [
-            { id: 'a-item', ref: { item: 'node1' } }, // item-based — NOT collected
-            { id: 'a-tile', ref: { tile: { x: 5, y: 5 } } } // tile-based — SHOULD be collected
+            { id: 'a-item', ref: { item: 'node1' } }, // endpoint (item-bound) — node1 not selected → partial
+            { id: 'w-mid', ref: { tile: { x: 5, y: 5 } } }, // MIDDLE waypoint — SHOULD be collected
+            { id: 'a-tile-end', ref: { tile: { x: 6, y: 6 } } } // endpoint (tile-bound) — MUST NOT be collected
           ]
         }
       ]
@@ -361,8 +368,197 @@ describe('Lasso connector anchor — selection and DRAG_ITEMS initialTiles', () 
     const anchorRefs = call.selection.items.filter(
       (i: any) => i.type === 'CONNECTOR_ANCHOR'
     );
-    expect(anchorRefs.map((i: any) => i.id)).toContain('a-tile');
+    expect(anchorRefs.map((i: any) => i.id)).toContain('w-mid');
     expect(anchorRefs.map((i: any) => i.id)).not.toContain('a-item');
+    expect(anchorRefs.map((i: any) => i.id)).not.toContain('a-tile-end');
+  });
+
+  it('REGRESSION (2026-05-25) — partial-lasso of 2-anchor connector with tile-bound endpoint does NOT collect the endpoint as CONNECTOR_ANCHOR', () => {
+    // Repro for the bug: user draws a connector between two free tiles
+    // (both endpoints are tile-bound). Lasso captures only one endpoint
+    // (partial selection). The old code's `.forEach(anchor => ...)` over
+    // ALL anchors pushed the tile-bound endpoint as a CONNECTOR_ANCHOR
+    // ref. Subsequent Delete spliced that endpoint, leaving the connector
+    // with 1 anchor → isoMath throws "Connector needs at least two
+    // anchors" → placeIcon and all subsequent renders blow up.
+
+    // Selectively in-bounds: only the tile (2,2) is inside the lasso;
+    // the (7,7) endpoint is outside. Forces the partial-selection branch.
+    mockIsWithinBounds.mockImplementation((tile: { x: number; y: number }) => {
+      return tile.x < 5 && tile.y < 5;
+    });
+
+    const uiState = makeUiState({
+      mode: { type: 'LASSO', selection: null, isDragging: false },
+      mouse: {
+        position: { tile: { x: 4, y: 4 } },
+        mousedown: { tile: { x: 0, y: 0 }, screen: { x: 0, y: 0 } }
+      }
+    });
+    const scene = {
+      items: [],
+      rectangles: [],
+      textBoxes: [],
+      connectors: [
+        {
+          id: 'c-free',
+          anchors: [
+            { id: 'end-a', ref: { tile: { x: 2, y: 2 } } }, // INSIDE lasso (was buggy-collected as CONNECTOR_ANCHOR)
+            { id: 'end-b', ref: { tile: { x: 7, y: 7 } } } // OUTSIDE lasso
+          ]
+        }
+      ]
+    };
+    Lasso.mousemove!({ uiState, scene, isRendererInteraction: true } as any);
+
+    const call = uiState.actions.setMode.mock.calls[0][0];
+    const refs = call.selection.items;
+    // No CONNECTOR_ANCHOR refs should be produced — a 2-anchor connector
+    // has no middle waypoints, and endpoints are off-limits to lasso splice.
+    expect(refs.filter((i: any) => i.type === 'CONNECTOR_ANCHOR')).toEqual([]);
+    // And the connector itself shouldn't be selected either (partial).
+    expect(refs.filter((i: any) => i.type === 'CONNECTOR')).toEqual([]);
+  });
+
+  it('PATH-HIT (2026-05-25 screenshot) — connector with both endpoints node-bound + nodes OUTSIDE the lasso is selected when its path crosses the rect', () => {
+    // Repro of the user's screenshot: two nodes at (1,1) and (9,9), connector
+    // between them, lasso is a horizontal strip across the middle (no nodes
+    // inside, connector visibly crosses). Old behavior: anchorInBounds checks
+    // endpoints only → both fail → connector missed. New path-hit semantics:
+    // any segment that intersects the lasso rect selects the connector,
+    // mirroring click-selection.
+
+    // Force path-hit to fire via the controllable mock; mockIsWithinBounds
+    // stays false so endpoint-in-bounds doesn't trigger via the old logic.
+    mockSegmentIntersectsRect.mockReturnValue(true);
+    mockIsWithinBounds.mockReturnValue(false);
+
+    const uiState = makeUiState({
+      mode: { type: 'LASSO', selection: null, isDragging: false },
+      mouse: {
+        position: { tile: { x: 10, y: 6 } },
+        mousedown: { tile: { x: 0, y: 4 }, screen: { x: 0, y: 0 } }
+      }
+    });
+    const scene = {
+      items: [
+        { id: 'n1', tile: { x: 1, y: 1 } }, // OUTSIDE lasso strip
+        { id: 'n2', tile: { x: 9, y: 9 } } // OUTSIDE lasso strip
+      ],
+      rectangles: [],
+      textBoxes: [],
+      connectors: [
+        {
+          id: 'c-diag',
+          anchors: [
+            { id: 'e0', ref: { item: 'n1' } },
+            { id: 'e1', ref: { item: 'n2' } }
+          ]
+        }
+      ]
+    };
+    Lasso.mousemove!({ uiState, scene, isRendererInteraction: true } as any);
+
+    const call = uiState.actions.setMode.mock.calls[0][0];
+    const refs = call.selection.items;
+    // Connector IS selected via path-hit even though both nodes are outside.
+    expect(refs.filter((i: any) => i.type === 'CONNECTOR' && i.id === 'c-diag'))
+      .toHaveLength(1);
+    // segmentIntersectsRect was called with resolved tiles (n1.tile, n2.tile)
+    // and the lasso rect, proving the path-hit branch ran rather than the
+    // legacy endpoint-in-bounds check.
+    expect(mockSegmentIntersectsRect).toHaveBeenCalledWith(
+      { x: 1, y: 1 },
+      { x: 9, y: 9 },
+      [
+        { x: 0, y: 4 },
+        { x: 10, y: 6 }
+      ]
+    );
+  });
+
+  it('PATH-HIT — connector whose path does NOT cross the lasso is NOT selected (path-hit returns false)', () => {
+    // Counterpart to the above: same shape, but segmentIntersectsRect is
+    // false. The connector should NOT be selected and no defensive-fallback
+    // CONNECTOR_ANCHOR refs should appear either (2-anchor connector has no
+    // middle waypoints).
+    mockSegmentIntersectsRect.mockReturnValue(false);
+    mockIsWithinBounds.mockReturnValue(false);
+
+    const uiState = makeUiState({
+      mode: { type: 'LASSO', selection: null, isDragging: false },
+      mouse: {
+        position: { tile: { x: 10, y: 10 } },
+        mousedown: { tile: { x: 0, y: 0 }, screen: { x: 0, y: 0 } }
+      }
+    });
+    const scene = {
+      items: [
+        { id: 'n1', tile: { x: 100, y: 100 } },
+        { id: 'n2', tile: { x: 200, y: 200 } }
+      ],
+      rectangles: [],
+      textBoxes: [],
+      connectors: [
+        {
+          id: 'c-far',
+          anchors: [
+            { id: 'e0', ref: { item: 'n1' } },
+            { id: 'e1', ref: { item: 'n2' } }
+          ]
+        }
+      ]
+    };
+    Lasso.mousemove!({ uiState, scene, isRendererInteraction: true } as any);
+
+    const call = uiState.actions.setMode.mock.calls[0][0];
+    const refs = call.selection.items;
+    expect(refs.filter((i: any) => i.type === 'CONNECTOR')).toEqual([]);
+    expect(refs.filter((i: any) => i.type === 'CONNECTOR_ANCHOR')).toEqual([]);
+  });
+
+  it('PATH-HIT — anchor with unresolvable ref (.item not in scene.items) skips that segment without crashing', () => {
+    // Defensive: an anchor referencing a node that doesn't exist in the
+    // scene (rare; usually transient) must not blow up path-hit. The
+    // segment with the unresolvable anchor is skipped; other segments
+    // still get checked. With only 2 anchors and one unresolvable, no
+    // segment is checkable → path-hit false → connector not selected.
+    mockSegmentIntersectsRect.mockReturnValue(true);
+    mockIsWithinBounds.mockReturnValue(false);
+
+    const uiState = makeUiState({
+      mode: { type: 'LASSO', selection: null, isDragging: false },
+      mouse: {
+        position: { tile: { x: 10, y: 10 } },
+        mousedown: { tile: { x: 0, y: 0 }, screen: { x: 0, y: 0 } }
+      }
+    });
+    const scene = {
+      items: [{ id: 'n1', tile: { x: 5, y: 5 } }],
+      rectangles: [],
+      textBoxes: [],
+      connectors: [
+        {
+          id: 'c-orphan',
+          anchors: [
+            { id: 'e0', ref: { item: 'n1' } },
+            { id: 'e1', ref: { item: 'GONE' } } // not in scene.items → unresolvable
+          ]
+        }
+      ]
+    };
+    expect(() =>
+      Lasso.mousemove!({
+        uiState,
+        scene,
+        isRendererInteraction: true
+      } as any)
+    ).not.toThrow();
+
+    const call = uiState.actions.setMode.mock.calls[0][0];
+    const refs = call.selection.items;
+    // Segment skipped → no path-hit → connector not selected.
+    expect(refs.filter((i: any) => i.type === 'CONNECTOR')).toEqual([]);
   });
 
   it('isDragging → DRAG_ITEMS — CONNECTOR_ANCHOR tile recorded in initialTiles', () => {
