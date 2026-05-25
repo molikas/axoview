@@ -8,12 +8,17 @@ WORKDIR /app
 COPY package*.json ./
 COPY packages/axoview-lib/package*.json ./packages/axoview-lib/
 COPY packages/axoview-app/package*.json ./packages/axoview-app/
+COPY packages/axoview-backend/package*.json ./packages/axoview-backend/
 
 #Update NPM
 RUN npm install -g npm@11.5.2
 
 # Install dependencies for the entire workspace
 RUN npm install
+
+# Install backend production deps via npm ci into the backend dir (workspace-isolated,
+# reproducible, offline-safe at container boot) — see DP2-B4(a) in v1.1-tech-debt.md.
+RUN cd packages/axoview-backend && npm ci --omit=dev --workspaces=false
 
 # Copy the entire monorepo code
 COPY . .
@@ -27,7 +32,7 @@ FROM node:22-alpine
 # Install web server packages
 RUN apk add --no-cache nginx openssl
 
-# Copy backend code
+# Copy backend code + the build-stage node_modules so container boot does NOT need network
 COPY --from=build /app/packages/axoview-backend /app/packages/axoview-backend
 
 # Copy the built React app to Nginx's web server directory
