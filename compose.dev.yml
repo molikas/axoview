@@ -1,5 +1,7 @@
+name: axoview
+
 services:
-  axoview:
+  app:
     build: .
     ports:
       - "3000:80"
