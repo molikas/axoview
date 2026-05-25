@@ -4,7 +4,6 @@
 if [ "$ENABLE_SERVER_STORAGE" = "true" ]; then
     echo "Starting Axoview backend server..."
     cd /app/packages/axoview-backend
-    npm install --production
     node server.js &
     echo "Backend server started"
 else
