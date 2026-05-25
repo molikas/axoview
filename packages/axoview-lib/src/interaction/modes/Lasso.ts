@@ -96,16 +96,22 @@ const getItemsInBounds = (
       items.push({ type: 'CONNECTOR', id: connector.id });
       items.push(...getConnectorWaypointRefs(connector));
     } else {
-      // Endpoint(s) not selected — still capture any free-floating waypoint
-      // anchors inside the lasso bounds.
-      connector.anchors.forEach((anchor: ConnectorAnchor) => {
+      // Endpoint(s) not selected — still capture any free-floating MIDDLE
+      // waypoint anchors inside the lasso bounds. Endpoints (index 0 and
+      // length-1) are skipped per the contract in connectorSelection.ts:
+      // splicing an endpoint would leave the connector with <2 anchors and
+      // corrupt the scene (isoMath throws "Connector needs at least two
+      // anchors"). Tile-bound endpoints exist when a connector is drawn
+      // between two free tiles (no source/target node).
+      for (let i = 1; i < connector.anchors.length - 1; i += 1) {
+        const anchor = connector.anchors[i];
         if (
           anchor.ref?.tile &&
           isWithinBounds(anchor.ref.tile, [startTile, endTile])
         ) {
           items.push({ type: 'CONNECTOR_ANCHOR', id: anchor.id });
         }
-      });
+      }
     }
   });
 

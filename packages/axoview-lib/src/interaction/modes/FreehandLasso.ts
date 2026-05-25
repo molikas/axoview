@@ -92,12 +92,18 @@ const getItemsInFreehandBounds = (
       // follow endpoints, so they need their own refs in the selection.
       items.push(...getConnectorWaypointRefs(connector));
     } else {
-      // Still capture any free-floating waypoint anchors
-      connector.anchors.forEach((anchor: ConnectorAnchor) => {
+      // Still capture any free-floating MIDDLE waypoint anchors. Endpoints
+      // (index 0 and length-1) are skipped per the contract in
+      // connectorSelection.ts — splicing an endpoint would leave the
+      // connector with <2 anchors and corrupt the scene (isoMath throws
+      // "Connector needs at least two anchors"). Tile-bound endpoints exist
+      // when a connector is drawn between two free tiles.
+      for (let i = 1; i < connector.anchors.length - 1; i += 1) {
+        const anchor = connector.anchors[i];
         if (anchor.ref?.tile && isPointInPolygon(anchor.ref.tile, pathTiles)) {
           items.push({ type: 'CONNECTOR_ANCHOR', id: anchor.id });
         }
-      });
+      }
     }
   });
 

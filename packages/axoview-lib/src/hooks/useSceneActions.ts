@@ -714,11 +714,20 @@ export const useSceneActions = () => {
             const nextAnchors = connector.anchors.filter(
               (a) => !removeSet.has(a.id)
             );
-            // Endpoints aren't in CONNECTOR_ANCHOR refs (they're node-bound
-            // and excluded by getConnectorWaypointRefs), so the splice can
-            // only ever remove middle waypoints — the connector keeps its
-            // first/last anchors and stays valid.
-            updateConnector(connector.id, { anchors: nextAnchors });
+            // Defensive guard: a CONNECTOR_ANCHOR ref should only ever target
+            // a middle waypoint (per getConnectorWaypointRefs contract), so
+            // the splice should always leave >= 2 anchors. If a selection
+            // path ever violates that contract (Lasso/FreehandLasso partial-
+            // selection branch did, before the 2026-05-25 fix), cascade-
+            // delete the connector instead of leaving it with <2 anchors —
+            // a 1-anchor connector throws "Connector needs at least two
+            // anchors" in isoMath and blocks placeIcon (regression caught
+            // 2026-05-25).
+            if (nextAnchors.length < 2) {
+              deleteConnector(connector.id);
+            } else {
+              updateConnector(connector.id, { anchors: nextAnchors });
+            }
           }
         }
       });

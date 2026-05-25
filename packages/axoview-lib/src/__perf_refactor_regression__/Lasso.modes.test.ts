@@ -333,7 +333,11 @@ describe('Lasso connector anchor — selection and DRAG_ITEMS initialTiles', () 
     mockIsWithinBounds.mockReturnValue(true); // all tiles within lasso bounds
   });
 
-  it('draws selection — tile-based anchor included as CONNECTOR_ANCHOR, item-based excluded', () => {
+  it('draws selection — tile-based MIDDLE waypoint included as CONNECTOR_ANCHOR, endpoints excluded', () => {
+    // Partial-selection (endpoints not both inside the lasso) MUST only
+    // collect middle waypoints. Endpoints are owned by the connector's
+    // lifecycle and would corrupt the scene if spliced — see regression
+    // test below + the comment in Lasso.ts's else-branch.
     const uiState = makeUiState({
       mode: { type: 'LASSO', selection: null, isDragging: false },
       mouse: {
@@ -349,8 +353,9 @@ describe('Lasso connector anchor — selection and DRAG_ITEMS initialTiles', () 
         {
           id: 'c1',
           anchors: [
-            { id: 'a-item', ref: { item: 'node1' } }, // item-based — NOT collected
-            { id: 'a-tile', ref: { tile: { x: 5, y: 5 } } } // tile-based — SHOULD be collected
+            { id: 'a-item', ref: { item: 'node1' } }, // endpoint (item-bound) — node1 not selected → partial
+            { id: 'w-mid', ref: { tile: { x: 5, y: 5 } } }, // MIDDLE waypoint — SHOULD be collected
+            { id: 'a-tile-end', ref: { tile: { x: 6, y: 6 } } } // endpoint (tile-bound) — MUST NOT be collected
           ]
         }
       ]
@@ -361,8 +366,56 @@ describe('Lasso connector anchor — selection and DRAG_ITEMS initialTiles', () 
     const anchorRefs = call.selection.items.filter(
       (i: any) => i.type === 'CONNECTOR_ANCHOR'
     );
-    expect(anchorRefs.map((i: any) => i.id)).toContain('a-tile');
+    expect(anchorRefs.map((i: any) => i.id)).toContain('w-mid');
     expect(anchorRefs.map((i: any) => i.id)).not.toContain('a-item');
+    expect(anchorRefs.map((i: any) => i.id)).not.toContain('a-tile-end');
+  });
+
+  it('REGRESSION (2026-05-25) — partial-lasso of 2-anchor connector with tile-bound endpoint does NOT collect the endpoint as CONNECTOR_ANCHOR', () => {
+    // Repro for the bug: user draws a connector between two free tiles
+    // (both endpoints are tile-bound). Lasso captures only one endpoint
+    // (partial selection). The old code's `.forEach(anchor => ...)` over
+    // ALL anchors pushed the tile-bound endpoint as a CONNECTOR_ANCHOR
+    // ref. Subsequent Delete spliced that endpoint, leaving the connector
+    // with 1 anchor → isoMath throws "Connector needs at least two
+    // anchors" → placeIcon and all subsequent renders blow up.
+
+    // Selectively in-bounds: only the tile (2,2) is inside the lasso;
+    // the (7,7) endpoint is outside. Forces the partial-selection branch.
+    mockIsWithinBounds.mockImplementation((tile: { x: number; y: number }) => {
+      return tile.x < 5 && tile.y < 5;
+    });
+
+    const uiState = makeUiState({
+      mode: { type: 'LASSO', selection: null, isDragging: false },
+      mouse: {
+        position: { tile: { x: 4, y: 4 } },
+        mousedown: { tile: { x: 0, y: 0 }, screen: { x: 0, y: 0 } }
+      }
+    });
+    const scene = {
+      items: [],
+      rectangles: [],
+      textBoxes: [],
+      connectors: [
+        {
+          id: 'c-free',
+          anchors: [
+            { id: 'end-a', ref: { tile: { x: 2, y: 2 } } }, // INSIDE lasso (was buggy-collected as CONNECTOR_ANCHOR)
+            { id: 'end-b', ref: { tile: { x: 7, y: 7 } } } // OUTSIDE lasso
+          ]
+        }
+      ]
+    };
+    Lasso.mousemove!({ uiState, scene, isRendererInteraction: true } as any);
+
+    const call = uiState.actions.setMode.mock.calls[0][0];
+    const refs = call.selection.items;
+    // No CONNECTOR_ANCHOR refs should be produced — a 2-anchor connector
+    // has no middle waypoints, and endpoints are off-limits to lasso splice.
+    expect(refs.filter((i: any) => i.type === 'CONNECTOR_ANCHOR')).toEqual([]);
+    // And the connector itself shouldn't be selected either (partial).
+    expect(refs.filter((i: any) => i.type === 'CONNECTOR')).toEqual([]);
   });
 
   it('isDragging → DRAG_ITEMS — CONNECTOR_ANCHOR tile recorded in initialTiles', () => {
