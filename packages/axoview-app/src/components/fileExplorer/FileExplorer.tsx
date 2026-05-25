@@ -634,7 +634,10 @@ export function FileExplorer() {
         onClose={() => setDeleteConfirm(null)}
         maxWidth="xs"
         fullWidth
-        PaperProps={{ sx: { boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)', borderRadius: 2 } }}
+        PaperProps={{
+          'data-axoview-id': 'file-explorer-delete-confirm-dialog',
+          sx: { boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)', borderRadius: 2 }
+        }}
       >
         <DialogTitle sx={{ pb: 1, pr: 6 }}>
           <Typography variant="h6" component="span">
@@ -656,8 +659,21 @@ export function FileExplorer() {
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 2.5, pb: 2.5, pt: 1 }}>
-          <Button variant="text" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
-          <Button color="error" variant="contained" onClick={confirmDelete}>Delete</Button>
+          <Button
+            variant="text"
+            data-axoview-id="file-explorer-delete-cancel"
+            onClick={() => setDeleteConfirm(null)}
+          >
+            Cancel
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            data-axoview-id="file-explorer-delete-confirm"
+            onClick={confirmDelete}
+          >
+            Delete
+          </Button>
         </DialogActions>
       </Dialog>
 

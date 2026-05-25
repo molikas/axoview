@@ -88,7 +88,12 @@ export function ContextMenuItems({
         </MenuItem>
       )}
       <Divider />
-      <MenuItem dense onClick={handle(onDelete)} sx={{ color: 'error.main' }}>
+      <MenuItem
+        dense
+        data-axoview-id="file-explorer-context-menu-delete"
+        onClick={handle(onDelete)}
+        sx={{ color: 'error.main' }}
+      >
         <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
         Delete
       </MenuItem>

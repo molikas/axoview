@@ -54,6 +54,8 @@ spec can see them.
 | 36 | `canvas-mode-toggle` | `axoview-lib/.../ToolMenu/ToolMenu.tsx` | 6 | J19 (canvas-modes.spec) — CanvasPOM.canvasModeToggleButton |
 | 37 | `canvas-zoom-out` + `canvas-zoom-percent` + `canvas-zoom-in` + `canvas-zoom-fit` | `axoview-lib/.../ZoomControls/ZoomControls.tsx` | 7 | KR2 5f (viewport.spec) — zoom-controls bar |
 | 38 | `file-explorer-new-folder` | `axoview-app/.../fileExplorer/FileTreeToolbar.tsx` | 7 | KR3 5g (file-explorer-new-folder.spec) — toolbar new-folder button |
+| 39 | `file-explorer-context-menu-delete` | `axoview-app/.../fileExplorer/ContextMenuItems.tsx` | 8 | Finding #8 delete-with-confirmation (file-explorer-delete.spec) — context-menu Delete item |
+| 40 | `file-explorer-delete-confirm-dialog` + `file-explorer-delete-confirm` + `file-explorer-delete-cancel` | `axoview-app/.../fileExplorer/FileExplorer.tsx` | 8 | Finding #8 delete-with-confirmation (file-explorer-delete.spec) — confirm Dialog + Delete/Cancel buttons |
 
 Lib rebuild cycles to date: 8 (Sessions 2 / 3 / 4 / 5J4 / 5J6 / 6J5 / 6dialogs / 6J19).
 Session 5 used **two** rebuilds because the file-explorer-toggle landed in
