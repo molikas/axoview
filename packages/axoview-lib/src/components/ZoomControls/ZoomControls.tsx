@@ -53,6 +53,7 @@ export const ZoomControls = () => {
             onClick={uiStateStoreActions.decrementZoom}
             disabled={zoom <= MIN_ZOOM}
             sx={btnSx}
+            data-axoview-id="canvas-zoom-out"
           >
             <MinusIcon />
           </IconButton>
@@ -69,6 +70,7 @@ export const ZoomControls = () => {
           userSelect: 'none',
           fontVariantNumeric: 'tabular-nums'
         }}
+        data-axoview-id="canvas-zoom-percent"
       >
         {Math.ceil(zoom * 100)}%
       </Typography>
@@ -80,6 +82,7 @@ export const ZoomControls = () => {
             onClick={uiStateStoreActions.incrementZoom}
             disabled={zoom >= MAX_ZOOM}
             sx={btnSx}
+            data-axoview-id="canvas-zoom-in"
           >
             <PlusIcon />
           </IconButton>
@@ -89,7 +92,12 @@ export const ZoomControls = () => {
       <Divider orientation="vertical" flexItem sx={{ mx: 0.5, my: 0.75 }} />
 
       <Tooltip title={t('fitToScreen')} placement="top">
-        <IconButton size="small" onClick={fitToView} sx={btnSx}>
+        <IconButton
+          size="small"
+          onClick={fitToView}
+          sx={btnSx}
+          data-axoview-id="canvas-zoom-fit"
+        >
           <FitIcon />
         </IconButton>
       </Tooltip>

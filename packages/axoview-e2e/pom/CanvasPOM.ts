@@ -84,25 +84,23 @@ export class CanvasPOM {
     point: CanvasPoint
   ) {
     await this.interactionsLayer().evaluate(
-      (el, args: { types: string[]; x: number; y: number }) =>
-        new Promise<void>(async (resolve) => {
-          const rect = el.getBoundingClientRect();
-          const raf = () =>
-            new Promise<void>((r) => requestAnimationFrame(() => r()));
-          for (const type of args.types) {
-            el.dispatchEvent(
-              new MouseEvent(type, {
-                bubbles: true,
-                cancelable: true,
-                clientX: rect.left + args.x,
-                clientY: rect.top + args.y,
-                button: 0
-              })
-            );
-            await raf();
-          }
-          resolve();
-        }),
+      async (el, args: { types: string[]; x: number; y: number }) => {
+        const rect = el.getBoundingClientRect();
+        const raf = () =>
+          new Promise<void>((r) => requestAnimationFrame(() => r()));
+        for (const type of args.types) {
+          el.dispatchEvent(
+            new MouseEvent(type, {
+              bubbles: true,
+              cancelable: true,
+              clientX: rect.left + args.x,
+              clientY: rect.top + args.y,
+              button: 0
+            })
+          );
+          await raf();
+        }
+      },
       { types: events, x: point.x, y: point.y }
     );
   }
