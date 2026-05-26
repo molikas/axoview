@@ -117,3 +117,60 @@ describe('non-/api/* routes are not handled by this Worker', () => {
     expect(res.status).toBe(404);
   });
 });
+
+// v1.1 Cloudflare hardening — Workstream A.1.
+// 30-day CF Analytics review recorded 5xx responses on the paths below in
+// production. This block reproduces the exact inputs against the current
+// integration bundle: a 503 (for `/api/*`) or 404 (for non-`/api/*` —
+// scoped out of the Worker by `_routes.json` in prod, returned by Hono with
+// no static handler in tests) is the expected, healthy outcome. A 500
+// surfacing on any of these inputs IS the diagnosis — the test failure
+// stack identifies the originating middleware.
+describe('probe-input surface (CF analytics 5xx fingerprints)', () => {
+  const apiProbes = [
+    '/api/.env',
+    '/api/v2/.env',
+    '/api/config.js',
+    '/api/node/constant.js',
+    '/api/admin/role/id',
+    '/api/v1/executions'
+  ];
+  const nonApiProbes = [
+    '/.env',
+    '/.docker/secrets.json',
+    '/.git/config',
+    '/wp-config.php~',
+    '/wp-config.php.old',
+    '/graphql',
+    '/graphql/api',
+    '/__nextjs_action',
+    '/_next/foo'
+  ];
+
+  describe('AUTH_MODE=none (default)', () => {
+    test.each(apiProbes)('GET %s → 503 (catch-all sink, no 500 leak)', async (path) => {
+      const res = await request(path);
+      expect(res.status).toBe(503);
+      expect(res.body).toEqual({ error: 'Server storage is disabled' });
+    });
+
+    test.each(nonApiProbes)('GET %s → 404 (no Worker route)', async (path) => {
+      const res = await request(path);
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('AUTH_MODE=shared-token without credentials', () => {
+    const env = { AUTH_MODE: 'shared-token', AUTH_SHARED_SECRET: 'sekret' };
+
+    test.each(apiProbes)('GET %s → 401 (auth middleware fires before catch-all)', async (path) => {
+      const res = await request(path, {}, env);
+      expect(res.status).toBe(401);
+    });
+
+    test.each(nonApiProbes)('GET %s → 404 (Worker scope unchanged by AUTH_MODE)', async (path) => {
+      const res = await request(path, {}, env);
+      expect(res.status).toBe(404);
+    });
+  });
+});
