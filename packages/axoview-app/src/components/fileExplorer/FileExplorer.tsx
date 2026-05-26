@@ -23,7 +23,7 @@ import { ContextMenuItems } from './ContextMenuItems';
 import { ExportProjectZipDialog } from './ExportProjectZipDialog';
 import { ImportDialog } from './ImportDialog';
 import { notificationStore } from '../../stores/notificationStore';
-import { sequentialName, copySuffix, countDescendants, detectCollision } from '../../utils/fileOperations';
+import { copySuffix, countDescendants, detectCollision } from '../../utils/fileOperations';
 import { shareUrlFromUuid } from '../../utils/shareUrl';
 import { ExportScope } from '../../services/project/projectZip';
 
