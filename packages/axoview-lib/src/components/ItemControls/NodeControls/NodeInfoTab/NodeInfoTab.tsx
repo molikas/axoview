@@ -199,7 +199,9 @@ export const NodeInfoTab = ({
                 />
               )}
               slotProps={{
-                listbox: { 'data-axoview-id': 'node-info-tab-link-picker-listbox' } as any
+                listbox: {
+                  'data-axoview-id': 'node-info-tab-link-picker-listbox'
+                } as React.ComponentProps<'ul'>
               }}
               clearOnEscape
               handleHomeEndKeys={false}

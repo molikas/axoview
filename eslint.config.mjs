@@ -37,7 +37,12 @@ export default [
       'react-hooks/exhaustive-deps': 'warn',
 
       // TypeScript
-      '@typescript-eslint/no-explicit-any': 'warn',
+      // Promoted from 'warn' to 'error' on 2026-05-25 after v1.1 no-explicit-any
+      // Phase 3 closed the last 55 sites in axoview-lib (Phases 1+2: 89 sites
+      // in axoview-app; Phase 3: 55 in axoview-lib; combined: 144 sites typed).
+      // Baseline is now 0 across both eslint-covered workspaces; future `any`
+      // is a build-blocker.
+      '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
 
       // Safety

@@ -310,13 +310,14 @@ export const UiOverlay = ({
             selection no longer auto-shows the bar. */}
         {editorMode === EditorModeEnum.EDITABLE &&
           itemActionBarOpen &&
-          itemControls?.type &&
-          ['ITEM', 'CONNECTOR', 'TEXTBOX', 'RECTANGLE'].includes(itemControls.type) &&
+          itemControls &&
+          itemControls.type !== 'ADD_ITEM' &&
+          itemControls.type !== 'CONNECTOR_ANCHOR' &&
           mode.type !== 'DRAG_ITEMS' && (
             <NodeActionBar
-              type={itemControls.type as 'ITEM' | 'CONNECTOR' | 'TEXTBOX' | 'RECTANGLE'}
-              id={(itemControls as any).id}
-              tile={(itemControls as any).tile}
+              type={itemControls.type}
+              id={itemControls.id}
+              tile={itemControls.tile}
             />
           )}
 

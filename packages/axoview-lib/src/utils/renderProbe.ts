@@ -56,8 +56,20 @@ function stop() {
   t0 = 0;
 }
 
+interface RenderProbeApi {
+  dump: () => void;
+  reset: () => void;
+  start: () => void;
+  stop: () => void;
+}
+
 if (typeof window !== 'undefined' && enabled) {
-  (window as any).__axoviewRenderProbe = { dump, reset, start, stop };
+  (window as Window & { __axoviewRenderProbe?: RenderProbeApi }).__axoviewRenderProbe = {
+    dump,
+    reset,
+    start,
+    stop
+  };
   // eslint-disable-next-line no-console
   console.log('[renderProbe] enabled. Call window.__axoviewRenderProbe.start(), reproduce, then .stop().');
 }

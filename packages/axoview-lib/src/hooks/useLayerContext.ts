@@ -9,7 +9,7 @@ import React, { createContext, useContext, useMemo } from 'react';
 import { shallow } from 'zustand/shallow';
 import { useModelStore } from 'src/stores/modelStore';
 import { useUiStateStore } from 'src/stores/uiStateStore';
-import { Layer } from 'src/types';
+import { Layer, ViewItem, Connector, Rectangle, TextBox } from 'src/types';
 import { getItemByIdOrThrow } from 'src/utils';
 
 export type LayerItemType = 'ITEM' | 'CONNECTOR' | 'RECTANGLE' | 'TEXTBOX';
@@ -133,13 +133,10 @@ export const LayerContextProvider = ({
       }
     };
 
+    type Entity = ViewItem | Connector | Rectangle | TextBox;
+
     const processEntity = (
-      entity: {
-        id: string;
-        layerId?: string;
-        label?: string;
-        content?: string;
-      },
+      entity: Entity,
       type: LayerItemType,
       nameOverride?: string
     ) => {
@@ -162,17 +159,21 @@ export const LayerContextProvider = ({
       if (nameOverride) {
         name = nameOverride;
       } else if (type === 'CONNECTOR') {
-        name = (entity as any).name?.trim() || (entity as any).description || (entity as any).label || 'Connector';
+        const c = entity as Connector;
+        name = c.name?.trim() || c.description || 'Connector';
       } else if (type === 'RECTANGLE') {
-        name = (entity as any).name?.trim() || 'Rectangle';
+        const r = entity as Rectangle;
+        name = r.name?.trim() || 'Rectangle';
       } else if (type === 'TEXTBOX') {
-        name = (entity as any).name?.trim() || stripHtml((entity as any).content || '');
+        const tb = entity as TextBox;
+        name = tb.name?.trim() || stripHtml(tb.content || '');
       } else {
         name = 'Unknown';
       }
 
       const iconUrl = type === 'ITEM' ? itemIconUrlById.get(entity.id) : undefined;
-      const showLabel = (entity as any).showLabel as boolean | undefined;
+      const showLabel =
+        type === 'ITEM' ? (entity as ViewItem).showLabel : undefined;
       pushToGroup(key, { id: entity.id, type, name, iconUrl, showLabel });
     };
 
