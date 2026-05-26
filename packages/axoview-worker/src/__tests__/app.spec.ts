@@ -118,6 +118,42 @@ describe('non-/api/* routes are not handled by this Worker', () => {
   });
 });
 
+// DP4 (v1.1 CF hardening): Hono onError handler in app.ts logs
+// method + path + err.name on any uncaught 500 and returns a stack-free
+// JSON 500. The handler is the observability seam that wrangler tail
+// will surface in production. Mocking authMiddleware to throw is the
+// minimal way to force an uncaught error through the chain without
+// adding a test-only route to the 45-LOC app.ts.
+describe('onError handler (DP4 — log method+path+errorName on uncaught 500)', () => {
+  test('uncaught error in middleware: logs method+path+errorName, returns JSON 500', async () => {
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      let throwingApp: typeof app;
+      jest.isolateModules(() => {
+        jest.doMock('../auth', () => ({
+          isPublicRoute: () => false,
+          authMiddleware: () => async () => {
+            throw new TypeError('forced by test');
+          }
+        }));
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        throwingApp = require('../app').default;
+      });
+      const res = await throwingApp!.request('http://test/api/diagrams', { method: 'GET' }, {});
+      expect(res.status).toBe(500);
+      const body = await res.json();
+      expect(body).toEqual({ error: 'Internal Server Error' });
+      expect(spy).toHaveBeenCalledTimes(1);
+      const message = spy.mock.calls[0][0] as string;
+      expect(message).toContain('GET');
+      expect(message).toContain('/api/diagrams');
+      expect(message).toContain('TypeError');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
+
 // v1.1 Cloudflare hardening — Workstream A.1.
 // 30-day CF Analytics review recorded 5xx responses on the paths below in
 // production. This block reproduces the exact inputs against the current
