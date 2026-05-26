@@ -42,42 +42,55 @@ export const useInitialDataManager = () => {
       try {
         // Normalise and clean up data before validation.
         // Work on a plain-object copy so we can safely mutate without TS complaints.
-        const rawData: Record<string, any> = { ..._initialData };
+        // Treated as Record<string, unknown> during normalisation; modelSchema
+        // re-types the result below.
+        type RawObject = Record<string, unknown>;
+        const isObj = (v: unknown): v is RawObject =>
+          typeof v === 'object' && v !== null;
+        const asArray = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 
-        rawData.views = ((rawData.views ?? []) as any[]).map((view: any) => {
+        const rawData: RawObject = { ..._initialData };
+
+        rawData.views = asArray(rawData.views).map((view) => {
           // Normalise: some diagrams use 'title' instead of 'name' for views
-          const normView: any = { ...view };
-          if (!normView.name && normView.title) {
+          const normView: RawObject = { ...(isObj(view) ? view : {}) };
+          if (!normView.name && typeof normView.title === 'string') {
             normView.name = normView.title;
           }
 
           if (!normView.connectors) return normView;
 
-          const validConnectors = (normView.connectors as any[]).filter(
-            (connector: any) => {
-              const hasValidAnchors = (connector.anchors as any[]).every(
-                (anchor: any) => {
+          const itemIds = new Set(
+            asArray(normView.items)
+              .filter(isObj)
+              .map((item) => item.id)
+              .filter((v): v is string => typeof v === 'string')
+          );
+
+          const validConnectors = asArray(normView.connectors)
+            .filter(isObj)
+            .filter((connector) => {
+              const hasValidAnchors = asArray(connector.anchors)
+                .filter(isObj)
+                .every((anchor) => {
                   // Reject anchors with empty refs (can happen from a broken paste operation)
-                  const refKeys = Object.keys(anchor.ref ?? {});
+                  const ref = isObj(anchor.ref) ? anchor.ref : {};
+                  const refKeys = Object.keys(ref);
                   if (refKeys.length === 0) return false;
-                  if (anchor.ref.item) {
-                    return (normView.items as any[]).some(
-                      (item: any) => item.id === anchor.ref.item
-                    );
+                  if (typeof ref.item === 'string') {
+                    return itemIds.has(ref.item);
                   }
                   return true;
-                }
-              );
+                });
 
               if (!hasValidAnchors) {
                 console.warn(
-                  `Removing connector ${connector.id} due to invalid item references`
+                  `Removing connector ${String(connector.id)} due to invalid item references`
                 );
               }
 
               return hasValidAnchors;
-            }
-          );
+            });
 
           return { ...normView, connectors: validConnectors };
         });
