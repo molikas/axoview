@@ -1,7 +1,21 @@
 import type { Context, Next } from 'hono';
 
 interface JwtHeader { alg: string; kid?: string; typ?: string }
-interface JwtPayload { aud?: string | string[]; exp?: number; iss?: string }
+interface JwtPayload { aud?: string | string[]; exp?: number; iss?: string; sub?: string }
+
+export interface VerifyCfAccessOptions {
+  team: string;
+  expectedAud: string;
+  /** Injected to allow tests to supply a fixture-keypair JWKS without mocking `fetch`. */
+  loadKeys?: (team: string) => Promise<Map<string, CryptoKey>>;
+  /** Injected for clock-control in expiry tests. Returns seconds since epoch. */
+  now?: () => number;
+}
+
+export interface VerifyResult {
+  valid: boolean;
+  sub?: string;
+}
 
 /**
  * Auth middleware for Axoview Worker. Three modes selected by env.AUTH_MODE:
@@ -63,8 +77,8 @@ export function authMiddleware() {
       const jwt = c.req.header('cf-access-jwt-assertion');
       if (!jwt) return c.json({ error: 'Unauthorized' }, 401);
       try {
-        const ok = await verifyCfAccessJwt(jwt, team, aud);
-        if (!ok) return c.json({ error: 'Unauthorized' }, 401);
+        const result = await verifyCfAccessJwt(jwt, { team, expectedAud: aud });
+        if (!result.valid) return c.json({ error: 'Unauthorized' }, 401);
       } catch (err) {
         console.error('cf-access verify failed', err);
         return c.json({ error: 'Unauthorized' }, 401);
@@ -133,9 +147,21 @@ function base64UrlDecodeToString(s: string): string {
   return new TextDecoder().decode(base64UrlDecodeToBytes(s));
 }
 
-async function verifyCfAccessJwt(jwt: string, team: string, expectedAud: string): Promise<boolean> {
-  const parts = jwt.split('.');
-  if (parts.length !== 3) return false;
+/**
+ * Verify a CF Access JWT. Pure function; dependencies (JWKS source, clock)
+ * are injectable for unit tests — see `__tests__/cfAccessJwt.spec.ts` for a
+ * fixture-keypair harness that exercises the real Web Crypto verifier
+ * without mocking `crypto.subtle.verify`.
+ */
+export async function verifyCfAccessJwt(
+  token: string,
+  opts: VerifyCfAccessOptions
+): Promise<VerifyResult> {
+  const loadKeys = opts.loadKeys ?? loadJwks;
+  const now = opts.now ?? (() => Math.floor(Date.now() / 1000));
+
+  const parts = token.split('.');
+  if (parts.length !== 3) return { valid: false };
   const [headerB64, payloadB64, sigB64] = parts;
 
   let header: JwtHeader;
@@ -144,32 +170,34 @@ async function verifyCfAccessJwt(jwt: string, team: string, expectedAud: string)
     header = JSON.parse(base64UrlDecodeToString(headerB64));
     payload = JSON.parse(base64UrlDecodeToString(payloadB64));
   } catch {
-    return false;
+    return { valid: false };
   }
 
-  if (header.alg !== 'RS256' || !header.kid) return false;
+  if (header.alg !== 'RS256' || !header.kid) return { valid: false };
 
-  const now = Math.floor(Date.now() / 1000);
-  if (typeof payload.exp === 'number' && payload.exp < now) return false;
+  if (typeof payload.exp === 'number' && payload.exp < now()) return { valid: false };
 
   const aud = payload.aud;
   const audMatches = Array.isArray(aud)
-    ? aud.includes(expectedAud)
-    : aud === expectedAud;
-  if (!audMatches) return false;
+    ? aud.includes(opts.expectedAud)
+    : aud === opts.expectedAud;
+  if (!audMatches) return { valid: false };
 
-  if (payload.iss && !payload.iss.includes(team)) return false;
+  if (payload.iss && !payload.iss.includes(opts.team)) return { valid: false };
 
-  const keys = await loadJwks(team);
+  const keys = await loadKeys(opts.team);
   const key = keys.get(header.kid);
-  if (!key) return false;
+  if (!key) return { valid: false };
 
   const data = new TextEncoder().encode(`${headerB64}.${payloadB64}`);
   const signature = base64UrlDecodeToBytes(sigB64);
-  return crypto.subtle.verify(
+  const sigOk = await crypto.subtle.verify(
     'RSASSA-PKCS1-v1_5',
     key,
     signature as unknown as BufferSource,
     data as unknown as BufferSource
   );
+  if (!sigOk) return { valid: false };
+
+  return { valid: true, sub: payload.sub };
 }
