@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useModelStoreApi } from 'src/stores/modelStore';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { ModeActions, State, SlimMouseEvent, Mouse } from 'src/types';
-import { DialogTypeEnum } from 'src/types/ui';
+import { DialogTypeEnum, ItemControls } from 'src/types/ui';
 import {
   getMouse,
   getItemAtTile,
@@ -419,7 +419,7 @@ export const useInteractionManager = () => {
             (i: { id: string }) => i.id === ctrl.id
           );
           if (viewItem) {
-            const currentZ = (viewItem as any).zIndex ?? 0;
+            const currentZ = viewItem.zIndex ?? 0;
             const delta = e.key === ']' ? 1 : -1;
             updateViewItem(ctrl.id, { zIndex: currentZ + delta });
           }
@@ -670,7 +670,7 @@ export const useInteractionManager = () => {
         // Right-click on an item selects it AND opens the floating action bar.
         // This is the only path that opens the bar — left-click only selects
         // (mqa-results.md #1).
-        const controls: any =
+        const controls: ItemControls =
           item.type === 'CONNECTOR'
             ? { type: 'CONNECTOR', id: item.id, tile }
             : { type: item.type, id: item.id };

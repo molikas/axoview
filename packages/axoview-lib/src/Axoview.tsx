@@ -132,7 +132,13 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
         model: modelStore,
         scene: sceneStore
       };
-      (window as any).__axoview__ = debugBridge;
+      type DebugBridge = typeof debugBridge;
+      type WindowWithDebug = Window & {
+        __axoview__?: DebugBridge;
+        __fossflow__?: DebugBridge;
+      };
+      const win = window as WindowWithDebug;
+      win.__axoview__ = debugBridge;
 
       // Backwards-compat alias: `window.__fossflow__` is the pre-rename name.
       // Keep as a getter that warns once on first access, so any external
@@ -160,9 +166,9 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
       }
 
       return () => {
-        delete (window as any).__axoview__;
+        delete win.__axoview__;
         try {
-          delete (window as any).__fossflow__;
+          delete win.__fossflow__;
         } catch {
           // ignore
         }
