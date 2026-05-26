@@ -13,7 +13,7 @@ export function useThumbnail() {
       if (!canvas) return null;
 
       // Dynamic import to avoid bundling dom-to-image-more when not needed
-      const domToImage = await import('dom-to-image-more' as any).catch(() => null);
+      const domToImage = await import('dom-to-image-more').catch(() => null);
       if (!domToImage) return null;
 
       const dataUrl: string = await domToImage.default.toPng(canvas, {

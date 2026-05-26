@@ -291,10 +291,12 @@ export function AppToolbar() {
           }}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-          PaperProps={{
-            sx: { p: 2, width: 380, mt: 0.5 },
-            'data-axoview-id': 'share-popover'
-          } as any}
+          slotProps={{
+            paper: {
+              sx: { p: 2, width: 380, mt: 0.5 },
+              'data-axoview-id': 'share-popover'
+            } as React.ComponentProps<'div'>
+          }}
         >
           <Stack spacing={1.5}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">

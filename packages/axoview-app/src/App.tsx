@@ -8,6 +8,7 @@ import {
   type IconUsageReport
 } from 'axoview';
 import { scanIconUsage } from './services/iconUsage';
+import { isPersistedDiagramBlob } from './services/storage/types';
 import { AppStorageProvider, useAppStorage } from './providers/AppStorageContext';
 import {
   DiagramLifecycleProvider,
@@ -211,10 +212,11 @@ function EditorShell() {
         try { data = JSON.parse(text); } catch {
           throw new Error('That file is not valid JSON.');
         }
-        const embedded = (data as any)?.title || (data as any)?.name || (data as any)?.t || '';
+        const blob = isPersistedDiagramBlob(data) ? data : {};
+        const embedded = blob.title || blob.name || blob.t || '';
         const fileBase = file.name.replace(/\.(?:compact\.)?json$/i, '');
         const name = typeof embedded === 'string' && embedded.trim() ? embedded.trim() : fileBase;
-        const newId = await storage.createDiagram({ ...(data as object), name, title: name }, null);
+        const newId = await storage.createDiagram({ ...blob, name, title: name }, null);
         refreshFileTree();
         setFileExplorerOpen(true);
         notificationStore.push({ severity: 'success', message: `Imported diagram "${name}"` });

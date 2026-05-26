@@ -25,10 +25,12 @@ export function LocalModeShareErrorDialog({
       onClose={onDismiss}
       maxWidth="xs"
       fullWidth
-      PaperProps={{
-        sx: { boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)', borderRadius: 2 },
-        'data-axoview-id': 'dialog-local-mode-share-error'
-      } as any}
+      slotProps={{
+        paper: {
+          sx: { boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)', borderRadius: 2 },
+          'data-axoview-id': 'dialog-local-mode-share-error'
+        } as React.ComponentProps<'div'>
+      }}
     >
       <DialogTitle sx={{ pb: 1 }}>
         <Typography variant="h6" component="span">
