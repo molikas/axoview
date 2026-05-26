@@ -736,10 +736,10 @@ export function DiagramLifecycleProvider({
   const executeLoad = useCallback(
     async (diagram: SavedDiagram) => {
       await iconPackManager.loadPacksForDiagram(diagram.data);
-      const importedIcons = (diagram.data.icons || []).filter(
-        (icon: any) => icon.collection === 'imported'
+      const importedIcons: Icon[] = (diagram.data.icons || []).filter(
+        (icon) => icon.collection === 'imported'
       );
-      const dataWithIcons = {
+      const dataWithIcons: DiagramData = {
         ...diagram.data,
         icons: [...iconPackManager.loadedIcons, ...importedIcons]
       };
@@ -749,7 +749,7 @@ export function DiagramLifecycleProvider({
       setShowLoadDialog(false);
       setLastSaved(new Date(diagram.updatedAt));
       isAfterLoadRef.current = true;
-      axoviewRef.current?.load(dataWithIcons as any);
+      axoviewRef.current?.load(dataWithIcons as InitialData);
       try {
         localStorage.setItem('axoview-last-opened', diagram.id);
         localStorage.setItem('axoview-last-opened-data', JSON.stringify(diagram.data));
@@ -823,13 +823,13 @@ export function DiagramLifecycleProvider({
   // Server-mode: load diagram into canvas
   // ---------------------------------------------------------------------------
   const handleDiagramManagerLoad = useCallback(
-    async (id: string, rawData: any, listingName: string) => {
-      const data: any = rawData;
+    async (id: string, rawData: unknown, listingName: string) => {
+      const data: PersistedDiagramBlob = isPersistedDiagramBlob(rawData) ? rawData : {};
 
-      const loadedIcons = data.icons || [];
+      const loadedIcons: Icon[] = data.icons || [];
       await iconPackManager.loadPacksForDiagram(data);
       const hasDefaultIcons = loadedIcons.some(
-        (icon: any) =>
+        (icon) =>
           icon.collection === 'isoflow' ||
           icon.collection === 'aws' ||
           icon.collection === 'gcp'
@@ -838,21 +838,23 @@ export function DiagramLifecycleProvider({
         ? loadedIcons
         : [
             ...iconPackManager.loadedIcons,
-            ...loadedIcons.filter((icon: any) => icon.collection === 'imported')
+            ...loadedIcons.filter((icon) => icon.collection === 'imported')
           ];
 
       const name = listingName || data.title || data.name || data.t || 'Untitled Diagram';
 
       const mergedData: DiagramData = {
-        ...data,
         title: name,
+        version: data.version,
+        description: data.description,
         icons: finalIcons,
         colors: data.colors?.length ? data.colors : defaultColors,
         items: Array.isArray(data.items) ? data.items : [],
         views: Array.isArray(data.views) ? data.views : [],
-        fitToScreen: data.fitToScreen !== false
+        fitToScreen: data.fitToScreen !== false,
+        requiredPacks: data.requiredPacks
       };
-      const newDiagram = {
+      const newDiagram: SavedDiagram = {
         id,
         name,
         data: mergedData,
@@ -870,9 +872,9 @@ export function DiagramLifecycleProvider({
         // mounts with the correct diagram instead of the stale frozen data.
         frozenInitialDataRef.current = mergedData;
       }
-      axoviewRef.current?.load(mergedData as any);
+      axoviewRef.current?.load(mergedData as InitialData);
       if (!hasDefaultIcons && storageRef.current) {
-        storageRef.current.saveDiagram(id, mergedData as any).catch(() => {});
+        storageRef.current.saveDiagram(id, mergedData).catch(() => {});
       }
     },
     [iconPackManager, autoSave.resetStatus]
@@ -897,7 +899,7 @@ export function DiagramLifecycleProvider({
           views: [],
           fitToScreen: true
         };
-        const id = await storageRef.current.createDiagram(blankData as any, folderId);
+        const id = await storageRef.current.createDiagram(blankData, folderId);
         setFileExplorerOpen(true);
         setFileTreeRefreshToken((n) => n + 1);
         await handleDiagramManagerLoad(id, blankData, name);
@@ -955,7 +957,7 @@ export function DiagramLifecycleProvider({
       fitToScreen: true
     };
     isAfterLoadRef.current = true;
-    axoviewRef.current?.load(blankData as any);
+    axoviewRef.current?.load(blankData as InitialData);
   }, [autoSave.saveNow, autoSave.resetStatus, iconPackManager.loadedIcons]);
 
   // ---------------------------------------------------------------------------
@@ -1009,7 +1011,7 @@ export function DiagramLifecycleProvider({
       fitToScreen: true
     };
     isAfterLoadRef.current = true;
-    axoviewRef.current?.load(blankData as any);
+    axoviewRef.current?.load(blankData as InitialData);
   }, [autoSave.resetStatus, iconPackManager.loadedIcons]);
 
   // Sync in-memory state (diagramName, currentDiagram, model store title) when
@@ -1025,7 +1027,7 @@ export function DiagramLifecycleProvider({
       const updatedModel = { ...currentModelRef.current, title: trimmed };
       setCurrentModel(updatedModel);
       isAfterLoadRef.current = true;
-      axoviewRef.current.load(updatedModel as any, { preserveViewport: true });
+      axoviewRef.current.load(updatedModel as InitialData, { preserveViewport: true });
     }
   }, []);
 
@@ -1039,7 +1041,7 @@ export function DiagramLifecycleProvider({
         if (autoSave.saveStatus === 'idle') {
           try {
             const data = buildSaveData();
-            await storage.saveDiagram(currentDiagram.id, data as any);
+            await storage.saveDiagram(currentDiagram.id, data);
             const savedAt = new Date();
             setLastSaved(savedAt);
             notificationStore.push({ severity: 'success', message: `"${currentDiagram.name}" saved` });
@@ -1100,7 +1102,7 @@ export function DiagramLifecycleProvider({
         }
 
         const buffered = scratchBufferRef.current.get(id);
-        const rawData: any = buffered ?? await storage.loadDiagram(id);
+        const rawData: unknown = buffered ?? await storage.loadDiagram(id);
         await handleDiagramManagerLoad(id, rawData, name);
       } catch (e) {
         console.error('openDiagramById failed:', e);
@@ -1124,7 +1126,7 @@ export function DiagramLifecycleProvider({
   // Export actions (toolbar Export popover)
   // ---------------------------------------------------------------------------
   const handleExportJSON = useCallback(() => {
-    exportAsJSON(buildSaveData() as any);
+    exportAsJSON(buildSaveData() as Model);
   }, [buildSaveData]);
 
   const handleExportImage = useCallback(() => {
@@ -1176,7 +1178,7 @@ export function DiagramLifecycleProvider({
           sessionExistingNames.push(chosenName);
           const savedPayload = { ...dirtyData, title: chosenName };
           const newId = s
-            ? await s.createDiagram(savedPayload as any, null)
+            ? await s.createDiagram(savedPayload, null)
             : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
           const newSessionDiagram: SavedDiagram = {
             id: newId,
@@ -1194,7 +1196,7 @@ export function DiagramLifecycleProvider({
         } else {
           const existingEntry = diagrams.find((d) => d.id === dirtyId);
           if (existingEntry) {
-            if (s) await s.saveDiagram(dirtyId, dirtyData as any);
+            if (s) await s.saveDiagram(dirtyId, dirtyData);
             sessionUpdates.push({ ...existingEntry, data: dirtyData, updatedAt: new Date().toISOString() });
             if (dirtyId === currentDiagramRef.current?.id) setLastSaved(new Date());
           }
@@ -1232,12 +1234,12 @@ export function DiagramLifecycleProvider({
   // Model update handler
   // ---------------------------------------------------------------------------
   const handleModelUpdated = useCallback(
-    (model: any) => {
+    (model: Model) => {
       // isoflow's model schema doesn't include `requiredPacks`, so the field
       // is dropped from `model` here. Re-attach from the in-memory ref so the
       // hint survives autosave round-trips when the icons array hasn't been
       // fully rehydrated (e.g. a pack is still loading on first open).
-      const preservedRequiredPacks = (currentModelRef.current as any)?.requiredPacks;
+      const preservedRequiredPacks = currentModelRef.current?.requiredPacks;
       const updatedModel: DiagramData = {
         title: model.title || diagramNameRef.current || 'Untitled',
         icons: model.icons || [],
@@ -1296,7 +1298,7 @@ export function DiagramLifecycleProvider({
   // ---------------------------------------------------------------------------
   const handleTogglePack = useCallback(
     (packName: string, enabled: boolean) => {
-      iconPackManager.togglePack(packName as any, enabled);
+      iconPackManager.togglePack(packName as IconPackName, enabled);
     },
     [iconPackManager.togglePack]
   );
