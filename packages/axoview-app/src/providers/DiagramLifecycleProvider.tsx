@@ -11,9 +11,17 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { flattenCollections } from '@isoflow/isopacks/dist/utils';
 import isoflowIsopack from '@isoflow/isopacks/dist/isoflow';
-import type { AxoviewRef } from 'axoview';
+import type { AxoviewRef, InitialData, Model, Icon } from 'axoview';
 import { DiagramData } from '../diagramUtils';
-import { useIconPackManager } from '../services/iconPackManager';
+import {
+  PersistedDiagramBlob,
+  isPersistedDiagramBlob
+} from '../services/storage/types';
+import {
+  useIconPackManager,
+  IconPackInfo,
+  IconPackName
+} from '../services/iconPackManager';
 import { useAppStorage } from './AppStorageContext';
 import { useAutoSave, SaveStatus } from '../hooks/useAutoSave';
 import { DiagramManager } from '../components/DiagramManager';
@@ -58,7 +66,7 @@ function setWithout(prev: Set<string>, ...items: string[]): Set<string> {
 export interface SavedDiagram {
   id: string;
   name: string;
-  data: any;
+  data: DiagramData;
   createdAt: string;
   updatedAt: string;
 }
@@ -102,7 +110,7 @@ interface DiagramLifecycleContextValue {
   handleSaveClick: () => Promise<void>;
   handleOpenClick: () => void;
   handlePreviewClick: () => Promise<void>;
-  handleModelUpdated: (model: any) => void;
+  handleModelUpdated: (model: Model) => void;
   handleExportJSON: () => void;
   handleExportImage: () => void;
   handleExportProject: () => void;
@@ -133,15 +141,15 @@ interface DiagramLifecycleContextValue {
   // Icon pack
   iconPackManagerProp: {
     lazyLoadingEnabled: boolean;
-    onToggleLazyLoading: () => void;
-    packInfo: any[];
-    enabledPacks: string[];
+    onToggleLazyLoading: (enabled: boolean) => void;
+    packInfo: IconPackInfo[];
+    enabledPacks: IconPackName[];
     onTogglePack: (packName: string, enabled: boolean) => void;
   };
 }
 
 const DiagramLifecycleContext = createContext<DiagramLifecycleContextValue>(
-  null as any
+  null as unknown as DiagramLifecycleContextValue
 );
 
 export function DiagramLifecycleProvider({
@@ -317,22 +325,30 @@ export function DiagramLifecycleProvider({
     const lastOpenedData = localStorage.getItem('axoview-last-opened-data');
     if (lastOpenedData) {
       try {
-        const data = JSON.parse(lastOpenedData);
-        if (!Array.isArray(data.items) || !Array.isArray(data.views)) {
+        const parsed: unknown = JSON.parse(lastOpenedData);
+        if (
+          !isPersistedDiagramBlob(parsed) ||
+          !Array.isArray(parsed.items) ||
+          !Array.isArray(parsed.views)
+        ) {
           console.warn('axoview-last-opened-data had invalid structure, discarding.');
           localStorage.removeItem('axoview-last-opened-data');
           throw new Error('invalid structure');
         }
-        const importedIcons = (data.icons || []).filter(
-          (icon: any) => icon.collection === 'imported'
+        const data: PersistedDiagramBlob = parsed;
+        const importedIcons: Icon[] = (data.icons || []).filter(
+          (icon) => icon.collection === 'imported'
         );
         return {
-          ...data,
-          icons: [...coreIcons, ...importedIcons],
+          title: data.title || 'Untitled Diagram',
+          version: data.version,
+          description: data.description,
+          icons: [...coreIcons, ...importedIcons] as Icon[],
           colors: data.colors?.length ? data.colors : defaultColors,
-          items: data.items,
-          views: data.views,
-          fitToScreen: data.fitToScreen !== false
+          items: data.items ?? [],
+          views: data.views ?? [],
+          fitToScreen: data.fitToScreen !== false,
+          requiredPacks: data.requiredPacks
         };
       } catch (e) {
         console.error('Failed to load last opened data:', e);
@@ -340,7 +356,7 @@ export function DiagramLifecycleProvider({
     }
     return {
       title: 'Untitled Diagram',
-      icons: coreIcons,
+      icons: coreIcons as Icon[],
       colors: defaultColors,
       items: [],
       views: [],
@@ -375,8 +391,8 @@ export function DiagramLifecycleProvider({
   // ---------------------------------------------------------------------------
   const frozenInitialDataRef = useRef<DiagramData | null>(null);
   if (frozenInitialDataRef.current === null) {
-    const importedIcons = (diagramData.icons || []).filter(
-      (icon: any) => icon.collection === 'imported'
+    const importedIcons: Icon[] = (diagramData.icons || []).filter(
+      (icon) => icon.collection === 'imported'
     );
     frozenInitialDataRef.current = {
       ...diagramData,
@@ -397,11 +413,13 @@ export function DiagramLifecycleProvider({
       try {
         const response = await fetch(`${apiBaseUrl()}/api/public/diagrams/${shareUuid}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = (await response.json()) as any;
+        const raw: unknown = await response.json();
+        if (!isPersistedDiagramBlob(raw)) throw new Error('public snapshot is not an object');
+        const data: PersistedDiagramBlob = raw;
         const name = data.title || data.name || 'Shared Diagram';
         await iconPackManager.loadPacksForDiagram(data);
-        const importedIcons = (data.icons || []).filter(
-          (icon: any) => icon.collection === 'imported'
+        const importedIcons: Icon[] = (data.icons || []).filter(
+          (icon) => icon.collection === 'imported'
         );
         const dataWithIcons: DiagramData = {
           ...data,
@@ -427,7 +445,7 @@ export function DiagramLifecycleProvider({
         if (!axoviewRef.current) {
           frozenInitialDataRef.current = dataWithIcons;
         }
-        axoviewRef.current?.load(dataWithIcons as any);
+        axoviewRef.current?.load(dataWithIcons as InitialData);
       } catch (_error) {
         setPublicShareLoadFailed(true);
       }
@@ -452,24 +470,26 @@ export function DiagramLifecycleProvider({
         const diagramList = await storage.listDiagrams();
         if (cancelled) return;
         const diagramInfo = diagramList.find((d) => d.id === readonlyDiagramId);
-        const data = await storage.loadDiagram(readonlyDiagramId!);
+        const raw: unknown = await storage.loadDiagram(readonlyDiagramId!);
         if (cancelled) return;
-        await iconPackManager.loadPacksForDiagram(data);
+        await iconPackManager.loadPacksForDiagram(raw);
         if (cancelled) return;
-        const importedIcons = ((data as any).icons || []).filter(
-          (icon: any) => icon.collection === 'imported'
+        const data: PersistedDiagramBlob = isPersistedDiagramBlob(raw) ? raw : {};
+        const importedIcons: Icon[] = (data.icons || []).filter(
+          (icon) => icon.collection === 'imported'
         );
         const dataWithIcons: DiagramData = {
-          ...(data as any),
+          ...data,
+          title: data.title || diagramInfo?.name || 'Readonly Diagram',
           icons: [...iconPackManager.loadedIcons, ...importedIcons],
-          colors: (data as any)?.colors?.length ? (data as any).colors : defaultColors,
-          items: Array.isArray((data as any)?.items) ? (data as any).items : [],
-          views: Array.isArray((data as any)?.views) ? (data as any).views : [],
-          fitToScreen: (data as any)?.fitToScreen !== false
+          colors: data.colors?.length ? data.colors : defaultColors,
+          items: Array.isArray(data.items) ? data.items : [],
+          views: Array.isArray(data.views) ? data.views : [],
+          fitToScreen: data.fitToScreen !== false
         };
         const readonlyDiagram: SavedDiagram = {
           id: readonlyDiagramId!,
-          name: diagramInfo?.name || (data as any).title || 'Readonly Diagram',
+          name: diagramInfo?.name || data.title || 'Readonly Diagram',
           data: dataWithIcons,
           createdAt: new Date().toISOString(),
           updatedAt: diagramInfo?.lastModified || new Date().toISOString()
@@ -482,7 +502,7 @@ export function DiagramLifecycleProvider({
         if (!axoviewRef.current) {
           frozenInitialDataRef.current = dataWithIcons;
         }
-        axoviewRef.current?.load(dataWithIcons as any);
+        axoviewRef.current?.load(dataWithIcons as InitialData);
       } catch (_error) {
         if (cancelled) return;
         setReadonlyLoadFailed(true);
@@ -504,13 +524,13 @@ export function DiagramLifecycleProvider({
       return;
     }
     if (!axoviewRef.current || !currentModelRef.current) return;
-    const importedIcons = (currentModelRef.current.icons || []).filter(
-      (icon: any) => icon.collection === 'imported'
+    const importedIcons: Icon[] = (currentModelRef.current.icons || []).filter(
+      (icon) => icon.collection === 'imported'
     );
     const mergedIcons = [...iconPackManager.loadedIcons, ...importedIcons];
     isAfterLoadRef.current = true;
     axoviewRef.current.load(
-      { ...currentModelRef.current, icons: mergedIcons } as any,
+      { ...currentModelRef.current, icons: mergedIcons } as InitialData,
       { preserveViewport: true }
     );
   }, [iconPackManager.loadedIcons]);
@@ -586,10 +606,10 @@ export function DiagramLifecycleProvider({
   // Build save payload (session mode / Ctrl+S in server mode)
   // ---------------------------------------------------------------------------
   const buildSaveData = useCallback(() => {
-    const importedIcons = (currentModel?.icons || diagramData.icons || []).filter(
-      (icon: any) => icon.collection === 'imported'
+    const importedIcons: Icon[] = (currentModel?.icons || diagramData.icons || []).filter(
+      (icon) => icon.collection === 'imported'
     );
-    const preservedRequiredPacks = (currentModel as any)?.requiredPacks;
+    const preservedRequiredPacks = currentModel?.requiredPacks;
     return {
       title: currentModel?.title || diagramName || 'Untitled Diagram',
       icons: importedIcons,
@@ -612,7 +632,7 @@ export function DiagramLifecycleProvider({
       const importedIcons = (currentModel?.icons || diagramData.icons || []).filter(
         (icon) => icon.collection === 'imported'
       );
-      const preservedRequiredPacks = (currentModel as any)?.requiredPacks;
+      const preservedRequiredPacks = currentModel?.requiredPacks;
       const savedData = {
         title: diagramName,
         icons: importedIcons,
@@ -633,14 +653,14 @@ export function DiagramLifecycleProvider({
         if (currentDiagram) {
           id = currentDiagram.id;
           createdAt = currentDiagram.createdAt;
-          if (s) await s.saveDiagram(id, savedData as any);
+          if (s) await s.saveDiagram(id, savedData);
         } else if (existingDiagram) {
           id = existingDiagram.id;
           createdAt = existingDiagram.createdAt;
-          if (s) await s.saveDiagram(id, savedData as any);
+          if (s) await s.saveDiagram(id, savedData);
         } else {
           // Brand-new diagram: let the storage provider allocate the ID.
-          id = s ? await s.createDiagram(savedData as any, null) : Date.now().toString();
+          id = s ? await s.createDiagram(savedData, null) : Date.now().toString();
           createdAt = new Date().toISOString();
         }
       } catch (e) {
