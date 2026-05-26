@@ -1,9 +1,12 @@
 import {
   DiagramMeta,
   FolderMeta,
+  PersistedDiagramBlob,
   StorageProvider,
-  TreeManifest
+  TreeManifest,
+  isPersistedDiagramBlob
 } from '../types';
+import type { Icon } from 'axoview';
 import { apiBaseUrl } from '../../../utils/apiBaseUrl';
 
 /**
@@ -16,61 +19,61 @@ import { apiBaseUrl } from '../../../utils/apiBaseUrl';
  * packs without having to introspect bare icon-id strings.
  */
 const leanIfModel = (data: unknown): unknown => {
-  if (data && typeof data === 'object' && Array.isArray((data as any).icons)) {
-    const model = data as any;
+  if (!isPersistedDiagramBlob(data)) return data;
+  const modelIcons: Icon[] | undefined = data.icons;
+  if (!Array.isArray(modelIcons)) return data;
+  const model = data;
 
-    // Plain Object dictionaries instead of Set: ts-jest transpiles `new Set`
-    // under target=es5 with a broken polyfill where `.add()` is a no-op for
-    // string members, making derived-/known- lookups silently empty.
-    const itemIconIds: { [k: string]: true } = {};
-    if (Array.isArray(model.items)) {
-      for (let i = 0; i < model.items.length; i++) {
-        const item = model.items[i];
-        if (item && typeof item.icon === 'string') itemIconIds[item.icon] = true;
-      }
+  // Plain Object dictionaries instead of Set: ts-jest transpiles `new Set`
+  // under target=es5 with a broken polyfill where `.add()` is a no-op for
+  // string members, making derived-/known- lookups silently empty.
+  const itemIconIds: { [k: string]: true } = {};
+  if (Array.isArray(model.items)) {
+    for (let i = 0; i < model.items.length; i++) {
+      const item = model.items[i];
+      if (item && typeof item.icon === 'string') itemIconIds[item.icon] = true;
     }
-
-    const knownIconIds: { [k: string]: true } = {};
-    const derivedRequiredPacks: { [k: string]: true } = {};
-    for (let i = 0; i < model.icons.length; i++) {
-      const icon = model.icons[i];
-      if (icon && icon.id) knownIconIds[icon.id] = true;
-      if (
-        icon &&
-        icon.id &&
-        itemIconIds[icon.id] &&
-        typeof icon.collection === 'string' &&
-        icon.collection !== 'isoflow' &&
-        icon.collection !== 'imported'
-      ) {
-        derivedRequiredPacks[icon.collection] = true;
-      }
-    }
-
-    // If every item's icon resolves against the icons array, the derived list
-    // is authoritative. Otherwise the input is already lean (icons stripped to
-    // imported-only) and we can't see what packs the unresolved items need —
-    // preserve whatever was on the input rather than overwriting with [].
-    let allResolved = true;
-    const itemIconIdList = Object.keys(itemIconIds);
-    for (let i = 0; i < itemIconIdList.length; i++) {
-      if (!knownIconIds[itemIconIdList[i]]) { allResolved = false; break; }
-    }
-    const existingRequiredPacks = Array.isArray(model.requiredPacks)
-      ? (model.requiredPacks as unknown[]).filter((p): p is string => typeof p === 'string')
-      : null;
-    const derived = Object.keys(derivedRequiredPacks);
-    const requiredPacks = allResolved
-      ? derived
-      : (existingRequiredPacks !== null ? existingRequiredPacks : derived);
-
-    return {
-      ...model,
-      icons: (model.icons as any[]).filter((icon: any) => icon.collection === 'imported'),
-      requiredPacks
-    };
   }
-  return data;
+
+  const knownIconIds: { [k: string]: true } = {};
+  const derivedRequiredPacks: { [k: string]: true } = {};
+  for (let i = 0; i < modelIcons.length; i++) {
+    const icon = modelIcons[i];
+    if (icon && icon.id) knownIconIds[icon.id] = true;
+    if (
+      icon &&
+      icon.id &&
+      itemIconIds[icon.id] &&
+      typeof icon.collection === 'string' &&
+      icon.collection !== 'isoflow' &&
+      icon.collection !== 'imported'
+    ) {
+      derivedRequiredPacks[icon.collection] = true;
+    }
+  }
+
+  // If every item's icon resolves against the icons array, the derived list
+  // is authoritative. Otherwise the input is already lean (icons stripped to
+  // imported-only) and we can't see what packs the unresolved items need —
+  // preserve whatever was on the input rather than overwriting with [].
+  let allResolved = true;
+  const itemIconIdList = Object.keys(itemIconIds);
+  for (let i = 0; i < itemIconIdList.length; i++) {
+    if (!knownIconIds[itemIconIdList[i]]) { allResolved = false; break; }
+  }
+  const existingRequiredPacks = Array.isArray(model.requiredPacks)
+    ? (model.requiredPacks as unknown[]).filter((p): p is string => typeof p === 'string')
+    : null;
+  const derived = Object.keys(derivedRequiredPacks);
+  const requiredPacks = allResolved
+    ? derived
+    : (existingRequiredPacks !== null ? existingRequiredPacks : derived);
+
+  return {
+    ...model,
+    icons: modelIcons.filter((icon) => icon.collection === 'imported'),
+    requiredPacks
+  };
 };
 
 const SESSION_DIAGRAMS_KEY = 'axoview_diagrams';
@@ -129,15 +132,15 @@ export class LocalStorageProvider implements StorageProvider {
       signal: timeoutSignal(10000)
     });
     if (!response.ok) throw new Error(`Failed to list diagrams: ${response.status}`);
-    const list = await response.json();
-    return list.map((d: any) => ({
-      id: d.id,
-      name: d.name,
+    const list = (await response.json()) as Array<Record<string, unknown>>;
+    return list.map((d) => ({
+      id: String(d.id),
+      name: String(d.name),
       lastModified: typeof d.lastModified === 'string'
         ? d.lastModified
-        : new Date(d.lastModified).toISOString(),
-      folderId: d.folderId ?? null,
-      deletedAt: d.deletedAt ?? undefined
+        : new Date(d.lastModified as string | number | Date).toISOString(),
+      folderId: (d.folderId as string | null | undefined) ?? null,
+      deletedAt: (d.deletedAt as string | undefined) ?? undefined
     }));
   }
 
@@ -217,13 +220,13 @@ export class LocalStorageProvider implements StorageProvider {
     const list = this.sessionListDiagrams();
     const idx = list.findIndex((d) => d.id === id);
     const existing = idx >= 0 ? list[idx] : undefined;
-    const name = (data as any)?.name || (data as any)?.title || existing?.name || 'Untitled Diagram';
+    const blob: PersistedDiagramBlob = isPersistedDiagramBlob(data) ? data : {};
+    const name = blob.name || blob.title || existing?.name || 'Untitled Diagram';
     // Preserve the existing meta's folderId when the save payload doesn't carry one.
     // Autosave strips folderId from the model; without this fallback every autosave
     // would relocate the diagram to root.
-    const dataFolderId = (data as any)?.folderId;
     const folderId =
-      dataFolderId !== undefined ? dataFolderId : existing?.folderId ?? null;
+      blob.folderId !== undefined ? blob.folderId : existing?.folderId ?? null;
     const meta: DiagramMeta = {
       id,
       name,
