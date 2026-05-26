@@ -42,17 +42,17 @@ export const useCopyPaste = () => {
     ) {
       const refs = mode.selection.items;
       selectedItemIds = refs
-        .filter((r: any) => r.type === 'ITEM')
-        .map((r: any) => r.id);
+        .filter((r) => r.type === 'ITEM')
+        .map((r) => r.id);
       selectedConnectorIds = refs
-        .filter((r: any) => r.type === 'CONNECTOR')
-        .map((r: any) => r.id);
+        .filter((r) => r.type === 'CONNECTOR')
+        .map((r) => r.id);
       selectedRectangleIds = refs
-        .filter((r: any) => r.type === 'RECTANGLE')
-        .map((r: any) => r.id);
+        .filter((r) => r.type === 'RECTANGLE')
+        .map((r) => r.id);
       selectedTextBoxIds = refs
-        .filter((r: any) => r.type === 'TEXTBOX')
-        .map((r: any) => r.id);
+        .filter((r) => r.type === 'TEXTBOX')
+        .map((r) => r.id);
     } else if (uiState.itemControls) {
       const ctrl = uiState.itemControls;
       if (ctrl.type === 'ITEM') selectedItemIds = [ctrl.id];
