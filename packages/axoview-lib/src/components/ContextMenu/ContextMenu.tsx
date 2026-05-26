@@ -23,7 +23,9 @@ export const ContextMenu = ({ onClose, anchorEl, menuItems }: Props) => {
         if (anchorEl) anchorEl.focus();
         onClose();
       }}
-      PaperProps={{ 'data-testid': 'context-menu' } as any}
+      slotProps={{
+        paper: { 'data-testid': 'context-menu' } as React.ComponentProps<'div'>
+      }}
       MenuListProps={{ dense: true }}
     >
       {menuItems.map((item, index) => (

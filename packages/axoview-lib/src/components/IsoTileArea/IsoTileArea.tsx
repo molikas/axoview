@@ -26,7 +26,7 @@ export const IsoTileArea = memo(
     const strokeParams = useMemo(() => {
       if (!stroke) return {};
 
-      const params: Record<string, any> = {
+      const params: Record<string, string | number> = {
         stroke: stroke.color,
         strokeWidth: stroke.width
       };

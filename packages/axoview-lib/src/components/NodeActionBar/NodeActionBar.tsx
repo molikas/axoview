@@ -141,13 +141,13 @@ export const NodeActionBar = ({ type, id, tile: connectorTile }: Props) => {
 
   const handleBringForward = useCallback(() => {
     if (!viewItem) return;
-    const currentZ = (viewItem as any).zIndex ?? 0;
+    const currentZ = viewItem.zIndex ?? 0;
     updateViewItem(id, { zIndex: currentZ + 1 });
   }, [id, viewItem, updateViewItem]);
 
   const handleSendBack = useCallback(() => {
     if (!viewItem) return;
-    const currentZ = (viewItem as any).zIndex ?? 0;
+    const currentZ = viewItem.zIndex ?? 0;
     updateViewItem(id, { zIndex: currentZ - 1 });
   }, [id, viewItem, updateViewItem]);
 
@@ -162,7 +162,7 @@ export const NodeActionBar = ({ type, id, tile: connectorTile }: Props) => {
   // Derive position based on element type
   const getPosition = useCallback(() => {
     if (type === 'ITEM' && viewItem) {
-      return getTilePosition({ tile: (viewItem as any).tile, origin: 'TOP' });
+      return getTilePosition({ tile: viewItem.tile, origin: 'TOP' });
     }
     if (type === 'TEXTBOX' && textBox) {
       return getTilePosition({ tile: textBox.tile, origin: 'TOP' });
@@ -204,7 +204,7 @@ export const NodeActionBar = ({ type, id, tile: connectorTile }: Props) => {
 
   const currentLayerId =
     type === 'ITEM'
-      ? (viewItem as any)?.layerId
+      ? viewItem?.layerId
       : type === 'CONNECTOR'
       ? connector?.layerId
       : type === 'TEXTBOX'

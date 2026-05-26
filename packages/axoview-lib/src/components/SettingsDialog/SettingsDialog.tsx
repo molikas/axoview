@@ -138,10 +138,12 @@ export const SettingsDialog = ({
       onClose={handleClose}
       maxWidth="md"
       fullWidth
-      PaperProps={{
-        sx: { height: '60vh', minHeight: 480 },
-        'data-axoview-id': 'dialog-settings'
-      } as any}
+      slotProps={{
+        paper: {
+          sx: { height: '60vh', minHeight: 480 },
+          'data-axoview-id': 'dialog-settings'
+        } as React.ComponentProps<'div'>
+      }}
     >
       <DialogTitle sx={{ pr: 6 }}>
         Settings

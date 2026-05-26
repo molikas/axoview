@@ -173,12 +173,14 @@ export const HelpDialog = () => {
       onClose={handleClose}
       maxWidth="md"
       fullWidth
-      PaperProps={{
-        sx: {
-          minHeight: '60vh'
-        },
-        'data-axoview-id': 'dialog-help'
-      } as any}
+      slotProps={{
+        paper: {
+          sx: {
+            minHeight: '60vh'
+          },
+          'data-axoview-id': 'dialog-help'
+        } as React.ComponentProps<'div'>
+      }}
     >
       <DialogTitle>
         <Box display="flex" alignItems="center" justifyContent="space-between">
