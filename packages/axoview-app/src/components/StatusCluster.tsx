@@ -4,11 +4,12 @@ import {
   ErrorOutlineOutlined as SaveErrorIcon
 } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useAppStorage } from '../providers/AppStorageContext';
 import { useDiagramLifecycle } from '../providers/DiagramLifecycleProvider';
 import { SessionStorageGauge } from './fileExplorer/SessionStorageGauge';
 
-const formatSavedAt = (d: Date, t: (k: string, opts?: any) => string): string => {
+const formatSavedAt = (d: Date, t: TFunction): string => {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today.getTime() - 86400000);

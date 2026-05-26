@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { Tree, TreeApi, NodeApi } from 'react-arborist';
-import { exportAsJSON, mergeBundledFixtures } from 'axoview';
+import { exportAsJSON, mergeBundledFixtures, type Model } from 'axoview';
 import {
   Box,
   Button,
@@ -23,7 +23,7 @@ import { ContextMenuItems } from './ContextMenuItems';
 import { ExportProjectZipDialog } from './ExportProjectZipDialog';
 import { ImportDialog } from './ImportDialog';
 import { notificationStore } from '../../stores/notificationStore';
-import { sequentialName, copySuffix, countDescendants, detectCollision } from '../../utils/fileOperations';
+import { copySuffix, countDescendants, detectCollision } from '../../utils/fileOperations';
 import { shareUrlFromUuid } from '../../utils/shareUrl';
 import { ExportScope } from '../../services/project/projectZip';
 
@@ -240,7 +240,7 @@ export function FileExplorer() {
             try {
               if (!storage) return;
               const newId = await storage.createDiagram(
-                { title: trimmed, name: trimmed, icons: [], colors: [], items: [], views: [], fitToScreen: true } as any,
+                { title: trimmed, name: trimmed, icons: [], colors: [], items: [], views: [], fitToScreen: true },
                 parentId
               );
               await tree.refresh();
@@ -404,7 +404,9 @@ export function FileExplorer() {
       if (node.type !== 'diagram' || !storage) return;
       try {
         const raw = await storage.loadDiagram(node.id);
-        const model = mergeBundledFixtures(raw as any);
+        // Storage returns `unknown`; runtime shape is a persisted diagram blob
+        // that matches Model structurally — assert at this single lib boundary.
+        const model = mergeBundledFixtures(raw as Model);
         exportAsJSON(model);
       } catch {
         notificationStore.push({ severity: 'error', message: `Failed to export "${node.name}"` });

@@ -9,7 +9,7 @@ import './DiagramManager.css';
 interface Props {
   storage: StorageProvider;
   isServerStorage: boolean;
-  onLoadDiagram: (id: string, data: any, listingName: string) => void;
+  onLoadDiagram: (id: string, data: unknown, listingName: string) => void;
   onClose: () => void;
 }
 

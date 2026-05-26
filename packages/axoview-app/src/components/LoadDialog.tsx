@@ -17,11 +17,12 @@ import {
   DeleteOutline as DeleteIcon,
   FileOpenOutlined as LoadIcon
 } from '@mui/icons-material';
+import type { DiagramData } from '../diagramUtils';
 
 interface SavedDiagram {
   id: string;
   name: string;
-  data: any;
+  data: DiagramData;
   createdAt: string;
   updatedAt: string;
 }

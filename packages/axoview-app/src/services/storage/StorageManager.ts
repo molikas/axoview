@@ -50,7 +50,7 @@ export class StorageManager implements StorageProvider {
     this.serverStorageAvailable = available;
     const provider = this.getActiveProvider();
     if ('usingServer' in provider) {
-      (provider as any).usingServer = available;
+      (provider as StorageProvider & { usingServer: boolean }).usingServer = available;
     }
   }
 

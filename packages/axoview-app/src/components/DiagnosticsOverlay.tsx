@@ -38,20 +38,45 @@ const MAX_EVENTS = 300; // circular — oldest dropped
 const FIELDS = ['dt', 'fps', 'hu', 'ht', 'lt', 'ni', 'nc', 'ntb'] as const;
 
 // ── store accessors ───────────────────────────────────────────────────────────
+// The Axoview lib exposes Zustand stores on `window.__axoview__` for the
+// e2e/perf bridge (see Axoview.tsx). We duck-type just the fields this overlay
+// reads — avoids coupling to lib-internal store types.
+type DebugView = {
+  id?: string;
+  items?: { length: number };
+  connectors?: { length: number };
+};
+type DebugBridge = {
+  ui?: { getState?: () => {
+    view?: string;
+    zoom?: number;
+    mouse?: { mousedown?: unknown };
+  } | undefined };
+  model?: { getState?: () => {
+    views?: DebugView[];
+    history?: { past?: { length: number }; future?: { length: number } };
+  } | undefined };
+  scene?: { getState?: () => { textBoxes?: Record<string, unknown> } | undefined };
+};
+
+function getDebugBridge(): DebugBridge | undefined {
+  return (window as Window & { __axoview__?: DebugBridge }).__axoview__;
+}
+
 // Counts reflect the ACTIVE view, not the whole document — that's what
 // correlates with frame budget. `model.items` is the icon catalog (not placed
 // nodes); placed nodes live in the current view's `items` array.
 function getSceneCounts(): { ni: number; nc: number; ntb: number } {
   try {
-    const fw = (window as any).__axoview__;
+    const fw = getDebugBridge();
     if (!fw) return { ni: 0, nc: 0, ntb: 0 };
     const ms = fw.model?.getState?.();
     const us = fw.ui?.getState?.();
     const ss = fw.scene?.getState?.();
     const currentViewId: string | undefined = us?.view;
-    const views: any[] = ms?.views ?? [];
+    const views: DebugView[] = ms?.views ?? [];
     const view = currentViewId
-      ? views.find((v: any) => v?.id === currentViewId)
+      ? views.find((v) => v?.id === currentViewId)
       : views[0];
     const ni: number = view?.items?.length ?? 0;
     const nc: number = view?.connectors?.length ?? 0;
@@ -68,7 +93,7 @@ function getUiSnapshot(): {
   isDragging: boolean;
 } {
   try {
-    const us = (window as any).__axoview__?.ui?.getState?.();
+    const us = getDebugBridge()?.ui?.getState?.();
     return {
       zoom: us?.zoom ?? 1,
       viewId: us?.view ?? '',
@@ -81,7 +106,7 @@ function getUiSnapshot(): {
 
 function getHistoryLengths(): { past: number; future: number } {
   try {
-    const ms = (window as any).__axoview__?.model?.getState?.();
+    const ms = getDebugBridge()?.model?.getState?.();
     return {
       past: ms?.history?.past?.length ?? 0,
       future: ms?.history?.future?.length ?? 0
@@ -277,7 +302,10 @@ export function DiagnosticsOverlay() {
         const fps = Math.round((frameRef.current * 1000) / elapsed);
         frameRef.current = 0;
         lastFpsRef.current = now;
-        const mem = (performance as any).memory;
+        // `performance.memory` is a non-standard Chrome-only API.
+        const mem = (performance as Performance & {
+          memory?: { usedJSHeapSize: number; totalJSHeapSize: number };
+        }).memory;
         const hu = mem ? +(mem.usedJSHeapSize / 1048576).toFixed(1) : -1;
         const ht = mem ? +(mem.totalJSHeapSize / 1048576).toFixed(1) : -1;
         const lt = ltRef.current;
