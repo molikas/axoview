@@ -59,11 +59,11 @@ export function useTranslation<K extends keyof LocaleProps>(namespace?: K) {
     // Return global translation function with dot notation
     const t = (key: NestedKeyOf<LocaleProps>): string => {
       const parts = key.split('.');
-      let current: any = locale;
+      let current: unknown = locale;
 
       for (const part of parts) {
         if (current && typeof current === 'object' && part in current) {
-          current = current[part];
+          current = (current as Record<string, unknown>)[part];
         } else {
           return key; // Return key if path not found
         }
