@@ -117,3 +117,96 @@ describe('non-/api/* routes are not handled by this Worker', () => {
     expect(res.status).toBe(404);
   });
 });
+
+// DP4 (v1.1 CF hardening): Hono onError handler in app.ts logs
+// method + path + err.name on any uncaught 500 and returns a stack-free
+// JSON 500. The handler is the observability seam that wrangler tail
+// will surface in production. Mocking authMiddleware to throw is the
+// minimal way to force an uncaught error through the chain without
+// adding a test-only route to the 45-LOC app.ts.
+describe('onError handler (DP4 — log method+path+errorName on uncaught 500)', () => {
+  test('uncaught error in middleware: logs method+path+errorName, returns JSON 500', async () => {
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      let throwingApp: typeof app;
+      jest.isolateModules(() => {
+        jest.doMock('../auth', () => ({
+          isPublicRoute: () => false,
+          authMiddleware: () => async () => {
+            throw new TypeError('forced by test');
+          }
+        }));
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        throwingApp = require('../app').default;
+      });
+      const res = await throwingApp!.request('http://test/api/diagrams', { method: 'GET' }, {});
+      expect(res.status).toBe(500);
+      const body = await res.json();
+      expect(body).toEqual({ error: 'Internal Server Error' });
+      expect(spy).toHaveBeenCalledTimes(1);
+      const message = spy.mock.calls[0][0] as string;
+      expect(message).toContain('GET');
+      expect(message).toContain('/api/diagrams');
+      expect(message).toContain('TypeError');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
+
+// v1.1 Cloudflare hardening — Workstream A.1.
+// 30-day CF Analytics review recorded 5xx responses on the paths below in
+// production. This block reproduces the exact inputs against the current
+// integration bundle: a 503 (for `/api/*`) or 404 (for non-`/api/*` —
+// scoped out of the Worker by `_routes.json` in prod, returned by Hono with
+// no static handler in tests) is the expected, healthy outcome. A 500
+// surfacing on any of these inputs IS the diagnosis — the test failure
+// stack identifies the originating middleware.
+describe('probe-input surface (CF analytics 5xx fingerprints)', () => {
+  const apiProbes = [
+    '/api/.env',
+    '/api/v2/.env',
+    '/api/config.js',
+    '/api/node/constant.js',
+    '/api/admin/role/id',
+    '/api/v1/executions'
+  ];
+  const nonApiProbes = [
+    '/.env',
+    '/.docker/secrets.json',
+    '/.git/config',
+    '/wp-config.php~',
+    '/wp-config.php.old',
+    '/graphql',
+    '/graphql/api',
+    '/__nextjs_action',
+    '/_next/foo'
+  ];
+
+  describe('AUTH_MODE=none (default)', () => {
+    test.each(apiProbes)('GET %s → 503 (catch-all sink, no 500 leak)', async (path) => {
+      const res = await request(path);
+      expect(res.status).toBe(503);
+      expect(res.body).toEqual({ error: 'Server storage is disabled' });
+    });
+
+    test.each(nonApiProbes)('GET %s → 404 (no Worker route)', async (path) => {
+      const res = await request(path);
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('AUTH_MODE=shared-token without credentials', () => {
+    const env = { AUTH_MODE: 'shared-token', AUTH_SHARED_SECRET: 'sekret' };
+
+    test.each(apiProbes)('GET %s → 401 (auth middleware fires before catch-all)', async (path) => {
+      const res = await request(path, {}, env);
+      expect(res.status).toBe(401);
+    });
+
+    test.each(nonApiProbes)('GET %s → 404 (Worker scope unchanged by AUTH_MODE)', async (path) => {
+      const res = await request(path, {}, env);
+      expect(res.status).toBe(404);
+    });
+  });
+});
