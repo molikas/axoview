@@ -1,3 +1,43 @@
+import type { Icon, Colors, ModelItem, View } from 'axoview';
+
+/**
+ * The loose blob shape persisted to storage. Includes legacy fields produced
+ * by older exports (`name`, `t` compact-format alias) and storage-only fields
+ * (`folderId`, `created`, `lastModified`) that aren't part of the strict
+ * in-memory model (see `DiagramData` in `diagramUtils.ts`).
+ *
+ * Use `isPersistedDiagramBlob()` to narrow from `unknown` at storage and
+ * import boundaries before reading individual fields.
+ */
+export interface PersistedDiagramBlob {
+  title?: string;
+  /** Legacy alias for title (some imports use this). */
+  name?: string;
+  /** Compact-format title field. */
+  t?: string;
+  version?: string;
+  description?: string;
+  icons?: Icon[];
+  colors?: Colors;
+  items?: ModelItem[];
+  views?: View[];
+  fitToScreen?: boolean;
+  requiredPacks?: string[];
+  folderId?: string | null;
+  created?: string;
+  lastModified?: string;
+  sharedAt?: string;
+}
+
+/**
+ * Narrow an opaque JSON-parsed value to a diagram blob. Returns true for any
+ * plain object — field validation is the consumer's responsibility (each
+ * field is optional in `PersistedDiagramBlob`).
+ */
+export function isPersistedDiagramBlob(x: unknown): x is PersistedDiagramBlob {
+  return typeof x === 'object' && x !== null && !Array.isArray(x);
+}
+
 export interface DiagramMeta {
   id: string;
   name: string;

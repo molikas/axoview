@@ -23,7 +23,10 @@ import {
   ParsedProject,
   ImportDestination
 } from '../../services/project/projectZip';
-import { StorageProvider } from '../../services/storage';
+import {
+  StorageProvider,
+  isPersistedDiagramBlob
+} from '../../services/storage';
 
 type Step = 'pickFile' | 'configureZip' | 'configureJson';
 type DestinationKind = ImportDestination['kind'];
@@ -102,11 +105,8 @@ export function ImportDialog({
           // Prefer the diagram's embedded title so a JSON round-trip preserves
           // the name; fall back to the filename when the JSON has no title.
           // `t` is the compact-format field name.
-          const embeddedTitle =
-            (data as any)?.title ||
-            (data as any)?.name ||
-            (data as any)?.t ||
-            '';
+          const blob = isPersistedDiagramBlob(data) ? data : {};
+          const embeddedTitle = blob.title || blob.name || blob.t || '';
           const fileBaseName = file.name.replace(/\.(?:compact\.)?json$/i, '');
           const suggested =
             typeof embeddedTitle === 'string' && embeddedTitle.trim()

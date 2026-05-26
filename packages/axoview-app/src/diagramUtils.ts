@@ -1,13 +1,14 @@
 // Utility functions for handling diagram data
+import type { Icon, Colors, ModelItem, View } from 'axoview';
 
 export interface DiagramData {
   title: string;
   version?: string;
   description?: string;
-  icons: any[];
-  colors: any[];
-  items: any[];
-  views: any[];
+  icons: Icon[];
+  colors: Colors;
+  items: ModelItem[];
+  views: View[];
   fitToScreen?: boolean;
   /**
    * Companion to ADR 0003 lean-save: the icon-pack collections referenced
