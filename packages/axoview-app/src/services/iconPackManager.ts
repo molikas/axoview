@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { flattenCollections } from '@isoflow/isopacks/dist/utils';
+import type { ProcessedCollection } from '@isoflow/isopacks/dist/types';
+import type { Icon } from 'axoview';
 
 // Available icon packs (excluding core isoflow which is always loaded)
 export type IconPackName = 'aws' | 'gcp' | 'azure' | 'kubernetes' | 'material';
@@ -17,7 +19,7 @@ export interface IconPackManagerState {
   lazyLoadingEnabled: boolean;
   enabledPacks: IconPackName[];
   packInfo: Record<IconPackName, IconPackInfo>;
-  loadedIcons: any[];
+  loadedIcons: Icon[];
 }
 
 // localStorage keys
@@ -60,7 +62,9 @@ export const saveEnabledPacks = (packs: IconPackName[]): void => {
 };
 
 // Dynamic pack loader
-export const loadIconPack = async (packName: IconPackName): Promise<any> => {
+export const loadIconPack = async (
+  packName: IconPackName
+): Promise<ProcessedCollection> => {
   switch (packName) {
     case 'aws':
       return (await import('@isoflow/isopacks/dist/aws')).default;
@@ -71,9 +75,11 @@ export const loadIconPack = async (packName: IconPackName): Promise<any> => {
     case 'kubernetes':
       return (await import('@isoflow/isopacks/dist/kubernetes')).default;
     case 'material': {
-      // Generated at prebuild — imported as a JSON asset
+      // Generated at prebuild — imported as a JSON asset. The build omits the
+      // per-icon `isIsometric` flag (all material icons are non-isometric, and
+      // flattenCollections doesn't read it back), so a structural cast is safe.
       const pack = await import('../assets/material-icons-pack.json');
-      return pack.default ?? pack;
+      return (pack.default ?? pack) as unknown as ProcessedCollection;
     }
     default:
       throw new Error(`Unknown icon pack: ${packName}`);
@@ -81,7 +87,7 @@ export const loadIconPack = async (packName: IconPackName): Promise<any> => {
 };
 
 // React hook for managing icon packs
-export const useIconPackManager = (coreIcons: any[]) => {
+export const useIconPackManager = (coreIcons: Icon[]) => {
   const [lazyLoadingEnabled, setLazyLoadingEnabled] = useState<boolean>(() =>
     loadLazyLoadingPreference()
   );
@@ -108,10 +114,10 @@ export const useIconPackManager = (coreIcons: any[]) => {
     }
   );
 
-  const [loadedIcons, setLoadedIcons] = useState<any[]>(coreIcons);
+  const [loadedIcons, setLoadedIcons] = useState<Icon[]>(coreIcons);
   const [loadedPackData, setLoadedPackData] = useState<
-    Record<IconPackName, any>
-  >({} as Record<IconPackName, any>);
+    Record<IconPackName, ProcessedCollection>
+  >({} as Record<IconPackName, ProcessedCollection>);
 
   // Load a specific pack
   const loadPack = useCallback(
@@ -230,29 +236,46 @@ export const useIconPackManager = (coreIcons: any[]) => {
   // Note: `item.icon` is a string id, not an object — earlier code that read
   // `item.icon?.collection` always evaluated to undefined.
   const loadPacksForDiagram = useCallback(
-    async (diagramData: any) => {
-      if (!diagramData) return;
+    async (diagramData: unknown) => {
+      if (!diagramData || typeof diagramData !== 'object') return;
+      const blob = diagramData as {
+        requiredPacks?: unknown;
+        items?: unknown;
+        icons?: unknown;
+      };
 
       const collections = new Set<string>();
 
-      if (Array.isArray(diagramData.requiredPacks)) {
-        for (const p of diagramData.requiredPacks) {
+      if (Array.isArray(blob.requiredPacks)) {
+        for (const p of blob.requiredPacks) {
           if (typeof p === 'string') collections.add(p);
         }
       }
 
-      const items = Array.isArray(diagramData.items) ? diagramData.items : [];
-      const icons = Array.isArray(diagramData.icons) ? diagramData.icons : [];
+      const items: unknown[] = Array.isArray(blob.items) ? blob.items : [];
+      const icons: unknown[] = Array.isArray(blob.icons) ? blob.icons : [];
       if (items.length && icons.length) {
         const idToCollection = new Map<string, string>();
         for (const icon of icons) {
-          if (icon?.id && typeof icon.collection === 'string') {
-            idToCollection.set(icon.id, icon.collection);
+          if (
+            typeof icon === 'object' && icon !== null &&
+            typeof (icon as { id?: unknown }).id === 'string' &&
+            typeof (icon as { collection?: unknown }).collection === 'string'
+          ) {
+            idToCollection.set(
+              (icon as { id: string }).id,
+              (icon as { collection: string }).collection
+            );
           }
         }
         for (const item of items) {
+          // ModelItem.icon is `string` per schema; the object-shaped fallback
+          // handles legacy single-JSON imports that retained the inline icon.
+          const itemIcon = (item as { icon?: unknown })?.icon;
           const iconId =
-            typeof item?.icon === 'string' ? item.icon : item?.icon?.id;
+            typeof itemIcon === 'string'
+              ? itemIcon
+              : (itemIcon as { id?: string } | undefined)?.id;
           if (iconId) {
             const c = idToCollection.get(iconId);
             if (c) collections.add(c);
