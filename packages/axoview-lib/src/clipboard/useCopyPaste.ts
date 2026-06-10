@@ -189,7 +189,7 @@ export const useCopyPaste = () => {
       `Copied ${result.count} item${result.count !== 1 ? 's' : ''}`,
       'info'
     );
-  }, [buildPayload, uiStateApi, clipboard]);
+  }, [buildPayload, showNotification, clipboard]);
 
   const handleCut = useCallback(() => {
     const result = buildPayload();
@@ -225,7 +225,7 @@ export const useCopyPaste = () => {
       `Cut ${result.count} item${result.count !== 1 ? 's' : ''}`,
       'success'
     );
-  }, [buildPayload, uiStateApi, scene, clipboard]);
+  }, [buildPayload, showNotification, uiStateApi, scene, clipboard]);
 
   const handlePaste = useCallback(() => {
     const clipboardData = clipboard.get();
@@ -382,7 +382,7 @@ export const useCopyPaste = () => {
     } else {
       showNotification('Pasting… routing connectors (0%)', 'info');
     }
-  }, [uiStateApi, scene, clipboard]);
+  }, [showNotification, uiStateApi, scene, clipboard]);
 
   return { handleCopy, handleCut, handlePaste };
 };

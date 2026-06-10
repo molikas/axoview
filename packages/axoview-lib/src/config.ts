@@ -169,4 +169,3 @@ export const TOMBSTONE_ICON: Icon = {
 
 export const DEFAULT_LABEL_HEIGHT = 20;
 export const PROJECT_BOUNDING_BOX_PADDING = 3;
-export const MARKDOWN_EMPTY_VALUE = '<p><br></p>';

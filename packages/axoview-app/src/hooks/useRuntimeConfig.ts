@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { apiBaseUrl } from '../utils/apiBaseUrl';
 
 export interface RuntimeConfig {
@@ -49,18 +48,4 @@ export async function fetchRuntimeConfig(): Promise<RuntimeConfig> {
   } finally {
     inflight = null;
   }
-}
-
-export function useRuntimeConfig(): RuntimeConfig | null {
-  const [config, setConfig] = useState<RuntimeConfig | null>(cached);
-  useEffect(() => {
-    if (cached) {
-      setConfig(cached);
-      return;
-    }
-    let mounted = true;
-    fetchRuntimeConfig().then((c) => { if (mounted) setConfig(c); });
-    return () => { mounted = false; };
-  }, []);
-  return config;
 }

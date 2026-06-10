@@ -101,22 +101,3 @@ export interface StorageProvider {
   // Reserved for P3 — no-op stubs for now
   subscribe?(diagramId: string, callback: () => void): () => void;
 }
-
-export interface PublicSnapshot {
-  title: string;
-  name: string;
-  icons: unknown[];
-  colors: unknown[];
-  items: unknown[];
-  views: unknown[];
-  fitToScreen?: boolean;
-  sharedAt: string;
-  sourceId: string;
-}
-
-export class NotImplementedError extends Error {
-  constructor(method: string) {
-    super(`${method} is not implemented for this storage provider`);
-    this.name = 'NotImplementedError';
-  }
-}

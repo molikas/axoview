@@ -21,7 +21,6 @@ import {
   Connector,
   Size,
   ConnectorAnchor,
-  ItemReference,
   Rect,
   ProjectionOrientationEnum,
   BoundingBox,

@@ -9,14 +9,6 @@ export const clamp = (num: number, min: number, max: number) => {
   return Math.max(Math.min(num, max), min);
 };
 
-export const getRandom = (min: number, max: number) => {
-  return Math.floor(Math.random() * (max - min) + min);
-};
-
-export const roundToOneDecimalPlace = (num: number) => {
-  return Math.round(num * 10) / 10;
-};
-
 export const roundToTwoDecimalPlaces = (num: number) => {
   return Math.round(num * 100) / 100;
 };
@@ -110,14 +102,4 @@ export function getItemById<T extends { id: string }>(
   }
 
   return { value: values[index], index };
-}
-
-export function getItemByIndexOrThrow<T>(items: T[], index: number): T {
-  const item = items[index];
-
-  if (!item) {
-    throw new Error(`Item with index "${index}" not found.`);
-  }
-
-  return item;
 }

@@ -32,7 +32,6 @@ import {
   Add as AddIcon,
   Delete as DeleteIcon,
   InsertLink as InsertLinkIcon,
-  OpenInNew as OpenInNewIcon,
   VisibilityOutlined as ShowLabelIcon,
   VisibilityOffOutlined as HideLabelIcon
 } from '@mui/icons-material';

@@ -9,13 +9,11 @@ export * from 'src/utils/isoMath';
 export * from 'src/utils/hitDetection';
 
 import {
-  UNPROJECTED_TILE_SIZE,
   PROJECT_BOUNDING_BOX_PADDING,
   MAX_ZOOM
 } from 'src/config';
 import { Coords, Size, Scroll, Mouse, SlimMouseEvent, View } from 'src/types';
 import { CoordsUtils } from 'src/utils/coordsUtils';
-import { SizeUtils } from 'src/utils/sizeUtils';
 import { clamp } from 'src/utils/common';
 import {
   screenToIso,
@@ -25,8 +23,7 @@ import {
   sortByPosition,
   getConnectorPath,
   connectorPathTileToGlobal,
-  getTextBoxDimensions,
-  getTileScrollPosition
+  getTextBoxDimensions
 } from 'src/utils/isoMath';
 
 // Type alias for a mode-aware getTilePosition function.

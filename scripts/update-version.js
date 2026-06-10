@@ -22,7 +22,8 @@ const packageFiles = [
   'package.json',
   'packages/axoview-lib/package.json',
   'packages/axoview-app/package.json',
-  'packages/axoview-backend/package.json'
+  'packages/axoview-backend/package.json',
+  'packages/axoview-worker/package.json'
 ];
 
 packageFiles.forEach(file => {

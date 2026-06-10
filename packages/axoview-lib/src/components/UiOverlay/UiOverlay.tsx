@@ -30,15 +30,10 @@ import { ViewTabs } from 'src/components/ViewTabs/ViewTabs';
 import { NodeActionBar } from 'src/components/NodeActionBar/NodeActionBar';
 import { LassoLayerBar } from 'src/components/LassoLayerBar/LassoLayerBar';
 
-const ToolsEnum = {
-  TOOL_MENU: 'TOOL_MENU',
-  ITEM_CONTROLS: 'ITEM_CONTROLS',
-  VIEW_TITLE: 'VIEW_TITLE',
-  VIEW_TABS: 'VIEW_TABS'
-} as const;
+type ToolName = 'TOOL_MENU' | 'ITEM_CONTROLS' | 'VIEW_TITLE' | 'VIEW_TABS';
 
 interface EditorModeMapping {
-  [k: string]: (keyof typeof ToolsEnum)[];
+  [k: string]: ToolName[];
 }
 
 const EDITOR_MODE_MAPPING: EditorModeMapping = {
@@ -256,7 +251,6 @@ export const UiOverlay = ({
               <ViewSidebarOutlined sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>,
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           (sidebarTogglePortalTarget ?? portalTarget)!
         )}
 

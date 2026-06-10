@@ -2,7 +2,6 @@ import { produce } from 'immer';
 import {
   generateId,
   getItemAtTile,
-  getItemByIdOrThrow,
   hasMovedTile,
   setWindowCursor
 } from 'src/utils';

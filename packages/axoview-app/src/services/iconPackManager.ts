@@ -15,13 +15,6 @@ export interface IconPackInfo {
   iconCount: number;
 }
 
-export interface IconPackManagerState {
-  lazyLoadingEnabled: boolean;
-  enabledPacks: IconPackName[];
-  packInfo: Record<IconPackName, IconPackInfo>;
-  loadedIcons: Icon[];
-}
-
 // localStorage keys
 const LAZY_LOADING_KEY = 'axoview-lazy-loading-enabled';
 const ENABLED_PACKS_KEY = 'axoview-enabled-icon-packs';
@@ -355,7 +348,8 @@ export const useIconPackManager = (coreIcons: Icon[]) => {
       setIsInitialized(true);
     };
     initialize();
-  }, []); // Only run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: eager-load packs once at startup
+  }, []);
 
   return {
     isInitialized,

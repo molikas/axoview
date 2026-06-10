@@ -1,0 +1,57 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreExportsUsedInFile": true,
+  "ignoreBinaries": ["playwright", "wrangler", "jest"],
+  "ignore": ["packages/axoview-backend/src/adapters/types.ts"],
+  "ignoreDependencies": [
+    "core-js",
+    "msw",
+    "pathfinding",
+    "@types/pathfinding",
+    "jsdom",
+    "@types/jsdom",
+    "@types/quill",
+    "prettier",
+    "@testing-library/jest-dom",
+    "@testing-library/user-event",
+    "conventional-changelog-conventionalcommits",
+    "eslint-config-react-app",
+    "hono",
+    "@jest/globals"
+  ],
+  "rules": {
+    "duplicates": "off"
+  },
+  "workspaces": {
+    ".": {
+      "entry": ["functions/**/*.ts", "scripts/*.js"]
+    },
+    "packages/axoview-app": {
+      "entry": [
+        "src/index.tsx",
+        "**/*.test.{ts,tsx}",
+        "jest.setup.js",
+        "jest.*.js",
+        "scripts/*.js"
+      ]
+    },
+    "packages/axoview-lib": {
+      "entry": ["src/index.ts", "**/*.test.{ts,tsx}"]
+    },
+    "packages/axoview-backend": {
+      "entry": ["server.js", "src/**/__tests__/**/*.spec.js", "jest.config.js"]
+    },
+    "packages/axoview-worker": {
+      "entry": ["src/app.ts", "src/**/__tests__/**/*.spec.ts", "jest.config.cjs"]
+    },
+    "packages/axoview-e2e": {
+      "entry": [
+        "**/*.spec.ts",
+        "fixtures/**/*.ts",
+        "pom/**/*.ts",
+        "helpers/**/*.ts",
+        "playwright.config.ts"
+      ]
+    }
+  }
+}
