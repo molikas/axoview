@@ -28,15 +28,12 @@ import { usePanHandlers } from '../usePanHandlers';
 const mockSetMode = jest.fn();
 const mockSetItemControls = jest.fn();
 const mockSetMouse = jest.fn();
-const mockSetContextMenu = jest.fn();
 const mockUiState = {
   mode: { type: 'CURSOR' as string, selection: null },
-  contextMenu: null as any,
   actions: {
     setMode: mockSetMode,
     setItemControls: mockSetItemControls,
-    setMouse: mockSetMouse,
-    setContextMenu: mockSetContextMenu
+    setMouse: mockSetMouse
   },
   panSettings: {
     middleClickPan: true,
@@ -119,10 +116,8 @@ beforeEach(() => {
   mockUiState.actions = {
     setMode: mockSetMode,
     setItemControls: mockSetItemControls,
-    setMouse: mockSetMouse,
-    setContextMenu: mockSetContextMenu
+    setMouse: mockSetMouse
   } as any;
-  mockUiState.contextMenu = null;
   mockUiState.panSettings.middleClickPan = true;
   mockUiState.panSettings.rightClickPan = true;
   mockUiState.panSettings.ctrlClickPan = true;

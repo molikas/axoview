@@ -12,7 +12,7 @@ import { ReconnectAnchor } from 'src/interaction/modes/ReconnectAnchor';
 // ---------------------------------------------------------------------------
 const mockSetWindowCursor = jest.fn();
 const mockGetItemAtTile = jest.fn<any, any>(() => null);
-const mockHasMovedTile = jest.fn(() => true);
+const mockHasMovedTile = jest.fn<any, any>(() => true);
 
 jest.mock('src/utils', () => ({
   setWindowCursor: (...args: any[]) => mockSetWindowCursor(...args),

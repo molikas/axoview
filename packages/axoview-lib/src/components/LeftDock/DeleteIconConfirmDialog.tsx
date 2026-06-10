@@ -53,10 +53,12 @@ export const DeleteIconConfirmDialog = ({
       onKeyDown={handleKeyDown}
       maxWidth="xs"
       fullWidth
-      PaperProps={{
-        sx: {
-          boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)',
-          borderRadius: 2
+      slotProps={{
+        paper: {
+          sx: {
+            boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)',
+            borderRadius: 2
+          }
         }
       }}
     >

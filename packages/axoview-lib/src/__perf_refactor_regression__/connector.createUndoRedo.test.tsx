@@ -137,7 +137,7 @@ describe('connector create → undo → redo (MQA #5)', () => {
     });
 
     const modelAfterRedo = result.current.modelApi.getState();
-    expect(modelAfterRedo.views[0].connectors.length).toBe(1);
-    expect(modelAfterRedo.views[0].connectors[0].id).toBe('new-conn');
+    expect(modelAfterRedo.views[0].connectors!.length).toBe(1);
+    expect(modelAfterRedo.views[0].connectors![0].id).toBe('new-conn');
   });
 });

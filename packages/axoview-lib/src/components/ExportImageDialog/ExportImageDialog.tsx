@@ -42,7 +42,6 @@ import { DOMErrorBoundary } from 'src/components/DOMErrorBoundary';
 import { useTranslation } from 'src/stores/localeStore';
 
 interface Props {
-  quality?: number;
   onClose: () => void;
 }
 

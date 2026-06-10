@@ -54,7 +54,7 @@ export function ExportPopover() {
         onClose={() => setOpen(false)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        PaperProps={{ sx: { mt: 0.5, minWidth: 200 } }}
+        slotProps={{ paper: { sx: { mt: 0.5, minWidth: 200 } } }}
       >
         <MenuList dense sx={{ py: 0.5 }}>
           <MenuItem

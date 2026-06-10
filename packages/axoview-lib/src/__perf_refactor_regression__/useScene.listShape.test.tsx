@@ -205,7 +205,9 @@ describe('useScene list shape — C-2 regression', () => {
     it('model data overrides RECTANGLE_DEFAULTS', () => {
       setupMocks({ rectangles: [{ ...rect, width: 10 }] });
       const { result } = renderHook(() => useScene());
-      expect(result.current.rectangles[0].width).toBe(10);
+      expect(
+        (result.current.rectangles[0] as unknown as { width: number }).width
+      ).toBe(10);
     });
   });
 

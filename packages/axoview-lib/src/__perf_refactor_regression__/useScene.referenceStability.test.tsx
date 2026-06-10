@@ -187,7 +187,7 @@ describe('useScene reference stability — C-2 regression', () => {
     const viewWithItems = {
       ...modelState.views[0],
       items: [{ id: 'item1', tile: { x: 0, y: 0 } }]
-    };
+    } as (typeof modelState.views)[number];
     modelState = { ...modelState, views: [viewWithItems] };
     (modelStoreModule.useModelStore as jest.Mock).mockImplementation(
       (selector: any) => selector(modelState)

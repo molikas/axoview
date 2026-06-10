@@ -188,12 +188,6 @@ export const DialogTypeEnum = {
   SETTINGS: 'SETTINGS'
 } as const;
 
-export interface ContextMenu {
-  type: 'ITEM' | 'EMPTY';
-  item?: ItemReference;
-  tile: Coords;
-}
-
 export type ConnectorInteractionMode = 'click' | 'drag';
 
 export interface Notification {
@@ -223,7 +217,6 @@ export interface UiState {
    * single selected item; when 0 or > 1, itemControls is null. See ADR-0006.
    */
   selectedIds: ItemReference[];
-  contextMenu: ContextMenu | null;
   zoom: number;
   scroll: Scroll;
   mouse: Mouse;
@@ -277,7 +270,6 @@ export interface UiStateActions {
   toggleSelected: (ref: ItemReference) => void;
   /** Convenience: clears selectedIds and itemControls. */
   clearSelection: () => void;
-  setContextMenu: (contextMenu: ContextMenu | null) => void;
   setMouse: (mouse: Mouse) => void;
   setRendererEl: (el: HTMLDivElement) => void;
   setRendererSize: (size: Size) => void;

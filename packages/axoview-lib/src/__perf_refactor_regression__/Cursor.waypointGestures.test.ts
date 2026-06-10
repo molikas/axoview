@@ -74,7 +74,6 @@ function makeUiState(overrides: any = {}) {
     actions: overrides.actions ?? {
       setMode: jest.fn(),
       setItemControls: jest.fn(),
-      setContextMenu: jest.fn(),
       setSelectedIds: jest.fn(),
       toggleSelected: jest.fn(),
       clearSelection: jest.fn()
