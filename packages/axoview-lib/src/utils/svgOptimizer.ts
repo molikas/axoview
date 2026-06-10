@@ -292,6 +292,63 @@ export function pruneHiddenElements(doc: Document): void {
 // Main entry point
 // ---------------------------------------------------------------------------
 
+const SVG_TEXT_PREFIX = 'data:image/svg+xml;charset=utf-8,';
+const SVG_BASE64_PREFIX = 'data:image/svg+xml;base64,';
+
+// SVG coordinate attributes safe to number-round (geometry, not box layout).
+const COORDINATE_ATTRS = [
+  'd',
+  'transform',
+  'viewBox',
+  'x',
+  'y',
+  'x1',
+  'y1',
+  'x2',
+  'y2',
+  'cx',
+  'cy',
+  'r',
+  'rx',
+  'ry',
+  'points',
+  'stroke-width',
+  'stroke-dasharray',
+  'stroke-dashoffset'
+];
+
+// Decode a data URL → raw SVG string. Returns null for an unknown format
+// (caller returns the URL untouched).
+function decodeSvgDataUrl(svgDataUrl: string): string | null {
+  if (svgDataUrl.startsWith(SVG_BASE64_PREFIX)) {
+    return atob(svgDataUrl.slice(SVG_BASE64_PREFIX.length));
+  }
+  if (svgDataUrl.startsWith(SVG_TEXT_PREFIX)) {
+    return decodeURIComponent(svgDataUrl.slice(SVG_TEXT_PREFIX.length));
+  }
+  return null;
+}
+
+// Phase 1 + 2: strip irrelevant style properties and round numbers in the
+// element's style attribute.
+function cleanElementStyle(el: Element) {
+  const style = el.getAttribute('style');
+  if (!style) return;
+  let cleaned = stripIrrelevantProperties(style); // Phase 1
+  cleaned = roundStyleDeclarations(cleaned); // Phase 2 (layout-safe)
+  if (cleaned !== style) el.setAttribute('style', cleaned);
+}
+
+// Phase 2: round SVG coordinate attributes (safe — geometry, not box layout).
+function roundCoordinateAttrs(el: Element) {
+  for (const attr of COORDINATE_ATTRS) {
+    const val = el.getAttribute(attr);
+    if (!val) continue;
+    const rounded = roundNumbers(val);
+    if (rounded !== val) el.setAttribute(attr, rounded);
+  }
+}
+
 /**
  * Optimise a raw SVG data-URL produced by dom-to-image-more.
  *
@@ -299,26 +356,14 @@ export function pruneHiddenElements(doc: Document): void {
  * Phase 3 (prune hidden elements) and returns an optimised data-URL.
  */
 export async function optimizeSvgDataUrl(svgDataUrl: string): Promise<string> {
-  // Decode data URL → raw SVG string
-  const prefix = 'data:image/svg+xml;charset=utf-8,';
-  const base64prefix = 'data:image/svg+xml;base64,';
-
-  let svgText: string;
-  if (svgDataUrl.startsWith(base64prefix)) {
-    svgText = atob(svgDataUrl.slice(base64prefix.length));
-  } else if (svgDataUrl.startsWith(prefix)) {
-    svgText = decodeURIComponent(svgDataUrl.slice(prefix.length));
-  } else {
-    // Unknown format — return as-is
-    return svgDataUrl;
-  }
+  const svgText = decodeSvgDataUrl(svgDataUrl);
+  if (svgText === null) return svgDataUrl; // unknown format — return as-is
 
   // Parse into a DOM so we can walk it properly
   const parser = new DOMParser();
   const doc = parser.parseFromString(svgText, 'image/svg+xml');
 
-  const parseError = doc.querySelector('parsererror');
-  if (parseError) {
+  if (doc.querySelector('parsererror')) {
     console.warn('[svgOptimizer] parse error, returning original');
     return svgDataUrl;
   }
@@ -326,46 +371,11 @@ export async function optimizeSvgDataUrl(svgDataUrl: string): Promise<string> {
   // Phase 3: remove display:none subtrees first (fewer nodes to process)
   pruneHiddenElements(doc);
 
-  // Phase 1 + 2: walk every element and clean its style attribute
+  // Phase 1 + 2: walk every element and clean its style + coordinate attrs
   const allElements = doc.getElementsByTagName('*');
   for (let i = 0; i < allElements.length; i++) {
-    const el = allElements[i];
-    const style = el.getAttribute('style');
-    if (style) {
-      let cleaned = stripIrrelevantProperties(style); // Phase 1
-      cleaned = roundStyleDeclarations(cleaned); // Phase 2 (layout-safe)
-      if (cleaned !== style) {
-        el.setAttribute('style', cleaned);
-      }
-    }
-
-    // Phase 2: round SVG coordinate attributes (safe — these are geometry, not box layout)
-    for (const attr of [
-      'd',
-      'transform',
-      'viewBox',
-      'x',
-      'y',
-      'x1',
-      'y1',
-      'x2',
-      'y2',
-      'cx',
-      'cy',
-      'r',
-      'rx',
-      'ry',
-      'points',
-      'stroke-width',
-      'stroke-dasharray',
-      'stroke-dashoffset'
-    ]) {
-      const val = el.getAttribute(attr);
-      if (val) {
-        const rounded = roundNumbers(val);
-        if (rounded !== val) el.setAttribute(attr, rounded);
-      }
-    }
+    cleanElementStyle(allElements[i]);
+    roundCoordinateAttrs(allElements[i]);
   }
 
   // Serialize back to string
@@ -374,5 +384,5 @@ export async function optimizeSvgDataUrl(svgDataUrl: string): Promise<string> {
 
   // Re-encode as base64 to avoid URL-encoding issues with complex SVG content
   const encoded = btoa(unescape(encodeURIComponent(optimized)));
-  return `${base64prefix}${encoded}`;
+  return `${SVG_BASE64_PREFIX}${encoded}`;
 }
