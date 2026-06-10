@@ -73,6 +73,7 @@ export const Connector = memo(({ connector }: Props) => {
         tile.y * UNPROJECTED_TILE_SIZE + drawOffset.y
       }`;
     }, '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional fine-grained dep on connectorPath?.tiles; whole connectorPath over-invalidates
   }, [connectorPath?.tiles, drawOffset, hasTiles]);
 
   const offsetPaths = useMemo(() => {
@@ -127,6 +128,7 @@ export const Connector = memo(({ connector }: Props) => {
     }
 
     return { path1: path1Points.join(' '), path2: path2Points.join(' ') };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional fine-grained dep on connectorPath?.tiles; whole connectorPath over-invalidates
   }, [
     connectorPath?.tiles,
     merged.lineType,
@@ -138,6 +140,7 @@ export const Connector = memo(({ connector }: Props) => {
   const directionIcon = useMemo(() => {
     if (!hasTiles) return null;
     return getConnectorDirectionIcon(connectorPath!.tiles);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional fine-grained dep on connectorPath?.tiles; whole connectorPath over-invalidates
   }, [connectorPath?.tiles, hasTiles]);
 
   const strokeDashArray = useMemo(() => {

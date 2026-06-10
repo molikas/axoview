@@ -379,6 +379,7 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
     };
 
     img.src = imageData;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- redraw is driven by image/crop state; t only labels the crop hint
   }, [imageData, isInCropMode, cropArea, transparentBackground]);
 
   const [showGrid, setShowGrid] = useState(false);

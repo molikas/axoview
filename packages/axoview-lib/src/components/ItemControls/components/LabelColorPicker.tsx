@@ -33,7 +33,8 @@ export const LabelColorPicker = ({ value, onChange }: Props) => {
     if (!isPresetColor(value, presetHexValues)) {
       setUseCustom(true);
     }
-  }, [value]); // presetHexValues intentionally omitted: palette changes are rare and non-breaking
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- presetHexValues omitted: palette changes are rare and this only ever transitions TO custom
+  }, [value]);
 
   const activeHex = value || BLACK;
   // Deduplicate: exclude any scene color that is already black

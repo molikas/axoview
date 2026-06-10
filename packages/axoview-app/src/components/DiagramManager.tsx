@@ -29,6 +29,7 @@ export const DiagramManager: React.FC<Props> = ({
 
   useEffect(() => {
     loadDiagrams();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: load the diagram list once
   }, []);
 
   const loadDiagrams = async () => {

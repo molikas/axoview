@@ -864,6 +864,7 @@ export const useInteractionManager = () => {
         uiState.actions.setContextMenu({ type: 'EMPTY', tile });
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional fine-grained deps on the layerContext Sets read here; whole layerContext over-invalidates
     [uiStateApi, scene, layerContext.lockedIds, layerContext.visibleIds]
   );
 

@@ -355,7 +355,8 @@ export const useIconPackManager = (coreIcons: Icon[]) => {
       setIsInitialized(true);
     };
     initialize();
-  }, []); // Only run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: eager-load packs once at startup
+  }, []);
 
   return {
     isInitialized,

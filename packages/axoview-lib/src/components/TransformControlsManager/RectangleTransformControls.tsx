@@ -24,6 +24,7 @@ export const RectangleTransformControls = ({ id }: Props) => {
         showCursor: true
       });
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional fine-grained dep on rectangle?.id; whole rectangle over-invalidates
     [rectangle?.id, uiStateActions]
   );
 

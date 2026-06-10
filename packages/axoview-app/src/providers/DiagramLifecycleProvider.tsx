@@ -451,6 +451,7 @@ export function DiagramLifecycleProvider({
       }
     };
     loadPublicSnapshot();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs on share-URL identity only; iconPackManager is a stable singleton
   }, [isPublicShareUrl, shareUuid, serverStorageAvailable]);
 
   // ---------------------------------------------------------------------------
@@ -512,6 +513,7 @@ export function DiagramLifecycleProvider({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on readonlyDiagramId/storage; the URL-guard booleans recompute each render and iconPackManager is a stable singleton
   }, [readonlyDiagramId, storage]);
 
   // ---------------------------------------------------------------------------
@@ -560,6 +562,7 @@ export function DiagramLifecycleProvider({
         console.error('Failed to restore last diagram metadata:', e);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: restore last session from localStorage once
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -582,6 +585,7 @@ export function DiagramLifecycleProvider({
         });
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- persist keyed on diagrams; isDiagramsInitialized is a one-way guard and t only affects the error toast
   }, [diagrams]);
 
   // ---------------------------------------------------------------------------
@@ -600,6 +604,7 @@ export function DiagramLifecycleProvider({
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- listener reads autoSave.saveStatus/dirtyDiagramIds; t only labels the prompt, no need to re-bind on locale change
   }, [dirtyDiagramIds, autoSave.saveStatus, serverStorageAvailable]);
 
   // ---------------------------------------------------------------------------
@@ -906,6 +911,7 @@ export function DiagramLifecycleProvider({
         storageRef.current.saveDiagram(id, mergedData).catch(() => {});
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on stable autoSave.resetStatus; whole autoSave churns on every save-status change
     [iconPackManager, autoSave.resetStatus]
   );
 
@@ -987,6 +993,7 @@ export function DiagramLifecycleProvider({
     };
     isAfterLoadRef.current = true;
     axoviewRef.current?.load(blankData as InitialData);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on the stable autoSave.* methods it calls; whole autoSave churns on every save-status change
   }, [autoSave.saveNow, autoSave.resetStatus, iconPackManager.loadedIcons]);
 
   // ---------------------------------------------------------------------------
@@ -1041,6 +1048,7 @@ export function DiagramLifecycleProvider({
     };
     isAfterLoadRef.current = true;
     axoviewRef.current?.load(blankData as InitialData);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on stable autoSave.resetStatus; whole autoSave churns on every save-status change
   }, [autoSave.resetStatus, iconPackManager.loadedIcons]);
 
   // Sync in-memory state (diagramName, currentDiagram, model store title) when
@@ -1138,6 +1146,7 @@ export function DiagramLifecycleProvider({
         notificationStore.push({ severity: 'error', message: `Failed to open "${name}"` });
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on stable autoSave.saveNow; whole autoSave churns on every save-status change
     [storage, serverStorageAvailable, autoSave.saveNow, handleDiagramManagerLoad]
   );
 
@@ -1149,6 +1158,7 @@ export function DiagramLifecycleProvider({
     // /display/<id> URLs (typed, shared, opened in a new tab) don't grow a
     // back button that would go somewhere the user didn't come from.
     navigate(`/display/${currentDiagram.id}`, { state: { fromEditor: true } });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on stable autoSave.saveNow; whole autoSave churns on every save-status change
   }, [currentDiagram, storage, autoSave.saveNow, navigate]);
 
   // ---------------------------------------------------------------------------
@@ -1331,6 +1341,7 @@ export function DiagramLifecycleProvider({
         }
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on stable autoSave.scheduleSave; whole autoSave churns on every save-status change
     [isReadonlyUrl, serverStorageAvailable, autoSave.scheduleSave]
   );
 
@@ -1341,6 +1352,7 @@ export function DiagramLifecycleProvider({
     (packName: string, enabled: boolean) => {
       iconPackManager.togglePack(packName as IconPackName, enabled);
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- iconPackManager.togglePack is a stable method; whole iconPackManager churns on every pack-state change
     [iconPackManager.togglePack]
   );
 
