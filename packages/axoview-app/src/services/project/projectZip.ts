@@ -175,17 +175,20 @@ export const exportProject = async (
 // Parse
 // ----------------------------------------------------------------------------
 
-export const parseProject = async (file: File | Blob): Promise<ParsedProject> => {
-  let zip: JSZip;
+const loadZip = async (file: File | Blob): Promise<JSZip> => {
   try {
-    zip = await JSZip.loadAsync(file);
+    return await JSZip.loadAsync(file);
   } catch {
     // JSZip throws on any malformed/non-zip input → translate to a domain error.
     throw new ProjectZipError('Could not read zip archive', 'BAD_ZIP');
   }
+};
 
+const readManifest = async (zip: JSZip): Promise<ProjectManifest> => {
   const manifestEntry = zip.file('manifest.json');
-  if (!manifestEntry) throw new ProjectZipError('Missing manifest.json', 'NO_MANIFEST');
+  if (!manifestEntry) {
+    throw new ProjectZipError('Missing manifest.json', 'NO_MANIFEST');
+  }
 
   let manifest: ProjectManifest;
   try {
@@ -194,7 +197,10 @@ export const parseProject = async (file: File | Blob): Promise<ParsedProject> =>
     throw new ProjectZipError('manifest.json is not valid JSON', 'BAD_MANIFEST');
   }
 
-  if (manifest.format !== PROJECT_FORMAT && !LEGACY_PROJECT_FORMATS.has(manifest.format)) {
+  if (
+    manifest.format !== PROJECT_FORMAT &&
+    !LEGACY_PROJECT_FORMATS.has(manifest.format)
+  ) {
     throw new ProjectZipError(
       `Unrecognized format "${manifest.format}" — expected "${PROJECT_FORMAT}"`,
       'BAD_FORMAT'
@@ -206,7 +212,13 @@ export const parseProject = async (file: File | Blob): Promise<ParsedProject> =>
       'UNSUPPORTED_VERSION'
     );
   }
+  return manifest;
+};
 
+const loadDiagrams = async (
+  zip: JSZip,
+  manifest: ProjectManifest
+): Promise<Map<string, unknown>> => {
   const diagrams = new Map<string, unknown>();
   for (const meta of manifest.diagrams ?? []) {
     if (!ID_PATTERN.test(meta.id)) {
@@ -214,7 +226,9 @@ export const parseProject = async (file: File | Blob): Promise<ParsedProject> =>
     }
     const path = meta.file ?? `diagrams/${meta.id}.json`;
     const entry = zip.file(path);
-    if (!entry) throw new ProjectZipError(`Missing diagram file "${path}"`, 'MISSING_DIAGRAM');
+    if (!entry) {
+      throw new ProjectZipError(`Missing diagram file "${path}"`, 'MISSING_DIAGRAM');
+    }
     let model: unknown;
     try {
       model = JSON.parse(await entry.async('string'));
@@ -223,23 +237,36 @@ export const parseProject = async (file: File | Blob): Promise<ParsedProject> =>
     }
     diagrams.set(meta.id, model);
   }
+  return diagrams;
+};
 
+const validateFolderIds = (manifest: ProjectManifest): void => {
   for (const folder of manifest.folders ?? []) {
     if (!ID_PATTERN.test(folder.id)) {
       throw new ProjectZipError(`Invalid folder id "${folder.id}"`, 'BAD_ID');
     }
   }
+};
 
-  let treeManifest: TreeManifest | undefined;
+const readTreeManifest = async (
+  zip: JSZip
+): Promise<TreeManifest | undefined> => {
   const tmEntry = zip.file('tree-manifest.json');
-  if (tmEntry) {
-    try {
-      treeManifest = JSON.parse(await tmEntry.async('string'));
-    } catch {
-      // tree manifest is optional — ignore parse failures
-    }
+  if (!tmEntry) return undefined;
+  try {
+    return JSON.parse(await tmEntry.async('string'));
+  } catch {
+    // tree manifest is optional — ignore parse failures
+    return undefined;
   }
+};
 
+export const parseProject = async (file: File | Blob): Promise<ParsedProject> => {
+  const zip = await loadZip(file);
+  const manifest = await readManifest(zip);
+  const diagrams = await loadDiagrams(zip, manifest);
+  validateFolderIds(manifest);
+  const treeManifest = await readTreeManifest(zip);
   return { manifest, diagrams, treeManifest };
 };
 
