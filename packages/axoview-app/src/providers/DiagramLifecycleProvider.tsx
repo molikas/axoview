@@ -86,6 +86,11 @@ interface DiagramLifecycleContextValue {
   clearReadonlyLoadFailed: () => void;
   publicShareLoadFailed: boolean;
   clearPublicShareLoadFailed: () => void;
+  // ADR 0011 — failure-of-intent dialog state for a user-initiated save that
+  // could not be persisted. `retrySave` re-runs the save action.
+  saveError: boolean;
+  clearSaveError: () => void;
+  retrySave: () => void;
   // Auto-save status (server mode)
   saveStatus: SaveStatus;
   // Dialog state
@@ -178,6 +183,17 @@ export function DiagramLifecycleProvider({
   const clearReadonlyLoadFailed = useCallback(() => setReadonlyLoadFailed(false), []);
   const [publicShareLoadFailed, setPublicShareLoadFailed] = useState(false);
   const clearPublicShareLoadFailed = useCallback(() => setPublicShareLoadFailed(false), []);
+
+  // ADR 0011 — save failure-of-intent. `retrySave` re-runs the canonical
+  // user-save entry (handleSaveClick) via a ref so the callback identity stays
+  // stable and both server- and session-mode saves funnel through one retry.
+  const [saveError, setSaveError] = useState(false);
+  const clearSaveError = useCallback(() => setSaveError(false), []);
+  const handleSaveClickRef = useRef<() => void>(() => {});
+  const retrySave = useCallback(() => {
+    setSaveError(false);
+    handleSaveClickRef.current();
+  }, []);
 
   // Clear stale failure flags when the user leaves the readonly route — covers
   // the preview → back-to-editing case where an in-flight load could surface
@@ -673,10 +689,9 @@ export function DiagramLifecycleProvider({
           return { id: newId, createdAt: new Date().toISOString() };
         } catch (e) {
           console.error('executeSave: storage op failed', e);
-          notificationStore.push({
-            severity: 'error',
-            message: t('alert.saveFailed', 'Save failed')
-          });
+          // ADR 0011 — failure-of-intent: the user pressed Save and it didn't
+          // persist. Surface the explicit dialog instead of a toast.
+          setSaveError(true);
           return null;
         }
       };
@@ -1077,7 +1092,8 @@ export function DiagramLifecycleProvider({
             setLastSaved(savedAt);
             notificationStore.push({ severity: 'success', message: `"${currentDiagram.name}" saved` });
           } catch {
-            notificationStore.push({ severity: 'error', message: t('alert.saveFailed', 'Save failed') });
+            // ADR 0011 — failure-of-intent: explicit dialog, not a toast.
+            setSaveError(true);
           }
         }
       }
@@ -1088,7 +1104,13 @@ export function DiagramLifecycleProvider({
         setShowSaveDialog(true);
       }
     }
-  }, [serverStorageAvailable, storage, currentDiagram, autoSave, buildSaveData, saveDiagram, t]);
+  }, [serverStorageAvailable, storage, currentDiagram, autoSave, buildSaveData, saveDiagram]);
+
+  // Keep the retry ref pointed at the latest handleSaveClick so SaveErrorDialog's
+  // "Try again" re-runs the canonical save entry without re-binding retrySave.
+  useEffect(() => {
+    handleSaveClickRef.current = handleSaveClick;
+  }, [handleSaveClick]);
 
   const handleOpenClick = useCallback(() => {
     if (serverStorageAvailable) {
@@ -1389,6 +1411,9 @@ export function DiagramLifecycleProvider({
     clearReadonlyLoadFailed,
     publicShareLoadFailed,
     clearPublicShareLoadFailed,
+    saveError,
+    clearSaveError,
+    retrySave,
     saveStatus: autoSave.saveStatus,
     showExportDialog,
     setShowExportDialog,

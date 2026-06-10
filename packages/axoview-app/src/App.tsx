@@ -24,6 +24,7 @@ import { LocalModeBanner } from './components/LocalModeBanner';
 import { LocalModeShareErrorDialog } from './components/LocalModeShareErrorDialog';
 import { ReadonlyLoadErrorDialog } from './components/ReadonlyLoadErrorDialog';
 import { PublicShareLoadErrorDialog } from './components/PublicShareLoadErrorDialog';
+import { SaveErrorDialog } from './components/SaveErrorDialog';
 import { ExportProjectZipDialog } from './components/fileExplorer/ExportProjectZipDialog';
 import { ImportDialog } from './components/fileExplorer/ImportDialog';
 import { parseProject, importProject } from './services/project/projectZip';
@@ -111,6 +112,9 @@ function EditorShell() {
     clearReadonlyLoadFailed,
     publicShareLoadFailed,
     clearPublicShareLoadFailed,
+    saveError,
+    clearSaveError,
+    retrySave,
     currentDiagram,
     fileTreeRefreshToken,
     refreshFileTree,
@@ -431,6 +435,14 @@ function EditorShell() {
           clearPublicShareLoadFailed();
           navigate('/', { replace: true });
         }}
+      />
+
+      {/* ADR 0011 §3 in-editor case: dismiss clears the error but leaves editor
+          state intact (no navigation); "Try again" re-runs the save. */}
+      <SaveErrorDialog
+        open={saveError}
+        onDismiss={clearSaveError}
+        onRetry={retrySave}
       />
 
       <DiagnosticsOverlay />
