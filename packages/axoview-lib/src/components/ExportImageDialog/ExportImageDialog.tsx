@@ -53,6 +53,62 @@ interface CropArea {
   height: number;
 }
 
+// Paint a transparency checkerboard across the canvas backdrop.
+function drawCheckerboard(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  squareSize = 10
+) {
+  for (let y = 0; y < height; y += squareSize) {
+    for (let x = 0; x < width; x += squareSize) {
+      ctx.fillStyle =
+        (x / squareSize + y / squareSize) % 2 === 0 ? '#f0f0f0' : 'transparent';
+      ctx.fillRect(x, y, squareSize, squareSize);
+    }
+  }
+}
+
+// Cut the selected area out of the dimming overlay, redraw the source image
+// inside it, re-dim everything outside, and stroke the selection border.
+function drawCropSelection(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  canvas: HTMLCanvasElement,
+  cropArea: CropArea
+) {
+  // Clear the selected area (remove overlay), then redraw the source image there
+  ctx.clearRect(cropArea.x, cropArea.y, cropArea.width, cropArea.height);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  // Redraw the overlay everywhere except the selected area
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+
+  const right = cropArea.x + cropArea.width;
+  const bottom = cropArea.y + cropArea.height;
+  if (cropArea.y > 0) {
+    ctx.fillRect(0, 0, canvas.width, cropArea.y);
+  }
+  if (bottom < canvas.height) {
+    ctx.fillRect(0, bottom, canvas.width, canvas.height - bottom);
+  }
+  if (cropArea.x > 0) {
+    ctx.fillRect(0, cropArea.y, cropArea.x, cropArea.height);
+  }
+  if (right < canvas.width) {
+    ctx.fillRect(right, cropArea.y, canvas.width - right, cropArea.height);
+  }
+
+  ctx.restore();
+
+  // Crop border
+  ctx.strokeStyle = '#2196f3';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(cropArea.x, cropArea.y, cropArea.width, cropArea.height);
+}
+
 export const ExportImageDialog = memo(({ onClose, quality = 1.5 }: Props) => {
   const { t } = useTranslation('exportImageDialog');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -296,97 +352,29 @@ export const ExportImageDialog = memo(({ onClose, quality = 1.5 }: Props) => {
 
     const img = new Image();
     img.onload = () => {
-      // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw checkerboard if transparent background
       if (transparentBackground) {
-        const squareSize = 10;
-        for (let y = 0; y < canvas.height; y += squareSize) {
-          for (let x = 0; x < canvas.width; x += squareSize) {
-            ctx.fillStyle =
-              (x / squareSize + y / squareSize) % 2 === 0
-                ? '#f0f0f0'
-                : 'transparent';
-            ctx.fillRect(x, y, squareSize, squareSize);
-          }
-        }
+        drawCheckerboard(ctx, canvas.width, canvas.height);
       }
 
       // Draw the image scaled to fit canvas
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-      // Draw crop overlay if in crop mode
-      if (isInCropMode) {
-        // Semi-transparent overlay
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (!isInCropMode) return;
 
-        // Clear crop area and draw border only if there's a valid selection
-        if (cropArea && cropArea.width > 5 && cropArea.height > 5) {
-          // Clear the selected area (remove overlay)
-          ctx.clearRect(
-            cropArea.x,
-            cropArea.y,
-            cropArea.width,
-            cropArea.height
-          );
+      // Semi-transparent overlay across the whole canvas
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          // Redraw the original image in the selected area
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-          // Redraw the overlay everywhere except the selected area
-          ctx.save();
-          ctx.globalCompositeOperation = 'source-over';
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-
-          // Top area
-          if (cropArea.y > 0) {
-            ctx.fillRect(0, 0, canvas.width, cropArea.y);
-          }
-          // Bottom area
-          if (cropArea.y + cropArea.height < canvas.height) {
-            ctx.fillRect(
-              0,
-              cropArea.y + cropArea.height,
-              canvas.width,
-              canvas.height - (cropArea.y + cropArea.height)
-            );
-          }
-          // Left area
-          if (cropArea.x > 0) {
-            ctx.fillRect(0, cropArea.y, cropArea.x, cropArea.height);
-          }
-          // Right area
-          if (cropArea.x + cropArea.width < canvas.width) {
-            ctx.fillRect(
-              cropArea.x + cropArea.width,
-              cropArea.y,
-              canvas.width - (cropArea.x + cropArea.width),
-              cropArea.height
-            );
-          }
-
-          ctx.restore();
-
-          // Draw crop border
-          ctx.strokeStyle = '#2196f3';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(
-            cropArea.x,
-            cropArea.y,
-            cropArea.width,
-            cropArea.height
-          );
-        }
-
-        // Add instruction text only when no selection or dragging
-        if (!cropArea || cropArea.width <= 5 || cropArea.height <= 5) {
-          ctx.fillStyle = 'white';
-          ctx.font = '14px Arial';
-          ctx.textAlign = 'left';
-          ctx.fillText(t('cropInstruction'), 10, 25);
-        }
+      // With a valid selection, cut it out of the overlay; otherwise prompt.
+      if (cropArea && cropArea.width > 5 && cropArea.height > 5) {
+        drawCropSelection(ctx, img, canvas, cropArea);
+      } else {
+        ctx.fillStyle = 'white';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(t('cropInstruction'), 10, 25);
       }
     };
 
@@ -510,6 +498,141 @@ export const ExportImageDialog = memo(({ onClose, quality = 1.5 }: Props) => {
 
   const displayImage = croppedImageData || imageData;
 
+  const getCanvasCursor = () => {
+    if (!isInCropMode) return 'default';
+    return isDragging ? 'grabbing' : 'crosshair';
+  };
+
+  const renderCropCanvas = () => (
+    <Box>
+      <canvas
+        ref={cropCanvasRef}
+        width={500}
+        height={300}
+        style={{
+          maxWidth: '100%',
+          maxHeight: '300px',
+          cursor: getCanvasCursor(),
+          border: isInCropMode ? '2px solid #2196f3' : 'none',
+          userSelect: 'none'
+        }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+        onContextMenu={(e) => e.preventDefault()}
+      />
+      {isInCropMode && (
+        <Box sx={{ mt: 1 }}>
+          <Typography variant="caption" color="primary">
+            {t('cropInstruction')}
+          </Typography>
+        </Box>
+      )}
+    </Box>
+  );
+
+  const renderPreviewImage = () => (
+    <Box
+      component="img"
+      sx={{
+        maxWidth: '100%',
+        maxHeight: '300px',
+        objectFit: 'contain',
+        backgroundImage: transparentBackground
+          ? 'linear-gradient(45deg, #f0f0f0 25%, transparent 25%), linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f0f0 75%), linear-gradient(-45deg, transparent 75%, #f0f0f0 75%)'
+          : undefined,
+        backgroundSize: transparentBackground ? '20px 20px' : undefined,
+        backgroundPosition: transparentBackground
+          ? '0 0, 0 10px, 10px -10px, -10px 0px'
+          : undefined
+      }}
+      src={displayImage}
+      alt="preview"
+    />
+  );
+
+  const renderPreview = () => {
+    if (!displayImage) return null;
+    return (
+      <Box sx={{ position: 'relative', maxWidth: '100%' }}>
+        {cropToContent && !croppedImageData
+          ? renderCropCanvas()
+          : renderPreviewImage()}
+      </Box>
+    );
+  };
+
+  const renderCropControlButtons = () => {
+    if (croppedImageData) {
+      return (
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" size="small" onClick={handleRecrop}>
+            {t('recrop')}
+          </Button>
+          <Typography variant="caption" sx={{ alignSelf: 'center' }}>
+            {t('cropApplied')}
+          </Typography>
+        </Stack>
+      );
+    }
+    if (cropArea) {
+      return (
+        <Stack direction="row" spacing={1}>
+          <Button variant="contained" size="small" onClick={handleAcceptCrop}>
+            {t('applyCrop')}
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setCropArea(null)}
+          >
+            {t('clearSelection')}
+          </Button>
+        </Stack>
+      );
+    }
+    if (isInCropMode) {
+      return (
+        <Typography variant="caption" color="text.secondary">
+          {t('cropHint')}
+        </Typography>
+      );
+    }
+    return null;
+  };
+
+  const renderCropControls = () => {
+    if (!cropToContent || !imageData) return null;
+    return <Box sx={{ mt: 2 }}>{renderCropControlButtons()}</Box>;
+  };
+
+  const renderActions = () => {
+    if (!displayImage) return null;
+    const cropSelectionPending =
+      cropToContent && isInCropMode && !croppedImageData;
+    return (
+      <Stack sx={{ width: '100%' }} alignItems="flex-end">
+        <Stack direction="row" spacing={2}>
+          <Button variant="text" onClick={onClose}>
+            {t('cancel')}
+          </Button>
+          <Button
+            variant="outlined"
+            data-testid="export-svg-button"
+            onClick={downloadSvgFile}
+            disabled={!svgData || cropSelectionPending}
+          >
+            {t('downloadSvg')}
+          </Button>
+          <Button onClick={downloadFile} disabled={cropSelectionPending}>
+            {t('downloadPng')}
+          </Button>
+        </Stack>
+      </Stack>
+    );
+  };
+
   return (
     <Dialog open onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>{t('title')}</DialogTitle>
@@ -575,62 +698,7 @@ export const ExportImageDialog = memo(({ onClose, quality = 1.5 }: Props) => {
             </Box>
           )}
           <Stack alignItems="center" spacing={2}>
-            {displayImage && (
-              <Box sx={{ position: 'relative', maxWidth: '100%' }}>
-                {cropToContent && !croppedImageData ? (
-                  <Box>
-                    <canvas
-                      ref={cropCanvasRef}
-                      width={500}
-                      height={300}
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: '300px',
-                        cursor: isInCropMode
-                          ? isDragging
-                            ? 'grabbing'
-                            : 'crosshair'
-                          : 'default',
-                        border: isInCropMode ? '2px solid #2196f3' : 'none',
-                        userSelect: 'none'
-                      }}
-                      onMouseDown={handleMouseDown}
-                      onMouseMove={handleMouseMove}
-                      onMouseUp={handleMouseUp}
-                      onMouseLeave={handleMouseLeave}
-                      onContextMenu={(e) => e.preventDefault()}
-                    />
-                    {isInCropMode && (
-                      <Box sx={{ mt: 1 }}>
-                        <Typography variant="caption" color="primary">
-                          {t('cropInstruction')}
-                        </Typography>
-                      </Box>
-                    )}
-                  </Box>
-                ) : (
-                  <Box
-                    component="img"
-                    sx={{
-                      maxWidth: '100%',
-                      maxHeight: '300px',
-                      objectFit: 'contain',
-                      backgroundImage: transparentBackground
-                        ? 'linear-gradient(45deg, #f0f0f0 25%, transparent 25%), linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f0f0 75%), linear-gradient(-45deg, transparent 75%, #f0f0f0 75%)'
-                        : undefined,
-                      backgroundSize: transparentBackground
-                        ? '20px 20px'
-                        : undefined,
-                      backgroundPosition: transparentBackground
-                        ? '0 0, 0 10px, 10px -10px, -10px 0px'
-                        : undefined
-                    }}
-                    src={displayImage}
-                    alt="preview"
-                  />
-                )}
-              </Box>
-            )}
+            {renderPreview()}
             <Box sx={{ width: '100%' }}>
               <Box component="fieldset">
                 <Typography variant="caption" component="legend">
@@ -752,78 +820,10 @@ export const ExportImageDialog = memo(({ onClose, quality = 1.5 }: Props) => {
               </Box>
 
               {/* Crop controls */}
-              {cropToContent && imageData && (
-                <Box sx={{ mt: 2 }}>
-                  {croppedImageData ? (
-                    <Stack direction="row" spacing={1}>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={handleRecrop}
-                      >
-                        {t('recrop')}
-                      </Button>
-                      <Typography
-                        variant="caption"
-                        sx={{ alignSelf: 'center' }}
-                      >
-                        {t('cropApplied')}
-                      </Typography>
-                    </Stack>
-                  ) : cropArea ? (
-                    <Stack direction="row" spacing={1}>
-                      <Button
-                        variant="contained"
-                        size="small"
-                        onClick={handleAcceptCrop}
-                      >
-                        {t('applyCrop')}
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={() => setCropArea(null)}
-                      >
-                        {t('clearSelection')}
-                      </Button>
-                    </Stack>
-                  ) : isInCropMode ? (
-                    <Typography variant="caption" color="text.secondary">
-                      {t('cropHint')}
-                    </Typography>
-                  ) : null}
-                </Box>
-              )}
+              {renderCropControls()}
             </Box>
 
-            {displayImage && (
-              <Stack sx={{ width: '100%' }} alignItems="flex-end">
-                <Stack direction="row" spacing={2}>
-                  <Button variant="text" onClick={onClose}>
-                    {t('cancel')}
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    data-testid="export-svg-button"
-                    onClick={downloadSvgFile}
-                    disabled={
-                      !svgData ||
-                      (cropToContent && isInCropMode && !croppedImageData)
-                    }
-                  >
-                    {t('downloadSvg')}
-                  </Button>
-                  <Button
-                    onClick={downloadFile}
-                    disabled={
-                      cropToContent && isInCropMode && !croppedImageData
-                    }
-                  >
-                    {t('downloadPng')}
-                  </Button>
-                </Stack>
-              </Stack>
-            )}
+            {renderActions()}
           </Stack>
 
           {exportError && <Alert severity="error">{t('error')}</Alert>}
