@@ -2,11 +2,90 @@ import { useCallback, startTransition } from 'react';
 import { useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useModelStoreApi } from 'src/stores/modelStore';
 import { useScene } from 'src/hooks/useScene';
-import { Connector, Rectangle, TextBox } from 'src/types';
+import { Connector, Coords, Rectangle, TextBox, UiState } from 'src/types';
 import { generateId } from 'src/utils';
 import { findNearestUnoccupiedTilesForGroup } from 'src/utils/findNearestUnoccupiedTile';
 import { ClipboardItem, ClipboardPayload } from './clipboard';
 import { useClipboard } from './ClipboardContext';
+
+interface SelectionIds {
+  itemIds: string[];
+  connectorIds: string[];
+  rectangleIds: string[];
+  textBoxIds: string[];
+}
+
+const EMPTY_SELECTION: SelectionIds = {
+  itemIds: [],
+  connectorIds: [],
+  rectangleIds: [],
+  textBoxIds: []
+};
+
+// Resolve the current selection (lasso/freehand multi-select, or the single
+// itemControls target) into per-kind id lists.
+function resolveSelectionIds(uiState: UiState): SelectionIds {
+  const mode = uiState.mode;
+  if (
+    (mode.type === 'LASSO' || mode.type === 'FREEHAND_LASSO') &&
+    mode.selection?.items?.length
+  ) {
+    const refs = mode.selection.items;
+    return {
+      itemIds: refs.filter((r) => r.type === 'ITEM').map((r) => r.id),
+      connectorIds: refs.filter((r) => r.type === 'CONNECTOR').map((r) => r.id),
+      rectangleIds: refs
+        .filter((r) => r.type === 'RECTANGLE')
+        .map((r) => r.id),
+      textBoxIds: refs.filter((r) => r.type === 'TEXTBOX').map((r) => r.id)
+    };
+  }
+
+  const ctrl = uiState.itemControls;
+  if (!ctrl) return EMPTY_SELECTION;
+  switch (ctrl.type) {
+    case 'ITEM':
+      return { ...EMPTY_SELECTION, itemIds: [ctrl.id] };
+    case 'TEXTBOX':
+      return { ...EMPTY_SELECTION, textBoxIds: [ctrl.id] };
+    case 'RECTANGLE':
+      return { ...EMPTY_SELECTION, rectangleIds: [ctrl.id] };
+    case 'CONNECTOR':
+      return { ...EMPTY_SELECTION, connectorIds: [ctrl.id] };
+    default:
+      return EMPTY_SELECTION;
+  }
+}
+
+// Connectors to copy: explicitly selected, OR both item-anchors are in the
+// selected-item set (so a connector between two copied nodes travels with them).
+function collectClipboardConnectors(
+  rawConnectors: Connector[],
+  selectedConnectorIds: string[],
+  selectedIdSet: Set<string>
+): Connector[] {
+  const selectedConnectorIdSet = new Set(selectedConnectorIds);
+  return rawConnectors.filter((connector) => {
+    if (selectedConnectorIdSet.has(connector.id)) return true;
+    const anchorsWithItem = connector.anchors.filter((a) => a.ref?.item);
+    return (
+      anchorsWithItem.length >= 2 &&
+      anchorsWithItem.every((a) => selectedIdSet.has(a.ref!.item!))
+    );
+  });
+}
+
+const computeCentroid = (points: Coords[]): Coords => {
+  if (points.length === 0) return { x: 0, y: 0 };
+  const sum = points.reduce(
+    (acc, t) => ({ x: acc.x + t.x, y: acc.y + t.y }),
+    { x: 0, y: 0 }
+  );
+  return {
+    x: Math.round(sum.x / points.length),
+    y: Math.round(sum.y / points.length)
+  };
+};
 
 export const useCopyPaste = () => {
   const uiStateApi = useUiStateStoreApi();
@@ -30,47 +109,19 @@ export const useCopyPaste = () => {
     const uiState = uiStateApi.getState();
     const model = modelStoreApi.getState();
 
-    let selectedItemIds: string[] = [];
-    let selectedConnectorIds: string[] = [];
-    let selectedRectangleIds: string[] = [];
-    let selectedTextBoxIds: string[] = [];
-
-    const mode = uiState.mode;
-    if (
-      (mode.type === 'LASSO' || mode.type === 'FREEHAND_LASSO') &&
-      mode.selection?.items?.length
-    ) {
-      const refs = mode.selection.items;
-      selectedItemIds = refs
-        .filter((r) => r.type === 'ITEM')
-        .map((r) => r.id);
-      selectedConnectorIds = refs
-        .filter((r) => r.type === 'CONNECTOR')
-        .map((r) => r.id);
-      selectedRectangleIds = refs
-        .filter((r) => r.type === 'RECTANGLE')
-        .map((r) => r.id);
-      selectedTextBoxIds = refs
-        .filter((r) => r.type === 'TEXTBOX')
-        .map((r) => r.id);
-    } else if (uiState.itemControls) {
-      const ctrl = uiState.itemControls;
-      if (ctrl.type === 'ITEM') selectedItemIds = [ctrl.id];
-      else if (ctrl.type === 'TEXTBOX') selectedTextBoxIds = [ctrl.id];
-      else if (ctrl.type === 'RECTANGLE') selectedRectangleIds = [ctrl.id];
-      else if (ctrl.type === 'CONNECTOR') selectedConnectorIds = [ctrl.id];
-    }
+    const { itemIds, connectorIds, rectangleIds, textBoxIds } =
+      resolveSelectionIds(uiState);
 
     if (
-      selectedItemIds.length === 0 &&
-      selectedConnectorIds.length === 0 &&
-      selectedRectangleIds.length === 0 &&
-      selectedTextBoxIds.length === 0
+      itemIds.length === 0 &&
+      connectorIds.length === 0 &&
+      rectangleIds.length === 0 &&
+      textBoxIds.length === 0
     ) {
       return null;
     }
 
-    const selectedIdSet = new Set(selectedItemIds);
+    const selectedIdSet = new Set(itemIds);
     const currentView = scene.currentView;
 
     // Collect items (modelItem + viewItem pairs)
@@ -84,20 +135,14 @@ export const useCopyPaste = () => {
       }
     }
 
-    // Connectors: explicitly selected OR both item-anchors are in the selected set
-    const rawConnectors = currentView.connectors ?? [];
-    const selectedConnectorIdSet = new Set(selectedConnectorIds);
-    const clipboardConnectors = rawConnectors.filter((connector) => {
-      if (selectedConnectorIdSet.has(connector.id)) return true;
-      const anchorsWithItem = connector.anchors.filter((a) => a.ref?.item);
-      return (
-        anchorsWithItem.length >= 2 &&
-        anchorsWithItem.every((a) => selectedIdSet.has(a.ref!.item!))
-      );
-    });
+    const clipboardConnectors = collectClipboardConnectors(
+      currentView.connectors ?? [],
+      connectorIds,
+      selectedIdSet
+    );
 
-    const selectedRectIdSet = new Set(selectedRectangleIds);
-    const selectedTextIdSet = new Set(selectedTextBoxIds);
+    const selectedRectIdSet = new Set(rectangleIds);
+    const selectedTextIdSet = new Set(textBoxIds);
     const clipboardRectangles = (currentView.rectangles ?? []).filter((r) =>
       selectedRectIdSet.has(r.id)
     );
@@ -122,17 +167,7 @@ export const useCopyPaste = () => {
       })),
       ...clipboardTextBoxes.map((tb) => tb.tile)
     ];
-    const centroid =
-      allPoints.length > 0
-        ? {
-            x: Math.round(
-              allPoints.reduce((s, t) => s + t.x, 0) / allPoints.length
-            ),
-            y: Math.round(
-              allPoints.reduce((s, t) => s + t.y, 0) / allPoints.length
-            )
-          }
-        : { x: 0, y: 0 };
+    const centroid = computeCentroid(allPoints);
 
     return {
       payload: {

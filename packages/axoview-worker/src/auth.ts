@@ -38,6 +38,49 @@ export function isPublicRoute(method: string, pathname: string): boolean {
   return method === 'GET' && /^\/api\/public\/diagrams\/[A-Za-z0-9_-]{21,64}$/.test(pathname);
 }
 
+// Each mode handler returns a deny Response to short-circuit the request, or
+// null to signal "authorized — proceed to next()". Keeps authMiddleware a flat
+// mode-dispatch.
+function handleSharedToken(
+  c: Context,
+  env: Record<string, any>
+): Response | null {
+  const secret = env.AUTH_SHARED_SECRET;
+  if (!secret) {
+    return c.json({ error: 'Server auth misconfigured' }, 500);
+  }
+  const header = c.req.header('authorization') || '';
+  if (!header.startsWith('Bearer ')) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  const token = header.slice('Bearer '.length).trim();
+  if (!constantTimeEquals(token, secret)) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  return null;
+}
+
+async function handleCfAccess(
+  c: Context,
+  env: Record<string, any>
+): Promise<Response | null> {
+  const team = env.CF_ACCESS_TEAM_DOMAIN;
+  const aud = env.CF_ACCESS_AUD;
+  if (!team || !aud) {
+    return c.json({ error: 'Server auth misconfigured' }, 500);
+  }
+  const jwt = c.req.header('cf-access-jwt-assertion');
+  if (!jwt) return c.json({ error: 'Unauthorized' }, 401);
+  try {
+    const result = await verifyCfAccessJwt(jwt, { team, expectedAud: aud });
+    if (!result.valid) return c.json({ error: 'Unauthorized' }, 401);
+  } catch (err) {
+    console.error('cf-access verify failed', err);
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  return null;
+}
+
 export function authMiddleware() {
   return async (c: Context, next: Next) => {
     const env = c.env as Record<string, any>;
@@ -53,37 +96,11 @@ export function authMiddleware() {
     }
 
     if (mode === 'shared-token') {
-      const secret = env.AUTH_SHARED_SECRET;
-      if (!secret) {
-        return c.json({ error: 'Server auth misconfigured' }, 500);
-      }
-      const header = c.req.header('authorization') || '';
-      if (!header.startsWith('Bearer ')) {
-        return c.json({ error: 'Unauthorized' }, 401);
-      }
-      const token = header.slice('Bearer '.length).trim();
-      if (!constantTimeEquals(token, secret)) {
-        return c.json({ error: 'Unauthorized' }, 401);
-      }
-      return next();
+      return handleSharedToken(c, env) ?? next();
     }
 
     if (mode === 'cf-access') {
-      const team = env.CF_ACCESS_TEAM_DOMAIN;
-      const aud = env.CF_ACCESS_AUD;
-      if (!team || !aud) {
-        return c.json({ error: 'Server auth misconfigured' }, 500);
-      }
-      const jwt = c.req.header('cf-access-jwt-assertion');
-      if (!jwt) return c.json({ error: 'Unauthorized' }, 401);
-      try {
-        const result = await verifyCfAccessJwt(jwt, { team, expectedAud: aud });
-        if (!result.valid) return c.json({ error: 'Unauthorized' }, 401);
-      } catch (err) {
-        console.error('cf-access verify failed', err);
-        return c.json({ error: 'Unauthorized' }, 401);
-      }
-      return next();
+      return (await handleCfAccess(c, env)) ?? next();
     }
 
     return c.json({ error: 'Unknown AUTH_MODE' }, 500);

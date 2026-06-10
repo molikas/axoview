@@ -40,6 +40,38 @@ const basename = publicUrl
 
 const EXPORTER_TAG = `axoview-app@${process.env.REACT_APP_VERSION ?? 'dev'}`;
 
+// Success message for a top-level project-zip import: "Imported N diagrams
+// across M folders at the top level" (folder clause omitted when none).
+function buildZipImportSummary(
+  diagramCount: number,
+  folderCount: number
+): string {
+  const parts = [`${diagramCount} diagram${diagramCount !== 1 ? 's' : ''}`];
+  if (folderCount > 0) {
+    parts.push(`${folderCount} folder${folderCount !== 1 ? 's' : ''}`);
+  }
+  return `Imported ${parts.join(' across ')} at the top level`;
+}
+
+function parseJsonOrThrow(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error('That file is not valid JSON.');
+  }
+}
+
+// Prefer the diagram's embedded title/name; fall back to the file basename
+// (minus the .json / .compact.json suffix).
+function resolveImportedDiagramName(file: File, data: unknown): string {
+  const blob = isPersistedDiagramBlob(data) ? data : {};
+  const embedded = blob.title || blob.name || blob.t || '';
+  const fileBase = file.name.replace(/\.(?:compact\.)?json$/i, '');
+  return typeof embedded === 'string' && embedded.trim()
+    ? embedded.trim()
+    : fileBase;
+}
+
 function App() {
   return (
     <BrowserRouter basename={basename}>
@@ -201,21 +233,18 @@ function EditorShell() {
         await importProject({ storage }, parsed, { destination: { kind: 'root' } });
         refreshFileTree();
         setFileExplorerOpen(true);
-        const dc = parsed.manifest.diagrams.length;
-        const fc = parsed.manifest.folders.length;
-        const parts = [`${dc} diagram${dc !== 1 ? 's' : ''}`];
-        if (fc > 0) parts.push(`${fc} folder${fc !== 1 ? 's' : ''}`);
-        notificationStore.push({ severity: 'success', message: `Imported ${parts.join(' across ')} at the top level` });
+        notificationStore.push({
+          severity: 'success',
+          message: buildZipImportSummary(
+            parsed.manifest.diagrams.length,
+            parsed.manifest.folders.length
+          )
+        });
       } else {
         const text = await file.text();
-        let data: unknown;
-        try { data = JSON.parse(text); } catch {
-          throw new Error('That file is not valid JSON.');
-        }
+        const data = parseJsonOrThrow(text);
         const blob = isPersistedDiagramBlob(data) ? data : {};
-        const embedded = blob.title || blob.name || blob.t || '';
-        const fileBase = file.name.replace(/\.(?:compact\.)?json$/i, '');
-        const name = typeof embedded === 'string' && embedded.trim() ? embedded.trim() : fileBase;
+        const name = resolveImportedDiagramName(file, data);
         const newId = await storage.createDiagram({ ...blob, name, title: name }, null);
         refreshFileTree();
         setFileExplorerOpen(true);

@@ -29,6 +29,185 @@ interface Props {
   dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
 }
 
+// The row container's sx is mostly state-driven styling; hoisted out of the
+// render so LayerRow itself stays focused on structure (mqa-results.md #2
+// drives the locked/visible accents).
+const rowSx = (layer: Layer, isSelected: boolean) => {
+  let bgcolor: string;
+  if (isSelected) {
+    bgcolor = 'action.selected';
+  } else if (layer.locked) {
+    bgcolor = 'action.hover';
+  } else {
+    bgcolor = 'transparent';
+  }
+
+  return {
+    display: 'flex',
+    alignItems: 'center',
+    px: 0.5,
+    py: 0.25,
+    cursor: 'pointer',
+    borderRadius: 1,
+    bgcolor,
+    // Locked rows get a left accent stripe so the state is unambiguous at a
+    // glance, not just a near-identical icon swap (mqa-results.md #2).
+    borderLeft: '2px solid',
+    borderLeftColor: layer.locked ? 'warning.main' : 'transparent',
+    opacity: layer.visible ? 1 : 0.45,
+    '&:hover': {
+      bgcolor: isSelected ? 'action.selected' : 'action.hover'
+    },
+    userSelect: 'none'
+  } as const;
+};
+
+interface ExpandChevronProps {
+  itemCount: number;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+}
+
+const ExpandChevron = ({
+  itemCount,
+  isExpanded,
+  onToggleExpand
+}: ExpandChevronProps) => {
+  let glyph: React.ReactNode;
+  if (itemCount <= 0) {
+    glyph = <Box sx={{ width: 16 }} />;
+  } else if (isExpanded) {
+    glyph = <ExpandMore sx={{ fontSize: 16 }} />;
+  } else {
+    glyph = <ChevronRight sx={{ fontSize: 16 }} />;
+  }
+
+  return (
+    <Box
+      sx={{ display: 'flex', alignItems: 'center', color: 'text.disabled', mr: 0 }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggleExpand();
+      }}
+    >
+      {glyph}
+    </Box>
+  );
+};
+
+interface LayerNameCellProps {
+  layer: Layer;
+  itemCount: number;
+  isEditingExternal?: boolean;
+  onEditEnd?: () => void;
+  onRename: (id: string, name: string) => void;
+}
+
+// Owns the inline-rename state machine (local edit + F2 external trigger) so
+// the row container doesn't carry the editing branches in its complexity.
+const LayerNameCell = ({
+  layer,
+  itemCount,
+  isEditingExternal,
+  onEditEnd,
+  onRename
+}: LayerNameCellProps) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(layer.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // External edit trigger (F2 from the panel) — sync into local state and
+  // prime the draft from the latest layer name.
+  useEffect(() => {
+    if (isEditingExternal && !editing) {
+      setDraft(layer.name);
+      setEditing(true);
+      setTimeout(() => inputRef.current?.select(), 0);
+    }
+  }, [isEditingExternal, editing, layer.name]);
+
+  const endEdit = useCallback(() => {
+    setEditing(false);
+    onEditEnd?.();
+  }, [onEditEnd]);
+
+  const commitRename = useCallback(() => {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== layer.name) {
+      onRename(layer.id, trimmed);
+    } else {
+      setDraft(layer.name);
+    }
+    endEdit();
+  }, [draft, layer.id, layer.name, onRename, endEdit]);
+
+  const handleDoubleClick = useCallback(() => {
+    setDraft(layer.name);
+    setEditing(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  }, [layer.name]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') commitRename();
+      if (e.key === 'Escape') {
+        setDraft(layer.name);
+        endEdit();
+      }
+      e.stopPropagation();
+    },
+    [commitRename, endEdit, layer.name]
+  );
+
+  return (
+    <Box sx={{ flex: 1, minWidth: 0 }} onDoubleClick={handleDoubleClick}>
+      {editing ? (
+        <InputBase
+          inputRef={inputRef}
+          value={draft}
+          size="small"
+          autoFocus
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commitRename}
+          onKeyDown={handleKeyDown}
+          onClick={(e) => e.stopPropagation()}
+          sx={{ fontSize: '0.875rem', width: '100%' }}
+        />
+      ) : (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+            overflow: 'hidden'
+          }}
+        >
+          <Typography
+            variant="body2"
+            sx={{
+              flex: 1,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {layer.name}
+          </Typography>
+          {itemCount > 0 && (
+            <Typography
+              variant="micro"
+              color="text.disabled"
+              sx={{ flexShrink: 0 }}
+            >
+              {itemCount}
+            </Typography>
+          )}
+        </Box>
+      )}
+    </Box>
+  );
+};
+
 export const LayerRow = memo(
   ({
     layer,
@@ -44,92 +223,19 @@ export const LayerRow = memo(
     onRename,
     dragHandleProps
   }: Props) => {
-    const [editing, setEditing] = useState(false);
-    const [draft, setDraft] = useState(layer.name);
-    const inputRef = useRef<HTMLInputElement>(null);
-
-    // External edit trigger (F2 from the panel) — sync into local state and
-    // prime the draft from the latest layer name.
-    useEffect(() => {
-      if (isEditingExternal && !editing) {
-        setDraft(layer.name);
-        setEditing(true);
-        setTimeout(() => inputRef.current?.select(), 0);
-      }
-    }, [isEditingExternal, editing, layer.name]);
-
-    const endEdit = useCallback(() => {
-      setEditing(false);
-      onEditEnd?.();
-    }, [onEditEnd]);
-
-    const commitRename = useCallback(() => {
-      const trimmed = draft.trim();
-      if (trimmed && trimmed !== layer.name) {
-        onRename(layer.id, trimmed);
-      } else {
-        setDraft(layer.name);
-      }
-      endEdit();
-    }, [draft, layer.id, layer.name, onRename, endEdit]);
-
-    const handleDoubleClick = useCallback(() => {
-      setDraft(layer.name);
-      setEditing(true);
-      setTimeout(() => inputRef.current?.select(), 0);
-    }, [layer.name]);
-
     return (
       <Box
         onClick={() => onSelect(layer.id)}
         data-axoview-id="layer-row"
         data-layer-name={layer.name}
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          px: 0.5,
-          py: 0.25,
-          cursor: 'pointer',
-          borderRadius: 1,
-          bgcolor: isSelected
-            ? 'action.selected'
-            : layer.locked
-              ? 'action.hover'
-              : 'transparent',
-          // Locked rows get a left accent stripe so the state is unambiguous
-          // at a glance, not just a near-identical icon swap (mqa-results.md #2).
-          borderLeft: layer.locked ? '2px solid' : '2px solid transparent',
-          borderLeftColor: layer.locked ? 'warning.main' : 'transparent',
-          opacity: layer.visible ? 1 : 0.45,
-          '&:hover': {
-            bgcolor: isSelected ? 'action.selected' : 'action.hover'
-          },
-          userSelect: 'none'
-        }}
+        sx={rowSx(layer, isSelected)}
       >
         {/* Expand/collapse chevron */}
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            color: 'text.disabled',
-            mr: 0
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleExpand(layer.id);
-          }}
-        >
-          {itemCount > 0 ? (
-            isExpanded ? (
-              <ExpandMore sx={{ fontSize: 16 }} />
-            ) : (
-              <ChevronRight sx={{ fontSize: 16 }} />
-            )
-          ) : (
-            <Box sx={{ width: 16 }} />
-          )}
-        </Box>
+        <ExpandChevron
+          itemCount={itemCount}
+          isExpanded={isExpanded}
+          onToggleExpand={() => onToggleExpand(layer.id)}
+        />
 
         {/* Drag handle */}
         <Box
@@ -147,58 +253,13 @@ export const LayerRow = memo(
         </Box>
 
         {/* Layer name / inline edit */}
-        <Box sx={{ flex: 1, minWidth: 0 }} onDoubleClick={handleDoubleClick}>
-          {editing ? (
-            <InputBase
-              inputRef={inputRef}
-              value={draft}
-              size="small"
-              autoFocus
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={commitRename}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') commitRename();
-                if (e.key === 'Escape') {
-                  setDraft(layer.name);
-                  endEdit();
-                }
-                e.stopPropagation();
-              }}
-              onClick={(e) => e.stopPropagation()}
-              sx={{ fontSize: '0.875rem', width: '100%' }}
-            />
-          ) : (
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
-                overflow: 'hidden'
-              }}
-            >
-              <Typography
-                variant="body2"
-                sx={{
-                  flex: 1,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {layer.name}
-              </Typography>
-              {itemCount > 0 && (
-                <Typography
-                  variant="micro"
-                  color="text.disabled"
-                  sx={{ flexShrink: 0 }}
-                >
-                  {itemCount}
-                </Typography>
-              )}
-            </Box>
-          )}
-        </Box>
+        <LayerNameCell
+          layer={layer}
+          itemCount={itemCount}
+          isEditingExternal={isEditingExternal}
+          onEditEnd={onEditEnd}
+          onRename={onRename}
+        />
 
         {/* Visibility toggle */}
         <Tooltip

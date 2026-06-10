@@ -1,6 +1,27 @@
 import { produce } from 'immer';
 import { CoordsUtils, setWindowCursor, getItemAtTile } from 'src/utils';
-import { ModeActions } from 'src/types';
+import { ModeActions, ModelItem } from 'src/types';
+
+// True iff an HTML rich-text string contains a visible (non-whitespace) char
+// outside any tag span. Scans char-by-char rather than regex-stripping tags: a
+// strip like `.replace(/<[^>]*>/g, '')` leaves a partial/unclosed tag (e.g.
+// `<script`) in the output, which CodeQL flags as incomplete sanitization
+// (js/incomplete-multi-character-sanitization). Treating an unclosed `<` as an
+// open tag span means no `<` ever survives.
+const htmlHasVisibleText = (value: string | undefined): boolean => {
+  if (!value) return false;
+  let inTag = false;
+  for (const ch of value) {
+    if (ch === '<') {
+      inTag = true;
+    } else if (ch === '>') {
+      inTag = false;
+    } else if (!inTag && !/\s/.test(ch)) {
+      return true;
+    }
+  }
+  return false;
+};
 
 // MQA #22 / #25 (3rd pass): in EXPLORABLE_READONLY the default cursor is the
 // normal arrow (not grab). Right-click drag is the pan affordance — left-click
@@ -8,6 +29,38 @@ import { ModeActions } from 'src/types';
 // the historic grab/grabbing cursor.
 const cursorForState = (editorMode: string | undefined): string =>
   editorMode === 'EXPLORABLE_READONLY' ? 'default' : 'grab';
+
+// A node opens the read-only details panel only when it carries something to
+// show: a link, a header link, or non-empty (HTML-stripped) description/notes.
+const nodeHasReadonlyContent = (modelItem: ModelItem | undefined): boolean =>
+  !!modelItem &&
+  (!!modelItem.link ||
+    !!modelItem.headerLink ||
+    htmlHasVisibleText(modelItem.description) ||
+    htmlHasVisibleText(modelItem.notes));
+
+// EXPLORABLE_READONLY left-click on a node opens the read-only details panel
+// (NodePanel readOnly). Click on empty area — or on a node with no content —
+// dismisses the panel. Treated as a click only when the up tile equals the
+// down tile (no drag). Right-click drag is handled by usePanHandlers.
+const handleReadonlyClick: ModeActions['mouseup'] = ({ uiState, scene, model }) => {
+  const mousedownTile = uiState.mouse.mousedown?.tile;
+  const currentTile = uiState.mouse.position.tile;
+  if (!mousedownTile || !CoordsUtils.isEqual(mousedownTile, currentTile)) return;
+
+  const item = getItemAtTile({ tile: currentTile, scene });
+  if (item?.type !== 'ITEM') {
+    uiState.actions.setItemControls(null);
+    return;
+  }
+
+  const modelItem = model.items.find((i) => i.id === item.id);
+  if (nodeHasReadonlyContent(modelItem)) {
+    uiState.actions.setItemControls({ type: 'ITEM', id: item.id });
+  } else {
+    uiState.actions.setItemControls(null);
+  }
+};
 
 export const Pan: ModeActions = {
   entry: ({ uiState }) => {
@@ -38,39 +91,15 @@ export const Pan: ModeActions = {
       setWindowCursor('grabbing');
     }
   },
-  mouseup: ({ uiState, scene, model }) => {
+  mouseup: (state) => {
+    const { uiState } = state;
     if (uiState.mode.type !== 'PAN') return;
     setWindowCursor(cursorForState(uiState.editorMode));
 
-    // MQA #22 / #25 (3rd pass): EXPLORABLE_READONLY left-click on a node opens
-    // the existing read-only details panel (NodePanel readOnly). The panel
-    // shows the description, notes, and an action header with external-link
-    // + open-linked-diagram buttons. Click on empty area dismisses the panel.
-    // Right-click drag is handled by usePanHandlers and never reaches here.
+    // The panel shows the description, notes, and an action header with
+    // external-link + open-linked-diagram buttons.
     if (uiState.editorMode === 'EXPLORABLE_READONLY') {
-      const mousedownTile = uiState.mouse.mousedown?.tile;
-      const currentTile = uiState.mouse.position.tile;
-      // Only treat as a click when up tile equals down tile (no drag).
-      if (mousedownTile && CoordsUtils.isEqual(mousedownTile, currentTile)) {
-        const item = getItemAtTile({ tile: currentTile, scene });
-        if (item?.type === 'ITEM') {
-          const modelItem = model.items.find((i) => i.id === item.id);
-          const hasContent =
-            !!modelItem?.link ||
-            !!modelItem?.headerLink ||
-            (!!modelItem?.description &&
-              modelItem.description.replace(/<[^>]*>/g, '').trim() !== '') ||
-            (!!modelItem?.notes &&
-              modelItem.notes.replace(/<[^>]*>/g, '').trim() !== '');
-          if (hasContent) {
-            uiState.actions.setItemControls({ type: 'ITEM', id: item.id });
-          } else {
-            uiState.actions.setItemControls(null);
-          }
-        } else {
-          uiState.actions.setItemControls(null);
-        }
-      }
+      handleReadonlyClick(state);
     }
   }
 };

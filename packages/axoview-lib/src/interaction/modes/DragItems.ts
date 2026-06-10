@@ -72,6 +72,141 @@ function clearAllCssOffsets() {
   }
 }
 
+type NodeUpdate = { id: string; tile: Coords };
+
+// Nodes — collision check against external items (model is stale during drag,
+// but external items haven't moved so their tiles are authoritative). Returns
+// null when any target tile collides (with an external item or another dragged
+// node), in which case no node moves this frame.
+function computeNodeUpdates(
+  itemRefs: ItemReference[],
+  initialTiles: Record<string, Coords>,
+  mouseOffset: Coords,
+  scene: ReturnType<typeof useScene>
+): NodeUpdate[] | null {
+  if (itemRefs.length === 0) return null;
+
+  const draggedIdSet = new Set(itemRefs.map((i) => i.id));
+  const targets = itemRefs.map((item) => ({
+    id: item.id,
+    targetTile: initialTiles[item.id]
+      ? CoordsUtils.add(initialTiles[item.id], mouseOffset)
+      : getItemByIdOrThrow(scene.items, item.id).value.tile
+  }));
+
+  const externalOccupied = new Set(
+    scene.items
+      .filter((si) => !draggedIdSet.has(si.id))
+      .map((si) => `${si.tile.x},${si.tile.y}`)
+  );
+
+  const targetKeys = new Set<string>();
+  for (const t of targets) {
+    const key = `${t.targetTile.x},${t.targetTile.y}`;
+    if (externalOccupied.has(key) || targetKeys.has(key)) return null;
+    targetKeys.add(key);
+  }
+
+  return targets.map((t) => ({ id: t.id, tile: t.targetTile }));
+}
+
+// Apply CSS preview for nodes (no model write, no React, no immer).
+function applyNodePreview(
+  nodeUpdates: NodeUpdate[] | null,
+  initialTiles: Record<string, Coords>,
+  canvasMode: 'ISOMETRIC' | '2D'
+) {
+  if (!nodeUpdates) return;
+  for (const u of nodeUpdates) {
+    const initial = initialTiles[u.id];
+    if (!initial) continue;
+    const dx = u.tile.x - initial.x;
+    const dy = u.tile.y - initial.y;
+    const pixels = tileDeltaToPixels(dx, dy, canvasMode);
+    applyCssOffset(u.id, pixels.x, pixels.y);
+    previewTiles.set(u.id, u.tile);
+  }
+}
+
+// Accumulate waypoint anchor moves into the preview map (no model write). Only
+// the "free-floating tile drag" branch goes through preview; the re-anchor-
+// onto-item / onto-anchor cases are returned as reconnects for the reducer
+// path (rare, single-anchor reconnect outside the drag hot path).
+function accumulateAnchorPreview(
+  anchorRefs: ItemReference[],
+  initialTiles: Record<string, Coords>,
+  mouseOffset: Coords
+): ItemReference[] {
+  const anchorReconnects: ItemReference[] = [];
+  anchorRefs.forEach((item) => {
+    if (initialTiles[item.id]) {
+      const newTile = CoordsUtils.add(initialTiles[item.id], mouseOffset);
+      previewAnchorTiles.set(item.id, newTile);
+    } else {
+      anchorReconnects.push(item);
+    }
+  });
+  return anchorReconnects;
+}
+
+// Resolve the new anchor ref for a reconnect drop: onto an item, onto another
+// anchor, or free-floating onto a bare tile.
+function resolveAnchorRef(
+  itemAtTile: ReturnType<typeof getItemAtTile>,
+  tile: Coords
+) {
+  switch (itemAtTile?.type) {
+    case 'ITEM':
+      return { item: itemAtTile.id };
+    case 'CONNECTOR_ANCHOR':
+      return { anchor: itemAtTile.id };
+    default:
+      return { tile };
+  }
+}
+
+// Textboxes / rectangles / anchor reconnect (re-anchoring onto a different item
+// or anchor) keep the existing reducer path. These are rare in the multi-
+// element drag hot path; their immer cost is negligible.
+function commitReducerUpdates(
+  textBoxUpdates: NodeUpdate[],
+  rectangleUpdates: Array<{ id: string; from: Coords; to: Coords }>,
+  anchorReconnects: ItemReference[],
+  tile: Coords,
+  scene: ReturnType<typeof useScene>
+) {
+  if (
+    textBoxUpdates.length === 0 &&
+    rectangleUpdates.length === 0 &&
+    anchorReconnects.length === 0
+  ) {
+    return;
+  }
+
+  scene.transaction(() => {
+    textBoxUpdates.forEach(({ id, tile: newTile }) => {
+      scene.updateTextBox(id, { tile: newTile });
+    });
+
+    rectangleUpdates.forEach(({ id, from, to }) => {
+      scene.updateRectangle(id, { from, to });
+    });
+
+    anchorReconnects.forEach((item) => {
+      const connector = getAnchorParent(item.id, scene.connectors);
+      const newConnector = produce(connector, (draft) => {
+        const anchor = getItemByIdOrThrow(connector.anchors, item.id);
+        const itemAtTile = getItemAtTile({ tile, scene });
+        draft.anchors[anchor.index] = {
+          ...anchor.value,
+          ref: resolveAnchorRef(itemAtTile, tile)
+        };
+      });
+      scene.updateConnector(connector.id, newConnector);
+    });
+  });
+}
+
 const dragItems = (
   items: ItemReference[],
   tile: Coords,
@@ -86,68 +221,19 @@ const dragItems = (
   const rectangleRefs = items.filter((item) => item.type === 'RECTANGLE');
   const anchorRefs = items.filter((item) => item.type === 'CONNECTOR_ANCHOR');
 
-  // Nodes — collision check against external items (model is stale during
-  // drag, but external items haven't moved so their tiles are authoritative).
-  let nodeUpdates: Array<{ id: string; tile: Coords }> | null = null;
-  if (itemRefs.length > 0) {
-    const draggedIdSet = new Set(itemRefs.map((i) => i.id));
+  const nodeUpdates = computeNodeUpdates(
+    itemRefs,
+    initialTiles,
+    mouseOffset,
+    scene
+  );
+  applyNodePreview(nodeUpdates, initialTiles, canvasMode);
 
-    const targets = itemRefs.map((item) => ({
-      id: item.id,
-      targetTile: initialTiles[item.id]
-        ? CoordsUtils.add(initialTiles[item.id], mouseOffset)
-        : getItemByIdOrThrow(scene.items, item.id).value.tile
-    }));
-
-    const externalOccupied = new Set(
-      scene.items
-        .filter((si) => !draggedIdSet.has(si.id))
-        .map((si) => `${si.tile.x},${si.tile.y}`)
-    );
-
-    const targetKeys = new Set<string>();
-    let hasCollision = false;
-    for (const t of targets) {
-      const key = `${t.targetTile.x},${t.targetTile.y}`;
-      if (externalOccupied.has(key) || targetKeys.has(key)) {
-        hasCollision = true;
-        break;
-      }
-      targetKeys.add(key);
-    }
-
-    if (!hasCollision) {
-      nodeUpdates = targets.map((t) => ({ id: t.id, tile: t.targetTile }));
-    }
-  }
-
-  // Apply CSS preview for nodes (no model write, no React, no immer).
-  if (nodeUpdates && nodeUpdates.length > 0) {
-    for (const u of nodeUpdates) {
-      const initial = initialTiles[u.id];
-      if (!initial) continue;
-      const dx = u.tile.x - initial.x;
-      const dy = u.tile.y - initial.y;
-      const pixels = tileDeltaToPixels(dx, dy, canvasMode);
-      applyCssOffset(u.id, pixels.x, pixels.y);
-      previewTiles.set(u.id, u.tile);
-    }
-  }
-
-  // Accumulate waypoint anchor moves into the preview map (no model write).
-  // Only the "free-floating tile drag" branch goes through preview — the
-  // re-anchor-onto-item / onto-anchor cases below still go through
-  // scene.updateConnector (rare, single-anchor reconnect outside the drag
-  // hot path).
-  const anchorReconnects: ItemReference[] = [];
-  anchorRefs.forEach((item) => {
-    if (initialTiles[item.id]) {
-      const newTile = CoordsUtils.add(initialTiles[item.id], mouseOffset);
-      previewAnchorTiles.set(item.id, newTile);
-    } else {
-      anchorReconnects.push(item);
-    }
-  });
+  const anchorReconnects = accumulateAnchorPreview(
+    anchorRefs,
+    initialTiles,
+    mouseOffset
+  );
 
   // Single preview-path update per frame covering both items and waypoints.
   // Routing both through one synthetic view eliminates the race where
@@ -157,9 +243,6 @@ const dragItems = (
     scene.previewConnectorPaths(previewTiles, previewAnchorTiles);
   }
 
-  // Textboxes / rectangles / anchor reconnect (re-anchoring onto a different
-  // item or anchor) keep the existing reducer path. These are rare in the
-  // multi-element drag hot path; their immer cost is negligible.
   const textBoxUpdates = textBoxRefs.map((item) => ({
     id: item.id,
     tile: initialTiles[item.id]
@@ -180,50 +263,13 @@ const dragItems = (
     return { id: item.id, from: r.from, to: r.to };
   });
 
-  if (
-    textBoxUpdates.length > 0 ||
-    rectangleUpdates.length > 0 ||
-    anchorReconnects.length > 0
-  ) {
-    scene.transaction(() => {
-      textBoxUpdates.forEach(({ id, tile: newTile }) => {
-        scene.updateTextBox(id, { tile: newTile });
-      });
-
-      rectangleUpdates.forEach(({ id, from, to }) => {
-        scene.updateRectangle(id, { from, to });
-      });
-
-      anchorReconnects.forEach((item) => {
-        const connector = getAnchorParent(item.id, scene.connectors);
-        const newConnector = produce(connector, (draft) => {
-          const anchor = getItemByIdOrThrow(connector.anchors, item.id);
-          const itemAtTile = getItemAtTile({ tile, scene });
-          switch (itemAtTile?.type) {
-            case 'ITEM':
-              draft.anchors[anchor.index] = {
-                ...anchor.value,
-                ref: { item: itemAtTile.id }
-              };
-              break;
-            case 'CONNECTOR_ANCHOR':
-              draft.anchors[anchor.index] = {
-                ...anchor.value,
-                ref: { anchor: itemAtTile.id }
-              };
-              break;
-            default:
-              draft.anchors[anchor.index] = {
-                ...anchor.value,
-                ref: { tile }
-              };
-              break;
-          }
-        });
-        scene.updateConnector(connector.id, newConnector);
-      });
-    });
-  }
+  commitReducerUpdates(
+    textBoxUpdates,
+    rectangleUpdates,
+    anchorReconnects,
+    tile,
+    scene
+  );
 };
 
 export const DragItems: ModeActions = {
