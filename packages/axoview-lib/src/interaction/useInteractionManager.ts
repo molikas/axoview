@@ -821,6 +821,7 @@ export const useInteractionManager = () => {
     [
       uiStateApi,
       rendererSize,
+      screenToTile,
       handlePanMouseDown,
       handlePanMouseMove,
       handlePanMouseUp,
