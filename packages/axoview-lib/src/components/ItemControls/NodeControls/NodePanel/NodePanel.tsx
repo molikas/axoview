@@ -47,10 +47,24 @@ const TabPanel = ({ children, index, value }: TabPanelProps) => (
   </Box>
 );
 
-// Shared "does this HTML string carry visible text?" probe — used for the
-// notes/caption presence checks throughout the panel.
-const hasRichText = (value: string | undefined): boolean =>
-  !!value && value.replace(/<[^>]*>/g, '').trim() !== '';
+// True iff an HTML rich-text string carries visible text — used for the
+// notes/caption presence checks. Scans char-by-char rather than regex-stripping
+// tags so a partial/unclosed tag (e.g. `<script`) can't survive the emptiness
+// probe (CodeQL js/incomplete-multi-character-sanitization).
+const htmlHasVisibleText = (value: string | undefined): boolean => {
+  if (!value) return false;
+  let inTag = false;
+  for (const ch of value) {
+    if (ch === '<') {
+      inTag = true;
+    } else if (ch === '>') {
+      inTag = false;
+    } else if (!inTag && !/\s/.test(ch)) {
+      return true;
+    }
+  }
+  return false;
+};
 
 const resolveHeaderHref = (headerLink: string): string =>
   /^https?:\/\//i.test(headerLink) ? headerLink : `https://${headerLink}`;
@@ -183,7 +197,7 @@ const ReadOnlyNodePanel = ({
   labels,
   onClose
 }: ReadOnlyNodePanelProps) => {
-  const hasCaption = hasRichText(modelItem.description);
+  const hasCaption = htmlHasVisibleText(modelItem.description);
   const linkedDiagramId = modelItem.link ?? null;
   const linkedDiagramMeta = linkedDiagramId
     ? linkedDiagrams.find((d) => d.id === linkedDiagramId)
@@ -340,7 +354,7 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
 
   if (!modelItem) return null;
 
-  const hasNotes = hasRichText(modelItem.notes);
+  const hasNotes = htmlHasVisibleText(modelItem.notes);
   const iconUrl = icon.url || '';
 
   if (readOnly) {
@@ -441,8 +455,8 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
             height={300}
             value={modelItem.notes}
             onChange={(text) => {
-              const empty = !hasRichText(text);
-              if (empty && !hasRichText(modelItem.notes)) return;
+              const empty = !htmlHasVisibleText(text);
+              if (empty && !htmlHasVisibleText(modelItem.notes)) return;
               if (modelItem.notes !== text)
                 onModelUpdate({ notes: empty ? undefined : text });
             }}
