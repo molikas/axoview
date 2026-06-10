@@ -332,23 +332,29 @@ export const getConnectorsByViewItem = (
     connector.anchors.find((anchor) => anchor.ref.item === viewItemId)
   );
 
+// Arrow rotation (degrees) keyed by the sign pair of the last segment's
+// direction: `${sign(dx)},${sign(dy)}`. Replaces the former nested-ternary
+// branch chain — same 9 outcomes, expressed as the lookup table it always was.
+const DIRECTION_ICON_ROTATION: Record<string, number> = {
+  '1,1': 135,
+  '1,-1': 45,
+  '1,0': 90,
+  '-1,1': -135,
+  '-1,-1': -45,
+  '-1,0': -90,
+  '0,1': 180,
+  '0,-1': 0,
+  '0,0': -90
+};
+
 export const getConnectorDirectionIcon = (connectorTiles: Coords[]) => {
   if (connectorTiles.length < 2) return null;
 
   const iconTile = connectorTiles[connectorTiles.length - 2];
   const lastTile = connectorTiles[connectorTiles.length - 1];
-  let rotation: number | undefined;
-
-  if (lastTile.x > iconTile.x) {
-    rotation =
-      lastTile.y > iconTile.y ? 135 : lastTile.y < iconTile.y ? 45 : 90;
-  } else if (lastTile.x < iconTile.x) {
-    rotation =
-      lastTile.y > iconTile.y ? -135 : lastTile.y < iconTile.y ? -45 : -90;
-  } else {
-    rotation =
-      lastTile.y > iconTile.y ? 180 : lastTile.y < iconTile.y ? 0 : -90;
-  }
+  const sx = Math.sign(lastTile.x - iconTile.x);
+  const sy = Math.sign(lastTile.y - iconTile.y);
+  const rotation = DIRECTION_ICON_ROTATION[`${sx},${sy}`];
 
   return {
     x: iconTile.x * UNPROJECTED_TILE_SIZE + UNPROJECTED_TILE_SIZE / 2,
