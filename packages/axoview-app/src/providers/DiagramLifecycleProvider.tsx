@@ -646,49 +646,87 @@ export function DiagramLifecycleProvider({
       };
 
       // Resolve the diagram ID — new diagrams must go through createDiagram so
-      // the storage provider (and the file tree) knows about them.
-      let id: string;
-      let createdAt: string;
-      try {
-        if (currentDiagram) {
-          id = currentDiagram.id;
-          createdAt = currentDiagram.createdAt;
-          if (s) await s.saveDiagram(id, savedData);
-        } else if (existingDiagram) {
-          id = existingDiagram.id;
-          createdAt = existingDiagram.createdAt;
-          if (s) await s.saveDiagram(id, savedData);
-        } else {
+      // the storage provider (and the file tree) knows about them. Returns null
+      // when the storage op fails (the user has already been notified).
+      const resolveSaveTarget = async (): Promise<{
+        id: string;
+        createdAt: string;
+      } | null> => {
+        try {
+          if (currentDiagram) {
+            if (s) await s.saveDiagram(currentDiagram.id, savedData);
+            return {
+              id: currentDiagram.id,
+              createdAt: currentDiagram.createdAt
+            };
+          }
+          if (existingDiagram) {
+            if (s) await s.saveDiagram(existingDiagram.id, savedData);
+            return {
+              id: existingDiagram.id,
+              createdAt: existingDiagram.createdAt
+            };
+          }
           // Brand-new diagram: let the storage provider allocate the ID.
-          id = s ? await s.createDiagram(savedData, null) : Date.now().toString();
-          createdAt = new Date().toISOString();
+          const newId = s
+            ? await s.createDiagram(savedData, null)
+            : Date.now().toString();
+          return { id: newId, createdAt: new Date().toISOString() };
+        } catch (e) {
+          console.error('executeSave: storage op failed', e);
+          notificationStore.push({
+            severity: 'error',
+            message: t('alert.saveFailed', 'Save failed')
+          });
+          return null;
         }
-      } catch (e) {
-        console.error('executeSave: storage op failed', e);
-        notificationStore.push({ severity: 'error', message: t('alert.saveFailed', 'Save failed') });
-        return;
-      }
+      };
+
+      const applyDiagramsUpdate = (saved: SavedDiagram) => {
+        if (currentDiagram) {
+          setDiagrams(
+            diagrams.map((d) => (d.id === currentDiagram.id ? saved : d))
+          );
+        } else if (existingDiagram) {
+          setDiagrams(
+            diagrams.map((d) =>
+              d.id === existingDiagram.id
+                ? { ...saved, id: existingDiagram.id, createdAt: existingDiagram.createdAt }
+                : d
+            )
+          );
+        } else {
+          setDiagrams([...diagrams, saved]);
+        }
+      };
+
+      const persistLastOpened = (saved: SavedDiagram) => {
+        try {
+          localStorage.setItem('axoview-last-opened', saved.id);
+          localStorage.setItem(
+            'axoview-last-opened-data',
+            JSON.stringify(saved.data)
+          );
+        } catch (e) {
+          console.error('Failed to save diagram:', e);
+          if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+            notificationStore.push({ severity: 'error', message: t('alert.storageFull') });
+            setShowStorageManager(true);
+          }
+        }
+      };
+
+      const target = await resolveSaveTarget();
+      if (!target) return;
 
       const newDiagram: SavedDiagram = {
-        id,
+        id: target.id,
         name: diagramName,
         data: savedData,
-        createdAt,
+        createdAt: target.createdAt,
         updatedAt: new Date().toISOString()
       };
-      if (currentDiagram) {
-        setDiagrams(diagrams.map((d) => (d.id === currentDiagram.id ? newDiagram : d)));
-      } else if (existingDiagram) {
-        setDiagrams(
-          diagrams.map((d) =>
-            d.id === existingDiagram.id
-              ? { ...newDiagram, id: existingDiagram.id, createdAt: existingDiagram.createdAt }
-              : d
-          )
-        );
-      } else {
-        setDiagrams([...diagrams, newDiagram]);
-      }
+      applyDiagramsUpdate(newDiagram);
       setCurrentDiagram(newDiagram);
       setShowSaveDialog(false);
       const oldKey = currentDiagram?.id ?? '__unsaved__';
@@ -698,16 +736,7 @@ export function DiagramLifecycleProvider({
       setLastSaved(new Date());
       setFileTreeRefreshToken((n) => n + 1);
       notificationStore.push({ severity: 'success', message: `"${diagramName}" saved` });
-      try {
-        localStorage.setItem('axoview-last-opened', newDiagram.id);
-        localStorage.setItem('axoview-last-opened-data', JSON.stringify(newDiagram.data));
-      } catch (e) {
-        console.error('Failed to save diagram:', e);
-        if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-          notificationStore.push({ severity: 'error', message: t('alert.storageFull') });
-          setShowStorageManager(true);
-        }
-      }
+      persistLastOpened(newDiagram);
     },
     [diagramName, diagrams, currentDiagram, currentModel, diagramData, t]
   );
@@ -1168,38 +1197,50 @@ export function DiagramLifecycleProvider({
     const failedIds: string[] = [];
 
     const s = storageRef.current;
+
+    // Persist a never-saved (__unsaved__) buffer: allocate a unique name + id
+    // and adopt it as the active diagram when nothing else is open.
+    const saveNewDirty = async (dirtyData: DiagramData) => {
+      const nameCandidate = dirtyData.title || diagramNameRef.current || 'Untitled Diagram';
+      const chosenName = sequentialName(nameCandidate, sessionExistingNames);
+      sessionExistingNames.push(chosenName);
+      const savedPayload = { ...dirtyData, title: chosenName };
+      const newId = s
+        ? await s.createDiagram(savedPayload, null)
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const newSessionDiagram: SavedDiagram = {
+        id: newId,
+        name: chosenName,
+        data: savedPayload,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      sessionUpdates.push(newSessionDiagram);
+      if (!currentDiagramRef.current) {
+        setCurrentDiagram(newSessionDiagram);
+        setDiagramName(chosenName);
+        setLastSaved(new Date());
+      }
+    };
+
+    // Persist an already-tracked diagram in place; no-op if it has vanished
+    // from the diagrams list.
+    const saveExistingDirty = async (dirtyId: string, dirtyData: DiagramData) => {
+      const existingEntry = diagrams.find((d) => d.id === dirtyId);
+      if (!existingEntry) return;
+      if (s) await s.saveDiagram(dirtyId, dirtyData);
+      sessionUpdates.push({ ...existingEntry, data: dirtyData, updatedAt: new Date().toISOString() });
+      if (dirtyId === currentDiagramRef.current?.id) setLastSaved(new Date());
+    };
+
     for (const dirtyId of allDirtyIds) {
       const dirtyData = resolveData(dirtyId);
       if (!dirtyData) continue;
       try {
         if (dirtyId === '__unsaved__') {
-          const nameCandidate = dirtyData.title || diagramNameRef.current || 'Untitled Diagram';
-          const chosenName = sequentialName(nameCandidate, sessionExistingNames);
-          sessionExistingNames.push(chosenName);
-          const savedPayload = { ...dirtyData, title: chosenName };
-          const newId = s
-            ? await s.createDiagram(savedPayload, null)
-            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-          const newSessionDiagram: SavedDiagram = {
-            id: newId,
-            name: chosenName,
-            data: savedPayload,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
-          sessionUpdates.push(newSessionDiagram);
-          if (!currentDiagramRef.current) {
-            setCurrentDiagram(newSessionDiagram);
-            setDiagramName(chosenName);
-            setLastSaved(new Date());
-          }
+          await saveNewDirty(dirtyData);
         } else {
-          const existingEntry = diagrams.find((d) => d.id === dirtyId);
-          if (existingEntry) {
-            if (s) await s.saveDiagram(dirtyId, dirtyData);
-            sessionUpdates.push({ ...existingEntry, data: dirtyData, updatedAt: new Date().toISOString() });
-            if (dirtyId === currentDiagramRef.current?.id) setLastSaved(new Date());
-          }
+          await saveExistingDirty(dirtyId, dirtyData);
         }
         clearDirty(dirtyId);
         savedCount++;

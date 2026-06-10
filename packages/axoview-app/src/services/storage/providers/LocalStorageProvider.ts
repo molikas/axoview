@@ -9,32 +9,34 @@ import {
 import type { Icon } from 'axoview';
 import { apiBaseUrl } from '../../../utils/apiBaseUrl';
 
-/**
- * Apply ADR 0003 lean-save: keep only user-supplied (imported) icons.
- * Pack icons (isoflow, aws, gcp, …) are always rehydrated from the icon pack
- * manager on load, so there is no need to persist their SVG payloads.
- *
- * Also persists `requiredPacks` — the unique non-isoflow/imported collections
- * actually referenced by items — so the load path can fetch exactly those
- * packs without having to introspect bare icon-id strings.
- */
-const leanIfModel = (data: unknown): unknown => {
-  if (!isPersistedDiagramBlob(data)) return data;
-  const modelIcons: Icon[] | undefined = data.icons;
-  if (!Array.isArray(modelIcons)) return data;
-  const model = data;
+// Plain-object dictionaries (not Set) and indexed `for` loops throughout the
+// lean-save helpers are deliberate: ts-jest transpiles `new Set` under
+// target=es5 with a broken polyfill where `.add()` is a no-op for string
+// members, making derived-/known- lookups silently empty.
 
-  // Plain Object dictionaries instead of Set: ts-jest transpiles `new Set`
-  // under target=es5 with a broken polyfill where `.add()` is a no-op for
-  // string members, making derived-/known- lookups silently empty.
+// Index the icon ids referenced by items.
+const collectItemIconIds = (
+  items: PersistedDiagramBlob['items']
+): { [k: string]: true } => {
   const itemIconIds: { [k: string]: true } = {};
-  if (Array.isArray(model.items)) {
-    for (let i = 0; i < model.items.length; i++) {
-      const item = model.items[i];
+  if (Array.isArray(items)) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
       if (item && typeof item.icon === 'string') itemIconIds[item.icon] = true;
     }
   }
+  return itemIconIds;
+};
 
+// Walk the model's icons once: record which ids are known, and which
+// non-core/non-imported collections are actually referenced by an item.
+const analyzeModelIcons = (
+  modelIcons: Icon[],
+  itemIconIds: { [k: string]: true }
+): {
+  knownIconIds: { [k: string]: true };
+  derivedRequiredPacks: { [k: string]: true };
+} => {
   const knownIconIds: { [k: string]: true } = {};
   const derivedRequiredPacks: { [k: string]: true } = {};
   for (let i = 0; i < modelIcons.length; i++) {
@@ -51,23 +53,54 @@ const leanIfModel = (data: unknown): unknown => {
       derivedRequiredPacks[icon.collection] = true;
     }
   }
+  return { knownIconIds, derivedRequiredPacks };
+};
+
+// True when every item-referenced icon id resolves against the icons array.
+const allItemIconsResolved = (
+  itemIconIds: { [k: string]: true },
+  knownIconIds: { [k: string]: true }
+): boolean => {
+  const itemIconIdList = Object.keys(itemIconIds);
+  for (let i = 0; i < itemIconIdList.length; i++) {
+    if (!knownIconIds[itemIconIdList[i]]) return false;
+  }
+  return true;
+};
+
+/**
+ * Apply ADR 0003 lean-save: keep only user-supplied (imported) icons.
+ * Pack icons (isoflow, aws, gcp, …) are always rehydrated from the icon pack
+ * manager on load, so there is no need to persist their SVG payloads.
+ *
+ * Also persists `requiredPacks` — the unique non-isoflow/imported collections
+ * actually referenced by items — so the load path can fetch exactly those
+ * packs without having to introspect bare icon-id strings.
+ */
+const leanIfModel = (data: unknown): unknown => {
+  if (!isPersistedDiagramBlob(data)) return data;
+  const modelIcons: Icon[] | undefined = data.icons;
+  if (!Array.isArray(modelIcons)) return data;
+  const model = data;
+
+  const itemIconIds = collectItemIconIds(model.items);
+  const { knownIconIds, derivedRequiredPacks } = analyzeModelIcons(
+    modelIcons,
+    itemIconIds
+  );
 
   // If every item's icon resolves against the icons array, the derived list
   // is authoritative. Otherwise the input is already lean (icons stripped to
   // imported-only) and we can't see what packs the unresolved items need —
   // preserve whatever was on the input rather than overwriting with [].
-  let allResolved = true;
-  const itemIconIdList = Object.keys(itemIconIds);
-  for (let i = 0; i < itemIconIdList.length; i++) {
-    if (!knownIconIds[itemIconIdList[i]]) { allResolved = false; break; }
-  }
+  const allResolved = allItemIconsResolved(itemIconIds, knownIconIds);
   const existingRequiredPacks = Array.isArray(model.requiredPacks)
-    ? (model.requiredPacks as unknown[]).filter((p): p is string => typeof p === 'string')
+    ? (model.requiredPacks as unknown[]).filter(
+        (p): p is string => typeof p === 'string'
+      )
     : null;
   const derived = Object.keys(derivedRequiredPacks);
-  const requiredPacks = allResolved
-    ? derived
-    : (existingRequiredPacks !== null ? existingRequiredPacks : derived);
+  const requiredPacks = allResolved ? derived : existingRequiredPacks ?? derived;
 
   return {
     ...model,
