@@ -178,43 +178,82 @@ export const NodeActionBar = ({ type, id, tile: connectorTile }: Props) => {
     return null;
   }, [type, viewItem, textBox, rectangle, connectorTile, getTilePosition]);
 
-  // Guard: can't render without position or item data
+  // Guard: can't render without position or the type's backing item data.
+  const hasRequiredData = (): boolean => {
+    if (type === 'ITEM') return !!viewItem && !!modelItem;
+    if (type === 'CONNECTOR') return !!connector;
+    if (type === 'TEXTBOX') return !!textBox;
+    if (type === 'RECTANGLE') return !!rectangle;
+    return false;
+  };
+
   const pos = getPosition();
-  if (!pos) return null;
-  if (type === 'ITEM' && (!viewItem || !modelItem)) return null;
-  if (type === 'CONNECTOR' && !connector) return null;
-  if (type === 'TEXTBOX' && !textBox) return null;
-  if (type === 'RECTANGLE' && !rectangle) return null;
+  if (!pos || !hasRequiredData()) return null;
 
+  // Per-type source values — table lookup avoids long type-dispatch ternaries.
+  const notesByType: Record<ItemType, string | undefined> = {
+    ITEM: modelItem?.notes,
+    CONNECTOR: connector?.notes,
+    TEXTBOX: undefined,
+    RECTANGLE: undefined
+  };
+  const linkByType: Record<ItemType, string | undefined> = {
+    ITEM: modelItem?.headerLink,
+    CONNECTOR: connector?.headerLink,
+    TEXTBOX: undefined,
+    RECTANGLE: undefined
+  };
+  const layerIdByType: Record<ItemType, string | undefined> = {
+    ITEM: viewItem?.layerId,
+    CONNECTOR: connector?.layerId,
+    TEXTBOX: textBox?.layerId,
+    RECTANGLE: rectangle?.layerId
+  };
+
+  const activeNotes = notesByType[type];
   const hasNotes =
-    type === 'ITEM'
-      ? !!modelItem?.notes &&
-        modelItem.notes.replace(/<[^>]*>/g, '').trim() !== ''
-      : type === 'CONNECTOR'
-      ? !!connector?.notes &&
-        connector.notes.replace(/<[^>]*>/g, '').trim() !== ''
-      : false;
-
-  const hasLink =
-    type === 'ITEM'
-      ? !!modelItem?.headerLink
-      : type === 'CONNECTOR'
-      ? !!connector?.headerLink
-      : false;
-
-  const currentLayerId =
-    type === 'ITEM'
-      ? viewItem?.layerId
-      : type === 'CONNECTOR'
-      ? connector?.layerId
-      : type === 'TEXTBOX'
-      ? textBox?.layerId
-      : rectangle?.layerId;
+    !!activeNotes && activeNotes.replace(/<[^>]*>/g, '').trim() !== '';
+  const hasLink = !!linkByType[type];
+  const currentLayerId = layerIdByType[type];
 
   const showLink = type === 'ITEM' || type === 'CONNECTOR';
   const showNotes = type === 'ITEM' || type === 'CONNECTOR';
   const showStartConnector = type === 'ITEM';
   const showZOrder = type === 'ITEM';
+
+  const renderLayerMenuItems = () => {
+    if (layers.length === 0) {
+      return (
+        <MenuItem disabled sx={{ fontSize: 13 }}>
+          No layers — open the Layers panel to add one
+        </MenuItem>
+      );
+    }
+    return [
+      currentLayerId && (
+        <MenuItem
+          key="remove"
+          onClick={() => handleAssignLayer(undefined)}
+          sx={{ fontSize: 13 }}
+        >
+          Remove from layer
+        </MenuItem>
+      ),
+      currentLayerId && <Divider key="divider" />,
+      ...[...layers]
+        .sort((a, b) => b.order - a.order)
+        .map((layer) => (
+          <MenuItem
+            key={layer.id}
+            onClick={() => handleAssignLayer(layer.id)}
+            selected={layer.id === currentLayerId}
+            sx={{ fontSize: 13 }}
+          >
+            {layer.name}
+          </MenuItem>
+        ))
+    ];
+  };
 
   return (
     <Box
@@ -356,36 +395,7 @@ export const NodeActionBar = ({ type, id, tile: connectorTile }: Props) => {
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
         transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        {layers.length === 0 ? (
-          <MenuItem disabled sx={{ fontSize: 13 }}>
-            No layers — open the Layers panel to add one
-          </MenuItem>
-        ) : (
-          [
-            currentLayerId && (
-              <MenuItem
-                key="remove"
-                onClick={() => handleAssignLayer(undefined)}
-                sx={{ fontSize: 13 }}
-              >
-                Remove from layer
-              </MenuItem>
-            ),
-            currentLayerId && <Divider key="divider" />,
-            ...[...layers]
-              .sort((a, b) => b.order - a.order)
-              .map((layer) => (
-                <MenuItem
-                  key={layer.id}
-                  onClick={() => handleAssignLayer(layer.id)}
-                  selected={layer.id === currentLayerId}
-                  sx={{ fontSize: 13 }}
-                >
-                  {layer.name}
-                </MenuItem>
-              ))
-          ]
-        )}
+        {renderLayerMenuItems()}
       </Menu>
     </Box>
   );
