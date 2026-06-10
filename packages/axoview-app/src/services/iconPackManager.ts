@@ -15,13 +15,6 @@ export interface IconPackInfo {
   iconCount: number;
 }
 
-export interface IconPackManagerState {
-  lazyLoadingEnabled: boolean;
-  enabledPacks: IconPackName[];
-  packInfo: Record<IconPackName, IconPackInfo>;
-  loadedIcons: Icon[];
-}
-
 // localStorage keys
 const LAZY_LOADING_KEY = 'axoview-lazy-loading-enabled';
 const ENABLED_PACKS_KEY = 'axoview-enabled-icon-packs';

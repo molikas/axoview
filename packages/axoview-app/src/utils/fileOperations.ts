@@ -1,4 +1,4 @@
-import type { DiagramMeta, FolderMeta, TreeManifest } from '../services/storage/types';
+import type { DiagramMeta, TreeManifest } from '../services/storage/types';
 
 /**
  * Returns baseName if not in existingNames; otherwise appends -1, -2, etc.
@@ -109,23 +109,3 @@ export function propagateDirty(
   return result;
 }
 
-/**
- * Returns all folder IDs that are descendants of (or equal to) the given folderId.
- * Useful for building delete cascades.
- */
-export function getAllDescendantFolderIds(
-  folderId: string,
-  folders: FolderMeta[]
-): string[] {
-  const result: string[] = [];
-  const queue: string[] = [folderId];
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    result.push(current);
-    const children = folders.filter((f) => f.parentId === current);
-    for (const child of children) {
-      queue.push(child.id);
-    }
-  }
-  return result;
-}

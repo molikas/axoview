@@ -6,7 +6,6 @@ export const coords = z.object({
 });
 
 export const id = z.string();
-export const color = z.string();
 
 export const NOTES_MAX_LENGTH = 50000;
 
