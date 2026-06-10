@@ -179,7 +179,8 @@ export const parseProject = async (file: File | Blob): Promise<ParsedProject> =>
   let zip: JSZip;
   try {
     zip = await JSZip.loadAsync(file);
-  } catch (err) {
+  } catch {
+    // JSZip throws on any malformed/non-zip input → translate to a domain error.
     throw new ProjectZipError('Could not read zip archive', 'BAD_ZIP');
   }
 

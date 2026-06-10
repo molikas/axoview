@@ -33,8 +33,9 @@ export const CustomColorInput = ({ value, onChange }: Props) => {
     try {
       const result = await eyeDropper.open();
       onChange(result.sRGBHex);
-    } catch (e) {
-      // User canceled or failed
+    } catch {
+      // EyeDropper.open() rejects when the user cancels (Esc) — not a
+      // failure-of-intent per ADR 0011; silently abort the pick.
     }
   };
 

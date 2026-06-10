@@ -225,9 +225,9 @@ export const HelpDialog = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {keyboardShortcuts.map((shortcut, index) => {
+                {keyboardShortcuts.map((shortcut) => {
                   return (
-                    <TableRow key={index}>
+                    <TableRow key={shortcut.action}>
                       <TableCell>{shortcut.action}</TableCell>
                       <TableCell>
                         <code
@@ -272,9 +272,9 @@ export const HelpDialog = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {mouseInteractions.map((interaction, index) => {
+                {mouseInteractions.map((interaction) => {
                   return (
-                    <TableRow key={index}>
+                    <TableRow key={interaction.action}>
                       <TableCell>{interaction.action}</TableCell>
                       <TableCell>
                         <code

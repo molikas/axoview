@@ -53,7 +53,6 @@ export function ImportDialog({
   const [error, setError] = useState<string | null>(null);
 
   const [parsed, setParsed] = useState<ParsedProject | null>(null);
-  const [zipFilename, setZipFilename] = useState('');
   const [destination, setDestination] = useState<DestinationKind>('root');
   const [newFolderName, setNewFolderName] = useState('Imported');
   const [replaceConfirm, setReplaceConfirm] = useState('');
@@ -67,7 +66,6 @@ export function ImportDialog({
     setStep('pickFile');
     setError(null);
     setParsed(null);
-    setZipFilename('');
     setDestination('root');
     setNewFolderName('Imported');
     setReplaceConfirm('');
@@ -90,7 +88,6 @@ export function ImportDialog({
         if (isZip) {
           const p = await parseProject(file);
           setParsed(p);
-          setZipFilename(file.name.replace(/\.zip$/i, ''));
           setNewFolderName(file.name.replace(/\.zip$/i, '') || 'Imported');
           setStep('configureZip');
         } else {

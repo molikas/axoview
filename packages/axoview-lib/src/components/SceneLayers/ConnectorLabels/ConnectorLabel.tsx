@@ -120,11 +120,6 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
       );
   }, [labels, scenePath, connector.lineType, connector.width, getTilePosition]);
 
-  // Position of the synthetic name label for the inline edit input.
-  const namePosition = useMemo(() => {
-    return labelPositions.find((lp) => lp.label.id === '__name__')?.position ?? null;
-  }, [labelPositions]);
-
   return (
     <>
       {labelPositions.map(({ label, position }) => {

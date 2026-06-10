@@ -28,9 +28,9 @@ export const ContextMenu = ({ onClose, anchorEl, menuItems }: Props) => {
       }}
       MenuListProps={{ dense: true }}
     >
-      {menuItems.map((item, index) => (
+      {menuItems.map((item) => (
         <MenuItem
-          key={index}
+          key={item.label}
           onClick={item.onClick}
           sx={{ py: 0.5 }}
         >
