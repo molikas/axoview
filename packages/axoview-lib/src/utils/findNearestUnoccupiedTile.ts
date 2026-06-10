@@ -55,6 +55,40 @@ export const findNearestUnoccupiedTile = (
   return null;
 };
 
+// Scan the perimeter of the square ring at `distance` tiles from the target,
+// in (dx, dy) ascending order, returning the first unoccupied tile or null.
+const scanRing = (
+  targetTile: Coords,
+  distance: number,
+  occupiedTiles: Set<string>
+): Coords | null => {
+  for (let dx = -distance; dx <= distance; dx++) {
+    for (let dy = -distance; dy <= distance; dy++) {
+      const onPerimeter =
+        Math.abs(dx) === distance || Math.abs(dy) === distance;
+      if (!onPerimeter) continue;
+      const checkTile = { x: targetTile.x + dx, y: targetTile.y + dy };
+      if (!occupiedTiles.has(tileKey(checkTile))) {
+        return checkTile;
+      }
+    }
+  }
+  return null;
+};
+
+// Expand outward ring-by-ring from the target until a free tile is found.
+const findFreeTileInRings = (
+  targetTile: Coords,
+  occupiedTiles: Set<string>,
+  maxDistance = 10
+): Coords | null => {
+  for (let distance = 1; distance <= maxDistance; distance++) {
+    const free = scanRing(targetTile, distance, occupiedTiles);
+    if (free) return free;
+  }
+  return null;
+};
+
 /**
  * Finds the nearest unoccupied tile for multiple items being placed/moved.
  * Ensures all items can be placed without overlapping.
@@ -76,30 +110,10 @@ export const findNearestUnoccupiedTilesForGroup = (
   });
 
   for (const item of items) {
-    let foundTile: Coords | null = null;
     const targetKey = tileKey(item.targetTile);
-
-    if (!occupiedTiles.has(targetKey)) {
-      foundTile = item.targetTile;
-    } else {
-      // Search for nearest unoccupied tile in expanding rings.
-      outer: for (let distance = 1; distance <= 10; distance++) {
-        for (let dx = -distance; dx <= distance; dx++) {
-          for (let dy = -distance; dy <= distance; dy++) {
-            if (Math.abs(dx) === distance || Math.abs(dy) === distance) {
-              const checkTile = {
-                x: item.targetTile.x + dx,
-                y: item.targetTile.y + dy
-              };
-              if (!occupiedTiles.has(tileKey(checkTile))) {
-                foundTile = checkTile;
-                break outer;
-              }
-            }
-          }
-        }
-      }
-    }
+    const foundTile = occupiedTiles.has(targetKey)
+      ? findFreeTileInRings(item.targetTile, occupiedTiles)
+      : item.targetTile;
 
     if (!foundTile) {
       return null;
