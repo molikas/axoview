@@ -251,7 +251,6 @@ export const UiOverlay = ({
               <ViewSidebarOutlined sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>,
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           (sidebarTogglePortalTarget ?? portalTarget)!
         )}
 

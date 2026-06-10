@@ -150,7 +150,6 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
           get() {
             if (!warned) {
               warned = true;
-              // eslint-disable-next-line no-console
               console.warn(
                 '[Axoview] window.__fossflow__ is deprecated; use window.__axoview__. ' +
                   'The alias will be removed in a future release.'
