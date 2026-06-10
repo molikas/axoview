@@ -16,6 +16,188 @@ import { useUiStateStore } from 'src/stores/uiStateStore';
 
 const INLINE_EDIT_EVENT = 'inlineEditNodeName';
 
+interface LabelPosition {
+  x: number;
+  y: number;
+}
+
+const resolveConnectorUrl = (
+  headerLink: string | undefined
+): string | null => {
+  if (!headerLink) return null;
+  return /^https?:\/\//i.test(headerLink)
+    ? headerLink
+    : `https://${headerLink}`;
+};
+
+// Inline contentEditable editor for the connector name label.
+const ConnectorNameEditor = ({
+  position,
+  name,
+  onCommit,
+  onCancel
+}: {
+  position: LabelPosition;
+  name: string;
+  onCommit: (raw: string) => void;
+  onCancel: () => void;
+}) => (
+  <Box
+    sx={{ position: 'absolute', pointerEvents: 'auto', zIndex: 10 }}
+    style={{ left: position.x, top: position.y }}
+  >
+    <Typography
+      variant="body2"
+      fontWeight={400}
+      contentEditable
+      suppressContentEditableWarning
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      onBlur={(e) => onCommit(e.currentTarget.innerText)}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          (e.currentTarget as HTMLElement).blur();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          onCancel();
+        }
+      }}
+      ref={(el) => {
+        if (el && document.activeElement !== el) {
+          el.focus();
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          const sel = window.getSelection();
+          sel?.removeAllRanges();
+          sel?.addRange(range);
+        }
+      }}
+      sx={{
+        outline: '1px solid rgba(0,0,0,0.3)',
+        borderRadius: 1,
+        px: 0.75,
+        bgcolor: '#fff',
+        minWidth: 20,
+        cursor: 'text',
+        display: 'inline-block',
+        width: 'max-content',
+        maxWidth: 200,
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word'
+      }}
+    >
+      {name}
+    </Typography>
+  </Box>
+);
+
+// Name label (not editing) — clickable when headerLink is set.
+const ConnectorNameLabel = ({
+  position,
+  label,
+  headerLink
+}: {
+  position: LabelPosition;
+  label: ConnectorLabelType;
+  headerLink?: string;
+}) => {
+  const url = resolveConnectorUrl(headerLink);
+  return (
+    <Box
+      sx={{
+        position: 'absolute',
+        pointerEvents: url ? 'auto' : 'none',
+        cursor: url ? 'pointer' : 'default'
+      }}
+      style={{
+        maxWidth: PROJECTED_TILE_SIZE.width,
+        left: position.x,
+        top: position.y
+      }}
+      onClick={
+        url
+          ? (e) => {
+              e.stopPropagation();
+              window.open(url, '_blank', 'noopener,noreferrer');
+            }
+          : undefined
+      }
+    >
+      <Label
+        maxWidth={150}
+        labelHeight={label.height || 0}
+        showLine={false}
+        sx={{
+          py: 0.75,
+          px: 1,
+          borderRadius: 2,
+          backgroundColor: 'background.paper',
+          opacity: 0.95
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+          <Typography
+            variant="body2"
+            sx={{ fontWeight: 400, color: url ? 'primary.main' : 'text.primary' }}
+          >
+            {label.text}
+          </Typography>
+          {url && (
+            <OpenInNewIcon
+              sx={{ fontSize: 11, color: 'primary.main', flexShrink: 0 }}
+            />
+          )}
+        </Box>
+      </Label>
+    </Box>
+  );
+};
+
+// Standard (non-name) connector label.
+const ConnectorTextLabel = ({
+  position,
+  label
+}: {
+  position: LabelPosition;
+  label: ConnectorLabelType;
+}) => (
+  <Box
+    sx={{ position: 'absolute', pointerEvents: 'none' }}
+    style={{
+      maxWidth: PROJECTED_TILE_SIZE.width,
+      left: position.x,
+      top: position.y
+    }}
+  >
+    <Label
+      maxWidth={150}
+      labelHeight={label.height || 0}
+      showLine={label.showLine !== false}
+      sx={{
+        py: 0.75,
+        px: 1,
+        borderRadius: 2,
+        backgroundColor: 'background.paper',
+        opacity: 0.95
+      }}
+    >
+      <Typography
+        variant="body2"
+        sx={{
+          fontWeight: 400,
+          color: label.labelColor || 'text.primary',
+          ...(label.fontSize ? { fontSize: `${label.fontSize}px` } : {})
+        }}
+      >
+        {label.text}
+      </Typography>
+    </Label>
+  </Box>
+);
+
 interface Props {
   connector: Connector;
 }
@@ -125,129 +307,33 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
       {labelPositions.map(({ label, position }) => {
         if (label.id === '__name__' && isEditingName) {
           return (
-            <Box
+            <ConnectorNameEditor
               key="__name__-edit"
-              sx={{ position: 'absolute', pointerEvents: 'auto', zIndex: 10 }}
-              style={{ left: position.x, top: position.y }}
-            >
-              <Typography
-                variant="body2"
-                fontWeight={400}
-                contentEditable
-                suppressContentEditableWarning
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
-                onDoubleClick={(e) => e.stopPropagation()}
-                onBlur={(e) => commitName(e.currentTarget.innerText)}
-                onKeyDown={(e) => {
-                  e.stopPropagation();
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    (e.currentTarget as HTMLElement).blur();
-                  } else if (e.key === 'Escape') {
-                    e.preventDefault();
-                    setIsEditingName(false);
-                  }
-                }}
-                ref={(el) => {
-                  if (el && document.activeElement !== el) {
-                    el.focus();
-                    const range = document.createRange();
-                    range.selectNodeContents(el);
-                    const sel = window.getSelection();
-                    sel?.removeAllRanges();
-                    sel?.addRange(range);
-                  }
-                }}
-                sx={{
-                  outline: '1px solid rgba(0,0,0,0.3)',
-                  borderRadius: 1,
-                  px: 0.75,
-                  bgcolor: '#fff',
-                  minWidth: 20,
-                  cursor: 'text',
-                  display: 'inline-block',
-                  width: 'max-content',
-                  maxWidth: 200,
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word'
-                }}
-              >
-                {connector.name ?? ''}
-              </Typography>
-            </Box>
+              position={position}
+              name={connector.name ?? ''}
+              onCommit={commitName}
+              onCancel={() => setIsEditingName(false)}
+            />
           );
         }
 
-        // Name label (not editing) — clickable when headerLink is set
         if (label.id === '__name__') {
-          const url = connector.headerLink
-            ? /^https?:\/\//i.test(connector.headerLink)
-              ? connector.headerLink
-              : `https://${connector.headerLink}`
-            : null;
           return (
-            <Box
+            <ConnectorNameLabel
               key="__name__"
-              sx={{
-                position: 'absolute',
-                pointerEvents: url ? 'auto' : 'none',
-                cursor: url ? 'pointer' : 'default'
-              }}
-              style={{ maxWidth: PROJECTED_TILE_SIZE.width, left: position.x, top: position.y }}
-              onClick={url ? (e) => { e.stopPropagation(); window.open(url, '_blank', 'noopener,noreferrer'); } : undefined}
-            >
-              <Label
-                maxWidth={150}
-                labelHeight={label.height || 0}
-                showLine={false}
-                sx={{ py: 0.75, px: 1, borderRadius: 2, backgroundColor: 'background.paper', opacity: 0.95 }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 400, color: url ? 'primary.main' : 'text.primary' }}>
-                    {label.text}
-                  </Typography>
-                  {url && <OpenInNewIcon sx={{ fontSize: 11, color: 'primary.main', flexShrink: 0 }} />}
-                </Box>
-              </Label>
-            </Box>
+              position={position}
+              label={label}
+              headerLink={connector.headerLink}
+            />
           );
         }
 
         return (
-          <Box
+          <ConnectorTextLabel
             key={label.id}
-            sx={{ position: 'absolute', pointerEvents: 'none' }}
-            style={{
-              maxWidth: PROJECTED_TILE_SIZE.width,
-              left: position.x,
-              top: position.y
-            }}
-          >
-            <Label
-              maxWidth={150}
-              labelHeight={label.height || 0}
-              showLine={label.showLine !== false}
-              sx={{
-                py: 0.75,
-                px: 1,
-                borderRadius: 2,
-                backgroundColor: 'background.paper',
-                opacity: 0.95
-              }}
-            >
-              <Typography
-                variant="body2"
-                sx={{
-                  fontWeight: 400,
-                  color: label.labelColor || 'text.primary',
-                  ...(label.fontSize ? { fontSize: `${label.fontSize}px` } : {})
-                }}
-              >
-                {label.text}
-              </Typography>
-            </Label>
-          </Box>
+            position={position}
+            label={label}
+          />
         );
       })}
     </>
