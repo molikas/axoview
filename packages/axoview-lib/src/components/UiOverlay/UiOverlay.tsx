@@ -17,7 +17,6 @@ import { DragAndDrop } from 'src/components/DragAndDrop/DragAndDrop';
 import { ToolMenu } from 'src/components/ToolMenu/ToolMenu';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { DebugUtils } from 'src/components/DebugUtils/DebugUtils';
-import { ContextMenuManager } from 'src/components/ContextMenu/ContextMenuManager';
 import { useScene } from 'src/hooks/useScene';
 import { useModelStore } from 'src/stores/modelStore';
 import { ExportImageDialog } from '../ExportImageDialog/ExportImageDialog';
@@ -25,7 +24,6 @@ import { HelpDialog } from '../HelpDialog/HelpDialog';
 import { SettingsDialog } from '../SettingsDialog/SettingsDialog';
 import { LazyLoadingWelcomeNotification } from '../LazyLoadingWelcomeNotification/LazyLoadingWelcomeNotification';
 import { NotificationSnackbar } from '../NotificationSnackbar/NotificationSnackbar';
-import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { ViewTabs } from 'src/components/ViewTabs/ViewTabs';
 import { NodeActionBar } from 'src/components/NodeActionBar/NodeActionBar';
 import { LassoLayerBar } from 'src/components/LassoLayerBar/LassoLayerBar';
@@ -82,7 +80,6 @@ export const UiOverlay = ({
 }: UiOverlayProps = {}) => {
   const portalTarget = toolbarPortalTarget ?? menuPortalTarget ?? null;
   const theme = useTheme();
-  const contextMenuAnchorRef = useRef<HTMLDivElement>(null);
   const toolMenuRef = useRef<HTMLDivElement>(null);
   const { appPadding } = theme.customVars;
   const spacing = useCallback(
@@ -100,7 +97,6 @@ export const UiOverlay = ({
     itemControls,
     editorMode,
     iconPackManager,
-    contextMenu,
     rightSidebarOpen,
     itemActionBarOpen
   } = useUiStateStore(
@@ -112,7 +108,6 @@ export const UiOverlay = ({
       itemControls: state.itemControls,
       editorMode: state.editorMode,
       iconPackManager: state.iconPackManager,
-      contextMenu: state.contextMenu,
       rightSidebarOpen: state.rightSidebarOpen,
       itemActionBarOpen: state.itemActionBarOpen
     }),
@@ -120,7 +115,6 @@ export const UiOverlay = ({
   );
 
   const { currentView } = useScene();
-  const { getTilePosition } = useCanvasMode();
   const availableTools = useMemo(() => {
     return getEditorModeMapping(editorMode);
   }, [editorMode]);
@@ -279,26 +273,6 @@ export const UiOverlay = ({
       <NotificationSnackbar />
 
       <SceneLayer>
-        {/* Always rendered so contextMenuAnchorRef.current is never null when contextMenu is set */}
-        <Box
-          ref={contextMenuAnchorRef}
-          sx={{
-            position: 'absolute',
-            left: contextMenu
-              ? getTilePosition({ tile: contextMenu.tile }).x
-              : 0,
-            top: contextMenu
-              ? getTilePosition({ tile: contextMenu.tile }).y
-              : 0,
-            width: 0,
-            height: 0,
-            pointerEvents: 'none'
-          }}
-        />
-        <ContextMenuManager
-          anchorEl={contextMenu ? contextMenuAnchorRef.current : null}
-        />
-
         {/* Floating action bar — edit mode only, hidden while dragging.
             Opened by right-click on an item (mqa-results.md #1); left-click
             selection no longer auto-shows the bar. */}

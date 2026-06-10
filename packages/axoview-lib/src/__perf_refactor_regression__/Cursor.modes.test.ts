@@ -62,8 +62,7 @@ function makeUiState(overrides: any = {}) {
     itemControls: overrides.itemControls ?? null,
     actions: overrides.actions ?? {
       setMode: jest.fn(),
-      setItemControls: jest.fn(),
-      setContextMenu: jest.fn()
+      setItemControls: jest.fn()
     }
   };
 }
@@ -161,7 +160,6 @@ describe('Cursor.mouseup (real module)', () => {
     const uiState = makeUiState();
     callMouseup(uiState, false);
     expect(uiState.actions.setMode).not.toHaveBeenCalled();
-    expect(uiState.actions.setContextMenu).not.toHaveBeenCalled();
   });
 
   it('does nothing when mode type is not CURSOR', () => {
@@ -231,45 +229,8 @@ describe('Cursor.mouseup (real module)', () => {
     const dispatchSpy = jest.spyOn(window, 'dispatchEvent');
     callMouseup(uiState);
     expect(uiState.actions.setItemControls).toHaveBeenCalledWith(null);
-    expect(uiState.actions.setContextMenu).not.toHaveBeenCalled();
     expect(dispatchSpy).not.toHaveBeenCalled();
     dispatchSpy.mockRestore();
-  });
-
-  it('does NOT open context menu when mousedownHandled is false/undefined (external setMode)', () => {
-    const uiState = makeUiState({
-      mode: {
-        type: 'CURSOR',
-        showCursor: true,
-        mousedownItem: null,
-        mousedownHandled: false // mode was set externally, no preceding mousedown
-      },
-      mouse: {
-        position: { tile: { x: 3, y: 4 }, screen: { x: 30, y: 40 } },
-        mousedown: null, // no mousedown recorded
-        delta: null
-      }
-    });
-    callMouseup(uiState);
-    expect(uiState.actions.setContextMenu).not.toHaveBeenCalled();
-  });
-
-  it('does NOT open context menu when mousedownHandled is undefined (external setMode)', () => {
-    const uiState = makeUiState({
-      mode: {
-        type: 'CURSOR',
-        showCursor: true,
-        mousedownItem: null
-        // mousedownHandled: not set (undefined)
-      },
-      mouse: {
-        position: { tile: { x: 3, y: 4 }, screen: { x: 30, y: 40 } },
-        mousedown: null,
-        delta: null
-      }
-    });
-    callMouseup(uiState);
-    expect(uiState.actions.setContextMenu).not.toHaveBeenCalled();
   });
 
   // MQA #16 — drag-select inside a properties-panel input that crosses the

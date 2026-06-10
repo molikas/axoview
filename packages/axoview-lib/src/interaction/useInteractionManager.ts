@@ -855,13 +855,6 @@ export const useInteractionManager = () => {
             : { type: item.type, id: item.id };
         uiState.actions.setItemControls(controls);
         uiState.actions.setItemActionBarOpen(true);
-        uiState.actions.setContextMenu({
-          type: 'ITEM',
-          item: { type: 'ITEM', id: item.id },
-          tile
-        });
-      } else {
-        uiState.actions.setContextMenu({ type: 'EMPTY', tile });
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional fine-grained deps on the layerContext Sets read here; whole layerContext over-invalidates

@@ -262,10 +262,6 @@ export const usePanHandlers = () => {
           previousModeTypeRef.current = null;
           return true;
         }
-        // Close context menu if open
-        if (uiState.contextMenu !== null) {
-          uiState.actions.setContextMenu(null);
-        }
         uiState.actions.setItemControls(null);
         // Clear stale mousedown state so Cursor mode doesn't pick it up next frame
         uiState.actions.setMouse({ ...uiState.mouse, mousedown: null });

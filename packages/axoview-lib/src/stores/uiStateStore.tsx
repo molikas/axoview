@@ -31,7 +31,6 @@ const initialState = () => {
       dialog: null,
       rendererEl: null,
       rendererSize: { width: 0, height: 0 },
-      contextMenu: null,
       mouse: {
         position: { screen: CoordsUtils.zero(), tile: CoordsUtils.zero() },
         mousedown: null,
@@ -178,9 +177,6 @@ const initialState = () => {
         },
         clearSelection: () => {
           get().actions.setSelectedIds([]);
-        },
-        setContextMenu: (contextMenu) => {
-          set({ contextMenu });
         },
         setMouse: (mouse) => {
           set({ mouse });
