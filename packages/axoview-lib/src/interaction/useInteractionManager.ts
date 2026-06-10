@@ -1,7 +1,13 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, MutableRefObject } from 'react';
 import { useModelStoreApi } from 'src/stores/modelStore';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
-import { ModeActions, State, SlimMouseEvent, Mouse } from 'src/types';
+import {
+  ModeActions,
+  State,
+  SlimMouseEvent,
+  Mouse,
+  ItemReference
+} from 'src/types';
 import { DialogTypeEnum, ItemControls } from 'src/types/ui';
 import {
   getMouse,
@@ -61,6 +67,505 @@ const getModeFunction = (mode: ModeActions, e: SlimMouseEvent) => {
   }
 };
 
+// ─── keydown handler decomposition ──────────────────────────────────────────
+// The window keydown handler was a single ~380-line function (Sonar S3776
+// cognitive complexity 131 — the worst in the repo). It is decomposed into the
+// module-level helpers below; useInteractionManager's handler (see the keydown
+// useEffect) is now a thin dispatcher that threads the live uiState snapshot +
+// a stable `KeydownDeps` bundle through them. Behaviour is preserved exactly:
+// the gesture order, fall-through semantics, ADR-0006 selection contract, and
+// the M-1 dep-array invariant are all unchanged.
+
+type SceneApi = ReturnType<typeof useScene>;
+
+interface KeydownDeps {
+  uiStateApi: ReturnType<typeof useUiStateStoreApi>;
+  modelStoreApi: ReturnType<typeof useModelStoreApi>;
+  sceneRef: MutableRefObject<SceneApi>;
+  layerContextRef: MutableRefObject<ReturnType<typeof useLayerContext>>;
+  rendererRef: MutableRefObject<HTMLElement | undefined>;
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  handleCopy: () => void;
+  handleCut: () => void;
+  handlePaste: () => void;
+  createTextBox: SceneApi['createTextBox'];
+  deleteSelectedItems: SceneApi['deleteSelectedItems'];
+  deleteViewItem: SceneApi['deleteViewItem'];
+  deleteConnector: SceneApi['deleteConnector'];
+  deleteTextBox: SceneApi['deleteTextBox'];
+  deleteRectangle: SceneApi['deleteRectangle'];
+  updateViewItem: SceneApi['updateViewItem'];
+}
+
+// True when the keystroke target is a text-editing surface — typing there must
+// not be hijacked by canvas shortcuts.
+const isEditableTarget = (target: HTMLElement): boolean =>
+  target.tagName === 'INPUT' ||
+  target.tagName === 'TEXTAREA' ||
+  target.contentEditable === 'true' ||
+  !!target.closest('.ql-editor');
+
+// Esc inside CONNECTOR mode: abort an in-flight connection and reset the mode.
+const handleConnectorEscape = (
+  uiState: State['uiState'],
+  deleteConnector: KeydownDeps['deleteConnector']
+) => {
+  if (uiState.mode.type !== 'CONNECTOR') return;
+  const connectorMode = uiState.mode;
+
+  const isConnectionInProgress =
+    (uiState.connectorInteractionMode === 'click' &&
+      connectorMode.isConnecting) ||
+    (uiState.connectorInteractionMode === 'drag' && connectorMode.id !== null);
+
+  if (isConnectionInProgress && connectorMode.id) {
+    deleteConnector(connectorMode.id);
+
+    uiState.actions.setMode({
+      type: 'CONNECTOR',
+      showCursor: true,
+      id: null,
+      startAnchor: undefined,
+      isConnecting: false
+    });
+  }
+};
+
+// Escape: clear panel → clear multi-selection → abort connector. Always
+// consumes the keystroke. Returns true when handled (Escape pressed).
+const handleEscapeKey = (
+  e: KeyboardEvent,
+  uiState: State['uiState'],
+  deps: KeydownDeps
+): boolean => {
+  if (e.key !== 'Escape') return false;
+  e.preventDefault();
+
+  if (uiState.itemControls) {
+    uiState.actions.setItemControls(null);
+    return true;
+  }
+
+  // Multi-selection: Esc clears it when no panel is open
+  // (panel-clear path above handles single-selection). ADR-0006.
+  if (uiState.selectedIds.length > 0) {
+    uiState.actions.clearSelection();
+    return true;
+  }
+
+  handleConnectorEscape(uiState, deps.deleteConnector);
+  return true;
+};
+
+// Delete the single item currently in itemControls, dispatched by its type.
+const deleteItemControlsTarget = (
+  uiState: State['uiState'],
+  deps: KeydownDeps
+) => {
+  const ctrl = uiState.itemControls;
+  if (!ctrl) return;
+  if (ctrl.type === 'ITEM') {
+    deps.deleteViewItem(ctrl.id);
+  } else if (ctrl.type === 'CONNECTOR') {
+    deps.deleteConnector(ctrl.id);
+  } else if (ctrl.type === 'TEXTBOX') {
+    deps.deleteTextBox(ctrl.id);
+  } else if (ctrl.type === 'RECTANGLE') {
+    deps.deleteRectangle(ctrl.id);
+  }
+};
+
+// Delete/Backspace: lasso selection → multi-selection → single itemControls.
+// Handled before the text-field guard so it always fires when a canvas
+// selection exists (matches how diagram tools like Figma behave), but the
+// multi-selection and single-item branches still respect text-field focus so
+// editing input/panel text isn't hijacked. Returns true when consumed.
+const handleDeleteOrBackspace = (
+  e: KeyboardEvent,
+  uiState: State['uiState'],
+  deps: KeydownDeps
+): boolean => {
+  if (e.key !== 'Delete' && e.key !== 'Backspace') return false;
+  const mode = uiState.mode;
+
+  if (
+    (mode.type === 'LASSO' || mode.type === 'FREEHAND_LASSO') &&
+    mode.selection?.items?.length
+  ) {
+    e.preventDefault();
+    deps.deleteSelectedItems(mode.selection.items);
+    uiState.actions.setMode({
+      type: 'CURSOR',
+      showCursor: true,
+      mousedownItem: null
+    });
+    uiState.actions.clearSelection();
+    return true;
+  }
+
+  // Multi-selection (CURSOR mode): delete every selected item.
+  if (
+    uiState.selectedIds.length > 1 &&
+    !isEditableTarget(e.target as HTMLElement)
+  ) {
+    e.preventDefault();
+    deps.deleteSelectedItems(uiState.selectedIds);
+    uiState.actions.clearSelection();
+    return true;
+  }
+
+  // Single-item (properties panel) delete.
+  if (
+    uiState.itemControls &&
+    uiState.itemControls.type !== 'ADD_ITEM' &&
+    !isEditableTarget(e.target as HTMLElement)
+  ) {
+    e.preventDefault();
+    deleteItemControlsTarget(uiState, deps);
+    uiState.actions.setItemControls(null);
+    return true;
+  }
+
+  return false;
+};
+
+const makeInteractableCheck =
+  (lockedIds: ReadonlySet<string>, visibleIds: ReadonlySet<string>) =>
+  (id: string) =>
+    !lockedIds.has(id) && (visibleIds.size === 0 || visibleIds.has(id));
+
+// Ctrl+A target set: every visible + unlocked item in the active view,
+// including connector waypoints (which aren't free — see
+// getConnectorWaypointRefs). Respects ux-principles §4.3, mirroring lasso. ADR-0006.
+const collectSelectableRefs = (
+  scene: SceneApi,
+  lockedIds: ReadonlySet<string>,
+  visibleIds: ReadonlySet<string>
+): ItemReference[] => {
+  const isInteractable = makeInteractableCheck(lockedIds, visibleIds);
+  const refs: ItemReference[] = [];
+  for (const item of scene.items) {
+    if (isInteractable(item.id)) refs.push({ type: 'ITEM', id: item.id });
+  }
+  for (const r of scene.rectangles) {
+    if (isInteractable(r.id)) refs.push({ type: 'RECTANGLE', id: r.id });
+  }
+  for (const tb of scene.textBoxes) {
+    if (isInteractable(tb.id)) refs.push({ type: 'TEXTBOX', id: tb.id });
+  }
+  for (const c of scene.connectors) {
+    if (!isInteractable(c.id)) continue;
+    refs.push({ type: 'CONNECTOR', id: c.id });
+    refs.push(...getConnectorWaypointRefs(c));
+  }
+  return refs;
+};
+
+// Ctrl+A: select all interactable items, switching to CURSOR mode so the
+// multi-selection visual + drag work. Reads scene/layer state via refs so the
+// keydown effect's dep array stays stable (M-1 perf invariant). ADR-0006.
+const handleSelectAll = (uiState: State['uiState'], deps: KeydownDeps) => {
+  const { lockedIds, visibleIds } = deps.layerContextRef.current;
+  const refs = collectSelectableRefs(
+    deps.sceneRef.current,
+    lockedIds,
+    visibleIds
+  );
+  // Switch to CURSOR mode so the multi-selection visual + drag work.
+  if (uiState.mode.type !== 'CURSOR') {
+    uiState.actions.setMode({
+      type: 'CURSOR',
+      showCursor: true,
+      mousedownItem: null
+    });
+  }
+  uiState.actions.setSelectedIds(refs);
+};
+
+// Undo / redo (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z).
+const handleHistoryShortcuts = (
+  e: KeyboardEvent,
+  isCtrlOrCmd: boolean,
+  key: string,
+  deps: KeydownDeps
+) => {
+  if (!isCtrlOrCmd) return;
+
+  if (key === 'z' && !e.shiftKey) {
+    e.preventDefault();
+    if (deps.canUndo) {
+      deps.undo();
+    }
+  }
+
+  if (key === 'y' || (key === 'z' && e.shiftKey)) {
+    e.preventDefault();
+    if (deps.canRedo) {
+      deps.redo();
+    }
+  }
+};
+
+// Clipboard (Ctrl+X / Ctrl+C / Ctrl+V).
+const handleClipboardShortcuts = (
+  e: KeyboardEvent,
+  isCtrlOrCmd: boolean,
+  key: string,
+  deps: KeydownDeps
+) => {
+  if (!isCtrlOrCmd) return;
+
+  if (key === 'x') {
+    e.preventDefault();
+    deps.handleCut();
+  }
+
+  if (key === 'c') {
+    e.preventDefault();
+    deps.handleCopy();
+  }
+
+  if (key === 'v') {
+    e.preventDefault();
+    deps.handlePaste();
+  }
+};
+
+// F1 opens help; F2 hands off to canvas inline-rename — but only when the
+// keystroke originated inside the renderer (MQA #13: F2 from the file-explorer
+// tree row must not steal focus into a selected canvas node's editor).
+const handleFunctionKeys = (
+  e: KeyboardEvent,
+  uiState: State['uiState'],
+  deps: KeydownDeps
+) => {
+  if (e.key === 'F1') {
+    e.preventDefault();
+    uiState.actions.setDialog(DialogTypeEnum.HELP);
+  }
+
+  if (e.key === 'F2') {
+    const ctrl = uiState.itemControls;
+    // MQA #13: F2 originates from outside the renderer (e.g. file-explorer
+    // tree row) when the user wants to rename a *diagram*. If a canvas item
+    // happens to be selected, we used to steal focus by triggering the node
+    // inline-rename — which unmounted the explorer's edit input. Only fire
+    // the canvas inline-rename when the keystroke came from inside the
+    // renderer (or from the document itself with no other focus target).
+    const focusTarget = (e.target as HTMLElement | null) ?? null;
+    const renderer = deps.rendererRef.current;
+    const cameFromRenderer =
+      !focusTarget ||
+      focusTarget === document.body ||
+      (renderer ? renderer.contains(focusTarget) : false);
+    if (
+      (ctrl?.type === 'ITEM' ||
+        ctrl?.type === 'TEXTBOX' ||
+        ctrl?.type === 'CONNECTOR') &&
+      uiState.editorMode === 'EDITABLE' &&
+      cameFromRenderer
+    ) {
+      e.preventDefault();
+      window.dispatchEvent(
+        new CustomEvent('inlineEditNodeName', { detail: { id: ctrl.id } })
+      );
+    }
+  }
+};
+
+const TOOL_HOTKEY_ACTIONS = [
+  'select',
+  'pan',
+  'addItem',
+  'rectangle',
+  'connector',
+  'text',
+  'lasso',
+  'freehandLasso'
+] as const;
+
+type ToolHotkeyAction = (typeof TOOL_HOTKEY_ACTIONS)[number];
+
+// Resolve a keystroke to the matching tool-hotkey action for the active
+// profile, or null. First match wins (mirrors the original else-if order).
+const resolveToolHotkey = (
+  key: string,
+  mapping: Record<ToolHotkeyAction, string | null>
+): ToolHotkeyAction | null => {
+  for (const action of TOOL_HOTKEY_ACTIONS) {
+    if (mapping[action] && key === mapping[action]) return action;
+  }
+  return null;
+};
+
+// Tool-selection hotkeys (configurable per HOTKEY_PROFILES).
+const handleToolHotkeys = (
+  e: KeyboardEvent,
+  uiState: State['uiState'],
+  key: string,
+  deps: KeydownDeps
+) => {
+  const mapping = HOTKEY_PROFILES[uiState.hotkeyProfile];
+  const action = resolveToolHotkey(key, mapping);
+  if (!action) return;
+  e.preventDefault();
+
+  switch (action) {
+    case 'select':
+      uiState.actions.setMode({
+        type: 'CURSOR',
+        showCursor: true,
+        mousedownItem: null
+      });
+      break;
+    case 'pan':
+      uiState.actions.setMode({
+        type: 'PAN',
+        showCursor: false
+      });
+      uiState.actions.setItemControls(null);
+      break;
+    case 'addItem':
+      // Open Elements tab in the left dock
+      uiState.actions.setActiveLeftTab('ELEMENTS');
+      break;
+    case 'rectangle':
+      uiState.actions.setMode({
+        type: 'RECTANGLE.DRAW',
+        showCursor: true,
+        id: null
+      });
+      break;
+    case 'connector':
+      uiState.actions.setMode({
+        type: 'CONNECTOR',
+        id: null,
+        showCursor: true
+      });
+      break;
+    case 'text': {
+      const textBoxId = generateId();
+      deps.createTextBox({
+        ...TEXTBOX_DEFAULTS,
+        id: textBoxId,
+        tile: uiState.mouse.position.tile
+      });
+      uiState.actions.setMode({
+        type: 'TEXTBOX',
+        showCursor: false,
+        id: textBoxId
+      });
+      break;
+    }
+    case 'lasso':
+      uiState.actions.setMode({
+        type: 'LASSO',
+        showCursor: true,
+        selection: null,
+        isDragging: false
+      });
+      break;
+    case 'freehandLasso':
+      uiState.actions.setMode({
+        type: 'FREEHAND_LASSO',
+        showCursor: true,
+        path: [],
+        selection: null,
+        isDragging: false
+      });
+      break;
+  }
+};
+
+// Z-order: Ctrl+] bring forward, Ctrl+[ send backward (Tier-1 layer feature).
+const handleZOrderShortcut = (
+  e: KeyboardEvent,
+  isCtrlOrCmd: boolean,
+  uiState: State['uiState'],
+  deps: KeydownDeps
+) => {
+  if (!isCtrlOrCmd || (e.key !== ']' && e.key !== '[')) return;
+  const ctrl = uiState.itemControls;
+  if (ctrl?.type !== 'ITEM') return;
+  e.preventDefault();
+
+  const modelState = deps.modelStoreApi.getState();
+  const currentView = uiState.view
+    ? modelState.views.find((v: { id: string }) => v.id === uiState.view)
+    : undefined;
+  const viewItem = currentView?.items?.find(
+    (i: { id: string }) => i.id === ctrl.id
+  );
+  if (viewItem) {
+    const currentZ = viewItem.zIndex ?? 0;
+    const delta = e.key === ']' ? 1 : -1;
+    deps.updateViewItem(ctrl.id, { zIndex: currentZ + delta });
+  }
+};
+
+// Keyboard-pan unit vectors. Arrow keys match on the raw e.key; wasd / ijkl on
+// the lowercased key. Each group is independently gated by panSettings.
+const ARROW_PAN_VECTORS: Record<string, { x: number; y: number }> = {
+  ArrowUp: { x: 0, y: 1 },
+  ArrowDown: { x: 0, y: -1 },
+  ArrowLeft: { x: 1, y: 0 },
+  ArrowRight: { x: -1, y: 0 }
+};
+const WASD_PAN_VECTORS: Record<string, { x: number; y: number }> = {
+  w: { x: 0, y: 1 },
+  s: { x: 0, y: -1 },
+  a: { x: 1, y: 0 },
+  d: { x: -1, y: 0 }
+};
+const IJKL_PAN_VECTORS: Record<string, { x: number; y: number }> = {
+  i: { x: 0, y: 1 },
+  k: { x: 0, y: -1 },
+  j: { x: 1, y: 0 },
+  l: { x: -1, y: 0 }
+};
+
+// Resolve a keystroke to a pan delta (in scroll units) given the enabled pan
+// schemes. Last enabled match wins — mirrors the original sequential overwrite
+// of panDx/panDy across the three setting blocks (the schemes use disjoint keys
+// in practice, so order is immaterial).
+const resolvePanDelta = (
+  e: KeyboardEvent,
+  key: string,
+  panSettings: State['uiState']['panSettings']
+): { x: number; y: number } | null => {
+  const speed = panSettings.keyboardPanSpeed;
+  let unit: { x: number; y: number } | undefined;
+  if (panSettings.arrowKeysPan && ARROW_PAN_VECTORS[e.key]) {
+    unit = ARROW_PAN_VECTORS[e.key];
+  }
+  if (panSettings.wasdPan && WASD_PAN_VECTORS[key]) {
+    unit = WASD_PAN_VECTORS[key];
+  }
+  if (panSettings.ijklPan && IJKL_PAN_VECTORS[key]) {
+    unit = IJKL_PAN_VECTORS[key];
+  }
+  if (!unit) return null;
+  return { x: unit.x * speed, y: unit.y * speed };
+};
+
+// Keyboard pan (arrow / wasd / ijkl) — consolidated here from usePanHandlers.
+const handleKeyboardPan = (e: KeyboardEvent, uiState: State['uiState']) => {
+  const delta = resolvePanDelta(e, e.key.toLowerCase(), uiState.panSettings);
+  if (!delta) return;
+  e.preventDefault();
+  const currentScroll = uiState.scroll;
+  uiState.actions.setScroll({
+    position: CoordsUtils.add(currentScroll.position, {
+      x: delta.x,
+      y: delta.y
+    }),
+    offset: currentScroll.offset
+  });
+};
+
 export const useInteractionManager = () => {
   const rendererRef = useRef<HTMLElement | undefined>(undefined);
   const reducerTypeRef = useRef<string | undefined>(undefined);
@@ -109,387 +614,60 @@ export const useInteractionManager = () => {
   }, [rendererSize, uiStateApi]);
 
   useEffect(() => {
+    // Stable-per-effect-run bundle of the live store APIs + scene/history
+    // callbacks the keydown helpers need. Rebuilt whenever the effect re-runs
+    // (its members are the dep array below), so each helper sees current values.
+    const deps: KeydownDeps = {
+      uiStateApi,
+      modelStoreApi,
+      sceneRef,
+      layerContextRef,
+      rendererRef,
+      undo,
+      redo,
+      canUndo,
+      canRedo,
+      handleCopy,
+      handleCut,
+      handlePaste,
+      createTextBox,
+      deleteSelectedItems,
+      deleteViewItem,
+      deleteConnector,
+      deleteTextBox,
+      deleteRectangle,
+      updateViewItem
+    };
+
+    // Thin dispatcher — the gesture order, fall-through semantics, and early
+    // returns mirror the original ~380-line handler exactly. Each delegate
+    // returns true only where the original `return`ed; the un-guarded calls
+    // (history/clipboard/function-keys/hotkeys/z-order/pan) fall through just as
+    // the original sequential `if` blocks did.
     const handleKeyDown = (e: KeyboardEvent) => {
       const uiState = uiStateApi.getState();
 
-      if (e.key === 'Escape') {
-        e.preventDefault();
-
-        if (uiState.itemControls) {
-          uiState.actions.setItemControls(null);
-          return;
-        }
-
-        // Multi-selection: Esc clears it when no panel is open
-        // (panel-clear path above handles single-selection). ADR-0006.
-        if (uiState.selectedIds.length > 0) {
-          uiState.actions.clearSelection();
-          return;
-        }
-
-        if (uiState.mode.type === 'CONNECTOR') {
-          const connectorMode = uiState.mode;
-
-          const isConnectionInProgress =
-            (uiState.connectorInteractionMode === 'click' &&
-              connectorMode.isConnecting) ||
-            (uiState.connectorInteractionMode === 'drag' &&
-              connectorMode.id !== null);
-
-          if (isConnectionInProgress && connectorMode.id) {
-            deleteConnector(connectorMode.id);
-
-            uiState.actions.setMode({
-              type: 'CONNECTOR',
-              showCursor: true,
-              id: null,
-              startAnchor: undefined,
-              isConnecting: false
-            });
-          }
-        }
-
-        return;
-      }
-
-      // Delete/Backspace — handled before the text-field guard so it always fires
-      // when a canvas selection exists (matches how diagram tools like Figma behave).
-      const isDeleteKey = e.key === 'Delete' || e.key === 'Backspace';
-      if (isDeleteKey) {
-        const mode = uiState.mode;
-
-        if (
-          (mode.type === 'LASSO' || mode.type === 'FREEHAND_LASSO') &&
-          mode.selection?.items?.length
-        ) {
-          e.preventDefault();
-          deleteSelectedItems(mode.selection.items);
-          uiState.actions.setMode({
-            type: 'CURSOR',
-            showCursor: true,
-            mousedownItem: null
-          });
-          uiState.actions.clearSelection();
-          return;
-        }
-
-        // Multi-selection (CURSOR mode): delete every selected item. Guarded
-        // by the same text-field check below so input editing isn't hijacked.
-        if (uiState.selectedIds.length > 1) {
-          const target = e.target as HTMLElement;
-          const inTextField =
-            target.tagName === 'INPUT' ||
-            target.tagName === 'TEXTAREA' ||
-            target.contentEditable === 'true' ||
-            !!target.closest('.ql-editor');
-          if (!inTextField) {
-            e.preventDefault();
-            deleteSelectedItems(uiState.selectedIds);
-            uiState.actions.clearSelection();
-            return;
-          }
-        }
-
-        if (uiState.itemControls && uiState.itemControls.type !== 'ADD_ITEM') {
-          // Only fire if focus is NOT inside a text-editing element so that
-          // editing text in the properties panel still works normally.
-          const target = e.target as HTMLElement;
-          const inTextField =
-            target.tagName === 'INPUT' ||
-            target.tagName === 'TEXTAREA' ||
-            target.contentEditable === 'true' ||
-            !!target.closest('.ql-editor');
-
-          if (!inTextField) {
-            e.preventDefault();
-            const ctrl = uiState.itemControls;
-            if (ctrl.type === 'ITEM') {
-              deleteViewItem(ctrl.id);
-            } else if (ctrl.type === 'CONNECTOR') {
-              deleteConnector(ctrl.id);
-            } else if (ctrl.type === 'TEXTBOX') {
-              deleteTextBox(ctrl.id);
-            } else if (ctrl.type === 'RECTANGLE') {
-              deleteRectangle(ctrl.id);
-            }
-            uiState.actions.setItemControls(null);
-            return;
-          }
-        }
-      }
-
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.contentEditable === 'true' ||
-        target.closest('.ql-editor')
-      ) {
-        return;
-      }
+      if (handleEscapeKey(e, uiState, deps)) return;
+      if (handleDeleteOrBackspace(e, uiState, deps)) return;
+      if (isEditableTarget(e.target as HTMLElement)) return;
 
       const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
 
-      if (isCtrlOrCmd && e.key.toLowerCase() === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        if (canUndo) {
-          undo();
-        }
-      }
+      handleHistoryShortcuts(e, isCtrlOrCmd, key, deps);
+      handleClipboardShortcuts(e, isCtrlOrCmd, key, deps);
 
-      if (
-        isCtrlOrCmd &&
-        (e.key.toLowerCase() === 'y' ||
-          (e.key.toLowerCase() === 'z' && e.shiftKey))
-      ) {
+      // Ctrl+A: select all visible + unlocked items in the active view. ADR-0006.
+      if (isCtrlOrCmd && key === 'a') {
         e.preventDefault();
-        if (canRedo) {
-          redo();
-        }
-      }
-
-      if (isCtrlOrCmd && e.key.toLowerCase() === 'x') {
-        e.preventDefault();
-        handleCut();
-      }
-
-      if (isCtrlOrCmd && e.key.toLowerCase() === 'c') {
-        e.preventDefault();
-        handleCopy();
-      }
-
-      if (isCtrlOrCmd && e.key.toLowerCase() === 'v') {
-        e.preventDefault();
-        handlePaste();
-      }
-
-      // Ctrl+A: select all visible + unlocked items in the active view.
-      // Respects ux-principles §4.3 (locked/hidden items are non-interactable)
-      // via isItemInteractable, mirroring lasso behaviour. ADR-0006.
-      // Reads scene/layer state via refs so the dep array stays stable
-      // (M-1 perf invariant).
-      if (isCtrlOrCmd && e.key.toLowerCase() === 'a') {
-        e.preventDefault();
-        const liveScene = sceneRef.current;
-        const { lockedIds, visibleIds } = layerContextRef.current;
-        const isInteractable = (id: string) =>
-          !lockedIds.has(id) &&
-          (visibleIds.size === 0 || visibleIds.has(id));
-        const refs: import('src/types').ItemReference[] = [];
-        for (const item of liveScene.items) {
-          if (isInteractable(item.id)) refs.push({ type: 'ITEM', id: item.id });
-        }
-        for (const r of liveScene.rectangles) {
-          if (isInteractable(r.id)) refs.push({ type: 'RECTANGLE', id: r.id });
-        }
-        for (const tb of liveScene.textBoxes) {
-          if (isInteractable(tb.id)) refs.push({ type: 'TEXTBOX', id: tb.id });
-        }
-        for (const c of liveScene.connectors) {
-          if (!isInteractable(c.id)) continue;
-          refs.push({ type: 'CONNECTOR', id: c.id });
-          // Waypoints aren't free — see getConnectorWaypointRefs.
-          refs.push(...getConnectorWaypointRefs(c));
-        }
-        // Switch to CURSOR mode so the multi-selection visual + drag work.
-        if (uiState.mode.type !== 'CURSOR') {
-          uiState.actions.setMode({
-            type: 'CURSOR',
-            showCursor: true,
-            mousedownItem: null
-          });
-        }
-        uiState.actions.setSelectedIds(refs);
+        handleSelectAll(uiState, deps);
         return;
       }
 
-      if (e.key === 'F1') {
-        e.preventDefault();
-        uiState.actions.setDialog(DialogTypeEnum.HELP);
-      }
-
-      if (e.key === 'F2') {
-        const ctrl = uiState.itemControls;
-        // MQA #13: F2 originates from outside the renderer (e.g. file-explorer
-        // tree row) when the user wants to rename a *diagram*. If a canvas item
-        // happens to be selected, we used to steal focus by triggering the node
-        // inline-rename — which unmounted the explorer's edit input. Only fire
-        // the canvas inline-rename when the keystroke came from inside the
-        // renderer (or from the document itself with no other focus target).
-        const focusTarget = (e.target as HTMLElement | null) ?? null;
-        const renderer = rendererRef.current;
-        const cameFromRenderer =
-          !focusTarget ||
-          focusTarget === document.body ||
-          (renderer ? renderer.contains(focusTarget) : false);
-        if (
-          (ctrl?.type === 'ITEM' || ctrl?.type === 'TEXTBOX' || ctrl?.type === 'CONNECTOR') &&
-          uiState.editorMode === 'EDITABLE' &&
-          cameFromRenderer
-        ) {
-          e.preventDefault();
-          window.dispatchEvent(
-            new CustomEvent('inlineEditNodeName', { detail: { id: ctrl.id } })
-          );
-        }
-      }
-
-      const hotkeyMapping = HOTKEY_PROFILES[uiState.hotkeyProfile];
-      const key = e.key.toLowerCase();
-
-      if (hotkeyMapping.select && key === hotkeyMapping.select) {
-        e.preventDefault();
-        uiState.actions.setMode({
-          type: 'CURSOR',
-          showCursor: true,
-          mousedownItem: null
-        });
-      } else if (hotkeyMapping.pan && key === hotkeyMapping.pan) {
-        e.preventDefault();
-        uiState.actions.setMode({
-          type: 'PAN',
-          showCursor: false
-        });
-        uiState.actions.setItemControls(null);
-      } else if (hotkeyMapping.addItem && key === hotkeyMapping.addItem) {
-        e.preventDefault();
-        // Open Elements tab in the left dock
-        uiState.actions.setActiveLeftTab('ELEMENTS');
-      } else if (hotkeyMapping.rectangle && key === hotkeyMapping.rectangle) {
-        e.preventDefault();
-        uiState.actions.setMode({
-          type: 'RECTANGLE.DRAW',
-          showCursor: true,
-          id: null
-        });
-      } else if (hotkeyMapping.connector && key === hotkeyMapping.connector) {
-        e.preventDefault();
-        uiState.actions.setMode({
-          type: 'CONNECTOR',
-          id: null,
-          showCursor: true
-        });
-      } else if (hotkeyMapping.text && key === hotkeyMapping.text) {
-        e.preventDefault();
-        const textBoxId = generateId();
-        createTextBox({
-          ...TEXTBOX_DEFAULTS,
-          id: textBoxId,
-          tile: uiState.mouse.position.tile
-        });
-        uiState.actions.setMode({
-          type: 'TEXTBOX',
-          showCursor: false,
-          id: textBoxId
-        });
-      } else if (hotkeyMapping.lasso && key === hotkeyMapping.lasso) {
-        e.preventDefault();
-        uiState.actions.setMode({
-          type: 'LASSO',
-          showCursor: true,
-          selection: null,
-          isDragging: false
-        });
-      } else if (
-        hotkeyMapping.freehandLasso &&
-        key === hotkeyMapping.freehandLasso
-      ) {
-        e.preventDefault();
-        uiState.actions.setMode({
-          type: 'FREEHAND_LASSO',
-          showCursor: true,
-          path: [],
-          selection: null,
-          isDragging: false
-        });
-      }
-
-      // Z-order: Ctrl+] bring forward, Ctrl+[ send backward (Tier-1 layer feature)
-      if (isCtrlOrCmd && (e.key === ']' || e.key === '[')) {
-        const ctrl = uiState.itemControls;
-        if (ctrl?.type === 'ITEM') {
-          e.preventDefault();
-          const modelState = modelStoreApi.getState();
-          const currentView = uiState.view
-            ? modelState.views.find(
-                (v: { id: string }) => v.id === uiState.view
-              )
-            : undefined;
-          const viewItem = currentView?.items?.find(
-            (i: { id: string }) => i.id === ctrl.id
-          );
-          if (viewItem) {
-            const currentZ = viewItem.zIndex ?? 0;
-            const delta = e.key === ']' ? 1 : -1;
-            updateViewItem(ctrl.id, { zIndex: currentZ + delta });
-          }
-        }
-      }
-
-      // Keyboard pan (arrow / wasd / ijkl) — consolidated here from usePanHandlers
-      const panSettings = uiState.panSettings;
-      const panSpeed = panSettings.keyboardPanSpeed;
-      let panDx = 0;
-      let panDy = 0;
-
-      if (panSettings.arrowKeysPan) {
-        if (e.key === 'ArrowUp') {
-          panDy = panSpeed;
-          e.preventDefault();
-        } else if (e.key === 'ArrowDown') {
-          panDy = -panSpeed;
-          e.preventDefault();
-        } else if (e.key === 'ArrowLeft') {
-          panDx = panSpeed;
-          e.preventDefault();
-        } else if (e.key === 'ArrowRight') {
-          panDx = -panSpeed;
-          e.preventDefault();
-        }
-      }
-
-      if (panSettings.wasdPan) {
-        if (key === 'w') {
-          panDy = panSpeed;
-          e.preventDefault();
-        } else if (key === 's') {
-          panDy = -panSpeed;
-          e.preventDefault();
-        } else if (key === 'a') {
-          panDx = panSpeed;
-          e.preventDefault();
-        } else if (key === 'd') {
-          panDx = -panSpeed;
-          e.preventDefault();
-        }
-      }
-
-      if (panSettings.ijklPan) {
-        if (key === 'i') {
-          panDy = panSpeed;
-          e.preventDefault();
-        } else if (key === 'k') {
-          panDy = -panSpeed;
-          e.preventDefault();
-        } else if (key === 'j') {
-          panDx = panSpeed;
-          e.preventDefault();
-        } else if (key === 'l') {
-          panDx = -panSpeed;
-          e.preventDefault();
-        }
-      }
-
-      if (panDx !== 0 || panDy !== 0) {
-        const currentScroll = uiState.scroll;
-        uiState.actions.setScroll({
-          position: CoordsUtils.add(currentScroll.position, {
-            x: panDx,
-            y: panDy
-          }),
-          offset: currentScroll.offset
-        });
-      }
+      handleFunctionKeys(e, uiState, deps);
+      handleToolHotkeys(e, uiState, key, deps);
+      handleZOrderShortcut(e, isCtrlOrCmd, uiState, deps);
+      handleKeyboardPan(e, uiState);
     };
 
     window.addEventListener('keydown', handleKeyDown);
