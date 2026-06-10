@@ -7,7 +7,7 @@
  * that cannot be imported without pulling in the full React/MUI component tree
  * (which uses MUI createTheme at module load time — incompatible with jsdom).
  * The local constant below was manually verified against the production
- * EDITOR_MODE_MAPPING in UiOverlay.tsx on 2026-03-20 and must be kept in sync.
+ * EDITOR_MODE_MAPPING in UiOverlay.tsx on 2026-06-10 and must be kept in sync.
  *
  * Classification: SEMI-VALID — contract is tested but against a local constant.
  * To make this fully VALID: extract EDITOR_MODE_MAPPING to a standalone config
@@ -16,22 +16,12 @@
 
 import { EditorModeEnum } from 'src/types';
 
-type Tool =
-  | 'ZOOM_CONTROLS'
-  | 'TOOL_MENU'
-  | 'ITEM_CONTROLS'
-  | 'VIEW_TITLE'
-  | 'VIEW_TABS';
+type Tool = 'TOOL_MENU' | 'ITEM_CONTROLS' | 'VIEW_TITLE' | 'VIEW_TABS';
 
 // Manually verified against UiOverlay.tsx EDITOR_MODE_MAPPING — update if production changes.
 const EDITOR_MODE_MAPPING: Record<string, Tool[]> = {
-  [EditorModeEnum.EDITABLE]: [
-    'ITEM_CONTROLS',
-    'ZOOM_CONTROLS',
-    'TOOL_MENU',
-    'VIEW_TABS'
-  ],
-  [EditorModeEnum.EXPLORABLE_READONLY]: ['ZOOM_CONTROLS', 'VIEW_TITLE'],
+  [EditorModeEnum.EDITABLE]: ['ITEM_CONTROLS', 'TOOL_MENU', 'VIEW_TABS'],
+  [EditorModeEnum.EXPLORABLE_READONLY]: ['ITEM_CONTROLS', 'VIEW_TABS'],
   [EditorModeEnum.NON_INTERACTIVE]: []
 };
 
@@ -40,28 +30,24 @@ describe('UiOverlay editor mode mapping', () => {
     const tools = EDITOR_MODE_MAPPING[EditorModeEnum.EDITABLE];
 
     it('includes TOOL_MENU', () => expect(tools).toContain('TOOL_MENU'));
-    it('includes ZOOM_CONTROLS', () =>
-      expect(tools).toContain('ZOOM_CONTROLS'));
     it('includes ITEM_CONTROLS', () =>
       expect(tools).toContain('ITEM_CONTROLS'));
     it('includes VIEW_TABS', () => expect(tools).toContain('VIEW_TABS'));
     it('does NOT include VIEW_TITLE', () =>
       expect(tools).not.toContain('VIEW_TITLE'));
-    it('contains exactly 4 tools', () => expect(tools).toHaveLength(4));
+    it('contains exactly 3 tools', () => expect(tools).toHaveLength(3));
   });
 
   describe('EXPLORABLE_READONLY mode', () => {
     const tools = EDITOR_MODE_MAPPING[EditorModeEnum.EXPLORABLE_READONLY];
 
-    it('includes ZOOM_CONTROLS', () =>
-      expect(tools).toContain('ZOOM_CONTROLS'));
-    it('includes VIEW_TITLE', () => expect(tools).toContain('VIEW_TITLE'));
+    it('includes ITEM_CONTROLS', () =>
+      expect(tools).toContain('ITEM_CONTROLS'));
+    it('includes VIEW_TABS', () => expect(tools).toContain('VIEW_TABS'));
     it('does NOT include TOOL_MENU', () =>
       expect(tools).not.toContain('TOOL_MENU'));
-    it('does NOT include ITEM_CONTROLS', () =>
-      expect(tools).not.toContain('ITEM_CONTROLS'));
-    it('does NOT include VIEW_TABS', () =>
-      expect(tools).not.toContain('VIEW_TABS'));
+    it('does NOT include VIEW_TITLE', () =>
+      expect(tools).not.toContain('VIEW_TITLE'));
     it('contains exactly 2 tools', () => expect(tools).toHaveLength(2));
   });
 
@@ -72,27 +58,25 @@ describe('UiOverlay editor mode mapping', () => {
   });
 
   describe('invariants across all modes', () => {
-    it('VIEW_TITLE and VIEW_TABS are never both present in the same mode', () => {
+    it('VIEW_TITLE is never enabled in any mode', () => {
       Object.values(EDITOR_MODE_MAPPING).forEach((tools) => {
-        expect(
-          tools.includes('VIEW_TITLE') && tools.includes('VIEW_TABS')
-        ).toBe(false);
+        expect(tools).not.toContain('VIEW_TITLE');
       });
     });
 
-    it('ITEM_CONTROLS is only in EDITABLE mode', () => {
+    it('TOOL_MENU is only in EDITABLE mode', () => {
       Object.entries(EDITOR_MODE_MAPPING).forEach(([mode, tools]) => {
         if (mode === EditorModeEnum.EDITABLE) {
-          expect(tools).toContain('ITEM_CONTROLS');
+          expect(tools).toContain('TOOL_MENU');
         } else {
-          expect(tools).not.toContain('ITEM_CONTROLS');
+          expect(tools).not.toContain('TOOL_MENU');
         }
       });
     });
 
-    it('ZOOM_CONTROLS is present in every non-empty mode', () => {
+    it('VIEW_TABS is present in every non-empty mode', () => {
       Object.values(EDITOR_MODE_MAPPING).forEach((tools) => {
-        if (tools.length > 0) expect(tools).toContain('ZOOM_CONTROLS');
+        if (tools.length > 0) expect(tools).toContain('VIEW_TABS');
       });
     });
 
