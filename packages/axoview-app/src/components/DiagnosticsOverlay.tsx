@@ -216,6 +216,144 @@ const btnBase: React.CSSProperties = {
   flex: 1
 };
 
+// ── event detectors ─────────────────────────────────────────────────────────
+// Each runs once per second from the rAF loop. It takes the events buffer, the
+// sample's dt, the freshly measured value(s), and the prev-* ref(s) it owns;
+// it pushes any events and advances its own ref. Extracted from the tick loop
+// (S3776) — the loop just sequences them in order, preserving event ordering.
+type NumRef = { current: number };
+type BoolRef = { current: boolean };
+type SceneCounts = { ni: number; nc: number; ntb: number };
+
+function detectSceneChanges(
+  ev: DiagEvent[],
+  dt: number,
+  curr: SceneCounts,
+  prevCounts: { current: SceneCounts }
+) {
+  const dni = curr.ni - prevCounts.current.ni;
+  const dnc = curr.nc - prevCounts.current.nc;
+  if (Math.abs(dni) >= 5)
+    pushEvent(ev, [dt, dni > 0 ? 'bulk_load' : 'bulk_remove', curr.ni]);
+  else if (dni === 1) pushEvent(ev, [dt, 'node_added', curr.ni]);
+  else if (dni === -1) pushEvent(ev, [dt, 'node_removed', curr.ni]);
+  else if (dni > 1) pushEvent(ev, [dt, 'nodes_added', curr.ni]);
+  else if (dni < -1) pushEvent(ev, [dt, 'nodes_removed', curr.ni]);
+  if (dnc === 1) pushEvent(ev, [dt, 'connector_added', curr.nc]);
+  else if (dnc === -1) pushEvent(ev, [dt, 'connector_removed', curr.nc]);
+  else if (dnc > 1) pushEvent(ev, [dt, 'connectors_added', curr.nc]);
+  else if (dnc < -1) pushEvent(ev, [dt, 'connectors_removed', curr.nc]);
+  prevCounts.current = curr;
+}
+
+function detectFpsThreshold(
+  ev: DiagEvent[],
+  dt: number,
+  fps: number,
+  prevFpsOk: BoolRef
+) {
+  if (fps < 30 && prevFpsOk.current) {
+    pushEvent(ev, [dt, 'fps_degraded', fps]);
+    prevFpsOk.current = false;
+  } else if (fps >= 50 && !prevFpsOk.current) {
+    pushEvent(ev, [dt, 'fps_recovered', fps]);
+    prevFpsOk.current = true;
+  }
+}
+
+function detectLongTaskBurst(
+  ev: DiagEvent[],
+  dt: number,
+  lt: number,
+  samplesRef: { current: number[][] }
+) {
+  const prevLt = samplesRef.current.length
+    ? samplesRef.current[samplesRef.current.length - 1][4]
+    : 0;
+  if (lt - prevLt > 5) pushEvent(ev, [dt, 'longtask_burst', lt - prevLt]);
+}
+
+function detectGc(ev: DiagEvent[], dt: number, hu: number, prevHu: NumRef) {
+  if (hu >= 0 && prevHu.current >= 0 && prevHu.current - hu > 20) {
+    pushEvent(ev, [dt, 'gc', `${prevHu.current}→${hu}MB`]);
+  }
+  prevHu.current = hu;
+}
+
+function detectMemoryWarning(
+  ev: DiagEvent[],
+  dt: number,
+  hu: number,
+  memWarnFired: BoolRef
+) {
+  if (hu >= 200 && !memWarnFired.current) {
+    pushEvent(ev, [dt, 'memory_warning', hu]);
+    memWarnFired.current = true;
+  }
+}
+
+function detectZoomChange(
+  ev: DiagEvent[],
+  dt: number,
+  zoom: number,
+  prevZoom: NumRef
+) {
+  if (Math.abs(zoom - prevZoom.current) > 0.1) {
+    pushEvent(ev, [dt, 'zoom_changed', +zoom.toFixed(2)]);
+    prevZoom.current = zoom;
+  }
+}
+
+function detectViewChange(
+  ev: DiagEvent[],
+  dt: number,
+  viewId: string,
+  prevViewId: { current: string }
+) {
+  if (viewId && prevViewId.current && viewId !== prevViewId.current) {
+    pushEvent(ev, [dt, 'view_changed', viewId]);
+  }
+  if (viewId) prevViewId.current = viewId;
+}
+
+function detectUndoRedo(
+  ev: DiagEvent[],
+  dt: number,
+  hist: { past: number; future: number },
+  prevPastLen: NumRef,
+  prevFutureLen: NumRef
+) {
+  // undo: past shrinks and future grows. redo: future shrinks and past grows.
+  if (hist.past < prevPastLen.current && hist.future > prevFutureLen.current) {
+    pushEvent(ev, [dt, 'undo', hist.past]);
+  } else if (
+    hist.future < prevFutureLen.current &&
+    hist.past > prevPastLen.current
+  ) {
+    pushEvent(ev, [dt, 'redo', hist.past]);
+  }
+  prevPastLen.current = hist.past;
+  prevFutureLen.current = hist.future;
+}
+
+function detectDrag(
+  ev: DiagEvent[],
+  dt: number,
+  isDragging: boolean,
+  prevDragging: BoolRef,
+  ni: number
+) {
+  // Sustained drag = mousedown held across samples. Catches drags longer than
+  // ~1 s; quick clicks aren't visible at this sampling rate (intentional —
+  // they don't cause perf issues).
+  if (isDragging && !prevDragging.current) {
+    pushEvent(ev, [dt, 'drag_start', ni]);
+  } else if (!isDragging && prevDragging.current) {
+    pushEvent(ev, [dt, 'drag_end', ni]);
+  }
+  prevDragging.current = isDragging;
+}
+
 // ── component ─────────────────────────────────────────────────────────────────
 export function DiagnosticsOverlay() {
   // Use the shared store so DiagnosticsToggleButton (in BottomDock) stays in sync
@@ -316,90 +454,17 @@ export function DiagnosticsOverlay() {
 
         const ev = eventsRef.current;
 
-        // ── scene change events ──────────────────────────────────────────────
-        const dni = curr.ni - prevCounts.current.ni;
-        const dnc = curr.nc - prevCounts.current.nc;
-        if (Math.abs(dni) >= 5)
-          pushEvent(ev, [dt, dni > 0 ? 'bulk_load' : 'bulk_remove', curr.ni]);
-        else if (dni === 1) pushEvent(ev, [dt, 'node_added', curr.ni]);
-        else if (dni === -1) pushEvent(ev, [dt, 'node_removed', curr.ni]);
-        else if (dni > 1) pushEvent(ev, [dt, 'nodes_added', curr.ni]);
-        else if (dni < -1) pushEvent(ev, [dt, 'nodes_removed', curr.ni]);
-        if (dnc === 1) pushEvent(ev, [dt, 'connector_added', curr.nc]);
-        else if (dnc === -1) pushEvent(ev, [dt, 'connector_removed', curr.nc]);
-        else if (dnc > 1) pushEvent(ev, [dt, 'connectors_added', curr.nc]);
-        else if (dnc < -1) pushEvent(ev, [dt, 'connectors_removed', curr.nc]);
-        prevCounts.current = curr;
-
-        // ── fps threshold events ─────────────────────────────────────────────
-        if (fps < 30 && prevFpsOk.current) {
-          pushEvent(ev, [dt, 'fps_degraded', fps]);
-          prevFpsOk.current = false;
-        } else if (fps >= 50 && !prevFpsOk.current) {
-          pushEvent(ev, [dt, 'fps_recovered', fps]);
-          prevFpsOk.current = true;
-        }
-
-        // ── long-task burst ──────────────────────────────────────────────────
-        const prevLt = samplesRef.current.length
-          ? samplesRef.current[samplesRef.current.length - 1][4]
-          : 0;
-        if (lt - prevLt > 5) pushEvent(ev, [dt, 'longtask_burst', lt - prevLt]);
-
-        // ── GC detection (heap drop > 20 MB) ────────────────────────────────
-        if (hu >= 0 && prevHu.current >= 0 && prevHu.current - hu > 20) {
-          pushEvent(ev, [dt, 'gc', `${prevHu.current}→${hu}MB`]);
-        }
-        prevHu.current = hu;
-
-        // ── memory warning (first breach of 200 MB, fires once per session) ──
-        if (hu >= 200 && !memWarnFired.current) {
-          pushEvent(ev, [dt, 'memory_warning', hu]);
-          memWarnFired.current = true;
-        }
-
-        // ── zoom change (Δ > 0.1) ────────────────────────────────────────────
-        if (Math.abs(ui.zoom - prevZoom.current) > 0.1) {
-          pushEvent(ev, [dt, 'zoom_changed', +ui.zoom.toFixed(2)]);
-          prevZoom.current = ui.zoom;
-        }
-
-        // ── view switch ───────────────────────────────────────────────────────
-        if (
-          ui.viewId &&
-          prevViewId.current &&
-          ui.viewId !== prevViewId.current
-        ) {
-          pushEvent(ev, [dt, 'view_changed', ui.viewId]);
-        }
-        if (ui.viewId) prevViewId.current = ui.viewId;
-
-        // ── undo / redo ───────────────────────────────────────────────────────
-        // undo: past shrinks and future grows
-        // redo: future shrinks and past grows
-        if (
-          hist.past < prevPastLen.current &&
-          hist.future > prevFutureLen.current
-        ) {
-          pushEvent(ev, [dt, 'undo', hist.past]);
-        } else if (
-          hist.future < prevFutureLen.current &&
-          hist.past > prevPastLen.current
-        ) {
-          pushEvent(ev, [dt, 'redo', hist.past]);
-        }
-        prevPastLen.current = hist.past;
-        prevFutureLen.current = hist.future;
-
-        // ── drag start / end (sustained drag = mousedown held across samples) ─
-        // Note: catches drags longer than ~1 s; quick clicks are not visible at
-        // this sampling rate which is intentional (they don't cause perf issues).
-        if (ui.isDragging && !prevDragging.current) {
-          pushEvent(ev, [dt, 'drag_start', curr.ni]);
-        } else if (!ui.isDragging && prevDragging.current) {
-          pushEvent(ev, [dt, 'drag_end', curr.ni]);
-        }
-        prevDragging.current = ui.isDragging;
+        // Detection order is load-bearing: detectors share the events buffer
+        // and pushEvent drops the oldest when full, so the sequence is fixed.
+        detectSceneChanges(ev, dt, curr, prevCounts);
+        detectFpsThreshold(ev, dt, fps, prevFpsOk);
+        detectLongTaskBurst(ev, dt, lt, samplesRef);
+        detectGc(ev, dt, hu, prevHu);
+        detectMemoryWarning(ev, dt, hu, memWarnFired);
+        detectZoomChange(ev, dt, ui.zoom, prevZoom);
+        detectViewChange(ev, dt, ui.viewId, prevViewId);
+        detectUndoRedo(ev, dt, hist, prevPastLen, prevFutureLen);
+        detectDrag(ev, dt, ui.isDragging, prevDragging, curr.ni);
 
         // ── store sample ─────────────────────────────────────────────────────
         const row = [dt, fps, hu, ht, lt, curr.ni, curr.nc, curr.ntb];
@@ -432,6 +497,110 @@ export function DiagnosticsOverlay() {
   // ── expanded panel ─────────────────────────────────────────────────────────
   const [, fps, hu, ht, lt, ni, nc, ntb] = latest ?? [];
   const recentEvents = eventsRef.current.slice(-6);
+
+  // Render helpers (separate functions → their JSX conditionals don't count
+  // toward the component's own cognitive complexity; S3776). They close over
+  // the live sample state above, so no prop threading.
+  const renderStats = () => (
+    <>
+      <div>
+        FPS{' '}
+        <span style={{ color: fpsColor(fps!), fontWeight: 'bold' }}>{fps}</span>
+      </div>
+      {hu! >= 0 ? (
+        <div>
+          Heap <span style={{ color: '#64b5f6' }}>{hu} MB</span>
+          <span style={{ color: '#555' }}> / {ht} MB</span>
+        </div>
+      ) : (
+        <div style={{ color: '#555' }}>Heap n/a (Chrome only)</div>
+      )}
+      <div>
+        Long tasks{' '}
+        <span style={{ color: lt! > 0 ? '#ff9800' : '#4caf50' }}>{lt}</span>
+      </div>
+
+      <div style={{ borderTop: '1px solid #333', marginTop: 4, paddingTop: 4 }}>
+        Nodes <span style={{ color: '#ce93d8' }}>{ni}</span>
+        {' · '}Conn <span style={{ color: '#80cbc4' }}>{nc}</span>
+        {' · '}TB <span style={{ color: '#80cbc4' }}>{ntb}</span>
+      </div>
+
+      {recentEvents.length > 0 && (
+        <div
+          style={{
+            borderTop: '1px solid #333',
+            marginTop: 4,
+            paddingTop: 4,
+            fontSize: 10,
+            color: '#aaa'
+          }}
+        >
+          {recentEvents.map((ev) => (
+            <div key={`${ev[0]}-${ev[1]}-${ev[2] ?? ''}`}>
+              <span style={{ color: '#555' }}>{ev[0]}ms</span> {ev[1]}
+              {ev[2] != null ? (
+                <span style={{ color: '#777' }}> {ev[2]}</span>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ color: '#444', fontSize: 10, marginTop: 2 }}>
+        {samplesRef.current.length}/{MAX_SAMPLES} samples ·{' '}
+        {eventsRef.current.length}/{MAX_EVENTS} events · ~56 KB max
+      </div>
+
+      <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+        <button
+          onClick={() =>
+            downloadFile(
+              buildAi(samplesRef.current, eventsRef.current, t0Ref.current),
+              `ff-diag-ai-${stamp()}.json`
+            )
+          }
+          disabled={!hasData}
+          style={{
+            ...btnBase,
+            background: hasData ? '#1565c0' : '#333',
+            opacity: hasData ? 1 : 0.4
+          }}
+          title="Compact arrays — minimum LLM tokens"
+        >
+          ↓ AI
+        </button>
+        <button
+          onClick={() =>
+            downloadFile(
+              buildHuman(samplesRef.current, eventsRef.current, t0Ref.current),
+              `ff-diag-human-${stamp()}.json`
+            )
+          }
+          disabled={!hasData}
+          style={{
+            ...btnBase,
+            background: hasData ? '#4a148c' : '#333',
+            opacity: hasData ? 1 : 0.4
+          }}
+          title="Readable JSON with labels and summary stats"
+        >
+          ↓ Human
+        </button>
+      </div>
+    </>
+  );
+
+  const renderBody = () => {
+    if (enabled && latest) return renderStats();
+    if (enabled)
+      return <div style={{ color: '#555' }}>Collecting first sample…</div>;
+    return (
+      <div style={{ color: '#666', fontSize: 11 }}>
+        Enable monitoring above to start collecting.
+      </div>
+    );
+  };
 
   return (
     <div
@@ -528,109 +697,7 @@ export function DiagnosticsOverlay() {
         </label>
       </div>
 
-      {enabled && latest ? (
-        <>
-          <div>
-            FPS{' '}
-            <span style={{ color: fpsColor(fps!), fontWeight: 'bold' }}>
-              {fps}
-            </span>
-          </div>
-          {hu! >= 0 ? (
-            <div>
-              Heap <span style={{ color: '#64b5f6' }}>{hu} MB</span>
-              <span style={{ color: '#555' }}> / {ht} MB</span>
-            </div>
-          ) : (
-            <div style={{ color: '#555' }}>Heap n/a (Chrome only)</div>
-          )}
-          <div>
-            Long tasks{' '}
-            <span style={{ color: lt! > 0 ? '#ff9800' : '#4caf50' }}>{lt}</span>
-          </div>
-
-          <div
-            style={{ borderTop: '1px solid #333', marginTop: 4, paddingTop: 4 }}
-          >
-            Nodes <span style={{ color: '#ce93d8' }}>{ni}</span>
-            {' · '}Conn <span style={{ color: '#80cbc4' }}>{nc}</span>
-            {' · '}TB <span style={{ color: '#80cbc4' }}>{ntb}</span>
-          </div>
-
-          {recentEvents.length > 0 && (
-            <div
-              style={{
-                borderTop: '1px solid #333',
-                marginTop: 4,
-                paddingTop: 4,
-                fontSize: 10,
-                color: '#aaa'
-              }}
-            >
-              {recentEvents.map((ev) => (
-                <div key={`${ev[0]}-${ev[1]}-${ev[2] ?? ''}`}>
-                  <span style={{ color: '#555' }}>{ev[0]}ms</span> {ev[1]}
-                  {ev[2] != null ? (
-                    <span style={{ color: '#777' }}> {ev[2]}</span>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div style={{ color: '#444', fontSize: 10, marginTop: 2 }}>
-            {samplesRef.current.length}/{MAX_SAMPLES} samples ·{' '}
-            {eventsRef.current.length}/{MAX_EVENTS} events · ~56 KB max
-          </div>
-
-          <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
-            <button
-              onClick={() =>
-                downloadFile(
-                  buildAi(samplesRef.current, eventsRef.current, t0Ref.current),
-                  `ff-diag-ai-${stamp()}.json`
-                )
-              }
-              disabled={!hasData}
-              style={{
-                ...btnBase,
-                background: hasData ? '#1565c0' : '#333',
-                opacity: hasData ? 1 : 0.4
-              }}
-              title="Compact arrays — minimum LLM tokens"
-            >
-              ↓ AI
-            </button>
-            <button
-              onClick={() =>
-                downloadFile(
-                  buildHuman(
-                    samplesRef.current,
-                    eventsRef.current,
-                    t0Ref.current
-                  ),
-                  `ff-diag-human-${stamp()}.json`
-                )
-              }
-              disabled={!hasData}
-              style={{
-                ...btnBase,
-                background: hasData ? '#4a148c' : '#333',
-                opacity: hasData ? 1 : 0.4
-              }}
-              title="Readable JSON with labels and summary stats"
-            >
-              ↓ Human
-            </button>
-          </div>
-        </>
-      ) : enabled ? (
-        <div style={{ color: '#555' }}>Collecting first sample…</div>
-      ) : (
-        <div style={{ color: '#666', fontSize: 11 }}>
-          Enable monitoring above to start collecting.
-        </div>
-      )}
+      {renderBody()}
     </div>
   );
 }
