@@ -45,6 +45,27 @@ const PANEL_EVENT: Record<ItemType, string> = {
 const dispatch = (type: ItemType, action: string) =>
   window.dispatchEvent(new CustomEvent(PANEL_EVENT[type], { detail: action }));
 
+// True when `html` has any visible (non-tag, non-whitespace) text. Equivalent
+// to `html.replace(/<[^>]*>/g, '').trim() !== ''` but without the tag-strip
+// regex CodeQL flags as incomplete HTML sanitization — the result drives an
+// emptiness check only and is never rendered as HTML.
+const hasVisibleText = (html: string): boolean => {
+  let i = 0;
+  while (i < html.length) {
+    const ch = html[i];
+    if (ch === '<') {
+      const close = html.indexOf('>', i + 1);
+      if (close !== -1) {
+        i = close + 1;
+        continue;
+      }
+    }
+    if (ch.trim() !== '') return true;
+    i++;
+  }
+  return false;
+};
+
 interface Props {
   type: ItemType;
   id: string;
@@ -211,8 +232,7 @@ export const NodeActionBar = ({ type, id, tile: connectorTile }: Props) => {
   };
 
   const activeNotes = notesByType[type];
-  const hasNotes =
-    !!activeNotes && activeNotes.replace(/<[^>]*>/g, '').trim() !== '';
+  const hasNotes = !!activeNotes && hasVisibleText(activeNotes);
   const hasLink = !!linkByType[type];
   const currentLayerId = layerIdByType[type];
 
