@@ -66,7 +66,7 @@ function getDebugBridge(): DebugBridge | undefined {
 // Counts reflect the ACTIVE view, not the whole document — that's what
 // correlates with frame budget. `model.items` is the icon catalog (not placed
 // nodes); placed nodes live in the current view's `items` array.
-function getSceneCounts(): { ni: number; nc: number; ntb: number } {
+export function getSceneCounts(): { ni: number; nc: number; ntb: number } {
   try {
     const fw = getDebugBridge();
     if (!fw) return { ni: 0, nc: 0, ntb: 0 };
@@ -87,7 +87,7 @@ function getSceneCounts(): { ni: number; nc: number; ntb: number } {
   }
 }
 
-function getUiSnapshot(): {
+export function getUiSnapshot(): {
   zoom: number;
   viewId: string;
   isDragging: boolean;
@@ -104,7 +104,7 @@ function getUiSnapshot(): {
   }
 }
 
-function getHistoryLengths(): { past: number; future: number } {
+export function getHistoryLengths(): { past: number; future: number } {
   try {
     const ms = getDebugBridge()?.model?.getState?.();
     return {
@@ -117,9 +117,9 @@ function getHistoryLengths(): { past: number; future: number } {
 }
 
 // ── event helpers ─────────────────────────────────────────────────────────────
-type DiagEvent = [number, string, (number | string)?]; // [dt_ms, type, detail?]
+export type DiagEvent = [number, string, (number | string)?]; // [dt_ms, type, detail?]
 
-function pushEvent(buf: DiagEvent[], ev: DiagEvent) {
+export function pushEvent(buf: DiagEvent[], ev: DiagEvent) {
   if (buf.length >= MAX_EVENTS) buf.shift();
   buf.push(ev);
 }
@@ -137,7 +137,7 @@ function downloadFile(content: string, name: string) {
 
 const stamp = () => new Date().toISOString().replace(/[:.]/g, '-');
 
-function buildAi(samples: number[][], events: DiagEvent[], t0: number) {
+export function buildAi(samples: number[][], events: DiagEvent[], t0: number) {
   return JSON.stringify({
     meta: {
       fields: FIELDS,
@@ -150,7 +150,7 @@ function buildAi(samples: number[][], events: DiagEvent[], t0: number) {
   });
 }
 
-function buildHuman(samples: number[][], events: DiagEvent[], t0: number) {
+export function buildHuman(samples: number[][], events: DiagEvent[], t0: number) {
   if (!samples.length) return JSON.stringify({ error: 'no data' });
   const fps = samples.map((r) => r[1]);
   const hu = samples.map((r) => r[2]).filter((v) => v >= 0);
@@ -203,7 +203,7 @@ function buildHuman(samples: number[][], events: DiagEvent[], t0: number) {
 }
 
 // ── ui helpers ────────────────────────────────────────────────────────────────
-function fpsColor(fps: number) {
+export function fpsColor(fps: number) {
   return fps >= 50 ? '#4caf50' : fps >= 30 ? '#ff9800' : '#f44336';
 }
 const btnBase: React.CSSProperties = {
@@ -223,9 +223,9 @@ const btnBase: React.CSSProperties = {
 // (S3776) — the loop just sequences them in order, preserving event ordering.
 type NumRef = { current: number };
 type BoolRef = { current: boolean };
-type SceneCounts = { ni: number; nc: number; ntb: number };
+export type SceneCounts = { ni: number; nc: number; ntb: number };
 
-function detectSceneChanges(
+export function detectSceneChanges(
   ev: DiagEvent[],
   dt: number,
   curr: SceneCounts,
@@ -246,7 +246,7 @@ function detectSceneChanges(
   prevCounts.current = curr;
 }
 
-function detectFpsThreshold(
+export function detectFpsThreshold(
   ev: DiagEvent[],
   dt: number,
   fps: number,
@@ -261,7 +261,7 @@ function detectFpsThreshold(
   }
 }
 
-function detectLongTaskBurst(
+export function detectLongTaskBurst(
   ev: DiagEvent[],
   dt: number,
   lt: number,
@@ -273,14 +273,14 @@ function detectLongTaskBurst(
   if (lt - prevLt > 5) pushEvent(ev, [dt, 'longtask_burst', lt - prevLt]);
 }
 
-function detectGc(ev: DiagEvent[], dt: number, hu: number, prevHu: NumRef) {
+export function detectGc(ev: DiagEvent[], dt: number, hu: number, prevHu: NumRef) {
   if (hu >= 0 && prevHu.current >= 0 && prevHu.current - hu > 20) {
     pushEvent(ev, [dt, 'gc', `${prevHu.current}→${hu}MB`]);
   }
   prevHu.current = hu;
 }
 
-function detectMemoryWarning(
+export function detectMemoryWarning(
   ev: DiagEvent[],
   dt: number,
   hu: number,
@@ -292,7 +292,7 @@ function detectMemoryWarning(
   }
 }
 
-function detectZoomChange(
+export function detectZoomChange(
   ev: DiagEvent[],
   dt: number,
   zoom: number,
@@ -304,7 +304,7 @@ function detectZoomChange(
   }
 }
 
-function detectViewChange(
+export function detectViewChange(
   ev: DiagEvent[],
   dt: number,
   viewId: string,
@@ -316,7 +316,7 @@ function detectViewChange(
   if (viewId) prevViewId.current = viewId;
 }
 
-function detectUndoRedo(
+export function detectUndoRedo(
   ev: DiagEvent[],
   dt: number,
   hist: { past: number; future: number },
@@ -336,7 +336,7 @@ function detectUndoRedo(
   prevFutureLen.current = hist.future;
 }
 
-function detectDrag(
+export function detectDrag(
   ev: DiagEvent[],
   dt: number,
   isDragging: boolean,
