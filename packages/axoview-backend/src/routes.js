@@ -248,6 +248,59 @@ export async function renameFolder(adapter, ctx) {
   return { status: 200, body: { success: true } };
 }
 
+// Collect a folder and all its descendant folder ids (recursive delete set).
+function collectDescendantFolderIds(folders, rootId) {
+  const ids = new Set();
+  const visit = (fid) => {
+    ids.add(fid);
+    folders.filter((f) => f.parentId === fid).forEach((f) => visit(f.id));
+  };
+  visit(rootId);
+  return ids;
+}
+
+// Best-effort: delete the public snapshot referenced by a diagram buffer, if
+// the blob parses and carries a valid shareUuid. Swallows parse/delete errors.
+async function deletePublicSnapshot(adapter, buf) {
+  if (!buf) return;
+  let existing;
+  try {
+    existing = JSON.parse(new TextDecoder().decode(buf));
+  } catch {
+    return; // unparseable diagram blob — nothing to clean up
+  }
+  if (existing?.shareUuid && UUID_PATTERN.test(existing.shareUuid)) {
+    try {
+      await adapter.delete(`public/${existing.shareUuid}`);
+    } catch {
+      /* best-effort */
+    }
+  }
+}
+
+// MQA #14 (Bundle B follow-up): the previous behaviour orphaned every diagram
+// inside the deleted folder — listDiagramMeta still returned them (with stale
+// folderId), and a subsequent project import collided on the original ids.
+// Sweep diagrams whose folderId pointed at any deleted folder. Best-effort:
+// per-diagram failures are logged but do not block.
+async function sweepOrphanedDiagrams(adapter, toDelete) {
+  try {
+    const allDiagrams = await adapter.listDiagramMeta();
+    const orphans = allDiagrams.filter((d) => toDelete.has(d.folderId));
+    for (const meta of orphans) {
+      try {
+        const buf = await adapter.get(`diagrams/${meta.id}`);
+        await deletePublicSnapshot(adapter, buf);
+        await adapter.delete(`diagrams/${meta.id}`);
+      } catch (e) {
+        console.warn(`[deleteFolder] failed to sweep diagram ${meta.id}:`, e);
+      }
+    }
+  } catch (e) {
+    console.warn('[deleteFolder] orphan sweep failed:', e);
+  }
+}
+
 export async function deleteFolder(adapter, ctx) {
   const id = assertId(ctx.params.id);
   const recursive =
@@ -255,12 +308,7 @@ export async function deleteFolder(adapter, ctx) {
   let folders = await readFolders(adapter);
   let toDelete;
   if (recursive) {
-    toDelete = new Set();
-    const collect = (fid) => {
-      toDelete.add(fid);
-      folders.filter((f) => f.parentId === fid).forEach((f) => collect(f.id));
-    };
-    collect(id);
+    toDelete = collectDescendantFolderIds(folders, id);
     folders = folders.filter((f) => !toDelete.has(f.id));
   } else {
     const idx = folders.findIndex((f) => f.id === id);
@@ -270,33 +318,7 @@ export async function deleteFolder(adapter, ctx) {
   }
   await writeFolders(adapter, folders);
 
-  // MQA #14 (Bundle B follow-up): the previous behaviour orphaned every
-  // diagram inside the deleted folder — listDiagramMeta still returned them
-  // (with stale folderId), and a subsequent project import collided on the
-  // original ids. Sweep diagrams whose folderId pointed at any deleted
-  // folder. Best-effort: per-diagram failures are logged but do not block.
-  try {
-    const allDiagrams = await adapter.listDiagramMeta();
-    const orphans = allDiagrams.filter((d) => toDelete.has(d.folderId));
-    for (const meta of orphans) {
-      try {
-        const buf = await adapter.get(`diagrams/${meta.id}`);
-        if (buf) {
-          try {
-            const existing = JSON.parse(new TextDecoder().decode(buf));
-            if (existing?.shareUuid && UUID_PATTERN.test(existing.shareUuid)) {
-              try { await adapter.delete(`public/${existing.shareUuid}`); } catch {}
-            }
-          } catch {}
-        }
-        await adapter.delete(`diagrams/${meta.id}`);
-      } catch (e) {
-        console.warn(`[deleteFolder] failed to sweep diagram ${meta.id}:`, e);
-      }
-    }
-  } catch (e) {
-    console.warn('[deleteFolder] orphan sweep failed:', e);
-  }
+  await sweepOrphanedDiagrams(adapter, toDelete);
 
   return { status: 200, body: { success: true } };
 }
