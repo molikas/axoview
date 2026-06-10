@@ -296,7 +296,7 @@ export function ImportDialog({
       onClose={handleClose}
       maxWidth="sm"
       fullWidth
-      PaperProps={{ sx: { borderRadius: 2 } }}
+      slotProps={{ paper: { sx: { borderRadius: 2 } } }}
     >
       <DialogTitle sx={{ pb: 1, pr: 6 }}>
         Import

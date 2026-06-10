@@ -11,7 +11,8 @@ import {
   Divider,
   IconButton,
   Menu,
-  Typography
+  Typography,
+  type PaperProps
 } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { useAppStorage } from '../../providers/AppStorageContext';
@@ -636,9 +637,13 @@ export function FileExplorer() {
         onClose={() => setDeleteConfirm(null)}
         maxWidth="xs"
         fullWidth
-        PaperProps={{
-          'data-axoview-id': 'file-explorer-delete-confirm-dialog',
-          sx: { boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)', borderRadius: 2 }
+        slotProps={{
+          // data-* anchors (ADR 0008 Decision 5) aren't in the typed paper
+          // slot props; cast to PaperProps to keep the E2E hook on the root.
+          paper: {
+            'data-axoview-id': 'file-explorer-delete-confirm-dialog',
+            sx: { boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)', borderRadius: 2 }
+          } as PaperProps
         }}
       >
         <DialogTitle sx={{ pb: 1, pr: 6 }}>
@@ -720,7 +725,7 @@ export function FileExplorer() {
         onClose={() => setCollisionDialog(null)}
         maxWidth="xs"
         fullWidth
-        PaperProps={{ sx: { boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)', borderRadius: 2 } }}
+        slotProps={{ paper: { sx: { boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)', borderRadius: 2 } } }}
       >
         <DialogTitle sx={{ pb: 1, pr: 6 }}>
           <Typography variant="h6" component="span">

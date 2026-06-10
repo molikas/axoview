@@ -35,7 +35,7 @@ export function LoadDialog({ diagrams, onLoad, onDelete, onClose }: Props) {
       onClose={onClose}
       maxWidth="sm"
       fullWidth
-      PaperProps={{ sx: { boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)', borderRadius: 2 } }}
+      slotProps={{ paper: { sx: { boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)', borderRadius: 2 } } }}
     >
       <DialogTitle sx={{ pb: 1, pr: 6 }}>
         <Typography variant="h6" component="span">
