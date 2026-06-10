@@ -86,6 +86,87 @@ export const loadIconPack = async (
   }
 };
 
+const ALL_ICON_PACK_NAMES: IconPackName[] = [
+  'aws',
+  'gcp',
+  'azure',
+  'kubernetes',
+  'material'
+];
+
+// Map every icon id in an untyped payload to its collection name. Only
+// well-formed { id: string, collection: string } entries are kept.
+const buildIconIdToCollection = (icons: unknown[]): Map<string, string> => {
+  const idToCollection = new Map<string, string>();
+  for (const icon of icons) {
+    if (
+      typeof icon === 'object' &&
+      icon !== null &&
+      typeof (icon as { id?: unknown }).id === 'string' &&
+      typeof (icon as { collection?: unknown }).collection === 'string'
+    ) {
+      idToCollection.set(
+        (icon as { id: string }).id,
+        (icon as { collection: string }).collection
+      );
+    }
+  }
+  return idToCollection;
+};
+
+// Derive the icon collections a diagram payload references, honouring both
+// `requiredPacks` and the items × icons cross-reference (see callers' note).
+const collectRequiredCollections = (blob: {
+  requiredPacks?: unknown;
+  items?: unknown;
+  icons?: unknown;
+}): Set<string> => {
+  const collections = new Set<string>();
+
+  if (Array.isArray(blob.requiredPacks)) {
+    for (const p of blob.requiredPacks) {
+      if (typeof p === 'string') collections.add(p);
+    }
+  }
+
+  const items: unknown[] = Array.isArray(blob.items) ? blob.items : [];
+  const icons: unknown[] = Array.isArray(blob.icons) ? blob.icons : [];
+  if (!items.length || !icons.length) return collections;
+
+  const idToCollection = buildIconIdToCollection(icons);
+  for (const item of items) {
+    // ModelItem.icon is `string` per schema; the object-shaped fallback
+    // handles legacy single-JSON imports that retained the inline icon.
+    const itemIcon = (item as { icon?: unknown })?.icon;
+    const iconId =
+      typeof itemIcon === 'string'
+        ? itemIcon
+        : (itemIcon as { id?: string } | undefined)?.id;
+    if (!iconId) continue;
+    const c = idToCollection.get(iconId);
+    if (c) collections.add(c);
+  }
+
+  return collections;
+};
+
+// Filter collections down to loadable icon packs that aren't already
+// loaded/loading.
+const resolvePacksToLoad = (
+  collections: Set<string>,
+  packInfo: Record<IconPackName, IconPackInfo>
+): IconPackName[] => {
+  const packsToLoad: IconPackName[] = [];
+  collections.forEach((collection) => {
+    if (collection === 'isoflow' || collection === 'imported') return;
+    const packName = collection as IconPackName;
+    if (!ALL_ICON_PACK_NAMES.includes(packName)) return;
+    if (packInfo[packName].loaded || packInfo[packName].loading) return;
+    packsToLoad.push(packName);
+  });
+  return packsToLoad;
+};
+
 // React hook for managing icon packs
 export const useIconPackManager = (coreIcons: Icon[]) => {
   const [lazyLoadingEnabled, setLazyLoadingEnabled] = useState<boolean>(() =>
@@ -244,56 +325,8 @@ export const useIconPackManager = (coreIcons: Icon[]) => {
         icons?: unknown;
       };
 
-      const collections = new Set<string>();
-
-      if (Array.isArray(blob.requiredPacks)) {
-        for (const p of blob.requiredPacks) {
-          if (typeof p === 'string') collections.add(p);
-        }
-      }
-
-      const items: unknown[] = Array.isArray(blob.items) ? blob.items : [];
-      const icons: unknown[] = Array.isArray(blob.icons) ? blob.icons : [];
-      if (items.length && icons.length) {
-        const idToCollection = new Map<string, string>();
-        for (const icon of icons) {
-          if (
-            typeof icon === 'object' && icon !== null &&
-            typeof (icon as { id?: unknown }).id === 'string' &&
-            typeof (icon as { collection?: unknown }).collection === 'string'
-          ) {
-            idToCollection.set(
-              (icon as { id: string }).id,
-              (icon as { collection: string }).collection
-            );
-          }
-        }
-        for (const item of items) {
-          // ModelItem.icon is `string` per schema; the object-shaped fallback
-          // handles legacy single-JSON imports that retained the inline icon.
-          const itemIcon = (item as { icon?: unknown })?.icon;
-          const iconId =
-            typeof itemIcon === 'string'
-              ? itemIcon
-              : (itemIcon as { id?: string } | undefined)?.id;
-          if (iconId) {
-            const c = idToCollection.get(iconId);
-            if (c) collections.add(c);
-          }
-        }
-      }
-
-      const packsToLoad: IconPackName[] = [];
-      collections.forEach((collection) => {
-        if (collection !== 'isoflow' && collection !== 'imported') {
-          const packName = collection as IconPackName;
-          if (['aws', 'gcp', 'azure', 'kubernetes', 'material'].includes(packName)) {
-            if (!packInfo[packName].loaded && !packInfo[packName].loading) {
-              packsToLoad.push(packName);
-            }
-          }
-        }
-      });
+      const collections = collectRequiredCollections(blob);
+      const packsToLoad = resolvePacksToLoad(collections, packInfo);
 
       for (const pack of packsToLoad) {
         await loadPack(pack);
