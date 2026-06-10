@@ -97,6 +97,12 @@
             "body": "The share link may have expired, been revoked, or the diagram may no longer exist.",
             "btnDismiss": "Back to editor"
         },
+        "saveError": {
+            "headline": "Couldn't save.",
+            "body": "Your changes weren't saved. Browser storage may be full. Try clearing space and saving again.",
+            "btnDismiss": "OK",
+            "btnSecondary": "Try again"
+        },
         "diagramManager": {
             "title": "Open Diagram",
             "serverStorage": "🌐 Server Storage",
