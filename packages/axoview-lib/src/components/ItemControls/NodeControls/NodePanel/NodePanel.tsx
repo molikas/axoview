@@ -47,6 +47,233 @@ const TabPanel = ({ children, index, value }: TabPanelProps) => (
   </Box>
 );
 
+// Shared "does this HTML string carry visible text?" probe — used for the
+// notes/caption presence checks throughout the panel.
+const hasRichText = (value: string | undefined): boolean =>
+  !!value && value.replace(/<[^>]*>/g, '').trim() !== '';
+
+const resolveHeaderHref = (headerLink: string): string =>
+  /^https?:\/\//i.test(headerLink) ? headerLink : `https://${headerLink}`;
+
+// MQA #22 / #25 (4th pass): in the read-only panel the node name is itself the
+// clickable affordance for the external header link (tooltip carries the URL).
+const ReadOnlyHeaderName = ({
+  name,
+  headerLink
+}: {
+  name: string;
+  headerLink?: string;
+}) => {
+  const hasHeaderLink = !!headerLink;
+  const headerLinkUrl = hasHeaderLink ? resolveHeaderHref(headerLink!) : null;
+
+  return hasHeaderLink ? (
+    <Tooltip title={headerLinkUrl ?? ''}>
+      <Box
+        component="a"
+        href={headerLinkUrl ?? '#'}
+        target="_blank"
+        rel="noopener noreferrer"
+        data-testid="node-panel-header-link"
+        sx={{
+          color: 'primary.main',
+          textDecoration: 'underline',
+          cursor: 'pointer',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          display: 'block'
+        }}
+      >
+        {name || '—'}
+      </Box>
+    </Tooltip>
+  ) : (
+    <Box
+      component="span"
+      sx={{
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        display: 'block'
+      }}
+    >
+      {name || '—'}
+    </Box>
+  );
+};
+
+// The "Linked Diagram" body section: a clickable resolved diagram name, or an
+// explicit "cannot resolve id <id>" error when the linked diagram is missing
+// from the project (never silent).
+const LinkedDiagramSection = ({
+  linkedDiagramId,
+  linkedDiagramMeta
+}: {
+  linkedDiagramId: string;
+  linkedDiagramMeta?: { name: string } | null;
+}) => (
+  <Box
+    sx={{ px: 2, pt: 2, pb: 1 }}
+    data-testid="node-panel-linked-diagram-section"
+  >
+    <Typography
+      variant="overline"
+      color="text.secondary"
+      sx={{ display: 'block', mb: 1 }}
+    >
+      Linked diagram
+    </Typography>
+    {linkedDiagramMeta ? (
+      <Box
+        component="a"
+        href={`/display/${linkedDiagramId}`}
+        onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+          // Ctrl/Cmd/Shift/middle-click → let the browser do its native
+          // new-tab/window behaviour. Plain left-click → same-window SPA
+          // navigation via the app's router.
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+          e.preventDefault();
+          window.dispatchEvent(
+            new CustomEvent('axoview-navigate-to-diagram', {
+              detail: { id: linkedDiagramId }
+            })
+          );
+        }}
+        data-testid="node-panel-linked-diagram-link"
+        sx={{
+          color: 'primary.main',
+          textDecoration: 'underline',
+          cursor: 'pointer',
+          wordBreak: 'break-word'
+        }}
+      >
+        {linkedDiagramMeta.name}
+      </Box>
+    ) : (
+      <Typography
+        variant="body2"
+        color="error"
+        data-testid="node-panel-linked-diagram-error"
+        sx={{ wordBreak: 'break-word' }}
+      >
+        Cannot resolve linked diagram with id: {linkedDiagramId}
+      </Typography>
+    )}
+  </Box>
+);
+
+interface ReadOnlyNodePanelProps {
+  modelItem: ModelItem;
+  iconUrl: string;
+  linkedDiagrams: Array<{ id: string; name: string }>;
+  hasNotes: boolean;
+  labels: { close: string; caption: string; notes: string };
+  onClose: () => void;
+}
+
+// Read-only details panel: header (name + external link) plus a scrollable
+// body whose caption / linked-diagram / notes sections appear only when their
+// content is available.
+const ReadOnlyNodePanel = ({
+  modelItem,
+  iconUrl,
+  linkedDiagrams,
+  hasNotes,
+  labels,
+  onClose
+}: ReadOnlyNodePanelProps) => {
+  const hasCaption = hasRichText(modelItem.description);
+  const linkedDiagramId = modelItem.link ?? null;
+  const linkedDiagramMeta = linkedDiagramId
+    ? linkedDiagrams.find((d) => d.id === linkedDiagramId)
+    : null;
+  const hasLinkedDiagram = !!linkedDiagramId;
+
+  return (
+    <Box
+      onMouseDown={(e) => e.stopPropagation()}
+      onContextMenu={(e) => e.stopPropagation()}
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        bgcolor: 'background.paper'
+      }}
+    >
+      {/* Header */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          px: 1.5,
+          pt: 1,
+          pb: 1,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          flexShrink: 0
+        }}
+      >
+        {iconUrl && (
+          <Box
+            component="img"
+            src={iconUrl}
+            sx={{ width: 22, height: 22, flexShrink: 0 }}
+          />
+        )}
+        <Typography variant="subtitle2" sx={{ flex: 1, minWidth: 0 }}>
+          <ReadOnlyHeaderName
+            name={modelItem.name}
+            headerLink={modelItem.headerLink}
+          />
+        </Typography>
+        <Tooltip title={labels.close}>
+          <IconButton size="small" onClick={onClose} sx={{ p: 0.5 }}>
+            <CloseIcon sx={{ fontSize: 15 }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
+
+      {/* Scrollable body */}
+      <Box sx={{ overflowY: 'auto', flex: 1 }}>
+        {hasCaption && (
+          <Box sx={{ px: 2, pt: 2, pb: 1 }}>
+            <Typography
+              variant="overline"
+              color="text.secondary"
+              sx={{ display: 'block', mb: 1 }}
+            >
+              {labels.caption}
+            </Typography>
+            <RichTextEditor value={modelItem.description} readOnly />
+          </Box>
+        )}
+        {hasCaption && hasLinkedDiagram && <Divider sx={{ mx: 2 }} />}
+        {linkedDiagramId && (
+          <LinkedDiagramSection
+            linkedDiagramId={linkedDiagramId}
+            linkedDiagramMeta={linkedDiagramMeta}
+          />
+        )}
+        {(hasCaption || hasLinkedDiagram) && hasNotes && <Divider sx={{ mx: 2 }} />}
+        {hasNotes && (
+          <Box sx={{ px: 2, pt: 2, pb: 2 }}>
+            <Typography
+              variant="overline"
+              color="text.secondary"
+              sx={{ display: 'block', mb: 1 }}
+            >
+              {labels.notes}
+            </Typography>
+            <RichTextEditor value={modelItem.notes} readOnly />
+          </Box>
+        )}
+      </Box>
+    </Box>
+  );
+};
+
 interface Props {
   viewItem: ViewItem;
   readOnly?: boolean;
@@ -113,193 +340,19 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
 
   if (!modelItem) return null;
 
-  const hasNotes =
-    !!modelItem.notes && modelItem.notes.replace(/<[^>]*>/g, '').trim() !== '';
-
+  const hasNotes = hasRichText(modelItem.notes);
   const iconUrl = icon.url || '';
 
   if (readOnly) {
-    const hasCaption =
-      !!modelItem.description &&
-      modelItem.description.replace(/<[^>]*>/g, '').trim() !== '';
-
-    const hasHeaderLink = !!modelItem.headerLink;
-    const headerLinkUrl = hasHeaderLink
-      ? (/^https?:\/\//i.test(modelItem.headerLink!)
-          ? modelItem.headerLink!
-          : `https://${modelItem.headerLink}`)
-      : null;
-
-    // MQA #22 / #25 (4th pass — final UX): the node name in the header is
-    // itself the clickable affordance for the external link (tooltip carries
-    // the URL). The "Linked Diagram" lives in the scrollable body, mirroring
-    // the Caption / Notes section pattern — shows the resolved diagram name
-    // as a clickable link, or an explicit "cannot resolve id <id>" error when
-    // the linked diagram is missing from the project (never silent).
-    const linkedDiagramId = modelItem.link ?? null;
-    const linkedDiagramMeta = linkedDiagramId
-      ? linkedDiagrams.find((d) => d.id === linkedDiagramId)
-      : null;
-    const hasLinkedDiagram = !!linkedDiagramId;
-
-    const nameContent = hasHeaderLink ? (
-      <Tooltip title={headerLinkUrl ?? ''}>
-        <Box
-          component="a"
-          href={headerLinkUrl ?? '#'}
-          target="_blank"
-          rel="noopener noreferrer"
-          data-testid="node-panel-header-link"
-          sx={{
-            color: 'primary.main',
-            textDecoration: 'underline',
-            cursor: 'pointer',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            display: 'block'
-          }}
-        >
-          {modelItem.name || '—'}
-        </Box>
-      </Tooltip>
-    ) : (
-      <Box
-        component="span"
-        sx={{
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          display: 'block'
-        }}
-      >
-        {modelItem.name || '—'}
-      </Box>
-    );
-
     return (
-      <Box
-        onMouseDown={(e) => e.stopPropagation()}
-        onContextMenu={(e) => e.stopPropagation()}
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100%',
-          bgcolor: 'background.paper'
-        }}
-      >
-        {/* Header */}
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            px: 1.5,
-            pt: 1,
-            pb: 1,
-            borderBottom: '1px solid',
-            borderColor: 'divider',
-            flexShrink: 0
-          }}
-        >
-          {iconUrl && (
-            <Box
-              component="img"
-              src={iconUrl}
-              sx={{ width: 22, height: 22, flexShrink: 0 }}
-            />
-          )}
-          <Typography
-            variant="subtitle2"
-            sx={{ flex: 1, minWidth: 0 }}
-          >
-            {nameContent}
-          </Typography>
-          <Tooltip title={t('close')}>
-            <IconButton size="small" onClick={handleClose} sx={{ p: 0.5 }}>
-              <CloseIcon sx={{ fontSize: 15 }} />
-            </IconButton>
-          </Tooltip>
-        </Box>
-
-        {/* Scrollable body — caption, linked diagram, notes (sections appear
-            only when content is available). */}
-        <Box sx={{ overflowY: 'auto', flex: 1 }}>
-          {hasCaption && (
-            <Box sx={{ px: 2, pt: 2, pb: 1 }}>
-              <Typography
-                variant="overline"
-                color="text.secondary"
-                sx={{ display: 'block', mb: 1 }}
-              >
-                {t('caption')}
-              </Typography>
-              <RichTextEditor value={modelItem.description} readOnly />
-            </Box>
-          )}
-          {hasCaption && hasLinkedDiagram && <Divider sx={{ mx: 2 }} />}
-          {hasLinkedDiagram && (
-            <Box sx={{ px: 2, pt: 2, pb: 1 }} data-testid="node-panel-linked-diagram-section">
-              <Typography
-                variant="overline"
-                color="text.secondary"
-                sx={{ display: 'block', mb: 1 }}
-              >
-                Linked diagram
-              </Typography>
-              {linkedDiagramMeta ? (
-                <Box
-                  component="a"
-                  href={`/display/${linkedDiagramId}`}
-                  onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                    // Ctrl/Cmd/Shift/middle-click → let the browser do its
-                    // native new-tab/window behaviour. Plain left-click →
-                    // same-window SPA navigation via the app's router.
-                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
-                    e.preventDefault();
-                    window.dispatchEvent(
-                      new CustomEvent('axoview-navigate-to-diagram', {
-                        detail: { id: linkedDiagramId }
-                      })
-                    );
-                  }}
-                  data-testid="node-panel-linked-diagram-link"
-                  sx={{
-                    color: 'primary.main',
-                    textDecoration: 'underline',
-                    cursor: 'pointer',
-                    wordBreak: 'break-word'
-                  }}
-                >
-                  {linkedDiagramMeta.name}
-                </Box>
-              ) : (
-                <Typography
-                  variant="body2"
-                  color="error"
-                  data-testid="node-panel-linked-diagram-error"
-                  sx={{ wordBreak: 'break-word' }}
-                >
-                  Cannot resolve linked diagram with id: {linkedDiagramId}
-                </Typography>
-              )}
-            </Box>
-          )}
-          {(hasCaption || hasLinkedDiagram) && hasNotes && <Divider sx={{ mx: 2 }} />}
-          {hasNotes && (
-            <Box sx={{ px: 2, pt: 2, pb: 2 }}>
-              <Typography
-                variant="overline"
-                color="text.secondary"
-                sx={{ display: 'block', mb: 1 }}
-              >
-                {t('notes')}
-              </Typography>
-              <RichTextEditor value={modelItem.notes} readOnly />
-            </Box>
-          )}
-        </Box>
-      </Box>
+      <ReadOnlyNodePanel
+        modelItem={modelItem}
+        iconUrl={iconUrl}
+        linkedDiagrams={linkedDiagrams}
+        hasNotes={hasNotes}
+        labels={{ close: t('close'), caption: t('caption'), notes: t('notes') }}
+        onClose={handleClose}
+      />
     );
   }
 
@@ -388,10 +441,8 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
             height={300}
             value={modelItem.notes}
             onChange={(text) => {
-              const hasContent = (v?: string) =>
-                !!v && v.replace(/<[^>]*>/g, '').trim() !== '';
-              const empty = !hasContent(text);
-              if (empty && !hasContent(modelItem.notes)) return;
+              const empty = !hasRichText(text);
+              if (empty && !hasRichText(modelItem.notes)) return;
               if (modelItem.notes !== text)
                 onModelUpdate({ notes: empty ? undefined : text });
             }}
