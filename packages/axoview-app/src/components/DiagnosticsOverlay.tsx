@@ -223,7 +223,7 @@ const btnBase: React.CSSProperties = {
 // (S3776) — the loop just sequences them in order, preserving event ordering.
 type NumRef = { current: number };
 type BoolRef = { current: boolean };
-export type SceneCounts = { ni: number; nc: number; ntb: number };
+type SceneCounts = { ni: number; nc: number; ntb: number };
 
 export function detectSceneChanges(
   ev: DiagEvent[],
