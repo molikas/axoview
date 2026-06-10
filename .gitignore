@@ -26,6 +26,13 @@ overlay/
 diagrams/
 # Static analysis reports
 reports/
+sonar-issues.*
+sonar-project.properties
+.scannerwork/
+.sonar/
+
+# Agent scratch space
+.scratch/
 
 # Generated icon packs (produced by prebuild scripts)
 packages/axoview-app/src/assets/material-icons-pack.json

@@ -567,8 +567,8 @@ export function DiagnosticsOverlay() {
                 color: '#aaa'
               }}
             >
-              {recentEvents.map((ev, i) => (
-                <div key={i}>
+              {recentEvents.map((ev) => (
+                <div key={`${ev[0]}-${ev[1]}-${ev[2] ?? ''}`}>
                   <span style={{ color: '#555' }}>{ev[0]}ms</span> {ev[1]}
                   {ev[2] != null ? (
                     <span style={{ color: '#777' }}> {ev[2]}</span>

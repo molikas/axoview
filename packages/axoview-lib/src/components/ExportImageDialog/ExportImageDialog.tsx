@@ -66,7 +66,6 @@ export const ExportImageDialog = memo(({ onClose, quality = 1.5 }: Props) => {
   const [croppedImageData, setCroppedImageData] = useState<string>();
   const [exportError, setExportError] = useState(false);
   const { getUnprojectedBounds } = useDiagramUtils();
-  const uiStateActions = useUiStateStore((state) => state.actions);
   const model = useModelStore((state): Omit<ModelStore, 'actions'> => {
     return modelFromModelStore(state);
   });
@@ -297,10 +296,6 @@ export const ExportImageDialog = memo(({ onClose, quality = 1.5 }: Props) => {
 
     const img = new Image();
     img.onload = () => {
-      // Calculate scaling factors between canvas and actual image
-      const scaleX = img.width / canvas.width;
-      const scaleY = img.height / canvas.height;
-
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
