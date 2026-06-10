@@ -6,7 +6,8 @@ import {
   ModeActionsAction,
   Coords,
   View,
-  ItemReference
+  ItemReference,
+  State
 } from 'src/types';
 import {
   getItemAtTile,
@@ -20,6 +21,10 @@ import {
   setWindowCursor
 } from 'src/utils';
 import { getConnectorWaypointRefs } from 'src/utils/connectorSelection';
+
+// hitConnectors elements merge the view connector (id, anchors) with the
+// scene connector (path) — richer than the bare SceneConnector type.
+type HitConnector = State['scene']['hitConnectors'][number];
 
 // Set true by mousedown when Alt+click splices a waypoint, consumed by the
 // subsequent mouseup so it bypasses its selection-clearing branches (the
@@ -105,135 +110,366 @@ const getAnchor = (
   return anchor;
 };
 
-const mousedown: ModeActionsAction = ({
-  uiState,
-  scene,
-  isRendererInteraction,
-  isItemInteractable
-}) => {
-  if (uiState.mode.type !== 'CURSOR' || !isRendererInteraction) return;
+// Set the CURSOR mode's transient mousedown bookkeeping. The CURSOR guard
+// re-narrows uiState.mode for the immer draft (callers always run after the
+// handler's own guard, so it never returns early in practice).
+const setMousedownBookkeeping = (
+  { uiState }: State,
+  mousedownItem: ItemReference | null,
+  mousedownHandled: boolean
+) => {
+  if (uiState.mode.type !== 'CURSOR') return;
+  uiState.actions.setMode(
+    produce(uiState.mode, (draft) => {
+      draft.mousedownItem = mousedownItem;
+      draft.mousedownHandled = mousedownHandled;
+    })
+  );
+};
 
-  // P2: When a connector is selected, its endpoint anchors (attached to nodes) sit on
-  // the same tile as the node. Normally getItemAtTile would return the node first, making
-  // the endpoint unreachable. Check for selected connector anchors before the generic lookup.
-  const itemControls = uiState.itemControls;
-  if (itemControls && itemControls.type === 'CONNECTOR') {
-    const selectedConnector = scene.hitConnectors.find(
-      (c) => c.id === itemControls.id
+// ─── mousedown helpers ──────────────────────────────────────────────────────
+
+// Resolve a click to one of the selected connector's anchors. P2: a connector's
+// endpoint anchors (attached to nodes) sit on the same tile as the node, so the
+// generic getItemAtTile would return the node first and make the endpoint
+// unreachable — this runs before that lookup.
+//
+// Prefer DOM-driven anchor identification (targetAnchorId, set by
+// useInteractionManager from data-anchor-id on the hit element) — the visible
+// waypoint + its hit ring extends beyond one tile, so a tile-equality check
+// rejects valid clicks near tile boundaries or at low zoom. Fall back to the
+// tile match for non-DOM hits (e.g. clicking the connector path body, or in
+// tests that bypass the overlay). Returns the matched anchor + index, or null.
+const findClickedConnectorAnchor = (
+  connector: HitConnector,
+  uiState: State['uiState'],
+  view: View
+): { anchor: ConnectorAnchor; index: number } | null => {
+  const totalAnchors = connector.anchors.length;
+  const targetAnchorId = uiState.mouse.targetAnchorId;
+  for (let index = 0; index < connector.anchors.length; index++) {
+    const anchor = connector.anchors[index];
+    if (targetAnchorId) {
+      if (anchor.id === targetAnchorId) return { anchor, index };
+      continue;
+    }
+    const hitTile = getAnchorHitTile(
+      anchor,
+      index,
+      totalAnchors,
+      connector,
+      view
     );
-    if (selectedConnector) {
-      const totalAnchors = selectedConnector.anchors.length;
-      let clickedIndex = -1;
-      // Prefer DOM-driven anchor identification (set by useInteractionManager
-      // from data-anchor-id on the hit element) — the visible waypoint + its
-      // hit ring extends beyond one tile, so a tile-equality check rejects
-      // valid clicks near tile boundaries or at low zoom. Fall back to the
-      // tile match for non-DOM hits (e.g. clicking on the connector path
-      // body to add a waypoint, or in tests that bypass the overlay).
-      const targetAnchorId = uiState.mouse.targetAnchorId;
-      const clickedAnchor = selectedConnector.anchors.find((anchor, index) => {
-        if (targetAnchorId) {
-          if (anchor.id === targetAnchorId) {
-            clickedIndex = index;
-            return true;
-          }
-          return false;
-        }
-        const hitTile = getAnchorHitTile(
-          anchor,
-          index,
-          totalAnchors,
-          selectedConnector,
-          scene.currentView
-        );
-        if (CoordsUtils.isEqual(hitTile, uiState.mouse.position.tile)) {
-          clickedIndex = index;
-          return true;
-        }
-        return false;
-      });
-      if (clickedAnchor) {
-        const isEndpoint =
-          clickedIndex === 0 || clickedIndex === totalAnchors - 1;
-        if (isEndpoint) {
-          // Endpoint: enter click-to-reconnect mode. Much more reliable than drag
-          // on a discrete tile grid, especially with large block node icons.
-          uiState.actions.setMode({
-            type: 'RECONNECT_ANCHOR',
-            showCursor: true,
-            connectorId: selectedConnector.id,
-            anchorId: clickedAnchor.id,
-            anchorIndex: clickedIndex
-          });
-        } else {
-          // Waypoint: Alt+click removes it; plain click starts a drag.
-          // Removal is the direct gesture (no menu) because right-click is
-          // already overloaded by rightClickPan + NodeActionBar. The
-          // connector's first/last anchors stay intact — only middle
-          // (free-floating) waypoints can be removed this way.
-          const altHeld = uiState.mouse.modifiers?.alt;
-          if (altHeld) {
-            const nextAnchors = selectedConnector.anchors.filter(
-              (a) => a.id !== clickedAnchor.id
-            );
-            scene.updateConnector(selectedConnector.id, {
-              anchors: nextAnchors
-            });
-            // Flag this for the subsequent mouseup so it doesn't run the
-            // empty-canvas-click branch and clear the selection.
-            altSpliceConsumed = true;
-            uiState.actions.setMode(
-              produce(uiState.mode, (draft) => {
-                draft.mousedownItem = null;
-                draft.mousedownHandled = true;
-              })
-            );
-          } else {
-            uiState.actions.setMode(
-              produce(uiState.mode, (draft) => {
-                draft.mousedownItem = {
-                  type: 'CONNECTOR_ANCHOR',
-                  id: clickedAnchor.id
-                };
-                draft.mousedownHandled = true;
-              })
-            );
-          }
-        }
-        return;
-      }
+    if (CoordsUtils.isEqual(hitTile, uiState.mouse.position.tile)) {
+      return { anchor, index };
     }
   }
+  return null;
+};
 
+// Apply the gesture for a click landing on one of the selected connector's
+// anchors.
+const handleConnectorAnchorMousedown = (
+  state: State,
+  connector: HitConnector,
+  anchor: ConnectorAnchor,
+  index: number
+) => {
+  const { uiState, scene } = state;
+  const isEndpoint = index === 0 || index === connector.anchors.length - 1;
+  if (isEndpoint) {
+    // Endpoint: enter click-to-reconnect mode. Much more reliable than drag
+    // on a discrete tile grid, especially with large block node icons.
+    uiState.actions.setMode({
+      type: 'RECONNECT_ANCHOR',
+      showCursor: true,
+      connectorId: connector.id,
+      anchorId: anchor.id,
+      anchorIndex: index
+    });
+    return;
+  }
+
+  // Waypoint: Alt+click removes it; plain click starts a drag. Removal is the
+  // direct gesture (no menu) because right-click is already overloaded by
+  // rightClickPan + NodeActionBar. The connector's first/last anchors stay
+  // intact — only middle (free-floating) waypoints can be removed this way.
+  const altHeld = uiState.mouse.modifiers?.alt;
+  if (altHeld) {
+    const nextAnchors = connector.anchors.filter((a) => a.id !== anchor.id);
+    scene.updateConnector(connector.id, { anchors: nextAnchors });
+    // Flag this for the subsequent mouseup so it doesn't run the
+    // empty-canvas-click branch and clear the selection.
+    altSpliceConsumed = true;
+    setMousedownBookkeeping(state, null, true);
+  } else {
+    setMousedownBookkeeping(
+      state,
+      { type: 'CONNECTOR_ANCHOR', id: anchor.id },
+      true
+    );
+  }
+};
+
+// When a connector is selected, give its anchors first claim on the click.
+// Returns true if the click was consumed (caller stops), false to fall through
+// to generic item hit-detection.
+const handleSelectedConnectorMousedown = (state: State): boolean => {
+  const { uiState, scene } = state;
+  const itemControls = uiState.itemControls;
+  if (!itemControls || itemControls.type !== 'CONNECTOR') return false;
+
+  const selectedConnector = scene.hitConnectors.find(
+    (c) => c.id === itemControls.id
+  );
+  if (!selectedConnector) return false;
+
+  const clicked = findClickedConnectorAnchor(
+    selectedConnector,
+    uiState,
+    scene.currentView
+  );
+  if (!clicked) return false;
+
+  handleConnectorAnchorMousedown(
+    state,
+    selectedConnector,
+    clicked.anchor,
+    clicked.index
+  );
+  return true;
+};
+
+// Generic item hit-detection. Items on locked or hidden layers are treated as
+// background — not selectable, not draggable (mqa-results.md #2).
+// isItemInteractable may be undefined in tests that bypass the State type via
+// `as any`. The non-null check on itemAtTile is critical — calling
+// isItemInteractable(null) would throw and silently kill the cursor→lasso
+// transition for empty-canvas drag.
+const selectItemAtTileMousedown = (state: State) => {
+  const { uiState, scene, isItemInteractable } = state;
   const itemAtTile = getItemAtTile({
     tile: uiState.mouse.position.tile,
     scene
   });
 
-  // Items on locked or hidden layers are treated as background — not
-  // selectable, not draggable (mqa-results.md #2). isItemInteractable may be
-  // undefined in tests that bypass the State type via `as any`. The non-null
-  // check on itemAtTile is critical — calling isItemInteractable(null) would
-  // throw and silently kill the cursor→lasso transition for empty-canvas drag.
-  if (
-    itemAtTile &&
-    (!isItemInteractable || isItemInteractable(itemAtTile))
-  ) {
-    uiState.actions.setMode(
-      produce(uiState.mode, (draft) => {
-        draft.mousedownItem = itemAtTile;
-        draft.mousedownHandled = true;
-      })
-    );
+  if (itemAtTile && (!isItemInteractable || isItemInteractable(itemAtTile))) {
+    setMousedownBookkeeping(state, itemAtTile, true);
   } else {
-    uiState.actions.setMode(
-      produce(uiState.mode, (draft) => {
-        draft.mousedownItem = null;
-        draft.mousedownHandled = true;
-      })
-    );
-
+    setMousedownBookkeeping(state, null, true);
     uiState.actions.setItemControls(null);
+  }
+};
+
+const mousedown: ModeActionsAction = (state) => {
+  const { uiState, isRendererInteraction } = state;
+  if (uiState.mode.type !== 'CURSOR' || !isRendererInteraction) return;
+
+  if (handleSelectedConnectorMousedown(state)) return;
+
+  selectItemAtTileMousedown(state);
+};
+
+// ─── mousemove helpers ──────────────────────────────────────────────────────
+
+// True when the cursor sits over an anchor of the currently selected connector.
+const isHoveringConnectorAnchor = ({ scene, uiState }: State): boolean => {
+  const hoverControls = uiState.itemControls;
+  if (!hoverControls || hoverControls.type !== 'CONNECTOR') return false;
+
+  const hoveredConnector = scene.hitConnectors.find(
+    (c) => c.id === hoverControls.id
+  );
+  if (!hoveredConnector) return false;
+
+  return hoveredConnector.anchors.some((anchor, index) => {
+    const hitTile = getAnchorHitTile(
+      anchor,
+      index,
+      hoveredConnector.anchors.length,
+      hoveredConnector,
+      scene.currentView
+    );
+    return CoordsUtils.isEqual(hitTile, uiState.mouse.position.tile);
+  });
+};
+
+// Hover cursor (no active mousedown): 'grab' over a selected connector's anchor,
+// 'pointer' over any item, 'default' otherwise. Uses hasMovedTile to avoid
+// redundant work when the tile under the cursor hasn't changed.
+const updateHoverCursor = (state: State) => {
+  const { scene, uiState } = state;
+  if (!hasMovedTile(uiState.mouse)) return;
+
+  if (isHoveringConnectorAnchor(state)) {
+    setWindowCursor('grab');
+    return;
+  }
+
+  const hoverItem = getItemAtTile({
+    tile: uiState.mouse.position.tile,
+    scene
+  });
+  setWindowCursor(hoverItem ? 'pointer' : 'default');
+};
+
+// Multi-select drag (ADR-0006): if the pressed item is part of the persistent
+// multi-selection (len > 1), drag the whole selection together. Otherwise drag
+// just this item (the selection collapses to it via the mouseup path).
+const resolveDragItems = (
+  uiState: State['uiState'],
+  item: ItemReference
+): ItemReference[] => {
+  const selectedIds = uiState.selectedIds ?? [];
+  const inMultiSelect =
+    selectedIds.length > 1 &&
+    selectedIds.some((ref) => ref.type === item.type && ref.id === item.id);
+  return inMultiSelect ? selectedIds : [item];
+};
+
+// CONNECTOR_ANCHOR free-floating waypoints store their tile on the anchor ref.
+// Mirror Lasso.mousemove's anchor-seeding (modes/Lasso.ts). Without this entry,
+// DragItems treats the anchor as an "anchor reconnect" (no initialTiles →
+// re-anchor to cursor tile every frame). That's the inversion + pinched-path
+// symptom when Ctrl+A includes free-floating waypoints. ADR-0006.
+const seedAnchorTile = (
+  scene: State['scene'],
+  anchorId: string,
+  initialTiles: Record<string, Coords>
+) => {
+  for (const connector of scene.connectors) {
+    const anchor = connector.anchors.find((a) => a.id === anchorId);
+    if (anchor?.ref?.tile) {
+      initialTiles[anchorId] = anchor.ref.tile;
+      break;
+    }
+  }
+};
+
+// Record one drag item's starting tile (or rectangle bounds). Throws from
+// getItemByIdOrThrow are caught by the caller so a vanished item just gets
+// skipped without aborting the whole drag.
+const seedDragItemPosition = (
+  scene: State['scene'],
+  dragItem: ItemReference,
+  initialTiles: Record<string, Coords>,
+  initialRectangles: Record<string, { from: Coords; to: Coords }>
+) => {
+  if (dragItem.type === 'ITEM') {
+    initialTiles[dragItem.id] = getItemByIdOrThrow(
+      scene.items,
+      dragItem.id
+    ).value.tile;
+  } else if (dragItem.type === 'TEXTBOX') {
+    initialTiles[dragItem.id] = getItemByIdOrThrow(
+      scene.textBoxes,
+      dragItem.id
+    ).value.tile;
+  } else if (dragItem.type === 'RECTANGLE') {
+    const r = getItemByIdOrThrow(scene.rectangles, dragItem.id).value;
+    initialRectangles[dragItem.id] = { from: r.from, to: r.to };
+  } else if (dragItem.type === 'CONNECTOR_ANCHOR') {
+    seedAnchorTile(scene, dragItem.id, initialTiles);
+  }
+};
+
+const collectDragInitialPositions = (
+  scene: State['scene'],
+  dragItems: ItemReference[]
+) => {
+  const initialTiles: Record<string, Coords> = {};
+  const initialRectangles: Record<string, { from: Coords; to: Coords }> = {};
+  for (const dragItem of dragItems) {
+    try {
+      seedDragItemPosition(scene, dragItem, initialTiles, initialRectangles);
+    } catch {
+      /* item vanished mid-drag — skip it, keep dragging the rest */
+    }
+  }
+  return { initialTiles, initialRectangles };
+};
+
+// ─── mouseup helpers ────────────────────────────────────────────────────────
+
+// Ctrl+click a connector: toggle the connector AND its tile-bound waypoint
+// anchors as one group — waypoints can't be independently selected via click
+// (they're not hit-tested), so they must accompany the connector to remain
+// consistent with Ctrl+A and lasso semantics. ADR-0006.
+const toggleConnectorGroupSelection = (
+  { uiState, scene }: State,
+  connectorId: string
+) => {
+  const connector = scene.connectors.find(
+    (c: { id: string }) => c.id === connectorId
+  );
+  const waypointRefs = connector ? getConnectorWaypointRefs(connector) : [];
+  const groupIds = new Set<string>([
+    connectorId,
+    ...waypointRefs.map((r) => r.id)
+  ]);
+  const current = uiState.selectedIds ?? [];
+  const isInSelection = current.some(
+    (r) => r.type === 'CONNECTOR' && r.id === connectorId
+  );
+  const next: ItemReference[] = isInSelection
+    ? current.filter((r) => !groupIds.has(r.id))
+    : [
+        ...current,
+        { type: 'CONNECTOR' as const, id: connectorId },
+        ...waypointRefs
+      ];
+  uiState.actions.setSelectedIds!(next);
+};
+
+// CONNECTOR-on-tile needs the tile for the panel — keep using setItemControls
+// (which mirrors into selectedIds internally). Ctrl+click routes through the
+// group-toggle gesture path instead.
+const handleConnectorClickSelection = (
+  state: State,
+  connectorId: string,
+  ctrlHeld: boolean | undefined
+) => {
+  const { uiState } = state;
+  if (ctrlHeld && typeof uiState.actions.setSelectedIds === 'function') {
+    toggleConnectorGroupSelection(state, connectorId);
+  } else {
+    uiState.actions.setItemControls({
+      type: 'CONNECTOR',
+      id: connectorId,
+      tile: uiState.mouse.position.tile
+    });
+  }
+};
+
+// Non-connector click: Ctrl+click → toggle, plain click → replace. Optional-call
+// the new actions so mode-action unit tests that mock a minimal
+// uiState.actions continue to work, falling back to the single-item path
+// (ADR-0006).
+const handleItemClickSelection = (
+  { uiState }: State,
+  clicked: ItemReference,
+  ctrlHeld: boolean | undefined
+) => {
+  const ref: ItemReference = { type: clicked.type, id: clicked.id };
+  if (ctrlHeld && uiState.actions.toggleSelected) {
+    uiState.actions.toggleSelected(ref);
+  } else if (uiState.actions.setSelectedIds) {
+    uiState.actions.setSelectedIds([ref]);
+  } else {
+    uiState.actions.setItemControls({ type: clicked.type, id: clicked.id });
+  }
+};
+
+// Resolve a no-movement click on a pressed item into a selection update.
+const resolveClickSelection = (state: State, clicked: ItemReference) => {
+  const { uiState } = state;
+  const ctrlHeld =
+    uiState.mouse.modifiers?.ctrl || uiState.mouse.modifiers?.meta;
+
+  if (clicked.type === 'CONNECTOR') {
+    handleConnectorClickSelection(state, clicked.id, ctrlHeld);
+  } else {
+    handleItemClickSelection(state, clicked, ctrlHeld);
   }
 };
 
@@ -247,48 +483,15 @@ export const Cursor: ModeActions = {
       mousedown(state);
     }
   },
-  mousemove: ({ scene, uiState }) => {
+  mousemove: (state) => {
+    const { scene, uiState } = state;
     if (uiState.mode.type !== 'CURSOR') return;
 
     let item = uiState.mode.mousedownItem;
 
     // Hover cursor (no mousedown): still use hasMovedTile to avoid redundant work
     if (!item && !uiState.mouse.mousedown) {
-      if (hasMovedTile(uiState.mouse)) {
-        // If a connector is selected, show grab cursor when hovering over any of its anchors
-        const hoverControls = uiState.itemControls;
-        if (hoverControls && hoverControls.type === 'CONNECTOR') {
-          const hoveredConnector = scene.hitConnectors.find(
-            (c) => c.id === hoverControls.id
-          );
-          if (hoveredConnector) {
-            const isOverAnchor = hoveredConnector.anchors.some(
-              (anchor, index) => {
-                const hitTile = getAnchorHitTile(
-                  anchor,
-                  index,
-                  hoveredConnector.anchors.length,
-                  hoveredConnector,
-                  scene.currentView
-                );
-                return CoordsUtils.isEqual(
-                  hitTile,
-                  uiState.mouse.position.tile
-                );
-              }
-            );
-            if (isOverAnchor) {
-              setWindowCursor('grab');
-              return;
-            }
-          }
-        }
-        const hoverItem = getItemAtTile({
-          tile: uiState.mouse.position.tile,
-          scene
-        });
-        setWindowCursor(hoverItem ? 'pointer' : 'default');
-      }
+      updateHoverCursor(state);
       return;
     }
 
@@ -311,56 +514,11 @@ export const Cursor: ModeActions = {
     }
 
     if (item) {
-      // Multi-select drag: if the user starts dragging an item that's part of
-      // the persistent multi-selection, drag the whole selection together
-      // (ADR-0006). Otherwise drag just this item (and the selection collapses
-      // to it via the mouseup path).
-      const selectedIds = uiState.selectedIds ?? [];
-      const inMultiSelect =
-        selectedIds.length > 1 &&
-        selectedIds.some(
-          (ref) => ref.type === item?.type && ref.id === item?.id
-        );
-      const dragItems: ItemReference[] = inMultiSelect ? selectedIds : [item];
-
-      const initialTiles: Record<string, Coords> = {};
-      const initialRectangles: Record<string, { from: Coords; to: Coords }> =
-        {};
-      for (const dragItem of dragItems) {
-        if (dragItem.type === 'ITEM') {
-          try {
-            initialTiles[dragItem.id] = getItemByIdOrThrow(
-              scene.items,
-              dragItem.id
-            ).value.tile;
-          } catch {}
-        } else if (dragItem.type === 'TEXTBOX') {
-          try {
-            initialTiles[dragItem.id] = getItemByIdOrThrow(
-              scene.textBoxes,
-              dragItem.id
-            ).value.tile;
-          } catch {}
-        } else if (dragItem.type === 'RECTANGLE') {
-          try {
-            const r = getItemByIdOrThrow(scene.rectangles, dragItem.id).value;
-            initialRectangles[dragItem.id] = { from: r.from, to: r.to };
-          } catch {}
-        } else if (dragItem.type === 'CONNECTOR_ANCHOR') {
-          // Mirror Lasso.mousemove's anchor-seeding (modes/Lasso.ts). Without
-          // this entry, DragItems treats the anchor as an "anchor reconnect"
-          // (no initialTiles → re-anchor to cursor tile every frame). That's
-          // the inversion + pinched-path symptom when Ctrl+A includes
-          // free-floating waypoints. ADR-0006.
-          for (const connector of scene.connectors) {
-            const anchor = connector.anchors.find((a) => a.id === dragItem.id);
-            if (anchor?.ref?.tile) {
-              initialTiles[dragItem.id] = anchor.ref.tile;
-              break;
-            }
-          }
-        }
-      }
+      const dragItems = resolveDragItems(uiState, item);
+      const { initialTiles, initialRectangles } = collectDragInitialPositions(
+        scene,
+        dragItems
+      );
       uiState.actions.setMode({
         type: 'DRAG_ITEMS',
         showCursor: true,
@@ -368,32 +526,26 @@ export const Cursor: ModeActions = {
         initialTiles,
         initialRectangles
       });
-    } else {
+    } else if (uiState.mouse.mousedown && uiState.mode.mousedownHandled) {
       // Empty-area drag → start lasso selection (only when mousedown was properly handled)
-      if (uiState.mouse.mousedown && uiState.mode.mousedownHandled) {
-        uiState.actions.setMode({
-          type: 'LASSO',
-          showCursor: true,
-          selection: null,
-          isDragging: false
-        });
-      }
+      uiState.actions.setMode({
+        type: 'LASSO',
+        showCursor: true,
+        selection: null,
+        isDragging: false
+      });
     }
   },
   mousedown,
-  mouseup: ({ uiState, scene, isRendererInteraction }) => {
+  mouseup: (state) => {
+    const { uiState, isRendererInteraction } = state;
     if (uiState.mode.type !== 'CURSOR' || !isRendererInteraction) return;
 
     // Alt+click waypoint splice ran in mousedown — bypass all selection logic.
     // Just reset the mousedown bookkeeping; the connector stays selected.
     if (altSpliceConsumed) {
       altSpliceConsumed = false;
-      uiState.actions.setMode(
-        produce(uiState.mode, (draft) => {
-          draft.mousedownItem = null;
-          draft.mousedownHandled = false;
-        })
-      );
+      setMousedownBookkeeping(state, null, false);
       return;
     }
 
@@ -402,87 +554,22 @@ export const Cursor: ModeActions = {
     // mousedown was tracked and no item was registered. Ignore the mouseup so
     // the panel doesn't dismiss when the user just selected text past its edge.
     if (!uiState.mouse.mousedown && !uiState.mode.mousedownHandled) {
-      uiState.actions.setMode(
-        produce(uiState.mode, (draft) => {
-          draft.mousedownItem = null;
-          draft.mousedownHandled = false;
-        })
-      );
+      setMousedownBookkeeping(state, null, false);
       return;
     }
 
     const hasMoved = uiState.mouse.mousedown && hasMovedTile(uiState.mouse);
 
     if (uiState.mode.mousedownItem && !hasMoved) {
-      const clicked = uiState.mode.mousedownItem;
-      const ctrlHeld =
-        uiState.mouse.modifiers?.ctrl || uiState.mouse.modifiers?.meta;
-      // CONNECTOR-on-tile needs the tile for the panel — keep using
-      // setItemControls (which mirrors into selectedIds internally).
-      // For all other types, route through the multi-select gesture path:
-      // Ctrl+click → toggle, plain click → replace.
-      // Optional-call the new actions so mode-action unit tests that mock a
-      // minimal uiState.actions continue to work (ADR-0006).
-      if (clicked.type === 'CONNECTOR') {
-        if (ctrlHeld && uiState.actions.setSelectedIds) {
-          // Ctrl+click a connector: toggle the connector AND its tile-bound
-          // waypoint anchors as one group — waypoints can't be independently
-          // selected via click (they're not hit-tested), so they must
-          // accompany the connector to remain consistent with Ctrl+A and
-          // lasso semantics. ADR-0006.
-          const connector = scene.connectors.find(
-            (c: { id: string }) => c.id === clicked.id
-          );
-          const waypointRefs = connector
-            ? getConnectorWaypointRefs(connector)
-            : [];
-          const groupIds = new Set<string>([
-            clicked.id,
-            ...waypointRefs.map((r) => r.id)
-          ]);
-          const current = uiState.selectedIds ?? [];
-          const isInSelection = current.some(
-            (r) => r.type === 'CONNECTOR' && r.id === clicked.id
-          );
-          const next: ItemReference[] = isInSelection
-            ? current.filter((r) => !groupIds.has(r.id))
-            : [
-                ...current,
-                { type: 'CONNECTOR' as const, id: clicked.id },
-                ...waypointRefs
-              ];
-          uiState.actions.setSelectedIds(next);
-        } else {
-          uiState.actions.setItemControls({
-            type: 'CONNECTOR',
-            id: clicked.id,
-            tile: uiState.mouse.position.tile
-          });
-        }
-      } else {
-        const ref: ItemReference = { type: clicked.type, id: clicked.id };
-        if (ctrlHeld && uiState.actions.toggleSelected) {
-          uiState.actions.toggleSelected(ref);
-        } else if (uiState.actions.setSelectedIds) {
-          uiState.actions.setSelectedIds([ref]);
-        } else {
-          // Pre-ADR-0006 test mocks — fall back to the single-item path.
-          uiState.actions.setItemControls({ type: clicked.type, id: clicked.id });
-        }
-      }
-    } else if (!hasMoved && uiState.mode.mousedownHandled) {
-      // Plain left-click on empty canvas — clear the persistent selection.
-      // Adding items is handled by double-click (QuickAddNodePopover).
-      (uiState.actions.clearSelection ?? (() => uiState.actions.setItemControls(null)))();
+      resolveClickSelection(state, uiState.mode.mousedownItem);
     } else {
-      (uiState.actions.clearSelection ?? (() => uiState.actions.setItemControls(null)))();
+      // Plain left-click on empty canvas, or the tail of a completed drag —
+      // clear the persistent selection. (Adding items is handled by
+      // double-click via QuickAddNodePopover.)
+      (uiState.actions.clearSelection ??
+        (() => uiState.actions.setItemControls(null)))();
     }
 
-    uiState.actions.setMode(
-      produce(uiState.mode, (draft) => {
-        draft.mousedownItem = null;
-        draft.mousedownHandled = false;
-      })
-    );
+    setMousedownBookkeeping(state, null, false);
   }
 };
