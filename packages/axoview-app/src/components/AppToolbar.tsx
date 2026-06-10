@@ -205,7 +205,7 @@ export function AppToolbar() {
                   <IconButton
                     size="small"
                     onClick={handleSaveClick}
-                    disabled={!!currentDiagramId && !hasUnsavedChanges}
+                    disabled={!currentDiagram || !hasUnsavedChanges}
                     data-axoview-id="toolbar-save"
                     sx={{ borderRadius: 1, color: 'primary.main' }}
                   >
