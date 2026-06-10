@@ -11,13 +11,12 @@ import { RECTANGLE_DEFAULTS, TEXTBOX_DEFAULTS } from 'src/config';
 import { getItemByIdOrThrow } from 'src/utils';
 
 export const useSceneData = () => {
-  const { views, colors, icons, items, version, title, description } =
+  const { views, colors, icons, version, title, description } =
     useModelStore(
       (state) => ({
         views: state.views,
         colors: state.colors,
         icons: state.icons,
-        items: state.items,
         version: state.version,
         title: state.title,
         description: state.description

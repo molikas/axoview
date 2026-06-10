@@ -1,5 +1,5 @@
 import React, { useMemo, memo, useEffect, useState, useCallback } from 'react';
-import { Box, Typography, Tooltip } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { OpenInNew as OpenInNewIcon } from '@mui/icons-material';
 import { useSceneStore } from 'src/stores/sceneStore';
 import {

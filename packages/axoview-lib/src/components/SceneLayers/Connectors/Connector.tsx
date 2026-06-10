@@ -15,7 +15,7 @@ interface Props {
   currentView: ReturnType<typeof useScene>['currentView'];
 }
 
-export const Connector = memo(({ connector, currentView }: Props) => {
+export const Connector = memo(({ connector }: Props) => {
   useRenderProbe('Connector', connector.id);
   const theme = useTheme();
 

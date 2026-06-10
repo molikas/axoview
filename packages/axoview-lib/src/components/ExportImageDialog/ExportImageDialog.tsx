@@ -31,7 +31,7 @@ import {
   generateGenericFilename,
   modelFromModelStore
 } from 'src/utils';
-import { ModelStore, Size, Coords } from 'src/types';
+import { ModelStore, Coords } from 'src/types';
 import { useDiagramUtils } from 'src/hooks/useDiagramUtils';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { Axoview } from 'src/Axoview';
@@ -109,7 +109,7 @@ function drawCropSelection(
   ctx.strokeRect(cropArea.x, cropArea.y, cropArea.width, cropArea.height);
 }
 
-export const ExportImageDialog = memo(({ onClose, quality = 1.5 }: Props) => {
+export const ExportImageDialog = memo(({ onClose }: Props) => {
   const { t } = useTranslation('exportImageDialog');
   const containerRef = useRef<HTMLDivElement>(null);
   const cropCanvasRef = useRef<HTMLCanvasElement>(null);

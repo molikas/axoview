@@ -74,7 +74,6 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
       enableDebugTools = false,
       editorMode = 'EDITABLE',
       renderer,
-      locale = enUS,
       iconPackManager,
       iconUsageScan,
       linkedDiagrams,

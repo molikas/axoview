@@ -1,9 +1,7 @@
-import React from 'react';
-
 interface Props {
   anchorEl?: HTMLElement | null;
 }
 
-export const ContextMenuManager = ({ anchorEl }: Props) => {
+export const ContextMenuManager = (_props: Props) => {
   return null;
 };
