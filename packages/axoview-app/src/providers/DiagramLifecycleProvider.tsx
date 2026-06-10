@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { flattenCollections } from '@isoflow/isopacks/dist/utils';
 import isoflowIsopack from '@isoflow/isopacks/dist/isoflow';
 import type { AxoviewRef, InitialData, Model, Icon } from 'axoview';
-import { DiagramData } from '../diagramUtils';
+import { DiagramData, SavedDiagram } from '../diagramUtils';
 import {
   PersistedDiagramBlob,
   isPersistedDiagramBlob
@@ -63,13 +63,7 @@ function setWithout(prev: Set<string>, ...items: string[]): Set<string> {
   return next;
 }
 
-export interface SavedDiagram {
-  id: string;
-  name: string;
-  data: DiagramData;
-  createdAt: string;
-  updatedAt: string;
-}
+export type { SavedDiagram };
 
 interface PendingConfirm {
   message: string;

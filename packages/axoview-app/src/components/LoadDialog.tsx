@@ -17,15 +17,7 @@ import {
   DeleteOutline as DeleteIcon,
   FileOpenOutlined as LoadIcon
 } from '@mui/icons-material';
-import type { DiagramData } from '../diagramUtils';
-
-interface SavedDiagram {
-  id: string;
-  name: string;
-  data: DiagramData;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { SavedDiagram } from '../diagramUtils';
 
 interface Props {
   diagrams: SavedDiagram[];
