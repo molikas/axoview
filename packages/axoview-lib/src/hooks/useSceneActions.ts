@@ -609,7 +609,6 @@ export const useSceneActions = () => {
   const deleteView = useCallback(
     (viewId: string) => {
       const views = modelStoreApi.getState().views;
-      const currentView = sceneStoreApi.getState();
       const activViewId = currentViewId;
       if (views.length <= 1) return;
 
@@ -634,8 +633,7 @@ export const useSceneActions = () => {
       setState,
       saveToHistoryBeforeChange,
       changeView,
-      modelStoreApi,
-      sceneStoreApi
+      modelStoreApi
     ]
   );
 
