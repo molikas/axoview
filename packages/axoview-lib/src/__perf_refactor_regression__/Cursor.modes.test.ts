@@ -13,8 +13,8 @@ import { Cursor } from 'src/interaction/modes/Cursor';
 // ---------------------------------------------------------------------------
 // Mocks
 // ---------------------------------------------------------------------------
-const mockGetItemAtTile = jest.fn(() => null);
-const mockHasMovedTile = jest.fn(() => false);
+const mockGetItemAtTile = jest.fn<any, any>(() => null);
+const mockHasMovedTile = jest.fn<any, any>(() => false);
 
 jest.mock('src/utils', () => ({
   getItemAtTile: (...args: any[]) => mockGetItemAtTile(...args),
@@ -94,7 +94,7 @@ function callMouseup(uiState: any, isRendererInteraction = true) {
   } as any);
 }
 
-function callMousemove(uiState: any, scene = makeScene()) {
+function callMousemove(uiState: any, scene: any = makeScene()) {
   Cursor.mousemove!({ uiState, scene, isRendererInteraction: true } as any);
 }
 
@@ -386,7 +386,9 @@ describe('Cursor.mousemove (real module)', () => {
       connectors: [],
       items: [],
       rectangles: [],
-      textBoxes: [{ id: 'tb1', tile: { x: 5, y: 5 } }]
+      textBoxes: [{ id: 'tb1', tile: { x: 5, y: 5 } }],
+      hitConnectors: [],
+      currentView: { items: [], connectors: [] }
     };
     callMousemove(uiState, scene);
     expect(uiState.actions.setMode).toHaveBeenCalledWith(

@@ -14,9 +14,9 @@ import { Lasso } from 'src/interaction/modes/Lasso';
 // ---------------------------------------------------------------------------
 // Mock dependencies
 // ---------------------------------------------------------------------------
-const mockIsWithinBounds = jest.fn(() => false);
+const mockIsWithinBounds = jest.fn<any, any>(() => false);
 const mockHasMovedTile = jest.fn(() => false);
-const mockSegmentIntersectsRect = jest.fn(() => false);
+const mockSegmentIntersectsRect = jest.fn<any, any>(() => false);
 
 jest.mock('src/utils', () => ({
   isWithinBounds: (...args: any[]) => mockIsWithinBounds(...args),

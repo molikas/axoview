@@ -12,7 +12,7 @@ import { Connector } from 'src/interaction/modes/Connector';
 // ---------------------------------------------------------------------------
 const mockSetWindowCursor = jest.fn();
 const mockGetItemAtTile = jest.fn<any, any>(() => null);
-const mockHasMovedTile = jest.fn(() => true);
+const mockHasMovedTile = jest.fn<any, any>(() => true);
 let idCounter = 0;
 const mockGenerateId = jest.fn(() => `id-${++idCounter}`);
 

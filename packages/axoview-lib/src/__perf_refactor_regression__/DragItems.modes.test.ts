@@ -12,7 +12,7 @@ import { DragItems } from 'src/interaction/modes/DragItems';
 // ---------------------------------------------------------------------------
 const mockSetWindowCursor = jest.fn();
 const mockGetItemAtTile = jest.fn<any, any>(() => null);
-const mockGetItemByIdOrThrow = jest.fn((arr: any[], id: string) => {
+const mockGetItemByIdOrThrow = jest.fn<any, any>((arr: any[], id: string) => {
   const index = arr.findIndex((i: any) => i.id === id);
   if (index === -1) throw new Error(`Not found: ${id}`);
   return { index, value: arr[index] };

@@ -226,7 +226,7 @@ describe('View operations integration — C-2 regression', () => {
       const result = updateView({ name: 'A-new' }, ctx(state, 'v1'));
 
       expect(result.model.views[1].connectors).toHaveLength(1);
-      expect(result.model.views[1].connectors[0].id).toBe('c1');
+      expect(result.model.views[1].connectors![0].id).toBe('c1');
     });
   });
 });
