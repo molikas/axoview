@@ -25,6 +25,7 @@ import { LocalModeShareErrorDialog } from './components/LocalModeShareErrorDialo
 import { ReadonlyLoadErrorDialog } from './components/ReadonlyLoadErrorDialog';
 import { PublicShareLoadErrorDialog } from './components/PublicShareLoadErrorDialog';
 import { SaveErrorDialog } from './components/SaveErrorDialog';
+import { ImportErrorDialog } from './components/ImportErrorDialog';
 import { ExportProjectZipDialog } from './components/fileExplorer/ExportProjectZipDialog';
 import { ImportDialog } from './components/fileExplorer/ImportDialog';
 import { parseProject, importProject } from './services/project/projectZip';
@@ -157,6 +158,7 @@ function EditorShell() {
   const [linkedDiagrams, setLinkedDiagrams] = useState<Array<{ id: string; name: string }>>([]);
   const [treeIsEmpty, setTreeIsEmpty] = useState(true);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importError, setImportError] = useState(false);
   const importFileInputRef = useRef<HTMLInputElement>(null);
 
   // Lib dispatches two custom events for diagram-link affordances:
@@ -256,8 +258,10 @@ function EditorShell() {
         await openDiagramById(newId, name);
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Import failed';
-      notificationStore.push({ severity: 'error', message: msg });
+      // ADR 0011 — failure-of-intent: the user picked a file to import and it
+      // could not be parsed. Surface the explicit dialog instead of a toast.
+      console.error('handleDirectImportFile failed:', err);
+      setImportError(true);
     }
   }, [storage, refreshFileTree, openDiagramById, setFileExplorerOpen]);
 
@@ -443,6 +447,13 @@ function EditorShell() {
         open={saveError}
         onDismiss={clearSaveError}
         onRetry={retrySave}
+      />
+
+      {/* ADR 0011 — direct (empty-tree) file import parse failure. No retry;
+          re-picking a file is the recovery affordance. */}
+      <ImportErrorDialog
+        open={importError}
+        onDismiss={() => setImportError(false)}
       />
 
       <DiagnosticsOverlay />
