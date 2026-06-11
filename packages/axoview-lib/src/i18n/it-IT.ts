@@ -347,6 +347,9 @@ const locale: LocaleProps = {
     solo: 'Solo',
     unsolo: 'Esci da solo'
   },
+  viewModeInfoPopover: {
+    close: 'Chiudi'
+  },
   labelSettings: {
     description: 'Configura le impostazioni di visualizzazione delle etichette',
     expandButtonPadding: 'Spaziatura pulsante espandi',

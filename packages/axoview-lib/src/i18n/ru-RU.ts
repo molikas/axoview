@@ -345,6 +345,9 @@ const locale: LocaleProps = {
     solo: 'Соло',
     unsolo: 'Выйти из соло'
   },
+  viewModeInfoPopover: {
+    close: 'Закрыть'
+  },
   labelSettings: {
     description: 'Настройка параметров отображения меток',
     expandButtonPadding: 'Отступ кнопки развернуть',

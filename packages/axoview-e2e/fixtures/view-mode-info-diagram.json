@@ -1,0 +1,38 @@
+{
+  "title": "View-mode info popover fixture",
+  "description": "Item A carries a name, notes, and a headerLink so the view-mode info popover (ADR 0012) has content to render.",
+  "version": "",
+  "items": [
+    {
+      "id": "info-item-a",
+      "name": "Alpha service",
+      "icon": "fixture-icon-a",
+      "notes": "<p>See the <a href=\"https://example.com/runbook\">runbook</a> for details.</p>",
+      "headerLink": "https://example.com/alpha"
+    },
+    { "id": "info-item-b", "name": "Beta service", "icon": "fixture-icon-a" }
+  ],
+  "views": [
+    {
+      "id": "info-view-main",
+      "name": "Main view",
+      "items": [
+        { "id": "info-item-a", "tile": { "x": 0, "y": 0 } },
+        { "id": "info-item-b", "tile": { "x": 3, "y": 0 } }
+      ],
+      "connectors": [],
+      "rectangles": [],
+      "textBoxes": []
+    }
+  ],
+  "icons": [
+    {
+      "id": "fixture-icon-a",
+      "name": "fixture",
+      "url": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%23999'/></svg>",
+      "collection": "imported",
+      "isIsometric": false
+    }
+  ],
+  "colors": [{ "id": "color-default", "value": "#000000" }]
+}

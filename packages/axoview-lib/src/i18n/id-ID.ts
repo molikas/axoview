@@ -344,6 +344,9 @@ const locale: LocaleProps = {
     solo: 'Solo',
     unsolo: 'Keluar dari solo'
   },
+  viewModeInfoPopover: {
+    close: 'Tutup'
+  },
   labelSettings: {
     description: 'Konfigurasi pengaturan tampilan label',
     expandButtonPadding: 'Padding tombol perluas',

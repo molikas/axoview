@@ -349,6 +349,9 @@ const locale: LocaleProps = {
     solo: 'Solo',
     unsolo: 'Quitter le solo'
   },
+  viewModeInfoPopover: {
+    close: 'Fermer'
+  },
   labelSettings: {
     description: "Configurer les paramètres d'affichage des étiquettes",
     expandButtonPadding: 'Rembourrage du bouton développer',

@@ -345,6 +345,9 @@ const locale: LocaleProps = {
     solo: 'Solo',
     unsolo: 'Sair do solo'
   },
+  viewModeInfoPopover: {
+    close: 'Fechar'
+  },
   labelSettings: {
     description: 'Configurar ajustes de exibição de rótulos',
     expandButtonPadding: 'Preenchimento do botão expandir',

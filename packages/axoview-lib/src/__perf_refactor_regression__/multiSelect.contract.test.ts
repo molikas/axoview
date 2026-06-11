@@ -50,6 +50,9 @@ describe('ADR-0006 — multi-select contract', () => {
       () => useUiStateStore((s) => ({ s, a: s.actions })),
       { wrapper }
     );
+    // Right-dock auto-open is an EDITABLE behavior (view mode uses the canvas
+    // popover instead — ADR 0012). The default store mode is read-only.
+    act(() => result.current.a.setEditorMode('EDITABLE'));
     act(() => result.current.a.setSelectedIds([itemB]));
     expect(result.current.s.selectedIds).toEqual([itemB]);
     expect(result.current.s.itemControls).toEqual({ type: 'ITEM', id: 'b' });
@@ -61,6 +64,7 @@ describe('ADR-0006 — multi-select contract', () => {
       () => useUiStateStore((s) => ({ s, a: s.actions })),
       { wrapper }
     );
+    act(() => result.current.a.setEditorMode('EDITABLE'));
     // First open the panel via a single selection so we can prove auto-hide
     // actually closes it on transition to multi.
     act(() => result.current.a.setSelectedIds([itemA]));
@@ -70,6 +74,23 @@ describe('ADR-0006 — multi-select contract', () => {
     act(() => result.current.a.setSelectedIds([itemA, itemB, itemC]));
     expect(result.current.s.selectedIds).toHaveLength(3);
     expect(result.current.s.itemControls).toBeNull();
+    expect(result.current.s.rightSidebarOpen).toBe(false);
+  });
+
+  it('view mode: single selection does NOT auto-open the right dock (ADR 0012)', () => {
+    const { result } = renderHook(
+      () => useUiStateStore((s) => ({ s, a: s.actions })),
+      { wrapper }
+    );
+    // Default store mode is EXPLORABLE_READONLY — info surfaces via the canvas
+    // popover, so selection must not auto-open the editing dock.
+    expect(result.current.s.editorMode).toBe('EXPLORABLE_READONLY');
+    act(() => result.current.a.setSelectedIds([itemB]));
+    expect(result.current.s.itemControls).toEqual({ type: 'ITEM', id: 'b' });
+    expect(result.current.s.rightSidebarOpen).toBe(false);
+
+    // Direct itemControls path (layer-row click) is likewise non-opening.
+    act(() => result.current.a.setItemControls({ type: 'ITEM', id: 'c' }));
     expect(result.current.s.rightSidebarOpen).toBe(false);
   });
 

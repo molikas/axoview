@@ -120,6 +120,10 @@ const initialState = () => {
             const { rightSidebarOpen, rightSidebarAutoOpened } = get();
             // If user manually pinned the panel open, don't mark it as auto-opened
             const alreadyPinned = rightSidebarOpen && !rightSidebarAutoOpened;
+            // View mode surfaces item info via the canvas popover (ADR 0012),
+            // so the right (editing) dock no longer auto-opens on selection
+            // there — a manually-pinned dock is respected; edit mode unchanged.
+            const inView = get().editorMode === 'EXPLORABLE_READONLY';
             // Keep selectedIds coherent when itemControls is set directly
             // (e.g. from a layer-row click). Multi-select stays as-is; single-
             // item selection mirrors itemControls into selectedIds.
@@ -130,11 +134,11 @@ const initialState = () => {
             set({
               itemControls,
               selectedIds: nextSelected,
-              rightSidebarOpen: true,
+              rightSidebarOpen: inView ? rightSidebarOpen : true,
               // New / changed selection always closes the floating action bar.
               // The bar is only opened by an explicit right-click (mqa-results.md #1).
               itemActionBarOpen: false,
-              ...(!alreadyPinned && { rightSidebarAutoOpened: true })
+              ...(!inView && !alreadyPinned && { rightSidebarAutoOpened: true })
             });
           } else {
             const autoOpened = get().rightSidebarAutoOpened;
@@ -157,12 +161,15 @@ const initialState = () => {
             const only = ids[0];
             const { rightSidebarOpen, rightSidebarAutoOpened } = get();
             const alreadyPinned = rightSidebarOpen && !rightSidebarAutoOpened;
+            // View mode reads item info via the canvas popover (ADR 0012) — no
+            // right-dock auto-open there (edit mode unchanged).
+            const inView = get().editorMode === 'EXPLORABLE_READONLY';
             set({
               selectedIds: ids,
               itemControls: { type: only.type, id: only.id },
-              rightSidebarOpen: true,
+              rightSidebarOpen: inView ? rightSidebarOpen : true,
               itemActionBarOpen: false,
-              ...(!alreadyPinned && { rightSidebarAutoOpened: true })
+              ...(!inView && !alreadyPinned && { rightSidebarAutoOpened: true })
             });
           } else {
             const autoOpened = get().rightSidebarAutoOpened;

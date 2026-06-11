@@ -350,6 +350,9 @@ const locale: LocaleProps = {
     solo: 'Solo',
     unsolo: 'Wyłącz solo'
   },
+  viewModeInfoPopover: {
+    close: 'Zamknij'
+  },
   labelSettings: {
     description: 'Konfiguracja ustawień wyświetlania etykiet',
     expandButtonPadding: 'Wypełnienie przycisku rozwiń',

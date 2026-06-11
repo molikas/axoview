@@ -347,6 +347,9 @@ const locale: LocaleProps = {
     solo: 'Solo',
     unsolo: 'Solo beenden'
   },
+  viewModeInfoPopover: {
+    close: 'Schließen'
+  },
   labelSettings: {
     description: 'Beschriftungsanzeigeeinstellungen konfigurieren',
     expandButtonPadding: 'Erweitern-Schaltfläche Innenabstand',

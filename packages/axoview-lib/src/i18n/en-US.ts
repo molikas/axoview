@@ -344,6 +344,9 @@ const locale: LocaleProps = {
     solo: 'Solo',
     unsolo: 'Exit solo'
   },
+  viewModeInfoPopover: {
+    close: 'Close'
+  },
   labelSettings: {
     description: 'Configure label display settings',
     expandButtonPadding: 'Expand Button Padding',

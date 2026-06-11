@@ -81,12 +81,12 @@ edit-mode dock behavior.
 
 ## Sub-tasks
 
-### A. View-mode item info popover (ADR 0012)
-- [ ] Build the canvas-anchored Popover (hover-intent preview + click-to-pin, Esc/click-away/X).
-- [ ] Read-only notes render with sanitised clickable links; surface `headerLink`.
-- [ ] Suppress right-dock auto-open in `EXPLORABLE_READONLY` (edit mode untouched).
-- [ ] Parity: node, connector, rectangle, textbox.
-- [ ] Suppress popover when item has no `name`/`notes`/`headerLink`.
+### A. View-mode item info popover (ADR 0012) — ✅ shipped
+- [x] Build the canvas-anchored popover (`ViewModeInfoPopover`, same SceneLayer + 1/zoom counter-scale as `NodeActionBar`): hover-intent preview (via `getItemAtTile` on `mouse.position.tile`) + click-to-pin, Esc/click-away/X close.
+- [x] Read-only notes render via the shared `RichTextEditor readOnly` (sanitised links); `headerLink` surfaced as a `target=_blank rel=noopener` affordance.
+- [x] Suppress right-dock auto-open in `EXPLORABLE_READONLY` (`setItemControls`/`setSelectedIds` gate `rightSidebarOpen` on editor mode; a manually-pinned dock is respected). Edit mode untouched.
+- [x] Parity: node, connector, rectangle, textbox (single popover, per-type name/notes/link table).
+- [x] Suppress popover when item has no `name`/`notes`/`headerLink` (`hasInfoPopoverContent`). + `close` locale string × 13.
 
 ### B. Preview-mode layer switcher (ADR 0013) — ✅ shipped
 - [x] uiState `previewLayerOverrides` slice (hiddenLayerIds + soloLayerId) + `togglePreviewLayerHidden` / `setPreviewSoloLayer` / `clearPreviewLayerOverrides`; cleared on `setView` + `setEditorMode`.
@@ -126,7 +126,7 @@ edit-mode dock behavior.
 Do this **per thread**, not as a deferred clean-up pass:
 - [ ] **Unit tests** for each new store slice / pure helper (popover content gate, layer-override merge, annotation persistence-exclusion, zoom-center preservation math, label counter-scale math).
 - [ ] **E2E tests** (`packages/axoview-e2e/`) for each user-visible flow, with a POM per surface:
-  - [ ] View-mode popover: hover preview, click-pin, Esc/click-away close, link present.
+  - [x] View-mode popover: hover preview, click-pin, Esc/click-away close, link present. (`view-mode-info-popover.spec.ts` + `hasInfoPopoverContent.test.ts`)
   - [x] Preview layer switcher: toggle + solo change canvas; diagram stays non-dirty. (`preview-layer-switcher.spec.ts` + `previewLayerVisibility.test.ts`)
   - [ ] Annotation: open palette, draw, collapse-hides / expand-shows, Clear wipes; **save/export contain no annotation data**.
   - [x] Iso↔2D: zoom % is preserved across a round-trip switch (no 65→80→97 pop). (`canvas-mode-zoom-preserve.spec.ts`)

@@ -343,6 +343,9 @@ const locale: LocaleProps = {
     solo: 'একক',
     unsolo: 'একক থেকে বেরিয়ে আসুন'
   },
+  viewModeInfoPopover: {
+    close: 'বন্ধ করুন'
+  },
   labelSettings: {
     description: 'লেবেল প্রদর্শন সেটিংস কনফিগার করুন',
     expandButtonPadding: 'বিস্তার বোতাম প্যাডিং',

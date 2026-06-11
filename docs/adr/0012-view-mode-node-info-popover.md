@@ -1,6 +1,6 @@
 # ADR 0012 — View-Mode Item Info Popover
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06-11
 **Supersedes:** none
 **Superseded by:** none

@@ -334,6 +334,9 @@ export interface LocaleProps {
     solo: string;
     unsolo: string;
   };
+  viewModeInfoPopover: {
+    close: string;
+  };
   labelSettings: {
     description: string;
     expandButtonPadding: string;

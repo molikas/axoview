@@ -345,6 +345,9 @@ const locale: LocaleProps = {
     solo: 'Solo',
     unsolo: 'Solodan çık'
   },
+  viewModeInfoPopover: {
+    close: 'Kapat'
+  },
   labelSettings: {
     description: 'Etiket görüntüleme ayarlarını yapılandır',
     expandButtonPadding: 'Genişlet düğmesi dolgusu',

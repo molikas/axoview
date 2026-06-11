@@ -331,6 +331,9 @@ const locale: LocaleProps = {
     solo: '单独显示',
     unsolo: '退出单独显示'
   },
+  viewModeInfoPopover: {
+    close: '关闭'
+  },
   labelSettings: {
     description: '配置标签显示设置',
     expandButtonPadding: '展开按钮内边距',

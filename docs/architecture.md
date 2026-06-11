@@ -231,6 +231,8 @@ Full mermaid tree in [technical-review §3d](technical-review-2026-06.md#3d-comp
 
 Dock components: `LeftDock` (Elements / Layers tabs, `activeLeftTab`), `RightSidebar` (`itemControls` properties, `rightSidebarOpen`), and the per-view **Layer system** (`view.layers: Layer[]`; `LayerContextProvider` derives `visibleIds`/`lockedIds`/grouping; `useLayerActions` dispatches view reducers). Read those component files for current props — they drift.
 
+**View-mode info popover** (ADR 0012): in `EXPLORABLE_READONLY` the right editing dock no longer auto-opens on selection (`setItemControls`/`setSelectedIds` gate `rightSidebarOpen` on editor mode). Instead `ViewModeInfoPopover` (canvas-anchored in `UiOverlay`, same SceneLayer + 1/zoom counter-scale as `NodeActionBar`) surfaces an item's name / read-only notes / `headerLink`: hover (via `getItemAtTile` on `mouse.position.tile`, with a hover-intent delay) → preview; click (selection) → pinned, closed by X / Esc / click-away. Parity across node/connector/rectangle/textbox; gated by `hasInfoPopoverContent` (name, notes, or headerLink).
+
 **Preview-mode layer switcher** (ADR 0013): in `EXPLORABLE_READONLY`, `PreviewLayerSwitcher` (bottom-left `UiOverlay` overlay, shown only with ≥2 layers) drives a UI-only `uiState.previewLayerOverrides` (`{ hiddenLayerIds, soloLayerId }`). `LayerContextProvider` merges it into `visibleIds` via `isEntityVisibleInPreview` (solo wins; else base `layer.visible` minus hidden) — **only in view mode; `EDITABLE` derivation is unchanged**. The override never mutates `layer.visible`, is never persisted/saved (presenting can't dirty the diagram), and is cleared on `setView`/`setEditorMode`.
 
 ### 2i. Event Propagation

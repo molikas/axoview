@@ -28,6 +28,7 @@ import { ViewTabs } from 'src/components/ViewTabs/ViewTabs';
 import { NodeActionBar } from 'src/components/NodeActionBar/NodeActionBar';
 import { LassoLayerBar } from 'src/components/LassoLayerBar/LassoLayerBar';
 import { PreviewLayerSwitcher } from 'src/components/PreviewLayerSwitcher/PreviewLayerSwitcher';
+import { ViewModeInfoPopover } from 'src/components/ViewModeInfoPopover/ViewModeInfoPopover';
 
 type ToolName = 'TOOL_MENU' | 'ITEM_CONTROLS' | 'VIEW_TITLE' | 'VIEW_TABS';
 
@@ -307,6 +308,12 @@ export const UiOverlay = ({
 
         {/* Lasso layer assign bar */}
         {editorMode === EditorModeEnum.EDITABLE && <LassoLayerBar />}
+
+        {/* View-mode item info popover — canvas-anchored read surface that
+            replaces the right dock in EXPLORABLE_READONLY (ADR 0012). */}
+        {editorMode === EditorModeEnum.EXPLORABLE_READONLY && (
+          <ViewModeInfoPopover />
+        )}
       </SceneLayer>
     </>
   );

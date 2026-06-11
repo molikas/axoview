@@ -499,7 +499,11 @@ Node name labels live *inside* the zoom-scaled `SceneLayer`, so by default they 
 
 ### 8.10 View-mode presentation chrome is ephemeral
 
-View-only mode (`EXPLORABLE_READONLY`) is a *presentation* surface, not an editing one, so it gets lightweight chrome instead of the editing docks. The [`PreviewLayerSwitcher`](../packages/axoview-lib/src/components/PreviewLayerSwitcher/PreviewLayerSwitcher.tsx) (ADR 0013) is the pattern:
+View-only mode (`EXPLORABLE_READONLY`) is a *presentation* surface, not an editing one, so it gets lightweight chrome instead of the editing docks — the right Properties dock no longer auto-opens on selection there, and the left LayersPanel is replaced by a corner control. Two instances:
+
+[`ViewModeInfoPopover`](../packages/axoview-lib/src/components/ViewModeInfoPopover/ViewModeInfoPopover.tsx) (ADR 0012) — an item's name / read-only notes / link read **on the canvas** (hover → preview, click → pinned; Esc / X / click-away close), canvas-anchored and counter-scaled like §8.8 chrome, so reading stays in the diagram instead of bouncing to a 300px editing dock. Links are sanitised once via the shared read-only notes renderer and open in a new tab.
+
+[`PreviewLayerSwitcher`](../packages/axoview-lib/src/components/PreviewLayerSwitcher/PreviewLayerSwitcher.tsx) (ADR 0013) is the layer-control instance of the same idea:
 
 - **Placement & affordance:** a compact corner overlay (bottom-left, clear of `ViewTabs` and `ZoomControls`), semi-transparent at rest and full-opacity on hover (§2) — present but not obtrusive while presenting.
 - **Ephemeral, never destructive:** presentation controls apply a **UI-only override** (`uiState.previewLayerOverrides`), never mutating saved model state (`layer.visible`) and never dirtying/saving. The override clears on leaving preview or switching view. When a view-mode control mirrors an edit-mode one, keep the merge in **one** place (here, `LayerContextProvider`) with a documented precedence so the two visibility sources can't desync.
