@@ -115,11 +115,12 @@ edit-mode dock behavior.
 - [ ] Counter-scale labels below threshold (NodeActionBar §8.8 pattern), label-only.
 - [ ] Persist toggle across reload.
 
-### F. Clickable empty-state cards (locked decision #8 — no ADR)
-- [ ] In [`EmptyStateScreen.tsx`](../../packages/axoview-app/src/components/EmptyStateScreen.tsx), make the whole card the click target (wrap content in `CardActionArea`, or make the `Paper` a `role="button"` with `onClick` + keyboard Enter/Space + `cursor: pointer` + hover elevation).
-- [ ] Demote the inner blue `Button` to a non-interactive visual label so there is **no button-inside-button** (a11y). Keep the visual look.
-- [ ] **Preserve** the `data-axoview-id="screen-empty-create"` / `screen-empty-import` hooks (move them onto the new interactive element) — the [`EmptyStateScreenPOM`](../../packages/axoview-e2e/pom/EmptyStateScreenPOM.ts) and `smoke.spec.ts` rely on them.
-- [ ] Confirm hover/focus affordance reads as "this whole square is clickable."
+### F. Clickable empty-state cards (locked decision #8 — no ADR) — ✅ shipped
+- [x] In [`EmptyStateScreen.tsx`](../../packages/axoview-app/src/components/EmptyStateScreen.tsx), make the whole card the click target — content wrapped in `CardActionArea` (keyboard Enter/Space + ripple/hover for free).
+- [x] Demote the inner blue `Button` to a non-interactive visual label (`component="span"`, `tabIndex={-1}`, `aria-hidden`, `pointerEvents:'none'`) so there is **no button-inside-button**. Visual look preserved.
+- [x] **Preserve** the `data-axoview-id="screen-empty-create"` / `screen-empty-import` hooks — moved onto the `CardActionArea`; POM + `smoke.spec.ts` J20 still green.
+- [x] Confirm hover/focus affordance reads as "this whole square is clickable" — CardActionArea ripple/hover overlay covers the full card (clipped to the rounded corners), and `aria-label` gives the card its accessible name.
+- [x] Tests: `EmptyStateScreen.test.tsx` (6 cases — hooks, single interactive element, accessible name, click create/import, icon-region click) + `empty-state-clickable-card.spec.ts` E2E (icon-region click opens diagram; no nested button).
 
 ### X. Quality bar — applies to EVERY thread above (locked decision #9)
 Do this **per thread**, not as a deferred clean-up pass:
@@ -130,7 +131,7 @@ Do this **per thread**, not as a deferred clean-up pass:
   - [ ] Annotation: open palette, draw, collapse-hides / expand-shows, Clear wipes; **save/export contain no annotation data**.
   - [x] Iso↔2D: zoom % is preserved across a round-trip switch (no 65→80→97 pop). (`canvas-mode-zoom-preserve.spec.ts`)
   - [ ] Label toggle: on → labels readable at low zoom; persists across reload.
-  - [ ] Empty-state: clicking anywhere on each card fires create/import (extend `EmptyStateScreenPOM`).
+  - [x] Empty-state: clicking anywhere on each card fires create/import (`EmptyStateScreenPOM.clickCreateCardTop` + `empty-state-clickable-card.spec.ts`).
 - [ ] **Tech-debt sweep** of the files each thread touches — apply [[feedback_triage_rule]] (Bug=fix; minor improvement=fix; new functionality=Deferred register). Run `/audit` scope or `knip` if the surface is large; leave no dead code, no stale selectors, no orphaned props.
 - [ ] **Docs/notes refresh** where warranted: `docs/ux-principles.md` (new popover/overlay/label patterns), `docs/architecture.md` (new render layers / uiState slices), `known_issues.md`, and **all locale files** for any new UI strings (per ux-principles §7 — no English fallbacks).
 - [ ] CI green (unit + E2E + `knip` hard-fail) before any thread is marked done.

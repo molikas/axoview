@@ -113,7 +113,7 @@ Each row applies to Local + Session unless noted. Tick on verification. One-line
 | J17 | Help dialog: open → shortcuts listed match what J15 verified |✓|✓|✓| conditionally it seems like not all shortkuts are listes like alt+click|
 | J18 | Diagnostics overlay: toggle on → renders → toggle off → goes away |✓|✓|✓| the diagnostis overlay that we have in Setting. not sure what that is used for and how it is usefull. we might need to get rid of it, i usually use only the performance debug overlay.|
 | J19 | 2D canvas mode: toggle → switches projection cleanly → toggle back → return to iso |✓|✓|✓| passed|
-| J20 | Empty state: delete all diagrams → EmptyStateScreen renders → "New / Import" buttons work |✓|✓|✓|passed|
+| J20 | Empty state: delete all diagrams → EmptyStateScreen renders → "New / Import" cards work (whole card clickable) |✓|✓|✓|passed|
 
 **Tick legend:** `✓` = works · `✗` = broken (add a finding) · `~` = works but with a note · blank = not yet walked.
 

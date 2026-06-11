@@ -295,6 +295,8 @@ After import, autosave, or any operation a user might worry about:
 
 The `EmptyStateScreen` shows BOTH "New diagram" AND "Import" cards. Empty doesn't mean "you can only do one thing here" — it means "tell us what you want to do."
 
+Each card is **clickable as a whole square**, not just the inner blue label — users read the big card as the target, so the entire `CardActionArea` carries the click. The blue pill is a non-interactive visual label (no button-inside-button: the card is the single focusable, keyboard-activatable control, with an `aria-label`). This is the §2 affordance rule applied to a full-card target.
+
 ### 6.3 Validation failures surface to the user, not just the console
 
 A failed schema parse, a malformed import, or a rejected save must call `uiStateActions.setNotification({ severity: 'error', message })` with at least the first 1–2 violations summarised in plain English. `console.error` alone is not enough — users don't open devtools.
