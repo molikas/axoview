@@ -18,6 +18,7 @@ export interface PersistedSettings {
   labelSettings?: LabelSettings;
   connectorInteractionMode?: ConnectorInteractionMode;
   expandLabels?: boolean;
+  readableLabels?: boolean;
   canvasMode?: CanvasMode;
 }
 

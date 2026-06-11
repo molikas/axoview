@@ -333,6 +333,7 @@ const locale: LocaleProps = {
     zoomOut: 'জুম আউট',
     zoomIn: 'জুম ইন',
     fitToScreen: 'স্ক্রিনে ফিট করুন',
+    keepLabelsReadable: 'লেবেল পঠনযোগ্য রাখুন',
     help: 'সাহায্য (F1)'
   },
   labelSettings: {

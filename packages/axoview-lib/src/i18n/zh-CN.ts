@@ -321,6 +321,7 @@ const locale: LocaleProps = {
     zoomOut: '缩小',
     zoomIn: '放大',
     fitToScreen: '适应屏幕',
+    keepLabelsReadable: '保持标签清晰可读',
     help: '帮助 (F1)'
   },
   labelSettings: {

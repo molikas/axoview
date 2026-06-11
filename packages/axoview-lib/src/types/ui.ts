@@ -229,6 +229,12 @@ export interface UiState {
   labelSettings: LabelSettings;
   connectorInteractionMode: ConnectorInteractionMode;
   expandLabels: boolean;
+  /**
+   * Opt-in "keep labels readable" toggle (ADR 0015). When on, node name labels
+   * counter-scale up to a legible floor below a zoom threshold so they stay
+   * readable when zoomed out. Off by default; persisted across reload.
+   */
+  readableLabels: boolean;
   iconPackManager: IconPackManagerProps | null;
   iconUsageScan: IconUsageScan | null;
   linkedDiagrams: Array<{ id: string; name: string }>;
@@ -280,6 +286,7 @@ export interface UiStateActions {
   setLabelSettings: (settings: LabelSettings) => void;
   setConnectorInteractionMode: (mode: ConnectorInteractionMode) => void;
   setExpandLabels: (expand: boolean) => void;
+  setReadableLabels: (readable: boolean) => void;
   setIconPackManager: (iconPackManager: IconPackManagerProps | null) => void;
   setIconUsageScan: (scan: IconUsageScan | null) => void;
   setLinkedDiagrams: (diagrams: Array<{ id: string; name: string }>) => void;

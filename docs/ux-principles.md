@@ -489,6 +489,14 @@ const counter = Math.min(1, 1 / zoom);  // shrinks with scene at low zoom
 
 MUI `<Menu>` spawned from such chrome renders via Portal at the document root — already screen-stable; no counter-scale needed there.
 
+### 8.9 Node labels stay readable on demand (opt-in counter-scale)
+
+Node name labels live *inside* the zoom-scaled `SceneLayer`, so by default they shrink with the canvas — correct for most editing, but unreadable on a zoomed-out overview. The **"keep labels readable" toggle** (the "Aa" button in [`ZoomControls`](../packages/axoview-lib/src/components/ZoomControls/ZoomControls.tsx), `uiState.readableLabels`, persisted, **off by default**) opts into a counter-scale (ADR 0015):
+
+- Below the threshold `minReadablePx / baseFontPx`, the label counter-scales by `min(minReadablePx / (baseFontPx · zoom), maxCounterScale)` so its on-screen size holds at a legible floor; above it, the factor is exactly 1. Pure math in [`labelScale.ts`](../packages/axoview-lib/src/utils/labelScale.ts); tunables in [`labelSettings.ts`](../packages/axoview-lib/src/config/labelSettings.ts).
+- **Label-only** — node geometry is untouched. [`ExpandableLabel`](../packages/axoview-lib/src/components/Label/ExpandableLabel.tsx) publishes the factor as the `--axoview-label-scale` CSS custom property via the §8.8 direct-DOM zoom subscription (no React render on zoom); [`Label`](../packages/axoview-lib/src/components/Label/Label.tsx) composes `scale(var(--axoview-label-scale, 1))` after its translate, about `transformOrigin: bottom center` so the stalk-attachment point stays fixed. The default `1` makes it a no-op for non-node Labels (e.g. ConnectorLabel).
+- **Opt-in by design:** counter-scaled labels can overlap on dense diagrams, so it is never forced on. It is the user's choice when reading a zoomed-out overview, where unreadable text is the worse failure.
+
 ---
 
 ## 9. Reference implementations

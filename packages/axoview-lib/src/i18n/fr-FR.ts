@@ -339,6 +339,7 @@ const locale: LocaleProps = {
     zoomOut: 'Zoom arrière',
     zoomIn: 'Zoom avant',
     fitToScreen: "Ajuster à l'écran",
+    keepLabelsReadable: 'Garder les étiquettes lisibles',
     help: 'Aide (F1)'
   },
   labelSettings: {

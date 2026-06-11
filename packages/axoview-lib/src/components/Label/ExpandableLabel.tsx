@@ -5,7 +5,13 @@ import { useResizeObserver } from 'src/hooks/useResizeObserver';
 import { Gradient } from 'src/components/Gradient/Gradient';
 import { ExpandButton } from './ExpandButton';
 import { Label, Props as LabelProps } from './Label';
-import { useUiStateStore } from 'src/stores/uiStateStore';
+import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
+import { computeLabelCounterScale } from 'src/utils/labelScale';
+import {
+  LABEL_BASE_FONT_PX,
+  LABEL_MIN_READABLE_PX,
+  LABEL_MAX_COUNTER_SCALE
+} from 'src/config/labelSettings';
 
 type Props = Omit<LabelProps, 'maxHeight'> & {
   onToggleExpand?: (isExpanded: boolean) => void;
@@ -28,6 +34,8 @@ export const ExpandableLabel = ({
   );
   const [isExpanded, setIsExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const counterScaleRef = useRef<HTMLDivElement>(null);
+  const storeApi = useUiStateStoreApi();
   const { observe, size: contentSize } = useResizeObserver();
 
   useEffect(() => {
@@ -35,6 +43,38 @@ export const ExpandableLabel = ({
 
     observe(contentRef.current);
   }, [observe]);
+
+  // "Keep labels readable" (ADR 0015): counter-scale the node name label up to
+  // a legible floor below a zoom threshold. Driven by a direct DOM subscription
+  // to uiState.zoom (the §8.8 / NodeActionBar pattern) so panning/zooming never
+  // re-renders React; the scale is published as a CSS custom property the Label
+  // composes into its transform. Label-only — node geometry is untouched.
+  useEffect(() => {
+    const apply = () => {
+      if (!counterScaleRef.current) return;
+      const { zoom, readableLabels } = storeApi.getState();
+      const scale = computeLabelCounterScale(zoom, {
+        enabled: readableLabels,
+        baseFontPx: LABEL_BASE_FONT_PX,
+        minReadablePx: LABEL_MIN_READABLE_PX,
+        maxCounterScale: LABEL_MAX_COUNTER_SCALE
+      });
+      counterScaleRef.current.style.setProperty(
+        '--axoview-label-scale',
+        String(scale)
+      );
+    };
+    apply();
+    return storeApi.subscribe((state, prev) => {
+      if (
+        state.zoom === prev.zoom &&
+        state.readableLabels === prev.readableLabels
+      ) {
+        return;
+      }
+      apply();
+    });
+  }, [storeApi]);
 
   const effectiveExpanded = useMemo(() => {
     // Only force expand in NON_INTERACTIVE mode (export preview)
@@ -68,11 +108,12 @@ export const ExpandableLabel = ({
   }, [effectiveExpanded]);
 
   return (
-    <Label
-      {...rest}
-      maxHeight={containerMaxHeight}
-      maxWidth={effectiveExpanded ? rest.maxWidth * 1.5 : rest.maxWidth}
-    >
+    <Box ref={counterScaleRef}>
+      <Label
+        {...rest}
+        maxHeight={containerMaxHeight}
+        maxWidth={effectiveExpanded ? rest.maxWidth * 1.5 : rest.maxWidth}
+      >
       <Box
         ref={contentRef}
         sx={{
@@ -120,6 +161,7 @@ export const ExpandableLabel = ({
             }}
           />
         )}
-    </Label>
+      </Label>
+    </Box>
   );
 };

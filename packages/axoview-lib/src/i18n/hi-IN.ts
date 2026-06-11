@@ -335,6 +335,7 @@ const locale: LocaleProps = {
     zoomOut: 'ज़ूम आउट',
     zoomIn: 'ज़ूम इन',
     fitToScreen: 'स्क्रीन में फ़िट करें',
+    keepLabelsReadable: 'लेबल पठनीय रखें',
     help: 'सहायता (F1)'
   },
   labelSettings: {

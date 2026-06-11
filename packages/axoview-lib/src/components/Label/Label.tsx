@@ -68,9 +68,14 @@ export const Label = ({
           py: 1,
           px: 1.5,
           transformOrigin: 'bottom center',
+          // The optional `--axoview-label-scale` counter-scale (ADR 0015,
+          // set by ExpandableLabel when "keep labels readable" is on) composes
+          // after the translate; scaling about bottom-center holds the
+          // stalk-attachment point fixed. Defaults to 1 (no-op) for all other
+          // Label consumers, e.g. ConnectorLabel.
           transform: `translate(-50%, ${
             expandDirection === 'BOTTOM' ? '-100%' : '-50%'
-          })`,
+          }) scale(var(--axoview-label-scale, 1))`,
           overflow: 'hidden',
           ...sx
         }}

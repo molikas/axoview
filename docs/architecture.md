@@ -246,7 +246,7 @@ Custom-event buses: `nodePanel` (action bar → panel tab focus), `canvasEmptyDb
 
 ### 2j. Configuration Layer
 
-`config/*.ts` re-export their types from `types/settings.ts` (the **canonical** location for `HotkeyProfile`, `PanSettings`, `ZoomSettings`, `LabelSettings`) for backwards compat. `config/persistedSettings.ts` reads/writes `localStorage['axoview_user_settings']` (errors silently swallowed for SSR/private-browsing safety) and persists the 6 settings fields. `UiStateProvider` hydrates them at init with `?? default`; `Axoview.tsx` saves them on change via a `shallow`-equality `useEffect`.
+`config/*.ts` re-export their types from `types/settings.ts` (the **canonical** location for `HotkeyProfile`, `PanSettings`, `ZoomSettings`, `LabelSettings`) for backwards compat. `config/persistedSettings.ts` reads/writes `localStorage['axoview_user_settings']` (errors silently swallowed for SSR/private-browsing safety) and persists the 7 settings fields (incl. `readableLabels` — the opt-in "keep labels readable" toggle, ADR 0015). `UiStateProvider` hydrates them at init with `?? default`; `Axoview.tsx` saves them on change via a `shallow`-equality `useEffect`.
 
 Coordinate/render math lives in three focused files split out of the old 866-line `renderer.ts`: `utils/isoMath.ts` (pure coordinate math), `utils/hitDetection.ts` (WeakMap spatial index, O(1) `getItemAtTile`), `utils/renderer.ts` (screen-space helpers + barrel re-exports — existing import sites unchanged).
 

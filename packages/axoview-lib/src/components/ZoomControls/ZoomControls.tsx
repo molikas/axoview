@@ -42,6 +42,7 @@ export const ZoomControls = () => {
   const { t } = useTranslation('zoomControls');
   const uiStateStoreActions = useUiStateStore((s) => s.actions);
   const zoom = useUiStateStore((s) => s.zoom);
+  const readableLabels = useUiStateStore((s) => s.readableLabels);
   const { fitToView } = useDiagramUtils();
 
   return (
@@ -99,6 +100,36 @@ export const ZoomControls = () => {
           data-axoview-id="canvas-zoom-fit"
         >
           <FitIcon />
+        </IconButton>
+      </Tooltip>
+
+      <Tooltip title={t('keepLabelsReadable')} placement="top">
+        <IconButton
+          size="small"
+          onClick={() =>
+            uiStateStoreActions.setReadableLabels(!readableLabels)
+          }
+          aria-pressed={readableLabels}
+          sx={{
+            ...btnSx,
+            ...(readableLabels && {
+              bgcolor: 'action.selected',
+              color: 'text.primary'
+            })
+          }}
+          data-axoview-id="canvas-readable-labels"
+        >
+          <Typography
+            component="span"
+            sx={{
+              fontSize: 13,
+              fontWeight: 700,
+              lineHeight: 1,
+              letterSpacing: '-0.02em'
+            }}
+          >
+            Aa
+          </Typography>
         </IconButton>
       </Tooltip>
     </Stack>

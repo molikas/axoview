@@ -45,6 +45,7 @@ const initialState = () => {
       labelSettings: persisted?.labelSettings ?? DEFAULT_LABEL_SETTINGS,
       connectorInteractionMode: persisted?.connectorInteractionMode ?? 'click',
       expandLabels: persisted?.expandLabels ?? false,
+      readableLabels: persisted?.readableLabels ?? false,
       canvasMode: persisted?.canvasMode ?? 'ISOMETRIC',
       iconPackManager: null, // Will be set by Axoview if provided
       iconUsageScan: null, // Will be set by Axoview if provided
@@ -207,6 +208,9 @@ const initialState = () => {
         },
         setExpandLabels: (expandLabels) => {
           set({ expandLabels });
+        },
+        setReadableLabels: (readableLabels) => {
+          set({ readableLabels });
         },
         setIconPackManager: (iconPackManager) => {
           set({ iconPackManager });

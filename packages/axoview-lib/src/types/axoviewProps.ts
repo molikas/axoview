@@ -324,6 +324,7 @@ export interface LocaleProps {
     zoomOut: string;
     zoomIn: string;
     fitToScreen: string;
+    keepLabelsReadable: string;
     help: string;
   };
   labelSettings: {

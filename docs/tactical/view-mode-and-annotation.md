@@ -109,11 +109,11 @@ edit-mode dock behavior.
 - [x] On `canvasMode` change, preserve `zoom` and recompute `scroll` so the viewport-center tile stays centered under the new projection. (New pure helper `getCanvasModeSwitchScroll` + per-strategy `fromCanvasPoint` in `coordinateTransforms.ts`.)
 - [x] Verify against the reported case (65% stays ~65%, no 80%/97% jump, diagram stays roughly centered) — covered by `canvas-mode-zoom-preserve.spec.ts`.
 
-### E. Label legibility toggle (ADR 0015)
-- [ ] Add `keepReadable` flag (uiState/`labelSettings`) + threshold/`minReadablePx` in `labelSettings`.
-- [ ] "Aa" toggle in [`ZoomControls`](../../packages/axoview-lib/src/components/ZoomControls/ZoomControls.tsx).
-- [ ] Counter-scale labels below threshold (NodeActionBar §8.8 pattern), label-only.
-- [ ] Persist toggle across reload.
+### E. Label legibility toggle (ADR 0015) — ✅ shipped
+- [x] Add `readableLabels` flag (top-level uiState, persisted like `expandLabels`) + `LABEL_MIN_READABLE_PX` / `LABEL_MAX_COUNTER_SCALE` / `LABEL_BASE_FONT_PX` in `labelSettings.ts`.
+- [x] "Aa" toggle in [`ZoomControls`](../../packages/axoview-lib/src/components/ZoomControls/ZoomControls.tsx) (`aria-pressed`, `canvas-readable-labels` hook, `keepLabelsReadable` locale string × 13).
+- [x] Counter-scale labels below threshold (NodeActionBar §8.8 direct-DOM zoom subscription in `ExpandableLabel` → `--axoview-label-scale` CSS var composed by `Label`), label-only — node geometry untouched. Pure math in `utils/labelScale.ts`.
+- [x] Persist toggle across reload (wired through `persistedSettings.ts` + `Axoview.tsx`).
 
 ### F. Clickable empty-state cards (locked decision #8 — no ADR) — ✅ shipped
 - [x] In [`EmptyStateScreen.tsx`](../../packages/axoview-app/src/components/EmptyStateScreen.tsx), make the whole card the click target — content wrapped in `CardActionArea` (keyboard Enter/Space + ripple/hover for free).
@@ -130,7 +130,7 @@ Do this **per thread**, not as a deferred clean-up pass:
   - [ ] Preview layer switcher: toggle + solo change canvas; diagram stays non-dirty.
   - [ ] Annotation: open palette, draw, collapse-hides / expand-shows, Clear wipes; **save/export contain no annotation data**.
   - [x] Iso↔2D: zoom % is preserved across a round-trip switch (no 65→80→97 pop). (`canvas-mode-zoom-preserve.spec.ts`)
-  - [ ] Label toggle: on → labels readable at low zoom; persists across reload.
+  - [x] Label toggle: on → labels readable at low zoom; persists across reload. (`readable-labels.spec.ts` + `labelScale.test.ts`)
   - [x] Empty-state: clicking anywhere on each card fires create/import (`EmptyStateScreenPOM.clickCreateCardTop` + `empty-state-clickable-card.spec.ts`).
 - [ ] **Tech-debt sweep** of the files each thread touches — apply [[feedback_triage_rule]] (Bug=fix; minor improvement=fix; new functionality=Deferred register). Run `/audit` scope or `knip` if the surface is large; leave no dead code, no stale selectors, no orphaned props.
 - [ ] **Docs/notes refresh** where warranted: `docs/ux-principles.md` (new popover/overlay/label patterns), `docs/architecture.md` (new render layers / uiState slices), `known_issues.md`, and **all locale files** for any new UI strings (per ux-principles §7 — no English fallbacks).

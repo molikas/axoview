@@ -337,6 +337,7 @@ const locale: LocaleProps = {
     zoomOut: 'Verkleinern',
     zoomIn: 'Vergrößern',
     fitToScreen: 'An Bildschirm anpassen',
+    keepLabelsReadable: 'Beschriftungen lesbar halten',
     help: 'Hilfe (F1)'
   },
   labelSettings: {
