@@ -125,7 +125,7 @@ Overlay region/ownership rules are locked in [ADR 0005 — Toolbar & Dock Layout
 
 - **Export**: `ExportImageDialog` → `utils/exportOptions.ts`, `dom-to-image-more`. SVG optimizer in 3 phases (strip CSS, round floats, prune `display:none`) — see [testing.md `svgOptimizer.test.ts`](testing.md).
 - **Icon packs**: `AxoviewProps.iconPackManager` (lib) + `axoview-app/src/services/iconPackManager.ts` (`useIconPackManager`). Lazy-loading by default — canvas renders immediately; unloaded packs appear as one-click load buttons in the Elements panel. `loadPacksForDiagram(items)` auto-loads referenced packs on diagram load.
-- **Canvas modes** (`ISOMETRIC` / `2D`): renderer parameterised over a `CoordinateTransformStrategy` (`utils/coordinateTransforms.ts`); `CanvasModeContext` exposes the active strategy. `canvasMode` is a persisted setting; toggling fires fit-to-view. Adding a third mode is one strategy implementation away.
+- **Canvas modes** (`ISOMETRIC` / `2D`): renderer parameterised over a `CoordinateTransformStrategy` (`utils/coordinateTransforms.ts`); `CanvasModeContext` exposes the active strategy. `canvasMode` is a persisted setting; toggling **preserves the user's zoom and viewport center** — `getCanvasModeSwitchScroll` re-projects the tile under the viewport center (each strategy's `fromCanvasPoint`/`toScreen`) and recomputes `scroll`, rather than force-fitting (which made zoom "pop"; tactical locked decision #6). Adding a third mode is one strategy implementation away.
 
 ### Storage Providers · File Explorer · Cross-Diagram Links
 

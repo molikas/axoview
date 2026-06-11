@@ -11,13 +11,18 @@ import {
   ViewInArOutlined as IsometricIcon,
   GridOnOutlined as CartesianIcon
 } from '@mui/icons-material';
-import { useUiStateStore } from 'src/stores/uiStateStore';
+import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { IconButton } from 'src/components/IconButton/IconButton';
 import { UiElement } from 'src/components/UiElement/UiElement';
 import { useHistory } from 'src/hooks/useHistory';
 import { HOTKEY_PROFILES } from 'src/config/hotkeys';
 import { useTranslation } from 'src/stores/localeStore';
-import { useDiagramUtils } from 'src/hooks/useDiagramUtils';
+import {
+  isometricStrategy,
+  cartesian2DStrategy,
+  getCanvasModeSwitchScroll
+} from 'src/utils/coordinateTransforms';
+import { CoordsUtils } from 'src/utils';
 import { tooltipWithShortcut } from 'src/utils/tooltipWithShortcut';
 
 export const ToolMenu = () => {
@@ -34,18 +39,31 @@ export const ToolMenu = () => {
     return state.connectorInteractionMode;
   });
   const canvasMode = useUiStateStore((state) => state.canvasMode);
-  const { fitToView } = useDiagramUtils();
+  const uiStateApi = useUiStateStoreApi();
 
   const hotkeys = HOTKEY_PROFILES[hotkeyProfile];
 
-  // Fit-to-screen after canvas mode switch so the diagram stays visible
+  // Iso↔2D switch preserves the user's zoom and viewport center (ADR locked
+  // decision #6): re-project the tile under the viewport center and recompute
+  // scroll so it stays centered. (The old `fitToView()` force-fit here is what
+  // made zoom "pop" — 65%→80%→97% — and recentred the whole diagram.)
   const prevCanvasModeRef = useRef(canvasMode);
   useEffect(() => {
-    if (prevCanvasModeRef.current !== canvasMode) {
-      prevCanvasModeRef.current = canvasMode;
-      fitToView();
-    }
-  }, [canvasMode, fitToView]);
+    const prevCanvasMode = prevCanvasModeRef.current;
+    if (prevCanvasMode === canvasMode) return;
+    prevCanvasModeRef.current = canvasMode;
+
+    const { zoom, scroll, actions } = uiStateApi.getState();
+    const fromStrategy =
+      prevCanvasMode === '2D' ? cartesian2DStrategy : isometricStrategy;
+    const toStrategy =
+      canvasMode === '2D' ? cartesian2DStrategy : isometricStrategy;
+
+    actions.setScroll({
+      position: getCanvasModeSwitchScroll(fromStrategy, toStrategy, zoom, scroll),
+      offset: CoordsUtils.zero()
+    });
+  }, [canvasMode, uiStateApi]);
 
   const handleUndo = useCallback(() => {
     undo();
