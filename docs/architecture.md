@@ -1,11 +1,11 @@
 # Axoview — Architecture Reference
 
-**Last updated:** 2026-05-19 (rev 18)
+**Last updated:** 2026-06-10 (rev 19 — v1.1 wave close-out)
 **Codebase root:** `packages/axoview-lib/src` (library) · `packages/axoview-app/src` (application shell) · `packages/axoview-backend/src` (Express + fs adapter) · `packages/axoview-worker/src` (Hono + Cloudflare Pages Functions)
 **Purpose:** Living architecture reference — feature inventory, store/reducer/mode architecture, multi-target deployment contract, test audit, gap analysis, lessons learned, and key APIs. Update this document whenever significant architectural changes are made.
 
 **Companion documents:**
-- [docs/adr/](adr/) — durable architectural decisions (project zip format, icon catalog merge, lean icon save, connector parity, toolbar + dock layout contract).
+- [docs/adr/](adr/) — durable architectural decisions (project zip format, icon catalog merge, lean icon save, connector parity, toolbar + dock layout contract, canvas selection contract, naming convention, operational trace harness [ADR 0007], session/backend deployment contracts, error-UX / failure-of-intent dialogs [ADR 0011]).
 - [docs/deployment.md](deployment.md) — from-scratch deploy walkthroughs.
 - [docs/testing.md](testing.md) — regression suite reference.
 - [PLAN.md](../PLAN.md) — strategic phase roadmap.
@@ -1071,6 +1071,8 @@ The legacy phantom `Icon1` / `Icon2` URL stubs in `packages/axoview-lib/src/fixt
 ---
 
 ## 3. Test Audit
+
+> **v1.1 close-out (2026-06-10):** the per-package totals and the authoritative, current suite-by-suite catalogue now live in [docs/testing.md](testing.md) — lib 1039 (+1 skipped) / 95 suites, app 143 / 15, backend 101 / 7, worker 102, E2E 34 specs / ~59 tests. The v1.1 wave closed the post-v1.0.0 server-runtime gap (backend + worker now carry tests — the only **high**-severity item the prior review named) and added the app-side error-UX / startup-timeout / parallelism / file-explorer-delete / share-URL / backend-routes contract suites. The detailed tables below are a 2026-03 → 2026-05 baseline kept for the per-file VALID/SHALLOW classifications; treat testing.md as the source of truth for counts.
 
 ### Summary Table
 
@@ -2166,11 +2168,13 @@ A `•` dot appends to the label when `hasUnsavedChanges` is true. Label is hidd
 **ESLint rules in force (both packages):**
 - `react-hooks/rules-of-hooks`: error — catches conditional hook calls
 - `react-hooks/exhaustive-deps`: warn — stale closure risk in effects/callbacks
-- `@typescript-eslint/no-explicit-any`: warn
+- `@typescript-eslint/no-explicit-any`: **error** (was `warn`; the baseline was driven 144 → 0 across the v1.1 Sonar wave — `npx eslint .` hard-fails CI on any new `any`)
 - `@typescript-eslint/no-unused-vars`: warn (allows `_`-prefixed exceptions)
 - `no-console`: warn (allows `console.error` and `console.warn`)
 
-**Knip scope:** covers both `axoview-lib` and `axoview-app`. Tracks unused files, unused exports, unused devDependencies, and unlisted (undeclared) dependencies.
+**Knip scope:** covers both `axoview-lib` and `axoview-app`. Tracks unused files, unused exports, unused devDependencies, and unlisted (undeclared) dependencies. **Hard-fail in CI since 2026-06-10** (v1.1 close-out — `continue-on-error` removed from [`.github/workflows/test.yml`](../.github/workflows/test.yml)); local `npx knip --reporter compact` exits 0.
+
+**Sonar complexity wave (v1.1):** the v1.1 wave drove down cyclomatic complexity across the hot files (capstone: `useInteractionManager.ts`, cx 131 → <16) without changing behaviour — the [ADR 0006](adr/0006-canvas-selection-contract.md) selection contract and the `__perf_refactor_regression__` baseline (see [ADR 0007](adr/0007-trace-harness.md)) were the guardrails that kept the refactor safe.
 
 ### 8b. Coverage Configuration
 
@@ -2212,10 +2216,10 @@ coverageProvider: 'v8'
 |-------|--------|
 | Quill XSS (CVE, high) | `npm audit fix --force` would downgrade `react-quill-new` to 3.7.0 — a breaking change. Risk is limited to HTML export feature; internal use only. |
 | `exhaustive-deps` warnings (13 remaining) | Reviewed individually — deps are covered by explicit sub-path entries or are intentional load-once effects (e.g., `t` from the locale store, `navigate` from react-router are both stable references). |
-| `no-explicit-any` (112 warnings) | Widespread in storage service, model loading, and scene APIs where the data shape is runtime-validated by Zod. Addressing requires deep schema type propagation — deferred. |
+| ~~`no-explicit-any` (112 warnings)~~ | **Resolved in the v1.1 Sonar wave** — driven 144 → 0; the rule is now `error` (hard-fail). Schema-type propagation through storage / model-load / scene APIs was done where needed. |
 | `newDiagram` function in App.tsx | Defined but not wired to any button — likely a future "New" menu item placeholder. Left in place rather than deleted. |
 
-*End of document. Last updated: 2026-05-17.*
+*End of document. Last updated: 2026-06-10 (v1.1 close-out: `no-explicit-any` → error, knip → hard-fail, Sonar complexity wave, server-runtime test floor established).*
 
 ---
 
@@ -2250,4 +2254,4 @@ Peer-reviewed ratings across 8 dimensions, scored 1–10. Ratings are compared a
 - **No connector-only clipboard centroid** — paste of connector-only selection offsets from tile 0,0.
 - **`deleteModelItem` sparse array** — `delete` not `splice`; subtle iteration bugs possible.
 - **Touch event coordinates on mouseup** — zeroed-out `clientX/Y` on `touchend` breaks touch interactions.
-- **`no-explicit-any` (112 warnings)** — widespread in storage and model loading code; needs Zod type propagation to resolve cleanly.
+- ~~**`no-explicit-any` (112 warnings)**~~ — **resolved in the v1.1 Sonar wave** (144 → 0; rule now `error`).

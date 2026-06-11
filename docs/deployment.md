@@ -1,5 +1,7 @@
 # Axoview — Deployment Guide
 
+**Last updated:** 2026-06-10 (v1.1 close-out — verified accurate; added §E.1 observability)
+
 Axoview runs on three targets from a single codebase:
 
 | Target | Runtime | Storage | Auth options |
@@ -160,6 +162,12 @@ The repo-root [wrangler.toml](wrangler.toml) is set up so the deploy button work
 | Static delivery | CF CDN + `_headers` | nginx (compose stack) |
 | Body limit enforcement | Hono `bodyLimit({ maxSize: 10MB })` | `express.json({ limit: '10mb' })` |
 | CSP delivery | `_headers` file | nginx config |
+
+---
+
+## E.1 Observability (Cloudflare)
+
+The Worker registers a Hono `app.onError` handler ([packages/axoview-worker/src/app.ts](../packages/axoview-worker/src/app.ts)) that emits a single structured `console.error` — `[worker:500] <method> <path> <errorName>` — on any uncaught 500. It surfaces in `wrangler tail` / the Pages real-time logs so an edge fault is named without a redeploy. This is the only edge-hardening piece shipped (v1.1 PR #11, A.1). Further edge hardening — Bot Fight Mode, WAF, scanner-path block, rate-limit — is **deferred** and only revisited if production 5xx persist; deployment-hygiene items (B / housekeeping) are deferred indefinitely. See the catalogued-workstreams list in [PLAN.md](../PLAN.md).
 
 ---
 

@@ -65,11 +65,11 @@ jobs:
           test -f packages/axoview-app/build/_routes.json || (echo "::error::_routes.json missing from build output" && exit 1)
           test -f packages/axoview-app/build/_headers || (echo "::error::_headers missing from build output" && exit 1)
 
-      # Soft-fail mode 2026-05-22; promote to hard-fail after a clean run
-      # per T2 G10 locked decision (git-automation-hardening.md).
-      - name: Knip — dead-code report (soft-fail)
+      # Hard-fail since 2026-06-10 (v1.1 close-out): soft-fail ran clean across
+      # the v1.1 wave, so per T2 G10 (git-automation-hardening.md) the gate is
+      # now enforcing. A dead-code re-introduction fails CI.
+      - name: Knip — dead-code report
         run: npx knip --reporter compact
-        continue-on-error: true
 
       - name: Build Worker bundle and check size (ADR 0009 D8)
         run: |

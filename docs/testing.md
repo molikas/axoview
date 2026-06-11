@@ -1,10 +1,28 @@
 # Regression Test Suite Reference
 
-**Last updated:** 2026-05-23
-**Total:** 1009 passing + 1 skipped · 93 suites · all passing (measured 2026-05-23 via `npm test --workspaces`)
-**Run:** `npm test --workspace=packages/axoview-lib` (lib) · `npm test --workspace=packages/axoview-app` (app, project-zip + LocalStorageProvider)
+**Last updated:** 2026-06-10 (v1.1 wave close-out)
+**Unit / integration totals** (measured 2026-06-10 via per-workspace `npm test`):
 
-E2E suite lives at [`packages/axoview-e2e/`](../packages/axoview-e2e/) (Playwright, 13 spec files / 33 tests covering canonical journeys J1–J20). Runs on PRs + master push via [`.github/workflows/e2e-playwright.yml`](../.github/workflows/e2e-playwright.yml). Locally: `npm run test:e2e:ci` from repo root, or `npx playwright test --ui` from the package. The legacy Python/Selenium suite at `e2e-tests/` was deleted 2026-05-23 (audit C.2 I9 + tactical [docs/tactical/e2e-suite-rewrite.md](tactical/e2e-suite-rewrite.md) Session 7).
+| Workspace | Passing | Suites |
+|---|---|---|
+| `axoview-lib` | 1039 (+1 skipped) | 95 |
+| `axoview-app` | 143 | 15 |
+| `axoview-backend` | 101 | 7 |
+| `axoview-worker` | 102 | — |
+| **Total** | **1385 (+1 skipped)** | — |
+
+**Run:** `npm test --workspace=packages/<pkg>` per package, or `npm test --workspaces` for all. The v1.1 wave added the backend (101) + worker (102) server-runtime suites — the only **high**-severity gap the post-v1.0.0 review named — plus the app-side error-UX, startup-timeout, parallelism-contract, file-explorer-delete, share-URL, and backend-routes contract suites. The single skipped test is `leanSave bundledFixtures[0]` (see [known_issues.md](../known_issues.md)).
+
+E2E suite lives at [`packages/axoview-e2e/`](../packages/axoview-e2e/) (Playwright, 34 spec files / ~59 tests covering canonical journeys J1–J20 + the v1.1 cross-interaction additions). Runs on PRs + master push via [`.github/workflows/e2e-playwright.yml`](../.github/workflows/e2e-playwright.yml). Locally: `npm run test:e2e:ci` from repo root, or `npx playwright test --ui` from the package. The legacy Python/Selenium suite at `e2e-tests/` was deleted 2026-05-23 (audit C.2 I9 + tactical [docs/tactical/e2e-suite-rewrite.md](tactical/e2e-suite-rewrite.md) Session 7).
+
+### v1.1 close-out gates (2026-06-10)
+
+Two CI gates hardened at the v1.1 close-out — both enforced in [`.github/workflows/test.yml`](../.github/workflows/test.yml):
+
+- **`@typescript-eslint/no-explicit-any` is now `error`** (was `warn`). The baseline was driven 144 → 0 across the Sonar wave; `npx eslint .` is the hard-fail lint gate, so any new `any` fails CI.
+- **Knip is now hard-fail** (`continue-on-error` removed). Soft-fail ran clean through the v1.1 wave; a dead-code re-introduction now fails the build. Local `npx knip --reporter compact` exits 0.
+
+> Note: the lib's `npm run lint` (`tsc --noEmit`) still surfaces ~17 strict-type errors confined to `src/__perf_refactor_regression__/*.test.ts(x)` fixture type drift — latent and ungated (ts-jest is looser, the jest suite is green, and the CI gate is `npx eslint .`). Tracked in [technical-review-2026-06.md §11](technical-review-2026-06.md).
 
 ---
 
@@ -23,7 +41,7 @@ E2E suite lives at [`packages/axoview-e2e/`](../packages/axoview-e2e/) (Playwrig
 | **Standalone app config** | **1** | **3** |
 | **Total** | **60** | **525** |
 
-(The 525 / 60 figure counts lib suites only — the **1009 / 93** total at the top includes app-side suites: `services/project/__tests__/projectZip.test.ts`, `services/storage/__tests__/LocalStorageProvider.test.ts`, the lean-save / requiredPacks regressions, and the post-2026-05 productization-audit additions (B-9a error UX dialogs, useRuntimeConfig timeout pins, AppStorageContext parallelism contract, file-explorer delete contract, share-URL helpers, backend-routes contract).)
+(This Quick Reference is a by-layer breakdown of the **`axoview-lib`** suite as snapshotted earlier in the wave; the `axoview-lib` line in the totals table at the top — 1039 — is the current figure, the delta being the v1.1 additions counted there. The app-side suites — `services/project/__tests__/projectZip.test.ts`, `services/storage/__tests__/LocalStorageProvider.test.ts`, the lean-save / requiredPacks regressions, and the productization-audit additions (B-9a error UX dialogs, useRuntimeConfig timeout pins, AppStorageContext parallelism contract, file-explorer delete contract, share-URL helpers, backend-routes contract) — are counted under `axoview-app`, and the server-runtime suites under `axoview-backend` / `axoview-worker`.)
 
 ---
 

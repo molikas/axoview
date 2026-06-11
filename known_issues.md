@@ -1,5 +1,7 @@
 # Known Issues
 
+**Last pruned:** 2026-06-10 (v1.1 close-out). Open items below cross-checked against [technical-review-2026-06.md §11](docs/technical-review-2026-06.md); resolved entries removed (durable records live in the relevant ADR / perf-troubleshooting.md / git history).
+
 ## Partial-coverage i18n locales (de-DE + id-ID)
 
 **Symptom:** German (de-DE) and Indonesian (id-ID) have stub translations covering only the initial pre-rename string set. Newer strings (added since 2026-04) fall through to English. Users selecting these locales see mixed German/English or Indonesian/English UI.
@@ -29,41 +31,6 @@ The pointing-finger cursor on hover (added 2026-05-15) does cover all four cases
 **Workaround:** None. Users can still hover and click to discover the panel.
 
 **Status:** Open. Decide on a unified badge story — either extend the existing badges to cover the missing cases, or replace both with one consolidated "more info" indicator that fires for any of the four content types.
-
-## MQA #7: FPS drop dragging 6 elements (fixed 2026-05-16)
-
-**Original symptom:** During a multi-element drag (≳6 nodes selected) FPS crashed from 60 → 9–13 for 12-19 seconds at a time, recovering only after a major GC; drag felt locked.
-
-**Status:** Resolved. Three fixes shipped this session — each addressed a different layer.
-
-1. **Fix A (commit `bba712c`)** — `DragItems` was the only drag mode not wrapped in `beginDragTransaction`/`commitDragTransaction`. Wired in matching the pattern shipped in `7164b3b` for connectors. Eliminates per-frame `saveToHistory` + `produceWithPatches` work and gives "one undo per drag" UX.
-
-2. **Path 2 (commit `728b229`)** — Split `Node` into a thin position shell (re-renders per drag tick, trivial cost) and a memoized `NodeContent` (icon + label + badges, bails on drag-only changes). Replaced inline `sx={{left, top}}` with module-level sx constants + inline `style` (bypasses emotion per-tick). Swapped `useScene()` → `useSceneActions()` inside `NodeContent` to remove a `views`-array subscription that was forcing the memo gate to bypass on every tick.
-
-3. **Path 4-true** — CSS-only drag preview. During an item drag the model is no longer touched per frame; DragItems mutates CSS variables (`--ff-drag-dx`, `--ff-drag-dy`) directly on each dragged Node's DOM element (`data-drag-id` attribute), and a new `scene.previewConnectorPaths(...)` action refreshes wire geometry by writing straight to `scene.connectors[].path` (no immer, no model touch). Final tiles commit to the model on `mouseup` via `scene.batchUpdateViewItemTiles(...)` — one history entry per drag. See [architecture.md §1 Drag Items](docs/architecture.md#1-feature-inventory) for the full invariant.
-
-**Measured impact** (6 plain nodes + 3 connectors, all selected and dragged, fresh build):
-| Metric | Pre-fix | Fix A | Path 2 | Path 4-true |
-|---|---|---|---|---|
-| Sub-13 fps cliff duration | 19 s | 12 s | 13 s | **0 s** |
-| Sustained FPS during drag | 9–13 | 9–13 | 9–13 | **24–44** |
-| Peak heap during drag | 167 MB | 203 MB | 163 MB | 199 MB |
-| Major GCs during drag | ~5 | ~4 | ~3 | **1** |
-| React commit total (flame chart) | 12.3 s | 7.4 s | 4.2 s | small tail |
-| `NodeContent` re-renders per dragged node (5 s drag) | ~170 | ~170 | **2** | **2** |
-
-**Trade-offs introduced:**
-- The model lags reality during a multi-item drag — `view.items[].tile` is the pre-drag value until mouseup. Live position is in DOM CSS variables; live wire geometry is in `scene.connectors[].path`.
-- `Recalculate style` went up slightly (494 ms vs 244 ms pre-Path-4-true) — the `setProperty` calls per frame trigger style recalcs. Net is still hugely positive.
-- DragItems now uses a module-level `previewTiles` `Map`. Safe because uiState guarantees one drag at a time, but tests must reset it between cases via `DragItems.exit({...})`.
-
-**Related fix (waypoint dragging):** discovered while validating Path 4-true. [Lasso.ts](packages/axoview-lib/src/interaction/modes/Lasso.ts) used to push only the `CONNECTOR` reference when both endpoints were in lasso bounds, orphaning intermediate waypoint anchors. They now also get pushed as `CONNECTOR_ANCHOR` items so DragItems' existing anchor path moves them with the group.
-
-**Diagnostic harness** kept from earlier in the session: `useRenderProbe('Component', id)` hook + `window.__axoviewRenderProbe.start() / stop() / dump()` console API, gated behind `?perfprobe=1` URL flag. Zero cost in normal use; invaluable for the next round of perf work.
-
-**Companion fix (also shipped this session):** the diag exporter's `ni`/`nc`/`ntb` counts used to read 0 because `window.__axoview__` was gated behind `enableDebugTools` (defaults to `false` in the app) AND `ni` was reading the icon catalog rather than placed nodes. Both fixed:
-- [Axoview.tsx](packages/axoview-lib/src/Axoview.tsx) now exposes `__axoview__` whenever `process.env.NODE_ENV !== 'production'` OR `enableDebugTools` is set. The `NODE_ENV` literal tree-shakes the block from prod builds.
-- [DiagnosticsOverlay.tsx `getSceneCounts`](packages/axoview-app/src/components/DiagnosticsOverlay.tsx) now reads the active view's `items.length` and `connectors.length` (resolved via `ui.view`) instead of the model item catalog.
 
 ## MQA diag exporter: element counts always read 0
 
