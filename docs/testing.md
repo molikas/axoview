@@ -17,12 +17,7 @@ E2E suite lives at [`packages/axoview-e2e/`](../packages/axoview-e2e/) (Playwrig
 
 ### v1.1 close-out gates (2026-06-10)
 
-Two CI gates hardened at the v1.1 close-out — both enforced in [`.github/workflows/test.yml`](../.github/workflows/test.yml):
-
-- **`@typescript-eslint/no-explicit-any` is now `error`** (was `warn`). The baseline was driven 144 → 0 across the Sonar wave; `npx eslint .` is the hard-fail lint gate, so any new `any` fails CI.
-- **Knip is now hard-fail** (`continue-on-error` removed). Soft-fail ran clean through the v1.1 wave; a dead-code re-introduction now fails the build. Local `npx knip --reporter compact` exits 0.
-
-> Note: the lib's `npm run lint` (`tsc --noEmit`) still surfaces ~17 strict-type errors confined to `src/__perf_refactor_regression__/*.test.ts(x)` fixture type drift — latent and ungated (ts-jest is looser, the jest suite is green, and the CI gate is `npx eslint .`). Tracked in [technical-review-2026-06.md §11](technical-review-2026-06.md).
+Two CI gates hardened at the v1.1 close-out (`@typescript-eslint/no-explicit-any` → `error`; Knip → hard-fail). The full CI-gate inventory + lint-debt detail — including the latent ~17 `tsc --noEmit` fixture-type errors confined to `__perf_refactor_regression__/*.test.ts(x)` — lives in [technical-review-2026-06.md §8b/§8e/§11](technical-review-2026-06.md#8-quality-kpis-aggregate); not restated here.
 
 ---
 
@@ -41,7 +36,7 @@ Two CI gates hardened at the v1.1 close-out — both enforced in [`.github/workf
 | **Standalone app config** | **1** | **3** |
 | **Total** | **60** | **525** |
 
-(This Quick Reference is a by-layer breakdown of the **`axoview-lib`** suite as snapshotted earlier in the wave; the `axoview-lib` line in the totals table at the top — 1039 — is the current figure, the delta being the v1.1 additions counted there. The app-side suites — `services/project/__tests__/projectZip.test.ts`, `services/storage/__tests__/LocalStorageProvider.test.ts`, the lean-save / requiredPacks regressions, and the productization-audit additions (B-9a error UX dialogs, useRuntimeConfig timeout pins, AppStorageContext parallelism contract, file-explorer delete contract, share-URL helpers, backend-routes contract) — are counted under `axoview-app`, and the server-runtime suites under `axoview-backend` / `axoview-worker`.)
+(This Quick Reference is a by-layer breakdown of the **`axoview-lib`** suite snapshotted earlier in the wave; the current `axoview-lib` figure is the 1039 in the totals table above. App-side suites — projectZip, LocalStorageProvider, lean-save/requiredPacks regressions, and the productization-audit additions — count under `axoview-app`; server-runtime suites under `axoview-backend` / `axoview-worker`.)
 
 ---
 
@@ -466,87 +461,26 @@ Covers: `setClipboard` / `getClipboard` round-trip; null/undefined handling; cli
 
 ---
 
-## Round 10 Changes (2026-04-10)
-
-### Updated: [toolMenu.i18n.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/toolMenu.i18n.test.ts) · 8 active assertions · ✅ VALID
-
-**Production target:** `src/components/ToolMenu/ToolMenu.tsx`
-
-Three assertions were inverted: `t('rectangle')`, `t('text')`, and `t('addItem')` are now asserted **absent** (with explanatory comment) because those tools were removed from ToolMenu in round 10 — Rectangle and Text moved to the Elements panel.
-
-Remaining assertions: `useTranslation` import, `useTranslation('toolMenu')` namespace, `t('undo')` present, `name="Undo` absent, `t('select')` present, `t('lassoSelect')` present, `t('freehandLasso')` present, `t('pan')` present, `t('connector')` present.
-
----
-
-### Updated: [quickAdd.groupButton.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/quickAdd.groupButton.test.ts) · 10 tests · ✅ VALID
-
-**Production target:** `QuickAddNodePopover` rectangle-creation logic
-
-Comments updated from "Group button" to "Rectangle button". All 10 tests unchanged — they test pure callback logic and are unaffected by the rename.
-
----
-
-### Updated: [Icon.test.tsx](packages/axoview-lib/src/components/ItemControls/IconSelectionControls/__tests__/Icon.test.tsx) · 2 tests · ✅ VALID
-
-**Production target:** `IconSelectionControls/Icon.tsx`
-
-Tests updated from `getByText('flat')` / `getByText('isometric')` to `getByAltText('flat icon')` / `getByAltText('isometric icon')`. Text label rendering was removed from the `Icon` component in a prior session; testing `alt` text is the correct contract now.
-
----
-
 ## Known Coverage Gaps
 
-The following critical paths have **no regression tests** yet. See `current_architecture.md §4` for full detail.
+The highest-regression-risk paths still without a real-module regression test:
 
-### High priority (complex operations, highest regression risk)
+| Priority | Gap | Why it matters |
+|---|---|---|
+| High | `useScene.deleteSelectedItems` | Cascade across mixed item types in one transaction. |
+| High | `useScene.pasteItems` | Requires all 3 Providers + real model data; transaction atomicity. |
+| Medium | `CURSOR → DRAG_ITEMS` / `CURSOR → LASSO` transitions | mousemove-while-mousedown paths — real-module tests missing |
 
-| Gap | Why it matters |
-|---|---|
-| `useScene.deleteSelectedItems` | Cascade across mixed item types in one transaction. |
-| `useScene.pasteItems` | Requires all 3 Providers + real model data; transaction atomicity. |
-
-### Medium priority
-
-| Gap | Why it matters |
-|---|---|
-| `CURSOR → DRAG_ITEMS` transition | mousemove while mousedown on item — real-module test missing |
-| `CURSOR → LASSO` transition | mousemove while mousedown on empty canvas — real-module test missing |
-
-### Resolved (previously listed as gaps)
-
-| Gap | Resolved by |
-|---|---|
-| `useCopyPaste.handlePaste` + `handleCopy` | `useCopyPaste.test.ts` — 10 tests (2026-03-20) |
-| `useHistory` real undo/redo + overflow + transaction | `useHistory.realStore.test.tsx` — 7 tests (2026-03-20) |
-| `usePanHandlers` — all bypass conditions + deferred right-click pan | `usePanHandlers.test.ts` — 20 tests (13 on 2026-03-20, +7 on 2026-03-22 for transient right-click pan) |
-| `anchorSchema` multi-key guard | `connector.test.ts` — 5 new schema tests (2026-03-20) |
-| Zoom boundary enforcement (`MIN_ZOOM`, `MAX_ZOOM`, float drift) | `renderer.test.ts` — 7 zoom tests (2026-03-20) |
+The full standing-gap register (with risk/complexity) is in [known_issues.md](../known_issues.md) and [technical-review-2026-06.md §11](technical-review-2026-06.md#11-open-known-issues); the architectural framing is in [architecture.md §5](architecture.md#5-tests-gaps--quality).
 
 ---
 
 ## How to Run
 
 ```bash
-# All tests
-npm test --workspace=packages/axoview-lib
-
-# Specific suite
-npx jest <pattern> --no-coverage          # e.g. Cursor.modes
-npx jest __perf_refactor_regression__ --no-coverage   # regression suite only
-npx jest stores/reducers --no-coverage    # reducer layer only
-
-# With coverage
-npx jest --coverage
+npm test --workspace=packages/axoview-lib              # all lib tests
+npx jest <pattern> --no-coverage                       # one suite, e.g. Cursor.modes
+npm test --workspace=packages/axoview-lib -- --coverage # with coverage
 ```
 
-Run from `packages/axoview-lib/`.
-
----
-
-## Code coverage
-
-```bash
-npm test --workspace=packages/axoview-lib -- --coverage
-```
-
-HTML report: `packages/axoview-lib/coverage/lcov-report/index.html`. Current global statement coverage ~32%. Thresholds set at 10% global minimum — intentionally low while the suite grows. Additional static analysis tools (ESLint, Knip, `npm audit`) output to `reports/`.
+Run from `packages/axoview-lib/`. HTML coverage report at `packages/axoview-lib/coverage/lcov-report/index.html` (global statement coverage ~32 %; thresholds floored at 10 % while the suite grows). Aggregate KPIs (test:source ratio, LOC, lint debt, complexity baseline) and the static-analysis report locations are in [technical-review-2026-06.md §8](technical-review-2026-06.md#8-quality-kpis-aggregate).

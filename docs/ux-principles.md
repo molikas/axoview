@@ -126,20 +126,12 @@ The theme owns every font size and weight. Components pick a `<Typography varian
   {layer.name}
 </Typography>
 
-// ❌ Wrong — manual ALL CAPS (violates §1.2 / §7.2)
-<Typography variant="caption" sx={{ textTransform: 'uppercase', fontWeight: 700, fontSize: 10 }}>
-  AWS
-</Typography>
-
-// ❌ Wrong — overline used to bypass §1.2 by re-imposing uppercase
-<Typography variant="overline" sx={{ textTransform: 'uppercase' }}>
-  Layers
-</Typography>
+// ❌ Wrong — manual ALL CAPS, or overline re-imposing uppercase (both violate §1.2 / §7.2)
+<Typography variant="caption" sx={{ textTransform: 'uppercase', ... }}>AWS</Typography>
+<Typography variant="overline" sx={{ textTransform: 'uppercase' }}>Layers</Typography>
 ```
 
-**Note on `overline`:** the variant intentionally renders **sentence case** in this codebase, against MUI's default. The visual differentiation that signals "region header" comes from weight 600 + tracked-out spacing + smaller size — not uppercase. This satisfies §1.2 and §7.2.
-
-The custom `micro` variant is registered via TypeScript module augmentation in [`theme.ts`](../packages/axoview-lib/src/styles/theme.ts) so it is callable as `<Typography variant="micro">` like any built-in variant.
+`overline` intentionally renders **sentence case** here (against MUI's default) — the "region header" signal comes from weight 600 + tracking + smaller size, not uppercase (satisfies §1.2/§7.2). The custom `micro` variant is registered via TS module augmentation in [`theme.ts`](../packages/axoview-lib/src/styles/theme.ts).
 
 ---
 
@@ -260,11 +252,9 @@ Persistent canvas multi-selection lives in `uiState.selectedIds: ItemReference[]
 | Delete / Backspace (selection len > 1) | deletes every selected item; CONNECTOR_ANCHOR refs are spliced from their parent connector |
 | Alt+click a waypoint (connector selected) | removes the waypoint without removing the connector |
 
-**Why waypoints come with their connector under Ctrl+click and Ctrl+A:** waypoint anchors carry `ref.tile` (absolute position) — they don't auto-follow the connector when it moves. Selection paths that include a connector MUST also include its waypoints, otherwise multi-drag pinches the path and bulk-delete leaves orphans. The single source of truth for that bookkeeping is `getConnectorWaypointRefs(connector)` in [`utils/connectorSelection.ts`](../packages/axoview-lib/src/utils/connectorSelection.ts). Three call sites consume it: `Lasso.getItemsInBounds`, `FreehandLasso.getItemsInFreehandBounds`, and the `Ctrl+A` branch in `useInteractionManager`. **Any new selection path that includes a connector must call it too** — same rule as §4.3's `isItemInteractable`.
+**The design rule:** any selection path that includes a connector MUST also include its tile-bound waypoints — they carry `ref.tile` (absolute position) and don't auto-follow the connector, so omitting them pinches the path on multi-drag and orphans them on bulk-delete. The single source of truth is `getConnectorWaypointRefs(connector)` ([`utils/connectorSelection.ts`](../packages/axoview-lib/src/utils/connectorSelection.ts)); a new connector-including selection path must call it, same discipline as §4.3's `isItemInteractable`. User-facing badges count via `countUserFacingRefs` (excludes CONNECTOR_ANCHOR — implementation detail, not user-perceived selection).
 
-**User-facing count vs. internal count:** badges and labels ("N selected", "Assign layer to N items") count user-facing refs via `countUserFacingRefs`, which excludes CONNECTOR_ANCHOR — those are implementation detail, not things the user thinks they selected. `filterUserFacingRefs` strips them before `assignLayerToItems` because waypoints aren't independently assignable to a layer.
-
-Full contract + rationale: [ADR 0006](adr/0006-canvas-selection-contract.md).
+Full contract, call-site list, and rationale: [ADR 0006](adr/0006-canvas-selection-contract.md).
 
 ---
 
@@ -337,7 +327,7 @@ Reference: [`useInitialDataManager.ts`](../packages/axoview-lib/src/hooks/useIni
 
 A *failure of intent* — the user asked for something and it could not happen (a save rejected by storage quota, a malformed import, a share-POST that 5xx'd) — surfaces as a **blocking Dialog with a clear next action (retry / cancel)**, not a passive notification that can be missed. A toast is right for *"this happened"*; a Dialog is right for *"this didn't happen and you need to decide what to do."*
 
-The contract is [ADR 0011 — Error-UX Contract](adr/0011-error-ux-contract.md), shipped in full at the v1.1 close-out (PR #27). The standardized dialog shape (soft shadow, X close button, `h6` 600 title, `body2` body, padded `DialogActions`; Enter confirms / Escape cancels per §3.2) now has **five instances** — the original confirm/discard pair plus the three v1.1 failure-of-intent dialogs (save-failure, malformed-import, share-failure). New blocking dialogs reuse [`ConfirmDialog`](../packages/axoview-app/src/components/ConfirmDialog.tsx) or mirror its shape.
+The contract — and the standardized dialog shape (soft shadow, X close button, `h6` 600 title, `body2` body, padded `DialogActions`; Enter confirms / Escape cancels per §3.2) — is [ADR 0011 — Error-UX Contract](adr/0011-error-ux-contract.md), shipped in full at the v1.1 close-out. New blocking dialogs reuse [`ConfirmDialog`](../packages/axoview-app/src/components/ConfirmDialog.tsx) or mirror its shape.
 
 ### 6.4 Cover the cold-start gap with a branded splash
 
@@ -426,7 +416,7 @@ The empty-state overlay must not cover the chrome (left strip, bottom dock). It 
 </div>
 ```
 
-**Why this is geometric, not z-index:** `Axoview`'s outer Box uses `transform: translateZ(0)` which creates a stacking context — any z-index on inner chrome (the strip, the BottomDock) is trapped inside it and cannot beat an app-level overlay's z-index. Geometric exclusion sidesteps the problem entirely. See [docs/architecture.md §5.5](architecture.md#5-lessons-learned).
+**Why this is geometric, not z-index:** `Axoview`'s outer Box uses `transform: translateZ(0)`, which creates a stacking context that traps inner-chrome z-indexes — so geometric exclusion, not z-index, is the fix. Full mechanism in [architecture.md §4 — Lessons Learned](architecture.md#4-lessons-learned) (lesson 14).
 
 Apply the same rule to any future full-canvas overlay (modal-backdrop variants, tutorial spotlight, etc.): if the chrome must remain visible, position the overlay to leave the chrome's pixels uncovered. Don't reach for z-index across the `Axoview` boundary.
 
