@@ -259,6 +259,8 @@ export interface UiState {
    * leaving preview or switching view. Ignored entirely in EDITABLE.
    */
   previewLayerOverrides: PreviewLayerOverrides;
+  /** Ephemeral annotation overlay (ADR 0014). Never persisted. */
+  annotation: AnnotationState;
 }
 
 /** UI-only preview layer override (ADR 0013). */
@@ -267,6 +269,45 @@ export interface PreviewLayerOverrides {
   hiddenLayerIds: string[];
   /** When set, only this layer is shown (solo wins over hidden + layer.visible). */
   soloLayerId: string | null;
+}
+
+// --- Ephemeral annotation overlay (ADR 0014) --------------------------------
+
+/** Draw tools for the annotation overlay. `eraser` removes a whole stroke. */
+export type AnnotationTool =
+  | 'pencil'
+  | 'highlighter'
+  | 'line'
+  | 'arrow'
+  | 'rectangle'
+  | 'ellipse'
+  | 'eraser';
+
+/** A single annotation stroke, stored in scene-canvas coordinates. */
+export interface AnnotationStroke {
+  id: string;
+  tool: Exclude<AnnotationTool, 'eraser'>;
+  color: string;
+  thickness: number;
+  /** Scene-canvas points: freehand = many; line/arrow/shapes = [start, end]. */
+  points: Coords[];
+}
+
+/**
+ * Ephemeral annotation state (ADR 0014). Session-scoped, in-memory, and
+ * **never** persisted — it lives only in uiState, never in the Model, so no
+ * save/export/zip path can reach it. `open` mounts the palette + overlay;
+ * `collapsed` hides the drawing while retaining strokes (collapse ≠ discard).
+ */
+export interface AnnotationState {
+  open: boolean;
+  collapsed: boolean;
+  tool: AnnotationTool;
+  color: string;
+  thickness: number;
+  strokes: AnnotationStroke[];
+  /** Floating palette position in screen px (draggable). */
+  palettePos: Coords;
 }
 
 export interface UiStateActions {
@@ -308,6 +349,17 @@ export interface UiStateActions {
   setPreviewSoloLayer: (layerId: string | null) => void;
   /** Reset all preview layer overrides (e.g. on leaving preview / view switch). */
   clearPreviewLayerOverrides: () => void;
+  // --- Annotation overlay (ADR 0014) ---
+  setAnnotationOpen: (open: boolean) => void;
+  setAnnotationCollapsed: (collapsed: boolean) => void;
+  setAnnotationTool: (tool: AnnotationTool) => void;
+  setAnnotationColor: (color: string) => void;
+  setAnnotationThickness: (thickness: number) => void;
+  addAnnotationStroke: (stroke: AnnotationStroke) => void;
+  undoAnnotationStroke: () => void;
+  eraseAnnotationStroke: (id: string) => void;
+  clearAnnotations: () => void;
+  setAnnotationPalettePos: (pos: Coords) => void;
   setIconPackManager: (iconPackManager: IconPackManagerProps | null) => void;
   setIconUsageScan: (scan: IconUsageScan | null) => void;
   setLinkedDiagrams: (diagrams: Array<{ id: string; name: string }>) => void;

@@ -509,6 +509,13 @@ View-only mode (`EXPLORABLE_READONLY`) is a *presentation* surface, not an editi
 - **Ephemeral, never destructive:** presentation controls apply a **UI-only override** (`uiState.previewLayerOverrides`), never mutating saved model state (`layer.visible`) and never dirtying/saving. The override clears on leaving preview or switching view. When a view-mode control mirrors an edit-mode one, keep the merge in **one** place (here, `LayerContextProvider`) with a documented precedence so the two visibility sources can't desync.
 - **Gated to where it's useful:** shown only in view mode and only when there's a real choice (≥2 layers).
 
+### 8.11 Scratch overlays never pollute the model
+
+The [annotation overlay](../packages/axoview-lib/src/components/AnnotationLayer/AnnotationLayer.tsx) (ADR 0014) is "paint on top" markup for talking over a diagram — pencil/highlighter/shapes/arrows from a draggable palette. Two principles make it safe:
+
+- **Scratch is not content.** Annotation state lives **only** in `uiState`, never in the Model, so no persistence path (session save, server save, export JSON, project zip) can reach it — the single most important invariant of the feature, asserted by a dedicated exclusion test. A scratch overlay that could accidentally save would be a data-integrity trap.
+- **Capture only when armed.** The overlay intercepts pointer input **only while a draw tool is active**; with the palette open but idle, normal canvas selection/pan still work. Collapse *hides* the drawing without discarding it (collapse ≠ delete); a single explicit Clear is the only wipe — destructive actions are never a side effect of a view toggle.
+
 ---
 
 ## 9. Reference implementations

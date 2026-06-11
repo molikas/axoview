@@ -345,6 +345,21 @@ const locale: LocaleProps = {
     solo: 'Solo',
     unsolo: 'Sair do solo'
   },
+  annotationPalette: {
+    pen: 'Anotar',
+    pencil: 'Lápis',
+    highlighter: 'Marca-texto',
+    line: 'Linha',
+    arrow: 'Seta',
+    rectangle: 'Retângulo',
+    ellipse: 'Elipse',
+    eraser: 'Borracha',
+    undo: 'Desfazer',
+    clear: 'Limpar tudo',
+    collapse: 'Recolher',
+    expand: 'Expandir',
+    close: 'Fechar'
+  },
   viewModeInfoPopover: {
     close: 'Fechar'
   },

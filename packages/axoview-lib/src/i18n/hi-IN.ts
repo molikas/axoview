@@ -345,6 +345,21 @@ const locale: LocaleProps = {
     solo: 'सोलो',
     unsolo: 'सोलो से बाहर'
   },
+  annotationPalette: {
+    pen: 'व्याख्या',
+    pencil: 'पेंसिल',
+    highlighter: 'हाइलाइटर',
+    line: 'रेखा',
+    arrow: 'तीर',
+    rectangle: 'आयत',
+    ellipse: 'दीर्घवृत्त',
+    eraser: 'इरेज़र',
+    undo: 'पूर्ववत करें',
+    clear: 'सब हटाएं',
+    collapse: 'संक्षिप्त करें',
+    expand: 'विस्तृत करें',
+    close: 'बंद करें'
+  },
   viewModeInfoPopover: {
     close: 'बंद करें'
   },

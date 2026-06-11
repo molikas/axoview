@@ -345,6 +345,21 @@ const locale: LocaleProps = {
     solo: 'Solo',
     unsolo: 'Solodan çık'
   },
+  annotationPalette: {
+    pen: 'Açıklama',
+    pencil: 'Kalem',
+    highlighter: 'Fosforlu kalem',
+    line: 'Çizgi',
+    arrow: 'Ok',
+    rectangle: 'Dikdörtgen',
+    ellipse: 'Elips',
+    eraser: 'Silgi',
+    undo: 'Geri al',
+    clear: 'Tümünü temizle',
+    collapse: 'Daralt',
+    expand: 'Genişlet',
+    close: 'Kapat'
+  },
   viewModeInfoPopover: {
     close: 'Kapat'
   },

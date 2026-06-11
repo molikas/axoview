@@ -344,6 +344,21 @@ const locale: LocaleProps = {
     solo: 'Solo',
     unsolo: 'Keluar dari solo'
   },
+  annotationPalette: {
+    pen: 'Anotasi',
+    pencil: 'Pensil',
+    highlighter: 'Stabilo',
+    line: 'Garis',
+    arrow: 'Panah',
+    rectangle: 'Persegi',
+    ellipse: 'Elips',
+    eraser: 'Penghapus',
+    undo: 'Urungkan',
+    clear: 'Hapus semua',
+    collapse: 'Ciutkan',
+    expand: 'Bentangkan',
+    close: 'Tutup'
+  },
   viewModeInfoPopover: {
     close: 'Tutup'
   },

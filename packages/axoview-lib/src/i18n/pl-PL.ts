@@ -350,6 +350,21 @@ const locale: LocaleProps = {
     solo: 'Solo',
     unsolo: 'Wyłącz solo'
   },
+  annotationPalette: {
+    pen: 'Adnotuj',
+    pencil: 'Ołówek',
+    highlighter: 'Zakreślacz',
+    line: 'Linia',
+    arrow: 'Strzałka',
+    rectangle: 'Prostokąt',
+    ellipse: 'Elipsa',
+    eraser: 'Gumka',
+    undo: 'Cofnij',
+    clear: 'Wyczyść wszystko',
+    collapse: 'Zwiń',
+    expand: 'Rozwiń',
+    close: 'Zamknij'
+  },
   viewModeInfoPopover: {
     close: 'Zamknij'
   },

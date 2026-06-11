@@ -343,6 +343,21 @@ const locale: LocaleProps = {
     solo: 'একক',
     unsolo: 'একক থেকে বেরিয়ে আসুন'
   },
+  annotationPalette: {
+    pen: 'টীকা',
+    pencil: 'পেন্সিল',
+    highlighter: 'হাইলাইটার',
+    line: 'রেখা',
+    arrow: 'তীর',
+    rectangle: 'আয়ত',
+    ellipse: 'উপবৃত্ত',
+    eraser: 'ইরেজার',
+    undo: 'পূর্বাবস্থা',
+    clear: 'সব মুছুন',
+    collapse: 'সংকুচিত',
+    expand: 'প্রসারিত',
+    close: 'বন্ধ করুন'
+  },
   viewModeInfoPopover: {
     close: 'বন্ধ করুন'
   },

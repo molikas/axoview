@@ -331,6 +331,21 @@ const locale: LocaleProps = {
     solo: '单独显示',
     unsolo: '退出单独显示'
   },
+  annotationPalette: {
+    pen: '批注',
+    pencil: '铅笔',
+    highlighter: '荧光笔',
+    line: '直线',
+    arrow: '箭头',
+    rectangle: '矩形',
+    ellipse: '椭圆',
+    eraser: '橡皮擦',
+    undo: '撤销',
+    clear: '全部清除',
+    collapse: '收起',
+    expand: '展开',
+    close: '关闭'
+  },
   viewModeInfoPopover: {
     close: '关闭'
   },

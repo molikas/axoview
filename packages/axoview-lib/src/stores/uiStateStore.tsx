@@ -13,6 +13,7 @@ import { DEFAULT_HOTKEY_PROFILE, HotkeyProfile } from 'src/config/hotkeys';
 import { DEFAULT_PAN_SETTINGS } from 'src/config/panSettings';
 import { DEFAULT_ZOOM_SETTINGS } from 'src/config/zoomSettings';
 import { DEFAULT_LABEL_SETTINGS } from 'src/config/labelSettings';
+import { ANNOTATION_COLOR_PRESETS } from 'src/config/annotationSettings';
 import { loadPersistedSettings } from 'src/config/persistedSettings';
 
 const initialState = () => {
@@ -57,6 +58,16 @@ const initialState = () => {
       itemActionBarOpen: false,
       isDirty: false,
       previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
+      annotation: {
+        open: false,
+        collapsed: false,
+        tool: 'pencil',
+        color: ANNOTATION_COLOR_PRESETS[0],
+        thickness: 4,
+        strokes: [],
+        // Default open position: clear of the left docks/file explorer.
+        palettePos: { x: 360, y: 96 }
+      },
 
       actions: {
         setView: (view) => {
@@ -257,6 +268,56 @@ const initialState = () => {
           set({
             previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null }
           });
+        },
+        // --- Annotation overlay (ADR 0014) — ephemeral, never persisted ---
+        setAnnotationOpen: (open) => {
+          // Opening always un-collapses so the palette + drawing are visible.
+          set({ annotation: { ...get().annotation, open, collapsed: false } });
+        },
+        setAnnotationCollapsed: (collapsed) => {
+          set({ annotation: { ...get().annotation, collapsed } });
+        },
+        setAnnotationTool: (tool) => {
+          set({ annotation: { ...get().annotation, tool } });
+        },
+        setAnnotationColor: (color) => {
+          set({ annotation: { ...get().annotation, color } });
+        },
+        setAnnotationThickness: (thickness) => {
+          set({ annotation: { ...get().annotation, thickness } });
+        },
+        addAnnotationStroke: (stroke) => {
+          const { annotation } = get();
+          set({
+            annotation: {
+              ...annotation,
+              strokes: [...annotation.strokes, stroke]
+            }
+          });
+        },
+        undoAnnotationStroke: () => {
+          const { annotation } = get();
+          set({
+            annotation: {
+              ...annotation,
+              strokes: annotation.strokes.slice(0, -1)
+            }
+          });
+        },
+        eraseAnnotationStroke: (id) => {
+          const { annotation } = get();
+          set({
+            annotation: {
+              ...annotation,
+              strokes: annotation.strokes.filter((s) => s.id !== id)
+            }
+          });
+        },
+        clearAnnotations: () => {
+          set({ annotation: { ...get().annotation, strokes: [] } });
+        },
+        setAnnotationPalettePos: (palettePos) => {
+          set({ annotation: { ...get().annotation, palettePos } });
         },
         setIconPackManager: (iconPackManager) => {
           set({ iconPackManager });

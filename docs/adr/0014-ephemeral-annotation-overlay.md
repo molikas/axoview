@@ -1,6 +1,6 @@
 # ADR 0014 — Ephemeral Annotation Overlay
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06-11
 **Supersedes:** none
 **Superseded by:** none
@@ -49,20 +49,28 @@ popular colors, a thickness selector, an eraser (remove a single stroke), undo, 
 
 ### Anchoring (recommended — confirm at review)
 
-Strokes are stored in **scene/canvas coordinates** so they track pan, zoom, and projection — i.e.
-an arrow drawn pointing at a node keeps pointing at it when the user pans or zooms. (Screen-space
-strokes would drift off their target the moment the canvas moves, which is wrong for "annotate
-*this thing*.")
+Strokes are stored in **scene-canvas coordinates** so they track pan and zoom — i.e. an arrow
+drawn pointing at a node keeps pointing at it when the user pans or zooms. (Screen-space strokes
+would drift off their target the moment the canvas moves, which is wrong for "annotate *this
+thing*.") The overlay renders inside a `<g>` whose transform mirrors `SceneLayer`
+(`translate(rendererCenter + scroll) scale(zoom)`), updated by a direct store subscription so
+pan/zoom never re-renders React.
 
-> TODO (resolve at review): scene-space anchoring interacts with the iso↔2D projection switch.
-> Confirm whether annotations should re-project with the canvas or freeze on projection change.
+**Resolved — iso↔2D projection switch (2026-06-11):** annotations **freeze in canvas space** on a
+projection switch; they do **not** re-project. The scene-canvas coordinate space is the same for
+both projections, but diagram *tiles* re-project (node positions move) while strokes stay put — so
+a stroke aligned to a node in ISO will not track that node after switching to 2D. This is an
+accepted trade-off for transient scratch markup: re-projecting throwaway strokes adds real
+complexity (per-stroke tile re-derivation) for a layer the user can Clear and redraw in seconds.
 
-### Export (recommended — confirm at review)
+### Export
 
-Included in **image / PNG export** when the overlay is visible (so a presenter can capture an
-annotated frame); never in JSON / zip.
-
-> TODO (resolve at review): confirm image-export inclusion.
+**Resolved — image-export inclusion (2026-06-11): deferred.** Annotations are **not** included in
+image / PNG export in this version; export produces a clean diagram image. Image export renders a
+dedicated capture path (`ExportImageDialog`), and weaving the transient overlay into it is its own
+piece of work with no current forcing function. Annotations remain a *live presentation* overlay;
+a presenter screen-captures the frame if they need to keep it. (Never in JSON / zip — that is the
+load-bearing invariant, asserted in tests.)
 
 ## Consequences
 

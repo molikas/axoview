@@ -337,6 +337,21 @@ export interface LocaleProps {
   viewModeInfoPopover: {
     close: string;
   };
+  annotationPalette: {
+    pen: string;
+    pencil: string;
+    highlighter: string;
+    line: string;
+    arrow: string;
+    rectangle: string;
+    ellipse: string;
+    eraser: string;
+    undo: string;
+    clear: string;
+    collapse: string;
+    expand: string;
+    close: string;
+  };
   labelSettings: {
     description: string;
     expandButtonPadding: string;

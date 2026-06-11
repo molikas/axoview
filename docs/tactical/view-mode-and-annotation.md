@@ -94,15 +94,16 @@ edit-mode dock behavior.
 - [x] Bottom-left semi-transparent overlay (`PreviewLayerSwitcher`, mounted in `UiOverlay`); per-layer toggle + solo; renders only with ≥2 layers in view mode. Locale strings × 13 + `LocaleProps`.
 - [x] Confirm toggling never marks the diagram dirty / never mutates `layer.visible` — asserted in `preview-layer-switcher.spec.ts`.
 
-### C. Annotation overlay (ADR 0014)
-- [ ] uiState `annotation` slice + local undo stack.
-- [ ] Overlay render layer (canvas/svg) in scene coordinates, sibling of `SceneLayer`.
-- [ ] Pen entry in top-toolbar View-modes group → draggable floating palette.
-- [ ] Tools: pencil, highlighter, line/arrow, rect/ellipse, color presets, thickness, eraser, undo, Clear.
-- [ ] Collapse = hide (retain); expand = show; Clear = wipe.
-- [ ] Pointer capture only while a draw tool is active (selection/pan otherwise intact).
-- [ ] **Persistence-exclusion tests** in `leanSave` + `projectZip` (zero annotation data in any output).
-- [ ] Resolve TODOs: iso↔2D re-projection behavior; image-export inclusion.
+### C. Annotation overlay (ADR 0014) — ✅ shipped
+- [x] uiState `annotation` slice (`open/collapsed/tool/color/thickness/strokes/palettePos`) + actions; undo = pop last stroke; eraser removes a clicked stroke.
+- [x] Overlay render layer (`AnnotationLayer`, screen-space SVG drawing in scene-canvas coords via a `<g>` mirroring the SceneLayer transform, direct store subscription — no re-render on pan/zoom).
+- [x] Pen entry → draggable floating palette (`AnnotationPalette`). **Placement note:** the pen lives in lib canvas chrome (top-right), not AppToolbar Group 1 — annotation state is lib uiState and must work in preview, where the app toolbar group isn't rendered. ADR 0005 Group 1 left reserved.
+- [x] Tools: pencil, highlighter, line/arrow, rect/ellipse, 8 color presets, 4 thicknesses, eraser, undo, Clear.
+- [x] Collapse = hide (retain strokes); expand = show; Clear = wipe.
+- [x] Pointer capture only while a draw tool is active (selection/pan otherwise intact).
+- [x] **Persistence-exclusion tests**: `annotationPersistence.test.ts` (`modelFromModelStore` whitelist + lean-save) + `projectZip.test.ts` (zero annotation bytes in any zip entry).
+- [x] Resolved TODOs (in ADR 0014): iso↔2D = strokes freeze in canvas space (no re-projection); image-export = deferred (export stays clean).
+- [x] Unit: `annotationGeometry.test.ts` (screen↔scene, paths, arrowhead). E2E: `annotation-overlay.spec.ts` (open/draw/collapse-hide/expand-show/clear + model stays annotation-free).
 
 ### D. Iso↔2D zoom preservation (locked decision #6) — ✅ shipped
 - [x] Remove the `fitToView()` call in [`ToolMenu.tsx`](../../packages/axoview-lib/src/components/ToolMenu/ToolMenu.tsx) `useEffect` (lines ~42-48).
@@ -128,7 +129,7 @@ Do this **per thread**, not as a deferred clean-up pass:
 - [ ] **E2E tests** (`packages/axoview-e2e/`) for each user-visible flow, with a POM per surface:
   - [x] View-mode popover: hover preview, click-pin, Esc/click-away close, link present. (`view-mode-info-popover.spec.ts` + `hasInfoPopoverContent.test.ts`)
   - [x] Preview layer switcher: toggle + solo change canvas; diagram stays non-dirty. (`preview-layer-switcher.spec.ts` + `previewLayerVisibility.test.ts`)
-  - [ ] Annotation: open palette, draw, collapse-hides / expand-shows, Clear wipes; **save/export contain no annotation data**.
+  - [x] Annotation: open palette, draw, collapse-hides / expand-shows, Clear wipes; **save/export contain no annotation data**. (`annotation-overlay.spec.ts` + `annotationPersistence.test.ts` + projectZip exclusion)
   - [x] Iso↔2D: zoom % is preserved across a round-trip switch (no 65→80→97 pop). (`canvas-mode-zoom-preserve.spec.ts`)
   - [x] Label toggle: on → labels readable at low zoom; persists across reload. (`readable-labels.spec.ts` + `labelScale.test.ts`)
   - [x] Empty-state: clicking anywhere on each card fires create/import (`EmptyStateScreenPOM.clickCreateCardTop` + `empty-state-clickable-card.spec.ts`).
