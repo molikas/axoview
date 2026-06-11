@@ -1,6 +1,6 @@
 # Axoview — Implementation Plan
 > **Living document.** Point Claude to this file at the start of any session: "read PLAN.md and implement the next incomplete phase."
-> Last updated: 2026-06-10 (v1.1 wave closed)
+> Last updated: 2026-06-10 (v1.1 wave closed + final docs-wrap; codebase ready for Phase 3A)
 
 ---
 
@@ -846,7 +846,7 @@ Before coding, read these files:
 ### Behavior
 The application chrome is reorganized to give every class of control a single owning region. The burger menu is removed and its items distributed; the file-explorer toggle moves into the left strip alongside Elements + Layers; the top toolbar collapses to a four-group RIGHT zone (View modes / Save group / Document actions / Sidebar toggle); SettingsDialog gains About + Diagnostics tabs.
 
-The shape is locked by [docs/adr/0005-toolbar-and-dock-layout-contract.md](docs/adr/0005-toolbar-and-dock-layout-contract.md). The execution checklist lives in [docs/tactical/layout-revamp.md](docs/tactical/layout-revamp.md).
+The shape is locked by [docs/adr/0005-toolbar-and-dock-layout-contract.md](docs/adr/0005-toolbar-and-dock-layout-contract.md). The execution checklist lived in `docs/tactical/layout-revamp.md` (retired on 2D completion per convention; durable record in ADR 0005 + git history).
 
 ### Why this lands here
 After 2B-R + 2C, the file explorer + diagram-link UX is settled but the surrounding chrome still carries debt from the upstream layout (junk-drawer burger, file-explorer toggle in the wrong region, no place to add future controls). 2D fixes the shell so future phases (formatting, presentation, annotation) have a home.
@@ -855,7 +855,6 @@ After 2B-R + 2C, the file explorer + diagram-link UX is settled but the surround
 ```
 Before coding, read these files:
   docs/adr/0005-toolbar-and-dock-layout-contract.md       (full)
-  docs/tactical/layout-revamp.md                          (full — sub-tasks live here)
   docs/ux-principles.md                                   (full — design language)
   packages/axoview-app/src/components/AppToolbar.tsx     (full)
   packages/axoview-lib/src/components/LeftDock/LeftDock.tsx        (full)
@@ -864,7 +863,7 @@ Before coding, read these files:
 ```
 
 ### Sub-tasks (high-level)
-Detailed sub-tasks live in [docs/tactical/layout-revamp.md](docs/tactical/layout-revamp.md). Top-level groups:
+Detailed sub-tasks lived in `docs/tactical/layout-revamp.md` (retired — see ADR 0005 + git history). Top-level groups:
 - [ ] **A.** Left strip restructure — Navigation region (📁), separator, Working region (⊞ ≣), System anchor (⚙).
 - [ ] **B.** Top toolbar restructure — RIGHT zone with four groups; new `StatusCluster` and `ExportPopover` components.
 - [ ] **C.** Burger removal — stop passing `mainMenuOptions`; lib's `MainMenu` stays exported but unused in app.
@@ -890,14 +889,10 @@ Detailed sub-tasks live in [docs/tactical/layout-revamp.md](docs/tactical/layout
 - **Rename FossFLOW → Axoview** — Phases 0–9 shipped on `rename/axoview` (merged `72fa120`). Phase 10 (npm publish, Docker Hub, Cloudflare Pages deploy, cwd rename) absorbed into `docs/tactical/productization-audit.md` milestones M7/M8/M10.
   — Phase 10 "npm publish" item closed 2026-05-20 with decision not to publish; `axoview-lib` stays monorepo-only per productization-audit Locked Decision #11.
 - **Manual QA bundle (28 items)** — Bundles A + B (2026-05-15) plus follow-ups through 2026-05-19; all items closed. Five late-flagged items (#8, #9, #19, #20, #26) confirmed resolved.
-- **v1.1 test-coverage** — shipped 2026-05-26 → 2026-05-27 across PRs #8 (5a backend + worker contract tests) + #9 (KR1+KR2+KR3 bundled E2E expansion) + this PR (KR1 iso tile→screen helper unlock + Findings #4–#7 deferred specs + Finding #8 partial — delete-with-confirmation). Closes the §11 HIGH-severity test gaps named in the post-v1.0.0 review for backend + worker (5a) and canvas cross-interaction (5e). Two narrow residuals remain catalogued in this PLAN: (a) `ADR 0011 Dialogs` (deferred-features register row 1 below — net-new product work, not test debt); (b) file-explorer `drag-into-folder` E2E coverage blocked on the well-known Playwright + react-dnd HTML5 backend testing limitation, deferred to a future session that either swaps to react-dnd's test backend in tests or exposes the tree API through the debug bridge; the multi-select-tree sub-row of Finding #8 was scope-corrected (app uses single-select; arborist hooks support multi-select but app-side wiring is needed first). Tactical `docs/tactical/v1.1-test-coverage.md` retired per convention; durable record lives in the commit history of those three PRs plus the deferred-features register row.
+- **v1.1 test-coverage** — shipped 2026-05-26 → 2026-05-27 across PRs #8 (5a backend + worker contract tests) + #9 (KR1+KR2+KR3 bundled E2E expansion) + this PR (KR1 iso tile→screen helper unlock + Findings #4–#7 deferred specs + Finding #8 partial — delete-with-confirmation). Closes the §11 HIGH-severity test gaps named in the post-v1.0.0 review for backend + worker (5a) and canvas cross-interaction (5e). Two narrow residuals remained catalogued in this PLAN at the time: (a) `ADR 0011 Dialogs` — **since shipped in PR #27 (2026-06-10)**, closing the deferred-features register; (b) file-explorer `drag-into-folder` E2E coverage blocked on the well-known Playwright + react-dnd HTML5 backend testing limitation, deferred to a future session that either swaps to react-dnd's test backend in tests or exposes the tree API through the debug bridge; the multi-select-tree sub-row of Finding #8 was scope-corrected (app uses single-select; arborist hooks support multi-select but app-side wiring is needed first). Tactical `docs/tactical/v1.1-test-coverage.md` retired per convention; durable record lives in the commit history of those three PRs plus the deferred-features register row.
 - **v1.1 tech-debt cleanup** — shipped 2026-05-23 → 2026-05-25 across PRs #3–#7. Track 0 (dead-code wave, ~9.4k LOC removed across 8 clusters), Track 1 (audit-truth fixes — nginx security headers, `isPublicRoute` alignment, ADR 0005 amendment, web-vitals dep removal, i18n `mainMenu` cascade), Track 2 (productization decisions — backend `npm ci` at build time + committed lockfile, drop `NPM_TOKEN` from `release.yml`, drop Node 20 from CI matrix, compose `name: axoview` + service rename `axoview` → `app`), Track 3 (`docs/technical-review-2026-05.md` §12 corrections appendix — B2 / B5 / M6 / M7 / anomaly #31 / published-posture / version notes), Track 4 (CodeQL toggle + master branch protection + single-tenant deployment callout). Mid-cleanup discovery: lasso connector-delete regression + path-hit selection semantics fixed in PR #6 (`2ed5f79`). Tracks 5 (test coverage incl. canvas cross-interaction E2E), 6 (refactor candidates for files > 300 LOC — **superseded 2026-05-26 by Sonar-driven refactor priorities; see catalogued workstream below**), and 7 (new audit workstreams incl. `no-explicit-any` baseline cleanup) catalogued; each spawns its own tactical when authorized. Durable corrections record lives in [`docs/technical-review-2026-05.md`](docs/technical-review-2026-05.md) §12. Tactical `docs/tactical/v1.1-tech-debt.md` retired per convention.
 
-**Deferred features (product decision needed before engineering can start; triage rule in `feedback_triage_rule.md`, default-DROP in `feedback_catalogue_is_debt.md`):**
-
-| # | Feature gap | Source | Status |
-|---|---|---|---|
-| 1 | **ADR 0011 failure-of-intent Dialogs** — no explicit Dialog for save-failure (quota), malformed-import, or share-POST 5xx. Needs Dialog component / copy / retry decision. | PR #9 (2026-05-26) | Awaits product decision |
+**Deferred features:** none. The register's only entry — ADR 0011 failure-of-intent Dialogs (save-failure / malformed-import / share-POST 5xx) — shipped in PR #27 (2026-06-10). Per `feedback_catalogue_is_debt.md`, no replacement items catalogued.
 
 ---
 
@@ -910,7 +905,9 @@ Detailed sub-tasks live in [docs/tactical/layout-revamp.md](docs/tactical/layout
 
 ---
 
-**v1.1 — wave closed 2026-06-10.** Shipped across PRs #3–#24 plus the closure PR (dead-code removal, audit-truth fixes, productization decisions, Sonar Tier 1 refactor, `no-explicit-any` baseline → 0, test-coverage expansion, and a final do-now batch). At closure the catalogue was aggressively pruned: shipped items and findings with no forcing function were **dropped** (each with a one-line rationale in the closure PR commit body, per `feedback_catalogue_is_debt.md`), leaving only the four gated workstreams + one deferred feature above — all v2+ work. The former Track 7 backlog, PR-session findings, and Sonar Tier 2 lists lived only in the retired `docs/tactical/v1.1-tech-debt.md` (commit `1cb4314`) and the technical reviews; consult git history if a dropped item ever re-surfaces with a real trigger.
+**v1.1 — wave closed 2026-06-10.** Shipped across PRs #3–#24 plus the closure PR (dead-code removal, audit-truth fixes, productization decisions, Sonar Tier 1 refactor, `no-explicit-any` baseline → 0, test-coverage expansion, and a final do-now batch). At closure the catalogue was aggressively pruned: shipped items and findings with no forcing function were **dropped** (each with a one-line rationale in the closure PR commit body, per `feedback_catalogue_is_debt.md`), leaving only the four gated workstreams above — all v2+ work (the one-time deferred feature, ADR 0011 Dialogs, has since shipped in PR #27, 2026-06-10). The former Track 7 backlog, PR-session findings, and Sonar Tier 2 lists lived only in the retired `docs/tactical/v1.1-tech-debt.md` (commit `1cb4314`) and the technical reviews; consult git history if a dropped item ever re-surfaces with a real trigger.
+
+**v1.1 fully closed 2026-06-10.** The final docs-wrap PR refreshed the living docs (architecture / deployment / testing / ux-principles / known_issues) to v1.1 state, promoted knip to hard-fail in CI, and emptied the deferred-features register. The codebase is ready for Phase 3A feature work.
 
 **v2 resumes from the Phase Status Dashboard:** Phase 3A (Google Auth) → 3B (Drive provider) → 4A (External Registry). No further v1.1 PRs.
 
