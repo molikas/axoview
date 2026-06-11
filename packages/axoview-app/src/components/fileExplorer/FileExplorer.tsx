@@ -23,6 +23,7 @@ import { FileTreeToolbar } from './FileTreeToolbar';
 import { ContextMenuItems } from './ContextMenuItems';
 import { ExportProjectZipDialog } from './ExportProjectZipDialog';
 import { ImportDialog } from './ImportDialog';
+import { ShareErrorDialog } from '../ShareErrorDialog';
 import { notificationStore } from '../../stores/notificationStore';
 import { copySuffix, countDescendants, detectCollision } from '../../utils/fileOperations';
 import { shareUrlFromUuid } from '../../utils/shareUrl';
@@ -135,6 +136,9 @@ export function FileExplorer() {
   const [contextMenuNode, setContextMenuNode] = useState<FileNode | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirm | null>(null);
   const [collisionDialog, setCollisionDialog] = useState<CollisionDialog | null>(null);
+  // ADR 0011 — share-link creation failure from the file-tree context menu (a
+  // bare action, outside any dialog). Holds the node so "Try again" can re-POST.
+  const [shareErrorNode, setShareErrorNode] = useState<FileNode | null>(null);
   const [exportTarget, setExportTarget] = useState<{
     scope: Exclude<ExportScope, 'diagram'>;
     folderId?: string;
@@ -361,8 +365,10 @@ export function FileExplorer() {
       await navigator.clipboard.writeText(url);
       notificationStore.push({ severity: 'success', message: 'Share link copied to clipboard' });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create share link';
-      notificationStore.push({ severity: 'error', message });
+      // ADR 0011 — failure-of-intent from a bare action: explicit dialog, not a
+      // toast. Stash the node so the dialog's "Try again" can re-run the POST.
+      console.error('handleCopyShareLink failed:', err);
+      setShareErrorNode(node);
     }
   }, [storage]);
 
@@ -749,6 +755,17 @@ export function FileExplorer() {
           <Button variant="contained" onClick={confirmMove}>Replace</Button>
         </DialogActions>
       </Dialog>
+
+      {/* ADR 0011 — share-link creation failure (file-tree context menu). */}
+      <ShareErrorDialog
+        open={!!shareErrorNode}
+        onDismiss={() => setShareErrorNode(null)}
+        onRetry={() => {
+          const node = shareErrorNode;
+          setShareErrorNode(null);
+          if (node) handleCopyShareLink(node);
+        }}
+      />
     </Box>
   );
 }

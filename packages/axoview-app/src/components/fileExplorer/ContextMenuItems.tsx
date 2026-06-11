@@ -64,7 +64,11 @@ export function ContextMenuItems({
         </MenuItem>
       )}
       {isDiagram && canShare && (
-        <MenuItem dense onClick={handle(onCopyShareLink)}>
+        <MenuItem
+          dense
+          data-axoview-id="file-explorer-context-menu-share"
+          onClick={handle(onCopyShareLink)}
+        >
           <ListItemIcon><ShareLinkIcon fontSize="small" /></ListItemIcon>
           Copy share link
         </MenuItem>

@@ -96,4 +96,47 @@ export class DialogsPOM {
   async dismissLocalModeShareError() {
     await this.localModeShareErrorDismissButton().click();
   }
+
+  // ── ADR 0011 failure-of-intent dialogs (save / import / share) ────────────
+  // Anchors stamped in the same commits as the consuming specs:
+  //   - dialog-save-error{,-dismiss,-retry}     (SaveErrorDialog)
+  //   - dialog-import-error{,-dismiss}          (ImportErrorDialog)
+  //   - dialog-share-error{,-dismiss,-retry}    (ShareErrorDialog)
+
+  saveError() {
+    return byAxoviewId(this.page, 'dialog-save-error');
+  }
+
+  /** Dismiss (OK) — clears the error, leaves editor state intact (ADR 0011 §3). */
+  async dismissSaveError() {
+    await byAxoviewId(this.page, 'dialog-save-error-dismiss').click();
+  }
+
+  /** Secondary "Try again" — re-runs the save via the lifecycle retry ref. */
+  async retrySave() {
+    await byAxoviewId(this.page, 'dialog-save-error-retry').click();
+  }
+
+  importError() {
+    return byAxoviewId(this.page, 'dialog-import-error');
+  }
+
+  /** Dismiss (OK) — closes the dialog; re-picking a file is the recovery. */
+  async dismissImportError() {
+    await byAxoviewId(this.page, 'dialog-import-error-dismiss').click();
+  }
+
+  shareError() {
+    return byAxoviewId(this.page, 'dialog-share-error');
+  }
+
+  /** Dismiss (OK) — closes the dialog without retrying the share POST. */
+  async dismissShareError() {
+    await byAxoviewId(this.page, 'dialog-share-error-dismiss').click();
+  }
+
+  /** Secondary "Try again" — re-runs the share POST against the stashed node. */
+  async retryShare() {
+    await byAxoviewId(this.page, 'dialog-share-error-retry').click();
+  }
 }
