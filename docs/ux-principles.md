@@ -1,5 +1,6 @@
 # Axoview UX Principles
 
+**Last updated:** 2026-06-10 (v1.1 close-out)
 **Status:** Living reference. Update when principles evolve.
 **Audience:** Anyone (or any agent) building UI surfaces, fixing bugs, or reviewing PRs that touch the canvas, side panels, file explorer, or layers.
 
@@ -331,6 +332,12 @@ if (!validationResult.success) {
 ```
 
 Reference: [`useInitialDataManager.ts`](../packages/axoview-lib/src/hooks/useInitialDataManager.ts) surfaces zod issues this way.
+
+### 6.3.1 Failure-of-intent gets a Dialog, not just a toast
+
+A *failure of intent* — the user asked for something and it could not happen (a save rejected by storage quota, a malformed import, a share-POST that 5xx'd) — surfaces as a **blocking Dialog with a clear next action (retry / cancel)**, not a passive notification that can be missed. A toast is right for *"this happened"*; a Dialog is right for *"this didn't happen and you need to decide what to do."*
+
+The contract is [ADR 0011 — Error-UX Contract](adr/0011-error-ux-contract.md), shipped in full at the v1.1 close-out (PR #27). The standardized dialog shape (soft shadow, X close button, `h6` 600 title, `body2` body, padded `DialogActions`; Enter confirms / Escape cancels per §3.2) now has **five instances** — the original confirm/discard pair plus the three v1.1 failure-of-intent dialogs (save-failure, malformed-import, share-failure). New blocking dialogs reuse [`ConfirmDialog`](../packages/axoview-app/src/components/ConfirmDialog.tsx) or mirror its shape.
 
 ### 6.4 Cover the cold-start gap with a branded splash
 
