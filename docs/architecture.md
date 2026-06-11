@@ -1,2257 +1,351 @@
 # Axoview — Architecture Reference
 
-**Last updated:** 2026-06-10 (rev 19 — v1.1 wave close-out)
+**Last updated:** 2026-06-10 (rev 20 — slimmed to a 5-minute orientation reference; deep dives relocated, see below)
 **Codebase root:** `packages/axoview-lib/src` (library) · `packages/axoview-app/src` (application shell) · `packages/axoview-backend/src` (Express + fs adapter) · `packages/axoview-worker/src` (Hono + Cloudflare Pages Functions)
-**Purpose:** Living architecture reference — feature inventory, store/reducer/mode architecture, multi-target deployment contract, test audit, gap analysis, lessons learned, and key APIs. Update this document whenever significant architectural changes are made.
 
-**Companion documents:**
-- [docs/adr/](adr/) — durable architectural decisions (project zip format, icon catalog merge, lean icon save, connector parity, toolbar + dock layout contract, canvas selection contract, naming convention, operational trace harness [ADR 0007], session/backend deployment contracts, error-UX / failure-of-intent dialogs [ADR 0011]).
-- [docs/deployment.md](deployment.md) — from-scratch deploy walkthroughs.
-- [docs/testing.md](testing.md) — regression suite reference.
-- [PLAN.md](../PLAN.md) — strategic phase roadmap.
+**Purpose:** This is the **orientation map** — what the codebase contains and where each piece lives, tight enough to read in five minutes before touching a surface. It is deliberately *not* the comprehensive reference: decisions live in ADRs, the deep architectural narrative + file-by-file inventory + KPIs live in the frozen technical review, the test catalogue lives in `testing.md`, and runtime issues live in `known_issues.md`. Each section below points to its deeper source.
+
+**Where the depth lives:**
+
+| You want… | Read |
+|---|---|
+| The *decision* behind a contract (why it works this way) | [docs/adr/](adr/) — 11 ADRs |
+| Deep architecture narrative, sequence diagrams, file-by-file inventory, quality KPIs | [docs/technical-review-2026-06.md](technical-review-2026-06.md) (frozen baseline) |
+| The full regression-suite catalogue (every suite, its contract, gaps) | [docs/testing.md](testing.md) |
+| Open runtime issues, deferred fixes, perf cliffs | [known_issues.md](../known_issues.md) + [docs/perf-troubleshooting.md](perf-troubleshooting.md) |
+| From-scratch deploy walkthrough | [docs/deployment.md](deployment.md) |
+| Design language (UI surfaces) | [docs/ux-principles.md](ux-principles.md) |
+| Strategic phase roadmap | [PLAN.md](../PLAN.md) |
+| How a working session runs (skill cadence) | [docs/workflow.md](workflow.md) |
 
 ---
 
 ## Table of Contents
 
 1. [Feature Inventory](#1-feature-inventory)
-2. [Architecture Map](#2-architecture-map)
-   - [2a. Store Layer](#2a-store-layer)
-   - [2b. Mode State Machine](#2b-mode-state-machine)
-   - [2c. Scene API](#2c-scene-api-hooksusescenets)
-   - [2d. Reducer Layer](#2d-reducer-layer)
-   - [2e. Schema Layer](#2e-schema-layer)
-   - [2f. Clipboard Module](#2f-clipboard-module)
-   - [2g. History System](#2g-history-system)
-   - [2h. Component Tree](#2h-component-tree)
-   - [2i. Event Propagation Architecture](#2i-event-propagation-architecture)
-   - [2j. Configuration Layer](#2j-configuration-layer)
-   - [2k. Internationalisation (i18n) Layer](#2k-internationalisation-i18n-layer)
-   - [2l. axoview-app Provider Decomposition](#2l-axoview-app-provider-decomposition-2026-04-27)
-   - [2m. Deployment & API Contract](#2m-deployment--api-contract-2026-04-29)
-   - [2n. Workspace Bundles & Lean Icon Save](#2n-workspace-bundles--lean-icon-save-2026-05-01)
-3. [Test Audit](#3-test-audit)
-4. [Gap Analysis](#4-gap-analysis)
-5. [Lessons Learned](#5-lessons-learned)
-6. [Key APIs for Regression Coverage](#6-key-apis-for-regression-coverage)
-7. [Known Runtime Issues & Limitations](#7-known-runtime-issues--limitations)
-8. [Code Quality Infrastructure](#8-code-quality-infrastructure)
+2. [Architecture Map](#2-architecture-map) — [2a Store](#2a-store-layer) · [2b Modes](#2b-mode-state-machine) · [2c Scene API](#2c-scene-api) · [2d Reducers](#2d-reducer-layer) · [2e Schema](#2e-schema-layer) · [2f Clipboard](#2f-clipboard-module) · [2g History](#2g-history-system) · [2h Component Tree](#2h-component-tree) · [2i Event Propagation](#2i-event-propagation) · [2j Config](#2j-configuration-layer) · [2k i18n](#2k-internationalisation-i18n-layer) · [2l App Providers](#2l-axoview-app-provider-decomposition) · [2m Deployment Contract](#2m-deployment--api-contract) · [2n Workspace Bundles](#2n-workspace-bundles--lean-icon-save)
+3. [Performance Architecture](#3-performance-architecture)
+4. [Lessons Learned](#4-lessons-learned)
+5. [Tests, Gaps & Quality](#5-tests-gaps--quality)
 
 ---
 
 ## 1. Feature Inventory
 
+A "what exists and where it lives" map. The deep behavioural contracts (gotchas, invariants) for the load-bearing ones are in the ADRs and Lessons Learned — cross-referenced inline. Implementation detail that drifts with the code is intentionally **not** restated here; the source is truth.
+
 ### Canvas Interaction Modes
 
-| Feature | Source | Entry Point | Key Data | Gotchas |
-|---|---|---|---|---|
-| **Cursor / Select** | `interaction/modes/Cursor.ts` | `useInteractionManager` → `Cursor` mode entry | Reads `uiState.mouse`, `uiState.mode.mousedownItem`, `mousedownHandled`, `uiState.mouse.modifiers` (ctrl/shift/meta/alt) and `targetAnchorId`; writes `itemControls` and `selectedIds` via the new multi-select actions | `mousedownHandled` flag distinguishes toolbar clicks from genuine empty-canvas clicks. Left-click on empty canvas calls `clearSelection()` — **no context menu**. Adding items is via double-click popover. **Ctrl+click on a connector toggles connector + its tile-bound waypoint anchors as a group** (waypoints aren't independently click-selectable). **Alt+click on a waypoint splices it from the parent connector** — uses a module-local `altSpliceConsumed` flag so the subsequent `mouseup` skips the empty-canvas-clear branch and preserves the connector selection. Anchor hit detection prefers `uiState.mouse.targetAnchorId` (DOM data-attribute) over tile-equality so clicks anywhere within the waypoint's 32 px transparent hit ring resolve to the right anchor at any zoom. See [ADR-0006](adr/0006-canvas-selection-contract.md). |
-| **Multi-select (`selectedIds`)** | `stores/uiStateStore.tsx`, `utils/connectorSelection.ts` | `setSelectedIds` / `toggleSelected` / `clearSelection` actions; gestures originate in `Cursor.mouseup` (Ctrl+click), `useInteractionManager` keyboard handler (Ctrl+A, Esc, Delete), Lasso/FreehandLasso mouseup (mirror) | Reads scene items + `layerContext`; writes `selectedIds: ItemReference[]` slice plus auto-derived `itemControls` (single-item case only) | **Invariant:** when `selectedIds.length === 1`, `itemControls` mirrors it; when 0 or > 1, `itemControls` is null. `getConnectorWaypointRefs(connector)` is the single source of truth for "what extra refs accompany a CONNECTOR" — every selection path that includes a connector must call it, otherwise drag/delete leaves orphaned waypoints (the symptom that recurred until ADR-0006 unified the three call sites: Lasso, FreehandLasso, Ctrl+A). `countUserFacingRefs` filters CONNECTOR_ANCHOR out of the badge / LassoLayerBar count; `filterUserFacingRefs` strips them before `assignLayerToItems`. Multi-drag in `Cursor.mousedown` MUST seed `initialTiles` for CONNECTOR_ANCHOR refs by reading their `ref.tile` — without it, DragItems routes them through the anchor-reconnect path and re-anchors them to the cursor tile every frame (inversion symptom). See [ADR-0006](adr/0006-canvas-selection-contract.md) for the full gesture matrix. |
-| **Pan** | `interaction/modes/Pan.ts`, `interaction/usePanHandlers.ts` | `usePanHandlers` short-circuits `onMouseEvent` before `processMouseUpdate` | Reads `mouse.delta.screen`, writes `scroll.position`; uses `isPanningRef`, `panMethodRef` | Has a **bypass path** in `onMouseEvent` — middle/right/ctrl/alt/emptyArea clicks call `startPan()` directly and return early without going through `processMouseUpdate` |
-| **Lasso** | `interaction/modes/Lasso.ts` | Mode dispatch in `processMouseUpdate` | Reads `mouse.mousedown`, `mouse.position.tile`, `uiState.mode.selection`; writes mode with selection bounds + items array | `mousedown` with no selection is a no-op — lets `mousemove` build the box; clicking outside an existing selection clears it and stays in LASSO (does NOT exit to CURSOR); `mouseup` with items stays in LASSO, without items exits to CURSOR; `mouseup` guard (`!mouse.mousedown`) prevents toolbar-click stray events |
-| **Freehand Lasso** | `interaction/modes/FreehandLasso.ts` | Mode dispatch in `processMouseUpdate` | Reads `mouse.position.screen`, writes `mode.path` (screen coords); on mouseup converts path to tiles via `screenToIso`, runs `isPointInPolygon` | Same `isRendererInteraction` fix as Lasso — within-selection check runs for all clicks; only new-path start and outside-selection clear require renderer interaction; uses `rendererEl.getBoundingClientRect()` at mouseup, not `rendererSize` |
-| **Drag Items** | `interaction/modes/DragItems.ts` | Transitioned to from Cursor.mousemove when mousedown + moved tile | Reads `mode.items`, `mode.initialTiles`, `mode.initialRectangles`, `mouse.position.tile`, `mouse.mousedown.tile`, `uiState.canvasMode`; uses **absolute positioning** (`initialTile + mouseOffset`); **CSS-preview path for ITEM and WAYPOINT moves** (no model write); `scene.transaction()` wraps only textbox/rectangle/anchor-reconnect | **MQA #7 Path 4-true invariant (2026-05-16):** during a multi-element drag the model is NOT mutated per frame for items OR free-floating waypoint anchors. Items get visual updates via a `data-drag-id={node.id}` attribute on Node's outer Box, targeted by direct DOM mutation that sets `--ff-drag-dx` / `--ff-drag-dy` CSS variables. The Node's inner Box's transform reads both `--ff-x/--ff-y` (base position from React) and `--ff-drag-dx/dy` (live drag offset), so position updates are compositor-only — no React reconciliation, no immer, no layout. Waypoints accumulate into a separate module-level `previewAnchorTiles: Map<anchorId, Coords>` and are routed through `scene.previewConnectorPaths(previewItems, previewAnchors)` alongside item previews. Connector wires re-route via a synthetic view that overlays BOTH preview maps onto items + anchors and recomputes paths via `getConnectorPath`, writing directly to `scene.connectors[].path`. `flushSync` wraps the scene-store write so Connector subscribers re-render in the same frame as the CSS mutation — without it, endpoints visually lag the dragged icons by one frame. The final tile values are committed to the model on mouseup: items via `scene.batchUpdateViewItemTiles(...)`, waypoints via per-connector `scene.updateConnector(...)` with the updated anchors array. Then `commitDragTransaction()` collapses everything into one history entry. Pixel-from-tile conversion uses `UNPROJECTED_TILE_SIZE` / `PROJECTED_TILE_SIZE` directly (mode-aware). Textbox / rectangle / anchor-reconnect (drop onto another item) drags still go through `scene.transaction()` since they're rarely in the multi-element hot path. Guard: `mouseOffset != zero()` (replaces stale `hasMovedTile`); node collision = stay-at-last-valid (occupied-tile check only, no nearest-search); `not-allowed` cursor only when node dragged over another node; sets `renderer.style.userSelect = 'none'` on entry. **Critical race avoidance:** the `previewAnchorTiles` path exists specifically so `scene.updateConnector` (which triggers `syncConnector`) does NOT run during the drag. If it did, `syncConnector` would compute paths against the STALE model item tiles and stomp the preview write, causing endpoints to flicker between correct and detour-to-old-position paths. See [`docs/perf-troubleshooting.md`](perf-troubleshooting.md) for the full diagnostic story. **Implications for future contributors:** during a drag, `view.items[].tile` AND `view.connectors[].anchors[].ref.tile` are both stale until mouseup. Live positions live in DOM CSS variables (items) and in `scene.connectors[].path` (connectors). The `data-drag-id` attribute is part of the contract — don't remove without updating DragItems. |
-| **Connector** | `interaction/modes/Connector.ts` | ToolMenu / hotkey → `setMode({type:'CONNECTOR'})` · Elements panel card → `setMode({type:'CONNECTOR', returnToCursor:true})` | Reads `connectorInteractionMode`; two sub-flows: click mode (first-click creates+stores `startAnchor`, second-click finalises) vs. drag mode (mousedown creates, mousemove updates anchor[1], mouseup finalises). On completion (both flows): if `returnToCursor` is true → `setMode({type:'CURSOR'})`. If false → stays in CONNECTOR. | Entry calls `setWindowCursor('crosshair')`; Escape in `useInteractionManager` handles in-progress connection cleanup. **Important**: first-click `setMode` must explicitly forward `returnToCursor` from `uiState.mode` — failing to do so loses the flag before the second click. |
-| **Place Icon** | `interaction/modes/PlaceIcon.ts` | ToolMenu "Add item" → `setMode({type:'PLACE_ICON', id:null})`; id set when icon selected | On mouseup: calls `findNearestUnoccupiedTile` then `scene.placeIcon()` | If no tile found (`targetTile` is null), no item is placed — silent no-op |
-| **Draw Rectangle** | `interaction/modes/Rectangle/DrawRectangle.ts` | ToolMenu "Rectangle" | On mousedown: creates rectangle at cursor; on mousemove: `updateRectangle({to:...})`; on mouseup: → CURSOR | `isRendererInteraction` guard on mousedown |
-| **Transform Rectangle** | `interaction/modes/Rectangle/TransformRectangle.ts` | `TransformAnchor.tsx` fires `setMode({type:'RECTANGLE.TRANSFORM'})` | Reads `mode.selectedAnchor` (BOTTOM_LEFT/BOTTOM_RIGHT/TOP_LEFT/TOP_RIGHT); computes new bounds with `getBoundingBox` + `convertBoundsToNamedAnchors` | mousedown handler is empty — the anchor component itself sets the mode |
-| **TextBox** | `interaction/modes/TextBox.ts` | Hotkey or ToolMenu "Text" → `createTextBox` then `setMode({type:'TEXTBOX', id})` | On mousemove: `updateTextBox(id, {tile})`; on mouseup: if not renderer interaction → delete; if renderer → `setItemControls({TEXTBOX})` | Entry calls `setWindowCursor('crosshair')` |
-
-### Clipboard
-
 | Feature | Source | Entry Point |
 |---|---|---|
-| **Copy** | `clipboard/useCopyPaste.ts` | `Ctrl+C` in `useInteractionManager` keydown handler → `handleCopy()` |
-| **Cut** | `clipboard/useCopyPaste.ts` | `Ctrl+X` in keydown handler → `handleCut()` |
-| **Paste** | `clipboard/useCopyPaste.ts` | `Ctrl+V` in keydown handler → `handlePaste()` |
+| **Cursor / Select** | `interaction/modes/Cursor.ts` | `useInteractionManager` → Cursor mode |
+| **Multi-select (`selectedIds`)** | `stores/uiStateStore.tsx`, `utils/connectorSelection.ts` | `setSelectedIds` / `toggleSelected` / `clearSelection`; Ctrl+click, Ctrl+A, Lasso mirror |
+| **Pan** | `interaction/modes/Pan.ts`, `interaction/usePanHandlers.ts` | `usePanHandlers` bypass before `processMouseUpdate` |
+| **Lasso** | `interaction/modes/Lasso.ts` | Mode dispatch in `processMouseUpdate` |
+| **Freehand Lasso** | `interaction/modes/FreehandLasso.ts` | Mode dispatch in `processMouseUpdate` |
+| **Drag Items** | `interaction/modes/DragItems.ts` | From `Cursor.mousemove` (mousedown + moved tile) |
+| **Connector** | `interaction/modes/Connector.ts` | ToolMenu / hotkey / Elements panel card |
+| **Place Icon** | `interaction/modes/PlaceIcon.ts` | ToolMenu "Add item" / Elements drag |
+| **Draw / Transform Rectangle** | `interaction/modes/Rectangle/` | Elements panel card / `TransformAnchor.tsx` |
+| **TextBox** | `interaction/modes/TextBox.ts` | Hotkey / Elements panel |
+| **Reconnect Anchor** | `interaction/modes/ReconnectAnchor.ts` | Anchor-handle mousedown |
 
-Copy reads selection from `LASSO`/`FREEHAND_LASSO` mode or single-item `itemControls`. Cut calls `handleCopy()` then `deleteSelectedItems()` in a single transaction — the clipboard retains the payload for subsequent pastes, and `Ctrl+Z` restores the deleted items. Paste calls `findNearestUnoccupiedTilesForGroup` for collision avoidance, remaps all IDs, detaches anchors pointing outside the paste selection (converting `ref.item` to `ref.tile`), offsets all tile waypoint anchors (`ref.tile`) by the paste offset, and calls `scene.pasteItems()`. After pasting, switches to `CURSOR` mode (`mousedownItem: null`).
+**The contracts that matter** are locked in [ADR 0006 — Canvas Selection Contract](adr/0006-canvas-selection-contract.md) (the single + multi-select gesture matrix, connector-waypoint grouping, `getConnectorWaypointRefs` invariant) and [ux-principles §4](ux-principles.md). The high-frequency drag-performance design (CSS-preview path, `previewAnchorTiles`, the stale-model race) is documented in [perf-troubleshooting.md](perf-troubleshooting.md) and summarised in [§3](#3-performance-architecture). The `isRendererInteraction` / `mousedownHandled` guards are explained in [§2b](#2b-mode-state-machine) and [§4](#4-lessons-learned).
 
-### History (Undo/Redo)
+### Clipboard · History · Views
 
-| Feature | Source | Entry Point |
+| Feature | Source | Entry |
 |---|---|---|
-| **Undo** | `hooks/useHistory.ts`, `stores/modelStore.tsx`, `stores/sceneStore.tsx` | `Ctrl+Z` or ToolMenu Undo button |
-| **Redo** | Same | `Ctrl+Y` / `Ctrl+Shift+Z` or ToolMenu Redo button |
+| **Copy / Cut / Paste** | `clipboard/useCopyPaste.ts` | `Ctrl+C/X/V` in `useInteractionManager` keydown |
+| **Undo / Redo** | `hooks/useHistory.ts` + model/scene stores | `Ctrl+Z` / `Ctrl+Y` / ToolMenu |
+| **Multi-view** | `stores/reducers/view.ts`, `hooks/useScene.ts` | ViewTabs UI (EDITABLE only) |
 
-Both model and scene have **independent** history stacks (past/present/future, max 50 entries each). `useHistory.undo()` attempts both stores; `canUndo = modelCanUndo || sceneCanUndo`.
-
-### Views
-
-| Feature | Source | Entry Point |
-|---|---|---|
-| **Multi-view** | `stores/reducers/view.ts`, `hooks/useScene.ts` → `createView`, `deleteView` | ViewTabs UI |
-| **Rename page** | `reducers/view.ts` → `updateView` | ViewTabs inline rename (pencil icon, per tab) |
-| **Switch** | `hooks/useView.ts` → `changeView` | ViewTabs click |
-| **Tabs UI** | `components/ViewTabs/ViewTabs.tsx` | Only shown in `EDITABLE` mode |
-
-`createView` does **not** save to history (notable gap). `deleteView` saves to history and auto-switches to `views[0]` if current view is deleted. Cannot delete the last view.
-
-**ViewTabs title card (2026-03-27):** The diagram title shown in the ViewTabs bar is read-only. It is managed exclusively at the file/storage level via Save / Save As in the `axoview-app` toolbar. Renaming the title inline was removed to keep the name in sync with the stored file name. View tab (page) names remain renameable inline.
+Model and scene maintain **independent** patch-pair history stacks (max 50 each) — see [§2g](#2g-history-system). `createView` is **not** undoable (known gap). Clipboard mechanics (centroid, ID remap, anchor detachment) are in [§2f](#2f-clipboard-module). The diagram title in ViewTabs is read-only (managed at the file level via Save / Save As, 2026-03-27); page (view tab) names remain renameable inline.
 
 ### Model Data
 
-- **Items (nodes)**: `ModelItem` (model layer: id, name, description?, notes?, headerLink?, icon?) + `ViewItem` (view layer: id, tile, labelHeight, labelFontSize, labelColor). Always a pair. `description` is the **Caption** — short rich-text shown on the canvas below the node name (Zod max 50,000 chars). `notes` is private documentation shown only in the panel — no max length. Both are HTML strings from Quill. Old diagrams without either field load fine (both are `.optional()` in the schema).
-- **Connectors**: `Connector` (anchors array, color, style, lineType, labels, showArrow). Scene layer stores computed `path` (tiles + bounding rect).
-- **Rectangles**: `Rectangle` (from, to tile coords, color, customColor). Pure model — no scene data.
-- **TextBoxes**: `TextBox` (tile, content, fontSize, orientation). Scene stores computed `size`.
-- **Labels**: Connector labels are `ConnectorLabel[]` (id, text, position 0-100, height, line, showLine).
-- **Icons** (`model.icons`): conflates two concerns — the side-dock catalog (bundled fixtures) and per-diagram persistence (custom icons + overrides). Lean save (ADR 0003) strips bundled fixtures on every write; load-time merge (ADR 0002) rehydrates them. See [§ 2n](#2n-workspace-bundles--lean-icon-save-2026-05-01).
-- **`requiredPacks: string[]`** (model-level, optional): the set of non-isoflow icon collections (`aws` / `gcp` / `azure` / `k8s` / `material` / imported user packs) the model references. Importers consult it before the merge in ADR 0002 runs so items don't end up pointing at unresolvable ids. Authoritative re-derivation only happens when every `item.icon` resolves against `model.icons`; otherwise the field is preserved verbatim through a save round-trip.
+- **Items (nodes)**: `ModelItem` (id, name, description?, notes?, headerLink?, icon?) + `ViewItem` (id, tile, labelHeight, labelFontSize, labelColor) — always a pair. `description` is the **Caption** (rich-text shown on canvas, Zod max 50,000 chars); `notes` is private panel-only documentation (no max). Both optional HTML strings from Quill — old diagrams load fine.
+- **Connectors**: anchors array, color, style, lineType, labels, showArrow. Scene layer stores computed `path`.
+- **Rectangles**: from/to tile coords, color, customColor. Pure model.
+- **TextBoxes**: tile, content, fontSize, orientation. Scene stores computed `size`.
+- **Labels**: `ConnectorLabel[]` (id, text, position 0-100, height, line, showLine).
+- **Icons** (`model.icons`): conflates the side-dock catalog (bundled fixtures) and per-diagram persistence (custom + overrides). Lean save strips bundled fixtures on write; load-time merge rehydrates them. See [§2n](#2n-workspace-bundles--lean-icon-save) + ADRs 0002/0003.
+- **`requiredPacks: string[]`** (optional, model-level): non-isoflow icon collections the model references; consulted by importers before the ADR-0002 merge. Derived-but-preserved (see [§2n](#2n-workspace-bundles--lean-icon-save)).
 
-### Inline rename (canvas + file tree)
+### Inline Rename
 
-| Surface | Trigger | Component | Notes |
-|---|---|---|---|
-| **Node label** | F2 with node selected · double-click on label | `components/SceneLayers/Nodes/Node/Node.tsx` listens for `inlineEditNodeName` `CustomEvent` by id; renders a contentEditable `Typography` that auto-grows rightward and wraps at maxWidth | Commit on Enter / blur via `useScene().updateModelItem`. Escape cancels. F2 dispatched from `interaction/useInteractionManager.ts` for `ITEM` and `TEXTBOX` selections. Empty string commits (clears the canvas label). |
-| **TextBox** | F2 with text-box selected · double-click on label | `components/SceneLayers/TextBoxes/TextBox.tsx` — same `CustomEvent` mechanism | Commits via `useScene().updateTextBox`. |
-| **File tree** | F2 with row selected · context-menu Rename | `components/fileExplorer/` — calls `treeRef.current.edit(id)` on `react-arborist` | Double-click rename in the tree does **not** work; tracked in [known_issues.md](../known_issues.md) with workaround (F2 or context menu). |
+| Surface | Trigger | Component |
+|---|---|---|
+| **Node label** | F2 · double-click label | `SceneLayers/Nodes/Node/Node.tsx` (`inlineEditNodeName` CustomEvent) |
+| **TextBox** | F2 · double-click label | `SceneLayers/TextBoxes/TextBox.tsx` |
+| **File tree** | F2 · context-menu Rename | `components/fileExplorer/` → `react-arborist` |
 
-### Workspace I/O (ADRs 0001-0003)
+Double-click rename in the file tree does not work (F2 / context-menu workaround) — tracked in [known_issues.md](../known_issues.md).
+
+### Workspace I/O (ADRs 0001–0003)
 
 | Feature | Source | Notes |
 |---|---|---|
-| **Project zip — Export** | `packages/axoview-app/src/services/project/projectZip.ts` → `exportProject({ scope, folderId?, diagramId? })` | Three scopes: `project` / `folder` / `diagram`. Returns a `Blob` (manifest + `diagrams/<id>.json` + `tree-manifest.json`). Custom icons embedded as base64 inside each diagram (no separate `images/` folder at v1). See [ADR 0001](../docs/adr/0001-project-zip-format.md). |
-| **Project zip — Parse** | `parseProject(file)` | Validates manifest **before** any state mutation. Rejects unknown `format` or `version`. Rejects diagram ids not matching `^[a-zA-Z0-9_-]{1,64}$` (defense in depth — IDs get rewritten anyway). |
-| **Project zip — Import** | `importProject(parsed, { destination, newFolderName? })` | Three destinations: `root` (preserve relative tree shape) / `newFolder` (wrap in named folder) / `replaceAll` (typed-confirm gated, deletes everything first). Always rewrites IDs and updates cross-diagram link refs via a `Map<oldId, newId>`. |
-| **Lean icon save** | `packages/axoview-lib/src/utils/leanSave.ts` → `stripDefaultIcons(model)` | Drops icons that are pure duplicates of `bundledFixtures.byId`. Preserves custom icons and overridden defaults verbatim. Wired into `LocalStorageProvider.sessionSaveDiagram`, server `PUT /api/diagrams/:id` callers, `exportAsJSON`, `exportAsCompactJSON`. See [ADR 0003](../docs/adr/0003-session-storage-lean-icon-save.md). |
-| **Load-time icon merge** | `packages/axoview-lib/src/hooks/useInitialDataManager.ts` | Merges `bundledFixtures` into `modelData.icons` before writing to the store (union by id; overrides win). The merge runs on every load so it can't bit-rot. See [ADR 0002](../docs/adr/0002-icon-catalog-merge-on-load.md). |
-| **Delete imported icon + workspace usage scan** | `packages/axoview-lib/src/components/ItemControls/IconSelectionControls/Icon.tsx` (hover-× badge, gated by `icon.collection === 'imported'`); `packages/axoview-lib/src/components/LeftDock/DeleteIconConfirmDialog.tsx` (confirm + per-diagram usage list); `packages/axoview-lib/src/components/LeftDock/ElementsPanel.tsx` (handler); `packages/axoview-app/src/services/iconUsage.ts` (workspace scan implementation) | Hover an imported tile → red × top-right (0.5 → 1 opacity). Confirm dialog calls the injected `iconUsageScan` callback (new `<Axoview>` prop, stored on `uiStateStore.iconUsageScan`) to list every workspace diagram referencing the icon, then `modelActions.set({ icons })` removes it from the active model — pushing a history entry so `Ctrl+Z` restores. **Fallback path:** when no callback is wired (tests, embeds) the dialog scans current-diagram items only. **Stale-render protection:** items with unresolved icon ids fall through to the new `TOMBSTONE_ICON` (config.ts) via `useIcon` — single render path for "deleted" + "paste-from-unknown-source". Re-importing under the same id resurrects items automatically (no special "rehydrate" logic — the merge in ADR-0002 does it). See [ADR 0002 Lifecycle](../docs/adr/0002-icon-catalog-merge-on-load.md). Per-diagram scope of imports themselves is a separate gap — see [§7k](#7k-imported-icons-are-scoped-per-diagram-not-per-project). |
-| **Session storage gauge** | `packages/axoview-app/src/components/fileExplorer/SessionStorageGauge.tsx` | Chip leads with `%` (`<1% · 3.6 KB`); click opens a per-diagram size table (sorted by size desc, with quick-delete). Color thresholds at 60% / 90%. Listens to a custom `Event('axoview-session-changed')` dispatched by `LocalStorageProvider` after each session mutation (sessionStorage has no native cross-mutation event in the same tab). |
-| **Session-mode banner** | `packages/axoview-app/src/components/SessionModeBanner.tsx` | Shown when storage resolves to session AND ≥1 diagram exists. Dismissable per session only. |
-| **`sessionWorkUnexported` flag** | `DiagramLifecycleProvider` | Independent of `hasUnsavedChanges`. Drives the `beforeunload` prompt in session mode. Clears only on successful project-zip export. The 11 existing `hasUnsavedChanges` consumers behave unchanged. |
+| **Project zip export / parse / import** | `axoview-app/src/services/project/projectZip.ts` | Three scopes/destinations; manifest validated before mutation; IDs always rewritten. [ADR 0001](adr/0001-project-zip-format.md). |
+| **Lean icon save** | `axoview-lib/src/utils/leanSave.ts` → `stripDefaultIcons` | Drops pure duplicates of `bundledFixtures.byId`. [ADR 0003](adr/0003-session-storage-lean-icon-save.md). |
+| **Load-time icon merge** | `axoview-lib/src/hooks/useInitialDataManager.ts` | `bundledFixtures ∪ model.icons`, runs every load. [ADR 0002](adr/0002-icon-catalog-merge-on-load.md). |
+| **Delete imported icon + workspace usage scan** | `ItemControls/IconSelectionControls/Icon.tsx`, `LeftDock/DeleteIconConfirmDialog.tsx`, `axoview-app/src/services/iconUsage.ts` | Hover-× on imported tiles; `TOMBSTONE_ICON` fallback for unresolved ids. Per-diagram scoping is a known gap (see [known_issues.md](../known_issues.md)). |
+| **Session storage gauge / banner** | `fileExplorer/SessionStorageGauge.tsx`, `SessionModeBanner.tsx` | Listens to custom `axoview-session-changed` Event. |
+| **`sessionWorkUnexported` flag** | `DiagramLifecycleProvider` | Drives `beforeunload` in session mode; clears only on project-zip export. |
 
 ### Settings
 
 | Setting | Config File | Default |
 |---|---|---|
-| Hotkey profile | `config/hotkeys.ts` | `'smnrct'` (s=select, m=pan, n=addItem, r=rect, c=connector, t=text, l=lasso, f=freehand) |
-| Pan: middleClick | `config/panSettings.ts` | `true` |
-| Pan: rightClick | `config/panSettings.ts` | `true` |
-| Pan: ctrlClick, altClick, emptyAreaClick | `config/panSettings.ts` | `false` |
-| Pan: arrowKeys | `config/panSettings.ts` | `true` |
-| Pan: wasd, ijkl | `config/panSettings.ts` | `false` |
-| Keyboard pan speed | `config/panSettings.ts` | `20` (px per key) |
+| Hotkey profile | `config/hotkeys.ts` | `'smnrct'` (s/m/n/r/c/t = select/pan/addItem/rect/connector/text; l=lasso, f=freehand) |
+| Pan toggles (middle/right/ctrl/alt/emptyArea/arrows/wasd/ijkl, speed) | `config/panSettings.ts` | middle+right+arrows on; rest off; speed 20 px |
 | Zoom to cursor | `config/zoomSettings.ts` | `true` |
-| Label expand button padding | `config/labelSettings.ts` | `0` |
-| Connector interaction mode | `types/ui.ts` → `UiState.connectorInteractionMode` | `'click'` |
-| Fixed shortcuts | `config/shortcuts.ts` | cut=Ctrl+X, copy=Ctrl+C, paste=Ctrl+V, undo=Ctrl+Z, redo=Ctrl+Y/Ctrl+Shift+Z, help=F1 |
+| Connector interaction mode | `types/ui.ts` | `'click'` (vs `'drag'`) |
+| Fixed shortcuts | `config/shortcuts.ts` | cut/copy/paste/undo/redo/help (non-configurable) |
+
+Persistence flow + canonical type location (`types/settings.ts`) in [§2j](#2j-configuration-layer).
 
 ### UI Overlays
 
 | Overlay | Component | Shown When |
 |---|---|---|
-| Dialogs (Export/Help/Settings) | `ExportImageDialog`, `HelpDialog`, `SettingsDialog` | `uiState.dialog === 'EXPORT_IMAGE'/'HELP'/'SETTINGS'` |
-| Notification snackbar | `NotificationSnackbar` | `uiState.notification !== null` |
-| Context menu | `ContextMenuManager` + `ContextMenu` | `uiState.contextMenu !== null` (`EMPTY` type); **no longer triggered by left-click** — reserved for future right-click binding. Add Node / Add Rectangle moved to double-click popover. |
-| Item controls panel | `ItemControlsManager` → `NodePanel` | `uiState.itemControls !== null`; EDITABLE: 3-tab layout (Details/Style/Notes); EXPLORABLE_READONLY: single-scroll panel (Caption + Notes sections when non-empty, header with icon/name/link) |
-| Floating action bar | `NodeActionBar` (inside SceneLayer, `getTilePosition` origin TOP) | EDITABLE + `itemControls.type === 'ITEM'` + mode ≠ `DRAG_ITEMS`; 5 buttons: Style, Edit name, Link, Notes, Delete |
-| Note indicator dot | 14 px blue dot in `Node.tsx` at icon top-right | `modelItem.notes` non-empty |
-| Quick add popover | `QuickAddNodePopover` (MUI Popover at cursor) | EDITABLE; fires on `canvasEmptyDblClick` from dblclick on empty canvas; has **Rectangle** button (creates background rectangle) + icon picker (places node) |
-| Preview button | `IconButton` in `axoview-app` toolbar | EDITABLE + server storage + saved diagram; if `hasUnsavedChanges`, saves first (same path as explicit Save), shows toast, then opens `/display/{id}` in new tab; tooltip: *"Save & Preview"* / *"Preview"* / *"Save first to preview"* |
-| ToolMenu | `ToolMenu` | EDITABLE mode only; tools: Undo, Redo, Select, Lasso, Freehand lasso, Pan, Connector. **Rectangle and Text were removed** — both are in the Elements panel (LeftDock). |
-| ZoomControls | `ZoomControls` | EDITABLE + EXPLORABLE_READONLY |
-| ViewTabs | `ViewTabs` | EDITABLE only |
-| ViewTitle | Typography in `UiOverlay` | EXPLORABLE_READONLY only |
-| Hint tooltips (5 types) | `ConnectorHintTooltip`, `ConnectorEmptySpaceTooltip`, `ConnectorRerouteTooltip`, `ImportHintTooltip`, `LassoHintTooltip` | EDITABLE only |
-| Lazy loading welcome | `LazyLoadingWelcomeNotification` | When `iconPackManager` is provided AND `axoview-lazy-loading-welcome-dismissed` is not `'true'` in localStorage (shown once per user) |
-| Debug utils | `DebugUtils` | `enableDebugTools === true` |
+| Dialogs (Export/Help/Settings) | `ExportImageDialog`, `HelpDialog`, `SettingsDialog` | `uiState.dialog` set |
+| Notification snackbar | `NotificationSnackbar` (lib) · `NotificationStack` (app) | `uiState.notification` / `notificationStore` |
+| Context menu | `ContextMenuManager` | `uiState.contextMenu` set (reserved for future right-click; no longer left-click triggered) |
+| Item controls panel | `ItemControlsManager` → `NodePanel` | `uiState.itemControls` set; EDITABLE = 3-tab (Details/Style/Notes), READONLY = single-scroll |
+| Floating action bar | `NodeActionBar` | EDITABLE + ITEM + mode ≠ DRAG_ITEMS |
+| Quick add popover | `QuickAddNodePopover` | EDITABLE; on `canvasEmptyDblClick` |
+| Preview button | toolbar `IconButton` | EDITABLE + server storage + saved diagram |
+| ToolMenu | `ToolMenu` | EDITABLE; Undo/Redo/Select/Lasso/Freehand/Pan/Connector (Rectangle + Text moved to Elements panel) |
+| ZoomControls / ViewTabs / ViewTitle / hint tooltips | — | per editor mode (see Editor Modes below) |
 
-### Export
+Overlay region/ownership rules are locked in [ADR 0005 — Toolbar & Dock Layout Contract](adr/0005-toolbar-and-dock-layout-contract.md) and [ux-principles §8](ux-principles.md).
 
-`ExportImageDialog` → `utils/exportOptions.ts`. Uses `dom-to-image-more` library (declared in `types/dom-to-image-more.d.ts`). SVG export optimizer in 3 phases: strip irrelevant CSS, round float coordinates, prune `display:none` subtrees. Exports at ~750KB after optimization (was ~940KB).
+### Export · Icon Packs · Canvas Modes
 
-### Icon Packs
+- **Export**: `ExportImageDialog` → `utils/exportOptions.ts`, `dom-to-image-more`. SVG optimizer in 3 phases (strip CSS, round floats, prune `display:none`) — see [testing.md `svgOptimizer.test.ts`](testing.md).
+- **Icon packs**: `AxoviewProps.iconPackManager` (lib) + `axoview-app/src/services/iconPackManager.ts` (`useIconPackManager`). Lazy-loading by default — canvas renders immediately; unloaded packs appear as one-click load buttons in the Elements panel. `loadPacksForDiagram(items)` auto-loads referenced packs on diagram load.
+- **Canvas modes** (`ISOMETRIC` / `2D`): renderer parameterised over a `CoordinateTransformStrategy` (`utils/coordinateTransforms.ts`); `CanvasModeContext` exposes the active strategy. `canvasMode` is a persisted setting; toggling fires fit-to-view. Adding a third mode is one strategy implementation away.
 
-`AxoviewProps.iconPackManager` (type `IconPackManagerProps`) is passed from outside. Stored in `uiState.iconPackManager`. `IconSelectionControls` and `IconGrid` consume it. Lazy loading welcome notification shown when present.
+### Storage Providers · File Explorer · Cross-Diagram Links
 
-**App-side icon pack manager** (`axoview-app/src/services/iconPackManager.ts` → `useIconPackManager` hook):
-
-| Setting | Storage key | Default |
-|---|---|---|
-| Lazy loading enabled | `axoview-lazy-loading-enabled` | `true` |
-| Enabled packs | `axoview-enabled-icon-packs` | `['aws','gcp','azure','kubernetes']` |
-
-**Initialization strategy (2026-04-11, revised):**
-- **Canvas always renders immediately** — `frozenInitialDataRef` is set on the very first render with whatever icons are in memory (core isoflow icons, always available). `<Axoview>` is mounted unconditionally — no loading screen, no gate.
-- **Lazy mode** (`lazyLoadingEnabled=true`, default): `isInitialized` is set immediately. No packs are fetched at startup. Unloaded packs appear as one-click load buttons in the Elements panel "More icons" section (see below). When the user clicks a pack button, `togglePack(name, true)` is called → `loadPack(name)` fires → the button shows an inline MUI `CircularProgress` spinner (disabled) until the dynamic `import()` resolves → button disappears and icons appear in the grid above.
-- **Non-lazy mode**: `loadAllPacks()` is awaited before `isInitialized=true`. All packs are in memory before the hook returns; the canvas renders with all icons available.
-- **On diagram load**: `loadPacksForDiagram(items)` fires before applying the model. It inspects each item's `icon.collection` and loads any referenced pack not yet in memory — silent, automatic, no user action needed.
-- **When a pack finishes loading**: `setLoadedIcons(prev => [...prev, ...flattenedIcons])` triggers the `iconPackManager.loadedIcons` effect in `EditorPage`, which calls `axoviewRef.current.load({...currentModel, icons: merged})` with `isAfterLoadRef.current = true` to suppress the unsaved-changes flag.
-
-**LeftDock bottom offset (2026-04-11):** `LeftDock` now has `bottom: 40` (was `bottom: 0`) so it stops above the `BottomDock` (height 40 px, `position: absolute, bottom: 0`). This ensures the Import Icons button at the bottom of `ElementsPanel` is always fully visible and not clipped by the zoom/help bar.
-
-**Diagram name / title synchronization (2026-04-11):**
-
-`handleModelUpdated` in `EditorPage` detects title drift — when the library fires `onModelUpdated` with a title that differs from `diagramName` and `isAfterLoadRef.current` is false, the toolbar name re-syncs:
-- `setDiagramName(model.title)` — syncs toolbar name to the new canvas title
-- `setCurrentDiagram(null)` — invalidates the stale save reference
-- `setLastSaved(null)` — clears the stale save timestamp
-
-(Historically this guarded against title changes from the lib's own burger menu — New Diagram, Open file. That menu was deleted in v1.1 Track 0b; the guard remains as a defensive sync against any future external `<Axoview>.load()` caller mutating `model.title`.)
-
-**Compact format loading (2026-04-11):**
-
-`handleDiagramManagerLoad(id, rawData, listingName)` detects `rawData._?.f === 'compact'` and calls `transformFromCompactFormat(rawData)` (exported from `axoview-lib`) before passing the model to Axoview. The listing name (from the storage metadata) is used as the diagram name — always correct regardless of what field exists in the raw payload. `transformFromCompactFormat` is now exported from `axoview-lib/src/index.ts`.
-
-### Canvas Modes (2026-04-27)
-
-The renderer is parameterised over a coordinate system. Two strategies ship today; adding a third is a `CoordinateTransformStrategy` implementation away.
-
-| Mode | Strategy | Grid asset | Notes |
-|---|---|---|---|
-| `ISOMETRIC` | `isoStrategy` (`utils/coordinateTransforms.ts`) | `grid-tile.svg` (rhombus) | Default. Uses the existing CSS isometric matrix in `useIsoProjection`. |
-| `2D` | `cartesian2DStrategy` (`utils/coordinateTransforms.ts`) | `grid-tile-2d.svg` (square) | No ISO matrix; `Node.tsx` uses CENTER origin (no BOTTOM+offset hack). `fromScreen` adds a half-tile correction so node centroids snap inside cells. |
-
-Both strategies implement `toScreen`, `fromScreen`, and `gridTileUrl`. `CanvasModeContext` exposes the active strategy plus bound helper functions. `canvasMode` is a persisted `uiStateStore` setting; toggling it via the ToolMenu fires an auto fit-to-view. `getMouse` reads `screenToTile` from the context — this is the fix for the 2D cursor offset, where the ISO formula was leaking into 2D mode and producing a 3.5-tile drift.
-
-### Notifications (2026-04-27)
-
-App-side, separate from the library's `uiState.notification` snackbar.
-
-| Component | Source | Purpose |
-|---|---|---|
-| `notificationStore` | `axoview-app/src/stores/notificationStore.ts` | Zustand, not persisted. `push(msg, severity?)`, `dismiss(id)`, `dismissAll()`. Replaces every `alert()` call in the app. |
-| `NotificationStack` | `axoview-app/src/components/NotificationStack.tsx` | MUI Snackbar + Alert; max 3 visible at once, FIFO queue. Mounts at the app root. |
-| `ConfirmDialog` | `axoview-app/src/components/ConfirmDialog.tsx` | Promise-returning confirm dialog for destructive actions (delete, discard). |
-
-### Storage Providers (2026-04-27)
-
-All diagram and folder operations route through `StorageManager` (provider registry) → active `StorageProvider`. The picker / config decides which provider is active; the rest of the app is provider-agnostic.
-
-| Provider | Source | Status |
-|---|---|---|
-| `LocalStorageProvider` | `services/storage/providers/LocalStorageProvider.ts` | Server-backed when `/api/storage/*` is reachable; falls back to `sessionStorage`. Full folder CRUD + tree-manifest. **Shipped.** |
-| `GoogleDriveProvider` | `services/storage/providers/GoogleDriveProvider.ts` | `NotImplementedError` stub — full implementation lives on a separate branch. |
-
-**Backend support (`packages/axoview-backend/server.js`):** folder CRUD, move (cross-folder), soft-delete patch, and tree-manifest endpoints. The `LocalStorageProvider` is the only client today; the manifest is the source of truth for tree shape so the UI never has to walk the filesystem.
-
-### File Explorer (2026-04-27)
-
-VS Code-style left panel. Lives in `axoview-app`, not in the library.
-
-| Piece | Source | Notes |
-|---|---|---|
-| `FileExplorerLayout` | `components/fileExplorer/FileExplorerLayout.tsx` | Collapsible 280 px panel; pushes the canvas rather than overlaying. Opens by default on first server-mode session. |
-| `FileExplorer` | `components/fileExplorer/FileExplorer.tsx` | `react-arborist` tree; auto-sorts (folders alpha, then diagrams alpha) at every depth; dirty indicators on nodes and ancestor folders. |
-| `FileTreeNode` | `components/fileExplorer/FileTreeNode.tsx` | Renders a single tree row (icon, label, dirty dot, inline rename). |
-| `FileTreeToolbar` | `components/fileExplorer/FileTreeToolbar.tsx` | New file / new folder / refresh actions. |
-| `ContextMenuItems` | `components/fileExplorer/ContextMenuItems.tsx` | Right-click menu: rename, duplicate, delete, **Copy share link** (copies `/display/{id}`). |
-| `useFileTree` | `hooks/useFileTree.ts` | Hook that owns tree state and CRUD actions. |
-| `EmptyStateScreen` | `components/EmptyStateScreen.tsx` | Full canvas replacement (ISO grid bg + welcome card) when server storage is available and no diagram is open. Absolute overlay, zIndex 10. |
-
-**Inline create / rename:** the explorer inserts a `__pending__` node into the tree and lets `react-arborist` enter rename mode on it. On commit, the pending node is replaced by a real node from the storage round-trip. On cancel or escape, the pending node is removed.
-
-**Drag-and-drop:** collision detection prevents drops onto a name that already exists at the destination — surfaces a name-collision dialog instead of silently failing.
-
-**Removed in 2B-R:** auto-draft creation, `DraftsSection`, `TrashSection` (delete is now immediate hard delete with confirmation), and the `AppToolbar` "New diagram" button.
-
-### Cross-Diagram Links (2026-04-27)
-
-A node can store a reference to another diagram in this workspace.
-
-- `linkedDiagrams` is wired through `AxoviewProps` → `uiStateStore`.
-- In `EXPLORABLE_READONLY`, clicking a node with a diagram link opens the target in a new tab (`interaction/modes/Pan.ts`).
-- A blue badge on the node icon signals the link. The badge has its own click handler so it doesn't suffer the underlying tile-mismatch issue.
-- Tooltip text resolves to *"Opens "X" in a new tab"* using the linked diagram's name; falls back to a generic string if the name isn't yet hydrated.
-- Double-tooltip is prevented when a node has both a header URL and a diagram link.
+- **Storage**: all ops route through `StorageManager` → active `StorageProvider`. `LocalStorageProvider` (server-backed when `/api/storage/*` reachable, else `sessionStorage`) is the only shipped provider; `GoogleDriveProvider` is a `NotImplementedError` stub (separate branch). Backend folder CRUD + tree-manifest in `axoview-backend/server.js`. Contract: [ADR 0010 — Session Backend Contract](adr/0010-session-backend-contract.md).
+- **File Explorer** (`axoview-app`, not lib): VS Code-style 280 px panel — `FileExplorerLayout`, `FileExplorer` (`react-arborist`), `FileTreeToolbar`, `ContextMenuItems`, `useFileTree`, `EmptyStateScreen`. Inline create/rename via a `__pending__` node; drag-and-drop with name-collision detection.
+- **Cross-diagram links**: a node stores a reference to another workspace diagram (`linkedDiagrams` via `AxoviewProps`). In EXPLORABLE_READONLY, clicking opens the target in a new tab; a blue badge signals the link.
 
 ### Editor Modes
 
 | Mode | Interactions |
 |---|---|
-| `EDITABLE` | All modes active; ToolMenu, ItemControls (Details/Style/Notes tabs), ViewTabs, NodeActionBar, double-click popover shown |
-| `EXPLORABLE_READONLY` | Pan+Zoom only; no editing tools; clicking a node with caption or notes opens single-scroll read-only panel (Caption + Notes sections); nodes with neither caption nor notes are not clickable; ViewTabs shown |
-| `NON_INTERACTIVE` | No interactions; no UI tools (`INTERACTIONS_DISABLED` mode) |
+| `EDITABLE` | All modes; ToolMenu, ItemControls tabs, ViewTabs, NodeActionBar, double-click popover |
+| `EXPLORABLE_READONLY` | Pan + Zoom; click a node with caption/notes opens single-scroll readonly panel; ViewTabs shown |
+| `NON_INTERACTIVE` | No interactions, no UI tools (`INTERACTIONS_DISABLED` mode) |
 
-Starting mode determined by `getStartingMode()` in `utils`.
+Starting mode from `getStartingMode()` in `utils`.
 
 ---
 
 ## 2. Architecture Map
 
+> The store topology, package graph, component tree, and sequence flows are diagrammed in depth in [technical-review-2026-06.md §3–§4](technical-review-2026-06.md#3-architecture-overview). This section is the orientation summary; technical-review links back here for the formal mode + store definitions.
+
 ### 2a. Store Layer
 
-#### UiState (`stores/uiStateStore.tsx`)
+Four Zustand stores in the lib (`modelStore`, `sceneStore`, `uiStateStore`, `localeStore`) + one in the app (`notificationStore`). All use the **`createStore`-inside-`useRef`-inside-Provider** pattern: one instance per provider-tree mount, read via `useStoreWithEqualityFn(selector)`; `…StoreApi()` returns the raw store for imperative `getState()`/`setState()`.
 
-**Pattern**: `createStore` inside a `useRef` inside `UiStateProvider`. The store instance is created once per provider tree mount, never recreated. `useUiStateStore(selector)` reads from `useContext(UiStateContext)`. `useUiStateStoreApi()` returns the raw store for imperative `getState()`/`setState()` access without subscribing.
+**Why context-based, not a global singleton:** multiple independent `<Axoview>` instances on one page get separate state trees. Singletons would bleed state between instances; the context pattern also gives SSR safety and per-test isolation. Testing implication: components must be wrapped in the provider tree (or the store hooks mocked) — the hooks throw outside a Provider.
 
-**Why context-based (not global singleton):** Multiple independent Axoview instances on the same page get separate state trees. Global singletons would bleed state between instances. Also enables SSR safety and easy testing (mount with fresh providers).
-
-**UiState fields:**
-
-| Field | Type | Category |
+| Store | Persistence | Holds |
 |---|---|---|
-| `view` | `string` (current view id) | Transient (UI) |
-| `editorMode` | `'EDITABLE'/'EXPLORABLE_READONLY'/'NON_INTERACTIVE'` | Transient (set from props) |
-| `iconCategoriesState` | `IconCollectionState[]` | Transient |
-| `mode` | `Mode` (union of 11 mode types) | Transient |
-| `dialog` | `'EXPORT_IMAGE'/'HELP'/'SETTINGS' \| null` | Transient |
-| `itemControls` | `ItemControls \| null` | Transient |
-| `contextMenu` | `ContextMenu \| null` | Transient |
-| `zoom` | `number` | Transient (reset on `resetUiState`) |
-| `scroll` | `Scroll` (position + offset) | Transient |
-| `mouse` | `Mouse` (position screen+tile, mousedown screen+tile, delta screen+tile) | Transient |
-| `rendererEl` | `HTMLDivElement \| null` | Transient (DOM ref) |
-| `rendererSize` | `Size` | Transient (measured) |
-| `enableDebugTools` | `boolean` | Transient (from props) |
-| `hotkeyProfile` | `HotkeyProfile` | Settings |
-| `panSettings` | `PanSettings` | Settings |
-| `zoomSettings` | `ZoomSettings` | Settings |
-| `labelSettings` | `LabelSettings` | Settings |
-| `connectorInteractionMode` | `'click'/'drag'` | Settings |
-| `expandLabels` | `boolean` | Settings (from `renderer.expandLabels` prop) |
-| `iconPackManager` | `IconPackManagerProps \| null` | Transient (from props) |
-| `notification` | `Notification \| null` | Transient |
-| `isDirty` | `boolean` | Transient — set by `useDirtyTracker`; cleared by `markClean()` (called after export-to-file or new-diagram flow) |
-| `activeLeftTab` | `'ELEMENTS' \| 'LAYERS' \| null` | Transient — which left-dock tab is open; `null` = panel closed |
-| `rightSidebarOpen` | `boolean` | Transient — whether the right Properties panel is open |
+| `modelStore` | saved in diagram | `version, title, description, colors, icons, items, views` + patch-pair `history` |
+| `sceneStore` | derived (computed) | `{ connectors, textBoxes }` — paths + sizes; independent history stack |
+| `uiStateStore` | settings → `localStorage` | mode, zoom, scroll, mouse, `selectedIds` + `itemControls`, dialog, dirty flag, settings |
+| `localeStore` | localStorage | current locale + dictionary |
+| `notificationStore` (app) | none | side-effect notifications, max 3 visible, FIFO |
 
-**UiState actions — non-trivial ones:**
-- `setEditorMode`: also calls `getStartingMode(mode)` to reset mode
-- `incrementZoom`/`decrementZoom`: reads current zoom then applies util function
-- `setScroll`: merges `offset` from current state if not provided
-- `resetUiState`: resets mode to starting mode, zeros scroll, clears itemControls, resets zoom to 1
-
-#### ModelStore (`stores/modelStore.tsx`)
-
-Same context pattern. Stores `Model` fields inline plus a `history: HistoryState` object.
-
-**Model fields (persistent — serialized/loaded):** `version`, `title`, `description`, `colors`, `icons`, `items`, `views`
-
-**HistoryState (2026-03-31):** `{ past: HistoryEntry[], future: HistoryEntry[], maxHistorySize: 50 }` where `HistoryEntry = { patches: Patch[]; inversePatches: Patch[] }`. Immer `enablePatches()` is called at module level. History stores **diffs** (patch pairs), not full snapshots — O(diff_size × 50) instead of O(model_size × 50).
-
-**Actions:**
-- `set(updates, skipHistory?)`: if `skipHistory` is false, calls `saveToHistory()` first (captures `pendingPre`). On the next `set()` with a pending pre-state, computes `produceWithPatches(pre, draft => Object.assign(draft, next))` and stores the `{ patches, inversePatches }` pair.
-- `saveToHistory()`: captures current model as `pendingPre = extractModelData(get())`. The subsequent `set()` call uses this snapshot to compute diffs.
-- `undo()`: applies `entry.inversePatches` to current model to get previous state; pushes the **original entry** to the future stack (so redo can re-apply `entry.patches`).
-- `redo()`: applies `entry.patches` to current model to get next state; pushes the **original entry** back to the past stack.
-- **Key invariant**: undo/redo pass the original patch entry through the stacks unchanged. No recomputation. The patches from the initial mutation are used throughout the undo/redo cycle.
-
-#### SceneStore (`stores/sceneStore.tsx`)
-
-Same structure as ModelStore (including patch-pair history) but stores `Scene` = `{ connectors: {[id]: SceneConnector}, textBoxes: {[id]: SceneTextBox} }`. Scene data is **derived/computed** (connector paths from pathfinder, textbox sizes from content). Scene has its own independent history stack (also 50 entries). Async path writes from `computePathsAsync` use `skipHistory=true` — they only update the scene slice, never touch history.
-
----
+History stores **diffs** (Immer `{ patches, inversePatches }` pairs), not snapshots — see [§2g](#2g-history-system). The detailed `uiState` field/action catalogue drifts with the code; read `stores/uiStateStore.tsx` for the current shape.
 
 ### 2b. Mode State Machine
 
-**11 mode types:**
+**11 mode types** (the canonical formal definition; [technical-review §3e](technical-review-2026-06.md#3e-interaction-modes) links here):
 
-| Mode Type | Represents | Entry Cursor |
-|---|---|---|
-| `INTERACTIONS_DISABLED` | NON_INTERACTIVE editor mode | — |
-| `CURSOR` | Default select mode | arrow |
-| `DRAG_ITEMS` | Dragging selected items | default (userSelect: none) |
-| `PAN` | Canvas panning | grab / grabbing |
-| `PLACE_ICON` | Placing a new icon node | default |
-| `CONNECTOR` | Drawing a connector | crosshair |
-| `RECTANGLE.DRAW` | Drawing a new rectangle | crosshair |
-| `RECTANGLE.TRANSFORM` | Resizing a rectangle | default |
-| `TEXTBOX` | Placing/positioning a textbox | crosshair |
-| `LASSO` | Rectangular lasso selection | default |
-| `FREEHAND_LASSO` | Freehand polygon selection | default |
-
-**State Transitions:**
+`INTERACTIONS_DISABLED` · `CURSOR` · `DRAG_ITEMS` · `PAN` · `PLACE_ICON` · `CONNECTOR` · `RECTANGLE.DRAW` · `RECTANGLE.TRANSFORM` · `TEXTBOX` · `LASSO` · `FREEHAND_LASSO`
 
 ```
-CURSOR ──(mousedown on item, mousemove)──────────────→ DRAG_ITEMS
-CURSOR ──(mousedown on empty, mousemove)─────────────→ LASSO
-DRAG_ITEMS ──(mouseup)───────────────────────────────→ CURSOR
-LASSO ──(mousedown inside selection, mousemove)──────→ DRAG_ITEMS
-LASSO ──(mouseup, no selection)──────────────────────→ CURSOR
-LASSO ──(mousedown outside selection)────────────────→ CURSOR
-FREEHAND_LASSO ──(isDragging + mousemove)────────────→ DRAG_ITEMS
-RECTANGLE.DRAW ──(mouseup, id set)───────────────────→ CURSOR
-RECTANGLE.TRANSFORM ──(mouseup)──────────────────────→ CURSOR
-TEXTBOX ──(mouseup)──────────────────────────────────→ CURSOR
-PLACE_ICON ──(mousedown, no id)──────────────────────→ CURSOR
-Any ──(hotkey)───────────────────────────────────────→ target mode
-PAN ──(left-click)───────────────────────────────────→ CURSOR (via usePanHandlers)
-Any ──(middle/right/ctrl/alt/emptyArea mousedown)────→ PAN (via usePanHandlers)
+CURSOR ──(mousedown on item + mousemove)──→ DRAG_ITEMS
+CURSOR ──(mousedown on empty + mousemove)─→ LASSO
+DRAG_ITEMS ──(mouseup)────────────────────→ CURSOR
+LASSO ──(mousedown inside selection)──────→ DRAG_ITEMS
+LASSO ──(mouseup no sel / mousedown out)──→ CURSOR
+RECTANGLE.* / TEXTBOX / PLACE_ICON ──(mouseup)──→ CURSOR
+Any ──(hotkey)────────────────────────────→ target mode
+Any ──(middle/right/ctrl/alt/empty mousedown)──→ PAN (via usePanHandlers)
+PAN ──(left-click)────────────────────────→ CURSOR
 ```
 
-**The `isRendererInteraction` guard:**
+The dispatcher in `useInteractionManager.ts` is a **module-handler map** (one handler module per mode in `interaction/modes/`), not an inline switch — the v1.1 Sonar wave drove its cognitive complexity 131 → <16 without altering a transition.
 
-```typescript
-isRendererInteraction: rendererRef.current === e.target
-```
+**Three guards thread through every handler** (the load-bearing ones; full debugging history in [§4](#4-lessons-learned)):
 
-`rendererRef.current` is the **transparent interaction div** — a `<Box ref={interactionsRef}>` that is full-width, full-height, absolutely positioned, with no content. It equals `e.target` **only** when the user clicks on the empty canvas background (no scene element captures the event first). When clicking on a Node, Connector, or Rectangle, `e.target` is that element's DOM node. This guard prevents mode handlers from responding to scene-element clicks or UI overlay clicks.
+- **`isRendererInteraction = (rendererRef.current === e.target)`** — true *only* on empty-canvas clicks, because the transparent interaction div sits **below** the Nodes layer in DOM order (Nodes/Connectors/Rectangles capture their own clicks). Used on mousedown by Cursor, Pan, Connector, PlaceIcon, DrawRectangle, Lasso, FreehandLasso.
+- **`mouse.mousedown` guard** (Lasso/FreehandLasso mouseup) — null when a toolbar click stopped propagation before `processMouseUpdate`; makes those mouseups no-ops.
+- **`mousedownHandled` flag** (CursorMode) — set true by `Cursor.mousedown`; the context menu opens only when it is true, so an external `setMode({type:'CURSOR'})` followed by a mouseup can't spuriously open it. Timestamp alternatives fail (mode change + mouseup can land in the same ms).
 
-**Modes that use the `isRendererInteraction` guard on mousedown:**
-Cursor, Pan, Connector, PlaceIcon, DrawRectangle, Lasso *(recently fixed)*, FreehandLasso *(recently fixed)*
+Entry/exit lifecycle fires inside `processMouseUpdate` when `reducerTypeRef.current !== uiState.mode.type` (a ref, not reactive state). Pan has a **bypass path**: `usePanHandlers.handleMouseDown` returns `true` for pan gestures and skips `processMouseUpdate` entirely (no entry/exit, no `isRendererInteraction`). Transient right-click pan (FF-001) defers PAN entry until a 4 px drag threshold; right-click without drag is a deselect.
 
-**The `mouse.mousedown` guard (Lasso and FreehandLasso mouseup):**
+### 2c. Scene API
 
-```typescript
-if (!uiState.mouse.mousedown) return; // toolbar click — mousedown was stopped, skip
-```
+`hooks/useScene.ts` is a 13-line combiner of `useSceneData.ts` (read selectors: `currentView`, `items`, `connectors`, `hitConnectors`, `rectangles`, `textBoxes`) and `useSceneActions.ts` (writes + `transaction()` + `computePathsAsync` + `pasteItems`). Callers see one unified API.
 
-`mouse.mousedown` is only populated when a mousedown fires through `processMouseUpdate`. If the ToolMenu's `onMouseDown={e => e.stopPropagation()}` stops propagation, the window listener never fires, `mouse.mousedown` stays null, and `mouseup` becomes a no-op.
+Every mutating method calls `saveToHistoryBeforeChange()` first **unless inside a `transaction()`** (which collapses N operations into one checkpoint). All mutations go through pure reducers, then `setState()` with store-level `skipHistory=true`. Inside a transaction, `getState()` returns `pendingStateRef` so sequential action calls see each other's writes without explicit state threading.
 
-**The `mousedownHandled` flag on CursorMode:**
-
-```typescript
-export interface CursorMode {
-  type: 'CURSOR';
-  mousedownItem: ItemReference | null;
-  mousedownHandled?: boolean;
-}
-```
-
-Set to `true` by `Cursor.mousedown` when a genuine mousedown goes through `processMouseUpdate`. Context menu only opens when `!hasMoved && uiState.mode.mousedownHandled`. Without this flag, calling `setMode({type:'CURSOR'})` from outside (e.g. after closing a dialog) followed by any mouseup would spuriously open the context menu. Timestamp-based alternatives fail because the mode change and subsequent mouseup can happen within the same millisecond.
-
-**The `entry`/`exit` lifecycle:**
-
-Fires inside `processMouseUpdate` when `reducerTypeRef.current !== uiState.mode.type`. This comparison uses a **ref** (not reactive state) to track the previous mode type. Entry fires before the current event's handler; exit fires for the previous mode.
-
-**The `reducerTypeRef` pattern:**
-
-```typescript
-const reducerTypeRef = useRef<string | undefined>(undefined);
-// Inside processMouseUpdate:
-if (reducerTypeRef.current !== uiState.mode.type) {
-  // fire exit for old mode, entry for new mode
-}
-reducerTypeRef.current = uiState.mode.type;
-```
-
-Subtle timing: `uiState` inside `processMouseUpdate` is captured at the start of the call via `uiStateApi.getState()` — the state **before** the current event's mutations. Entry/exit detection is correct but the `baseState` passed to handlers has pre-event values.
-
-**The event processing chain:**
-
-```
-window ('mousemove'/'mousedown'/'mouseup')
-  → onMouseEvent()
-    → handlePanMouseDown(e) [if mousedown] → returns true (skip processMouseUpdate) OR false
-    → handlePanMouseUp(e) [if mouseup] → returns true (skip) OR false
-    → getMouse() → nextMouse
-    → if mousemove: scheduleUpdate(nextMouse, e, processMouseUpdate) [RAF throttled]
-    → if mousedown/mouseup: flushUpdate() then processMouseUpdate(nextMouse, e)
-        → uiStateApi.getState() → uiState (fresh snapshot)
-        → check reducerTypeRef for mode change → fire exit/entry
-        → getModeFunction(mode, e) → handler
-        → handler(baseState)
-```
-
-**Pan handler bypass path:**
-
-`usePanHandlers.handleMouseDown` intercepts mousedown for: (a) left-click while in PAN mode (exits pan), (b) middle-click + `middleClickPan`, (c) right-click (always consumed — see below), (d) ctrl+left + `ctrlClickPan`, (e) alt+left + `altClickPan`, (f) empty-area left + `emptyAreaClickPan`. When it returns `true`, `onMouseEvent` still updates `mouse` state but does **not** call `processMouseUpdate`, so none of the mode handlers see this mousedown.
-
-**Transient right-click pan (implemented 2026-03-22, implements FF-001):** Right mousedown no longer immediately enters PAN. Instead:
-- `handleMouseDown` always returns `true` for button 2 (consumes the event — Cursor.mousedown never fires). When `rightClickPan=true`, additionally sets `rightDownRef.current = true`, `rightDownPositionRef.current`, and `previousModeTypeRef.current = modeType`.
-- `handleMouseMove` returns `true` while `rightDownRef` is set and below the 4px drag threshold — this suppresses `processMouseUpdate` entirely, preventing `Cursor.mousemove` from triggering LASSO from the stale `mouse.mousedown` state. Once the threshold is exceeded, calls `startPan('right')` and returns `false` (PAN mode active, `processMouseUpdate` runs normally for `Pan.mousemove`).
-- `handleMouseUp` for button 2: if dragging → `endPan()` (which calls `restorePreviousMode()` and clears `mouse.mousedown`); if not dragging → deselect path (closes `itemControls`, clears `mouse.mousedown`, resets any active LASSO selection). Always returns `true`.
-- `rightClickPan=false`: right mousedown still returns `true` (no Cursor interference) but sets no deferred state — right-click is fully consumed with no side-effects.
-
----
-
-### 2c. Scene API (`hooks/useScene.ts`)
-
-**Split 2026-04-07:** `useScene.ts` (was 697 lines) is now a 13-line combiner that merges two focused hooks:
-- **`useSceneData.ts`** — pure read selectors: `currentView`, `items`, `colors`, `connectors`, `hitConnectors`, `rectangles`, `textBoxes`
-- **`useSceneActions.ts`** — all write operations + `transaction()` machinery + `computePathsAsync` + `pasteItems`
-
-The `useScene()` hook continues to expose the same unified API; callers are unchanged.
-
-All methods that mutate call `saveToHistoryBeforeChange()` first, unless inside a `transaction()`. All mutations go through pure reducers, then call `setState()` which bypasses store-level history (`skipHistory=true`).
-
-| Method | Undo Checkpoint | Notes |
-|---|---|---|
-| `createModelItem(item)` | Yes (unless in transaction) | |
-| `updateModelItem(id, updates)` | Yes | |
-| `deleteModelItem(id)` | Yes | |
-| `createViewItem(viewItem)` | Yes (unless in transaction) | |
-| `updateViewItem(id, updates)` | Yes (unless in transaction) | If `tile` changed, cascades connector sync; then `validateView` — **throws on validation failure** |
-| `deleteViewItem(id)` | Yes | Cascades: removes connected connectors from model + scene |
-| `createConnector(connector)` | Yes | Calls `syncConnector`. Accepts `skipPathfinding=true` for async paste — stores provisional empty path, defers routing to `computePathsAsync`. |
-| `updateConnector(id, updates)` | Yes | Calls `syncConnector` if anchors changed |
-| `deleteConnector(id)` | Yes | |
-| `createTextBox(textBox)` | Yes | Calls `syncTextBox` |
-| `updateTextBox(id, updates)` | Yes (unless in transaction) | Calls `syncTextBox` if content/fontSize changed |
-| `deleteTextBox(id)` | Yes | |
-| `createRectangle(rect)` | Yes | |
-| `updateRectangle(id, updates)` | Yes (unless in transaction) | |
-| `deleteRectangle(id)` | Yes | |
-| `deleteSelectedItems(items)` | Yes (single checkpoint) | Wraps in `transaction()` |
-| `pasteItems(payload, onPathProgress?)` | Yes (single checkpoint) | Wraps in `transaction()`. Connector paths computed asynchronously via `computePathsAsync` (rAF-batched, 25 connectors/frame). `onPathProgress(done, total)` called after each batch. |
-| `transaction(fn)` | Yes (one checkpoint before fn) | Guards `transactionInProgress.current`; `getState()` is transaction-aware — returns `pendingStateRef` while inside transaction |
-| `placeIcon({modelItem, viewItem})` | Yes (single checkpoint) | Wraps in `transaction()` |
-| `createView(partial?)` | **No** | Notable gap — creating a view is not undoable |
-| `deleteView(viewId)` | Yes | Auto-switches if current view deleted |
-| `updateView(viewId, {name})` | Yes | |
-| `switchView(viewId)` | No | Navigation, not mutation |
-
-**Transaction-aware `getState()`**: Inside a `transaction()`, `getState()` returns `pendingStateRef.current` instead of live store state. This allows multiple action calls within a transaction to see each other's intermediate writes without the old `currentState?` parameter anti-pattern. `DragItems` and other multi-update callers simply call actions sequentially — no explicit state threading needed.
-
----
+Notable: `createView` does **not** checkpoint (gap — not undoable); `updateViewItem` runs `validateView` and **throws** on failure (no catch in `DragItems.mousemove`); `createConnector` accepts `skipPathfinding=true` for async paste; `pasteItems` routes connector paths through rAF-batched `computePathsAsync`.
 
 ### 2d. Reducer Layer
 
-All reducers are **pure functions**: `(payload, context) → State`. No side effects, no store reads, no async. They use **Immer** `produce()` for immutable updates.
+All reducers are **pure**: `(payload, context) → State` via Immer `produce()` — no I/O, no store reads, no async. `State = { model, scene }` (always both); `ViewReducerContext = { viewId, state }`.
 
-**`State` type:** `{ model: Model; scene: Scene }` — always both.
-**`ViewReducerContext`:** `{ viewId: string; state: State }` — the view to operate on plus current full state.
-
-| Reducer | Notes |
-|---|---|
-| `createModelItem(item, state)` | Immediately calls `updateModelItem` after insert — double-write, minor redundancy |
-| `updateModelItem(id, updates, state)` | Throws if id not found |
-| `deleteModelItem(id, state)` | Uses `delete draft.model.items[index]` — leaves **sparse array** (see gotchas) |
-| `createViewItem(viewItem, ctx)` | Inserts at front (`unshift`); calls `updateViewItem` to validate |
-| `updateViewItem({id,...}, ctx)` | If `tile` changed, calls `UPDATE_CONNECTOR` on all connected connectors; then `validateView` — **throws on validation failure** |
-| `deleteViewItem(id, ctx)` | Cascades: finds connectors via `getConnectorsByViewItem`, removes from model views AND scene |
-| `syncConnector(id, ctx)` | Calls `getConnectorPath()`; on error creates empty path `{ tiles:[], rectangle:{from:{0,0},to:{0,0}} }` — **never throws** |
-| `syncTextBox(id, ctx)` | Calls `getTextBoxDimensions(textBox)` → scene.textBoxes[id].size |
-| `updateView(updates, ctx)` | Uses `Object.assign(view.value, updates)` — fixed from a version that replaced the view reference (breaking memo stability) |
-| `syncScene(ctx)` | Rebuilds entire scene from scratch; called during view load |
-| `updateViewTimestamp(ctx)` | Sets `view.lastUpdated` — called after every action except SYNC_SCENE and DELETE_VIEW |
-
----
+Key behaviours: `deleteModelItem` uses `delete` (leaves a **sparse array** — see [§4](#4-lessons-learned)); `deleteViewItem` cascades connector removal from model + scene; `syncConnector` calls `getConnectorPath` and on error stores an empty path + `unroutable=true` (**never throws**); `updateView` uses `Object.assign(view.value, updates)` to preserve memo stability. Layer reducers (`CREATE_LAYER`…`ASSIGN_LAYER_TO_ITEMS`, `REORDER_VIEWITEM`) dispatch via `useLayerActions` directly.
 
 ### 2e. Schema Layer
 
-Located in `src/schemas/`. Uses **Zod** for validation.
-
-| Schema | Key Constraints |
-|---|---|
-| `modelItemSchema` | `name` via `constrainedStrings.name` (max length); `icon` optional |
-| `connectorSchema` | `anchors: z.array(anchorSchema)` (no min at schema level); `labels` max 256; `position: z.number().min(0).max(100)` |
-| `anchorSchema` | All ref fields optional (partial): `{item?, anchor?, tile?}` |
-| `modelSchema` | Runs `validateModel()` as `.superRefine()` — referential integrity checks |
-
-**`validateModel` referential integrity checks:**
-- model item's `icon` must reference an existing icon in `model.icons`
-- connector colors must reference existing model colors
-- connector anchor `ref.item` references must exist in view items
-- connector anchor `ref.anchor` references must exist in all view anchors
-- view items must reference existing model items
-- connector must have `>= 2` anchors
-- anchor can only have **exactly 1** key in `ref` (item OR anchor OR tile, not multiple)
-
-**Key validation gap**: `updateViewItem` runs `validateView` and **throws** on failure. This propagates synchronously up through `useScene` into drag handlers. There is no catch block in `DragItems.mousemove`. A validation failure mid-drag would crash the interaction without user feedback.
-
----
+`src/schemas/`, **Zod**. `modelSchema` runs `validateModel()` as a `.superRefine()` — referential-integrity checks: item `icon` exists in `model.icons`; connector colors exist; anchor `ref.item`/`ref.anchor` resolve in view items/anchors; connector has **≥ 2** anchors; an anchor has **exactly one** ref key (item OR anchor OR tile). Note: the 2-anchor minimum and ref-exclusivity are **app-level invariants**, not enforced at the schema level (see [testing.md `schemas/connector.test.ts`](testing.md)).
 
 ### 2f. Clipboard Module
 
-**Storage mechanism (2026-04-07)**: Instance-scoped React context via `ClipboardProvider` (in `clipboard/ClipboardContext.tsx`). A `useRef<ClipboardPayload | null>` is wrapped in a stable `useMemo` value with three methods: `get()`, `set()`, and `has()`. The provider is mounted inside `<Axoview>`, so each mounted editor instance has its own clipboard — no cross-tab bleed, no test-order interference.
+Instance-scoped via `ClipboardProvider` (`clipboard/ClipboardContext.tsx`) — a `useRef<ClipboardPayload>` exposed through `get()`/`set()`/`has()`, mounted inside `<Axoview>` (no cross-instance bleed; replaced the old module-level singleton that caused test-order bugs). `useClipboard()` throws outside the provider.
 
-**Before (deprecated)**: Module-level singleton `let _clipboard: ClipboardPayload | null` in `clipboard/clipboard.ts`. Caused test-ordering bugs — one test's `set()` leaked into another's `get()`. The singleton is kept in the module file for backwards compatibility but is no longer used by `useCopyPaste`.
-
-**`useClipboard()`**: Hook that reads the context. Throws `'useClipboard must be used inside <ClipboardProvider>'` if called outside the provider tree. Tests mock `'src/clipboard/ClipboardContext'` to avoid needing a real provider render.
-
-**Data structure `ClipboardPayload`:**
-```typescript
-{
-  items: Array<{ modelItem: ModelItem; viewItem: ViewItem }>;
-  connectors: Connector[];
-  rectangles: Rectangle[];
-  textBoxes: TextBox[];
-  centroid: Coords; // tile coords
-}
-```
-
-**Centroid logic:**
-```
-allPoints = [...items[].tile, ...rectangles[].center, ...textBoxes[].tile]
-centroid.x = round(sum(allPoints.x) / count)
-centroid.y = round(sum(allPoints.y) / count)
-Rectangle center = { x: round((r.from.x + r.to.x) / 2), y: round((r.from.y + r.to.y) / 2) }
-```
-**Gap**: If `allPoints` is empty (only connectors selected), centroid = `{0,0}` — connector-only paste would offset from tile 0,0.
-
-**ID remapping on paste:**
-- Build `idMap: Map<oldId, newId>` for all items, connectors, rectangles, textboxes.
-- New items get new IDs for both `modelItem.id` and `viewItem.id` (same ID for both).
-- Connector anchors with `ref.item` in the idMap → remapped to new item ID.
-- Connector anchors with `ref.item` NOT in the idMap → `ref.item = undefined` (anchor detachment).
-- Connector anchors with `ref.tile` → preserved unchanged.
-
-**Collision avoidance**: `findNearestUnoccupiedTilesForGroup` is called on target positions. If it returns `null`, falls back to raw target tiles.
-
-**Post-paste**: Switches to `LASSO` mode with `startTile: {0,0}, endTile: {0,0}` and all pasted item refs as `selection.items`. Bounds are meaningless — this exists only to enable immediate delete/copy of pasted items.
-
----
-
-### 2f.1 Dirty Tracking (`hooks/useDirtyTracker.ts`)
-
-`useDirtyTracker(isReady: boolean)` wires unsaved-change detection:
-
-1. Waits 100 ms after `isReady=true` before subscribing (avoids false-dirty on initial model load).
-2. Subscribes to `modelStore` changes; any change calls `uiStateActions.setIsDirty(true)`.
-3. Installs a `window.beforeunload` handler that returns a warning string when `isDirty=true` (shows native browser "Leave site?" dialog on tab close).
-4. Returns `markClean()` — resets `isDirty` to false. Called by app-side export and save flows after a successful write. (Pre-v1.1 the lib's burger menu also called it; that menu was deleted in Track 0b.)
-
-**`localStorageSave`** (`utils/localStorageSave.ts`): `saveModelLocally(model)` — tries `localStorage.setItem('axoview-autosave', JSON.stringify(model))`, falls back to `exportAsJSON(model)` (download) if storage is unavailable.
-
----
+Payload = `{ items[{modelItem,viewItem}], connectors[], rectangles[], textBoxes[], centroid }`. Paste: builds an `idMap`, mints new IDs for all entities, remaps in-selection connector `ref.item` and detaches out-of-selection ones (`ref.item = undefined`), preserves `ref.tile`, collision-avoids via `findNearestUnoccupiedTilesForGroup`, then switches to a synthetic LASSO selection of the pasted refs. **Gap:** connector-only selection has centroid `{0,0}` (offsets from tile 0,0). Full contract: [testing.md `useCopyPaste.test.ts`](testing.md).
 
 ### 2g. History System
 
-**Dual-store history**: Model store and Scene store each maintain independent `{ past: HistoryEntry[], future: HistoryEntry[], maxHistorySize: 50 }` where each entry is an Immer patch pair (`{ patches, inversePatches }`). The `useHistory` hook coordinates them.
+Model and scene stores each keep an independent `{ past, future, maxHistorySize: 50 }` of Immer patch pairs. A **checkpoint** = one `saveToHistoryBeforeChange()` (calls `saveToHistory()` on both stores); `transaction()` guarantees one checkpoint for N ops. `undo()` applies `inversePatches` and pushes the **original entry** to `future`; `redo()` applies `patches` and pushes it back to `past` — no recomputation.
 
-**A checkpoint** = one call to `saveToHistoryBeforeChange()` in `useScene`, which calls both `modelStoreApi.getState().actions.saveToHistory()` and `sceneStoreApi.getState().actions.saveToHistory()`. `transaction()` ensures only one checkpoint for N operations.
-
-**Patch flow**: `saveToHistory()` captures `pendingPre = extractModelData(get())`. The next `set()` call with this pending pre-state runs `produceWithPatches(pre, draft => Object.assign(draft, next))` and stores `{ patches, inversePatches }`. `undo()` applies `inversePatches` and pushes the **original entry** to future. `redo()` applies `patches` and pushes the **original entry** back to past. No recomputation in undo/redo.
-
-**Undo semantics**: `useHistory.undo()` calls `modelActions.undo()` if `canUndo()` and `sceneActions.undo()` if `canUndo()`. These may diverge if one store has more entries (no cross-store synchronization check).
-
-**`canUndo`/`canRedo`**: `modelCanUndo || sceneCanUndo` — true if **either** store has entries. Undo button may be enabled even if only scene (connector paths) has history.
-
-**Limitations:**
-1. Model and scene histories can diverge if one fails mid-operation.
-2. `createView` does **not** save to history — not undoable.
-3. `switchView` does not save to history (intentional: navigation, not mutation).
-4. Undo after paste may leave LASSO mode showing pasted items' selection (visual artifact).
-5. Max 50 entries per store — very large diagrams lose early history.
-
----
+**Load-bearing invariant (2026-05-16):** any history-bearing store **must** push the *original* entry to `future` on undo (not a recomputed one), with `patches: current→applied` and `inversePatches: applied→current`. A recomputed-direction bug in `sceneStore.undo` once broke redo for actions touching *both* stores (connectors rendered with an empty path after redo — invisible). Pinned by `connector.createUndoRedo.test.tsx`. `canUndo = modelCanUndo || sceneCanUndo` (either store enables the button). Drag transactions (`beginDragTransaction`/`commitDragTransaction` in `useSceneActions.ts`) collapse a whole drag into one entry via a `pendingPreFrozen` flag.
 
 ### 2h. Component Tree
 
-**Provider tree (from `Axoview.tsx`):**
-```
-ThemeProvider
-  LocaleProvider
-    ModelProvider (Zustand context)
-      SceneProvider (Zustand context)
-        UiStateProvider (Zustand context)
-          ClipboardProvider (useRef-based, 2026-04-07)
-            LayerContextProvider (React context, derived from model + uiState)
-              App (inner component via forwardRef)
-                GlobalStyles
-                Box (overflow:hidden, relative positioning)
-                  Renderer       ← canvas + scene layers
-                  UiOverlay      ← toolbar, menus, dialogs (position:absolute)
-              LeftDockSlot       ← position:absolute, left edge
-              RightSidebarSlot   ← position:absolute, right edge
-              BottomDockSlot     ← position:absolute, bottom edge
-```
+Full mermaid tree in [technical-review §3d](technical-review-2026-06.md#3d-component-tree-high-level-lib-side). Provider order (from `Axoview.tsx`): Theme → Locale → Model → Scene → UiState → Clipboard → CanvasMode → LayerContext → App(inner), with `LeftDockSlot` / `RightSidebarSlot` / `BottomDockSlot` as absolute-positioned siblings.
 
-**`Renderer.tsx` layering (bottom to top, by DOM order):**
-```
-containerRef Box (position:absolute, full size, z-index:0)
-  SceneLayer → <Rectangles>
-  SceneLayer → <Lasso>
-  <FreehandLasso> (not in SceneLayer — renders SVG overlay)
-  Box (grid) → <Grid>
-  SceneLayer → <Cursor> (only if showCursor)
-  SceneLayer → <Connectors>
-  SceneLayer → <TextBoxes>
-  SceneLayer → <ConnectorLabels>
-  SceneLayer → <SizeIndicator> (debug only)
-  [INTERACTION DIV] interactionsRef Box (position:absolute, full size, transparent — hit target for empty canvas)
-  SceneLayer → <Nodes>
-  SceneLayer → <TransformControlsManager>
-```
+**The one ordering insight that matters:** in `Renderer.tsx` the transparent `interactionsRef` interaction div sits **below** the Nodes + TransformControls SceneLayers, so `e.target === interactionsRef.current` is true only for empty-canvas clicks — the basis of the `isRendererInteraction` guard ([§2b](#2b-mode-state-machine)). `UiOverlay` is a sibling of `Renderer` and absolutely positions all UI relative to `rendererSize`.
 
-**Key DOM ordering insight**: The interaction div sits **below** Nodes and TransformControls. Nodes are above it and capture their own events. Only clicks on the empty grid land on the interaction div, making `e.target === interactionsRef.current` true only for empty-canvas clicks.
+Dock components: `LeftDock` (Elements / Layers tabs, `activeLeftTab`), `RightSidebar` (`itemControls` properties, `rightSidebarOpen`), and the per-view **Layer system** (`view.layers: Layer[]`; `LayerContextProvider` derives `visibleIds`/`lockedIds`/grouping; `useLayerActions` dispatches view reducers). Read those component files for current props — they drift.
 
-**`UiOverlay`** is a sibling of `Renderer`. It absolutely positions all UI elements relative to `rendererSize` (from store), renders on top of everything.
+### 2i. Event Propagation
 
----
+Window-level listeners in `useInteractionManager` capture **all** mouse/touch/key events globally (not on the Renderer element) so handlers fire even outside the canvas; `isRendererInteraction` then filters canvas-specific logic. Scoped exceptions: `rendererEl.wheel` (zoom), `rendererEl.dragstart` (prevent native drag hijack).
 
-### 2h.1 LeftDock (`components/LeftDock/LeftDock.tsx`)
+**`stopPropagation` points that must be maintained** — each prevents an overlay click from reaching the window listener:
 
-A collapsible left panel with two tabs. Rendered as a sibling of the canvas Box — `position:absolute`, full-height, `zIndex:10`. Never affects canvas layout.
+1. `ControlsContainer.tsx` (ItemControls panel)
+2. ToolMenu Box wrapper in `UiOverlay.tsx`
+3. `NodePanel.tsx` (`onMouseDown` + `onContextMenu`)
+4. `NodeActionBar.tsx`
 
-**Structure:**
-```
-LeftDock (position:absolute, left:0, top:0, bottom:0)
-  Icon strip (width:40px, always visible)
-    Tab icon: ELEMENTS  →  WidgetsOutlined
-    Tab icon: LAYERS    →  LayersOutlined
-  Sliding panel (width:240px)
-    if activeLeftTab === 'ELEMENTS' → <ElementsPanel>
-    if activeLeftTab === 'LAYERS'   → <LayersPanel>
-```
-
-The sliding panel animates via `transform: translateX`. When closed, `translateX(-(240+40)px)` — fully off-screen including the strip width. `pointerEvents: 'none'` on the panel while closed so canvas clicks pass through.
-
-**`ElementsPanel`** (`LeftDock/ElementsPanel.tsx`):
-- Icon grid: `IconSelectionControls` — drag an icon to start `PLACE_ICON` mode; ghost rendered by `DragAndDrop` component
-- **Rectangle card** (`CommonElements`): mousedown → `setMode({type:'RECTANGLE.DRAW'})`
-- **Connector card** (`CommonElements`): mousedown → `setMode({type:'CONNECTOR', returnToCursor:true})`
-- **Import Icons button**: file input → `setPendingFiles` → opens `ImportIconsDialog`
-
-**`DragAndDrop`** (`components/DragAndDrop/DragAndDrop.tsx`):
-Ghost icon rendered during `PLACE_ICON` mode. Receives `iconId` and current `tile` from `UiOverlay`. Positioned via `getTilePosition(BOTTOM).y - halfH` — mirrors `Node.tsx` exactly. Rendered inside `UiOverlay`'s scene transform so it tracks the isometric grid correctly.
-
-**`activeLeftTab`** state lives in `uiStateStore`. Clicking an active tab sets it to `null` (closes panel).
-
----
-
-### 2h.2 RightSidebar (`components/Sidebars/RightSidebar.tsx`)
-
-Properties panel on the right edge. `position:absolute`, right:0, top:0, bottom:0, `width:300px`. Slides via `transform: translateX(100%)` when closed.
-
-**Open/close control:** `uiState.rightSidebarOpen` (boolean). Toggle button rendered in `UiOverlay`'s sidebar portal (`sidebarTogglePortalTarget`).
-
-**Content:**
-- When `itemControls !== null` → renders `<ItemControlsManager readOnly={readOnly} />` (full-height scrollable)
-- When `itemControls === null` → empty-state: `TuneOutlined` icon + "Select a node, connector or shape to view its properties"
-
----
-
-### 2h.3 Layer System
-
-**Data model:**
-```typescript
-// schema: src/schemas/layer.ts
-Layer = { id: string; name: string; visible: boolean; locked: boolean; order: number }
-```
-Stored as `view.layers: Layer[]` inside each view — per-view layer stacks, not global. All canvas entities (`ViewItem`, `Connector`, `Rectangle`, `TextBox`) carry an optional `layerId` field that references a layer in the same view.
-
-**`LayerContextProvider`** (`hooks/useLayerContext.ts`):
-Wraps the entire editor tree. Derives `LayerContextValue` from `modelStore.views` + `uiState.view` — recomputed when either changes. Provides:
-- `visibleIds: ReadonlySet<string>` — IDs of entities whose layer is visible (or have no layer)
-- `lockedIds: ReadonlySet<string>` — IDs of entities on locked layers
-- `layers: Layer[]` — ordered layer definitions for the current view
-- `itemCountByLayerId: ReadonlyMap<string, number>`
-- `unassignedCount: number`
-- `itemsByLayerId: ReadonlyMap<string, LayerItem[]>` — grouped by layerId; `'__unassigned__'` key for unassigned items
-
-`LayerItem = { id, type: 'ITEM'|'CONNECTOR'|'RECTANGLE'|'TEXTBOX', name }`. Nodes use model item name; connectors use label or "Connector"; rectangles use "Rectangle"; text boxes use plain-text extract (first 24 chars).
-
-**`useLayerActions`** (`hooks/useLayerActions.ts`):
-Dispatches view reducer actions directly (no `useScene` indirection). Each call: `saveToHistory()` → `viewReducer(params)` → `commit(newState)`.
-
-| Action | Reducer action | Payload |
-|--------|---------------|---------|
-| `createLayer(layer)` | `CREATE_LAYER` | `Partial<Layer> & { name }` |
-| `updateLayer(updates)` | `UPDATE_LAYER` | `Partial<Layer> & { id }` |
-| `deleteLayer(layerId)` | `DELETE_LAYER` | layerId string |
-| `reorderLayers(orderedIds)` | `REORDER_LAYERS` | `string[]` |
-| `assignLayerToItems(layerId, items)` | `ASSIGN_LAYER_TO_ITEMS` | `{ layerId, itemIds }` |
-| `reorderViewItem(id, zIndex)` | `REORDER_VIEWITEM` | `{ id, zIndex }` |
-
-**`LayersPanel`** (`components/LayersPanel/LayersPanel.tsx`):
-- **Layer list**: sorted by `order` (highest first = top of stack). Each `LayerRow` has: drag handle (reorder), visibility eye, lock toggle, inline rename, delete button.
-- **Add layer**: `+` button creates `Layer N`.
-- **Item list per layer** (expandable): `LayerItemRow` for each assigned item. Shows type icon + name. Clicking selects the item on canvas (`setItemControls`). Canvas selection (`itemControls`) highlights the matching row — bidirectional sync.
-- **Drag item to layer**: mousedown on a `LayerItemRow` drag handle sets `itemDragState`; hovering a `LayerRow` sets `overLayerId`; mouseup calls `assignLayerToItems`.
-- **Drag layer to reorder**: mousedown on layer drag handle sets `dragState`; hover sets `overId`; mouseup calls `reorderLayers` via array splice+reverse.
-
-**`SceneLayer`** applies the scroll+zoom CSS transform: `translate(scroll.x, scroll.y) scale(zoom)`. All scene elements inherit this.
-
-**Pointer event architecture**: Window-level listeners in `useInteractionManager` capture all mouse events globally (not on the Renderer element). Events fire even when mouse is outside the canvas. `isRendererInteraction` check filters canvas-specific logic.
-
----
-
-### 2i. Event Propagation Architecture
-
-**Window listeners registered in `useInteractionManager`:**
-- `mousemove` → `onMouseEvent`
-- `mousedown` → `onMouseEvent`
-- `mouseup` → `onMouseEvent`
-- `contextmenu` → `onContextMenu` (just calls `e.preventDefault()`)
-- `touchstart/touchmove/touchend` → synthesized mouse events → `onMouseEvent`
-- `rendererEl.wheel` → zoom handler (passive listener on container, not window)
-- `rendererEl.dragstart` → `e.preventDefault()` (scoped to canvas only — prevents browser native drag hijacking custom DRAG_ITEMS logic when mousedown lands on an SVG icon or `<img>` node)
-- `window.keydown` → hotkeys + mode switches
-
-**`stopPropagation` points (must be maintained):**
-1. **`ControlsContainer.tsx`**: `onMouseDown={e => e.stopPropagation()}` — prevents ItemControls panel clicks reaching window listener.
-2. **ToolMenu Box wrapper** (in `UiOverlay.tsx`): `onMouseDown={(e) => e.stopPropagation()}` — prevents toolbar button clicks reaching window listener.
-3. **`NodePanel.tsx`**: `onMouseDown={e => e.stopPropagation()}` + `onContextMenu={e => e.stopPropagation()}` — panel floats over canvas; without these all clicks would pass through to the interaction manager.
-4. **`NodeActionBar.tsx`**: `onMouseDown={e => e.stopPropagation()}` — action bar pill sits inside SceneLayer at canvas coordinates; stops clicks propagating to canvas mousedown handler.
-
-**`nodePanel` custom-event bus (action bar → panel):**
-
-`NodeActionBar` dispatches `window.CustomEvent('nodePanel', { detail: action })`. `NodePanel` listens for these while mounted (edit mode only). Actions:
-
-| `detail` value | Effect in NodePanel |
-|---|---|
-| `'focusName'` | Switch to Details tab, focus + select the name field |
-| `'focusLink'` | Switch to Details tab, show link field, focus it |
-| `'scrollToAppearance'` | Switch to Style tab |
-| `'focusNotes'` | Switch to Notes tab |
-
-**`canvasEmptyDblClick` custom event (interaction manager → QuickAddNodePopover):**
-
-`useInteractionManager` fires `window.CustomEvent('canvasEmptyDblClick', { detail: { tile, screenX, screenY } })` on `dblclick` when in EDITABLE + CURSOR mode and the click lands on an empty tile. `QuickAddNodePopover` listens and opens a Popover at `{top: screenY, left: screenX}`.
-
-**Touch event handling:**
-Touch events are synthesized: `touchstart` → mousedown (button:0), `touchmove` → mousemove, `touchend` → mouseup with `clientX:0, clientY:0`. The zeroed-out coordinates on `touchend` are problematic: the "mouse position" on release is wrong for touch interactions.
-
----
+Custom-event buses: `nodePanel` (action bar → panel tab focus), `canvasEmptyDblClick` (interaction manager → QuickAddNodePopover), `inlineEditNodeName` (F2 → Node/TextBox). Touch events are synthesized to mouse events; `touchend` zeroes `clientX/Y` (a known wrong-position bug for touch).
 
 ### 2j. Configuration Layer
 
-| File | Contents |
-|---|---|
-| `config/hotkeys.ts` | Re-exports `HotkeyProfile` from `types/settings`; exports `DEFAULT_HOTKEY_PROFILE = 'smnrct'` and hotkey key constants |
-| `config/panSettings.ts` | Re-exports `PanSettings` from `types/settings`; exports `DEFAULT_PAN_SETTINGS` |
-| `config/zoomSettings.ts` | Re-exports `ZoomSettings` from `types/settings`; exports `DEFAULT_ZOOM_SETTINGS` |
-| `config/labelSettings.ts` | Re-exports `LabelSettings` from `types/settings`; exports `DEFAULT_LABEL_SETTINGS` |
-| `config/shortcuts.ts` | Fixed shortcuts (non-configurable): copy/paste/undo/redo/help |
-| `config/persistedSettings.ts` | `loadPersistedSettings()` / `savePersistedSettings()` using `localStorage` key `'axoview_user_settings'`. Errors silently swallowed (SSR / private browsing safe). Persists: `hotkeyProfile`, `panSettings`, `zoomSettings`, `labelSettings`, `connectorInteractionMode`, `expandLabels`. |
-| `config.ts` | Tile size constants, defaults for View/ViewItem/Connector/TextBox/Rectangle, zoom constants (MIN=0.1, MAX=1, INCREMENT=0.05), initial data |
-| `types/settings.ts` | **Canonical location** for settings types: `HotkeyProfile`, `HotkeyMapping`, `PanSettings`, `ZoomSettings`, `LabelSettings`. Config files re-export from here for backwards compat. |
+`config/*.ts` re-export their types from `types/settings.ts` (the **canonical** location for `HotkeyProfile`, `PanSettings`, `ZoomSettings`, `LabelSettings`) for backwards compat. `config/persistedSettings.ts` reads/writes `localStorage['axoview_user_settings']` (errors silently swallowed for SSR/private-browsing safety) and persists the 6 settings fields. `UiStateProvider` hydrates them at init with `?? default`; `Axoview.tsx` saves them on change via a `shallow`-equality `useEffect`.
 
-**Settings persistence flow (2026-04-07):**
-1. `UiStateProvider` calls `loadPersistedSettings()` at init — persisted values hydrate `hotkeyProfile`, `panSettings`, `zoomSettings`, `labelSettings`, `connectorInteractionMode`, `expandLabels` via `?? fallback` to defaults.
-2. `Axoview.tsx` selects the 6 persistable fields with `shallow` equality and calls `savePersistedSettings()` in a `useEffect` whenever they change.
-3. On next load, step 1 reads back the saved values — preferences survive page reload.
-
-**Utils split (2026-04-07):** `utils/renderer.ts` (was 866 lines) is now three focused files:
-
-| File | Responsibility | Lines |
-|---|---|---|
-| `utils/isoMath.ts` | All pure coordinate math: `screenToIso`, `getTilePosition`, `isoToScreen`, `sortByPosition`, `getBoundingBox`, `getConnectorPath`, `getTextBoxDimensions`, etc. | ~280 |
-| `utils/hitDetection.ts` | WeakMap spatial index (`itemTileIndexCache`), `getItemAtTile` — O(1) hit testing | ~77 |
-| `utils/renderer.ts` | `getMouse`, `getProjectBounds`, `getVisualBounds`, `getUnprojectedBounds`, `getFitToViewParams` + barrel re-exports from both sub-modules | ~210 |
-
-Existing call sites that `import { X } from 'src/utils/renderer'` continue to work unchanged via the barrel re-exports.
-
----
-
-### 2k. Performance Architecture (2026-03-31)
-
-Nine targeted fixes applied to eliminate render hotspots and unblock large-diagram paste. All measured with the in-app DiagnosticsOverlay.
-
-#### O(1) item lookup — WeakMap index cache
-
-`useModelItem` and `getItemAtTile` build a `Map<id, item>` once per unique array reference using a module-level `WeakMap<items[], Map<id, item>>`. Cost: O(N) on the first call with a new array; O(1) on every subsequent call with the same reference. The WeakMap entry is GC'd automatically when the array is no longer referenced.
-
-#### `findNearestUnoccupiedTile` — single occupied-set pass
-
-Rewrote the ring-search helper to build a `Set<"x,y">` of occupied tiles **once**, then check membership in O(1) per candidate position. Eliminates the O(N) `getItemAtTile` call that was previously called inside every ring step.
-
-#### Zustand transaction batching
-
-`scene.transaction(fn)` now buffers all intermediate states in `pendingStateRef`, then flushes as two `setState` calls at the end — one for model, one for scene. Before: 2 × N Zustand `setState` calls for N operations. After: 2 `setState` calls regardless of N.
-
-#### Viewport culling
-
-`Renderer.tsx` computes tile-space visible bounds via `uiStateApi.subscribe()` without triggering React re-renders. The subscriber fires only when scroll/zoom/rendererSize changes, and only updates React state when the coarse tile range actually changes (equality check before `setCoarseBounds`). `visibleItems` and `visibleConnectors` are filtered in `useMemo` — off-screen elements are never rendered.
-
-#### Immer patch-pair history
-
-`modelStore` and `sceneStore` history stacks store Immer `{ patches, inversePatches }` pairs instead of full model snapshots. Memory: O(diff_size × 50) vs O(model_size × 50). Undo/redo apply/invert the stored diff — no full snapshot swap. The original entry is passed through the undo/redo cycle unchanged (no recomputation).
-
-#### Async A* pathfinding
-
-On paste, connector routing is dequeued from the synchronous transaction into `computePathsAsync`:
-
-```
-pasteItems(payload) {
-  transaction(() => {
-    // create all items, rectangles, textboxes
-    // create each connector with skipPathfinding=true (provisional empty path)
-  });
-  computePathsAsync(connectorIds, onProgress?);
-}
-```
-
-`computePathsAsync` chains `requestAnimationFrame` batches of 25 connectors. Each batch runs A* for 25 connectors, writes results directly to sceneStore (`skipHistory=true`), yields to the browser, then schedules the next batch. At 2264 connectors: 91 batches, each ≤100 ms. The rAF yield between batches prevents continuous blocking — Chrome's "page is unresponsive" threshold (30 s) is never reached.
-
-#### Per-connector sceneStore subscription (Fix A)
-
-The `connectors` list from `useScene` is now **raw view connectors** — no merging, no defaults. The `hitConnectors` list merges scene path data and is used only for interaction/hit-testing. Each `<Connector>` component subscribes only to its own path slice:
-
-```ts
-useSceneStore((s) => s.connectors[connector.id]?.path, (a, b) => a === b)
-```
-
-When `computePathsAsync` writes a path for connector X, only the `<Connector id=X>` component re-renders. All other N-1 connectors remain stable. CONNECTOR_DEFAULTS are merged locally inside each component rather than at list construction time.
-
-#### A* LRU path cache (Fix B)
-
-`pathfinder.ts` caches A* results in a `Map<string, Coords[]>` (max 2 000 entries, keyed by `"from.x,from.y→to.x,to.y@W×H"`). Evicts the oldest entry on capacity hit. Repeated paste of the same topology resolves in microseconds.
-
-#### `startTransition` on paste (Fix C)
-
-`useCopyPaste.handlePaste` wraps `scene.pasteItems` in React's `startTransition`. The store write is deprioritised — React can interrupt the resulting render to handle user input (scrolling, zooming) between renders.
-
-#### Progress notifications
-
-For pastes with ≥ 500 connectors, `useCopyPaste` passes an `onPathProgress(done, total)` callback to `pasteItems`. The callback fires after each rAF batch and updates a toast: `"Pasting… routing connectors (X%)"`. On completion: `"Pasted N items"`.
-
----
+Coordinate/render math lives in three focused files split out of the old 866-line `renderer.ts`: `utils/isoMath.ts` (pure coordinate math), `utils/hitDetection.ts` (WeakMap spatial index, O(1) `getItemAtTile`), `utils/renderer.ts` (screen-space helpers + barrel re-exports — existing import sites unchanged).
 
 ### 2k. Internationalisation (i18n) Layer
 
-**Two separate i18n systems** — one per package — connected via the `locale` prop on `<Axoview>`.
+**Two systems, one per package**, connected by the `locale` prop on `<Axoview>`:
 
-#### axoview-app (react-i18next)
+- **axoview-app** — `react-i18next` v17 + `i18next-http-backend`, namespace `app`, JSON files (11 languages) copied to `build/i18n/app/`. `load: 'currentOnly'` (prevents short-code 404), `fallbackLng: 'en-US'`.
+- **axoview-lib** — `localeStore` (Zustand), TS locale files (14 languages: en-US + 13). `allLocales` from `i18n/index.ts`; App derives `currentLocale` and passes it as the `locale` prop. The lib's `t()` returns a plain string with **no** parameter support — callers do `.replace('{count}', value)` manually.
 
-| Item | Detail |
+Completeness is enforced by `i18n.localeCompleteness.test.ts` (every locale file must contain every top-level namespace from `en-US.ts`).
+
+### 2l. axoview-app Provider Decomposition
+
+`App.tsx` was decomposed (Phase 0A) into a composition root over two domain providers:
+
+- **`AppStorageContext`** — the only place that touches storage init (`isServerStorage`, `isInitialized`, `StorageManager`). Boot does a single `GET /api/config` probe with an **800 ms `AbortSignal.timeout`** (caps Chrome/Windows dual-stack connect latency); `serverStorage` selects server-backed vs sessionStorage. An inline splash in `public/index.html` covers the cold-start gap.
+- **`DiagramLifecycleProvider`** — diagram state, save / Save As / load / delete, keyboard shortcuts, `beforeunload` guard, icon-pack manager, save/discard/load + the ADR-0011 error dialogs.
+
+> ⚠️ **Correction (technical-review-2026-06 §3b):** the "103-line pure-composition `App.tsx`" this section once claimed is **stale** — `App.tsx` is ~442 LOC and carries the React Router tree, error/export/import dialogs, and icon-usage scanning. Treat [technical-review §3b](technical-review-2026-06.md#3b-package-responsibilities) as the current word on package responsibilities and LOC.
+
+### 2m. Deployment & API Contract
+
+Three targets (local dev, Docker, Cloudflare Pages) from one codebase, sharing one `/api/*` HTTP contract; the frontend is byte-identical at the network boundary. **The durable contract is locked in [ADR 0009 — Deployment Topology](adr/0009-deployment-topology.md) and [ADR 0010 — Session Backend Contract](adr/0010-session-backend-contract.md).** Current-state route list, the key-based `StorageAdapter` interface, auth modes, and the Hono/Express split are in [technical-review §5–§6](technical-review-2026-06.md#5-deployment-topology); the from-scratch walkthrough is in [deployment.md](deployment.md). This doc no longer restates them.
+
+### 2n. Workspace Bundles & Lean Icon Save
+
+Three load-bearing ADRs lock the persistence contract — read them when touching `services/project/`, `LocalStorageProvider`, `useInitialDataManager`, or `utils/leanSave.ts`:
+
+| ADR | Concern |
 |---|---|
-| Library | `react-i18next` v17 + `i18next-http-backend` |
-| Namespace | `app` |
-| JSON files | `packages/axoview-app/src/i18n/*.json` (11 languages) — copied to `build/i18n/app/` at build time by rsbuild |
-| Config | `packages/axoview-app/src/i18n.ts` — `load: 'currentOnly'` prevents short-code 404; `fallbackLng: 'en-US'` |
-| Usage | `const { t, i18n } = useTranslation('app')` in `App.tsx` and `DiagramManager.tsx` |
-| Language switch | `ChangeLanguage/index.tsx` calls `i18n.changeLanguage(lang)` and writes to `localStorage('i18nextLng')`. Displays the active language's full label from `supportedLanguages`. |
+| [0001](adr/0001-project-zip-format.md) | Project zip format (manifest + `diagrams/<id>.json` + `tree-manifest.json`); ID rewriting; destination picker |
+| [0002](adr/0002-icon-catalog-merge-on-load.md) | `sideDockCatalog = bundledFixtures ∪ model.icons`; merge runs every load |
+| [0003](adr/0003-session-storage-lean-icon-save.md) | Strip default-catalog icons on every write; preserve custom + overrides; `requiredPacks` companion field |
 
-**App namespace key groups:**
-- `nav.*` — toolbar button labels (Save, Diagrams, Share, Load…)
-- `status.*` — save-status timestamps (savedAt, savedYesterdayAt, savedOnDate, savedOnDateYear, unsaved)
-- `toolbar.*` — Preview tooltip variants
-- `share.*` — Share popover (title, hint, copy, copied)
-- `dialog.save.*` / `dialog.saveAs.*` / `dialog.load.*` / `dialog.export.*` / `dialog.readOnly.*` / `dialog.diagramManager.*`
-- `alert.*` — confirm/error strings
-
-#### axoview-lib (localeStore)
-
-| Item | Detail |
-|---|---|
-| Store | `packages/axoview-lib/src/stores/localeStore.tsx` — Zustand with React context |
-| Type | `LocaleProps` in `packages/axoview-lib/src/types/axoviewProps.ts` |
-| TS locale files | `packages/axoview-lib/src/i18n/*.ts` (13 languages: en-US + 12 others) |
-| Exported | `allLocales` from `packages/axoview-lib/src/i18n/index.ts` |
-| Usage | `const { t } = useTranslation('namespaceName')` in any lib component |
-| Prop | `<Axoview locale={currentLocale}>` — App.tsx derives `currentLocale` from `allLocales[i18n.language]` with `en-US` fallback |
-
-**Lib namespaces** (all defined in `LocaleProps`, all 13 locale files must contain each):
-`common`, `mainMenu`, `helpDialog`, `connectorHintTooltip`, `lassoHintTooltip`, `importHintTooltip`, `connectorRerouteTooltip`, `connectorEmptySpaceTooltip`, `settings`, `lazyLoadingWelcome`, `viewTabs`, `nodePanel`, `nodeInfoTab`, `nodeStyleTab`, `connectorControls`, `textBoxControls`, `rectangleControls`, `labelColorPicker`, `deleteButton`, `nodeActionBar`, `quickAddNodePopover`, `zoomControls`, `labelSettings`, `iconSelectionControls`, `searchbox`, `exportImageDialog`, `toolMenu`, `quickIconSelector`
-
-**Interpolation note:** The lib's `t()` returns a plain string with no parameter support. For strings needing runtime values (e.g. `searchResults: "SEARCH RESULTS ({count} icons)"`), callers use `.replace('{count}', value)` manually.
-
-**Locale completeness enforcement:** `__perf_refactor_regression__/i18n.localeCompleteness.test.ts` — reads all 13 locale files and asserts each contains every top-level namespace from `en-US.ts`.
+The contract is **symmetric**: 0003 strips at write time, 0002 rehydrates at read time. Either side broken in isolation surfaces as "side dock empties after load" or "every diagram gets fatter on every save"; both directions are pinned by round-trip unit tests. `requiredPacks` is **derived-but-preserved** — re-derived only when every `item.icon` resolves against `model.icons`, otherwise preserved verbatim so a lean round-trip (autosave-before-packs-load, import-then-save) doesn't blow it away.
 
 ---
 
-### 2l. axoview-app Provider Decomposition (2026-04-27)
+## 3. Performance Architecture
 
-`App.tsx` was 744 lines of intermixed state, effects, and JSX. Phase 0A split it into a small composition root and two domain providers. `App.tsx` is now 103 lines — pure provider composition with no logic.
+The codebase has been through several perf passes; the **diagnostic narratives and current state live in [perf-troubleshooting.md](perf-troubleshooting.md)** and the runtime-metrics baseline in [technical-review §8g](technical-review-2026-06.md#8g-production-runtime-metrics). The structural fixes still in force:
 
-**Provider tree (axoview-app):**
+- **O(1) item lookup** — module-level `WeakMap<items[], Map<id,item>>` cache (`useModelItem`, `getItemAtTile`).
+- **Patch-pair history** — diffs not snapshots ([§2g](#2g-history-system)).
+- **Zustand transaction batching** — `transaction()` buffers in `pendingStateRef`, flushes as 2 `setState` calls regardless of N.
+- **Viewport culling** — `Renderer.tsx` filters off-screen items/connectors via a coarse tile-bounds subscriber that bypasses React render until the range changes.
+- **Per-connector path subscription** — each `<Connector>` subscribes to its own `scene.connectors[id].path`; an async path write re-renders only that one.
+- **Closed-form connector router** (`utils/pathfinder.ts`) + **drag transactions** — replaced per-tick A\* + per-tile history entries; collapsed a drag to one undo entry.
+- **CSS-preview drag path** — multi-element drags mutate `--ff-drag-dx/dy` CSS variables + `previewAnchorTiles` directly (compositor-only, no React/immer per frame); committed to the model only on mouseup. The `previewAnchorTiles` map exists specifically to keep `syncConnector` from running against stale model tiles mid-drag.
 
-```
-App
-  AppStorageContext       (storage init: isServerStorage, isInitialized, StorageManager)
-    DiagramLifecycleProvider
-      ↳ owns:  diagram state, save / Save As / load / delete,
-               keyboard shortcuts, beforeunload guard,
-               icon-pack manager, Save / Discard / Load dialogs
-      ↳ exposes: useDiagramLifecycle()
-      AuthProvider*       (only if REACT_APP_GOOGLE_CLIENT_ID is set; otherwise transparent)
-        FileExplorerLayout
-          AppToolbar      (reads useAppStorage / useDiagramLifecycle — no props)
-          <Axoview>       (library)
-          NotificationStack
-```
-
-\* `AuthProvider` exists in master at this point as the harness that wires `@react-oauth/google` into the lifecycle, but the Google Drive provider it would feed is still the `NotImplementedError` stub. The actual Drive implementation lives on `wip/drive-s3` and is not on master.
-
-**Why this split:**
-
-- `AppStorageContext` is the only place that touches storage init. The rest of the app reads `isServerStorage` / `isInitialized` from the hook and never sees a `StorageManager` directly.
-- `DiagramLifecycleProvider` owns the dirty-tracking lifecycle that used to span `App.tsx` and `AppToolbar.tsx`. The toolbar is now stateless — it simply consumes hooks.
-- The TDZ crash at first mount (keyboard-shortcut effect referencing `handleSaveClick` before it was declared) was an artefact of the old monolith; the new ordering inside `DiagramLifecycleProvider` declares handlers before the effect that registers them.
-
-**`AppStorageContext` initialisation:**
-
-1. Construct `StorageManager`.
-2. Register the `LocalStorageProvider` (server-backed if `/api/config` reports `serverStorage: true`; falls back to `sessionStorage`).
-3. Set it active. Drive is registered as a `NotImplementedError` stub and only becomes a candidate when Phase 3B lands. (**Update 2026-04-29:** S3 support was dropped — `S3Provider` and `@aws-sdk/*` / `minio` deps are gone. Phase 3C is no longer planned.)
-4. Set `isInitialized = true` — the session-only warning banner is gated on this so it doesn't flash before storage is known.
-
-**Update 2026-05-19 — Startup probe contract.** `fetchRuntimeConfig()` and `manager.initialize()` are run in parallel via `Promise.all` (they're independent — one hits `/api/config`, the other hits `/api/storage/status`). Each probe is hard-capped at **800 ms** via `AbortSignal.timeout(800)` in [`useRuntimeConfig.ts`](../packages/axoview-app/src/hooks/useRuntimeConfig.ts) and [`LocalStorageProvider.isAvailable()`](../packages/axoview-app/src/services/storage/providers/LocalStorageProvider.ts). Rationale: a healthy backend answers in <50 ms; an absent backend can otherwise let Chrome/Windows spend ~2.3 s on a dual-stack connect probe before reporting `ERR_CONNECTION_REFUSED` to JS. Worst-case storage init is therefore ≈ 800 ms (single probe times out) rather than the prior ≈ 2.7 s (Chrome retry × 2, sequential). Pinned by `providers/__tests__/AppStorageContext.test.tsx` (parallelism) + `hooks/__tests__/useRuntimeConfig.test.ts` (timeout) + the extended `LocalStorageProvider.test.ts`.
-
-A startup splash screen is rendered inline in `public/index.html` (visible at first paint, ~500 ms) and removed by `App.tsx` after `isInitialized` flips and the editor's first paint flushes (two RAFs). This covers the bundle-parse + probe gap with a branded surface instead of a white screen.
+**Known cliff (deferred):** a sustained drag (≳50 s without committing) accumulates ~12 MB/s of immer-cloned state → a GC stall. Refactor design (keep the preview in `scene.connectors[id]` only until commit) is in [known_issues.md](../known_issues.md). The `DiagnosticsOverlay` (`axoview-app/src/components/DiagnosticsOverlay.tsx`) is the in-app tool that produced these measurements — a low-overhead, always-available FPS/heap/long-task recorder with AI-compact + human-readable downloads (disabled by default in prod, always on in dev).
 
 ---
 
-## 2m. Deployment & API Contract (2026-04-29)
+## 4. Lessons Learned
 
-> **Durable contract source (2026-05-20):** [ADR 0009 — Deployment topology](adr/0009-deployment-topology.md) (runtime asymmetry, env-var contract per target, mode-detection probe, observability boundary) and [ADR 0010 — Session backend contract](adr/0010-session-backend-contract.md) (storage adapter interface, atomicity, single-tenant scope, `/healthz` shape, GDrive extension contract) are the locked references. This section documents **current state**; the post-cleanup state (dual-probe collapsed, `/api/storage/status` removed, `RuntimeConfig.serverStorage` field deleted, fs adapter atomic via tmp-file + rename, `/healthz` route live) is **to be amended after C.2 I1 + I2 + I3 land**. Until then, the route list and adapter shape below describe what runs today.
+Durable "don't re-introduce this" knowledge — non-obvious fixes whose *why* isn't visible in the code. Each is symptom → root cause → fix. The full diagnostic stories for the perf items are in [perf-troubleshooting.md](perf-troubleshooting.md).
 
-Axoview runs from a single codebase on three targets, sharing one `/api/*` HTTP contract. The frontend is byte-identical at the network boundary across targets; runtime config (`GET /api/config`) replaces build-time env injection. Full from-scratch walkthrough: [docs/deployment.md](deployment.md).
+1. **Quill mount-time `onChange`** — ReactQuill fires `onChange` once on mount with the initial content, creating a phantom history checkpoint. Fix: `RichTextEditor` ignores the first `onChange` via an `isFirstRender` ref.
 
-### Targets
+2. **Quill needs an explicit pixel height** — `flex:1`/`height:auto` collapses the editor to one line (Quill caches `offsetHeight` at init). Fix: always pass `height` in px (Notes 300, Caption 80, default 120).
 
-| Target | Runtime | Storage | Auth options |
-|---|---|---|---|
-| **Local dev** | `npm run dev` (rsbuild on :3000 + Express on :3001) | Filesystem (if `ENABLE_SERVER_STORAGE=true`) or session | `none`, `shared-token` |
-| **Docker** | nginx + Express on Node | Filesystem volume | `none`, `shared-token` |
-| **Cloudflare Pages** | Pages Functions (Hono) | **None — session/localStorage only (PoC)** | `none`, `shared-token`, `cf-access` |
+3. **ToolMenu click → spurious context menu (2026-03-20)** — a ToolMenu button click propagated to the window listener, ran `Cursor.mousedown` (set `mousedownHandled`), and the following mouseup opened the context menu. Three-layer fix: `stopPropagation` on the ToolMenu Box; `isRendererInteraction` guard on `Lasso.mousedown`; `mouse.mousedown` guard on Lasso/FreehandLasso mouseup.
 
-The Cloudflare runtime is currently storage-less (R2 was dropped to keep the free-tier deploy zero-config). The Worker reports `serverStorage: false` and 503s every storage route; the SPA falls back to session/localStorage. Persistent storage on Cloudflare will return via the Drive provider on a separate branch.
+4. **`mousedownHandled` flag** — external `setMode({type:'CURSOR'})` (after placing an icon, finishing a connector, Escape) enters cursor mode with no preceding mousedown; without the flag the next mouseup opens the context menu. The flag captures *intent* (a real mousedown was processed); timestamp thresholds fail because mode-change + mouseup can share a millisecond.
 
-### HTTP routes (one contract, two adapters)
+5. **`setMode` must not clear `contextMenu`** — attempts to clear the context menu inside `setMode` regressed (type-preserving `CURSOR→CURSOR` updates and pan-exit both stomped a just-set menu). Correct abstraction: keep `setMode` a plain `set({ mode })` and gate the menu on `mousedownHandled`.
 
-```
-GET    /api/config                 — runtime config; auth-bypass
-GET    /api/diagrams
-GET    /api/diagrams/:id
-POST   /api/diagrams
-PUT    /api/diagrams/:id
-PATCH  /api/diagrams/:id
-PATCH  /api/diagrams/:id/move
-DELETE /api/diagrams/:id
-GET    /api/folders
-POST   /api/folders
-PUT    /api/folders/:id
-PATCH  /api/folders/:id/move
-DELETE /api/folders/:id
-GET    /api/tree-manifest
-PUT    /api/tree-manifest
-POST   /api/diagrams/:id/share     — publish snapshot, returns { uuid, url }
-DELETE /api/diagrams/:id/share     — unpublish snapshot
-GET    /api/public/diagrams/:uuid  — unauth snapshot read
-```
+6. **`isRendererInteraction` checks the interaction div, not "the canvas"** — `rendererRef.current` is the transparent below-Nodes div; clicking a Node/Connector/Rectangle targets *that* element, so the guard is true only on empty grid. (Same fact anchors [§2b](#2b-mode-state-machine).)
 
-### Key-based StorageAdapter (no paths in the interface)
+7. **`reducerTypeRef` timing** — `processMouseUpdate` reads `uiStateApi.getState()` at entry; a prior handler's synchronous `setMode()` is already visible there while `reducerTypeRef.current` still holds the old type — which is exactly how the entry/exit transition is detected.
 
-```ts
-// packages/axoview-backend/src/adapters/types.ts
-export interface StorageAdapter {
-  get(key: string): Promise<Uint8Array | null>;
-  put(key: string, value: Uint8Array): Promise<void>;
-  delete(key: string): Promise<void>;
-  list(prefix: string): Promise<string[]>;          // returns keys, not paths
-  listDiagramMeta(): Promise<DiagramMeta[]>;        // adapter-specific impl
-}
-```
+8. **Pan bypass path** — `usePanHandlers.handleMouseDown` returning `true` skips `processMouseUpdate`, so Pan's own `entry()` fires on the next event (first mousemove). Acceptable because `startPan` already set the cursor.
 
-- `fsAdapter` ([packages/axoview-backend/src/adapters/fs.js](../packages/axoview-backend/src/adapters/fs.js)) converts `diagrams/abc123` → `path.join(STORAGE_PATH, 'diagrams', 'abc123.json')`. The route layer cannot construct a path.
-- `r2Adapter` (deferred — file removed from the worker after the storage-less revert) used keys verbatim against the R2 binding.
-- `listDiagramMeta` is a method, not a derived list, because the two adapters implement it very differently (fs walks the directory; R2 reads a denormalized `diagrams-index.json`).
-- **Path-traversal blocked** by ID regex `^[a-zA-Z0-9_-]{1,64}$` enforced at the route layer.
+9. **Dev server reads the lib's `dist/`, not source** — editing `axoview-lib/src` is invisible until `npm run build:lib`; no hot-reload for lib changes. (See memory `project_dev_lib_rebuild`.)
 
-### Cloudflare runtime — Hono on Pages Functions
+10. **`deleteModelItem` uses `delete`, not `splice`** — leaves a sparse array (`length` includes holes). `forEach`/`map` skip holes, `find` works, but code assuming `length === count` can break. All other reducers `splice`.
 
-Express does not run cleanly on Workers even with `nodejs_compat`. Hono is ~14 kB, edge-native, and maps 1:1 to the existing routes. The bridge:
+11. **`NonIsometricIcon` must use `top: 0`** — the iso CSS matrix (`transformOrigin: top left`) rotates the tile so the left vertex lands at the element origin; `top:-halfH` shifts the icon ~41 px up *before* the matrix, rendering it elevated.
 
-```ts
-// functions/api/[[path]].ts
-import { handle } from 'hono/cloudflare-pages';
-import app from '../../packages/axoview-worker/src/app';
-export const onRequest = handle(app);
-```
+12. **`ConnectorMode.returnToCursor` must survive the first-click `setMode`** — click-mode's first-click `setMode` overwrites the mode object; the flag must be explicitly forwarded or it's lost before the second click.
 
-`_routes.json` scopes the Function to `/api/*` only, so static asset requests bypass the Worker (zero CPU cost, served by Cloudflare CDN).
+13. **Scene-store undo/redo entries travel pre→post** — the load-bearing history invariant; full statement in [§2g](#2g-history-system).
 
-### Auth modes
+14. **Stacking-context trap: `transform: translateZ(0)` on Axoview's outer Box (2026-05-09)** — any non-`none` transform creates a stacking context, trapping inner z-indexes (LeftDock 20, BottomDock 20) so an app-level sibling at `zIndex:5` (`EmptyStateScreen`) wins regardless. **Fix is geometric, not z-index:** position overlays to leave the chrome's pixels uncovered (`top:0,left:40,right:0,bottom:40`). A second trap: `.axoview-container > div { height:100% }` in `App.css` overrode inline `bottom:40` on the new siblings (removed). Heuristic: if you're fighting z-index across the `Axoview` boundary, reach for geometric exclusion. (Referenced by [ux-principles §8.4](ux-principles.md).)
 
-| Mode | Where applied | Mechanism |
-|---|---|---|
-| `none` | Both | No auth check. Default for local dev and storage-less Cloudflare PoC. |
-| `shared-token` | Both | `Authorization: Bearer <secret>` compared with constant-time equality. Single shared secret across all editors. |
-| `cf-access` | **Cloudflare only** (Express rejects at request time) | Full JWKS RS256 verification of the Cloudflare Access JWT in [packages/axoview-worker/src/auth.ts](../packages/axoview-worker/src/auth.ts). Verifies `iss`, `aud`, `exp`, signature against the Access team's published JWKS. |
-
-`/api/config` bypasses all auth modes — the SPA needs it to boot under `shared-token`. (`GET /api/public/diagrams/:uuid` is also public, but as a read-only share-snapshot route, not a boot probe.)
-
-### Frontend integration
-
-- `packages/axoview-app/src/utils/apiBaseUrl.ts` — auto-redirects `/api/*` to `:3001` when the host is `localhost:3000`; same-origin relative paths everywhere else. Consolidates three previously inline copies.
-- `packages/axoview-app/src/hooks/useRuntimeConfig.ts` — fetches `/api/config` once on mount; downstream code reads `serverStorage`, `googleClientId`, etc. from the resulting context.
-- The legacy `storageService.ts` (build-time env injection) was removed in `f0590f3` — runtime config is now the only path.
-
-### Hardening
-
-- CSP via Helmet middleware on Express; equivalent headers via `_headers` on Cloudflare.
-- 10 MB request body limit.
-- Drive API scope locked to `drive.file` (deferred until the Drive provider lands).
-- Public-snapshot share URLs use opaque UUIDs (not diagram ids), so listing is impossible without prior knowledge.
+15. **Unroutable connectors are now visible** — `syncConnector` wraps `getConnectorPath` in try/catch, emits `console.warn`, sets `unroutable=true`, and `<Connector>` renders a dashed-red indicator. Previously these were silent zero-size ghosts.
 
 ---
 
-## 2n. Workspace Bundles & Lean Icon Save (2026-05-01)
+## 5. Tests, Gaps & Quality
 
-Three ADRs lock the contract for Axoview's persistence layer. They're load-bearing — read them when touching anything in `services/project/`, `LocalStorageProvider`, `useInitialDataManager`, or `utils/leanSave.ts`.
+The per-suite test catalogue, layer breakdown, classifications (VALID / SEMI-VALID), and current coverage gaps are maintained in **[docs/testing.md](testing.md)** — that is the source of truth for counts and what each suite pins. Aggregate KPIs (test inventory, CI gate inventory, LOC, test:source ratio, lint debt, cognitive-complexity baseline) are in **[technical-review-2026-06.md §8](technical-review-2026-06.md#8-quality-kpis-aggregate)**.
 
-| ADR | Concern | Where it lives |
-|---|---|---|
-| [0001](adr/0001-project-zip-format.md) | Project zip format (manifest + `diagrams/<id>.json` + `tree-manifest.json`); ID rewriting on import; destination picker; versioning | [packages/axoview-app/src/services/project/projectZip.ts](../packages/axoview-app/src/services/project/projectZip.ts) |
-| [0002](adr/0002-icon-catalog-merge-on-load.md) | `sideDockCatalog = bundledFixtures ∪ model.icons`; merge runs on every load | [packages/axoview-lib/src/hooks/useInitialDataManager.ts](../packages/axoview-lib/src/hooks/useInitialDataManager.ts) |
-| [0003](adr/0003-session-storage-lean-icon-save.md) | Strip default-catalog icons on every write (session, server, exports); preserve custom + overrides; `requiredPacks: string[]` companion field | [packages/axoview-lib/src/utils/leanSave.ts](../packages/axoview-lib/src/utils/leanSave.ts) |
+Current totals (2026-06-10): lib 1039 (+1 skipped) / 95 suites · app 143 / 15 · backend 101 / 7 · worker 102 · E2E 34 specs (~59 tests). The v1.1 wave closed the server-runtime test gap (the only **high**-severity item the post-v1.0.0 review named).
 
-The contract is symmetric: ADR 0003 strips at write time, ADR 0002 rehydrates at read time. Either side broken in isolation surfaces as "side dock empties after load" or "every diagram gets fatter on every save." Both have unit tests pinning the round-trip identity.
+**Code-quality infrastructure:** ESLint v10 (flat config; `@typescript-eslint/no-explicit-any` is now **error**, baseline driven 144 → 0), Knip v6 (**hard-fail** in CI since 2026-06-10), `npm audit`, Jest coverage (10 % global floor, intentionally low while the suite grows). Reports land in `reports/`. The v1.1 Sonar wave drove down cyclomatic complexity across the hot files (capstone `useInteractionManager.ts` 131 → <16) behind the ADR-0006 selection contract and the `__perf_refactor_regression__` baseline as guardrails. Full CI-gate + lint-debt detail: [technical-review §8b/§8e](technical-review-2026-06.md#8-quality-kpis-aggregate).
 
-The `requiredPacks` field is a **derived-but-preserved** signal. Authoritative re-derivation only runs when every `item.icon` resolves against `model.icons` (i.e. you're saving a hydrated, fully-loaded model). Otherwise the existing field is preserved verbatim, so a lean round-trip — autosave-before-pack-loads, project-zip-import-then-save — doesn't blow it away. Loaders consult it to lazy-fetch the right icon packs **before** the merge in ADR 0002 runs.
+**Standing functional gaps** (carried, product-decision pending): `createView` not undoable · `updateViewItem` throws mid-drag (no catch in `DragItems`) · connector-only clipboard centroid = `{0,0}` · `deleteModelItem` sparse array · touch `mouseup` zeroed coordinates · imported icons scoped per-diagram. Tracked with full risk/complexity in [known_issues.md](../known_issues.md) and [technical-review §11](technical-review-2026-06.md#11-open-known-issues).
 
-The legacy phantom `Icon1` / `Icon2` URL stubs in `packages/axoview-lib/src/fixtures/icons.ts` were removed (`5f6a70e`). The real catalog comes from `@isoflow/isopacks` injected at app level. ADR 0002's contract still holds because the bundled catalog is whatever the app provides — the lib doesn't ship icons of its own.
-
----
-
-## 3. Test Audit
-
-> **v1.1 close-out (2026-06-10):** the per-package totals and the authoritative, current suite-by-suite catalogue now live in [docs/testing.md](testing.md) — lib 1039 (+1 skipped) / 95 suites, app 143 / 15, backend 101 / 7, worker 102, E2E 34 specs / ~59 tests. The v1.1 wave closed the post-v1.0.0 server-runtime gap (backend + worker now carry tests — the only **high**-severity item the prior review named) and added the app-side error-UX / startup-timeout / parallelism / file-explorer-delete / share-URL / backend-routes contract suites. The detailed tables below are a 2026-03 → 2026-05 baseline kept for the per-file VALID/SHALLOW classifications; treat testing.md as the source of truth for counts.
-
-### Summary Table
-
-| Test File | Status | Reason |
-|---|---|---|
-| `toolMenu.propagation.test.tsx` — A tests | VALID | Tests actual DOM stopPropagation |
-| `toolMenu.propagation.test.tsx` — B/C tests | VALID *(updated 2026-03-20)* | Now imports real `Lasso.ts` module — inline replicas replaced |
-| `interactionManager.depStability.test.tsx` | VALID | Source text analysis; would catch dep array regression |
-| `useScene.listShape.test.tsx` | VALID | Tests real contract with mocked stores |
-| `useScene.referenceStability.test.tsx` | VALID | Memo stability is a real performance contract |
-| `viewOps.integration.test.tsx` | VALID | Tests real createView/updateView/deleteView reducers |
-| `uiOverlay.editorModes.test.ts` | SEMI-VALID | Tests local constant manually verified against production; importing UiOverlay in Jest not feasible (MUI createTheme at module load time pulls in full theme chain). To make VALID: extract EDITOR_MODE_MAPPING to a standalone config file with no MUI deps. |
-| `grid.backgroundFormula.test.ts` | VALID (fragile) | Tests formula replica; would need update if Grid.tsx changes |
-| `useRAFThrottle.cleanup.test.ts` | VALID | Tests real module; thorough RAF mock |
-| `useResizeObserver.lifecycle.test.ts` | VALID | Thorough lifecycle tests |
-| `keyboard.dispatch.test.tsx` | SHALLOW | Tests hand-written replica; placeholder addEventListener test |
-| `clipboard/__tests__/clipboard.test.ts` | SHALLOW | Tests only trivial getters/setters; does not test handleCopy/handlePaste |
-| `hooks/__tests__/useHistory.test.tsx` | VALID | Tests real hook with mocked store actions |
-| `stores/reducers/__tests__/connector.test.ts` | VALID *(rewritten 2026-03-20)* | Fully rewritten with correct `ConnectorAnchor[]` array format and correct `Scene` shape |
-| `stores/reducers/__tests__/modelItem.test.ts` | VALID *(extended 2026-03-20)* | Double-write regression, immutability, sparse-array pin added |
-| `stores/reducers/__tests__/viewItem.test.ts` — deleteViewItem | VALID | Cascade logic well tested |
-| `stores/reducers/__tests__/viewItem.test.ts` — updateViewItem | SHALLOW | Mock returns state unchanged; connector update path never tested |
-| `stores/reducers/__tests__/viewItem.test.ts` — createViewItem, batch-delete | VALID | |
-| `schemas/__tests__/` | VALID | Self-contained Zod tests |
-| `utils/__tests__/` | VALID | Pure function tests |
-| `DebugUtils` snapshot tests | SHALLOW | Snapshot tests break on any cosmetic change |
-| `connector.renderIsolation.test.tsx` | VALID (likely) | Render isolation is a real performance contract |
-| `Lasso.modes.test.ts` | VALID *(added 2026-03-20)* | Real Lasso module — mousedown/mouseup/mousemove including all guards |
-| `Cursor.modes.test.ts` | VALID *(added 2026-03-20)* | Real Cursor module — mousedownHandled flag, context menu gate, mode transitions |
-| `shortcuts.test.ts` | VALID *(added 2026-03-20)* | Pins all FIXED_SHORTCUTS constant values |
-| `settings.defaults.test.ts` | VALID *(added 2026-03-20)* | Pins default hotkey profile, pan/zoom settings |
-| `RichTextEditor.formats.test.ts` | VALID *(added 2026-03-20)* | 'bullet' absent, 'list' present, count pin |
-| `stores/__tests__/zustand.deprecation.test.ts` | VALID *(added 2026-03-20)* | No deprecated API warning; source-file assertion all 3 stores |
-| `__perf_refactor_regression__/i18n.config.test.ts` | VALID *(added 2026-03-20)* | load:'currentOnly' and fallbackLng pins for app i18n config |
-
-**Total test count as of 2026-03-20 (easy wins)**: 465 tests across 51 suites.
-
-**New/updated suites — round 1 (2026-03-20, regression baseline):**
-| File | Tests | Classification |
-|---|---|---|
-| `Lasso.modes.test.ts` | 15 | VALID — real Lasso module |
-| `Cursor.modes.test.ts` | 16 | VALID — real Cursor module |
-| `shortcuts.test.ts` | 7 | VALID — real constants |
-| `settings.defaults.test.ts` | 14 | VALID — real config |
-| `toolMenu.propagation.test.tsx` B/C | 8 total | VALID — real Lasso.ts (was inline replica) |
-| `stores/reducers/__tests__/connector.test.ts` | 21 | VALID — real array format (was STALE) |
-
-**New/updated suites — round 2 (2026-03-20, easy wins):**
-| File | Tests | Change | Classification |
-|---|---|---|---|
-| `stores/reducers/__tests__/modelItem.test.ts` | 8 | +5 | VALID — double-write regression + sparse-array pin |
-| `components/RichTextEditor/__tests__/RichTextEditor.formats.test.ts` | 4 | new | VALID — Quill formats contract |
-| `stores/__tests__/zustand.deprecation.test.ts` | 4 | new | VALID — deprecated API smoke test |
-| `__perf_refactor_regression__/i18n.config.test.ts` | 3 | new | VALID — i18n config options |
-
-**New/updated suites — round 3 (2026-03-20, coverage gap closure):**
-| File | Tests | Change | Classification |
-|---|---|---|---|
-| `interaction/__tests__/usePanHandlers.test.ts` | 13 | new | VALID — all pan bypass conditions + handleMouseUp |
-| `clipboard/__tests__/useCopyPaste.test.ts` | 10 | new | VALID — handleCopy + handlePaste full coverage |
-| `hooks/__tests__/useHistory.realStore.test.tsx` | 7 | new | VALID — real store: overflow, transaction, undo/redo round-trip |
-| `schemas/__tests__/connector.test.ts` | 9 | +5 | VALID — anchorSchema ref contracts, no exclusivity guard |
-| `utils/__tests__/renderer.test.ts` | 16 | +7 | VALID — zoom boundary clamp, no float drift |
-
-**Total test count as of 2026-03-22:** 514 tests across 54 suites (+7 for transient right-click pan, 2026-03-22).
-
-**New/updated suites — round 4 (2026-03-25, cut/paste + lasso drag):**
-| File | Tests | Change | Classification |
-|---|---|---|---|
-| `clipboard/__tests__/useCopyPaste.test.ts` | 18 | +7 | VALID — cut path, clipboard retention after cut |
-| `__perf_refactor_regression__/keyboard.dispatch.test.tsx` | 28 | +3 | VALID — Ctrl+X dispatch path |
-| `__perf_refactor_regression__/shortcuts.test.ts` | 7 | +1 | VALID — CUT shortcut constant |
-| `utils/__tests__/renderer.test.ts` | 20 | +4 | VALID — lasso drag node-within-selection |
-| `__perf_refactor_regression__/Lasso.modes.test.ts` | 18 | +3 | VALID — mousedownItem guard for group drag |
-
-**New/updated suites — round 5 (2026-03-27, toolbar UX overhaul):**
-| File | Tests | Change | Classification |
-|---|---|---|---|
-| `components/IconButton/__tests__/IconButton.color.test.tsx` | 6 | new | VALID — icon colour logic (was inverted bug) |
-| `__perf_refactor_regression__/viewTabs.titleReadonly.test.ts` | 6 | new | VALID — title card read-only contract |
-| `__perf_refactor_regression__/splashScreen.welcomeNotification.test.ts` | 6 | new | VALID — Axoview branding pins |
-| `__perf_refactor_regression__/languageDropdown.positioning.test.ts` | 4 | new | VALID — right:0 anchoring (overflow fix) |
-| `__perf_refactor_regression__/saveTracking.isAfterLoad.test.ts` | 5 | new | VALID — isAfterLoadRef contract + auto-save removal |
-
-**Total test count as of 2026-03-27:** 572 tests across 59 suites, all passing.
-
-**New/updated suites — round 6 (2026-03-29, node panel redesign + aria fixes):**
-| File | Tests | Change | Classification |
-|---|---|---|---|
-| `__perf_refactor_regression__/dragStart.prevention.test.ts` | 3 | new | VALID — `dragstart` handler scoped to `rendererEl`, not `window` |
-| `__perf_refactor_regression__/Lasso.modes.test.ts` | 18 | updated | VALID — corrected lasso `mousedown` no-op on fresh click |
-| `__perf_refactor_regression__/toolMenu.propagation.test.tsx` | updated | — | VALID — reflects corrected lasso behaviour |
-
-**Total test count as of 2026-03-29:** 575 tests across 60 suites, all passing.
-
-**New/updated suites — round 7 (2026-03-30, code quality + static analysis):**
-| File | Tests | Change | Classification |
-|---|---|---|---|
-| `__perf_refactor_regression__/quickAdd.groupButton.test.ts` | 10 | new | VALID — Group rectangle creation and node placement contracts |
-| `__perf_refactor_regression__/dragStart.prevention.test.ts` | 3 | updated | VALID — `dragstart` on `rendererEl` not window |
-
-**New/updated suites — round 8 (2026-03-31, performance optimizations):**
-| File | Tests | Change | Classification |
-|---|---|---|---|
-| `utils/__tests__/renderer.test.ts` | updated | +`hitConnectors` in mock | VALID — `getItemAtTile` now reads `hitConnectors` |
-| `hooks/__tests__/useHistory.realStore.test.tsx` | 7 | fixed | VALID — redo round-trip test unblocked by patch-pair history fix |
-| `__perf_refactor_regression__/useScene.listShape.test.tsx` | updated | tests updated | VALID — DEFAULTS merging moved to component; tests now check `hitConnectors` |
-| `__perf_refactor_regression__/useScene.referenceStability.test.tsx` | updated | tests updated | VALID — `hitConnectors` (not `connectors`) updates on sceneStore change |
-
-**Total test count as of 2026-03-31:** 683 tests across 68 suites, all passing. Global statement coverage ~32%.
-
-**New suites — round 8 (2026-04-06, full i18n + export image fix):**
-
-| Suite | Tests | Status | What it covers |
-|---|---|---|---|
-| `__perf_refactor_regression__/exportImageDialog.initialLoad.test.ts` | 8 | new | Pins the ready-signal mechanism: `axoviewLoadedRef` guard, `axoviewReadySignal` state, `onModelUpdated` wiring, `exportImageRef` stable-ref pattern, unconditional Axoview mount |
-| `__perf_refactor_regression__/i18n.localeCompleteness.test.ts` | 1 + N | new | Iterates all 13 locale TS files; asserts every top-level namespace in `en-US.ts` is present in each file. Catches missing sections (e.g. `toolMenu`, `quickIconSelector`) at CI time |
-| `__perf_refactor_regression__/toolMenu.i18n.test.ts` | 11 | new | No hardcoded English tool-name strings; all 10 tools (`select`, `lassoSelect`, `freehandLasso`, `pan`, `addItem`, `rectangle`, `connector`, `text`, `undo`, `redo`) use `t()` from `toolMenu` namespace |
-| `__perf_refactor_regression__/quickIconSelector.i18n.test.ts` | 12 | new | All 6 hardcoded strings replaced; `.replace()` interpolation used for `{count}` and `{term}` since lib `t()` has no object interpolation |
-
-**Total test count as of 2026-04-06:** 729 tests across 72 suites, all passing.
-
-**Updated suites — round 9 (2026-04-07, architecture refactoring):**
-
-| Suite | Tests | Change | Notes |
-|---|---|---|---|
-| `clipboard/__tests__/useCopyPaste.test.ts` | 18 | mock updated | Mock changed from `'../clipboard'` module singleton to `'../ClipboardContext'` context API |
-
-**Total test count as of 2026-04-07:** 392 tests (axoview-lib only, excluding `__perf_refactor_regression__`), 39 suites, all passing.
-
-**Updated suites — round 10 (2026-04-10, UX & icon elevation fixes):**
-
-| Suite | Tests | Change | Notes |
-|---|---|---|---|
-| `__perf_refactor_regression__/toolMenu.i18n.test.ts` | 11 → 8 | 3 assertions flipped | `t('rectangle')`, `t('text')`, `t('addItem')` assertions changed from `toContain` to `not.toContain` — those tools were removed from ToolMenu |
-| `__perf_refactor_regression__/quickAdd.groupButton.test.ts` | 10 | comments only | "Group button" → "Rectangle button" in comments; logic unchanged |
-| `components/ItemControls/IconSelectionControls/__tests__/Icon.test.tsx` | 2 | test changed | `getByText('flat')` → `getByAltText('flat icon')` / `getByAltText('isometric icon')` — tests alt text since text labels were removed in a prior session |
-
-**Changes — round 11 (2026-04-11, icon loading + diagram name sync + compact format):**
-
-| Area | Change | File(s) |
-|---|---|---|
-| Canvas startup | `frozenInitialDataRef` set unconditionally on first render; `<Axoview>` mounted without any loading gate — canvas shows immediately | `axoview-app/src/App.tsx` |
-| "More icons" in Elements panel | Unloaded packs listed as one-click load buttons with inline `CircularProgress` spinner; disappear when loaded | `axoview-lib/src/components/LeftDock/ElementsPanel.tsx` |
-| LeftDock bottom offset | `bottom: 40` stops panel above BottomDock; Import Icons button no longer clipped | `axoview-lib/src/components/LeftDock/LeftDock.tsx` |
-| Diagram name sync | `handleModelUpdated` detects title drift from library's New/Open actions; resets `diagramName`, `currentDiagram`, `lastSaved` | `axoview-app/src/App.tsx` |
-| Compact format loading | `handleDiagramManagerLoad` calls `transformFromCompactFormat` on compact payloads; listing name used as canonical name | `axoview-app/src/App.tsx` |
-| `transformFromCompactFormat` export | Added to `axoview-lib/src/index.ts` public exports | `axoview-lib/src/index.ts` |
-| DiagramManager callback | `onLoadDiagram` gains `listingName` third arg; `handleLoad` passes `diagram.name` | `axoview-app/src/components/DiagramManager.tsx` |
-| Debug logging | Temporary `console.log` in `handleModelUpdated`, `handleDiagramManagerLoad`, `loadDiagram` | `axoview-app/src/App.tsx` |
-
-**Full regression suite documentation:** See `regression_tests.md` at repo root — suites listed with production targets, test counts, classifications, coverage notes, and known gaps.
-
----
-
-## 4. Gap Analysis
-
-### Critical Gaps
-
-**Mode state machine transitions — untested with real modules:**
-- `CURSOR → DRAG_ITEMS` (mousemove while mousedown on item) — **now covered** in `Cursor.modes.test.ts`
-- `CURSOR → LASSO` (mousemove while mousedown on empty canvas) — **now covered** in `Cursor.modes.test.ts`
-- `LASSO → DRAG_ITEMS` (mousemove while isDragging within selection) — **now covered** in `Lasso.modes.test.ts`
-- No test for `DRAG_ITEMS → CURSOR` (mouseup)
-- No test for `FREEHAND_LASSO → DRAG_ITEMS`
-- No test for `RECTANGLE.TRANSFORM → CURSOR` on mouseup
-- No test for Pan mode transitions (entry/exit for all 5 pan methods)
-- No test for `isRendererInteraction=false` in the **actual mode files** (toolMenu.propagation tests use inline replicas)
-- No test for the `reducerTypeRef` entry/exit lifecycle — that `entry()` fires exactly once on mode change
-- `mousedownHandled` flag (prevents spurious context-menu after external `setMode`) — **now covered** in `Cursor.modes.test.ts`
-
-**Scene API mutations — untested:**
-- `placeIcon` — no test for two-step model+view creation as single transaction
-- `deleteSelectedItems` — no test for full cascade across mixed item types
-- `pasteItems` — covered via `useCopyPaste.test.ts` (handlePaste contracts including tile waypoint offset, orphan detach)
-- `switchView` — no test for UiState.view update
-- Transaction nesting in `useScene` (separate `transactionInProgress.current`)
-
-**Store action invariants — untested:**
-- `sceneStore.undo()` and `redo()`
-- `saveToHistoryBeforeChange` inside transaction: should NOT save if `transactionInProgress.current`
-- `setEditorMode` side effect: must reset mode via `getStartingMode()`
-- `resetUiState`: must zero scroll, zoom, mode, itemControls
-
-**Clipboard correctness:**
-- `handleCopy` with LASSO selection — **now covered** in `useCopyPaste.test.ts`
-- `handleCopy` with single `itemControls` selection — **now covered** in `useCopyPaste.test.ts`
-- `handleCopy` centroid calculation — **now covered** in `useCopyPaste.test.ts`
-- `handlePaste` ID remapping — **now covered** in `useCopyPaste.test.ts`
-- `handlePaste` anchor detachment for out-of-selection items — **now covered** in `useCopyPaste.test.ts`
-- `handleCut` path and clipboard retention after cut — **now covered** in `useCopyPaste.test.ts` (round 4)
-- `handlePaste` with connector-only selection (centroid = 0,0 bug) — still untested
-- `handlePaste` collision avoidance — still untested
-
-**History checkpoints — untested:**
-- That `createView` does NOT create a checkpoint
-- That `transaction()` saves exactly one checkpoint for N operations
-- That undo after paste restores the pre-paste state completely
-- Model and scene history staying in sync across operations
-- `modelStore.undo()` and `redo()` with real Model data — **now covered** in `useHistory.realStore.test.tsx`
-- History overflow at 50 entries — **now covered** in `useHistory.realStore.test.tsx`
-
-### Medium Gaps
-
-- No test that `DEFAULT_HOTKEY_PROFILE` is `'smnrct'`
-- No test that zoom min/max boundaries `MIN_ZOOM = 0.1`, `MAX_ZOOM = 1` are respected
-- No test that `incrementZoom`/`decrementZoom` respect boundaries
-- No test for `anchorSchema` allowing exactly one ref key (the multi-key guard)
-- No test for connector with exactly 1 anchor (under the 2-anchor minimum)
-
-### Low Priority
-
-- No rendering tests for `Renderer` component layer order
-- No rendering tests for UiOverlay show/hide in each editor mode (current tests check a local constant)
-- No test for touch event synthesis
-- No accessibility tests
-
----
-
-## 5. Lessons Learned
-
-### 1. The Quill/ReactQuill Mount-Time onChange Bug
-
-**What happens:** When ReactQuill mounts, it fires its `onChange` callback once during initialization with the initial content, before any user input. In Axoview, this fires `saveToHistoryBeforeChange()` on mount — creating a spurious history checkpoint. On undo, the user steps back through this phantom state.
-
-**How fixed:** `RichTextEditor` tracks `isFirstRender` via a ref, ignores the first `onChange` call, and only starts forwarding changes after mount.
-
-**Why non-obvious:** The bug only manifests when the ItemControls panel opens for an existing TextBox. The initial onChange fires synchronously during `useEffect` or inside the ReactQuill constructor.
-
----
-
-### 2. Quill Requires an Explicit Pixel Height — CSS Flex-Grow Does Not Work
-
-**What happens:** Attempting to make a Quill editor fill its flex parent by setting `flex: 1` or `height: 'auto'` on the `.ql-container` element results in the editor collapsing to a single line (just the `<p><br></p>` element height).
-
-**Root cause:** Quill reads the container's `offsetHeight` during initialization and caches it. If the container has no computed pixel height at mount time (e.g., because it relies on flex stretch from an ancestor), Quill sees `height: 0` and renders accordingly. Subsequent CSS changes do not re-trigger Quill's layout pass.
-
-**How fixed:** Always pass an explicit `height` in pixels to `RichTextEditor`. For the Notes tab (full-panel editor) `height={300}` is used. For the Caption field (compact, signals brevity) `height={80}` is used. The `RichTextEditor` component's default is `height={120}`.
-
-**Why non-obvious:** The editor renders exactly one line of content — it appears "working" until you type more than one line and notice the overflow is clipped. The real tell is that `ql-container` has `height: auto` with no computed pixel value in DevTools.
-
----
-
-### 3. The ToolMenu Click Propagation Bug (most recent, 2026-03-20)
-
-**Full chain of events:**
-1. User is in LASSO mode. Clicks "Select" button in ToolMenu.
-2. Button `onClick` fires → `setMode({type:'CURSOR'})`.
-3. Window-level `mousedown` fires (stopPropagation was missing on ToolMenu).
-4. `processMouseUpdate` runs; mode is now CURSOR (Zustand updates synchronously).
-5. `Cursor.mousedown` fires, sets `mousedownHandled = true`, `mousedownItem = null`.
-6. Window-level `mouseup` fires → `Cursor.mouseup` → `!hasMoved && mousedownHandled` is true → **context menu opens** spuriously.
-
-**Why hard to find:** ControlsContainer already had stopPropagation (pattern was established) but ToolMenu did not — inconsistency across two similar UI patterns. The bug only manifested under specific mode combinations.
-
-**Three-layer fix:**
-- A: Add `onMouseDown={e => e.stopPropagation()}` to ToolMenu Box wrapper in UiOverlay
-- B: Add `if (!isRendererInteraction) return` to `Lasso.mousedown` (was missing)
-- C: Add `if (!uiState.mouse.mousedown) return` to `Lasso.mouseup` and `FreehandLasso.mouseup` (was missing)
-
----
-
-### 4. The `mousedownHandled` Flag — Context Menu Spurious Opening
-
-**Problem:** When `setMode({type:'CURSOR'})` is called externally (after placing an icon, after Connector finalized, after Escape), cursor mode is entered without a preceding mousedown. Without `mousedownHandled`, the first subsequent mouseup would satisfy `!hasMoved && !mousedownItem` and open the context menu.
-
-**Why timestamp-based approaches fail:** The mode change and the next mouseup can happen within the same millisecond (e.g., releasing the mouse button that clicked the Connector tool). A fixed threshold either misses rapid clicks or causes false negatives on slow machines.
-
-**How it works:** `mousedownHandled` starts `undefined`/`false`. `Cursor.mousedown` sets it `true`. `Cursor.mouseup` checks `!hasMoved && uiState.mode.mousedownHandled`. After mouseup, it resets `mousedownHandled` to `false` via `produce`. Context menu only opens if: (a) a mousedown was processed through the mode system AND (b) no movement AND (c) mousedown was on empty canvas.
-
----
-
-### 5. The `setMode` + ContextMenu Interaction (regression chain)
-
-During the fix for the spurious context menu, several attempts created regressions:
-
-**Attempt 1:** Clear `contextMenu` inside `setMode` action in the store. Caused regression: `Cursor.mouseup` calls `setMode(produce(mode, draft => { ... }))` at the end (CURSOR→CURSOR type-preserving update), which cleared the contextMenu that was just set.
-
-**Attempt 2:** Only clear contextMenu when mode TYPE changes in `setMode`. Caused regression: left-click exits pan mode → `endPan()` sets CURSOR mode (type change, clears contextMenu), but then `Cursor.mouseup` fires and would show context menu again because `mousedownHandled` was not yet checking properly.
-
-**Correct solution:** Revert `setMode` to simple `set({ mode })`. Use `mousedownHandled` flag as the semantic gate. This is the right abstraction because it captures intent, not timing.
-
----
-
-### 6. The `isRendererInteraction` Check — What It Really Checks
-
-`rendererRef.current` is the **transparent interaction div** — the `<Box ref={interactionsRef}>` at the end of `Renderer.tsx` with no content, no explicit pointer-events, full-width/height. It sits **below** the Nodes SceneLayer in DOM order.
-
-When a user clicks on a Node, the DOM event target is the Node's HTML element (above the interaction div). The event never "falls through" to the interaction div. Clicking on a Connector or Rectangle also does NOT set `isRendererInteraction = true` — those have their own click handlers. Only clicking on the empty grid background lands on the interaction div.
-
----
-
-### 7. Zustand Context Pattern — Testing Implications
-
-Axoview ships as a library with multiple independent instances possible. The context pattern (`createStore` inside `useRef` inside Provider) gives each mounted `<Axoview>` tree its own private store instance.
-
-**Testing implications:**
-- Tests cannot simply `import { useUiStateStore }` and use it — the hook throws if there is no Provider.
-- Tests must wrap components in all three Providers (`ModelProvider`, `SceneProvider`, `UiStateProvider`), or mock the store hooks.
-- The regression tests in `__perf_refactor_regression__` use heavy mocking (`jest.mock('src/stores/modelStore')`).
-
----
-
-### 8. The `reducerTypeRef` Pattern — Subtle Timing
-
-`reducerTypeRef.current` tracks the mode type from the **last processed event** as a plain `useRef`. `processMouseUpdate` reads `uiState = uiStateApi.getState()` at its start — the state as of the moment the function executes. If a previous event handler called `setMode()` (synchronous Zustand update), a subsequent call to `processMouseUpdate` sees the new mode type from `getState()`, while `reducerTypeRef.current` still has the old value. This correctly detects the transition. The `baseState` passed to `entry()` contains the post-transition `uiState`, which is what the entry handler expects.
-
----
-
-### 9. The Pan Handler Bypass Path
-
-`usePanHandlers.handleMouseDown` returns `true` for pan-triggering gestures, bypassing `processMouseUpdate` entirely. This means:
-1. No mode entry/exit detection for these events.
-2. No `isRendererInteraction` check for these events.
-3. Pan mode's own `mousedown` handler is **never called** for the initial pan-triggering mousedown.
-
-The first frame of a pan gesture has `mouse.mousedown` correctly set (from the `setMouse` call in the bypass path) but Pan mode's `entry()` fires on the **next** event (first mousemove). Acceptable because `Pan.entry` only sets cursor to 'grab', which `usePanHandlers.startPan` already set.
-
----
-
-### 10. Dev Server + Lib Build Dependency
-
-**The problem:** The consumer app imports from the lib's **built** output (`dist/`), not TypeScript sources directly. Editing `packages/axoview-lib/src/` is NOT immediately visible in the dev server. `npm run build:lib` must be run before changes are reflected. Hot-reload does NOT work for library changes.
-
----
-
-### 10. Critical Gotchas in the Codebase
-
-**`deleteModelItem` uses `delete` not `splice`:**
-```typescript
-delete draft.model.items[modelItem.index];
-```
-Creates a **sparse array** (`[item0, undefined, item2]`). `model.items.length` includes holes. `forEach`/`map` skip holes but `find()` works. Subtle bugs possible if code assumes `length === item count`. All other reducers use `splice`.
-
-**`createModelItem` double-write ✅ FIXED (2026-03-20):**
-The redundant `updateModelItem` call inside `createModelItem` was removed. The item is now written once when pushed to the draft.
-
-**Connector path with empty tiles (improved 2026-04-07):**
-`syncConnector` wraps `getConnectorPath` in a try/catch. On error it now: (1) emits `console.warn('[axoview] connector {id} could not be routed', error)` and (2) sets `scene.connectors[id].unroutable = true` alongside the empty path. `<Connector>` renders a dashed red `Box` indicator when `isUnroutable === true` — the failure is now visible on the canvas instead of silent. Previously, connectors with empty paths were "ghost" connectors: invisible, zero-size, and hard to discover or delete.
-
-**`updateViewItem` throws on validation failure:**
-A validation failure mid-drag crashes the interaction. No catch block in `DragItems.mousemove`. No user feedback.
-
-**`rendererSize` dual source (historical):**
-Before the H-2 perf fix, `rendererSize` was observed by multiple `useResizeObserver` calls. After the fix, only `useInteractionManager` observes it and writes to `uiState.rendererSize`. Other consumers read from the store.
-
-**FreehandLasso reads `rendererEl.getBoundingClientRect()` on mouseup:**
-Unlike all other coordinate calculations which use `rendererSize` from the store, `FreehandLasso.mouseup` directly calls `uiState.rendererEl?.getBoundingClientRect()`. Inconsistent but acceptable.
-
-**`NonIsometricIcon` must use `top: 0` not `top: -halfH`:**
-`NonIsometricIcon.tsx` positions the icon at `left: -halfW, top: 0` in a container that applies the isometric CSS matrix with `transformOrigin: top left`. The matrix rotates the space so the left vertex of the tile diamond lands at the element's origin. Setting `top: -halfH` instead shifts the icon ~41 px above the diamond before the matrix is applied — the transform then rotates the wrong origin, rendering the icon elevated. Fix: always `top: 0`. (Introduced 2026-04-10.)
-
-**`ConnectorMode.returnToCursor` flag must survive the first-click `setMode`:**
-`Connector.ts` click mode calls `setMode` on first click to store the start anchor. This overwrites the mode object. If `returnToCursor` is not explicitly forwarded (`returnToCursor: uiState.mode.type === 'CONNECTOR' ? uiState.mode.returnToCursor : undefined`), the flag is lost and the connector will not return to cursor on completion. (Introduced 2026-04-10.)
-
-**`INTERACTIONS_DISABLED` mode:**
-No `ModeActions` handler for it in the `modes` map in `useInteractionManager`. The keydown effect early-returns if `modeType === 'INTERACTIONS_DISABLED'`. Window event listeners are not registered. This mode is purely an opt-out flag.
-
-**ViewTabs and EXPLORABLE_READONLY:**
-`VIEW_TABS` only shown in `EDITABLE` mode. Users cannot switch views in `EXPLORABLE_READONLY` mode. In `EDITABLE` mode, the title card in ViewTabs is read-only (2026-03-27) — diagram name is managed at the file level via Save / Save As. Page (view tab) names are still renameable inline.
-
----
-
-### 5. Stacking-context trap: `transform: translateZ(0)` on `Axoview`'s outer Box (2026-05-09)
-
-**What happens:** Children of [`Axoview.tsx`](../packages/axoview-lib/src/Axoview.tsx)'s outer `<Box>` (`LeftDock` strip, `BottomDock`, etc.) cannot raise themselves above `Axoview`'s app-level siblings via z-index alone. A `LeftDock` strip with `zIndex: 20` still rendered behind an `EmptyStateScreen` overlay at `zIndex: 5` — the chrome was completely hidden on first load.
-
-**Root cause:** `Axoview`'s outer Box uses `transform: translateZ(0)` (a GPU compositing hint). Per the CSS spec, any non-`none` `transform` creates a new **stacking context**. All inner z-indexes (LeftDock 20, BottomDock 20) are scoped to that context. Externally, `Axoview` itself ranks at `auto`. An app-level sibling with explicit `zIndex: 5` therefore wins over `Axoview` regardless of how high the strip's internal z-index is.
-
-**How fixed:** Geometric exclusion, not z-index. The `EmptyStateScreen` overlay was repositioned from `inset: 0` to `top: 0, left: 40, right: 0, bottom: 40` so it occupies only canvas pixels — the left strip (40 px wide) and BottomDock (40 px tall) are visually uncovered. Z-index becomes irrelevant for the chrome-visibility question.
-
-**Why z-index alone could not work:** Bumping `Axoview`'s outer Box to `zIndex: > 5` would have raised the entire canvas above `EmptyStateScreen`, defeating the overlay. The only z-index-based fix would have been removing the `translateZ(0)` (giving up its compositing benefit) or threading every chrome element through to a separate sibling outside `Axoview` — a much larger refactor.
-
-**Why non-obvious:** `transform: translateZ(0)` reads as a performance hint, not a layering directive. Developers add it for GPU-layer promotion and assume z-index continues to behave globally. The stacking-context side-effect is documented but easy to forget. A second hidden trap: `.axoview-container > div { height: 100% }` in `App.css` was overriding inline `bottom: 40` on the new overlay siblings (CSS `height` wins over implicit height-from-top+bottom). The CSS rule was redundant — Axoview's inner `<Box>` sets `height: '100%'` itself — and was removed.
-
-**Heuristic for future overlays:** If you find yourself fighting z-index across the `Axoview` boundary, reach for geometric exclusion (position the overlay so it doesn't cover the chrome pixels in the first place). Trust the CSS box-model over stacking arithmetic.
-
----
-
-## 6. Key APIs for Regression Coverage
-
-These functions/methods MUST have regression tests before any refactoring. Listed with contracts and critical edge cases.
-
-### 1. `processMouseUpdate`
-**File:** `src/interaction/useInteractionManager.ts`
-
-**Contracts:**
-- When `reducerTypeRef.current !== uiState.mode.type`, `exit` fires for old mode and `entry` fires for new mode before current event handler.
-- `entry` and `exit` each fire exactly once per mode transition.
-- `isRendererInteraction = (rendererRef.current === e.target)` is correctly passed to handlers.
-- `mouse` state is updated via `setMouse(nextMouse)` before handler is called.
-- `reducerTypeRef.current` is updated to `uiState.mode.type` after handler.
-
-**Critical edge cases:** Mode transitions mid-event; `rendererRef.current === null` early return.
-
----
-
-### 2. `usePanHandlers.handleMouseDown` / `handleMouseMove` / `handleMouseUp`
-**File:** `src/interaction/usePanHandlers.ts`
-
-**`handleMouseDown` contracts:**
-- Returns `true` and calls `endPan()` when `button === 0 && modeType === 'PAN'`.
-- Returns `true` and calls `startPan('middle')` when `button === 1 && panSettings.middleClickPan`.
-- Returns `true` for `button === 2` in all cases (always consumed). When `rightClickPan=true`, additionally sets `rightDownRef`/`rightDownPositionRef`/`previousModeTypeRef` — does NOT call `startPan` immediately.
-- Returns `true` and calls `startPan('ctrl')` when `button === 0 && ctrlKey && panSettings.ctrlClickPan`.
-- Returns `true` and calls `startPan('alt')` when `button === 0 && altKey && panSettings.altClickPan`.
-- Returns `true` and calls `startPan('empty')` when `button === 0 && isEmptyArea && panSettings.emptyAreaClickPan`.
-- Returns `false` for regular left-click when none of the pan settings are triggered.
-
-**`handleMouseMove` contracts:**
-- Returns `false` when `rightDownRef` is not set (normal path — no suppression).
-- Returns `false` once `isPanningRef` is set (pan active — let `processMouseUpdate` run for `Pan.mousemove`).
-- Returns `true` while `rightDownRef` is set and below 4px threshold (suppresses `processMouseUpdate`).
-- Calls `startPan('right')` and returns `false` when threshold exceeded.
-
-**`handleMouseUp` contracts (button 2):**
-- If `isPanningRef && panMethodRef === 'right'`: calls `endPan()`, returns `true`.
-- If `previousModeTypeRef !== null` (deferred right-click without drag): calls `setItemControls(null)`, `setMouse({...mouse, mousedown: null})`, resets LASSO/FREEHAND_LASSO selection if active, returns `true`.
-- Otherwise: returns `true` (always consumes right mouseup).
-
-**Critical edge cases:** `panSettings.middleClickPan = false` → middle click returns false; ctrl+alt pressed simultaneously; `isEmptyArea` when `rendererEl` is null; right-click without drag must not trigger context menu or lasso.
-
----
-
-### 3. `useScene.deleteSelectedItems`
-**File:** `src/hooks/useScene.ts`
-
-**Contracts:**
-- Deletes nodes (ITEM type): cascades to connected connectors.
-- Deletes explicitly selected connectors only if they still exist after node cascade.
-- Mixed selection: node + its connector + unrelated connector → node and connected connector deleted, unrelated connector survives.
-- Single checkpoint for the entire batch.
-- Empty selection: no-op, no history entry.
-- Deleting all items sharing a connector: connector not double-deleted.
-
----
-
-### 4. `useScene.pasteItems`
-**File:** `src/hooks/useScene.ts`
-
-**Contracts:**
-- Creates all modelItems + viewItems, connectors, rectangles, textboxes in a single transaction.
-- Single history checkpoint.
-- All items appear in `currentView` after paste.
-- Passes through `createModelItem` + `createViewItem` (not direct store writes).
-
----
-
-### 5. `useCopyPaste.handleCopy`
-**File:** `src/clipboard/useCopyPaste.ts`
-
-**Contracts:**
-- LASSO selection: copies all items in `mode.selection.items` (ITEM, CONNECTOR, RECTANGLE, TEXTBOX).
-- Single ITEM via itemControls: copies that item only.
-- Centroid is the mean of all item tiles + rectangle centers + textbox tiles.
-- Connector-only selection: centroid falls back to `{0,0}`.
-- Empty selection: no clipboard update, no notification.
-- `setClipboard` is called with correct payload structure.
-
----
-
-### 6. `useCopyPaste.handlePaste`
-**File:** `src/clipboard/useCopyPaste.ts`
-
-**Contracts:**
-- Positions pasted items at `mouseTile + (item.tile - centroid)`.
-- All pasted items get new unique IDs (none match clipboard IDs).
-- Connector anchor `ref.item` pointing to a copied item → remapped to new ID.
-- Connector anchor `ref.item` pointing to an item NOT in clipboard → `ref.item = undefined`.
-- Connector anchor with `ref.tile` → preserved unchanged.
-- After paste: mode is LASSO with `selection.items` containing all pasted item refs.
-- No clipboard: shows warning notification, no paste.
-
----
-
-### 7. `reducers/viewItem.deleteViewItem`
-**File:** `src/stores/reducers/viewItem.ts`
-
-**Contracts:**
-- Item removed from `views[viewId].items`.
-- All connectors with an anchor `ref.item === id` removed from model.
-- Those connectors removed from `scene.connectors`.
-- Connectors not referencing `id` are preserved.
-- Throws when `id` not found or `viewId` not found.
-- Does not mutate input state (Immer immutability).
-
-**Critical edge cases:**
-- Item referenced by a connector at both anchor[0] and anchor[1] → connector deleted once, not twice.
-- Deleting item A, then item B where they shared a connector: second delete succeeds even though connector was already removed.
-
----
-
-### 8. `reducers/connector.syncConnector`
-**File:** `src/stores/reducers/connector.ts`
-
-**Contracts:**
-- Calls `getConnectorPath` with connector's anchors and view.
-- Stores result in `scene.connectors[id].path`.
-- On `getConnectorPath` throwing: stores empty path `{ tiles:[], rectangle:{from:{0,0},to:{0,0}} }`, does NOT throw.
-- Does not remove the connector from model on error.
-- Does not mutate input state.
-
----
-
-### 9. `useHistory` undo/redo coordination
-**File:** `src/hooks/useHistory.ts`
-
-**Contracts (with real stores, not mocks):**
-- After `saveToHistory()` + model mutation: `undo()` restores the pre-mutation model state.
-- After `undo()`: `redo()` returns to the post-mutation state.
-- After new mutation following `undo()`: `redo()` is no longer possible (future is cleared).
-- `canUndo` / `canRedo` correctly reflect stack state after each operation.
-- History overflow at 50 entries: 51st `saveToHistory` drops the oldest entry.
-- `transaction()` creates exactly one history entry regardless of how many operations inside.
-
----
-
-### 10. `Lasso.mousedown` and `Lasso.mouseup`
-**File:** `src/interaction/modes/Lasso.ts`
-
-**Contracts (testing the ACTUAL module, not inline replicas):**
-- `mousedown` with `isRendererInteraction=false`: no mode change, no action.
-- `mousedown` with `isRendererInteraction=true`, no selection: switches to CURSOR.
-- `mousedown` within existing selection bounds: sets `isDragging=true`, stays in LASSO.
-- `mousedown` outside existing selection: switches to CURSOR.
-- `mouseup` with `mouse.mousedown=null` (toolbar click): no action.
-- `mouseup` with `mouse.mousedown` set, no selection: switches to CURSOR.
-- `mouseup` with `mouse.mousedown` set, selection with items: stays in LASSO, resets `isDragging=false`.
-
----
-
-### 11. `Cursor.mousedown` and `Cursor.mouseup`
-**File:** `src/interaction/modes/Cursor.ts`
-
-**Contracts:**
-- `mousedown` with `isRendererInteraction=false`: no action.
-- `mousedown` with `isRendererInteraction=true`, item at tile: sets `mousedownItem` and `mousedownHandled=true`.
-- `mousedown` with `isRendererInteraction=true`, no item: sets `mousedownItem=null`, `mousedownHandled=true`, clears `itemControls`.
-- `mouseup` after mousedown on item, no movement: sets `itemControls` for item type.
-- `mouseup` after mousedown on empty, no movement, `mousedownHandled=true`: opens context menu.
-- `mouseup` after mode was set externally (`mousedownHandled=false/undefined`): does NOT open context menu.
-- `mouseup` always resets `mousedownItem=null`, `mousedownHandled=false`.
-- `mousemove` with mousedown on item, moved tile: transitions to `DRAG_ITEMS` mode.
-- `mousemove` with mousedown on empty, moved tile: transitions to `LASSO` mode.
-
----
-
----
-
-## 7. Known Runtime Issues & Limitations
-
-This section documents observable runtime issues captured from the browser console during development (2026-03-20). All measurements are from the **development build** — RAF/scheduler timings are inflated by development-mode instrumentation but indicate real structural bottlenecks.
-
----
-
-### 7a. Pan Jitter — RAF Handler Overrun (CRITICAL)
-
-**Symptom:** Pan is noticeably jittery. `requestAnimationFrame` handlers taking 50–168ms (60fps budget is 16ms).
-
-**Console evidence:**
-```
-[Violation] 'requestAnimationFrame' handler took 168ms  (peak)
-[Violation] 'requestAnimationFrame' handler took 50–100ms  (typical during pan)
-```
-Sources: `react-dom.development.js` and `lib-react.js` — both React render-path violations.
-
-**Root cause analysis:** The RAF handler violations during pan indicate that React is triggering component re-renders inside the RAF callback. Even though pan/zoom was optimized (previous session) to update scroll transform via direct style manipulation rather than Zustand state, something in the render tree is still causing React re-renders that execute synchronously inside the RAF callback. The 50–168ms overrun means each animation frame blocks for 3–10x the available budget.
-
-**Likely culprits (in order of probability):**
-1. `uiState.mouse` (position updates every mousemove) is subscribed to by components that don't need it — any component reading `uiState.mouse` re-renders on every mouse move event.
-2. `uiState.scroll` is still being written to Zustand on pan (for `setScroll`), triggering subscriber re-renders even if the SceneLayer CSS transform bypasses this.
-3. DragItems mode calls `scene.updateViewItem` in a `transaction()` on every mousemove frame — this writes to the model store, triggering all scene subscribers.
-4. Connector re-render on every tile change: `syncConnector` runs on every `updateViewItem` call during drag, recalculating connector paths and writing to sceneStore.
-
-**Impact on architecture:** The `useRAFThrottle` hook was added to throttle mousemove processing to one event per animation frame. However, if the work done inside that frame exceeds 16ms, the throttling helps with event queue backlog but does not reduce per-frame render cost.
-
-**Investigation path before refactoring:**
-- Audit all `useUiStateStore(selector)` subscriptions — identify which selectors subscribe to `mouse` or `scroll` and whether those components need to re-render on every mouse event.
-- Check if `setMouse` (called on every mousemove) triggers any component re-renders. The store write goes to Zustand, which notifies all subscribers synchronously.
-- Use React DevTools Profiler to identify which components are rendering inside the pan RAF callbacks.
-
----
-
-### 7b. React Scheduler Message Handler Overrun (CRITICAL)
-
-**Symptom:** React Scheduler's `MessageChannel` handler (the fiber work loop scheduler) taking 150–805ms.
-
-**Console evidence:**
-```
-[Violation] 'message' handler took 805ms  (peak)
-[Violation] 'message' handler took 150–265ms  (typical)
-```
-Source: `scheduler.development.js` — this is React's cooperative scheduler running fiber work units.
-
-**Root cause analysis:** React Scheduler uses a `MessageChannel` to schedule non-urgent work. When a Zustand state update triggers a large re-render subtree, React batches this into the scheduler queue. The 150–805ms messages indicate individual render batches (typically during pan/drag operations) are taking far too long. This is likely the same underlying cause as 7a — `setMouse`, `setScroll`, or scene store updates are triggering large portions of the component tree to re-render.
-
-**Key distinction from 7a:** The RAF violation measures the animation frame callback; the message handler violation measures React's batched render execution. Both can be triggered by the same Zustand state write: the write schedules a re-render (message handler) and the re-render runs inside the next RAF callback. This double-violation pattern confirms the render is happening inside the animation frame.
-
-**Mitigation strategy:** Before refactoring, the most impactful change would be to separate "mouse tracking state" (high-frequency, no React subscribers needed) from "diagram state" (lower-frequency, drives rendering). Mouse position during pan should ideally be a `useRef` or a non-reactive variable, not a Zustand state field.
-
----
-
-### 7c. useInitialDataManager Double Load ✅ FIXED (2026-03-22)
-
-**Symptom:** The initialization sequence fires twice on every page load.
-
-**Console evidence (resolved):**
-```
-[useInitialDataManager] loading: Untitled Diagram views: 0
-[useInitialDataManager] load complete, isReady=true
-[useInitialDataManager] loading: Untitled Diagram views: 0   ← was firing again
-[useInitialDataManager] load complete, isReady=true
-```
-
-**Root cause:** React 18 StrictMode intentionally mounts components twice (mount → unmount → remount). `Axoview.tsx` had a `useEffect` with `load` in its dependency array; `load` was recreated on every Zustand store update, causing the effect to re-trigger on every store change.
-
-**Fix applied:** `loadRef` pattern in `Axoview.tsx` — `load` is stored in a ref, and the effect dependency is the stable ref rather than the function. The effect now fires only once per genuine `mergedInitialData` prop change (different object reference), not on store updates or StrictMode remount.
-
-Also fixed: `useInitialDataManager.ts` hardcoded `uiStateActions.setZoom(1)` — changed to `uiStateActions.setZoom(INITIAL_UI_STATE.zoom)` so the configured default zoom (currently 0.9) is respected on diagram load.
-
----
-
-### 7d. Zustand Deprecated API Warning ✅ FIXED (2026-03-20)
-
-**Symptom:** Deprecation warning on every page load.
-
-**Console evidence (resolved):**
-```
-[DEPRECATED] Use `createWithEqualityFn` instead of `create` or use
-`useStoreWithEqualityFn` instead of `useStore`. They can be imported from
-'zustand/traditional'. https://github.com/pmndrs/zustand/discussions/1937
-```
-Source: The `useStore(store, selector, equalityFn)` call in all three stores.
-
-**Fix applied:** Replaced `useStore` from `zustand` with `useStoreWithEqualityFn` from `zustand/traditional` in `uiStateStore.tsx`, `modelStore.tsx`, and `sceneStore.tsx`. Identical behavior, no deprecation warning.
-
-**Regression test:** `stores/__tests__/zustand.deprecation.test.ts` — spies on `console.warn` for all three stores and asserts no `[DEPRECATED]` message fires; also reads source files to confirm `useStoreWithEqualityFn` import is present.
-
----
-
-### 7g. ExportImageDialog Blank Preview on First Open ✅ FIXED (2026-04-06)
-
-**Symptom:** On first open, the export preview shows only the background colour — no diagram nodes or connectors. Toggling "Show Grid" or "Expand Descriptions" triggers a re-export that works correctly.
-
-**Root cause:** `exportImage()` was called after a fixed 100 ms `setTimeout` + double `requestAnimationFrame` on mount. This timing was insufficient — Axoview's React tree had not yet populated its model store, so `html2canvas` captured an empty canvas (just the blue background).
-
-**Fix applied:**
-1. The hidden Axoview receives `onModelUpdated={handleHiddenAxoviewReady}` — a callback that fires exactly once (guarded by `axoviewLoadedRef`) when Axoview's model store is first populated. This guarantees at least one full render cycle has completed.
-2. A dedicated `axoviewReadySignal` state drives a separate initial-load effect that fires a single `requestAnimationFrame` then calls `exportImage()`.
-3. The options-change effect (`showGrid`, `backgroundColor`, etc.) is guarded by `axoviewLoadedRef.current` so it cannot fire before the initial load.
-4. Both effects call `exportImage` via `exportImageRef` (a stable ref kept current via a sync effect) to avoid re-firing when `exportImage` itself changes due to option updates.
-
-**Regression test:** `__perf_refactor_regression__/exportImageDialog.initialLoad.test.ts` — 8 structural assertions.
-
----
-
-### 7e. i18n English Locale Parse Failure ✅ FIXED (2026-03-20)
-
-**Symptom:** English locale file fails to load, silently falls back to `en-US`.
-
-**Console evidence (resolved):**
-```
-i18next::backendConnector: loading namespace app for language en failed
-  failed parsing /i18n/app/en.json to json
-```
-
-**Root cause:** i18next's default behavior strips `en-US` to the short-code `en` and tries to load `/i18n/app/en.json` first. The dev server returns `index.html` for unknown routes, causing a JSON parse failure.
-
-**Fix applied:** Added `load: 'currentOnly'` to `packages/axoview-app/src/i18n.ts`. This instructs i18next to load only the exact locale string (e.g. `en-US`) without attempting the short-code variant.
-
-**Regression test:** `__perf_refactor_regression__/i18n.config.test.ts` — reads the app package's `i18n.ts` source and asserts `load: 'currentOnly'` and `fallbackLng: 'en-US'` are present.
-
----
-
-### 7f. Server Storage Not Available ✅ FIXED (2026-03-22)
-
-**Symptom:** Storage service fell back to session storage on every load, with a JSON parse error in the console.
-
-**Console evidence (resolved):**
-```
-storageService.ts:55 Server storage not available: SyntaxError: Unexpected token
-  '<', "<!DOCTYPE "... is not valid JSON
-storageService.ts:233 Using session storage
-```
-
-**Root cause:** `storageService.ts` made an HTTP fetch to check server availability; in development the rsbuild dev server returns `index.html` for unknown routes. The original dev bypass used `import.meta.env.DEV` which rsbuild does not statically replace when accessed via a TypeScript type cast — the condition was never `true`, so the check always ran.
-
-**Fix applied:** Changed the dev bypass in `storageService.ts` from `import.meta.env.DEV` to `process.env.NODE_ENV !== 'production'`. rsbuild statically replaces this at build time; in dev builds the storage check is skipped entirely, eliminating the parse error and 5-second timeout on every page load.
-
----
-
-### 7g. Quill "bullet" Format Registration Warning ✅ FIXED (2026-03-20)
-
-**Symptom:** Quill logs an error on initialization.
-
-**Console evidence (resolved):**
-```
-quill Cannot register "bullet" specified in "formats" config.
-  Are you sure it was registered?
-```
-
-**Root cause:** The `formats` array in `RichTextEditor` included `'bullet'` — an unregistered alias for the `list` format's bullet variant. Quill validates the array against its registered format registry at mount time.
-
-**Fix applied:** Removed `'bullet'` from the `formats` array in `RichTextEditor.tsx`. The toolbar config object `{ list: 'bullet' }` (which renders the bullet-list button) is unaffected — that is a separate toolbar configuration, not a format registration string. Bullet list functionality is unchanged; Quill's `list` format handles both bullet and ordered variants.
-
-**Regression test:** `components/RichTextEditor/__tests__/RichTextEditor.formats.test.ts` — asserts `'bullet'` absent, `'list'` present, all 9 expected formats present, count pinned at 9.
-
----
-
-### 7i. File-tree double-click rename (open)
-
-**Symptom:** Double-clicking a diagram row in the file tree does not enter inline rename mode.
-
-**Workaround:** Select the row and press `F2`, or use the right-click context menu → Rename. Both work.
-
-**Status:** Open. Tracked in [known_issues.md](../known_issues.md). Rename via F2 and the context menu both work; only the double-click affordance is missing. The contentEditable F2 path on the canvas (Node + TextBox) is independent and works.
-
----
-
-### 7k. Imported icons are scoped per-diagram, not per-project
-
-**Symptom:** An icon imported while diagram A is open is not visible in the Elements panel when diagram B is open. Each diagram persists its own copy of every imported icon it places, so the same SVG can end up duplicated across N diagram blobs in storage. Delete asymmetry: clicking × removes the icon from the current diagram only; other diagrams retain their independent copies.
-
-**Workaround:** Re-import the icon into each diagram that needs it, or round-trip via project zip.
-
-**Status:** Open, deferred. Considered during the MQA #26 session (2026-05-18) and explicitly chosen against — the proper fix needs a new `StorageProvider` slot for a project icon store, a one-shot hoisting migration across every existing diagram, a lean-save extension, and an export-path audit. ~2–3 days of work spanning lib + app + storage + ADR-0002 + ADR-0003. Filed in [known_issues.md](../known_issues.md) with the full risk/complexity matrix so the next implementer doesn't re-discover the surface.
-
-**Why the MQA #26 work didn't include this:** the delete affordance and tombstone fallback are layered on top of the existing per-diagram `model.icons` contract — they work the same regardless of whether scope is per-diagram or per-project. Shipping the user-visible delete UX was decoupled from the scope rework.
-
----
-
-### 7j. 2D mode geometry — fixed (2026-05-02)
-
-Three independent issues in 2D mode were addressed in `1927764` and `a6a627b`:
-
-1. **`NonIsometricIcon` rendered iso-projected** — hardcoded the iso CSS projection regardless of `canvasMode`, so flat artwork (AWS, GCP, Azure, K8s, MUI) stayed visually tilted after switching to 2D. Fixed by skipping the projection wrapper and rendering the image flat at the tile center when mode is `2D`.
-2. **`TransformAnchor` rotated to iso diamond** — unconditionally applied the iso CSS matrix. Fixed by skipping the projection in 2D so anchors render as upright rounded squares.
-3. **Rectangle resize handles landed on edge midpoints** — `TransformControls` used cardinal-axis `TileOrigin` offsets (`BOTTOM` / `RIGHT` / `TOP` / `LEFT`) per corner tile to place anchors. That maps to the outer points of an iso diamond, but in 2D the tiles are squares and the visible outer corners are diagonals. Fixed by offsetting each corner tile's center by `(±halfTile, ±halfTile)` in 2D; iso mode keeps the original behaviour.
-
-True 3D-iso art (Axoview's built-in 37-icon pack, `isIsometric: true`) is unaffected — it still renders via `IsometricIcon` and continues to look the same in both modes.
-
----
-
-### 7h. Performance Baseline for Regression Testing
-
-**Observed during development build with empty canvas (no nodes):**
-
-| Metric | Observed | Target (production) |
-|---|---|---|
-| RAF handler duration (pan) | 50–168ms | <16ms |
-| React Scheduler message handler | 150–805ms | <50ms |
-| RAF violations per second (pan) | ~60 (continuous) | 0 |
-
-**Important caveat:** All violations above are from `react-dom.development.js` and `scheduler.development.js` — the **development build** with full instrumentation, error checking, and StrictMode double-invocations. Production builds with `react-dom.production.min.js` are typically 3–5x faster. However, the 50–168ms RAF violations (3–10x over budget) indicate real structural issues that will still be perceptible in production even if the numbers improve.
-
-**Recommendation:** Before adding any major features, profile the production build to establish a real baseline. The development build numbers confirm there are render-path issues worth addressing in refactoring.
-
----
-
-### 7l. Scene store undo/redo entries must travel pre→post (load-bearing invariant — 2026-05-16)
-
-**Context (history):** `sceneStore.undo` previously recomputed the future-stack entry as `produceWithPatches(currentScene, draft => Object.assign(draft, applyPatches(currentScene, entry.inversePatches)))`. That produces patches in the **wrong direction** — they describe how to go from B back to A (an undo). Pushing those backwards patches to `future` meant `redo` then applied undo-direction patches to an already-undone state — a no-op.
-
-**Why the bug was invisible for so long:** `modelStore` had the correct pattern (push the original entry to future on undo; pop and re-apply forward on redo). For purely model-side actions (rename, color change, layer assignment) only the model store has an entry — redoing the model alone restored the state, so redo "worked." The bug only surfaced for actions that touch **both** stores at once: connectors (`model.views[].connectors` + `scene.connectors[id].path`), and to a lesser extent rectangles/text-boxes. After redo: model had the connector back, scene was missing the path entry, so the connector rendered with an empty path — visually invisible. The future entry was still consumed (redo button disabled) which is what made it user-visible.
-
-**The invariant going forward:** any new history-bearing store **must** push the original entry to `future` on undo (not a recomputed one). `redo` must apply `entry.patches` forward to the current state. The shape of the entry is `{ patches, inversePatches }` where `patches: currentState → entryAppliedState` and `inversePatches: entryAppliedState → currentState`. Both stores now follow this contract — see [`modelStore.tsx`](../packages/axoview-lib/src/stores/modelStore.tsx) `undo` / `redo` and [`sceneStore.tsx`](../packages/axoview-lib/src/stores/sceneStore.tsx) `undo` / `redo`.
-
-**Regression coverage:** [`__perf_refactor_regression__/connector.createUndoRedo.test.tsx`](../packages/axoview-lib/src/__perf_refactor_regression__/connector.createUndoRedo.test.tsx) exercises the full begin/createConnector/updateConnector×N/commit/undo path on real stores and asserts both `model.canRedo()` and `scene.canRedo()` are true after undo, and that the connector reappears after redo.
-
-**Where this lives in the model layer:** see [`useSceneActions.ts`](../packages/axoview-lib/src/hooks/useSceneActions.ts) for `beginDragTransaction` / `commitDragTransaction` — those bracket frozen-pre snapshots that the per-tick writes mutate without producing history entries. The pre-snapshot is consumed by the empty-update `set({}, true)` on commit, which is the call that actually computes the forward patches that get pushed to past.
-
----
-
-### 7k. Connector drag — partial fix landed, sustained-drag GC cliff deferred (2026-05-10)
-
-**Original symptom:** Dragging a connector on a moderately heavy diagram dropped FPS from 60 to 2–10 within seconds of drag start, with constant heap sawtooth (150 → 100 MB, every ~1 s). Hypothesis #4 in §7a ("connector re-render on every tile change") was empirically validated.
-
-**Two-part fix landed in 2026.5.10:**
-
-1. **Drag transactions** ([`useSceneActions.ts`](../packages/axoview-lib/src/hooks/useSceneActions.ts) — `beginDragTransaction` / `commitDragTransaction`). Every tile crossed during a drag used to push a separate undo entry, computing immer patches across the entire model per tick. Now collapsed to one entry per drag via a `pendingPreFrozen` flag on both `modelStore` and `sceneStore`. Side benefit: `Ctrl+Z` after a drag rewinds the whole drag, not one tile.
-2. **Closed-form connector router** ([`utils/pathfinder.ts`](../packages/axoview-lib/src/utils/pathfinder.ts)). The pathfinding grid never had obstacles, so A\* over it was busywork. Replaced with a deterministic diagonal-then-orthogonal walker. Eliminates per-tick `PF.Grid` + `Node` allocation.
-
-Wired into `Connector.ts` (drag mode + click mode) and `ReconnectAnchor.ts` (entry/exit + mouseup).
-
-**Validation:** [`packages/axoview-lib/src/__perf_refactor_regression__/fixtures/perf-stress-diagram.json`](../packages/axoview-lib/src/__perf_refactor_regression__/fixtures/perf-stress-diagram.json) (80 nodes / 120 connectors) and [`__perf_refactor_regression__/connector.dragPerf.test.tsx`](../packages/axoview-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx). Test loads the JSON and `modelSchema.safeParse`s it on setup so the manual fixture cannot drift out of schema.
-
-**What's left — sustained-drag GC cliff:** A drag that runs ≳50 s without committing accumulates ~12 MB/sec of immer-cloned model state (the anchor mutation forces `produce(state, ...)` to clone the spine of model + scene every tick). V8 holds GC during sustained sync work; heap climbs to ~336 MB; one stop-the-world collection produces a ~5 s 4 fps stall, then recovery. Not a regression introduced by the fix — it's the next layer underneath. Refactor design (deferred): keep the in-progress preview in `scene.connectors[id]` only and don't write `view.connectors[].anchors` until commit. Two-reader invariant for `ConnectorAnchorOverlay` and `ConnectorLabel` is the hard part. Full context in [known_issues.md](../known_issues.md).
-
----
-
----
-
-## Section 8: DiagnosticsOverlay — Performance Monitoring System
-
-**File:** `packages/axoview-app/src/components/DiagnosticsOverlay.tsx`
-
-### Purpose
-
-A lightweight, always-available performance monitoring overlay for collecting quantitative data during development and production debugging. Designed to be low-overhead, self-contained, and to produce output that can be dropped directly into an LLM for root-cause analysis without requiring a profiler session.
-
-### Architecture
-
-- Always rendered in `App.tsx`; visible as a collapsible pill button in the bottom-right corner regardless of dev/prod mode.
-- All mutable state lives in `useRef` objects — no state updates during collection, which avoids the overlay itself adding to the render churn it is measuring.
-- A single `setInterval` (1 second) calls `setLatest(Date.now())` once per second to trigger a React re-render for display. The actual data arrays are mutated in `requestAnimationFrame` callbacks.
-- `window.__axoview__` (exposed by `Axoview.tsx`) provides access to the three Zustand store instances (ui, model, scene) without importing from the lib package directly.
-
-### Data collection
-
-| Buffer | Max size | Entry fields | Approx. memory |
-|--------|----------|-------------|----------------|
-| Samples | 600 | timestamp, fps, heapMB, longTasks, nodes, connectors, textboxes, event flags | ~38 KB |
-| Events | 300 | timestamp, type, detail | ~18 KB |
-| **Total ceiling** | | | **~56 KB** |
-
-Oldest entry is dropped via `.shift()` when the buffer is full (circular buffer pattern). If left running in production indefinitely, memory stays bounded at ~56 KB.
-
-### Event categories detected per sample
-
-| Category | Events |
-|----------|--------|
-| Scene changes | `node_added`, `node_removed`, `connector_added`, `connector_removed`, `bulk_load` (Δ>5 items), `bulk_remove` |
-| FPS | `fps_degraded` (<30 fps), `fps_recovered` (≥50 fps) |
-| Long tasks | `longtask_burst` (Δ>5 tasks/sec vs previous sample) |
-| Memory | `gc` (heap drops >20 MB between samples), `memory_warning` (first breach of 200 MB) |
-| Interaction | `drag_start`, `drag_end` (detected via `uiState.mouse.mousedown` non-null) |
-| History | `undo` (`history.past` length shrinks), `redo` (`history.past` length grows after a `future` non-zero) |
-| Navigation | `zoom_changed` (Δ>0.1 zoom units), `view_changed` (view ID changes) |
-| Tab | `tab_hidden`, `tab_visible` (Page Visibility API) |
-
-Events are embedded as a compact string list in the sample row for the AI download, keeping token count low.
-
-### Download formats
-
-**AI-compact (`↓ AI`):** Array-of-arrays JSON. Header row names fields; each sample row is a flat array with an embedded event list. Minimises LLM token cost. Includes a `meta` block with session start time, diagram size at capture, and browser info.
-
-**Human-readable (`↓ Human`):** Pretty-printed JSON with labelled fields, ISO timestamps, and a `summary` block containing min/max/avg for FPS, heap, and long tasks, plus a flattened event timeline.
-
-### Production safety
-
-- **Disabled by default in production.** Monitoring loop does not start until the user enables it via the "Enable performance monitoring" checkbox. State persists in `localStorage` (`axoview_perf_enabled`).
-- **Always on in development.** The checkbox is shown but disabled with a "(always on in dev)" label.
-- **Memory ceiling enforced.** Circular buffers hard-cap at 600 samples + 300 events regardless of how long monitoring runs.
-- **No background work when disabled.** The `requestAnimationFrame` callback and `PerformanceObserver` are only registered while monitoring is active. Disabling monitoring cancels the rAF loop and disconnects the observer.
-
-### Browser API dependencies
-
-- `performance.memory` — Chrome/Edge only. Heap metrics show `N/A` on Firefox/Safari.
-- `PerformanceObserver({ type: 'longtask' })` — Chrome/Edge only. Long task count stays 0 on Firefox/Safari.
-- `document.visibilityState` — all browsers.
-- `requestAnimationFrame` — all browsers.
-
----
-
-## Section 9: Performance Fixes Applied (2026-03-24)
-
-### Background
-
-All measurements taken on a real diagram: **85 nodes, 54 connectors, 10 text boxes**. DiagnosticsOverlay was used to collect before/after data.
-
-### Fix 1 — `onModelUpdated` double-fire (`Axoview.tsx`)
-
-**Root cause:** `useModelStore((state) => modelFromModelStore(state))` was called without an equality function. `modelFromModelStore` always returns a new object (new reference), so the selector's default `Object.is` check always reports a change. `saveToHistory` is called before every user action and writes to `history.past` — this alone was enough to trigger a new model reference on every store update, causing `onModelUpdated` (and anything downstream of it in the host `App`) to fire twice per user action.
-
-**Fix:** Added `shallow` equality from `zustand/shallow`:
-
-```ts
-const model = useModelStore(
-  (state) => modelFromModelStore(state),
-  shallow
-);
-```
-
-`shallow` compares object fields rather than object identity. `history.past` changes do not produce new top-level fields on the model object, so those store writes no longer produce new model references.
-
-**Impact:** Eliminated the dominant source of spurious renders at idle and during editing.
-
-### Fix 2 — `iconPackManager` prop churn (`App.tsx`)
-
-**Root cause:** The `iconPackManager` prop passed to `<Axoview>` was an inline object literal:
-
-```tsx
-<Axoview
-  iconPackManager={{
-    lazyLoadingEnabled: iconPackManager.lazyLoadingEnabled,
-    onToggleLazyLoading: iconPackManager.toggleLazyLoading,
-    // ...
-  }}
-/>
-```
-
-React recreates inline object literals on every render, so the prop reference always changed. `Axoview.tsx` has a `useEffect` that calls `uiStateActions.setIconPackManager(iconPackManager)` when the prop changes. Every `App` render → new prop reference → `setIconPackManager` → Zustand store write → re-render → repeat.
-
-**Fix:** Wrapped the object in `useMemo` and the callback in `useCallback`:
-
-```tsx
-const handleTogglePack = useCallback(
-  (packName, enabled) => iconPackManager.togglePack(packName, enabled),
-  [iconPackManager.togglePack]
-);
-
-const iconPackManagerProp = useMemo(
-  () => ({ lazyLoadingEnabled: ..., onTogglePack: handleTogglePack, ... }),
-  [iconPackManager.lazyLoadingEnabled, ...]
-);
-```
-
-**Impact:** Eliminated the `setIconPackManager` render feedback loop.
-
-### Before / after metrics (85-node diagram)
-
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| Long tasks at session start | ~195 | ~6 | 97% reduction |
-| Long task rate — idle | 6.4 / sec | ~0 / sec | eliminated |
-| Long task rate — normal editing | 6–10 / sec | ~1.6 / sec | ~75% reduction |
-| FPS — idle | 5–18 fps | 60 fps | 3–12× |
-| FPS — normal editing | 5–18 fps (never recovered) | 48–60 fps | 3–10× |
-| Diagram load recovery | Permanently degraded | Recovers to 60 fps in <1 s | qualitative |
-
----
-
-## Section 10: Remaining Known Issues and Future Considerations
-
-### 10a. Drag performance (unresolved)
-
-**Symptom:** Sustained drag on an 85-node diagram drops FPS to 8–17 fps and generates 8–12 long tasks/sec. Drag events are clearly visible in DiagnosticsOverlay output.
-
-**Root cause:** `uiState.mouse` is updated in a `requestAnimationFrame` callback at 60 fps during drag. Multiple scene components subscribe to `uiState.mouse` (for cursor-following highlight, drag ghost, connector anchor snap, etc.) and re-render on every frame. With 85 nodes each potentially re-rendering 60×/sec, the render budget is exhausted.
-
-**Potential fixes (not yet applied):**
-- Render isolation: move the drag-ghost and cursor-highlight into their own DOM subtree that subscribes to mouse position directly without causing the main scene tree to re-render.
-- Deduplicate `uiState.mouse` subscriptions — only components that genuinely need cursor position per frame should subscribe; others should subscribe to coarser state.
-- Viewport culling: skip rendering nodes/connectors that are entirely outside the current viewport rectangle. This would reduce the constant render work regardless of drag state.
-
-### 10b. No scene virtualization
-
-**Symptom:** All nodes, connectors, rectangles, and text boxes in a view are rendered regardless of whether they are visible in the current viewport. Performance degrades roughly linearly with diagram size.
-
-**Impact:** On a 200+ node diagram, even idle FPS may struggle to reach 60 fps. The 85-node test diagram did reach 60 fps at idle after the fixes in Section 9, but headroom is limited.
-
-**Potential fix:** Implement a spatial index (e.g. a simple grid bucket or a quad-tree over the tile coordinate space) and skip rendering items whose tile bounding box does not intersect the current viewport rectangle. This is the highest-leverage structural improvement available.
-
-### 10c. Unexplained FPS spikes
-
-**Symptom:** Occasional FPS drops to 4–7 fps at seemingly random intervals (observed at approximately t=26s, t=41s, and t=108s in one session), without corresponding drag events, undo/redo events, or scene changes in the event log.
-
-**Hypothesis:** GC pressure adjacent to a React batch flush — heap dropped ~22 MB at one of the timestamps (logged as a `gc` event) which would pause JS execution. The other two occurrences were not accompanied by GC events and remain unexplained. Could be an edge-case re-render path triggered by a Zustand selector that is not yet using shallow equality.
-
-**Recommended next step:** If reproducible, use Chrome DevTools Performance timeline to identify which component tree is flushing during the spike.
-
-### 10d. Future considerations
-
-| Consideration | Notes |
-|---------------|-------|
-| Viewport culling | Highest-impact structural improvement; eliminates O(n) render cost for off-screen items |
-| Drag render isolation | Move mouse-position subscribers (drag ghost, cursor highlight) out of the main scene render tree |
-| Scene worker | Move connector path calculation off the main thread using a Web Worker + OffscreenCanvas or a message-passing model |
-| Connector batch rendering | Replace per-connector SVG elements with a single `<canvas>` layer for connectors; reduces DOM node count significantly on large diagrams |
-| Selector audit | Systematically add `shallow` or custom equality to all `useModelStore`/`useUiStateStore` selectors that return objects or arrays — any selector returning a new reference on every call is a hidden render multiplier |
-| DiagnosticsOverlay in CI | Extend the overlay's download format into a headless script that can capture a 10-second performance trace during e2e tests and fail the build if idle long tasks exceed a threshold |
-
----
-
----
-
-## Section 11: Bug Fixes — 2026-03-25
-
-### 11a. Node header link opens relative URL in same tab
-
-**Symptom:** Clicking a node link like `www.google.com` navigated to `http://localhost:3000/www.google.com` in the same tab instead of opening `https://www.google.com` in a new tab.
-
-**Root cause (1 — relative URL):** The `href` attribute was set directly from `modelItem.headerLink`. Browsers treat `www.google.com` (no scheme) as a relative URL, appending it to the current origin.
-
-**Root cause (2 — same tab):** The canvas interaction manager registers `mousedown` listeners on the renderer div. These fire before the browser's native anchor navigation and may call `preventDefault`, suppressing the `target="_blank"` behaviour.
-
-**Fix:** Replaced the native anchor navigation with an explicit `window.open` call in the `onClick` handler. URL is normalised: if it does not start with `http://` or `https://`, `https://` is prepended. Added `onMouseDown stopPropagation` to prevent the canvas from intercepting the click.
-
-**Files:** `packages/axoview-lib/src/components/SceneLayers/Nodes/Node/Node.tsx`
-
----
-
-### 11b. Rectangle z-order reversed after copy/paste
-
-**Symptom:** Pasting a selection containing multiple rectangles produced a stack with the opposite layering from the original — the rectangle that was visually on top before the paste ended up on the bottom afterwards.
-
-**Root cause:** `createRectangle` uses `Array.unshift` (inserts at the front of the array). `Rectangles.tsx` renders in reverse order (last element = visually on top). Pasting rectangles in their original clipboard order caused `unshift` + reverse-rendering to invert the z-stack.
-
-**Fix:** In `useScene.pasteItems`, rectangles are pasted in reverse clipboard order — `[...payload.rectangles].reverse().forEach(r => createRectangle(r))`. The last `unshift` wins the front position; reverse rendering then places it on top, matching the original order.
-
-**Files:** `packages/axoview-lib/src/hooks/useScene.ts`
-
----
-
-### 11c. Stacked rectangles — only first in array selectable by click
-
-**Symptom:** When two or more rectangles occupied the same tile, clicking the tile always selected the first rectangle in the data array, even if a visually higher rectangle was rendered on top of it.
-
-**Root cause:** `getItemAtTile` used `Array.find`, which returns the first match. `Rectangles.tsx` renders in reverse (last = visually on top), so the first in the array was visually at the bottom of the stack.
-
-**Fix:** Changed to `[...scene.rectangles].reverse().find(...)` so the search order matches the render order — the last element (topmost) is checked first.
-
-**Files:** `packages/axoview-lib/src/utils/renderer.ts`
-
----
-
-### 11d. Save overwrites current diagram when a different name is entered
-
-**Symptom:** Saving a diagram that was already on disk under a new name (e.g. "SDLC Last" instead of "SDLC") overwrote the original file, leaving only the renamed copy.
-
-**Root cause:** `DiagramManager.handleSave` always called `storage.saveDiagram(currentDiagramId, data)` (overwrite in place) whenever `currentDiagramId` was set, regardless of whether the user had typed a different name.
-
-**Fix:** The entered `saveName` is compared to the current diagram's stored name. An exact match triggers `saveDiagram` (overwrite). Any other name triggers `createDiagram` (new file). The existing "name already exists as a different diagram" confirmation path is unaffected.
-
-**Files:** `packages/axoview-app/src/components/DiagramManager.tsx`
-
----
-
-### 11e. Connector tile-based waypoints don't move with lasso drag
-
-**Symptom:** When lasso-selecting a diagram and dragging, item-based connector anchors (endpoints attached to nodes) moved correctly because they follow the node, but tile-based waypoints (manually placed mid-connector points not attached to any node) stayed in their original positions.
-
-**Root cause:** `getItemsInBounds` (Lasso and FreehandLasso) only collected `ITEM`, `RECTANGLE`, and `TEXTBOX` references — it never added `CONNECTOR_ANCHOR` items. The `initialTiles` map built when switching to `DRAG_ITEMS` had no entry for tile anchors. In `DragItems.ts`, the `if (initialTiles[item.id])` guard fell through to the cursor-snap branch, which only fires for single-anchor cursor drags.
-
-Additionally, connector anchor updates ran outside the `scene.transaction()` block, causing each drag frame to push extra history entries.
-
-**Fix (three files):**
-1. **`Lasso.ts` and `FreehandLasso.ts`** — `getItemsInBounds` / `getItemsInFreehandBounds` now iterate `scene.connectors` and push `{ type: 'CONNECTOR_ANCHOR', id: anchor.id }` for every anchor whose `ref.tile` is within the selection bounds. Item-based anchors (`ref.item`) are skipped.
-2. **`Lasso.ts` and `FreehandLasso.ts`** — When switching to `DRAG_ITEMS` (`isDragging = true`), `CONNECTOR_ANCHOR` items now have their initial tile looked up from `connector.anchors[].ref.tile` and recorded in `initialTiles`.
-3. **`DragItems.ts`** — Connector anchor updates moved inside `scene.transaction()`. Group lasso drags now use `CoordsUtils.add(initialTiles[item.id], mouseOffset)` (same offset math as nodes). Single-anchor cursor drags (no `initialTiles` entry) continue to snap to the cursor tile.
-
-**Files:** `packages/axoview-lib/src/interaction/modes/Lasso.ts`, `FreehandLasso.ts`, `DragItems.ts`
-
----
-
-### 11f. Lasso drag fails when user clicks a node element within the selection
-
-**Symptom:** After drawing a lasso selection containing nodes and tile-based connector waypoints, clicking on a node element within the selection to start dragging did not move the waypoints — instead, the entire selection was cleared and redrawn from the node's tile.
-
-**Root cause:** `Lasso.mousedown` (and `FreehandLasso.mousedown`) had the guard `if (!isRendererInteraction) return;` at the top of the handler. When the user clicks on a node SVG element (a child of the renderer, not the renderer itself), `e.target !== rendererRef.current`, so `isRendererInteraction = false`. The handler returned early without setting `isDragging = true`. On the next mousemove, `isDragging = false` triggered the lasso-drawing branch, which used `mouse.mousedown.tile` (the node's tile) as `startTile` and redrew the selection from scratch — clearing the original selection and all its items including tile-based waypoints.
-
-**Fix:** Moved the `!isRendererInteraction` guard to only protect the "exit to CURSOR" path. The within-selection check now runs for all mousedown events regardless of `isRendererInteraction`. If the click is within the selection bounding box (Lasso) or polygon (FreehandLasso), `isDragging = true` is set regardless of whether the click landed on a node, connector, or canvas element. Non-renderer clicks outside the selection are ignored (selection preserved). Only genuine canvas clicks outside the selection trigger the CURSOR reset.
-
-**Files:** `packages/axoview-lib/src/interaction/modes/Lasso.ts`, `FreehandLasso.ts`
-
----
-
----
-
-### 11g. Save status label and toast notification (2026-03-27)
-
-**Feature:** Context-aware last-saved label in the toolbar right section, plus a brief toast on explicit save.
-
-**State in `App.tsx`:**
-- `lastSaved: Date | null` — set from `diagram.updatedAt` on every load; set to `new Date()` on every explicit save. `null` for unsaved new diagrams.
-- `saveToast: string | null` — set to the diagram name on explicit save; cleared after 2.5 s via `useEffect`.
-
-**Label format (`formatSavedAt` helper):**
-| Condition | Display |
-|-----------|---------|
-| Same calendar day | `Saved at 2:34 PM` |
-| Yesterday | `Saved yesterday at 2:34 PM` |
-| This year, older | `Saved Mar 15 at 2:34 PM` |
-| Previous year | `Saved Mar 15, 2024 at 2:34 PM` |
-
-A `•` dot appends to the label when `hasUnsavedChanges` is true. Label is hidden in readonly URL mode.
-
-**Placement:** `toolbar-right` — `[save status label] [divider] [language selector]`. The toolbar-center div is now an empty flex spacer.
-
-**Auto-save removal:** The 5-second auto-save `useEffect` and `setHasUnsavedChanges(false)` call inside it were removed entirely. Save state is now only ever mutated by explicit user action (Save / Save As) or by loading a diagram.
-
-**Toast:** Fixed-position, bottom-center, slides up with `save-toast-in` CSS keyframe animation, `z-index: 9999`, `pointer-events: none`. Dismissed automatically after 2.5 s.
-
-**Files:** `packages/axoview-app/src/App.tsx`, `packages/axoview-app/src/App.css`
-
----
-
----
-
-## 8. Code Quality Infrastructure
-
-**Established 2026-03-30.**
-
-### 8a. Static Analysis Stack
-
-| Tool | Config | Run | Report |
-|------|--------|-----|--------|
-| **ESLint v10** | `eslint.config.mjs` (flat config) | `npx eslint packages/axoview-lib/src packages/axoview-app/src` | `reports/eslint.txt` |
-| **Knip v6** | `knip.json` | `npx knip` | `reports/knip.txt` |
-| **npm audit** | — | `npm audit` | `reports/audit.txt` |
-| **Jest coverage** | `jest.config.ts` → `collectCoverageFrom`, `coverageThreshold` | `npm test --workspace=packages/axoview-lib -- --coverage` | `packages/axoview-lib/coverage/` |
-
-**ESLint rules in force (both packages):**
-- `react-hooks/rules-of-hooks`: error — catches conditional hook calls
-- `react-hooks/exhaustive-deps`: warn — stale closure risk in effects/callbacks
-- `@typescript-eslint/no-explicit-any`: **error** (was `warn`; the baseline was driven 144 → 0 across the v1.1 Sonar wave — `npx eslint .` hard-fails CI on any new `any`)
-- `@typescript-eslint/no-unused-vars`: warn (allows `_`-prefixed exceptions)
-- `no-console`: warn (allows `console.error` and `console.warn`)
-
-**Knip scope:** covers both `axoview-lib` and `axoview-app`. Tracks unused files, unused exports, unused devDependencies, and unlisted (undeclared) dependencies. **Hard-fail in CI since 2026-06-10** (v1.1 close-out — `continue-on-error` removed from [`.github/workflows/test.yml`](../.github/workflows/test.yml)); local `npx knip --reporter compact` exits 0.
-
-**Sonar complexity wave (v1.1):** the v1.1 wave drove down cyclomatic complexity across the hot files (capstone: `useInteractionManager.ts`, cx 131 → <16) without changing behaviour — the [ADR 0006](adr/0006-canvas-selection-contract.md) selection contract and the `__perf_refactor_regression__` baseline (see [ADR 0007](adr/0007-trace-harness.md)) were the guardrails that kept the refactor safe.
-
-### 8b. Coverage Configuration
-
-Coverage is configured in `packages/axoview-lib/jest.config.ts`:
-
-```ts
-collectCoverageFrom: [
-  'src/**/*.{ts,tsx}',
-  '!src/**/*.d.ts',
-  '!src/**/*.test.{ts,tsx}',
-  '!src/**/__tests__/**',
-  '!src/types/**',
-  '!src/index.ts'
-],
-coverageThreshold: { global: { branches: 10, functions: 10, lines: 10, statements: 10 } },
-coverageReporters: ['json', 'lcov', 'text', 'html']
-```
-
-Reporters: HTML (browseable), LCOV (for VS Code Coverage Gutters / Codecov), JSON summary.
-
-To get V8-native branch coverage (more accurate than Babel instrumentation for TypeScript):
-```ts
-coverageProvider: 'v8'
-```
-
-### 8c. Known Bugs Fixed by ESLint Run (2026-03-30)
-
-**Connector.tsx — conditional hooks (critical):**
-
-`useIsoProjection` + 7× `useMemo` were called after `if (!color) return null`. React's hook call order was broken when `color` resolved to `undefined` — a real state-corruption bug, not a lint pedantry. Fixed by moving all hook calls above the guard.
-
-**useCopyPaste.ts — stale closure:**
-
-`showNotification` was a plain function re-created on every render. The three `useCallback` hooks (`handleCopy`, `handleCut`, `handlePaste`) that close over it captured a stale reference whenever `uiStateApi` changed. Fixed by wrapping in `useCallback([uiStateApi])`.
-
-### 8d. Accepted Risk / Not Fixed
-
-| Issue | Reason |
-|-------|--------|
-| Quill XSS (CVE, high) | `npm audit fix --force` would downgrade `react-quill-new` to 3.7.0 — a breaking change. Risk is limited to HTML export feature; internal use only. |
-| `exhaustive-deps` warnings (13 remaining) | Reviewed individually — deps are covered by explicit sub-path entries or are intentional load-once effects (e.g., `t` from the locale store, `navigate` from react-router are both stable references). |
-| ~~`no-explicit-any` (112 warnings)~~ | **Resolved in the v1.1 Sonar wave** — driven 144 → 0; the rule is now `error` (hard-fail). Schema-type propagation through storage / model-load / scene APIs was done where needed. |
-| `newDiagram` function in App.tsx | Defined but not wired to any button — likely a future "New" menu item placeholder. Left in place rather than deleted. |
-
-*End of document. Last updated: 2026-06-10 (v1.1 close-out: `no-explicit-any` → error, knip → hard-fail, Sonar complexity wave, server-runtime test floor established).*
-
----
-
-## Section 10: Architecture Health Ratings (2026-04-07)
-
-Peer-reviewed ratings across 8 dimensions, scored 1–10. Ratings are compared against the pre-refactoring baseline assessed on 2026-04-06 (before the 6-phase architecture refactoring session).
-
-| Dimension | Before | After | Delta | Notes |
-|---|---|---|---|---|
-| **Module size / god-object risk** | 4 | 7 | +3 | `renderer.ts` 866→210 lines; `useScene.ts` 697→13 lines (split into 3 files). Largest file is now ~280 lines. |
-| **Type safety & type reuse** | 5 | 7 | +2 | `types/settings.ts` is now the single source of truth for all settings types. Config files re-export from there. `ConnectorInteractionMode` properly propagated through `PersistedSettings`. |
-| **State management clarity** | 5 | 8 | +3 | Clipboard is instance-scoped via React context (no more global singleton). `window.__axoview__` gated behind `enableDebugTools`. User preferences persisted to localStorage automatically. |
-| **Error handling & observability** | 4 | 7 | +3 | Unroutable connectors now render a dashed-red indicator on canvas + `console.warn`. Previously they were silent zero-size ghosts with no feedback path. |
-| **Code cohesion (SRP)** | 4 | 7 | +3 | `useScene` properly split into data / actions / combiner. `renderer.ts` split into isoMath (coordinate math) / hitDetection (spatial index) / renderer (screen-space helpers). Each file has one clearly stated purpose. |
-| **Testability** | 5 | 8 | +3 | Clipboard context is mockable per-test in isolation. Focused modules are straightforward to test without needing full provider trees. `useCopyPaste` tests updated to mock context instead of singleton. |
-| **UX consistency** | 7 | 8 | +1 | Unroutable connectors now have visual feedback. User preferences (hotkeys, pan, zoom, labels) now survive page reload — settings are no longer reset on every visit. |
-| **Developer experience (DX)** | 5 | 7 | +2 | Clear module boundaries reduce the "where does this belong?" question. Obvious entry points: coordinate math → isoMath.ts, hit testing → hitDetection.ts, data reads → useSceneData.ts, mutations → useSceneActions.ts. Settings types → types/settings.ts. |
-
-**Overall: 4.9 → 7.4 out of 10** (weighted average across all dimensions)
-
-### What moved the needle most
-
-1. **God-hook split** (Scene API + renderer.ts): the largest single structural improvement. These two files accounted for most of the navigation friction and made adding features risky.
-2. **Clipboard context**: eliminated the global singleton that caused test-order dependencies and would have prevented multiple-instance correctness.
-3. **Unroutable connector visibility**: converted a silent failure into actionable feedback — this was the highest-priority UX gap from a debugging perspective.
-4. **Settings persistence**: zero-code-change UX improvement for every user — settings no longer reset on page reload.
-
-### Remaining gaps (path to 9/10)
-
-- **`createView` is not undoable** — notable functional gap in the history system.
-- **`updateViewItem` throws mid-drag** — no catch in DragItems, no user feedback on validation failure.
-- **No connector-only clipboard centroid** — paste of connector-only selection offsets from tile 0,0.
-- **`deleteModelItem` sparse array** — `delete` not `splice`; subtle iteration bugs possible.
-- **Touch event coordinates on mouseup** — zeroed-out `clientX/Y` on `touchend` breaks touch interactions.
-- ~~**`no-explicit-any` (112 warnings)**~~ — **resolved in the v1.1 Sonar wave** (144 → 0; rule now `error`).
+*End of document. This is the orientation map; the deep references it points to are the source of truth.*
