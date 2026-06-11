@@ -347,6 +347,9 @@ const locale: LocaleProps = {
   },
   annotationPalette: {
     pen: 'Аннотация',
+    select: 'Выбрать',
+    draw: 'Рисование',
+    shapes: 'Фигуры',
     pencil: 'Карандаш',
     highlighter: 'Маркер',
     line: 'Линия',
@@ -355,10 +358,8 @@ const locale: LocaleProps = {
     ellipse: 'Эллипс',
     eraser: 'Ластик',
     undo: 'Отменить',
-    clear: 'Очистить всё',
-    collapse: 'Свернуть',
-    expand: 'Развернуть',
-    close: 'Закрыть'
+    redo: 'Повторить',
+    clear: 'Очистить всё'
   },
   viewModeInfoPopover: {
     close: 'Закрыть'

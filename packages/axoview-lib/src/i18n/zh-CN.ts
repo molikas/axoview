@@ -333,6 +333,9 @@ const locale: LocaleProps = {
   },
   annotationPalette: {
     pen: '批注',
+    select: '选择',
+    draw: '绘制',
+    shapes: '形状',
     pencil: '铅笔',
     highlighter: '荧光笔',
     line: '直线',
@@ -341,10 +344,8 @@ const locale: LocaleProps = {
     ellipse: '椭圆',
     eraser: '橡皮擦',
     undo: '撤销',
-    clear: '全部清除',
-    collapse: '收起',
-    expand: '展开',
-    close: '关闭'
+    redo: '重做',
+    clear: '全部清除'
   },
   viewModeInfoPopover: {
     close: '关闭'

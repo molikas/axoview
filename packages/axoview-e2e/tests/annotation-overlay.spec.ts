@@ -72,7 +72,7 @@ test.describe('Annotation overlay — Thread C (ADR 0014)', () => {
     await bootBlankDiagram(page);
   });
 
-  test('pen opens the palette; draw adds a stroke; collapse hides / expand shows; clear wipes', async ({
+  test('pen toggles the palette; pencil draws; undo/redo; close hides+retains; select is pass-through; clear wipes', async ({
     page
   }) => {
     // Pen entry visible, palette closed.
@@ -80,33 +80,54 @@ test.describe('Annotation overlay — Thread C (ADR 0014)', () => {
     await expect(pen).toBeVisible();
     await expect(byAxoviewId(page, 'annotation-palette')).toHaveCount(0);
 
-    // Open the palette.
+    // The pen IS the toggle — opening shows the palette in non-disruptive
+    // Select mode (no draw capture yet).
     await pen.click();
     await expect(byAxoviewId(page, 'annotation-palette')).toBeVisible();
     expect((await annotation(page)).open).toBe(true);
+    expect((await annotation(page)).tool).toBe('select');
 
-    // Draw a stroke with the default pencil tool.
+    // Pick pencil, then draw.
+    // Pencil lives in the Draw group fly-out; clicking the group activates its
+    // default variant (pencil).
+    await byAxoviewId(page, 'annotation-group-draw').click();
     await drawStroke(page);
     await expect.poll(() => strokeCount(page), { timeout: 3_000 }).toBe(1);
     await expect(byAxoviewId(page, 'annotation-layer')).toBeVisible();
 
-    // Collapse → drawing hidden (overlay unmounts) but the stroke is retained.
-    await byAxoviewId(page, 'annotation-collapse').click();
+    // Undo removes it; redo brings it back.
+    await byAxoviewId(page, 'annotation-undo').click();
+    await expect.poll(() => strokeCount(page), { timeout: 3_000 }).toBe(0);
+    await byAxoviewId(page, 'annotation-redo').click();
+    await expect.poll(() => strokeCount(page), { timeout: 3_000 }).toBe(1);
+
+    // Closing via the pen hides the drawing + palette but RETAINS the stroke.
+    await pen.click();
     await expect(byAxoviewId(page, 'annotation-layer')).toHaveCount(0);
+    await expect(byAxoviewId(page, 'annotation-palette')).toHaveCount(0);
     expect(await strokeCount(page)).toBe(1);
 
-    // Expand → drawing shown again, same stroke.
-    await byAxoviewId(page, 'annotation-collapse').click();
+    // Reopen → drawing shown again, same stroke.
+    await pen.click();
     await expect(byAxoviewId(page, 'annotation-layer')).toBeVisible();
     expect(await strokeCount(page)).toBe(1);
 
-    // Clear → wipes everything.
+    // Select tool is pass-through: a draw gesture does NOT add a stroke.
+    await byAxoviewId(page, 'annotation-tool-select').click();
+    await drawStroke(page);
+    await page.waitForTimeout(300);
+    expect(await strokeCount(page)).toBe(1);
+
+    // Clear wipes everything.
     await byAxoviewId(page, 'annotation-clear').click();
     await expect.poll(() => strokeCount(page), { timeout: 3_000 }).toBe(0);
   });
 
   test('drawn strokes never enter the saved model', async ({ page }) => {
     await byAxoviewId(page, 'annotation-pen').click();
+    // Pencil lives in the Draw group fly-out; clicking the group activates its
+    // default variant (pencil).
+    await byAxoviewId(page, 'annotation-group-draw').click();
     await drawStroke(page);
     await expect.poll(() => strokeCount(page), { timeout: 3_000 }).toBeGreaterThan(0);
 
@@ -125,5 +146,55 @@ test.describe('Annotation overlay — Thread C (ADR 0014)', () => {
     });
     expect(modelJson).not.toContain('annotation');
     expect(modelJson).not.toContain('strokes');
+  });
+
+  test('group fly-outs select variants (Draw → highlighter, Shapes → ellipse)', async ({
+    page
+  }) => {
+    await byAxoviewId(page, 'annotation-pen').click();
+
+    // Hovering the Draw group opens its fly-out; pick highlighter.
+    await byAxoviewId(page, 'annotation-group-draw').hover();
+    const highlighter = byAxoviewId(page, 'annotation-tool-highlighter');
+    await expect(highlighter).toBeVisible();
+    await highlighter.click();
+    await expect.poll(() => annotation(page).then((a) => a.tool)).toBe('highlighter');
+
+    // Hovering the Shapes group opens its fly-out; pick ellipse.
+    await byAxoviewId(page, 'annotation-group-shapes').hover();
+    const ellipse = byAxoviewId(page, 'annotation-tool-ellipse');
+    await expect(ellipse).toBeVisible();
+    await ellipse.click();
+    await expect.poll(() => annotation(page).then((a) => a.tool)).toBe('ellipse');
+  });
+
+  test('in preview mode a left-drag draws and does NOT pan the canvas', async ({
+    page
+  }) => {
+    // Preview's default mode is PAN (left-drag pans). With a draw tool active the
+    // overlay must capture the left-drag for drawing and block the pan.
+    await page.evaluate(() => {
+      (window as any).__axoview__.ui
+        .getState()
+        .actions.setEditorMode('EXPLORABLE_READONLY');
+    });
+
+    await byAxoviewId(page, 'annotation-pen').click();
+    // Pencil lives in the Draw group fly-out; clicking the group activates its
+    // default variant (pencil).
+    await byAxoviewId(page, 'annotation-group-draw').click();
+
+    const scrollBefore = await page.evaluate(
+      () => (window as any).__axoview__.ui.getState().scroll.position
+    );
+
+    await drawStroke(page);
+
+    await expect.poll(() => strokeCount(page), { timeout: 3_000 }).toBe(1);
+    const scrollAfter = await page.evaluate(
+      () => (window as any).__axoview__.ui.getState().scroll.position
+    );
+    // The canvas did not pan.
+    expect(scrollAfter).toEqual(scrollBefore);
   });
 });

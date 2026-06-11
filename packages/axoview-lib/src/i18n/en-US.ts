@@ -346,6 +346,9 @@ const locale: LocaleProps = {
   },
   annotationPalette: {
     pen: 'Annotate',
+    select: 'Select',
+    draw: 'Draw',
+    shapes: 'Shapes',
     pencil: 'Pencil',
     highlighter: 'Highlighter',
     line: 'Line',
@@ -354,10 +357,8 @@ const locale: LocaleProps = {
     ellipse: 'Ellipse',
     eraser: 'Eraser',
     undo: 'Undo',
-    clear: 'Clear all',
-    collapse: 'Collapse',
-    expand: 'Expand',
-    close: 'Close'
+    redo: 'Redo',
+    clear: 'Clear all'
   },
   viewModeInfoPopover: {
     close: 'Close'

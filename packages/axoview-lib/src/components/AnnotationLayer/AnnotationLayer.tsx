@@ -14,7 +14,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { shallow } from 'zustand/shallow';
-import { AnnotationStroke, Coords } from 'src/types';
+import { AnnotationStroke, AnnotationTool, Coords } from 'src/types';
 import { generateId } from 'src/utils';
 import {
   screenToSceneCanvas,
@@ -29,6 +29,47 @@ const isShape = (tool: AnnotationStroke['tool']) =>
 const isSegment = (tool: AnnotationStroke['tool']) =>
   tool === 'line' || tool === 'arrow';
 
+// Per-tool cursors (ADR 0014 polish): the cursor points at the action instead
+// of a blanket crosshair. Custom SVGs for freehand/eraser (hotspot at the
+// working tip); precise `crosshair` for shape/line tools. No `#` in the SVG so
+// the data-URI stays valid inside url().
+const svgCursor = (svg: string, hx: number, hy: number) =>
+  `url("data:image/svg+xml;utf8,${svg}") ${hx} ${hy}, crosshair`;
+
+const PENCIL_CURSOR = svgCursor(
+  "<svg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 24 24'><path d='M4 20l2.6-.6L17.4 8.6l-2-2L4.6 17.4 4 20z' fill='black' stroke='white' stroke-width='1.4' stroke-linejoin='round'/></svg>",
+  5,
+  26
+);
+const HIGHLIGHTER_CURSOR = svgCursor(
+  "<svg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 24 24'><path d='M5 19l3 1 9.5-9.5-4-4L4 16l1 3z' fill='gold' stroke='black' stroke-width='1.1'/></svg>",
+  6,
+  25
+);
+const ERASER_CURSOR = svgCursor(
+  "<svg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 24 24'><g transform='rotate(-35 11 13)'><rect x='4' y='9' width='13' height='8' rx='1.5' fill='white' stroke='black' stroke-width='1.4'/><line x1='10.5' y1='9' x2='10.5' y2='17' stroke='black' stroke-width='1.1'/></g></svg>",
+  8,
+  20
+);
+
+const cursorForTool = (tool: AnnotationTool): string => {
+  switch (tool) {
+    case 'pencil':
+      return PENCIL_CURSOR;
+    case 'highlighter':
+      return HIGHLIGHTER_CURSOR;
+    case 'eraser':
+      return ERASER_CURSOR;
+    case 'line':
+    case 'arrow':
+    case 'rectangle':
+    case 'ellipse':
+      return 'crosshair';
+    default:
+      return 'default';
+  }
+};
+
 /** Renders one committed/draft stroke as SVG. Pointer-eraseable when `onErase`. */
 const StrokeShape = ({
   stroke,
@@ -40,7 +81,8 @@ const StrokeShape = ({
   const { tool, color, thickness, points } = stroke;
   const eraseProps = onErase
     ? {
-        style: { pointerEvents: 'stroke' as const, cursor: 'pointer' },
+        // Inherit the eraser cursor from the layer; just be hit-testable.
+        style: { pointerEvents: 'stroke' as const },
         onPointerDown: (e: React.PointerEvent) => {
           e.stopPropagation();
           onErase(stroke.id);
@@ -97,10 +139,9 @@ const StrokeShape = ({
 export const AnnotationLayer = () => {
   const uiStoreApi = useUiStateStoreApi();
   const actions = useUiStateStore((s) => s.actions);
-  const { open, collapsed, tool, color, thickness, strokes } = useUiStateStore(
+  const { open, tool, color, thickness, strokes } = useUiStateStore(
     (s) => ({
       open: s.annotation.open,
-      collapsed: s.annotation.collapsed,
       tool: s.annotation.tool,
       color: s.annotation.color,
       thickness: s.annotation.thickness,
@@ -123,10 +164,63 @@ export const AnnotationLayer = () => {
     setDraft(next);
   }, []);
 
-  const shown = open && !collapsed;
-  const isDrawTool = tool !== 'eraser';
-  // Capture pointers only while a draw tool is active and the overlay is shown.
+  // Strokes are visible whenever the overlay is open (the pen toggle). The
+  // overlay only CAPTURES pointer input while a draw tool is active — in
+  // `select` mode it's fully pass-through (canvas interactive), and `eraser`
+  // mode lets clicks fall through except on the strokes themselves.
+  const shown = open;
+  const isDrawTool = tool !== 'select' && tool !== 'eraser';
   const capturing = shown && isDrawTool;
+  const eraserActive = shown && tool === 'eraser';
+
+  // Esc / V returns to Select while a draw or eraser tool is active — the quick
+  // "stop drawing, let me interact" gesture (Excalidraw's V). Gated on a
+  // non-select tool so Esc still closes the view-mode popover when not drawing.
+  useEffect(() => {
+    if (!shown || tool === 'select') return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === 'INPUT' ||
+          el.tagName === 'TEXTAREA' ||
+          el.isContentEditable)
+      ) {
+        return;
+      }
+      if (e.key === 'Escape' || e.key === 'v' || e.key === 'V') {
+        actions.setAnnotationTool('select');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [shown, tool, actions]);
+
+  // While a draw/eraser tool is active, swallow LEFT-button mouse events at the
+  // layer so they never reach the window-level interaction manager (which would
+  // otherwise pan in preview's PAN mode, or select in edit). React's
+  // stopPropagation can't stop a native `window` listener, so we attach native
+  // listeners here. Right-button (pan) and wheel (zoom) are left untouched, so
+  // canvas navigation stays available while drawing.
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el || (!capturing && !eraserActive)) return;
+    const stopLeftButton = (e: MouseEvent) => {
+      if (e.button === 0) e.stopPropagation();
+    };
+    const stopLeftDrag = (e: MouseEvent) => {
+      // eslint-disable-next-line no-bitwise
+      if (e.buttons & 1) e.stopPropagation();
+    };
+    el.addEventListener('mousedown', stopLeftButton);
+    el.addEventListener('mousemove', stopLeftDrag);
+    el.addEventListener('mouseup', stopLeftButton);
+    return () => {
+      el.removeEventListener('mousedown', stopLeftButton);
+      el.removeEventListener('mousemove', stopLeftDrag);
+      el.removeEventListener('mouseup', stopLeftButton);
+    };
+  }, [capturing, eraserActive]);
 
   // Mirror the SceneLayer transform onto the <g> via a direct store
   // subscription — pan/zoom updates the attribute without re-rendering React.
@@ -218,6 +312,10 @@ export const AnnotationLayer = () => {
 
   if (!shown) return null;
 
+  let layerCursor = 'default';
+  if (capturing) layerCursor = cursorForTool(tool);
+  else if (eraserActive) layerCursor = cursorForTool('eraser');
+
   return (
     <div
       ref={rootRef}
@@ -225,9 +323,12 @@ export const AnnotationLayer = () => {
       style={{
         position: 'absolute',
         inset: 0,
-        // Idle (no draw tool) → let the canvas handle pointers normally.
-        pointerEvents: capturing ? 'auto' : 'none',
-        cursor: capturing ? 'crosshair' : 'default',
+        // Capture pointers while drawing or erasing; in Select mode the layer is
+        // fully pass-through so the canvas handles pointers normally. Right-drag
+        // pan + wheel zoom always bubble to the window handlers (we only act on
+        // left-button draws), so canvas navigation stays available while drawing.
+        pointerEvents: capturing || eraserActive ? 'auto' : 'none',
+        cursor: layerCursor,
         zIndex: 6,
         touchAction: 'none'
       }}

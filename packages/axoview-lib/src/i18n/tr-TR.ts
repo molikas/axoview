@@ -347,6 +347,9 @@ const locale: LocaleProps = {
   },
   annotationPalette: {
     pen: 'Açıklama',
+    select: 'Seç',
+    draw: 'Çiz',
+    shapes: 'Şekiller',
     pencil: 'Kalem',
     highlighter: 'Fosforlu kalem',
     line: 'Çizgi',
@@ -355,10 +358,8 @@ const locale: LocaleProps = {
     ellipse: 'Elips',
     eraser: 'Silgi',
     undo: 'Geri al',
-    clear: 'Tümünü temizle',
-    collapse: 'Daralt',
-    expand: 'Genişlet',
-    close: 'Kapat'
+    redo: 'Yinele',
+    clear: 'Tümünü temizle'
   },
   viewModeInfoPopover: {
     close: 'Kapat'

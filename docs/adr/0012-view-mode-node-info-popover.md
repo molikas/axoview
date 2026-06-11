@@ -56,6 +56,14 @@ Portal at the document root, so it is already screen-pixel-stable; it anchors to
 node (the same anchor [`NodeActionBar`](../../packages/axoview-lib/src/components/NodeActionBar/NodeActionBar.tsx)
 uses).
 
+**Placement (revised 2026-06-12 — shake-out):** the popover is **side-anchored** — to the right of
+the item, vertically centered — so it never occludes the item or its top-mounted name caption (the
+game-UI tooltip rule: never cover the subject). It **flips to the left** when the right side would
+overflow the viewport and **clamps vertically** to stay on screen. The anchor goes through
+`getTilePosition` (origin RIGHT/LEFT), so the offset clears the node's footprint in **both ISO and
+2D**. It renders in screen space and tracks the item via a store subscription (no React re-render
+on pan/zoom).
+
 ## Consequences
 
 **Positive:**

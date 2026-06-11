@@ -10,7 +10,14 @@
 // Anchoring mirrors NodeActionBar: rendered inside a SceneLayer at the item's
 // tile and counter-scaled by 1/zoom (UX §8.8) so it stays pixel-stable.
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import { Box, Paper, IconButton, Typography, Stack, Link } from '@mui/material';
 import {
   CloseOutlined as CloseIcon,
@@ -172,24 +179,81 @@ export const ViewModeInfoPopover = () => {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isPinned, closePinned]);
 
-  // Counter-scale to stay pixel-stable at every zoom (UX §8.8 — same as
-  // NodeActionBar). Direct DOM, bypasses React render on zoom.
+  // Side-anchored placement with edge-flip — the game-UI tooltip pattern: never
+  // occlude the subject. The popover sits to the RIGHT of the item, vertically
+  // centered, so the item and its top-mounted name caption stay fully visible.
+  // It flips to the LEFT when the right side would overflow the viewport, and
+  // clamps vertically to stay on screen. Anchoring goes through getTilePosition,
+  // so it's correct in BOTH ISO and 2D — origin RIGHT/LEFT adapts to each
+  // projection's tile half-width (≈70.75 iso / 50 2D). The popover renders in
+  // screen space (outside the SceneLayer) at natural size; placement is applied
+  // by a direct store subscription so pan/zoom never re-renders React.
   const wrapperRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const apply = (zoom: number) => {
-      if (!wrapperRef.current) return;
-      wrapperRef.current.style.transform = `translateX(-50%) scale(${1 / zoom})`;
-    };
-    apply(uiStoreApi.getState().zoom);
-    return uiStoreApi.subscribe((state, prev) => {
-      if (state.zoom === prev.zoom) return;
-      apply(state.zoom);
+  const anchorTileRef = useRef<Coords | undefined>(undefined);
+  anchorTileRef.current = info?.anchorTile;
+
+  const applyPlacement = useCallback(() => {
+    const el = wrapperRef.current;
+    const tile = anchorTileRef.current;
+    if (!el || !tile) return;
+    const { scroll, zoom, rendererSize } = uiStoreApi.getState();
+    if (!rendererSize.width || !rendererSize.height) return;
+
+    const toScreen = (p: Coords) => ({
+      x: rendererSize.width / 2 + scroll.position.x + zoom * p.x,
+      y: rendererSize.height / 2 + scroll.position.y + zoom * p.y
     });
-  }, [uiStoreApi]);
+    const center = toScreen(getTilePosition({ tile, origin: 'CENTER' }));
+    const rightEdge = toScreen(getTilePosition({ tile, origin: 'RIGHT' }));
+    const leftEdge = toScreen(getTilePosition({ tile, origin: 'LEFT' }));
+
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    const GAP = 16;
+    const MARGIN = 8;
+
+    // Prefer the right; flip left only when right overflows and left fits.
+    const rightFits = rightEdge.x + GAP + w <= rendererSize.width - MARGIN;
+    const leftFits = leftEdge.x - GAP - w >= MARGIN;
+    const placeRight = rightFits || !leftFits;
+
+    const leftPx = placeRight ? rightEdge.x + GAP : leftEdge.x - GAP;
+    const txPercent = placeRight ? '0%' : '-100%';
+
+    // Vertical: centered on the item, clamped into the viewport.
+    const half = h / 2;
+    const topPx = Math.min(
+      Math.max(center.y, half + MARGIN),
+      rendererSize.height - half - MARGIN
+    );
+
+    el.style.left = `${leftPx}px`;
+    el.style.top = `${topPx}px`;
+    el.style.transform = `translate(${txPercent}, -50%)`;
+  }, [uiStoreApi, getTilePosition]);
+
+  // Reposition immediately when the active item / its content (and thus size)
+  // changes — useLayoutEffect runs pre-paint so there's no visible jump.
+  useLayoutEffect(() => {
+    applyPlacement();
+  }, [applyPlacement, info]);
+
+  // Reposition on pan / zoom / resize without re-rendering React.
+  useEffect(() => {
+    applyPlacement();
+    return uiStoreApi.subscribe((state, prev) => {
+      if (
+        state.scroll === prev.scroll &&
+        state.zoom === prev.zoom &&
+        state.rendererSize === prev.rendererSize
+      ) {
+        return;
+      }
+      applyPlacement();
+    });
+  }, [uiStoreApi, applyPlacement]);
 
   if (!info) return null;
-
-  const pos = getTilePosition({ tile: info.anchorTile, origin: 'TOP' });
 
   return (
     <Box
@@ -197,11 +261,9 @@ export const ViewModeInfoPopover = () => {
       data-axoview-id="view-mode-info-popover"
       data-axoview-pinned={isPinned ? 'true' : 'false'}
       sx={{
+        // left / top / transform are set imperatively by applyPlacement
+        // (screen-space, side-anchored with edge-flip).
         position: 'absolute',
-        left: pos.x,
-        top: pos.y - 48,
-        transform: 'translateX(-50%)',
-        transformOrigin: 'center bottom',
         pointerEvents: isPinned ? 'auto' : 'none',
         zIndex: 10
       }}

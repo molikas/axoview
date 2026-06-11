@@ -72,6 +72,23 @@ piece of work with no current forcing function. Annotations remain a *live prese
 a presenter screen-captures the frame if they need to keep it. (Never in JSON / zip — that is the
 load-bearing invariant, asserted in tests.)
 
+### Revision (2026-06-12 — shake-out polish)
+
+UX refinements after first use, keeping the ephemeral-scratch invariant intact:
+
+- **Pen = the single toggle.** The top-right pen button stays visible and *is* the open/close
+  control (highlighted when active). This **removes the separate X, collapse, and drag controls**;
+  closing the pen hides the palette + drawing but retains strokes (close ≠ discard, as before).
+- **Fixed palette under the pen** (no longer draggable) — it opens directly beneath the pen, where
+  the user expects it. Supersedes the "draggable floating palette" detail above.
+- **Excalidraw-style tool strip with a Select tool.** A `select` tool (default on open) makes the
+  overlay pass-through so the canvas stays interactive; draw/eraser tools capture input. This is the
+  discoverable "stop drawing to interact" affordance; **Esc / `V`** also returns to Select. Right-drag
+  pan and wheel zoom remain available while drawing (the overlay only acts on left-button draws).
+- **Redo** added alongside undo (linear history; a new stroke clears the redo stack).
+- **Tool-reflecting cursors** (pen / crosshair / eraser) instead of a blanket crosshair, and a proper
+  eraser glyph in the palette.
+
 ## Consequences
 
 **Positive:**

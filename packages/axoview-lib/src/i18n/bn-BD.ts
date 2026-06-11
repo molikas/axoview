@@ -345,6 +345,9 @@ const locale: LocaleProps = {
   },
   annotationPalette: {
     pen: 'টীকা',
+    select: 'নির্বাচন',
+    draw: 'আঁকুন',
+    shapes: 'আকার',
     pencil: 'পেন্সিল',
     highlighter: 'হাইলাইটার',
     line: 'রেখা',
@@ -353,10 +356,8 @@ const locale: LocaleProps = {
     ellipse: 'উপবৃত্ত',
     eraser: 'ইরেজার',
     undo: 'পূর্বাবস্থা',
-    clear: 'সব মুছুন',
-    collapse: 'সংকুচিত',
-    expand: 'প্রসারিত',
-    close: 'বন্ধ করুন'
+    redo: 'পুনরায় করুন',
+    clear: 'সব মুছুন'
   },
   viewModeInfoPopover: {
     close: 'বন্ধ করুন'

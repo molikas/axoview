@@ -346,6 +346,9 @@ const locale: LocaleProps = {
   },
   annotationPalette: {
     pen: 'Anotasi',
+    select: 'Pilih',
+    draw: 'Gambar',
+    shapes: 'Bentuk',
     pencil: 'Pensil',
     highlighter: 'Stabilo',
     line: 'Garis',
@@ -354,10 +357,8 @@ const locale: LocaleProps = {
     ellipse: 'Elips',
     eraser: 'Penghapus',
     undo: 'Urungkan',
-    clear: 'Hapus semua',
-    collapse: 'Ciutkan',
-    expand: 'Bentangkan',
-    close: 'Tutup'
+    redo: 'Ulangi',
+    clear: 'Hapus semua'
   },
   viewModeInfoPopover: {
     close: 'Tutup'

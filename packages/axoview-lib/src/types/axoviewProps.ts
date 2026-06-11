@@ -339,6 +339,9 @@ export interface LocaleProps {
   };
   annotationPalette: {
     pen: string;
+    select: string;
+    draw: string;
+    shapes: string;
     pencil: string;
     highlighter: string;
     line: string;
@@ -347,10 +350,8 @@ export interface LocaleProps {
     ellipse: string;
     eraser: string;
     undo: string;
+    redo: string;
     clear: string;
-    collapse: string;
-    expand: string;
-    close: string;
   };
   labelSettings: {
     description: string;

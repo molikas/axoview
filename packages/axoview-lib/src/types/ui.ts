@@ -273,8 +273,13 @@ export interface PreviewLayerOverrides {
 
 // --- Ephemeral annotation overlay (ADR 0014) --------------------------------
 
-/** Draw tools for the annotation overlay. `eraser` removes a whole stroke. */
+/**
+ * Annotation tool modes. `select` is the pass-through mode — the overlay does
+ * not capture pointer input, so the canvas stays interactive (Excalidraw-style
+ * tool strip). `eraser` removes a whole stroke; the rest draw.
+ */
 export type AnnotationTool =
+  | 'select'
   | 'pencil'
   | 'highlighter'
   | 'line'
@@ -286,7 +291,7 @@ export type AnnotationTool =
 /** A single annotation stroke, stored in scene-canvas coordinates. */
 export interface AnnotationStroke {
   id: string;
-  tool: Exclude<AnnotationTool, 'eraser'>;
+  tool: Exclude<AnnotationTool, 'select' | 'eraser'>;
   color: string;
   thickness: number;
   /** Scene-canvas points: freehand = many; line/arrow/shapes = [start, end]. */
@@ -296,18 +301,19 @@ export interface AnnotationStroke {
 /**
  * Ephemeral annotation state (ADR 0014). Session-scoped, in-memory, and
  * **never** persisted — it lives only in uiState, never in the Model, so no
- * save/export/zip path can reach it. `open` mounts the palette + overlay;
- * `collapsed` hides the drawing while retaining strokes (collapse ≠ discard).
+ * save/export/zip path can reach it. `open` is the single pen-driven toggle:
+ * open ⇒ palette + drawing shown; closed ⇒ both hidden but strokes retained
+ * (close ≠ discard; only Clear wipes). `tool` decides whether the overlay
+ * captures input (`select` = canvas interactive).
  */
 export interface AnnotationState {
   open: boolean;
-  collapsed: boolean;
   tool: AnnotationTool;
   color: string;
   thickness: number;
   strokes: AnnotationStroke[];
-  /** Floating palette position in screen px (draggable). */
-  palettePos: Coords;
+  /** Strokes available to redo (cleared by any new stroke / erase / clear). */
+  redoStack: AnnotationStroke[];
 }
 
 export interface UiStateActions {
@@ -351,15 +357,14 @@ export interface UiStateActions {
   clearPreviewLayerOverrides: () => void;
   // --- Annotation overlay (ADR 0014) ---
   setAnnotationOpen: (open: boolean) => void;
-  setAnnotationCollapsed: (collapsed: boolean) => void;
   setAnnotationTool: (tool: AnnotationTool) => void;
   setAnnotationColor: (color: string) => void;
   setAnnotationThickness: (thickness: number) => void;
   addAnnotationStroke: (stroke: AnnotationStroke) => void;
   undoAnnotationStroke: () => void;
+  redoAnnotationStroke: () => void;
   eraseAnnotationStroke: (id: string) => void;
   clearAnnotations: () => void;
-  setAnnotationPalettePos: (pos: Coords) => void;
   setIconPackManager: (iconPackManager: IconPackManagerProps | null) => void;
   setIconUsageScan: (scan: IconUsageScan | null) => void;
   setLinkedDiagrams: (diagrams: Array<{ id: string; name: string }>) => void;

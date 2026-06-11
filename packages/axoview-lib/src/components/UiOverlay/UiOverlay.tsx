@@ -227,16 +227,14 @@ export const UiOverlay = ({
           </UiElement>
         )}
 
-        {/* Preview-mode layer switcher — bottom-left, clear of ViewTabs
-            (bottom-center) and ZoomControls (bottom-right). View mode only;
-            the component self-gates on ≥2 layers (ADR 0013). */}
+        {/* Preview-mode layer switcher — top-left (feels more natural in a
+            presentation than bottom-left). View mode only; the component
+            self-gates on ≥2 layers (ADR 0013). High zIndex so it stays above
+            any left chrome that lingers in a forced-preview test environment. */}
         {editorMode === EditorModeEnum.EXPLORABLE_READONLY && (
           <Box
-            sx={{ position: 'absolute', transform: 'translateY(-100%)' }}
-            style={{
-              left: appPadding.x,
-              top: rendererSize.height - appPadding.y * 2 - spacing(1)
-            }}
+            sx={{ position: 'absolute', zIndex: 15 }}
+            style={{ left: appPadding.x, top: appPadding.y }}
           >
             <PreviewLayerSwitcher />
           </Box>
@@ -320,13 +318,16 @@ export const UiOverlay = ({
 
         {/* Lasso layer assign bar */}
         {editorMode === EditorModeEnum.EDITABLE && <LassoLayerBar />}
-
-        {/* View-mode item info popover — canvas-anchored read surface that
-            replaces the right dock in EXPLORABLE_READONLY (ADR 0012). */}
-        {editorMode === EditorModeEnum.EXPLORABLE_READONLY && (
-          <ViewModeInfoPopover />
-        )}
       </SceneLayer>
+
+      {/* View-mode item info popover — screen-space, side-anchored read surface
+          that replaces the right dock in EXPLORABLE_READONLY (ADR 0012). Lives
+          outside the SceneLayer: it positions itself in screen px (so it can
+          flip/clamp against the viewport) and tracks the item via a store
+          subscription. */}
+      {editorMode === EditorModeEnum.EXPLORABLE_READONLY && (
+        <ViewModeInfoPopover />
+      )}
     </>
   );
 };

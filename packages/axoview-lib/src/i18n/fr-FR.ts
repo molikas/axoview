@@ -351,6 +351,9 @@ const locale: LocaleProps = {
   },
   annotationPalette: {
     pen: 'Annoter',
+    select: 'Sélectionner',
+    draw: 'Dessiner',
+    shapes: 'Formes',
     pencil: 'Crayon',
     highlighter: 'Surligneur',
     line: 'Ligne',
@@ -359,10 +362,8 @@ const locale: LocaleProps = {
     ellipse: 'Ellipse',
     eraser: 'Gomme',
     undo: 'Annuler',
-    clear: 'Tout effacer',
-    collapse: 'Réduire',
-    expand: 'Développer',
-    close: 'Fermer'
+    redo: 'Rétablir',
+    clear: 'Tout effacer'
   },
   viewModeInfoPopover: {
     close: 'Fermer'

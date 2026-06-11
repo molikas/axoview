@@ -347,6 +347,9 @@ const locale: LocaleProps = {
   },
   annotationPalette: {
     pen: 'व्याख्या',
+    select: 'चुनें',
+    draw: 'ड्रॉ',
+    shapes: 'आकृतियाँ',
     pencil: 'पेंसिल',
     highlighter: 'हाइलाइटर',
     line: 'रेखा',
@@ -355,10 +358,8 @@ const locale: LocaleProps = {
     ellipse: 'दीर्घवृत्त',
     eraser: 'इरेज़र',
     undo: 'पूर्ववत करें',
-    clear: 'सब हटाएं',
-    collapse: 'संक्षिप्त करें',
-    expand: 'विस्तृत करें',
-    close: 'बंद करें'
+    redo: 'फिर से करें',
+    clear: 'सब हटाएं'
   },
   viewModeInfoPopover: {
     close: 'बंद करें'

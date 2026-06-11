@@ -60,13 +60,12 @@ const initialState = () => {
       previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
       annotation: {
         open: false,
-        collapsed: false,
-        tool: 'pencil',
+        // Open in the non-disruptive Select mode; the user picks a draw tool.
+        tool: 'select',
         color: ANNOTATION_COLOR_PRESETS[0],
         thickness: 4,
         strokes: [],
-        // Default open position: clear of the left docks/file explorer.
-        palettePos: { x: 360, y: 96 }
+        redoStack: []
       },
 
       actions: {
@@ -271,11 +270,26 @@ const initialState = () => {
         },
         // --- Annotation overlay (ADR 0014) — ephemeral, never persisted ---
         setAnnotationOpen: (open) => {
-          // Opening always un-collapses so the palette + drawing are visible.
-          set({ annotation: { ...get().annotation, open, collapsed: false } });
-        },
-        setAnnotationCollapsed: (collapsed) => {
-          set({ annotation: { ...get().annotation, collapsed } });
+          const state = get();
+          if (!open) {
+            set({ annotation: { ...state.annotation, open } });
+            return;
+          }
+          // Entering annotation resets the canvas interaction so a previously
+          // armed tool (connector, lasso, freehand, pan, place-icon, draw-
+          // rectangle, textbox…) doesn't linger behind the overlay, and clears
+          // the active selection / floating action bar. The right dock is closed
+          // only if it was auto-opened (a manual pin is respected).
+          set({
+            annotation: { ...state.annotation, open },
+            mode: getStartingMode(state.editorMode),
+            itemControls: null,
+            selectedIds: [],
+            itemActionBarOpen: false,
+            ...(state.rightSidebarAutoOpened
+              ? { rightSidebarOpen: false, rightSidebarAutoOpened: false }
+              : {})
+          });
         },
         setAnnotationTool: (tool) => {
           set({ annotation: { ...get().annotation, tool } });
@@ -288,19 +302,36 @@ const initialState = () => {
         },
         addAnnotationStroke: (stroke) => {
           const { annotation } = get();
+          // A new stroke invalidates the redo stack (linear history).
           set({
             annotation: {
               ...annotation,
-              strokes: [...annotation.strokes, stroke]
+              strokes: [...annotation.strokes, stroke],
+              redoStack: []
             }
           });
         },
         undoAnnotationStroke: () => {
           const { annotation } = get();
+          const last = annotation.strokes.at(-1);
+          if (!last) return;
           set({
             annotation: {
               ...annotation,
-              strokes: annotation.strokes.slice(0, -1)
+              strokes: annotation.strokes.slice(0, -1),
+              redoStack: [...annotation.redoStack, last]
+            }
+          });
+        },
+        redoAnnotationStroke: () => {
+          const { annotation } = get();
+          const next = annotation.redoStack.at(-1);
+          if (!next) return;
+          set({
+            annotation: {
+              ...annotation,
+              strokes: [...annotation.strokes, next],
+              redoStack: annotation.redoStack.slice(0, -1)
             }
           });
         },
@@ -309,15 +340,13 @@ const initialState = () => {
           set({
             annotation: {
               ...annotation,
-              strokes: annotation.strokes.filter((s) => s.id !== id)
+              strokes: annotation.strokes.filter((s) => s.id !== id),
+              redoStack: []
             }
           });
         },
         clearAnnotations: () => {
-          set({ annotation: { ...get().annotation, strokes: [] } });
-        },
-        setAnnotationPalettePos: (palettePos) => {
-          set({ annotation: { ...get().annotation, palettePos } });
+          set({ annotation: { ...get().annotation, strokes: [], redoStack: [] } });
         },
         setIconPackManager: (iconPackManager) => {
           set({ iconPackManager });
