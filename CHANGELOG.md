@@ -5,6 +5,12 @@ All notable changes to Axoview will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0](https://github.com/molikas/axoview/compare/v2.0.1...v2.1.0) (2026-06-11)
+
+### Features
+
+* **error-ux:** close ADR 0011 dialogs (save/import/share) + backfill ADR 0007 ([#27](https://github.com/molikas/axoview/issues/27)) ([e1cd620](https://github.com/molikas/axoview/commit/e1cd620d06ed39021c15ceb1f3f390e65323356b)), closes [#2](https://github.com/molikas/axoview/issues/2) [9/#10](https://github.com/9/axoview/issues/10)
+
 ## [2.0.1](https://github.com/molikas/axoview/compare/v2.0.0...v2.0.1) (2026-06-10)
 
 ### Bug Fixes
