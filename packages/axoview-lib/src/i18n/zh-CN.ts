@@ -324,6 +324,13 @@ const locale: LocaleProps = {
     keepLabelsReadable: '保持标签清晰可读',
     help: '帮助 (F1)'
   },
+  previewLayerSwitcher: {
+    layers: '图层',
+    showLayer: '显示图层',
+    hideLayer: '隐藏图层',
+    solo: '单独显示',
+    unsolo: '退出单独显示'
+  },
   labelSettings: {
     description: '配置标签显示设置',
     expandButtonPadding: '展开按钮内边距',

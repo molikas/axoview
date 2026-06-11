@@ -338,6 +338,13 @@ const locale: LocaleProps = {
     keepLabelsReadable: 'लेबल पठनीय रखें',
     help: 'सहायता (F1)'
   },
+  previewLayerSwitcher: {
+    layers: 'परतें',
+    showLayer: 'परत दिखाएं',
+    hideLayer: 'परत छिपाएं',
+    solo: 'सोलो',
+    unsolo: 'सोलो से बाहर'
+  },
   labelSettings: {
     description: 'लेबल प्रदर्शन सेटिंग कॉन्फ़िगर करें',
     expandButtonPadding: 'विस्तार बटन पैडिंग',

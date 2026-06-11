@@ -252,6 +252,21 @@ export interface UiState {
   /** true when model has changed since last export-to-file or explicit save */
   isDirty: boolean;
   canvasMode: CanvasMode;
+  /**
+   * Preview-mode (EXPLORABLE_READONLY) layer visibility override (ADR 0013).
+   * A UI-only override that never mutates the model's `layer.visible` and is
+   * never persisted/saved — presenting a diagram can't dirty it. Cleared when
+   * leaving preview or switching view. Ignored entirely in EDITABLE.
+   */
+  previewLayerOverrides: PreviewLayerOverrides;
+}
+
+/** UI-only preview layer override (ADR 0013). */
+export interface PreviewLayerOverrides {
+  /** Layers the presenter has toggled off (subtracted from `layer.visible`). */
+  hiddenLayerIds: string[];
+  /** When set, only this layer is shown (solo wins over hidden + layer.visible). */
+  soloLayerId: string | null;
 }
 
 export interface UiStateActions {
@@ -287,6 +302,12 @@ export interface UiStateActions {
   setConnectorInteractionMode: (mode: ConnectorInteractionMode) => void;
   setExpandLabels: (expand: boolean) => void;
   setReadableLabels: (readable: boolean) => void;
+  /** Toggle a layer's preview visibility override (no-op on the model). */
+  togglePreviewLayerHidden: (layerId: string) => void;
+  /** Solo a layer in preview (pass the current solo id again, or null, to clear). */
+  setPreviewSoloLayer: (layerId: string | null) => void;
+  /** Reset all preview layer overrides (e.g. on leaving preview / view switch). */
+  clearPreviewLayerOverrides: () => void;
   setIconPackManager: (iconPackManager: IconPackManagerProps | null) => void;
   setIconUsageScan: (scan: IconUsageScan | null) => void;
   setLinkedDiagrams: (diagrams: Array<{ id: string; name: string }>) => void;

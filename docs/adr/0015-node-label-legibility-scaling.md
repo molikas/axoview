@@ -1,6 +1,6 @@
 # ADR 0015 — Node Label Legibility Scaling
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06-11
 **Supersedes:** none
 **Superseded by:** none

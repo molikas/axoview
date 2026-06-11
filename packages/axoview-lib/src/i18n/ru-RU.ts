@@ -338,6 +338,13 @@ const locale: LocaleProps = {
     keepLabelsReadable: 'Сохранять читаемость подписей',
     help: 'Помощь (F1)'
   },
+  previewLayerSwitcher: {
+    layers: 'Слои',
+    showLayer: 'Показать слой',
+    hideLayer: 'Скрыть слой',
+    solo: 'Соло',
+    unsolo: 'Выйти из соло'
+  },
   labelSettings: {
     description: 'Настройка параметров отображения меток',
     expandButtonPadding: 'Отступ кнопки развернуть',

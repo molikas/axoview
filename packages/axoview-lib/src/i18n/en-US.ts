@@ -337,6 +337,13 @@ const locale: LocaleProps = {
     keepLabelsReadable: 'Keep labels readable',
     help: 'Help (F1)'
   },
+  previewLayerSwitcher: {
+    layers: 'Layers',
+    showLayer: 'Show layer',
+    hideLayer: 'Hide layer',
+    solo: 'Solo',
+    unsolo: 'Exit solo'
+  },
   labelSettings: {
     description: 'Configure label display settings',
     expandButtonPadding: 'Expand Button Padding',

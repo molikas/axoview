@@ -340,6 +340,13 @@ const locale: LocaleProps = {
     keepLabelsReadable: 'Beschriftungen lesbar halten',
     help: 'Hilfe (F1)'
   },
+  previewLayerSwitcher: {
+    layers: 'Ebenen',
+    showLayer: 'Ebene einblenden',
+    hideLayer: 'Ebene ausblenden',
+    solo: 'Solo',
+    unsolo: 'Solo beenden'
+  },
   labelSettings: {
     description: 'Beschriftungsanzeigeeinstellungen konfigurieren',
     expandButtonPadding: 'Erweitern-Schaltfläche Innenabstand',

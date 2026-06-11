@@ -338,6 +338,13 @@ const locale: LocaleProps = {
     keepLabelsReadable: 'Etiketleri okunabilir tut',
     help: 'Yardım (F1)'
   },
+  previewLayerSwitcher: {
+    layers: 'Katmanlar',
+    showLayer: 'Katmanı göster',
+    hideLayer: 'Katmanı gizle',
+    solo: 'Solo',
+    unsolo: 'Solodan çık'
+  },
   labelSettings: {
     description: 'Etiket görüntüleme ayarlarını yapılandır',
     expandButtonPadding: 'Genişlet düğmesi dolgusu',

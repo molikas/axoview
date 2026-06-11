@@ -337,6 +337,13 @@ const locale: LocaleProps = {
     keepLabelsReadable: 'Jaga label tetap terbaca',
     help: 'Bantuan (F1)'
   },
+  previewLayerSwitcher: {
+    layers: 'Lapisan',
+    showLayer: 'Tampilkan lapisan',
+    hideLayer: 'Sembunyikan lapisan',
+    solo: 'Solo',
+    unsolo: 'Keluar dari solo'
+  },
   labelSettings: {
     description: 'Konfigurasi pengaturan tampilan label',
     expandButtonPadding: 'Padding tombol perluas',

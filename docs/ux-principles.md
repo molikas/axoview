@@ -497,6 +497,14 @@ Node name labels live *inside* the zoom-scaled `SceneLayer`, so by default they 
 - **Label-only** — node geometry is untouched. [`ExpandableLabel`](../packages/axoview-lib/src/components/Label/ExpandableLabel.tsx) publishes the factor as the `--axoview-label-scale` CSS custom property via the §8.8 direct-DOM zoom subscription (no React render on zoom); [`Label`](../packages/axoview-lib/src/components/Label/Label.tsx) composes `scale(var(--axoview-label-scale, 1))` after its translate, about `transformOrigin: bottom center` so the stalk-attachment point stays fixed. The default `1` makes it a no-op for non-node Labels (e.g. ConnectorLabel).
 - **Opt-in by design:** counter-scaled labels can overlap on dense diagrams, so it is never forced on. It is the user's choice when reading a zoomed-out overview, where unreadable text is the worse failure.
 
+### 8.10 View-mode presentation chrome is ephemeral
+
+View-only mode (`EXPLORABLE_READONLY`) is a *presentation* surface, not an editing one, so it gets lightweight chrome instead of the editing docks. The [`PreviewLayerSwitcher`](../packages/axoview-lib/src/components/PreviewLayerSwitcher/PreviewLayerSwitcher.tsx) (ADR 0013) is the pattern:
+
+- **Placement & affordance:** a compact corner overlay (bottom-left, clear of `ViewTabs` and `ZoomControls`), semi-transparent at rest and full-opacity on hover (§2) — present but not obtrusive while presenting.
+- **Ephemeral, never destructive:** presentation controls apply a **UI-only override** (`uiState.previewLayerOverrides`), never mutating saved model state (`layer.visible`) and never dirtying/saving. The override clears on leaving preview or switching view. When a view-mode control mirrors an edit-mode one, keep the merge in **one** place (here, `LayerContextProvider`) with a documented precedence so the two visibility sources can't desync.
+- **Gated to where it's useful:** shown only in view mode and only when there's a real choice (≥2 layers).
+
 ---
 
 ## 9. Reference implementations

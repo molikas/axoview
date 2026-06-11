@@ -342,6 +342,13 @@ const locale: LocaleProps = {
     keepLabelsReadable: 'Mantener etiquetas legibles',
     help: 'Ayuda (F1)'
   },
+  previewLayerSwitcher: {
+    layers: 'Capas',
+    showLayer: 'Mostrar capa',
+    hideLayer: 'Ocultar capa',
+    solo: 'Solo',
+    unsolo: 'Salir de solo'
+  },
   labelSettings: {
     description: 'Configurar ajustes de visualización de etiquetas',
     expandButtonPadding: 'Relleno del botón expandir',

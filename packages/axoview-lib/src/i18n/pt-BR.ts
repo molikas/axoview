@@ -338,6 +338,13 @@ const locale: LocaleProps = {
     keepLabelsReadable: 'Manter rótulos legíveis',
     help: 'Ajuda (F1)'
   },
+  previewLayerSwitcher: {
+    layers: 'Camadas',
+    showLayer: 'Mostrar camada',
+    hideLayer: 'Ocultar camada',
+    solo: 'Solo',
+    unsolo: 'Sair do solo'
+  },
   labelSettings: {
     description: 'Configurar ajustes de exibição de rótulos',
     expandButtonPadding: 'Preenchimento do botão expandir',

@@ -88,11 +88,11 @@ edit-mode dock behavior.
 - [ ] Parity: node, connector, rectangle, textbox.
 - [ ] Suppress popover when item has no `name`/`notes`/`headerLink`.
 
-### B. Preview-mode layer switcher (ADR 0013)
-- [ ] uiState `previewLayerOverrides` slice (hiddenLayerIds + soloLayerId).
-- [ ] Extend `useLayerContext` so `EXPLORABLE_READONLY` derives `visibleIds` from the override (solo wins; else `layer.visible` minus hidden). Edit mode unchanged.
-- [ ] Bottom-left semi-transparent overlay; per-layer toggle + solo; render only with ≥2 layers in view mode.
-- [ ] Confirm toggling never marks the diagram dirty.
+### B. Preview-mode layer switcher (ADR 0013) — ✅ shipped
+- [x] uiState `previewLayerOverrides` slice (hiddenLayerIds + soloLayerId) + `togglePreviewLayerHidden` / `setPreviewSoloLayer` / `clearPreviewLayerOverrides`; cleared on `setView` + `setEditorMode`.
+- [x] Extend `useLayerContext` so `EXPLORABLE_READONLY` derives `visibleIds` from the override (solo wins; else `layer.visible` minus hidden) via pure `isEntityVisibleInPreview`. Edit mode unchanged.
+- [x] Bottom-left semi-transparent overlay (`PreviewLayerSwitcher`, mounted in `UiOverlay`); per-layer toggle + solo; renders only with ≥2 layers in view mode. Locale strings × 13 + `LocaleProps`.
+- [x] Confirm toggling never marks the diagram dirty / never mutates `layer.visible` — asserted in `preview-layer-switcher.spec.ts`.
 
 ### C. Annotation overlay (ADR 0014)
 - [ ] uiState `annotation` slice + local undo stack.
@@ -127,7 +127,7 @@ Do this **per thread**, not as a deferred clean-up pass:
 - [ ] **Unit tests** for each new store slice / pure helper (popover content gate, layer-override merge, annotation persistence-exclusion, zoom-center preservation math, label counter-scale math).
 - [ ] **E2E tests** (`packages/axoview-e2e/`) for each user-visible flow, with a POM per surface:
   - [ ] View-mode popover: hover preview, click-pin, Esc/click-away close, link present.
-  - [ ] Preview layer switcher: toggle + solo change canvas; diagram stays non-dirty.
+  - [x] Preview layer switcher: toggle + solo change canvas; diagram stays non-dirty. (`preview-layer-switcher.spec.ts` + `previewLayerVisibility.test.ts`)
   - [ ] Annotation: open palette, draw, collapse-hides / expand-shows, Clear wipes; **save/export contain no annotation data**.
   - [x] Iso↔2D: zoom % is preserved across a round-trip switch (no 65→80→97 pop). (`canvas-mode-zoom-preserve.spec.ts`)
   - [x] Label toggle: on → labels readable at low zoom; persists across reload. (`readable-labels.spec.ts` + `labelScale.test.ts`)

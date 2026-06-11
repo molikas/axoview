@@ -1,6 +1,6 @@
 # ADR 0013 — Preview-Mode Layer Switcher (Presentation Chrome)
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06-11
 **Supersedes:** none
 **Superseded by:** none

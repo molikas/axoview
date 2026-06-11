@@ -56,13 +56,25 @@ const initialState = () => {
       rightSidebarAutoOpened: false,
       itemActionBarOpen: false,
       isDirty: false,
+      previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
 
       actions: {
         setView: (view) => {
-          set({ view });
+          // A new view has its own layers — drop any preview override so a
+          // solo'd/hidden layer id from the previous view can't leak across.
+          set({
+            view,
+            previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null }
+          });
         },
         setEditorMode: (mode) => {
-          set({ editorMode: mode, mode: getStartingMode(mode) });
+          // Leaving (or entering) preview clears the ephemeral override so it
+          // never persists across mode switches (ADR 0013).
+          set({
+            editorMode: mode,
+            mode: getStartingMode(mode),
+            previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null }
+          });
         },
         setIconCategoriesState: (iconCategoriesState) => {
           set({ iconCategoriesState });
@@ -211,6 +223,33 @@ const initialState = () => {
         },
         setReadableLabels: (readableLabels) => {
           set({ readableLabels });
+        },
+        togglePreviewLayerHidden: (layerId) => {
+          const { hiddenLayerIds } = get().previewLayerOverrides;
+          const nextHidden = hiddenLayerIds.includes(layerId)
+            ? hiddenLayerIds.filter((id) => id !== layerId)
+            : [...hiddenLayerIds, layerId];
+          // Toggling a visibility checkbox exits solo (mutually exclusive
+          // presentation intents).
+          set({
+            previewLayerOverrides: { hiddenLayerIds: nextHidden, soloLayerId: null }
+          });
+        },
+        setPreviewSoloLayer: (layerId) => {
+          const { soloLayerId } = get().previewLayerOverrides;
+          // Solo is a toggle: soloing the already-solo'd layer clears it.
+          const nextSolo = soloLayerId === layerId ? null : layerId;
+          set({
+            previewLayerOverrides: {
+              hiddenLayerIds: [],
+              soloLayerId: nextSolo
+            }
+          });
+        },
+        clearPreviewLayerOverrides: () => {
+          set({
+            previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null }
+          });
         },
         setIconPackManager: (iconPackManager) => {
           set({ iconPackManager });

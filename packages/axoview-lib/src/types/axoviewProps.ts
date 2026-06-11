@@ -327,6 +327,13 @@ export interface LocaleProps {
     keepLabelsReadable: string;
     help: string;
   };
+  previewLayerSwitcher: {
+    layers: string;
+    showLayer: string;
+    hideLayer: string;
+    solo: string;
+    unsolo: string;
+  };
   labelSettings: {
     description: string;
     expandButtonPadding: string;

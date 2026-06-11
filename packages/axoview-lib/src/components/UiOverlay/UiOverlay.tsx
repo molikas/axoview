@@ -27,6 +27,7 @@ import { NotificationSnackbar } from '../NotificationSnackbar/NotificationSnackb
 import { ViewTabs } from 'src/components/ViewTabs/ViewTabs';
 import { NodeActionBar } from 'src/components/NodeActionBar/NodeActionBar';
 import { LassoLayerBar } from 'src/components/LassoLayerBar/LassoLayerBar';
+import { PreviewLayerSwitcher } from 'src/components/PreviewLayerSwitcher/PreviewLayerSwitcher';
 
 type ToolName = 'TOOL_MENU' | 'ITEM_CONTROLS' | 'VIEW_TITLE' | 'VIEW_TABS';
 
@@ -221,6 +222,21 @@ export const UiOverlay = ({
           >
             <DebugUtils />
           </UiElement>
+        )}
+
+        {/* Preview-mode layer switcher — bottom-left, clear of ViewTabs
+            (bottom-center) and ZoomControls (bottom-right). View mode only;
+            the component self-gates on ≥2 layers (ADR 0013). */}
+        {editorMode === EditorModeEnum.EXPLORABLE_READONLY && (
+          <Box
+            sx={{ position: 'absolute', transform: 'translateY(-100%)' }}
+            style={{
+              left: appPadding.x,
+              top: rendererSize.height - appPadding.y * 2 - spacing(1)
+            }}
+          >
+            <PreviewLayerSwitcher />
+          </Box>
         )}
       </Box>
 

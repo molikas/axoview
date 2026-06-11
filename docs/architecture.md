@@ -231,6 +231,8 @@ Full mermaid tree in [technical-review §3d](technical-review-2026-06.md#3d-comp
 
 Dock components: `LeftDock` (Elements / Layers tabs, `activeLeftTab`), `RightSidebar` (`itemControls` properties, `rightSidebarOpen`), and the per-view **Layer system** (`view.layers: Layer[]`; `LayerContextProvider` derives `visibleIds`/`lockedIds`/grouping; `useLayerActions` dispatches view reducers). Read those component files for current props — they drift.
 
+**Preview-mode layer switcher** (ADR 0013): in `EXPLORABLE_READONLY`, `PreviewLayerSwitcher` (bottom-left `UiOverlay` overlay, shown only with ≥2 layers) drives a UI-only `uiState.previewLayerOverrides` (`{ hiddenLayerIds, soloLayerId }`). `LayerContextProvider` merges it into `visibleIds` via `isEntityVisibleInPreview` (solo wins; else base `layer.visible` minus hidden) — **only in view mode; `EDITABLE` derivation is unchanged**. The override never mutates `layer.visible`, is never persisted/saved (presenting can't dirty the diagram), and is cleared on `setView`/`setEditorMode`.
+
 ### 2i. Event Propagation
 
 Window-level listeners in `useInteractionManager` capture **all** mouse/touch/key events globally (not on the Renderer element) so handlers fire even outside the canvas; `isRendererInteraction` then filters canvas-specific logic. Scoped exceptions: `rendererEl.wheel` (zoom), `rendererEl.dragstart` (prevent native drag hijack).

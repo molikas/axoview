@@ -11,6 +11,7 @@ import { useModelStore } from 'src/stores/modelStore';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { Layer, ViewItem, Connector, Rectangle, TextBox } from 'src/types';
 import { getItemByIdOrThrow } from 'src/utils';
+import { isEntityVisibleInPreview } from 'src/utils/previewLayerVisibility';
 
 export type LayerItemType = 'ITEM' | 'CONNECTOR' | 'RECTANGLE' | 'TEXTBOX';
 
@@ -74,6 +75,10 @@ export const LayerContextProvider = ({
   children
 }: LayerContextProviderProps) => {
   const currentViewId = useUiStateStore((state) => state.view);
+  const editorMode = useUiStateStore((state) => state.editorMode);
+  const previewLayerOverrides = useUiStateStore(
+    (state) => state.previewLayerOverrides
+  );
   const views = useModelStore((state) => state.views, shallow);
   const modelItems = useModelStore((state) => state.items, shallow);
   const icons = useModelStore((state) => state.icons, shallow);
@@ -135,13 +140,26 @@ export const LayerContextProvider = ({
 
     type Entity = ViewItem | Connector | Rectangle | TextBox;
 
+    const inPreview = editorMode === 'EXPLORABLE_READONLY';
+
     const processEntity = (
       entity: Entity,
       type: LayerItemType,
       nameOverride?: string
     ) => {
       const layer = entity.layerId ? layerById.get(entity.layerId) : undefined;
-      if (!layer || layer.visible) visibleIds.add(entity.id);
+      // Base model visibility — authoritative in EDITABLE. In preview the
+      // UI-only override (solo wins; else base minus hidden) takes over,
+      // never touching `layer.visible`. (ADR 0013 precedence rule.)
+      const baseVisible = !layer || layer.visible;
+      const visible = inPreview
+        ? isEntityVisibleInPreview(
+            entity.layerId,
+            baseVisible,
+            previewLayerOverrides
+          )
+        : baseVisible;
+      if (visible) visibleIds.add(entity.id);
       if (layer?.locked) lockedIds.add(entity.id);
 
       const key =
@@ -197,7 +215,14 @@ export const LayerContextProvider = ({
       unassignedCount,
       itemsByLayerId
     };
-  }, [currentViewId, views, modelItems, icons]);
+  }, [
+    currentViewId,
+    views,
+    modelItems,
+    icons,
+    editorMode,
+    previewLayerOverrides
+  ]);
 
   return React.createElement(LayerContext.Provider, { value }, children);
 };

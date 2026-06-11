@@ -336,6 +336,13 @@ const locale: LocaleProps = {
     keepLabelsReadable: 'লেবেল পঠনযোগ্য রাখুন',
     help: 'সাহায্য (F1)'
   },
+  previewLayerSwitcher: {
+    layers: 'স্তর',
+    showLayer: 'স্তর দেখান',
+    hideLayer: 'স্তর লুকান',
+    solo: 'একক',
+    unsolo: 'একক থেকে বেরিয়ে আসুন'
+  },
   labelSettings: {
     description: 'লেবেল প্রদর্শন সেটিংস কনফিগার করুন',
     expandButtonPadding: 'বিস্তার বোতাম প্যাডিং',

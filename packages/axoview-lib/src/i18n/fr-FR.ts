@@ -342,6 +342,13 @@ const locale: LocaleProps = {
     keepLabelsReadable: 'Garder les étiquettes lisibles',
     help: 'Aide (F1)'
   },
+  previewLayerSwitcher: {
+    layers: 'Calques',
+    showLayer: 'Afficher le calque',
+    hideLayer: 'Masquer le calque',
+    solo: 'Solo',
+    unsolo: 'Quitter le solo'
+  },
   labelSettings: {
     description: "Configurer les paramètres d'affichage des étiquettes",
     expandButtonPadding: 'Rembourrage du bouton développer',

@@ -340,6 +340,13 @@ const locale: LocaleProps = {
     keepLabelsReadable: 'Mantieni le etichette leggibili',
     help: 'Aiuto (F1)'
   },
+  previewLayerSwitcher: {
+    layers: 'Livelli',
+    showLayer: 'Mostra livello',
+    hideLayer: 'Nascondi livello',
+    solo: 'Solo',
+    unsolo: 'Esci da solo'
+  },
   labelSettings: {
     description: 'Configura le impostazioni di visualizzazione delle etichette',
     expandButtonPadding: 'Spaziatura pulsante espandi',
