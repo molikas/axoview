@@ -65,6 +65,10 @@ async function seedSessionDiagram(page: import('@playwright/test').Page) {
       try {
         for (const k of args.cleanKeys) localStorage.removeItem(k);
         for (const [k, v] of args.flags) localStorage.setItem(k, v);
+        // Pin the file explorer deterministically open so the test never races
+        // the server-mode auto-open (and never toggles it shut).
+        localStorage.setItem('axoview-explorer-initialized', '1');
+        localStorage.setItem('axoview-explorer-open', 'true');
         sessionStorage.setItem(
           'axoview_diagrams',
           JSON.stringify([{ id: args.id, name: args.name, lastModified: args.now, folderId: null }])
@@ -164,10 +168,11 @@ baseTest.describe('Share error — ADR 0011 failure-of-intent (Share)', () => {
     await page.goto('/');
     await byLibTestId(page, 'axoview-canvas').waitFor({ state: 'visible', timeout: 15_000 });
 
+    // The explorer is pinned open via seeded localStorage; wait for the tree
+    // to load the (mocked) diagram row directly — no toggle, no race.
     const explorer = new FileExplorerPOM(page);
-    await explorer.open();
     const row = explorer.getRowByName(SEED_DIAGRAM_NAME, 'diagram');
-    await row.waitFor({ state: 'visible', timeout: 10_000 });
+    await row.waitFor({ state: 'visible', timeout: 15_000 });
 
     // Right-click → context menu → Copy share link (canShare is true because
     // /api/config reported serverStorage:true).
@@ -199,10 +204,11 @@ baseTest.describe('Share error — ADR 0011 failure-of-intent (Share)', () => {
     await page.goto('/');
     await byLibTestId(page, 'axoview-canvas').waitFor({ state: 'visible', timeout: 15_000 });
 
+    // The explorer is pinned open via seeded localStorage; wait for the tree
+    // to load the (mocked) diagram row directly — no toggle, no race.
     const explorer = new FileExplorerPOM(page);
-    await explorer.open();
     const row = explorer.getRowByName(SEED_DIAGRAM_NAME, 'diagram');
-    await row.waitFor({ state: 'visible', timeout: 10_000 });
+    await row.waitFor({ state: 'visible', timeout: 15_000 });
 
     await row.click({ button: 'right' });
     const shareItem = page.locator('[data-axoview-id="file-explorer-context-menu-share"]');
