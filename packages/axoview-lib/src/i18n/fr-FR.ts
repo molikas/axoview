@@ -339,7 +339,34 @@ const locale: LocaleProps = {
     zoomOut: 'Zoom arrière',
     zoomIn: 'Zoom avant',
     fitToScreen: "Ajuster à l'écran",
+    keepLabelsReadable: 'Garder les étiquettes lisibles',
     help: 'Aide (F1)'
+  },
+  previewLayerSwitcher: {
+    layers: 'Calques',
+    showLayer: 'Afficher le calque',
+    hideLayer: 'Masquer le calque',
+    solo: 'Solo',
+    unsolo: 'Quitter le solo'
+  },
+  annotationPalette: {
+    pen: 'Annoter',
+    select: 'Sélectionner',
+    draw: 'Dessiner',
+    shapes: 'Formes',
+    pencil: 'Crayon',
+    highlighter: 'Surligneur',
+    line: 'Ligne',
+    arrow: 'Flèche',
+    rectangle: 'Rectangle',
+    ellipse: 'Ellipse',
+    eraser: 'Gomme',
+    undo: 'Annuler',
+    redo: 'Rétablir',
+    clear: 'Tout effacer'
+  },
+  viewModeInfoPopover: {
+    close: 'Fermer'
   },
   labelSettings: {
     description: "Configurer les paramètres d'affichage des étiquettes",

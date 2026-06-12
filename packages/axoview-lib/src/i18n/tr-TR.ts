@@ -335,7 +335,34 @@ const locale: LocaleProps = {
     zoomOut: 'Uzaklaştır',
     zoomIn: 'Yaklaştır',
     fitToScreen: 'Ekrana sığdır',
+    keepLabelsReadable: 'Etiketleri okunabilir tut',
     help: 'Yardım (F1)'
+  },
+  previewLayerSwitcher: {
+    layers: 'Katmanlar',
+    showLayer: 'Katmanı göster',
+    hideLayer: 'Katmanı gizle',
+    solo: 'Solo',
+    unsolo: 'Solodan çık'
+  },
+  annotationPalette: {
+    pen: 'Açıklama',
+    select: 'Seç',
+    draw: 'Çiz',
+    shapes: 'Şekiller',
+    pencil: 'Kalem',
+    highlighter: 'Fosforlu kalem',
+    line: 'Çizgi',
+    arrow: 'Ok',
+    rectangle: 'Dikdörtgen',
+    ellipse: 'Elips',
+    eraser: 'Silgi',
+    undo: 'Geri al',
+    redo: 'Yinele',
+    clear: 'Tümünü temizle'
+  },
+  viewModeInfoPopover: {
+    close: 'Kapat'
   },
   labelSettings: {
     description: 'Etiket görüntüleme ayarlarını yapılandır',

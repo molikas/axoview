@@ -164,6 +164,29 @@ describe('projectZip — round-trip (ADR 0001 acceptance)', () => {
     const diagramNames = dstDiagrams.map((d) => d.name).sort();
     expect(diagramNames).toEqual(['Root note', 'Subnet plan', 'VPC layout']);
   });
+
+  // ADR 0014: ephemeral annotation data must never reach the project zip.
+  // Saved diagrams (modelFromModelStore output) carry only model fields, so the
+  // exported archive bytes must contain no annotation/stroke data anywhere.
+  it('exported project contains zero annotation data (ADR 0014)', async () => {
+    const src = new FakeStorage();
+    await seedWorkspace(src);
+
+    const { blob } = await exportProject(
+      { storage: src, exporterTag: 'axoview-app@test' },
+      { scope: 'project' }
+    );
+
+    const zip = await JSZip.loadAsync(blob);
+    const entries = Object.keys(zip.files);
+    for (const path of entries) {
+      const file = zip.file(path);
+      if (!file) continue;
+      const text = await file.async('string');
+      expect(text).not.toContain('annotation');
+      expect(text).not.toContain('strokes');
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

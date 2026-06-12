@@ -335,7 +335,34 @@ const locale: LocaleProps = {
     zoomOut: 'ज़ूम आउट',
     zoomIn: 'ज़ूम इन',
     fitToScreen: 'स्क्रीन में फ़िट करें',
+    keepLabelsReadable: 'लेबल पठनीय रखें',
     help: 'सहायता (F1)'
+  },
+  previewLayerSwitcher: {
+    layers: 'परतें',
+    showLayer: 'परत दिखाएं',
+    hideLayer: 'परत छिपाएं',
+    solo: 'सोलो',
+    unsolo: 'सोलो से बाहर'
+  },
+  annotationPalette: {
+    pen: 'व्याख्या',
+    select: 'चुनें',
+    draw: 'ड्रॉ',
+    shapes: 'आकृतियाँ',
+    pencil: 'पेंसिल',
+    highlighter: 'हाइलाइटर',
+    line: 'रेखा',
+    arrow: 'तीर',
+    rectangle: 'आयत',
+    ellipse: 'दीर्घवृत्त',
+    eraser: 'इरेज़र',
+    undo: 'पूर्ववत करें',
+    redo: 'फिर से करें',
+    clear: 'सब हटाएं'
+  },
+  viewModeInfoPopover: {
+    close: 'बंद करें'
   },
   labelSettings: {
     description: 'लेबल प्रदर्शन सेटिंग कॉन्फ़िगर करें',

@@ -13,6 +13,7 @@ import { DEFAULT_HOTKEY_PROFILE, HotkeyProfile } from 'src/config/hotkeys';
 import { DEFAULT_PAN_SETTINGS } from 'src/config/panSettings';
 import { DEFAULT_ZOOM_SETTINGS } from 'src/config/zoomSettings';
 import { DEFAULT_LABEL_SETTINGS } from 'src/config/labelSettings';
+import { ANNOTATION_COLOR_PRESETS } from 'src/config/annotationSettings';
 import { loadPersistedSettings } from 'src/config/persistedSettings';
 
 const initialState = () => {
@@ -45,6 +46,7 @@ const initialState = () => {
       labelSettings: persisted?.labelSettings ?? DEFAULT_LABEL_SETTINGS,
       connectorInteractionMode: persisted?.connectorInteractionMode ?? 'click',
       expandLabels: persisted?.expandLabels ?? false,
+      readableLabels: persisted?.readableLabels ?? false,
       canvasMode: persisted?.canvasMode ?? 'ISOMETRIC',
       iconPackManager: null, // Will be set by Axoview if provided
       iconUsageScan: null, // Will be set by Axoview if provided
@@ -55,13 +57,34 @@ const initialState = () => {
       rightSidebarAutoOpened: false,
       itemActionBarOpen: false,
       isDirty: false,
+      previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
+      annotation: {
+        open: false,
+        // Open in the non-disruptive Select mode; the user picks a draw tool.
+        tool: 'select',
+        color: ANNOTATION_COLOR_PRESETS[0],
+        thickness: 4,
+        strokes: [],
+        redoStack: []
+      },
 
       actions: {
         setView: (view) => {
-          set({ view });
+          // A new view has its own layers — drop any preview override so a
+          // solo'd/hidden layer id from the previous view can't leak across.
+          set({
+            view,
+            previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null }
+          });
         },
         setEditorMode: (mode) => {
-          set({ editorMode: mode, mode: getStartingMode(mode) });
+          // Leaving (or entering) preview clears the ephemeral override so it
+          // never persists across mode switches (ADR 0013).
+          set({
+            editorMode: mode,
+            mode: getStartingMode(mode),
+            previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null }
+          });
         },
         setIconCategoriesState: (iconCategoriesState) => {
           set({ iconCategoriesState });
@@ -107,6 +130,10 @@ const initialState = () => {
             const { rightSidebarOpen, rightSidebarAutoOpened } = get();
             // If user manually pinned the panel open, don't mark it as auto-opened
             const alreadyPinned = rightSidebarOpen && !rightSidebarAutoOpened;
+            // View mode surfaces item info via the canvas popover (ADR 0012),
+            // so the right (editing) dock no longer auto-opens on selection
+            // there — a manually-pinned dock is respected; edit mode unchanged.
+            const inView = get().editorMode === 'EXPLORABLE_READONLY';
             // Keep selectedIds coherent when itemControls is set directly
             // (e.g. from a layer-row click). Multi-select stays as-is; single-
             // item selection mirrors itemControls into selectedIds.
@@ -117,11 +144,11 @@ const initialState = () => {
             set({
               itemControls,
               selectedIds: nextSelected,
-              rightSidebarOpen: true,
+              rightSidebarOpen: inView ? rightSidebarOpen : true,
               // New / changed selection always closes the floating action bar.
               // The bar is only opened by an explicit right-click (mqa-results.md #1).
               itemActionBarOpen: false,
-              ...(!alreadyPinned && { rightSidebarAutoOpened: true })
+              ...(!inView && !alreadyPinned && { rightSidebarAutoOpened: true })
             });
           } else {
             const autoOpened = get().rightSidebarAutoOpened;
@@ -144,12 +171,15 @@ const initialState = () => {
             const only = ids[0];
             const { rightSidebarOpen, rightSidebarAutoOpened } = get();
             const alreadyPinned = rightSidebarOpen && !rightSidebarAutoOpened;
+            // View mode reads item info via the canvas popover (ADR 0012) — no
+            // right-dock auto-open there (edit mode unchanged).
+            const inView = get().editorMode === 'EXPLORABLE_READONLY';
             set({
               selectedIds: ids,
               itemControls: { type: only.type, id: only.id },
-              rightSidebarOpen: true,
+              rightSidebarOpen: inView ? rightSidebarOpen : true,
               itemActionBarOpen: false,
-              ...(!alreadyPinned && { rightSidebarAutoOpened: true })
+              ...(!inView && !alreadyPinned && { rightSidebarAutoOpened: true })
             });
           } else {
             const autoOpened = get().rightSidebarAutoOpened;
@@ -207,6 +237,116 @@ const initialState = () => {
         },
         setExpandLabels: (expandLabels) => {
           set({ expandLabels });
+        },
+        setReadableLabels: (readableLabels) => {
+          set({ readableLabels });
+        },
+        togglePreviewLayerHidden: (layerId) => {
+          const { hiddenLayerIds } = get().previewLayerOverrides;
+          const nextHidden = hiddenLayerIds.includes(layerId)
+            ? hiddenLayerIds.filter((id) => id !== layerId)
+            : [...hiddenLayerIds, layerId];
+          // Toggling a visibility checkbox exits solo (mutually exclusive
+          // presentation intents).
+          set({
+            previewLayerOverrides: { hiddenLayerIds: nextHidden, soloLayerId: null }
+          });
+        },
+        setPreviewSoloLayer: (layerId) => {
+          const { soloLayerId } = get().previewLayerOverrides;
+          // Solo is a toggle: soloing the already-solo'd layer clears it.
+          const nextSolo = soloLayerId === layerId ? null : layerId;
+          set({
+            previewLayerOverrides: {
+              hiddenLayerIds: [],
+              soloLayerId: nextSolo
+            }
+          });
+        },
+        clearPreviewLayerOverrides: () => {
+          set({
+            previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null }
+          });
+        },
+        // --- Annotation overlay (ADR 0014) — ephemeral, never persisted ---
+        setAnnotationOpen: (open) => {
+          const state = get();
+          if (!open) {
+            set({ annotation: { ...state.annotation, open } });
+            return;
+          }
+          // Entering annotation resets the canvas interaction so a previously
+          // armed tool (connector, lasso, freehand, pan, place-icon, draw-
+          // rectangle, textbox…) doesn't linger behind the overlay, and clears
+          // the active selection / floating action bar. The right dock is closed
+          // only if it was auto-opened (a manual pin is respected).
+          set({
+            annotation: { ...state.annotation, open },
+            mode: getStartingMode(state.editorMode),
+            itemControls: null,
+            selectedIds: [],
+            itemActionBarOpen: false,
+            ...(state.rightSidebarAutoOpened
+              ? { rightSidebarOpen: false, rightSidebarAutoOpened: false }
+              : {})
+          });
+        },
+        setAnnotationTool: (tool) => {
+          set({ annotation: { ...get().annotation, tool } });
+        },
+        setAnnotationColor: (color) => {
+          set({ annotation: { ...get().annotation, color } });
+        },
+        setAnnotationThickness: (thickness) => {
+          set({ annotation: { ...get().annotation, thickness } });
+        },
+        addAnnotationStroke: (stroke) => {
+          const { annotation } = get();
+          // A new stroke invalidates the redo stack (linear history).
+          set({
+            annotation: {
+              ...annotation,
+              strokes: [...annotation.strokes, stroke],
+              redoStack: []
+            }
+          });
+        },
+        undoAnnotationStroke: () => {
+          const { annotation } = get();
+          const last = annotation.strokes.at(-1);
+          if (!last) return;
+          set({
+            annotation: {
+              ...annotation,
+              strokes: annotation.strokes.slice(0, -1),
+              redoStack: [...annotation.redoStack, last]
+            }
+          });
+        },
+        redoAnnotationStroke: () => {
+          const { annotation } = get();
+          const next = annotation.redoStack.at(-1);
+          if (!next) return;
+          set({
+            annotation: {
+              ...annotation,
+              strokes: [...annotation.strokes, next],
+              redoStack: annotation.redoStack.slice(0, -1)
+            }
+          });
+        },
+        eraseAnnotationStroke: (id) => {
+          const { annotation } = get();
+          set({
+            annotation: {
+              ...annotation,
+              strokes: annotation.strokes.filter((s) => s.id !== id),
+              redoStack: []
+            }
+          });
+        },
+        clearAnnotations: () => {
+          set({ annotation: { ...get().annotation, strokes: [], redoStack: [] } });
         },
         setIconPackManager: (iconPackManager) => {
           set({ iconPackManager });

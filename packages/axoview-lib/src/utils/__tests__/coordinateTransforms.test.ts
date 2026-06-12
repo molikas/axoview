@@ -2,7 +2,8 @@ import {
   isometricStrategy,
   cartesian2DStrategy,
   makeTilePositionFn,
-  makeScreenToTileFn
+  makeScreenToTileFn,
+  getCanvasModeSwitchScroll
 } from 'src/utils/coordinateTransforms';
 import { PROJECTED_TILE_SIZE, UNPROJECTED_TILE_SIZE } from 'src/config';
 
@@ -129,6 +130,110 @@ describe('round-trip toScreen → fromScreen', () => {
 
     expect(tile.x).toBe(4);
     expect(tile.y).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// fromCanvasPoint — inverse of toScreen (both modes)
+// ---------------------------------------------------------------------------
+
+describe('fromCanvasPoint round-trips toScreen', () => {
+  for (const [name, strategy] of [
+    ['isometric', isometricStrategy],
+    ['cartesian 2D', cartesian2DStrategy]
+  ] as const) {
+    it(`${name}: toScreen → fromCanvasPoint recovers the tile`, () => {
+      for (const tile of [
+        { x: 0, y: 0 },
+        { x: 3, y: 5 },
+        { x: -4, y: 2 },
+        { x: 2.5, y: -1.5 } // fractional tiles must round-trip too
+      ]) {
+        const c = strategy.toScreen(tile.x, tile.y, TILE_SIZE);
+        const back = strategy.fromCanvasPoint(c.x, c.y, TILE_SIZE);
+        expect(back.x).toBeCloseTo(tile.x, 6);
+        expect(back.y).toBeCloseTo(tile.y, 6);
+      }
+    });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// getCanvasModeSwitchScroll — preserve zoom + viewport center across iso↔2D
+// ---------------------------------------------------------------------------
+
+describe('getCanvasModeSwitchScroll', () => {
+  // The canvas point under the viewport center is -scroll/zoom; after the
+  // switch the SAME tile must land back at the center, i.e. the new scroll
+  // must satisfy newScroll = -zoom · toScreen_new(centerTile).
+  const expectTileStaysCentered = (
+    from: typeof isometricStrategy,
+    to: typeof isometricStrategy,
+    zoom: number,
+    scroll: { position: { x: number; y: number }; offset: { x: number; y: number } }
+  ) => {
+    const centerTile = from.fromCanvasPoint(
+      -scroll.position.x / zoom,
+      -scroll.position.y / zoom,
+      TILE_SIZE
+    );
+    const newScroll = getCanvasModeSwitchScroll(from, to, zoom, scroll);
+    const recoveredCenterTile = to.fromCanvasPoint(
+      -newScroll.x / zoom,
+      -newScroll.y / zoom,
+      TILE_SIZE
+    );
+    expect(recoveredCenterTile.x).toBeCloseTo(centerTile.x, 6);
+    expect(recoveredCenterTile.y).toBeCloseTo(centerTile.y, 6);
+  };
+
+  it('keeps the center tile centered: iso → 2D', () => {
+    expectTileStaysCentered(isometricStrategy, cartesian2DStrategy, 0.65, {
+      position: { x: -340, y: 120 },
+      offset: { x: 0, y: 0 }
+    });
+  });
+
+  it('keeps the center tile centered: 2D → iso', () => {
+    expectTileStaysCentered(cartesian2DStrategy, isometricStrategy, 1.3, {
+      position: { x: 200, y: -90 },
+      offset: { x: 0, y: 0 }
+    });
+  });
+
+  it('preserves zoom implicitly — scroll scales linearly with zoom for a fixed center tile', () => {
+    const scroll = { position: { x: -210, y: 75 }, offset: { x: 0, y: 0 } };
+    // Same center tile at two zooms ⇒ new scroll scales by the zoom ratio.
+    const a = getCanvasModeSwitchScroll(isometricStrategy, cartesian2DStrategy, 1, scroll);
+    const b = getCanvasModeSwitchScroll(isometricStrategy, cartesian2DStrategy, 2, {
+      position: { x: scroll.position.x * 2, y: scroll.position.y * 2 },
+      offset: { x: 0, y: 0 }
+    });
+    expect(b.x).toBeCloseTo(a.x * 2, 6);
+    expect(b.y).toBeCloseTo(a.y * 2, 6);
+  });
+
+  it('is identity when from and to strategies are the same', () => {
+    const scroll = { position: { x: -123, y: 456 }, offset: { x: 0, y: 0 } };
+    const result = getCanvasModeSwitchScroll(
+      isometricStrategy,
+      isometricStrategy,
+      0.8,
+      scroll
+    );
+    expect(result.x).toBeCloseTo(scroll.position.x, 6);
+    expect(result.y).toBeCloseTo(scroll.position.y, 6);
+  });
+
+  it('returns the current scroll unchanged when zoom is 0 (degenerate)', () => {
+    const scroll = { position: { x: 17, y: -42 }, offset: { x: 0, y: 0 } };
+    const result = getCanvasModeSwitchScroll(
+      isometricStrategy,
+      cartesian2DStrategy,
+      0,
+      scroll
+    );
+    expect(result).toEqual({ x: 17, y: -42 });
   });
 });
 

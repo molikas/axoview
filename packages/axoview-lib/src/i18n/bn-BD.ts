@@ -333,7 +333,34 @@ const locale: LocaleProps = {
     zoomOut: 'জুম আউট',
     zoomIn: 'জুম ইন',
     fitToScreen: 'স্ক্রিনে ফিট করুন',
+    keepLabelsReadable: 'লেবেল পঠনযোগ্য রাখুন',
     help: 'সাহায্য (F1)'
+  },
+  previewLayerSwitcher: {
+    layers: 'স্তর',
+    showLayer: 'স্তর দেখান',
+    hideLayer: 'স্তর লুকান',
+    solo: 'একক',
+    unsolo: 'একক থেকে বেরিয়ে আসুন'
+  },
+  annotationPalette: {
+    pen: 'টীকা',
+    select: 'নির্বাচন',
+    draw: 'আঁকুন',
+    shapes: 'আকার',
+    pencil: 'পেন্সিল',
+    highlighter: 'হাইলাইটার',
+    line: 'রেখা',
+    arrow: 'তীর',
+    rectangle: 'আয়ত',
+    ellipse: 'উপবৃত্ত',
+    eraser: 'ইরেজার',
+    undo: 'পূর্বাবস্থা',
+    redo: 'পুনরায় করুন',
+    clear: 'সব মুছুন'
+  },
+  viewModeInfoPopover: {
+    close: 'বন্ধ করুন'
   },
   labelSettings: {
     description: 'লেবেল প্রদর্শন সেটিংস কনফিগার করুন',

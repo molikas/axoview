@@ -11,9 +11,11 @@
  *   - The setting is persisted (config/persistedSettings.ts captures it on
  *     subsequent boots) so the spec snapshots the initial value and restores
  *     it post-test rather than asserting against a hardcoded default.
- *   - Post-toggle, ToolMenu's prevCanvasModeRef effect (#L43-48) fires
- *     `fitToView()` so the diagram stays on-screen across the projection
- *     swap.
+ *   - Post-toggle, ToolMenu's prevCanvasModeRef effect preserves the user's
+ *     zoom and viewport center across the projection swap (via
+ *     getCanvasModeSwitchScroll) — it no longer force-fits the diagram
+ *     (ADR locked decision #6). Zoom/center preservation is covered by
+ *     canvas-mode-zoom-preserve.spec.ts; this spec only asserts the toggle flip.
  *
  * Lazy data-axoview-id retrofits this spec (1 lib rebuild):
  *   - LIB `canvas-mode-toggle` (ToolMenu.tsx)

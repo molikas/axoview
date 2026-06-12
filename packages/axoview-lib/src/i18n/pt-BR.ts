@@ -335,7 +335,34 @@ const locale: LocaleProps = {
     zoomOut: 'Diminuir zoom',
     zoomIn: 'Aumentar zoom',
     fitToScreen: 'Ajustar à tela',
+    keepLabelsReadable: 'Manter rótulos legíveis',
     help: 'Ajuda (F1)'
+  },
+  previewLayerSwitcher: {
+    layers: 'Camadas',
+    showLayer: 'Mostrar camada',
+    hideLayer: 'Ocultar camada',
+    solo: 'Solo',
+    unsolo: 'Sair do solo'
+  },
+  annotationPalette: {
+    pen: 'Anotar',
+    select: 'Selecionar',
+    draw: 'Desenhar',
+    shapes: 'Formas',
+    pencil: 'Lápis',
+    highlighter: 'Marca-texto',
+    line: 'Linha',
+    arrow: 'Seta',
+    rectangle: 'Retângulo',
+    ellipse: 'Elipse',
+    eraser: 'Borracha',
+    undo: 'Desfazer',
+    redo: 'Refazer',
+    clear: 'Limpar tudo'
+  },
+  viewModeInfoPopover: {
+    close: 'Fechar'
   },
   labelSettings: {
     description: 'Configurar ajustes de exibição de rótulos',

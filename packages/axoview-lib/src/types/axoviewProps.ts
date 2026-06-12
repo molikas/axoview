@@ -324,7 +324,34 @@ export interface LocaleProps {
     zoomOut: string;
     zoomIn: string;
     fitToScreen: string;
+    keepLabelsReadable: string;
     help: string;
+  };
+  previewLayerSwitcher: {
+    layers: string;
+    showLayer: string;
+    hideLayer: string;
+    solo: string;
+    unsolo: string;
+  };
+  viewModeInfoPopover: {
+    close: string;
+  };
+  annotationPalette: {
+    pen: string;
+    select: string;
+    draw: string;
+    shapes: string;
+    pencil: string;
+    highlighter: string;
+    line: string;
+    arrow: string;
+    rectangle: string;
+    ellipse: string;
+    eraser: string;
+    undo: string;
+    redo: string;
+    clear: string;
   };
   labelSettings: {
     description: string;

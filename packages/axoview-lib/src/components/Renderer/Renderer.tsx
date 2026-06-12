@@ -71,6 +71,11 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   const { screenToTile } = useCanvasMode();
   const enableDebugTools = useUiStateStore((state) => state.enableDebugTools);
   const showCursor = useUiStateStore((state) => state.mode.showCursor);
+  // While an annotation draw/eraser tool is active, the canvas cursor tile
+  // highlight would sit under the pen and read as a stray selection — hide it.
+  const annotationActive = useUiStateStore(
+    (state) => state.annotation.open && state.annotation.tool !== 'select'
+  );
   const uiStateActions = useUiStateStore((state) => state.actions);
   const { setInteractionsElement } = useInteractionManager();
   const {
@@ -193,7 +198,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
       >
         {isShowGrid && <Grid />}
       </Box>
-      {showCursor && (
+      {showCursor && !annotationActive && (
         <SceneLayer>
           <Cursor />
         </SceneLayer>

@@ -1,23 +1,45 @@
 # Regression Test Suite Reference
 
-**Last updated:** 2026-06-10 (v1.1 wave close-out)
-**Unit / integration totals** (measured 2026-06-10 via per-workspace `npm test`):
+**Last updated:** 2026-06-12 (Phase 6 — Presentation & Annotation)
+**Unit / integration totals** (measured 2026-06-12 via per-workspace `npm test`):
 
 | Workspace | Passing | Suites |
 |---|---|---|
-| `axoview-lib` | 1039 (+1 skipped) | 95 |
-| `axoview-app` | 143 | 15 |
+| `axoview-lib` | 1078 (+1 skipped) | 101 |
+| `axoview-app` | 150 | 16 |
 | `axoview-backend` | 101 | 7 |
 | `axoview-worker` | 102 | — |
-| **Total** | **1385 (+1 skipped)** | — |
+| **Total** | **1431 (+1 skipped)** | — |
 
 **Run:** `npm test --workspace=packages/<pkg>` per package, or `npm test --workspaces` for all. The v1.1 wave added the backend (101) + worker (102) server-runtime suites — the only **high**-severity gap the post-v1.0.0 review named — plus the app-side error-UX, startup-timeout, parallelism-contract, file-explorer-delete, share-URL, and backend-routes contract suites. The single skipped test is `leanSave bundledFixtures[0]` (see [known_issues.md](../known_issues.md)).
 
-E2E suite lives at [`packages/axoview-e2e/`](../packages/axoview-e2e/) (Playwright, 34 spec files / ~59 tests covering canonical journeys J1–J20 + the v1.1 cross-interaction additions). Runs on PRs + master push via [`.github/workflows/e2e-playwright.yml`](../.github/workflows/e2e-playwright.yml). Locally: `npm run test:e2e:ci` from repo root, or `npx playwright test --ui` from the package. The legacy Python/Selenium suite at `e2e-tests/` was deleted 2026-05-23 (audit C.2 I9 + tactical [docs/tactical/e2e-suite-rewrite.md](tactical/e2e-suite-rewrite.md) Session 7).
+E2E suite lives at [`packages/axoview-e2e/`](../packages/axoview-e2e/) (Playwright, 40 spec files / ~73 tests covering canonical journeys J1–J20 + the v1.1 cross-interaction additions + the Phase 6 presentation/annotation specs). Runs on PRs + master push via [`.github/workflows/e2e-playwright.yml`](../.github/workflows/e2e-playwright.yml). Locally: `npm run test:e2e:ci` from repo root, or `npx playwright test --ui` from the package. The legacy Python/Selenium suite at `e2e-tests/` was deleted 2026-05-23 (audit C.2 I9 + tactical [docs/tactical/e2e-suite-rewrite.md](tactical/e2e-suite-rewrite.md) Session 7).
 
 ### v1.1 close-out gates (2026-06-10)
 
 Two CI gates hardened at the v1.1 close-out (`@typescript-eslint/no-explicit-any` → `error`; Knip → hard-fail). The full CI-gate inventory + lint-debt detail — including the latent ~17 `tsc --noEmit` fixture-type errors confined to `__perf_refactor_regression__/*.test.ts(x)` — lives in [technical-review-2026-06.md §8b/§8e/§11](technical-review-2026-06.md#8-quality-kpis-aggregate); not restated here.
+
+### Phase 6 additions — Presentation & Annotation (2026-06-12)
+
+New suites shipped with [ADRs 0012–0015](adr/) (lib `+39` / app `+7` unit; `+6` E2E specs):
+
+| Suite | Type | Covers |
+|---|---|---|
+| `utils/__tests__/coordinateTransforms.test.ts` (extended) | lib unit | `fromCanvasPoint` round-trip + `getCanvasModeSwitchScroll` recenter math (iso↔2D zoom preservation) |
+| `utils/__tests__/labelScale.test.ts` | lib unit | "keep labels readable" counter-scale math |
+| `utils/__tests__/previewLayerVisibility.test.ts` | lib unit | preview layer override merge (solo wins; else `layer.visible` minus hidden) |
+| `utils/__tests__/annotationGeometry.test.ts` | lib unit | annotation screen↔scene math, polyline/arrow/rect path builders |
+| `utils/__tests__/annotationPersistence.test.ts` | lib unit | **load-bearing:** annotation data never reaches the saved model (whitelist + lean-save) |
+| `components/ViewModeInfoPopover/__tests__/hasInfoPopoverContent.test.ts` | lib unit | popover content gate + `toHref` link normalisation |
+| `__perf_refactor_regression__/annotationOpenReset.contract.test.ts` | lib unit | opening annotation resets the armed canvas tool + selection |
+| `components/__tests__/EmptyStateScreen.test.tsx` | app unit | whole-card click target, no nested button, a11y name |
+| `services/project/__tests__/projectZip.test.ts` (extended) | app unit | zero annotation bytes in any exported zip entry |
+| `canvas-mode-zoom-preserve.spec.ts` | E2E | zoom % + center preserved across iso↔2D round-trip |
+| `empty-state-clickable-card.spec.ts` | E2E | whole empty-state card clickable; no nested button |
+| `readable-labels.spec.ts` | E2E | label toggle persists + counter-scales at low zoom |
+| `preview-layer-switcher.spec.ts` | E2E | toggle/solo are UI-only + non-dirty in view mode |
+| `view-mode-info-popover.spec.ts` | E2E | hover preview, pin content + link, X/Esc close, **side-anchor right + flip-left near edge** |
+| `annotation-overlay.spec.ts` | E2E | pen toggle, draw, undo/redo, close-retains, Select pass-through, group fly-outs, preview pan-block, model stays annotation-free |
 
 ---
 

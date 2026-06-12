@@ -295,6 +295,8 @@ After import, autosave, or any operation a user might worry about:
 
 The `EmptyStateScreen` shows BOTH "New diagram" AND "Import" cards. Empty doesn't mean "you can only do one thing here" — it means "tell us what you want to do."
 
+Each card is **clickable as a whole square**, not just the inner blue label — users read the big card as the target, so the entire `CardActionArea` carries the click. The blue pill is a non-interactive visual label (no button-inside-button: the card is the single focusable, keyboard-activatable control, with an `aria-label`). This is the §2 affordance rule applied to a full-card target.
+
 ### 6.3 Validation failures surface to the user, not just the console
 
 A failed schema parse, a malformed import, or a rejected save must call `uiStateActions.setNotification({ severity: 'error', message })` with at least the first 1–2 violations summarised in plain English. `console.error` alone is not enough — users don't open devtools.
@@ -486,6 +488,33 @@ const counter = Math.min(1, 1 / zoom);  // shrinks with scene at low zoom
 ```
 
 MUI `<Menu>` spawned from such chrome renders via Portal at the document root — already screen-stable; no counter-scale needed there.
+
+### 8.9 Node labels stay readable on demand (opt-in counter-scale)
+
+Node name labels live *inside* the zoom-scaled `SceneLayer`, so by default they shrink with the canvas — correct for most editing, but unreadable on a zoomed-out overview. The **"keep labels readable" toggle** (the "Aa" button in [`ZoomControls`](../packages/axoview-lib/src/components/ZoomControls/ZoomControls.tsx), `uiState.readableLabels`, persisted, **off by default**) opts into a counter-scale (ADR 0015):
+
+- Below the threshold `minReadablePx / baseFontPx`, the label counter-scales by `min(minReadablePx / (baseFontPx · zoom), maxCounterScale)` so its on-screen size holds at a legible floor; above it, the factor is exactly 1. Pure math in [`labelScale.ts`](../packages/axoview-lib/src/utils/labelScale.ts); tunables in [`labelSettings.ts`](../packages/axoview-lib/src/config/labelSettings.ts).
+- **Label-only** — node geometry is untouched. [`ExpandableLabel`](../packages/axoview-lib/src/components/Label/ExpandableLabel.tsx) publishes the factor as the `--axoview-label-scale` CSS custom property via the §8.8 direct-DOM zoom subscription (no React render on zoom); [`Label`](../packages/axoview-lib/src/components/Label/Label.tsx) composes `scale(var(--axoview-label-scale, 1))` after its translate, about `transformOrigin: bottom center` so the stalk-attachment point stays fixed. The default `1` makes it a no-op for non-node Labels (e.g. ConnectorLabel).
+- **Opt-in by design:** counter-scaled labels can overlap on dense diagrams, so it is never forced on. It is the user's choice when reading a zoomed-out overview, where unreadable text is the worse failure.
+
+### 8.10 View-mode presentation chrome is ephemeral
+
+View-only mode (`EXPLORABLE_READONLY`) is a *presentation* surface, not an editing one, so it gets lightweight chrome instead of the editing docks — the right Properties dock no longer auto-opens on selection there, and the left LayersPanel is replaced by a corner control. Two instances:
+
+[`ViewModeInfoPopover`](../packages/axoview-lib/src/components/ViewModeInfoPopover/ViewModeInfoPopover.tsx) (ADR 0012) — an item's name / read-only notes / link read **on the canvas** (hover → preview, click → pinned; Esc / X / click-away close), so reading stays in the diagram instead of bouncing to a 300px editing dock. It is **side-anchored** beside the item (never over it — the game-UI tooltip rule) and **flips/clamps** to stay on screen. Links are sanitised once via the shared read-only notes renderer and open in a new tab.
+
+[`PreviewLayerSwitcher`](../packages/axoview-lib/src/components/PreviewLayerSwitcher/PreviewLayerSwitcher.tsx) (ADR 0013) is the layer-control instance of the same idea:
+
+- **Placement & affordance:** a compact corner overlay (bottom-left, clear of `ViewTabs` and `ZoomControls`), semi-transparent at rest and full-opacity on hover (§2) — present but not obtrusive while presenting.
+- **Ephemeral, never destructive:** presentation controls apply a **UI-only override** (`uiState.previewLayerOverrides`), never mutating saved model state (`layer.visible`) and never dirtying/saving. The override clears on leaving preview or switching view. When a view-mode control mirrors an edit-mode one, keep the merge in **one** place (here, `LayerContextProvider`) with a documented precedence so the two visibility sources can't desync.
+- **Gated to where it's useful:** shown only in view mode and only when there's a real choice (≥2 layers).
+
+### 8.11 Scratch overlays never pollute the model
+
+The [annotation overlay](../packages/axoview-lib/src/components/AnnotationLayer/AnnotationLayer.tsx) (ADR 0014) is "paint on top" markup for talking over a diagram — pencil/highlighter/shapes/arrows from a fixed palette opened by a pen toggle (grouped tools behind hover fly-outs). Two principles make it safe:
+
+- **Scratch is not content.** Annotation state lives **only** in `uiState`, never in the Model, so no persistence path (session save, server save, export JSON, project zip) can reach it — the single most important invariant of the feature, asserted by a dedicated exclusion test. A scratch overlay that could accidentally save would be a data-integrity trap.
+- **Capture only when armed.** The overlay intercepts pointer input **only while a draw tool is active**; with the palette open but idle, normal canvas selection/pan still work. Collapse *hides* the drawing without discarding it (collapse ≠ delete); a single explicit Clear is the only wipe — destructive actions are never a side effect of a view toggle.
 
 ---
 

@@ -6,8 +6,14 @@
  * existing one. J20 in docs/manual-test-baseline.md exercises both buttons.
  *
  * Lazy data-axoview-id retrofits — Session 3:
- *   - `screen-empty-create` (New diagram Button) — landed Session 2 alongside J1.
- *   - `screen-empty-import` (Import Button)     — added Session 3 alongside J20.
+ *   - `screen-empty-create` (New diagram card) — landed Session 2 alongside J1.
+ *   - `screen-empty-import` (Import card)       — added Session 3 alongside J20.
+ *
+ * Thread F (tactical locked decision #8): the hooks moved from the inner blue
+ * <Button> onto the whole-card CardActionArea, so the ENTIRE card is the click
+ * target (the pill is now a non-interactive label). `clickCreate`/`clickImport`
+ * still click the hook; `clickCreateCardTop` clicks the icon region to prove the
+ * whole square — not just the old button — fires the action.
  *
  * `clickImport()` triggers a native file chooser when the file tree is empty
  * (App.tsx handleImportClick → importFileInputRef.current?.click()). Tests
@@ -34,6 +40,17 @@ export class EmptyStateScreenPOM {
 
   async clickCreate() {
     await this.createButton().click();
+  }
+
+  /**
+   * Clicks the TOP of the create card (the icon region, ~16px below the top
+   * edge) rather than its centre — proving the whole card is clickable, not
+   * just the old inner button. Thread F (locked decision #8).
+   */
+  async clickCreateCardTop() {
+    const box = await this.createButton().boundingBox();
+    if (!box) throw new Error('create card has no bounding box');
+    await this.createButton().click({ position: { x: box.width / 2, y: 16 } });
   }
 
   /**

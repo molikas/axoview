@@ -334,7 +334,34 @@ const locale: LocaleProps = {
     zoomOut: 'Perkecil',
     zoomIn: 'Perbesar',
     fitToScreen: 'Sesuaikan ke layar',
+    keepLabelsReadable: 'Jaga label tetap terbaca',
     help: 'Bantuan (F1)'
+  },
+  previewLayerSwitcher: {
+    layers: 'Lapisan',
+    showLayer: 'Tampilkan lapisan',
+    hideLayer: 'Sembunyikan lapisan',
+    solo: 'Solo',
+    unsolo: 'Keluar dari solo'
+  },
+  annotationPalette: {
+    pen: 'Anotasi',
+    select: 'Pilih',
+    draw: 'Gambar',
+    shapes: 'Bentuk',
+    pencil: 'Pensil',
+    highlighter: 'Stabilo',
+    line: 'Garis',
+    arrow: 'Panah',
+    rectangle: 'Persegi',
+    ellipse: 'Elips',
+    eraser: 'Penghapus',
+    undo: 'Urungkan',
+    redo: 'Ulangi',
+    clear: 'Hapus semua'
+  },
+  viewModeInfoPopover: {
+    close: 'Tutup'
   },
   labelSettings: {
     description: 'Konfigurasi pengaturan tampilan label',

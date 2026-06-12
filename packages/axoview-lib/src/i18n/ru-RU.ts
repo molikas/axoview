@@ -335,7 +335,34 @@ const locale: LocaleProps = {
     zoomOut: 'Уменьшить',
     zoomIn: 'Увеличить',
     fitToScreen: 'По размеру экрана',
+    keepLabelsReadable: 'Сохранять читаемость подписей',
     help: 'Помощь (F1)'
+  },
+  previewLayerSwitcher: {
+    layers: 'Слои',
+    showLayer: 'Показать слой',
+    hideLayer: 'Скрыть слой',
+    solo: 'Соло',
+    unsolo: 'Выйти из соло'
+  },
+  annotationPalette: {
+    pen: 'Аннотация',
+    select: 'Выбрать',
+    draw: 'Рисование',
+    shapes: 'Фигуры',
+    pencil: 'Карандаш',
+    highlighter: 'Маркер',
+    line: 'Линия',
+    arrow: 'Стрелка',
+    rectangle: 'Прямоугольник',
+    ellipse: 'Эллипс',
+    eraser: 'Ластик',
+    undo: 'Отменить',
+    redo: 'Повторить',
+    clear: 'Очистить всё'
+  },
+  viewModeInfoPopover: {
+    close: 'Закрыть'
   },
   labelSettings: {
     description: 'Настройка параметров отображения меток',

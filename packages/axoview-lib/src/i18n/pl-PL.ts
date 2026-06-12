@@ -340,7 +340,34 @@ const locale: LocaleProps = {
     zoomOut: 'Pomniejsz',
     zoomIn: 'Powiększ',
     fitToScreen: 'Dopasuj do ekranu',
+    keepLabelsReadable: 'Zachowaj czytelność etykiet',
     help: 'Pomoc (F1)'
+  },
+  previewLayerSwitcher: {
+    layers: 'Warstwy',
+    showLayer: 'Pokaż warstwę',
+    hideLayer: 'Ukryj warstwę',
+    solo: 'Solo',
+    unsolo: 'Wyłącz solo'
+  },
+  annotationPalette: {
+    pen: 'Adnotuj',
+    select: 'Zaznacz',
+    draw: 'Rysuj',
+    shapes: 'Kształty',
+    pencil: 'Ołówek',
+    highlighter: 'Zakreślacz',
+    line: 'Linia',
+    arrow: 'Strzałka',
+    rectangle: 'Prostokąt',
+    ellipse: 'Elipsa',
+    eraser: 'Gumka',
+    undo: 'Cofnij',
+    redo: 'Ponów',
+    clear: 'Wyczyść wszystko'
+  },
+  viewModeInfoPopover: {
+    close: 'Zamknij'
   },
   labelSettings: {
     description: 'Konfiguracja ustawień wyświetlania etykiet',

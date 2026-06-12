@@ -34,6 +34,16 @@ export interface CoordinateTransformStrategy {
   toScreen(tileX: number, tileY: number, tileSize: number): { x: number; y: number };
 
   /**
+   * Inverse of {@link toScreen}: convert an (unscaled, scroll-less) canvas-space
+   * point back to a *fractional* tile coordinate. Used to find which tile sits
+   * under a given canvas point when re-projecting across a canvas-mode switch.
+   * @param canvasX  Canvas-space x (same space toScreen returns)
+   * @param canvasY  Canvas-space y
+   * @param tileSize  Canonical (unprojected) tile size in px
+   */
+  fromCanvasPoint(canvasX: number, canvasY: number, tileSize: number): Coords;
+
+  /**
    * Convert a screen-space mouse position to tile coordinates.
    * @param screenX  Mouse x relative to renderer left edge
    * @param screenY  Mouse y relative to renderer top edge
@@ -105,6 +115,17 @@ export const isometricStrategy: CoordinateTransformStrategy = {
     };
   },
 
+  fromCanvasPoint(canvasX, canvasY, tileSize) {
+    const projectedWidth = tileSize * (PROJECTED_TILE_SIZE.width / UNPROJECTED_TILE_SIZE);
+    const projectedHeight = tileSize * (PROJECTED_TILE_SIZE.height / UNPROJECTED_TILE_SIZE);
+    const halfW = projectedWidth / 2;
+    const halfH = projectedHeight / 2;
+    // Invert toScreen: canvasX = halfW(tx - ty), canvasY = -halfH(tx + ty).
+    const diff = canvasX / halfW; // tx - ty
+    const sum = -canvasY / halfH; // tx + ty
+    return { x: (diff + sum) / 2, y: (sum - diff) / 2 };
+  },
+
   fromScreen(screenX, screenY, tileSize, zoom, scroll, rendererSize) {
     const projectedWidth = tileSize * (PROJECTED_TILE_SIZE.width / UNPROJECTED_TILE_SIZE);
     const projectedHeight = tileSize * (PROJECTED_TILE_SIZE.height / UNPROJECTED_TILE_SIZE);
@@ -138,6 +159,11 @@ export const cartesian2DStrategy: CoordinateTransformStrategy = {
       x: tileX * tileSize,
       y: -tileY * tileSize + 0
     };
+  },
+
+  fromCanvasPoint(canvasX, canvasY, tileSize) {
+    // Invert toScreen: canvasX = tx * tileSize, canvasY = -ty * tileSize.
+    return { x: canvasX / tileSize, y: -canvasY / tileSize || 0 };
   },
 
   fromScreen(screenX, screenY, tileSize, zoom, scroll, rendererSize) {
@@ -212,3 +238,41 @@ export const makeScreenToTileFn =
       scroll,
       rendererSize
     );
+
+// ---------------------------------------------------------------------------
+// Canvas-mode (iso↔2D) switch — preserve zoom + viewport center
+// ---------------------------------------------------------------------------
+
+/**
+ * Compute the `scroll.position` that keeps the tile currently under the viewport
+ * center centered after a projection swap, preserving the user's zoom.
+ *
+ * The SceneLayer renders a tile at screen `rendererCenter + scroll.position +
+ * zoom · toScreen(tile)`, so the canvas point under the viewport center is
+ * `-scroll.position / zoom` — independent of renderer size. We map that point
+ * back to a (fractional) tile under the *old* projection, re-project it under
+ * the *new* one, and choose the scroll that lands it back at the center.
+ *
+ * Replaces the old `fitToView()` force-fit on canvas-mode change (ADR-tracked
+ * locked decision #6) which discarded the user's zoom and recentred the whole
+ * diagram.
+ */
+export const getCanvasModeSwitchScroll = (
+  fromStrategy: CoordinateTransformStrategy,
+  toStrategy: CoordinateTransformStrategy,
+  zoom: number,
+  scroll: Scroll,
+  tileSize: number = UNPROJECTED_TILE_SIZE
+): Coords => {
+  // Degenerate zoom — nothing meaningful to preserve; keep the current scroll.
+  if (!zoom) return { ...scroll.position };
+
+  const centerTile = fromStrategy.fromCanvasPoint(
+    -scroll.position.x / zoom,
+    -scroll.position.y / zoom,
+    tileSize
+  );
+  const newCanvas = toStrategy.toScreen(centerTile.x, centerTile.y, tileSize);
+
+  return { x: -zoom * newCanvas.x, y: -zoom * newCanvas.y };
+};

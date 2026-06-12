@@ -44,6 +44,7 @@ Claude should then:
 | **3C** | ~~S3 Provider + Backend (E4)~~ | 🚫 DROPPED (2026-04-29) | — | S3 support dropped — see Phase 3C section |
 | **4A** | External Diagram Registry (E6) | `[ ]` | Low | Depends on 3A |
 | **5***  | Cloudflare + Docker dual-target deploy | `[x]` | High | See [docs/deployment.md](docs/deployment.md) |
+| **6** | Presentation & Annotation | `[x]` | High | View-mode popover + preview layer switcher + annotation overlay + canvas polish — see [ADRs 0012–0015](docs/adr/) |
 | **POST** | E2E Test Suite | 🚫 OUT OF SCOPE | — | Pick up after full UX ships |
 
 ---
@@ -1125,6 +1126,21 @@ Before coding, read these files:
 - [ ] Clicking opens in new tab
 - [ ] draw.io files browsable via Google Picker (if signed in)
 - [ ] `yarn build` clean
+
+---
+
+## Phase 6 — Presentation & Annotation `[x]`
+
+Made view-only mode a first-class presentation surface, added lightweight markup, and fixed two canvas-feel issues. Six threads, each shipped to the quality bar (unit + E2E + docs, knip clean):
+
+- **A — View-mode item info popover** (ADR 0012): canvas-anchored hover/pin popover replaces the right-dock auto-open in view mode.
+- **B — Preview-mode layer switcher** (ADR 0013): ephemeral, UI-only per-layer visibility + solo; never dirties/saves.
+- **C — Ephemeral annotation overlay** (ADR 0014): pencil/highlighter/shapes/arrows from a draggable palette; never persisted (exclusion-tested).
+- **D — Iso↔2D zoom preservation**: removed the `fitToView()` force-fit; zoom + viewport center preserved across the projection swap.
+- **E — Label legibility toggle** (ADR 0015): opt-in counter-scale keeps node labels readable when zoomed out.
+- **F — Clickable empty-state cards**: the whole New/Import card is the target.
+
+Durable record: [ADRs 0012–0015](docs/adr/). The working tactical doc (`docs/tactical/view-mode-and-annotation.md`) is deleted after merge to master.
 
 ---
 

@@ -190,9 +190,10 @@ export class CanvasPOM {
 
   /**
    * Clicks the ToolMenu's canvas-mode toggle. Flips
-   * `uiState.canvasMode` between ISOMETRIC ↔ 2D and triggers a
-   * fit-to-view post-switch (see ToolMenu.tsx#L43-48 — prevCanvasModeRef
-   * detects the transition and calls fitToView).
+   * `uiState.canvasMode` between ISOMETRIC ↔ 2D. The toggle preserves the
+   * user's zoom and viewport center across the projection swap (ToolMenu's
+   * prevCanvasModeRef effect → getCanvasModeSwitchScroll); it no longer
+   * fit-to-views the diagram (ADR locked decision #6).
    */
   async toggleCanvasMode() {
     await this.canvasModeToggleButton().click();

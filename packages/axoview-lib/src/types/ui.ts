@@ -229,6 +229,12 @@ export interface UiState {
   labelSettings: LabelSettings;
   connectorInteractionMode: ConnectorInteractionMode;
   expandLabels: boolean;
+  /**
+   * Opt-in "keep labels readable" toggle (ADR 0015). When on, node name labels
+   * counter-scale up to a legible floor below a zoom threshold so they stay
+   * readable when zoomed out. Off by default; persisted across reload.
+   */
+  readableLabels: boolean;
   iconPackManager: IconPackManagerProps | null;
   iconUsageScan: IconUsageScan | null;
   linkedDiagrams: Array<{ id: string; name: string }>;
@@ -246,6 +252,68 @@ export interface UiState {
   /** true when model has changed since last export-to-file or explicit save */
   isDirty: boolean;
   canvasMode: CanvasMode;
+  /**
+   * Preview-mode (EXPLORABLE_READONLY) layer visibility override (ADR 0013).
+   * A UI-only override that never mutates the model's `layer.visible` and is
+   * never persisted/saved — presenting a diagram can't dirty it. Cleared when
+   * leaving preview or switching view. Ignored entirely in EDITABLE.
+   */
+  previewLayerOverrides: PreviewLayerOverrides;
+  /** Ephemeral annotation overlay (ADR 0014). Never persisted. */
+  annotation: AnnotationState;
+}
+
+/** UI-only preview layer override (ADR 0013). */
+export interface PreviewLayerOverrides {
+  /** Layers the presenter has toggled off (subtracted from `layer.visible`). */
+  hiddenLayerIds: string[];
+  /** When set, only this layer is shown (solo wins over hidden + layer.visible). */
+  soloLayerId: string | null;
+}
+
+// --- Ephemeral annotation overlay (ADR 0014) --------------------------------
+
+/**
+ * Annotation tool modes. `select` is the pass-through mode — the overlay does
+ * not capture pointer input, so the canvas stays interactive (Excalidraw-style
+ * tool strip). `eraser` removes a whole stroke; the rest draw.
+ */
+export type AnnotationTool =
+  | 'select'
+  | 'pencil'
+  | 'highlighter'
+  | 'line'
+  | 'arrow'
+  | 'rectangle'
+  | 'ellipse'
+  | 'eraser';
+
+/** A single annotation stroke, stored in scene-canvas coordinates. */
+export interface AnnotationStroke {
+  id: string;
+  tool: Exclude<AnnotationTool, 'select' | 'eraser'>;
+  color: string;
+  thickness: number;
+  /** Scene-canvas points: freehand = many; line/arrow/shapes = [start, end]. */
+  points: Coords[];
+}
+
+/**
+ * Ephemeral annotation state (ADR 0014). Session-scoped, in-memory, and
+ * **never** persisted — it lives only in uiState, never in the Model, so no
+ * save/export/zip path can reach it. `open` is the single pen-driven toggle:
+ * open ⇒ palette + drawing shown; closed ⇒ both hidden but strokes retained
+ * (close ≠ discard; only Clear wipes). `tool` decides whether the overlay
+ * captures input (`select` = canvas interactive).
+ */
+export interface AnnotationState {
+  open: boolean;
+  tool: AnnotationTool;
+  color: string;
+  thickness: number;
+  strokes: AnnotationStroke[];
+  /** Strokes available to redo (cleared by any new stroke / erase / clear). */
+  redoStack: AnnotationStroke[];
 }
 
 export interface UiStateActions {
@@ -280,6 +348,23 @@ export interface UiStateActions {
   setLabelSettings: (settings: LabelSettings) => void;
   setConnectorInteractionMode: (mode: ConnectorInteractionMode) => void;
   setExpandLabels: (expand: boolean) => void;
+  setReadableLabels: (readable: boolean) => void;
+  /** Toggle a layer's preview visibility override (no-op on the model). */
+  togglePreviewLayerHidden: (layerId: string) => void;
+  /** Solo a layer in preview (pass the current solo id again, or null, to clear). */
+  setPreviewSoloLayer: (layerId: string | null) => void;
+  /** Reset all preview layer overrides (e.g. on leaving preview / view switch). */
+  clearPreviewLayerOverrides: () => void;
+  // --- Annotation overlay (ADR 0014) ---
+  setAnnotationOpen: (open: boolean) => void;
+  setAnnotationTool: (tool: AnnotationTool) => void;
+  setAnnotationColor: (color: string) => void;
+  setAnnotationThickness: (thickness: number) => void;
+  addAnnotationStroke: (stroke: AnnotationStroke) => void;
+  undoAnnotationStroke: () => void;
+  redoAnnotationStroke: () => void;
+  eraseAnnotationStroke: (id: string) => void;
+  clearAnnotations: () => void;
   setIconPackManager: (iconPackManager: IconPackManagerProps | null) => void;
   setIconUsageScan: (scan: IconUsageScan | null) => void;
   setLinkedDiagrams: (diagrams: Array<{ id: string; name: string }>) => void;

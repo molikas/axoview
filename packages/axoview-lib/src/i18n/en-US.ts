@@ -334,7 +334,34 @@ const locale: LocaleProps = {
     zoomOut: 'Zoom out',
     zoomIn: 'Zoom in',
     fitToScreen: 'Fit to screen',
+    keepLabelsReadable: 'Keep labels readable',
     help: 'Help (F1)'
+  },
+  previewLayerSwitcher: {
+    layers: 'Layers',
+    showLayer: 'Show layer',
+    hideLayer: 'Hide layer',
+    solo: 'Solo',
+    unsolo: 'Exit solo'
+  },
+  annotationPalette: {
+    pen: 'Annotate',
+    select: 'Select',
+    draw: 'Draw',
+    shapes: 'Shapes',
+    pencil: 'Pencil',
+    highlighter: 'Highlighter',
+    line: 'Line',
+    arrow: 'Arrow',
+    rectangle: 'Rectangle',
+    ellipse: 'Ellipse',
+    eraser: 'Eraser',
+    undo: 'Undo',
+    redo: 'Redo',
+    clear: 'Clear all'
+  },
+  viewModeInfoPopover: {
+    close: 'Close'
   },
   labelSettings: {
     description: 'Configure label display settings',

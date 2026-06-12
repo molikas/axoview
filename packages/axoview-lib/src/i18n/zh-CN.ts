@@ -321,7 +321,34 @@ const locale: LocaleProps = {
     zoomOut: '缩小',
     zoomIn: '放大',
     fitToScreen: '适应屏幕',
+    keepLabelsReadable: '保持标签清晰可读',
     help: '帮助 (F1)'
+  },
+  previewLayerSwitcher: {
+    layers: '图层',
+    showLayer: '显示图层',
+    hideLayer: '隐藏图层',
+    solo: '单独显示',
+    unsolo: '退出单独显示'
+  },
+  annotationPalette: {
+    pen: '批注',
+    select: '选择',
+    draw: '绘制',
+    shapes: '形状',
+    pencil: '铅笔',
+    highlighter: '荧光笔',
+    line: '直线',
+    arrow: '箭头',
+    rectangle: '矩形',
+    ellipse: '椭圆',
+    eraser: '橡皮擦',
+    undo: '撤销',
+    redo: '重做',
+    clear: '全部清除'
+  },
+  viewModeInfoPopover: {
+    close: '关闭'
   },
   labelSettings: {
     description: '配置标签显示设置',

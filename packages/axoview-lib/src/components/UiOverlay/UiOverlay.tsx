@@ -27,6 +27,10 @@ import { NotificationSnackbar } from '../NotificationSnackbar/NotificationSnackb
 import { ViewTabs } from 'src/components/ViewTabs/ViewTabs';
 import { NodeActionBar } from 'src/components/NodeActionBar/NodeActionBar';
 import { LassoLayerBar } from 'src/components/LassoLayerBar/LassoLayerBar';
+import { PreviewLayerSwitcher } from 'src/components/PreviewLayerSwitcher/PreviewLayerSwitcher';
+import { ViewModeInfoPopover } from 'src/components/ViewModeInfoPopover/ViewModeInfoPopover';
+import { AnnotationLayer } from 'src/components/AnnotationLayer/AnnotationLayer';
+import { AnnotationPalette } from 'src/components/AnnotationPalette/AnnotationPalette';
 
 type ToolName = 'TOOL_MENU' | 'ITEM_CONTROLS' | 'VIEW_TITLE' | 'VIEW_TABS';
 
@@ -222,7 +226,30 @@ export const UiOverlay = ({
             <DebugUtils />
           </UiElement>
         )}
+
+        {/* Preview-mode layer switcher — top-left (feels more natural in a
+            presentation than bottom-left). View mode only; the component
+            self-gates on ≥2 layers (ADR 0013). High zIndex so it stays above
+            any left chrome that lingers in a forced-preview test environment. */}
+        {editorMode === EditorModeEnum.EXPLORABLE_READONLY && (
+          <Box
+            sx={{ position: 'absolute', zIndex: 15 }}
+            style={{ left: appPadding.x, top: appPadding.y }}
+          >
+            <PreviewLayerSwitcher />
+          </Box>
+        )}
       </Box>
+
+      {/* Ephemeral annotation overlay (ADR 0014) — available in edit + preview,
+          never in export-preview. The layer self-gates on annotation.open; the
+          palette is a draggable floating control. */}
+      {editorMode !== EditorModeEnum.NON_INTERACTIVE && (
+        <>
+          <AnnotationLayer />
+          <AnnotationPalette />
+        </>
+      )}
 
       {/* Portals — hoisted out of the positioning <Box> above because MUI's
           PropTypes.node check on Box's children rejects ReactPortal (its
@@ -292,6 +319,15 @@ export const UiOverlay = ({
         {/* Lasso layer assign bar */}
         {editorMode === EditorModeEnum.EDITABLE && <LassoLayerBar />}
       </SceneLayer>
+
+      {/* View-mode item info popover — screen-space, side-anchored read surface
+          that replaces the right dock in EXPLORABLE_READONLY (ADR 0012). Lives
+          outside the SceneLayer: it positions itself in screen px (so it can
+          flip/clamp against the viewport) and tracks the item via a store
+          subscription. */}
+      {editorMode === EditorModeEnum.EXPLORABLE_READONLY && (
+        <ViewModeInfoPopover />
+      )}
     </>
   );
 };

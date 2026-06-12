@@ -337,7 +337,34 @@ const locale: LocaleProps = {
     zoomOut: 'Verkleinern',
     zoomIn: 'Vergrößern',
     fitToScreen: 'An Bildschirm anpassen',
+    keepLabelsReadable: 'Beschriftungen lesbar halten',
     help: 'Hilfe (F1)'
+  },
+  previewLayerSwitcher: {
+    layers: 'Ebenen',
+    showLayer: 'Ebene einblenden',
+    hideLayer: 'Ebene ausblenden',
+    solo: 'Solo',
+    unsolo: 'Solo beenden'
+  },
+  annotationPalette: {
+    pen: 'Anmerken',
+    select: 'Auswählen',
+    draw: 'Zeichnen',
+    shapes: 'Formen',
+    pencil: 'Stift',
+    highlighter: 'Textmarker',
+    line: 'Linie',
+    arrow: 'Pfeil',
+    rectangle: 'Rechteck',
+    ellipse: 'Ellipse',
+    eraser: 'Radierer',
+    undo: 'Rückgängig',
+    redo: 'Wiederholen',
+    clear: 'Alle löschen'
+  },
+  viewModeInfoPopover: {
+    close: 'Schließen'
   },
   labelSettings: {
     description: 'Beschriftungsanzeigeeinstellungen konfigurieren',
