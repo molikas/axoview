@@ -131,4 +131,47 @@ test.describe('View-mode info popover — Thread A (ADR 0012)', () => {
     await canvas.dispatchAt(['mousemove'], emptyPos);
     await expect(popover).toHaveCount(0);
   });
+
+  test('popover side-anchors to the RIGHT of the item, and flips LEFT near the right edge', async ({
+    page
+  }) => {
+    const canvas = new CanvasPOM(page);
+    const popover = byAxoviewId(page, 'view-mode-info-popover');
+
+    const setScrollX = (x: number) =>
+      page.evaluate((sx: number) => {
+        (window as any).__axoview__.ui
+          .getState()
+          .actions.setScroll({ position: { x: sx, y: 0 }, offset: { x: 0, y: 0 } });
+      }, x);
+    const rendererWidth = (): Promise<number> =>
+      page.evaluate(
+        () => (window as any).__axoview__.ui.getState().rendererSize.width
+      );
+
+    // --- Normal case: item centered → popover sits to the RIGHT of it. ---
+    await setScrollX(0); // tile (0,0) lands at the viewport horizontal center
+    await pinItem(page, 'info-item-a', { x: 0, y: 0 });
+    await expect(popover).toBeVisible();
+
+    let nodeScreen = await canvas.tileToScreen({ x: 0, y: 0 });
+    await expect
+      .poll(async () => (await popover.boundingBox())?.x ?? -1, { timeout: 3_000 })
+      .toBeGreaterThan(nodeScreen.x);
+
+    // --- Flip case: push the item to the right edge → popover flips LEFT. ---
+    const w = await rendererWidth();
+    await setScrollX(w / 2 - 60); // node now ~60px from the right edge
+    nodeScreen = await canvas.tileToScreen({ x: 0, y: 0 });
+    // The popover re-anchors on scroll; its whole box now sits left of the node.
+    await expect
+      .poll(
+        async () => {
+          const b = await popover.boundingBox();
+          return b ? b.x + b.width : Infinity;
+        },
+        { timeout: 3_000 }
+      )
+      .toBeLessThan(nodeScreen.x);
+  });
 });

@@ -501,7 +501,7 @@ Node name labels live *inside* the zoom-scaled `SceneLayer`, so by default they 
 
 View-only mode (`EXPLORABLE_READONLY`) is a *presentation* surface, not an editing one, so it gets lightweight chrome instead of the editing docks — the right Properties dock no longer auto-opens on selection there, and the left LayersPanel is replaced by a corner control. Two instances:
 
-[`ViewModeInfoPopover`](../packages/axoview-lib/src/components/ViewModeInfoPopover/ViewModeInfoPopover.tsx) (ADR 0012) — an item's name / read-only notes / link read **on the canvas** (hover → preview, click → pinned; Esc / X / click-away close), canvas-anchored and counter-scaled like §8.8 chrome, so reading stays in the diagram instead of bouncing to a 300px editing dock. Links are sanitised once via the shared read-only notes renderer and open in a new tab.
+[`ViewModeInfoPopover`](../packages/axoview-lib/src/components/ViewModeInfoPopover/ViewModeInfoPopover.tsx) (ADR 0012) — an item's name / read-only notes / link read **on the canvas** (hover → preview, click → pinned; Esc / X / click-away close), so reading stays in the diagram instead of bouncing to a 300px editing dock. It is **side-anchored** beside the item (never over it — the game-UI tooltip rule) and **flips/clamps** to stay on screen. Links are sanitised once via the shared read-only notes renderer and open in a new tab.
 
 [`PreviewLayerSwitcher`](../packages/axoview-lib/src/components/PreviewLayerSwitcher/PreviewLayerSwitcher.tsx) (ADR 0013) is the layer-control instance of the same idea:
 
@@ -511,7 +511,7 @@ View-only mode (`EXPLORABLE_READONLY`) is a *presentation* surface, not an editi
 
 ### 8.11 Scratch overlays never pollute the model
 
-The [annotation overlay](../packages/axoview-lib/src/components/AnnotationLayer/AnnotationLayer.tsx) (ADR 0014) is "paint on top" markup for talking over a diagram — pencil/highlighter/shapes/arrows from a draggable palette. Two principles make it safe:
+The [annotation overlay](../packages/axoview-lib/src/components/AnnotationLayer/AnnotationLayer.tsx) (ADR 0014) is "paint on top" markup for talking over a diagram — pencil/highlighter/shapes/arrows from a fixed palette opened by a pen toggle (grouped tools behind hover fly-outs). Two principles make it safe:
 
 - **Scratch is not content.** Annotation state lives **only** in `uiState`, never in the Model, so no persistence path (session save, server save, export JSON, project zip) can reach it — the single most important invariant of the feature, asserted by a dedicated exclusion test. A scratch overlay that could accidentally save would be a data-integrity trap.
 - **Capture only when armed.** The overlay intercepts pointer input **only while a draw tool is active**; with the palette open but idle, normal canvas selection/pan still work. Collapse *hides* the drawing without discarding it (collapse ≠ delete); a single explicit Clear is the only wipe — destructive actions are never a side effect of a view toggle.
