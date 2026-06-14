@@ -16,6 +16,27 @@ import { DEFAULT_LABEL_SETTINGS } from 'src/config/labelSettings';
 import { ANNOTATION_COLOR_PRESETS } from 'src/config/annotationSettings';
 import { loadPersistedSettings } from 'src/config/persistedSettings';
 
+// Canvas reset applied whenever annotation drawing is engaged (pen opened or a
+// draw/eraser tool armed): drop any armed/ in-flight canvas tool so it can't
+// linger behind the overlay, clear the active selection + floating action bar,
+// and close the right dock only if it was auto-opened (a manual pin is kept).
+// Shared by setAnnotationOpen + setAnnotationTool so both entry points behave
+// identically.
+const canvasResetForAnnotation = (
+  state: Pick<
+    UiStateStore,
+    'editorMode' | 'rightSidebarAutoOpened'
+  >
+): Partial<UiStateStore> => ({
+  mode: getStartingMode(state.editorMode),
+  itemControls: null,
+  selectedIds: [],
+  itemActionBarOpen: false,
+  ...(state.rightSidebarAutoOpened
+    ? { rightSidebarOpen: false, rightSidebarAutoOpened: false }
+    : {})
+});
+
 const initialState = () => {
   // Load any previously saved user preferences — fall back to defaults if absent/corrupt.
   const persisted = loadPersistedSettings();
@@ -282,17 +303,22 @@ const initialState = () => {
           // only if it was auto-opened (a manual pin is respected).
           set({
             annotation: { ...state.annotation, open },
-            mode: getStartingMode(state.editorMode),
-            itemControls: null,
-            selectedIds: [],
-            itemActionBarOpen: false,
-            ...(state.rightSidebarAutoOpened
-              ? { rightSidebarOpen: false, rightSidebarAutoOpened: false }
-              : {})
+            ...canvasResetForAnnotation(state)
           });
         },
         setAnnotationTool: (tool) => {
-          set({ annotation: { ...get().annotation, tool } });
+          const state = get();
+          // Arming an annotation draw/eraser tool must also abort any in-flight
+          // canvas gesture (a half-drawn lasso / freehand selection) and clear
+          // the selection — otherwise the two coexist and neither behaves (the
+          // lasso keeps its stuck selection while the overlay captures input).
+          // The pass-through `select` tool leaves the canvas as-is so the user
+          // can resume normal canvas interaction. Mirrors setAnnotationOpen.
+          const needsCanvasReset = tool !== 'select';
+          set({
+            annotation: { ...state.annotation, tool },
+            ...(needsCanvasReset ? canvasResetForAnnotation(state) : {})
+          });
         },
         setAnnotationColor: (color) => {
           set({ annotation: { ...get().annotation, color } });
