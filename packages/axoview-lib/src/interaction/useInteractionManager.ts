@@ -62,6 +62,10 @@ const modes: { [k in string]: ModeActions } = {
 // modes (behavior-map §0).
 type PointerKind = 'mouse' | 'touch' | 'pen';
 
+// Hold duration before a stationary touch becomes a long-press (node → context
+// menu; empty → lasso). Slightly under the OS ~500ms callout so our menu wins.
+const LONG_PRESS_MS = 450;
+
 interface TouchGestureState {
   // Active touch/pen pointers by pointerId → latest client position.
   pointers: Map<number, { x: number; y: number }>;
@@ -70,14 +74,24 @@ interface TouchGestureState {
   // not yet past slop. 'pan' = one-finger pan. 'pinch' = two-finger zoom+pan.
   // 'palette' = a press that started OFF-canvas while a placement is armed
   // (Elements-panel drag) — a release over the canvas drops/places the icon.
-  phase: 'idle' | 'item' | 'pan-pending' | 'pan' | 'pinch' | 'palette';
+  // 'menu' = a long-press fired and opened the per-item context menu; the rest of
+  // the gesture is consumed (release just dismisses the press, menu stays open).
+  phase: 'idle' | 'item' | 'pan-pending' | 'pan' | 'pinch' | 'palette' | 'menu';
   // Target the 'item' down was forwarded with (the interactions box, or the real
   // anchor element so targetAnchorId resolves for connector reconnect).
   itemDownTarget: EventTarget | null;
   downScreen: { x: number; y: number };
+  downTile: { x: number; y: number };
+  // The interactable item under the press, if any — drives the long-press menu.
+  downItem: ItemReference | null;
   lastPanScreen: { x: number; y: number };
   pinchLastDistance: number;
   pinchLastCentroid: { x: number; y: number };
+  // Long-press (hold) timer: hold-on-node → context menu; hold-on-empty → lasso.
+  longPressTimer: ReturnType<typeof setTimeout> | null;
+  // True while a long-press-armed marquee is running, so its commit returns to
+  // CURSOR (one-shot lasso without an explicit tool switch).
+  autoLasso: boolean;
 }
 
 const pointerDistance = (
@@ -626,9 +640,13 @@ export const useInteractionManager = () => {
     phase: 'idle',
     itemDownTarget: null,
     downScreen: { x: 0, y: 0 },
+    downTile: { x: 0, y: 0 },
+    downItem: null,
     lastPanScreen: { x: 0, y: 0 },
     pinchLastDistance: 0,
-    pinchLastCentroid: { x: 0, y: 0 }
+    pinchLastCentroid: { x: 0, y: 0 },
+    longPressTimer: null,
+    autoLasso: false
   });
 
   const modeType = useUiStateStore((state) => state.mode.type);
@@ -906,6 +924,10 @@ export const useInteractionManager = () => {
   const onContextMenu = useCallback(
     (e: SlimMouseEvent) => {
       e.preventDefault();
+      // On touch/pen the long-press timer opens the action bar DURING the hold
+      // (so it appears before the finger lifts); suppress the OS contextmenu here
+      // to avoid a double-open. Mouse right-click keeps the immediate path.
+      if (pointerTypeRef.current !== 'mouse') return;
       const uiState = uiStateApi.getState();
       const tile = uiState.mouse.position.tile;
       const item = getItemAtTile({ tile, scene });
@@ -1073,6 +1095,50 @@ export const useInteractionManager = () => {
       if (touchRaf === null) touchRaf = requestAnimationFrame(runTouchFrame);
     };
 
+    const clearLongPress = () => {
+      const ts = touchStateRef.current;
+      if (ts.longPressTimer !== null) {
+        clearTimeout(ts.longPressTimer);
+        ts.longPressTimer = null;
+      }
+    };
+
+    // Arm the hold timer for a stationary single-finger press (CURSOR mode only).
+    // Hold on a node → open its context menu; hold on empty → start a marquee
+    // lasso (no explicit tool switch). Cancelled by any move past slop, a lift,
+    // or a second finger.
+    const startLongPress = (e: PointerEvent) => {
+      const ts = touchStateRef.current;
+      clearLongPress();
+      ts.longPressTimer = setTimeout(() => {
+        ts.longPressTimer = null;
+        const uiState = uiStateApi.getState();
+        if (ts.phase === 'item' && ts.downItem) {
+          // Hold on a node → open the per-item action bar for it (during the
+          // hold; the user then lifts naturally). Consume the rest of the gesture.
+          const controls: ItemControls =
+            ts.downItem.type === 'CONNECTOR'
+              ? { type: 'CONNECTOR', id: ts.downItem.id, tile: ts.downTile }
+              : { type: ts.downItem.type, id: ts.downItem.id };
+          uiState.actions.setItemControls(controls);
+          uiState.actions.setItemActionBarOpen(true);
+          ts.phase = 'menu';
+        } else if (ts.phase === 'pan-pending') {
+          // Hold on empty → arm a one-shot marquee lasso from the press point.
+          uiState.actions.setMode({
+            type: 'LASSO',
+            showCursor: true,
+            selection: null,
+            isDragging: false
+          });
+          ts.phase = 'item';
+          ts.autoLasso = true;
+          forwardMouse(e, 'mousemove', interactionsEl);
+          forwardMouse(e, 'mousedown', interactionsEl);
+        }
+      }, LONG_PRESS_MS);
+    };
+
     const onTouchPointerDown = (e: PointerEvent) => {
       const ts = touchStateRef.current;
       ts.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -1087,6 +1153,7 @@ export const useInteractionManager = () => {
       if (ts.pointers.size >= 2) {
         // Second finger → pinch. End an in-flight item drag first so the node
         // commits where it is rather than chasing the pinch centroid.
+        clearLongPress();
         if (ts.phase === 'item') forwardMouse(e, 'mouseup', interactionsEl);
         const pts = [...ts.pointers.values()];
         ts.phase = 'pinch';
@@ -1156,6 +1223,8 @@ export const useInteractionManager = () => {
         (visibleIds.size === 0 || visibleIds.has(itemAtDown.id));
       const inToolMode = uiState.mode.type !== 'CURSOR';
 
+      ts.downTile = seeded.position.tile;
+
       if (inToolMode || onAnchor || interactable) {
         // Forward the whole gesture as mouse events to the active mode.
         ts.phase = 'item';
@@ -1164,17 +1233,38 @@ export const useInteractionManager = () => {
         // read position from the pre-setMouse uiState snapshot otherwise).
         forwardMouse(e, 'mousemove', ts.itemDownTarget);
         forwardMouse(e, 'mousedown', ts.itemDownTarget);
+        // Hold on a node (CURSOR mode) → context menu. A quick drag cancels the
+        // timer and moves the node instead.
+        ts.downItem =
+          !inToolMode && interactable && itemAtDown
+            ? { type: itemAtDown.type, id: itemAtDown.id }
+            : null;
+        if (ts.downItem) startLongPress(e);
         return;
       }
 
-      // CURSOR mode on empty / non-interactable: tap clears, drag pans.
+      // CURSOR mode on empty / non-interactable: tap clears, drag pans, hold →
+      // lasso.
       ts.phase = 'pan-pending';
+      ts.downItem = null;
+      startLongPress(e);
     };
 
     const onTouchPointerMove = (e: PointerEvent) => {
       const ts = touchStateRef.current;
       if (!ts.pointers.has(e.pointerId)) return;
       ts.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      // Any real movement cancels a pending hold (it's a drag, not a long-press).
+      if (
+        ts.longPressTimer !== null &&
+        exceedsTapSlop(ts.downScreen, { x: e.clientX, y: e.clientY })
+      ) {
+        clearLongPress();
+      }
+
+      // After a long-press opened the menu, the rest of the gesture is inert.
+      if (ts.phase === 'menu') return;
 
       if (ts.phase === 'item') {
         forwardMouse(e, 'mousemove', interactionsEl);
@@ -1192,9 +1282,15 @@ export const useInteractionManager = () => {
     const onTouchPointerUp = (e: PointerEvent) => {
       const ts = touchStateRef.current;
       const wasPhase = ts.phase;
+      clearLongPress();
       ts.pointers.delete(e.pointerId);
       releaseCapture(e);
 
+      if (wasPhase === 'menu') {
+        // Long-press already opened the menu; the lift just ends the press.
+        ts.phase = 'idle';
+        return;
+      }
       if (wasPhase === 'pinch') {
         // Lift back to one finger → resume single-finger pan. All gone → idle.
         if (ts.pointers.size === 1) {
@@ -1208,8 +1304,18 @@ export const useInteractionManager = () => {
       }
       if (wasPhase === 'item') {
         // Complete the gesture: Cursor.mouseup selects (no move) or commits the
-        // drag; RECONNECT_ANCHOR commits the reconnect.
+        // drag; RECONNECT_ANCHOR commits the reconnect; Lasso.mouseup commits an
+        // auto-lasso marquee.
         forwardMouse(e, 'mouseup', interactionsEl);
+        if (ts.autoLasso) {
+          // One-shot lasso: return to CURSOR so the next gesture isn't lasso.
+          uiStateApi.getState().actions.setMode({
+            type: 'CURSOR',
+            showCursor: true,
+            mousedownItem: null
+          });
+          ts.autoLasso = false;
+        }
         ts.phase = 'idle';
         ts.itemDownTarget = null;
         return;
@@ -1265,13 +1371,36 @@ export const useInteractionManager = () => {
     const onTouchPointerCancel = (e: PointerEvent) => {
       const ts = touchStateRef.current;
       const wasPhase = ts.phase;
+      clearLongPress();
       ts.pointers.delete(e.pointerId);
       releaseCapture(e);
       // End an in-flight item gesture cleanly (commit where it is).
       if (wasPhase === 'item') forwardMouse(e, 'mouseup', interactionsEl);
+      // Palette drag: some browsers fire pointercancel when the touch leaves the
+      // panel even with capture + touch-action:none. Treat a moved cancel over
+      // the canvas as a drop so drag-from-panel still places (#1 robustness).
+      if (wasPhase === 'palette') {
+        const moved = exceedsTapSlop(ts.downScreen, {
+          x: e.clientX,
+          y: e.clientY
+        });
+        const rect = rendererEl?.getBoundingClientRect();
+        const overCanvas =
+          !!rect &&
+          e.clientX >= rect.left &&
+          e.clientX <= rect.right &&
+          e.clientY >= rect.top &&
+          e.clientY <= rect.bottom;
+        if (moved && overCanvas) {
+          forwardMouse(e, 'mousemove', interactionsEl);
+          forwardMouse(e, 'mousedown', interactionsEl);
+          forwardMouse(e, 'mouseup', interactionsEl);
+        }
+      }
       if (ts.pointers.size === 0) {
         ts.phase = 'idle';
         ts.itemDownTarget = null;
+        ts.autoLasso = false;
       }
     };
 

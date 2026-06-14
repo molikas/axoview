@@ -87,6 +87,59 @@ export class TouchPOM {
     await this.page.waitForTimeout(80);
   }
 
+  /** Long-press at a box-relative point, then lift (no move). */
+  async hold(point: CanvasPoint, holdMs = 600) {
+    const a = await this.abs(point);
+    const client = await this.cdp();
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: a.x, y: a.y, id: 0 }]
+    });
+    await this.page.waitForTimeout(holdMs);
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchEnd',
+      touchPoints: []
+    });
+    await client.detach();
+    await this.page.waitForTimeout(80);
+  }
+
+  /** Long-press at `from`, then drag to `to`. Box-relative. */
+  async holdThenDrag(
+    from: CanvasPoint,
+    to: CanvasPoint,
+    holdMs = 600,
+    steps = 8
+  ) {
+    const a = await this.abs(from);
+    const b = await this.abs(to);
+    const client = await this.cdp();
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: a.x, y: a.y, id: 0 }]
+    });
+    await this.page.waitForTimeout(holdMs);
+    for (let i = 1; i <= steps; i++) {
+      await client.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [
+          {
+            x: a.x + ((b.x - a.x) * i) / steps,
+            y: a.y + ((b.y - a.y) * i) / steps,
+            id: 0
+          }
+        ]
+      });
+      await this.page.waitForTimeout(16);
+    }
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchEnd',
+      touchPoints: []
+    });
+    await client.detach();
+    await this.page.waitForTimeout(80);
+  }
+
   /** One-finger drag (pan): touchStart → moves → touchEnd. Box-relative. */
   async dragOneFinger(from: CanvasPoint, to: CanvasPoint, steps = 6) {
     const a = await this.abs(from);
