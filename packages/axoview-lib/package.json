@@ -1,6 +1,6 @@
 {
   "name": "axoview",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "private": true,
   "description": "An open-source React component for drawing network diagrams — forked from FossFLOW, which was forked from Isoflow.",
   "license": "MIT",
