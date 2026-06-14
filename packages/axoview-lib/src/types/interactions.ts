@@ -15,6 +15,13 @@ export interface State {
    */
   isItemInteractable: (ref: ItemReference) => boolean;
   /**
+   * Device class of the pointer that originated this event (ADR 0018). The
+   * `mouse` path is press-drag-release (unchanged); `touch`/`pen` branch to the
+   * tap-to-place state machine. Optional so existing test mocks that construct a
+   * State object continue to compile (they default to the mouse path).
+   */
+  pointerType?: 'mouse' | 'touch' | 'pen';
+  /**
    * Mode-aware screen→tile converter injected by useInteractionManager.
    * Interaction mode handlers must use this instead of importing screenToIso directly.
    */

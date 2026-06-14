@@ -368,6 +368,54 @@ describe('Cursor.mousemove (real module)', () => {
     );
   });
 
+  // ADR 0018 Decision 5 (§5.1 gap 3 — the precision-trackpad fix). The drag-start
+  // classifier is now PIXEL-based (exceedsTapSlop on position.screen vs
+  // mousedown.screen), not whole-tile. A sub-tile drag (SAME tile, screen delta
+  // beyond TAP_SLOP_PX) must still start a node drag — the old whole-tile gate
+  // swallowed it.
+  it('transitions to DRAG_ITEMS on a sub-tile drag (same tile, screen delta > slop)', () => {
+    const uiState = makeUiState({
+      mode: {
+        type: 'CURSOR',
+        showCursor: true,
+        mousedownItem: { type: 'ITEM', id: 'n1' },
+        mousedownHandled: true
+      },
+      mouse: {
+        // Tile is UNCHANGED (5,5) → the old whole-tile threshold would NOT drag.
+        // Screen moved 50→62 (12px > TAP_SLOP_PX=8) → px classifier DOES drag.
+        position: { tile: { x: 5, y: 5 }, screen: { x: 62, y: 50 } },
+        mousedown: { tile: { x: 5, y: 5 }, screen: { x: 50, y: 50 } },
+        delta: { tile: { x: 0, y: 0 }, screen: { x: 12, y: 0 } }
+      }
+    });
+    const scene = makeScene([{ id: 'n1', tile: { x: 5, y: 5 } }]);
+    callMousemove(uiState, scene);
+    expect(uiState.actions.setMode).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'DRAG_ITEMS', items: [{ type: 'ITEM', id: 'n1' }] })
+    );
+  });
+
+  it('does NOT start a drag for a within-slop sub-tile jitter (same tile, screen delta < slop)', () => {
+    const uiState = makeUiState({
+      mode: {
+        type: 'CURSOR',
+        showCursor: true,
+        mousedownItem: { type: 'ITEM', id: 'n1' },
+        mousedownHandled: true
+      },
+      mouse: {
+        // 50→54 = 4px < TAP_SLOP_PX → a tap, not a drag.
+        position: { tile: { x: 5, y: 5 }, screen: { x: 54, y: 50 } },
+        mousedown: { tile: { x: 5, y: 5 }, screen: { x: 50, y: 50 } },
+        delta: { tile: { x: 0, y: 0 }, screen: { x: 4, y: 0 } }
+      }
+    });
+    const scene = makeScene([{ id: 'n1', tile: { x: 5, y: 5 } }]);
+    callMousemove(uiState, scene);
+    expect(uiState.actions.setMode).not.toHaveBeenCalled();
+  });
+
   it('transitions to DRAG_ITEMS with showCursor:true when textbox dragged and position != mousedown', () => {
     const uiState = makeUiState({
       mode: {

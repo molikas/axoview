@@ -1144,6 +1144,12 @@ Durable record: [ADRs 0012–0015](docs/adr/). The working tactical doc (`docs/t
 
 ---
 
+## Phase 7 — Touch / Pen Canvas Gesture Contract `[x]`
+
+Touch/pen canvas gesture contract shipped — see [ADR 0018](docs/adr/0018-touch-pen-gesture-contract.md). Replaced the `window` mouse + touch-synthesis input path with one Pointer Events layer branching on `pointerType` (mouse keeps press-drag-release; touch/pen get tap-to-select / tap-to-place SELECT→GRAB→PLACE, one-finger pan, two-finger pinch-zoom). The confirmed P0 D-7 dual-stack undo skew was fixed first via sequence-stamping (see `undo.dualStackSkew.test.tsx`). Listener surface is `window` (deviation from the ADR's `rendererEl` — required for cross-boundary panel-drag-to-place; see the ADR's implementation-deviation note). New `hasTouch` e2e project + touch specs; the §5.1 CSS-preview-mid-drag and dual-stack-undo P0 gaps are now guarded. Residual follow-ups (D-8 paste-undo-redo, D-9 cross-view undo, D-6 touch delete/z-order panel routes) filed in `known_issues.md`.
+
+---
+
 ## E2E Test Suite — POST-UX PHASE (Out of Scope Now)
 🚫 **Do not implement during the above phases.**
 

@@ -4,11 +4,17 @@ import { useStoreWithEqualityFn } from 'zustand/traditional';
 import { enablePatches, produceWithPatches, applyPatches, Patch } from 'immer';
 import { ModelStore, Model } from 'src/types';
 import { INITIAL_DATA } from 'src/config';
+import {
+  allocateHistorySequence,
+  currentHistorySequence
+} from 'src/stores/historySequence';
 
 // Enable Immer patch support — must be called once before any produce() call.
 enablePatches();
 
-type HistoryEntry = { patches: Patch[]; inversePatches: Patch[] };
+// `seq` stamps each entry with the logical-action sequence it belongs to so
+// useHistory can coordinate the two independent stacks (D-7, historySequence.ts).
+type HistoryEntry = { patches: Patch[]; inversePatches: Patch[]; seq: number };
 
 export interface HistoryState {
   // Each entry is a diff pair rather than a full Model snapshot.
@@ -31,6 +37,10 @@ export interface ModelStoreWithHistory extends Omit<ModelStore, 'actions'> {
     clearHistory: () => void;
     freezePendingPre: () => void;
     unfreezePendingPre: () => void;
+    // D-7 coordination: the logical-action seq of the top undo/redo entry, or
+    // null when the respective stack is empty.
+    peekUndoSeq: () => number | null;
+    peekRedoSeq: () => number | null;
   };
 }
 
@@ -122,6 +132,16 @@ const initialState = () => {
     const canUndo = () => get().history.past.length > 0;
     const canRedo = () => get().history.future.length > 0;
 
+    const peekUndoSeq = (): number | null => {
+      const { past } = get().history;
+      return past.length > 0 ? past[past.length - 1].seq : null;
+    };
+
+    const peekRedoSeq = (): number | null => {
+      const { future } = get().history;
+      return future.length > 0 ? future[0].seq : null;
+    };
+
     const clearHistory = () => {
       pendingPre = null;
       pendingPreFrozen = false;
@@ -143,6 +163,11 @@ const initialState = () => {
         get,
         set: (updates: Partial<Model>, skipHistory = false) => {
           if (!skipHistory) {
+            // Direct call without a prior saveToHistory — this is a standalone
+            // logical action, so allocate its own sequence (D-7). Coordinated
+            // writes (skipHistory=true after a coordinator's saveToHistory)
+            // inherit the sequence the coordinator allocated.
+            allocateHistorySequence();
             // Direct call without a prior saveToHistory — save a snapshot-based entry.
             saveToHistory();
           }
@@ -171,7 +196,7 @@ const initialState = () => {
 
               const newPast = [
                 ...state.history.past,
-                { patches, inversePatches }
+                { patches, inversePatches, seq: currentHistorySequence() }
               ];
               if (newPast.length > state.history.maxHistorySize)
                 newPast.shift();
@@ -198,7 +223,9 @@ const initialState = () => {
         saveToHistory,
         clearHistory,
         freezePendingPre,
-        unfreezePendingPre
+        unfreezePendingPre,
+        peekUndoSeq,
+        peekRedoSeq
       }
     };
   });

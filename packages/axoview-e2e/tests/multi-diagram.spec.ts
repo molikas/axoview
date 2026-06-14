@@ -234,19 +234,26 @@ async function selectSeededItem(page: import('@playwright/test').Page) {
   await interactions.evaluate(
     (el, args: { x: number; y: number }) => {
       const rect = el.getBoundingClientRect();
+      // ADR 0018: the lib listens for Pointer Events now — dispatch
+      // PointerEvents with pointerType:'mouse' so the unchanged mouse branch
+      // runs (was new MouseEvent before the rewrite).
       const fire = (type: string) =>
         el.dispatchEvent(
-          new MouseEvent(type, {
+          new PointerEvent(type, {
             bubbles: true,
             cancelable: true,
             clientX: rect.left + args.x,
             clientY: rect.top + args.y,
-            button: 0
+            button: 0,
+            buttons: type === 'pointerdown' ? 1 : 0,
+            pointerId: 1,
+            pointerType: 'mouse',
+            isPrimary: true
           })
         );
-      fire('mousemove');
-      fire('mousedown');
-      fire('mouseup');
+      fire('pointermove');
+      fire('pointerdown');
+      fire('pointerup');
     },
     { x: cx, y: cy }
   );
