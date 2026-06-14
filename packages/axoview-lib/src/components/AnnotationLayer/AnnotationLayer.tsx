@@ -20,9 +20,14 @@ import {
   screenToSceneCanvas,
   polylinePathD,
   arrowHeadPoints,
-  rectFromPoints
+  rectFromPoints,
+  strokeHitByEraser
 } from 'src/utils/annotationGeometry';
-import { HIGHLIGHTER_OPACITY } from 'src/config/annotationSettings';
+import {
+  HIGHLIGHTER_OPACITY,
+  HIGHLIGHTER_WIDTH_MULTIPLIER,
+  ERASER_RADIUS_PX
+} from 'src/config/annotationSettings';
 
 const isShape = (tool: AnnotationStroke['tool']) =>
   tool === 'rectangle' || tool === 'ellipse';
@@ -46,20 +51,16 @@ const HIGHLIGHTER_CURSOR = svgCursor(
   6,
   25
 );
-const ERASER_CURSOR = svgCursor(
-  "<svg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 24 24'><g transform='rotate(-35 11 13)'><rect x='4' y='9' width='13' height='8' rx='1.5' fill='white' stroke='black' stroke-width='1.4'/><line x1='10.5' y1='9' x2='10.5' y2='17' stroke='black' stroke-width='1.1'/></g></svg>",
-  8,
-  20
-);
 
+// The eraser deliberately has no OS cursor — the ghost circle (rendered in the
+// SVG, sized to ERASER_RADIUS_PX) IS the cursor, so the user sees exactly how
+// large the hit area is. See cursorForTool's default + the eraser render below.
 const cursorForTool = (tool: AnnotationTool): string => {
   switch (tool) {
     case 'pencil':
       return PENCIL_CURSOR;
     case 'highlighter':
       return HIGHLIGHTER_CURSOR;
-    case 'eraser':
-      return ERASER_CURSOR;
     case 'line':
     case 'arrow':
     case 'rectangle':
@@ -70,25 +71,14 @@ const cursorForTool = (tool: AnnotationTool): string => {
   }
 };
 
-/** Renders one committed/draft stroke as SVG. Pointer-eraseable when `onErase`. */
-const StrokeShape = ({
-  stroke,
-  onErase
-}: {
-  stroke: AnnotationStroke;
-  onErase?: (id: string) => void;
-}) => {
+/**
+ * Renders one committed/draft stroke as SVG. Always pointer-transparent — the
+ * eraser hit-tests stroke geometry at the layer level (radius around the
+ * cursor) rather than relying on a click landing on the thin drawn line.
+ */
+const StrokeShape = ({ stroke }: { stroke: AnnotationStroke }) => {
   const { tool, color, thickness, points } = stroke;
-  const eraseProps = onErase
-    ? {
-        // Inherit the eraser cursor from the layer; just be hit-testable.
-        style: { pointerEvents: 'stroke' as const },
-        onPointerDown: (e: React.PointerEvent) => {
-          e.stopPropagation();
-          onErase(stroke.id);
-        }
-      }
-    : { style: { pointerEvents: 'none' as const } };
+  const eraseProps = { style: { pointerEvents: 'none' as const } };
   const common = {
     stroke: color,
     strokeWidth: thickness,
@@ -96,7 +86,10 @@ const StrokeShape = ({
     strokeLinecap: 'round' as const,
     strokeLinejoin: 'round' as const,
     ...(tool === 'highlighter'
-      ? { opacity: HIGHLIGHTER_OPACITY, strokeWidth: thickness * 2.5 }
+      ? {
+          opacity: HIGHLIGHTER_OPACITY,
+          strokeWidth: thickness * HIGHLIGHTER_WIDTH_MULTIPLIER
+        }
       : {})
   };
 
@@ -158,6 +151,11 @@ export const AnnotationLayer = () => {
   const draftRef = useRef<AnnotationStroke | null>(null);
   const [draft, setDraft] = useState<AnnotationStroke | null>(null);
   const drawingRef = useRef(false);
+  // Eraser: erasingRef tracks a held drag-erase; eraserCircleRef is the ghost
+  // circle we move in screen-space (via setAttribute, no React re-render) so it
+  // tracks the cursor smoothly even with many strokes mounted.
+  const erasingRef = useRef(false);
+  const eraserCircleRef = useRef<SVGCircleElement>(null);
 
   const setDraftBoth = useCallback((next: AnnotationStroke | null) => {
     draftRef.current = next;
@@ -196,12 +194,16 @@ export const AnnotationLayer = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, [shown, tool, actions]);
 
-  // While a draw/eraser tool is active, swallow LEFT-button mouse events at the
-  // layer so they never reach the window-level interaction manager (which would
-  // otherwise pan in preview's PAN mode, or select in edit). React's
-  // stopPropagation can't stop a native `window` listener, so we attach native
-  // listeners here. Right-button (pan) and wheel (zoom) are left untouched, so
-  // canvas navigation stays available while drawing.
+  // While a draw/eraser tool is active, swallow LEFT-button mouse events AND all
+  // touch events at the layer so they never reach the window-level interaction
+  // manager (which would otherwise pan in preview's PAN mode, or select/drag a
+  // node in edit — the "node grabbed but won't drop" bug, since the canvas drag
+  // started on mousedown/touchstart but the matching up event was captured by
+  // the overlay). React's stopPropagation can't stop a native `window` listener,
+  // so we attach native listeners here. Right-button (pan) and wheel (zoom) are
+  // left untouched, so mouse canvas navigation stays available while drawing;
+  // touch has no right-button equivalent, so a draw/eraser tool fully locks the
+  // canvas to touch — which is exactly the requested "lock node selection".
   useEffect(() => {
     const el = rootRef.current;
     if (!el || (!capturing && !eraserActive)) return;
@@ -212,13 +214,23 @@ export const AnnotationLayer = () => {
       // eslint-disable-next-line no-bitwise
       if (e.buttons & 1) e.stopPropagation();
     };
+    // Touch carries no button info; swallow it wholesale so the canvas can't
+    // pick up a node from under the overlay. Annotation drawing/erasing runs off
+    // React pointer events, which are a separate event family and unaffected.
+    const stopTouch = (e: TouchEvent) => e.stopPropagation();
     el.addEventListener('mousedown', stopLeftButton);
     el.addEventListener('mousemove', stopLeftDrag);
     el.addEventListener('mouseup', stopLeftButton);
+    el.addEventListener('touchstart', stopTouch);
+    el.addEventListener('touchmove', stopTouch);
+    el.addEventListener('touchend', stopTouch);
     return () => {
       el.removeEventListener('mousedown', stopLeftButton);
       el.removeEventListener('mousemove', stopLeftDrag);
       el.removeEventListener('mouseup', stopLeftButton);
+      el.removeEventListener('touchstart', stopTouch);
+      el.removeEventListener('touchmove', stopTouch);
+      el.removeEventListener('touchend', stopTouch);
     };
   }, [capturing, eraserActive]);
 
@@ -260,8 +272,44 @@ export const AnnotationLayer = () => {
     [uiStoreApi]
   );
 
+  // Move the ghost eraser circle to the cursor (screen-space, direct DOM).
+  const moveEraserCircle = useCallback((e: React.PointerEvent) => {
+    const c = eraserCircleRef.current;
+    if (!c) return;
+    const rect = rootRef.current!.getBoundingClientRect();
+    c.setAttribute('cx', `${e.clientX - rect.left}`);
+    c.setAttribute('cy', `${e.clientY - rect.top}`);
+    c.style.opacity = '1';
+  }, []);
+
+  // Erase every stroke whose geometry falls within the eraser radius of the
+  // cursor. Reads strokes fresh from the store so a fast drag never re-tests
+  // already-removed strokes against a stale render closure. The radius is fixed
+  // in screen px, so it's divided by zoom to compare against scene-space strokes.
+  const eraseAt = useCallback(
+    (e: React.PointerEvent) => {
+      const { zoom, annotation } = uiStoreApi.getState();
+      const center = toScene(e);
+      const radiusScene = ERASER_RADIUS_PX / zoom;
+      annotation.strokes.forEach((s) => {
+        if (strokeHitByEraser(s, center, radiusScene)) {
+          actions.eraseAnnotationStroke(s.id);
+        }
+      });
+    },
+    [uiStoreApi, toScene, actions]
+  );
+
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
+      if (eraserActive && e.button === 0) {
+        e.stopPropagation();
+        rootRef.current?.setPointerCapture(e.pointerId);
+        erasingRef.current = true;
+        moveEraserCircle(e);
+        eraseAt(e);
+        return;
+      }
       if (!capturing || e.button !== 0) return;
       e.stopPropagation();
       rootRef.current?.setPointerCapture(e.pointerId);
@@ -276,11 +324,26 @@ export const AnnotationLayer = () => {
         points: isShape(drawTool) || isSegment(drawTool) ? [p, p] : [p]
       });
     },
-    [capturing, toScene, tool, color, thickness, setDraftBoth]
+    [
+      capturing,
+      eraserActive,
+      toScene,
+      tool,
+      color,
+      thickness,
+      setDraftBoth,
+      moveEraserCircle,
+      eraseAt
+    ]
   );
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
+      if (eraserActive) {
+        moveEraserCircle(e);
+        if (erasingRef.current) eraseAt(e);
+        return;
+      }
       if (!drawingRef.current) return;
       const cur = draftRef.current;
       if (!cur) return;
@@ -291,10 +354,11 @@ export const AnnotationLayer = () => {
           : { ...cur, points: [...cur.points, p] };
       setDraftBoth(next);
     },
-    [toScene, setDraftBoth]
+    [eraserActive, toScene, setDraftBoth, moveEraserCircle, eraseAt]
   );
 
   const endStroke = useCallback(() => {
+    erasingRef.current = false;
     if (!drawingRef.current) return;
     drawingRef.current = false;
     const cur = draftRef.current;
@@ -310,11 +374,19 @@ export const AnnotationLayer = () => {
     setDraftBoth(null);
   }, [actions, setDraftBoth]);
 
+  // Hide the ghost circle when the cursor leaves the overlay (moving onto the
+  // palette / dock) so a stray circle doesn't linger off to the side.
+  const hideEraserCircle = useCallback(() => {
+    const c = eraserCircleRef.current;
+    if (c) c.style.opacity = '0';
+  }, []);
+
   if (!shown) return null;
 
   let layerCursor = 'default';
   if (capturing) layerCursor = cursorForTool(tool);
-  else if (eraserActive) layerCursor = cursorForTool('eraser');
+  // Eraser uses no OS cursor — the ghost circle is the cursor (see render).
+  else if (eraserActive) layerCursor = 'none';
 
   return (
     <div
@@ -336,6 +408,7 @@ export const AnnotationLayer = () => {
       onPointerMove={handlePointerMove}
       onPointerUp={endStroke}
       onPointerCancel={endStroke}
+      onPointerLeave={eraserActive ? hideEraserCircle : undefined}
     >
       <svg
         width="100%"
@@ -344,14 +417,28 @@ export const AnnotationLayer = () => {
       >
         <g ref={gRef}>
           {strokes.map((s) => (
-            <StrokeShape
-              key={s.id}
-              stroke={s}
-              onErase={tool === 'eraser' ? actions.eraseAnnotationStroke : undefined}
-            />
+            <StrokeShape key={s.id} stroke={s} />
           ))}
           {draft && <StrokeShape stroke={draft} />}
         </g>
+        {/* Ghost eraser circle — drawn in screen-space (outside the zoom-scaled
+            <g>) so it stays a constant ERASER_RADIUS_PX on screen. Hidden until
+            the first pointer move positions it. Shows the user exactly how large
+            the erase hit area is. */}
+        {eraserActive && (
+          <circle
+            ref={eraserCircleRef}
+            cx={-9999}
+            cy={-9999}
+            r={ERASER_RADIUS_PX}
+            fill="rgba(0, 0, 0, 0.06)"
+            stroke="#000"
+            strokeOpacity={0.55}
+            strokeWidth={1.5}
+            strokeDasharray="3 3"
+            style={{ opacity: 0, pointerEvents: 'none' }}
+          />
+        )}
       </svg>
     </div>
   );

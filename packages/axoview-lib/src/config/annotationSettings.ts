@@ -17,3 +17,16 @@ export const ANNOTATION_THICKNESS_PRESETS = [2, 4, 8, 16] as const;
 
 /** Highlighter is drawn semi-transparent and thicker-feeling than its nominal width. */
 export const HIGHLIGHTER_OPACITY = 0.35;
+
+/** Highlighter renders this much wider than its nominal thickness (felt-tip feel). */
+export const HIGHLIGHTER_WIDTH_MULTIPLIER = 2.5;
+
+/**
+ * Eraser hit radius in *screen* pixels. The eraser removes any stroke whose
+ * geometry falls within this radius of the cursor, so thin lines no longer
+ * need a pixel-perfect click. Screen-space (not scene-space) so the eraser
+ * stays a constant on-screen size at every zoom; the hit-test divides by zoom
+ * to compare against scene-space stroke geometry. A ghost circle of this radius
+ * is drawn under the cursor so the hit area is visible.
+ */
+export const ERASER_RADIUS_PX = 16;
