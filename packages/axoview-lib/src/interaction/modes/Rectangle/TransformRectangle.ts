@@ -7,8 +7,17 @@ import {
 import { ModeActions } from 'src/types';
 
 export const TransformRectangle: ModeActions = {
-  entry: () => {},
-  exit: () => {},
+  // The resize begins when a TransformControls anchor sets this mode; entry runs
+  // on the first pointer event after that. Open one history entry for the whole
+  // resize — the per-frame batch writes skip history while it is open.
+  entry: ({ scene }) => {
+    scene.beginDragTransaction();
+  },
+  exit: ({ scene }) => {
+    // Commit on any exit path (mouseup already committed → no-op; programmatic
+    // mode change / escape commits the resize so far).
+    scene.commitDragTransaction();
+  },
   mousemove: ({ uiState, scene }) => {
     if (
       uiState.mode.type !== 'RECTANGLE.TRANSFORM' ||
@@ -37,10 +46,15 @@ export const TransformRectangle: ModeActions = {
         ]);
         const nextNamedBounds = convertBoundsToNamedAnchors(nextBounds);
 
-        scene.updateRectangle(uiState.mode.id, {
-          from: nextNamedBounds.TOP_RIGHT,
-          to: nextNamedBounds.BOTTOM_LEFT
-        });
+        // Immer-free per-frame resize (no full-state produce) — keeps the
+        // resize smooth; lands in the open transaction = one undo entry.
+        scene.batchUpdateRectangles([
+          {
+            id: uiState.mode.id,
+            from: nextNamedBounds.TOP_RIGHT,
+            to: nextNamedBounds.BOTTOM_LEFT
+          }
+        ]);
       } else if (
         uiState.mode.selectedAnchor === 'BOTTOM_RIGHT' ||
         uiState.mode.selectedAnchor === 'TOP_LEFT'
@@ -53,19 +67,25 @@ export const TransformRectangle: ModeActions = {
         ]);
         const nextNamedBounds = convertBoundsToNamedAnchors(nextBounds);
 
-        scene.updateRectangle(uiState.mode.id, {
-          from: nextNamedBounds.TOP_LEFT,
-          to: nextNamedBounds.BOTTOM_RIGHT
-        });
+        scene.batchUpdateRectangles([
+          {
+            id: uiState.mode.id,
+            from: nextNamedBounds.TOP_LEFT,
+            to: nextNamedBounds.BOTTOM_RIGHT
+          }
+        ]);
       }
     }
   },
   mousedown: () => {
     // MOUSE_DOWN is triggered by the anchor iteself (see `TransformAnchor.tsx`)
   },
-  mouseup: ({ uiState }) => {
+  mouseup: ({ uiState, scene }) => {
     if (uiState.mode.type !== 'RECTANGLE.TRANSFORM') return;
 
+    // Commit before the mode switch so the resize closes as one history entry
+    // (matches DragItems/Connector order: writes → commit → mode change).
+    scene.commitDragTransaction();
     uiState.actions.setMode({
       type: 'CURSOR',
       mousedownItem: null,
