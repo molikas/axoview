@@ -73,6 +73,21 @@ export const Icon = ({
       <Box
         onClick={onClick}
         onMouseDown={onMouseDown}
+        // Touch: arm placement at pointerdown (onMouseDown only fires as a compat
+        // event after touchend, too late for a drag-from-panel). Capture the
+        // pointer so the browser can't reinterpret the drag as a panel scroll
+        // (which fires pointercancel and aborts the drag). The interaction
+        // manager then drops/places the icon where the finger lifts over the
+        // canvas. Mouse keeps onMouseDown (its drag-from-panel already works).
+        onPointerDown={(e) => {
+          if (e.pointerType === 'mouse') return;
+          try {
+            e.currentTarget.setPointerCapture(e.pointerId);
+          } catch {
+            /* capture unavailable */
+          }
+          onMouseDown?.();
+        }}
         onDoubleClick={onDoubleClick}
         data-axoview-id="canvas-icon-grid-item"
         sx={{
@@ -85,6 +100,9 @@ export const Icon = ({
           borderRadius: 1,
           cursor: 'pointer',
           userSelect: 'none',
+          // Don't let the browser treat a touch-drag from the icon as a panel
+          // scroll — that fires pointercancel and aborts the drag-to-place.
+          touchAction: 'none',
           '&:hover': { bgcolor: 'action.hover' },
           '&:hover .ff-icon-delete, &:focus-within .ff-icon-delete': {
             opacity: 1
