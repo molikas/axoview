@@ -1,14 +1,16 @@
 /**
- * touch-tap-place.spec — ADR 0018 §5.1 P0. The headline SELECT → GRAB → PLACE
- * flow: tap a node (select) → tap it again (grab, mode = CARRY_ITEM) → tap a
- * free tile (the node relocates there). Asserts the relocation lands on the
- * tapped tile and NOT at the corner (the old (0,0) touch-synthesis bug).
+ * touch-drag-move.spec — ADR 0018 (Option A: direct manipulation).
+ *
+ * Dragging a node directly moves it (no tap-to-place): a one-finger drag that
+ * STARTS on a node moves that node; a drag on empty canvas pans (covered by
+ * touch-tap-vs-pan). Asserts the node relocates toward the drag end and not to
+ * the corner (the old (0,0) touch-synthesis bug).
  */
 import { canvasReadyTest as test, expect } from '../fixtures/app.fixture';
 import { CanvasPOM } from '../pom/CanvasPOM';
 import { TouchPOM } from '../pom/TouchPOM';
 import { placeIconViaMouse, clearCanvasForTouch } from '../helpers/place';
-import { getModelItemCount, getUiMode } from '../helpers/store';
+import { getModelItemCount } from '../helpers/store';
 
 const nodeTile = (page: import('@playwright/test').Page) =>
   page.evaluate(() => {
@@ -18,8 +20,8 @@ const nodeTile = (page: import('@playwright/test').Page) =>
     return view.items[0].tile as { x: number; y: number };
   });
 
-test.describe('Touch — tap to place (SELECT → GRAB → PLACE)', () => {
-  test('tap → tap-same (grab) → tap-target relocates the node; no corner jump', async ({
+test.describe('Touch — drag a node to move it (direct manipulation)', () => {
+  test('one-finger drag starting on a node moves it toward the drop; no corner jump', async ({
     page,
     app
   }) => {
@@ -32,29 +34,16 @@ test.describe('Touch — tap to place (SELECT → GRAB → PLACE)', () => {
     await clearCanvasForTouch(page);
 
     const origin = await nodeTile(page);
-
-    // Tap 1 — select.
-    await touch.tapTile(origin);
-    // Tap 2 — grab (same node) → CARRY_ITEM.
-    await touch.tapTile(origin);
-    await expect
-      .poll(async () => (await getUiMode(page)).type, { timeout: 5_000 })
-      .toBe('CARRY_ITEM');
-
-    // Tap 3 — a free target tile a few tiles away → PLACE.
+    const from = await touch.tilePoint(origin);
     const target = { x: origin.x + 3, y: origin.y + 2 };
-    await touch.tapTile(target);
+    const to = await touch.tilePoint(target);
 
-    // Back to a non-carry mode, and the node moved to (near) the target — and
-    // crucially NOT to the corner (0,0).
-    await expect
-      .poll(async () => (await getUiMode(page)).type, { timeout: 5_000 })
-      .not.toBe('CARRY_ITEM');
+    // Drag from the node to the target tile (one finger, starts on the node).
+    await touch.dragOneFinger(from, to, 8);
 
     const placed = await nodeTile(page);
     expect(placed).not.toEqual(origin);
     expect(placed).not.toEqual({ x: 0, y: 0 });
-    // Nearest-free placement: within one tile of the requested target.
     expect(Math.abs(placed.x - target.x)).toBeLessThanOrEqual(1);
     expect(Math.abs(placed.y - target.y)).toBeLessThanOrEqual(1);
   });

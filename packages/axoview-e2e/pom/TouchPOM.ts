@@ -114,38 +114,4 @@ export class TouchPOM {
     await client.detach();
     await this.page.waitForTimeout(60);
   }
-
-  /**
-   * Press one finger, then land a SECOND finger (without lifting the first) and
-   * lift both. Used to exercise the "2nd finger aborts a carry" precedence.
-   * Box-relative points.
-   */
-  async secondFingerTap(first: CanvasPoint, second: CanvasPoint) {
-    const a = await this.abs(first);
-    const b = await this.abs(second);
-    const client = await this.cdp();
-    await client.send('Input.dispatchTouchEvent', {
-      type: 'touchStart',
-      touchPoints: [{ x: a.x, y: a.y, id: 0 }]
-    });
-    await this.page.waitForTimeout(30);
-    await client.send('Input.dispatchTouchEvent', {
-      type: 'touchStart',
-      touchPoints: [
-        { x: a.x, y: a.y, id: 0 },
-        { x: b.x, y: b.y, id: 1 }
-      ]
-    });
-    await this.page.waitForTimeout(30);
-    await client.send('Input.dispatchTouchEvent', {
-      type: 'touchEnd',
-      touchPoints: [{ x: a.x, y: a.y, id: 0 }]
-    });
-    await client.send('Input.dispatchTouchEvent', {
-      type: 'touchEnd',
-      touchPoints: []
-    });
-    await client.detach();
-    await this.page.waitForTimeout(60);
-  }
 }

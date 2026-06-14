@@ -28,10 +28,10 @@ test.describe('Touch — one-finger drag pans (D-12)', () => {
 
     const before = await getScroll(page);
 
-    // Drag across CLEAR canvas (well past TAP_SLOP_PX) → pan. Coords are kept
-    // clear of the left dock overlay (its region is not part of rendererEl, so a
-    // drag starting there is correctly ignored).
-    await touch.dragOneFinger({ x: 470, y: 360 }, { x: 660, y: 470 });
+    // Drag across EMPTY canvas (well past TAP_SLOP_PX) → pan. Under direct
+    // manipulation a drag must START on empty space to pan (a drag starting on a
+    // node moves the node), so keep well clear of the node placed at ~{420,300}.
+    await touch.dragOneFinger({ x: 660, y: 170 }, { x: 780, y: 250 });
 
     const after = await getScroll(page);
     expect(

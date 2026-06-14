@@ -115,21 +115,9 @@ These are distinct mechanisms, not stack-skew, so the sequence-stamping work doe
 - **D-8 — paste→undo→redo restores empty connector paths.** Paste records a provisional empty path in the scene history entry (`createConnector(..., skipPathfinding=true)`), and `computePathsAsync` fills the real paths *outside* history (`skipHistory=true`). So paste → `Ctrl+Z` → `Ctrl+Y` re-applies the recorded patch with empty paths → pasted connectors render pathless until a later edit touches them. **Fix sketch:** on redo of a paste, re-run pathfinding for the restored connectors (or record the computed paths into the history entry rather than the provisional empty ones). e2e repro to be added under the canvas-interaction coverage work.
 - **D-9 — cross-view (page-switch) undo applies scene patches to the wrong view.** The scene store holds only the current view but its history stack is global and unscoped; `changeView` rebuilds the scene with `skipHistory=true` and does not clear/scope history. Undoing after a page switch applies the previous view's scene patches to the current view (phantom/stale `scene.connectors[id]`) while the model undo reverts an off-screen view. **Fix sketch:** scope scene history per-view, or clear/snapshot on `changeView`. Larger change; deferred. Code-traced, e2e repro to be added.
 
-## Touch: delete + z-order per-item actions have no Properties-panel route (D-6 follow-up)
+## Touch per-item actions (delete / z-order) — RESOLVED via direct manipulation (Option A)
 
-**Symptom:** ADR 0018 D-6 routes per-item actions on touch through the right-hand Properties panel (the floating NodeActionBar stays desktop/right-click-only). Auditing the NodeActionBar actions against touch-reachable surfaces (2026-06-14):
-
-| NodeActionBar action | Touch route | Status |
-|---|---|---|
-| edit name / style / notes / link | Properties panel (NodePanel Info/Style tabs, auto-opens on selection) | ✅ covered |
-| assign-layer | LayersPanel (left dock) / LassoLayerBar | ✅ covered |
-| start-connector ("Add connection") | Connector tool in the ToolMenu → tap source, tap target | ✅ covered (different route) |
-| **delete** | — (NodeActionBar right-click or `Delete` key only) | ❌ **gap on pure touch** |
-| **z-order (bring forward / send back)** | — (NodeActionBar right-click or `Ctrl+]`/`[` only) | ❌ **gap on pure touch** |
-
-**Workaround:** Use a device with a keyboard, or right-click (mouse/trackpad). On a pure touchscreen these two actions are currently unreachable.
-
-**Status:** Open follow-up filed during the ADR 0018 touch/pen implementation. **Fix sketch:** add a small action row to the Properties panel header (delete + bring-forward/send-back) shown for a single ITEM selection — reuses `deleteViewItem`/`deleteSelectedItems` and the existing z-order actions; no new gesture or canvas chrome (consistent with D-6). Deferred as a panel-UX change separate from the gesture contract.
+**Resolved 2026-06-14 (B).** Originally D-6 routed touch actions through the Properties panel and kept the NodeActionBar desktop-only, leaving delete + z-order unreachable on a pure touchscreen. The Option A revision (direct manipulation — see ADR 0018) makes **move a drag**, so long-press is no longer overloaded: a long-press on a node fires the OS `contextmenu`, which opens the **NodeActionBar** for the pressed node (delete / z-order / layer / start-connector). It targets the pressed node reliably because the touch pointerdown seeds `uiState.mouse.position`. So all per-item actions are reachable on touch via long-press; name/style/notes/link also remain in the Properties panel (auto-opens on selection), and layers via the LayersPanel.
 
 ## Rectangle / textbox drag perf (move + draw + resize) — FIXED (D-3 resolved)
 
@@ -194,7 +182,9 @@ Pattern: **allocation-rate-limited GC pressure**, not a CPU bottleneck. V8 holds
 
 ## Touch/touchpad node placement — SHIPPED (ADR 0018)
 
-**Resolved 2026-06-14.** The press-drag-release-only model is replaced by the touch/pen gesture contract ([ADR 0018](docs/adr/0018-touch-pen-gesture-contract.md), Accepted): one Pointer Events layer branches on `pointerType` — mouse/trackpad keep press-drag-release (with a px-based tap-vs-pan threshold that fixes the precision-trackpad sub-tile drag), touch/pen get tap-to-select / tap-to-place (SELECT→GRAB→PLACE), one-finger pan, and two-finger pinch-zoom. The `window` mouse + touch-synthesis path (and the `(0,0)` drop bug) are gone. Remaining touch follow-up: the D-6 "delete + z-order have no Properties-panel route" entry above.
+**Resolved 2026-06-14.** The press-drag-release-only model is replaced by the touch/pen gesture contract ([ADR 0018](docs/adr/0018-touch-pen-gesture-contract.md), Accepted): one Pointer Events layer branches on `pointerType` — mouse/trackpad keep press-drag-release (with a px-based tap-vs-pan threshold that fixes the precision-trackpad sub-tile drag), and the `window` mouse + touch-synthesis path (and the `(0,0)` drop bug) are gone.
+
+**Touch model = direct manipulation (Option A, 2026-06-14 (B), after device testing).** The initial tap-to-place (SELECT→GRAB→PLACE) was replaced — it fought muscle memory and overloaded long-press. Now: tap a node selects it; **drag a node moves it** (down-on-node → forwarded to the desktop `DRAG_ITEMS` path); drag empty canvas pans; two-finger pinch-zooms; **drag a connector endpoint handle reconnects it**; long-press opens the per-item action bar (move is a drag now, so no overload). Matches Figma/Miro/Lucidchart. No `CARRY_ITEM` mode.
 
 ### §5.1 e2e coverage follow-ups (P1, deferred — not introduced by this work)
 

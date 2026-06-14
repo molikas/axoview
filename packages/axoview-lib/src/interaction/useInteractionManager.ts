@@ -36,14 +36,7 @@ import { TextBox } from './modes/TextBox';
 import { Lasso } from './modes/Lasso';
 import { FreehandLasso } from './modes/FreehandLasso';
 import { ReconnectAnchor } from './modes/ReconnectAnchor';
-import { CarryItem } from './modes/CarryItem';
-import { decideTouchTap } from './touchTap';
-import {
-  TAP_SLOP_PX,
-  TAP_TIME_MS,
-  exceedsTapSlop,
-  isTapGesture
-} from 'src/config/tapGesture';
+import { exceedsTapSlop } from 'src/config/tapGesture';
 import { MIN_ZOOM, MAX_ZOOM } from 'src/config';
 import { usePanHandlers } from './usePanHandlers';
 import { useRAFThrottle } from './useRAFThrottle';
@@ -60,8 +53,7 @@ const modes: { [k in string]: ModeActions } = {
   TEXTBOX: TextBox,
   LASSO: Lasso,
   FREEHAND_LASSO: FreehandLasso,
-  RECONNECT_ANCHOR: ReconnectAnchor,
-  CARRY_ITEM: CarryItem
+  RECONNECT_ANCHOR: ReconnectAnchor
 };
 
 // Device class of the originating pointer (ADR 0018). The mouse-shaped
@@ -73,9 +65,14 @@ type PointerKind = 'mouse' | 'touch' | 'pen';
 interface TouchGestureState {
   // Active touch/pen pointers by pointerId → latest client position.
   pointers: Map<number, { x: number; y: number }>;
-  phase: 'idle' | 'tap' | 'pan' | 'pinch';
+  // 'item' = single finger on a draggable target, forwarded as a mouse gesture
+  // (tap=select, drag=move/reconnect). 'pan-pending' = single finger on empty,
+  // not yet past slop. 'pan' = one-finger pan. 'pinch' = two-finger zoom+pan.
+  phase: 'idle' | 'item' | 'pan-pending' | 'pan' | 'pinch';
+  // Target the 'item' down was forwarded with (the interactions box, or the real
+  // anchor element so targetAnchorId resolves for connector reconnect).
+  itemDownTarget: EventTarget | null;
   downScreen: { x: number; y: number };
-  downTime: number;
   lastPanScreen: { x: number; y: number };
   pinchLastDistance: number;
   pinchLastCentroid: { x: number; y: number };
@@ -625,8 +622,8 @@ export const useInteractionManager = () => {
   const touchStateRef = useRef<TouchGestureState>({
     pointers: new Map(),
     phase: 'idle',
+    itemDownTarget: null,
     downScreen: { x: 0, y: 0 },
-    downTime: 0,
     lastPanScreen: { x: 0, y: 0 },
     pinchLastDistance: 0,
     pinchLastCentroid: { x: 0, y: 0 }
@@ -908,9 +905,6 @@ export const useInteractionManager = () => {
     (e: SlimMouseEvent) => {
       e.preventDefault();
       const uiState = uiStateApi.getState();
-      // During a touch/pen carry, a long-press contextmenu must not raise the OS
-      // menu or open the action bar — suppress entirely (ADR 0018 guardrail 3).
-      if (uiState.mode.type === 'CARRY_ITEM') return;
       const tile = uiState.mouse.position.tile;
       const item = getItemAtTile({ tile, scene });
       // Locked or hidden items are non-interactive (mqa-results.md #2) — fall
@@ -978,95 +972,44 @@ export const useInteractionManager = () => {
       }
     };
 
-    // ─── touch / pen gesture machine (ADR 0018 Decision 4 + D-12) ────────────
-    // Owned entirely here so the pointerType branch stays in one place: pan +
-    // pinch drive setScroll/setZoom straight through the store (render-free),
-    // and taps are forwarded to the mode dispatcher as a synthetic mouse click
-    // so SELECT reuses the existing Cursor path (preserving I-1/I-2/I-3).
+    // ─── touch / pen gesture machine (ADR 0018 — direct manipulation) ────────
+    // Disambiguate by what is UNDER the finger at pointerdown (Figma/Miro/
+    // Lucidchart model):
+    //   • draggable target (interactable node, or a connector anchor handle) →
+    //     forward the whole gesture as mouse events so the existing modes run: a
+    //     tap selects, a drag moves the node (DRAG_ITEMS CSS-preview) or
+    //     reconnects the anchor (RECONNECT_ANCHOR) — identical to desktop.
+    //   • empty canvas → tap clears selection; drag pans (setScroll).
+    //   • two fingers → pinch-zoom + pan (setZoom/setScroll).
+    // No tap-to-place, no long-press-to-move: move IS drag. The long-press
+    // contextmenu still raises the per-item action bar, now reliably because the
+    // down seeds uiState.mouse.position (onContextMenu reads the pressed tile).
 
-    // A canvas-targeted, mouse-shaped event for forwarding a touch tap. target
-    // is the interactions box so isRendererInteraction holds for the dispatch.
-    const tapEvent = (
+    // Forward a touch gesture event to the mode dispatcher as a mouse-shaped
+    // event. SlimMouseEvent stays the modes' internal contract. The 'item' down
+    // on an anchor keeps the real target so targetAnchorId + the isAnchorOverlay
+    // gate resolve; otherwise events target the interactions box so
+    // isRendererInteraction holds.
+    const forwardMouse = (
       e: PointerEvent,
-      type: 'mousedown' | 'mousemove' | 'mouseup'
-    ): SlimMouseEvent => ({
-      clientX: e.clientX,
-      clientY: e.clientY,
-      target: interactionsEl ?? e.target,
-      type,
-      preventDefault: () => e.preventDefault(),
-      button: 0,
-      ctrlKey: e.ctrlKey,
-      altKey: e.altKey,
-      shiftKey: e.shiftKey,
-      metaKey: e.metaKey
-    });
-
-    // Abort an in-flight carry (pointercancel / 2nd finger): the node stays at
-    // its origin (model was never written — D-2, node carry only). Return to
-    // SELECT with the node still selected.
-    const abortCarry = () => {
-      const uiState = uiStateApi.getState();
-      if (uiState.mode.type !== 'CARRY_ITEM') return;
-      const { item } = uiState.mode;
-      uiState.actions.setMode({
-        type: 'CURSOR',
-        showCursor: true,
-        mousedownItem: null
+      type: 'mousedown' | 'mousemove' | 'mouseup',
+      target: EventTarget | null | undefined
+    ) => {
+      onMouseEvent({
+        clientX: e.clientX,
+        clientY: e.clientY,
+        target: target ?? null,
+        type,
+        preventDefault: () => e.preventDefault(),
+        button: 0,
+        ctrlKey: e.ctrlKey,
+        altKey: e.altKey,
+        shiftKey: e.shiftKey,
+        metaKey: e.metaKey
       });
-      if (uiState.actions.setSelectedIds) {
-        uiState.actions.setSelectedIds([{ type: item.type, id: item.id }]);
-      }
     };
 
-    const handleTouchTap = (e: PointerEvent) => {
-      const before = uiStateApi.getState();
-      // A mousemove seeds uiState.mouse.position BEFORE the mousedown — the mode
-      // reducers read the position from the uiState snapshot captured at the top
-      // of processMouseUpdate, which is stale until a move/down updates the
-      // store. Real flows (and CanvasPOM.clickAt) always send a move first; the
-      // mousedown's flushUpdate processes this seed synchronously.
-      // While carrying, any tap places the node (CARRY_ITEM.mouseup).
-      if (before.mode.type === 'CARRY_ITEM') {
-        onMouseEvent(tapEvent(e, 'mousemove'));
-        onMouseEvent(tapEvent(e, 'mousedown'));
-        onMouseEvent(tapEvent(e, 'mouseup'));
-        return;
-      }
-      // mousedown resolves the tapped tile + item (Cursor sets mousedownItem,
-      // filtered through isItemInteractable).
-      const preSelection = before.selectedIds ?? [];
-      onMouseEvent(tapEvent(e, 'mousemove'));
-      onMouseEvent(tapEvent(e, 'mousedown'));
-      const afterDown = uiStateApi.getState();
-      const tappedItem =
-        afterDown.mode.type === 'CURSOR'
-          ? afterDown.mode.mousedownItem
-          : null;
-      const decision = decideTouchTap({
-        modeType: afterDown.mode.type,
-        tappedItem,
-        selectedIds: preSelection,
-        // Cursor.mousedown already applied isItemInteractable when setting
-        // mousedownItem, so a present tappedItem is interactable.
-        isInteractable: !!tappedItem
-      });
-      if (decision === 'grab' && tappedItem) {
-        // GRAB — enter the carry state; do not complete the click.
-        afterDown.actions.setMode({
-          type: 'CARRY_ITEM',
-          showCursor: true,
-          item: { type: tappedItem.type, id: tappedItem.id }
-        });
-        return;
-      }
-      // SELECT (or reconnect/other mode entered on mousedown) — complete the
-      // click so Cursor.mouseup resolves selection / clears.
-      onMouseEvent(tapEvent(e, 'mouseup'));
-    };
-
-    // RAF-coalesce touch pan/pinch to ≤1 store write per frame (perf §3.7 —
-    // pointermove fires far denser than the frame rate).
+    // RAF-coalesce touch pan/pinch to ≤1 store write per frame (perf §3.7).
     let touchRaf: number | null = null;
     const runTouchFrame = () => {
       touchRaf = null;
@@ -1086,7 +1029,7 @@ export const useInteractionManager = () => {
             Math.min(MAX_ZOOM, oldZoom * scaleRatio)
           );
           // Anchor the world point under the OLD centroid to the NEW centroid at
-          // the new zoom — this folds zoom-to-centroid + two-finger pan into one
+          // the new zoom — folds zoom-to-centroid + two-finger pan into one
           // transform (mirrors the wheel zoom-to-cursor math).
           const oldRelX =
             ts.pinchLastCentroid.x - rect.left - rendererSize.width / 2;
@@ -1140,25 +1083,77 @@ export const useInteractionManager = () => {
       }
 
       if (ts.pointers.size >= 2) {
-        // Second finger. During a carry it aborts (Decision 6 precedence);
-        // otherwise it begins a pinch (suspending any single-finger pan).
-        if (uiStateApi.getState().mode.type === 'CARRY_ITEM') {
-          abortCarry();
-          ts.phase = 'idle';
-          return;
-        }
+        // Second finger → pinch. End an in-flight item drag first so the node
+        // commits where it is rather than chasing the pinch centroid.
+        if (ts.phase === 'item') forwardMouse(e, 'mouseup', interactionsEl);
         const pts = [...ts.pointers.values()];
         ts.phase = 'pinch';
+        ts.itemDownTarget = null;
         ts.pinchLastDistance = pointerDistance(pts[0], pts[1]);
         ts.pinchLastCentroid = pointerCentroid(pts[0], pts[1]);
         return;
       }
 
-      // First finger — tentative tap until it moves past the slop or lifts.
-      ts.phase = 'tap';
+      // First finger.
       ts.downScreen = { x: e.clientX, y: e.clientY };
-      ts.downTime = Date.now();
       ts.lastPanScreen = { x: e.clientX, y: e.clientY };
+
+      // Seed uiState.mouse.position so a subsequent long-press contextmenu (and
+      // the forwarded events) read the pressed tile, not a stale one.
+      const renderEl = rendererRef.current;
+      if (!renderEl || !rendererSize) {
+        ts.phase = 'pan-pending';
+        return;
+      }
+      const uiState = uiStateApi.getState();
+      const seeded = getMouse({
+        interactiveElement: renderEl,
+        zoom: uiState.zoom,
+        scroll: uiState.scroll,
+        lastMouse: uiState.mouse,
+        mouseEvent: {
+          clientX: e.clientX,
+          clientY: e.clientY,
+          target: e.target,
+          type: 'mousemove',
+          preventDefault: () => e.preventDefault(),
+          button: 0,
+          ctrlKey: e.ctrlKey,
+          altKey: e.altKey,
+          shiftKey: e.shiftKey,
+          metaKey: e.metaKey
+        },
+        rendererSize,
+        screenToTileFn: screenToTile
+      });
+      uiState.actions.setMouse(seeded);
+
+      // Draggable? An interactable node under the finger, or a connector anchor
+      // handle (data-anchor-id). Scene + layers via refs so the listener effect
+      // doesn't re-bind every frame.
+      const sceneNow = sceneRef.current;
+      const { lockedIds, visibleIds } = layerContextRef.current;
+      const onAnchor =
+        e.target instanceof Element && !!e.target.closest('[data-anchor-id]');
+      const itemAtDown = getItemAtTile({ tile: seeded.position.tile, scene: sceneNow });
+      const interactable =
+        !!itemAtDown &&
+        !lockedIds.has(itemAtDown.id) &&
+        (visibleIds.size === 0 || visibleIds.has(itemAtDown.id));
+
+      if (onAnchor || interactable) {
+        // Forward as a mouse gesture: tap = select, drag = move / reconnect.
+        ts.phase = 'item';
+        ts.itemDownTarget = onAnchor ? e.target : interactionsEl ?? null;
+        // Seed a move then the down so Cursor reads the pressed tile (modes read
+        // position from the pre-setMouse uiState snapshot otherwise).
+        forwardMouse(e, 'mousemove', ts.itemDownTarget);
+        forwardMouse(e, 'mousedown', ts.itemDownTarget);
+        return;
+      }
+
+      // Empty / non-interactable: tap clears selection, drag pans.
+      ts.phase = 'pan-pending';
     };
 
     const onTouchPointerMove = (e: PointerEvent) => {
@@ -1166,15 +1161,15 @@ export const useInteractionManager = () => {
       if (!ts.pointers.has(e.pointerId)) return;
       ts.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-      if (ts.phase === 'tap') {
-        // Promote to pan once past the slop radius (graceful: a 2nd finger
-        // landing already switched phase to 'pinch' before this runs).
-        if (exceedsTapSlop(ts.downScreen, { x: e.clientX, y: e.clientY })) {
-          ts.phase = 'pan';
-          ts.lastPanScreen = { x: e.clientX, y: e.clientY };
-        } else {
+      if (ts.phase === 'item') {
+        forwardMouse(e, 'mousemove', interactionsEl);
+        return;
+      }
+      if (ts.phase === 'pan-pending') {
+        if (!exceedsTapSlop(ts.downScreen, { x: e.clientX, y: e.clientY }))
           return;
-        }
+        ts.phase = 'pan';
+        ts.lastPanScreen = { x: e.clientX, y: e.clientY };
       }
       if (ts.phase === 'pan' || ts.phase === 'pinch') scheduleTouchFrame();
     };
@@ -1182,13 +1177,11 @@ export const useInteractionManager = () => {
     const onTouchPointerUp = (e: PointerEvent) => {
       const ts = touchStateRef.current;
       const wasPhase = ts.phase;
-      const upPos = { x: e.clientX, y: e.clientY };
       ts.pointers.delete(e.pointerId);
       releaseCapture(e);
 
       if (wasPhase === 'pinch') {
-        // Lift back to one finger → resume single-finger pan (not a tap; the
-        // gesture already moved). Two fingers gone → idle.
+        // Lift back to one finger → resume single-finger pan. All gone → idle.
         if (ts.pointers.size === 1) {
           const remaining = [...ts.pointers.values()][0];
           ts.phase = 'pan';
@@ -1198,31 +1191,39 @@ export const useInteractionManager = () => {
         }
         return;
       }
+      if (wasPhase === 'item') {
+        // Complete the gesture: Cursor.mouseup selects (no move) or commits the
+        // drag; RECONNECT_ANCHOR commits the reconnect.
+        forwardMouse(e, 'mouseup', interactionsEl);
+        ts.phase = 'idle';
+        ts.itemDownTarget = null;
+        return;
+      }
       if (wasPhase === 'pan') {
         if (ts.pointers.size === 0) ts.phase = 'idle';
         return;
       }
-      if (wasPhase === 'tap') {
+      if (wasPhase === 'pan-pending') {
+        // Tap on empty canvas → clear selection. Forward a click (no move → no
+        // lasso); Cursor.mouseup with no item clears.
+        forwardMouse(e, 'mousemove', interactionsEl);
+        forwardMouse(e, 'mousedown', interactionsEl);
+        forwardMouse(e, 'mouseup', interactionsEl);
         ts.phase = 'idle';
-        const isTap = isTapGesture({
-          downScreen: ts.downScreen,
-          upScreen: upPos,
-          downTime: ts.downTime,
-          upTime: Date.now(),
-          slop: TAP_SLOP_PX,
-          timeMs: TAP_TIME_MS
-        });
-        if (isTap) handleTouchTap(e);
       }
     };
 
     const onTouchPointerCancel = (e: PointerEvent) => {
       const ts = touchStateRef.current;
+      const wasPhase = ts.phase;
       ts.pointers.delete(e.pointerId);
       releaseCapture(e);
-      // OS reclaimed the gesture mid-carry → abort (node stays at origin).
-      abortCarry();
-      if (ts.pointers.size === 0) ts.phase = 'idle';
+      // End an in-flight item gesture cleanly (commit where it is).
+      if (wasPhase === 'item') forwardMouse(e, 'mouseup', interactionsEl);
+      if (ts.pointers.size === 0) {
+        ts.phase = 'idle';
+        ts.itemDownTarget = null;
+      }
     };
 
     // True when the pointerdown landed on the canvas (the interactions box, a
@@ -1387,6 +1388,7 @@ export const useInteractionManager = () => {
     rendererEl,
     rendererSize,
     uiStateApi,
+    screenToTile,
     cleanup
   ]);
 

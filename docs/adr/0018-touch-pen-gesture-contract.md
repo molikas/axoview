@@ -79,6 +79,28 @@ boundaries. This mirrors `AnnotationLayer`'s already-shipped approach.
 > The native mouse/touch listeners on `window` are removed. There is no longer a
 > mouse→touch synthesis step; `pointerType` carries the device class natively.
 
+> **Revision — 2026-06-14 (B): direct manipulation supersedes tap-to-place
+> (Decisions 3/4) after real-device testing.** Device testing showed tap→tap‑to‑
+> grab→tap‑to‑place fought users' muscle memory and overloaded long‑press
+> (move vs context menu). The touch model is now **direct manipulation**, the
+> Figma/Miro/Lucidchart standard, disambiguated by what is **under the finger at
+> pointerdown**:
+> - down on a **draggable target** (an interactable node, or a connector anchor
+>   handle) → the whole gesture is forwarded as mouse events to the existing
+>   modes: a **tap selects**, a **drag moves** the node (`DRAG_ITEMS` CSS‑preview)
+>   or **reconnects** the anchor (`RECONNECT_ANCHOR`) — identical to desktop.
+> - down on **empty canvas** → tap clears selection; drag **pans**.
+> - **two fingers** → pinch‑zoom + pan (unchanged, D‑12).
+>
+> There is no `CARRY_ITEM` mode and no tap‑to‑place. **Long‑press is no longer
+> overloaded** (move is a drag, not a hold): the OS `contextmenu` from a
+> long‑press opens the per‑item **NodeActionBar** for the pressed node — reliable
+> now because the touch pointerdown seeds `uiState.mouse.position`. That also
+> closes the earlier D‑6 gap (delete / z‑order are reachable on touch via the
+> long‑press action bar). Decisions 3, 4 and 6 below are **superseded** by this
+> revision; the foundation (Pointer Events, `pointerType` branch, px tap‑vs‑pan
+> threshold, guardrails, pinch) is unchanged.
+
 ### 2. Branch on `pointerType` — do **not** replace the desktop model
 
 | `pointerType` | Gesture model |
