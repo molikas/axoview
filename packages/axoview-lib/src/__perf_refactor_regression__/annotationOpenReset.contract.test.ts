@@ -63,4 +63,49 @@ describe('annotation open — canvas tool reset', () => {
     act(() => result.current.a.setAnnotationOpen(false));
     expect(result.current.s.mode.type).toBe('PAN');
   });
+
+  // Item-5 regression: with the overlay open in pass-through `select`, the user
+  // can still drive a canvas freehand-lasso. Arming a draw/eraser tool must abort
+  // that in-flight selection so the lasso and the overlay don't coexist (the
+  // "neither works properly" state).
+  it('arming a draw tool resets an in-flight freehand-lasso + selection', () => {
+    const { result } = setup();
+    act(() => result.current.a.setEditorMode('EDITABLE'));
+    act(() => result.current.a.setAnnotationOpen(true));
+    // Simulate the user starting a freehand-lasso selection on the canvas.
+    act(() =>
+      result.current.a.setMode({
+        type: 'FREEHAND_LASSO',
+        showCursor: true,
+        path: [{ x: 1, y: 1 }],
+        selection: {
+          pathTiles: [{ x: 1, y: 1 }],
+          items: [{ type: 'ITEM', id: 'n1' }]
+        },
+        isDragging: true
+      })
+    );
+    act(() => result.current.a.setSelectedIds([{ type: 'ITEM', id: 'n1' }]));
+    expect(result.current.s.mode.type).toBe('FREEHAND_LASSO');
+
+    act(() => result.current.a.setAnnotationTool('pencil'));
+    expect(result.current.s.annotation.tool).toBe('pencil');
+    expect(result.current.s.mode.type).toBe('CURSOR');
+    expect(result.current.s.selectedIds).toHaveLength(0);
+    expect(result.current.s.itemControls).toBeNull();
+  });
+
+  it('switching to the pass-through select tool leaves the canvas mode alone', () => {
+    const { result } = setup();
+    act(() => result.current.a.setEditorMode('EDITABLE'));
+    act(() => result.current.a.setAnnotationOpen(true));
+    act(() => result.current.a.setAnnotationTool('pencil')); // mode reset → CURSOR
+    act(() =>
+      result.current.a.setMode({ type: 'PAN', showCursor: false })
+    );
+    // Going back to select must NOT yank the canvas mode away — select is the
+    // "let me use the canvas" pass-through tool.
+    act(() => result.current.a.setAnnotationTool('select'));
+    expect(result.current.s.mode.type).toBe('PAN');
+  });
 });

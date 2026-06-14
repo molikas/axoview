@@ -23,7 +23,8 @@ import {
   UndoOutlined as UndoIcon,
   RedoOutlined as RedoIcon,
   DeleteOutlineOutlined as ClearIcon,
-  EditOutlined as PenIcon
+  EditOutlined as PenIcon,
+  CheckRounded as CheckIcon
 } from '@mui/icons-material';
 import { shallow } from 'zustand/shallow';
 import { useUiStateStore } from 'src/stores/uiStateStore';
@@ -36,6 +37,18 @@ import {
 
 const MUI_ICON = 24;
 const CUSTOM_ICON = 24;
+
+// Pick a legible check-mark ink for a swatch from its luminance, so the active
+// marker reads on both the near-white and the near-black presets.
+const contrastInk = (hex: string): string => {
+  const h = hex.replace('#', '');
+  if (h.length < 6) return '#ffffff';
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6 ? '#111827' : '#ffffff';
+};
 
 const EraserGlyph = () => (
   <svg
@@ -138,25 +151,49 @@ export const AnnotationPalette = () => {
     setHoverGroup(null);
   };
 
-  const swatch = (preset: string) => (
-    <Box
-      key={preset}
-      role="button"
-      aria-label={preset}
-      data-axoview-id="annotation-color"
-      onClick={() => actions.setAnnotationColor(preset)}
-      sx={{
-        width: 16,
-        height: 16,
-        borderRadius: '50%',
-        bgcolor: preset,
-        cursor: 'pointer',
-        border: '2px solid',
-        borderColor: color === preset ? 'primary.main' : 'divider',
-        boxSizing: 'border-box'
-      }}
-    />
-  );
+  const swatch = (preset: string) => {
+    const active = color === preset;
+    return (
+      <Box
+        key={preset}
+        role="button"
+        aria-label={preset}
+        aria-pressed={active}
+        data-axoview-id="annotation-color"
+        onClick={() => actions.setAnnotationColor(preset)}
+        sx={{
+          width: 16,
+          height: 16,
+          borderRadius: '50%',
+          bgcolor: preset,
+          cursor: 'pointer',
+          border: '1px solid',
+          borderColor: 'divider',
+          boxSizing: 'border-box',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'transform 90ms ease, box-shadow 90ms ease',
+          // Active = scaled up + an offset accent ring (a paper-colored gap then
+          // the primary ring) + a contrast check mark. Unmistakable against the
+          // panel and against any swatch color.
+          transform: active ? 'scale(1.25)' : 'none',
+          zIndex: active ? 1 : 0,
+          boxShadow: active
+            ? (theme) =>
+                `0 0 0 2px ${theme.palette.background.paper}, 0 0 0 3.5px ${theme.palette.primary.main}`
+            : 'none',
+          '&:hover': {
+            transform: active ? 'scale(1.25)' : 'scale(1.12)'
+          }
+        }}
+      >
+        {active && (
+          <CheckIcon sx={{ fontSize: 12, color: contrastInk(preset) }} />
+        )}
+      </Box>
+    );
+  };
 
   const toolButtonSx = (active: boolean) => ({
     width: '100%',

@@ -2,7 +2,9 @@ import {
   screenToSceneCanvas,
   polylinePathD,
   arrowHeadPoints,
-  rectFromPoints
+  rectFromPoints,
+  pointToSegmentDistance,
+  strokeHitByEraser
 } from 'src/utils/annotationGeometry';
 
 const rendererSize = { width: 800, height: 600 };
@@ -74,5 +76,72 @@ describe('rectFromPoints', () => {
       width: 25,
       height: 30
     });
+  });
+});
+
+describe('pointToSegmentDistance', () => {
+  const a = { x: 0, y: 0 };
+  const b = { x: 10, y: 0 };
+
+  it('measures perpendicular distance to a point above the segment', () => {
+    expect(pointToSegmentDistance({ x: 5, y: 4 }, a, b)).toBeCloseTo(4, 6);
+  });
+
+  it('clamps to the nearest endpoint when the projection falls off the segment', () => {
+    // Beyond b: nearest point is b itself.
+    expect(pointToSegmentDistance({ x: 13, y: 0 }, a, b)).toBeCloseTo(3, 6);
+  });
+
+  it('treats a degenerate (zero-length) segment as a point', () => {
+    expect(pointToSegmentDistance({ x: 3, y: 4 }, a, a)).toBeCloseTo(5, 6);
+  });
+});
+
+describe('strokeHitByEraser', () => {
+  const freehand = {
+    tool: 'pencil' as const,
+    thickness: 2,
+    points: [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 }
+    ]
+  };
+
+  it('hits a thin line when the cursor is within the radius (no direct hit needed)', () => {
+    // 10 units above the line — misses a pixel-perfect click, caught by radius.
+    expect(strokeHitByEraser(freehand, { x: 50, y: 10 }, 12)).toBe(true);
+  });
+
+  it('misses when the cursor is outside radius + half-thickness', () => {
+    expect(strokeHitByEraser(freehand, { x: 50, y: 40 }, 12)).toBe(false);
+  });
+
+  it('hits a rectangle outline but not its hollow interior', () => {
+    const rect = {
+      tool: 'rectangle' as const,
+      thickness: 2,
+      points: [
+        { x: 0, y: 0 },
+        { x: 100, y: 100 }
+      ]
+    };
+    // Near the top edge → hit.
+    expect(strokeHitByEraser(rect, { x: 50, y: 2 }, 6)).toBe(true);
+    // Dead center of an unfilled rectangle → miss.
+    expect(strokeHitByEraser(rect, { x: 50, y: 50 }, 6)).toBe(false);
+  });
+
+  it('accounts for the highlighter wider footprint', () => {
+    const hl = {
+      tool: 'highlighter' as const,
+      thickness: 8, // drawn at 8 * 2.5 = 20 wide ⇒ half-width 10
+      points: [
+        { x: 0, y: 0 },
+        { x: 100, y: 0 }
+      ]
+    };
+    // 14 above the centre line: pencil-width would miss, highlighter half-width
+    // (10) + radius (5) = 15 ≥ 14 ⇒ hit.
+    expect(strokeHitByEraser(hl, { x: 50, y: 14 }, 5)).toBe(true);
   });
 });
