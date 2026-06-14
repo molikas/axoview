@@ -198,6 +198,84 @@ export const useSceneActions = () => {
   );
 
   // -------------------------------------------------------------------------
+  // Rectangle / textbox drag hot path — immer-free per-frame move updater.
+  //
+  // Why this exists. Moving a rectangle/textbox via DRAG_ITEMS used to call
+  // updateRectangle/updateTextBox per tile, each running `produce(state, ...)`
+  // over the FULL model+scene graph. Even inside a drag transaction (history
+  // frozen), that full-state immer clone every frame is the GC fuel behind the
+  // sustained-drag fps cliff (rectangle/textbox move dropped to ~7 fps).
+  //
+  // These collapse a move into ONE structural array copy of the active view's
+  // rectangles/textBoxes — no immer, no scene touch (a move is model-only;
+  // textbox scene size only changes on content/fontSize edits). Mirrors
+  // batchUpdateViewItemTiles. DRAG ONLY (caller inside beginDragTransaction);
+  // the per-frame writes accumulate into the single commit-on-mouseup entry.
+  // -------------------------------------------------------------------------
+
+  const batchUpdateRectangles = useCallback(
+    (updates: { id: string; from: Coords; to: Coords }[]) => {
+      if (!currentViewId || updates.length === 0) return;
+
+      const state = getState();
+      const viewIndex = state.model.views.findIndex(
+        (v) => v.id === currentViewId
+      );
+      if (viewIndex === -1) return;
+      const view = state.model.views[viewIndex];
+      if (!view.rectangles || view.rectangles.length === 0) return;
+
+      const updateMap = new Map(updates.map((u) => [u.id, u]));
+      const newRectangles = view.rectangles.map((r) =>
+        updateMap.has(r.id)
+          ? { ...r, from: updateMap.get(r.id)!.from, to: updateMap.get(r.id)!.to }
+          : r
+      );
+
+      const newView: View = { ...view, rectangles: newRectangles };
+      const newViews = state.model.views.slice();
+      newViews[viewIndex] = newView;
+
+      // Rectangles are model-only — scene is untouched.
+      setState({
+        model: { ...state.model, views: newViews },
+        scene: state.scene
+      });
+    },
+    [currentViewId, getState, setState]
+  );
+
+  const batchUpdateTextBoxTiles = useCallback(
+    (updates: { id: string; tile: Coords }[]) => {
+      if (!currentViewId || updates.length === 0) return;
+
+      const state = getState();
+      const viewIndex = state.model.views.findIndex(
+        (v) => v.id === currentViewId
+      );
+      if (viewIndex === -1) return;
+      const view = state.model.views[viewIndex];
+      if (!view.textBoxes || view.textBoxes.length === 0) return;
+
+      const updateMap = new Map(updates.map((u) => [u.id, u.tile]));
+      const newTextBoxes = view.textBoxes.map((t) =>
+        updateMap.has(t.id) ? { ...t, tile: updateMap.get(t.id)! } : t
+      );
+
+      const newView: View = { ...view, textBoxes: newTextBoxes };
+      const newViews = state.model.views.slice();
+      newViews[viewIndex] = newView;
+
+      // A move is model-only — textbox scene size only changes on content edits.
+      setState({
+        model: { ...state.model, views: newViews },
+        scene: state.scene
+      });
+    },
+    [currentViewId, getState, setState]
+  );
+
+  // -------------------------------------------------------------------------
   // EXPERIMENTAL — Path 4-true. Connector path preview without touching the
   // model. Used by DragItems during CSS-preview drag: items move via CSS
   // variables (no model write), connectors need their SVG path data refreshed
@@ -874,6 +952,8 @@ export const useSceneActions = () => {
     beginDragTransaction,
     commitDragTransaction,
     batchUpdateViewItemTiles,
+    batchUpdateRectangles,
+    batchUpdateTextBoxTiles,
     previewConnectorPaths,
     placeIcon,
     switchView,

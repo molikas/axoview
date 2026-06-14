@@ -165,33 +165,19 @@ function resolveAnchorRef(
   }
 }
 
-// Textboxes / rectangles / anchor reconnect (re-anchoring onto a different item
-// or anchor) keep the existing reducer path. These are rare in the multi-
-// element drag hot path; their immer cost is negligible.
-function commitReducerUpdates(
-  textBoxUpdates: NodeUpdate[],
-  rectangleUpdates: Array<{ id: string; from: Coords; to: Coords }>,
+// Anchor reconnect (re-anchoring onto a different item or anchor) keeps the
+// reducer path — it's rare (single-anchor reconnect) and outside the move hot
+// path. Textbox/rectangle MOVES no longer come here: they go through the
+// immer-free batchUpdate{TextBoxTiles,Rectangles} path (see dragItems) to avoid
+// a full-state immer clone per frame (the rectangle/textbox drag fps cliff).
+function commitAnchorReconnects(
   anchorReconnects: ItemReference[],
   tile: Coords,
   scene: ReturnType<typeof useScene>
 ) {
-  if (
-    textBoxUpdates.length === 0 &&
-    rectangleUpdates.length === 0 &&
-    anchorReconnects.length === 0
-  ) {
-    return;
-  }
+  if (anchorReconnects.length === 0) return;
 
   scene.transaction(() => {
-    textBoxUpdates.forEach(({ id, tile: newTile }) => {
-      scene.updateTextBox(id, { tile: newTile });
-    });
-
-    rectangleUpdates.forEach(({ id, from, to }) => {
-      scene.updateRectangle(id, { from, to });
-    });
-
     anchorReconnects.forEach((item) => {
       const connector = getAnchorParent(item.id, scene.connectors);
       const newConnector = produce(connector, (draft) => {
@@ -263,13 +249,18 @@ const dragItems = (
     return { id: item.id, from: r.from, to: r.to };
   });
 
-  commitReducerUpdates(
-    textBoxUpdates,
-    rectangleUpdates,
-    anchorReconnects,
-    tile,
-    scene
-  );
+  // Immer-free per-frame move (no full-state clone) — the fix for the
+  // rectangle/textbox sustained-drag fps cliff. These writes happen inside the
+  // open drag transaction, so they accumulate into the single mouseup commit.
+  if (textBoxUpdates.length > 0) {
+    scene.batchUpdateTextBoxTiles(textBoxUpdates);
+  }
+  if (rectangleUpdates.length > 0) {
+    scene.batchUpdateRectangles(rectangleUpdates);
+  }
+
+  // Anchor reconnect (rare) keeps the reducer path.
+  commitAnchorReconnects(anchorReconnects, tile, scene);
 };
 
 export const DragItems: ModeActions = {
