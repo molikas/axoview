@@ -6,6 +6,9 @@ const mockGenerateId = jest.fn(() => 'new-rect-id');
 const mockHasMovedTile = jest.fn(() => false);
 const mockCreateRectangle = jest.fn();
 const mockUpdateRectangle = jest.fn();
+const mockBatchUpdateRectangles = jest.fn();
+const mockBeginDragTransaction = jest.fn();
+const mockCommitDragTransaction = jest.fn();
 const mockSetMode = jest.fn();
 
 jest.mock('src/utils', () => ({
@@ -29,8 +32,12 @@ function makeUiState(overrides: Record<string, unknown> = {}) {
 function makeScene(overrides: Record<string, unknown> = {}) {
   return {
     colors: [{ id: 'color1', value: '#ff0000' }],
+    rectangles: [],
     createRectangle: mockCreateRectangle,
     updateRectangle: mockUpdateRectangle,
+    batchUpdateRectangles: mockBatchUpdateRectangles,
+    beginDragTransaction: mockBeginDragTransaction,
+    commitDragTransaction: mockCommitDragTransaction,
     ...overrides
   };
 }
@@ -56,6 +63,11 @@ describe('DrawRectangle.exit', () => {
     DrawRectangle.exit?.({ uiState: makeUiState() as any, scene: makeScene() as any, isRendererInteraction: false });
     expect(mockSetWindowCursor).toHaveBeenCalledWith('default');
   });
+
+  it('commits any open draw transaction (abandon-draw safety net)', () => {
+    DrawRectangle.exit?.({ uiState: makeUiState() as any, scene: makeScene() as any, isRendererInteraction: false });
+    expect(mockCommitDragTransaction).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('DrawRectangle.mousedown', () => {
@@ -75,6 +87,12 @@ describe('DrawRectangle.mousedown', () => {
     );
     expect(mockSetMode).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'new-rect-id' })
+    );
+    // Opens the draw transaction before creating, so create+draw collapse to
+    // one undo entry.
+    expect(mockBeginDragTransaction).toHaveBeenCalledTimes(1);
+    expect(mockBeginDragTransaction.mock.invocationCallOrder[0]).toBeLessThan(
+      mockCreateRectangle.mock.invocationCallOrder[0]
     );
   });
 
@@ -101,17 +119,24 @@ describe('DrawRectangle.mousedown', () => {
 });
 
 describe('DrawRectangle.mousemove', () => {
-  it('updates rectangle to position when mode.id is set and tile has moved', () => {
+  it('resizes via the immer-free batch path (not the per-frame updateRectangle)', () => {
     mockHasMovedTile.mockReturnValue(true);
     const uiState = makeUiState({
       mode: { type: 'RECTANGLE.DRAW', id: 'rect-1', showCursor: true },
       mouse: { position: { tile: { x: 7, y: 8 } }, mousedown: { tile: { x: 3, y: 4 } } }
     });
-    const scene = makeScene();
+    // The `from` corner is fixed at the mousedown tile (read from the model).
+    const scene = makeScene({
+      rectangles: [{ id: 'rect-1', from: { x: 3, y: 4 }, to: { x: 3, y: 4 } }]
+    });
 
     DrawRectangle.mousemove?.({ uiState: uiState as any, scene: scene as any, isRendererInteraction: true });
 
-    expect(mockUpdateRectangle).toHaveBeenCalledWith('rect-1', { to: { x: 7, y: 8 } });
+    expect(mockBatchUpdateRectangles).toHaveBeenCalledWith([
+      { id: 'rect-1', from: { x: 3, y: 4 }, to: { x: 7, y: 8 } }
+    ]);
+    // The old full-state-immer-per-frame path must NOT run.
+    expect(mockUpdateRectangle).not.toHaveBeenCalled();
   });
 
   it('does nothing when tile has not moved', () => {
@@ -159,6 +184,7 @@ describe('DrawRectangle.mouseup', () => {
 
     DrawRectangle.mouseup?.({ uiState: uiState as any, scene: makeScene() as any, isRendererInteraction: false });
 
+    expect(mockCommitDragTransaction).toHaveBeenCalledTimes(1);
     expect(mockSetMode).toHaveBeenCalledWith({
       type: 'CURSOR',
       showCursor: true,

@@ -131,11 +131,16 @@ These are distinct mechanisms, not stack-skew, so the sequence-stamping work doe
 
 **Status:** Open follow-up filed during the ADR 0018 touch/pen implementation. **Fix sketch:** add a small action row to the Properties panel header (delete + bring-forward/send-back) shown for a single ITEM selection — reuses `deleteViewItem`/`deleteSelectedItems` and the existing z-order actions; no new gesture or canvas chrome (consistent with D-6). Deferred as a panel-UX change separate from the gesture contract.
 
-## Rectangle / textbox MOVE drag perf — FIXED; DRAW / TRANSFORM (create/resize) still per-frame immer (D-3 residual)
+## Rectangle / textbox drag perf (move + draw + resize) — FIXED (D-3 resolved)
 
-**Fixed 2026-06-14.** Moving a placed rectangle or textbox dropped to ~7 fps with a GC sawtooth (perf-diag capture): `DragItems` moved nodes via the CSS-preview path but routed textbox/rectangle MOVES through `updateRectangle`/`updateTextBox`, each running a full-state immer `produce` **per frame**. Now routed through `batchUpdateRectangles`/`batchUpdateTextBoxTiles` (one structural array copy, no immer, model-only), inside the existing drag transaction → one undo entry. Guarded by `DragItems.modes.test.ts` (routing) + `rectangleTextbox.dragPerf.test.tsx` (1-entry + structural-sharing).
+**Fixed 2026-06-14.** Manipulating a rectangle/textbox dropped to ~7 fps with a GC sawtooth (perf-diag capture). `DragItems` moved nodes via the CSS-preview path but routed textbox/rectangle **moves** through `updateRectangle`/`updateTextBox`, and the rectangle **DRAW**/**TRANSFORM** modes did the same per tile — each a full-state immer `produce` **every frame** (and, for draw/resize, no drag transaction → one undo entry per tile).
 
-**Residual (D-3, behavior-map §3.6):** rectangle **DRAW** and **TRANSFORM** (creating / resizing) and textbox **create** still call `updateRectangle`/`updateTextBox` per tile-crossing with **no** `beginDragTransaction` → K history entries + K full-state immer clones. Less hot than move (single-item, short gestures) and not the reported symptom, but the same class. **Fix sketch:** wrap those modes in `beginDragTransaction` (collapses undo + skips per-tick history snapshot); for the per-frame geometry clone, a draw/resize preview path mirroring the move fix. Deferred.
+- **Move:** routed through immer-free `batchUpdateRectangles`/`batchUpdateTextBoxTiles` (one structural array copy, model-only) inside the existing drag transaction → one undo entry.
+- **Draw / Resize (D-3, supersedes the earlier deferral):** `DrawRectangle`/`TransformRectangle` now open a `beginDragTransaction` (draw: before `createRectangle`; resize: on entry) and write per-frame via `batchUpdateRectangles`, committing on mouseup (+ exit safety-net). Result: smooth, immer-free, and one undo entry per draw/resize.
+
+Guarded by `DragItems.modes.test.ts` + `rectangleTextbox.dragPerf.test.tsx` (move) and `DrawRectangle.test.ts` / `TransformRectangle.test.ts` / `rectangleDrawTransform.modes.test.ts` (draw/resize routing + begin/commit). Note: textbox *create* (the `t`-hotkey one-shot) still uses the reducer once — not a hot path.
+
+The connector-drag GC cliff below is a separate, still-open item (per-frame model write through the reducer; needs a connector preview path).
 
 ## Connector drag still mutates the model on every tile
 
