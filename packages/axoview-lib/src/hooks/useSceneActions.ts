@@ -24,6 +24,7 @@ import type { State, ViewReducerContext } from 'src/stores/reducers/types';
 import { generateId, getConnectorPath } from 'src/utils';
 import { useView } from 'src/hooks/useView';
 import { VIEW_DEFAULTS } from 'src/config';
+import { allocateHistorySequence } from 'src/stores/historySequence';
 
 export const useSceneActions = () => {
   const { changeView } = useView();
@@ -79,6 +80,9 @@ export const useSceneActions = () => {
     // While a live drag is open, the pre-snapshot was captured at begin; per-tick
     // saves would overwrite it and lose the original starting state.
     if (dragInProgress.current) return;
+    // One logical action across both stores — allocate a single shared seq so
+    // its model+scene entries stamp the same value (D-7).
+    allocateHistorySequence();
     modelStoreApi.getState().actions.saveToHistory();
     sceneStoreApi.getState().actions.saveToHistory();
   }, [modelStoreApi, sceneStoreApi]);
@@ -92,6 +96,9 @@ export const useSceneActions = () => {
   const beginDragTransaction = useCallback(() => {
     if (dragInProgress.current) return;
     dragInProgress.current = true;
+    // The whole drag is one logical action — allocate a single shared seq so the
+    // model+scene commit entries stamp the same value (D-7).
+    allocateHistorySequence();
     modelStoreApi.getState().actions.saveToHistory();
     sceneStoreApi.getState().actions.saveToHistory();
     modelStoreApi.getState().actions.freezePendingPre();

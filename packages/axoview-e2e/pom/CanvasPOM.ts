@@ -88,14 +88,28 @@ export class CanvasPOM {
         const rect = el.getBoundingClientRect();
         const raf = () =>
           new Promise<void>((r) => requestAnimationFrame(() => r()));
+        // ADR 0018 rewrite: the lib binds Pointer Events on the container now.
+        // Dispatch synthetic PointerEvents with pointerType:'mouse' so the mouse
+        // branch runs (press-drag-release, unchanged). The caller API still uses
+        // the mouse-event vocabulary — mapped here so no spec changes (the zero-
+        // assertion-change migration is the proof the mouse path is unchanged).
+        const POINTER_TYPE: Record<string, string> = {
+          mousedown: 'pointerdown',
+          mousemove: 'pointermove',
+          mouseup: 'pointerup'
+        };
         for (const type of args.types) {
           el.dispatchEvent(
-            new MouseEvent(type, {
+            new PointerEvent(POINTER_TYPE[type] ?? type, {
               bubbles: true,
               cancelable: true,
               clientX: rect.left + args.x,
               clientY: rect.top + args.y,
-              button: 0
+              button: 0,
+              buttons: type === 'mousedown' ? 1 : 0,
+              pointerId: 1,
+              pointerType: 'mouse',
+              isPrimary: true
             })
           );
           await raf();

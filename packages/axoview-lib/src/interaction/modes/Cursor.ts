@@ -21,6 +21,7 @@ import {
   setWindowCursor
 } from 'src/utils';
 import { getConnectorWaypointRefs } from 'src/utils/connectorSelection';
+import { exceedsTapSlop } from 'src/config/tapGesture';
 
 // hitConnectors elements merge the view connector (id, anchors) with the
 // scene connector (path) — richer than the bare SceneConnector type.
@@ -495,12 +496,14 @@ export const Cursor: ModeActions = {
       return;
     }
 
-    // Drag detection: use position vs mousedown directly instead of stale delta.
-    // hasMovedTile relies on delta which is one RAF frame behind, causing a half-tile delay.
+    // Drag detection: pixel-based slop on the raw screen delta (ADR 0018
+    // Decision 5), NOT a whole-tile threshold — the tile threshold swallowed
+    // sub-tile precision-trackpad drags. Compares position.screen vs
+    // mousedown.screen so it is zoom-independent. Applies to every pointerType.
     if (!uiState.mouse.mousedown) return;
-    const hasDragged = !CoordsUtils.isEqual(
-      uiState.mouse.position.tile,
-      uiState.mouse.mousedown.tile
+    const hasDragged = exceedsTapSlop(
+      uiState.mouse.mousedown.screen,
+      uiState.mouse.position.screen
     );
     if (!hasDragged) return;
 
@@ -558,7 +561,16 @@ export const Cursor: ModeActions = {
       return;
     }
 
-    const hasMoved = uiState.mouse.mousedown && hasMovedTile(uiState.mouse);
+    // Click-vs-clear: same pixel-slop classifier as drag-start (ADR 0018
+    // Decision 5). On a real mouseup getMouse nulls mousedown, so this is
+    // effectively a no-move tap there; the slop check still guards any path
+    // that retains mousedown.
+    const hasMoved =
+      !!uiState.mouse.mousedown &&
+      exceedsTapSlop(
+        uiState.mouse.mousedown.screen,
+        uiState.mouse.position.screen
+      );
 
     if (uiState.mode.mousedownItem && !hasMoved) {
       resolveClickSelection(state, uiState.mode.mousedownItem);

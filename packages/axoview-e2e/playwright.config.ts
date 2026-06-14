@@ -33,7 +33,18 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] }
+      use: { ...devices['Desktop Chrome'] },
+      // Touch specs run only under the touch-enabled project below.
+      testIgnore: /touch-.*\.spec\.ts/
+    },
+    // ADR 0018 — touch/pen gesture contract. A touch-enabled context for the
+    // touch-*.spec.ts files, which drive real pointer/touch input (synthetic
+    // dispatch has no setPointerCapture semantics). Scoped via testMatch so the
+    // desktop specs do not double-run under touch.
+    {
+      name: 'chromium-touch',
+      use: { ...devices['Desktop Chrome'], hasTouch: true },
+      testMatch: /touch-.*\.spec\.ts/
     }
   ],
 
