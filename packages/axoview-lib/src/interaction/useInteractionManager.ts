@@ -1128,31 +1128,44 @@ export const useInteractionManager = () => {
       });
       uiState.actions.setMouse(seeded);
 
-      // Draggable? An interactable node under the finger, or a connector anchor
-      // handle (data-anchor-id). Scene + layers via refs so the listener effect
-      // doesn't re-bind every frame.
+      // Decide whether to forward the gesture to the active mode (so it runs
+      // exactly like desktop) or to do the touch-specific empty-canvas pan.
+      //
+      // Forward when EITHER:
+      //   • a tool mode is active (LASSO / FREEHAND_LASSO / RECTANGLE.DRAW /
+      //     CONNECTOR / PLACE_ICON / TEXTBOX / PAN / ...): the tool owns the drag
+      //     (marquee, freehand path, draw, connect…) — never pan over it; OR
+      //   • CURSOR mode and the finger is on a draggable target (an interactable
+      //     node, or a connector anchor handle) → tap selects, drag moves/
+      //     reconnects.
+      // Only CURSOR-mode-on-empty does the touch-specific pan / tap-to-clear.
+      // Scene + layers via refs so the listener effect doesn't re-bind per frame.
       const sceneNow = sceneRef.current;
       const { lockedIds, visibleIds } = layerContextRef.current;
       const onAnchor =
         e.target instanceof Element && !!e.target.closest('[data-anchor-id]');
-      const itemAtDown = getItemAtTile({ tile: seeded.position.tile, scene: sceneNow });
+      const itemAtDown = getItemAtTile({
+        tile: seeded.position.tile,
+        scene: sceneNow
+      });
       const interactable =
         !!itemAtDown &&
         !lockedIds.has(itemAtDown.id) &&
         (visibleIds.size === 0 || visibleIds.has(itemAtDown.id));
+      const inToolMode = uiState.mode.type !== 'CURSOR';
 
-      if (onAnchor || interactable) {
-        // Forward as a mouse gesture: tap = select, drag = move / reconnect.
+      if (inToolMode || onAnchor || interactable) {
+        // Forward the whole gesture as mouse events to the active mode.
         ts.phase = 'item';
         ts.itemDownTarget = onAnchor ? e.target : interactionsEl ?? null;
-        // Seed a move then the down so Cursor reads the pressed tile (modes read
-        // position from the pre-setMouse uiState snapshot otherwise).
+        // Seed a move then the down so the mode reads the pressed tile (modes
+        // read position from the pre-setMouse uiState snapshot otherwise).
         forwardMouse(e, 'mousemove', ts.itemDownTarget);
         forwardMouse(e, 'mousedown', ts.itemDownTarget);
         return;
       }
 
-      // Empty / non-interactable: tap clears selection, drag pans.
+      // CURSOR mode on empty / non-interactable: tap clears, drag pans.
       ts.phase = 'pan-pending';
     };
 
