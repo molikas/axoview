@@ -45,25 +45,14 @@ const OUTER_SX = { position: 'absolute' as const };
 // for compositor-only updates — no layout, no React re-render per drag tick.
 const INNER_SX = {
   position: 'absolute' as const,
-  // --ff-carry-scale lifts the node while it is "carried" on touch/pen (ADR 0018
-  // Decision 4); folded into the same translate3d so positioning stays a single
-  // compositor-only transform (no layout, no per-frame React render).
   transform:
-    'translate3d(calc(var(--ff-x, 0px) + var(--ff-drag-dx, 0px)), calc(var(--ff-y, 0px) + var(--ff-drag-dy, 0px)), 0) scale(var(--ff-carry-scale, 1))',
-  willChange: 'transform' as const,
-  transition: 'filter 120ms ease, opacity 120ms ease'
+    'translate3d(calc(var(--ff-x, 0px) + var(--ff-drag-dx, 0px)), calc(var(--ff-y, 0px) + var(--ff-drag-dy, 0px)), 0)',
+  willChange: 'transform' as const
 };
 
 export const Node = memo(({ node, order }: Props) => {
   useRenderProbe('Node', node.id);
   const { getTilePosition } = useCanvasMode();
-  // Carry affordance: true only while THIS node is the one being carried. A
-  // boolean selector, so it re-renders only on grab/place/abort (low-frequency)
-  // — it stays false through mouse drags, so the per-frame hot path is untouched
-  // (perf §3.3).
-  const isCarried = useUiStateStore(
-    (s) => s.mode.type === 'CARRY_ITEM' && s.mode.item.id === node.id
-  );
 
   const position = useMemo(
     () =>
@@ -81,14 +70,7 @@ export const Node = memo(({ node, order }: Props) => {
         style={
           {
             '--ff-x': `${position.x}px`,
-            '--ff-y': `${position.y}px`,
-            '--ff-carry-scale': isCarried ? '1.12' : '1',
-            ...(isCarried
-              ? {
-                  filter: 'drop-shadow(0 8px 12px rgba(0, 0, 0, 0.35))',
-                  opacity: 0.9
-                }
-              : null)
+            '--ff-y': `${position.y}px`
           } as React.CSSProperties
         }
       >
