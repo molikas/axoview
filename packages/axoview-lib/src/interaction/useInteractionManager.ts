@@ -68,7 +68,9 @@ interface TouchGestureState {
   // 'item' = single finger on a draggable target, forwarded as a mouse gesture
   // (tap=select, drag=move/reconnect). 'pan-pending' = single finger on empty,
   // not yet past slop. 'pan' = one-finger pan. 'pinch' = two-finger zoom+pan.
-  phase: 'idle' | 'item' | 'pan-pending' | 'pan' | 'pinch';
+  // 'palette' = a press that started OFF-canvas while a placement is armed
+  // (Elements-panel drag) — a release over the canvas drops/places the icon.
+  phase: 'idle' | 'item' | 'pan-pending' | 'pan' | 'pinch' | 'palette';
   // Target the 'item' down was forwarded with (the interactions box, or the real
   // anchor element so targetAnchorId resolves for connector reconnect).
   itemDownTarget: EventTarget | null;
@@ -1216,6 +1218,40 @@ export const useInteractionManager = () => {
         if (ts.pointers.size === 0) ts.phase = 'idle';
         return;
       }
+      if (wasPhase === 'palette') {
+        // Elements-panel drag (started off-canvas, placement armed). A real drag
+        // that lifts OVER the canvas drops/places the icon there; off the canvas
+        // cancels. A no-move tap leaves the placement armed for a later canvas
+        // tap (the tap-then-tap-canvas flow is unchanged).
+        ts.phase = 'idle';
+        const moved = exceedsTapSlop(ts.downScreen, {
+          x: e.clientX,
+          y: e.clientY
+        });
+        if (!moved) return;
+        const rect = rendererEl?.getBoundingClientRect();
+        const overCanvas =
+          !!rect &&
+          e.clientX >= rect.left &&
+          e.clientX <= rect.right &&
+          e.clientY >= rect.top &&
+          e.clientY <= rect.bottom;
+        if (overCanvas) {
+          forwardMouse(e, 'mousemove', interactionsEl);
+          forwardMouse(e, 'mousedown', interactionsEl);
+          forwardMouse(e, 'mouseup', interactionsEl);
+        } else {
+          const ui = uiStateApi.getState();
+          if (ui.mode.type === 'PLACE_ICON') {
+            ui.actions.setMode({
+              type: 'CURSOR',
+              showCursor: true,
+              mousedownItem: null
+            });
+          }
+        }
+        return;
+      }
       if (wasPhase === 'pan-pending') {
         // Tap on empty canvas → clear selection. Forward a click (no move → no
         // lasso); Cursor.mouseup with no item clears.
@@ -1257,9 +1293,18 @@ export const useInteractionManager = () => {
       pointerTypeRef.current = kind;
       const onCanvas = downOnCanvas(e);
       if (kind !== 'mouse') {
-        // Off-canvas touch (toolbar/panel) is left to the element's own compat
-        // mouse events — the touch gesture machine only owns canvas presses.
-        if (onCanvas) onTouchPointerDown(e);
+        if (onCanvas) {
+          onTouchPointerDown(e);
+        } else if (uiStateApi.getState().mode.type === 'PLACE_ICON') {
+          // Off-canvas press while a placement is armed (Elements-panel icon) —
+          // track it as a palette drag so a release over the canvas drops/places
+          // the icon there. Other off-canvas touches (toolbar/panel buttons) are
+          // left to the element's own compat mouse events.
+          const ts = touchStateRef.current;
+          ts.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          ts.phase = 'palette';
+          ts.downScreen = { x: e.clientX, y: e.clientY };
+        }
         return;
       }
       // Mouse path — unchanged press-drag-release. Capture only canvas-initiated
