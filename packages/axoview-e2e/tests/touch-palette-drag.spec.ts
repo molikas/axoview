@@ -42,4 +42,64 @@ test.describe('Touch — drag an element from the panel onto the canvas', () => 
       .poll(() => getModelItemCount(page), { timeout: 5_000 })
       .toBe(before + 1);
   });
+
+  test('the PLACE_ICON preview ghost tracks the finger during the drag', async ({
+    page,
+    app
+  }) => {
+    void app;
+
+    const toggle = byAxoviewId(page, 'dock-elements-toggle');
+    const icon = byAxoviewId(page, 'canvas-icon-grid-item').first();
+    if (!(await icon.isVisible().catch(() => false))) {
+      await toggle.click();
+      await icon.waitFor({ state: 'visible', timeout: 5_000 });
+    }
+
+    const iconBox = await icon.boundingBox();
+    const canvasBox = await byLibTestId(page, 'axoview-canvas').boundingBox();
+    if (!iconBox || !canvasBox) throw new Error('missing bounding box');
+
+    const placeState = () =>
+      page.evaluate(() => {
+        const ui = (window as any).__axoview__.ui.getState();
+        return { mode: ui.mode.type, tile: { ...ui.mouse.position.tile } };
+      });
+
+    const start = {
+      x: iconBox.x + iconBox.width / 2,
+      y: iconBox.y + iconBox.height / 2
+    };
+    const a = { x: canvasBox.x + canvasBox.width * 0.4, y: canvasBox.y + canvasBox.height * 0.45 };
+    const b = { x: canvasBox.x + canvasBox.width * 0.65, y: canvasBox.y + canvasBox.height * 0.6 };
+
+    const client = await page.context().newCDPSession(page);
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: start.x, y: start.y, id: 0 }]
+    });
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{ x: a.x, y: a.y, id: 0 }]
+    });
+    await page.waitForTimeout(60);
+    const atA = await placeState();
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{ x: b.x, y: b.y, id: 0 }]
+    });
+    await page.waitForTimeout(60);
+    const atB = await placeState();
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchEnd',
+      touchPoints: []
+    });
+    await client.detach();
+
+    // The preview is live during the drag (mode stays PLACE_ICON) and its tile
+    // moves with the finger — the drag affordance the device was missing.
+    expect(atA.mode).toBe('PLACE_ICON');
+    expect(atB.mode).toBe('PLACE_ICON');
+    expect(atB.tile).not.toEqual(atA.tile);
+  });
 });

@@ -1266,6 +1266,15 @@ export const useInteractionManager = () => {
       // After a long-press opened the menu, the rest of the gesture is inert.
       if (ts.phase === 'menu') return;
 
+      if (ts.phase === 'palette') {
+        // Elements-panel drag: drive the PLACE_ICON preview ghost so it tracks
+        // the finger to the target tile (PlaceIcon.mousemove is a no-op, so this
+        // only moves the preview — placement still happens on release). Without
+        // this the dragged icon shows no drag affordance until the finger lifts.
+        forwardMouse(e, 'mousemove', interactionsEl);
+        return;
+      }
+
       if (ts.phase === 'item') {
         forwardMouse(e, 'mousemove', interactionsEl);
         return;
