@@ -59,9 +59,50 @@ const CHIP_BG = '#ffffff';
 const CHIP_RADIUS = 8;
 const CHIP_PAD_X = 12;
 const CHIP_PAD_Y = 8;
+// Label chip layout — mirrors ExpandableLabel/Label: maxWidth 250 (inner = 250 −
+// 2·padX), the name→description gap is theme.spacing(1) = 8, and the collapsed
+// content area is STANDARD_LABEL_HEIGHT (80) before truncation.
+const LABEL_INNER_MAX_W = 250 - CHIP_PAD_X * 2;
+const LABEL_STACK_GAP = 8;
+const LABEL_MAX_CONTENT_H = 80;
 const PROJ_W = PROJECTED_TILE_SIZE.width;
 // Shared empty skip-set so an unselected scene reuses one Set instance.
 const EMPTY_SKIP: Set<string> = new Set();
+
+// Description (modelItem.description is rich-text HTML) → plain text, mirroring
+// Node.tsx's strip-and-trim visibility test. Returns '' when there's no visible
+// text so the canvas matches the DOM's "render the description only if non-empty".
+const getDescriptionText = (html: string | undefined): string => {
+  if (!html) return '';
+  return html
+    .replace(/<[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+// Greedy word-wrap to a pixel width. `ctx.font` must already be set by the
+// caller. Long single words overflow rather than breaking mid-word (acceptable —
+// matches the DOM chip's word-break default closely enough for the label case).
+const wrapText = (
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number
+): string[] => {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let cur = '';
+  for (const w of words) {
+    const test = cur ? `${cur} ${w}` : w;
+    if (cur && ctx.measureText(test).width > maxWidth) {
+      lines.push(cur);
+      cur = w;
+    } else {
+      cur = test;
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines;
+};
 // Fixed iso projection matrix (X-orientation) — mirrors getProjectionCss / the
 // NonIsometricIcon transform.
 const ISO: [number, number, number, number, number, number] = [
@@ -228,16 +269,48 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
           ctx.restore();
         }
 
-        // ----- static label (name) -----
+        // ----- static label (name + description) -----
         const name = modelItem.name;
-        if (node.showLabel !== false && name) {
+        const descText = getDescriptionText(modelItem.description);
+        if (node.showLabel !== false && (name || descText)) {
           const fontSize = node.labelFontSize || LABEL_BASE_FONT_PX;
           const labelHeight = node.labelHeight ?? DEFAULT_LABEL_HEIGHT;
-          ctx.font = `600 ${fontSize}px ${DEFAULT_FONT_FAMILY}`;
-          const textW = ctx.measureText(name).width;
-          const chipW = textW + CHIP_PAD_X * 2;
-          const lineH = fontSize * 1.5;
-          const chipH = lineH + CHIP_PAD_Y * 2;
+          const nameFont = `600 ${fontSize}px ${DEFAULT_FONT_FAMILY}`;
+          // Description renders at the base body size (the RichTextEditor is not
+          // affected by the node's labelFontSize), regular weight.
+          const descFont = `400 ${LABEL_BASE_FONT_PX}px ${DEFAULT_FONT_FAMILY}`;
+          const nameLineH = fontSize * 1.5;
+          const descLineH = LABEL_BASE_FONT_PX * 1.4;
+
+          ctx.font = nameFont;
+          const nameW = name ? ctx.measureText(name).width : 0;
+
+          // Wrap the description to the chip's inner max width, then clip to the
+          // collapsed content height (the DOM truncates with a gradient at 80px;
+          // the canvas simply drops the overflow lines).
+          let descLines: string[] = [];
+          if (descText) {
+            ctx.font = descFont;
+            descLines = wrapText(ctx, descText, LABEL_INNER_MAX_W);
+            const budget =
+              LABEL_MAX_CONTENT_H -
+              (name ? nameLineH + LABEL_STACK_GAP : 0);
+            const maxLines = Math.max(1, Math.floor(budget / descLineH));
+            if (descLines.length > maxLines) descLines = descLines.slice(0, maxLines);
+          }
+          let descW = 0;
+          for (const line of descLines) {
+            descW = Math.max(descW, ctx.measureText(line).width);
+          }
+
+          const innerW = Math.min(LABEL_INNER_MAX_W, Math.max(nameW, descW));
+          const chipW = innerW + CHIP_PAD_X * 2;
+          const contentH =
+            (name ? nameLineH : 0) +
+            (descLines.length
+              ? (name ? LABEL_STACK_GAP : 0) + descLines.length * descLineH
+              : 0);
+          const chipH = contentH + CHIP_PAD_Y * 2;
 
           ctx.save();
           // Chip is centered horizontally on the tile and floats `labelHeight`
@@ -254,10 +327,27 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
           ctx.lineWidth = 1;
           ctx.strokeStyle = CHIP_BORDER;
           ctx.stroke();
-          ctx.fillStyle = node.labelColor || TEXT_PRIMARY;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(name, 0, y0 + chipH / 2);
+
+          // Text is left-aligned inside the (tile-centered) chip, mirroring the
+          // DOM LabelStack column. Name (bold) then description lines.
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'top';
+          const textX = x0 + CHIP_PAD_X;
+          let textY = y0 + CHIP_PAD_Y;
+          if (name) {
+            ctx.font = nameFont;
+            ctx.fillStyle = node.labelColor || TEXT_PRIMARY;
+            ctx.fillText(name, textX, textY + (nameLineH - fontSize) / 2);
+            textY += nameLineH + (descLines.length ? LABEL_STACK_GAP : 0);
+          }
+          if (descLines.length) {
+            ctx.font = descFont;
+            ctx.fillStyle = TEXT_PRIMARY;
+            for (const line of descLines) {
+              ctx.fillText(line, textX, textY + (descLineH - LABEL_BASE_FONT_PX) / 2);
+              textY += descLineH;
+            }
+          }
           ctx.restore();
         }
       }

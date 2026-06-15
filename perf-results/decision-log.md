@@ -1049,35 +1049,90 @@ after partial PERF_N=1000 runs (still 283/200 @1000, flag-off byte-identical).
 
 ---
 
-## ▶ COLD-START RESUME POINT (newest — start here) — updated Iter 9
+## Iter 10 — descriptions on the canvas (residual win holds; productization step 1)
 
-**Branch `perf/engine`, HEAD = Iter 9 commit.** T2 node-layer Canvas2D hybrid now
-**passes the FULL correctness gate flag-ON (13/13)** AND flag-OFF (13/13), with the
-Iter-8 spawn win preserved exactly (settle 283→167 @1000, −41%; longest 200→83;
-long-task 1127→72). Still RED-gated: the DOM renderer is untouched and canvas is NOT
-the default — **present before making canvas default or deleting the DOM renderer**
-(charter RED rule). The hybrid renders the selected node ∪ drag-set as DOM `<Node>`
-(sparse), canvas draws the rest; flag `localStorage axoview-canvas-nodes` / `PERF_CANVAS=1`
-/ gate `AXOVIEW_CANVAS_NODES=1`.
+**Context:** T2 productization greenlit (human: "bank T2, productize it"); ADR-0019
+(canvas default substrate) + ADR-0020 (perf harness/protocol) authored. First
+fidelity gap to close before the flag-flip: an unselected node with a description was
+drawing only its name on the canvas (the PoC drew icon + static name; the
+RichTextEditor was deferred). This is the perf-relevant content the PoC dropped (~20%
+of nodes carry a description).
 
-**State:** baseline unchanged (flag-off byte-identical) — spawn N=1000 283/200, N=500
-200/117; drag all-N ~16.7 ms 60 fps; KR3 PASS. Kept wins: Iter 3 de-emotion (spawn),
-Iter 6 useColor (drag), Iter 8 NodesCanvas PoC, **Iter 9 editing/dragging DOM hybrid
-(flag-ON gate green; spawn win preserved)**. Touched: `Renderer.tsx`,
-`NodesCanvas.tsx`, `fixtures/app.fixture.ts`, `tests/readable-labels.spec.ts`.
+**Hypothesis:** drawing the description (HTML-stripped, word-wrapped, clipped to the
+80px collapsed content height) below the name on the canvas restores content parity
+without eroding the spawn win — because the DOM path pays the expensive RichTextEditor
+for the same nodes, whereas the canvas pays cheap `ctx.fillText`.
 
-**NEXT (each via same-session A/B + gate + visual):**
-1. **Fold in description text + notes/link badges** on canvas; measure the residual vs
-   −41% (some of the −41% was dropped descriptions, but canvas already beat the DOM
-   labels-off floor, so the core win holds). Currently the canvas draws icon + static
-   name only; a node with a description shows only its name on canvas (until selected,
-   when the DOM `<Node>` renders the full RichText). Honest gap — close it next.
-2. **Fold the connector polyline draw** into the same canvas (trivial — same cull)
-   AFTER fixing the harness to route connectors on spawn (Iter-7 caveat).
-3. **Present the GO + flag-ON gate evidence** and decide whether to make canvas the
-   default and retire the DOM node renderer (charter RED rule — do not do this silently).
-   A default-on canvas wants a draw-count anti-cheat (the spawn DOM-shell count reads
-   0/N in canvas mode — expected; Iter-8 harness note).
+**One variable:** `NodesCanvas` label draw now renders name (bold) + wrapped
+description (regular, left-aligned in the chip), mirroring the DOM LabelStack. No
+other path touched.
+
+**Same-session A/B — DOM cal 4.7 ms ↔ canvas cal 4.6 ms (machine busier this session;
+ratio is the signal, not the inflated absolutes):**
+
+| metric @1000 | DOM ref | canvas + descriptions | Δ |
+|---|---|---|---|
+| spawn settle | 366.7 | **200.0** | **−45%** |
+| spawn longest | 283.3 | 116.7 | −59% |
+| long-task total | 1619 | 159 | −90% |
+
+**Result: the win is intact (−45%, ≫ noise) WITH descriptions** — adding them to the
+canvas did not erode it (the DOM pays RichTextEditor for the same ~20% of nodes; the
+canvas pays `fillText`). The −41%→−45% shift is calibration/load, not a real gain.
+**→ KEEP.**
+
+**Correctness gate — flag-ON 13/13 GREEN** (descriptions don't affect the gated
+behaviors; `readable-labels` still green via `data-label-scale`). DOM path untouched
+(flag-off byte-identical).
+
+**Honest scope:** notes/link badges are still NOT drawn on the canvas (small affordance
+dots; not gate-checked; fiddly to anchor on the iso-skewed icon) — deferred to Iter 11
+alongside the connector draw. Description rendering is plain-text (HTML stripped); rich
+formatting (bold/lists inside a description) renders as its text content — acceptable
+for the label glyph, and the full RichText still shows when the node is selected (DOM
+overlay).
+
+**Deliverables:** `NodesCanvas` description draw (`getDescriptionText`, `wrapText`,
+chip re-layout), this row. Baseline.md restored after the partial PERF_N=1000 A/B.
+
+---
+
+## ▶ COLD-START RESUME POINT (newest — start here) — updated Iter 10
+
+**Branch `perf/engine`, HEAD = Iter 10 commit.** T2 is GREENLIT FOR PRODUCTIZATION
+(human: "bank T2, productize it" — the charter RED gate for canvas-as-default is
+cleared). Running the `/feature` lifecycle (docs/workflow.md). **ADR-0019** (Canvas2D
+default + sole bulk substrate; flag to be removed; `Node.tsx` retained for the hybrid
+overlay; draw-count anti-cheat) and **ADR-0020** (perf harness + measurement protocol,
+promoted out of the tactical charter so it survives the wrap and underpins T3) are
+authored + committed. The full correctness gate passes flag-ON (13/13) AND flag-OFF
+(13/13). Decided: **remove the flag** (canvas-only bulk path) at the flip; dedicated
+ADR-0020 for the harness; user will review on `integration` and wants a ping at the
+PR into `master`.
+
+**State:** flag-off baseline byte-identical (spawn N=1000 283/200 @cal 3.2). Kept wins:
+Iter 3 de-emotion, Iter 6 useColor, Iter 8 PoC, Iter 9 editing/dragging DOM hybrid
+(gate green flag-ON), **Iter 10 descriptions on canvas (residual win −45% @1000, cal
+4.7↔4.6)**. Touched lib: `Renderer.tsx`, `NodesCanvas.tsx`; tests: `fixtures/
+app.fixture.ts`, `tests/readable-labels.spec.ts`; docs: ADR-0019, ADR-0020.
+
+**NEXT (productization queue — each via gate + A/B where a perf var changes):**
+1. **Iter 11 — notes/link badges on canvas + connector polyline draw.** Badges: small
+   blue (notes) / primary (link, readonly only) bordered circles at the icon corners.
+   Connectors: fold the polyline draw into the same canvas (same `visibleConnectors`
+   cull) — but FIRST fix the harness to route connectors on spawn
+   (`changeView`/`computePathsAsync` post-set), per the Iter-7 caveat, or the draw is
+   measured as free.
+2. **Iter 12 — flip the default + remove the flag.** Make `<NodesCanvas>` unconditional;
+   delete `readCanvasNodesFlag`, the `axoview-canvas-nodes` flag, `PERF_CANVAS` +
+   `AXOVIEW_CANVAS_NODES` plumbing, and the bulk `Nodes.tsx`. Keep `Node.tsx` (hybrid
+   overlay). Add a **draw-count anti-cheat** (NodesCanvas exposes drawn-node count;
+   harness asserts drawn == visible, replacing the 0/N DOM-shell count). Gate must be
+   13/13 with canvas as the ONLY path (no env var).
+3. **/notes** (CHANGELOG, architecture.md, docs/testing.md perf section) → **/feature
+   wrap** (retire the charter tactical + cold-start-t2*.md; add the PLAN.md line →
+   ADR-0019/0020) → **/ship** (PR perf/engine → integration → master; **ping the user at
+   the master PR**).
 
 **Visual parity:** covered behaviorally by the flag-ON gate — `readable-labels` asserts
 the real applied counter-scale, `css-preview-mid-drag` the real drag-preview offset,
