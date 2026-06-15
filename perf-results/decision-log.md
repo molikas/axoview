@@ -371,6 +371,62 @@ style + content `scrollH` all unchanged).
   labels) — the user wants this as BACKUP, preferring to optimize labels rather than
   hide them; (d) accept 2a as the T1 win and escalate to T2 (Canvas2D render — RED).
 
+## 🛠 Harness v2 — realistic scene + drift methodology (resolves the 2e escalation, option #1)
+
+Human chose option #1: fix measurement + build a realistic case before grinding
+further. Done (`engine-perf.spec.ts`):
+
+- **Realistic scene** (`buildScene`): per N → N nodes (5 representative ~1.7 KB
+  icons round-robin, varied label colours, ~20% with a description, ~12% with
+  notes) + ~N connectors (right-neighbour edges, ⅓ labelled, palette colours) +
+  grouping rectangles (~5×5 blocks). Spawn commits the whole scene in one
+  `model.set` (paste / import / diagram-open). Anti-cheat upgraded: `rendered=N/N`
+  validated AND scene composition (conn/rect counts) logged per cell.
+- **Representative icon** replaces the trivial 100-byte `<rect>` (fixes the
+  bloat-analysis fidelity gap — real icons are ~2 KB base64).
+- **Collision-during-drag**: drag now drags a *connected* in-grid node through
+  *occupied* tiles → per-frame collision checks + connector re-route (old harness
+  dragged one unconnected node through an empty lane).
+- **Calibration index** (fixed CPU workload) printed + in `baseline.md`; cross-
+  session drift was ~22% so absolute numbers compare only between similar-index
+  runs. **Keep/revert is now mandated same-session A/B** (re-measure the reference
+  build in the same session), never vs a prior-session baseline.
+- **Text boxes excluded** (documented): their `size` is derived scene-side by the
+  `createTextBox` reducer (`getTextBoxDimensions`); a bulk `model.set` bypasses it
+  → renderer crashes on undefined `size.height`. Negligible bulk-render weight.
+
+**New baseline** (`baseline.md`, realistic scene, calibration 3.2 ms; rendered=N/N
+all cells):
+
+| N | spawn longest | spawn settle | drag mean | scene |
+|---|---|---|---|---|
+| 200 | 83 ms | 167 ms | 16.7 | conn=186 rect=9 |
+| 500 | 167 ms | 250 ms | **30.2** | conn=478 rect=25 |
+| 1000 | 317 ms | 400 ms | 16.9 (see caveat) | conn=968 rect=49 |
+
+**Findings from the realistic baseline:**
+- **Spawn stays node-dominated** — ~968 connectors + 49 rectangles barely shift
+  settle vs nodes-only (≈400 here vs the ≈441 same-session simple-scene 2b control).
+  Connectors/rectangles are cheap; the grind target remains the **node subtree**
+  (labels/icons/emotion) and the node-level levers (icon dedup, willChange).
+- **Collision-drag is NOT free**: N=500 drag = **30 ms/frame (~33 fps, 2× over the
+  16.6 ms budget)**, settle 2416 ms — the old empty-lane unconnected drag (flat
+  16.7 ms) hid this. Per-frame collision check + connector re-route + render of the
+  visible scene is the cost. This is a NEW, real drag finding the realistic harness
+  surfaced.
+- **⚠️ Drag caveat (provisional cell):** N=1000 drag reads 16.9 ms (idle-like;
+  settle≈idle 1349, all frames 16.9) — *faster* than N=500's 30 ms, which is
+  inverted. The grab silently **failed to engage at the extreme fit-zoom** (the
+  pointer→tile coord from `tileToClient` misses the node). So the high-N collision-
+  drag cells are unreliable until the grab is made robust (e.g., engage via the
+  rendered node's DOM rect, and assert the drag mode actually activated). Spawn
+  cells are unaffected (rendered=N/N).
+
+**Next:** decide grind direction on the SOLID spawn baseline (node-level: icon
+dedup / transient willChange / further label render) — and fix the collision-drag
+engagement so its high-N cells become trustworthy. Keep/revert from here = same-
+session A/B.
+
 ## ⏸ Earlier checkpoint — all 3 autonomy preconditions MET (signed off)
 
 | Precondition | Status |

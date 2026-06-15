@@ -95,7 +95,13 @@ interface RunResult {
   frames: number[];
   longTasks: Array<{ start: number; duration: number }>;
   commitMs?: number; // spawn only: synchronous store-write duration (sub-vsync)
-  renderedNodes?: number; // spawn only: node-labels in the DOM after settle
+  renderedNodes?: number; // spawn only: node shells in the DOM after settle
+  sceneCounts?: {
+    nodes: number;
+    connectors: number;
+    rectangles: number;
+    textBoxes: number;
+  }; // spawn only: the committed multi-element scene composition
 }
 interface RunMetrics {
   p50: number;
@@ -186,14 +192,69 @@ function installHarness() {
   const raf = (): Promise<number> =>
     new Promise((r) => requestAnimationFrame((t) => r(t)));
 
-  const PERF_ICON = {
-    id: 'perf-icon',
-    name: 'perf',
-    url:
-      "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%23888'/></svg>",
+  // Deterministic PRNG so every run builds the identical scene (run-to-run
+  // comparability). NOT Math.random.
+  function mulberry32(seed: number) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // Representative icons. The real app embeds ~2 KB base64 SVGs per node; the old
+  // trivial 100-byte <rect> under-measured per-node icon decode/markup cost
+  // (bloat-analysis.txt). A small SET assigned round-robin: each repeats (a real
+  // dedup opportunity) yet there is variety (the "every node can be stylized"
+  // challenge). ~1.7 KB each.
+  const ICON_PALETTE = [
+    '%235b8def',
+    '%23e0644b',
+    '%233fae6b',
+    '%23f2b134',
+    '%238e6fd6',
+    '%2300a3a3'
+  ];
+  function makeIconUrl(seed: number) {
+    const rnd = mulberry32(seed * 7919 + 1);
+    let body = "<rect width='64' height='64' rx='6' fill='%23f4f6fb'/>";
+    for (let i = 0; i < 26; i++) {
+      const x = (rnd() * 56 + 4).toFixed(1);
+      const y = (rnd() * 56 + 4).toFixed(1);
+      const c = ICON_PALETTE[(rnd() * ICON_PALETTE.length) | 0];
+      if (rnd() < 0.5) {
+        const r = (rnd() * 7 + 2).toFixed(1);
+        body += `<circle cx='${x}' cy='${y}' r='${r}' fill='${c}'/>`;
+      } else {
+        const wd = (rnd() * 12 + 3).toFixed(1);
+        const ht = (rnd() * 12 + 3).toFixed(1);
+        body += `<rect x='${x}' y='${y}' width='${wd}' height='${ht}' rx='1.5' fill='${c}'/>`;
+      }
+    }
+    return `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>${body}</svg>`;
+  }
+  const PERF_ICONS = Array.from({ length: 5 }, (_, i) => ({
+    id: 'perf-icon-' + i,
+    name: 'perf-' + i,
+    url: makeIconUrl(i + 1),
     collection: 'imported',
     isIsometric: false
-  };
+  }));
+  // Global colour palette (connectors/rectangles reference by id).
+  const PERF_COLORS = [
+    { id: 'c1', value: '#a5b8f3' },
+    { id: 'c2', value: '#bbadfb' },
+    { id: 'c3', value: '#f4eb8e' },
+    { id: 'c4', value: '#f0aca9' },
+    { id: 'c5', value: '#fad6ac' },
+    { id: 'c6', value: '#a8dc9d' },
+    { id: 'c7', value: '#b3e5e3' }
+  ];
+  // Per-node label colours (raw hex; '' = theme default). Variety so the label
+  // styling path is exercised non-uniformly.
+  const LABEL_COLORS = ['', '#c0392b', '#1565c0', '#2e7d32', '#6a1b9a'];
 
   function activeView() {
     const ui = ax().ui.getState();
@@ -203,20 +264,36 @@ function installHarness() {
     return { view, m };
   }
 
-  function viewsWith(viewId: string, items: any[]) {
+  function viewsWith(
+    viewId: string,
+    vitems: any[],
+    connectors?: any[],
+    rectangles?: any[],
+    textBoxes?: any[]
+  ) {
     const m = ax().model.getState();
     return m.views.map((v: any) =>
       v.id === viewId
-        ? { ...v, items, connectors: [], rectangles: [], textBoxes: [] }
+        ? {
+            ...v,
+            items: vitems,
+            connectors: connectors || [],
+            rectangles: rectangles || [],
+            textBoxes: textBoxes || []
+          }
         : v
     );
   }
 
   function resetState() {
-    const { view, m } = activeView();
-    const icons = m.icons && m.icons.length ? m.icons : [PERF_ICON];
+    const { view } = activeView();
     ax().model.getState().actions.set(
-      { items: [], icons, views: viewsWith(view.id, []) },
+      {
+        items: [],
+        icons: PERF_ICONS,
+        colors: PERF_COLORS,
+        views: viewsWith(view.id, [])
+      },
       true
     );
     ax().model.getState().actions.clearHistory();
@@ -232,27 +309,99 @@ function installHarness() {
     }
   }
 
-  function iconId() {
-    const m = ax().model.getState();
-    return m.icons && m.icons.length ? m.icons[0].id : PERF_ICON.id;
-  }
-
-  // Grid of N nodes. `xBase` lets the drag scenario reserve column 0 as an
-  // empty lane for the dragged node. Tiles are unique → no spurious collisions.
-  function buildGrid(N: number, xBase: number) {
+  // Realistic scene of N nodes + ~N connectors + grouping rectangles, with
+  // varied per-item stylisation (5 icons round-robin, palette colours, varied
+  // label colours, ~20% with descriptions, ~12% with notes). `xBase` offsets the
+  // grid origin. Deterministic so the scene is identical run-to-run. N is the
+  // NODE count (the SSB/LEB regime); the other element counts scale with it. The
+  // full scene is what the real app renders on a diagram open / paste /
+  // view-switch. (Text boxes are excluded — see the note at the return.)
+  const NODE_NAMES = [
+    'Service',
+    'Gateway',
+    'Store',
+    'Queue',
+    'Cache',
+    'Worker',
+    'Router',
+    'Index'
+  ];
+  function buildScene(N: number, xBase: number) {
     const side = Math.ceil(Math.sqrt(N));
-    const icon = iconId();
+    const noLabel = !!w.__perfNoLabel; // diagnostic: isolate label-subtree cost
     const items: any[] = [];
     const vitems: any[] = [];
-    const noLabel = !!w.__perfNoLabel; // diagnostic: isolate label-subtree cost
+    const connectors: any[] = [];
     for (let i = 0; i < N; i++) {
       const id = 'perf-' + i;
-      items.push({ id, name: 'n' + i, icon });
-      const vi: any = { id, tile: { x: xBase + (i % side), y: Math.floor(i / side) } };
+      const col = i % side;
+      const row = Math.floor(i / side);
+      const item: any = {
+        id,
+        name: NODE_NAMES[i % NODE_NAMES.length] + ' ' + i,
+        icon: PERF_ICONS[i % PERF_ICONS.length].id
+      };
+      if (i % 5 === 0) {
+        item.description =
+          '<p>' +
+          NODE_NAMES[i % NODE_NAMES.length] +
+          ' ' +
+          i +
+          ' handles a slice of the workload and forwards downstream.</p>';
+      }
+      if (i % 8 === 0) item.notes = 'note ' + i;
+      items.push(item);
+      const vi: any = {
+        id,
+        tile: { x: xBase + col, y: row },
+        labelColor: LABEL_COLORS[i % LABEL_COLORS.length]
+      };
       if (noLabel) vi.showLabel = false;
       vitems.push(vi);
+      // Connector to the right neighbour (same row): ~N−side edges, ~⅓ labelled.
+      if (col < side - 1 && i + 1 < N) {
+        const c: any = {
+          id: 'c-' + i,
+          color: PERF_COLORS[i % PERF_COLORS.length].id,
+          width: 10,
+          style: 'SOLID',
+          anchors: [
+            { id: 'a' + i + 's', ref: { item: id } },
+            { id: 'a' + i + 'e', ref: { item: 'perf-' + (i + 1) } }
+          ]
+        };
+        if (i % 3 === 0) {
+          c.labels = [
+            { id: 'cl' + i, text: 'edge ' + i, position: 50, fontSize: 12 }
+          ];
+        }
+        connectors.push(c);
+      }
     }
-    return { items, vitems };
+    // Grouping rectangles over ~5×5 blocks (varied colours).
+    const rectangles: any[] = [];
+    const BLOCK = 5;
+    let k = 0;
+    for (let by = 0; by < side; by += BLOCK) {
+      for (let bx = 0; bx < side; bx += BLOCK) {
+        rectangles.push({
+          id: 'r-' + k,
+          color: PERF_COLORS[k % PERF_COLORS.length].id,
+          from: { x: xBase + bx, y: by },
+          to: {
+            x: xBase + Math.min(bx + BLOCK - 1, side - 1),
+            y: Math.min(by + BLOCK - 1, side - 1)
+          }
+        });
+        k++;
+      }
+    }
+    // Text boxes are intentionally excluded: their `size` is derived scene-side
+    // by the createTextBox reducer (getTextBoxDimensions), which a bulk
+    // model.set bypasses → the renderer crashes on undefined `size.height`. They
+    // are a tiny annotation element (negligible bulk-render weight); the
+    // representative load is nodes + connectors + rectangles + labels.
+    return { items, vitems, connectors, rectangles, textBoxes: [] };
   }
 
   // Fit the viewport (zoom + scroll) so the whole grid is on-screen, so the
@@ -412,61 +561,93 @@ function installHarness() {
 
   async function measureSpawn(N: number, capMs: number) {
     resetState();
-    const { items, vitems } = buildGrid(N, 1);
-    fitForGrid(1, N); // make all N visible so the engine renders them all
+    const scene = buildScene(N, 1);
+    fitForGrid(1, N); // make all N nodes visible so the engine renders them all
     await quiesce();
     const { view } = activeView();
-    const newViews = viewsWith(view.id, vitems);
+    const newViews = viewsWith(
+      view.id,
+      scene.vitems,
+      scene.connectors,
+      scene.rectangles,
+      scene.textBoxes
+    );
     const frames: number[] = [];
     const longTasks: Array<{ start: number; duration: number }> = [];
     const stop = observeLongTasks(longTasks);
-    // Commit the whole scene in one store write — models a bulk paste/import.
-    // The first captured frame straddles the commit, so its delta IS the freeze.
-    // commitMs times the synchronous portion of the write (React renders
-    // external-store updates synchronously to avoid tearing) — a sub-vsync,
-    // continuous measure, unlike frame-delta-based settle.
+    // Commit the whole scene in one store write — models a bulk paste/import/
+    // diagram-open. The first captured frame straddles the commit, so its delta
+    // IS the freeze. commitMs times the synchronous portion of the write (React
+    // renders external-store updates synchronously to avoid tearing) — a
+    // sub-vsync, continuous measure, unlike frame-delta-based settle.
     const tc = performance.now();
-    ax().model.getState().actions.set({ items, views: newViews }, false);
+    ax()
+      .model.getState()
+      .actions.set({ items: scene.items, views: newViews }, false);
     const commitMs = performance.now() - tc;
     await captureUntilSettled(frames, capMs);
     stop();
     // Anti-cheat: every node renders a shell (data-drag-id). With fit-to-view
     // this must equal N — proving the benchmark renders all the work the engine
-    // would (no accidental off-screen culling shrinking the scene).
+    // would (no accidental off-screen culling shrinking the scene). sceneCounts
+    // records the full multi-element composition that was committed.
     const renderedNodes = document.querySelectorAll('[data-drag-id]').length;
-    return { frames, longTasks, commitMs, renderedNodes };
+    return {
+      frames,
+      longTasks,
+      commitMs,
+      renderedNodes,
+      sceneCounts: {
+        nodes: scene.items.length,
+        connectors: scene.connectors.length,
+        rectangles: scene.rectangles.length,
+        textBoxes: scene.textBoxes.length
+      }
+    };
   }
 
   async function measureDrag(N: number, steps: number) {
     resetState();
-    // N nodes total: node 0 is the dragged one in the empty x=0 lane; the rest
-    // are fillers at x≥1. Fit-to-view so all N are visible (the engine culls
-    // off-screen items, so a representative drag must keep them on-screen).
-    const draggedTile = { x: 0, y: 3 };
-    const fillers = buildGrid(N - 1, 1);
-    fitForGrid(0, N);
+    // Realistic drag: the full scene (N nodes + connectors + rectangles + text
+    // boxes) is rendered, and we drag an in-grid, CONNECTED node horizontally
+    // across OCCUPIED tiles. So each rAF frame pays a collision check against
+    // occupied tiles + a re-route of the dragged node's connector + the static
+    // render of the rest. (The old harness dragged one unconnected node through
+    // an empty lane — it under-measured the real drag path.)
+    const scene = buildScene(N, 1);
+    fitForGrid(1, N);
     await quiesce();
-    const items = [
-      { id: 'perf-drag', name: 'drag', icon: iconId() },
-      ...fillers.items
-    ];
-    const vitems = [{ id: 'perf-drag', tile: draggedTile }, ...fillers.vitems];
     const { view } = activeView();
-    ax().model.getState().actions.set(
-      { items, views: viewsWith(view.id, vitems) },
-      true
-    );
+    ax()
+      .model.getState()
+      .actions.set(
+        {
+          items: scene.items,
+          views: viewsWith(
+            view.id,
+            scene.vitems,
+            scene.connectors,
+            scene.rectangles,
+            scene.textBoxes
+          )
+        },
+        true
+      );
     ax().model.getState().actions.clearHistory();
     await quiesce();
 
     const el = document.querySelector(
       '[data-axoview-id="canvas-interactions"]'
     ) as HTMLElement;
-    const start = tileToClient(draggedTile);
-    // Drag along the empty x=0 column (no collisions to suppress work). Scale to
-    // a minimum screen distance so the pointer genuinely moves even at the tiny
-    // fit-zoom used for large N (otherwise the move would be sub-pixel).
-    let end = tileToClient({ x: 0, y: draggedTile.y + 6 });
+    const side = Math.ceil(Math.sqrt(N));
+    // Drag perf-0 (top-left, has a right-neighbour connector) along its row,
+    // through the occupied tiles of its row-mates → per-frame collision checks
+    // fire and its connector re-routes. Scale to a minimum screen distance so
+    // the pointer genuinely moves even at the tiny fit-zoom used for large N.
+    const startTile = scene.vitems[0].tile;
+    const span = Math.min(6, Math.max(1, side - 1));
+    const start = tileToClient(startTile);
+    let end = tileToClient({ x: startTile.x + span, y: startTile.y });
     const dx = end.x - start.x;
     const dy = end.y - start.y;
     const dist = Math.hypot(dx, dy);
@@ -551,7 +732,36 @@ function installHarness() {
     };
   }
 
-  w.__perfH = { measureSpawn, measureDrag, measureIdle, resetState };
+  // Machine-speed calibration: a fixed, deterministic CPU-bound workload whose
+  // median ms indexes the current machine state, so cross-RUN drift is visible.
+  // (Cross-session drift was measured at ~22% — far larger than the ~2% within-run
+  // noise; see decision-log "cross-session drift defect". Keep/revert decisions
+  // must be same-session A/B; this index flags when two runs' machine states
+  // differ enough that their absolute numbers are not directly comparable.)
+  function calibrate(reps: number) {
+    const times: number[] = [];
+    for (let r = 0; r < reps; r++) {
+      const t0 = performance.now();
+      let acc = 0;
+      let s = '';
+      for (let i = 1; i < 400000; i++) {
+        acc += Math.sqrt(i) * 1.0000001 + (acc % 7);
+        if ((i & 2047) === 0) s += (acc | 0).toString(36);
+      }
+      if (s.length === -1) (w as any).__never = s; // defeat dead-code elimination
+      times.push(performance.now() - t0);
+    }
+    times.sort((a, b) => a - b);
+    return times[Math.floor(times.length / 2)];
+  }
+
+  w.__perfH = {
+    measureSpawn,
+    measureDrag,
+    measureIdle,
+    resetState,
+    calibrate
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -748,6 +958,18 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
 
   const covPct = (xs: number[]) => round(cov(xs) * 100, 1);
 
+  // Machine-speed calibration (drift detector — decision-log "cross-session
+  // drift defect"). A fixed CPU workload; its ms indexes machine state so two
+  // runs' absolute numbers can be sanity-checked for comparability.
+  const calibrationMs: number = await page.evaluate(() =>
+    (window as any).__perfH.calibrate(7)
+  );
+  console.log(
+    `[perf] machine calibration index = ${round(calibrationMs, 1)} ms ` +
+      '(fixed CPU workload; compare across runs to gauge drift — keep/revert ' +
+      'decisions must be same-session A/B, not vs a prior-session baseline)'
+  );
+
   const table: any[] = [];
   const rawDump: Record<string, RunResult[]> = {};
 
@@ -787,10 +1009,12 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
       };
       table.push(row);
       const renderedNodes = kept.map((r) => r.renderedNodes ?? -1);
+      const sc = kept[0]?.sceneCounts;
       const commitInfo =
         scenario === 'spawn'
           ? ` commit=${round(median(commits), 1)} commitN=${covPct(commits)}%` +
-            ` rendered=${median(renderedNodes)}/${N}`
+            ` rendered=${median(renderedNodes)}/${N}` +
+            (sc ? ` scene[conn=${sc.connectors} rect=${sc.rectangles}]` : '')
           : '';
       console.log(
         `[perf] ${scenario} N=${N}  p50=${row.p50_ms} p95=${row.p95_ms} ` +
@@ -845,7 +1069,11 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
   const stamp = new Date().toISOString();
   fs.writeFileSync(
     path.join(RAW_DIR, `run-${stamp.replace(/[:.]/g, '-')}.json`),
-    JSON.stringify({ stamp, table, idleGuard, raw: rawDump }, null, 2)
+    JSON.stringify(
+      { stamp, calibrationMs, table, idleGuard, raw: rawDump },
+      null,
+      2
+    )
   );
 
   // KR1 gate. Load-bearing regime = all drag + spawn N≥100 (the cells whose
@@ -859,7 +1087,14 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
     ...table.filter(isLoadBearing).map((r) => r.noiseBand_pct)
   );
 
-  const md = renderMarkdown(stamp, table, worstLoadBearing, worstNoise, idleGuard);
+  const md = renderMarkdown(
+    stamp,
+    calibrationMs,
+    table,
+    worstLoadBearing,
+    worstNoise,
+    idleGuard
+  );
   fs.writeFileSync(path.join(RESULTS_DIR, 'baseline.md'), md);
   console.log('\n' + md);
   console.log(
@@ -871,6 +1106,7 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
 
 function renderMarkdown(
   stamp: string,
+  calibrationMs: number,
   table: any[],
   worstLoadBearing: number,
   worstNoise: number,
@@ -901,6 +1137,24 @@ function renderMarkdown(
       'time**) — a real run-to-run variance measure, robust to the vsync ' +
       'quantization that makes frame-time percentiles bimodal. Frame budget ' +
       '@60fps = 16.6 ms.'
+  );
+  lines.push('');
+  lines.push(
+    '**Scene (realistic, per N):** N nodes (5 icon types ≈1.7 KB each, varied ' +
+      'label colours, ~20% with a description, ~12% with notes) + ~N connectors ' +
+      '(⅓ labelled) + grouping rectangles. **Spawn** commits the whole scene in ' +
+      'one store write (paste / import / diagram-open). **Drag** drags a ' +
+      'connected in-grid node through OCCUPIED tiles → per-frame collision ' +
+      'checks + connector re-route. (Text boxes excluded — their scene-side size ' +
+      'derivation is incompatible with a bulk model.set.)'
+  );
+  lines.push('');
+  lines.push(
+    `**Machine calibration index: ${round(calibrationMs, 1)} ms** (fixed CPU ` +
+      'workload, this session). Cross-session machine drift was measured at ~22% ' +
+      '(≫ the ~2% within-run noise), so absolute numbers are comparable only ' +
+      'between runs with a similar index — **keep/revert decisions must be ' +
+      'same-session A/B**, never a fresh run vs a prior-session baseline.'
   );
   lines.push('');
   for (const scenario of ['spawn', 'drag']) {
