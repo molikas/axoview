@@ -63,7 +63,12 @@ test.describe('Touch — drag an element from the panel onto the canvas', () => 
     const placeState = () =>
       page.evaluate(() => {
         const ui = (window as any).__axoview__.ui.getState();
-        return { mode: ui.mode.type, tile: { ...ui.mouse.position.tile } };
+        return {
+          mode: ui.mode.type,
+          tile: { ...ui.mouse.position.tile },
+          suppressPreview:
+            ui.mode.type === 'PLACE_ICON' ? !!ui.mode.suppressPreview : null
+        };
       });
 
     const start = {
@@ -78,6 +83,10 @@ test.describe('Touch — drag an element from the panel onto the canvas', () => 
       type: 'touchStart',
       touchPoints: [{ x: start.x, y: start.y, id: 0 }]
     });
+    await page.waitForTimeout(60);
+    // Armed but not yet dragging: the preview ghost must be hidden (no hover on
+    // touch, so it must not paint at a stale tile before the drag starts).
+    const armed = await placeState();
     await client.send('Input.dispatchTouchEvent', {
       type: 'touchMove',
       touchPoints: [{ x: a.x, y: a.y, id: 0 }]
@@ -96,9 +105,13 @@ test.describe('Touch — drag an element from the panel onto the canvas', () => 
     });
     await client.detach();
 
-    // The preview is live during the drag (mode stays PLACE_ICON) and its tile
-    // moves with the finger — the drag affordance the device was missing.
+    // Armed-but-stationary: PLACE_ICON is set but the preview is suppressed.
+    expect(armed.mode).toBe('PLACE_ICON');
+    expect(armed.suppressPreview).toBe(true);
+    // Once dragging, the preview is live (mode stays PLACE_ICON, no longer
+    // suppressed) and its tile moves with the finger — the missing affordance.
     expect(atA.mode).toBe('PLACE_ICON');
+    expect(atA.suppressPreview).toBe(false);
     expect(atB.mode).toBe('PLACE_ICON');
     expect(atB.tile).not.toEqual(atA.tile);
   });

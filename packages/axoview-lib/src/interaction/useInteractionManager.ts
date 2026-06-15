@@ -1229,6 +1229,12 @@ export const useInteractionManager = () => {
         // Forward the whole gesture as mouse events to the active mode.
         ts.phase = 'item';
         ts.itemDownTarget = onAnchor ? e.target : interactionsEl ?? null;
+        // A canvas press in PLACE_ICON means the user is now positioning on the
+        // canvas (tap-then-canvas or canvas-drag) — reveal the preview ghost the
+        // palette-arm hid.
+        if (uiState.mode.type === 'PLACE_ICON' && uiState.mode.suppressPreview) {
+          uiState.actions.setMode({ ...uiState.mode, suppressPreview: false });
+        }
         // Seed a move then the down so the mode reads the pressed tile (modes
         // read position from the pre-setMouse uiState snapshot otherwise).
         forwardMouse(e, 'mousemove', ts.itemDownTarget);
@@ -1271,6 +1277,17 @@ export const useInteractionManager = () => {
         // the finger to the target tile (PlaceIcon.mousemove is a no-op, so this
         // only moves the preview — placement still happens on release). Without
         // this the dragged icon shows no drag affordance until the finger lifts.
+        // The first real move reveals the ghost (suppressed at arm-time so it
+        // doesn't paint at a stale tile before the drag starts).
+        if (exceedsTapSlop(ts.downScreen, { x: e.clientX, y: e.clientY })) {
+          const placing = uiStateApi.getState().mode;
+          if (placing.type === 'PLACE_ICON' && placing.suppressPreview) {
+            uiStateApi.getState().actions.setMode({
+              ...placing,
+              suppressPreview: false
+            });
+          }
+        }
         forwardMouse(e, 'mousemove', interactionsEl);
         return;
       }
@@ -1442,6 +1459,16 @@ export const useInteractionManager = () => {
           ts.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
           ts.phase = 'palette';
           ts.downScreen = { x: e.clientX, y: e.clientY };
+          // Hide the preview ghost until the drag engages — without this it
+          // paints at a stale tile the instant the icon is tapped (no hover on
+          // touch). Cleared on the first palette move below.
+          const placing = uiStateApi.getState().mode;
+          if (placing.type === 'PLACE_ICON') {
+            uiStateApi.getState().actions.setMode({
+              ...placing,
+              suppressPreview: true
+            });
+          }
         }
         return;
       }
