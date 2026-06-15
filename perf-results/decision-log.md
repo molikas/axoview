@@ -427,6 +427,41 @@ dedup / transient willChange / further label render) — and fix the collision-d
 engagement so its high-N cells become trustworthy. Keep/revert from here = same-
 session A/B.
 
+## 🔬 Re-validation of 2a & 2b — same-session A/B on the realistic scene (N=1000)
+
+Three variants measured back-to-back this session (the calibration index caught
+~9% intra-session warm-up drift: 3.4 → 3.2 → 3.1 across the runs — even sequential
+"same-session" runs drift, so the index is load-bearing for attribution):
+
+| variant | settle | calibration | normalized (settle/cal) |
+|---|---|---|---|
+| A — 2a + 2b (HEAD) | 400.0 ms | 3.4 | 117.6 |
+| B — 2a, **no 2b** (Stack restored) | 425.0 ms | 3.2 | 132.8 |
+| C — **no 2a**, 2b (unguarded scrollTo) | 399.95 ms | 3.1 | 129.0 |
+
+- **2b (Stack→div) — REAL (keep).** B is *slower* than A (425 vs 400) despite a
+  *faster* machine (cal 3.2 < 3.4) → the effect overcomes the drift direction.
+  ~−6% raw, ~−11% calibration-normalized. **My earlier "suspect false-positive"
+  call (decision-log, drift section) was WRONG** — the realistic same-session A/B
+  confirms 2b is a genuine ~−6% win.
+- **2a (scrollTo-on-mount guard) — REAL but SMALL / borderline (keep).** A≈C raw
+  (400≈400), but C ran on the fastest machine (cal 3.1) and only *matched* A →
+  normalized ~−9% in A's favour. The original **−50% was cross-session drift**
+  (simple-scene, never validated same-session) + likely a simple-scene-specific
+  layout-thrash that the realistic scene doesn't reproduce. On the realistic scene
+  2a's benefit is modest. Kept regardless: it is a *correct* change (skipping a
+  freshly-mounted element's scrollTo({top:0}) is a behavioural no-op).
+- **Outcome: both kept, no reverts; magnitudes corrected.** 2a is NOT the giant it
+  appeared (drift); 2b is genuinely real.
+
+**⚠️ Methodology nuance (compounds the drift defect):** even SEQUENTIAL same-session
+runs carry ~9% warm-up drift (cold machine slower). Effect sizes here (~6–11%) are
+*comparable to* that drift → small T1 label/node micro-opts sit near the
+measurement floor. For trustworthy small-effect attribution: **interleave** variants
+(A,B,A,B…) or normalise by the calibration index; and run a throwaway warm-up first.
+Big/architectural effects (T2) would clear the floor easily; sub-drift micro-opts
+will be hard to prove either way — a signal about T1's remaining headroom.
+
 ## ⏸ Earlier checkpoint — all 3 autonomy preconditions MET (signed off)
 
 | Precondition | Status |
