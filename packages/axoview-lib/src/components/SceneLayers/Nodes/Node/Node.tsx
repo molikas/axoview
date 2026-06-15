@@ -1,5 +1,5 @@
 import React, { useMemo, memo, useCallback, useEffect, useState } from 'react';
-import { Box, Typography, Stack } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { OpenInNew as OpenInNewIcon } from '@mui/icons-material';
 import { DEFAULT_LABEL_HEIGHT } from 'src/config';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
@@ -34,6 +34,16 @@ interface Props {
 // so emotion's class hash hits cache every time.
 
 const OUTER_SX = { position: 'absolute' as const };
+
+// Lightweight replacement for MUI <Stack spacing={1}> in the label subtree: a
+// plain flex column with an 8px gap (= theme.spacing(1)) reproduces the exact
+// layout (8px between the title and an optional description) with zero per-node
+// emotion/sx work. Module-level so the style object identity stays stable.
+const LABEL_STACK_STYLE: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 8
+};
 
 // Position-only shell. Flex centering moved into NodeContent so the inner
 // Box stays trivial and cheap to re-render per drag tick.
@@ -234,7 +244,7 @@ const NodeContent = memo(
                 expandDirection="BOTTOM"
                 labelHeight={labelHeight ?? DEFAULT_LABEL_HEIGHT}
               >
-                <Stack spacing={1}>
+                <div style={LABEL_STACK_STYLE}>
                   {isEditingName ? (
                     <Typography
                       fontWeight={600}
@@ -326,7 +336,7 @@ const NodeContent = memo(
                   {description && (
                     <RichTextEditor value={description} readOnly />
                   )}
-                </Stack>
+                </div>
               </ExpandableLabel>
             </Box>
           )}

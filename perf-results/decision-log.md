@@ -217,24 +217,58 @@ forced reflows interleaved through the spawn.
   worst stays 9.6% < 10% (KR1 still certified); the keep decision rests on N≥200
   where the win is 40–50% at 0–4% noise, so unaffected. New `baseline.md` committed.
 
-### Iter 2b — NEXT: lighten the per-node MUI label `sx`/emotion (GREEN, visuals preserved)
+### Iter 2b — 🟢 GREEN (KEPT): `Stack spacing={1}` → plain flex `div` in the label
 
-- **Hypothesis:** with the scrollTo reflow gone, the residual label cost is the
-  per-node MUI `sx`/emotion pipeline (`styleFunctionSx` 199, `getThemeValue` 140,
-  `extendSxProp` 106, emotion serialize/`murmur2` ~180, `deepmerge` 66). Replace
-  the heavy components — `Typography fontWeight/fontSize/color='text.primary'`
-  (→`getThemeValue`), `Stack spacing={1}`, and the `Label` content `Box` (theme
-  lookups `common.white`/`grey.400`) — with lightweight `styled`/plain elements
-  reproducing the same visuals. Implement incrementally (one element per
-  iteration); keep each step's gain above noise. Target the residual ~117 ms
-  longest / gap to the 183 ms labels-off floor @1000.
-- **Risk:** visual regression — correctness suite asserts label *presence*, not
-  pixels. Guard with `rename` + `readable-labels` specs AND the visual screenshot
-  check (.scratch/verify-labels.mjs) before keeping each step.
+First `sx`-element sub-step of the residual-emotion target. With the scrollTo
+reflow gone (2a), the residual label cost is the per-node MUI `sx`/emotion
+pipeline (`styleFunctionSx` 199, `getThemeValue` 140, `extendSxProp` 106, emotion
+serialize/`murmur2` ~180, `deepmerge` 66 — cpuprofile-spawn-1000.md).
+
+- **Hypothesis:** the label's `<Stack spacing={1}>` runs MUI styled/sx per node;
+  replacing it with a module-level `<div style={{display:flex,flexDirection:
+  column,gap:8}}>` (8px = `theme.spacing(1)`) reproduces the exact layout (8px
+  between title and optional description; no-op for the single-child name-only
+  case) with zero emotion work. Predict a small per-node saving that scales with N.
+- **Variable:** the label's row-stack element only (Node.tsx). Visually identical.
+- **Result (full N set, vs the 2a baseline):**
+
+  | N | settle 2a→2b | longest 2a→2b | 2b noise |
+  |---|---|---|---|
+  | 100 | 158→150 ms | 50→33 ms (−33%) | 4.0% |
+  | 200 | 200→208 ms (within noise) | 67→67 ms | 4.3% |
+  | 500 | 383→350 ms (−8.7%) | 167→142 ms (−15%) | 4.0% |
+  | 1000 | 600→567 ms (−5.6%) | 300→267 ms (−11%) | 1.9% |
+
+  **KEEP.** Modest but real: the longest-frame (commit) reduction *scales with N*
+  (−16/−25/−33 ms at 100/500/1000) — the signature of a fixed per-node cost
+  removed, not between-run drift — and at N=500/1000 it clears the noise band
+  (~2–3×). N=200 wobbled up within its 4.3% band (no regression). Drag unchanged.
+- **Correctness:** gate 9/9 + `rename`/`readable-labels` 4/4 green (13/13 total).
+  **Visual verify** (.scratch/verify-labels.mjs): label layout pixel-identical
+  (collapsed clamp 80, expand→scroll, collapse→top; screenful unchanged).
+- **Noise note:** small-N spawn noisy this run (N=25/50 18–18.6%) — machine less
+  idle at the early cells. Load-bearing worst 4.3% < 10% (KR1 certified; better
+  than 2a's 9.6%). New `baseline.md` committed.
+
+### Iter 2c — NEXT: lighten the remaining label `sx` elements (GREEN, visuals preserved)
+
+- **Hypothesis:** continue one element per iteration on the residual emotion
+  pipeline. Candidates, by likely cost: the `Typography` title (`fontWeight`/
+  `fontSize`/`color='text.primary'` → per-node `getThemeValue`) → a lightweight
+  styled/plain element baking the body1 metrics + resolved text color; then the
+  `Label` content `Box` (the chip: theme lookups `common.white`/`grey.400`,
+  `borderRadius`/`py`/`px`) → `styled()` cached class. Keep each step above noise.
+  Target the residual longest @1000 (now 267 ms vs the 183 ms labels-off floor).
+- **Risk (higher than 2a/2b):** the `Typography` swap must pixel-match MUI body1
+  font metrics (family/size/line-height/letter-spacing) or label text reflows —
+  visual-verify (.scratch/verify-labels.mjs) is load-bearing here; the `Label`
+  `Box` is a *shared* component (ConnectorLabel) with an `sx` passthrough, so a
+  `styled()` conversion must preserve that API (watch one-variable creep).
 - **Open alt (bigger, but a behaviour change → YELLOW, needs product nod):**
   label LOD — skip label rendering below a zoom/size threshold. At fit-to-1000
   the labels are sub-pixel and unreadable anyway, so this recovers ~the full 3×
-  in the exact collapse scenario for ~free. Strong candidate after Iter 2b.
+  in the exact collapse scenario for ~free. Strong candidate once `sx`
+  micro-steps stop clearing the noise band.
 
 ## ⏸ Earlier checkpoint — all 3 autonomy preconditions MET (signed off)
 
