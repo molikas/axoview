@@ -79,6 +79,15 @@ export interface PlaceIconMode {
   type: 'PLACE_ICON';
   showCursor: boolean;
   id: string | null;
+  /**
+   * Touch only: hide the drag-preview ghost until the drag actually engages.
+   * On touch there is no hover, so an armed placement would otherwise paint the
+   * ghost at a stale tile the moment the panel icon is tapped (before any drag).
+   * The touch machine sets this true on palette-arm and clears it on first move.
+   * Undefined on desktop (hover keeps the preview position fresh), so the ghost
+   * shows as before.
+   */
+  suppressPreview?: boolean;
 }
 
 export interface ConnectorMode {
