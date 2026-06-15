@@ -5,6 +5,17 @@ All notable changes to Axoview will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1](https://github.com/molikas/axoview/compare/v2.1.0...v2.1.1) (2026-06-14)
+
+### Bug Fixes
+
+* **annotation:** lock canvas during draw, radius eraser, color affordance, lasso reset ([#32](https://github.com/molikas/axoview/issues/32)) ([#33](https://github.com/molikas/axoview/issues/33)) ([83f0b2f](https://github.com/molikas/axoview/commit/83f0b2fc46a23701cb6ed2bdc729bd0e490b7770))
+
+### Documentation
+
+* living-docs slim + docs/README index (Path B reorganization) ([#29](https://github.com/molikas/axoview/issues/29)) ([4b10b83](https://github.com/molikas/axoview/commit/4b10b83f2fd00e3e238ae553a17e50d2a65f480d))
+* **tactical:** delete view-mode-and-annotation working doc (post-merge) ([#31](https://github.com/molikas/axoview/issues/31)) ([e53c8a2](https://github.com/molikas/axoview/commit/e53c8a24a1df33db0e970057bd249674f8206f1e))
+
 ## [2.1.0](https://github.com/molikas/axoview/compare/v2.0.1...v2.1.0) (2026-06-11)
 
 ### Features
