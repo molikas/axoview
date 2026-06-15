@@ -1,6 +1,6 @@
 # Axoview — Architecture Reference
 
-**Last updated:** 2026-06-12 (rev 21 — Phase 6 presentation & annotation surfaces; popover/annotation descriptions synced with shake-out)
+**Last updated:** 2026-06-14 (rev 22 — Phase 6.5 touch/pen gesture contract; Pointer-Events input layer + ADR 0018 cross-refs)
 **Codebase root:** `packages/axoview-lib/src` (library) · `packages/axoview-app/src` (application shell) · `packages/axoview-backend/src` (Express + fs adapter) · `packages/axoview-worker/src` (Hono + Cloudflare Pages Functions)
 
 **Purpose:** This is the **orientation map** — what the codebase contains and where each piece lives, tight enough to read in five minutes before touching a surface. It is deliberately *not* the comprehensive reference: decisions live in ADRs, the deep architectural narrative + file-by-file inventory + KPIs live in the frozen technical review, the test catalogue lives in `testing.md`, and runtime issues live in `known_issues.md`. Each section below points to its deeper source.
@@ -49,8 +49,9 @@ A "what exists and where it lives" map. The deep behavioural contracts (gotchas,
 | **Draw / Transform Rectangle** | `interaction/modes/Rectangle/` | Elements panel card / `TransformAnchor.tsx` |
 | **TextBox** | `interaction/modes/TextBox.ts` | Hotkey / Elements panel |
 | **Reconnect Anchor** | `interaction/modes/ReconnectAnchor.ts` | Anchor-handle mousedown |
+| **Touch / pen gestures** | `interaction/useInteractionManager.ts` (touch state machine) | Pointer Events → synthetic `SlimMouseEvent` forwarded into the modes above |
 
-**The contracts that matter** are locked in [ADR 0006 — Canvas Selection Contract](adr/0006-canvas-selection-contract.md) (the single + multi-select gesture matrix, connector-waypoint grouping, `getConnectorWaypointRefs` invariant) and [ux-principles §4](ux-principles.md). The high-frequency drag-performance design (CSS-preview path, `previewAnchorTiles`, the stale-model race) is documented in [perf-troubleshooting.md](perf-troubleshooting.md) and summarised in [§3](#3-performance-architecture). The `isRendererInteraction` / `mousedownHandled` guards are explained in [§2b](#2b-mode-state-machine) and [§4](#4-lessons-learned).
+**The contracts that matter** are locked in [ADR 0006 — Canvas Selection Contract](adr/0006-canvas-selection-contract.md) (the single + multi-select gesture matrix, connector-waypoint grouping, `getConnectorWaypointRefs` invariant) and [ux-principles §4](ux-principles.md). Touch/pen input (tap-select, drag-to-move/reconnect, two-finger pinch, long-press action bar, hold-then-drag lasso, drag-from-panel placement) is a Pointer-Events state machine that disambiguates by what's under the finger at down and forwards synthetic mouse events into the same modes — locked in [ADR 0018 — Touch/Pen Gesture Contract](adr/0018-touch-pen-gesture-contract.md) and [ux-principles §9](ux-principles.md); the mouse path is unchanged. The high-frequency drag-performance design (CSS-preview path, `previewAnchorTiles`, the stale-model race) is documented in [perf-troubleshooting.md](perf-troubleshooting.md) and summarised in [§3](#3-performance-architecture). The `isRendererInteraction` / `mousedownHandled` guards are explained in [§2b](#2b-mode-state-machine) and [§4](#4-lessons-learned).
 
 ### Clipboard · History · Views
 
