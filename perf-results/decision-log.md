@@ -462,6 +462,56 @@ measurement floor. For trustworthy small-effect attribution: **interleave** vari
 Big/architectural effects (T2) would clear the floor easily; sub-drift micro-opts
 will be hard to prove either way — a signal about T1's remaining headroom.
 
+## 🟢 Iter 3 — KEPT (big T1 win): wholesale de-emotion of the node subtree
+
+Per the "one big T1 attempt, then decide" decision. Convert every ALWAYS-rendered
+node-subtree `<Box sx={...}>` to a module-level `styled()` component (CSS resolved
+ONCE into a cached class), eliminating the per-instance MUI sx pipeline. Converted
+across Node.tsx, Label.tsx, ExpandableLabel.tsx: node shell, transform wrapper,
+flex-centre wrapper, icon wrapper, notes badge, label title (body1 baked), label
+stack, Label outer + chip (sx passthrough preserved for ConnectorLabel),
+ExpandableLabel counterScale (→ plain div) + scroll-content (→ styled, scrollbar-hide
+baked). Dynamic bits (--ff-* vars, cursor, label colour/size, width, maxHeight,
+transform, pb) stay inline. Rare paths left as-is (hasLink badge, editing Typography,
+Gradient, ExpandButton).
+
+- **Key insight PROVEN:** even a MODULE-LEVEL `sx` constant (`<Box sx={OUTER_SX}>`)
+  re-runs the per-instance emotion pipeline (extendSxProp / styleFunctionSx /
+  murmur2) EVERY render — emotion caches the serialized output by hash, not the
+  *processing*. `styled()` resolves once; per-instance is just a className apply.
+  (bloat-analysis's "emotion classes are cached, don't consolidate" was right about
+  stylesheet SIZE but missed this per-instance PROCESSING cost — ~403 ms @N=1000.)
+- **Same-session interleaved A/B (T-H-T, N=1000, drift-controlled):**
+
+  | run | build | settle | longest | cal |
+  |---|---|---|---|---|
+  | T1 | de-emotion | 283.4 | 200 | 3.2 |
+  | H1 | HEAD (Box) | 400.0 | 317 | 3.1 |
+  | T2 | de-emotion | 283.3 | 200 | 3.2 |
+
+  T1≈T2 bracket H1; H1 even ran on a *faster* machine (cal 3.1) yet was slower.
+  Effect ~117 ms ≈ **6× the ~9% drift floor. Unambiguous.**
+- **Full baseline (de-emotion, cal 3.3 ≈ HEAD's 3.4 → directly comparable; new
+  `baseline.md`):**
+
+  | N | settle HEAD→deE | longest HEAD→deE |
+  |---|---|---|
+  | 200 | 167→133 (−20%) | 83→50 (−40%) |
+  | 500 | 250→183 (−27%) | 167→100 (−40%) |
+  | 1000 | 400→283 (−29%) | 317→200 (−37%) |
+
+  Consistent ~20–29% settle / ~37–40% longest across N. rendered=N/N; KR3 PASS
+  (idle heap 77.6 MB flat — *lower* than before, fewer emotion artifacts); KR1
+  certified (load-bearing worst 6.4%). Correctness 13/13 green; title computed
+  style + chip + full scene pixel-identical.
+- **Verdict: KEEP. T1 is NOT exhausted** — per-instance emotion across ~10 elements
+  × N nodes was the real lever. Spawn N=1000 is now **283 ms settle / 200 ms
+  longest** (from the PHASE-0-era 633 ms longest). Drag unchanged (render-only); the
+  N=1000 collision-drag cell stays the provisional failed-grab (separate fix).
+- **Next (same-session A/B from here):** icon-dedup + transient willChange
+  (node-level, bloat-analysis); fix the collision-drag grab engagement; or measure
+  the new gap to the labels-off floor to see if more T1 remains before T2.
+
 ## ⏸ Earlier checkpoint — all 3 autonomy preconditions MET (signed off)
 
 | Precondition | Status |

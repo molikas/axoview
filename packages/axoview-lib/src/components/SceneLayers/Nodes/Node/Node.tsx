@@ -1,5 +1,6 @@
 import React, { useMemo, memo, useCallback, useEffect, useState } from 'react';
 import { Box, Typography } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import { OpenInNew as OpenInNewIcon } from '@mui/icons-material';
 import { DEFAULT_LABEL_HEIGHT } from 'src/config';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
@@ -33,36 +34,75 @@ interface Props {
 // re-invoked per drag tick. The static sx pieces are module-level constants
 // so emotion's class hash hits cache every time.
 
-const OUTER_SX = { position: 'absolute' as const };
+// T1 "wholesale de-emotion" (decision-log): the per-node elements below are
+// module-level styled() components, so their CSS is resolved ONCE into a cached
+// emotion class and each of the ~N nodes pays only a className apply — NOT the
+// per-instance MUI sx pipeline (extendSxProp / styleFunctionSx / murmur2), which
+// `<Box sx={...}>` re-runs every render even for a constant sx object (~403 ms of
+// the spawn freeze at N=1000; perf-results/cpuprofile-spawn-1000.md). Dynamic bits
+// (the --ff-* CSS vars, cursor, label colour/size) stay inline; the drag CSS-var
+// transform mechanism (MQA #7 Path 4-true) is preserved verbatim.
 
-// Lightweight replacement for MUI <Stack spacing={1}> in the label subtree: a
-// plain flex column with an 8px gap (= theme.spacing(1)) reproduces the exact
-// layout (8px between the title and an optional description) with zero per-node
-// emotion/sx work. Module-level so the style object identity stays stable.
-const LABEL_STACK_STYLE: React.CSSProperties = {
+const NodeShell = styled('div')({ position: 'absolute' });
+
+const NodeTransform = styled('div')({
+  position: 'absolute',
+  // --ff-x/--ff-y written by React from the model tile; --ff-drag-dx/dy mutated
+  // by DragItems via DOM during a drag; --ff-carry-scale lifts a carried node.
+  // One translate3d → compositor-only updates (no layout, no per-frame React).
+  transform:
+    'translate3d(calc(var(--ff-x, 0px) + var(--ff-drag-dx, 0px)), calc(var(--ff-y, 0px) + var(--ff-drag-dy, 0px)), 0) scale(var(--ff-carry-scale, 1))',
+  willChange: 'transform',
+  transition: 'filter 120ms ease, opacity 120ms ease'
+});
+
+// Flex-centering wrapper (cursor applied inline — it is the one dynamic bit).
+const NodeContentFlex = styled('div')({
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center'
+});
+
+// Replaces the former <Stack spacing={1}> / flex-div: 8px = theme.spacing(1).
+const LabelStack = styled('div')({
   display: 'flex',
   flexDirection: 'column',
   gap: 8
-};
+});
 
-// Position-only shell. Flex centering moved into NodeContent so the inner
-// Box stays trivial and cheap to re-render per drag tick.
-//
-// MQA #7 Path 4-true (experimental) — transform-based positioning that reads
-// from CSS variables. The base position (--ff-x, --ff-y) is written by React
-// from the model tile; the drag offset (--ff-drag-dx, --ff-drag-dy) is mutated
-// directly by DragItems via DOM during a drag. Both feed into one translate3d
-// for compositor-only updates — no layout, no React re-render per drag tick.
-const INNER_SX = {
-  position: 'absolute' as const,
-  // --ff-carry-scale lifts the node while it is "carried" on touch/pen (ADR 0018
-  // Decision 4); folded into the same translate3d so positioning stays a single
-  // compositor-only transform (no layout, no per-frame React render).
-  transform:
-    'translate3d(calc(var(--ff-x, 0px) + var(--ff-drag-dx, 0px)), calc(var(--ff-y, 0px) + var(--ff-drag-dy, 0px)), 0) scale(var(--ff-carry-scale, 1))',
-  willChange: 'transform' as const,
-  transition: 'filter 120ms ease, opacity 120ms ease'
-};
+const IconWrap = styled('div')({
+  pointerEvents: 'none',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  position: 'relative'
+});
+
+const NotesBadge = styled('div')({
+  position: 'absolute',
+  top: -6,
+  right: -6,
+  width: 14,
+  height: 14,
+  borderRadius: '50%',
+  backgroundColor: '#1565c0',
+  border: '2px solid #fff',
+  boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
+  pointerEvents: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
+});
+
+// Display-mode label title: theme.typography.body1 + the fixed overrides baked
+// once. Per-node labelFontSize / labelColor go via inline style.
+const LabelTitle = styled('p')(({ theme }) => ({
+  ...theme.typography.body1,
+  margin: 0,
+  fontWeight: 600,
+  fontSize: 14,
+  color: theme.palette.text.primary
+}));
 
 export const Node = memo(({ node, order }: Props) => {
   useRenderProbe('Node', node.id);
@@ -85,9 +125,8 @@ export const Node = memo(({ node, order }: Props) => {
   );
 
   return (
-    <Box sx={OUTER_SX} style={{ zIndex: order }} data-drag-id={node.id}>
-      <Box
-        sx={INNER_SX}
+    <NodeShell style={{ zIndex: order }} data-drag-id={node.id}>
+      <NodeTransform
         style={
           {
             '--ff-x': `${position.x}px`,
@@ -109,8 +148,8 @@ export const Node = memo(({ node, order }: Props) => {
           labelFontSize={node.labelFontSize}
           labelColor={node.labelColor}
         />
-      </Box>
-    </Box>
+      </NodeTransform>
+    </NodeShell>
   );
 });
 
@@ -228,23 +267,18 @@ const NodeContent = memo(
     }
 
     return (
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          cursor: isClickableInReadonly ? 'pointer' : 'inherit'
-        }}
+      <NodeContentFlex
+        style={{ cursor: isClickableInReadonly ? 'pointer' : 'inherit' }}
       >
         {showLabel !== false &&
           (modelItem?.name || description || isEditingName) && (
-            <Box data-testid="node-label" onDoubleClick={startInlineEdit}>
+            <div data-testid="node-label" onDoubleClick={startInlineEdit}>
               <ExpandableLabel
                 maxWidth={isEditingName ? 600 : 250}
                 expandDirection="BOTTOM"
                 labelHeight={labelHeight ?? DEFAULT_LABEL_HEIGHT}
               >
-                <div style={LABEL_STACK_STYLE}>
+                <LabelStack>
                   {isEditingName ? (
                     <Typography
                       fontWeight={600}
@@ -294,10 +328,13 @@ const NodeContent = memo(
                     </Typography>
                   ) : (
                     modelItem?.name && (
-                      <Typography
-                        fontWeight={600}
-                        fontSize={labelFontSize ?? 14}
-                        color={labelColor || 'text.primary'}
+                      <LabelTitle
+                        style={{
+                          ...(labelFontSize
+                            ? { fontSize: labelFontSize }
+                            : null),
+                          ...(labelColor ? { color: labelColor } : null)
+                        }}
                       >
                         {modelItem.headerLink ? (
                           <a
@@ -318,11 +355,7 @@ const NodeContent = memo(
                               )
                                 ? modelItem.headerLink!
                                 : `https://${modelItem.headerLink}`;
-                              window.open(
-                                url,
-                                '_blank',
-                                'noopener,noreferrer'
-                              );
+                              window.open(url, '_blank', 'noopener,noreferrer');
                             }}
                           >
                             {modelItem.name}
@@ -330,47 +363,21 @@ const NodeContent = memo(
                         ) : (
                           modelItem.name
                         )}
-                      </Typography>
+                      </LabelTitle>
                     )
                   )}
                   {description && (
                     <RichTextEditor value={description} readOnly />
                   )}
-                </div>
+                </LabelStack>
               </ExpandableLabel>
-            </Box>
+            </div>
           )}
         {iconComponent && (
-          <Box
-            sx={{
-              pointerEvents: 'none',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              position: 'relative'
-            }}
-          >
+          <IconWrap>
             {iconComponent}
             {modelItem.notes &&
-              modelItem.notes.replace(/<[^>]*>/g, '').trim() && (
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    top: -6,
-                    right: -6,
-                    width: 14,
-                    height: 14,
-                    borderRadius: '50%',
-                    bgcolor: '#1565c0',
-                    border: '2px solid #fff',
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
-                    pointerEvents: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                />
-              )}
+              modelItem.notes.replace(/<[^>]*>/g, '').trim() && <NotesBadge />}
             {hasLink && (
               <Box
                 sx={{
@@ -392,9 +399,9 @@ const NodeContent = memo(
                 <OpenInNewIcon sx={{ fontSize: 9, color: '#fff' }} />
               </Box>
             )}
-          </Box>
+          </IconWrap>
         )}
-      </Box>
+      </NodeContentFlex>
     );
   }
 );
