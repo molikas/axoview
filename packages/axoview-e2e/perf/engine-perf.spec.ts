@@ -95,6 +95,7 @@ interface RunResult {
   frames: number[];
   longTasks: Array<{ start: number; duration: number }>;
   commitMs?: number; // spawn only: synchronous store-write duration (sub-vsync)
+  dragEngaged?: boolean; // drag only: the DRAG_ITEMS mode actually activated
   renderedNodes?: number; // spawn only: node shells in the DOM after settle
   sceneCounts?: {
     nodes: number;
@@ -468,6 +469,22 @@ function installHarness() {
     return { x: rect.left + sx, y: rect.top + sy };
   }
 
+  // Robust grab point: the node's ACTUAL rendered screen position, read from the
+  // DOM, not re-projected from tile coords. The harness's forward tileToClient and
+  // the lib's inverse screen→tile round differently at the extreme fit-zoom used
+  // for large N, so a tile-projected pointer could land on the wrong/empty tile and
+  // the grab silently failed to engage (decision-log Harness-v2 drag caveat). The
+  // visible icon <img> sits over its node's tile, so its centre always hit-tests to
+  // that node. Returns null if the node isn't in the DOM / has no laid-out box.
+  function nodeClientCenter(id: string): { x: number; y: number } | null {
+    const shell = document.querySelector(`[data-drag-id="${id}"]`);
+    if (!shell) return null;
+    const target = (shell.querySelector('img') as HTMLElement | null) ?? shell;
+    const r = target.getBoundingClientRect();
+    if (r.width < 1 && r.height < 1) return null;
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  }
+
   function dispatchPointer(
     el: HTMLElement,
     type: string,
@@ -640,25 +657,44 @@ function installHarness() {
       '[data-axoview-id="canvas-interactions"]'
     ) as HTMLElement;
     const side = Math.ceil(Math.sqrt(N));
-    // Drag perf-0 (top-left, has a right-neighbour connector) along its row,
-    // through the occupied tiles of its row-mates → per-frame collision checks
-    // fire and its connector re-routes. Scale to a minimum screen distance so
-    // the pointer genuinely moves even at the tiny fit-zoom used for large N.
-    const startTile = scene.vitems[0].tile;
-    const span = Math.min(6, Math.max(1, side - 1));
-    const start = tileToClient(startTile);
-    let end = tileToClient({ x: startTile.x + span, y: startTile.y });
+    // Drag a node near the GRID CENTRE (not the top-left corner, which can sit at
+    // or past the viewport edge at the extreme fit-zoom used for large N — the old
+    // perf-0 grab). A centre node is guaranteed on-screen and fully surrounded by
+    // occupied tiles, so dragging it rightwards through its row-mates exercises the
+    // realistic path: per-frame collision checks + connector re-route + scene
+    // render. Indices are row-major (index = row*side + col).
+    const centerCol = Math.floor(side / 2);
+    const centerRow = Math.floor(side / 2);
+    let dragIndex = centerRow * side + centerCol;
+    if (dragIndex >= N) dragIndex = Math.floor(N / 2); // tiny-N safety
+    const dragCol = dragIndex % side;
+    // Move right within the same row, staying on occupied tiles.
+    const span = Math.min(6, Math.max(1, side - 1 - dragCol));
+    const targetIndex = dragIndex + span;
+    const dragId = 'perf-' + dragIndex;
+    const targetId = 'perf-' + targetIndex;
+
+    // Engagement points from the ACTUAL rendered nodes (DOM rect), with a
+    // tileToClient fallback for safety. See nodeClientCenter.
+    const start =
+      nodeClientCenter(dragId) ?? tileToClient(scene.vitems[dragIndex].tile);
+    let end =
+      (targetIndex < N ? nodeClientCenter(targetId) : null) ??
+      tileToClient({
+        x: scene.vitems[dragIndex].tile.x + span,
+        y: scene.vitems[dragIndex].tile.y
+      });
     const dx = end.x - start.x;
     const dy = end.y - start.y;
     const dist = Math.hypot(dx, dy);
-    const MIN_DRAG_PX = 150;
+    const MIN_DRAG_PX = 150; // ≫ TAP_SLOP_PX (8) so the drag engages quickly
     if (dist < MIN_DRAG_PX) {
       const s = MIN_DRAG_PX / (dist || 1);
       end = { x: start.x + dx * s, y: start.y + dy * s };
     }
 
-    // Engage the drag: land pointer on the node's tile, then press. Await rAF
-    // between so the lib's rAF-throttled mouse snapshot flushes (CanvasPOM note).
+    // Engage the drag: land pointer on the node, then press. Await rAF between so
+    // the lib's rAF-throttled mouse snapshot flushes (CanvasPOM note).
     dispatchPointer(el, 'pointermove', start.x, start.y, 0);
     await raf();
     dispatchPointer(el, 'pointerdown', start.x, start.y, 1);
@@ -668,6 +704,7 @@ function installHarness() {
     const longTasks: Array<{ start: number; duration: number }> = [];
     const stop = observeLongTasks(longTasks);
     let prev = await raf();
+    let dragEngaged = false;
     for (let s = 1; s <= steps; s++) {
       const t = s / steps;
       dispatchPointer(
@@ -680,11 +717,17 @@ function installHarness() {
       const now = await raf();
       frames.push(now - prev);
       prev = now;
+      // Anti-cheat: confirm the press+move actually entered DRAG_ITEMS. A failed
+      // grab leaves the mode in CURSOR and the "drag" measures idle frames — that
+      // cell must be flagged, not silently reported as fast.
+      if (!dragEngaged) {
+        dragEngaged = ax().ui.getState().mode.type === 'DRAG_ITEMS';
+      }
     }
     dispatchPointer(el, 'pointerup', end.x, end.y, 0);
     await raf();
     stop();
-    return { frames, longTasks };
+    return { frames, longTasks, dragEngaged };
   }
 
   function heapMB(): number {
@@ -1010,12 +1053,13 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
       table.push(row);
       const renderedNodes = kept.map((r) => r.renderedNodes ?? -1);
       const sc = kept[0]?.sceneCounts;
+      const engagedCount = kept.filter((r) => r.dragEngaged).length;
       const commitInfo =
         scenario === 'spawn'
           ? ` commit=${round(median(commits), 1)} commitN=${covPct(commits)}%` +
             ` rendered=${median(renderedNodes)}/${N}` +
             (sc ? ` scene[conn=${sc.connectors} rect=${sc.rectangles}]` : '')
-          : '';
+          : ` engaged=${engagedCount}/${kept.length}`;
       console.log(
         `[perf] ${scenario} N=${N}  p50=${row.p50_ms} p95=${row.p95_ms} ` +
           `mean=${row.meanFrame_ms} max=${row.maxFrame_ms} settle=${row.settle_ms} ` +
