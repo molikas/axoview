@@ -79,6 +79,51 @@ boundaries. This mirrors `AnnotationLayer`'s already-shipped approach.
 > The native mouse/touch listeners on `window` are removed. There is no longer a
 > mouse→touch synthesis step; `pointerType` carries the device class natively.
 
+> **Revision — 2026-06-14 (B): direct manipulation supersedes tap-to-place
+> (Decisions 3/4) after real-device testing.** Device testing showed tap→tap‑to‑
+> grab→tap‑to‑place fought users' muscle memory and overloaded long‑press
+> (move vs context menu). The touch model is now **direct manipulation**, the
+> Figma/Miro/Lucidchart standard, disambiguated by what is **under the finger at
+> pointerdown**:
+> - down on a **draggable target** (an interactable node, or a connector anchor
+>   handle) → the whole gesture is forwarded as mouse events to the existing
+>   modes: a **tap selects**, a **drag moves** the node (`DRAG_ITEMS` CSS‑preview)
+>   or **reconnects** the anchor (`RECONNECT_ANCHOR`) — identical to desktop.
+> - down on **empty canvas** → tap clears selection; drag **pans**.
+> - **two fingers** → pinch‑zoom + pan (unchanged, D‑12).
+>
+> There is no `CARRY_ITEM` mode and no tap‑to‑place. **Long‑press is no longer
+> overloaded** (move is a drag, not a hold): the OS `contextmenu` from a
+> long‑press opens the per‑item **NodeActionBar** for the pressed node — reliable
+> now because the touch pointerdown seeds `uiState.mouse.position`. That also
+> closes the earlier D‑6 gap (delete / z‑order are reachable on touch via the
+> long‑press action bar). Decisions 3, 4 and 6 below are **superseded** by this
+> revision; the foundation (Pointer Events, `pointerType` branch, px tap‑vs‑pan
+> threshold, guardrails, pinch) is unchanged.
+
+> **Addendum — 2026-06-14 (C): device-refinement details (PRs #40–#42).** The
+> direct-manipulation model above shipped with these refinements; they are the
+> authoritative description of long-press and panel placement:
+> - **Long-press is timer-based and opens *during* the hold.** A ≈450 ms timer
+>   (`LONG_PRESS_MS`) — not the OS `contextmenu` event — opens the NodeActionBar
+>   for the pressed node while the finger is still down, so it appears before the
+>   lift. The OS `contextmenu` is gated to `pointerType==='mouse'` (mouse keeps the
+>   immediate right-click path; touch uses the timer). Any move past `TAP_SLOP_PX`
+>   cancels the pending hold (it was a drag, not a press).
+> - **Hold-on-empty-then-drag = one-shot marquee lasso.** A long-press on empty
+>   canvas followed by a drag arms `LASSO` for that one gesture and returns to
+>   `CURSOR` on lift — the user never switches to the lasso tool.
+> - **Elements-panel drag-to-place.** Press an icon and drag it onto the canvas to
+>   place a node where the finger lifts. The `PLACE_ICON` preview ghost is
+>   **suppressed until the drag engages** (`PlaceIconMode.suppressPreview`) — touch
+>   has no hover, so an armed placement must not paint at a stale tile on the
+>   initial tap — then tracks the finger to the target tile.
+> - **Window-bound `contextmenu` is renderer-scoped.** Because the listeners bind
+>   to `window` (see the top-of-file deviation note), both `preventDefault()` and
+>   the action-bar reaction are gated on `rendererEl.contains(e.target)`, so an
+>   off-canvas right-click keeps its native menu (text-input Cut/Copy/Paste, the
+>   file-explorer tree) and never opens a canvas item's action bar for a stale tile.
+
 ### 2. Branch on `pointerType` — do **not** replace the desktop model
 
 | `pointerType` | Gesture model |

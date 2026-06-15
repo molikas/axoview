@@ -57,7 +57,8 @@ const PlaceIconLayer = () => {
     (a, b) => a.x === b.x && a.y === b.y
   );
 
-  if (mode.type !== 'PLACE_ICON' || !mode.id) return null;
+  if (mode.type !== 'PLACE_ICON' || !mode.id || mode.suppressPreview)
+    return null;
 
   return (
     <SceneLayer disableAnimation>

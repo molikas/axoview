@@ -1,19 +1,19 @@
 # Regression Test Suite Reference
 
-**Last updated:** 2026-06-12 (Phase 6 — Presentation & Annotation)
-**Unit / integration totals** (measured 2026-06-12 via per-workspace `npm test`):
+**Last updated:** 2026-06-14 (Phase 6.5 — Touch & pen gesture contract, ADR 0018)
+**Unit / integration totals** (measured 2026-06-14 via per-workspace `npm test`):
 
 | Workspace | Passing | Suites |
 |---|---|---|
-| `axoview-lib` | 1078 (+1 skipped) | 101 |
+| `axoview-lib` | 1110 (+1 skipped) | 105 |
 | `axoview-app` | 150 | 16 |
 | `axoview-backend` | 101 | 7 |
 | `axoview-worker` | 102 | — |
-| **Total** | **1431 (+1 skipped)** | — |
+| **Total** | **1463 (+1 skipped)** | — |
 
 **Run:** `npm test --workspace=packages/<pkg>` per package, or `npm test --workspaces` for all. The v1.1 wave added the backend (101) + worker (102) server-runtime suites — the only **high**-severity gap the post-v1.0.0 review named — plus the app-side error-UX, startup-timeout, parallelism-contract, file-explorer-delete, share-URL, and backend-routes contract suites. The single skipped test is `leanSave bundledFixtures[0]` (see [known_issues.md](../known_issues.md)).
 
-E2E suite lives at [`packages/axoview-e2e/`](../packages/axoview-e2e/) (Playwright, 40 spec files / ~73 tests covering canonical journeys J1–J20 + the v1.1 cross-interaction additions + the Phase 6 presentation/annotation specs). Runs on PRs + master push via [`.github/workflows/e2e-playwright.yml`](../.github/workflows/e2e-playwright.yml). Locally: `npm run test:e2e:ci` from repo root, or `npx playwright test --ui` from the package. The legacy Python/Selenium suite at `e2e-tests/` was deleted 2026-05-23 (audit C.2 I9 + tactical [docs/tactical/e2e-suite-rewrite.md](tactical/e2e-suite-rewrite.md) Session 7).
+E2E suite lives at [`packages/axoview-e2e/`](../packages/axoview-e2e/) (Playwright, 50 spec files covering canonical journeys J1–J20 + the v1.1 cross-interaction additions + the Phase 6 presentation/annotation specs + the Phase 6.5 touch/pen specs). Touch specs run under a dedicated `chromium-touch` project (`hasTouch: true`, `testMatch: /touch-.*\.spec\.ts/`) and drive real touch via CDP `Input.dispatchTouchEvent`; the default `chromium` project ignores them. Runs on PRs + master push via [`.github/workflows/e2e-playwright.yml`](../.github/workflows/e2e-playwright.yml). Locally: `npm run test:e2e:ci` from repo root, or `npx playwright test --ui` from the package. The legacy Python/Selenium suite at `e2e-tests/` was deleted 2026-05-23 (audit C.2 I9 + tactical [docs/tactical/e2e-suite-rewrite.md](tactical/e2e-suite-rewrite.md) Session 7).
 
 ### v1.1 close-out gates (2026-06-10)
 
@@ -40,6 +40,27 @@ New suites shipped with [ADRs 0012–0015](adr/) (lib `+39` / app `+7` unit; `+6
 | `preview-layer-switcher.spec.ts` | E2E | toggle/solo are UI-only + non-dirty in view mode |
 | `view-mode-info-popover.spec.ts` | E2E | hover preview, pin content + link, X/Esc close, **side-anchor right + flip-left near edge** |
 | `annotation-overlay.spec.ts` | E2E | pen toggle, draw, undo/redo, close-retains, Select pass-through, group fly-outs, preview pan-block, model stays annotation-free |
+
+### Phase 6.5 additions — Touch & pen gesture contract (2026-06-14)
+
+New suites shipped with [ADR 0018](adr/0018-touch-pen-gesture-contract.md) — the Pointer-Events touch/pen rewrite (direct manipulation) + the D-7 dual-stack undo fix (lib `+32` unit / `+4` suites; `+10` E2E specs):
+
+| Suite | Type | Covers |
+|---|---|---|
+| `__perf_refactor_regression__/touchGesture.test.ts` | lib unit | tap-slop classifier (`exceedsTapSlop`) + touch gesture config constants |
+| `__perf_refactor_regression__/undo.dualStackSkew.test.tsx` | lib unit | **load-bearing:** D-7 model/scene dual-stack undo can't skew — logical-action sequence stamping keeps both stacks aligned across interleaved edits |
+| `__perf_refactor_regression__/rectangleDrawTransform.modes.test.ts` | lib unit | rectangle draw + transform route through the immer-free batch updater (one history entry, no per-frame full-state clone) |
+| `__perf_refactor_regression__/rectangleTextbox.dragPerf.test.tsx` | lib unit | rectangle/textbox drag uses `batchUpdate*` (immer-free structural copy) — pins the 7fps→smooth drag perf fix |
+| `touch-tap-select.spec.ts` | E2E | tap a node selects; tap empty clears |
+| `touch-tap-vs-pan.spec.ts` | E2E | one-finger drag pans (scroll changes) and does not select |
+| `touch-drag-move.spec.ts` | E2E | one-finger drag starting on a node moves it (direct manipulation, no corner jump) |
+| `touch-pinch-zoom.spec.ts` | E2E | two-finger pinch zooms in/out, clamped to [0.1, 1] |
+| `touch-lasso-select.spec.ts` | E2E | LASSO/FREEHAND tool modes own the one-finger drag (marquee select, not pan) |
+| `touch-resize.spec.ts` | E2E | dragging a transform handle resizes a rectangle (does not pan) |
+| `touch-longpress.spec.ts` | E2E | hold on a node opens its action bar **during** the hold; hold-on-empty-then-drag arms a one-shot marquee lasso |
+| `touch-palette-drag.spec.ts` | E2E | drag an Elements-panel icon onto the canvas to place it; preview ghost is suppressed until the drag engages, then tracks the finger |
+| `css-preview-mid-drag.spec.ts` | E2E | CSS drag-preview transform applied mid-drag (no per-frame store write) |
+| `undo-redo-dual-stack.spec.ts` | E2E | end-to-end D-7: interleaved model + scene edits undo/redo in the correct order |
 
 ---
 

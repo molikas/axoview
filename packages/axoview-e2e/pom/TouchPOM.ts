@@ -55,6 +55,91 @@ export class TouchPOM {
     return this.page.context().newCDPSession(this.page);
   }
 
+  /**
+   * One-finger drag using ABSOLUTE viewport coordinates (touchStart → moves →
+   * touchEnd). For gestures that begin off the canvas — e.g. dragging an
+   * Elements-panel icon onto the canvas, or dragging a transform handle.
+   */
+  async dragAbsolute(from: CanvasPoint, to: CanvasPoint, steps = 8) {
+    const client = await this.cdp();
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: from.x, y: from.y, id: 0 }]
+    });
+    for (let i = 1; i <= steps; i++) {
+      await client.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [
+          {
+            x: from.x + ((to.x - from.x) * i) / steps,
+            y: from.y + ((to.y - from.y) * i) / steps,
+            id: 0
+          }
+        ]
+      });
+      await this.page.waitForTimeout(16);
+    }
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchEnd',
+      touchPoints: []
+    });
+    await client.detach();
+    await this.page.waitForTimeout(80);
+  }
+
+  /** Long-press at a box-relative point, then lift (no move). */
+  async hold(point: CanvasPoint, holdMs = 600) {
+    const a = await this.abs(point);
+    const client = await this.cdp();
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: a.x, y: a.y, id: 0 }]
+    });
+    await this.page.waitForTimeout(holdMs);
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchEnd',
+      touchPoints: []
+    });
+    await client.detach();
+    await this.page.waitForTimeout(80);
+  }
+
+  /** Long-press at `from`, then drag to `to`. Box-relative. */
+  async holdThenDrag(
+    from: CanvasPoint,
+    to: CanvasPoint,
+    holdMs = 600,
+    steps = 8
+  ) {
+    const a = await this.abs(from);
+    const b = await this.abs(to);
+    const client = await this.cdp();
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: a.x, y: a.y, id: 0 }]
+    });
+    await this.page.waitForTimeout(holdMs);
+    for (let i = 1; i <= steps; i++) {
+      await client.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [
+          {
+            x: a.x + ((b.x - a.x) * i) / steps,
+            y: a.y + ((b.y - a.y) * i) / steps,
+            id: 0
+          }
+        ]
+      });
+      await this.page.waitForTimeout(16);
+    }
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchEnd',
+      touchPoints: []
+    });
+    await client.detach();
+    await this.page.waitForTimeout(80);
+  }
+
   /** One-finger drag (pan): touchStart → moves → touchEnd. Box-relative. */
   async dragOneFinger(from: CanvasPoint, to: CanvasPoint, steps = 6) {
     const a = await this.abs(from);
@@ -107,40 +192,6 @@ export class TouchPOM {
       });
       await this.page.waitForTimeout(16);
     }
-    await client.send('Input.dispatchTouchEvent', {
-      type: 'touchEnd',
-      touchPoints: []
-    });
-    await client.detach();
-    await this.page.waitForTimeout(60);
-  }
-
-  /**
-   * Press one finger, then land a SECOND finger (without lifting the first) and
-   * lift both. Used to exercise the "2nd finger aborts a carry" precedence.
-   * Box-relative points.
-   */
-  async secondFingerTap(first: CanvasPoint, second: CanvasPoint) {
-    const a = await this.abs(first);
-    const b = await this.abs(second);
-    const client = await this.cdp();
-    await client.send('Input.dispatchTouchEvent', {
-      type: 'touchStart',
-      touchPoints: [{ x: a.x, y: a.y, id: 0 }]
-    });
-    await this.page.waitForTimeout(30);
-    await client.send('Input.dispatchTouchEvent', {
-      type: 'touchStart',
-      touchPoints: [
-        { x: a.x, y: a.y, id: 0 },
-        { x: b.x, y: b.y, id: 1 }
-      ]
-    });
-    await this.page.waitForTimeout(30);
-    await client.send('Input.dispatchTouchEvent', {
-      type: 'touchEnd',
-      touchPoints: [{ x: a.x, y: a.y, id: 0 }]
-    });
     await client.send('Input.dispatchTouchEvent', {
       type: 'touchEnd',
       touchPoints: []

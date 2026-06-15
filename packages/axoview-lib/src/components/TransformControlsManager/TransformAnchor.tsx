@@ -8,12 +8,15 @@ import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 
 interface Props {
   position: Coords;
-  onMouseDown: () => void;
+  // Press handler — bound to onPointerDown so it fires at *touch* start too.
+  // onMouseDown only fires as a compat event AFTER touchend, so on touch the
+  // resize mode wasn't entered until too late and the gesture panned instead.
+  onActivate: () => void;
 }
 
 const strokeWidth = 2;
 
-export const TransformAnchor = ({ position, onMouseDown }: Props) => {
+export const TransformAnchor = ({ position, onActivate }: Props) => {
   const [isHovered, setIsHovered] = useState(false);
   const theme = useTheme();
   const { strategy } = useCanvasMode();
@@ -26,7 +29,8 @@ export const TransformAnchor = ({ position, onMouseDown }: Props) => {
       onMouseOut={() => {
         setIsHovered(false);
       }}
-      onMouseDown={onMouseDown}
+      onPointerDown={onActivate}
+      data-axoview-id="canvas-transform-anchor"
       sx={{
         position: 'absolute',
         transform:
