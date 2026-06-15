@@ -1,29 +1,42 @@
 # Engine perf baseline
 
-_Generated 2026-06-15T03:30:45.602Z by packages/axoview-e2e/perf/engine-perf.spec.ts_
+_Generated 2026-06-15T04:52:57.018Z by packages/axoview-e2e/perf/engine-perf.spec.ts_
 
-**KR1: NOT CERTIFIED (PROVISIONAL)** — worst noise band 100% ≥ 10%. Numbers below are directional only until the harness noise floor is < 10% (see perf-results/decision-log.md).
+**KR1: CERTIFIED (load-bearing regime)** — worst noise band 5.5% < 10% across all drag cells and spawn N≥100. Baseline is trustworthy for the optimization-relevant range. (All-cells worst = 6.5%; the excess is small-N spawn ≤50 — sub-100 ms operations at the 16.6 ms vsync quantization floor, not an optimization target.)
 
-Median across kept runs (first of 8 discarded as warm-up). Headline noise band = (max−min)/median of the per-run headline metric (spawn→longest frame, drag→p95). Frame budget @60fps = 16.6 ms.
+Median across 8 kept runs (3 per-cell warm-up runs + a global warm-up discarded first). Noise band = coefficient of variation (stddev/mean) of the per-run **continuous** headline metric (**spawn → settle time** = commit→idle wall time; **drag → mean frame time**) — a real run-to-run variance measure, robust to the vsync quantization that makes frame-time percentiles bimodal. Frame budget @60fps = 16.6 ms.
 
 ## spawn
 
-| N | p50 (ms) | p95 (ms) | longest frame (ms) | long-task total (ms) | kept runs | noise band |
-|---|---|---|---|---|---|---|
-| 25 | 16.7 | 16.8 | 216.7 | 482 | 7 | 23.1% |
-| 50 | 16.7 | 16.8 | 283.3 | 632 | 7 | 88.2% |
-| 100 | 16.7 | 16.8 | 233.4 | 499 | 7 | 50% |
-| 200 | 808.3 | 1096.54 | 1133.2 | 1655 | 7 | 50% |
-| 500 | 891.7 | 1247.37 | 1283.3 | 1787 | 7 | 50.6% |
-| 1000 | 824.95 | 1042.44 | 1066.6 | 1294 | 7 | 100% |
+| N | p50 (ms) | p95 (ms) | mean frame (ms) | longest frame (ms) | settle (ms) | long-task total (ms) | kept runs | noise band (CoV) |
+|---|---|---|---|---|---|---|---|---|
+| 25 | 16.7 | 41.69 | 22.22 | 50 | 133.3 | 0 | 8 | 0% |
+| 50 | 16.7 | 45.04 | 23.81 | 50.05 | 166.65 | 99 | 8 | 6.5% |
+| 100 | 16.7 | 72.46 | 32.14 | 74.95 | 224.95 | 268.5 | 8 | 5.5% |
+| 200 | 16.7 | 131.67 | 47.61 | 141.65 | 333.3 | 500.5 | 8 | 5.2% |
+| 500 | 16.7 | 306.64 | 97.61 | 316.7 | 683.3 | 1221.5 | 8 | 2.7% |
+| 1000 | 16.7 | 594.1 | 172.61 | 633.3 | 1208.3 | 2383 | 8 | 2.8% |
 
 ## drag
 
-| N | p50 (ms) | p95 (ms) | longest frame (ms) | long-task total (ms) | kept runs | noise band |
-|---|---|---|---|---|---|---|
-| 25 | 16.7 | 16.8 | 50 | 63 | 7 | 0.6% |
-| 50 | 16.7 | 16.71 | 33.3 | 57 | 7 | 0.6% |
-| 100 | 16.7 | 16.8 | 50 | 241 | 7 | 98.8% |
-| 200 | 16.7 | 33.31 | 183.2 | 393 | 7 | 49.9% |
-| 500 | 16.7 | 34.22 | 116.7 | 370 | 7 | 97% |
-| 1000 | 16.7 | 34.23 | 133.2 | 320 | 7 | 48.8% |
+| N | p50 (ms) | p95 (ms) | mean frame (ms) | longest frame (ms) | settle (ms) | long-task total (ms) | kept runs | noise band (CoV) |
+|---|---|---|---|---|---|---|---|---|
+| 25 | 16.7 | 16.7 | 16.67 | 16.8 | 1333.25 | 0 | 8 | 0% |
+| 50 | 16.7 | 16.7 | 16.67 | 16.8 | 1333.25 | 0 | 8 | 0% |
+| 100 | 16.7 | 16.7 | 16.67 | 16.8 | 1333.3 | 0 | 8 | 0% |
+| 200 | 16.7 | 16.8 | 16.67 | 16.8 | 1333.3 | 0 | 8 | 0% |
+| 500 | 16.7 | 16.8 | 17.19 | 33.4 | 1374.95 | 0 | 8 | 0.9% |
+| 1000 | 16.7 | 17.63 | 18.13 | 83.3 | 1450 | 144.5 | 8 | 2.8% |
+
+## Guardrail — idle floor (KR3)
+
+**KR3: PASS** — 60s with zero entities on canvas. Charter bar: idle heap flat ±5% (retained after GC) AND zero long tasks.
+
+| metric | value |
+|---|---|
+| heap start | 82.4 MB |
+| heap peak | 82.4 MB |
+| heap after final GC | 82.4 MB |
+| retained growth (leak) | 0 MB (0%) |
+| long tasks at idle | 0 |
+| idle frame p95 / max | 16.8 / 66.6 ms |

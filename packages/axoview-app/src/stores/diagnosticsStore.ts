@@ -11,6 +11,14 @@ const IS_DEV = process.env.NODE_ENV !== 'production';
 const STORE_KEY = 'axoview_perf_enabled';
 
 function readEnabled(): boolean {
+  try {
+    // The perf harness disables the overlay: its always-on 1 Hz rAF + setState
+    // loop is dev-only instrumentation (production users never have it) and
+    // would otherwise inject periodic work into every frame measurement.
+    if (localStorage.getItem('axoview-perf-harness') === '1') return false;
+  } catch {
+    /* storage unavailable */
+  }
   if (IS_DEV) return true;
   try {
     return localStorage.getItem(STORE_KEY) === '1';

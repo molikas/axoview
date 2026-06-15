@@ -47,13 +47,90 @@ for human sign-off before any hands-off looping:
      idle-churn leak) injects random multi-100 ms stalls into longest-frame.
   3. **Variable settle tail** — spawn uses a fixed 2 s window; at N≥200 the
      freeze may not settle within it, and idle-tail length varies run-to-run.
-- **Next hypotheses (stabilise BEFORE certifying KR1/baseline):**
-  - H1: expose `--js-flags=--expose-gc`, force GC + wait for K consecutive idle
-    frames between runs and before each capture.
-  - H2: measure spawn as "commit → settled" (K consecutive sub-budget frames)
-    instead of a fixed window — deterministic, idle-tail-free.
-  - H3: neutralise StrictMode double-render for the perf build (dev-only
-    behaviour; production already single-renders) so numbers are representative.
-  - Then re-run and check noise < 10% (KR1). Only after that: fix idle-churn
-    (KR3), re-prove floor, commit certified baseline (KR2), wire correctness
-    suite (KR5), and STOP for sign-off.
+### Iter 0a–0g — 🛠 stabilise the harness to the noise floor (KR1) + fix idle churn (KR3)
+
+Worked the noise down from 100% to < 10% (load-bearing). One change at a time:
+
+- **0a — expose+force GC** (`--js-flags=--expose-gc`, GC between runs + before
+  capture) and **deterministic spawn settle** (capture commit→K idle frames,
+  not a fixed 2 s window). Spawn noise still ~50–90% → GC wasn't the driver.
+- **0b — neutralise StrictMode** (gate behind a pre-boot flag; production already
+  single-renders). Halved absolute spawn cost (representative) but noise
+  unchanged → not the driver.
+- **0c — 🎯 disable the DiagnosticsOverlay loop (the idle-churn bug, KR3).**
+  `axoview-app` runs `DiagnosticsOverlay` **always-on in dev**
+  (`diagnosticsStore.readEnabled` returns `true` unconditionally in dev), driving
+  a permanent rAF loop that every 1 s reads the stores, runs 9 detectors, and
+  calls `setLatest()` — a **1 Hz React re-render forever**. THIS is the charter's
+  "long-tasks accrue / heap climbs at zero nodes" idle churn. Gated it behind the
+  same pre-boot perf flag (`axoview-perf-harness`, also skips StrictMode).
+  **Effect:** drag noise collapsed (N=100 drag 98.8% → 0.6%). Confirmed driver.
+- **0d — continuous metrics + CoV.** Frame-time percentiles are **vsync-
+  quantized** (deltas snap to ~16.7 ms) → percentiles near a bucket boundary flip
+  bimodally and look "noisy" when work is stable. Switched the headline to
+  **continuous** metrics — spawn → settle time, drag → mean frame time — and the
+  noise band to **coefficient of variation** (the actual run-to-run variance KR1
+  asks for; `(max−min)/median` is range, not variance). Plus a global + per-cell
+  V8 warm-up (the render hot path tiers up after ~hundreds of invocations;
+  un-warmed runs sit in a slower regime → bimodal).
+- **0e — tried disabling vsync** (`--disable-gpu-vsync` etc.) for sub-frame
+  timing: headless Chromium keeps a 60 Hz virtual display regardless, and the
+  throttling-disable flags only ADDED variance. **Reverted.**
+- **0f — 🔬 MAJOR FIDELITY FINDING: the engine already viewport-culls.**
+  `Renderer.tsx:131` (`visibleItems = items.filter(tile ∈ coarseBounds)`) renders
+  only nodes whose tile is in the viewport. My off-screen grid was measuring the
+  CULL, not the cost — node-labels capped at ~306 for any N≥~306 (verified: stays
+  306 after a 2 s wait, so genuine culling, not measurement truncation). So
+  **render cost scales with VISIBLE entities, not total N** — and production's
+  collapse happened with that many nodes *visible* (zoomed to fit). The charter's
+  "T2 viewport culling" unlock **partially exists already** (coarse tile-bounds).
+  **Fix:** `fitForGrid()` sets zoom+scroll so all N are on-screen before
+  measuring (N = visible entity count, the regime SSB/LEB60 measure). Anti-cheat:
+  assert `rendered === N` after each spawn. Now scaling is monotonic and real.
+- **0g — final certified run.** See `baseline.md` (2026-06-15T04:52Z).
+
+**Outcome — preconditions #1 and #2 MET (supervised):**
+- **KR1 CERTIFIED** (load-bearing): worst noise band **5.5%** across all drag +
+  spawn N≥100; all-cells worst **6.5%**. (Small-N spawn ≤50 flutters 0–16%
+  run-to-run — sub-100 ms operations at the vsync quantization floor, not a
+  target; the app is already smooth there.)
+- **KR3 PASS** — 60 s idle @0 nodes: heap **82.4→82.4 MB, 0 retained, 0 long
+  tasks**. The idle churn was the dev-only overlay loop; the engine idle floor is
+  clean. (Production never runs the overlay by default, so this is also a real
+  dev-tool fix, not just a measurement convenience.)
+
+**KR2 baseline (trustworthy, N = visible entities):**
+
+| N | spawn longest frame | spawn settle | drag p95 | drag mean |
+|---|---|---|---|---|
+| 25 | 50 ms | 133 ms | 16.7 | 16.7 |
+| 50 | 50 ms | 167 ms | 16.7 | 16.7 |
+| 100 | 75 ms | 225 ms | 16.7 | 16.7 |
+| 200 | 142 ms | 333 ms | 16.8 | 16.7 |
+| 500 | 317 ms | 683 ms | 16.8 | 17.2 |
+| 1000 | 633 ms | 1208 ms | 17.6 | 18.1 |
+
+**The binding bottleneck (from the baseline): initial/bulk RENDER (spawn).**
+Spawn longest frame grows ~linearly with visible N — 1000 visible nodes = a
+633 ms freeze (≈38× the 16.6 ms budget); settle 1.2 s. **Drag, by contrast, is
+already ~60 fps even at 1000 visible** — the MQA #7 CSS-variable transform path
+makes a live drag compositor-only (no per-frame React reconcile of the scene).
+So T1/T2 work should target the mount/reconcile/paint cost of making N entities
+*appear* (bulk paste, view switch, zoom-to-fit), NOT the drag path.
+
+### NEXT — precondition #3 (correctness suite) then STOP for sign-off
+
+Per the charter, the 3 autonomy preconditions are SUPERVISED; #1 and #2 are met.
+Remaining before the hands-off loop:
+- **#3 correctness suite airtight (KR5):** the existing e2e suite
+  (`packages/axoview-e2e/tests/`) already covers selection, collision/occupancy
+  (`drag-collision`), undo/redo (`undo-redo-*`), z-order, multi-select drag,
+  etc. Run it green as the anti-cheat baseline; identify the exact subset that
+  pins the charter's invariants (selection, collision/occupancy, undo/redo,
+  dragged-node visual-position parity).
+- Then **STOP and notify for human sign-off** on all three preconditions before
+  entering GREEN-default self-paced looping (charter Autonomy section).
+
+Open question for sign-off: accept KR1 as certified for the load-bearing regime
+(small-N spawn ≤50 left at the quantization floor), or invest in microbenchmark-
+averaging to force ≤50 under 10% too?

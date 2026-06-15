@@ -40,7 +40,12 @@ export default defineConfig({
     // Opt in explicitly when profiling a single scenario (PERF_TRACE=1).
     trace: process.env.PERF_TRACE ? 'on' : 'off',
     video: 'off',
-    screenshot: 'off'
+    screenshot: 'off',
+    // Expose window.gc so the harness can force a collection between runs and
+    // before each capture — removes GC-pause variance. (Tried disabling vsync
+    // for continuous sub-frame timing: headless Chromium keeps a 60 Hz virtual
+    // display regardless, and the throttling-disable flags only added variance.)
+    launchOptions: { args: ['--js-flags=--expose-gc'] }
   },
 
   projects: [{ name: 'perf-chromium', use: { ...devices['Desktop Chrome'] } }],
