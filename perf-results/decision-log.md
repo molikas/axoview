@@ -830,3 +830,96 @@ count (anti-cheat: must == N). Correctness gate (must stay green):
 residual is chased down (or stalls), the remaining floor (icons/connectors/rects =
 175 ms @1000) needs T2 (Canvas2D/WebGL render — RED) for a step change. Re-decide
 T1-vs-T2 with the then-current headroom.
+
+---
+
+## Iter 7 — T2 entry: connector-canvas prize sizing (DECISIVE NEGATIVE → pivot to nodes)
+
+**Context:** human signed off the RED gate for T2 (Canvas2D render rewrite;
+`perf-results/cold-start-t2.md`). Charter requires a written design + a measured
+proof-of-concept finding BEFORE the multi-session overhaul. Design:
+`perf-results/t2-design.md`. The cold-start suggested spiking the **connector layer**
+to Canvas2D first as the cheapest decoupling. Before building a renderer, sized the
+prize (LOOP step 7 — instrument, don't guess).
+
+**Hypothesis:** connectors are a meaningful share of the 283 ms @1000 spawn settle,
+so a connector→Canvas2D layer is a worthwhile T2 first spike.
+
+**One variable:** scene built WITHOUT connectors (`PERF_NOCONN=1` diagnostic added
+to the harness — mirrors `PERF_NOLABEL`; dormant/byte-identical when off). Spawn
+only; drag already at 60 fps so not in question.
+
+**Same-session A/B (cal 3.2 both runs — zero drift):**
+
+| N | settle full | settle no-conn | longest full | longest no-conn | conn removed |
+|---|---|---|---|---|---|
+| 1000 | 283.3 | **283.3** | 200 | **200** | 968 |
+| 2000 | 466.6 | **466.6** | 383.3 | **383.3** | 1955 |
+
+**Result: removing ~968 / ~1955 connectors changed spawn by EXACTLY 0 ms.** Not
+noise-masked — byte-identical at identical calibration. **→ REJECT the
+connector-canvas direction.** A connector rewrite has no prize: spawn 0, drag
+already at budget (Iter 6).
+
+**🔬 Root cause (code-path confirmed):** the harness spawn commits via a raw
+`model.actions.set({items, views})` (`engine-perf.spec.ts:602`), which bypasses BOTH
+connector-routing paths — `changeView`→`syncScene` (sync, on load/view-switch,
+`useView.ts:17`) and `computePathsAsync` (rAF-batched 25/frame, on paste,
+`useSceneActions.ts:834`). With no route, `sceneStore.connectors[id].path` is empty
+and every `<Connector>` early-returns `null` (`Connector.tsx:160`) → ~0 DOM/paint.
+The Iter-6 renderProbe "478 connectors" counted the render *function* executing (and
+returning null), not painted polylines.
+
+**Real-app validity:** connector routing is deferred + rAF-batched even on a real
+paste, so connectors never block initial scene paint; cost amortizes across
+post-settle idle frames. Connectors are architecturally NOT on the spawn critical
+path. The 0 is a real property, not only a harness artifact — BUT the harness ALSO
+doesn't measure connector routing/paint at all (caveat below).
+
+**Correctness gate:** N/A — no shipping-lib change this iteration (harness-only
+`PERF_NOCONN` diagnostic + docs). DOM renderer untouched.
+
+**→ PIVOT (proposed, RED — awaiting go-ahead before overhaul):** target the **node
+layer**, where the spawn prize is. Connectors-off = 0 change ⇒ the 283 ms @1000 is
+nodes + rects; labels-off floor = 175 ms ⇒ labels ≈ 108 ms, icons/rects ≈ 175 ms.
+This is SSB-2000 territory and matches the charter. Pragmatic T2 = **hybrid**: canvas
+draws icon + shape + static label text + rects (+ connectors, once routed); DOM
+retained only for the selected/editing node's live label input. Folding the
+connector polyline draw in afterward is trivial (same canvas + same `visibleItems`
+cull). The imperative-draw + store-subscription + iso-matrix machinery in
+`t2-design.md` is reused as-is; only the target layer changes.
+
+**⚠️ HARNESS CAVEAT (load-bearing for any future connector work):** the spawn metric
+does NOT route or paint connectors (bypasses both routing paths). Before ever
+revisiting a connector canvas, make the harness route connectors on spawn
+(`changeView`/`computePathsAsync` post-set) so the work is measured. Do not read the
+0 as "connectors paint for free" — read it as "the harness spawn never paints them."
+
+---
+
+## ▶ COLD-START RESUME POINT (newest — start here) — updated Iter 7
+
+**Branch `perf/engine`, HEAD = Iter 7 commit.** T2 RED gate OPEN (human signed off).
+Deliverables this session: `t2-design.md` (Canvas2D design + proof metric + FINDING),
+`PERF_NOCONN` harness diagnostic, this Iter-7 row. **Connector-canvas direction is
+REJECTED with evidence (0 ms spawn prize, drag at budget).** Node-layer-hybrid canvas
+is the PROPOSED T2 direction — **PRESENTED to the human, awaiting go-ahead** before
+the multi-session overhaul begins (charter RED rule: present the finding first).
+
+**State unchanged from Iter 6** (no shipping-lib change in Iter 7): baseline still
+spawn N=1000 283/200, N=500 200/117; drag all-N ~16.7 ms 60 fps; KR3 PASS. Kept wins:
+Iter 3 de-emotion (spawn), Iter 6 useColor granular subscription (drag).
+
+**NEXT once node-layer T2 is greenlit:** node-layer Canvas2D PoC behind
+`localStorage axoview-canvas-*` flag (default OFF; DOM path byte-identical). Plumb
+`PERF_CANVAS=1`→localStorage in `bootApp` for same-session A/B. PoC scope: draw icon
+image + static label text to canvas for all N; measure spawn settle/longest A/B at
+N=1000/2000 vs DOM; correctness gate stays green with flag off; visual-verify canvas
+mode via `.scratch/verify-scene`. Hybrid keeps DOM only for the editing node's label
+(readable-labels counter-scale + F2 inline edit — the hard part). See `t2-design.md`
+§6 + FINDING for the full plan. **Also: fix the harness to route connectors on spawn**
+before measuring any connector draw (caveat above).
+
+**Gotchas unchanged** (see Iter-6 resume point above): same-session A/B + calibration
+index mandatory; `git checkout -- perf-results/baseline.md` after any partial/
+diagnostic run; correctness gate command above; kill stray :3000 listeners.

@@ -331,6 +331,7 @@ function installHarness() {
   function buildScene(N: number, xBase: number) {
     const side = Math.ceil(Math.sqrt(N));
     const noLabel = !!w.__perfNoLabel; // diagnostic: isolate label-subtree cost
+    const noConn = !!w.__perfNoConn; // diagnostic: isolate connector-subtree cost (T2 prize sizing)
     const items: any[] = [];
     const vitems: any[] = [];
     const connectors: any[] = [];
@@ -361,7 +362,7 @@ function installHarness() {
       if (noLabel) vi.showLabel = false;
       vitems.push(vi);
       // Connector to the right neighbour (same row): ~N−side edges, ~⅓ labelled.
-      if (col < side - 1 && i + 1 < N) {
+      if (!noConn && col < side - 1 && i + 1 < N) {
         const c: any = {
           id: 'c-' + i,
           color: PERF_COLORS[i % PERF_COLORS.length].id,
@@ -875,6 +876,9 @@ async function bootApp(page: Page) {
   await page.evaluate((v: boolean) => {
     (window as any).__perfNoLabel = v;
   }, !!process.env.PERF_NOLABEL);
+  await page.evaluate((v: boolean) => {
+    (window as any).__perfNoConn = v;
+  }, !!process.env.PERF_NOCONN);
 }
 
 // ---------------------------------------------------------------------------
