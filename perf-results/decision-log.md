@@ -250,25 +250,63 @@ serialize/`murmur2` ~180, `deepmerge` 66 — cpuprofile-spawn-1000.md).
   idle at the early cells. Load-bearing worst 4.3% < 10% (KR1 certified; better
   than 2a's 9.6%). New `baseline.md` committed.
 
-### Iter 2c — NEXT: lighten the remaining label `sx` elements (GREEN, visuals preserved)
+### Iter 2c — 🔁 REVERTED: `Typography` title → `styled('p')` (within noise on settle)
 
-- **Hypothesis:** continue one element per iteration on the residual emotion
-  pipeline. Candidates, by likely cost: the `Typography` title (`fontWeight`/
-  `fontSize`/`color='text.primary'` → per-node `getThemeValue`) → a lightweight
-  styled/plain element baking the body1 metrics + resolved text color; then the
-  `Label` content `Box` (the chip: theme lookups `common.white`/`grey.400`,
-  `borderRadius`/`py`/`px`) → `styled()` cached class. Keep each step above noise.
-  Target the residual longest @1000 (now 267 ms vs the 183 ms labels-off floor).
-- **Risk (higher than 2a/2b):** the `Typography` swap must pixel-match MUI body1
-  font metrics (family/size/line-height/letter-spacing) or label text reflows —
-  visual-verify (.scratch/verify-labels.mjs) is load-bearing here; the `Label`
-  `Box` is a *shared* component (ConnectorLabel) with an `sx` passthrough, so a
-  `styled()` conversion must preserve that API (watch one-variable creep).
-- **Open alt (bigger, but a behaviour change → YELLOW, needs product nod):**
-  label LOD — skip label rendering below a zoom/size threshold. At fit-to-1000
-  the labels are sub-pixel and unreadable anyway, so this recovers ~the full 3×
-  in the exact collapse scenario for ~free. Strong candidate once `sx`
-  micro-steps stop clearing the noise band.
+- **Hypothesis:** the display-mode `Typography fontWeight={600} fontSize={14}
+  color='text.primary'` re-runs the MUI sx pipeline + a `getThemeValue('text.
+  primary')` per node; a module-level `styled('p')` baking `theme.typography.body1`
+  + those overrides into one cached emotion class (per-node `labelFontSize`/
+  `labelColor` via inline style) should cut per-node cost with identical visuals.
+- **Variable:** the display-mode title element only (editing-mode `Typography` left
+  as-is — single-node, not the spawn hot path).
+- **Result (full N set, vs 2b baseline):**
+
+  | N | settle 2b→2c | longest 2b→2c | 2c noise |
+  |---|---|---|---|
+  | 200 | 208→200 ms | 67→67 ms | 0% |
+  | 500 | 350→342 ms (−2.4%) | 142→133 ms | 3.6% |
+  | 1000 | **567→567 ms (0%)** | 267→250 ms | 4.4% |
+
+  **REVERT.** The headline (settle) is **flat at N=1000 (566.6→566.6)** and
+  within-noise at N=500. The only movement is longest-frame 267→250, but that is
+  **exactly one vsync bucket (16.65 ms)** — the bimodal quantization flutter the
+  headline was switched away from in 0d. Inside the noise band on the robust metric
+  → revert per LOOP step 4. Reverted code + restored the 2b `baseline.md`.
+- **Correctness/visual (pre-revert, for the record):** gate 13/13 green; computed
+  style matched body1 exactly (14px/600/lh19.6/text.primary/margin0/block;
+  `letterSpacing:normal` — this theme's body1 sets none, so `Typography` rendered
+  the same); expanded content `scrollH=249` identical across the 2a/2b/2c builds
+  (metric-faithful). So the swap was *correct*, just not *worth it*.
+- **🔬 Finding (redirects the loop):** the title's per-node `Typography` sx cost
+  lands in the **commit frame** (longest), not the **settle** total — so the spawn
+  *settle* floor (≈567 ms @1000) is dominated by something the title styling does
+  NOT touch: the post-commit **layout/paint tail** + the two per-node label
+  `useEffect`s (a `ResizeObserver` per node for truncation; a `storeApi.subscribe`
+  per node for readable-labels counter-scale) + the remaining sx. **Grinding
+  individual label `sx` elements past the Stack has hit diminishing returns on the
+  headline.** This is sub-noise hypothesis #1 (charter: 3 consecutive ⇒ local
+  minimum RED).
+
+### Iter 2d — NEXT: attack the settle-dominating cost, not more sx (GREEN)
+
+- **Re-aim from the 2c finding:** instead of more per-element sx swaps (commit-frame
+  cost, not settle), instrument where the ~567 ms settle @1000 actually goes —
+  re-run `PERF_PROFILE=1000` (CDP timeline: scripting vs **layout vs paint**) and
+  `PERF_CPUPROFILE=1000` on the CURRENT (2b) build to re-attribute the freeze now
+  that scrollTo + Stack are gone. Likely settle drivers to test, one per iter:
+  (a) the per-node `ResizeObserver` (`NotifyResizeObservers`) — does truncation
+  detection need an observer per node, or can it be a one-shot measure / shared
+  observer?  (b) the per-node `storeApi.subscribe` zoom subscription;  (c) the
+  `Label` chip `Box` paint/layout (border/shadow/transform) in the paint tail.
+- **Guard:** any change to the truncation/counter-scale effects is behaviour-
+  adjacent — keep `readable-labels` + the expand/collapse visual check load-bearing.
+- **Open alt (YELLOW, needs product nod — now the strongest lever):** label LOD —
+  skip label rendering below a zoom/size threshold. At fit-to-1000 labels are
+  sub-pixel/unreadable anyway, so this drops the *entire* residual label cost
+  (settle AND longest) in the collapse scenario for ~free. Given sx micro-steps
+  have stopped clearing the band, this is the high-ROI next move once re-profiling
+  confirms the label subtree (not raw paint) is still the settle floor. Notify
+  before committing.
 
 ## ⏸ Earlier checkpoint — all 3 autonomy preconditions MET (signed off)
 
