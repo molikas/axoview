@@ -533,13 +533,88 @@ with the React render probe / a CDP trace to attribute the 633 ms freeze
 (likely per-node emotion `sx` styling or SVG/DOM paint) — T1 "stop the bleeding"
 without a rewrite. [SUPERSEDED — see the resume point below.]
 
+## 🔁 Iter 4 — REVERTED: de-emotion the icon subtree (NonIsometricIcon) — within noise + the attribution that kills the spawn-JS levers
+
+Resuming T1 from the queued "label DOM-flatten + cheaper effects" step. Two
+controlled experiments this session, both decisive — and both say the same thing:
+**the post-Iter-3 spawn residual is DOM-volume / layout / paint bound, NOT
+JS-processing (emotion or per-node effects) bound.**
+
+**(a) Attribution probe — the two per-node label effects cost ~0 on spawn.** The
+resume point pinned the residual label cost (~108 ms settle @1000 = full 283 −
+labels-off floor 175) on "DOM volume + the two per-node effects" (a `ResizeObserver`
+per node for truncation; a `storeApi.subscribe` per node for the readable-labels
+counter-scale). I gutted BOTH effects in ExpandableLabel (throwaway build) and
+measured same-session, **same calibration (3.2 = 3.2, no drift confound)**:
+
+  | variant (N=1000) | settle | longest |
+  |---|---|---|
+  | A — HEAD (full effects) | 283.3 | 200 |
+  | D — both per-node effects gutted | 283.3 | 199.9 |
+
+  **A ≡ D.** The two effects contribute nothing measurable to spawn. (Mechanism:
+  the RO's initial callback + the subscription `apply()` either land off the
+  measured settle critical path or React batches them sub-noise.) → the "cheaper
+  effects" lever is **dead** for spawn. Also note the shared-RO refactor is
+  *separately* blocked: the H-2 `useResizeObserver.lifecycle` regression test pins
+  a per-hook observer-instance model (counts `new ResizeObserver` per mount, calls
+  `disconnect()` not `unobserve`), so a shared singleton would break a protected
+  test — and it now demonstrably wouldn't help anyway.
+
+**(b) Hypothesis (reverted) — de-emotion NonIsometricIcon.** Iter 3's wholesale
+de-emotion swept Node/Label/ExpandableLabel but **missed the icon subtree**
+(`IconTypes/NonIsometricIcon.tsx`, a different dir). Under ISOMETRIC canvas mode
+every node's icon is **three nested `<Box sx={...}>`** — the exact per-instance MUI
+sx pipeline (extendSxProp / styleFunctionSx / murmur2) Iter 3 removed elsewhere,
+and it renders even with labels OFF (so it sits in the 175 ms floor). Converted the
+3 boxes → 2 module-level `styled()` (the iso transform `getIsoProjectionCss()` is a
+constant string; left/top/transformOrigin/pointerEvents constants → baked into
+cached classes) + plain `<img>` leaves (their only style was the dynamic width →
+inline). Visually identical; lib builds clean.
+
+- **Variable:** styling mechanism of NonIsometricIcon's boxes only.
+- **Result (same-session, cal 3.3 ≈ HEAD's 3.2):**
+
+  | N | settle HEAD→deE | longest HEAD→deE |
+  |---|---|---|
+  | 500 | 199.9→199.9 | 116.7→116.6 |
+  | 1000 | **283.3→283.3** | 200→200 |
+
+  **Bit-identical** (settle 283.3 reproduced across HEAD ×3 this session + the
+  treatment). Idle heap unchanged (77.6 MB). **→ REVERT** (within noise, LOOP
+  step 4). Reverted to HEAD; lib rebuilt. (Recoverable as a pure consistency
+  cleanup that completes Iter 3's sweep, like the 2d flatten — but it moves
+  nothing on this harness, so not kept.)
+
+**🔬 THE FINDING (redirects the loop — spawn-JS T1 is exhausted):** Iter 3
+(de-emotion) was a 6×-drift win because per-instance emotion *processing* was a
+large, real slice. Post-Iter-3, removing the icon's emotion (b) AND the two
+per-node effects (a) each moves the needle by **zero** — because what's left of the
+283 ms settle is the cost of **reconciling + laying out + painting ~14 DOM
+elements × 1000 nodes** (+ connectors + rects), not JS the profiler can shave.
+Corroborated three ways now: 2c (Typography styled, sub-noise), 2d (DOM-flatten −2
+nodes, sub-noise), Iter 4a/4b (effects + icon emotion, sub-noise). **The only
+spawn levers left are (i) cut DOM-node COUNT per node *a lot* — but 2d showed even
+−2/node is sub-noise and the user wants to keep labels; or (ii) T2 render rewrite
+(Canvas2D — RED).** Grinding spawn JS further is a local minimum.
+
+**→ Decision: pivot off spawn to the DRAG / collision path** (the realistic-harness
+finding the spawn grind never touched): collision-drag N=500 = **30 ms/frame
+(~33 fps, 2× over budget)** — a REAL, unaddressed bottleneck on the LEB60 north-star
+path (moving + collision-checked entities), unlike spawn (a one-time paste cost).
+Prereq: fix the high-N grab engagement (item 4) so those cells are trustworthy,
+then profile the 30 ms frame (collision check vs connector re-route vs render) and
+optimize the largest slice. This is fresh T1 headroom, not a 3rd consecutive
+spawn micro-opt.
+
 ---
 
 ## ▶ COLD-START RESUME POINT (newest — start here)
 
-**Branch `perf/engine`, HEAD = `f1c3e15`** (Iter 3 de-emotion). Working tree clean
-(only `bloat-analysis.txt` untracked — another agent's master-side note; its content
-is folded into the Harness-v2 entry). All work below is committed.
+**Branch `perf/engine`, HEAD = Iter 4 commit** (decision-log only; code unchanged
+since Iter 3 `f1c3e15` — Iter 4 was reverted). Working tree clean (only
+`bloat-analysis.txt` untracked — another agent's master-side note; its content is
+folded into the Harness-v2 entry). All work below is committed.
 
 **State of the loop (T1, GREEN, realistic harness):**
 - **Harness v2** is the realistic scene: N nodes (5 representative ~1.7 KB icons,
@@ -554,7 +629,15 @@ is folded into the Harness-v2 entry). All work below is committed.
   grab fails to engage at extreme fit-zoom)**. KR3 idle PASS (heap 77.6 MB flat).
 - **Wins kept:** 2a (scrollTo-mount guard, small/real), 2b (Stack→flex, ~6% real),
   **Iter 3 wholesale de-emotion (BIG: −29% settle / −37% longest @1000)**. Reverted:
-  2c (Typography styled, sub-noise), 2d (flatten, was drift).
+  2c (Typography styled, sub-noise), 2d (flatten, was drift), **Iter 4 (icon
+  de-emotion, bit-identical — see below)**.
+- **⛔ SPAWN-JS T1 IS EXHAUSTED (Iter 4 finding).** Post-Iter-3, the 283 ms settle
+  is DOM-volume / layout / paint bound, NOT JS-processing bound: removing the icon's
+  per-instance emotion (Iter 4b) AND the two per-node label effects (Iter 4a probe)
+  each moved the needle by **zero**. Three corroborating sub-noise results (2c, 2d,
+  4). Do **not** re-attempt: more de-emotion, label DOM micro-flatten, or shared-RO
+  / per-node-effect changes — all proven dead on spawn (and shared-RO is blocked by
+  the H-2 protected test). The only spawn step-change left is T2 (Canvas2D — RED).
 
 **⚠️ MEASUREMENT PROTOCOL (load-bearing — do not skip):** cross-session/run machine
 drift is ~9–22%, ≫ the ~2% within-run noise. **Every keep/revert decision MUST be a
@@ -564,26 +647,34 @@ stable). NEVER compare a fresh run to a prior-session committed baseline. Mechan
 `git stash` the change → measure HEAD → `git stash pop` → measure treatment; or
 `git checkout <commit>~1 -- <file>` for an isolated revert.
 
-**Headroom (de-emotion build, same-session labels-OFF floor, cal 3.2):** N=1000
-labels-OFF = 175 ms settle / 83 ms longest. So the label subtree STILL costs
-~108 ms settle / ~117 ms longest @1000 (**~38% of spawn**) — emotion is gone, so
-this residual is the label subtree's **DOM volume (reconcile + layout/paint) + the
-per-node effects** (a `ResizeObserver` per node for truncation; a `storeApi.subscribe`
-per node for readable-labels counter-scale). Real T1 headroom remains before the
-icon/connector/rect floor (175 ms).
+**Headroom — spawn (labels-OFF floor, cal 3.2):** N=1000 labels-OFF = 175 ms settle
+/ 83 ms longest; full = 283 / 200. The ~108 ms label residual is DOM-volume/paint
+bound and **proven resistant to cheap T1** (2c/2d/4 all sub-noise). The 175 ms
+icon/connector/rect floor likewise needs T2 to move. **Spawn has no cheap T1
+headroom left.**
 
-**NEXT (grind T1, in order; each via same-session A/B + correctness gate + visual):**
-1. **Label DOM-flatten + cheaper per-node effects** — the residual ~108 ms is the
-   label subtree's DOM + the two per-node `useEffect`s. Flatten redundant wrappers
-   (node-label div / counterScale div / scroll-content / Label outer) and/or share
-   the ResizeObserver / replace the per-node zoom subscription. Highest remaining T1.
-2. **icon-dedup** (~230 KB repeated markup → shared `<use>` sprite / cached `<img>`)
-   — now measurable (harness uses representative icons). Memory + possibly spawn.
-3. **transient willChange** (Node `NodeTransform` has `willChange:'transform'`
-   always → N idle compositor layers; set on drag-start, clear on drag-end).
-4. **Fix the collision-drag grab** (engage via the rendered node's DOM rect +
-   assert the drag mode activates) so the N=1000 drag cell + the 30 ms/frame N=500
-   collision-drag become trustworthy optimization targets.
+**Headroom — DRAG (the live frontier):** the realistic harness surfaced
+collision-drag N=500 = **30 ms/frame (~33 fps)** — a real, unoptimized per-frame
+cost (collision check + connector re-route + scene render), and the LEB60
+north-star path. This is where remaining T1 lives.
+
+**NEXT (pivoted to the drag/collision path; each via same-session A/B + correctness
+gate + visual):**
+1. **Fix the high-N collision-drag grab** (engage via the rendered node's DOM rect +
+   assert the drag mode actually activates) so N=1000 (currently a PROVISIONAL
+   failed-grab reading 16.9 ms) + the 30 ms/frame N=500 cell become trustworthy.
+   This is a harness-fidelity prereq, not an optimization — do it first.
+2. **Profile one collision-drag frame** (`PERF_PROFILE`/`PERF_CPUPROFILE` already
+   support spawn; extend to drag, or add a drag-profile mode) to attribute the
+   30 ms across collision check vs connector re-route vs React render. Pick the
+   largest slice from the trace, not a guess (LOOP step 7).
+3. **Optimize the largest drag slice** (likely the connector re-route or a per-frame
+   React reconcile that escapes the MQA #7 CSS-var compositor path). Target ≤16.6 ms
+   at N=500 → advances LEB60.
+4. **Deferred / memory-only (not spawn-settle):** icon-dedup (~230 KB repeated
+   markup → shared `<use>`/cached `<img>`; targets the <5 KB/entity memory KR, NOT
+   spawn — Iter 4 proved icon DOM doesn't drive spawn CPU) and transient willChange
+   (N idle compositor layers). Pick up only if the drag path stalls.
 
 **Gotchas (carry forward):** machine must be IDLE for spawn (calibration index shows
 drift); harness owns the dev server (`build:lib && dev` fresh; kill stray :3000
