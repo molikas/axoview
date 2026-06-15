@@ -1,6 +1,6 @@
 # Axoview — Implementation Plan
 > **Living document.** Point Claude to this file at the start of any session: "read PLAN.md and implement the next incomplete phase."
-> Last updated: 2026-06-10 (v1.1 wave closed + final docs-wrap; codebase ready for Phase 3A)
+> Last updated: 2026-06-15 (engine-perf T2 shipped — Canvas2D node renderer, ADR 0019/0020; T3 simulation engine next)
 
 ---
 
@@ -45,6 +45,8 @@ Claude should then:
 | **4A** | External Diagram Registry (E6) | `[ ]` | Low | Depends on 3A |
 | **5***  | Cloudflare + Docker dual-target deploy | `[x]` | High | See [docs/deployment.md](docs/deployment.md) |
 | **6** | Presentation & Annotation | `[x]` | High | View-mode popover + preview layer switcher + annotation overlay + canvas polish — see [ADRs 0012–0015](docs/adr/) |
+| **ENG-T2** | Engine perf — Canvas2D node render | `[x]` | ⚠️ Very High | Node layer → Canvas2D (default, flag removed): spawn −41% @1000, scales to ~2,000 (SSB). See [ADR 0019](docs/adr/0019-canvas2d-node-render-layer.md) + harness/protocol [ADR 0020](docs/adr/0020-engine-perf-harness-and-measurement-protocol.md). Deferred: canvas badges/connectors (known_issues). |
+| **ENG-T3** | Engine perf — simulation engine (LEB60) | `[ ]` | ⚠️ Very High | ECS + fixed-timestep tick loop + spatial-hash collision; tick decoupled from render. Target 1,000 moving entities @60fps. Opens against [ADR 0020](docs/adr/0020-engine-perf-harness-and-measurement-protocol.md) + `perf-results/`. |
 | **POST** | E2E Test Suite | 🚫 OUT OF SCOPE | — | Pick up after full UX ships |
 
 ---

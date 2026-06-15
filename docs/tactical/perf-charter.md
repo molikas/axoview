@@ -6,6 +6,14 @@ multi-session handoff. The committed **decision log** (`perf-results/decision-lo
 and **baseline table** (`perf-results/baseline.md`) are the running memory — the
 context window is scratch.
 
+> **Status (2026-06-15):** **T2 SHIPPED** — Canvas2D node renderer is the default
+> (Iters 7–11; [ADR 0019](../adr/0019-canvas2d-node-render-layer.md)). The durable
+> **harness + measurement protocol + tier ladder + LEB60 north-star** are now promoted
+> to [ADR 0020](../adr/0020-engine-perf-harness-and-measurement-protocol.md) (the
+> authoritative copy; the sections below are retained as the working context). This
+> charter remains active for **T3 (simulation engine — LEB60)**; it is fully retired
+> only when T3 ships. T3 opens against ADR 0020 + `perf-results/`.
+
 ---
 
 ## Executive Summary
