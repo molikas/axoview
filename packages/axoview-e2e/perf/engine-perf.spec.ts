@@ -123,6 +123,60 @@ function metricsOf(run: RunResult): RunMetrics {
 }
 
 // ---------------------------------------------------------------------------
+// CDP trace attribution — compute self-time by event name on the busiest
+// (renderer main) thread, so a spawn freeze can be split across scripting /
+// style / layout / paint without double-counting nested events.
+// ---------------------------------------------------------------------------
+interface TraceEvent {
+  name: string;
+  ph: string;
+  ts: number;
+  dur?: number;
+  pid: number;
+  tid: number;
+}
+function attributeTrace(events: TraceEvent[]) {
+  // Pick the thread with the most total complete-event duration (renderer main).
+  const byThread = new Map<string, TraceEvent[]>();
+  for (const e of events) {
+    if (e.ph !== 'X' || typeof e.dur !== 'number') continue;
+    const k = `${e.pid}:${e.tid}`;
+    (byThread.get(k) ?? byThread.set(k, []).get(k)!).push(e);
+  }
+  let best: TraceEvent[] = [];
+  let bestDur = -1;
+  for (const evs of byThread.values()) {
+    const d = evs.reduce((a, b) => a + (b.dur ?? 0), 0);
+    if (d > bestDur) {
+      bestDur = d;
+      best = evs;
+    }
+  }
+  // Self-time via a stack over time-ordered complete events.
+  best.sort((a, b) => a.ts - b.ts || (b.dur ?? 0) - (a.dur ?? 0));
+  const selfByName = new Map<string, number>();
+  const stack: Array<{ end: number; name: string }> = [];
+  for (const e of best) {
+    const start = e.ts;
+    const end = e.ts + (e.dur ?? 0);
+    while (stack.length && stack[stack.length - 1].end <= start) stack.pop();
+    // Subtract this event's duration from its parent's self-time.
+    if (stack.length) {
+      const p = stack[stack.length - 1];
+      selfByName.set(p.name, (selfByName.get(p.name) ?? 0) - (e.dur ?? 0));
+    }
+    selfByName.set(e.name, (selfByName.get(e.name) ?? 0) + (e.dur ?? 0));
+    stack.push({ end, name: e.name });
+  }
+  const rows = [...selfByName.entries()]
+    .map(([name, us]) => ({ name, ms: us / 1000 }))
+    .filter((r) => r.ms > 0.5)
+    .sort((a, b) => b.ms - a.ms);
+  const total = rows.reduce((a, b) => a + b.ms, 0);
+  return { rows, total };
+}
+
+// ---------------------------------------------------------------------------
 // In-page harness. Installed once per page; attaches window.__perfH.
 // Self-contained: references only window/document so Playwright can serialise it.
 // ---------------------------------------------------------------------------
@@ -574,6 +628,116 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
   for (let i = 0; i < 3; i++) {
     await runOnce('spawn', 100);
     await runOnce('drag', 100);
+  }
+
+  // PROFILE mode: capture a CDP timeline trace around ONE spawn at PERF_PROFILE
+  // and attribute the freeze across scripting/style/layout/paint. Skips the
+  // baseline loop. Used to pick/verify the optimization target from a trace,
+  // not a guess (charter LOOP step 7).
+  if (process.env.PERF_PROFILE) {
+    const N = parseInt(process.env.PERF_PROFILE, 10);
+    const client = await page.context().newCDPSession(page);
+    await client.send('Tracing.start', {
+      transferMode: 'ReportEvents',
+      traceConfig: {
+        recordMode: 'recordAsMuchAsPossible',
+        includedCategories: [
+          'devtools.timeline',
+          'disabled-by-default-devtools.timeline',
+          'v8',
+          'v8.execute',
+          'blink',
+          'cc'
+        ]
+      }
+    });
+    const events: TraceEvent[] = [];
+    client.on('Tracing.dataCollected', (e: any) => {
+      if (e.value) events.push(...e.value);
+    });
+    await runOnce('spawn', N); // the traced spawn
+    const done = new Promise<void>((res) =>
+      client.once('Tracing.tracingComplete', () => res())
+    );
+    await client.send('Tracing.end');
+    await done;
+
+    const { rows, total } = attributeTrace(events);
+    const top = rows.slice(0, 20);
+    console.log(`[profile] spawn N=${N} — main-thread self-time by event (ms):`);
+    for (const r of top) console.log(`    ${r.ms.toFixed(1).padStart(8)}  ${r.name}`);
+    console.log(`    total accounted: ${total.toFixed(0)} ms`);
+
+    fs.mkdirSync(RESULTS_DIR, { recursive: true });
+    const lines = [
+      `# Spawn profile — N=${N}`,
+      '',
+      `_Generated ${new Date().toISOString()} · CDP timeline self-time on the renderer main thread (one spawn, post-warmup)._`,
+      '',
+      '| self-time (ms) | event |',
+      '|---|---|',
+      ...top.map((r) => `| ${r.ms.toFixed(1)} | ${r.name} |`),
+      '',
+      `Total accounted: **${total.toFixed(0)} ms**.`,
+      ''
+    ];
+    fs.writeFileSync(path.join(RESULTS_DIR, `profile-spawn-${N}.md`), lines.join('\n'));
+    expect(events.length).toBeGreaterThan(0);
+    return;
+  }
+
+  // CPU-PROFILE mode: sampled JS profile around ONE spawn, aggregated to
+  // self-time by function — pinpoints the hottest JS (which the timeline trace
+  // lumps into one "FunctionCall" bucket). Skips the baseline loop.
+  if (process.env.PERF_CPUPROFILE) {
+    const N = parseInt(process.env.PERF_CPUPROFILE, 10);
+    const client = await page.context().newCDPSession(page);
+    await client.send('Profiler.enable');
+    await client.send('Profiler.setSamplingInterval', { interval: 100 });
+    await client.send('Profiler.start');
+    await runOnce('spawn', N);
+    const { profile } = (await client.send('Profiler.stop')) as any;
+    // Aggregate self-time: each sample attributes its timeDelta to that node.
+    const nodeById = new Map<number, any>();
+    for (const n of profile.nodes) nodeById.set(n.id, n);
+    const selfUsById = new Map<number, number>();
+    for (let i = 0; i < profile.samples.length; i++) {
+      const id = profile.samples[i];
+      const dt = profile.timeDeltas[i] ?? 0;
+      selfUsById.set(id, (selfUsById.get(id) ?? 0) + dt);
+    }
+    const byFn = new Map<string, number>();
+    for (const [id, us] of selfUsById) {
+      const cf = nodeById.get(id)?.callFrame;
+      if (!cf) continue;
+      const fn = cf.functionName || '(anonymous)';
+      const url = (cf.url || '').split(/[\\/]/).pop() || '';
+      const key = url ? `${fn} @ ${url}:${cf.lineNumber}` : fn;
+      byFn.set(key, (byFn.get(key) ?? 0) + us);
+    }
+    const rows = [...byFn.entries()]
+      .map(([key, us]) => ({ key, ms: us / 1000 }))
+      .sort((a, b) => b.ms - a.ms)
+      .slice(0, 30);
+    console.log(`[cpuprofile] spawn N=${N} — JS self-time by function (ms):`);
+    for (const r of rows.slice(0, 25))
+      console.log(`    ${r.ms.toFixed(1).padStart(8)}  ${r.key}`);
+    fs.mkdirSync(RESULTS_DIR, { recursive: true });
+    fs.writeFileSync(
+      path.join(RESULTS_DIR, `cpuprofile-spawn-${N}.md`),
+      [
+        `# Spawn CPU profile — N=${N}`,
+        '',
+        `_Generated ${new Date().toISOString()} · sampled JS self-time, one spawn, post-warmup._`,
+        '',
+        '| self-time (ms) | function |',
+        '|---|---|',
+        ...rows.map((r) => `| ${r.ms.toFixed(1)} | ${r.key.replace(/\|/g, '\\|')} |`),
+        ''
+      ].join('\n')
+    );
+    expect(profile.samples.length).toBeGreaterThan(0);
+    return;
   }
 
   const covPct = (xs: number[]) => round(cov(xs) * 100, 1);
