@@ -999,6 +999,104 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
     return;
   }
 
+  // DRAG-PROFILE mode: attribute ONE collision-drag across the renderer main
+  // thread (timeline self-time: scripting vs style/layout vs paint) AND by JS
+  // function (CPU sampler) — to split the per-frame drag cost into collision
+  // check / connector re-route / React render / layout / paint. Skips the
+  // baseline loop. PERF_DRAGPROFILE=N.
+  if (process.env.PERF_DRAGPROFILE) {
+    const N = parseInt(process.env.PERF_DRAGPROFILE, 10);
+    const client = await page.context().newCDPSession(page);
+    // Timeline trace for the scripting/style/layout/paint split.
+    await client.send('Tracing.start', {
+      transferMode: 'ReportEvents',
+      traceConfig: {
+        recordMode: 'recordAsMuchAsPossible',
+        includedCategories: [
+          'devtools.timeline',
+          'disabled-by-default-devtools.timeline',
+          'v8',
+          'v8.execute',
+          'blink',
+          'cc'
+        ]
+      }
+    });
+    const events: TraceEvent[] = [];
+    client.on('Tracing.dataCollected', (e: any) => {
+      if (e.value) events.push(...e.value);
+    });
+    // CPU sampler for the JS-function breakdown, concurrently.
+    await client.send('Profiler.enable');
+    await client.send('Profiler.setSamplingInterval', { interval: 80 });
+    await client.send('Profiler.start');
+    await runOnce('drag', N); // the profiled collision-drag
+    const { profile } = (await client.send('Profiler.stop')) as any;
+    const traceDone = new Promise<void>((res) =>
+      client.once('Tracing.tracingComplete', () => res())
+    );
+    await client.send('Tracing.end');
+    await traceDone;
+
+    const { rows: tlRows, total: tlTotal } = attributeTrace(events);
+    const tlTop = tlRows.slice(0, 18);
+    console.log(`[dragprofile] drag N=${N} — main-thread self-time by event (ms):`);
+    for (const r of tlTop)
+      console.log(`    ${r.ms.toFixed(1).padStart(8)}  ${r.name}`);
+    console.log(`    timeline total accounted: ${tlTotal.toFixed(0)} ms`);
+
+    const nodeById = new Map<number, any>();
+    for (const n of profile.nodes) nodeById.set(n.id, n);
+    const selfUsById = new Map<number, number>();
+    for (let i = 0; i < profile.samples.length; i++) {
+      const id = profile.samples[i];
+      selfUsById.set(id, (selfUsById.get(id) ?? 0) + (profile.timeDeltas[i] ?? 0));
+    }
+    const byFn = new Map<string, number>();
+    for (const [id, us] of selfUsById) {
+      const cf = nodeById.get(id)?.callFrame;
+      if (!cf) continue;
+      const fn = cf.functionName || '(anonymous)';
+      const url = (cf.url || '').split(/[\\/]/).pop() || '';
+      const key = url ? `${fn} @ ${url}:${cf.lineNumber}` : fn;
+      byFn.set(key, (byFn.get(key) ?? 0) + us);
+    }
+    const jsRows = [...byFn.entries()]
+      .map(([key, us]) => ({ key, ms: us / 1000 }))
+      .sort((a, b) => b.ms - a.ms)
+      .slice(0, 30);
+    console.log(`[dragprofile] drag N=${N} — JS self-time by function (ms):`);
+    for (const r of jsRows.slice(0, 20))
+      console.log(`    ${r.ms.toFixed(1).padStart(8)}  ${r.key}`);
+
+    fs.mkdirSync(RESULTS_DIR, { recursive: true });
+    fs.writeFileSync(
+      path.join(RESULTS_DIR, `dragprofile-${N}.md`),
+      [
+        `# Collision-drag profile — N=${N}`,
+        '',
+        `_Generated ${new Date().toISOString()} · one ${DRAG_STEPS}-step collision-drag, post-warmup. Timeline self-time (renderer main) + JS self-time by function._`,
+        '',
+        '## Timeline (scripting / style / layout / paint)',
+        '',
+        '| self-time (ms) | event |',
+        '|---|---|',
+        ...tlTop.map((r) => `| ${r.ms.toFixed(1)} | ${r.name} |`),
+        '',
+        `Total accounted: **${tlTotal.toFixed(0)} ms** over ${DRAG_STEPS} frames.`,
+        '',
+        '## JS self-time by function',
+        '',
+        '| self-time (ms) | function |',
+        '|---|---|',
+        ...jsRows.map((r) => `| ${r.ms.toFixed(1)} | ${r.key.replace(/\|/g, '\\|')} |`),
+        ''
+      ].join('\n')
+    );
+    expect(profile.samples.length).toBeGreaterThan(0);
+    return;
+  }
+
   const covPct = (xs: number[]) => round(cov(xs) * 100, 1);
 
   // Machine-speed calibration (drift detector — decision-log "cross-session

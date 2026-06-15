@@ -607,14 +607,94 @@ then profile the 30 ms frame (collision check vs connector re-route vs render) a
 optimize the largest slice. This is fresh T1 headroom, not a 3rd consecutive
 spawn micro-opt.
 
+## 🛠 + 🔬 Iter 5 — drag/collision path: robust grab (kept) + profiling finding (the drag re-renders React per frame)
+
+Pivot target from Iter 4. Two parts: a harness-fidelity fix (committed) and a
+trace-driven finding that names the next optimization.
+
+**(a) 🛠 Robust collision-drag grab (committed `73c1d77`, harness-only).** The old
+grab pressed `perf-0` (top-left) at a `tileToClient`-projected point. At the extreme
+fit-zoom for large N the corner node sits at/past the viewport edge, and the
+harness forward-projection diverges from the lib's inverse screen→tile, so the
+press landed on empty space → the drag silently never engaged (the N=1000 cell read
+idle 16.9 ms — the "PROVISIONAL failed grab"). Fix: grab a node near the GRID CENTRE
+(guaranteed on-screen, fully surrounded by occupied tiles → a better collision test)
+via its ACTUAL rendered DOM rect (`nodeClientCenter`, falls back to tileToClient),
+and **assert `mode==='DRAG_ITEMS'` each frame** (`engaged=N/N` now reported per
+cell). Result: **engaged=5/5 at N=200/500/1000.**
+- **🔬 This OVERTURNS the resume-point assumption.** With the grab now provably
+  engaged, N=1000 STILL reads ~16.9 ms while N=500 reads ~30 ms. So the collision-
+  drag cost is **genuinely non-monotonic in N — not a failed grab.** N=1000 is cheap
+  because its per-frame work fits under the 16.6 ms budget (profile: ~1047 ms idle,
+  layout-bound); N=500 is expensive because of JS.
+
+**(b) 🔬 Profiled one collision-drag frame at N=500 and N=1000** (new `PERF_DRAGPROFILE`
+harness mode: timeline self-time + CPU sampler around one drag → `dragprofile-{N}.md`).
+**The drag is JS/scripting-bound, NOT layout/paint-bound, and it re-renders React
+every frame** (defeating the MQA #7 "compositor-only drag" ideal):
+- **N=500 timeline:** FunctionCall (JS) **2429 ms** vs style+layout+paint ~250 ms
+  over 80 frames → ~30 ms/frame, ~90% JS.
+- **N=500 JS self-time** (excluding profiler/GC/idle artifacts): a dominant lib
+  arrow (~664 ms; exact minified line unreliable across rebuilds) + the full React-
+  reconcile signature — `jsxDEV`/`ReactElement` (element creation), `useMemo`/
+  `useCallback`, **`commitHookEffectListUnmount` (44 ms — effects UNMOUNTING/
+  remounting → component churn)**, `updateEffectImpl`, `handleStoreChange`+`shallow`
+  (zustand), **`murmur2` (48 ms — EMOTION running per frame)**, **`getNativeRange`
+  (98 ms — QUILL / RichTextEditor)**, `getBoundingClientRect`+`NotifyResizeObservers`
+  (the per-node label ROs), `useColor`.
+- **The smoking gun:** `getNativeRange` exists ONLY in node descriptions (Quill) and
+  `murmur2` ONLY in `sx` components (the icon's NonIsometricIcon sx + connector-label
+  chip). Both firing during a drag ⇒ **node content is re-rendering per frame.**
+  (Note: this means Iter 4's icon de-emotion — sub-noise on one-time spawn — could
+  actually matter on the per-frame DRAG path, IF node re-render isn't eliminated
+  first. Fix the re-render first; re-test icon de-emotion after.)
+
+**Mechanism (from code):** `DragItems.mousemove` → `dragItems` →
+`scene.previewConnectorPaths(...)` does a **`flushSync(set({connectors}))` every
+frame** ([useSceneActions.ts](../packages/axoview-lib/src/hooks/useSceneActions.ts)
+~L368) to keep wires visually attached. The flushSync forces a synchronous render of
+scene-`connectors` subscribers — and something in that wave is re-rendering node
+content (Quill + emotion), not just the 1–2 affected connectors. Also
+`computeNodeUpdates` rebuilds an **O(N) `externalOccupied` Set every frame**
+([DragItems.ts](../packages/axoview-lib/src/interaction/modes/DragItems.ts) L97-101)
+though external items can't move during a drag. The non-monotonic N=500>N=1000 cost
+is geometry/zoom-sensitive: dragging through OCCUPIED tiles makes `computeNodeUpdates`
+return null (node can't enter an occupied tile) on many frames, so the per-frame
+work depends on exactly which tiles the 150 px screen-drag crosses at each zoom.
+
+**NEXT (drag path, ordered; each via same-session A/B + correctness gate + visual):**
+1. **CONFIRM + QUANTIFY the per-frame node re-render** — first thing next session.
+   Use the built-in `useRenderProbe` (Node/NodeContent already instrumented; enable
+   with `?perfprobe=1`). Add a `get()` to the probe API and have the harness read
+   Node/NodeContent render counts across one measured drag → is it ALL visible
+   nodes/frame, or only the dragged node + connector neighbours? That determines the
+   fix's scope and ceiling.
+2. **Stop node content re-rendering on the per-frame connector preview.** The
+   `flushSync(set({connectors}))` must re-render connectors but should NOT touch
+   nodes. Find the subscription that leaks the connectors-slice change into
+   NodeContent (a too-broad scene selector, or the Renderer re-rendering its whole
+   child tree) and narrow it so the MQA #7 memo actually holds during a collision-
+   drag. Predicted big LEB60 win (drag → compositor-only).
+3. **Cache `externalOccupied` at drag entry** (it's constant during a drag) — removes
+   an O(N) Set rebuild/frame. Smaller, safe, single-variable; do after (2).
+4. **Re-test Iter 4 icon de-emotion on the drag path** once nodes stop re-rendering
+   needlessly — if any residual per-frame node render remains, killing the icon
+   `murmur2` may finally clear noise (it didn't on spawn).
+
+**Gotcha (carry forward):** minified bundle line numbers in CPU profiles shift across
+rebuilds — trust the function NAMES (murmur2, getNativeRange, commitHookEffectListUnmount),
+not `index.js:<line>`. `PERF_DRAGPROFILE` and `PERF_PROFILE`/`PERF_CPUPROFILE` skip
+the baseline write (no baseline.md restore needed after a profile run; DO restore after
+any partial `PERF_N` run).
+
 ---
 
 ## ▶ COLD-START RESUME POINT (newest — start here)
 
-**Branch `perf/engine`, HEAD = Iter 4 commit** (decision-log only; code unchanged
-since Iter 3 `f1c3e15` — Iter 4 was reverted). Working tree clean (only
-`bloat-analysis.txt` untracked — another agent's master-side note; its content is
-folded into the Harness-v2 entry). All work below is committed.
+**Branch `perf/engine`, HEAD = Iter 5 commit.** Lib code unchanged since Iter 3
+`f1c3e15` (Iter 4 reverted); since then: Iter 4 log (`8eb6d3c`), robust drag grab
+(`73c1d77`, harness-only), Iter 5 log + `PERF_DRAGPROFILE` mode. Working tree clean
+(only `bloat-analysis.txt` untracked). All work below is committed.
 
 **State of the loop (T1, GREEN, realistic harness):**
 - **Harness v2** is the realistic scene: N nodes (5 representative ~1.7 KB icons,
@@ -653,28 +733,34 @@ bound and **proven resistant to cheap T1** (2c/2d/4 all sub-noise). The 175 ms
 icon/connector/rect floor likewise needs T2 to move. **Spawn has no cheap T1
 headroom left.**
 
-**Headroom — DRAG (the live frontier):** the realistic harness surfaced
-collision-drag N=500 = **30 ms/frame (~33 fps)** — a real, unoptimized per-frame
-cost (collision check + connector re-route + scene render), and the LEB60
-north-star path. This is where remaining T1 lives.
+**Headroom — DRAG (the live frontier; Iter 5 profiled it):** collision-drag N=500 =
+**30 ms/frame (~33 fps)**, and the profile shows it is **JS/React-reconcile bound,
+not compositor-only** — node content (Quill `getNativeRange` + emotion `murmur2`)
+re-renders every frame, driven by the per-frame `flushSync(set({connectors}))` in
+`previewConnectorPaths`. (N=1000 reads 16.9 ms — genuinely cheaper, geometry/zoom-
+sensitive, NOT a failed grab; the grab is now confirmed engaged=N/N.) Making the
+drag truly compositor-only for non-dragged nodes is the big remaining LEB60 win.
 
-**NEXT (pivoted to the drag/collision path; each via same-session A/B + correctness
-gate + visual):**
-1. **Fix the high-N collision-drag grab** (engage via the rendered node's DOM rect +
-   assert the drag mode actually activates) so N=1000 (currently a PROVISIONAL
-   failed-grab reading 16.9 ms) + the 30 ms/frame N=500 cell become trustworthy.
-   This is a harness-fidelity prereq, not an optimization — do it first.
-2. **Profile one collision-drag frame** (`PERF_PROFILE`/`PERF_CPUPROFILE` already
-   support spawn; extend to drag, or add a drag-profile mode) to attribute the
-   30 ms across collision check vs connector re-route vs React render. Pick the
-   largest slice from the trace, not a guess (LOOP step 7).
-3. **Optimize the largest drag slice** (likely the connector re-route or a per-frame
-   React reconcile that escapes the MQA #7 CSS-var compositor path). Target ≤16.6 ms
-   at N=500 → advances LEB60.
-4. **Deferred / memory-only (not spawn-settle):** icon-dedup (~230 KB repeated
-   markup → shared `<use>`/cached `<img>`; targets the <5 KB/entity memory KR, NOT
-   spawn — Iter 4 proved icon DOM doesn't drive spawn CPU) and transient willChange
-   (N idle compositor layers). Pick up only if the drag path stalls.
+**NEXT (drag/collision path; each via same-session A/B + correctness gate + visual):**
+1. **CONFIRM + QUANTIFY the per-frame node re-render** (do first). Use `useRenderProbe`
+   (`?perfprobe=1`; Node/NodeContent already instrumented) — add a `get()` to the
+   probe and read render counts across one measured drag. ALL visible nodes/frame, or
+   just dragged+connector-neighbours? Sets the fix's ceiling.
+2. **Stop node re-render on the connector-preview flushSync** — narrow whatever
+   subscription leaks the scene-`connectors` change into NodeContent so the MQA #7
+   memo holds during a collision-drag. The headline drag optimization.
+3. **Cache `externalOccupied` at drag entry** (constant during a drag) — removes an
+   O(N) Set rebuild/frame. Smaller/safe; after (2).
+4. **Re-test Iter 4 icon de-emotion ON THE DRAG PATH** after (2) — `murmur2` per frame
+   may finally clear noise there (it didn't on one-time spawn).
+5. **Deferred / memory-only:** icon-dedup (<5 KB/entity memory KR) + transient
+   willChange (idle compositor layers). Only if the drag path stalls.
+
+**⚠️ Note:** the committed `baseline.md` drag numbers predate the grab fix but are
+materially unchanged by it (N=500≈30, N=1000≈16.9 both before/after) — the fix
+mainly resolves the N=1000 "PROVISIONAL failed-grab" caveat (now confirmed engaged).
+Regenerate `baseline.md` with a clean FULL idle run once a drag optimization lands,
+to refresh the drag cells + drop the stale caveat.
 
 **Gotchas (carry forward):** machine must be IDLE for spawn (calibration index shows
 drift); harness owns the dev server (`build:lib && dev` fresh; kill stray :3000
