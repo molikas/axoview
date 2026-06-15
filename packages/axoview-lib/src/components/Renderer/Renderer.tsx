@@ -6,6 +6,7 @@ import { useCanvasMode, CanvasModeContextValue } from 'src/contexts/CanvasModeCo
 import { Grid } from 'src/components/Grid/Grid';
 import { Cursor } from 'src/components/Cursor/Cursor';
 import { Nodes } from 'src/components/SceneLayers/Nodes/Nodes';
+import { NodesCanvas } from 'src/components/SceneLayers/Nodes/NodesCanvas';
 import { Rectangles } from 'src/components/SceneLayers/Rectangles/Rectangles';
 import { Connectors } from 'src/components/SceneLayers/Connectors/Connectors';
 import { ConnectorLabels } from 'src/components/SceneLayers/ConnectorLabels/ConnectorLabels';
@@ -22,6 +23,22 @@ import { Scroll, Size } from 'src/types';
 
 // Extra tiles of padding around the screen edges to avoid visible pop-in.
 const VIEWPORT_TILE_PADDING = 4;
+
+// T2 PoC flag (RED gate, default OFF). When on, the node layer is drawn by an
+// imperative Canvas2D path (NodesCanvas) instead of the per-node React DOM
+// subtree (Nodes). Read once at mount; the DOM path is byte-identical when off,
+// so the committed baseline + full correctness gate stay green. The harness sets
+// this via PERF_CANVAS=1 → localStorage in bootApp for the same-session A/B.
+const readCanvasNodesFlag = (): boolean => {
+  try {
+    return (
+      typeof localStorage !== 'undefined' &&
+      localStorage.getItem('axoview-canvas-nodes') === '1'
+    );
+  } catch {
+    return false;
+  }
+};
 
 interface TileBounds {
   minX: number;
@@ -127,6 +144,8 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
     () => showGrid === undefined || showGrid,
     [showGrid]
   );
+
+  const canvasNodes = useMemo(readCanvasNodesFlag, []);
 
   const visibleItems = useMemo(() => {
     const { minX, maxX, minY, maxY } = coarseBounds;
@@ -238,9 +257,13 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
           height: '100%'
         }}
       />
-      <SceneLayer>
-        <Nodes nodes={visibleItems} />
-      </SceneLayer>
+      {canvasNodes ? (
+        <NodesCanvas nodes={visibleItems} />
+      ) : (
+        <SceneLayer>
+          <Nodes nodes={visibleItems} />
+        </SceneLayer>
+      )}
       <SceneLayer>
         <ConnectorAnchorOverlay />
       </SceneLayer>

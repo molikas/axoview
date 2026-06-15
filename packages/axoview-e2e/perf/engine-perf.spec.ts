@@ -838,6 +838,11 @@ async function bootApp(page: Page) {
     // always-on DiagnosticsOverlay 1 Hz rAF+setState loop (diagnosticsStore).
     ['axoview-perf-harness', '1']
   ];
+  // T2 PoC: PERF_CANVAS=1 selects the Canvas2D node layer (NodesCanvas) over the
+  // DOM node renderer (read pre-boot in Renderer). Pure-additive — the reference
+  // run (flag off) IS the current renderer, so the A/B is flag-off vs flag-on,
+  // same session, calibration-checked.
+  if (process.env.PERF_CANVAS) ONBOARDING.push(['axoview-canvas-nodes', '1']);
   const CLEAR_KEYS = [
     'axoview-diagrams',
     'axoview-last-opened',

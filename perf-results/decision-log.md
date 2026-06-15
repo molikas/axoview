@@ -897,7 +897,7 @@ revisiting a connector canvas, make the harness route connectors on spawn
 
 ---
 
-## ▶ COLD-START RESUME POINT (newest — start here) — updated Iter 7
+## COLD-START RESUME POINT — updated Iter 7 (SUPERSEDED by Iter 8 below)
 
 **Branch `perf/engine`, HEAD = Iter 7 commit.** T2 RED gate OPEN (human signed off).
 Deliverables this session: `t2-design.md` (Canvas2D design + proof metric + FINDING),
@@ -923,3 +923,97 @@ before measuring any connector draw (caveat above).
 **Gotchas unchanged** (see Iter-6 resume point above): same-session A/B + calibration
 index mandatory; `git checkout -- perf-results/baseline.md` after any partial/
 diagnostic run; correctness gate command above; kill stray :3000 listeners.
+
+---
+
+## Iter 8 — node-layer Canvas2D PoC (DECISIVE GO → build the production hybrid)
+
+**Context:** human greenlit the node-layer T2 direction (RED gate, see
+`perf-results/cold-start-t2-poc.md`). Built the PoC: `NodesCanvas.tsx`, an
+imperative draw-only `<canvas>` (icon-bitmap cache + static label `fillText`),
+behind `localStorage axoview-canvas-nodes` (default OFF); `PERF_CANVAS=1` plumbs it
+in `bootApp`. Design + full finding: `t2-design.md` FINDING (Iter 8).
+
+**Hypothesis:** moving the node draw (icon image + static label) to one Canvas2D
+layer with an icon-bitmap cache beats the per-node DOM subtree on spawn beyond
+noise, holds drag flat.
+
+**One variable:** the `axoview-canvas-nodes` flag (DOM `<Nodes>` vs `<NodesCanvas>`);
+DOM path byte-identical when off.
+
+**Same-session A/B — calibration index 3.1 ms BOTH runs (zero drift):**
+
+| metric | DOM ref | canvas | Δ |
+|---|---|---|---|
+| spawn settle @500 | 200.0 | 133.4 | −33% |
+| spawn settle @1000 | 283.4 | **166.6** | **−41% (−117 ms)** |
+| spawn longest @1000 | 200.0 | **83.3** | **−58%** |
+| spawn settle @2000 | 466.6 | **233.4** | **−50%** |
+| spawn longest @2000 | 383.3 | 150.0 | −61% |
+| long-task total @1000 | 1099 | **72** | −93% |
+| drag mean @1000 / @2000 | 16.87 / 17.29 | 16.67 / 16.67 | flat (60 fps) |
+| rendered DOM nodes @1000 | 1000 | 0 | shells gone |
+
+**Result: DECISIVE GO.** Deltas ≫ the ~5% noise band at identical calibration.
+Canvas scales sub-linearly (1000→2000: DOM ×1.65, canvas ×1.40). **Canvas settle
+@1000 (166.6) is BELOW the DOM labels-off floor (175)** ⇒ the win is real
+canvas-vs-DOM, not just dropped descriptions. **→ KEEP the PoC (flag default-off);
+proceed to the production node-layer hybrid.**
+
+**Correctness gate (flag OFF): 13/13 GREEN** — DOM path preserved (only addition is
+a one-time localStorage read + a render ternary). Flag-ON gate deferred until the
+editing-node DOM hybrid exists (F2 edit + readable-labels need a live DOM label).
+
+**Visual parity:** `.scratch/verify-canvas-nodes.mjs` — icons iso-skewed on correct
+tiles, labels centered above, colours correct, 0 page errors.
+
+**Honest scope omissions (charter anti-cheat — full list in t2-design FINDING):**
+PoC draws icon + static name only. Deferred to production hybrid: description
+RichTextEditor (~20%), notes/link badges (~12%), the editing-node DOM hybrid, and
+canvas drag-preview movement (the drag A/B measures "scene renders flat with canvas
+present", not canvas drag-preview redraw). Harness note: spawn anti-cheat counts 0/N
+DOM shells in canvas mode (expected; full scene still committed); drag grab fell back
+to `tileToClient` and engaged 5/5.
+
+**Deliverables committed:** `NodesCanvas.tsx`, Renderer flag wiring, `PERF_CANVAS`
+harness plumbing, `.scratch/verify-canvas-nodes.mjs`, t2-design FINDING (Iter 8),
+this row. Baseline.md untouched (restored after partial runs).
+
+---
+
+## ▶ COLD-START RESUME POINT (newest — start here) — updated Iter 8
+
+**Branch `perf/engine`, HEAD = Iter 8 commit.** T2 node-layer Canvas2D direction is
+**VALIDATED with a measured GO** (spawn −41% @1000 settle / −58% longest, drag flat
+60 fps, sub-linear scaling, gate green flag-off). The PoC ships behind
+`localStorage axoview-canvas-nodes` (default OFF) / `PERF_CANVAS=1`. This is still
+RED-gated overhaul territory — the PoC is committed, the DOM renderer is untouched.
+
+**State:** baseline unchanged (DOM path byte-identical, flag off) — spawn N=1000
+283/200, N=500 200/117; drag all-N ~16.7 ms 60 fps; KR3 PASS. Kept wins: Iter 3
+de-emotion (spawn), Iter 6 useColor (drag), **Iter 8 NodesCanvas PoC (spawn −41%
+@1000 behind default-off flag)**. New files: `packages/axoview-lib/src/components/
+SceneLayers/Nodes/NodesCanvas.tsx`; harness `PERF_CANVAS` plumbing; `.scratch/
+verify-canvas-nodes.mjs`.
+
+**NEXT (production node-layer hybrid — each via same-session A/B + gate + visual):**
+1. **Editing-node DOM hybrid** — keep ONE live DOM label for the selected/editing
+   node (F2 inline edit + live readable-labels counter-scale); everything else
+   canvas. This unblocks the **flag-ON correctness gate** (`rename`,
+   `readable-labels`). The hardest part; do it next.
+2. **Fold in description text + notes/link badges** on canvas; measure the residual
+   vs the −41% (some of which was dropped descriptions — but canvas already beats the
+   labels-off floor, so the core win holds).
+3. **Canvas drag-preview redraw** — redraw O(visible) on the drag-preview tick so the
+   dragged node moves on canvas (the DOM `--ff-drag` path has no canvas equivalent yet).
+4. **Fold the connector polyline draw** into the same canvas (trivial — same cull)
+   AFTER fixing the harness to route connectors on spawn (Iter-7 caveat).
+5. Once the full gate passes flag-ON in canvas mode → present before deleting the DOM
+   node renderer (charter RED rule).
+
+**Gotchas unchanged:** same-session A/B + stable calibration index mandatory (re-ran
+warm to match 3.1↔3.1 this iter); `git checkout -- perf-results/baseline.md` after any
+partial/diagnostic run; the dev server desyncs from `dist/` after `build:lib` — let
+`npm run perf` own the lifecycle (build+fresh boot) rather than PERF_REUSE against a
+hand-started server; kill stray :3000 listeners; correctness gate command in the
+Iter-6 resume point above.

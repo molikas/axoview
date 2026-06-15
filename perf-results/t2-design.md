@@ -235,3 +235,113 @@ the harness routes connectors.
 
 _Status: connector-canvas direction REJECTED with evidence. Node-layer-hybrid
 direction PROPOSED, awaiting go-ahead before the overhaul (RED gate)._
+
+---
+
+## FINDING (Iter 8 — node-layer Canvas2D PoC, DECISIVE GO)
+
+**A Canvas2D node layer (icon bitmap + static label text) beats the DOM node
+renderer on spawn by ~40–50% beyond noise, holds drag flat at 60 fps, and scales
+sub-linearly. The T2 node-layer direction is validated — proceed to the
+production hybrid.**
+
+### What was built (PoC, behind `localStorage axoview-canvas-nodes`, default OFF)
+
+`NodesCanvas.tsx` — an imperative, draw-only `<canvas>` that replaces the per-node
+React DOM subtree (~14 elements × N) with one canvas + O(visible) draw calls:
+
+- **Icon-bitmap cache** — one decoded `HTMLImageElement` per icon URL, drawn N
+  times (vs N DOM `<img>` decodes). 5 distinct icons in the perf scene ⇒ 5 decodes
+  total. This is the key spawn win.
+- **Static label** — white rounded chip + border + centered bold name text
+  (`ctx.fillText`), honouring `labelColor` / `labelFontSize` / `showLabel`, with
+  the readable-labels counter-scale ported to `ctx` transforms.
+- **Transform model (§3)** — the canvas owns its transform: `setTransform(zoom·dpr,
+  0,0, zoom·dpr, (W/2+scroll.x)·dpr, (H/2+scroll.y)·dpr)` mirrors the `<SceneLayer>`
+  CSS; non-iso icons in ISO mode additionally get the fixed iso matrix per icon
+  (mirrors `NonIsometricIcon`). rAF-coalesced redraw on `uiStateStore` (scroll/zoom/
+  size/readableLabels) + `modelStore` (items/icons) + the `nodes` prop (the spawn
+  path). Reuses the existing `visibleItems` tile-cull and the `resolveRenderOrder`
+  painter sort.
+- Harness plumbed: `PERF_CANVAS=1` → sets the localStorage flag in `bootApp`
+  (mirrors `PERF_NOLABEL`/`PERF_NOCONN`).
+
+### Evidence — same-session A/B, calibration index 3.1 ms BOTH runs (zero drift)
+
+| metric | DOM (ref) | canvas (treat) | Δ | go bar |
+|---|---|---|---|---|
+| spawn settle @500 | 200.0 | 133.4 | **−33%** | ✓ (≥30 ms) |
+| spawn settle @1000 | 283.4 | **166.6** | **−41% (−117 ms)** | ✓✓ |
+| spawn longest @1000 | 200.0 | **83.3** | **−58%** | ✓✓ |
+| spawn settle @2000 | 466.6 | **233.4** | **−50%** | ✓ sub-linear |
+| spawn longest @2000 | 383.3 | 150.0 | **−61%** | ✓ |
+| long-task total @1000 | 1099 ms | **72 ms** | **−93%** | — |
+| drag mean @1000 | 16.87 | 16.67 | flat (60 fps) | ✓ no-reg |
+| drag mean @2000 | 17.29 | 16.67 | flat (60 fps) | ✓ no-reg |
+| rendered DOM nodes @1000 | 1000 | **0** | shells gone | ✓ |
+
+Both runs calibrated at 3.1 ms ⇒ no machine drift; the deltas are ≫ the ~5% noise
+band. (An earlier ref run at cal 3.8 was discarded — re-ran warm at 3.1 for a clean
+same-cal A/B, per the measurement protocol.) **Scaling:** DOM settle 1000→2000 grows
+×1.65; canvas grows ×1.40 — the canvas is sub-linear, the SSB-2000 unlock the tier
+ladder names.
+
+**The win is real canvas-vs-DOM, not an artifact of dropped elements:** canvas
+settle @1000 (166.6 ms) is BELOW the DOM **labels-off floor** (175 ms, decision
+log) — i.e. the canvas icon+label draw is cheaper than DOM icons drawn *without
+any labels at all*. The icon-bitmap cache + canvas text genuinely beats the DOM
+node subtree.
+
+### Visual parity
+
+`.scratch/verify-canvas-nodes.mjs` captures the same 16-node scene DOM vs canvas:
+icons land on the correct tiles (iso-skewed), labels centered above, colours
+correct, **0 page errors**. DOM markers: DOM mode = 16 shells / 16 labels / 17
+imgs; canvas mode = 0 shells / 0 labels / 1 canvas element. Screenshots:
+`.scratch/canvas-nodes-{dom,canvas}.png`.
+
+### Correctness gate — flag OFF: 13/13 GREEN
+
+DOM path is byte-identical when the flag is off (the only addition is a one-time
+localStorage read + a render ternary), so the committed baseline and the full gate
+stay green. Gate flag-ON is deferred until the editing-node hybrid is built (below).
+
+### PoC scope omissions (honest accounting — charter anti-cheat)
+
+The PoC draws the **representative case** (icon + static name label), mirroring the
+connector-PoC's "SINGLE-only" scope. **Deferred to the production hybrid:**
+- description RichTextEditor (~20% of nodes), notes/link badges (~12% / readonly).
+  Dropping the RichTextEditor removes some label cost — but see above: canvas still
+  beats the DOM *labels-off* floor, so the step-change does not depend on it.
+- the editing-node **DOM hybrid** — F2 inline edit + the live readable-labels
+  counter-scale. This is why the flag-ON correctness gate (`rename`,
+  `readable-labels`) is deferred: those specs need a DOM label to edit/measure.
+- **drag-preview movement on canvas** — the DOM path moves the dragged node via
+  `--ff-drag` CSS vars (compositor-only); the canvas PoC does not redraw the dragged
+  node per preview frame (the CSS-preview drag writes no store the canvas subscribes
+  to). The drag A/B therefore measures "the rest of the scene renders flat with the
+  canvas present" (it does — 60 fps), NOT canvas drag-preview movement. Production
+  hybrid: redraw O(visible) on the preview tick (cheap).
+
+### Harness note (mirror of Iter-7's caveat)
+
+In canvas mode the spawn anti-cheat `rendered = document.querySelectorAll(
+'[data-drag-id]')` is **0/N** (the DOM shells are gone) — expected for a draw-only
+canvas; the full scene is still committed (connectors/rects present in the model).
+The drag grab `nodeClientCenter` falls back to `tileToClient` (no DOM `<img>` to
+hit) and **engaged 5/5** at every N. A production default-on canvas would want an
+anti-cheat that counts canvas draws (e.g. a debug draw-count) instead of DOM shells.
+
+### Decision → GO. Build the production node-layer hybrid (still RED-gated work)
+
+The imperative-draw + store-subscription + iso-matrix + tile-cull machinery is
+validated. Next moves (each same-session A/B + gate + visual): (1) the editing-node
+DOM hybrid (sparse — one live DOM label at a time) to pass the flag-ON gate; (2)
+fold in description text + badges (measure the residual); (3) canvas drag-preview
+redraw; (4) fold the connector polyline draw into the same canvas (trivial — same
+cull) once the harness routes connectors on spawn (Iter-7 caveat). Do NOT delete
+the DOM node renderer until the canvas path passes the full correctness gate in
+canvas mode.
+
+_Status: node-layer Canvas2D direction VALIDATED with a measured GO (spawn −41%
+@1000, drag flat, gate green flag-off). PoC committed behind a default-off flag._
