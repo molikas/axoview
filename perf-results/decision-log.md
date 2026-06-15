@@ -118,19 +118,38 @@ makes a live drag compositor-only (no per-frame React reconcile of the scene).
 So T1/T2 work should target the mount/reconcile/paint cost of making N entities
 *appear* (bulk paste, view switch, zoom-to-fit), NOT the drag path.
 
-### NEXT — precondition #3 (correctness suite) then STOP for sign-off
+### Iter 0h — ✅ precondition #3: correctness suite green (KR5)
 
-Per the charter, the 3 autonomy preconditions are SUPERVISED; #1 and #2 are met.
-Remaining before the hands-off loop:
-- **#3 correctness suite airtight (KR5):** the existing e2e suite
-  (`packages/axoview-e2e/tests/`) already covers selection, collision/occupancy
-  (`drag-collision`), undo/redo (`undo-redo-*`), z-order, multi-select drag,
-  etc. Run it green as the anti-cheat baseline; identify the exact subset that
-  pins the charter's invariants (selection, collision/occupancy, undo/redo,
-  dragged-node visual-position parity).
-- Then **STOP and notify for human sign-off** on all three preconditions before
-  entering GREEN-default self-paced looping (charter Autonomy section).
+Ran the charter's invariant subset against the current `dist`
+(`--project=chromium`), all 9 GREEN (~1.5 min):
+- collision/occupancy — `drag-collision`
+- undo/redo — `undo-redo-cross-cutting`, `undo-redo-dual-stack`
+- selection + multi-drag — `multi-select-drag` (Ctrl+A drag preserves relative
+  positions; waypoint-follows), `multi-select-drag-lasso`
+- z-order — `z-order`, `rectangle-overlap-zorder`
+- dragged-node visual-position parity — `css-preview-mid-drag` (model tile
+  unchanged mid-drag while `[data-drag-id]` carries `--ff-drag`)
 
-Open question for sign-off: accept KR1 as certified for the load-bearing regime
-(small-N spawn ≤50 left at the quantization floor), or invest in microbenchmark-
-averaging to force ≤50 under 10% too?
+These nine are the standing anti-cheat gate for the optimization loop; the wider
+`packages/axoview-e2e/tests/` suite remains available for fuller regression.
+
+## ⏸ STOP — all 3 autonomy preconditions MET; awaiting human sign-off
+
+| Precondition | Status |
+|---|---|
+| #1 harness + noise band < 10% proven | ✅ KR1 certified (load-bearing 5.5%) |
+| #2 idle-churn fixed + clean floor re-proven | ✅ KR3 pass (0 retained, 0 long tasks) |
+| #3 correctness suite airtight | ✅ KR5 — 9/9 invariant specs green |
+
+Per the charter (Autonomy & escalation), preconditions are done SUPERVISED and I
+must STOP for sign-off BEFORE entering the GREEN-default self-paced loop. Holding
+here. Open question for the human: accept KR1 as certified for the load-bearing
+regime (small-N spawn ≤50 left at the vsync quantization floor, non-target), or
+invest in microbenchmark-averaging to force ≤50 under 10% too?
+
+First optimization hypothesis queued for after sign-off (from the baseline's
+binding bottleneck = bulk RENDER, not drag): instrument a single spawn at N=1000
+with the React render probe / a CDP trace to attribute the 633 ms freeze
+(reconcile vs style/emotion vs layout vs paint), then target the largest slice
+(likely per-node emotion `sx` styling or SVG/DOM paint) — T1 "stop the bleeding"
+without a rewrite.
