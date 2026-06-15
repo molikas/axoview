@@ -518,13 +518,49 @@ The [annotation overlay](../packages/axoview-lib/src/components/AnnotationLayer/
 
 ---
 
-## 9. Reference implementations
+## 9. Touch & pointer interaction
+
+Touch and pen are first-class, not a mouse emulation. The whole interaction surface runs on **Pointer Events** ([ADR 0018](adr/0018-touch-pen-gesture-contract.md)); `pointerType` splits mouse from touch/pen, and the desktop/mouse path is byte-for-byte unchanged (regression-pinned by the desktop e2e suite).
+
+### 9.1 Direct manipulation — disambiguate by what's under the finger
+
+There is no touch tool-palette and no tap-to-place. At touch-down the gesture machine looks at what's under the finger and commits to one interpretation (the Figma / Miro / Lucidchart model):
+
+| At touch-down | One finger | Two fingers |
+|---|---|---|
+| On a node | drag moves it; tap selects | pinch zoom + pan |
+| On a connector endpoint handle | drag reconnects | pinch |
+| On empty canvas | drag pans; tap clears selection | pinch |
+| A tool mode is active (lasso / rectangle / connector / …) | drag drives the tool | pinch |
+
+**Move IS drag** — there is no separate "pick up" step. Don't add tap-to-place or long-press-to-move; they compete with this model.
+
+### 9.2 Long-press is a *contextual reveal*, and it fires during the hold
+
+Hold on a node → its floating action bar opens **while the finger is still down** (≈450 ms), so the user sees the result and then lifts naturally — never "lift, wait, menu appears." Hold on empty then drag → a one-shot marquee lasso, inferred from the gesture so the user never has to switch to the lasso tool first. Any movement past tap-slop cancels a pending hold (it was a drag, not a press).
+
+### 9.3 Affordances appear only when the gesture is live
+
+Touch has **no hover**, so any preview tied to mouse position would paint at a stale spot the instant a tool is armed. Preview chrome must stay hidden until the gesture actually engages: the Elements-panel drag ghost is suppressed at icon-tap and revealed on the first drag move (`PlaceIconMode.suppressPreview`). The rule generalises — *don't show a follow-the-cursor affordance on touch until there is a live drag to follow.*
+
+### 9.4 Suppress the platform's default touch chrome
+
+Mobile WebKit/Blink paints a translucent grey tap-highlight over the pressed element on every touch; on dense canvas controls it reads as the whole screen "dimming." Kill it globally (`-webkit-tap-highlight-color: transparent`) so deliberate app affordances are the only feedback.
+
+### 9.5 Modes never see a PointerEvent
+
+The mode reducers stay written against the internal `SlimMouseEvent` adapter; the touch machine forwards synthetic mouse-shaped events into the existing modes. A new gesture is wired by translating it to the mode contract, **not** by teaching every mode about pointers. Listeners bind to `window` (not the renderer element) so a gesture that crosses element boundaries mid-drag keeps its captured pointer.
+
+---
+
+## 10. Reference implementations
 
 When building parallel surfaces, **read these first**:
 
 | Pattern | Reference file |
 |---|---|
 | Layout primitive | [`Section.tsx`](../packages/axoview-lib/src/components/ItemControls/components/Section.tsx) |
+| Touch / pen gesture machine | [`useInteractionManager.ts`](../packages/axoview-lib/src/interaction/useInteractionManager.ts) (search `onTouchPointerDown`) |
 | Tabbed item panel | [`NodePanel.tsx`](../packages/axoview-lib/src/components/ItemControls/NodeControls/NodePanel/NodePanel.tsx) |
 | Name field + inline action buttons | [`NodeInfoTab.tsx`](../packages/axoview-lib/src/components/ItemControls/NodeControls/NodeInfoTab/NodeInfoTab.tsx) |
 | Connector parity with node | [`ConnectorControls.tsx`](../packages/axoview-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx) |

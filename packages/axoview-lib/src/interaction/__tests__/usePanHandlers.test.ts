@@ -67,7 +67,11 @@ jest.mock('src/hooks/useScene', () => ({
     items: [],
     connectors: [],
     rectangles: [],
-    textBoxes: []
+    textBoxes: [],
+    // D-4 abort-symmetry: usePanHandlers aborts an in-flight connector on
+    // right-click restore (delete + close the drag bracket).
+    deleteConnector: jest.fn(),
+    commitDragTransaction: jest.fn()
   }))
 }));
 

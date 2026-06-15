@@ -16,6 +16,12 @@ export const usePanHandlers = () => {
   const uiStateApi = useUiStateStoreApi();
   const scene = useScene();
 
+  // Stable scene callbacks (useScene() returns a fresh wrapper object each
+  // render, but these members come from useSceneActions useCallbacks and keep a
+  // stable identity). Used to abort an in-flight connector on right-click so the
+  // drag transaction it opened doesn't leak (D-4).
+  const { deleteConnector, commitDragTransaction } = scene;
+
   const isPanningRef = useRef(false);
   const panMethodRef = useRef<string | null>(null);
 
@@ -26,12 +32,27 @@ export const usePanHandlers = () => {
   const rightDownRef = useRef(false);
   const rightDownPositionRef = useRef<{ x: number; y: number } | null>(null);
 
+  // D-4 abort-symmetry: aborting out of CONNECTOR while a connection is in
+  // flight must delete the provisional connector AND close the drag transaction
+  // opened by Connector.handleClickFirst/handleDragStart. A leaked open bracket
+  // suppresses saveToHistoryBeforeChange for every later edit (behavior-map
+  // §3.1/§4.5). commitDragTransaction is a no-op when no drag is open, so it is
+  // safe to call on every right-click restore.
+  const abortInFlightConnector = useCallback(() => {
+    const uiState = uiStateApi.getState();
+    if (uiState.mode.type === 'CONNECTOR' && uiState.mode.id) {
+      deleteConnector(uiState.mode.id);
+    }
+    commitDragTransaction();
+  }, [uiStateApi, deleteConnector, commitDragTransaction]);
+
   // Reconstruct a clean (non-mid-action) mode from a type string for restoration.
   const restorePreviousMode = useCallback(() => {
     const prevType = previousModeTypeRef.current;
     previousModeTypeRef.current = null;
     switch (prevType) {
       case 'CONNECTOR':
+        abortInFlightConnector();
         actions.setMode({ type: 'CONNECTOR', id: null, showCursor: true });
         break;
       case 'LASSO':
@@ -64,7 +85,7 @@ export const usePanHandlers = () => {
           mousedownItem: null
         });
     }
-  }, [actions]);
+  }, [actions, abortInFlightConnector]);
 
   const startPan = useCallback(
     (method: string) => {
@@ -227,6 +248,7 @@ export const usePanHandlers = () => {
           isDragging: false
         });
       } else if (currentModeType === 'CONNECTOR') {
+        abortInFlightConnector();
         actions.setMode({
           type: 'CURSOR',
           showCursor: true,
@@ -234,7 +256,7 @@ export const usePanHandlers = () => {
         });
       }
     },
-    [actions]
+    [actions, abortInFlightConnector]
   );
 
   const handleRightButtonUp = useCallback(

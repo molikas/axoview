@@ -36,6 +36,8 @@ import { TextBox } from './modes/TextBox';
 import { Lasso } from './modes/Lasso';
 import { FreehandLasso } from './modes/FreehandLasso';
 import { ReconnectAnchor } from './modes/ReconnectAnchor';
+import { exceedsTapSlop } from 'src/config/tapGesture';
+import { MIN_ZOOM, MAX_ZOOM } from 'src/config';
 import { usePanHandlers } from './usePanHandlers';
 import { useRAFThrottle } from './useRAFThrottle';
 import { useCopyPaste } from 'src/clipboard/useCopyPaste';
@@ -53,6 +55,54 @@ const modes: { [k in string]: ModeActions } = {
   FREEHAND_LASSO: FreehandLasso,
   RECONNECT_ANCHOR: ReconnectAnchor
 };
+
+// Device class of the originating pointer (ADR 0018). The mouse-shaped
+// SlimMouseEvent stays the single internal adapter every mode is written
+// against; pointerType travels separately so PointerEvent is never leaked into
+// modes (behavior-map §0).
+type PointerKind = 'mouse' | 'touch' | 'pen';
+
+// Hold duration before a stationary touch becomes a long-press (node → context
+// menu; empty → lasso). Slightly under the OS ~500ms callout so our menu wins.
+const LONG_PRESS_MS = 450;
+
+interface TouchGestureState {
+  // Active touch/pen pointers by pointerId → latest client position.
+  pointers: Map<number, { x: number; y: number }>;
+  // 'item' = single finger on a draggable target, forwarded as a mouse gesture
+  // (tap=select, drag=move/reconnect). 'pan-pending' = single finger on empty,
+  // not yet past slop. 'pan' = one-finger pan. 'pinch' = two-finger zoom+pan.
+  // 'palette' = a press that started OFF-canvas while a placement is armed
+  // (Elements-panel drag) — a release over the canvas drops/places the icon.
+  // 'menu' = a long-press fired and opened the per-item context menu; the rest of
+  // the gesture is consumed (release just dismisses the press, menu stays open).
+  phase: 'idle' | 'item' | 'pan-pending' | 'pan' | 'pinch' | 'palette' | 'menu';
+  // Target the 'item' down was forwarded with (the interactions box, or the real
+  // anchor element so targetAnchorId resolves for connector reconnect).
+  itemDownTarget: EventTarget | null;
+  downScreen: { x: number; y: number };
+  downTile: { x: number; y: number };
+  // The interactable item under the press, if any — drives the long-press menu.
+  downItem: ItemReference | null;
+  lastPanScreen: { x: number; y: number };
+  pinchLastDistance: number;
+  pinchLastCentroid: { x: number; y: number };
+  // Long-press (hold) timer: hold-on-node → context menu; hold-on-empty → lasso.
+  longPressTimer: ReturnType<typeof setTimeout> | null;
+  // True while a long-press-armed marquee is running, so its commit returns to
+  // CURSOR (one-shot lasso without an explicit tool switch).
+  autoLasso: boolean;
+}
+
+const pointerDistance = (
+  a: { x: number; y: number },
+  b: { x: number; y: number }
+) => Math.hypot(a.x - b.x, a.y - b.y);
+
+const pointerCentroid = (
+  a: { x: number; y: number },
+  b: { x: number; y: number }
+) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 
 const getModeFunction = (mode: ModeActions, e: SlimMouseEvent) => {
   switch (e.type) {
@@ -98,6 +148,7 @@ interface KeydownDeps {
   deleteTextBox: SceneApi['deleteTextBox'];
   deleteRectangle: SceneApi['deleteRectangle'];
   updateViewItem: SceneApi['updateViewItem'];
+  commitDragTransaction: SceneApi['commitDragTransaction'];
 }
 
 // True when the keystroke target is a text-editing surface — typing there must
@@ -111,7 +162,7 @@ const isEditableTarget = (target: HTMLElement): boolean =>
 // Esc inside CONNECTOR mode: abort an in-flight connection and reset the mode.
 const handleConnectorEscape = (
   uiState: State['uiState'],
-  deleteConnector: KeydownDeps['deleteConnector']
+  deps: KeydownDeps
 ) => {
   if (uiState.mode.type !== 'CONNECTOR') return;
   const connectorMode = uiState.mode;
@@ -122,7 +173,13 @@ const handleConnectorEscape = (
     (uiState.connectorInteractionMode === 'drag' && connectorMode.id !== null);
 
   if (isConnectionInProgress && connectorMode.id) {
-    deleteConnector(connectorMode.id);
+    deps.deleteConnector(connectorMode.id);
+    // D-4 abort-symmetry: handleClickFirst/handleDragStart opened a drag
+    // transaction; aborting without committing would leak the open bracket and
+    // suppress saveToHistoryBeforeChange for every later edit (behavior-map
+    // §3.1/§4.5). Closing it after the delete nets to zero patches (no spurious
+    // history entry) but clears dragInProgress.
+    deps.commitDragTransaction();
 
     uiState.actions.setMode({
       type: 'CONNECTOR',
@@ -156,7 +213,7 @@ const handleEscapeKey = (
     return true;
   }
 
-  handleConnectorEscape(uiState, deps.deleteConnector);
+  handleConnectorEscape(uiState, deps);
   return true;
 };
 
@@ -569,10 +626,33 @@ const handleKeyboardPan = (e: KeyboardEvent, uiState: State['uiState']) => {
 export const useInteractionManager = () => {
   const rendererRef = useRef<HTMLElement | undefined>(undefined);
   const reducerTypeRef = useRef<string | undefined>(undefined);
+  // Device class of the pointer for the in-flight gesture (ADR 0018). Set on
+  // every pointer event before dispatch; read by processMouseUpdate (→ State)
+  // and by onMouseEvent (to route touch/pen around the mouse-only pan handlers).
+  // A ref, not store state, so it never re-renders the SceneLayers (perf §3.3).
+  const pointerTypeRef = useRef<PointerKind>('mouse');
+  // Touch/pen multi-pointer gesture state (ADR 0018 D-12). Held in a ref so it
+  // survives effect re-runs and never triggers a render. The `phase` field is the
+  // gesture state machine — see the TouchGestureState definition above for what
+  // each phase means ('item' / 'pan-pending' / 'pan' / 'pinch' / 'palette' /
+  // 'menu'); 'pan-pending' is the tentative single-finger state that promotes to
+  // 'pan' past TAP_SLOP_PX or resolves to a tap on lift.
+  const touchStateRef = useRef<TouchGestureState>({
+    pointers: new Map(),
+    phase: 'idle',
+    itemDownTarget: null,
+    downScreen: { x: 0, y: 0 },
+    downTile: { x: 0, y: 0 },
+    downItem: null,
+    lastPanScreen: { x: 0, y: 0 },
+    pinchLastDistance: 0,
+    pinchLastCentroid: { x: 0, y: 0 },
+    longPressTimer: null,
+    autoLasso: false
+  });
 
   const modeType = useUiStateStore((state) => state.mode.type);
   const rendererEl = useUiStateStore((state) => state.rendererEl);
-  const editorMode = useUiStateStore((state) => state.editorMode);
 
   const uiStateApi = useUiStateStoreApi();
   const modelStoreApi = useModelStoreApi();
@@ -598,7 +678,8 @@ export const useInteractionManager = () => {
     deleteConnector,
     deleteTextBox,
     deleteRectangle,
-    updateViewItem
+    updateViewItem,
+    commitDragTransaction
   } = scene;
   const {
     handleMouseDown: handlePanMouseDown,
@@ -636,7 +717,8 @@ export const useInteractionManager = () => {
       deleteConnector,
       deleteTextBox,
       deleteRectangle,
-      updateViewItem
+      updateViewItem,
+      commitDragTransaction
     };
 
     // Thin dispatcher — the gesture order, fall-through semantics, and early
@@ -690,7 +772,8 @@ export const useInteractionManager = () => {
     handleCopy,
     handleCut,
     handlePaste,
-    updateViewItem
+    updateViewItem,
+    commitDragTransaction
   ]);
 
   const processMouseUpdate = useCallback(
@@ -747,6 +830,7 @@ export const useInteractionManager = () => {
         isRendererInteraction:
           rendererRef.current === e.target || isAnchorOverlay,
         isItemInteractable,
+        pointerType: pointerTypeRef.current,
         screenToTile
       };
 
@@ -774,7 +858,13 @@ export const useInteractionManager = () => {
     (e: SlimMouseEvent) => {
       if (!rendererRef.current) return;
 
-      if (e.type === 'mousedown' && handlePanMouseDown(e)) {
+      // usePanHandlers is e.button-shaped (mouse-only): a touch/pen pointerdown
+      // carries button:0 and would trip emptyAreaClickPan. Touch/pen navigation
+      // (one-finger pan, two-finger pinch) is owned by the touch state machine
+      // (ADR 0018 D-12), so route non-mouse pointers straight to the dispatcher.
+      const isMousePointer = pointerTypeRef.current === 'mouse';
+
+      if (isMousePointer && e.type === 'mousedown' && handlePanMouseDown(e)) {
         // Still update mouse state so Pan mode can track mousedown position for drag
         const uiState = uiStateApi.getState();
         const nextMouse = getMouse({
@@ -789,7 +879,7 @@ export const useInteractionManager = () => {
         uiState.actions.setMouse(nextMouse);
         return;
       }
-      if (e.type === 'mouseup' && handlePanMouseUp(e)) {
+      if (isMousePointer && e.type === 'mouseup' && handlePanMouseUp(e)) {
         return;
       }
 
@@ -809,9 +899,11 @@ export const useInteractionManager = () => {
         scheduleUpdate(nextMouse, e, (update) => {
           // handlePanMouseMove returns true while right button is held below threshold —
           // suppress processMouseUpdate to prevent Cursor.mousemove triggering lasso.
-          if (!handlePanMouseMove(update.event)) {
-            processMouseUpdate(update.mouse, update.event);
+          // Mouse-only (see isMousePointer above).
+          if (isMousePointer && handlePanMouseMove(update.event)) {
+            return;
           }
+          processMouseUpdate(update.mouse, update.event);
         });
       } else {
         flushUpdate();
@@ -833,7 +925,27 @@ export const useInteractionManager = () => {
 
   const onContextMenu = useCallback(
     (e: SlimMouseEvent) => {
+      // The contextmenu listener is bound to `window` (ADR 0018 — pointer
+      // capture needs the superset surface), so scope BOTH the preventDefault
+      // and the action-bar reaction to right-clicks that land inside the
+      // Renderer container. An off-canvas right-click (toolbar, property panel, a
+      // text input's native Cut/Copy/Paste menu, the file-explorer tree) must
+      // keep its native menu AND must never open a canvas item's action bar for a
+      // stale projected tile. Mirrors the downOnCanvas gate used by the pointer
+      // handlers.
+      const target = e.target as Node | null;
+      if (
+        !rendererEl ||
+        !target ||
+        !(rendererEl === target || rendererEl.contains(target))
+      ) {
+        return;
+      }
       e.preventDefault();
+      // On touch/pen the long-press timer opens the action bar DURING the hold
+      // (so it appears before the finger lifts); suppress the OS contextmenu here
+      // to avoid a double-open. Mouse right-click keeps the immediate path.
+      if (pointerTypeRef.current !== 'mouse') return;
       const uiState = uiStateApi.getState();
       const tile = uiState.mouse.position.tile;
       const item = getItemAtTile({ tile, scene });
@@ -858,42 +970,573 @@ export const useInteractionManager = () => {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional fine-grained deps on the layerContext Sets read here; whole layerContext over-invalidates
-    [uiStateApi, scene, layerContext.lockedIds, layerContext.visibleIds]
+    [uiStateApi, scene, rendererEl, layerContext.lockedIds, layerContext.visibleIds]
   );
 
   useEffect(() => {
     if (modeType === 'INTERACTIONS_DISABLED') return;
+    // No rendererEl yet (first paint) — nothing to bind to. The effect re-runs
+    // once setRendererEl lands the container.
+    if (!rendererEl) return;
 
-    const el = window;
+    // The interactions Box. setPointerCapture is taken on IT (not the container)
+    // so e.target retargets to it mid-gesture and the isRendererInteraction gate
+    // (=== interactions box) stays true across element boundaries — replacing
+    // the old "moves fire on window" property (ADR 0018; behavior-map §0.2).
+    const interactionsEl = rendererRef.current;
 
-    const onTouchStart = (e: TouchEvent) => {
+    // PointerEvent → mouse-shaped SlimMouseEvent. SlimMouseEvent stays the single
+    // internal adapter every mode is written against — PointerEvent is NOT leaked
+    // into modes (behavior-map §0). pointerType travels via pointerTypeRef.
+    const toSlim = (
+      e: PointerEvent,
+      type: 'mousedown' | 'mousemove' | 'mouseup'
+    ): SlimMouseEvent => ({
+      clientX: e.clientX,
+      clientY: e.clientY,
+      target: e.target,
+      type,
+      preventDefault: () => e.preventDefault(),
+      button: e.button,
+      ctrlKey: e.ctrlKey,
+      altKey: e.altKey,
+      shiftKey: e.shiftKey,
+      metaKey: e.metaKey
+    });
+
+    const releaseCapture = (e: PointerEvent) => {
+      if (interactionsEl && interactionsEl.hasPointerCapture?.(e.pointerId)) {
+        try {
+          interactionsEl.releasePointerCapture(e.pointerId);
+        } catch {
+          /* already released */
+        }
+      }
+    };
+
+    // ─── touch / pen gesture machine (ADR 0018 — direct manipulation) ────────
+    // Disambiguate by what is UNDER the finger at pointerdown (Figma/Miro/
+    // Lucidchart model):
+    //   • draggable target (interactable node, or a connector anchor handle) →
+    //     forward the whole gesture as mouse events so the existing modes run: a
+    //     tap selects, a drag moves the node (DRAG_ITEMS CSS-preview) or
+    //     reconnects the anchor (RECONNECT_ANCHOR) — identical to desktop.
+    //   • empty canvas → tap clears selection; drag pans (setScroll).
+    //   • two fingers → pinch-zoom + pan (setZoom/setScroll).
+    // No tap-to-place, no long-press-to-move: move IS drag. The long-press
+    // contextmenu still raises the per-item action bar, now reliably because the
+    // down seeds uiState.mouse.position (onContextMenu reads the pressed tile).
+
+    // Forward a touch gesture event to the mode dispatcher as a mouse-shaped
+    // event. SlimMouseEvent stays the modes' internal contract. The 'item' down
+    // on an anchor keeps the real target so targetAnchorId + the isAnchorOverlay
+    // gate resolve; otherwise events target the interactions box so
+    // isRendererInteraction holds.
+    const forwardMouse = (
+      e: PointerEvent,
+      type: 'mousedown' | 'mousemove' | 'mouseup',
+      target: EventTarget | null | undefined
+    ) => {
       onMouseEvent({
-        ...e,
-        clientX: Math.floor(e.touches[0].clientX),
-        clientY: Math.floor(e.touches[0].clientY),
-        type: 'mousedown',
-        button: 0
+        clientX: e.clientX,
+        clientY: e.clientY,
+        target: target ?? null,
+        type,
+        preventDefault: () => e.preventDefault(),
+        button: 0,
+        ctrlKey: e.ctrlKey,
+        altKey: e.altKey,
+        shiftKey: e.shiftKey,
+        metaKey: e.metaKey
       });
     };
 
-    const onTouchMove = (e: TouchEvent) => {
-      onMouseEvent({
-        ...e,
-        clientX: Math.floor(e.touches[0].clientX),
-        clientY: Math.floor(e.touches[0].clientY),
-        type: 'mousemove',
-        button: 0
-      });
+    // RAF-coalesce touch pan/pinch to ≤1 store write per frame (perf §3.7).
+    let touchRaf: number | null = null;
+    const runTouchFrame = () => {
+      touchRaf = null;
+      const ts = touchStateRef.current;
+      const uiState = uiStateApi.getState();
+      const pts = [...ts.pointers.values()];
+
+      if (ts.phase === 'pinch' && pts.length >= 2) {
+        const dist = pointerDistance(pts[0], pts[1]);
+        const centroid = pointerCentroid(pts[0], pts[1]);
+        if (ts.pinchLastDistance > 0 && interactionsEl && rendererSize) {
+          const rect = interactionsEl.getBoundingClientRect();
+          const oldZoom = uiState.zoom;
+          const scaleRatio = dist / ts.pinchLastDistance;
+          const newZoom = Math.max(
+            MIN_ZOOM,
+            Math.min(MAX_ZOOM, oldZoom * scaleRatio)
+          );
+          // Anchor the world point under the OLD centroid to the NEW centroid at
+          // the new zoom — folds zoom-to-centroid + two-finger pan into one
+          // transform (mirrors the wheel zoom-to-cursor math).
+          const oldRelX =
+            ts.pinchLastCentroid.x - rect.left - rendererSize.width / 2;
+          const oldRelY =
+            ts.pinchLastCentroid.y - rect.top - rendererSize.height / 2;
+          const newRelX = centroid.x - rect.left - rendererSize.width / 2;
+          const newRelY = centroid.y - rect.top - rendererSize.height / 2;
+          const worldX = (oldRelX - uiState.scroll.position.x) / oldZoom;
+          const worldY = (oldRelY - uiState.scroll.position.y) / oldZoom;
+          uiState.actions.setZoom(newZoom);
+          uiState.actions.setScroll({
+            position: {
+              x: newRelX - worldX * newZoom,
+              y: newRelY - worldY * newZoom
+            },
+            offset: uiState.scroll.offset
+          });
+        }
+        ts.pinchLastDistance = dist;
+        ts.pinchLastCentroid = centroid;
+        return;
+      }
+
+      if (ts.phase === 'pan' && pts.length >= 1) {
+        const cur = pts[pts.length - 1];
+        const dx = cur.x - ts.lastPanScreen.x;
+        const dy = cur.y - ts.lastPanScreen.y;
+        ts.lastPanScreen = { x: cur.x, y: cur.y };
+        uiState.actions.setScroll({
+          position: {
+            x: uiState.scroll.position.x + dx,
+            y: uiState.scroll.position.y + dy
+          },
+          offset: uiState.scroll.offset
+        });
+      }
+    };
+    const scheduleTouchFrame = () => {
+      if (touchRaf === null) touchRaf = requestAnimationFrame(runTouchFrame);
     };
 
-    const onTouchEnd = (e: TouchEvent) => {
-      onMouseEvent({
-        ...e,
-        clientX: 0,
-        clientY: 0,
-        type: 'mouseup',
-        button: 0
+    const clearLongPress = () => {
+      const ts = touchStateRef.current;
+      if (ts.longPressTimer !== null) {
+        clearTimeout(ts.longPressTimer);
+        ts.longPressTimer = null;
+      }
+    };
+
+    // Arm the hold timer for a stationary single-finger press (CURSOR mode only).
+    // Hold on a node → open its context menu; hold on empty → start a marquee
+    // lasso (no explicit tool switch). Cancelled by any move past slop, a lift,
+    // or a second finger.
+    const startLongPress = (e: PointerEvent) => {
+      const ts = touchStateRef.current;
+      clearLongPress();
+      ts.longPressTimer = setTimeout(() => {
+        ts.longPressTimer = null;
+        const uiState = uiStateApi.getState();
+        if (ts.phase === 'item' && ts.downItem) {
+          // Hold on a node → open the per-item action bar for it (during the
+          // hold; the user then lifts naturally). Consume the rest of the gesture.
+          const controls: ItemControls =
+            ts.downItem.type === 'CONNECTOR'
+              ? { type: 'CONNECTOR', id: ts.downItem.id, tile: ts.downTile }
+              : { type: ts.downItem.type, id: ts.downItem.id };
+          uiState.actions.setItemControls(controls);
+          uiState.actions.setItemActionBarOpen(true);
+          ts.phase = 'menu';
+        } else if (ts.phase === 'pan-pending') {
+          // Hold on empty → arm a one-shot marquee lasso from the press point.
+          uiState.actions.setMode({
+            type: 'LASSO',
+            showCursor: true,
+            selection: null,
+            isDragging: false
+          });
+          ts.phase = 'item';
+          ts.autoLasso = true;
+          forwardMouse(e, 'mousemove', interactionsEl);
+          forwardMouse(e, 'mousedown', interactionsEl);
+        }
+      }, LONG_PRESS_MS);
+    };
+
+    const onTouchPointerDown = (e: PointerEvent) => {
+      const ts = touchStateRef.current;
+      ts.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (interactionsEl) {
+        try {
+          interactionsEl.setPointerCapture(e.pointerId);
+        } catch {
+          /* synthetic / inactive pointer */
+        }
+      }
+
+      if (ts.pointers.size >= 2) {
+        // Second finger → pinch. End an in-flight item drag first so the node
+        // commits where it is rather than chasing the pinch centroid.
+        clearLongPress();
+        if (ts.phase === 'item') forwardMouse(e, 'mouseup', interactionsEl);
+        const pts = [...ts.pointers.values()];
+        ts.phase = 'pinch';
+        ts.itemDownTarget = null;
+        ts.pinchLastDistance = pointerDistance(pts[0], pts[1]);
+        ts.pinchLastCentroid = pointerCentroid(pts[0], pts[1]);
+        return;
+      }
+
+      // First finger.
+      ts.downScreen = { x: e.clientX, y: e.clientY };
+      ts.lastPanScreen = { x: e.clientX, y: e.clientY };
+
+      // Seed uiState.mouse.position so a subsequent long-press contextmenu (and
+      // the forwarded events) read the pressed tile, not a stale one.
+      const renderEl = rendererRef.current;
+      if (!renderEl || !rendererSize) {
+        ts.phase = 'pan-pending';
+        return;
+      }
+      const uiState = uiStateApi.getState();
+      const seeded = getMouse({
+        interactiveElement: renderEl,
+        zoom: uiState.zoom,
+        scroll: uiState.scroll,
+        lastMouse: uiState.mouse,
+        mouseEvent: {
+          clientX: e.clientX,
+          clientY: e.clientY,
+          target: e.target,
+          type: 'mousemove',
+          preventDefault: () => e.preventDefault(),
+          button: 0,
+          ctrlKey: e.ctrlKey,
+          altKey: e.altKey,
+          shiftKey: e.shiftKey,
+          metaKey: e.metaKey
+        },
+        rendererSize,
+        screenToTileFn: screenToTile
       });
+      uiState.actions.setMouse(seeded);
+
+      // Decide whether to forward the gesture to the active mode (so it runs
+      // exactly like desktop) or to do the touch-specific empty-canvas pan.
+      //
+      // Forward when EITHER:
+      //   • a tool mode is active (LASSO / FREEHAND_LASSO / RECTANGLE.DRAW /
+      //     CONNECTOR / PLACE_ICON / TEXTBOX / PAN / ...): the tool owns the drag
+      //     (marquee, freehand path, draw, connect…) — never pan over it; OR
+      //   • CURSOR mode and the finger is on a draggable target (an interactable
+      //     node, or a connector anchor handle) → tap selects, drag moves/
+      //     reconnects.
+      // Only CURSOR-mode-on-empty does the touch-specific pan / tap-to-clear.
+      // Scene + layers via refs so the listener effect doesn't re-bind per frame.
+      const sceneNow = sceneRef.current;
+      const { lockedIds, visibleIds } = layerContextRef.current;
+      const onAnchor =
+        e.target instanceof Element && !!e.target.closest('[data-anchor-id]');
+      const itemAtDown = getItemAtTile({
+        tile: seeded.position.tile,
+        scene: sceneNow
+      });
+      const interactable =
+        !!itemAtDown &&
+        !lockedIds.has(itemAtDown.id) &&
+        (visibleIds.size === 0 || visibleIds.has(itemAtDown.id));
+      const inToolMode = uiState.mode.type !== 'CURSOR';
+
+      ts.downTile = seeded.position.tile;
+
+      if (inToolMode || onAnchor || interactable) {
+        // Forward the whole gesture as mouse events to the active mode.
+        ts.phase = 'item';
+        ts.itemDownTarget = onAnchor ? e.target : interactionsEl ?? null;
+        // A canvas press in PLACE_ICON means the user is now positioning on the
+        // canvas (tap-then-canvas or canvas-drag) — reveal the preview ghost the
+        // palette-arm hid.
+        if (uiState.mode.type === 'PLACE_ICON' && uiState.mode.suppressPreview) {
+          uiState.actions.setMode({ ...uiState.mode, suppressPreview: false });
+        }
+        // Seed a move then the down so the mode reads the pressed tile (modes
+        // read position from the pre-setMouse uiState snapshot otherwise).
+        forwardMouse(e, 'mousemove', ts.itemDownTarget);
+        forwardMouse(e, 'mousedown', ts.itemDownTarget);
+        // Hold on a node (CURSOR mode) → context menu. A quick drag cancels the
+        // timer and moves the node instead.
+        ts.downItem =
+          !inToolMode && interactable && itemAtDown
+            ? { type: itemAtDown.type, id: itemAtDown.id }
+            : null;
+        if (ts.downItem) startLongPress(e);
+        return;
+      }
+
+      // CURSOR mode on empty / non-interactable: tap clears, drag pans, hold →
+      // lasso.
+      ts.phase = 'pan-pending';
+      ts.downItem = null;
+      startLongPress(e);
+    };
+
+    const onTouchPointerMove = (e: PointerEvent) => {
+      const ts = touchStateRef.current;
+      if (!ts.pointers.has(e.pointerId)) return;
+      ts.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      // Any real movement cancels a pending hold (it's a drag, not a long-press).
+      if (
+        ts.longPressTimer !== null &&
+        exceedsTapSlop(ts.downScreen, { x: e.clientX, y: e.clientY })
+      ) {
+        clearLongPress();
+      }
+
+      // After a long-press opened the menu, the rest of the gesture is inert.
+      if (ts.phase === 'menu') return;
+
+      if (ts.phase === 'palette') {
+        // Elements-panel drag: drive the PLACE_ICON preview ghost so it tracks
+        // the finger to the target tile (PlaceIcon.mousemove is a no-op, so this
+        // only moves the preview — placement still happens on release). Without
+        // this the dragged icon shows no drag affordance until the finger lifts.
+        // The first real move reveals the ghost (suppressed at arm-time so it
+        // doesn't paint at a stale tile before the drag starts).
+        if (exceedsTapSlop(ts.downScreen, { x: e.clientX, y: e.clientY })) {
+          const placing = uiStateApi.getState().mode;
+          if (placing.type === 'PLACE_ICON' && placing.suppressPreview) {
+            uiStateApi.getState().actions.setMode({
+              ...placing,
+              suppressPreview: false
+            });
+          }
+        }
+        forwardMouse(e, 'mousemove', interactionsEl);
+        return;
+      }
+
+      if (ts.phase === 'item') {
+        forwardMouse(e, 'mousemove', interactionsEl);
+        return;
+      }
+      if (ts.phase === 'pan-pending') {
+        if (!exceedsTapSlop(ts.downScreen, { x: e.clientX, y: e.clientY }))
+          return;
+        ts.phase = 'pan';
+        ts.lastPanScreen = { x: e.clientX, y: e.clientY };
+      }
+      if (ts.phase === 'pan' || ts.phase === 'pinch') scheduleTouchFrame();
+    };
+
+    const onTouchPointerUp = (e: PointerEvent) => {
+      const ts = touchStateRef.current;
+      const wasPhase = ts.phase;
+      clearLongPress();
+      ts.pointers.delete(e.pointerId);
+      releaseCapture(e);
+
+      if (wasPhase === 'menu') {
+        // Long-press already opened the menu; the lift just ends the press.
+        ts.phase = 'idle';
+        return;
+      }
+      if (wasPhase === 'pinch') {
+        // Lift back to one finger → resume single-finger pan. All gone → idle.
+        if (ts.pointers.size === 1) {
+          const remaining = [...ts.pointers.values()][0];
+          ts.phase = 'pan';
+          ts.lastPanScreen = { x: remaining.x, y: remaining.y };
+        } else {
+          ts.phase = 'idle';
+        }
+        return;
+      }
+      if (wasPhase === 'item') {
+        // Complete the gesture: Cursor.mouseup selects (no move) or commits the
+        // drag; RECONNECT_ANCHOR commits the reconnect; Lasso.mouseup commits an
+        // auto-lasso marquee.
+        forwardMouse(e, 'mouseup', interactionsEl);
+        if (ts.autoLasso) {
+          // One-shot lasso: return to CURSOR so the next gesture isn't lasso.
+          uiStateApi.getState().actions.setMode({
+            type: 'CURSOR',
+            showCursor: true,
+            mousedownItem: null
+          });
+          ts.autoLasso = false;
+        }
+        ts.phase = 'idle';
+        ts.itemDownTarget = null;
+        return;
+      }
+      if (wasPhase === 'pan') {
+        if (ts.pointers.size === 0) ts.phase = 'idle';
+        return;
+      }
+      if (wasPhase === 'palette') {
+        // Elements-panel drag (started off-canvas, placement armed). A real drag
+        // that lifts OVER the canvas drops/places the icon there; off the canvas
+        // cancels. A no-move tap leaves the placement armed for a later canvas
+        // tap (the tap-then-tap-canvas flow is unchanged).
+        ts.phase = 'idle';
+        const moved = exceedsTapSlop(ts.downScreen, {
+          x: e.clientX,
+          y: e.clientY
+        });
+        if (!moved) return;
+        const rect = rendererEl?.getBoundingClientRect();
+        const overCanvas =
+          !!rect &&
+          e.clientX >= rect.left &&
+          e.clientX <= rect.right &&
+          e.clientY >= rect.top &&
+          e.clientY <= rect.bottom;
+        if (overCanvas) {
+          forwardMouse(e, 'mousemove', interactionsEl);
+          forwardMouse(e, 'mousedown', interactionsEl);
+          forwardMouse(e, 'mouseup', interactionsEl);
+        } else {
+          const ui = uiStateApi.getState();
+          if (ui.mode.type === 'PLACE_ICON') {
+            ui.actions.setMode({
+              type: 'CURSOR',
+              showCursor: true,
+              mousedownItem: null
+            });
+          }
+        }
+        return;
+      }
+      if (wasPhase === 'pan-pending') {
+        // Tap on empty canvas → clear selection. Forward a click (no move → no
+        // lasso); Cursor.mouseup with no item clears.
+        forwardMouse(e, 'mousemove', interactionsEl);
+        forwardMouse(e, 'mousedown', interactionsEl);
+        forwardMouse(e, 'mouseup', interactionsEl);
+        ts.phase = 'idle';
+      }
+    };
+
+    const onTouchPointerCancel = (e: PointerEvent) => {
+      const ts = touchStateRef.current;
+      const wasPhase = ts.phase;
+      clearLongPress();
+      ts.pointers.delete(e.pointerId);
+      releaseCapture(e);
+      // End an in-flight item gesture cleanly (commit where it is).
+      if (wasPhase === 'item') forwardMouse(e, 'mouseup', interactionsEl);
+      // Palette drag: some browsers fire pointercancel when the touch leaves the
+      // panel even with capture + touch-action:none. Treat a moved cancel over
+      // the canvas as a drop so drag-from-panel still places (#1 robustness).
+      if (wasPhase === 'palette') {
+        const moved = exceedsTapSlop(ts.downScreen, {
+          x: e.clientX,
+          y: e.clientY
+        });
+        const rect = rendererEl?.getBoundingClientRect();
+        const overCanvas =
+          !!rect &&
+          e.clientX >= rect.left &&
+          e.clientX <= rect.right &&
+          e.clientY >= rect.top &&
+          e.clientY <= rect.bottom;
+        if (moved && overCanvas) {
+          forwardMouse(e, 'mousemove', interactionsEl);
+          forwardMouse(e, 'mousedown', interactionsEl);
+          forwardMouse(e, 'mouseup', interactionsEl);
+        }
+      }
+      if (ts.pointers.size === 0) {
+        ts.phase = 'idle';
+        ts.itemDownTarget = null;
+        ts.autoLasso = false;
+      }
+    };
+
+    // True when the pointerdown landed on the canvas (the interactions box, a
+    // node, an anchor — anything inside the Renderer container). Listeners are
+    // on `window`, so we must NOT capture/engage for off-canvas presses
+    // (toolbar/panel buttons) — capturing those would steal the click.
+    const downOnCanvas = (e: PointerEvent): boolean => {
+      const t = e.target as Node | null;
+      return (
+        !!rendererEl &&
+        !!t &&
+        (rendererEl === t || rendererEl.contains(t))
+      );
+    };
+
+    const onPointerDown = (e: PointerEvent) => {
+      const kind = (e.pointerType || 'mouse') as PointerKind;
+      pointerTypeRef.current = kind;
+      const onCanvas = downOnCanvas(e);
+      if (kind !== 'mouse') {
+        if (onCanvas) {
+          onTouchPointerDown(e);
+        } else if (uiStateApi.getState().mode.type === 'PLACE_ICON') {
+          // Off-canvas press while a placement is armed (Elements-panel icon) —
+          // track it as a palette drag so a release over the canvas drops/places
+          // the icon there. Other off-canvas touches (toolbar/panel buttons) are
+          // left to the element's own compat mouse events.
+          const ts = touchStateRef.current;
+          ts.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          ts.phase = 'palette';
+          ts.downScreen = { x: e.clientX, y: e.clientY };
+          // Hide the preview ghost until the drag engages — without this it
+          // paints at a stale tile the instant the icon is tapped (no hover on
+          // touch). Cleared on the first palette move below.
+          const placing = uiStateApi.getState().mode;
+          if (placing.type === 'PLACE_ICON') {
+            uiStateApi.getState().actions.setMode({
+              ...placing,
+              suppressPreview: true
+            });
+          }
+        }
+        return;
+      }
+      // Mouse path — unchanged press-drag-release. Capture only canvas-initiated
+      // gestures (keeps isRendererInteraction true mid-drag); an off-canvas press
+      // (e.g. an Elements-panel drag-to-place) is NOT captured so its events
+      // still flow to window and the button/panel keeps working. Throws
+      // harmlessly for synthetic e2e events (which already target the box).
+      if (onCanvas && interactionsEl) {
+        try {
+          interactionsEl.setPointerCapture(e.pointerId);
+        } catch {
+          /* synthetic / inactive pointer */
+        }
+      }
+      onMouseEvent(toSlim(e, 'mousedown'));
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      const kind = (e.pointerType || 'mouse') as PointerKind;
+      pointerTypeRef.current = kind;
+      if (kind !== 'mouse') {
+        onTouchPointerMove(e);
+        return;
+      }
+      onMouseEvent(toSlim(e, 'mousemove'));
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      const kind = (e.pointerType || 'mouse') as PointerKind;
+      pointerTypeRef.current = kind;
+      if (kind !== 'mouse') {
+        onTouchPointerUp(e);
+        return;
+      }
+      onMouseEvent(toSlim(e, 'mouseup'));
+      releaseCapture(e);
+    };
+
+    // pointercancel (OS reclaims the gesture: scroll/zoom/edge-swipe/app-switch).
+    const onPointerCancel = (e: PointerEvent) => {
+      const kind = (e.pointerType || 'mouse') as PointerKind;
+      pointerTypeRef.current = kind;
+      if (kind !== 'mouse') {
+        onTouchPointerCancel(e);
+        return;
+      }
+      // Mouse: end the gesture cleanly so no mode is left mid-drag.
+      onMouseEvent(toSlim(e, 'mouseup'));
+      releaseCapture(e);
     };
 
     const onScroll = (e: WheelEvent) => {
@@ -943,37 +1586,50 @@ export const useInteractionManager = () => {
 
     const onDragStart = (e: DragEvent) => e.preventDefault();
 
-    el.addEventListener('mousemove', onMouseEvent);
-    el.addEventListener('mousedown', onMouseEvent);
-    el.addEventListener('mouseup', onMouseEvent);
-    el.addEventListener('contextmenu', onContextMenu);
-    el.addEventListener('touchstart', onTouchStart);
-    el.addEventListener('touchmove', onTouchMove);
-    el.addEventListener('touchend', onTouchEnd);
-    rendererEl?.addEventListener('wheel', onScroll, { passive: true });
-    rendererEl?.addEventListener('dragstart', onDragStart);
+    // One Pointer Events layer. The mouse `mousedown/move/up` listeners +
+    // touch→mouse synthesis are GONE (REPLACE, not ADD) — `pointerType` carries
+    // the device class natively, so the (0,0) drop bug and the synthesis layer
+    // disappear by construction.
+    //
+    // Bound to `window`, NOT `rendererEl`. ADR 0018 specified the Renderer
+    // container as the surface, but a mouse drag that STARTS off-canvas — the
+    // Elements-panel drag-to-place, or a node drag released over a panel — takes
+    // implicit pointer capture to the off-canvas element, so its move/up events
+    // retarget there and bubble to `window`, never reaching `rendererEl`.
+    // `setPointerCapture` (taken on the interactions box for canvas-initiated
+    // gestures) cannot help a gesture the canvas never saw start. `window` is a
+    // superset of the container, so it also covers the sibling anchor/label
+    // SceneLayers the ADR's rendererEl correction cared about, and the
+    // `isRendererInteraction` gate still scopes canvas reactions. The four CSS
+    // guardrails stay on the container (Phase B). See the deviation note in the
+    // tactical wrap-up. wheel/dragstart stay on `rendererEl` (canvas-scoped).
+    window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerCancel);
+    window.addEventListener('contextmenu', onContextMenu);
+    rendererEl.addEventListener('wheel', onScroll, { passive: true });
+    rendererEl.addEventListener('dragstart', onDragStart);
 
     return () => {
-      el.removeEventListener('mousemove', onMouseEvent);
-      el.removeEventListener('mousedown', onMouseEvent);
-      el.removeEventListener('mouseup', onMouseEvent);
-      el.removeEventListener('contextmenu', onContextMenu);
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchmove', onTouchMove);
-      el.removeEventListener('touchend', onTouchEnd);
-      rendererEl?.removeEventListener('wheel', onScroll);
-      rendererEl?.removeEventListener('dragstart', onDragStart);
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerCancel);
+      window.removeEventListener('contextmenu', onContextMenu);
+      rendererEl.removeEventListener('wheel', onScroll);
+      rendererEl.removeEventListener('dragstart', onDragStart);
+      if (touchRaf !== null) cancelAnimationFrame(touchRaf);
       cleanup();
     };
   }, [
-    editorMode,
     modeType,
     onMouseEvent,
     onContextMenu,
     rendererEl,
     rendererSize,
     uiStateApi,
-    scene,
+    screenToTile,
     cleanup
   ]);
 

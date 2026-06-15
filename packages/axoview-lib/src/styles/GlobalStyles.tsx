@@ -8,6 +8,13 @@ export const GlobalStyles = () => {
       styles={{
         div: {
           boxSizing: 'border-box'
+        },
+        // Kill the mobile WebKit/Blink default tap highlight — a translucent grey
+        // box that flashes over the tapped/long-pressed element on touch and
+        // reads as the whole screen "dimming" on every control press. Touch-only
+        // (never paints for mouse), which is why it only showed on touchscreen.
+        '*': {
+          WebkitTapHighlightColor: 'transparent'
         }
       }}
     />

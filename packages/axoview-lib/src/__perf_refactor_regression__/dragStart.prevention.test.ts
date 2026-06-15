@@ -19,8 +19,12 @@ const src = fs.readFileSync(
 
 describe('dragstart prevention — native drag regression', () => {
   it('registers dragstart handler on rendererEl, not on window', () => {
-    // Should be on rendererEl
-    expect(src).toMatch(/rendererEl\?\.addEventListener\(['"]dragstart['"]/);
+    // Should be on rendererEl. The pointer-events rewrite (ADR 0018) early-
+    // returns when rendererEl is null and binds all listeners directly on it,
+    // so the optional-chaining form is no longer required (kept tolerant here).
+    expect(src).toMatch(
+      /rendererEl\??\.addEventListener\(['"]dragstart['"]/
+    );
     // Must NOT be on the bare window listener (el.addEventListener)
     const windowDragStart = src.match(
       /\bel\.addEventListener\(['"]dragstart['"]/
@@ -29,7 +33,9 @@ describe('dragstart prevention — native drag regression', () => {
   });
 
   it('removes dragstart handler on cleanup (no leak)', () => {
-    expect(src).toMatch(/rendererEl\?\.removeEventListener\(['"]dragstart['"]/);
+    expect(src).toMatch(
+      /rendererEl\??\.removeEventListener\(['"]dragstart['"]/
+    );
   });
 
   it('dragstart handler calls preventDefault', () => {

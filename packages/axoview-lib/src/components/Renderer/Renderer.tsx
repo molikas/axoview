@@ -174,6 +174,15 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
         width: '100%',
         height: '100%',
         zIndex: 0,
+        // Touch/pen gesture guardrails (ADR 0018 Decision 7). On the container
+        // (rendererEl) so they also cover the sibling anchor/label SceneLayers,
+        // and scoped to the canvas so page scroll elsewhere is unaffected.
+        // The canvas owns pan/zoom for touch (one-finger pan, two-finger pinch),
+        // so the browser's native pan/zoom/double-tap must be disabled here.
+        touchAction: 'none',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        WebkitTouchCallout: 'none',
         bgcolor: (theme) =>
           backgroundColor === 'transparent'
             ? 'transparent'

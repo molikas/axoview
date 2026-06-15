@@ -6,6 +6,9 @@ const mockGetBoundingBox = jest.fn();
 const mockConvertBoundsToNamedAnchors = jest.fn();
 const mockHasMovedTile = jest.fn(() => false);
 const mockUpdateRectangle = jest.fn();
+const mockBatchUpdateRectangles = jest.fn();
+const mockBeginDragTransaction = jest.fn();
+const mockCommitDragTransaction = jest.fn();
 const mockSetMode = jest.fn();
 
 jest.mock('src/utils', () => ({
@@ -51,6 +54,9 @@ function makeScene(overrides: Record<string, unknown> = {}) {
   return {
     rectangles: [MOCK_RECTANGLE],
     updateRectangle: mockUpdateRectangle,
+    batchUpdateRectangles: mockBatchUpdateRectangles,
+    beginDragTransaction: mockBeginDragTransaction,
+    commitDragTransaction: mockCommitDragTransaction,
     ...overrides
   };
 }
@@ -67,20 +73,22 @@ beforeEach(() => {
 });
 
 describe('TransformRectangle.entry / exit', () => {
-  it('entry is a no-op', () => {
-    expect(() => TransformRectangle.entry?.({
+  it('entry opens a drag transaction (one undo entry for the whole resize)', () => {
+    TransformRectangle.entry?.({
       uiState: makeUiState() as any,
       scene: makeScene() as any,
       isRendererInteraction: false
-    })).not.toThrow();
+    });
+    expect(mockBeginDragTransaction).toHaveBeenCalledTimes(1);
   });
 
-  it('exit is a no-op', () => {
-    expect(() => TransformRectangle.exit?.({
+  it('exit commits any open resize transaction (safety net)', () => {
+    TransformRectangle.exit?.({
       uiState: makeUiState() as any,
       scene: makeScene() as any,
       isRendererInteraction: false
-    })).not.toThrow();
+    });
+    expect(mockCommitDragTransaction).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -135,10 +143,10 @@ describe('TransformRectangle.mousemove', () => {
 
     TransformRectangle.mousemove?.({ uiState: uiState as any, scene: makeScene() as any, isRendererInteraction: true });
 
-    expect(mockUpdateRectangle).toHaveBeenCalledWith('rect-1', {
-      from: nextNamedBounds.TOP_LEFT,
-      to: nextNamedBounds.BOTTOM_RIGHT
-    });
+    expect(mockBatchUpdateRectangles).toHaveBeenCalledWith([
+      { id: 'rect-1', from: nextNamedBounds.TOP_LEFT, to: nextNamedBounds.BOTTOM_RIGHT }
+    ]);
+    expect(mockUpdateRectangle).not.toHaveBeenCalled();
   });
 
   it('updates rectangle bounds when BOTTOM_LEFT anchor is dragged', () => {
@@ -160,10 +168,10 @@ describe('TransformRectangle.mousemove', () => {
 
     TransformRectangle.mousemove?.({ uiState: uiState as any, scene: makeScene() as any, isRendererInteraction: true });
 
-    expect(mockUpdateRectangle).toHaveBeenCalledWith('rect-1', {
-      from: nextNamedBounds.TOP_RIGHT,
-      to: nextNamedBounds.BOTTOM_LEFT
-    });
+    expect(mockBatchUpdateRectangles).toHaveBeenCalledWith([
+      { id: 'rect-1', from: nextNamedBounds.TOP_RIGHT, to: nextNamedBounds.BOTTOM_LEFT }
+    ]);
+    expect(mockUpdateRectangle).not.toHaveBeenCalled();
   });
 });
 
@@ -184,6 +192,7 @@ describe('TransformRectangle.mouseup', () => {
 
     TransformRectangle.mouseup?.({ uiState: uiState as any, scene: makeScene() as any, isRendererInteraction: false });
 
+    expect(mockCommitDragTransaction).toHaveBeenCalledTimes(1);
     expect(mockSetMode).toHaveBeenCalledWith({
       type: 'CURSOR',
       mousedownItem: null,

@@ -127,20 +127,26 @@ async function clickCanvasAt(
   const interactions = byAxoviewId(page, 'canvas-interactions');
   await interactions.evaluate((el, { x, y }) => {
     const rect = el.getBoundingClientRect();
+    // ADR 0018: lib listens for Pointer Events now — dispatch PointerEvents with
+    // pointerType:'mouse' so the unchanged mouse branch runs.
     const dispatchEvent = (type: string) => {
       el.dispatchEvent(
-        new MouseEvent(type, {
+        new PointerEvent(type, {
           bubbles: true,
           cancelable: true,
           clientX: rect.left + x,
           clientY: rect.top + y,
-          button: 0
+          button: 0,
+          buttons: type === 'pointerdown' ? 1 : 0,
+          pointerId: 1,
+          pointerType: 'mouse',
+          isPrimary: true
         })
       );
     };
-    dispatchEvent('mousemove');
-    dispatchEvent('mousedown');
-    dispatchEvent('mouseup');
+    dispatchEvent('pointermove');
+    dispatchEvent('pointerdown');
+    dispatchEvent('pointerup');
   }, point);
 }
 

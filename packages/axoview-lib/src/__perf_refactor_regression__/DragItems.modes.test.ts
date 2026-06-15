@@ -76,6 +76,8 @@ function makeScene(overrides: any = {}) {
     beginDragTransaction: jest.fn(),
     commitDragTransaction: jest.fn(),
     batchUpdateViewItemTiles: jest.fn(),
+    batchUpdateRectangles: jest.fn(),
+    batchUpdateTextBoxTiles: jest.fn(),
     previewConnectorPaths: jest.fn(),
     ...overrides
   };
@@ -593,5 +595,77 @@ describe('DragItems.mouseup', () => {
     const commitOrder = scene.commitDragTransaction.mock.invocationCallOrder[0];
     const setModeOrder = uiState.actions.setMode.mock.invocationCallOrder[0];
     expect(commitOrder).toBeLessThan(setModeOrder);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PERF — rectangle / textbox move uses the immer-free batch path, NOT the
+// per-frame updateRectangle/updateTextBox reducer (which ran a full-state immer
+// produce every frame → the sustained-drag fps cliff). This locks the routing.
+// ---------------------------------------------------------------------------
+describe('DragItems.mousemove — rectangle/textbox immer-free move (perf)', () => {
+  beforeEach(() => {
+    DragItems.exit!({
+      rendererRef: makeRendererRef(),
+      uiState: makeUiState(),
+      scene: makeScene()
+    } as any);
+    jest.clearAllMocks();
+    mockGetItemAtTile.mockReturnValue(null);
+  });
+
+  it('routes a rectangle move through batchUpdateRectangles, not updateRectangle/transaction', () => {
+    const uiState = makeUiState({
+      mode: {
+        type: 'DRAG_ITEMS',
+        showCursor: true,
+        items: [{ type: 'RECTANGLE', id: 'rect1' }],
+        initialTiles: {},
+        initialRectangles: { rect1: { from: { x: 0, y: 0 }, to: { x: 2, y: 2 } } }
+      },
+      mouse: {
+        position: { tile: { x: 5, y: 5 } },
+        mousedown: { tile: { x: 3, y: 3 } } // offset {2,2}
+      }
+    });
+    const scene = makeScene({
+      rectangles: [{ id: 'rect1', from: { x: 0, y: 0 }, to: { x: 2, y: 2 } }]
+    });
+    DragItems.mousemove!({ uiState, scene } as any);
+
+    expect(scene.batchUpdateRectangles).toHaveBeenCalledTimes(1);
+    expect(scene.batchUpdateRectangles).toHaveBeenCalledWith([
+      { id: 'rect1', from: { x: 2, y: 2 }, to: { x: 4, y: 4 } }
+    ]);
+    // The old full-state-immer-per-frame path must NOT run.
+    expect(scene.updateRectangle).not.toHaveBeenCalled();
+    expect(scene.transaction).not.toHaveBeenCalled();
+  });
+
+  it('routes a textbox move through batchUpdateTextBoxTiles, not updateTextBox/transaction', () => {
+    const uiState = makeUiState({
+      mode: {
+        type: 'DRAG_ITEMS',
+        showCursor: true,
+        items: [{ type: 'TEXTBOX', id: 'tb1' }],
+        initialTiles: { tb1: { x: 1, y: 1 } },
+        initialRectangles: {}
+      },
+      mouse: {
+        position: { tile: { x: 5, y: 5 } },
+        mousedown: { tile: { x: 3, y: 3 } } // offset {2,2}
+      }
+    });
+    const scene = makeScene({
+      textBoxes: [{ id: 'tb1', tile: { x: 1, y: 1 } }]
+    });
+    DragItems.mousemove!({ uiState, scene } as any);
+
+    expect(scene.batchUpdateTextBoxTiles).toHaveBeenCalledTimes(1);
+    expect(scene.batchUpdateTextBoxTiles).toHaveBeenCalledWith([
+      { id: 'tb1', tile: { x: 3, y: 3 } }
+    ]);
+    expect(scene.updateTextBox).not.toHaveBeenCalled();
+    expect(scene.transaction).not.toHaveBeenCalled();
   });
 });

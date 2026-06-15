@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { useModelStore } from 'src/stores/modelStore';
 import { useSceneStore } from 'src/stores/sceneStore';
+import { allocateHistorySequence } from 'src/stores/historySequence';
 
 export const useHistory = () => {
   // Track if we're in a transaction to prevent nested history saves
@@ -43,6 +44,10 @@ export const useHistory = () => {
         return;
       }
 
+      // One logical action across both stores — allocate a single shared seq
+      // so its entries stamp the same value (D-7).
+      allocateHistorySequence();
+
       // Save current state before transaction
       modelActions.saveToHistory();
       sceneActions.saveToHistory();
@@ -63,16 +68,39 @@ export const useHistory = () => {
     [modelActions, sceneActions]
   );
 
+  // D-7: the two stacks can skew to different depths (a model-only action pushes
+  // a model entry but the scene store's no-op branch pushes nothing). Stepping
+  // them in lockstep then pops entries belonging to DIFFERENT logical actions
+  // (the invisible-connector symptom). Each entry carries a logical-action seq
+  // (historySequence.ts); one keystroke must revert exactly one logical action,
+  // so undo touches only the stack(s) whose top entry carries the highest seq
+  // (the most recent action), redo only those at the lowest future seq.
+  //
+  // The `?? 0` fallback keeps the mocked-store unit tests (which expose no
+  // peek*Seq) working: when both stacks report the same seq the behaviour
+  // collapses to "step every stack that can", matching the legacy contract.
   const undo = useCallback(() => {
     if (!modelActions || !sceneActions) return false;
 
-    let undoPerformed = false;
+    const modelSeq = modelActions.canUndo()
+      ? modelActions.peekUndoSeq?.() ?? 0
+      : null;
+    const sceneSeq = sceneActions.canUndo()
+      ? sceneActions.peekUndoSeq?.() ?? 0
+      : null;
 
-    // Try to undo model first, then scene
-    if (modelActions.canUndo()) {
+    if (modelSeq === null && sceneSeq === null) return false;
+
+    const target = Math.max(
+      modelSeq ?? Number.NEGATIVE_INFINITY,
+      sceneSeq ?? Number.NEGATIVE_INFINITY
+    );
+
+    let undoPerformed = false;
+    if (modelSeq === target) {
       undoPerformed = modelActions.undo() || undoPerformed;
     }
-    if (sceneActions.canUndo()) {
+    if (sceneSeq === target) {
       undoPerformed = sceneActions.undo() || undoPerformed;
     }
 
@@ -82,13 +110,25 @@ export const useHistory = () => {
   const redo = useCallback(() => {
     if (!modelActions || !sceneActions) return false;
 
-    let redoPerformed = false;
+    const modelSeq = modelActions.canRedo()
+      ? modelActions.peekRedoSeq?.() ?? 0
+      : null;
+    const sceneSeq = sceneActions.canRedo()
+      ? sceneActions.peekRedoSeq?.() ?? 0
+      : null;
 
-    // Try to redo model first, then scene
-    if (modelActions.canRedo()) {
+    if (modelSeq === null && sceneSeq === null) return false;
+
+    const target = Math.min(
+      modelSeq ?? Number.POSITIVE_INFINITY,
+      sceneSeq ?? Number.POSITIVE_INFINITY
+    );
+
+    let redoPerformed = false;
+    if (modelSeq === target) {
       redoPerformed = modelActions.redo() || redoPerformed;
     }
-    if (sceneActions.canRedo()) {
+    if (sceneSeq === target) {
       redoPerformed = sceneActions.redo() || redoPerformed;
     }
 
@@ -103,6 +143,8 @@ export const useHistory = () => {
 
     if (!modelActions || !sceneActions) return;
 
+    // One logical action across both stores — shared seq (D-7).
+    allocateHistorySequence();
     modelActions.saveToHistory();
     sceneActions.saveToHistory();
   }, [modelActions, sceneActions]);

@@ -102,6 +102,34 @@ The icon catalog conflates two concerns (see [ADR-0002](docs/adr/0002-icon-catal
 - **Lean-save stripping on the wrong path** — exports must keep icons inline. The explicit `stripProjectIcons` boolean per call site is the safety net.
 - **Older client reads newer save** — same as the existing ADR-0003 "catalog version drift": items reference ids that are no longer in the diagram's local icons → tombstones. Recoverable, not destructive. Single-user app for the foreseeable future, so rollback hazard is low.
 
+## Undo desync: dual history stacks skew on interleaved model-only + both-store ops (D-7) — FIXED
+
+**Symptom (historical):** Undo/redo are two independent patch stacks (model + scene). A model-only op (place icon, lone-node drag) pushes a model entry but no scene entry, so the stacks skew to different depths. After `draw connector → place icon → Ctrl+Z`, the single undo popped the top of *each* stack — which then belonged to different actions — leaving the connector in `model.views[].connectors` with no `scene.connectors[id]` path = an invisible connector (the MQA #5 symptom, different mechanism).
+
+**Status:** **FIXED 2026-06-14** (commit 1 of the ADR 0018 Pointer-Events branch). Logical-action sequence-stamping ([historySequence.ts](packages/axoview-lib/src/stores/historySequence.ts)): every history entry both stores push is stamped with a shared monotonic sequence allocated once at each logical-action boundary (standalone `set`, `transaction`, `beginDragTransaction`). `useHistory.undo/redo` reverts only the stack(s) whose top carries the most-recent (undo) / least-future (redo) sequence, so one keystroke reverts exactly one logical action across whichever store(s) participated. Guarded by the now-unskipped coherence spec in [undo.dualStackSkew.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/undo.dualStackSkew.test.tsx) (the skew-source characterization stays green too). The `MAX_HISTORY_SIZE=50` trim-skew sub-case (behavior-map §4.5(a)) is resolved by the same fix.
+
+### Residual follow-ups (NOT covered by the D-7 sequence-stamping fix)
+
+These are distinct mechanisms, not stack-skew, so the sequence-stamping work does not address them. Filed explicitly so they are not lost:
+
+- **D-8 — paste→undo→redo restores empty connector paths.** Paste records a provisional empty path in the scene history entry (`createConnector(..., skipPathfinding=true)`), and `computePathsAsync` fills the real paths *outside* history (`skipHistory=true`). So paste → `Ctrl+Z` → `Ctrl+Y` re-applies the recorded patch with empty paths → pasted connectors render pathless until a later edit touches them. **Fix sketch:** on redo of a paste, re-run pathfinding for the restored connectors (or record the computed paths into the history entry rather than the provisional empty ones). e2e repro to be added under the canvas-interaction coverage work.
+- **D-9 — cross-view (page-switch) undo applies scene patches to the wrong view.** The scene store holds only the current view but its history stack is global and unscoped; `changeView` rebuilds the scene with `skipHistory=true` and does not clear/scope history. Undoing after a page switch applies the previous view's scene patches to the current view (phantom/stale `scene.connectors[id]`) while the model undo reverts an off-screen view. **Fix sketch:** scope scene history per-view, or clear/snapshot on `changeView`. Larger change; deferred. Code-traced, e2e repro to be added.
+
+## Touch per-item actions (delete / z-order) — RESOLVED via direct manipulation (Option A)
+
+**Resolved 2026-06-14 (B).** Originally D-6 routed touch actions through the Properties panel and kept the NodeActionBar desktop-only, leaving delete + z-order unreachable on a pure touchscreen. The Option A revision (direct manipulation — see ADR 0018) makes **move a drag**, so long-press is no longer overloaded: a long-press on a node fires the OS `contextmenu`, which opens the **NodeActionBar** for the pressed node (delete / z-order / layer / start-connector). It targets the pressed node reliably because the touch pointerdown seeds `uiState.mouse.position`. So all per-item actions are reachable on touch via long-press; name/style/notes/link also remain in the Properties panel (auto-opens on selection), and layers via the LayersPanel.
+
+## Rectangle / textbox drag perf (move + draw + resize) — FIXED (D-3 resolved)
+
+**Fixed 2026-06-14.** Manipulating a rectangle/textbox dropped to ~7 fps with a GC sawtooth (perf-diag capture). `DragItems` moved nodes via the CSS-preview path but routed textbox/rectangle **moves** through `updateRectangle`/`updateTextBox`, and the rectangle **DRAW**/**TRANSFORM** modes did the same per tile — each a full-state immer `produce` **every frame** (and, for draw/resize, no drag transaction → one undo entry per tile).
+
+- **Move:** routed through immer-free `batchUpdateRectangles`/`batchUpdateTextBoxTiles` (one structural array copy, model-only) inside the existing drag transaction → one undo entry.
+- **Draw / Resize (D-3, supersedes the earlier deferral):** `DrawRectangle`/`TransformRectangle` now open a `beginDragTransaction` (draw: before `createRectangle`; resize: on entry) and write per-frame via `batchUpdateRectangles`, committing on mouseup (+ exit safety-net). Result: smooth, immer-free, and one undo entry per draw/resize.
+
+Guarded by `DragItems.modes.test.ts` + `rectangleTextbox.dragPerf.test.tsx` (move) and `DrawRectangle.test.ts` / `TransformRectangle.test.ts` / `rectangleDrawTransform.modes.test.ts` (draw/resize routing + begin/commit). Note: textbox *create* (the `t`-hotkey one-shot) still uses the reducer once — not a hot path.
+
+The connector-drag GC cliff below is a separate, still-open item (per-frame model write through the reducer; needs a connector preview path).
+
 ## Connector drag still mutates the model on every tile
 
 **Symptom:** A long sustained connector drag (or anchor reconnect) holds 60 fps for ~50 seconds on the perf-stress fixture (80 nodes / 120 connectors), then degrades over a few seconds and stalls at ~4 fps for ~5 seconds before recovering. The shipped fix (drag-transaction + closed-form router) eliminated the original symptom — sub-10fps within seconds of drag start. What remains is a sustained-drag GC cliff, not a per-tile slowdown.
@@ -152,10 +180,12 @@ Pattern: **allocation-rate-limited GC pressure**, not a CPU bottleneck. V8 holds
 
 **Risk register.** The hardest part is the two-reader invariant. Anchor refs on the model can be `{ item }` or `{ tile }`; the preview must produce the same shape so downstream code (label positioning, anchor hit-testing, item-control panel) doesn't branch on "is a drag in progress". One option: extend `scene.connectors[id]` with `previewAnchors?: ConnectorAnchor[]`; readers fall back to model anchors when absent. That keeps the contract local to the scene store rather than leaking into UI state.
 
-## Touch/touchpad node drag uses a press-drag-release model, not tap-to-place
+## Touch/touchpad node placement — SHIPPED (ADR 0018)
 
-**Symptom:** On touch input (and precision touchpads that emit touch events), picking up and placing a node is awkward. The canvas drives all gestures through a single press→move→release sequence ([`useInteractionManager.ts`](packages/axoview-lib/src/interaction/useInteractionManager.ts) maps `touchstart/move/end` → synthetic `mousedown/move/up`). Users expect a "tap a node to grab, move finger, tap to drop" model; instead a quick tap-and-lift is read as a click (selects but doesn't enter a positioning drag), and a slow press-drag is finicky on hardware where touch-drag is hard to sustain.
+**Resolved 2026-06-14.** The press-drag-release-only model is replaced by the touch/pen gesture contract ([ADR 0018](docs/adr/0018-touch-pen-gesture-contract.md), Accepted): one Pointer Events layer branches on `pointerType` — mouse/trackpad keep press-drag-release (with a px-based tap-vs-pan threshold that fixes the precision-trackpad sub-tile drag), and the `window` mouse + touch-synthesis path (and the `(0,0)` drop bug) are gone.
 
-**Workaround:** Use a mouse, or press-hold-and-drag in one continuous gesture.
+**Touch model = direct manipulation (Option A, 2026-06-14 (B), after device testing).** The initial tap-to-place (SELECT→GRAB→PLACE) was replaced — it fought muscle memory and overloaded long-press. Now: tap a node selects it; **drag a node moves it** (down-on-node → forwarded to the desktop `DRAG_ITEMS` path); drag empty canvas pans; two-finger pinch-zooms; **drag a connector endpoint handle reconnects it**; long-press opens the per-item action bar (move is a drag now, so no overload). Matches Figma/Miro/Lucidchart. No `CARRY_ITEM` mode.
 
-**Status:** Open, deferred to a dedicated investigation session (user-acknowledged as the "bigger problem" during the 2026-06-13 annotation shake-out). A `changedTouches[0]` tweak to `onTouchEnd` (so the synthetic mouseup carries the lift position instead of a hardcoded `(0,0)`) was tried and **reverted** — it did not fix the live touch behaviour, confirming the root cause is the gesture model, not the drop coordinate. A proper fix is a touch interaction-model decision, not a one-liner: either (a) add an explicit tap-to-grab / tap-to-place mode for touch (a second mode alongside press-drag-release, gated on `pointerType === 'touch'`), or (b) add a long-press-to-grab affordance. Both need a deliberate gesture-contract design pass (and likely a pointer-event-based rewrite of the canvas input layer, since the current mouse-event-synthesis path can't cleanly distinguish tap from drag intent). Not a productization blocker for the mouse-first desktop target.
+### §5.1 e2e coverage follow-ups (P1, deferred — not introduced by this work)
+
+Closed in the ADR 0018 e2e revision: touch tap-select/place/pan/pinch/abort, the D-7 dual-stack undo repro, and the CSS-preview-mid-drag P0 invariant. Still open as P1 (pre-existing canvas-interaction gaps): a NodeActionBar invocation/dismissal e2e, a per-mode Escape-abort matrix e2e, a RAF-throttle-under-load unit assertion, and a pan/zoom zero-scene-re-render render-probe. Filed so they aren't lost; lower priority than the shipped touch coverage.
