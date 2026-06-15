@@ -101,6 +101,29 @@ boundaries. This mirrors `AnnotationLayer`'s already-shipped approach.
 > revision; the foundation (Pointer Events, `pointerType` branch, px tap‑vs‑pan
 > threshold, guardrails, pinch) is unchanged.
 
+> **Addendum — 2026-06-14 (C): device-refinement details (PRs #40–#42).** The
+> direct-manipulation model above shipped with these refinements; they are the
+> authoritative description of long-press and panel placement:
+> - **Long-press is timer-based and opens *during* the hold.** A ≈450 ms timer
+>   (`LONG_PRESS_MS`) — not the OS `contextmenu` event — opens the NodeActionBar
+>   for the pressed node while the finger is still down, so it appears before the
+>   lift. The OS `contextmenu` is gated to `pointerType==='mouse'` (mouse keeps the
+>   immediate right-click path; touch uses the timer). Any move past `TAP_SLOP_PX`
+>   cancels the pending hold (it was a drag, not a press).
+> - **Hold-on-empty-then-drag = one-shot marquee lasso.** A long-press on empty
+>   canvas followed by a drag arms `LASSO` for that one gesture and returns to
+>   `CURSOR` on lift — the user never switches to the lasso tool.
+> - **Elements-panel drag-to-place.** Press an icon and drag it onto the canvas to
+>   place a node where the finger lifts. The `PLACE_ICON` preview ghost is
+>   **suppressed until the drag engages** (`PlaceIconMode.suppressPreview`) — touch
+>   has no hover, so an armed placement must not paint at a stale tile on the
+>   initial tap — then tracks the finger to the target tile.
+> - **Window-bound `contextmenu` is renderer-scoped.** Because the listeners bind
+>   to `window` (see the top-of-file deviation note), both `preventDefault()` and
+>   the action-bar reaction are gated on `rendererEl.contains(e.target)`, so an
+>   off-canvas right-click keeps its native menu (text-input Cut/Copy/Paste, the
+>   file-explorer tree) and never opens a canvas item's action bar for a stale tile.
+
 ### 2. Branch on `pointerType` — do **not** replace the desktop model
 
 | `pointerType` | Gesture model |
