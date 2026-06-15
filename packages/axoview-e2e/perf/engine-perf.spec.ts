@@ -96,6 +96,7 @@ interface RunResult {
   longTasks: Array<{ start: number; duration: number }>;
   commitMs?: number; // spawn only: synchronous store-write duration (sub-vsync)
   dragEngaged?: boolean; // drag only: the DRAG_ITEMS mode actually activated
+  renderCounts?: Record<string, number>; // drag only, ?perfprobe=1: renders during the drag loop
   renderedNodes?: number; // spawn only: node shells in the DOM after settle
   sceneCounts?: {
     nodes: number;
@@ -703,6 +704,14 @@ function installHarness() {
     const frames: number[] = [];
     const longTasks: Array<{ start: number; duration: number }> = [];
     const stop = observeLongTasks(longTasks);
+    // Render-fan-out probe (only when booted with ?perfprobe=1). Reset right
+    // before the measured loop so the counts isolate the DRAG, not the mount.
+    const probe = w.__axoviewRenderProbe;
+    probe?.reset?.();
+    // Diagnostic: does modelStore.views (the root of currentView.connectors)
+    // churn references during a CSS-preview drag? It should NOT (no model write).
+    let viewsRef = ax().model.getState().views;
+    let viewsChanges = 0;
     let prev = await raf();
     let dragEngaged = false;
     for (let s = 1; s <= steps; s++) {
@@ -723,11 +732,19 @@ function installHarness() {
       if (!dragEngaged) {
         dragEngaged = ax().ui.getState().mode.type === 'DRAG_ITEMS';
       }
+      const nowViews = ax().model.getState().views;
+      if (nowViews !== viewsRef) {
+        viewsChanges++;
+        viewsRef = nowViews;
+      }
     }
     dispatchPointer(el, 'pointerup', end.x, end.y, 0);
     await raf();
     stop();
-    return { frames, longTasks, dragEngaged };
+    const renderCounts = probe?.get?.();
+    (renderCounts as Record<string, number> | undefined) &&
+      (renderCounts!['__viewsChanges'] = viewsChanges);
+    return { frames, longTasks, dragEngaged, renderCounts };
   }
 
   function heapMB(): number {
@@ -834,7 +851,10 @@ async function bootApp(page: Page) {
       /* pre-navigation */
     }
   }, ONBOARDING);
-  await page.goto('/');
+  // ?perfprobe=1 enables useRenderProbe (window.__axoviewRenderProbe) so the drag
+  // can report render fan-out. Off by default — the probe's per-render side-effect
+  // would otherwise perturb the timing the baseline measures.
+  await page.goto(process.env.PERF_RENDERPROBE ? '/?perfprobe=1' : '/');
   await page.evaluate((keys: string[]) => {
     for (const k of keys) localStorage.removeItem(k);
   }, CLEAR_KEYS);
@@ -1094,6 +1114,41 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
       ].join('\n')
     );
     expect(profile.samples.length).toBeGreaterThan(0);
+    return;
+  }
+
+  // RENDER-PROBE mode: count React renders during ONE collision-drag (booted with
+  // ?perfprobe=1 so useRenderProbe is live). Answers: does the per-frame connector
+  // preview leak into NodeContent, and for how many nodes? PERF_RENDERPROBE=N.
+  if (process.env.PERF_RENDERPROBE) {
+    const N = parseInt(process.env.PERF_RENDERPROBE, 10);
+    for (let i = 0; i < WARMUP_RUNS; i++) await runOnce('drag', N); // warm the path
+    const res = (await runOnce('drag', N)) as RunResult;
+    const counts = res.renderCounts ?? {};
+    const byComponent = new Map<string, { total: number; instances: number }>();
+    for (const [key, n] of Object.entries(counts)) {
+      const comp = key.split(':')[0];
+      const agg = byComponent.get(comp) ?? { total: 0, instances: 0 };
+      agg.total += n;
+      agg.instances += 1;
+      byComponent.set(comp, agg);
+    }
+    const frameCount = res.frames.length;
+    console.log(
+      `[renderprobe] drag N=${N} — ${frameCount} drag frames, engaged=${res.dragEngaged}`
+    );
+    if (Object.keys(counts).length === 0) {
+      console.log('    (no counts — probe not enabled? expected ?perfprobe=1)');
+    }
+    const rows = [...byComponent.entries()].sort((a, b) => b[1].total - a[1].total);
+    for (const [comp, agg] of rows) {
+      console.log(
+        `    ${comp.padEnd(18)} total renders=${agg.total}  distinct instances=${agg.instances}  ` +
+          `≈${(agg.total / Math.max(1, agg.instances)).toFixed(1)}/instance  ` +
+          `≈${(agg.total / Math.max(1, frameCount)).toFixed(1)}/frame`
+      );
+    }
+    expect(frameCount).toBeGreaterThan(0);
     return;
   }
 

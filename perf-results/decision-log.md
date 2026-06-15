@@ -687,14 +687,73 @@ not `index.js:<line>`. `PERF_DRAGPROFILE` and `PERF_PROFILE`/`PERF_CPUPROFILE` s
 the baseline write (no baseline.md restore needed after a profile run; DO restore after
 any partial `PERF_N` run).
 
+## 🟢 Iter 6 — KEPT (big drag win): `useColor` fat-subscription fix → collision-drag 33→60 fps @N=500
+
+The Iter 5 profile said "node content re-renders per frame." The `useRenderProbe`
+(wired into the harness this iter: `renderProbe.get()` + `PERF_RENDERPROBE=N` mode,
+booted with `?perfprobe=1`) **corrected that** and pinned the real culprit:
+
+**🔬 renderProbe, N=500, 80 drag frames (BEFORE):**
+
+| component | total renders | instances | per frame |
+|---|---|---|---|
+| **Connector** | 34894 | 478 | **≈436/frame** |
+| Connectors (container) | 73 | 1 | ~0.9 |
+| Node / NodeContent | 1 / 1 | 1 | ~0 |
+
+**Nodes do NOT re-render — ALL 478 connectors re-render every frame.** (The Quill
+`getNativeRange` + emotion `murmur2` in the Iter-5 profile were the connectors'
+own labels/sx, not nodes.) A same-session diagnostic (`__viewsChanges=0`) proved
+`modelStore.views` is stable during a CSS-preview drag → the view connector objects
++ `currentView` are referentially STABLE → a memo on the `connector` prop did
+**nothing** (verified: bit-identical 34894). So the re-render is **NOT prop-driven —
+it's an internal store subscription** firing for every connector each frame.
+
+**Root cause:** every `Connector` (and `ConnectorLabel`) calls `useColor`, which did
+`const { colors } = useScene()` → `useScene` pulls `useSceneData`, which **subscribes
+to `sceneStore.connectors`** ([useSceneData.ts](../packages/axoview-lib/src/hooks/useSceneData.ts)
+L30-34). The per-frame `previewConnectorPaths` `set({connectors})` writes a new outer
+connectors object → that subscription fires → `useColor` re-renders → all 478
+Connectors re-render, even though only the dragged node's 1–2 connectors changed.
+(zustand 5.0.14 ignores the legacy `shallow` 2nd arg, compounding it.) `useColor`
+only needs `colors`, which lives in the MODEL store and is stable during a drag.
+
+**Fix (one variable):** `useColor` subscribes granularly — `useModelStore((s) =>
+s.colors)` (+ a stable `EMPTY_COLORS` fallback) instead of `useScene()`. Identical
+data, narrower subscription.
+
+- **🔬 renderProbe AFTER:** Connector renders **34894 → 626** (≈436 → **≈7.8/frame**,
+  −98%) — only the dragged node's affected connectors re-render now.
+- **Same-session A/B (drag mean frame, interleaved stash/pop):**
+
+  | N | HEAD (no fix) | fix | cal H→fix |
+  |---|---|---|---|
+  | 500 | **30.83 ms (33 fps)** | **16.87 ms (60 fps)** | 3.2→3.1 |
+  | 1000 | 16.67 ms | 17.08 ms (already cheap) | 3.2→3.1 |
+
+  **N=500 collision-drag −45%, 33→60 fps.** HEAD ran on a *faster* machine (cal 3.2
+  vs 3.1) yet was 1.8× slower → effect ≫ drift. Confirmed by the renderProbe mechanism.
+- **Correctness:** gate **13/13 green** (incl. the colour-dependent z-order /
+  rectangle-overlap-zorder / css-preview-mid-drag specs). Spawn unaffected (nodes
+  don't use `useColor`). **→ KEEP.**
+
+**🔬 Finding / next:** the drag path had a real T1 win that the spawn grind never
+touched — a fat subscription, not the CSS-preview architecture. `useColor` is used
+widely; this also helps any other per-frame connector/label re-render. **Likely more
+of the same:** audit other hot-path components for `useScene()`/`useSceneData()`
+over-subscription (ConnectorLabels, the per-connector label path) — each `useScene()`
+in a per-instance component re-subscribes to the whole scene. Next: re-profile the
+N=500 drag (should now be layout/paint-bound like N=1000 was), and check ConnectorLabel.
+
 ---
 
 ## ▶ COLD-START RESUME POINT (newest — start here)
 
-**Branch `perf/engine`, HEAD = Iter 5 commit.** Lib code unchanged since Iter 3
-`f1c3e15` (Iter 4 reverted); since then: Iter 4 log (`8eb6d3c`), robust drag grab
-(`73c1d77`, harness-only), Iter 5 log + `PERF_DRAGPROFILE` mode. Working tree clean
-(only `bloat-analysis.txt` untracked). All work below is committed.
+**Branch `perf/engine`, HEAD = Iter 6 commit.** Commits since Iter 3 `f1c3e15`:
+Iter 4 log (`8eb6d3c`, code reverted), robust drag grab (`73c1d77`), Iter 5 log +
+`PERF_DRAGPROFILE` (`00bd34b`), **Iter 6 `useColor` fix + renderprobe tooling**. Last
+LIB CHANGE that's KEPT and shipping: Iter 3 de-emotion + **Iter 6 useColor granular
+subscription**. Working tree clean (only `bloat-analysis.txt` untracked).
 
 **State of the loop (T1, GREEN, realistic harness):**
 - **Harness v2** is the realistic scene: N nodes (5 representative ~1.7 KB icons,
@@ -703,14 +762,16 @@ any partial `PERF_N` run).
   node dragged through OCCUPIED tiles (collision + connector re-route). Text boxes
   excluded (scene-side size derivation incompatible with bulk set). Calibration
   index in every run.
-- **Certified baseline** (`baseline.md`, de-emotion build, cal 3.3): spawn N=1000
-  **settle 283 ms / longest 200 ms**; N=500 183/100; N=200 133/50. Drag flat 16.7 ms
-  except N=500 = 30 ms (real collision-drag) and N=1000 = 16.9 ms **(PROVISIONAL —
-  grab fails to engage at extreme fit-zoom)**. KR3 idle PASS (heap 77.6 MB flat).
-- **Wins kept:** 2a (scrollTo-mount guard, small/real), 2b (Stack→flex, ~6% real),
-  **Iter 3 wholesale de-emotion (BIG: −29% settle / −37% longest @1000)**. Reverted:
-  2c (Typography styled, sub-noise), 2d (flatten, was drift), **Iter 4 (icon
-  de-emotion, bit-identical — see below)**.
+- **Baseline** (`baseline.md`, cal 3.3): spawn N=1000 **settle 283 ms / longest 200 ms**;
+  N=500 183/100; N=200 133/50 (de-emotion build — UNCHANGED by Iter 6, nodes don't use
+  useColor). **Drag: AFTER Iter 6, N=500 collision-drag = 16.9 ms (60 fps, was 30)**;
+  N=1000 ≈16.9. KR3 idle PASS (heap 77.6 MB flat). ⚠️ committed `baseline.md` still shows
+  the OLD drag numbers + the stale N=1000 "PROVISIONAL" caveat — **regenerate with a clean
+  FULL idle run** (the grab fix + Iter 6 both land in the drag cells).
+- **Wins kept:** 2a (scrollTo-mount guard), 2b (Stack→flex, ~6%), **Iter 3 wholesale
+  de-emotion (BIG spawn: −29% settle @1000)**, **Iter 6 `useColor` granular subscription
+  (BIG drag: collision-drag N=500 33→60 fps, −45%)**. Reverted: 2c, 2d, Iter 4 (icon
+  de-emotion, bit-identical).
 - **⛔ SPAWN-JS T1 IS EXHAUSTED (Iter 4 finding).** Post-Iter-3, the 283 ms settle
   is DOM-volume / layout / paint bound, NOT JS-processing bound: removing the icon's
   per-instance emotion (Iter 4b) AND the two per-node label effects (Iter 4a probe)
@@ -733,34 +794,29 @@ bound and **proven resistant to cheap T1** (2c/2d/4 all sub-noise). The 175 ms
 icon/connector/rect floor likewise needs T2 to move. **Spawn has no cheap T1
 headroom left.**
 
-**Headroom — DRAG (the live frontier; Iter 5 profiled it):** collision-drag N=500 =
-**30 ms/frame (~33 fps)**, and the profile shows it is **JS/React-reconcile bound,
-not compositor-only** — node content (Quill `getNativeRange` + emotion `murmur2`)
-re-renders every frame, driven by the per-frame `flushSync(set({connectors}))` in
-`previewConnectorPaths`. (N=1000 reads 16.9 ms — genuinely cheaper, geometry/zoom-
-sensitive, NOT a failed grab; the grab is now confirmed engaged=N/N.) Making the
-drag truly compositor-only for non-dragged nodes is the big remaining LEB60 win.
+**Headroom — DRAG (Iter 6 just won here):** collision-drag N=500 was 30 ms/frame
+(33 fps) because ALL 478 connectors re-rendered per frame via `useColor`'s fat
+`useScene()` subscription (renderProbe-confirmed; nodes were NEVER the issue — the
+Iter-5 "node re-render" reading was wrong). Iter 6 made `useColor` granular →
+**16.9 ms (60 fps), −45%, renders 436→7.8/frame.** The drag is now ~at budget.
 
-**NEXT (drag/collision path; each via same-session A/B + correctness gate + visual):**
-1. **CONFIRM + QUANTIFY the per-frame node re-render** (do first). Use `useRenderProbe`
-   (`?perfprobe=1`; Node/NodeContent already instrumented) — add a `get()` to the
-   probe and read render counts across one measured drag. ALL visible nodes/frame, or
-   just dragged+connector-neighbours? Sets the fix's ceiling.
-2. **Stop node re-render on the connector-preview flushSync** — narrow whatever
-   subscription leaks the scene-`connectors` change into NodeContent so the MQA #7
-   memo holds during a collision-drag. The headline drag optimization.
+**NEXT (each via same-session A/B + correctness gate + visual):**
+0. **Regenerate `baseline.md`** with a clean FULL idle run (no PERF_N) — captures the
+   Iter-6 drag win + grab fix, drops the stale N=1000 "PROVISIONAL" caveat. Cheap, do first.
+1. **Audit other hot-path `useScene()`/`useSceneData()` over-subscriptions** — the
+   SAME bug class as Iter 6. `ConnectorLabel` (renders per labelled connector; likely
+   calls useColor/useScene → re-renders all per frame too), and any per-instance
+   component pulling the whole scene. Use `PERF_RENDERPROBE` + extend `useRenderProbe`
+   to those components. Each is a potential drag win.
+2. **Re-profile the N=500 drag** (`PERF_DRAGPROFILE=500`) — it should now be layout/
+   paint-bound (like N=1000 was), confirming the JS reconcile is gone. If residual JS
+   remains, attribute it (the O(N) `externalOccupied` rebuild, or remaining re-renders).
 3. **Cache `externalOccupied` at drag entry** (constant during a drag) — removes an
-   O(N) Set rebuild/frame. Smaller/safe; after (2).
-4. **Re-test Iter 4 icon de-emotion ON THE DRAG PATH** after (2) — `murmur2` per frame
-   may finally clear noise there (it didn't on one-time spawn).
+   O(N) Set rebuild/frame. Small/safe; measure if (2) shows it matters.
+4. **Re-test Iter 4 icon de-emotion on the drag path** (now that connectors don't
+   storm; if any per-frame `murmur2` remains it'd be connector labels, not icons).
 5. **Deferred / memory-only:** icon-dedup (<5 KB/entity memory KR) + transient
-   willChange (idle compositor layers). Only if the drag path stalls.
-
-**⚠️ Note:** the committed `baseline.md` drag numbers predate the grab fix but are
-materially unchanged by it (N=500≈30, N=1000≈16.9 both before/after) — the fix
-mainly resolves the N=1000 "PROVISIONAL failed-grab" caveat (now confirmed engaged).
-Regenerate `baseline.md` with a clean FULL idle run once a drag optimization lands,
-to refresh the drag cells + drop the stale caveat.
+   willChange. Only if the drag path stalls.
 
 **Gotchas (carry forward):** machine must be IDLE for spawn (calibration index shows
 drift); harness owns the dev server (`build:lib && dev` fresh; kill stray :3000
