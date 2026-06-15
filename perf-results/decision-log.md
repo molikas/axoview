@@ -133,7 +133,44 @@ Ran the charter's invariant subset against the current `dist`
 These nine are the standing anti-cheat gate for the optimization loop; the wider
 `packages/axoview-e2e/tests/` suite remains available for fuller regression.
 
-## ⏸ STOP — all 3 autonomy preconditions MET; awaiting human sign-off
+## LOOP — T1 "stop the bleeding" (GREEN, self-paced)
+
+Human signed off on the 3 preconditions (KR1 load-bearing accepted). Bottleneck
+from the baseline + trace = **bulk/initial RENDER** (spawn); the freeze is ~all
+JS (FunctionCall 3203 ms), and within JS the **MUI `sx`/emotion pipeline**
+dominates (`styleFunctionSx` 199, `getThemeValue` 140, `extendSxProp` 106,
+emotion serialize/`murmur2` ~180, `deepmerge` 66 — see `cpuprofile-spawn-1000.md`).
+
+### Iter 1 — 🔁 REVERTED: static per-node wrappers `<Box sx>` → `styled()`
+
+- **Hypothesis:** the two always-rendered NodeContent wrappers (outer flex Box,
+  icon Box) re-run `styleFunctionSx`/emotion per node; compiling them once via
+  `styled('div')` (cached class) cuts spawn frame time.
+- **Variable:** styling mechanism of those two wrappers only (visually identical).
+- **Result (full N set vs baseline):** spawn N=1000 settle 1258 ms vs 1208 ms;
+  longest 633 vs 633; N=500 692 vs 683. **Within noise (the stable N=1000 cell
+  at 2.2% CoV shows no gain).** → reverted per LOOP step 4.
+- **Why it didn't move:** the two wrappers are ~2 of ~6 sx-bearing elements per
+  node; the **label subtree** (`<Typography fontWeight fontSize color='text.primary'>`
+  → `getThemeValue`; `<Stack spacing={1}>`; `ExpandableLabel`→`Label`) is the bulk
+  of the per-node emotion work, and `styled` components still pay a small
+  per-render cost. Initial mount (spawn) can't be memoized away — each node's
+  first render must get cheaper.
+
+### Iter 2 — NEXT: de-emotion the per-node LABEL subtree
+
+- **Hypothesis:** the label render path (MUI `Typography` + `Stack` + `Label`),
+  not the wrappers, is the dominant per-node emotion cost (`getThemeValue` 140 ms
+  is theme lookups from `color='text.primary'` + `Stack` spacing). Replacing it
+  with lightweight `styled`/plain elements that reproduce the same visuals will
+  cut spawn frame time measurably.
+- **Risk:** visual regression — guard with `rename`/`readable-labels` specs + a
+  visual check, since the correctness suite asserts label presence, not pixels.
+- **Open alt (note for later, likely bigger but a behaviour change → YELLOW):**
+  label LOD — skip rendering labels below a zoom/size threshold (unreadable when
+  zoomed to fit 1000 anyway). Cuts the collapse scenario hard without a rewrite.
+
+## ⏸ Earlier checkpoint — all 3 autonomy preconditions MET (signed off)
 
 | Precondition | Status |
 |---|---|
