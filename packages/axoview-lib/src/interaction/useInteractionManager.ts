@@ -632,9 +632,11 @@ export const useInteractionManager = () => {
   // A ref, not store state, so it never re-renders the SceneLayers (perf §3.3).
   const pointerTypeRef = useRef<PointerKind>('mouse');
   // Touch/pen multi-pointer gesture state (ADR 0018 D-12). Held in a ref so it
-  // survives effect re-runs and never triggers a render. phase: 'tap' is the
-  // tentative single-finger state that promotes to 'pan' past TAP_SLOP_PX or
-  // resolves to a tap on lift; 'pinch' is two-finger zoom+pan.
+  // survives effect re-runs and never triggers a render. The `phase` field is the
+  // gesture state machine — see the TouchGestureState definition above for what
+  // each phase means ('item' / 'pan-pending' / 'pan' / 'pinch' / 'palette' /
+  // 'menu'); 'pan-pending' is the tentative single-finger state that promotes to
+  // 'pan' past TAP_SLOP_PX or resolves to a tap on lift.
   const touchStateRef = useRef<TouchGestureState>({
     pointers: new Map(),
     phase: 'idle',
@@ -923,6 +925,22 @@ export const useInteractionManager = () => {
 
   const onContextMenu = useCallback(
     (e: SlimMouseEvent) => {
+      // The contextmenu listener is bound to `window` (ADR 0018 — pointer
+      // capture needs the superset surface), so scope BOTH the preventDefault
+      // and the action-bar reaction to right-clicks that land inside the
+      // Renderer container. An off-canvas right-click (toolbar, property panel, a
+      // text input's native Cut/Copy/Paste menu, the file-explorer tree) must
+      // keep its native menu AND must never open a canvas item's action bar for a
+      // stale projected tile. Mirrors the downOnCanvas gate used by the pointer
+      // handlers.
+      const target = e.target as Node | null;
+      if (
+        !rendererEl ||
+        !target ||
+        !(rendererEl === target || rendererEl.contains(target))
+      ) {
+        return;
+      }
       e.preventDefault();
       // On touch/pen the long-press timer opens the action bar DURING the hold
       // (so it appears before the finger lifts); suppress the OS contextmenu here
@@ -952,7 +970,7 @@ export const useInteractionManager = () => {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional fine-grained deps on the layerContext Sets read here; whole layerContext over-invalidates
-    [uiStateApi, scene, layerContext.lockedIds, layerContext.visibleIds]
+    [uiStateApi, scene, rendererEl, layerContext.lockedIds, layerContext.visibleIds]
   );
 
   useEffect(() => {
