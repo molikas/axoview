@@ -287,26 +287,89 @@ serialize/`murmur2` ~180, `deepmerge` 66 — cpuprofile-spawn-1000.md).
   headline.** This is sub-noise hypothesis #1 (charter: 3 consecutive ⇒ local
   minimum RED).
 
-### Iter 2d — NEXT: attack the settle-dominating cost, not more sx (GREEN)
+### Iter 2d — 🔁 REVERTED: label DOM flatten (−2 wrapper nodes) — within noise (same-session A/B)
 
-- **Re-aim from the 2c finding:** instead of more per-element sx swaps (commit-frame
-  cost, not settle), instrument where the ~567 ms settle @1000 actually goes —
-  re-run `PERF_PROFILE=1000` (CDP timeline: scripting vs **layout vs paint**) and
-  `PERF_CPUPROFILE=1000` on the CURRENT (2b) build to re-attribute the freeze now
-  that scrollTo + Stack are gone. Likely settle drivers to test, one per iter:
-  (a) the per-node `ResizeObserver` (`NotifyResizeObservers`) — does truncation
-  detection need an observer per node, or can it be a one-shot measure / shared
-  observer?  (b) the per-node `storeApi.subscribe` zoom subscription;  (c) the
-  `Label` chip `Box` paint/layout (border/shadow/transform) in the paint tail.
-- **Guard:** any change to the truncation/counter-scale effects is behaviour-
-  adjacent — keep `readable-labels` + the expand/collapse visual check load-bearing.
-- **Open alt (YELLOW, needs product nod — now the strongest lever):** label LOD —
-  skip label rendering below a zoom/size threshold. At fit-to-1000 labels are
-  sub-pixel/unreadable anyway, so this drops the *entire* residual label cost
-  (settle AND longest) in the collapse scenario for ~free. Given sx micro-steps
-  have stopped clearing the band, this is the high-ROI next move once re-profiling
-  confirms the label subtree (not raw paint) is still the settle floor. Notify
-  before committing.
+Direction (from the 2c finding): stop per-element sx, reduce DOM-node COUNT (the
+layout/paint tail). Flattened the node-only wrapper chain: folded the `node-label`
+`Box` into ExpandableLabel's outer element (test id + dbl-click moved there) and
+absorbed the per-node flex-stack `<div>` into ExpandableLabel's scroll-content Box
+(now the flex column). −2 DOM nodes/label, node-only (shared `Label`/`ConnectorLabel`
+untouched), visuals + behaviour identical (gate 13/13; screenshot + title computed
+style + content `scrollH` all unchanged).
+
+- **Apparent result (vs committed 2b baseline):** spawn N=1000 settle 567→433
+  (−24%), longest 267→200; consistent ~24% across N=200/500/1000. Looked like a
+  major win.
+- **🔬 THE FINDING — it was machine drift, not the change.** The magnitude (landing
+  exactly on the old labels-off floor) was suspicious, so I ran a **same-session
+  A/B control**: stashed the flatten and re-measured the **committed 2b code in the
+  same session**. Result @1000:
+
+  | build (same session, ~15 min apart) | settle | longest |
+  |---|---|---|
+  | 2b code (control) | **441.6 ms** | 199.9 |
+  | 2d code (flatten) | **433.4 ms** | 199.9 |
+  | 2b baseline (committed, *earlier* session) | 567 ms | 267 |
+
+  Same-session, 2b-code (441.6) ≈ 2d-code (433.4) — ~2%, **within the 2.8% noise
+  band**, longest frames identical. **The flatten does ~nothing.** The 567→433 was
+  **cross-session drift**: the machine is ~22% faster this session than when the 2b
+  baseline was recorded. → **REVERT** (within noise per LOOP step 4). 2d code stashed
+  (`stash@{0}`, recoverable as a pure cleanup; it IS a valid −2-node simplification).
+
+- **⚠️ METHODOLOGY DEFECT (load-bearing — invalidates cross-session comparisons):**
+  cross-session/run drift here is **~22%** (same 2b code: 567 earlier vs 441.6 now),
+  while within-run CoV is **~2%**. KR1 certified the *within-run* noise band (<10%)
+  but that does **NOT** bound cross-session drift. **Every iteration so far compared
+  a fresh run against a prior-session committed baseline → those deltas are reliable
+  only to ~±22%.** Re-reads of past iterations under this lens:
+  - **2a** (scrollTo reflow, −50% cross-session): mechanism (eliminating 1000 forced
+    synchronous reflows) is real and the magnitude exceeds drift → **win is real**,
+    though exact size is uncertain.
+  - **2b** (Stack→div, −5.6% cross-session): **well inside the ~22% drift band →
+    SUSPECT / probable false-positive.** Kept on drift, not signal.
+  - **2c** (reverted, flat): conclusion still correct (flat survives drift either way).
+  - **2d**: reverted (same-session control).
+- **FIX (required before any further keep/revert):** decisions must be **same-session
+  A/B** — measure baseline-code and changed-code back-to-back in one machine state
+  (stash/rebuild between, or a harness mode that renders both). Comparing to the
+  stale committed baseline is invalid. Cheaper variant: at session start, re-measure
+  the committed code in *this* session and compare iterations against that
+  session-local baseline.
+
+### Iter 2e — NEXT: STOP / escalate (RED-adjacent) — methodology + diminishing returns
+
+- **Why stop:** (1) the cross-session drift defect above means the loop cannot make
+  valid keep/revert calls without a methodology fix; (2) two consecutive properly-
+  controlled hypotheses (2c, 2d) are within noise — the label subtree resists cheap
+  T1 optimization beyond 2a; (3) 2b is suspect and may warrant reverting.
+- **Inputs read — `bloat-analysis.txt`** (node-render analysis on master by another
+  agent). Corroborates the DOM-volume thesis (~14 elements/node; label subtree =
+  8 of them; the 2 wrapper Boxes I flattened in 2d ARE the "empty `css-0` ×2"
+  overhead — but only ~14% of the subtree, so removing them was within noise, as
+  measured). Surfaces **two NODE-level levers the label grind missed:**
+  1. **Repeated inline icon** — every node embeds the *same* ~2.1 KB base64 SVG
+     (~230 KB across ~110 nodes), the single biggest weight; it's **per-node, in
+     the icon floor**, not per-label. Fix: shared `<use>` sprite / one cached
+     `<img src>` (browser dedupes decode) / CSS background.
+  2. **`willChange:'transform'` unconditional** (INNER_SX, Node.tsx) → ~N permanent
+     compositor layers at idle. Make transient (set on drag-start, clear on
+     drag-end); measure layer count + spawn compositor (`PaintArtifactCompositor`).
+  - **⚠️ Harness-fidelity gap this exposes:** the perf harness's `PERF_ICON` is a
+    trivial ~100-byte `<rect>`, so the harness **does not measure the ~2.1 KB-base64
+    icon cost** — the real app's spawn is heavier than the baseline shows, and
+    icon-dedup is a real-world win the harness can't currently validate. Fix the
+    harness to use a representative icon before chasing the icon lever.
+  - Do-not-touch (per the analysis): inline `--ff-x/--ff-y`/z-index, the Node/
+    NodeContent split, OUTER_SX/INNER_SX constants, `data-drag-id`, the shared
+    emotion hash classes.
+- **Open levers (all need a decision):** (a) fix methodology + re-validate 2a/2b
+  same-session, then resume; (b) **icon-dedup** + **transient willChange** — node-
+  level, hit the icon floor (433) that labels now sit on, but need the harness icon
+  fixed first (fidelity); (c) label LOD below a *world-view* zoom threshold
+  (≈<20–25%, beneath the 30–50% working range so it never conflicts with readable-
+  labels) — the user wants this as BACKUP, preferring to optimize labels rather than
+  hide them; (d) accept 2a as the T1 win and escalate to T2 (Canvas2D render — RED).
 
 ## ⏸ Earlier checkpoint — all 3 autonomy preconditions MET (signed off)
 
