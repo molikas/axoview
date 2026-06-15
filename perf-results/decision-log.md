@@ -1097,52 +1097,89 @@ chip re-layout), this row. Baseline.md restored after the partial PERF_N=1000 A/
 
 ---
 
-## ▶ COLD-START RESUME POINT (newest — start here) — updated Iter 10
+## Iter 11 — flip default to canvas-only + draw-count anti-cheat (T2 banked)
 
-**Branch `perf/engine`, HEAD = Iter 10 commit.** T2 is GREENLIT FOR PRODUCTIZATION
-(human: "bank T2, productize it" — the charter RED gate for canvas-as-default is
-cleared). Running the `/feature` lifecycle (docs/workflow.md). **ADR-0019** (Canvas2D
-default + sole bulk substrate; flag to be removed; `Node.tsx` retained for the hybrid
-overlay; draw-count anti-cheat) and **ADR-0020** (perf harness + measurement protocol,
-promoted out of the tactical charter so it survives the wrap and underpins T3) are
-authored + committed. The full correctness gate passes flag-ON (13/13) AND flag-OFF
-(13/13). Decided: **remove the flag** (canvas-only bulk path) at the flip; dedicated
-ADR-0020 for the harness; user will review on `integration` and wants a ping at the
-PR into `master`.
+**Context:** productization. ADR-0019 chose canvas as the default + sole bulk renderer
+with the flag REMOVED (human: "remove flag now"). This iter executes the flip.
 
-**State:** flag-off baseline byte-identical (spawn N=1000 283/200 @cal 3.2). Kept wins:
-Iter 3 de-emotion, Iter 6 useColor, Iter 8 PoC, Iter 9 editing/dragging DOM hybrid
-(gate green flag-ON), **Iter 10 descriptions on canvas (residual win −45% @1000, cal
-4.7↔4.6)**. Touched lib: `Renderer.tsx`, `NodesCanvas.tsx`; tests: `fixtures/
-app.fixture.ts`, `tests/readable-labels.spec.ts`; docs: ADR-0019, ADR-0020.
+**Changes (one coherent step — the substrate default, not a perf tuning variable):**
+- `Renderer`: removed `readCanvasNodesFlag` + the `canvasNodes` flag + the
+  DOM/canvas ternary. `NodesCanvas` is now unconditional; the DOM `<Node>` overlay
+  (selected ∪ drag-set, via `hybridNodes`) is the only remaining DOM node render.
+- `Nodes.tsx` retained but **narrowed to the sparse overlay mapper** (0–few nodes,
+  never N) — its render-order sort is reused by the overlay; deleting it would mean
+  reimplementing that inline for no gain. (ADR-0019 said "delete Nodes.tsx"; the
+  honest actual is "Nodes.tsx renders only the hybrid overlay" — ADR amended.)
+- `NodesCanvas`: publishes a per-frame **draw count** on `data-draw-count`.
+- Harness `engine-perf.spec.ts`: anti-cheat now reads `data-draw-count` (== N at
+  fit-to-view) instead of the `[data-drag-id]` shell count (which reads ~0 with the
+  bulk DOM path gone); removed the dead `PERF_CANVAS` push.
+- `app.fixture.ts`: removed the now-dead `AXOVIEW_CANVAS_NODES` gate bridge — the
+  e2e gate runs canvas unconditionally.
 
-**NEXT (productization queue — each via gate + A/B where a perf var changes):**
-1. **Iter 11 — notes/link badges on canvas + connector polyline draw.** Badges: small
-   blue (notes) / primary (link, readonly only) bordered circles at the icon corners.
-   Connectors: fold the polyline draw into the same canvas (same `visibleConnectors`
-   cull) — but FIRST fix the harness to route connectors on spawn
-   (`changeView`/`computePathsAsync` post-set), per the Iter-7 caveat, or the draw is
-   measured as free.
-2. **Iter 12 — flip the default + remove the flag.** Make `<NodesCanvas>` unconditional;
-   delete `readCanvasNodesFlag`, the `axoview-canvas-nodes` flag, `PERF_CANVAS` +
-   `AXOVIEW_CANVAS_NODES` plumbing, and the bulk `Nodes.tsx`. Keep `Node.tsx` (hybrid
-   overlay). Add a **draw-count anti-cheat** (NodesCanvas exposes drawn-node count;
-   harness asserts drawn == visible, replacing the 0/N DOM-shell count). Gate must be
-   13/13 with canvas as the ONLY path (no env var).
-3. **/notes** (CHANGELOG, architecture.md, docs/testing.md perf section) → **/feature
-   wrap** (retire the charter tactical + cold-start-t2*.md; add the PLAN.md line →
-   ADR-0019/0020) → **/ship** (PR perf/engine → integration → master; **ping the user at
-   the master PR**).
+**Verification (canvas is now the ONLY path — no flag, no env var):**
+- **e2e correctness gate: 13/13 GREEN** (`drag-collision`, both `undo-redo`,
+  `multi-select-drag`, `z-order`, `rectangle-overlap-zorder`, `css-preview-mid-drag`,
+  `rename`, `readable-labels`).
+- **lib unit suite: 1110 passed / 105 suites** (1 skipped) — no regression.
+- **perf (canvas default, cal 3.4 ms vs the committed DOM baseline 283 @cal 3.2 —
+  comparable):** spawn settle @1000 = **166.7 ms (−41%)**, longest 83.3, long-task 79,
+  noise 4.4%. **Anti-cheat: `rendered=1000/1000`** (draw count == N) — the canvas
+  paints every node, no cull cheat. scene[conn=968 rect=49] committed.
 
-**Visual parity:** covered behaviorally by the flag-ON gate — `readable-labels` asserts
-the real applied counter-scale, `css-preview-mid-drag` the real drag-preview offset,
-`drag-collision`/`multi-select-drag`/`z-order` the committed geometry. `.scratch/
-verify-canvas-nodes.mjs` remains for screenshot spot-checks.
+**→ T2 BANKED.** Canvas is the production node renderer.
 
-**Gotchas unchanged:** same-session A/B + stable calibration index mandatory (this iter
-DOM 3.2 ↔ canvas 3.1, comparable); `git checkout -- perf-results/baseline.md` after any
-partial/diagnostic run; **the dev server desyncs from `dist/` after `build:lib` ("Can't
-resolve 'axoview'") — let `npm run perf` own the lifecycle (no `PERF_REUSE` against a
-hand-started server; this iter wasted two runs learning that the hard way)**; kill stray
-:3000 listeners; correctness gate command in the Iter-6 resume point above, run flag-ON
-with `AXOVIEW_CANVAS_NODES=1`.
+**Deferred, documented (NOT silent — charter anti-cheat):**
+- **notes/link badges** are not drawn on the canvas yet (small affordance dots; not
+  gate-checked; pixel-accurate placement on the iso-skewed icon needs a
+  screenshot-driven pass). They still appear when a node is selected/dragged (DOM
+  overlay). Tracked for a follow-up.
+- **connectors** stay on the tested DOM/SVG layer — Iter-7 proved they carry no spawn
+  prize and are rAF-batched on real paste; moving them to canvas is unmeasured scope
+  (would first need the harness to route connectors on spawn). Not a bottleneck.
+
+**Deliverables:** `Renderer.tsx`, `Nodes.tsx`, `NodesCanvas.tsx`, `engine-perf.spec.ts`,
+`app.fixture.ts`, this row. baseline.md restored after the partial PERF_N=1000 run (a
+full canvas baseline refresh is queued for the /notes step).
+
+---
+
+## ▶ COLD-START RESUME POINT (newest — start here) — updated Iter 11
+
+**Branch `perf/engine`, HEAD = Iter 11 commit.** **T2 IS BANKED — Canvas2D is the
+production node renderer**, default and unconditional (the flag is gone). Productizing
+per the `/feature` lifecycle (docs/workflow.md). ADR-0019 (canvas default substrate) +
+ADR-0020 (perf harness/protocol) authored + committed. Iter 10 folded descriptions onto
+the canvas; **Iter 11 flipped the default, removed the flag + the bulk DOM path, and
+added the draw-count anti-cheat.** Verified canvas-only: e2e gate 13/13, lib unit 1110
+passed, perf settle @1000 166.7 ms (−41% vs DOM 283), `rendered=1000/1000`.
+
+**State:** Kept wins through Iter 9 + Iter 10 (descriptions) + **Iter 11 (canvas
+default, flag removed, anti-cheat)**. The node renderer is `NodesCanvas` for the bulk;
+`Nodes.tsx` is now ONLY the sparse hybrid overlay (selected ∪ drag-set); `Node.tsx`
+retained. baseline.md still shows the old DOM numbers (283/200) — **refresh it to a full
+canvas baseline in the /notes step** (it is now the shipping renderer).
+
+**NEXT (productization tail — getting to the master PR):**
+1. **Update ADR-0019** to the actuals (Nodes.tsx retained as overlay mapper, not
+   deleted; badges + connector-on-canvas deferred as documented gaps).
+2. **/notes** — CHANGELOG, architecture.md (canvas node layer), docs/testing.md perf
+   section (the `npm run perf` how-to per ADR-0020), known_issues (badges/connectors
+   deferred). Refresh baseline.md with a FULL canvas run.
+3. **/feature wrap** — retire the charter tactical + `cold-start-t2*.md`; add the
+   PLAN.md line → ADR-0019/0020 (the durable content now lives in the ADRs).
+4. **/ship** — PR perf/engine → integration → master; **ping the user at the master PR**
+   (they review `integration` manually).
+
+**Deferred (documented gaps, not silent):** notes/link badges on canvas (appear on
+selection via the DOM overlay; need a screenshot-driven placement pass); connectors stay
+DOM/SVG (Iter-7: no spawn prize; not a bottleneck).
+
+**Gotchas:** same-session A/B + stable calibration index mandatory; `git checkout --
+perf-results/baseline.md` after any partial/diagnostic run; **the dev server desyncs from
+`dist/` after `build:lib` ("Can't resolve 'axoview'") — let `npm run perf` own the
+lifecycle (no `PERF_REUSE` against a hand-started server)**; kill stray :3000 listeners.
+The correctness gate now runs canvas unconditionally (no env var): `npx playwright test
+--config packages/axoview-e2e/playwright.config.ts --project=chromium drag-collision
+undo-redo-cross-cutting undo-redo-dual-stack multi-select-drag z-order
+rectangle-overlap-zorder css-preview-mid-drag rename readable-labels`.

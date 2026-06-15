@@ -606,11 +606,18 @@ function installHarness() {
     const commitMs = performance.now() - tc;
     await captureUntilSettled(frames, capMs);
     stop();
-    // Anti-cheat: every node renders a shell (data-drag-id). With fit-to-view
-    // this must equal N — proving the benchmark renders all the work the engine
-    // would (no accidental off-screen culling shrinking the scene). sceneCounts
-    // records the full multi-element composition that was committed.
-    const renderedNodes = document.querySelectorAll('[data-drag-id]').length;
+    // Anti-cheat (ADR 0019): the canvas node layer publishes its per-frame draw
+    // count on `data-draw-count`. With fit-to-view this must equal N — proving the
+    // benchmark paints every node the engine committed (no accidental off-screen
+    // cull shrinking the scene). Falls back to the legacy DOM-shell count
+    // (`[data-drag-id]`) for any non-canvas path. sceneCounts records the full
+    // multi-element composition that was committed.
+    const canvasEl = document.querySelector(
+      '[data-testid="axoview-nodes-canvas"]'
+    ) as HTMLElement | null;
+    const renderedNodes = canvasEl
+      ? parseInt(canvasEl.dataset.drawCount ?? '0', 10) || 0
+      : document.querySelectorAll('[data-drag-id]').length;
     return {
       frames,
       longTasks,
@@ -838,11 +845,9 @@ async function bootApp(page: Page) {
     // always-on DiagnosticsOverlay 1 Hz rAF+setState loop (diagnosticsStore).
     ['axoview-perf-harness', '1']
   ];
-  // T2 PoC: PERF_CANVAS=1 selects the Canvas2D node layer (NodesCanvas) over the
-  // DOM node renderer (read pre-boot in Renderer). Pure-additive — the reference
-  // run (flag off) IS the current renderer, so the A/B is flag-off vs flag-on,
-  // same session, calibration-checked.
-  if (process.env.PERF_CANVAS) ONBOARDING.push(['axoview-canvas-nodes', '1']);
+  // The Canvas2D node layer (NodesCanvas) is the default + sole bulk renderer
+  // (ADR 0019) — no flag to set. The harness measures it unconditionally; the
+  // draw-count anti-cheat above asserts it painted every node.
   const CLEAR_KEYS = [
     'axoview-diagrams',
     'axoview-last-opened',

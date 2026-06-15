@@ -9,6 +9,13 @@ interface Props {
   nodes: ViewItem[];
 }
 
+// Maps a node list to DOM <Node> components. Since ADR 0019 (Canvas2D is the
+// default + sole BULK node renderer), this is no longer the bulk path — the
+// Renderer feeds it only the sparse hybrid-overlay set (the selected node ∪ the
+// drag set), so it renders 0–few nodes, never N. Retained because the overlay
+// needs the real DOM <Node> (F2 inline-rename, readable-labels counter-scale,
+// `--ff-drag` drag preview) and this component already does the render-order
+// sort correctly.
 export const Nodes = memo(({ nodes }: Props) => {
   useRenderProbe('Nodes');
   const { layers, visibleIds } = useLayerContext();

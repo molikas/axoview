@@ -28,22 +28,6 @@ const NO_HYBRID_NODES: ViewItem[] = [];
 // Extra tiles of padding around the screen edges to avoid visible pop-in.
 const VIEWPORT_TILE_PADDING = 4;
 
-// T2 PoC flag (RED gate, default OFF). When on, the node layer is drawn by an
-// imperative Canvas2D path (NodesCanvas) instead of the per-node React DOM
-// subtree (Nodes). Read once at mount; the DOM path is byte-identical when off,
-// so the committed baseline + full correctness gate stay green. The harness sets
-// this via PERF_CANVAS=1 → localStorage in bootApp for the same-session A/B.
-const readCanvasNodesFlag = (): boolean => {
-  try {
-    return (
-      typeof localStorage !== 'undefined' &&
-      localStorage.getItem('axoview-canvas-nodes') === '1'
-    );
-  } catch {
-    return false;
-  }
-};
-
 interface TileBounds {
   minX: number;
   maxX: number;
@@ -149,20 +133,19 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
     [showGrid]
   );
 
-  const canvasNodes = useMemo(readCanvasNodesFlag, []);
-
-  // T2 node-layer hybrid: in canvas mode the actively-manipulated nodes — the
-  // single SELECTED node and any node currently being DRAGGED — are rendered by
-  // the DOM <Node> (and skipped by the canvas) so they keep the DOM affordances
-  // the canvas can't cheaply replicate: the F2 inline-rename contentEditable and
-  // readable-labels counter-scale wrapper (selected node), and the `--ff-drag`
-  // CSS-var compositor drag preview (DragItems mutates `[data-drag-id]`, which
-  // only the DOM path has). Both signals are sparse — `itemControls` is the
-  // single-selection signal (null for 0 or >1 selected); `mode.items` lists the
-  // drag set only while mode === DRAG_ITEMS. Nothing is selected or dragging
-  // during bulk spawn, so the spawn path is unchanged. Dragging the node in DOM
-  // (rather than redrawing it on the canvas per preview frame) is how the hybrid
-  // gets a correct, compositor-only drag preview for free.
+  // The node layer is drawn by the imperative Canvas2D path (NodesCanvas) — the
+  // default and sole bulk renderer (ADR 0019). The actively-manipulated nodes —
+  // the single SELECTED node and any node currently being DRAGGED — are instead
+  // rendered by the DOM <Node> overlay (and skipped by the canvas) so they keep
+  // the DOM affordances the canvas can't cheaply replicate: the F2 inline-rename
+  // contentEditable and readable-labels counter-scale wrapper (selected node),
+  // and the `--ff-drag` compositor drag preview (DragItems mutates
+  // `[data-drag-id]`, which only the DOM path has). Both signals are sparse —
+  // `itemControls` is the single-selection signal (null for 0 or >1 selected);
+  // `mode.items` lists the drag set only while mode === DRAG_ITEMS. Nothing is
+  // selected or dragging during bulk spawn, so the bulk path is pure canvas.
+  // Dragging the node in DOM (rather than redrawing it on the canvas per preview
+  // frame) is how the hybrid gets a correct, compositor-only drag preview for free.
   const selectedNodeId = useUiStateStore((s) =>
     s.itemControls?.type === 'ITEM' ? s.itemControls.id : null
   );
@@ -178,13 +161,12 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   );
 
   const hybridIds = useMemo(() => {
-    if (!canvasNodes) return null;
     if (!selectedNodeId && !draggingKey) return null;
     const ids = new Set<string>();
     if (selectedNodeId) ids.add(selectedNodeId);
     if (draggingKey) for (const id of draggingKey.split(',')) ids.add(id);
     return ids;
-  }, [canvasNodes, selectedNodeId, draggingKey]);
+  }, [selectedNodeId, draggingKey]);
 
   const visibleItems = useMemo(() => {
     const { minX, maxX, minY, maxY } = coarseBounds;
@@ -305,18 +287,10 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
           height: '100%'
         }}
       />
-      {canvasNodes ? (
-        <>
-          <NodesCanvas nodes={visibleItems} skipNodes={hybridNodes} />
-          {hybridNodes.length > 0 && (
-            <SceneLayer>
-              <Nodes nodes={hybridNodes} />
-            </SceneLayer>
-          )}
-        </>
-      ) : (
+      <NodesCanvas nodes={visibleItems} skipNodes={hybridNodes} />
+      {hybridNodes.length > 0 && (
         <SceneLayer>
-          <Nodes nodes={visibleItems} />
+          <Nodes nodes={hybridNodes} />
         </SceneLayer>
       )}
       <SceneLayer>

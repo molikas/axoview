@@ -234,9 +234,11 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
         return oa - ob;
       });
 
+      let drawn = 0;
       for (const node of sorted) {
         const modelItem = getItemById(items, node.id)?.value;
         if (!modelItem) continue;
+        drawn += 1;
         const pos = getTilePos({ tile: node.tile, origin: 'CENTER' });
 
         // ----- icon -----
@@ -351,6 +353,13 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
           ctx.restore();
         }
       }
+
+      // Draw-count anti-cheat (ADR 0019): the perf harness asserts drawn == N at
+      // fit-to-view, proving the canvas paints every node the scene committed (no
+      // accidental cull shrinking the benchmark) — the canvas-mode replacement for
+      // the DOM `[data-drag-id]` shell count, which reads ~0 with the bulk DOM path
+      // gone.
+      canvas.dataset.drawCount = String(drawn);
     };
 
     const scheduleDraw = () => {
