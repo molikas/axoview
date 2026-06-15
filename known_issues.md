@@ -32,6 +32,28 @@ The pointing-finger cursor on hover (added 2026-05-15) does cover all four cases
 
 **Status:** Open. Decide on a unified badge story — either extend the existing badges to cover the missing cases, or replace both with one consolidated "more info" indicator that fires for any of the four content types.
 
+## Canvas node renderer: notes/link badges + connectors not drawn for unselected nodes (ADR 0019)
+
+**Symptom:** With the Canvas2D node layer now the default renderer (ADR 0019), two visuals
+are not yet painted on the canvas for nodes at rest:
+
+- **Notes/link badges** (the top-right blue dot for `notes`, the bottom-right OpenInNew
+  badge for `link` in preview mode). They reappear as soon as a node is **selected or
+  dragged** (it renders via the DOM `<Node>` overlay), so the affordance is not lost on
+  interaction — only on at-a-glance scanning of unselected nodes. (Compounds the existing
+  "Preview-mode passive badge does not cover all clickable nodes" entry above.)
+- **Connectors** still render on the existing DOM/SVG layer, not the canvas. This is
+  correct and intentional (Iter-7 proved connectors carry no spawn-cost prize and are
+  rAF-batched on paste); listed here only so the canvas-vs-DOM split is documented.
+
+**Workaround:** None needed for connectors. For badges: select/hover the node to see them.
+
+**Status:** Open, deferred (T2 productization follow-ups). Badges need a screenshot-driven
+placement pass to anchor them accurately on the iso-skewed canvas icon; folding connectors
+onto the canvas would first need the perf harness to route connectors on spawn. Neither
+blocks the T2 render-substrate win. Tracked in
+[ADR 0019 implementation addendum](docs/adr/0019-canvas2d-node-render-layer.md).
+
 ## MQA diag exporter: element counts always read 0
 
 **Symptom:** The perf-diag JSON exporter records `ni: 0, nc: 0, ntb: 0` on every snapshot regardless of scene size, breaking the FPS-vs-complexity correlation it was meant to enable.

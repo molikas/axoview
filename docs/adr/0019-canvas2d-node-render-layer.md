@@ -115,3 +115,32 @@ DOM-shell count (reads 0/N in canvas mode) to a **canvas draw count**.
   than the retired DOM path's 283 ms), drag stays at 60 fps, KR3 idle guardrail PASS.
 - Visual parity confirmed including descriptions, notes/link badges, and connectors.
 - A canvas draw-count anti-cheat replaces the DOM-shell spawn count in the harness.
+
+## Implementation addendum — 2026-06-15 (Iter 10–11, the flip shipped)
+
+The decision shipped on `perf/engine` (Iters 10–11). Two refinements vs the prose
+above, recorded here rather than rewriting the decision:
+
+- **`Nodes.tsx` is retained, not deleted.** The decision said "the bulk DOM mapping
+  component `Nodes` is deleted." In practice the hybrid **overlay** still needs a
+  node-list→`<Node>` mapper with the correct render-order sort, and `Nodes.tsx`
+  already does exactly that. It is therefore **narrowed to the sparse overlay** (fed
+  only the selected ∪ drag-set, 0–few nodes, never N) rather than removed —
+  reimplementing its sort inline in `Renderer` would add risk for no benefit. The
+  intent of the decision (no bulk DOM node render; no dual-path flag) is fully met:
+  `NodesCanvas` is the unconditional bulk renderer and the flag is gone.
+- **Anti-cheat shipped** as `data-draw-count` on the `<canvas>`; the harness asserts
+  it `== N` at fit-to-view (verified `rendered=1000/1000`).
+
+**Deferred, documented gaps (closed in follow-ups, not silently dropped):**
+- **Notes/link badges** are not yet drawn on the canvas. They still render when a node
+  is selected/dragged (the DOM overlay). Pixel-accurate placement on the iso-skewed
+  icon needs a screenshot-driven pass — tracked in `known_issues.md`.
+- **Connectors** remain on the existing DOM/SVG layer. Iter-7 proved they carry no
+  spawn prize and are rAF-batched on real paste; folding them onto the canvas is
+  unmeasured scope (would first need the harness to route connectors on spawn) and is
+  **not** a prerequisite for the node-substrate win.
+
+**Verification at flip (Iter 11):** e2e correctness gate 13/13 with canvas as the only
+path (no flag); lib unit suite 1110 passed; perf spawn settle @1000 = 166.7 ms (−41%
+vs the DOM baseline 283 at comparable calibration), `rendered=1000/1000`.

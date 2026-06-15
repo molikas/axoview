@@ -83,6 +83,40 @@ New suites shipped with [ADR 0018](adr/0018-touch-pen-gesture-contract.md) — t
 
 ---
 
+## Engine performance harness (2026-06-15) — ADR 0020
+
+The engine-perf harness is the committed, reproducible measurement rig for the render
+(T2) and simulation (T3) work. The decision + protocol are durable in
+[ADR 0020](adr/0020-engine-perf-harness-and-measurement-protocol.md); this is the
+how-to.
+
+- **Run:** `npm run perf` (config `packages/axoview-e2e/perf/perf.config.ts`). It
+  **owns its server lifecycle** — `build:lib && dev` fresh — so it never measures a
+  stale `dist/`. It drives the real app in real Chromium via the debug bridge
+  (`window.__axoview__`), scripts a bulk-paste (spawn) and a synthetic drag, and writes
+  `perf-results/baseline.md` (p50/p95/mean/longest/settle/long-task per N, the idle
+  guardrail, and the machine **calibration index**).
+- **Env knobs:** `PERF_N` (e.g. `500,1000,2000`), `PERF_REPEATS`, `PERF_WARMUP`,
+  `PERF_IDLE_MS`; diagnostics `PERF_PROFILE`/`PERF_CPUPROFILE` (spawn),
+  `PERF_DRAGPROFILE` (drag), `PERF_RENDERPROBE`, `PERF_NOLABEL`, `PERF_NOCONN`.
+- **Measurement discipline (load-bearing):** cross-session machine drift was measured at
+  ~22% (≫ the ~2–5% within-run noise), so every keep/revert is a **same-session A/B with
+  a matching calibration index** — never a fresh run vs a prior-session baseline. A
+  result inside the noise band is not a change. One `decision-log.md` row per hypothesis.
+- **Anti-cheat:** the canvas node layer publishes a per-frame draw count on
+  `data-draw-count`; the harness asserts it `== N` at fit-to-view (no off-screen cull
+  shrinking the benchmark). `perf-results/baseline.md` is rewritten by **every** run incl.
+  partial/diagnostic ones — `git checkout -- perf-results/baseline.md` after any non-full
+  run; only a clean full idle run updates it.
+- **Gotcha:** the rsbuild dev server desyncs from `dist/` after `build:lib` ("Can't
+  resolve 'axoview'"). Let `npm run perf` own the lifecycle; do not `PERF_REUSE` against a
+  hand-started server unless it was just rebuilt + restarted. Kill stray :3000 listeners
+  between runs.
+
+The running record (committed): [perf-results/baseline.md](../perf-results/baseline.md)
+(certified numbers) and [perf-results/decision-log.md](../perf-results/decision-log.md)
+(one row per hypothesis; the resume point is its tail).
+
 ## Branch additions (2026-05-19) — Startup perf + splash screen
 
 | Suite | Coverage |
