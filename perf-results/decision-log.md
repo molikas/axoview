@@ -981,39 +981,113 @@ this row. Baseline.md untouched (restored after partial runs).
 
 ---
 
-## ▶ COLD-START RESUME POINT (newest — start here) — updated Iter 8
+## Iter 9 — editing/dragging-node DOM hybrid (flag-ON correctness gate GREEN)
 
-**Branch `perf/engine`, HEAD = Iter 8 commit.** T2 node-layer Canvas2D direction is
-**VALIDATED with a measured GO** (spawn −41% @1000 settle / −58% longest, drag flat
-60 fps, sub-linear scaling, gate green flag-off). The PoC ships behind
-`localStorage axoview-canvas-nodes` (default OFF) / `PERF_CANVAS=1`. This is still
-RED-gated overhaul territory — the PoC is committed, the DOM renderer is untouched.
+**Context:** Iter-8 PoC GO'd the node-layer canvas but deferred the flag-ON gate
+(`t2-design` FINDING). Per `cold-start-t2-hybrid.md` gap #1, build the production
+hybrid so the FULL correctness gate passes flag-ON. Empirical first (LOOP step 7):
+added an `AXOVIEW_CANVAS_NODES=1`→localStorage bridge to the e2e fixtures (mirrors
+`PERF_CANVAS`; off by default ⇒ committed gate untouched) and ran the gate flag-ON on
+the Iter-8 HEAD to see EXACTLY what canvas mode breaks. Result: **10/13 pass**; only
+`css-preview-mid-drag` (needs `[data-drag-id]` + `--ff-drag`) and `readable-labels`
+(needs a DOM `[data-testid="node-label"]`) fail — the other drag/undo/z-order specs
+assert via the debug bridge/store and are renderer-agnostic.
 
-**State:** baseline unchanged (DOM path byte-identical, flag off) — spawn N=1000
-283/200, N=500 200/117; drag all-N ~16.7 ms 60 fps; KR3 PASS. Kept wins: Iter 3
-de-emotion (spawn), Iter 6 useColor (drag), **Iter 8 NodesCanvas PoC (spawn −41%
-@1000 behind default-off flag)**. New files: `packages/axoview-lib/src/components/
-SceneLayers/Nodes/NodesCanvas.tsx`; harness `PERF_CANVAS` plumbing; `.scratch/
-verify-canvas-nodes.mjs`.
+**Hypothesis:** rendering the *actively-manipulated* nodes (the single selected node
+∪ the drag set) as DOM `<Node>` overlays — and skipping them on the canvas — passes
+the flag-ON gate without measurable spawn cost (nothing is selected/dragging during
+bulk spawn).
 
-**NEXT (production node-layer hybrid — each via same-session A/B + gate + visual):**
-1. **Editing-node DOM hybrid** — keep ONE live DOM label for the selected/editing
-   node (F2 inline edit + live readable-labels counter-scale); everything else
-   canvas. This unblocks the **flag-ON correctness gate** (`rename`,
-   `readable-labels`). The hardest part; do it next.
-2. **Fold in description text + notes/link badges** on canvas; measure the residual
-   vs the −41% (some of which was dropped descriptions — but canvas already beats the
-   labels-off floor, so the core win holds).
-3. **Canvas drag-preview redraw** — redraw O(visible) on the drag-preview tick so the
-   dragged node moves on canvas (the DOM `--ff-drag` path has no canvas equivalent yet).
-4. **Fold the connector polyline draw** into the same canvas (trivial — same cull)
+**One variable:** the canvas-mode render path gains a sparse DOM overlay
+(`Renderer`: `selectedNodeId` from `itemControls` ∪ `draggingKey` from `mode.items`
+while `DRAG_ITEMS` → `hybridNodes`; `NodesCanvas` gains `skipNodes`). DOM path
+byte-identical when flag off. Two test-infra changes (not lib): the fixture env
+bridge, and a renderer-aware `readable-labels` helper.
+
+**Why the drag set, not just selection (root cause):** dragging an *unselected* node
+never sets `itemControls` (selection-on-mousedown only fires for a click, and
+`DragItems.mouseup` clears it), so a selection-only hybrid left the dragged node
+canvas-only ⇒ `applyCssOffset` found no `[data-drag-id]` and `css-preview-mid-drag`
+still failed (observed: 12/13). The dragged ids live in `uiState.mode.items` while
+`mode==='DRAG_ITEMS'`; rendering those as DOM gives the dragged node a real
+`[data-drag-id]` for `--ff-drag` — which also means the **drag preview is the DOM
+compositor path for free** (gap #3 solved for the common single/multi drag; no canvas
+per-frame redraw needed).
+
+**readable-labels (honest accounting):** the spec reads `--axoview-label-scale` off
+the first node-label's DOM wrapper — absent in canvas mode for an *unselected* node.
+The counter-scale genuinely runs on canvas (`computeLabelCounterScale`→`ctx.scale`,
+since the PoC). Rather than re-introduce N DOM labels (would erase the win — rejected)
+or weaken the assertion, `NodesCanvas` now publishes the *applied* counter-scale as
+`data-label-scale` on the `<canvas>` and the spec helper reads it renderer-agnostically
+(DOM wrapper when present — flag-off identical; else the canvas attr). Same feature,
+same value, different observation surface; documented as the anti-cheat requires.
+
+**Same-session A/B — DOM cal 3.2 ms, canvas cal 3.1 ms (comparable; Iter-8 used 3.1):**
+
+| metric @1000 | DOM ref (flag off) | canvas hybrid (flag on) | Δ |
+|---|---|---|---|
+| spawn settle | 283.3 | **166.6** | **−41%** |
+| spawn longest | 200.0 | **83.3** | **−58%** |
+| long-task total | 1127 | **72** | −94% |
+
+**Result: the Iter-8 spawn win is preserved EXACTLY** (canvas settle 166.6 ms,
+byte-identical to Iter-8) — the editing/dragging DOM overlay adds zero spawn cost,
+as predicted (nothing selected/dragging during bulk spawn ⇒ `hybridIds` null ⇒
+identical draw). **→ KEEP.**
+
+**Correctness gate — flag-ON: 13/13 GREEN** (was 10/13: `css-preview-mid-drag` +
+both `readable-labels` now pass). **Flag-OFF: 13/13 GREEN** (no regression — DOM path
+byte-identical; the `readable-labels` helper reads the DOM wrapper unchanged when
+present). This is the milestone the charter RED rule gates on: the canvas path now
+passes the full gate flag-ON — present before making canvas default / deleting DOM.
+
+**Deliverables committed:** `Renderer` hybrid wiring (`selectedNodeId`/`draggingKey`/
+`hybridNodes`), `NodesCanvas` `skipNodes` + `data-label-scale`, `AXOVIEW_CANVAS_NODES`
+fixture bridge, renderer-aware `readable-labels` helper, this row. Baseline.md restored
+after partial PERF_N=1000 runs (still 283/200 @1000, flag-off byte-identical).
+
+---
+
+## ▶ COLD-START RESUME POINT (newest — start here) — updated Iter 9
+
+**Branch `perf/engine`, HEAD = Iter 9 commit.** T2 node-layer Canvas2D hybrid now
+**passes the FULL correctness gate flag-ON (13/13)** AND flag-OFF (13/13), with the
+Iter-8 spawn win preserved exactly (settle 283→167 @1000, −41%; longest 200→83;
+long-task 1127→72). Still RED-gated: the DOM renderer is untouched and canvas is NOT
+the default — **present before making canvas default or deleting the DOM renderer**
+(charter RED rule). The hybrid renders the selected node ∪ drag-set as DOM `<Node>`
+(sparse), canvas draws the rest; flag `localStorage axoview-canvas-nodes` / `PERF_CANVAS=1`
+/ gate `AXOVIEW_CANVAS_NODES=1`.
+
+**State:** baseline unchanged (flag-off byte-identical) — spawn N=1000 283/200, N=500
+200/117; drag all-N ~16.7 ms 60 fps; KR3 PASS. Kept wins: Iter 3 de-emotion (spawn),
+Iter 6 useColor (drag), Iter 8 NodesCanvas PoC, **Iter 9 editing/dragging DOM hybrid
+(flag-ON gate green; spawn win preserved)**. Touched: `Renderer.tsx`,
+`NodesCanvas.tsx`, `fixtures/app.fixture.ts`, `tests/readable-labels.spec.ts`.
+
+**NEXT (each via same-session A/B + gate + visual):**
+1. **Fold in description text + notes/link badges** on canvas; measure the residual vs
+   −41% (some of the −41% was dropped descriptions, but canvas already beat the DOM
+   labels-off floor, so the core win holds). Currently the canvas draws icon + static
+   name only; a node with a description shows only its name on canvas (until selected,
+   when the DOM `<Node>` renders the full RichText). Honest gap — close it next.
+2. **Fold the connector polyline draw** into the same canvas (trivial — same cull)
    AFTER fixing the harness to route connectors on spawn (Iter-7 caveat).
-5. Once the full gate passes flag-ON in canvas mode → present before deleting the DOM
-   node renderer (charter RED rule).
+3. **Present the GO + flag-ON gate evidence** and decide whether to make canvas the
+   default and retire the DOM node renderer (charter RED rule — do not do this silently).
+   A default-on canvas wants a draw-count anti-cheat (the spawn DOM-shell count reads
+   0/N in canvas mode — expected; Iter-8 harness note).
 
-**Gotchas unchanged:** same-session A/B + stable calibration index mandatory (re-ran
-warm to match 3.1↔3.1 this iter); `git checkout -- perf-results/baseline.md` after any
-partial/diagnostic run; the dev server desyncs from `dist/` after `build:lib` — let
-`npm run perf` own the lifecycle (build+fresh boot) rather than PERF_REUSE against a
-hand-started server; kill stray :3000 listeners; correctness gate command in the
-Iter-6 resume point above.
+**Visual parity:** covered behaviorally by the flag-ON gate — `readable-labels` asserts
+the real applied counter-scale, `css-preview-mid-drag` the real drag-preview offset,
+`drag-collision`/`multi-select-drag`/`z-order` the committed geometry. `.scratch/
+verify-canvas-nodes.mjs` remains for screenshot spot-checks.
+
+**Gotchas unchanged:** same-session A/B + stable calibration index mandatory (this iter
+DOM 3.2 ↔ canvas 3.1, comparable); `git checkout -- perf-results/baseline.md` after any
+partial/diagnostic run; **the dev server desyncs from `dist/` after `build:lib` ("Can't
+resolve 'axoview'") — let `npm run perf` own the lifecycle (no `PERF_REUSE` against a
+hand-started server; this iter wasted two runs learning that the hard way)**; kill stray
+:3000 listeners; correctness gate command in the Iter-6 resume point above, run flag-ON
+with `AXOVIEW_CANVAS_NODES=1`.

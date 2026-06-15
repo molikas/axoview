@@ -30,6 +30,24 @@ const ONBOARDING_DISMISS_FLAGS: Array<[string, string]> = [
   ['axoview-show-drag-hint', 'false']
 ];
 
+// T2 node-layer Canvas2D gate switch (mirrors the perf harness's PERF_CANVAS).
+// When AXOVIEW_CANVAS_NODES=1, set the `axoview-canvas-nodes` localStorage flag
+// before each navigation so the Renderer mounts the Canvas2D node layer instead
+// of the DOM node renderer. Lets the correctness gate run flag-ON
+// (`AXOVIEW_CANVAS_NODES=1 npx playwright test ...`) without touching any spec.
+// Off (the default) → byte-identical to the DOM path, so the committed gate is
+// unchanged.
+async function applyCanvasNodesFlag(page: Page) {
+  if (process.env.AXOVIEW_CANVAS_NODES !== '1') return;
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('axoview-canvas-nodes', '1');
+    } catch {
+      /* localStorage may not be available pre-navigation */
+    }
+  });
+}
+
 export class AppPage {
   constructor(readonly page: Page) {}
 
@@ -53,6 +71,7 @@ async function waitForAppReady(page: Page) {
 
 export const appTest = base.extend<{ app: AppPage }>({
   app: async ({ page }, use) => {
+    await applyCanvasNodesFlag(page);
     await page.goto('/');
     await waitForAppReady(page);
     await waitForDebugBridge(page);
@@ -75,6 +94,7 @@ export const appTest = base.extend<{ app: AppPage }>({
  */
 export const canvasReadyTest = base.extend<{ app: AppPage }>({
   app: async ({ page }, use) => {
+    await applyCanvasNodesFlag(page);
     await page.addInitScript((flags: Array<[string, string]>) => {
       try {
         for (const [k, v] of flags) localStorage.setItem(k, v);

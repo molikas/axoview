@@ -345,3 +345,55 @@ canvas mode.
 
 _Status: node-layer Canvas2D direction VALIDATED with a measured GO (spawn −41%
 @1000, drag flat, gate green flag-off). PoC committed behind a default-off flag._
+
+---
+
+## FINDING (Iter 9 — editing/dragging-node DOM hybrid, FULL gate GREEN flag-ON)
+
+**The production hybrid passes the full correctness gate flag-ON (13/13) with the
+Iter-8 spawn win preserved exactly. The canvas path is now correctness-complete for
+the gated behaviors — the charter RED milestone for proposing canvas as default.**
+
+### What was built
+
+- **Sparse DOM overlay for the actively-manipulated nodes.** In canvas mode the
+  `Renderer` lifts the *selected* node (`itemControls`, the single-selection signal)
+  **and the drag set** (`mode.items` while `mode==='DRAG_ITEMS'`) into DOM `<Node>`
+  overlays; `NodesCanvas` skips those ids (`skipNodes`) so nothing draws twice. Both
+  signals are sparse (0–few) and empty during bulk spawn, so the spawn path is
+  unchanged. This gives the selected node its DOM affordances (F2 inline-rename
+  contentEditable, readable-labels counter-scale wrapper) and the dragged node a real
+  `[data-drag-id]` for the `--ff-drag` compositor preview — i.e. **the canvas drag
+  preview is the existing DOM path for free** (the deferred "canvas drag-preview
+  redraw" is unnecessary for the selected/dragged node).
+- **Renderer-aware readable-labels observation.** No per-node DOM label exists for an
+  *unselected* canvas node, so `NodesCanvas` publishes the *applied* counter-scale as
+  `data-label-scale` on the `<canvas>` (the exact value fed to `ctx.scale`), and the
+  spec helper reads it renderer-agnostically (DOM wrapper when present — flag-off
+  identical; else the canvas attr). Re-introducing N DOM labels was rejected (it would
+  erase the win). Same feature, same value, different observation surface.
+- **Gate switch:** `AXOVIEW_CANVAS_NODES=1` → localStorage in the e2e fixtures
+  (mirrors `PERF_CANVAS`; off ⇒ committed gate byte-identical).
+
+### Evidence
+
+- **flag-ON gate 13/13 GREEN** (was 10/13 on Iter-8 HEAD: only `css-preview-mid-drag`
+  + both `readable-labels` failed — exactly the DOM-node-dependent specs). **flag-OFF
+  gate 13/13 GREEN** (DOM path byte-identical).
+- **Spawn A/B preserved exactly** (DOM cal 3.2 ↔ canvas cal 3.1): settle @1000
+  283.3→**166.6** (−41%), longest 200→83.3 (−58%), long-task 1127→72. Identical to
+  Iter-8 ⇒ the DOM overlay adds zero spawn cost.
+
+### Still deferred (honest accounting)
+
+- **Description text + notes/link badges** on canvas: an unselected node with a
+  description shows only its name (the full RichText appears when selected, via the DOM
+  `<Node>`). Close next; measure the residual vs −41%.
+- **Connector polyline draw** on the canvas (after the harness routes connectors on
+  spawn — Iter-7 caveat).
+- **Making canvas the default / retiring the DOM renderer** — RED-gated; present the
+  GO + this flag-ON gate evidence first. A default-on canvas wants a draw-count
+  anti-cheat (DOM-shell spawn count reads 0/N in canvas mode).
+
+_Status: production hybrid passes the full correctness gate flag-ON AND flag-OFF;
+spawn win preserved. Canvas remains behind the default-off flag; DOM renderer intact._

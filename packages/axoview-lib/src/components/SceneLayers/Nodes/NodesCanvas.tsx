@@ -44,6 +44,11 @@ import { resolveRenderOrder, findLayer } from 'src/utils/renderOrder';
 
 interface Props {
   nodes: ViewItem[];
+  // Nodes lifted into a DOM <Node> overlay by the hybrid (the selected node) —
+  // skipped here so they aren't drawn twice. Referentially stable (empty list
+  // when nothing is selected), so the redraw effect below only fires on an
+  // actual selection change.
+  skipNodes?: ViewItem[];
 }
 
 // MUI defaults baked once (the PoC does not read the live theme): text.primary,
@@ -55,6 +60,8 @@ const CHIP_RADIUS = 8;
 const CHIP_PAD_X = 12;
 const CHIP_PAD_Y = 8;
 const PROJ_W = PROJECTED_TILE_SIZE.width;
+// Shared empty skip-set so an unselected scene reuses one Set instance.
+const EMPTY_SKIP: Set<string> = new Set();
 // Fixed iso projection matrix (X-orientation) — mirrors getProjectionCss / the
 // NonIsometricIcon transform.
 const ISO: [number, number, number, number, number, number] = [
@@ -66,7 +73,7 @@ const resolveIcon = (iconId: string | undefined, icons: Icon[]): Icon => {
   return getItemById(icons, iconId)?.value ?? TOMBSTONE_ICON;
 };
 
-export const NodesCanvas = memo(({ nodes }: Props) => {
+export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const uiApi = useUiStateStoreApi();
   const modelApi = useModelStoreApi();
@@ -80,11 +87,16 @@ export const NodesCanvas = memo(({ nodes }: Props) => {
   const visibleIdsRef = useRef(visibleIds);
   const getTilePositionRef = useRef(getTilePosition);
   const projectionRef = useRef(strategy.projectionName);
+  const skipIdsRef = useRef<Set<string>>(new Set());
   nodesRef.current = nodes;
   layersRef.current = layers;
   visibleIdsRef.current = visibleIds;
   getTilePositionRef.current = getTilePosition;
   projectionRef.current = strategy.projectionName;
+  skipIdsRef.current =
+    skipNodes && skipNodes.length > 0
+      ? new Set(skipNodes.map((n) => n.id))
+      : EMPTY_SKIP;
 
   // Icon-bitmap cache (the key spawn win): one decoded HTMLImageElement per icon
   // URL, drawn N times — vs N DOM <img> elements. Survives across redraws.
@@ -155,10 +167,17 @@ export const NodesCanvas = memo(({ nodes }: Props) => {
         minReadablePx: LABEL_MIN_READABLE_PX,
         maxCounterScale: LABEL_MAX_COUNTER_SCALE
       });
+      // Publish the applied label counter-scale so the readable-labels gate can
+      // observe it on the canvas renderer (no per-node DOM label exists in canvas
+      // mode). This is the exact value fed to ctx.scale below, not a recomputation.
+      canvas.dataset.labelScale = String(counterScale);
+
+      const skipIds = skipIdsRef.current;
 
       // Painter's order: ascending resolved render order (mirrors Nodes sort).
       const visible = nodesRef.current.filter(
-        (n) => visibleNow.size === 0 || visibleNow.has(n.id)
+        (n) =>
+          (visibleNow.size === 0 || visibleNow.has(n.id)) && !skipIds.has(n.id)
       );
       const sorted = [...visible].sort((a, b) => {
         const oa = resolveRenderOrder(
@@ -281,7 +300,7 @@ export const NodesCanvas = memo(({ nodes }: Props) => {
   // one rAF-coalesced canvas redraw of O(visible) draw calls.
   useEffect(() => {
     scheduleDrawRef.current();
-  }, [nodes, layers, visibleIds]);
+  }, [nodes, layers, visibleIds, skipNodes]);
 
   return (
     <canvas
