@@ -244,10 +244,13 @@ function installHarness() {
     const icon = iconId();
     const items: any[] = [];
     const vitems: any[] = [];
+    const noLabel = !!w.__perfNoLabel; // diagnostic: isolate label-subtree cost
     for (let i = 0; i < N; i++) {
       const id = 'perf-' + i;
       items.push({ id, name: 'n' + i, icon });
-      vitems.push({ id, tile: { x: xBase + (i % side), y: Math.floor(i / side) } });
+      const vi: any = { id, tile: { x: xBase + (i % side), y: Math.floor(i / side) } };
+      if (noLabel) vi.showLabel = false;
+      vitems.push(vi);
     }
     return { items, vitems };
   }
@@ -596,6 +599,9 @@ async function bootApp(page: Page) {
   );
   await page.keyboard.press('Escape'); // dismiss hint tooltips
   await page.evaluate(installHarness);
+  await page.evaluate((v: boolean) => {
+    (window as any).__perfNoLabel = v;
+  }, !!process.env.PERF_NOLABEL);
 }
 
 // ---------------------------------------------------------------------------

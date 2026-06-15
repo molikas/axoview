@@ -157,18 +157,37 @@ emotion serialize/`murmur2` ~180, `deepmerge` 66 — see `cpuprofile-spawn-1000.
   per-render cost. Initial mount (spawn) can't be memoized away — each node's
   first render must get cheaper.
 
-### Iter 2 — NEXT: de-emotion the per-node LABEL subtree
+### Iter 1b — 🔬 confirmed the label subtree IS the bottleneck (≈71%, ~3× ceiling)
 
-- **Hypothesis:** the label render path (MUI `Typography` + `Stack` + `Label`),
-  not the wrappers, is the dominant per-node emotion cost (`getThemeValue` 140 ms
-  is theme lookups from `color='text.primary'` + `Stack` spacing). Replacing it
-  with lightweight `styled`/plain elements that reproduce the same visuals will
-  cut spawn frame time measurably.
-- **Risk:** visual regression — guard with `rename`/`readable-labels` specs + a
-  visual check, since the correctness suite asserts label presence, not pixels.
-- **Open alt (note for later, likely bigger but a behaviour change → YELLOW):**
-  label LOD — skip rendering labels below a zoom/size threshold (unreadable when
-  zoomed to fit 1000 anyway). Cuts the collapse scenario hard without a rewrite.
+Added a gated diagnostic (`PERF_NOLABEL=1` → view items get `showLabel:false`)
+to isolate the label cost. Spawn N=1000:
+
+| | longest frame | settle |
+|---|---|---|
+| labels ON (baseline) | 633 ms | 1208 ms |
+| labels OFF | **183 ms** | **433 ms** |
+
+So the per-node **label subtree** (MUI `Typography` + `Stack` + `ExpandableLabel`
+→ `Label`) is **~450 ms of the 633 ms longest frame (71%)** and ~775 ms of the
+settle. `rendered=1000/1000` both ways (icons still render). This bounds the
+T1 win at ~3× and pins the target precisely.
+
+### Iter 2 — NEXT: make the per-node label render cheaper (GREEN, visuals preserved)
+
+- **Hypothesis:** replacing the label path's heavy MUI components (`Typography`
+  `fontWeight/fontSize/color='text.primary'` → `getThemeValue`; `Stack
+  spacing={1}`; the `ExpandableLabel` truncation-measurement `useEffect`s that
+  run per node on mount) with lightweight `styled`/plain elements reproducing the
+  same visuals will recover a large share of that ~450 ms with no behaviour
+  change. Implement incrementally (one sub-part at a time) and keep each kept
+  step's gain above noise.
+- **Risk:** visual regression — the correctness suite asserts label *presence*,
+  not pixels. Guard with `rename` + `readable-labels` specs AND a visual
+  screenshot check (run the app, fit 1000 nodes, compare) before keeping.
+- **Open alt (bigger, but a behaviour change → YELLOW, needs product nod):**
+  label LOD — skip label rendering below a zoom/size threshold. At fit-to-1000
+  the labels are sub-pixel and unreadable anyway, so this recovers ~the full 3×
+  in the exact collapse scenario for ~free. Strong candidate after Iter 2.
 
 ## ⏸ Earlier checkpoint — all 3 autonomy preconditions MET (signed off)
 
