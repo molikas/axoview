@@ -762,12 +762,12 @@ subscription**. Working tree clean (only `bloat-analysis.txt` untracked).
   node dragged through OCCUPIED tiles (collision + connector re-route). Text boxes
   excluded (scene-side size derivation incompatible with bulk set). Calibration
   index in every run.
-- **Baseline** (`baseline.md`, cal 3.3): spawn N=1000 **settle 283 ms / longest 200 ms**;
-  N=500 183/100; N=200 133/50 (de-emotion build — UNCHANGED by Iter 6, nodes don't use
-  useColor). **Drag: AFTER Iter 6, N=500 collision-drag = 16.9 ms (60 fps, was 30)**;
-  N=1000 ≈16.9. KR3 idle PASS (heap 77.6 MB flat). ⚠️ committed `baseline.md` still shows
-  the OLD drag numbers + the stale N=1000 "PROVISIONAL" caveat — **regenerate with a clean
-  FULL idle run** (the grab fix + Iter 6 both land in the drag cells).
+- **Baseline** (`baseline.md`, FRESH full run post-Iter-6, cal 3.2, KR1 6.2% certified):
+  spawn N=1000 **settle 283 / longest 200**; N=500 200/117; N=200 133/50 (UNCHANGED by
+  Iter 6 — nodes don't use useColor). **Drag: ALL cells now ~16.7 ms 60 fps, engaged=8/8
+  — N=500 collision-drag 30→16.9 (Iter 6); the N=1000 "PROVISIONAL" caveat is GONE
+  (grab fix).** KR3 idle PASS (0 retained, 0 long tasks; heap abs 87.5 MB — session-
+  dependent, only the 0-retained leak metric matters).
 - **Wins kept:** 2a (scrollTo-mount guard), 2b (Stack→flex, ~6%), **Iter 3 wholesale
   de-emotion (BIG spawn: −29% settle @1000)**, **Iter 6 `useColor` granular subscription
   (BIG drag: collision-drag N=500 33→60 fps, −45%)**. Reverted: 2c, 2d, Iter 4 (icon
@@ -801,8 +801,6 @@ Iter-5 "node re-render" reading was wrong). Iter 6 made `useColor` granular →
 **16.9 ms (60 fps), −45%, renders 436→7.8/frame.** The drag is now ~at budget.
 
 **NEXT (each via same-session A/B + correctness gate + visual):**
-0. **Regenerate `baseline.md`** with a clean FULL idle run (no PERF_N) — captures the
-   Iter-6 drag win + grab fix, drops the stale N=1000 "PROVISIONAL" caveat. Cheap, do first.
 1. **Audit other hot-path `useScene()`/`useSceneData()` over-subscriptions** — the
    SAME bug class as Iter 6. `ConnectorLabel` (renders per labelled connector; likely
    calls useColor/useScene → re-renders all per frame too), and any per-instance
