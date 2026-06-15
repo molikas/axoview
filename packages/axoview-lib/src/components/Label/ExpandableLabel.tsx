@@ -103,7 +103,17 @@ export const ExpandableLabel = ({
     return effectiveExpanded ? 'scroll' : 'hidden';
   }, [editorMode, effectiveExpanded]);
 
+  // Reset scroll to top only on an actual expand/collapse transition. On initial
+  // mount the freshly-rendered content is already at scrollTop 0, so this call is
+  // a behavioural no-op — but during bulk spawn it forces a per-node scroll/layout
+  // (≈364ms of JS self-time at N=1000, the single largest slice in the spawn CPU
+  // profile — perf-results/cpuprofile-spawn-1000.md). Skip the first run.
+  const didResetScrollRef = useRef(false);
   useEffect(() => {
+    if (!didResetScrollRef.current) {
+      didResetScrollRef.current = true;
+      return;
+    }
     contentRef.current?.scrollTo({ top: 0 });
   }, [effectiveExpanded]);
 

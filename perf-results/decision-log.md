@@ -172,22 +172,69 @@ So the per-node **label subtree** (MUI `Typography` + `Stack` + `ExpandableLabel
 settle. `rendered=1000/1000` both ways (icons still render). This bounds the
 T1 win at ~3× and pins the target precisely.
 
-### Iter 2 — NEXT: make the per-node label render cheaper (GREEN, visuals preserved)
+### Iter 2a — 🟢 GREEN (KEPT): drop the per-node `scrollTo({top:0})` on mount
 
-- **Hypothesis:** replacing the label path's heavy MUI components (`Typography`
-  `fontWeight/fontSize/color='text.primary'` → `getThemeValue`; `Stack
-  spacing={1}`; the `ExpandableLabel` truncation-measurement `useEffect`s that
-  run per node on mount) with lightweight `styled`/plain elements reproducing the
-  same visuals will recover a large share of that ~450 ms with no behaviour
-  change. Implement incrementally (one sub-part at a time) and keep each kept
-  step's gain above noise.
-- **Risk:** visual regression — the correctness suite asserts label *presence*,
-  not pixels. Guard with `rename` + `readable-labels` specs AND a visual
-  screenshot check (run the app, fit 1000 nodes, compare) before keeping.
+First incremental sub-part of Iter 2 (the "ExpandableLabel per-node useEffects"
+target). Trace-driven: the spawn CPU profile's single largest addressable slice
+was **`scrollTo` 364 ms** (cpuprofile-spawn-1000.md), and the only DOM `scrollTo`
+in the render path is `ExpandableLabel`'s scroll-reset `useEffect` (keyed on
+`effectiveExpanded`, which is `false` at mount) — so it fires once per node on
+spawn. On a freshly-mounted element already at `scrollTop 0` the call is a
+behavioural no-op, but synchronously it forces a per-node scroll/layout → 1000
+forced reflows interleaved through the spawn.
+
+- **Hypothesis:** guard the effect to fire only on an actual expand/collapse
+  *transition* (skip the initial mount). Predict spawn settle/longest drop
+  materially at N≥200, well above noise; zero visual change.
+- **Variable:** one `useRef` guard that skips the effect's first run. Nothing
+  else (visually + behaviourally identical for every real transition).
+- **Result (full N set, this run vs certified baseline):**
+
+  | N | settle before→after | Δ | longest before→after | Δ | new noise (CoV) |
+  |---|---|---|---|---|---|
+  | 200 | 333→200 ms | −40% | 142→67 ms | −53% | 4.2% |
+  | 500 | 683→383 ms | −44% | 317→167 ms | −47% | 3.4% |
+  | 1000 | **1208→600 ms** | **−50%** | **633→300 ms** | **−53%** | **0%** |
+
+  Long-task total N=1000 2383→1145 ms. Drag unchanged (16.7 mean, as expected —
+  drag never mounts labels). **Gain ≫ noise (N=1000 ≈608 ms vs a ~34 ms band; new
+  CoV 0%, all 8 runs = 600 ms).** → KEEP.
+- **Why ~608 ms, not the predicted ~364 ms:** the per-node `scrollTo` wasn't just
+  function cost — each call forced a synchronous reflow during effect-flush.
+  Removing it kills the layout-thrash cascade, not just the call. (Consistent with
+  the labels-OFF floor of 183 ms longest @1000: we went 633→300, closing >half the
+  gap to that floor; the residual ~117 ms longest is the MUI sx/emotion pipeline.)
+- **Correctness gate:** 9/9 green (the 7 anti-cheat specs). Label specs `rename`
+  + `readable-labels` 4/4 green.
+- **Visual verify (real app, window.__axoview__ bridge, screenshots in run log):**
+  labels render correctly (white rounded chip, bold title, connector stalk, right
+  text); a truncated label expands (overflowY hidden→scroll, clientH 80→247) and
+  collapses (→hidden, scrollTop 0); initial-mount scrollTop=0 (skip is a no-op).
+  Probe: a real *mouse* click on the tiny absolutely-positioned ExpandButton is
+  intercepted by the Gradient overlay (pre-existing hit-test quirk, unrelated).
+- **Noise note:** this run's small-N spawn was noisier (N=50 14.3%, N=100 9.6% vs
+  prior 6.5/5.5) — machine marginally less idle at the early cells. Load-bearing
+  worst stays 9.6% < 10% (KR1 still certified); the keep decision rests on N≥200
+  where the win is 40–50% at 0–4% noise, so unaffected. New `baseline.md` committed.
+
+### Iter 2b — NEXT: lighten the per-node MUI label `sx`/emotion (GREEN, visuals preserved)
+
+- **Hypothesis:** with the scrollTo reflow gone, the residual label cost is the
+  per-node MUI `sx`/emotion pipeline (`styleFunctionSx` 199, `getThemeValue` 140,
+  `extendSxProp` 106, emotion serialize/`murmur2` ~180, `deepmerge` 66). Replace
+  the heavy components — `Typography fontWeight/fontSize/color='text.primary'`
+  (→`getThemeValue`), `Stack spacing={1}`, and the `Label` content `Box` (theme
+  lookups `common.white`/`grey.400`) — with lightweight `styled`/plain elements
+  reproducing the same visuals. Implement incrementally (one element per
+  iteration); keep each step's gain above noise. Target the residual ~117 ms
+  longest / gap to the 183 ms labels-off floor @1000.
+- **Risk:** visual regression — correctness suite asserts label *presence*, not
+  pixels. Guard with `rename` + `readable-labels` specs AND the visual screenshot
+  check (.scratch/verify-labels.mjs) before keeping each step.
 - **Open alt (bigger, but a behaviour change → YELLOW, needs product nod):**
   label LOD — skip label rendering below a zoom/size threshold. At fit-to-1000
   the labels are sub-pixel and unreadable anyway, so this recovers ~the full 3×
-  in the exact collapse scenario for ~free. Strong candidate after Iter 2.
+  in the exact collapse scenario for ~free. Strong candidate after Iter 2b.
 
 ## ⏸ Earlier checkpoint — all 3 autonomy preconditions MET (signed off)
 
