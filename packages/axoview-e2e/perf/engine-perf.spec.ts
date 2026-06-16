@@ -1158,7 +1158,7 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
         '',
         '| self-time (ms) | function |',
         '|---|---|',
-        ...rows.map((r) => `| ${r.ms.toFixed(1)} | ${r.key.replace(/\|/g, '\\|')} |`),
+        ...rows.map((r) => `| ${r.ms.toFixed(1)} | ${r.key.replace(/\\/g, '\\\\').replace(/\|/g, '\\|')} |`),
         ''
       ].join('\n')
     );
@@ -1256,7 +1256,7 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
         '',
         '| self-time (ms) | function |',
         '|---|---|',
-        ...jsRows.map((r) => `| ${r.ms.toFixed(1)} | ${r.key.replace(/\|/g, '\\|')} |`),
+        ...jsRows.map((r) => `| ${r.ms.toFixed(1)} | ${r.key.replace(/\\/g, '\\\\').replace(/\|/g, '\\|')} |`),
         ''
       ].join('\n')
     );

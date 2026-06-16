@@ -12,6 +12,7 @@ import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useRenderProbe } from 'src/utils/renderProbe';
 import { ExpandableLabel } from 'src/components/Label/ExpandableLabel';
 import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
+import { stripHtmlTags } from 'src/utils/stripHtml';
 
 const INLINE_EDIT_EVENT = 'inlineEditNodeName';
 
@@ -226,7 +227,7 @@ const NodeContent = memo(
 
     const description = useMemo(() => {
       if (!modelItem?.description) return null;
-      const visible = modelItem.description.replace(/<[^>]*>/g, '').trim();
+      const visible = stripHtmlTags(modelItem.description).trim();
       return visible ? modelItem.description : null;
     }, [modelItem?.description]);
 
@@ -238,7 +239,7 @@ const NodeContent = memo(
     // canvas tooling sets its own cursor).
     const visibleNotes = useMemo(() => {
       if (!modelItem?.notes) return null;
-      const stripped = modelItem.notes.replace(/<[^>]*>/g, '').trim();
+      const stripped = stripHtmlTags(modelItem.notes).trim();
       return stripped ? modelItem.notes : null;
     }, [modelItem?.notes]);
 
@@ -364,7 +365,7 @@ const NodeContent = memo(
           <IconWrap>
             {iconComponent}
             {modelItem.notes &&
-              modelItem.notes.replace(/<[^>]*>/g, '').trim() && <NotesBadge />}
+              stripHtmlTags(modelItem.notes).trim() && <NotesBadge />}
             {hasLink && (
               <Box
                 sx={{

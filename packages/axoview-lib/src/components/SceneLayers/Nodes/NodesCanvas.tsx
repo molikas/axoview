@@ -19,6 +19,7 @@ import { useModelStoreApi } from 'src/stores/modelStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { resolveRenderOrder } from 'src/utils/renderOrder';
+import { stripHtmlTags } from 'src/utils/stripHtml';
 
 // ---------------------------------------------------------------------------
 // NodesCanvas — T2 PoC. Imperative Canvas2D draw of the node layer (icon image
@@ -124,10 +125,7 @@ const roundRectPath = (
 // text so the canvas matches the DOM's "render the description only if non-empty".
 const getDescriptionText = (html: string | undefined): string => {
   if (!html) return '';
-  return html
-    .replace(/<[^>]*>/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return stripHtmlTags(html).replace(/\s+/g, ' ').trim();
 };
 
 // Greedy word-wrap to a pixel width. `ctx.font` must already be set by the
