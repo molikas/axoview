@@ -16,14 +16,18 @@ import React from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { ModelProvider, useModelStoreApi } from '../../stores/modelStore';
 import { SceneProvider } from '../../stores/sceneStore';
+import { UiStateProvider } from '../../stores/uiStateStore';
 import { useHistory } from '../useHistory';
 
 // ---------------------------------------------------------------------------
-// Wrapper: provides both required store contexts
+// Wrapper: provides all store contexts useHistory reads (model + scene, and
+// uiState for the post-undo/redo scene re-sync — D4-2).
 // ---------------------------------------------------------------------------
 const AllProviders = ({ children }: { children: React.ReactNode }) => (
   <ModelProvider>
-    <SceneProvider>{children}</SceneProvider>
+    <SceneProvider>
+      <UiStateProvider>{children}</UiStateProvider>
+    </SceneProvider>
   </ModelProvider>
 );
 

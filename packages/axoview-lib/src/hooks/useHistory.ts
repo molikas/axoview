@@ -1,6 +1,9 @@
 import { useCallback, useRef } from 'react';
 import { useModelStore } from 'src/stores/modelStore';
 import { useSceneStore } from 'src/stores/sceneStore';
+import { useUiStateStore } from 'src/stores/uiStateStore';
+import * as reducers from 'src/stores/reducers';
+import { INITIAL_SCENE_STATE } from 'src/config';
 import { allocateHistorySequence } from 'src/stores/historySequence';
 
 export const useHistory = () => {
@@ -14,6 +17,7 @@ export const useHistory = () => {
   const sceneActions = useSceneStore((state) => {
     return state?.actions;
   });
+  const activeViewId = useUiStateStore((state) => state?.view);
 
   // Get history state
   const modelCanUndo = useModelStore((state) => {
@@ -68,6 +72,43 @@ export const useHistory = () => {
     [modelActions, sceneActions]
   );
 
+  // D4-2 / D-8: connector paths (and textbox sizes) are derived from the model
+  // but cached in the scene store + its history. Paste records PROVISIONAL empty
+  // connector paths in its history entry, then computePathsAsync writes the real
+  // paths skipHistory — so the real paths never enter history and redoing a paste
+  // restores empty paths (invisible connectors). After any undo/redo, recompute
+  // the active view's scene from the now-current model (SYNC_SCENE) — it's
+  // deterministic and written skipHistory, so it never perturbs the undo/redo
+  // stacks; for synchronously-routed connectors it reproduces the same paths.
+  const resyncScene = useCallback(() => {
+    if (!modelActions || !sceneActions || !activeViewId) return;
+    try {
+      const m = modelActions.get();
+      const synced = reducers.view({
+        action: 'SYNC_SCENE',
+        payload: undefined,
+        ctx: {
+          viewId: activeViewId,
+          state: {
+            model: {
+              version: m.version,
+              title: m.title,
+              description: m.description,
+              colors: m.colors,
+              icons: m.icons,
+              items: m.items,
+              views: m.views
+            },
+            scene: INITIAL_SCENE_STATE
+          }
+        }
+      });
+      sceneActions.set(synced.scene, true);
+    } catch {
+      // Active view missing mid-teardown — leave the scene as undo/redo left it.
+    }
+  }, [modelActions, sceneActions, activeViewId]);
+
   // D-7: the two stacks can skew to different depths (a model-only action pushes
   // a model entry but the scene store's no-op branch pushes nothing). Stepping
   // them in lockstep then pops entries belonging to DIFFERENT logical actions
@@ -104,8 +145,9 @@ export const useHistory = () => {
       undoPerformed = sceneActions.undo() || undoPerformed;
     }
 
+    if (undoPerformed) resyncScene();
     return undoPerformed;
-  }, [modelActions, sceneActions]);
+  }, [modelActions, sceneActions, resyncScene]);
 
   const redo = useCallback(() => {
     if (!modelActions || !sceneActions) return false;
@@ -132,8 +174,9 @@ export const useHistory = () => {
       redoPerformed = sceneActions.redo() || redoPerformed;
     }
 
+    if (redoPerformed) resyncScene();
     return redoPerformed;
-  }, [modelActions, sceneActions]);
+  }, [modelActions, sceneActions, resyncScene]);
 
   const saveToHistory = useCallback(() => {
     // Don't save during transactions

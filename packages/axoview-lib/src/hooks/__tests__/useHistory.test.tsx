@@ -39,6 +39,16 @@ jest.mock('../../stores/sceneStore', () => ({
   })
 }));
 
+// useHistory subscribes to the uiState store for the post-undo/redo scene
+// re-sync (D4-2). No active view here → resyncScene early-returns, so these
+// undo/redo coordination tests exercise only the dual-stack logic.
+jest.mock('../../stores/uiStateStore', () => ({
+  useUiStateStore: jest.fn((selector) => {
+    const state = { view: undefined };
+    return selector ? selector(state) : state;
+  })
+}));
+
 describe('useHistory', () => {
   beforeEach(() => {
     jest.clearAllMocks();
