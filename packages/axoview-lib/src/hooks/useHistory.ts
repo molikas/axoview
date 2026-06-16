@@ -72,18 +72,36 @@ export const useHistory = () => {
     [modelActions, sceneActions]
   );
 
-  // D4-2 / D-8: connector paths (and textbox sizes) are derived from the model
-  // but cached in the scene store + its history. Paste records PROVISIONAL empty
-  // connector paths in its history entry, then computePathsAsync writes the real
-  // paths skipHistory — so the real paths never enter history and redoing a paste
-  // restores empty paths (invisible connectors). After any undo/redo, recompute
-  // the active view's scene from the now-current model (SYNC_SCENE) — it's
-  // deterministic and written skipHistory, so it never perturbs the undo/redo
-  // stacks; for synchronously-routed connectors it reproduces the same paths.
+  // D4-2 / D-8: connector paths are derived from the model but cached in the
+  // scene store + its history. Paste records PROVISIONAL empty connector paths in
+  // its history entry, then computePathsAsync writes the real paths skipHistory —
+  // so the real paths never enter history and redoing a paste restores empty
+  // paths (invisible connectors).
+  //
+  // After undo/redo, re-route ONLY when a connector in the active view actually
+  // has a missing/empty path (the D-8 symptom). The common case — every other
+  // undo/redo — is then just an O(C) tiles.length scan with NO getConnectorPath
+  // re-route, so a model-only edit's undo (e.g. a rename) doesn't pay a full
+  // view re-route at 700+ connectors (review follow-up: scope the cost to the
+  // actual symptom). When it does fire, SYNC_SCENE is deterministic and written
+  // skipHistory, so it never perturbs the undo/redo stacks. (Textbox sizes are
+  // stored in history, not provisional, so they never need this.)
   const resyncScene = useCallback(() => {
     if (!modelActions || !sceneActions || !activeViewId) return;
     try {
       const m = modelActions.get();
+      const view = m.views.find((v) => v.id === activeViewId);
+      const connectors = view?.connectors ?? [];
+      if (connectors.length === 0) return;
+
+      const sceneConnectors = sceneActions.get().connectors;
+      const needsResync = connectors.some((c) => {
+        const sc = sceneConnectors[c.id];
+        // Missing entry, or an empty path that isn't a deliberate unroutable.
+        return !sc || ((sc.path?.tiles?.length ?? 0) === 0 && !sc.unroutable);
+      });
+      if (!needsResync) return;
+
       const synced = reducers.view({
         action: 'SYNC_SCENE',
         payload: undefined,
