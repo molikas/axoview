@@ -77,6 +77,19 @@ identities (each changes only on a real edit, never on pan/zoom), with an O(1)
 `produce`; the lasso connector branch resolves anchors through an `id→tile` Map
 built once per frame (O(C·A·N)→O(C·A)).
 
+**7. Post-undo/redo connector re-sync (D-8), scoped.** Connector paths are derived
+from the model but cached in the scene store *and its history*. Paste records
+**provisional empty** connector paths in its single history entry, then
+`computePathsAsync` writes the real paths `skipHistory` — so the real paths never
+enter history, and redoing a paste would otherwise restore the empty provisional
+paths (invisible connectors). `useHistory` therefore re-routes the active view
+(`SYNC_SCENE`, written `skipHistory` so it never perturbs either undo/redo stack)
+after an undo/redo — but **only when** an active-view connector actually has a
+missing/empty (non-`unroutable`) path. The common case (every model-only undo, e.g.
+a rename, at 700+ connectors) pays just an O(C) `tiles.length` scan, never a
+synchronous full-view re-route. (Review follow-up: the cost is scoped to the actual
+D-8 symptom rather than charged to every undo/redo.)
+
 ## Consequences
 
 **Behavior changes to confirm with product (intentional):**
@@ -100,6 +113,30 @@ Renderer item/connector culling is left as the existing `useMemo`-gated filter
 **Guards (CI unit suite):** `paste.bulkPerf` (validateView called once, under
 budget, 2N nodes with no stacking, one undo entry), `spatialIndex` (incl. a
 brute-force occupancy invariant), the updated placement tests (incl. the exact
-reported scenario — "a row pasted on itself shifts to clear space"), and the
-`engine-perf` paste-on-top scenario (real Ctrl+C/Ctrl+V, asserts the paste adds
-exactly N → 2N nodes).
+reported scenario — "a row pasted on itself shifts to clear space"), the
+`useHistory` undo/redo suites (the scoped D-8 re-sync early-returns when no path is
+empty; the D-7 dual-stack coordination is unchanged), and the `engine-perf`
+paste-on-top scenario (real Ctrl+C/Ctrl+V, asserts the paste adds exactly
+N → 2N nodes).
+
+## Related pre-T3 render/interaction fixes (PR #49)
+
+Shipped in the same pre-T3 hardening wave; not paste-algorithmic, so kept out of the
+Decision list above, but recorded here as the wave's index (durable detail is in the
+commit history + the named test guards):
+
+- **Rectangle / text-box compositor drag.** Both now drag via a CSS variable
+  (`--ff-drag-dx/dy`) with a single `batchUpdate*` commit on drop — matching the node
+  drag path — instead of a per-frame store write. Guards:
+  `rectangleTextbox.dragPerf.test.tsx`, the `DragItems.modes` test, and
+  `css-preview-mid-drag.spec.ts`.
+- **Canvas label stalk + LOD + text-layout cache.** `NodesCanvas` centres sprites on
+  their tile, draws the label connector stalk, drops labels below an LOD zoom
+  threshold, and caches per-node text layout keyed by `(fontSize, name, description)`
+  so wrapping isn't re-measured every frame. Guard: `canvas-node-render.spec.ts` plus
+  the canvas-pixel guard.
+- **Honest connector-paint harness anti-cheat + `perf-smoke` CI.** The harness asserts
+  the canvas node layer's per-frame `data-draw-count == N` at fit-to-view (no
+  off-screen cull shrinking the benchmark); `perf-smoke.yml` runs a small-N
+  `npm run perf` on PRs so a regression in the measured path trips CI. See
+  [ADR 0020](0020-engine-perf-harness-and-measurement-protocol.md).

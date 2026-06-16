@@ -1,6 +1,6 @@
 # Regression Test Suite Reference
 
-**Last updated:** 2026-06-14 (Phase 6.5 — Touch & pen gesture contract, ADR 0018)
+**Last updated:** 2026-06-16 (Pre-T3 hardening — paste O(N), derived spatial index, canvas/drag guards, ADR 0021)
 **Unit / integration totals** (measured 2026-06-14 via per-workspace `npm test`):
 
 | Workspace | Passing | Suites |
@@ -61,6 +61,22 @@ New suites shipped with [ADR 0018](adr/0018-touch-pen-gesture-contract.md) — t
 | `touch-palette-drag.spec.ts` | E2E | drag an Elements-panel icon onto the canvas to place it; preview ghost is suppressed until the drag engages, then tracks the finger |
 | `css-preview-mid-drag.spec.ts` | E2E | CSS drag-preview transform applied mid-drag (no per-frame store write) |
 | `undo-redo-dual-stack.spec.ts` | E2E | end-to-end D-7: interleaved model + scene edits undo/redo in the correct order |
+
+### Pre-T3 hardening additions (2026-06-16) — ADR 0021
+
+New suites + extensions shipped with the paste-O(N) + pre-T3 render/drag wave ([ADR 0021](adr/0021-paste-algorithmic-perf-and-spatial-index.md); PR #48 paste, #49 pre-T3):
+
+| Suite | Type | Covers |
+|---|---|---|
+| `__perf_refactor_regression__/paste.bulkPerf.test.tsx` | lib unit | **load-bearing:** bulk paste is O(N+C) — `validateView` called exactly once, 2N nodes placed with no stacking, exactly one undo entry, under a per-node call-count budget (pins the O(N³) freeze fix) |
+| `utils/__tests__/spatialIndex.test.ts` | lib unit | derived `TileIndex` — `at`/`isOccupied`/`insert`/`move`/`remove`/`range` + a brute-force occupancy invariant (the index agrees with a linear scan over random layouts) |
+| `utils/__tests__/findNearestUnoccupiedTile.test.ts` | lib unit | rigid-stamp placement — a row pasted on itself shifts by one offset to clear space (keeps the block's shape, never collapses to one tile); degenerate dense case stamps at the target offset |
+| `hooks/__tests__/useHistory.test.tsx` + `useHistory.realStore.test.tsx` (extended) | lib unit | scoped post-undo/redo D-8 connector re-sync — early-returns when no active-view connector path is empty (uiState store added to both wrappers); D-7 dual-stack coordination unchanged |
+| `__perf_refactor_regression__/DragItems.modes.test.ts` (extended) | lib unit | rectangle / text-box drag is CSS-var-only during the move + a single `batchUpdate*` commit on mouseup (no per-frame store write) |
+| `canvas-node-render.spec.ts` | E2E | Canvas2D node sprite centred on its tile + label connector stalk; `data-draw-count` anti-cheat reads == N at fit-to-view |
+| `perf/engine-perf.spec.ts` (paste-on-top scenario) | perf harness | real Ctrl+C/Ctrl+V paste-on-top adds exactly N → 2N nodes; honest draw-count guard (see [ADR 0020](adr/0020-engine-perf-harness-and-measurement-protocol.md)) |
+
+CI: [`perf-smoke.yml`](../.github/workflows/perf-smoke.yml) runs a small-N `npm run perf` on PRs so a regression in the measured render/paste path trips CI.
 
 ---
 
