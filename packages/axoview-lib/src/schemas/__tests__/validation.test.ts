@@ -64,6 +64,29 @@ describe('Model validation works correctly', () => {
     expect(issues[0].type).toStrictEqual('INVALID_ANCHOR_TO_ANCHOR_REF');
   });
 
+  test('Connector anchor referencing an existing anchor on another connector passes validation', () => {
+    // Guards the VALIDATE-2 refactor: the anchor-existence Set must aggregate
+    // anchors across ALL connectors in the view (as getAllAnchors did), not
+    // just the connector under inspection. anch1-1 lives on connector1, so a
+    // new connector referencing it must NOT report INVALID_ANCHOR_TO_ANCHOR_REF.
+    const crossRefConnector: Connector = {
+      id: 'crossRefConnector',
+      color: 'color1',
+      anchors: [
+        { id: 'cr-1', ref: { item: 'node1' } },
+        { id: 'cr-2', ref: { anchor: 'anch1-1' } }
+      ]
+    };
+
+    const model = produce(modelFixture, (draft) => {
+      draft.views[0].connectors?.push(crossRefConnector);
+    });
+
+    const issues = validateModel(model);
+
+    expect(issues.length).toStrictEqual(0);
+  });
+
   test('An invalid view item fails validation', () => {
     const invalidItem: ViewItem = {
       id: 'invalidItem',

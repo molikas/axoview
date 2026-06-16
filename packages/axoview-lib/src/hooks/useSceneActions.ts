@@ -20,7 +20,8 @@ import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useModelStoreApi } from 'src/stores/modelStore';
 import { useSceneStoreApi } from 'src/stores/sceneStore';
 import * as reducers from 'src/stores/reducers';
-import type { State, ViewReducerContext } from 'src/stores/reducers/types';
+import type { State } from 'src/stores/reducers/types';
+import { validateView } from 'src/schemas/validation';
 import { generateId, getConnectorPath } from 'src/utils';
 import { useView } from 'src/hooks/useView';
 import { VIEW_DEFAULTS } from 'src/config';
@@ -887,6 +888,19 @@ export const useSceneActions = () => {
     [currentViewId, sceneStoreApi, modelStoreApi]
   );
 
+  // Bulk paste — ONE structural assembly of the N-scale arrays, validated once.
+  //
+  // The old body ran a synchronous per-item create loop: each pasted node did
+  // createModelItem + createViewItem (≈2 full-state immer produce()s) and each
+  // createViewItem ended in validateView(entireView). validateView was O(N·M)
+  // (linear getItemByIdOrThrow per view item), so running it once per insert
+  // summed to O(N^3) — the freeze. This collapses the whole paste into a single
+  // structural build (concat/slice/spread — no immer, no per-item reducer) and
+  // ONE validateView call: O(N + C). PASTE-2 / PASTE-3.
+  //
+  // Stays inside transaction() so the paste is exactly one history entry (one
+  // model.set + one scene.set at commit). computePathsAsync still routes
+  // connectors on rAF batches after the structural write lands.
   const pasteItems = useCallback(
     (
       payload: PastePayload,
@@ -897,17 +911,70 @@ export const useSceneActions = () => {
       const viewId = currentViewId;
 
       transaction(() => {
-        payload.items.forEach(({ modelItem, viewItem }) => {
-          createModelItem(modelItem);
-          createViewItem(viewItem);
-        });
+        const state = getState();
+        const viewIdx = state.model.views.findIndex((v) => v.id === viewId);
 
-        payload.connectors.forEach((c) => {
-          const ctx: ViewReducerContext = { viewId, state: getState() };
-          const newState = reducers.createConnectorReducer(c, ctx, true);
-          setState(newState);
-        });
+        if (viewIdx !== -1) {
+          const view = state.model.views[viewIdx];
 
+          // Build plain (non-frozen) arrays — concat/slice/map return fresh
+          // arrays, so we never mutate the immer-frozen store state.
+          const newModelItems = state.model.items.concat(
+            payload.items.map((ci) => ci.modelItem)
+          );
+          // Pasted view items prepend — matches the old createViewItem unshift.
+          const newViewItems = payload.items
+            .map((ci) => ci.viewItem)
+            .concat(view.items ?? []);
+          // Connectors prepend — matches the old createConnector unshift.
+          const newViewConnectors = payload.connectors.concat(
+            view.connectors ?? []
+          );
+          // Provisional empty paths — matches createConnector(skipPathfinding);
+          // computePathsAsync fills them in after commit.
+          const newSceneConnectors = { ...state.scene.connectors };
+          for (const c of payload.connectors) {
+            newSceneConnectors[c.id] = {
+              path: {
+                tiles: [],
+                rectangle: { from: { x: 0, y: 0 }, to: { x: 0, y: 0 } }
+              }
+            };
+          }
+
+          const newView: View = {
+            ...view,
+            items: newViewItems,
+            connectors: newViewConnectors,
+            // Matches updateViewTimestamp (ISO string, not a numeric stamp).
+            lastUpdated: new Date().toISOString()
+          };
+          const newViews = state.model.views.slice();
+          newViews[viewIdx] = newView;
+
+          const newState: State = {
+            model: { ...state.model, items: newModelItems, views: newViews },
+            scene: { ...state.scene, connectors: newSceneConnectors }
+          };
+
+          // Validate ONCE (O(N + M) with the Set fix in validation.ts). The
+          // payload is internally consistent (fresh ids, remapped refs), so on
+          // the off chance it isn't we warn and skip rather than throw inside a
+          // startTransition callback (throwing would leave a partial paste).
+          const issues = validateView(newView, { model: newState.model });
+          if (issues.length > 0) {
+            // eslint-disable-next-line no-console
+            console.warn(
+              '[axoview] paste produced an invalid view; skipping',
+              issues[0]
+            );
+          } else {
+            setState(newState);
+          }
+        }
+
+        // Rectangles / text boxes are not N-scale — keep the existing reducers
+        // (they layer on top of the pending state set above).
         [...payload.rectangles].reverse().forEach((r) => createRectangle(r));
         payload.textBoxes.forEach((tb) => createTextBox(tb));
       });
@@ -920,8 +987,6 @@ export const useSceneActions = () => {
     [
       currentViewId,
       transaction,
-      createModelItem,
-      createViewItem,
       getState,
       setState,
       computePathsAsync,

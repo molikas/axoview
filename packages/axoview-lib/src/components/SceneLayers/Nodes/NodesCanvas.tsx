@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useLayoutEffect, useRef } from 'react';
 import { useTheme } from '@mui/material/styles';
-import { ViewItem, Icon } from 'src/types';
+import { ViewItem, Icon, Layer } from 'src/types';
 import {
   PROJECTED_TILE_SIZE,
   DEFAULT_LABEL_HEIGHT,
@@ -19,7 +19,7 @@ import { useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useModelStoreApi } from 'src/stores/modelStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useLayerContext } from 'src/hooks/useLayerContext';
-import { resolveRenderOrder, findLayer } from 'src/utils/renderOrder';
+import { resolveRenderOrder } from 'src/utils/renderOrder';
 
 // ---------------------------------------------------------------------------
 // NodesCanvas — T2 PoC. Imperative Canvas2D draw of the node layer (icon image
@@ -210,6 +210,25 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
   const scheduleDrawRef = useRef<() => void>(() => {});
   const drawNowRef = useRef<() => void>(() => {});
 
+  // ST-4: painter's-order sort cache. draw() runs on every pan/zoom frame, but
+  // the sort depends only on (nodes, layers, visibleIds, skipIds) — none of
+  // which change when the user merely pans or zooms. Reuse the sorted array
+  // until one of those input identities changes (a real change always produces
+  // a fresh array/Set ref from React), so pan/zoom stops re-sorting all nodes.
+  const sortCacheRef = useRef<{
+    nodes: ViewItem[] | null;
+    layers: Layer[] | null;
+    visibleIds: ReadonlySet<string> | null;
+    skipIds: ReadonlySet<string> | null;
+    sorted: ViewItem[];
+  }>({
+    nodes: null,
+    layers: null,
+    visibleIds: null,
+    skipIds: null,
+    sorted: []
+  });
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -282,23 +301,42 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       const skipIds = skipIdsRef.current;
 
       // Painter's order: ascending resolved render order (mirrors Nodes sort).
-      const visible = nodesRef.current.filter(
-        (n) =>
-          (visibleNow.size === 0 || visibleNow.has(n.id)) && !skipIds.has(n.id)
-      );
-      const sorted = [...visible].sort((a, b) => {
-        const oa = resolveRenderOrder(
-          findLayer(a.layerId, layersNow)?.order ?? 0,
-          a.zIndex ?? 0,
-          -a.tile.x - a.tile.y
+      // Cached across pan/zoom (ST-4) — only recomputed when the node set,
+      // layers, visibility or skip set actually changes.
+      const cache = sortCacheRef.current;
+      let sorted: ViewItem[];
+      if (
+        cache.nodes === nodesRef.current &&
+        cache.layers === layersNow &&
+        cache.visibleIds === visibleNow &&
+        cache.skipIds === skipIds
+      ) {
+        sorted = cache.sorted;
+      } else {
+        // O(1) layerId→order lookup, built once per recompute (was a linear
+        // findLayer per sort comparison). get(undefined)→undefined→0 preserves
+        // the old findLayer(...)?.order ?? 0 semantics for unassigned layers.
+        const layerOrder = new Map(layersNow.map((l) => [l.id, l.order]));
+        const orderOf = (n: ViewItem) =>
+          resolveRenderOrder(
+            n.layerId ? (layerOrder.get(n.layerId) ?? 0) : 0,
+            n.zIndex ?? 0,
+            -n.tile.x - n.tile.y
+          );
+        const visible = nodesRef.current.filter(
+          (n) =>
+            (visibleNow.size === 0 || visibleNow.has(n.id)) &&
+            !skipIds.has(n.id)
         );
-        const ob = resolveRenderOrder(
-          findLayer(b.layerId, layersNow)?.order ?? 0,
-          b.zIndex ?? 0,
-          -b.tile.x - b.tile.y
-        );
-        return oa - ob;
-      });
+        sorted = visible.sort((a, b) => orderOf(a) - orderOf(b));
+        sortCacheRef.current = {
+          nodes: nodesRef.current,
+          layers: layersNow,
+          visibleIds: visibleNow,
+          skipIds,
+          sorted
+        };
+      }
 
       let drawn = 0;
       for (const node of sorted) {

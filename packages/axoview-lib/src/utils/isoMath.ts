@@ -222,11 +222,17 @@ export const decrementZoom = (zoom: number) =>
 // Connector anchor helpers
 // ---------------------------------------------------------------------------
 
-export const getAllAnchors = (connectors: Connector[]) =>
-  connectors.reduce(
-    (acc, connector) => [...acc, ...connector.anchors],
-    [] as ConnectorAnchor[]
-  );
+export const getAllAnchors = (connectors: Connector[]) => {
+  // One flat pass (ANCHORS-6). The previous spread-in-reduce reallocated the
+  // whole accumulator on every connector — O(A²) over the anchor count.
+  const anchors: ConnectorAnchor[] = [];
+  for (const connector of connectors) {
+    for (const anchor of connector.anchors) {
+      anchors.push(anchor);
+    }
+  }
+  return anchors;
+};
 
 export const getAnchorTile = (anchor: ConnectorAnchor, view: View): Coords => {
   if (anchor.ref.item) {

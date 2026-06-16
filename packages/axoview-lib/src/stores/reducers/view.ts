@@ -18,15 +18,22 @@ import * as textBoxReducers from './textBox';
 import * as rectangleReducers from './rectangle';
 
 export const updateViewTimestamp = (ctx: ViewReducerContext): State => {
+  // Shallow structural write — NOT a full-state immer produce (ST-2). The
+  // action that triggered this already ran one produce for its own mutation;
+  // a second produce here (clone + deep-freeze the whole model) just to stamp
+  // one field doubled the per-edit cost. Spreading new objects for the model,
+  // the views array and the target view is O(V) and allocation-light.
   const now = new Date().toISOString();
 
-  const newState = produce(ctx.state, (draft) => {
-    const view = getItemByIdOrThrow(draft.model.views, ctx.viewId);
-
-    view.value.lastUpdated = now;
-  });
-
-  return newState;
+  return {
+    ...ctx.state,
+    model: {
+      ...ctx.state.model,
+      views: ctx.state.model.views.map((view) =>
+        view.id === ctx.viewId ? { ...view, lastUpdated: now } : view
+      )
+    }
+  };
 };
 
 export const syncScene = ({ viewId, state }: ViewReducerContext): State => {
@@ -193,6 +200,31 @@ export const createView = (
   return newState;
 };
 
+// Actions that bump the target view's lastUpdated timestamp. Hoisted to module
+// scope so the Set is built once, not rebuilt on every dispatch.
+const TIMESTAMPED_ACTIONS = new Set([
+  'CREATE_VIEW',
+  'UPDATE_VIEW',
+  'CREATE_VIEWITEM',
+  'UPDATE_VIEWITEM',
+  'DELETE_VIEWITEM',
+  'CREATE_CONNECTOR',
+  'UPDATE_CONNECTOR',
+  'DELETE_CONNECTOR',
+  'CREATE_TEXTBOX',
+  'UPDATE_TEXTBOX',
+  'DELETE_TEXTBOX',
+  'CREATE_RECTANGLE',
+  'UPDATE_RECTANGLE',
+  'DELETE_RECTANGLE',
+  'CREATE_LAYER',
+  'UPDATE_LAYER',
+  'DELETE_LAYER',
+  'REORDER_LAYERS',
+  'ASSIGN_LAYER_TO_ITEMS',
+  'REORDER_VIEWITEM'
+]);
+
 export const view = ({ action, payload, ctx }: ViewReducerParams) => {
   let newState: State;
 
@@ -269,29 +301,6 @@ export const view = ({ action, payload, ctx }: ViewReducerParams) => {
     default:
       throw new Error('Invalid action.');
   }
-
-  const TIMESTAMPED_ACTIONS = new Set([
-    'CREATE_VIEW',
-    'UPDATE_VIEW',
-    'CREATE_VIEWITEM',
-    'UPDATE_VIEWITEM',
-    'DELETE_VIEWITEM',
-    'CREATE_CONNECTOR',
-    'UPDATE_CONNECTOR',
-    'DELETE_CONNECTOR',
-    'CREATE_TEXTBOX',
-    'UPDATE_TEXTBOX',
-    'DELETE_TEXTBOX',
-    'CREATE_RECTANGLE',
-    'UPDATE_RECTANGLE',
-    'DELETE_RECTANGLE',
-    'CREATE_LAYER',
-    'UPDATE_LAYER',
-    'DELETE_LAYER',
-    'REORDER_LAYERS',
-    'ASSIGN_LAYER_TO_ITEMS',
-    'REORDER_VIEWITEM'
-  ]);
 
   if (TIMESTAMPED_ACTIONS.has(action)) {
     return updateViewTimestamp({ state: newState, viewId: ctx.viewId });

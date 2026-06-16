@@ -85,13 +85,18 @@ const getItemsInBounds = (
   //   - Sub-paths that loop in and out via waypoints
   // Routing decoration (Manhattan bends, curve smoothing) is a render
   // concern; selection works on the anchor-defined path.
-  const anchorToTile = (
-    anchor: ConnectorAnchor,
-    nodeItems: ViewItem[]
-  ): Coords | null => {
+  // SPATIAL-3: resolve item-anchors via a Map built once, not a scene.items.find
+  // per anchor. getItemsInBounds runs every marquee-drag frame, so the old
+  // per-anchor linear scan was O(C·A·N)/frame; this makes it O(C·A) after the
+  // one-time O(N) map build. Built only when there are connectors so a plain
+  // node marquee doesn't pay for it.
+  const itemTileById =
+    scene.connectors.length > 0
+      ? new Map<string, Coords>(scene.items.map((it) => [it.id, it.tile]))
+      : null;
+  const anchorToTile = (anchor: ConnectorAnchor): Coords | null => {
     if (anchor.ref?.item) {
-      const item = nodeItems.find((it) => it.id === anchor.ref.item);
-      return item ? item.tile : null;
+      return itemTileById?.get(anchor.ref.item) ?? null;
     }
     if (anchor.ref?.tile) return anchor.ref.tile;
     return null;
@@ -101,7 +106,7 @@ const getItemsInBounds = (
     if (!connector.anchors || connector.anchors.length < 2) return;
     if (!isItemInteractable({ type: 'CONNECTOR', id: connector.id })) return;
 
-    const tiles = connector.anchors.map((a) => anchorToTile(a, scene.items));
+    const tiles = connector.anchors.map((a) => anchorToTile(a));
 
     let pathHits = false;
     for (let i = 0; i < tiles.length - 1; i += 1) {

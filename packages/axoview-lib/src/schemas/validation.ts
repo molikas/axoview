@@ -6,7 +6,7 @@ import type {
   View,
   Rectangle
 } from 'src/types';
-import { getAllAnchors, getItemByIdOrThrow } from 'src/utils';
+import { getAllAnchors } from 'src/utils';
 
 type IssueType =
   | {
@@ -75,7 +75,11 @@ export const validateConnectorAnchor = (
   ctx: {
     view: View;
     connector: Connector;
-    allAnchors: ConnectorAnchor[];
+    // O(1) membership sets, built once per validateView (VALIDATE-2). Replaces
+    // the per-anchor linear getItemByIdOrThrow / Array.includes scans, which
+    // made connector validation O(C·A·N).
+    viewItemIds: Set<string>;
+    anchorIds: Set<string>;
   }
 ): Issue[] => {
   const issues: Issue[] = [];
@@ -93,45 +97,34 @@ export const validateConnectorAnchor = (
     });
   }
 
-  if (anchor.ref.item) {
-    try {
-      getItemByIdOrThrow(ctx.view.items, anchor.ref.item);
-    } catch {
-      // Dangling ref: getItemByIdOrThrow throws → recorded as a validation issue.
-      issues.push({
-        type: 'INVALID_ANCHOR_TO_VIEW_ITEM_REF',
-        params: {
-          anchor: anchor.id,
-          viewItem: anchor.ref.item,
-          view: ctx.view.id,
-          connector: ctx.connector.id
-        },
-        message:
-          'Connector includes an anchor that references an item that does not exist in this view.'
-      });
-    }
+  if (anchor.ref.item && !ctx.viewItemIds.has(anchor.ref.item)) {
+    // Dangling ref: the anchor references an item not present in this view.
+    issues.push({
+      type: 'INVALID_ANCHOR_TO_VIEW_ITEM_REF',
+      params: {
+        anchor: anchor.id,
+        viewItem: anchor.ref.item,
+        view: ctx.view.id,
+        connector: ctx.connector.id
+      },
+      message:
+        'Connector includes an anchor that references an item that does not exist in this view.'
+    });
   }
 
-  if (anchor.ref.anchor) {
-    const targetAnchorId = ctx.allAnchors
-      .map(({ id }) => {
-        return id;
-      })
-      .includes(anchor.ref.anchor);
-
-    if (!targetAnchorId) {
-      issues.push({
-        type: 'INVALID_ANCHOR_TO_ANCHOR_REF',
-        params: {
-          destAnchor: anchor.id,
-          srcAnchor: anchor.ref.anchor,
-          view: ctx.view.id,
-          connector: ctx.connector.id
-        },
-        message:
-          'Connector includes an anchor that references another connector anchor that does not exist in this view.'
-      });
-    }
+  if (anchor.ref.anchor && !ctx.anchorIds.has(anchor.ref.anchor)) {
+    // Dangling ref: the anchor references another anchor not present in the view.
+    issues.push({
+      type: 'INVALID_ANCHOR_TO_ANCHOR_REF',
+      params: {
+        destAnchor: anchor.id,
+        srcAnchor: anchor.ref.anchor,
+        view: ctx.view.id,
+        connector: ctx.connector.id
+      },
+      message:
+        'Connector includes an anchor that references another connector anchor that does not exist in this view.'
+    });
   }
 
   return issues;
@@ -141,28 +134,24 @@ export const validateConnector = (
   connector: Connector,
   ctx: {
     view: View;
-    model: Model;
-    allAnchors: ConnectorAnchor[];
+    viewItemIds: Set<string>;
+    anchorIds: Set<string>;
+    colorIds: Set<string>;
   }
 ): Issue[] => {
   const issues: Issue[] = [];
 
-  if (connector.color) {
-    try {
-      getItemByIdOrThrow(ctx.model.colors, connector.color);
-    } catch {
-      // Dangling ref: getItemByIdOrThrow throws → recorded as a validation issue.
-      issues.push({
-        type: 'INVALID_CONNECTOR_COLOR_REF',
-        params: {
-          connector: connector.id,
-          view: ctx.view.id,
-          color: connector.color
-        },
-        message:
-          'Connector references a color that does not exist in the model.'
-      });
-    }
+  if (connector.color && !ctx.colorIds.has(connector.color)) {
+    // Dangling ref: the connector references a color not present in the model.
+    issues.push({
+      type: 'INVALID_CONNECTOR_COLOR_REF',
+      params: {
+        connector: connector.id,
+        view: ctx.view.id,
+        color: connector.color
+      },
+      message: 'Connector references a color that does not exist in the model.'
+    });
   }
 
   if (connector.anchors.length < 2) {
@@ -183,7 +172,8 @@ export const validateConnector = (
     const anchorIssues = validateConnectorAnchor(anchor, {
       view: ctx.view,
       connector,
-      allAnchors: ctx.allAnchors
+      viewItemIds: ctx.viewItemIds,
+      anchorIds: ctx.anchorIds
     });
 
     issues.push(...anchorIssues);
@@ -194,26 +184,21 @@ export const validateConnector = (
 
 export const validateRectangle = (
   rectangle: Rectangle,
-  ctx: { view: View; model: Model }
+  ctx: { view: View; colorIds: Set<string> }
 ): Issue[] => {
   const issues: Issue[] = [];
 
-  if (rectangle.color) {
-    try {
-      getItemByIdOrThrow(ctx.model.colors, rectangle.color);
-    } catch {
-      // Dangling ref: getItemByIdOrThrow throws → recorded as a validation issue.
-      issues.push({
-        type: 'INVALID_RECTANGLE_COLOR_REF',
-        params: {
-          rectangle: rectangle.id,
-          view: ctx.view.id,
-          color: rectangle.color
-        },
-        message:
-          'Rectangle references a color that does not exist in the model.'
-      });
-    }
+  if (rectangle.color && !ctx.colorIds.has(rectangle.color)) {
+    // Dangling ref: the rectangle references a color not present in the model.
+    issues.push({
+      type: 'INVALID_RECTANGLE_COLOR_REF',
+      params: {
+        rectangle: rectangle.id,
+        view: ctx.view.id,
+        color: rectangle.color
+      },
+      message: 'Rectangle references a color that does not exist in the model.'
+    });
   }
 
   return issues;
@@ -222,15 +207,27 @@ export const validateRectangle = (
 export const validateView = (view: View, ctx: { model: Model }): Issue[] => {
   const issues: Issue[] = [];
 
+  // O(1) membership sets, built once. These replace the per-item / per-anchor
+  // linear getItemByIdOrThrow / Array.includes scans throughout validation.
+  // The view-item ref check was the O(N^3) paste-freeze driver (PASTE-1); the
+  // connector/anchor checks were the next cliff at O(C·A·N) (VALIDATE-2).
+  const modelItemIds = new Set(ctx.model.items.map((i) => i.id));
+  const colorIds = new Set(ctx.model.colors.map((c) => c.id));
+
   if (view.connectors) {
     const allAnchors = getAllAnchors(view.connectors);
+    // Aggregated across ALL connectors in the view (matches getAllAnchors) so
+    // an anchor→anchor ref to a sibling connector's anchor validates.
+    const anchorIds = new Set(allAnchors.map((a) => a.id));
+    const viewItemIds = new Set(view.items.map((i) => i.id));
 
     view.connectors.forEach((connector) => {
       issues.push(
         ...validateConnector(connector, {
           view,
-          model: ctx.model,
-          allAnchors
+          viewItemIds,
+          anchorIds,
+          colorIds
         })
       );
     });
@@ -238,20 +235,13 @@ export const validateView = (view: View, ctx: { model: Model }): Issue[] => {
 
   if (view.rectangles) {
     view.rectangles.forEach((rectangle) => {
-      issues.push(
-        ...validateRectangle(rectangle, {
-          view,
-          model: ctx.model
-        })
-      );
+      issues.push(...validateRectangle(rectangle, { view, colorIds }));
     });
   }
 
   view.items.forEach((viewItem) => {
-    try {
-      getItemByIdOrThrow(ctx.model.items, viewItem.id);
-    } catch {
-      // Dangling ref: getItemByIdOrThrow throws → recorded as a validation issue.
+    if (!modelItemIds.has(viewItem.id)) {
+      // Dangling ref: the view item references a model item that does not exist.
       issues.push({
         type: 'INVALID_VIEW_ITEM_TO_MODEL_ITEM_REF',
         params: {

@@ -8,6 +8,7 @@ export * from './renderer';
 export * from './exportOptions';
 export * from './model';
 export * from './findNearestUnoccupiedTile';
+export * from './spatialIndex';
 export * from './pointInPolygon';
 export * from './segmentIntersection';
 export * from './connectorLabels';
