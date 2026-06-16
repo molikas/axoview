@@ -1205,6 +1205,9 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
       // drag → mean frame time. Noise band = coefficient of variation.
       const headline = scenario === 'spawn' ? settles : meanFrames;
 
+      const renderedNodes = kept.map((r) => r.renderedNodes ?? -1);
+      const sc = kept[0]?.sceneCounts;
+      const engagedCount = kept.filter((r) => r.dragEngaged).length;
       const row = {
         scenario,
         N,
@@ -1215,12 +1218,12 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
         settle_ms: round(median(settles)),
         longTaskTotal_ms: round(median(ltTotals)),
         keptRuns: kept.length,
-        noiseBand_pct: covPct(headline)
+        noiseBand_pct: covPct(headline),
+        // Guard values, asserted after results are written (see below).
+        drawnMedian: scenario === 'spawn' ? median(renderedNodes) : null,
+        engagedCount: scenario === 'drag' ? engagedCount : null
       };
       table.push(row);
-      const renderedNodes = kept.map((r) => r.renderedNodes ?? -1);
-      const sc = kept[0]?.sceneCounts;
-      const engagedCount = kept.filter((r) => r.dragEngaged).length;
       const commitInfo =
         scenario === 'spawn'
           ? ` commit=${round(median(commits), 1)} commitN=${covPct(commits)}%` +
@@ -1312,7 +1315,33 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
     `[perf] worst noise band: load-bearing(drag+spawn N≥100)=${worstLoadBearing}% · ` +
       `all-cells=${worstNoise}%`
   );
+
+  // ---- guards (real assertions, not just reporting) ----
+  // Results are already written above, so a guard failure still leaves a
+  // diagnosable baseline.md + raw dump. These are the integrity signals that
+  // were previously only console.log'd; a regression now fails the run.
   expect(table.length).toBe(N_SET.length * 2);
+  for (const r of table) {
+    if (r.scenario === 'spawn') {
+      // Draw-count anti-cheat: at fit-to-view the canvas must paint every node
+      // the scene committed (no off-screen cull silently shrinking the work and
+      // faking a faster spawn).
+      expect(
+        r.drawnMedian,
+        `spawn N=${r.N}: draw-count anti-cheat (drawn == N)`
+      ).toBe(r.N);
+    } else {
+      // The drag must actually engage DRAG_ITEMS on every kept run — otherwise a
+      // failed grab measures idle frames and reads as a false 60 fps.
+      expect(
+        r.engagedCount,
+        `drag N=${r.N}: DRAG_ITEMS engaged on every kept run`
+      ).toBe(r.keptRuns);
+    }
+  }
+  // KR3 idle-churn guardrail: heap flat (±5% retained after GC) AND zero idle
+  // long tasks at zero entities.
+  expect(idleGuard.pass, 'KR3 idle-churn guardrail').toBe(true);
 });
 
 function renderMarkdown(

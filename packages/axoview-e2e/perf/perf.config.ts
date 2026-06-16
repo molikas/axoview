@@ -31,11 +31,14 @@ export default defineConfig({
   reporter: [['list']],
 
   use: {
+    ...devices['Desktop Chrome'],
     baseURL: 'http://localhost:3000',
     // A fixed, deterministic viewport so frame cost is comparable run-to-run.
+    // MUST come after the device spread — Desktop Chrome sets its own
+    // viewport/deviceScaleFactor, so spreading it last would silently overwrite
+    // these (the harness would run at 1280×720, not the intended 1440×900).
     viewport: { width: 1440, height: 900 },
     deviceScaleFactor: 1,
-    ...devices['Desktop Chrome'],
     // Tracing/video add main-thread + IO overhead that pollutes frame timing.
     // Opt in explicitly when profiling a single scenario (PERF_TRACE=1).
     trace: process.env.PERF_TRACE ? 'on' : 'off',
@@ -48,7 +51,10 @@ export default defineConfig({
     launchOptions: { args: ['--js-flags=--expose-gc'] }
   },
 
-  projects: [{ name: 'perf-chromium', use: { ...devices['Desktop Chrome'] } }],
+  // The Desktop Chrome device + the deterministic viewport override both live in
+  // `use` above; the project must NOT re-spread the device here or it would
+  // overwrite the viewport again (project.use merges over config.use).
+  projects: [{ name: 'perf-chromium' }],
 
   webServer: {
     command: 'npm run build:lib && npm run dev',
