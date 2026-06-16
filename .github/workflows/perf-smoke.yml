@@ -1,0 +1,72 @@
+# Engine perf smoke (D4-5) — a fast, structural regression gate.
+#
+# Runs the engine perf harness in a single quick pass and relies on its
+# DETERMINISTIC anti-cheat assertions, NOT the noise-banded timing suite:
+#   - node draw-count == N (no off-screen cull faking a cheaper spawn)
+#   - connector-paint == committed connectors (no 0-paint connector path, D4-1)
+#   - paste-on-top adds exactly N → 2N nodes (no drop / collapse-to-one-tile)
+#   - KR3 idle-churn: heap flat ±5% + zero idle long tasks
+# Timing/noise certification (KR1) needs many same-session runs on a stable
+# machine and stays a manual `npm run perf`; this job just catches structural
+# regressions automatically. The perf config's webServer builds the lib + starts
+# the dev server fresh (it never measures a stale dist/).
+
+name: Perf smoke
+
+on:
+  pull_request:
+    branches: ["master", "integration"]
+  push:
+    branches: ["master"]
+  workflow_dispatch:
+
+concurrency:
+  group: perf-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  perf-smoke:
+    name: Engine perf smoke (anti-cheats)
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # Single fast pass: one N for spawn/drag + the paste-on-top cell, minimal
+      # repeats, short idle window. The harness asserts the anti-cheats above
+      # regardless of N/repeats; the noise band is only reported, not asserted.
+      - name: Run engine perf smoke
+        run: npx playwright test --config packages/axoview-e2e/perf/perf.config.ts
+        env:
+          CI: true
+          PERF_N: '200'
+          PERF_PASTE_N: '150'
+          PERF_REPEATS: '1'
+          PERF_WARMUP: '1'
+          PERF_IDLE_MS: '4000'
+
+      - name: Upload perf results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: perf-smoke-results
+          path: |
+            perf-results/baseline.md
+            perf-results/raw
+          if-no-files-found: ignore
+          retention-days: 7
