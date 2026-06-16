@@ -9,6 +9,17 @@ import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 
 const INLINE_EDIT_EVENT = 'inlineEditNodeName';
 
+// Compositor drag wrapper (RECT-1) — same mechanism as nodes/rectangles. During
+// a move, DragItems mutates --ff-drag-dx/dy on the [data-drag-id] element; this
+// translate3d moves the textbox on the GPU with no per-frame model write / repaint.
+const TEXTBOX_DRAG_STYLE: React.CSSProperties = {
+  position: 'absolute',
+  left: 0,
+  top: 0,
+  transform: 'translate3d(var(--ff-drag-dx, 0px), var(--ff-drag-dy, 0px), 0)',
+  willChange: 'transform'
+};
+
 interface Props {
   textBox: ReturnType<typeof useScene>['textBoxes'][0];
 }
@@ -98,9 +109,10 @@ export const TextBox = memo(({ textBox }: Props) => {
   });
 
   return (
-    <Box style={css}>
-      <Box
-        onDoubleClick={startInlineEdit}
+    <div data-drag-id={textBox.id} style={TEXTBOX_DRAG_STYLE}>
+      <Box style={css}>
+        <Box
+          onDoubleClick={startInlineEdit}
         sx={{
           position: 'absolute',
           top: 0,
@@ -171,7 +183,8 @@ export const TextBox = memo(({ textBox }: Props) => {
             )}
           </Typography>
         )}
+        </Box>
       </Box>
-    </Box>
+    </div>
   );
 });

@@ -599,11 +599,12 @@ describe('DragItems.mouseup', () => {
 });
 
 // ---------------------------------------------------------------------------
-// PERF — rectangle / textbox move uses the immer-free batch path, NOT the
-// per-frame updateRectangle/updateTextBox reducer (which ran a full-state immer
-// produce every frame → the sustained-drag fps cliff). This locks the routing.
+// PERF — rectangle / textbox MOVE uses the CSS-preview compositor path (RECT-1):
+// a translate3d during the drag (no per-frame model write → no re-render and no
+// full-area repaint — the sluggish big-square drag), with the model committed
+// once on mouseup via the immer-free batchUpdate path. This locks the routing.
 // ---------------------------------------------------------------------------
-describe('DragItems.mousemove — rectangle/textbox immer-free move (perf)', () => {
+describe('DragItems — rectangle/textbox CSS-preview move (perf, RECT-1)', () => {
   beforeEach(() => {
     DragItems.exit!({
       rendererRef: makeRendererRef(),
@@ -614,7 +615,7 @@ describe('DragItems.mousemove — rectangle/textbox immer-free move (perf)', () 
     mockGetItemAtTile.mockReturnValue(null);
   });
 
-  it('routes a rectangle move through batchUpdateRectangles, not updateRectangle/transaction', () => {
+  it('rectangle move: CSS-only during mousemove, batchUpdateRectangles once on mouseup', () => {
     const uiState = makeUiState({
       mode: {
         type: 'DRAG_ITEMS',
@@ -631,18 +632,23 @@ describe('DragItems.mousemove — rectangle/textbox immer-free move (perf)', () 
     const scene = makeScene({
       rectangles: [{ id: 'rect1', from: { x: 0, y: 0 }, to: { x: 2, y: 2 } }]
     });
-    DragItems.mousemove!({ uiState, scene } as any);
 
+    // During the drag: CSS-only preview — NO per-frame model write (the repaint
+    // cliff), and certainly not the old full-state-immer reducer path.
+    DragItems.mousemove!({ uiState, scene } as any);
+    expect(scene.batchUpdateRectangles).not.toHaveBeenCalled();
+    expect(scene.updateRectangle).not.toHaveBeenCalled();
+    expect(scene.transaction).not.toHaveBeenCalled();
+
+    // On mouseup: commit the accumulated final position once.
+    DragItems.mouseup!({ uiState, scene } as any);
     expect(scene.batchUpdateRectangles).toHaveBeenCalledTimes(1);
     expect(scene.batchUpdateRectangles).toHaveBeenCalledWith([
       { id: 'rect1', from: { x: 2, y: 2 }, to: { x: 4, y: 4 } }
     ]);
-    // The old full-state-immer-per-frame path must NOT run.
-    expect(scene.updateRectangle).not.toHaveBeenCalled();
-    expect(scene.transaction).not.toHaveBeenCalled();
   });
 
-  it('routes a textbox move through batchUpdateTextBoxTiles, not updateTextBox/transaction', () => {
+  it('textbox move: CSS-only during mousemove, batchUpdateTextBoxTiles once on mouseup', () => {
     const uiState = makeUiState({
       mode: {
         type: 'DRAG_ITEMS',
@@ -659,13 +665,16 @@ describe('DragItems.mousemove — rectangle/textbox immer-free move (perf)', () 
     const scene = makeScene({
       textBoxes: [{ id: 'tb1', tile: { x: 1, y: 1 } }]
     });
-    DragItems.mousemove!({ uiState, scene } as any);
 
+    DragItems.mousemove!({ uiState, scene } as any);
+    expect(scene.batchUpdateTextBoxTiles).not.toHaveBeenCalled();
+    expect(scene.updateTextBox).not.toHaveBeenCalled();
+    expect(scene.transaction).not.toHaveBeenCalled();
+
+    DragItems.mouseup!({ uiState, scene } as any);
     expect(scene.batchUpdateTextBoxTiles).toHaveBeenCalledTimes(1);
     expect(scene.batchUpdateTextBoxTiles).toHaveBeenCalledWith([
       { id: 'tb1', tile: { x: 3, y: 3 } }
     ]);
-    expect(scene.updateTextBox).not.toHaveBeenCalled();
-    expect(scene.transaction).not.toHaveBeenCalled();
   });
 });
