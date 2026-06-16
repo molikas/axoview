@@ -154,4 +154,98 @@ test.describe('Canvas node render — render == DOM/hit-test (ADR 0019)', () => 
       await expect.poll(() => selectedId(page), { timeout: 3_000 }).toBe('tn');
     });
   }
+
+  // D2-1: the canvas must paint the dotted label stalk (it previously drew none,
+  // so at-rest nodes showed no stalk and selecting one popped it in via the DOM
+  // overlay). Assert BLACK pixels (the stalk) exist in the gap between the icon
+  // top and the chip bottom, at the node's x — the blue icon there is not black,
+  // so black pixels in that gap are the stalk.
+  test('ISOMETRIC: a labelled node paints its dotted label stalk on the canvas', async ({
+    page,
+    app
+  }) => {
+    void app;
+    await page.evaluate(
+      ({ url }) => {
+        const ax = (window as any).__axoview__;
+        const m = ax.model.getState();
+        const ui = ax.ui.getState();
+        const view =
+          (ui.view && m.views.find((v: any) => v.id === ui.view)) ||
+          m.views[0];
+        const icon = {
+          id: 'tIcon',
+          name: 'i',
+          url,
+          collection: 'imported',
+          isIsometric: true
+        };
+        const item = { id: 'sn', name: 'Stalk', icon: 'tIcon' };
+        // Tall stalk → a clear icon↔chip gap to sample.
+        const vitem = { id: 'sn', tile: { x: 0, y: 0 }, labelHeight: 120 };
+        const views = m.views.map((v: any) =>
+          v.id === view.id
+            ? { ...v, items: [vitem], connectors: [], rectangles: [], textBoxes: [] }
+            : v
+        );
+        m.actions.set({ items: [item], icons: [icon], colors: [], views }, true);
+        ax.ui.getState().actions.setItemControls(null);
+      },
+      { url: FULL_ICON }
+    );
+
+    // Tile screen centre via the DOM overlay, then deselect so the CANVAS paints
+    // the node + its stalk.
+    await setSelected(page, 'sn');
+    const dom = await page
+      .locator('[data-drag-id="sn"] img')
+      .first()
+      .waitFor({ state: 'visible', timeout: 5_000 })
+      .then(() => domIconCentre(page, 'sn'));
+    expect(dom, 'DOM overlay icon rendered').not.toBeNull();
+    await setSelected(page, null);
+
+    const zoom = await page.evaluate(
+      () => (window as any).__axoview__.ui.getState().zoom
+    );
+    const stalkPx = 120 * zoom; // labelHeight * zoom
+
+    // Count near-black, opaque pixels in a thin vertical box over the stalk's
+    // mid-section (clear of the icon below and the chip above).
+    const stalkBlackCount = () =>
+      page.evaluate(
+        ({ x, y, halfW, halfH }) => {
+          const cv = document.querySelector(
+            '[data-testid="axoview-nodes-canvas"]'
+          ) as HTMLCanvasElement | null;
+          if (!cv) return 0;
+          const rect = cv.getBoundingClientRect();
+          const sx = cv.width / rect.width;
+          const sy = cv.height / rect.height;
+          const x0 = Math.max(0, Math.round((x - rect.left - halfW) * sx));
+          const y0 = Math.max(0, Math.round((y - rect.top - halfH) * sy));
+          const w = Math.min(cv.width - x0, Math.round(halfW * 2 * sx));
+          const h = Math.min(cv.height - y0, Math.round(halfH * 2 * sy));
+          if (w <= 0 || h <= 0) return 0;
+          const data = cv.getContext('2d')!.getImageData(x0, y0, w, h).data;
+          let n = 0;
+          for (let i = 0; i < data.length; i += 4) {
+            if (
+              data[i] < 60 &&
+              data[i + 1] < 60 &&
+              data[i + 2] < 60 &&
+              data[i + 3] > 40
+            ) {
+              n += 1;
+            }
+          }
+          return n;
+        },
+        { x: dom!.x, y: dom!.y - stalkPx * 0.5, halfW: 6, halfH: stalkPx * 0.25 }
+      );
+
+    await expect
+      .poll(stalkBlackCount, { timeout: 5_000 })
+      .toBeGreaterThan(0);
+  });
 });

@@ -369,6 +369,32 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
         drawn += 1;
         const pos = getTilePos({ tile: node.tile, origin: 'CENTER' });
 
+        const name = modelItem.name;
+        const descText = getDescriptionText(modelItem.description);
+        const hasLabel =
+          node.showLabel !== false && Boolean(name || descText);
+        const labelHeight = node.labelHeight ?? DEFAULT_LABEL_HEIGHT;
+
+        // ----- stalk line (D2-1) -----
+        // Dotted line from the tile up to the chip's bottom-centre, drawn FIRST
+        // so the icon + chip paint over it (the DOM renders the label before the
+        // icon). Mirrors the DOM Label stalk exactly: strokeDasharray "0,6",
+        // round cap, width 3, black. The canvas drew NO stalk before — at-rest
+        // (canvas) nodes showed none and selecting one popped it in via the DOM
+        // overlay (the reported "stalk invisible until click").
+        if (hasLabel && labelHeight > 0) {
+          ctx.save();
+          ctx.setLineDash([0, 6]);
+          ctx.lineCap = 'round';
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = 'black';
+          ctx.beginPath();
+          ctx.moveTo(pos.x, pos.y);
+          ctx.lineTo(pos.x, pos.y - labelHeight);
+          ctx.stroke();
+          ctx.restore();
+        }
+
         // ----- icon -----
         const icon = resolveIcon(modelItem.icon, iconsById);
         const img = getImage(icon.url);
@@ -405,13 +431,10 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
         }
 
         // ----- static label (name + description) -----
-        const name = modelItem.name;
-        const descText = getDescriptionText(modelItem.description);
-        if (node.showLabel !== false && (name || descText)) {
+        if (hasLabel) {
           const chip = chipStyleRef.current;
           const innerMaxW = LABEL_CHIP_MAX_W - chip.padX * 2;
           const fontSize = node.labelFontSize || LABEL_BASE_FONT_PX;
-          const labelHeight = node.labelHeight ?? DEFAULT_LABEL_HEIGHT;
           const nameFont = `600 ${fontSize}px ${DEFAULT_FONT_FAMILY}`;
           // Description renders at the base body size (the RichTextEditor is not
           // affected by the node's labelFontSize), regular weight.
