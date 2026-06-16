@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useLayoutEffect, useRef } from 'react';
 import { useTheme } from '@mui/material/styles';
-import { ViewItem, Icon, Layer } from 'src/types';
+import { ViewItem, Icon, Layer, ModelItem } from 'src/types';
 import {
   PROJECTED_TILE_SIZE,
   DEFAULT_LABEL_HEIGHT,
@@ -14,7 +14,6 @@ import {
   LABEL_MAX_COUNTER_SCALE
 } from 'src/config/labelSettings';
 import { computeLabelCounterScale } from 'src/utils/labelScale';
-import { getItemById } from 'src/utils';
 import { useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useModelStoreApi } from 'src/stores/modelStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
@@ -144,9 +143,12 @@ const ISO: [number, number, number, number, number, number] = [
   0.707, -0.409, 0.707, 0.409, 0, -0.816
 ];
 
-const resolveIcon = (iconId: string | undefined, icons: Icon[]): Icon => {
+const resolveIcon = (
+  iconId: string | undefined,
+  iconsById: Map<string, Icon>
+): Icon => {
   if (!iconId) return DEFAULT_ICON;
-  return getItemById(icons, iconId)?.value ?? TOMBSTONE_ICON;
+  return iconsById.get(iconId) ?? TOMBSTONE_ICON;
 };
 
 // Sprite height from the source aspect ratio; guards naturalWidth === 0 (a
@@ -229,6 +231,18 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
     sorted: []
   });
 
+  // D3-1: id→item / id→icon lookup cache. The bare getItemById(model.items, id)
+  // per visible node was a linear findIndex — O(N²) per draw, re-run on every
+  // pan/zoom frame (same antipattern as the paste freeze, in the render hot
+  // path). Memoised on the model.items / model.icons array identity, so it
+  // rebuilds only when the model changes and is skipped on pure pan/zoom.
+  const itemMapCacheRef = useRef<{
+    items: ModelItem[] | null;
+    icons: Icon[] | null;
+    itemsById: Map<string, ModelItem>;
+    iconsById: Map<string, Icon>;
+  }>({ items: null, icons: null, itemsById: new Map(), iconsById: new Map() });
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -282,6 +296,16 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       const model = modelApi.getState();
       const items = model.items;
       const icons = model.icons;
+      // O(1) id→item / id→icon lookups (D3-1), rebuilt only when the model's
+      // items/icons arrays change (skipped on pure pan/zoom).
+      const mapCache = itemMapCacheRef.current;
+      let itemsById = mapCache.itemsById;
+      let iconsById = mapCache.iconsById;
+      if (mapCache.items !== items || mapCache.icons !== icons) {
+        itemsById = new Map(items.map((i) => [i.id, i]));
+        iconsById = new Map(icons.map((ic) => [ic.id, ic]));
+        itemMapCacheRef.current = { items, icons, itemsById, iconsById };
+      }
       const layersNow = layersRef.current;
       const visibleNow = visibleIdsRef.current;
       const getTilePos = getTilePositionRef.current;
@@ -340,13 +364,13 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
 
       let drawn = 0;
       for (const node of sorted) {
-        const modelItem = getItemById(items, node.id)?.value;
+        const modelItem = itemsById.get(node.id);
         if (!modelItem) continue;
         drawn += 1;
         const pos = getTilePos({ tile: node.tile, origin: 'CENTER' });
 
         // ----- icon -----
-        const icon = resolveIcon(modelItem.icon, icons);
+        const icon = resolveIcon(modelItem.icon, iconsById);
         const img = getImage(icon.url);
         if (img) {
           const scale = icon.scale || 1;
