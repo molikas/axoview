@@ -50,6 +50,24 @@ const previewAnchorTiles = new Map<string, Coords>();
 const previewRectangles = new Map<string, { from: Coords; to: Coords }>();
 const previewTextBoxes = new Map<string, Coords>();
 
+// D4-4: external (non-dragged) item occupancy is invariant during a drag — the
+// dragged items move via CSS only, the model isn't written — so it's snapshotted
+// ONCE at drag entry instead of rebuilt as an O(N) Set every frame. Cleared on
+// exit/mouseup. (Also de-risks the T3 collision tick loop, which has the same
+// loop-invariant occupancy.)
+let externalOccupiedCache: Set<string> | null = null;
+
+function buildExternalOccupied(
+  draggedItemIds: Set<string>,
+  items: { id: string; tile: Coords }[]
+): Set<string> {
+  const occupied = new Set<string>();
+  for (const si of items) {
+    if (!draggedItemIds.has(si.id)) occupied.add(`${si.tile.x},${si.tile.y}`);
+  }
+  return occupied;
+}
+
 function tileDeltaToPixels(
   dx: number,
   dy: number,
@@ -97,7 +115,8 @@ function computeNodeUpdates(
   itemRefs: ItemReference[],
   initialTiles: Record<string, Coords>,
   mouseOffset: Coords,
-  scene: ReturnType<typeof useScene>
+  scene: ReturnType<typeof useScene>,
+  externalOccupied: Set<string> | null
 ): NodeUpdate[] | null {
   if (itemRefs.length === 0) return null;
 
@@ -109,16 +128,15 @@ function computeNodeUpdates(
       : getItemByIdOrThrow(scene.items, item.id).value.tile
   }));
 
-  const externalOccupied = new Set(
-    scene.items
-      .filter((si) => !draggedIdSet.has(si.id))
-      .map((si) => `${si.tile.x},${si.tile.y}`)
-  );
+  // Built once at drag entry (D4-4); fall back to building it if absent (e.g. a
+  // direct call outside an open drag).
+  const occupied =
+    externalOccupied ?? buildExternalOccupied(draggedIdSet, scene.items);
 
   const targetKeys = new Set<string>();
   for (const t of targets) {
     const key = `${t.targetTile.x},${t.targetTile.y}`;
-    if (externalOccupied.has(key) || targetKeys.has(key)) return null;
+    if (occupied.has(key) || targetKeys.has(key)) return null;
     targetKeys.add(key);
   }
 
@@ -226,7 +244,8 @@ const dragItems = (
     itemRefs,
     initialTiles,
     mouseOffset,
-    scene
+    scene,
+    externalOccupiedCache
   );
   applyNodePreview(nodeUpdates, initialTiles, canvasMode);
 
@@ -282,6 +301,15 @@ export const DragItems: ModeActions = {
     previewAnchorTiles.clear();
     previewRectangles.clear();
     previewTextBoxes.clear();
+    // D4-4: snapshot external (non-dragged) item occupancy once for the whole
+    // drag — it's invariant, so the per-frame collision check reads this instead
+    // of rebuilding an O(N) Set each frame.
+    externalOccupiedCache = buildExternalOccupied(
+      new Set(
+        uiState.mode.items.filter((i) => i.type === 'ITEM').map((i) => i.id)
+      ),
+      scene.items
+    );
     // One history entry covers the whole drag; the only per-tick model writes
     // are anchor reconnects (rare) — node/rectangle/textbox moves stay CSS-only
     // until the mouseup commit, and skip produceWithPatches while frozen.
@@ -297,6 +325,7 @@ export const DragItems: ModeActions = {
     previewAnchorTiles.clear();
     previewRectangles.clear();
     previewTextBoxes.clear();
+    externalOccupiedCache = null;
     scene.commitDragTransaction();
   },
   mousemove: ({ uiState, scene }) => {
@@ -362,6 +391,7 @@ export const DragItems: ModeActions = {
     previewTiles.clear();
     previewRectangles.clear();
     previewTextBoxes.clear();
+    externalOccupiedCache = null;
 
     // Commit waypoint anchor preview tiles. Group by parent connector so we
     // make one scene.updateConnector call per connector (not per anchor),
