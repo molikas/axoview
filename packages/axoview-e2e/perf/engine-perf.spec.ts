@@ -41,6 +41,11 @@ const N_SET = process.env.PERF_N
 const REPEATS = process.env.PERF_REPEATS
   ? parseInt(process.env.PERF_REPEATS, 10)
   : 8; // first discarded as warm-up → 7 kept (charter: median-of-≥7)
+// Paste-on-top scenario node counts (the reported freeze: select N → copy →
+// paste directly on top). The pre-fix per-item pasteItems loop was O(N^3) here.
+const PASTE_N_SET = process.env.PERF_PASTE_N
+  ? process.env.PERF_PASTE_N.split(',').map((s) => parseInt(s.trim(), 10))
+  : [10, 50, 100, 150];
 const SPAWN_CAP_MS = 6000; // hard cap if the spawn never settles (it should)
 const DRAG_STEPS = 80; // rAF-paced pointermoves per drag run
 // Per-cell warm-up runs, discarded before the kept REPEATS. V8 tiers up the
@@ -97,13 +102,15 @@ interface RunResult {
   commitMs?: number; // spawn only: synchronous store-write duration (sub-vsync)
   dragEngaged?: boolean; // drag only: the DRAG_ITEMS mode actually activated
   renderCounts?: Record<string, number>; // drag only, ?perfprobe=1: renders during the drag loop
-  renderedNodes?: number; // spawn only: node shells in the DOM after settle
+  renderedNodes?: number; // spawn/paste: node shells (or canvas draw-count) after settle
   sceneCounts?: {
     nodes: number;
     connectors: number;
     rectangles: number;
     textBoxes: number;
   }; // spawn only: the committed multi-element scene composition
+  pastedCount?: number; // paste only: nodes added by the paste (anti-cheat: == N)
+  totalNodes?: number; // paste only: total nodes after paste (== 2N)
 }
 interface RunMetrics {
   p50: number;
@@ -755,6 +762,117 @@ function installHarness() {
     return { frames, longTasks, dragEngaged, renderCounts };
   }
 
+  // Dispatch a Ctrl+<key> keydown that the app's window-level keydown handler
+  // (useInteractionManager) routes to copy/paste. Dispatched on document.body so
+  // e.target is a non-editable element (the handler early-returns on editable
+  // targets) and bubbles up to the window listener.
+  function dispatchCtrlKey(key: string) {
+    document.body.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key,
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true
+      })
+    );
+  }
+
+  // Paste-on-top: build N source nodes, select-all + copy, position the cursor on
+  // the selection CENTROID (so handlePaste's offset = mouseTile − centroid ≈ 0 —
+  // the pasted block lands directly on top of the source), then Ctrl+V and
+  // measure the settle. This drives the REAL paste path end to end —
+  // useCopyPaste.handlePaste → findNearestUnoccupiedTilesForGroup (rigid-stamp
+  // collision resolution, since every target tile is occupied) → pasteItems
+  // (the batched O(N) store write) → canvas redraw of the 2N nodes. The pre-fix
+  // pasteItems was O(N^3) here and froze the main thread; the headline is the
+  // longest frame / settle time, the user-perceived freeze.
+  async function measurePaste(N: number, capMs: number) {
+    resetState();
+    // Node-only source (the reported scenario is "paste of N nodes"); reuse
+    // buildScene for consistent icon/label stylisation but commit items+vitems
+    // only (no connectors/rectangles), so the copy set is exactly N nodes.
+    const scene = buildScene(N, 1);
+    fitForGrid(1, N);
+    const { view } = activeView();
+    ax()
+      .model.getState()
+      .actions.set(
+        { items: scene.items, views: viewsWith(view.id, scene.vitems) },
+        true
+      );
+    ax().model.getState().actions.clearHistory();
+    await quiesce();
+
+    // Centroid of the source tiles — mirrors handleCopy's rounded average, so a
+    // cursor placed here yields a ~zero paste offset (directly on top).
+    let sx = 0;
+    let sy = 0;
+    for (const v of scene.vitems) {
+      sx += v.tile.x;
+      sy += v.tile.y;
+    }
+    const centroid = {
+      x: Math.round(sx / scene.vitems.length),
+      y: Math.round(sy / scene.vitems.length)
+    };
+
+    // Select all N as a LASSO selection so handleCopy gathers them (its
+    // resolveSelectionIds reads LASSO mode.selection.items). Deterministic — we
+    // don't depend on Ctrl+A's select-all heuristic.
+    const itemRefs = scene.vitems.map((v: any) => ({ type: 'ITEM', id: v.id }));
+    ax().ui.getState().actions.setMode({
+      type: 'LASSO',
+      showCursor: true,
+      isDragging: false,
+      selection: {
+        startTile: { x: -100000, y: -100000 },
+        endTile: { x: 100000, y: 100000 },
+        items: itemRefs
+      }
+    });
+    await raf();
+
+    // Copy into the in-app clipboard.
+    dispatchCtrlKey('c');
+    await raf();
+
+    // Move the cursor onto the centroid tile so the paste lands on top. The
+    // mouse snapshot is rAF-throttled, so await a frame for it to flush.
+    const el = document.querySelector(
+      '[data-axoview-id="canvas-interactions"]'
+    ) as HTMLElement;
+    const c = tileToClient(centroid);
+    dispatchPointer(el, 'pointermove', c.x, c.y, 0);
+    await raf();
+    await raf();
+    await quiesce(); // clean idle floor right before the measured paste
+
+    const before = ax().model.getState().items.length;
+    const frames: number[] = [];
+    const longTasks: Array<{ start: number; duration: number }> = [];
+    const stop = observeLongTasks(longTasks);
+    // handlePaste wraps the store write in startTransition, so the work lands in
+    // the frames captured below rather than synchronously under this dispatch.
+    dispatchCtrlKey('v');
+    await captureUntilSettled(frames, capMs);
+    stop();
+
+    const after = ax().model.getState().items.length;
+    const canvasEl = document.querySelector(
+      '[data-testid="axoview-nodes-canvas"]'
+    ) as HTMLElement | null;
+    const renderedNodes = canvasEl
+      ? parseInt(canvasEl.dataset.drawCount ?? '0', 10) || 0
+      : 0;
+    return {
+      frames,
+      longTasks,
+      pastedCount: after - before, // anti-cheat: must equal N
+      totalNodes: after, // must equal 2N
+      renderedNodes
+    };
+  }
+
   function heapMB(): number {
     const mem = (performance as any).memory;
     return mem ? mem.usedJSHeapSize / 1048576 : -1;
@@ -826,6 +944,7 @@ function installHarness() {
   w.__perfH = {
     measureSpawn,
     measureDrag,
+    measurePaste,
     measureIdle,
     resetState,
     calibrate
@@ -1245,6 +1364,54 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
     }
   }
 
+  // ---- paste-on-top scenario (the reported freeze) ----
+  // Drives the REAL Ctrl+C / Ctrl+V path with the cursor on the selection
+  // centroid, so every pasted node lands on an occupied tile (rigid-stamp
+  // collision resolution) and pasteItems does the full batched store write +
+  // canvas redraw. Headline = settle time (the user-perceived freeze).
+  const runPasteOnce = (N: number): Promise<RunResult> =>
+    page.evaluate(
+      ([n, cap]) => (window as any).__perfH.measurePaste(n, cap),
+      [N, SPAWN_CAP_MS] as const
+    );
+
+  const pasteTable: any[] = [];
+  for (const N of PASTE_N_SET) {
+    for (let r = 0; r < WARMUP_RUNS; r++) await runPasteOnce(N);
+    const kept: RunResult[] = [];
+    for (let r = 0; r < REPEATS; r++) kept.push(await runPasteOnce(N));
+    rawDump[`paste-${N}`] = kept;
+
+    const m = kept.map(metricsOf);
+    const settles = m.map((x) => x.settle);
+    const row = {
+      scenario: 'paste',
+      N,
+      p50_ms: round(median(m.map((x) => x.p50))),
+      p95_ms: round(median(m.map((x) => x.p95))),
+      maxFrame_ms: round(median(m.map((x) => x.max))),
+      settle_ms: round(median(settles)),
+      longTaskTotal_ms: round(median(m.map((x) => x.longTaskTotal))),
+      keptRuns: kept.length,
+      noiseBand_pct: covPct(settles),
+      // Guard values (asserted after results are written): the paste must add
+      // exactly N nodes for a total of 2N — proves the paste actually ran and
+      // nothing was silently dropped/stacked-into-one.
+      pastedMedian: median(kept.map((r) => r.pastedCount ?? -1)),
+      totalMedian: median(kept.map((r) => r.totalNodes ?? -1))
+    };
+    pasteTable.push(row);
+    console.log(
+      `[perf] paste(on-top) N=${N}  p50=${row.p50_ms} p95=${row.p95_ms} ` +
+        `max=${row.maxFrame_ms} settle=${row.settle_ms} ` +
+        `lt=${row.longTaskTotal_ms} noise(CoV)=${row.noiseBand_pct}%  ` +
+        `pasted=${row.pastedMedian}/${N} total=${row.totalMedian}`
+    );
+    console.log(
+      `        settle[]=${settles.map((x) => round(x, 1)).join(',')}`
+    );
+  }
+
   // ---- idle-churn guardrail probe (KR3) ----
   const idle = await page.evaluate(
     (ms) => (window as any).__perfH.measureIdle(ms),
@@ -1284,7 +1451,7 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
   fs.writeFileSync(
     path.join(RAW_DIR, `run-${stamp.replace(/[:.]/g, '-')}.json`),
     JSON.stringify(
-      { stamp, calibrationMs, table, idleGuard, raw: rawDump },
+      { stamp, calibrationMs, table, pasteTable, idleGuard, raw: rawDump },
       null,
       2
     )
@@ -1305,6 +1472,7 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
     stamp,
     calibrationMs,
     table,
+    pasteTable,
     worstLoadBearing,
     worstNoise,
     idleGuard
@@ -1339,6 +1507,15 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
       ).toBe(r.keptRuns);
     }
   }
+  // Paste anti-cheat: each paste must add exactly N nodes (total 2N) — proves
+  // the real paste path ran and nothing was dropped or collapsed onto one tile.
+  expect(pasteTable.length).toBe(PASTE_N_SET.length);
+  for (const r of pasteTable) {
+    expect(r.pastedMedian, `paste N=${r.N}: paste added exactly N nodes`).toBe(
+      r.N
+    );
+    expect(r.totalMedian, `paste N=${r.N}: 2N nodes after paste`).toBe(2 * r.N);
+  }
   // KR3 idle-churn guardrail: heap flat (±5% retained after GC) AND zero idle
   // long tasks at zero entities.
   expect(idleGuard.pass, 'KR3 idle-churn guardrail').toBe(true);
@@ -1348,6 +1525,7 @@ function renderMarkdown(
   stamp: string,
   calibrationMs: number,
   table: any[],
+  pasteTable: any[],
   worstLoadBearing: number,
   worstNoise: number,
   idleGuard: any
@@ -1409,6 +1587,29 @@ function renderMarkdown(
     }
     lines.push('');
   }
+
+  // Paste-on-top scenario — the reported freeze (select N → copy → paste
+  // directly on top). Headline = settle time (commit→idle wall time). Pre-fix
+  // this was O(N^3) in pasteItems and froze; post-fix it is O(N).
+  lines.push('## paste (on-top collision)');
+  lines.push('');
+  lines.push(
+    '**Scene:** N source nodes (varied icons/labels), select-all + copy, cursor ' +
+      'on the selection centroid so the paste offset ≈ 0 (every pasted node hits ' +
+      'an occupied tile → rigid-stamp placement). Drives the real Ctrl+C/Ctrl+V ' +
+      'path → handlePaste → pasteItems → canvas redraw of 2N nodes.'
+  );
+  lines.push('');
+  lines.push(
+    '| N | p50 (ms) | p95 (ms) | longest frame (ms) | settle (ms) | long-task total (ms) | kept runs | noise band (CoV) |'
+  );
+  lines.push('|---|---|---|---|---|---|---|---|');
+  for (const r of pasteTable) {
+    lines.push(
+      `| ${r.N} | ${r.p50_ms} | ${r.p95_ms} | ${r.maxFrame_ms} | ${r.settle_ms} | ${r.longTaskTotal_ms} | ${r.keptRuns} | ${r.noiseBand_pct}% |`
+    );
+  }
+  lines.push('');
 
   // Guardrail: idle-churn floor (KR3).
   lines.push('## Guardrail — idle floor (KR3)');
