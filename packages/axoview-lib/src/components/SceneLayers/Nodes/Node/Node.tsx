@@ -48,12 +48,13 @@ const NodeShell = styled('div')({ position: 'absolute' });
 const NodeTransform = styled('div')({
   position: 'absolute',
   // --ff-x/--ff-y written by React from the model tile; --ff-drag-dx/dy mutated
-  // by DragItems via DOM during a drag; --ff-carry-scale lifts a carried node.
-  // One translate3d → compositor-only updates (no layout, no per-frame React).
+  // by DragItems via DOM during a drag. One translate3d → compositor-only
+  // updates (no layout, no per-frame React). (The tap-to-place carry affordance
+  // was superseded by direct manipulation — ADR 0018 Revision B — so there is no
+  // --ff-carry-scale here.)
   transform:
-    'translate3d(calc(var(--ff-x, 0px) + var(--ff-drag-dx, 0px)), calc(var(--ff-y, 0px) + var(--ff-drag-dy, 0px)), 0) scale(var(--ff-carry-scale, 1))',
-  willChange: 'transform',
-  transition: 'filter 120ms ease, opacity 120ms ease'
+    'translate3d(calc(var(--ff-x, 0px) + var(--ff-drag-dx, 0px)), calc(var(--ff-y, 0px) + var(--ff-drag-dy, 0px)), 0)',
+  willChange: 'transform'
 });
 
 // Flex-centering wrapper (cursor applied inline — it is the one dynamic bit).
@@ -107,13 +108,6 @@ const LabelTitle = styled('p')(({ theme }) => ({
 export const Node = memo(({ node, order }: Props) => {
   useRenderProbe('Node', node.id);
   const { getTilePosition } = useCanvasMode();
-  // Carry affordance: true only while THIS node is the one being carried. A
-  // boolean selector, so it re-renders only on grab/place/abort (low-frequency)
-  // — it stays false through mouse drags, so the per-frame hot path is untouched
-  // (perf §3.3).
-  const isCarried = useUiStateStore(
-    (s) => s.mode.type === 'CARRY_ITEM' && s.mode.item.id === node.id
-  );
 
   const position = useMemo(
     () =>
@@ -130,14 +124,7 @@ export const Node = memo(({ node, order }: Props) => {
         style={
           {
             '--ff-x': `${position.x}px`,
-            '--ff-y': `${position.y}px`,
-            '--ff-carry-scale': isCarried ? '1.12' : '1',
-            ...(isCarried
-              ? {
-                  filter: 'drop-shadow(0 8px 12px rgba(0, 0, 0, 0.35))',
-                  opacity: 0.9
-                }
-              : null)
+            '--ff-y': `${position.y}px`
           } as React.CSSProperties
         }
       >

@@ -162,15 +162,6 @@ export interface ReconnectAnchorMode {
   anchorIndex: number;
 }
 
-// Touch / pen carry state (ADR 0018 Decision 4): a node has been grabbed and is
-// "carried" until the next tap places it. The node does NOT follow the finger
-// (touch has no hover) — it stays at its origin showing the lifted affordance.
-export interface CarryItemMode {
-  type: 'CARRY_ITEM';
-  showCursor: boolean;
-  item: ItemReference;
-}
-
 export type Mode =
   | InteractionsDisabled
   | CursorMode
@@ -183,8 +174,7 @@ export type Mode =
   | TextBoxMode
   | LassoMode
   | FreehandLassoMode
-  | ReconnectAnchorMode
-  | CarryItemMode;
+  | ReconnectAnchorMode;
 // End mode types
 
 export interface Scroll {
