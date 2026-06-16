@@ -909,6 +909,7 @@ export const useSceneActions = () => {
       if (!currentViewId) return;
 
       const viewId = currentViewId;
+      let applied = false;
 
       transaction(() => {
         const state = getState();
@@ -957,10 +958,13 @@ export const useSceneActions = () => {
             scene: { ...state.scene, connectors: newSceneConnectors }
           };
 
-          // Validate ONCE (O(N + M) with the Set fix in validation.ts). The
-          // payload is internally consistent (fresh ids, remapped refs), so on
-          // the off chance it isn't we warn and skip rather than throw inside a
-          // startTransition callback (throwing would leave a partial paste).
+          // Validate ONCE (O(N + M) with the Set fix in validation.ts). Paste is
+          // atomic: if the assembled view is invalid — which should not happen
+          // with an internally-consistent remapped payload (fresh ids, remapped
+          // refs) — abort the WHOLE paste (no items, connectors, rectangles,
+          // text boxes, or path routing) rather than committing a partial paste.
+          // Warn-and-skip instead of throw, since this runs in a startTransition
+          // callback.
           const issues = validateView(newView, { model: newState.model });
           if (issues.length > 0) {
             // eslint-disable-next-line no-console
@@ -970,19 +974,23 @@ export const useSceneActions = () => {
             );
           } else {
             setState(newState);
+            // Rectangles / text boxes are not N-scale — keep the existing
+            // reducers (they layer on top of the pending state set above). Run
+            // them only on a valid paste so the operation stays all-or-nothing.
+            [...payload.rectangles].reverse().forEach((r) => createRectangle(r));
+            payload.textBoxes.forEach((tb) => createTextBox(tb));
+            applied = true;
           }
         }
-
-        // Rectangles / text boxes are not N-scale — keep the existing reducers
-        // (they layer on top of the pending state set above).
-        [...payload.rectangles].reverse().forEach((r) => createRectangle(r));
-        payload.textBoxes.forEach((tb) => createTextBox(tb));
       });
 
-      computePathsAsync(
-        payload.connectors.map((c) => c.id),
-        onPathProgress
-      );
+      // Route connectors only if the paste actually committed.
+      if (applied) {
+        computePathsAsync(
+          payload.connectors.map((c) => c.id),
+          onPathProgress
+        );
+      }
     },
     [
       currentViewId,
