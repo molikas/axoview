@@ -103,6 +103,7 @@ interface RunResult {
   dragEngaged?: boolean; // drag only: the DRAG_ITEMS mode actually activated
   renderCounts?: Record<string, number>; // drag only, ?perfprobe=1: renders during the drag loop
   renderedNodes?: number; // spawn/paste: node shells (or canvas draw-count) after settle
+  paintedConnectors?: number; // spawn only: connectors that painted (anti-cheat: == committed)
   sceneCounts?: {
     nodes: number;
     connectors: number;
@@ -610,6 +611,12 @@ function installHarness() {
     ax()
       .model.getState()
       .actions.set({ items: scene.items, views: newViews }, false);
+    // D4-1: route connectors (synchronous SYNC_SCENE — the diagram-open path) so
+    // the spawn measurement includes connector paint. A bare model.set leaves
+    // scene.connectors empty, so every <Connector> early-returns null and paints
+    // nothing (Iter-7's "connectors cost 0ms" measured zero painting, not free
+    // painting). Folded into commitMs since it is part of the open/paste cost.
+    ax().changeView(view.id, ax().model.getState());
     const commitMs = performance.now() - tc;
     await captureUntilSettled(frames, capMs);
     stop();
@@ -625,11 +632,18 @@ function installHarness() {
     const renderedNodes = canvasEl
       ? parseInt(canvasEl.dataset.drawCount ?? '0', 10) || 0
       : document.querySelectorAll('[data-drag-id]').length;
+    // Connector-paint anti-cheat (D4-1, mirrors the node draw-count): every
+    // committed connector must paint — a routable path or an unroutable marker,
+    // not nothing. Counts both DOM testids.
+    const paintedConnectors = document.querySelectorAll(
+      '[data-testid="connector-path"], [data-testid="connector-unroutable"]'
+    ).length;
     return {
       frames,
       longTasks,
       commitMs,
       renderedNodes,
+      paintedConnectors,
       sceneCounts: {
         nodes: scene.items.length,
         connectors: scene.connectors.length,
@@ -1325,6 +1339,7 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
       const headline = scenario === 'spawn' ? settles : meanFrames;
 
       const renderedNodes = kept.map((r) => r.renderedNodes ?? -1);
+      const paintedConn = kept.map((r) => r.paintedConnectors ?? -1);
       const sc = kept[0]?.sceneCounts;
       const engagedCount = kept.filter((r) => r.dragEngaged).length;
       const row = {
@@ -1340,6 +1355,8 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
         noiseBand_pct: covPct(headline),
         // Guard values, asserted after results are written (see below).
         drawnMedian: scenario === 'spawn' ? median(renderedNodes) : null,
+        paintedConnMedian: scenario === 'spawn' ? median(paintedConn) : null,
+        expectedConnectors: scenario === 'spawn' ? (sc?.connectors ?? 0) : null,
         engagedCount: scenario === 'drag' ? engagedCount : null
       };
       table.push(row);
@@ -1498,6 +1515,14 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
         r.drawnMedian,
         `spawn N=${r.N}: draw-count anti-cheat (drawn == N)`
       ).toBe(r.N);
+      // Connector-paint anti-cheat (D4-1): every committed connector must paint,
+      // so the spawn cost includes connector render — not the old 0-paint path
+      // that made Iter-7 "connectors cost 0ms" meaningless (and would let a T3
+      // tick harness build on a path that never paints moving-endpoint connectors).
+      expect(
+        r.paintedConnMedian,
+        `spawn N=${r.N}: connector-paint anti-cheat (painted == committed connectors)`
+      ).toBe(r.expectedConnectors);
     } else {
       // The drag must actually engage DRAG_ITEMS on every kept run — otherwise a
       // failed grab measures idle frames and reads as a false 60 fps.
