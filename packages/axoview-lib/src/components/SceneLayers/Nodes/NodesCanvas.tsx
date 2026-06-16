@@ -71,6 +71,22 @@ const LABEL_CHIP_MAX_W = 250;
 const LABEL_STACK_GAP = 8;
 const LABEL_MAX_CONTENT_H = 80;
 const PROJ_W = PROJECTED_TILE_SIZE.width;
+// D3-3: below this zoom, labels are too small to read — draw icons only and skip
+// the whole label block (stalk + measure + chip). The biggest per-frame win when
+// zoomed out over a dense scene. Overridden by the readable-labels toggle, which
+// deliberately keeps labels legible at low zoom.
+const LABEL_LOD_ZOOM = 0.25;
+
+// D3-2: per-node label layout, measured once and reused across pan/zoom redraws.
+interface LabelLayout {
+  nameFont: string;
+  descFont: string;
+  nameLineH: number;
+  descLineH: number;
+  descLines: string[];
+  chipW: number;
+  chipH: number;
+}
 // Shared empty skip-set so an unselected scene reuses one Set instance.
 const EMPTY_SKIP: Set<string> = new Set();
 
@@ -243,6 +259,11 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
     iconsById: Map<string, Icon>;
   }>({ items: null, icons: null, itemsById: new Map(), iconsById: new Map() });
 
+  // D3-2: text-layout cache, keyed by the content that determines it
+  // (fontSize, name, description). Pan/zoom redraws reuse it instead of
+  // re-running measureText/wrapText/chip-dims per node per frame.
+  const labelLayoutCacheRef = useRef<Map<string, LabelLayout>>(new Map());
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -322,6 +343,10 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       // mode). This is the exact value fed to ctx.scale below, not a recomputation.
       canvas.dataset.labelScale = String(counterScale);
 
+      // D3-3: skip the label block (stalk + chip) below the LOD zoom unless
+      // readable-labels is on. Computed once per draw, applied per node.
+      const drawLabels = readableLabels || zoom >= LABEL_LOD_ZOOM;
+
       const skipIds = skipIdsRef.current;
 
       // Painter's order: ascending resolved render order (mirrors Nodes sort).
@@ -382,7 +407,7 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
         // round cap, width 3, black. The canvas drew NO stalk before — at-rest
         // (canvas) nodes showed none and selecting one popped it in via the DOM
         // overlay (the reported "stalk invisible until click").
-        if (hasLabel && labelHeight > 0) {
+        if (hasLabel && labelHeight > 0 && drawLabels) {
           ctx.save();
           ctx.setLineDash([0, 6]);
           ctx.lineCap = 'round';
@@ -431,46 +456,79 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
         }
 
         // ----- static label (name + description) -----
-        if (hasLabel) {
+        if (hasLabel && drawLabels) {
           const chip = chipStyleRef.current;
-          const innerMaxW = LABEL_CHIP_MAX_W - chip.padX * 2;
           const fontSize = node.labelFontSize || LABEL_BASE_FONT_PX;
-          const nameFont = `600 ${fontSize}px ${DEFAULT_FONT_FAMILY}`;
-          // Description renders at the base body size (the RichTextEditor is not
-          // affected by the node's labelFontSize), regular weight.
-          const descFont = `400 ${LABEL_BASE_FONT_PX}px ${DEFAULT_FONT_FAMILY}`;
-          const nameLineH = fontSize * 1.5;
-          const descLineH = LABEL_BASE_FONT_PX * 1.4;
 
-          ctx.font = nameFont;
-          const nameW = name ? ctx.measureText(name).width : 0;
+          // D3-2: measure once per (fontSize, name, description) and reuse across
+          // pan/zoom redraws — chip geometry is content-determined. The live
+          // counter-scale is applied at draw time below, not baked into the cache.
+          const layoutKey = `${fontSize}:${(name ?? '').length}:${name ?? ''}:${descText}`;
+          let layout = labelLayoutCacheRef.current.get(layoutKey);
+          if (!layout) {
+            const innerMaxW = LABEL_CHIP_MAX_W - chip.padX * 2;
+            const nameFont = `600 ${fontSize}px ${DEFAULT_FONT_FAMILY}`;
+            // Description renders at the base body size (the RichTextEditor is not
+            // affected by the node's labelFontSize), regular weight.
+            const descFont = `400 ${LABEL_BASE_FONT_PX}px ${DEFAULT_FONT_FAMILY}`;
+            const nameLineH = fontSize * 1.5;
+            const descLineH = LABEL_BASE_FONT_PX * 1.4;
 
-          // Wrap the description to the chip's inner max width, then clip to the
-          // collapsed content height (the DOM truncates with a gradient at 80px;
-          // the canvas simply drops the overflow lines).
-          let descLines: string[] = [];
-          if (descText) {
-            ctx.font = descFont;
-            descLines = wrapText(ctx, descText, innerMaxW);
-            const budget =
-              LABEL_MAX_CONTENT_H -
-              (name ? nameLineH + LABEL_STACK_GAP : 0);
-            const maxLines = Math.max(1, Math.floor(budget / descLineH));
-            if (descLines.length > maxLines) descLines = descLines.slice(0, maxLines);
+            ctx.font = nameFont;
+            const nameW = name ? ctx.measureText(name).width : 0;
+
+            // Wrap the description to the chip's inner max width, then clip to the
+            // collapsed content height (the DOM truncates with a gradient at 80px;
+            // the canvas simply drops the overflow lines).
+            let descLines: string[] = [];
+            if (descText) {
+              ctx.font = descFont;
+              descLines = wrapText(ctx, descText, innerMaxW);
+              const budget =
+                LABEL_MAX_CONTENT_H - (name ? nameLineH + LABEL_STACK_GAP : 0);
+              const maxLines = Math.max(1, Math.floor(budget / descLineH));
+              if (descLines.length > maxLines)
+                descLines = descLines.slice(0, maxLines);
+            }
+            let descW = 0;
+            for (const line of descLines) {
+              descW = Math.max(descW, ctx.measureText(line).width);
+            }
+
+            const innerW = Math.min(innerMaxW, Math.max(nameW, descW));
+            const chipW = innerW + chip.padX * 2;
+            const contentH =
+              (name ? nameLineH : 0) +
+              (descLines.length
+                ? (name ? LABEL_STACK_GAP : 0) + descLines.length * descLineH
+                : 0);
+            const chipH = contentH + chip.padY * 2;
+
+            layout = {
+              nameFont,
+              descFont,
+              nameLineH,
+              descLineH,
+              descLines,
+              chipW,
+              chipH
+            };
+            const cache = labelLayoutCacheRef.current;
+            // Bound memory: pan/zoom adds no entries (same labels hit) — only edits
+            // do, so this rarely trips; clear wholesale when it does.
+            if (cache.size > 4096) cache.clear();
+            cache.set(layoutKey, layout);
           }
-          let descW = 0;
-          for (const line of descLines) {
-            descW = Math.max(descW, ctx.measureText(line).width);
-          }
 
-          const innerW = Math.min(innerMaxW, Math.max(nameW, descW));
-          const chipW = innerW + chip.padX * 2;
-          const contentH =
-            (name ? nameLineH : 0) +
-            (descLines.length
-              ? (name ? LABEL_STACK_GAP : 0) + descLines.length * descLineH
-              : 0);
-          const chipH = contentH + chip.padY * 2;
+          const {
+            nameFont,
+            descFont,
+            nameLineH,
+            descLineH,
+            descLines,
+            chipW,
+            chipH
+          } = layout;
 
           ctx.save();
           // Chip is centered horizontally on the tile and floats `labelHeight`
