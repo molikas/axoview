@@ -29,6 +29,7 @@ import {
 import { INITIAL_DATA } from 'src/config';
 import { savePersistedSettings } from 'src/config/persistedSettings';
 import { useInitialDataManager } from 'src/hooks/useInitialDataManager';
+import { useView } from 'src/hooks/useView';
 import { useDirtyTracker } from 'src/hooks/useDirtyTracker';
 import { ClipboardProvider } from 'src/clipboard/ClipboardContext';
 import { LayerContextProvider } from 'src/hooks/useLayerContext';
@@ -123,6 +124,11 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
     const uiStore = useUiStateStoreApi();
     const modelStore = useModelStoreApi();
     const sceneStore = useSceneStoreApi();
+    // Exposed on the debug bridge below so the perf harness can route connectors
+    // after a bulk model.set — the synchronous SYNC_SCENE diagram-open path.
+    // Stable (useCallback over stable store actions), so the bridge effect's
+    // [enableDebugTools] dep list still captures the current ref.
+    const { changeView } = useView();
     useEffect(() => {
       const shouldExpose =
         enableDebugTools || process.env.NODE_ENV !== 'production';
@@ -130,7 +136,10 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
       const debugBridge = {
         ui: uiStore,
         model: modelStore,
-        scene: sceneStore
+        scene: sceneStore,
+        // SYNC_SCENE-routes a view's connectors into the scene store (mirrors
+        // diagram-open). Debug-only; tree-shaken from production builds.
+        changeView
       };
       type DebugBridge = typeof debugBridge;
       type WindowWithDebug = Window & {

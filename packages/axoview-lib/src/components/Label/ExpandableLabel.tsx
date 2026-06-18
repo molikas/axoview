@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Box } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import { shallow } from 'zustand/shallow';
 import { useResizeObserver } from 'src/hooks/useResizeObserver';
 import { Gradient } from 'src/components/Gradient/Gradient';
@@ -18,6 +18,14 @@ type Props = Omit<LabelProps, 'maxHeight'> & {
 };
 
 const STANDARD_LABEL_HEIGHT = 80;
+
+// T1 wholesale de-emotion: the scrollable content box's only style needing a
+// stylesheet is the scrollbar-hide pseudo — baked once into a cached class so each
+// node pays no per-instance sx pipeline. Dynamic overflow / maxHeight / padding go
+// inline. (Gradient + ExpandButton stay sx — rendered only when truncated.)
+const ScrollContent = styled('div')({
+  '&::-webkit-scrollbar': { display: 'none' }
+});
 
 export const ExpandableLabel = ({
   children,
@@ -103,65 +111,71 @@ export const ExpandableLabel = ({
     return effectiveExpanded ? 'scroll' : 'hidden';
   }, [editorMode, effectiveExpanded]);
 
+  // Reset scroll to top only on an actual expand/collapse transition. On initial
+  // mount the freshly-rendered content is already at scrollTop 0, so this call is
+  // a behavioural no-op — but during bulk spawn it forces a per-node scroll/layout
+  // (≈364ms of JS self-time at N=1000, the single largest slice in the spawn CPU
+  // profile — perf-results/cpuprofile-spawn-1000.md). Skip the first run.
+  const didResetScrollRef = useRef(false);
   useEffect(() => {
+    if (!didResetScrollRef.current) {
+      didResetScrollRef.current = true;
+      return;
+    }
     contentRef.current?.scrollTo({ top: 0 });
   }, [effectiveExpanded]);
 
   return (
-    <Box ref={counterScaleRef}>
+    <div ref={counterScaleRef}>
       <Label
         {...rest}
         maxHeight={containerMaxHeight}
         maxWidth={effectiveExpanded ? rest.maxWidth * 1.5 : rest.maxWidth}
       >
-      <Box
-        ref={contentRef}
-        sx={{
-          '&::-webkit-scrollbar': {
-            display: 'none'
-          },
-          pb:
-            isContentTruncated || isExpanded
-              ? labelSettings.expandButtonPadding
-              : 0 // Add bottom padding when expand button is visible
-        }}
-        style={{
-          overflowY: overflowBehavior,
-          maxHeight: containerMaxHeight
-        }}
-      >
-        {children}
+        <ScrollContent
+          ref={contentRef}
+          style={{
+            overflowY: overflowBehavior,
+            maxHeight: containerMaxHeight,
+            // pb: labelSettings.expandButtonPadding (theme units; theme.spacing = 6)
+            paddingBottom:
+              isContentTruncated || isExpanded
+                ? labelSettings.expandButtonPadding * 6
+                : 0
+          }}
+        >
+          {children}
 
-        {isContentTruncated && (
-          <Gradient
-            sx={{
-              position: 'absolute',
-              width: '100%',
-              height: 50,
-              bottom: 0,
-              left: 0
-            }}
-          />
-        )}
-      </Box>
+          {isContentTruncated && (
+            <Gradient
+              sx={{
+                position: 'absolute',
+                width: '100%',
+                height: 50,
+                bottom: 0,
+                left: 0
+              }}
+            />
+          )}
+        </ScrollContent>
 
-      {editorMode !== 'NON_INTERACTIVE' &&
-        ((!isExpanded && isContentTruncated) || isExpanded) && (
-          <ExpandButton
-            sx={{
-              position: 'absolute',
-              bottom: 0,
-              right: 0,
-              m: 0.5
-            }}
-            isExpanded={isExpanded}
-            onClick={() => {
-              setIsExpanded(!isExpanded);
-              onToggleExpand?.(!isExpanded);
-            }}
-          />
-        )}
+        {editorMode !== 'NON_INTERACTIVE' &&
+          ((!isExpanded && isContentTruncated) || isExpanded) && (
+            <ExpandButton
+              sx={{
+                position: 'absolute',
+                bottom: 0,
+                right: 0,
+                m: 0.5
+              }}
+              isExpanded={isExpanded}
+              onClick={() => {
+                setIsExpanded(!isExpanded);
+                onToggleExpand?.(!isExpanded);
+              }}
+            />
+          )}
       </Label>
-    </Box>
+    </div>
   );
 };

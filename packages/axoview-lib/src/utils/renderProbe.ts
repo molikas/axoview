@@ -61,6 +61,13 @@ interface RenderProbeApi {
   reset: () => void;
   start: () => void;
   stop: () => void;
+  get: () => Record<string, number>;
+}
+
+// Snapshot of the raw counters — lets an automated harness (the perf suite) read
+// render fan-out programmatically instead of scraping the console.table dump.
+function get(): Record<string, number> {
+  return Object.fromEntries(counts);
 }
 
 if (typeof window !== 'undefined' && enabled) {
@@ -68,7 +75,8 @@ if (typeof window !== 'undefined' && enabled) {
     dump,
     reset,
     start,
-    stop
+    stop,
+    get
   };
   // eslint-disable-next-line no-console
   console.log('[renderProbe] enabled. Call window.__axoviewRenderProbe.start(), reproduce, then .stop().');

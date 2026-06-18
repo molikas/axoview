@@ -49,11 +49,11 @@ export const getItemAtTile = ({
 }): ItemReference | null => {
   const tileIndex = getItemTileIndex(scene.items);
   const itemId = tileIndex.get(`${tile.x},${tile.y}`);
-  const viewItem = itemId
-    ? scene.items.find((i) => i.id === itemId)
-    : undefined;
 
-  if (viewItem) return { type: 'ITEM', id: viewItem.id };
+  // The index already maps tile → id; return it directly. (SPATIAL-1: the old
+  // code did an O(1) Map lookup and then threw the id away with an O(N)
+  // scene.items.find to recover an object whose only field we use is the id.)
+  if (itemId !== undefined) return { type: 'ITEM', id: itemId };
 
   const textBox = scene.textBoxes.find((tb) => {
     const textBoxTo = getTextBoxEndTile(tb, tb.size);

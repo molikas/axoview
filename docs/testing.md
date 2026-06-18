@@ -1,6 +1,6 @@
 # Regression Test Suite Reference
 
-**Last updated:** 2026-06-14 (Phase 6.5 — Touch & pen gesture contract, ADR 0018)
+**Last updated:** 2026-06-16 (Pre-T3 hardening — paste O(N), derived spatial index, canvas/drag guards, ADR 0021)
 **Unit / integration totals** (measured 2026-06-14 via per-workspace `npm test`):
 
 | Workspace | Passing | Suites |
@@ -62,6 +62,22 @@ New suites shipped with [ADR 0018](adr/0018-touch-pen-gesture-contract.md) — t
 | `css-preview-mid-drag.spec.ts` | E2E | CSS drag-preview transform applied mid-drag (no per-frame store write) |
 | `undo-redo-dual-stack.spec.ts` | E2E | end-to-end D-7: interleaved model + scene edits undo/redo in the correct order |
 
+### Pre-T3 hardening additions (2026-06-16) — ADR 0021
+
+New suites + extensions shipped with the paste-O(N) + pre-T3 render/drag wave ([ADR 0021](adr/0021-paste-algorithmic-perf-and-spatial-index.md); PR #48 paste, #49 pre-T3):
+
+| Suite | Type | Covers |
+|---|---|---|
+| `__perf_refactor_regression__/paste.bulkPerf.test.tsx` | lib unit | **load-bearing:** bulk paste is O(N+C) — `validateView` called exactly once, 2N nodes placed with no stacking, exactly one undo entry, under a per-node call-count budget (pins the O(N³) freeze fix) |
+| `utils/__tests__/spatialIndex.test.ts` | lib unit | derived `TileIndex` — `at`/`isOccupied`/`insert`/`move`/`remove`/`range` + a brute-force occupancy invariant (the index agrees with a linear scan over random layouts) |
+| `utils/__tests__/findNearestUnoccupiedTile.test.ts` | lib unit | rigid-stamp placement — a row pasted on itself shifts by one offset to clear space (keeps the block's shape, never collapses to one tile); degenerate dense case stamps at the target offset |
+| `hooks/__tests__/useHistory.test.tsx` + `useHistory.realStore.test.tsx` (extended) | lib unit | scoped post-undo/redo D-8 connector re-sync — early-returns when no active-view connector path is empty (uiState store added to both wrappers); D-7 dual-stack coordination unchanged |
+| `__perf_refactor_regression__/DragItems.modes.test.ts` (extended) | lib unit | rectangle / text-box drag is CSS-var-only during the move + a single `batchUpdate*` commit on mouseup (no per-frame store write) |
+| `canvas-node-render.spec.ts` | E2E | Canvas2D node sprite centred on its tile + label connector stalk; `data-draw-count` anti-cheat reads == N at fit-to-view |
+| `perf/engine-perf.spec.ts` (paste-on-top scenario) | perf harness | real Ctrl+C/Ctrl+V paste-on-top adds exactly N → 2N nodes; honest draw-count guard (see [ADR 0020](adr/0020-engine-perf-harness-and-measurement-protocol.md)) |
+
+CI: [`perf-smoke.yml`](../.github/workflows/perf-smoke.yml) runs a small-N `npm run perf` on PRs so a regression in the measured render/paste path trips CI.
+
 ---
 
 ## Quick Reference
@@ -82,6 +98,40 @@ New suites shipped with [ADR 0018](adr/0018-touch-pen-gesture-contract.md) — t
 (This Quick Reference is a by-layer breakdown of the **`axoview-lib`** suite snapshotted earlier in the wave; the current `axoview-lib` figure is the 1039 in the totals table above. App-side suites — projectZip, LocalStorageProvider, lean-save/requiredPacks regressions, and the productization-audit additions — count under `axoview-app`; server-runtime suites under `axoview-backend` / `axoview-worker`.)
 
 ---
+
+## Engine performance harness (2026-06-15) — ADR 0020
+
+The engine-perf harness is the committed, reproducible measurement rig for the render
+(T2) and simulation (T3) work. The decision + protocol are durable in
+[ADR 0020](adr/0020-engine-perf-harness-and-measurement-protocol.md); this is the
+how-to.
+
+- **Run:** `npm run perf` (config `packages/axoview-e2e/perf/perf.config.ts`). It
+  **owns its server lifecycle** — `build:lib && dev` fresh — so it never measures a
+  stale `dist/`. It drives the real app in real Chromium via the debug bridge
+  (`window.__axoview__`), scripts a bulk-paste (spawn) and a synthetic drag, and writes
+  `perf-results/baseline.md` (p50/p95/mean/longest/settle/long-task per N, the idle
+  guardrail, and the machine **calibration index**).
+- **Env knobs:** `PERF_N` (e.g. `500,1000,2000`), `PERF_REPEATS`, `PERF_WARMUP`,
+  `PERF_IDLE_MS`; diagnostics `PERF_PROFILE`/`PERF_CPUPROFILE` (spawn),
+  `PERF_DRAGPROFILE` (drag), `PERF_RENDERPROBE`, `PERF_NOLABEL`, `PERF_NOCONN`.
+- **Measurement discipline (load-bearing):** cross-session machine drift was measured at
+  ~22% (≫ the ~2–5% within-run noise), so every keep/revert is a **same-session A/B with
+  a matching calibration index** — never a fresh run vs a prior-session baseline. A
+  result inside the noise band is not a change. One `decision-log.md` row per hypothesis.
+- **Anti-cheat:** the canvas node layer publishes a per-frame draw count on
+  `data-draw-count`; the harness asserts it `== N` at fit-to-view (no off-screen cull
+  shrinking the benchmark). `perf-results/baseline.md` is rewritten by **every** run incl.
+  partial/diagnostic ones — `git checkout -- perf-results/baseline.md` after any non-full
+  run; only a clean full idle run updates it.
+- **Gotcha:** the rsbuild dev server desyncs from `dist/` after `build:lib` ("Can't
+  resolve 'axoview'"). Let `npm run perf` own the lifecycle; do not `PERF_REUSE` against a
+  hand-started server unless it was just rebuilt + restarted. Kill stray :3000 listeners
+  between runs.
+
+The running record (committed): [perf-results/baseline.md](../perf-results/baseline.md)
+(certified numbers) and [perf-results/decision-log.md](../perf-results/decision-log.md)
+(one row per hypothesis; the resume point is its tail).
 
 ## Branch additions (2026-05-19) — Startup perf + splash screen
 

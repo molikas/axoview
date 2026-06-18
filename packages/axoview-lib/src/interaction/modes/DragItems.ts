@@ -28,8 +28,13 @@ import { UNPROJECTED_TILE_SIZE, PROJECTED_TILE_SIZE } from 'src/config';
 // On mouseup: read the final preview tiles, commit them to the model via the
 // existing batchUpdateViewItemTiles, then commitDragTransaction.
 //
-// Textboxes / rectangles / connector-anchor drags keep the existing reducer
-// path — they're rarely the multi-element case and don't justify the rewrite.
+// Rectangles / textboxes now use the SAME CSS-preview path (RECT-1): a
+// translate3d via the --ff-drag-* vars during the move, with the model committed
+// once on mouseup. This removes the per-frame model write that re-rendered the
+// dragged element and repainted its full pixel area every frame (the sluggish
+// big-square drag). Only connector-anchor RECONNECT (re-anchoring onto a
+// different item/anchor) still takes the reducer path — it's rare and off the
+// move hot path.
 // =============================================================================
 
 // Module-level drag preview state. Cleared by entry/exit. Single-drag-at-a-
@@ -40,6 +45,28 @@ const previewTiles = new Map<string, Coords>();
 // during drag — otherwise syncConnector runs against stale model items and
 // stomps the preview path with the wrong endpoints.
 const previewAnchorTiles = new Map<string, Coords>();
+// Rectangle / textbox MOVE preview (RECT-1) — accumulated target positions while
+// the drag shows a CSS translate3d; committed to the model once on mouseup.
+const previewRectangles = new Map<string, { from: Coords; to: Coords }>();
+const previewTextBoxes = new Map<string, Coords>();
+
+// D4-4: external (non-dragged) item occupancy is invariant during a drag — the
+// dragged items move via CSS only, the model isn't written — so it's snapshotted
+// ONCE at drag entry instead of rebuilt as an O(N) Set every frame. Cleared on
+// exit/mouseup. (Also de-risks the T3 collision tick loop, which has the same
+// loop-invariant occupancy.)
+let externalOccupiedCache: Set<string> | null = null;
+
+function buildExternalOccupied(
+  draggedItemIds: Set<string>,
+  items: { id: string; tile: Coords }[]
+): Set<string> {
+  const occupied = new Set<string>();
+  for (const si of items) {
+    if (!draggedItemIds.has(si.id)) occupied.add(`${si.tile.x},${si.tile.y}`);
+  }
+  return occupied;
+}
 
 function tileDeltaToPixels(
   dx: number,
@@ -63,7 +90,13 @@ function applyCssOffset(id: string, dx: number, dy: number) {
 }
 
 function clearAllCssOffsets() {
-  for (const id of previewTiles.keys()) {
+  // Nodes, rectangles and textboxes all carry --ff-drag-* offsets during a drag.
+  const ids = [
+    ...previewTiles.keys(),
+    ...previewRectangles.keys(),
+    ...previewTextBoxes.keys()
+  ];
+  for (const id of ids) {
     const el = document.querySelector<HTMLElement>(`[data-drag-id="${id}"]`);
     if (el) {
       el.style.removeProperty('--ff-drag-dx');
@@ -82,7 +115,8 @@ function computeNodeUpdates(
   itemRefs: ItemReference[],
   initialTiles: Record<string, Coords>,
   mouseOffset: Coords,
-  scene: ReturnType<typeof useScene>
+  scene: ReturnType<typeof useScene>,
+  externalOccupied: Set<string> | null
 ): NodeUpdate[] | null {
   if (itemRefs.length === 0) return null;
 
@@ -94,16 +128,15 @@ function computeNodeUpdates(
       : getItemByIdOrThrow(scene.items, item.id).value.tile
   }));
 
-  const externalOccupied = new Set(
-    scene.items
-      .filter((si) => !draggedIdSet.has(si.id))
-      .map((si) => `${si.tile.x},${si.tile.y}`)
-  );
+  // Built once at drag entry (D4-4); fall back to building it if absent (e.g. a
+  // direct call outside an open drag).
+  const occupied =
+    externalOccupied ?? buildExternalOccupied(draggedIdSet, scene.items);
 
   const targetKeys = new Set<string>();
   for (const t of targets) {
     const key = `${t.targetTile.x},${t.targetTile.y}`;
-    if (externalOccupied.has(key) || targetKeys.has(key)) return null;
+    if (occupied.has(key) || targetKeys.has(key)) return null;
     targetKeys.add(key);
   }
 
@@ -211,7 +244,8 @@ const dragItems = (
     itemRefs,
     initialTiles,
     mouseOffset,
-    scene
+    scene,
+    externalOccupiedCache
   );
   applyNodePreview(nodeUpdates, initialTiles, canvasMode);
 
@@ -229,34 +263,29 @@ const dragItems = (
     scene.previewConnectorPaths(previewTiles, previewAnchorTiles);
   }
 
-  const textBoxUpdates = textBoxRefs.map((item) => ({
-    id: item.id,
-    tile: initialTiles[item.id]
-      ? CoordsUtils.add(initialTiles[item.id], mouseOffset)
-      : getItemByIdOrThrow(scene.textBoxes, item.id).value.tile
-  }));
-
-  const rectangleUpdates = rectangleRefs.map((item) => {
-    const init = initialRectangles[item.id];
-    if (init) {
-      return {
-        id: item.id,
+  // Rectangles / textboxes: CSS-only preview (RECT-1) — one translate3d via the
+  // --ff-drag-* vars and accumulate the target positions; the model is committed
+  // once on mouseup. No per-frame model write → no re-render and no full-area
+  // repaint (the big-rectangle drag cliff). They move by the whole mouseOffset,
+  // so the pixel delta is shared. Items missing an initial position (shouldn't
+  // happen — entry records them) are skipped, mirroring the node preview.
+  if (rectangleRefs.length > 0 || textBoxRefs.length > 0) {
+    const pixels = tileDeltaToPixels(mouseOffset.x, mouseOffset.y, canvasMode);
+    for (const item of rectangleRefs) {
+      const init = initialRectangles[item.id];
+      if (!init) continue;
+      applyCssOffset(item.id, pixels.x, pixels.y);
+      previewRectangles.set(item.id, {
         from: CoordsUtils.add(init.from, mouseOffset),
         to: CoordsUtils.add(init.to, mouseOffset)
-      };
+      });
     }
-    const r = getItemByIdOrThrow(scene.rectangles, item.id).value;
-    return { id: item.id, from: r.from, to: r.to };
-  });
-
-  // Immer-free per-frame move (no full-state clone) — the fix for the
-  // rectangle/textbox sustained-drag fps cliff. These writes happen inside the
-  // open drag transaction, so they accumulate into the single mouseup commit.
-  if (textBoxUpdates.length > 0) {
-    scene.batchUpdateTextBoxTiles(textBoxUpdates);
-  }
-  if (rectangleUpdates.length > 0) {
-    scene.batchUpdateRectangles(rectangleUpdates);
+    for (const item of textBoxRefs) {
+      const init = initialTiles[item.id];
+      if (!init) continue;
+      applyCssOffset(item.id, pixels.x, pixels.y);
+      previewTextBoxes.set(item.id, CoordsUtils.add(init, mouseOffset));
+    }
   }
 
   // Anchor reconnect (rare) keeps the reducer path.
@@ -270,9 +299,20 @@ export const DragItems: ModeActions = {
     setWindowCursor('grabbing');
     previewTiles.clear();
     previewAnchorTiles.clear();
-    // One history entry covers the whole drag; per-tick model writes (only
-    // textboxes/rectangles/anchor reconnects in the CSS-preview path) skip
-    // produceWithPatches while pendingPre is frozen.
+    previewRectangles.clear();
+    previewTextBoxes.clear();
+    // D4-4: snapshot external (non-dragged) item occupancy once for the whole
+    // drag — it's invariant, so the per-frame collision check reads this instead
+    // of rebuilding an O(N) Set each frame.
+    externalOccupiedCache = buildExternalOccupied(
+      new Set(
+        uiState.mode.items.filter((i) => i.type === 'ITEM').map((i) => i.id)
+      ),
+      scene.items
+    );
+    // One history entry covers the whole drag; the only per-tick model writes
+    // are anchor reconnects (rare) — node/rectangle/textbox moves stay CSS-only
+    // until the mouseup commit, and skip produceWithPatches while frozen.
     scene.beginDragTransaction();
   },
   exit: ({ rendererRef, scene }) => {
@@ -283,6 +323,9 @@ export const DragItems: ModeActions = {
     clearAllCssOffsets();
     previewTiles.clear();
     previewAnchorTiles.clear();
+    previewRectangles.clear();
+    previewTextBoxes.clear();
+    externalOccupiedCache = null;
     scene.commitDragTransaction();
   },
   mousemove: ({ uiState, scene }) => {
@@ -320,15 +363,35 @@ export const DragItems: ModeActions = {
     );
   },
   mouseup: ({ uiState, scene }) => {
-    // Commit any deferred CSS-preview node moves to the model BEFORE closing
-    // the drag transaction — commitDragTransaction then captures one history
-    // entry covering the whole drag.
+    // Commit deferred CSS-preview moves (nodes + rectangles + textboxes) to the
+    // model BEFORE closing the drag transaction — commitDragTransaction then
+    // captures one history entry covering the whole drag. Clear the CSS offsets
+    // AFTER committing but BEFORE clearing the preview maps (clearAllCssOffsets
+    // reads their keys to find the [data-drag-id] elements).
     if (previewTiles.size > 0) {
-      const updates = Array.from(previewTiles, ([id, tile]) => ({ id, tile }));
-      scene.batchUpdateViewItemTiles(updates);
-      clearAllCssOffsets();
-      previewTiles.clear();
+      scene.batchUpdateViewItemTiles(
+        Array.from(previewTiles, ([id, tile]) => ({ id, tile }))
+      );
     }
+    if (previewRectangles.size > 0) {
+      scene.batchUpdateRectangles(
+        Array.from(previewRectangles, ([id, r]) => ({
+          id,
+          from: r.from,
+          to: r.to
+        }))
+      );
+    }
+    if (previewTextBoxes.size > 0) {
+      scene.batchUpdateTextBoxTiles(
+        Array.from(previewTextBoxes, ([id, tile]) => ({ id, tile }))
+      );
+    }
+    clearAllCssOffsets();
+    previewTiles.clear();
+    previewRectangles.clear();
+    previewTextBoxes.clear();
+    externalOccupiedCache = null;
 
     // Commit waypoint anchor preview tiles. Group by parent connector so we
     // make one scene.updateConnector call per connector (not per anchor),

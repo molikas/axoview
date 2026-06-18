@@ -6,6 +6,7 @@ import { useCanvasMode, CanvasModeContextValue } from 'src/contexts/CanvasModeCo
 import { Grid } from 'src/components/Grid/Grid';
 import { Cursor } from 'src/components/Cursor/Cursor';
 import { Nodes } from 'src/components/SceneLayers/Nodes/Nodes';
+import { NodesCanvas } from 'src/components/SceneLayers/Nodes/NodesCanvas';
 import { Rectangles } from 'src/components/SceneLayers/Rectangles/Rectangles';
 import { Connectors } from 'src/components/SceneLayers/Connectors/Connectors';
 import { ConnectorLabels } from 'src/components/SceneLayers/ConnectorLabels/ConnectorLabels';
@@ -18,7 +19,11 @@ import { Lasso } from 'src/components/Lasso/Lasso';
 import { FreehandLasso } from 'src/components/FreehandLasso/FreehandLasso';
 import { useScene } from 'src/hooks/useScene';
 import { RendererProps } from 'src/types/rendererProps';
-import { Scroll, Size } from 'src/types';
+import { Scroll, Size, ViewItem } from 'src/types';
+
+// Stable empty list so the canvas-node DOM hybrid overlay memo returns a
+// referentially-stable value when nothing is selected (avoids re-renders).
+const NO_HYBRID_NODES: ViewItem[] = [];
 
 // Extra tiles of padding around the screen edges to avoid visible pop-in.
 const VIEWPORT_TILE_PADDING = 4;
@@ -128,6 +133,41 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
     [showGrid]
   );
 
+  // The node layer is drawn by the imperative Canvas2D path (NodesCanvas) — the
+  // default and sole bulk renderer (ADR 0019). The actively-manipulated nodes —
+  // the single SELECTED node and any node currently being DRAGGED — are instead
+  // rendered by the DOM <Node> overlay (and skipped by the canvas) so they keep
+  // the DOM affordances the canvas can't cheaply replicate: the F2 inline-rename
+  // contentEditable and readable-labels counter-scale wrapper (selected node),
+  // and the `--ff-drag` compositor drag preview (DragItems mutates
+  // `[data-drag-id]`, which only the DOM path has). Both signals are sparse —
+  // `itemControls` is the single-selection signal (null for 0 or >1 selected);
+  // `mode.items` lists the drag set only while mode === DRAG_ITEMS. Nothing is
+  // selected or dragging during bulk spawn, so the bulk path is pure canvas.
+  // Dragging the node in DOM (rather than redrawing it on the canvas per preview
+  // frame) is how the hybrid gets a correct, compositor-only drag preview for free.
+  const selectedNodeId = useUiStateStore((s) =>
+    s.itemControls?.type === 'ITEM' ? s.itemControls.id : null
+  );
+  // Comma-joined dragged-ITEM ids (a primitive, so the selector re-renders only
+  // on drag start/end, not per drag frame — mode.items is set once at entry).
+  const draggingKey = useUiStateStore((s) =>
+    s.mode.type === 'DRAG_ITEMS'
+      ? s.mode.items
+          .filter((i) => i.type === 'ITEM')
+          .map((i) => i.id)
+          .join(',')
+      : ''
+  );
+
+  const hybridIds = useMemo(() => {
+    if (!selectedNodeId && !draggingKey) return null;
+    const ids = new Set<string>();
+    if (selectedNodeId) ids.add(selectedNodeId);
+    if (draggingKey) for (const id of draggingKey.split(',')) ids.add(id);
+    return ids;
+  }, [selectedNodeId, draggingKey]);
+
   const visibleItems = useMemo(() => {
     const { minX, maxX, minY, maxY } = coarseBounds;
     if (minX === -Infinity) return items; // bounds not yet computed
@@ -139,6 +179,15 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
         item.tile.y <= maxY
     );
   }, [items, coarseBounds]);
+
+  // The selected node, lifted out of the canvas into a DOM <Node> overlay (see
+  // selectedNodeId). Referentially stable (NO_HYBRID_NODES) when nothing is
+  // selected so the canvas + overlay don't re-render on unrelated state.
+  const hybridNodes = useMemo(() => {
+    if (!hybridIds) return NO_HYBRID_NODES;
+    const found = visibleItems.filter((item) => hybridIds.has(item.id));
+    return found.length > 0 ? found : NO_HYBRID_NODES;
+  }, [hybridIds, visibleItems]);
 
   const visibleConnectors = useMemo(() => {
     const { minX, maxX, minY, maxY } = coarseBounds;
@@ -238,9 +287,12 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
           height: '100%'
         }}
       />
-      <SceneLayer>
-        <Nodes nodes={visibleItems} />
-      </SceneLayer>
+      <NodesCanvas nodes={visibleItems} skipNodes={hybridNodes} />
+      {hybridNodes.length > 0 && (
+        <SceneLayer>
+          <Nodes nodes={hybridNodes} />
+        </SceneLayer>
+      )}
       <SceneLayer>
         <ConnectorAnchorOverlay />
       </SceneLayer>

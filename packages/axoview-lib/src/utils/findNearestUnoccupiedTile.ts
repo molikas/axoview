@@ -1,23 +1,20 @@
 import { Coords } from 'src/types';
 import { useScene } from 'src/hooks/useScene';
-
-const tileKey = (t: Coords) => `${t.x},${t.y}`;
+import { TileIndex, buildTileIndex } from 'src/utils/spatialIndex';
 
 /**
  * Finds the nearest unoccupied tile to the target tile using a spiral search pattern.
- * Uses a Set-based O(1) lookup instead of O(N) getItemAtTile on every candidate tile.
+ * Uses the TileIndex (O(1) isOccupied) instead of O(N) getItemAtTile per candidate.
  */
 export const findNearestUnoccupiedTile = (
   targetTile: Coords,
   scene: ReturnType<typeof useScene>,
   maxDistance: number = 10
 ): Coords | null => {
-  // Build a Set of all occupied item tiles once — O(N) upfront, O(1) per probe.
-  const occupiedTiles = new Set<string>(
-    scene.items.map((i) => tileKey(i.tile))
-  );
+  // Build the occupancy index once — O(N) upfront, O(1) per probe (OCCUPANCY-3).
+  const index = buildTileIndex(scene.items);
 
-  if (!occupiedTiles.has(tileKey(targetTile))) {
+  if (!index.isOccupied(targetTile)) {
     return targetTile;
   }
 
@@ -45,7 +42,7 @@ export const findNearestUnoccupiedTile = (
           y: currentTile.y + direction.y
         };
 
-        if (!occupiedTiles.has(tileKey(currentTile))) {
+        if (!index.isOccupied(currentTile)) {
           return currentTile;
         }
       }
@@ -55,73 +52,89 @@ export const findNearestUnoccupiedTile = (
   return null;
 };
 
-// Scan the perimeter of the square ring at `distance` tiles from the target,
-// in (dx, dy) ascending order, returning the first unoccupied tile or null.
-const scanRing = (
-  targetTile: Coords,
-  distance: number,
-  occupiedTiles: Set<string>
-): Coords | null => {
-  for (let dx = -distance; dx <= distance; dx++) {
-    for (let dy = -distance; dy <= distance; dy++) {
-      const onPerimeter =
-        Math.abs(dx) === distance || Math.abs(dy) === distance;
-      if (!onPerimeter) continue;
-      const checkTile = { x: targetTile.x + dx, y: targetTile.y + dy };
-      if (!occupiedTiles.has(tileKey(checkTile))) {
-        return checkTile;
-      }
-    }
-  }
-  return null;
-};
+// The pasted block searches integer offsets out to this Chebyshev distance for
+// a collision-free placement before giving up and stamping at the target. Big
+// enough that any realistic paste finds clear space; bounded so a pathologically
+// dense scene can't spin.
+const MAX_STAMP_OFFSET = 64;
 
-// Expand outward ring-by-ring from the target until a free tile is found.
-const findFreeTileInRings = (
-  targetTile: Coords,
-  occupiedTiles: Set<string>,
-  maxDistance = 10
+// Visit the perimeter of the Chebyshev-distance-`d` offset ring and return the
+// first offset for which `fits` holds, else null. Walks only the 4 edges — O(d),
+// not the O(d²) full (2d+1)² square the old per-tile ring scan iterated (SCANRING).
+const firstFittingOffsetOnRing = (
+  d: number,
+  fits: (offset: Coords) => boolean
 ): Coords | null => {
-  for (let distance = 1; distance <= maxDistance; distance++) {
-    const free = scanRing(targetTile, distance, occupiedTiles);
-    if (free) return free;
+  // Top (y = -d) and bottom (y = +d) edges, full width.
+  for (let dx = -d; dx <= d; dx += 1) {
+    if (fits({ x: dx, y: -d })) return { x: dx, y: -d };
+    if (fits({ x: dx, y: d })) return { x: dx, y: d };
+  }
+  // Left (x = -d) and right (x = +d) edges, excluding the corners covered above.
+  for (let dy = -d + 1; dy <= d - 1; dy += 1) {
+    if (fits({ x: -d, y: dy })) return { x: -d, y: dy };
+    if (fits({ x: d, y: dy })) return { x: d, y: dy };
   }
   return null;
 };
 
 /**
- * Finds the nearest unoccupied tile for multiple items being placed/moved.
- * Ensures all items can be placed without overlapping.
- * Uses only a Set for collision detection — no O(N) getItemAtTile calls.
+ * Rigid-stamp placement for a group of items being pasted/placed (MAXDIST-5).
+ *
+ * Finds ONE integer offset such that the whole block — every item shifted by the
+ * same offset — clears all existing items, searching outward from the target
+ * offset. This preserves the block's internal relative layout (a pasted diagram
+ * fragment keeps its shape) and never silently stacks: the old per-node spiral
+ * capped each node at distance 10 and, when any node could not be placed,
+ * returned null — at which point the caller dropped the ENTIRE paste onto the
+ * original tiles (every pasted node stacked on its source).
+ *
+ * Items in `excludeIds` (e.g. the items being moved) are ignored for collision.
+ * Returns one resolved tile per input item, in input order; [] for empty input.
+ * For a non-empty block it never returns null — if no clear offset exists within
+ * the search bound it stamps at the target offset (layout preserved) rather than
+ * collapsing the block. (The `| null` return is retained for call-site/mock
+ * compatibility.)
  */
 export const findNearestUnoccupiedTilesForGroup = (
   items: { id: string; targetTile: Coords }[],
   scene: ReturnType<typeof useScene>,
   excludeIds: string[] = []
 ): Coords[] | null => {
-  const result: Coords[] = [];
-  const occupiedTiles = new Set<string>();
+  if (items.length === 0) return [];
 
-  // Add existing item tiles to the occupied Set (excluding the ones being moved).
-  scene.items.forEach((item) => {
-    if (!excludeIds.includes(item.id)) {
-      occupiedTiles.add(tileKey(item.tile));
-    }
-  });
-
-  for (const item of items) {
-    const targetKey = tileKey(item.targetTile);
-    const foundTile = occupiedTiles.has(targetKey)
-      ? findFreeTileInRings(item.targetTile, occupiedTiles)
-      : item.targetTile;
-
-    if (!foundTile) {
-      return null;
-    }
-
-    result.push(foundTile);
-    occupiedTiles.add(tileKey(foundTile));
+  const exclude = new Set(excludeIds);
+  const index = new TileIndex();
+  for (const item of scene.items) {
+    if (!exclude.has(item.id)) index.insert(item.id, item.tile);
   }
 
-  return result;
+  const blockTiles = items.map((it) => it.targetTile);
+
+  const blockClearsAt = (offset: Coords): boolean => {
+    for (const tile of blockTiles) {
+      if (index.isOccupied({ x: tile.x + offset.x, y: tile.y + offset.y })) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // Target offset first, then expand ring by ring.
+  if (blockClearsAt({ x: 0, y: 0 })) return blockTiles;
+
+  for (let d = 1; d <= MAX_STAMP_OFFSET; d += 1) {
+    const offset = firstFittingOffsetOnRing(d, blockClearsAt);
+    if (offset) {
+      return blockTiles.map((tile) => ({
+        x: tile.x + offset.x,
+        y: tile.y + offset.y
+      }));
+    }
+  }
+
+  // No clear offset within the bound — stamp at the target rather than stacking
+  // the block onto itself. The internal layout stays intact even though it
+  // overlaps the scene.
+  return blockTiles;
 };

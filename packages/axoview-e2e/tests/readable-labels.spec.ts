@@ -58,16 +58,34 @@ const setZoom = (page: Page, zoom: number): Promise<void> =>
     (window as any).__axoview__.ui.getState().actions.setZoom(z);
   }, zoom);
 
-/** The resolved --axoview-label-scale on the first node label's wrapper. */
+/**
+ * The applied label counter-scale, read renderer-agnostically.
+ *
+ * DOM renderer: the resolved `--axoview-label-scale` on the first node label's
+ * wrapper (unchanged — flag-off behaviour is identical).
+ *
+ * Canvas renderer (T2 node-layer hybrid): no per-node DOM label exists, so read
+ * `data-label-scale` off the `<canvas>` — the exact value NodesCanvas feeds to
+ * `ctx.scale` when drawing labels (published each draw). Same feature, same
+ * `computeLabelCounterScale` output; only the observation surface differs.
+ */
 const getLabelScale = (page: Page): Promise<number> =>
   page.evaluate(() => {
     const label = document.querySelector('[data-testid="node-label"]');
-    const wrapper = label?.firstElementChild ?? label;
-    if (!wrapper) return NaN;
-    const raw = getComputedStyle(wrapper).getPropertyValue(
-      '--axoview-label-scale'
+    if (label) {
+      const wrapper = label.firstElementChild ?? label;
+      const raw = getComputedStyle(wrapper).getPropertyValue(
+        '--axoview-label-scale'
+      );
+      return parseFloat(raw) || 1;
+    }
+    const canvas = document.querySelector(
+      '[data-testid="axoview-nodes-canvas"]'
     );
-    return parseFloat(raw) || 1;
+    if (canvas) {
+      return parseFloat(canvas.getAttribute('data-label-scale') ?? '') || 1;
+    }
+    return NaN;
   });
 
 async function importSampleDiagram(page: Page) {
@@ -82,12 +100,16 @@ async function importSampleDiagram(page: Page) {
   await fileChooser.setFiles(FIXTURE_JSON);
   await byLibTestId(page, 'axoview-canvas').waitFor({ state: 'visible', timeout: 10_000 });
   await waitForDebugBridge(page);
-  // Named items (Alpha/Beta) render node labels.
+  // Named items (Alpha/Beta) render node labels — as DOM in the default
+  // renderer, or as canvas pixels under the T2 node-layer flag. Wait for
+  // whichever surface this run uses so the label-scale read below has a target.
   await byLibTestId(page, 'axoview-canvas').waitFor({ state: 'visible' });
-  await page.locator('[data-testid="node-label"]').first().waitFor({
-    state: 'attached',
-    timeout: 10_000
-  });
+  await page
+    .locator(
+      '[data-testid="node-label"], [data-testid="axoview-nodes-canvas"]'
+    )
+    .first()
+    .waitFor({ state: 'attached', timeout: 10_000 });
 }
 
 test.describe('Readable labels — Thread E (ADR 0015)', () => {

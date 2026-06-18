@@ -185,35 +185,82 @@ describe('findNearestUnoccupiedTilesForGroup', () => {
     expect(result).toEqual([{ x: 5, y: 5 }]);
   });
 
-  it('returns null when cannot place all items within search distance', () => {
-    // Fill a large area so no free tiles exist
+  it('places the block in free space outside a fully-occupied region (never stacks)', () => {
+    // RIGID-STAMP (MAXDIST-5): the old algorithm capped each node's ring search
+    // at distance 10 and returned null when it could not place an item — at
+    // which point the caller dropped the whole paste onto the source tiles.
+    // Rigid-stamp instead shifts the block out to clear space, so the item
+    // lands on a genuinely free tile rather than stacking.
     const sceneItems: Array<{ id: string; tile: { x: number; y: number } }> =
       [];
+    const occupied = new Set<string>();
     for (let x = -15; x <= 25; x++) {
       for (let y = -15; y <= 25; y++) {
         sceneItems.push({ id: `n-${x}-${y}`, tile: { x, y } });
+        occupied.add(`${x},${y}`);
       }
     }
-    mockGetItemAtTile.mockReturnValue({ type: 'ITEM', id: 'blocker' });
     const scene = makeScene(sceneItems);
     const items = [{ id: 'new', targetTile: { x: 5, y: 5 } }];
     const result = findNearestUnoccupiedTilesForGroup(items, scene);
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result).toHaveLength(1);
+    // The placed tile is genuinely free — not stacked on an existing item.
+    expect(occupied.has(`${result![0].x},${result![0].y}`)).toBe(false);
   });
 
-  it('prevents two items in the group from occupying the same tile', () => {
-    // Both items want (5,5) — second must find an alternative
-    const scene = makeScene();
+  it('preserves the block relative layout when shifting (rigid stamp)', () => {
+    // Two items at distinct targets that both collide with existing items. The
+    // whole block shifts by a single offset, so the output preserves the input
+    // relative layout exactly and neither lands on an existing item.
+    const sceneItems = [
+      { id: 'x1', tile: { x: 5, y: 5 } },
+      { id: 'x2', tile: { x: 6, y: 5 } }
+    ];
+    const scene = makeScene(sceneItems);
     const items = [
       { id: 'a', targetTile: { x: 5, y: 5 } },
-      { id: 'b', targetTile: { x: 5, y: 5 } }
+      { id: 'b', targetTile: { x: 6, y: 5 } } // relative offset (1, 0) from a
     ];
-    mockGetItemAtTile.mockReturnValue(null);
     const result = findNearestUnoccupiedTilesForGroup(items, scene);
     expect(result).not.toBeNull();
     expect(result).toHaveLength(2);
-    // Both tiles must be different
     const [t1, t2] = result!;
-    expect(`${t1.x},${t1.y}`).not.toBe(`${t2.x},${t2.y}`);
+    // Relative layout preserved (same (1,0) offset between the two tiles).
+    expect(t2.x - t1.x).toBe(1);
+    expect(t2.y - t1.y).toBe(0);
+    // Neither overlaps an existing item.
+    const occupied = new Set(sceneItems.map((i) => `${i.tile.x},${i.tile.y}`));
+    expect(occupied.has(`${t1.x},${t1.y}`)).toBe(false);
+    expect(occupied.has(`${t2.x},${t2.y}`)).toBe(false);
+  });
+
+  it('shifts a block pasted on top of itself to clear space (never stacks)', () => {
+    // The reported scenario, in miniature: a 3-node row pasted exactly on top
+    // of the source row. Rigid-stamp moves the whole block to free tiles; none
+    // of the pasted tiles land on an existing node.
+    const sceneItems = [
+      { id: 's0', tile: { x: 0, y: 0 } },
+      { id: 's1', tile: { x: 1, y: 0 } },
+      { id: 's2', tile: { x: 2, y: 0 } }
+    ];
+    const scene = makeScene(sceneItems);
+    const items = [
+      { id: 'p0', targetTile: { x: 0, y: 0 } },
+      { id: 'p1', targetTile: { x: 1, y: 0 } },
+      { id: 'p2', targetTile: { x: 2, y: 0 } }
+    ];
+    const result = findNearestUnoccupiedTilesForGroup(items, scene);
+    expect(result).not.toBeNull();
+    expect(result).toHaveLength(3);
+    const occupied = new Set(sceneItems.map((i) => `${i.tile.x},${i.tile.y}`));
+    for (const t of result!) {
+      expect(occupied.has(`${t.x},${t.y}`)).toBe(false);
+    }
+    // Layout preserved — still a contiguous horizontal row.
+    expect(result![1].x - result![0].x).toBe(1);
+    expect(result![2].x - result![1].x).toBe(1);
+    expect(result![0].y).toBe(result![1].y);
+    expect(result![1].y).toBe(result![2].y);
   });
 });

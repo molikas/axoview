@@ -32,6 +32,28 @@ The pointing-finger cursor on hover (added 2026-05-15) does cover all four cases
 
 **Status:** Open. Decide on a unified badge story — either extend the existing badges to cover the missing cases, or replace both with one consolidated "more info" indicator that fires for any of the four content types.
 
+## Canvas node renderer: notes/link badges + connectors not drawn for unselected nodes (ADR 0019)
+
+**Symptom:** With the Canvas2D node layer now the default renderer (ADR 0019), two visuals
+are not yet painted on the canvas for nodes at rest:
+
+- **Notes/link badges** (the top-right blue dot for `notes`, the bottom-right OpenInNew
+  badge for `link` in preview mode). They reappear as soon as a node is **selected or
+  dragged** (it renders via the DOM `<Node>` overlay), so the affordance is not lost on
+  interaction — only on at-a-glance scanning of unselected nodes. (Compounds the existing
+  "Preview-mode passive badge does not cover all clickable nodes" entry above.)
+- **Connectors** still render on the existing DOM/SVG layer, not the canvas. This is
+  correct and intentional (Iter-7 proved connectors carry no spawn-cost prize and are
+  rAF-batched on paste); listed here only so the canvas-vs-DOM split is documented.
+
+**Workaround:** None needed for connectors. For badges: select/hover the node to see them.
+
+**Status:** Open, deferred (T2 productization follow-ups). Badges need a screenshot-driven
+placement pass to anchor them accurately on the iso-skewed canvas icon; folding connectors
+onto the canvas would first need the perf harness to route connectors on spawn. Neither
+blocks the T2 render-substrate win. Tracked in
+[ADR 0019 implementation addendum](docs/adr/0019-canvas2d-node-render-layer.md).
+
 ## MQA diag exporter: element counts always read 0
 
 **Symptom:** The perf-diag JSON exporter records `ni: 0, nc: 0, ntb: 0` on every snapshot regardless of scene size, breaking the FPS-vs-complexity correlation it was meant to enable.
@@ -112,7 +134,7 @@ The icon catalog conflates two concerns (see [ADR-0002](docs/adr/0002-icon-catal
 
 These are distinct mechanisms, not stack-skew, so the sequence-stamping work does not address them. Filed explicitly so they are not lost:
 
-- **D-8 — paste→undo→redo restores empty connector paths.** Paste records a provisional empty path in the scene history entry (`createConnector(..., skipPathfinding=true)`), and `computePathsAsync` fills the real paths *outside* history (`skipHistory=true`). So paste → `Ctrl+Z` → `Ctrl+Y` re-applies the recorded patch with empty paths → pasted connectors render pathless until a later edit touches them. **Fix sketch:** on redo of a paste, re-run pathfinding for the restored connectors (or record the computed paths into the history entry rather than the provisional empty ones). e2e repro to be added under the canvas-interaction coverage work.
+- **D-8 — paste→undo→redo restored empty connector paths — FIXED 2026-06-16 (PR #49, [ADR 0021](docs/adr/0021-paste-algorithmic-perf-and-spatial-index.md) item 7).** Paste records a provisional empty path in the scene history entry (`createConnector(..., skipPathfinding=true)`), and `computePathsAsync` fills the real paths *outside* history (`skipHistory=true`). So paste → `Ctrl+Z` → `Ctrl+Y` re-applied the recorded patch with empty paths → pasted connectors rendered pathless until a later edit touched them. **Fix:** `useHistory.undo/redo` calls a scoped `resyncScene()` that re-routes the active view (`SYNC_SCENE`, written `skipHistory` so it never perturbs either undo/redo stack) — but **only when** an active-view connector actually has a missing/empty (non-`unroutable`) path, so the common model-only undo (e.g. a rename) pays just an O(C) `tiles.length` scan, never a synchronous full re-route at 700+ connectors. Guarded by the `useHistory` unit suites ([useHistory.test.tsx](packages/axoview-lib/src/hooks/__tests__/useHistory.test.tsx) + [useHistory.realStore.test.tsx](packages/axoview-lib/src/hooks/__tests__/useHistory.realStore.test.tsx)).
 - **D-9 — cross-view (page-switch) undo applies scene patches to the wrong view.** The scene store holds only the current view but its history stack is global and unscoped; `changeView` rebuilds the scene with `skipHistory=true` and does not clear/scope history. Undoing after a page switch applies the previous view's scene patches to the current view (phantom/stale `scene.connectors[id]`) while the model undo reverts an off-screen view. **Fix sketch:** scope scene history per-view, or clear/snapshot on `changeView`. Larger change; deferred. Code-traced, e2e repro to be added.
 
 ## Touch per-item actions (delete / z-order) — RESOLVED via direct manipulation (Option A)
