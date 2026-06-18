@@ -66,6 +66,18 @@ Mode actions don't currently receive the raw `SlimMouseEvent`. To branch on Ctrl
 
 This is the only widening of the `Mouse` type from this change. Existing tests that construct mock `Mouse` objects continue to compile because the field is optional.
 
+### 7. 2026-06-18 addendum — lasso hit-testing, endpoint capture, panel mirror, and the open/select split
+
+Four refinements from the canvas-UX overhaul (`docs/tactical/canvas-ux-overhaul.md`):
+
+- **Lasso intersection semantics (#16).** Rectangles are selected on **any overlap** with the marquee, not only when all four corners are enclosed ([Lasso.ts:48-65](../../packages/axoview-lib/src/interaction/modes/Lasso.ts#L48)); textboxes are hit on their **full bounds**, not just the origin tile ([Lasso.ts:68-75](../../packages/axoview-lib/src/interaction/modes/Lasso.ts#L68)). The old all-corners-enclosed rule is replaced because users read marquee-touch as selection (a lasso through the middle of a long rectangle or text body must select it).
+- **Endpoint/start-anchor capture (#2).** A connector's endpoint (start/end) anchors become lasso-capturable for **movement** (not splicing — splicing an endpoint still corrupts the path), so a free-floating start anchor can be selected.
+- **Panel ↔ canvas multi-select mirror (#13).** The [LayersPanel](../../packages/axoview-lib/src/components/LayersPanel/LayersPanel.tsx) reads `uiState.selectedIds` (not only LASSO-mode selection at [LayersPanel.tsx:122](../../packages/axoview-lib/src/components/LayersPanel/LayersPanel.tsx#L122)), so a canvas Ctrl-multi-select highlights the matching rows. Dragging any row that is part of a multi-selection assigns the **whole** selection to the target layer (bulk `assignLayerToItems`, not just the dragged item at [LayersPanel.tsx:348](../../packages/axoview-lib/src/components/LayersPanel/LayersPanel.tsx#L348)).
+- **Open/select split (refines §4).** Per [ADR 0022](0022-canvas-pointer-interaction-model.md), `selectedIds.length === 1` no longer auto-opens the details panel — selection drives **highlight + action bar** only; the panel opens on explicit **double-click**. The §4 invariant (`itemControls` mirrors a single selection) still holds for *deriving* the panel target; it just no longer *mounts* the panel on single-click. **LayersPanel mirrors this** (§4.1 two-way sync): a row's single-click selects (highlight + canvas sync + action bar), double-click opens the details panel — so the panel-open gesture is consistent across canvas and panel. (View mode is intentionally exempt — its click-to-pin `ViewModeInfoPopover`, ADR 0012, is a presentation read surface, not selection.)
+- **Lasso select-through (accepted trade-off).** Intersection semantics mean a marquee dragged *across* a large background rectangle now also selects it. This is intended — the complaint was the inverse (a lasso through a rectangle's middle failing to select). Figma-style **directional** lasso (drag-right = contain, drag-left = intersect) is a deferred refinement, not shipped here.
+
+New acceptance criteria: lasso through the middle of a long rectangle / over a text body selects it; canvas Ctrl-multi-select highlights LayersPanel rows; dragging a multi-selected row assigns every selected item to the layer; single-click does not mount the Properties panel; LayersPanel row double-click opens the panel (single-click only selects).
+
 ## Consequences
 
 ### Positive

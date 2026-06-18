@@ -43,6 +43,11 @@ presenting a diagram never dirties or saves it. The override is merged into
 > Precedence rule: in `EXPLORABLE_READONLY`, the preview override wins over `layer.visible`.
 > In `EDITABLE`, the override is absent/ignored and `layer.visible` is authoritative as today.
 
+**2026-06-18 addendum — "Present" rename + hide-labels control** (`docs/tactical/canvas-ux-overhaul.md`):
+
+- **Hide-labels control (#15).** The presentation chrome gains a **"hide labels"** toggle, same ephemeral discipline as the layer override: a UI-only flag that hides node/connector name labels while presenting, **never** mutating model `showLabel` and **never** dirtying save; it clears on leaving present mode. It composes with the per-layer overrides above through the same single merge point.
+- **Vocabulary lock: "Present", not "Preview" (#8).** The read-only presentation surface is named **"Present"** consistently across the app (toolbar entry, tooltips, dialogs) with an updated icon, and across all 14 locales (`preview` / `saveAndPreview` / `previewSaveFirst` keys renamed/retranslated). This is a vocabulary lock for the `EXPLORABLE_READONLY` entry point — peers with the [ADR 0008](0008-naming-convention.md) surface vocabulary.
+
 ## Consequences
 
 **Positive:**

@@ -181,6 +181,14 @@ This is why C.9.2 (skill stale-ref pass) ran together with C.9.1 (this doc) — 
 
 Skill bodies use `cd packages/...`, `npm run ...`, `grep`. Claude Code's harness translates `cd` cleanly across Windows/PowerShell + Bash, so the pattern works on the active dev platform. **A strict-PowerShell-only environment would trip.** This is documented friction, not a rewrite target.
 
+### 7. Whole-experience coherence — trace the ripple
+
+**Rule:** every proposed change states what it makes **redundant**, what it **contradicts**, and what it **orphans** — and reconciles or explicitly flags each *before* it ships. A fix that lands cleanly in isolation but leaves a sibling control stranded, duplicates an affordance, or depends on a surface that doesn't exist is **not done**. Grep to confirm any surface a plan leans on actually exists — *"put it in the X menu"* requires that X menu to be real, or scoped as a build dependency.
+
+**Why:** a per-issue study is well-grounded (Principle 1) yet coherence-blind *by construction* — isolating issues is exactly where cross-issue contradictions hide. The 2026-06-18 canvas-ux-overhaul scaffold routed a command into a context menu that doesn't exist while a sibling ADR reassigned that menu's trigger (right-click) to pan. This is the **opposite** failure from Principle 2's "don't pile on" — hold both at once: **minimal moves, maximal coherence.** See [feedback_whole_experience_coherence](../../../Users/isidenica/.claude/projects/c--myTemp-FossFLOW/memory/feedback_whole_experience_coherence.md).
+
+**Practiced version:** `/feature` (Phase 1.5) and `/audit` (Phase 5d) run a mandatory consequences pass that names the redundant/contradicted/orphaned surfaces per change and reconciles against mirroring surfaces — selection two-way sync ([ux-principles §4.1](ux-principles.md#41-two-way-panel--canvas-sync)), item-type parity (§5), the edit/view/present split (§11).
+
 ## Review gate
 
 `/review` and `/security-review` (built-in plugin skills) fire **between `/notes` doc sync and `/ship` promotion**. Both are surfaced by the Claude Code system reminder when relevant. The cadence diagram shows the slot; the skills themselves are plugin-provided and not in `.claude/commands/`.

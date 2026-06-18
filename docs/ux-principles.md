@@ -575,6 +575,18 @@ When building parallel surfaces, **read these first**:
 
 ---
 
+## 11. Whole-experience coherence
+
+A change to one surface is reconciled against **every surface it mirrors or feeds.** The selection two-way sync (§4.1), item-type parity (§5), and the edit / view / present mode split are all places where a "local" change silently obligates a matching change elsewhere.
+
+Before shipping a UI change, answer three questions and resolve each in the **same** change:
+
+- **Redundant** — does this make a control, settings section, or affordance pointless? Remove it now; a dead toggle is debt. (e.g. once right-click is fixed to pan, the right-click-pan toggle in a settings panel no longer makes sense — the whole section may go.)
+- **Contradicts** — does it collide with another change or an existing affordance? (e.g. right-click = pan vs right-click = context menu.) Reconcile; don't ship both.
+- **Orphaned** — does it leave functionality with no entry point, or depend on a surface that doesn't exist yet? **Grep to confirm the surface is real**, or scope building it. (e.g. "put the command in the context menu" when there is no context-menu component.)
+
+A change that reads correct in isolation but strands a sibling control **is the bug**, not a follow-up. This is the UI-layer expression of [workflow.md Principle 7 — "trace the ripple"](workflow.md).
+
 ## When this document is wrong
 
 It's a snapshot of decisions, not laws. If you find a principle here that contradicts something the user just said in the current session — the user wins. Update this doc afterwards as part of wrap-up so the contradiction doesn't repeat.
