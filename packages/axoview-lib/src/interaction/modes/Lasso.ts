@@ -3,6 +3,7 @@ import {
   ModeActions,
   ItemReference,
   Coords,
+  Size,
   ViewItem,
   Rectangle,
   TextBox,
@@ -11,16 +12,20 @@ import {
 } from 'src/types';
 import {
   isWithinBounds,
+  doBoundsOverlap,
   hasMovedTile,
   getItemByIdOrThrow,
+  getTextBoxEndTile,
   segmentIntersectsRect
 } from 'src/utils';
-import { getConnectorWaypointRefs } from 'src/utils/connectorSelection';
+import { getConnectorMovementAnchorRefs } from 'src/utils/connectorSelection';
 
 interface LassoScene {
   items: ViewItem[];
   rectangles: Rectangle[];
-  textBoxes: TextBox[];
+  // The rendered textbox carries a computed `size`; we need it to hit-test the
+  // box's full bounds (not just its origin tile).
+  textBoxes: (TextBox & { size: Size })[];
   connectors: Connector[];
 }
 
@@ -44,32 +49,25 @@ const getItemsInBounds = (
     }
   });
 
-  // Check all rectangles - they must be FULLY enclosed (all 4 corners inside)
+  // Rectangles select on ANY overlap with the marquee (ADR 0006 addendum #16):
+  // a lasso through the middle of a long rectangle must select it, not only one
+  // that fully encloses all four corners. Allocation-free AABB test — this runs
+  // every marquee-drag frame.
   scene.rectangles.forEach((rectangle: Rectangle) => {
     if (!isItemInteractable({ type: 'RECTANGLE', id: rectangle.id })) return;
-    const corners = [
-      rectangle.from,
-      { x: rectangle.to.x, y: rectangle.from.y },
-      rectangle.to,
-      { x: rectangle.from.x, y: rectangle.to.y }
-    ];
-
-    // Rectangle is only selected if ALL corners are inside the bounds
-    const allCornersInside = corners.every((corner) =>
-      isWithinBounds(corner, [startTile, endTile])
-    );
-
-    if (allCornersInside) {
+    if (doBoundsOverlap(rectangle.from, rectangle.to, startTile, endTile)) {
       items.push({ type: 'RECTANGLE', id: rectangle.id });
     }
   });
 
-  // Check all text boxes
-  scene.textBoxes.forEach((textBox: TextBox) => {
-    if (
-      isWithinBounds(textBox.tile, [startTile, endTile]) &&
-      isItemInteractable({ type: 'TEXTBOX', id: textBox.id })
-    ) {
+  // Textboxes hit on their FULL bounds (origin tile → far corner), not just the
+  // origin tile (ADR 0006 addendum #16): a lasso over a text body selects it.
+  // getTextBoxEndTile resolves the far corner per orientation; doBoundsOverlap
+  // tolerates the negative-axis corner that orientation Y produces.
+  scene.textBoxes.forEach((textBox) => {
+    if (!isItemInteractable({ type: 'TEXTBOX', id: textBox.id })) return;
+    const endTextTile = getTextBoxEndTile(textBox, textBox.size);
+    if (doBoundsOverlap(textBox.tile, endTextTile, startTile, endTile)) {
       items.push({ type: 'TEXTBOX', id: textBox.id });
     }
   });
@@ -121,20 +119,28 @@ const getItemsInBounds = (
 
     if (pathHits) {
       items.push({ type: 'CONNECTOR', id: connector.id });
-      items.push(...getConnectorWaypointRefs(connector));
+      // Capture ALL tile-bound anchors — middle waypoints AND free-floating
+      // (tile-bound) endpoints — so the whole connector drags rigidly with the
+      // group (ADR 0006 addendum #2). Node-bound endpoints have no ref.tile, so
+      // a normal connector is unaffected. Endpoints captured here travel only
+      // alongside this CONNECTOR ref, so the delete path removes the connector
+      // wholesale rather than splicing an endpoint (see
+      // getConnectorMovementAnchorRefs).
+      items.push(...getConnectorMovementAnchorRefs(connector));
       return;
     }
 
     // Connector path doesn't intersect the lasso. Still capture any free-
     // floating MIDDLE waypoint anchors inside the rect (a user could lasso
     // just a waypoint to drag it independently). Endpoints (index 0 and
-    // length-1) are skipped per the contract in connectorSelection.ts —
-    // splicing an endpoint would leave the connector with <2 anchors and
-    // corrupt the scene (regression 2026-05-25). NOTE: with path-hit
-    // semantics this branch is largely defensive; a tile-bound middle
-    // waypoint inside the rect makes at least one adjacent segment touch
-    // the rect, so pathHits is true and we never reach here. Kept as a
-    // belt-and-suspenders fallback for edge cases.
+    // length-1) are deliberately skipped HERE: a partial selection that
+    // captured an endpoint WITHOUT its connector could splice the endpoint on
+    // delete and corrupt the scene (regression 2026-05-25). Endpoint movement
+    // capture lives in the path-hit branch above, where the connector comes
+    // along too. NOTE: with path-hit semantics this branch is largely
+    // defensive; a tile-bound middle waypoint inside the rect makes at least
+    // one adjacent segment touch the rect, so pathHits is true and we never
+    // reach here. Kept as a belt-and-suspenders fallback for edge cases.
     for (let i = 1; i < connector.anchors.length - 1; i += 1) {
       const anchor = connector.anchors[i];
       if (

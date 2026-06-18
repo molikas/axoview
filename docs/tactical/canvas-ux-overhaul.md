@@ -7,7 +7,7 @@
 > - **Extended ADRs:** [0006 selection contract](../adr/0006-canvas-selection-contract.md) (2026-06-18 addendum) · [0013 present mode](../adr/0013-preview-mode-layer-switcher.md) (2026-06-18 addendum)
 > - **Inherited:** [0018 touch/pen](../adr/0018-touch-pen-gesture-contract.md) · [0020 perf protocol](../adr/0020-engine-perf-harness-and-measurement-protocol.md) · [0021 paste perf / TileIndex](../adr/0021-paste-algorithmic-perf-and-spatial-index.md)
 >
-> **Status:** T1 shipped (integration, commit 9375689) · **Owner:** molikas · **Last updated:** 2026-06-18
+> **Status:** T1 + T2 shipped (integration) · **Owner:** molikas · **Last updated:** 2026-06-18
 >
 > Short-lived working doc. Delete at `/feature wrap` once every track has shipped + smoke-passed; the ADRs are the durable record and PLAN.md gets one line.
 
@@ -75,10 +75,10 @@ Sequence (low-risk → high-risk): **T1 → T2 → T3 → T4 → T9 → T5 → T
 - [x] **#1 alt-click anchor hitbox** — counter-scaled the anchor handles by `1/zoom` via a zoom subscription wrapper `AnchorScale` (UX §8.8); Alt+click removal no longer needs the connector pre-selected (`handleAltClickWaypointRemoval` in [Cursor.ts](../../packages/axoview-lib/src/interaction/modes/Cursor.ts), + regression test).
 - [x] **#8 Preview → Present** — Slideshow icon + tooltip; i18n keys renamed/retranslated (`preview`→`present`, `saveAndPreview`→`saveAndPresent`, `previewSaveFirst`→`presentSaveFirst`) across the 11 locales that carried them (de-DE/id-ID fall back to the new English default). ADR 0013 vocabulary lock.
 
-### T2 — Selection contract (extend ADR 0006)
-- [ ] **#16 lasso intersection** — rectangles select on any overlap; textboxes on full bounds ([Lasso.ts:48-75](../../packages/axoview-lib/src/interaction/modes/Lasso.ts#L48)). Select-through of background rectangles is accepted; directional lasso deferred (ADR 0006 addendum).
-- [ ] **#2 endpoint capture** — connector start/end anchors lasso-capturable for movement (not splicing) ([Lasso.ts:138](../../packages/axoview-lib/src/interaction/modes/Lasso.ts#L138)).
-- [ ] **#13 panel↔canvas mirror + bulk assign** — LayersPanel reads `selectedIds` ([LayersPanel.tsx:122](../../packages/axoview-lib/src/components/LayersPanel/LayersPanel.tsx#L122)); dragging a multi-selected row assigns the whole selection ([LayersPanel.tsx:348](../../packages/axoview-lib/src/components/LayersPanel/LayersPanel.tsx#L348)). Route through `isItemInteractable` (UX §4.3).
+### T2 — Selection contract (extend ADR 0006) — **SHIPPED** (integration)
+- [x] **#16 lasso intersection** — rectangles select on any overlap, textboxes on full bounds via the new allocation-free `doBoundsOverlap` + `getTextBoxEndTile` ([Lasso.ts](../../packages/axoview-lib/src/interaction/modes/Lasso.ts)). Select-through of background rectangles is accepted; directional lasso deferred (ADR 0006 addendum). Unit-pinned in `Lasso.intersection.test.ts` + `isoMath.test.ts`; browser-verified in `multi-select-drag-lasso.spec`.
+- [x] **#2 endpoint capture** — free-floating (tile-bound) connector endpoints are captured by the lasso's path-hit branch via `getConnectorMovementAnchorRefs` (movement only; never spliced — they travel with their parent CONNECTOR, which delete removes wholesale). Mirrored in `FreehandLasso.ts`. Browser-verified in `connector.spec` (capture + rigid drag, anchors intact).
+- [x] **#13 panel↔canvas mirror + bulk assign** — LayersPanel now reads `uiState.selectedIds` for the row highlight (not only LASSO-mode), and a drag of any row that's part of the multi-selection bulk-assigns the whole selection via `filterUserFacingRefs` ([LayersPanel.tsx](../../packages/axoview-lib/src/components/LayersPanel/LayersPanel.tsx)). Browser-verified in `layers-multiselect.spec` (KR3 highlight + KR4 bulk).
 
 ### T3 — Layers panel perf (no ADR; perf-noted)
 - [ ] **#14 slow selection @1000** — virtualize the row list and/or memoize `LayerItemRow` + decouple the selection highlight so a single click doesn't re-render every row. **Carries its own ADR-0020 before/after** (median-of-≥N, same session) proving the click-to-select latency drop.

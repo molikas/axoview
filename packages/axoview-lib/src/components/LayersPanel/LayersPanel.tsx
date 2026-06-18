@@ -14,6 +14,7 @@ import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useScene } from 'src/hooks/useScene';
 import { useSceneData } from 'src/hooks/useSceneData';
 import { ItemReference, Coords } from 'src/types';
+import { filterUserFacingRefs } from 'src/utils/connectorSelection';
 import { LayerRow } from './LayerRow';
 import { LayerItemRow } from './LayerItemRow';
 
@@ -113,18 +114,30 @@ export const LayersPanel = () => {
   // Bidirectional: read current canvas selection
   const itemControls = useUiStateStore((s) => s.itemControls);
   const mode = useUiStateStore((s) => s.mode);
+  const selectedIds = useUiStateStore((s) => s.selectedIds);
   const uiStateActions = useUiStateStore((s) => s.actions);
 
   const selectedItemId =
     itemControls && itemControls.type !== 'ADD_ITEM' ? itemControls.id : null;
 
-  // IDs in the current LASSO multi-selection (if any) — used for row highlight.
-  const lassoSelectedIds = useMemo(() => {
-    if (mode.type === 'LASSO' && mode.selection) {
-      return new Set(mode.selection.items.map((i) => i.id));
-    }
-    return new Set<string>();
-  }, [mode]);
+  // The current canvas multi-selection, regardless of how it was produced:
+  // a LASSO/freehand drag and panel Ctrl-clicks live in `mode.selection`, while
+  // a canvas Ctrl-click / Ctrl+A lives in `uiState.selectedIds` (ADR 0006 §6).
+  // The panel mirrors BOTH so a canvas Ctrl-multi-select lights up the rows
+  // (ADR 0006 addendum #13 / UX §4.1) — not only LASSO-mode selection.
+  const selectedRefs = useMemo<ItemReference[]>(
+    () =>
+      mode.type === 'LASSO' && mode.selection
+        ? mode.selection.items
+        : selectedIds,
+    [mode, selectedIds]
+  );
+
+  // Row-highlight id set, unioning every selection source.
+  const highlightedIds = useMemo(
+    () => new Set(selectedRefs.map((i) => i.id)),
+    [selectedRefs]
+  );
 
   // Anchor for shift-click range selection — id of the last plain-clicked row.
   const anchorIdRef = useRef<string | null>(null);
@@ -351,12 +364,25 @@ export const LayersPanel = () => {
         itemDragState.overLayerId === '__unassigned__'
           ? undefined
           : itemDragState.overLayerId;
-      assignLayerToItems(target, [
-        { type: itemDragState.item.type, id: itemDragState.item.id }
-      ]);
+      const draggedRef: ItemReference = {
+        type: itemDragState.item.type,
+        id: itemDragState.item.id
+      };
+      // Bulk: if the dragged row is part of the current multi-selection, assign
+      // the WHOLE selection to the target layer, not just the dragged item
+      // (ADR 0006 addendum #13). filterUserFacingRefs drops CONNECTOR_ANCHOR
+      // refs — waypoints can't be layer-assigned (UX §4.4). Otherwise assign
+      // just the dragged item.
+      const draggedInSelection = selectedRefs.some(
+        (r) => r.id === draggedRef.id && r.type === draggedRef.type
+      );
+      const refs = draggedInSelection
+        ? filterUserFacingRefs(selectedRefs)
+        : [draggedRef];
+      assignLayerToItems(target, refs);
     }
     setItemDragState(null);
-  }, [itemDragState, assignLayerToItems]);
+  }, [itemDragState, assignLayerToItems, selectedRefs]);
 
   // Simple drag-to-reorder via mousedown/mousemove on drag handle
   const [dragState, setDragState] = useState<{
@@ -526,7 +552,7 @@ export const LayersPanel = () => {
                         <LayerItemRow
                           key={item.id}
                           item={item}
-                          isSelected={item.id === selectedItemId || lassoSelectedIds.has(item.id)}
+                          isSelected={item.id === selectedItemId || highlightedIds.has(item.id)}
                           onClick={handleItemClick}
                           onRename={handleItemRename}
                           onDragStart={handleItemDragStart}
@@ -578,7 +604,7 @@ export const LayersPanel = () => {
               <LayerItemRow
                 key={item.id}
                 item={item}
-                isSelected={item.id === selectedItemId}
+                isSelected={item.id === selectedItemId || highlightedIds.has(item.id)}
                 onClick={handleItemClick}
                 onRename={handleItemRename}
                 onDragStart={handleItemDragStart}

@@ -14,7 +14,7 @@ import {
   getItemByIdOrThrow,
   segmentIntersectsPolygon
 } from 'src/utils';
-import { getConnectorWaypointRefs } from 'src/utils/connectorSelection';
+import { getConnectorMovementAnchorRefs } from 'src/utils/connectorSelection';
 
 interface FreehandScene {
   items: ViewItem[];
@@ -107,8 +107,14 @@ const getItemsInFreehandBounds = (
     }
 
     if (pathHits) {
-      items.push({ type: 'CONNECTOR', id: connector.id });
-      items.push(...getConnectorWaypointRefs(connector));
+      // Capture the connector plus all its tile-bound anchors (middle waypoints
+      // AND free-floating endpoints) so it drags rigidly with the group, mirror
+      // of Lasso.ts (ADR 0006 addendum #2). Endpoints captured here travel only
+      // alongside this CONNECTOR ref, keeping the delete path splice-safe.
+      items.push(
+        { type: 'CONNECTOR', id: connector.id },
+        ...getConnectorMovementAnchorRefs(connector)
+      );
       return;
     }
 

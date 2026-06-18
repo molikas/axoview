@@ -160,6 +160,31 @@ export const isWithinBounds = (tile: Coords, bounds: Coords[]) => {
   return tile.x >= lowX && tile.x <= highX && tile.y >= lowY && tile.y <= highY;
 };
 
+// Axis-aligned overlap test between two tile rectangles, each given as two
+// opposite corners (in either order). Returns true when they share any area —
+// i.e. they touch or intersect. Used by lasso intersection semantics so a
+// marquee selects a rectangle/textbox it merely overlaps, not only one it fully
+// encloses (ADR 0006 addendum). Allocation-free: reads the four corner objects
+// directly, since getItemsInBounds runs every marquee-drag frame.
+export const doBoundsOverlap = (
+  aFrom: Coords,
+  aTo: Coords,
+  bFrom: Coords,
+  bTo: Coords
+): boolean => {
+  const aLowX = Math.min(aFrom.x, aTo.x);
+  const aHighX = Math.max(aFrom.x, aTo.x);
+  const aLowY = Math.min(aFrom.y, aTo.y);
+  const aHighY = Math.max(aFrom.y, aTo.y);
+  const bLowX = Math.min(bFrom.x, bTo.x);
+  const bHighX = Math.max(bFrom.x, bTo.x);
+  const bLowY = Math.min(bFrom.y, bTo.y);
+  const bHighY = Math.max(bFrom.y, bTo.y);
+  return (
+    aLowX <= bHighX && aHighX >= bLowX && aLowY <= bHighY && aHighY >= bLowY
+  );
+};
+
 export const getBoundingBox = (
   tiles: Coords[],
   offset: Coords = CoordsUtils.zero()

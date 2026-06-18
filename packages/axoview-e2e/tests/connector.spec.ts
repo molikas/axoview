@@ -28,6 +28,7 @@
  * keeps that retrofit deferred until then.
  */
 import { appTest as test, expect } from '../fixtures/app.fixture';
+import { CanvasPOM, CanvasPoint as PomCanvasPoint } from '../pom/CanvasPOM';
 import { byAxoviewId, byLibTestId } from '../helpers/selectors';
 import {
   getModelConnectorCount,
@@ -205,5 +206,113 @@ test.describe('Connector — J2: draw + undo/redo between two icons', () => {
     // 5. Ctrl+Y restores it.
     await page.keyboard.press('Control+y');
     await expect.poll(() => getModelConnectorCount(page), { timeout: 5_000 }).toBe(1);
+  });
+});
+
+/**
+ * Lasso endpoint capture (canvas-UX overhaul T2 #2, ADR 0006 addendum).
+ *
+ * A free-floating (tile-bound) connector endpoint is captured by the lasso as
+ * a CONNECTOR_ANCHOR ref so the whole connector drags rigidly with the group —
+ * MOVEMENT only; the endpoint is never spliced (that path stays splice-safe
+ * because the endpoint travels with its parent CONNECTOR). The lib unit test
+ * (Lasso.intersection.test.ts) pins the capture geometry; this lifts the
+ * drag-moves-the-endpoint half to the browser.
+ */
+const getTileEndpointAnchors = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => {
+    const viewId = (window as any).__axoview__.ui.getState().view;
+    const views = (window as any).__axoview__.model.getState().views;
+    const view = (viewId && views.find((v: any) => v.id === viewId)) ?? views[0];
+    const c = (view?.connectors ?? [])[0];
+    if (!c) return null;
+    const last = c.anchors.length - 1;
+    return {
+      count: c.anchors.length,
+      endpoints: [c.anchors[0], c.anchors[last]].map((a: any) => ({
+        id: a.id,
+        tile: a.ref?.tile ?? null
+      }))
+    };
+  });
+
+const getLassoSelectionTypes = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => {
+    const m = (window as any).__axoview__.ui.getState().mode;
+    if (m?.type !== 'LASSO') return [];
+    return ((m.selection?.items as any[]) ?? []).map((r) => r.type);
+  });
+
+test.describe('Connector — T2 #2: lasso captures a free-floating endpoint', () => {
+  test.beforeEach(async ({ page }) => {
+    await pinOnboardingDismissed(page);
+  });
+
+  test('lasso a free-tile connector → endpoints captured; dragging moves them rigidly (no splice)', async ({
+    page,
+    app
+  }) => {
+    void app;
+    await bootBlankDiagram(page);
+    const canvas = new CanvasPOM(page);
+
+    // 1. Draw a connector between two FREE tiles → both endpoints tile-bound.
+    await page.keyboard.press('c');
+    await expect.poll(() => getUiModeType(page), { timeout: 2_000 }).toBe('CONNECTOR');
+    const A: PomCanvasPoint = { x: 300, y: 260 };
+    const B: PomCanvasPoint = { x: 560, y: 400 };
+    await canvas.clickAt(A);
+    await page.waitForTimeout(100);
+    await canvas.clickAt(B);
+    await expect.poll(() => getModelConnectorCount(page), { timeout: 5_000 }).toBe(1);
+
+    const before = await getTileEndpointAnchors(page);
+    expect(before).not.toBeNull();
+    expect(before!.count).toBe(2);
+    expect(before!.endpoints[0].tile).not.toBeNull();
+    expect(before!.endpoints[1].tile).not.toBeNull();
+
+    // 2. Lasso a rect ENCLOSING both endpoints → path-hit selects the
+    //    connector AND captures both tile-bound endpoints for movement.
+    await page.keyboard.press('l');
+    await expect.poll(() => getUiModeType(page), { timeout: 2_000 }).toBe('LASSO');
+
+    const e0 = await canvas.tileToScreen(before!.endpoints[0].tile);
+    const e1 = await canvas.tileToScreen(before!.endpoints[1].tile);
+    const MARGIN = 110;
+    const lassoFrom = {
+      x: Math.min(e0.x, e1.x) - MARGIN,
+      y: Math.min(e0.y, e1.y) - MARGIN
+    };
+    const lassoTo = {
+      x: Math.max(e0.x, e1.x) + MARGIN,
+      y: Math.max(e0.y, e1.y) + MARGIN
+    };
+    await canvas.dragFromTo(lassoFrom, lassoTo);
+
+    const types = await getLassoSelectionTypes(page);
+    expect(types).toContain('CONNECTOR');
+    // Both free endpoints come along as CONNECTOR_ANCHOR refs (the #2 fix).
+    expect(types.filter((t: string) => t === 'CONNECTOR_ANCHOR').length).toBe(2);
+
+    // 3. Second drag starting INSIDE the selection → DRAG_ITEMS; both
+    //    endpoints translate by the same delta and the connector keeps its
+    //    two anchors (never spliced).
+    const insideStart = await canvas.tileToScreen(before!.endpoints[0].tile);
+    const dragTo = { x: insideStart.x + 120, y: insideStart.y + 80 };
+    await canvas.dragFromTo(insideStart, dragTo);
+
+    const after = await getTileEndpointAnchors(page);
+    expect(after!.count).toBe(2); // never spliced
+    const d0 = {
+      dx: after!.endpoints[0].tile.x - before!.endpoints[0].tile.x,
+      dy: after!.endpoints[0].tile.y - before!.endpoints[0].tile.y
+    };
+    const d1 = {
+      dx: after!.endpoints[1].tile.x - before!.endpoints[1].tile.x,
+      dy: after!.endpoints[1].tile.y - before!.endpoints[1].tile.y
+    };
+    expect(d0).toEqual(d1); // rigid movement
+    expect(d0.dx !== 0 || d0.dy !== 0).toBe(true); // actually moved
   });
 });

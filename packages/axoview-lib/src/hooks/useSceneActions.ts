@@ -798,14 +798,18 @@ export const useSceneActions = () => {
             const nextAnchors = connector.anchors.filter(
               (a) => !removeSet.has(a.id)
             );
-            // Defensive guard: a CONNECTOR_ANCHOR ref should only ever target
-            // a middle waypoint (per getConnectorWaypointRefs contract), so
-            // the splice should always leave >= 2 anchors. If a selection
-            // path ever violates that contract (Lasso/FreehandLasso partial-
-            // selection branch did, before the 2026-05-25 fix), cascade-
-            // delete the connector instead of leaving it with <2 anchors —
-            // a 1-anchor connector throws "Connector needs at least two
-            // anchors" in isoMath and blocks placeIcon (regression caught
+            // Defensive guard: any CONNECTOR_ANCHOR ref that REACHES the splice
+            // here targets a middle waypoint, so the splice should always leave
+            // >= 2 anchors. Lasso can now capture a free-floating ENDPOINT
+            // anchor for movement (getConnectorMovementAnchorRefs, ADR 0006
+            // addendum #2), but only alongside its parent CONNECTOR — and that
+            // connector is in `deletingConnectorIds`, so the loop above skips it
+            // and we never splice its endpoint. If a future selection path ever
+            // violates that (a partial selection capturing an endpoint without
+            // its connector — Lasso/FreehandLasso did, before the 2026-05-25
+            // fix), cascade-delete the connector instead of leaving it with <2
+            // anchors — a 1-anchor connector throws "Connector needs at least
+            // two anchors" in isoMath and blocks placeIcon (regression caught
             // 2026-05-25).
             if (nextAnchors.length < 2) {
               deleteConnector(connector.id);

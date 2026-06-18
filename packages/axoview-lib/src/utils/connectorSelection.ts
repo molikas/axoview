@@ -46,3 +46,34 @@ export const getConnectorWaypointRefs = (
   }
   return refs;
 };
+
+/**
+ * Refs to capture for a connector that a lasso has selected, so the whole
+ * connector drags **rigidly** with the group — including a **free-floating
+ * (tile-bound) endpoint** (ADR 0006 addendum #2). This is the superset of
+ * getConnectorWaypointRefs: it also returns tile-bound *endpoint* anchors
+ * (index 0 / last), which a node-bound connector never has (those endpoints
+ * ref an item and follow it), so the common case is unchanged.
+ *
+ * MOVEMENT ONLY. Unlike getConnectorWaypointRefs, the refs this returns may
+ * include endpoints — which must never be SPLICED (a <2-anchor connector
+ * corrupts the path; regression 2026-05-25). That stays safe because these
+ * endpoint refs only ever enter a selection **alongside their parent
+ * CONNECTOR** (the lasso path-hit branch adds both), and the delete path
+ * removes a selected connector wholesale rather than splicing its anchors
+ * (useSceneActions: connectors in `deletingConnectorIds` skip the anchor
+ * splice). Delete-time waypoint splicing keeps using getConnectorWaypointRefs'
+ * middle-only contract.
+ */
+export const getConnectorMovementAnchorRefs = (
+  connector: Connector
+): ItemReference[] => {
+  if (!connector.anchors || connector.anchors.length < 2) return [];
+  const refs: ItemReference[] = [];
+  for (const a of connector.anchors) {
+    if (a.ref?.tile) {
+      refs.push({ type: 'CONNECTOR_ANCHOR', id: a.id });
+    }
+  }
+  return refs;
+};
