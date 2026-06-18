@@ -7,7 +7,7 @@
 > - **Extended ADRs:** [0006 selection contract](../adr/0006-canvas-selection-contract.md) (2026-06-18 addendum) · [0013 present mode](../adr/0013-preview-mode-layer-switcher.md) (2026-06-18 addendum)
 > - **Inherited:** [0018 touch/pen](../adr/0018-touch-pen-gesture-contract.md) · [0020 perf protocol](../adr/0020-engine-perf-harness-and-measurement-protocol.md) · [0021 paste perf / TileIndex](../adr/0021-paste-algorithmic-perf-and-spatial-index.md)
 >
-> **Status:** Not started · **Owner:** molikas · **Last updated:** 2026-06-18
+> **Status:** T1 shipped (integration, commit 9375689) · **Owner:** molikas · **Last updated:** 2026-06-18
 >
 > Short-lived working doc. Delete at `/feature wrap` once every track has shipped + smoke-passed; the ADRs are the durable record and PLAN.md gets one line.
 
@@ -68,12 +68,12 @@ The 2026-06-18 review ([workflow.md Principle 7](../workflow.md)) found these cr
 
 Sequence (low-risk → high-risk): **T1 → T2 → T3 → T4 → T9 → T5 → T6 → T7 → T8 → Track P.**
 
-### T1 — Quick bug wins (no ADR)
-- [ ] **#17 Ctrl+C tool switch** — guard `handleToolHotkeys` with `!isCtrlOrCmd` ([useInteractionManager.ts:750](../../packages/axoview-lib/src/interaction/useInteractionManager.ts#L750)).
-- [ ] **#10 caption link cut off** — ellipsis/wrap on the node caption link; apply to all item types that carry a link (node/connector/rect/text) for parity (UX §5).
-- [ ] **#5 line style/type icon picker** — replace the two `<Select>`s ([ConnectorControls.tsx:516-554](../../packages/axoview-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx#L516)) with an icon `ToggleButtonGroup` (sentence-case labels per UX §1.2).
-- [ ] **#1 alt-click anchor hitbox** — counter-scale the waypoint hit area to screen px (UX §8.8) so it doesn't shrink below 1× zoom ([ConnectorAnchorOverlay.tsx:26,237](../../packages/axoview-lib/src/components/ConnectorAnchorOverlay/ConnectorAnchorOverlay.tsx#L26)); allow Alt+click removal without pre-selecting the connector ([Cursor.ts:218](../../packages/axoview-lib/src/interaction/modes/Cursor.ts#L218)).
-- [ ] **#8 Preview → Present** — rename label + icon across the app + all 14 locales; covered by the ADR 0013 vocabulary lock.
+### T1 — Quick bug wins (no ADR) — **SHIPPED** (commit 9375689)
+- [x] **#17 Ctrl+C tool switch** — guarded via `resolveToolHotkey(isCtrlOrCmd, …)` extracted to `toolHotkeys.ts` (+ unit test); `handleToolHotkeys` passes the flag through ([useInteractionManager.ts:750](../../packages/axoview-lib/src/interaction/useInteractionManager.ts#L750)).
+- [x] **#10 caption link cut off** — `wordBreak`/`overflowWrap` on the node + connector canvas labels (the `<a>` wraps inside the label chip's `overflow:hidden`). Parity is node + connector only; rect/textbox carry no link field (UX §5.2).
+- [x] **#5 line style/type icon picker** — replaced the two `<Select>`s with icon `ToggleButtonGroup`s rendering SVG line previews ([ConnectorControls.tsx](../../packages/axoview-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx)); sentence-case tooltips/aria (UX §1.2).
+- [x] **#1 alt-click anchor hitbox** — counter-scaled the anchor handles by `1/zoom` via a zoom subscription wrapper `AnchorScale` (UX §8.8); Alt+click removal no longer needs the connector pre-selected (`handleAltClickWaypointRemoval` in [Cursor.ts](../../packages/axoview-lib/src/interaction/modes/Cursor.ts), + regression test).
+- [x] **#8 Preview → Present** — Slideshow icon + tooltip; i18n keys renamed/retranslated (`preview`→`present`, `saveAndPreview`→`saveAndPresent`, `previewSaveFirst`→`presentSaveFirst`) across the 11 locales that carried them (de-DE/id-ID fall back to the new English default). ADR 0013 vocabulary lock.
 
 ### T2 — Selection contract (extend ADR 0006)
 - [ ] **#16 lasso intersection** — rectangles select on any overlap; textboxes on full bounds ([Lasso.ts:48-75](../../packages/axoview-lib/src/interaction/modes/Lasso.ts#L48)). Select-through of background rectangles is accepted; directional lasso deferred (ADR 0006 addendum).
