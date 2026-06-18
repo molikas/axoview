@@ -208,6 +208,43 @@ describe('Cursor — Alt+click waypoint removes anchor (ADR-0006)', () => {
       })
     );
   });
+
+  it('splices a waypoint even when the connector is NOT pre-selected (#1)', () => {
+    // itemControls is null — nothing selected. The selected-connector path bails,
+    // and the new no-pre-select Alt+click path tile-matches the waypoint under the
+    // cursor (no overlay handle exists when unselected, so targetAnchorId is null).
+    const scene = makeScene();
+    const uiState = makeUiState({
+      itemControls: null,
+      mouse: {
+        position: { tile: { x: 5, y: 5 }, screen: { x: 50, y: 50 } },
+        mousedown: { tile: { x: 5, y: 5 }, screen: { x: 50, y: 50 } },
+        delta: null,
+        modifiers: { ctrl: false, shift: false, meta: false, alt: true },
+        targetAnchorId: null
+      }
+    });
+
+    Cursor.mousedown!({ uiState, scene, isRendererInteraction: true } as any);
+
+    expect(scene.updateConnector).toHaveBeenCalledWith('c1', {
+      anchors: [
+        { id: 'e0', ref: { item: 'n1' } },
+        { id: 'w2', ref: { tile: { x: 6, y: 5 } } },
+        { id: 'e1', ref: { item: 'n2' } }
+      ]
+    });
+    // Removal must not select the connector — it stays as it was (unselected).
+    expect(uiState.actions.setItemControls).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'CONNECTOR' })
+    );
+
+    // Drain the module-local altSpliceConsumed flag so it doesn't leak to the
+    // next test (mirrors the 'subsequent mouseup' test's bookkeeping).
+    const lastSetMode = (uiState.actions.setMode as jest.Mock).mock.calls.pop();
+    if (lastSetMode) uiState.mode = lastSetMode[0];
+    Cursor.mouseup!({ uiState, scene, isRendererInteraction: true } as any);
+  });
 });
 
 describe('Cursor — Ctrl+click on connector toggles connector + waypoints (ADR-0006)', () => {

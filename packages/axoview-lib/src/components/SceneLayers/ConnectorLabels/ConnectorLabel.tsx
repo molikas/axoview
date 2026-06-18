@@ -141,7 +141,14 @@ const ConnectorNameLabel = ({
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
           <Typography
             variant="body2"
-            sx={{ fontWeight: 400, color: url ? 'primary.main' : 'text.primary' }}
+            sx={{
+              fontWeight: 400,
+              color: url ? 'primary.main' : 'text.primary',
+              // #10: wrap a long connector name/link instead of clipping it on the
+              // Label chip's overflow:hidden (parity with the node caption, §5.2).
+              wordBreak: 'break-word',
+              overflowWrap: 'anywhere'
+            }}
           >
             {label.text}
           </Typography>
@@ -189,6 +196,10 @@ const ConnectorTextLabel = ({
         sx={{
           fontWeight: 400,
           color: label.labelColor || 'text.primary',
+          // #10: keep long text labels wrapping (not clipped), matching the name
+          // label above so every connector label behaves the same.
+          wordBreak: 'break-word',
+          overflowWrap: 'anywhere',
           ...(label.fontSize ? { fontSize: `${label.fontSize}px` } : {})
         }}
       >

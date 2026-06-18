@@ -24,9 +24,9 @@
         "sessionStorageNote": "仅会话存储 - 导出以永久保存"
     },
     "toolbar": {
-        "previewSaveFirst": "请先保存以预览",
-        "saveAndPreview": "保存并预览",
-        "preview": "预览"
+        "presentSaveFirst": "请先保存以演示",
+        "saveAndPresent": "保存并演示",
+        "present": "演示"
     },
     "share": {
         "title": "分享图表",

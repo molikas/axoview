@@ -24,9 +24,9 @@
         "savedOnDateYear": "Сохранено {{day}} {{month}} {{year}} в {{time}}"
     },
     "toolbar": {
-        "previewSaveFirst": "Сначала сохраните для предварительного просмотра",
-        "saveAndPreview": "Сохранить и просмотреть",
-        "preview": "Просмотр"
+        "presentSaveFirst": "Сначала сохраните для презентации",
+        "saveAndPresent": "Сохранить и презентовать",
+        "present": "Презентация"
     },
     "share": {
         "title": "Поделиться диаграммой",

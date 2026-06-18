@@ -24,9 +24,9 @@
         "sessionStorageNote": "Session storage only - export to save permanently"
     },
     "toolbar": {
-        "previewSaveFirst": "Save first to preview",
-        "saveAndPreview": "Save & Preview",
-        "preview": "Preview",
+        "presentSaveFirst": "Save first to present",
+        "saveAndPresent": "Save & Present",
+        "present": "Present",
         "backToEditing": "Back to editing",
         "share": {
             "disabled": {

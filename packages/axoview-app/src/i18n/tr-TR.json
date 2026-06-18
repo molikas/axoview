@@ -24,9 +24,9 @@
         "savedOnDateYear": "{{day}} {{month}} {{year}}, {{time}} tarihinde kaydedildi"
     },
     "toolbar": {
-        "previewSaveFirst": "Önizlemek için önce kaydedin",
-        "saveAndPreview": "Kaydet ve Önizle",
-        "preview": "Önizle"
+        "presentSaveFirst": "Sunmadan önce kaydedin",
+        "saveAndPresent": "Kaydet ve Sun",
+        "present": "Sun"
     },
     "share": {
         "title": "Diyagramı Paylaş",

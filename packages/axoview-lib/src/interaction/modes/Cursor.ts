@@ -241,6 +241,40 @@ const handleSelectedConnectorMousedown = (state: State): boolean => {
   return true;
 };
 
+// #1: Alt+click a connector waypoint removes it WITHOUT the connector being
+// pre-selected (ADR 0022 §1 / locked decision #4). The selected-connector path
+// above already handles Alt+click on the *selected* connector (DOM-precise via
+// targetAnchorId); this covers every other connector by tile-matching the
+// waypoint under the cursor — the bend is visible on the path even with no
+// overlay handles drawn. Endpoints are never removed. Returns true if a waypoint
+// was spliced (caller stops); leaves selection untouched (altSpliceConsumed makes
+// the mouseup skip its selection-clearing branch).
+const handleAltClickWaypointRemoval = (state: State): boolean => {
+  const { uiState, scene } = state;
+  if (!uiState.mouse.modifiers?.alt) return false;
+
+  for (const connector of scene.hitConnectors) {
+    const clicked = findClickedConnectorAnchor(
+      connector,
+      uiState,
+      scene.currentView
+    );
+    if (!clicked) continue;
+    const isEndpoint =
+      clicked.index === 0 || clicked.index === connector.anchors.length - 1;
+    if (isEndpoint) continue;
+
+    const nextAnchors = connector.anchors.filter(
+      (a) => a.id !== clicked.anchor.id
+    );
+    scene.updateConnector(connector.id, { anchors: nextAnchors });
+    altSpliceConsumed = true;
+    setMousedownBookkeeping(state, null, true);
+    return true;
+  }
+  return false;
+};
+
 // Generic item hit-detection. Items on locked or hidden layers are treated as
 // background — not selectable, not draggable (mqa-results.md #2).
 // isItemInteractable may be undefined in tests that bypass the State type via
@@ -267,6 +301,7 @@ const mousedown: ModeActionsAction = (state) => {
   if (uiState.mode.type !== 'CURSOR' || !isRendererInteraction) return;
 
   if (handleSelectedConnectorMousedown(state)) return;
+  if (handleAltClickWaypointRemoval(state)) return;
 
   selectItemAtTileMousedown(state);
 };

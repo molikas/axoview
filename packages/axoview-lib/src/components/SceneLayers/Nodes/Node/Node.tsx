@@ -98,12 +98,17 @@ const NotesBadge = styled('div')({
 
 // Display-mode label title: theme.typography.body1 + the fixed overrides baked
 // once. Per-node labelFontSize / labelColor go via inline style.
+// #10: break long words so a caption that is a link (the name renders as an <a>
+// when headerLink is set) wraps inside the label chip instead of being clipped by
+// its overflow:hidden. Matches the inline-edit wrap idiom; covers plain names too.
 const LabelTitle = styled('p')(({ theme }) => ({
   ...theme.typography.body1,
   margin: 0,
   fontWeight: 600,
   fontSize: 14,
-  color: theme.palette.text.primary
+  color: theme.palette.text.primary,
+  wordBreak: 'break-word',
+  overflowWrap: 'anywhere'
 }));
 
 export const Node = memo(({ node, order }: Props) => {

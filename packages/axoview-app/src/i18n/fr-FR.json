@@ -24,9 +24,9 @@
         "savedOnDateYear": "Enregistré le {{day}} {{month}} {{year}} à {{time}}"
     },
     "toolbar": {
-        "previewSaveFirst": "Enregistrez d'abord pour prévisualiser",
-        "saveAndPreview": "Enregistrer et prévisualiser",
-        "preview": "Prévisualiser"
+        "presentSaveFirst": "Enregistrez d'abord pour présenter",
+        "saveAndPresent": "Enregistrer et présenter",
+        "present": "Présenter"
     },
     "share": {
         "title": "Partager le diagramme",

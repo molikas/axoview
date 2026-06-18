@@ -22,6 +22,7 @@ import { useScene } from 'src/hooks/useScene';
 import { useHistory } from 'src/hooks/useHistory';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { HOTKEY_PROFILES } from 'src/config/hotkeys';
+import { resolveToolHotkey } from './toolHotkeys';
 import { TEXTBOX_DEFAULTS } from 'src/config';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { getConnectorWaypointRefs } from 'src/utils/connectorSelection';
@@ -433,40 +434,16 @@ const handleFunctionKeys = (
   }
 };
 
-const TOOL_HOTKEY_ACTIONS = [
-  'select',
-  'pan',
-  'addItem',
-  'rectangle',
-  'connector',
-  'text',
-  'lasso',
-  'freehandLasso'
-] as const;
-
-type ToolHotkeyAction = (typeof TOOL_HOTKEY_ACTIONS)[number];
-
-// Resolve a keystroke to the matching tool-hotkey action for the active
-// profile, or null. First match wins (mirrors the original else-if order).
-const resolveToolHotkey = (
-  key: string,
-  mapping: Record<ToolHotkeyAction, string | null>
-): ToolHotkeyAction | null => {
-  for (const action of TOOL_HOTKEY_ACTIONS) {
-    if (mapping[action] && key === mapping[action]) return action;
-  }
-  return null;
-};
-
 // Tool-selection hotkeys (configurable per HOTKEY_PROFILES).
 const handleToolHotkeys = (
   e: KeyboardEvent,
+  isCtrlOrCmd: boolean,
   uiState: State['uiState'],
   key: string,
   deps: KeydownDeps
 ) => {
   const mapping = HOTKEY_PROFILES[uiState.hotkeyProfile];
-  const action = resolveToolHotkey(key, mapping);
+  const action = resolveToolHotkey(isCtrlOrCmd, key, mapping);
   if (!action) return;
   e.preventDefault();
 
@@ -747,7 +724,7 @@ export const useInteractionManager = () => {
       }
 
       handleFunctionKeys(e, uiState, deps);
-      handleToolHotkeys(e, uiState, key, deps);
+      handleToolHotkeys(e, isCtrlOrCmd, uiState, key, deps);
       handleZOrderShortcut(e, isCtrlOrCmd, uiState, deps);
       handleKeyboardPan(e, uiState);
     };

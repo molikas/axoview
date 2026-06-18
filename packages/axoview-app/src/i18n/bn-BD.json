@@ -24,9 +24,9 @@
         "savedOnDateYear": "Saved {{month}} {{day}}, {{year}} at {{time}}"
     },
     "toolbar": {
-        "previewSaveFirst": "Save first to preview",
-        "saveAndPreview": "Save & Preview",
-        "preview": "Preview"
+        "presentSaveFirst": "Save first to present",
+        "saveAndPresent": "Save & Present",
+        "present": "Present"
     },
     "share": {
         "title": "Share Diagram",
