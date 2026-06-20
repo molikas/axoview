@@ -77,6 +77,7 @@ const initialState = () => {
       rightSidebarOpen: false,
       rightSidebarAutoOpened: false,
       itemActionBarOpen: false,
+      contextMenu: null,
       isDirty: false,
       previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
       annotation: {
@@ -411,6 +412,14 @@ const initialState = () => {
         },
         setItemActionBarOpen: (itemActionBarOpen) => {
           set({ itemActionBarOpen });
+        },
+        openContextMenu: (contextMenu) => {
+          // Opening the menu closes the floating action bar so the two command
+          // surfaces don't stack on the same item (ADR 0027 §4).
+          set({ contextMenu, itemActionBarOpen: false });
+        },
+        closeContextMenu: () => {
+          set({ contextMenu: null });
         },
         setIsDirty: (isDirty) => {
           set({ isDirty });

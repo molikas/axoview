@@ -258,6 +258,15 @@ export interface UiState {
    * selection. Cleared whenever the selection changes or is dismissed.
    */
   itemActionBarOpen: boolean;
+  /**
+   * Canvas context menu (ADR 0027) — the per-item / empty-canvas command
+   * surface. `null` = closed. Opened by a right-click TAP (mouse) or a touch
+   * long-press; right-DRAG pans instead (ADR 0022 §1). `target` is the item the
+   * menu acts on, or `null` for the empty-canvas menu. `anchor` is screen-space
+   * (client px) — the MUI Menu portals to the document root, so no §8.8
+   * counter-scale is needed.
+   */
+  contextMenu: ContextMenuState | null;
   /** true when model has changed since last export-to-file or explicit save */
   isDirty: boolean;
   canvasMode: CanvasMode;
@@ -270,6 +279,14 @@ export interface UiState {
   previewLayerOverrides: PreviewLayerOverrides;
   /** Ephemeral annotation overlay (ADR 0014). Never persisted. */
   annotation: AnnotationState;
+}
+
+/** Canvas context-menu state (ADR 0027). */
+export interface ContextMenuState {
+  /** Screen-space anchor (client px) for the MUI Menu's anchorPosition. */
+  anchor: { x: number; y: number };
+  /** The item the menu commands act on; `null` → empty-canvas menu. */
+  target: ItemReference | null;
 }
 
 /** UI-only preview layer override (ADR 0013). */
@@ -395,6 +412,10 @@ export interface UiStateActions {
   setActiveLeftTab: (tab: 'ELEMENTS' | 'LAYERS' | null) => void;
   setRightSidebarOpen: (open: boolean) => void;
   setItemActionBarOpen: (open: boolean) => void;
+  /** Open the canvas context menu (ADR 0027). */
+  openContextMenu: (menu: ContextMenuState) => void;
+  /** Close the canvas context menu. */
+  closeContextMenu: () => void;
   setIsDirty: (isDirty: boolean) => void;
   setCanvasMode: (mode: CanvasMode) => void;
 }

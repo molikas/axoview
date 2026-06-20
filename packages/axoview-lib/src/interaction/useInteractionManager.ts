@@ -25,7 +25,7 @@ import { HOTKEY_PROFILES } from 'src/config/hotkeys';
 import { resolveToolHotkey } from './toolHotkeys';
 import { TEXTBOX_DEFAULTS } from 'src/config';
 import { useLayerContext } from 'src/hooks/useLayerContext';
-import { getConnectorWaypointRefs } from 'src/utils/connectorSelection';
+import { collectSelectableRefs } from 'src/utils/selectableRefs';
 import { Cursor } from './modes/Cursor';
 import { DragItems } from './modes/DragItems';
 import { DrawRectangle } from './modes/Rectangle/DrawRectangle';
@@ -298,38 +298,6 @@ const handleDeleteOrBackspace = (
   }
 
   return false;
-};
-
-const makeInteractableCheck =
-  (lockedIds: ReadonlySet<string>, visibleIds: ReadonlySet<string>) =>
-  (id: string) =>
-    !lockedIds.has(id) && (visibleIds.size === 0 || visibleIds.has(id));
-
-// Ctrl+A target set: every visible + unlocked item in the active view,
-// including connector waypoints (which aren't free — see
-// getConnectorWaypointRefs). Respects ux-principles §4.3, mirroring lasso. ADR-0006.
-const collectSelectableRefs = (
-  scene: SceneApi,
-  lockedIds: ReadonlySet<string>,
-  visibleIds: ReadonlySet<string>
-): ItemReference[] => {
-  const isInteractable = makeInteractableCheck(lockedIds, visibleIds);
-  const refs: ItemReference[] = [];
-  for (const item of scene.items) {
-    if (isInteractable(item.id)) refs.push({ type: 'ITEM', id: item.id });
-  }
-  for (const r of scene.rectangles) {
-    if (isInteractable(r.id)) refs.push({ type: 'RECTANGLE', id: r.id });
-  }
-  for (const tb of scene.textBoxes) {
-    if (isInteractable(tb.id)) refs.push({ type: 'TEXTBOX', id: tb.id });
-  }
-  for (const c of scene.connectors) {
-    if (!isInteractable(c.id)) continue;
-    refs.push({ type: 'CONNECTOR', id: c.id });
-    refs.push(...getConnectorWaypointRefs(c));
-  }
-  return refs;
 };
 
 // Ctrl+A: select all interactable items, switching to CURSOR mode so the
@@ -914,34 +882,29 @@ export const useInteractionManager = () => {
 
   const onContextMenu = useCallback(
     (e: SlimMouseEvent) => {
-      // The contextmenu listener is bound to `window` (ADR 0018 — pointer
-      // capture needs the superset surface), so scope BOTH the preventDefault
-      // and the action-bar reaction to right-clicks that land inside the
-      // Renderer container. An off-canvas right-click (toolbar, property panel, a
-      // text input's native Cut/Copy/Paste menu, the file-explorer tree) must
-      // keep its native menu AND must never open a canvas item's action bar for a
-      // stale projected tile. Mirrors the downOnCanvas gate used by the pointer
-      // handlers.
-      const target = e.target as Node | null;
-      if (
-        !rendererEl ||
-        !target ||
-        !(rendererEl === target || rendererEl.contains(target))
-      ) {
-        return;
-      }
-      e.preventDefault();
-      // ADR 0022 §1 / §3 + ADR 0027: right-click NO LONGER opens the details
-      // panel or the floating action bar. The bar now opens on selection
-      // (single-click / tap, see uiStateStore.setSelectedIds / setItemControls
-      // openPanel:false); right-DRAG pans (usePanHandlers) and right-TAP will
-      // open the canvas context menu — wired in T4 Session B once the menu
-      // component exists. Suppress the OS menu in all cases here.
+      // ADR 0022 §1 / §3 + ADR 0027: right-click no longer opens the panel/bar.
+      // The bar opens on selection; right-DRAG pans + right-TAP opens our canvas
+      // context menu, both owned by usePanHandlers (mouse) / the touch long-press
+      // path. This listener exists ONLY to swallow the OS context menu so it
+      // can't double up with ours.
       //
-      // On touch/pen the long-press path owns the reveal during the hold; this
-      // listener only needs to swallow the synthetic OS contextmenu.
+      // Two cases must suppress: (1) the right-click landed inside the Renderer
+      // (so the canvas owns it); (2) OUR menu is already open — the OS
+      // contextmenu fires just after our pointerup opened it, and by then the
+      // MUI backdrop (portaled to <body>, outside rendererEl) may be the event
+      // target, so the scope check alone would miss it and leak the OS menu.
+      // An off-canvas right-click with our menu closed (toolbar, a text input's
+      // native Cut/Copy/Paste, the file tree) keeps its native menu.
+      const target = e.target as Node | null;
+      const inRenderer =
+        !!rendererEl &&
+        !!target &&
+        (rendererEl === target || rendererEl.contains(target));
+      const ourMenuOpen = uiStateApi.getState().contextMenu !== null;
+      if (!inRenderer && !ourMenuOpen) return;
+      e.preventDefault();
     },
-    [rendererEl]
+    [rendererEl, uiStateApi]
   );
 
   // Double-click on a canvas item opens its details panel (ADR 0022 §1). Mouse
@@ -1142,14 +1105,18 @@ export const useInteractionManager = () => {
         ts.longPressTimer = null;
         const uiState = uiStateApi.getState();
         if (ts.phase === 'item' && ts.downItem) {
-          // Hold on a node → open the per-item action bar for it (during the
-          // hold; the user then lifts naturally). Consume the rest of the gesture.
-          const controls: ItemControls =
-            ts.downItem.type === 'CONNECTOR'
-              ? { type: 'CONNECTOR', id: ts.downItem.id, tile: ts.downTile }
-              : { type: ts.downItem.type, id: ts.downItem.id };
-          uiState.actions.setItemControls(controls);
-          uiState.actions.setItemActionBarOpen(true);
+          // Hold on a node → open the per-item CONTEXT MENU for it (ADR 0027 §2;
+          // reassigned from the action bar, which now opens on tap-select). It
+          // appears during the hold; the user then lifts naturally. Select the
+          // item first so the menu's clipboard / delete commands act on it.
+          // Consume the rest of the gesture (phase 'menu').
+          uiState.actions.setSelectedIds([
+            { type: ts.downItem.type, id: ts.downItem.id }
+          ]);
+          uiState.actions.openContextMenu({
+            anchor: { x: ts.downScreen.x, y: ts.downScreen.y },
+            target: { type: ts.downItem.type, id: ts.downItem.id }
+          });
           ts.phase = 'menu';
         } else if (ts.phase === 'pan-pending') {
           // Hold on empty → arm a one-shot marquee lasso from the press point.
