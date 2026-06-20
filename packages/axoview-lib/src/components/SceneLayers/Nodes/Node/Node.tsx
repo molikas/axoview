@@ -8,7 +8,10 @@ import { useIcon } from 'src/hooks/useIcon';
 import { ViewItem } from 'src/types';
 import { useModelItem } from 'src/hooks/useModelItem';
 import { useSceneActions } from 'src/hooks/useSceneActions';
-import { useUiStateStore } from 'src/stores/uiStateStore';
+import {
+  useUiStateStore,
+  useUiStateStoreApi
+} from 'src/stores/uiStateStore';
 import { useRenderProbe } from 'src/utils/renderProbe';
 import { ExpandableLabel } from 'src/components/Label/ExpandableLabel';
 import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
@@ -184,7 +187,14 @@ const NodeContent = memo(
     // useSceneData which subscribes to {views, ...} shallow; `views` ticks
     // per drag frame and would force NodeContent to re-render past its memo
     // gate, defeating the split.
-    const { updateModelItem } = useSceneActions();
+    const { updateModelItem, updateViewItem } = useSceneActions();
+    const uiStoreApi = useUiStateStoreApi();
+    // Single-selection signal for the on-canvas label drag (ADR 0024). A
+    // primitive boolean selector: only this node flips when selection changes,
+    // and only the selected/dragged nodes are mounted as DOM here anyway.
+    const isSelected = useUiStateStore(
+      (s) => s.itemControls?.type === 'ITEM' && s.itemControls.id === id
+    );
 
     const isReadonly = editorMode === 'EXPLORABLE_READONLY';
     const isEditable = editorMode === 'EDITABLE';
@@ -196,6 +206,22 @@ const NodeContent = memo(
     const hasLink = isReadonly && !!modelItem?.link;
 
     const [isEditingName, setIsEditingName] = useState(false);
+
+    // ADR 0024 label reposition — drag the label chip itself to move it above or
+    // below the node. Live preview held here (not the model) so the gesture is a
+    // pure React preview; the model is written ONCE on release (one history
+    // entry). Null when not dragging.
+    const [labelOffsetPreview, setLabelOffsetPreview] = useState<number | null>(
+      null
+    );
+
+    const commitLabelOffset = useCallback(
+      (offset: number) => {
+        updateViewItem(id, { labelHeight: offset });
+        setLabelOffsetPreview(null);
+      },
+      [updateViewItem, id]
+    );
 
     // F2 handler in useInteractionManager dispatches this event for the
     // currently-selected item; match by id so only that node enters edit mode.
@@ -279,7 +305,18 @@ const NodeContent = memo(
               <ExpandableLabel
                 maxWidth={isEditingName ? 600 : 250}
                 expandDirection="BOTTOM"
-                labelHeight={labelHeight ?? DEFAULT_LABEL_HEIGHT}
+                labelHeight={
+                  labelOffsetPreview ?? labelHeight ?? DEFAULT_LABEL_HEIGHT
+                }
+                reposition={
+                  isEditable && isSelected && !isEditingName
+                    ? {
+                        getZoom: () => uiStoreApi.getState().zoom,
+                        onPreview: setLabelOffsetPreview,
+                        onCommit: commitLabelOffset
+                      }
+                    : undefined
+                }
               >
                 <LabelStack>
                   {isEditingName ? (

@@ -423,7 +423,10 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
         // round cap, width 3, black. The canvas drew NO stalk before — at-rest
         // (canvas) nodes showed none and selecting one popped it in via the DOM
         // overlay (the reported "stalk invisible until click").
-        if (hasLabel && labelHeight > 0 && drawLabels) {
+        // ADR 0024: labelHeight is a SIGNED offset — positive draws the stalk up
+        // (legacy), negative draws it down (below-node). `pos.y - labelHeight`
+        // handles both; only the zero case (no stalk) is skipped.
+        if (hasLabel && labelHeight !== 0 && drawLabels) {
           ctx.save();
           ctx.setLineDash([0, 6]);
           ctx.lineCap = 'round';
@@ -549,11 +552,12 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
 
           ctx.save();
           // Chip is centered horizontally on the tile and floats `labelHeight`
-          // above the tile center; counter-scale is about its bottom-center.
+          // from the tile center. ADR 0024: when the offset is negative the chip
+          // sits BELOW (y0 = 0, top-center scale); above keeps bottom-center.
           ctx.translate(pos.x, pos.y - labelHeight);
           ctx.scale(counterScale, counterScale);
           const x0 = -chipW / 2;
-          const y0 = -chipH;
+          const y0 = labelHeight < 0 ? 0 : -chipH;
           roundRectPath(ctx, x0, y0, chipW, chipH, chip.radius);
           ctx.fillStyle = chip.bg;
           ctx.fill();

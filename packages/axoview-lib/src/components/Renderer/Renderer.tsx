@@ -7,6 +7,7 @@ import { Grid } from 'src/components/Grid/Grid';
 import { Cursor } from 'src/components/Cursor/Cursor';
 import { Nodes } from 'src/components/SceneLayers/Nodes/Nodes';
 import { NodesCanvas } from 'src/components/SceneLayers/Nodes/NodesCanvas';
+import { NodeLabelHitLayer } from 'src/components/SceneLayers/Nodes/NodeLabelHitLayer';
 import { Rectangles } from 'src/components/SceneLayers/Rectangles/Rectangles';
 import { Connectors } from 'src/components/SceneLayers/Connectors/Connectors';
 import { ConnectorLabels } from 'src/components/SceneLayers/ConnectorLabels/ConnectorLabels';
@@ -189,6 +190,15 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
     return found.length > 0 ? found : NO_HYBRID_NODES;
   }, [hybridIds, visibleItems]);
 
+  // Canvas-drawn nodes (everything not lifted into the DOM overlay) — their
+  // labels get invisible drag hit targets so they can be repositioned without
+  // selecting first (ADR 0024, label-as-handle). The selected/dragged nodes keep
+  // their own DOM label handle.
+  const canvasLabelNodes = useMemo(() => {
+    if (!hybridIds) return visibleItems;
+    return visibleItems.filter((item) => !hybridIds.has(item.id));
+  }, [hybridIds, visibleItems]);
+
   const visibleConnectors = useMemo(() => {
     const { minX, maxX, minY, maxY } = coarseBounds;
     if (minX === -Infinity) return connectors;
@@ -288,6 +298,9 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
         }}
       />
       <NodesCanvas nodes={visibleItems} skipNodes={hybridNodes} />
+      <SceneLayer>
+        <NodeLabelHitLayer nodes={canvasLabelNodes} />
+      </SceneLayer>
       {hybridNodes.length > 0 && (
         <SceneLayer>
           <Nodes nodes={hybridNodes} />

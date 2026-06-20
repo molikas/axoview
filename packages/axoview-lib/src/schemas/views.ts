@@ -8,6 +8,9 @@ import { layersSchema } from './layer';
 export const viewItemSchema = z.object({
   id,
   tile: coords,
+  // Signed vertical offset of the name label from the node (ADR 0024): positive
+  // = above the node (legacy behaviour), negative = below it. Doubles as the
+  // stalk length.
   labelHeight: z.number().optional(),
   labelFontSize: z.number().optional(),
   labelColor: z.string().optional(),

@@ -29,6 +29,34 @@
 
 ## Acceptance criteria
 
-- **Unit:** label-position math — above / below / height-clamp resolve correctly for a signed offset.
-- **e2e (new `label-drag.spec`):** drag a label below its node and reload → persists; resize label height via the handle → persists; stalk connects in both directions.
+- **Unit:** label-position math — above / below / offset-clamp resolve correctly for a signed offset.
+- **e2e (new `label-drag.spec`):** drag a label below its node and reload → persists; the drag is one undo entry; stalk connects in both directions.
 - **Build clean;** counter-scale (ADR 0015) still holds the label legible at low zoom.
+
+## 2026-06-20 addendum — the label IS the handle (build-feedback revision)
+
+The first build added two on-canvas grips (move + resize). Field feedback (owner,
+2026-06-20) rejected that: the move grip sat under the selection action bar (ADR
+0022/0027) — so a fresh node, whose label starts above it, couldn't be dragged
+below at all — and two grips plus the Style panel's height slider read as three
+overlapping controls. Revised decision:
+
+1. **The label chip itself is the drag handle** — press the label and drag it
+   above/below the node. No separate grip, so nothing competes with the action
+   bar (the label is a large target; the press starts the drag via `window`
+   pointer listeners, robust once the pointer leaves the chip). A press under the
+   drag slop still selects / double-clicks-to-rename. The label of an **unselected**
+   node — drawn on the canvas (ADR 0019), so it has no DOM element — is grabbed via
+   an invisible per-node hit layer (`NodeLabelHitLayer`) that drives the same
+   reposition inside one drag transaction; grabbing a label never changes the
+   current selection.
+2. **Repositioning only on canvas; sizing stays numeric.** The separate on-canvas
+   box-height resize and its `labelMaxHeight` field are dropped (the label box
+   keeps the standard height with scroll, as before). Precise positioning lives in
+   the Style panel's existing **Label height** slider, now **signed** (its old
+   `min 60` couldn't express below-node).
+3. **Offset is clamped** to `[-200, 280]` (canvas px) so a drag — or the slider —
+   can't fling the label off into empty canvas.
+
+`labelHeight` remains the single signed-offset field; the stalk re-anchor +
+transform-origin flip + `NodesCanvas` below-node rendering are unchanged.

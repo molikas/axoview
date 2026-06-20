@@ -136,13 +136,14 @@ export const NodeStyleTab = ({
         </Section>
       )}
 
-      {/* Label height */}
+      {/* Label position — signed offset (ADR 0024): negative drops the label
+          below the node, mirroring the on-canvas drag-the-label gesture. */}
       {modelItem.name && (
         <Section title={t('labelHeight')}>
           <Slider
             marks
             step={20}
-            min={60}
+            min={-200}
             max={280}
             value={node.labelHeight ?? 80}
             onChange={(_, v) => onViewItemUpdated({ labelHeight: v as number })}
