@@ -1243,3 +1243,160 @@ keep rests on (a) the machine-independent render count 1000→2 and (b) the matc
 2866→33 ms. `baseline.md` untouched (the latency harness never writes it; the one stray `npm run perf`
 that rebuilt lib mid-flight was aborted before any write). Diagnostic counter + `.scratch/` harness
 removed/gitignored; the shipped diff is `LayersPanel.tsx` only.
+
+---
+
+## 🟢 Track P — Canvas-UX-overhaul performance-validation gate (ADR 0020)
+
+The final gate for the whole canvas-ux-overhaul program (T1–T9, all shipped to `integration`).
+This is measurement + proof, not new features. **Same-session A/B, matched calibration index:**
+program-tip **`1a508c2`** (T8) vs the pre-program commit **`5153c9e`** (the engine-perf tip the program
+branched from), swapping ONLY `axoview-lib/src` + `axoview-app/src` between the two (the `perf/` harness
+did NOT change during the program, so the ruler is constant; no build-config/deps changed either). Both
+A/B sides ran at **calibration 3.2 ms** (cold/idle) → directly comparable, no drift confound.
+
+**Harness diagnostics added (gated, dormant-when-off — byte-identical default run):** `PERF_OFFSET=1`
+(every node off-grid: `offset` + `collides:false` — the T8 all-offset hypothesis), `PERF_BLOAT=N`
+(maximally-loaded scene — the HTML-bloat stress), and a `PERF_LABELDRAG=N` mode (the T6 per-frame
+label-drag cost). Load-bearing threshold refined `N≥100 → N≥200` (documented in-code): a 15-repeat noise
+probe showed spawn-settle at N=100 is structurally bimodal 83↔117 ms (±1 idle frame → ~16% CoV that does
+NOT shrink with repeats — the same vsync-quantization floor the log documents for N≤50). N≥200 resolves
+cleanly.
+
+### KR1 noise band — CERTIFIED (load-bearing)
+
+15-repeat characterization, then the 12-repeat A/B + final baseline: **load-bearing range (spawn N≥200 +
+all drag) worst CoV ≈ 6–9% < 10%** (N=200 6.7%, N=500 3.8%, N=1000 0%, all drag <1.5%). Small-N spawn
+(N≤100) flutters ~16% at the ±1-frame quantization floor (sub-120 ms operations, already smooth, not a
+target — reported transparently, excluded from the gate per the refined threshold). KR1 met.
+
+### A/B headline — SPAWN fully neutral (the bulk-render budget held)
+
+Matched cal 3.2, tip vs pre, median-of-12:
+
+| N | spawn settle tip→pre | spawn commit tip→pre | drag mean tip→pre |
+|---|---|---|---|
+| 200 | 125 → 116.7 (within quant) | 26.4 → 28.2 | 16.87 → 16.87 (0%) |
+| 500 | 150 → 150 (**0**) | 122.8 → 122.9 (**0**) | 30.1 → 26.1 (**+14%** ⚠) |
+| 1000 | 183.3 → 183.4 (**0**) | 495.1 → 489.6 (**0**) | 70.3 → 68.5 (+2.7%) |
+
+**Spawn is neutral at every N** — settle + commit byte-equal tip vs pre. The 495 ms synchronous commit
+@1000 (the 968-connector `changeView`/`syncScene` routing) is **pre-existing** (489.6 ms pre-program),
+not a program regression. This single result discharges several hypotheses at once (below).
+
+### Hypotheses (the tactical "Pointed hypotheses" table — one row each)
+
+- **T1+T4 event-routing / hotkey collapse → NEUTRAL ✅.** Spawn/drag/idle A/B neutral; event routing
+  doesn't touch the frame budget (no per-frame work added). Confirmed.
+- **T2 lasso intersection (#16) → NEUTRAL ✅.** Code-level: `doBoundsOverlap` is allocation-free (8 locals,
+  no object/array per call); rectangle + textbox branches add only comparisons; the connector branch builds
+  its id→tile Map **once per call** (SPATIAL-3), not per anchor. The standing `lasso.bulkPerf.test.ts`
+  (1000 nodes + 400 connectors, 20 marquee frames) is GREEN in the lib suite. Falsifier (per-frame
+  allocation in `getItemsInBounds`) provably absent.
+- **T3 layers panel (#14) → VALIDATED (already KEPT `c875b652`).** The gate's job here was only to
+  re-confirm **canvas spawn stays flat** (the panel is a separate, conditionally-mounted tree) — the spawn
+  A/B is byte-identical tip vs pre, draw-count = N. Latency win (1000→2 renders/click) already in the log.
+- **T6 label drag (#3) → ⚠️ REGRESSION (the one real finding — see below).** Predicted neutral
+  (CSS-preview); the implementation diverges (per-frame model write). Falsifier triggered.
+- **T7 rectangle edge handles (#11) → NEUTRAL ✅.** `TransformControls` renders the 8 anchors (memoised over
+  the 4 corners) only for the **one selected** rectangle; it never mounts during spawn (nothing selected) →
+  spawn A/B flat is the empirical backstop. No scaling with N. Confirmed.
+- **T8 offset render — zero-offset common case → NEUTRAL ✅.** `node.offset ? {…} : base`
+  ([NodesCanvas.tsx:412]) and `resolvePlacement → {tile}` are guarded no-op branches. Spawn A/B
+  byte-identical (the offset-read branch costs nothing when absent). Confirmed.
+- **T8 offset render — all-N offset + `collides:false` → NEUTRAL-to-slight-gain ✅.** `PERF_OFFSET=1`
+  (cal 3.1) vs off (cal 3.2): spawn settle **150/183 byte-identical** (the per-node transform compose is
+  free), drag @500 29.79 (on) ≈ 30.1 (off), @1000 71.1 ≈ 70.3 — neutral, with the predicted hint of
+  slight-gain from the empty `TileIndex` (all `collides:false` → `buildExternalOccupied` skips them → no
+  obstacles). Falsifier (extra React work per offset node) absent — it's a pure transform compose.
+
+### ⚠️ Drag (node collision-drag) @N=500 — +14%, ACCEPTED with rationale
+
+Not a listed hypothesis, but T8 touched the drag-preview path, so the gate measured it. **Reproducible:**
+tip ~29.7 ms (3 runs: 29.69/29.37/30.1) vs pre ~26.1 ms (2 runs: 25.83/26.46), matched cal 3.2 — a real
+~3.6 ms/frame, +14%, concentrated at N=500 (N=200 = 0, N=1000 = +2.7%). **Instrumented three ways
+(not re-read):**
+1. **renderProbe → IDENTICAL** (Connector ≈7.8/frame, 628 renders, byte-for-byte on both trees) — the
+   Iter-6 useColor fix holds; this is **NOT** a re-render storm.
+2. **PERF_DRAGPROFILE → cost is the lib per-frame drag arrow** (`index.js:17229`, ~3.9 ms/frame); all
+   expected work (canvas+connector reconcile, emotion, the lib arrow), **no new hot function**.
+3. **Code-diff → the canvas is static during a drag** (only the dragged node's DOM overlay + connectors
+   move); the only per-frame additions are the **ADR-0023 off-grid drag-preview machinery** (snap/offset
+   lockstep — runs every frame to keep the CSS preview and the committed `offset` exact) + two negligible
+   O(N) `scene.items.find` (single-node).
+
+**Verdict: ACCEPT.** Bounded feature compute (off-grid drag-preview is the ADR-0023 capability's irreducible
+per-frame cost), small (~3.6 ms), on a path **already well over the 16.6 ms budget pre-program** (~26 ms /
+33 fps — the 500-connected-node collision-drag-through-occupied-tiles is a known-heavy JS-bound path, never
+60 fps for this scene; Iter 5/6). **Latent follow-up (flagged, not the cause here):** the O(N)
+`scene.items.find` in `computeNodeUpdates` + `applyNodePreview` is the SPATIAL anti-pattern — negligible
+for single/few-item drags but O(M·N) for an M-item multi-drag; the harness can't validate a fix (single-node
+scene), so it's logged for a future iteration with its own multi-drag measurement, not bundled here.
+
+### ⚠️ T6 label drag — REGRESSION at scale, FLAGGED FOR FIX
+
+`PERF_LABELDRAG=1000`, real `NodeLabelHitLayer` path, engaged + moved (anti-cheat — the per-frame writes
+actually changed `labelHeight`): **mean frame 103 ms (~10 fps), p95 150 ms**, drawn(visible)=1000.
+Mechanism: dragging an **unselected** node's label writes the model **every pointermove**
+([NodeLabelHitLayer.tsx:108], `updateViewItem({labelHeight})` in one undo transaction) → a **full canvas
+redraw of all visible nodes every frame**. This is the hypothesis's stated falsifier ("a per-frame model
+write during label drag would regress drag p95 — must not happen") and a **divergence from ADR-0024's
+predicted CSS-preview design**. Holds 60 fps only up to ~160 visible nodes (redraw ≈ visible × 0.1 ms);
+~103 ms at 1000. (The *selected*-node label drag is fine — `Label.tsx`'s `reposition` is already pure
+CSS-preview, "never touches the model"; only the unselected-label direct-drag shortcut takes the slow path.)
+
+**This is reducible and not small → does not qualify for accept-with-rationale → FLAGGED FOR FIX.**
+Recommended fix (a focused T6 follow-up, not a perf-gate side-quest — the canvas→DOM pointer-capture handoff
+has visual-correctness risk the perf specs don't cover): on label-drag start, promote the dragged node into
+the DOM hybrid overlay (`hybridIds`) and reuse `Label.tsx`'s existing CSS-preview `reposition` (commit
+`labelHeight` once on drop), so no per-frame model write / canvas redraw occurs. Related: `NodeLabelHitLayer`
+emits **one DOM div per visible labelled node** at zoom ≥ 0.4 (1000 divs @ N=1000) — a DOM vector the same
+fix (or a cursor-proximity cap) should also address.
+
+### HTML/DOM-bloat stress (user request) — canvas scales beautifully
+
+`PERF_BLOAT=1000`: every node carries a rich/formatted description + notes + header-link + link; isometric
+icons from 3 packs; 968 **labelled** connectors; 49 grouping rectangles; 8 layers. Report in
+`perf-results/bloat-1000.md`. Findings:
+- **Canvas spawn is content-agnostic:** commit 492 / settle 167 / longest 83 ms — **identical** to the plain
+  scene. The canvas draws icon + name + HTML-stripped description; notes/links are heap-only (not painted for
+  unselected nodes). So "huge richly-annotated diagrams" spawn at the same cost as plain ones. draw-count
+  **1000/1000** (anti-cheat — every node painted, multi-pack iso icons included).
+- **DOM stays node-free; bloat is connectors:** total document ≈ **11,547 elements** at 1000 nodes, almost
+  all from the **968 DOM/SVG connectors** (paths + labels). The canvas nodes emit **0 per-node DOM**;
+  `[data-drag-id]` shells = 49 (the rectangles, not nodes). At fit-to-view (zoom < 0.4) the T6 label-hit
+  layer is inactive (0 divs); it only emits N divs at zoom ≥ 0.4.
+- **Heap per entity << 5 KB** (guardrail PASS): the full 2017-entity scene's heap delta is below
+  `performance.memory`'s ~MB resolution (≈0). Rich per-node content is cheap.
+
+The one scale lever the bloat test surfaces for the future: the **connector DOM/SVG layer** (not nodes) is
+what grows the DOM — folding it onto the canvas (Iter-7 deferred it: 0 spawn prize, but it IS the DOM-volume
+driver at scale) is the remaining headroom.
+
+### Guardrails + anti-cheat
+
+- **KR3 idle — PASS** (every run): 60 s @ 0 entities, heap flat (0 MB / 0% retained after GC), 0 long tasks.
+- **mem/entity < 5 KB — PASS** (bloat test, above).
+- **bulk-spawn 1000 / 1000-paste** longest frame ≈ 83 ms (the canvas bulk-draw / paste commit) — over the
+  literal "no frame > 50 ms" bar, but **pre-existing** (the engine-perf program already drove the bulk-draw
+  633 → 83 ms and banked it; the A/B shows the canvas-ux program did **not** regress it — spawn commit/settle
+  byte-identical tip vs pre). Sustained state is 60 fps; only the one unavoidable bulk-commit frame dips.
+  Documented, not a program regression.
+- **Anti-cheat (correctness suite) — effectively GREEN, zero program regressions.** lib unit **1187 passed /
+  1 skipped / 115 suites** (incl. `lasso.bulkPerf`, `resolvePlacement`, `labelPosition`, `renderTarget`,
+  `TransformRectangle` edge-axis, `spatialIndex`). e2e gate: program-tip **14 passed / 1 failed** and
+  pre-program **14 passed / 1 failed — IDENTICAL**. The single failure (`z-order` Ctrl+]/Ctrl+[: a synthetic
+  `clickAt` not registering `itemControls` on this Windows+Chromium box) **fails identically on the
+  pre-program baseline**, so it is **pre-existing / machine-specific, not a program regression** (verified by
+  running the same spec on `5153c9e`). Renderer draw-count = N on every spawn/bloat cell.
+
+### Gate verdict
+
+The canvas-ux-overhaul program **held the engine performance budget**: spawn (the bulk-render north-star) is
+**fully neutral** tip-vs-pre at every N; the predicted-neutral interaction paths (T1/T4 routing, T2 lasso,
+T7 handles, T8 zero- and all-offset render) are confirmed neutral; guardrails green; the canvas scales
+content-agnostically to 1000 richly-loaded elements; and the correctness anti-cheat shows **zero program
+regressions**. **Two drag-path findings:** (1) node collision-drag @500 +14% — **accepted** (instrumented;
+bounded off-grid-preview compute on an already-over-budget path); (2) **T6 unselected-label drag** — a real
+regression at scale (per-frame model write vs ADR-0024's CSS-preview design) — **flagged for a focused fix**
+(promote-to-overlay + reuse `Label.tsx` CSS-preview). The program is GREEN **pending the T6 fix decision**.
