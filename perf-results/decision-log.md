@@ -1183,3 +1183,63 @@ The correctness gate now runs canvas unconditionally (no env var): `npx playwrig
 --config packages/axoview-e2e/playwright.config.ts --project=chromium drag-collision
 undo-redo-cross-cutting undo-redo-dual-stack multi-select-drag z-order
 rectangle-overlap-zorder css-preview-mid-drag rename readable-labels`.
+
+---
+
+## 🟢 canvas-ux-overhaul T3 — LayersPanel selection re-render (KEPT; separate track, ADR 0020 protocol)
+
+Different initiative from the engine-perf Iters above (canvas-ux-overhaul, not T1/T2 node render),
+but reuses the ADR 0020 discipline. Selecting a row in the LayersPanel lagged at high item counts.
+This is a **click→select/open latency** (a discrete-event re-render), NOT the frame harness — measured
+with a dedicated same-session A/B (`.scratch/measure-layers-click.mjs`, throwaway/gitignored).
+
+**🔬 Diagnosis (code + render-count probe).** `LayerItemRow` is already `memo()`-wrapped, but the memo
+was **defeated**: `handleItemClick` (the `onClick` prop on every row) churned identity on every
+selection because its `useCallback` dep `applyCtrlToggleSelect` depends on `itemControls`/`mode`
+(both change on select). New `onClick` identity → shallow-prop compare fails for ALL rows → every row
+re-renders per selection. Proven with a throwaway counter in `LayerItemRow` (`window.__layerRowRenders`):
+**1000 renders/click at N=1000** (machine-independent). The `LayerItem` objects are stable on selection
+(`useLayerContext`'s memo deps exclude itemControls/mode), so the sole defect was callback identity —
+the "memoized but highlight not decoupled" case.
+
+**Hypothesis:** read the churny closures from a ref so `handleItemClick` is identity-stable (empty deps),
+and memoize `sortedLayers`, so a selection re-renders only the two rows whose `isSelected` flips, not N.
+("memoize AND decouple the highlight" path — virtualization unneeded; lower ripple on the heterogeneous
+drag-enabled tree.)
+
+**One variable:** `LayersPanel.tsx` only (latest-closures ref for `handleItemClick` + `sortedLayers`
+useMemo). `LayerItemRow` untouched (already memoized). Zero behavior change.
+
+**Same-session A/B (N=1000, median-of-20, calibration-matched):**
+
+| metric | HEAD | fix |
+|---|---|---|
+| **renders/click** (machine-independent) | **1000** | **2** |
+| longest click frame @cal 34.5 (HEAD) / 36.2 (fix) | **2866 ms** | **33 ms** |
+| normalized longest (frame ÷ cal) | 83.1 | 0.92 (**~90×**) |
+| rows in DOM (anti-cheat) | 1000 | 1000 |
+| selectionChanged | true | true |
+
+Render count 1000→2 is the decisive machine-independent proof. At matched cal (~35, a thermally-
+throttled session) the longest click frame drops **2866→33 ms (~86×)**; the fix holds a 33 ms (2-vsync,
+sub-perceptible) frame at EVERY calibration (cal 3.2–36) while HEAD freezes ~2.9 s @cal 35
+(≈287 ms normalized to a cold cal-3.4 machine — a clearly perceptible lag). Gain ≫ drift. **→ KEEP.**
+
+**KR4 — canvas spawn unaffected (separate, conditionally-mounted tree).** LayersPanel mounts only when
+`activeLeftTab==='LAYERS'`; the spawn harness never sets it, so the panel's code never executes during
+spawn (structural). Empirically the A/B's panel-closed canvas spawn held **draw-count = 1000** both
+sides; settle tracked calibration only (83 ms @cal 3.5 fix == 83 ms @cal 3.4 cold-HEAD). No leak.
+
+**Correctness / anti-cheat (the list must still render the right rows and stay interactive):**
+jest **1128 passed / 1 skipped / 109 suites**; E2E `layers.spec.ts` 2/2 (drag-to-layer + hide + lock);
+walkthrough at N=1000 **StrictMode ON** (no perf flag — stress-tests the ref-during-render): SELECT
+(unassigned + row #700/1000), EXPAND renders all 1000 (4→1004), COLLAPSE (→4), item rename (dblclick),
+F2 layer-rename — all green, **zero page errors**. Anti-cheat: `rowCount==1000` in the DOM before &
+after (no virtualization cheat — every row rendered) and `selectionChanged==true`. Both libs build clean.
+
+**Methodology note:** measured in a thermally-throttled session — the calibration index swung 3.2↔36
+and **correctly flagged** that cold cal-3.4 HEAD and warm cal-35 runs aren't directly comparable, so the
+keep rests on (a) the machine-independent render count 1000→2 and (b) the matched-cal (~35) longest-frame
+2866→33 ms. `baseline.md` untouched (the latency harness never writes it; the one stray `npm run perf`
+that rebuilt lib mid-flight was aborted before any write). Diagnostic counter + `.scratch/` harness
+removed/gitignored; the shipped diff is `LayersPanel.tsx` only.
