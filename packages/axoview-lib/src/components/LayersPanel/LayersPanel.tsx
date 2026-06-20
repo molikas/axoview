@@ -314,7 +314,9 @@ export const LayersPanel = () => {
           showCursor: true,
           mousedownItem: null
         });
-        uiStateActions.setItemControls({ type: next[0].type, id: next[0].id });
+        // Select-only (ADR 0022 §3) — collapsing a multi-select to one item
+        // highlights it + opens the bar, but doesn't mount the panel.
+        uiStateActions.setSelectedIds([{ type: next[0].type, id: next[0].id }]);
       } else {
         buildLassoFromItems(next);
       }
@@ -364,6 +366,9 @@ export const LayersPanel = () => {
       }
 
       // Plain click: drop any LASSO multi-select, single-select on canvas.
+      // Select-only (highlight + canvas sync + action bar), NOT open — mirrors
+      // the canvas single-click (ADR 0022 §3 / §4.1). The panel opens on
+      // double-click (handleItemOpen).
       if (curMode.type === 'LASSO') {
         actions.setMode({
           type: 'CURSOR',
@@ -372,9 +377,21 @@ export const LayersPanel = () => {
         });
       }
       anchorIdRef.current = item.id;
-      actions.setItemControls({ type: item.type, id: item.id });
+      actions.setSelectedIds([{ type: item.type, id: item.id }]);
     },
     []
+  );
+
+  // Panel → canvas: double-clicking a row opens its details panel, mirroring the
+  // canvas open/select split (ADR 0022 §3 / ADR 0006 addendum). `uiStateActions`
+  // is the store's stable actions object, so this stays identity-stable across
+  // selection re-renders — preserving the T3 memo (commit c875b652): a selection
+  // re-renders 2 rows, not all N.
+  const handleItemOpen = useCallback(
+    (item: LayerItem) => {
+      uiStateActions.setItemControls({ type: item.type, id: item.id });
+    },
+    [uiStateActions]
   );
 
   // Drag item to assign to a layer
@@ -587,6 +604,7 @@ export const LayersPanel = () => {
                           item={item}
                           isSelected={item.id === selectedItemId || highlightedIds.has(item.id)}
                           onClick={handleItemClick}
+                          onOpen={handleItemOpen}
                           onRename={handleItemRename}
                           onDragStart={handleItemDragStart}
                           onToggleLabel={handleToggleLabel}
@@ -639,6 +657,7 @@ export const LayersPanel = () => {
                 item={item}
                 isSelected={item.id === selectedItemId || highlightedIds.has(item.id)}
                 onClick={handleItemClick}
+                onOpen={handleItemOpen}
                 onRename={handleItemRename}
                 onDragStart={handleItemDragStart}
                 onToggleLabel={handleToggleLabel}

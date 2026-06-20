@@ -146,7 +146,7 @@ const initialState = () => {
         setScroll: ({ position, offset }) => {
           set({ scroll: { position, offset: offset ?? get().scroll.offset } });
         },
-        setItemControls: (itemControls) => {
+        setItemControls: (itemControls, options) => {
           if (itemControls !== null) {
             const { rightSidebarOpen, rightSidebarAutoOpened } = get();
             // If user manually pinned the panel open, don't mark it as auto-opened
@@ -162,12 +162,27 @@ const initialState = () => {
               itemControls.type === 'ADD_ITEM'
                 ? get().selectedIds
                 : [{ type: itemControls.type, id: itemControls.id }];
+            // ADR 0022 §3: select-only (openPanel:false) updates the panel
+            // TARGET + opens the floating action bar, but does NOT mount the
+            // Properties dock. The explicit open path (double-click, panel
+            // events) keeps openPanel:true (the default) and mounts it.
+            const openPanel = options?.openPanel ?? true;
+            if (!openPanel) {
+              set({
+                itemControls,
+                selectedIds: nextSelected,
+                // Bar opens on selection (edit mode); view mode reads via the
+                // canvas popover, so no bar there.
+                itemActionBarOpen:
+                  !inView && itemControls.type !== 'ADD_ITEM'
+              });
+              return;
+            }
             set({
               itemControls,
               selectedIds: nextSelected,
               rightSidebarOpen: inView ? rightSidebarOpen : true,
-              // New / changed selection always closes the floating action bar.
-              // The bar is only opened by an explicit right-click (mqa-results.md #1).
+              // Opening the panel replaces the floating action bar.
               itemActionBarOpen: false,
               ...(!inView && !alreadyPinned && { rightSidebarAutoOpened: true })
             });
@@ -190,17 +205,19 @@ const initialState = () => {
           //  - >1   → no panel (heterogeneous edits aren't meaningful here)
           if (ids.length === 1) {
             const only = ids[0];
-            const { rightSidebarOpen, rightSidebarAutoOpened } = get();
-            const alreadyPinned = rightSidebarOpen && !rightSidebarAutoOpened;
             // View mode reads item info via the canvas popover (ADR 0012) — no
-            // right-dock auto-open there (edit mode unchanged).
+            // action bar there (edit mode unchanged).
             const inView = get().editorMode === 'EXPLORABLE_READONLY';
+            // ADR 0022 §3: a single selection drives highlight + action bar
+            // only. It derives the panel TARGET (itemControls) for F2 / delete /
+            // double-click, but does NOT mount the Properties dock — leave
+            // rightSidebarOpen / rightSidebarAutoOpened untouched so an
+            // already-open panel keeps tracking selection (§4.1 two-way sync)
+            // while a closed one stays closed until an explicit double-click.
             set({
               selectedIds: ids,
               itemControls: { type: only.type, id: only.id },
-              rightSidebarOpen: inView ? rightSidebarOpen : true,
-              itemActionBarOpen: false,
-              ...(!inView && !alreadyPinned && { rightSidebarAutoOpened: true })
+              itemActionBarOpen: !inView
             });
           } else {
             const autoOpened = get().rightSidebarAutoOpened;

@@ -3,7 +3,10 @@
  *
  * Verifies the store-level invariant that ties selectedIds to itemControls:
  *  - selectedIds.length === 0 → itemControls null, panel closed
- *  - selectedIds.length === 1 → itemControls set to that single item, panel opens
+ *  - selectedIds.length === 1 → itemControls set to that single item; per
+ *    ADR 0022 §3 this is SELECT-ONLY — it opens the floating action bar
+ *    (itemActionBarOpen) but no longer mounts the Properties dock. The dock
+ *    opens on the explicit double-click / setItemControls (openPanel) path.
  *  - selectedIds.length  > 1 → itemControls null (panel auto-hides), MQA #9
  *
  * Also covers the toggle behaviour from MQA #8 (Ctrl+click semantics) and the
@@ -45,29 +48,32 @@ describe('ADR-0006 — multi-select contract', () => {
     expect(result.current.s.itemControls).toBeNull();
   });
 
-  it('setSelectedIds([single]) sets itemControls to that single item', () => {
+  it('setSelectedIds([single]) selects only — bar opens, panel does NOT (ADR 0022 §3)', () => {
     const { result } = renderHook(
       () => useUiStateStore((s) => ({ s, a: s.actions })),
       { wrapper }
     );
-    // Right-dock auto-open is an EDITABLE behavior (view mode uses the canvas
+    // The action bar is an EDITABLE affordance (view mode uses the canvas
     // popover instead — ADR 0012). The default store mode is read-only.
     act(() => result.current.a.setEditorMode('EDITABLE'));
     act(() => result.current.a.setSelectedIds([itemB]));
     expect(result.current.s.selectedIds).toEqual([itemB]);
     expect(result.current.s.itemControls).toEqual({ type: 'ITEM', id: 'b' });
-    expect(result.current.s.rightSidebarOpen).toBe(true);
+    // Select-only: the Properties dock is NOT mounted on single-click…
+    expect(result.current.s.rightSidebarOpen).toBe(false);
+    // …but the floating action bar opens.
+    expect(result.current.s.itemActionBarOpen).toBe(true);
   });
 
-  it('setSelectedIds([>1 items]) hides the panel (MQA #9 auto-hide)', () => {
+  it('double-click path (setItemControls) opens the dock; >1 selection auto-hides it (MQA #9)', () => {
     const { result } = renderHook(
       () => useUiStateStore((s) => ({ s, a: s.actions })),
       { wrapper }
     );
     act(() => result.current.a.setEditorMode('EDITABLE'));
-    // First open the panel via a single selection so we can prove auto-hide
-    // actually closes it on transition to multi.
-    act(() => result.current.a.setSelectedIds([itemA]));
+    // Open the panel via the explicit open path (double-click / layer-row
+    // double-click) so we can prove auto-hide actually closes it on multi.
+    act(() => result.current.a.setItemControls({ type: 'ITEM', id: 'a' }));
     expect(result.current.s.itemControls).not.toBeNull();
     expect(result.current.s.rightSidebarOpen).toBe(true);
 
@@ -75,6 +81,25 @@ describe('ADR-0006 — multi-select contract', () => {
     expect(result.current.s.selectedIds).toHaveLength(3);
     expect(result.current.s.itemControls).toBeNull();
     expect(result.current.s.rightSidebarOpen).toBe(false);
+  });
+
+  it('setItemControls(openPanel:false) is select-only — bar opens, dock stays put', () => {
+    const { result } = renderHook(
+      () => useUiStateStore((s) => ({ s, a: s.actions })),
+      { wrapper }
+    );
+    act(() => result.current.a.setEditorMode('EDITABLE'));
+    // Connector single-click routes here (it needs the tile for the bar).
+    act(() =>
+      result.current.a.setItemControls(
+        { type: 'CONNECTOR', id: 'x', tile: { x: 1, y: 2 } },
+        { openPanel: false }
+      )
+    );
+    expect(result.current.s.selectedIds).toEqual([{ type: 'CONNECTOR', id: 'x' }]);
+    expect(result.current.s.itemControls).toMatchObject({ type: 'CONNECTOR', id: 'x' });
+    expect(result.current.s.rightSidebarOpen).toBe(false);
+    expect(result.current.s.itemActionBarOpen).toBe(true);
   });
 
   it('view mode: single selection does NOT auto-open the right dock (ADR 0012)', () => {
@@ -108,7 +133,8 @@ describe('ADR-0006 — multi-select contract', () => {
     // Re-toggle itemA removes it (Figma / Sketch / VS Code Ctrl+click semantics)
     act(() => result.current.a.toggleSelected(itemA));
     expect(result.current.s.selectedIds).toEqual([itemB]);
-    // Down to 1 — panel should re-open per the invariant
+    // Down to 1 — itemControls mirrors the single item (panel TARGET) per the
+    // invariant, even though the dock isn't mounted (select-only, ADR 0022 §3).
     expect(result.current.s.itemControls).toEqual({ type: 'ITEM', id: 'b' });
   });
 

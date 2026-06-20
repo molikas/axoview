@@ -337,10 +337,24 @@ export interface UiStateActions {
   setDialog: (dialog: keyof typeof DialogTypeEnum | null) => void;
   setZoom: (zoom: number) => void;
   setScroll: (scroll: Scroll) => void;
-  setItemControls: (itemControls: ItemControls | null) => void;
+  /**
+   * Sets the item the right Properties panel + action bar target.
+   *
+   * `options.openPanel` (default `true`) mounts the Properties dock — the
+   * explicit "open details" gesture (double-click / panel events / layer-row
+   * double-click). Pass `false` for **select-only** (ADR 0022 §3): the panel
+   * target + action bar update, but the dock is NOT mounted. Passing `null`
+   * always clears.
+   */
+  setItemControls: (
+    itemControls: ItemControls | null,
+    options?: { openPanel?: boolean }
+  ) => void;
   /**
    * Replaces the current canvas selection. Internally derives itemControls
-   * (single-item case) or clears it (empty / multi-select).
+   * (single-item case) or clears it (empty / multi-select). Per ADR 0022 §3 a
+   * single selection drives highlight + action bar only — it no longer mounts
+   * the Properties panel (that is the double-click / setItemControls path).
    */
   setSelectedIds: (ids: ItemReference[]) => void;
   /** Adds the item if absent, removes it if present. Updates itemControls accordingly. */

@@ -67,6 +67,11 @@ type PointerKind = 'mouse' | 'touch' | 'pen';
 // menu; empty → lasso). Slightly under the OS ~500ms callout so our menu wins.
 const LONG_PRESS_MS = 450;
 
+// Max gap between two taps on the SAME item for the second to count as a
+// double-tap (→ open the details panel, ADR 0022 §5). Debounced against the
+// single-tap select so a deliberate double-tap doesn't just re-select.
+const DOUBLE_TAP_MS = 300;
+
 interface TouchGestureState {
   // Active touch/pen pointers by pointerId → latest client position.
   pointers: Map<number, { x: number; y: number }>;
@@ -93,6 +98,11 @@ interface TouchGestureState {
   // True while a long-press-armed marquee is running, so its commit returns to
   // CURSOR (one-shot lasso without an explicit tool switch).
   autoLasso: boolean;
+  // Double-tap detection (ADR 0022 §5): timestamp + item of the last stationary
+  // item-tap, so a second tap on the same item within DOUBLE_TAP_MS opens the
+  // details panel instead of just re-selecting.
+  lastTapTime: number;
+  lastTapItem: ItemReference | null;
 }
 
 const pointerDistance = (
@@ -625,7 +635,9 @@ export const useInteractionManager = () => {
     pinchLastDistance: 0,
     pinchLastCentroid: { x: 0, y: 0 },
     longPressTimer: null,
-    autoLasso: false
+    autoLasso: false,
+    lastTapTime: 0,
+    lastTapItem: null
   });
 
   const modeType = useUiStateStore((state) => state.mode.type);
@@ -919,34 +931,55 @@ export const useInteractionManager = () => {
         return;
       }
       e.preventDefault();
-      // On touch/pen the long-press timer opens the action bar DURING the hold
-      // (so it appears before the finger lifts); suppress the OS contextmenu here
-      // to avoid a double-open. Mouse right-click keeps the immediate path.
+      // ADR 0022 §1 / §3 + ADR 0027: right-click NO LONGER opens the details
+      // panel or the floating action bar. The bar now opens on selection
+      // (single-click / tap, see uiStateStore.setSelectedIds / setItemControls
+      // openPanel:false); right-DRAG pans (usePanHandlers) and right-TAP will
+      // open the canvas context menu — wired in T4 Session B once the menu
+      // component exists. Suppress the OS menu in all cases here.
+      //
+      // On touch/pen the long-press path owns the reveal during the hold; this
+      // listener only needs to swallow the synthetic OS contextmenu.
+    },
+    [rendererEl]
+  );
+
+  // Double-click on a canvas item opens its details panel (ADR 0022 §1). Mouse
+  // only — touch double-tap is handled by the touch state machine. Scoped to
+  // the renderer (window-bound listener, like onContextMenu) so a double-click
+  // in a panel / toolbar never opens a stale item's panel. The node/textbox
+  // label's inline-rename dblclick calls stopPropagation, so it never reaches
+  // here — double-click the body opens the panel, double-click the label
+  // renames. Locked/hidden items are non-interactive (UX §4.3).
+  const onDoubleClick = useCallback(
+    (e: SlimMouseEvent) => {
       if (pointerTypeRef.current !== 'mouse') return;
+      const target = e.target as Node | null;
+      if (
+        !rendererEl ||
+        !target ||
+        !(rendererEl === target || rendererEl.contains(target))
+      ) {
+        return;
+      }
       const uiState = uiStateApi.getState();
+      if (uiState.editorMode !== 'EDITABLE') return;
       const tile = uiState.mouse.position.tile;
       const item = getItemAtTile({ tile, scene });
-      // Locked or hidden items are non-interactive (mqa-results.md #2) — fall
-      // through to the empty-canvas branch so right-click can't open their
-      // action bar.
+      if (!item) return;
       const { lockedIds, visibleIds } = layerContext;
-      const itemIsInteractable =
-        !!item &&
+      const interactable =
         !lockedIds.has(item.id) &&
         (visibleIds.size === 0 || visibleIds.has(item.id));
-      if (item && itemIsInteractable) {
-        // Right-click on an item selects it AND opens the floating action bar.
-        // This is the only path that opens the bar — left-click only selects
-        // (mqa-results.md #1).
-        const controls: ItemControls =
-          item.type === 'CONNECTOR'
-            ? { type: 'CONNECTOR', id: item.id, tile }
-            : { type: item.type, id: item.id };
-        uiState.actions.setItemControls(controls);
-        uiState.actions.setItemActionBarOpen(true);
-      }
+      if (!interactable) return;
+      // openPanel defaults true → mounts the Properties dock.
+      const controls: ItemControls =
+        item.type === 'CONNECTOR'
+          ? { type: 'CONNECTOR', id: item.id, tile }
+          : { type: item.type, id: item.id };
+      uiState.actions.setItemControls(controls);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional fine-grained deps on the layerContext Sets read here; whole layerContext over-invalidates
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fine-grained deps on the layerContext Sets; whole layerContext over-invalidates
     [uiStateApi, scene, rendererEl, layerContext.lockedIds, layerContext.visibleIds]
   );
 
@@ -1328,6 +1361,36 @@ export const useInteractionManager = () => {
         // drag; RECONNECT_ANCHOR commits the reconnect; Lasso.mouseup commits an
         // auto-lasso marquee.
         forwardMouse(e, 'mouseup', interactionsEl);
+        // Double-tap on an item → open its details panel (ADR 0022 §5). Only a
+        // stationary tap on an interactable item counts; a drag (move past slop)
+        // or an auto-lasso marquee resets the streak. The mouseup above already
+        // (re-)selected it; this just escalates the second tap to "open".
+        const movedItem = exceedsTapSlop(ts.downScreen, {
+          x: e.clientX,
+          y: e.clientY
+        });
+        if (!ts.autoLasso && !movedItem && ts.downItem) {
+          const now = Date.now();
+          const sameItem =
+            !!ts.lastTapItem &&
+            ts.lastTapItem.id === ts.downItem.id &&
+            ts.lastTapItem.type === ts.downItem.type;
+          if (sameItem && now - ts.lastTapTime < DOUBLE_TAP_MS) {
+            const controls: ItemControls =
+              ts.downItem.type === 'CONNECTOR'
+                ? { type: 'CONNECTOR', id: ts.downItem.id, tile: ts.downTile }
+                : { type: ts.downItem.type, id: ts.downItem.id };
+            uiStateApi.getState().actions.setItemControls(controls);
+            ts.lastTapTime = 0;
+            ts.lastTapItem = null;
+          } else {
+            ts.lastTapTime = now;
+            ts.lastTapItem = ts.downItem;
+          }
+        } else {
+          ts.lastTapTime = 0;
+          ts.lastTapItem = null;
+        }
         if (ts.autoLasso) {
           // One-shot lasso: return to CURSOR so the next gesture isn't lasso.
           uiStateApi.getState().actions.setMode({
@@ -1585,6 +1648,7 @@ export const useInteractionManager = () => {
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('pointercancel', onPointerCancel);
     window.addEventListener('contextmenu', onContextMenu);
+    window.addEventListener('dblclick', onDoubleClick);
     rendererEl.addEventListener('wheel', onScroll, { passive: true });
     rendererEl.addEventListener('dragstart', onDragStart);
 
@@ -1594,6 +1658,7 @@ export const useInteractionManager = () => {
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerCancel);
       window.removeEventListener('contextmenu', onContextMenu);
+      window.removeEventListener('dblclick', onDoubleClick);
       rendererEl.removeEventListener('wheel', onScroll);
       rendererEl.removeEventListener('dragstart', onDragStart);
       if (touchRaf !== null) cancelAnimationFrame(touchRaf);
@@ -1603,6 +1668,7 @@ export const useInteractionManager = () => {
     modeType,
     onMouseEvent,
     onContextMenu,
+    onDoubleClick,
     rendererEl,
     rendererSize,
     uiStateApi,
