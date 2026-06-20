@@ -35,6 +35,7 @@ The tap-vs-drag split reuses the existing `rightDownRef` + `RIGHT_DRAG_THRESHOLD
 ### 3. Command catalogue (item-type parity per ux-principles §5)
 
 - **Item menu:** Details… (opens the panel — same as double-click) · Rename (F2) · Cut / Copy / Paste · Duplicate · Delete · Bring forward / Send backward · Assign to layer ▸ · **Snap to grid / Unsnap from grid** · **Enable / Disable collision** (ADR 0023) · type-specific (node: Link…; connector: Add waypoint / line style; etc.).
+- **Multi menu** (right-tap / long-press on an item that is part of a multi-selection — 2026-06-20 addendum): a **bulk** command set over the whole selection — `N items selected` header · Cut / Copy / Duplicate · Assign to layer ▸ (bulk) · Delete N items · Unsnap / collision placeholders (T8). No Details/Rename (single-item only). The selection is read from `selectedIds` (Ctrl+click / Ctrl+A / a canvas lasso, mirrored on mouseup) or an active lasso's `mode.selection` (panel-driven), mirrored into `selectedIds` + settled to CURSOR so one source of truth drives it. **This supersedes the floating `LassoLayerBar`** ("N items / Assign layer") — assign-to-layer for a multi-selection now lives in this menu (and the LayersPanel row drag), so the redundant floating control was removed. `useCopyPaste` was made multi-aware so bulk Cut/Copy/Duplicate (and Ctrl+C/X) operate on a CURSOR-mode `selectedIds` selection.
 - **Canvas (empty) menu:** Add item · Paste · Select all · Snap-to-grid toggle.
 
 ### 4. Division of labor (the coherence contract — no duplication, no orphans)
