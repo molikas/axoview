@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { ViewItem } from 'src/types';
 import { DEFAULT_LABEL_HEIGHT, DEFAULT_FONT_FAMILY } from 'src/config';
 import { LABEL_BASE_FONT_PX } from 'src/config/labelSettings';
@@ -18,9 +18,15 @@ import { resolveDraggedOffset } from 'src/utils/labelPosition';
 // The divs live in a <SceneLayer>, so they're positioned in canvas-px (the same
 // space `getTilePosition` + the canvas draw use) and the SceneLayer's CSS
 // transform tracks pan/zoom for free — no per-frame React. Each div is sized to
-// the label's NAME chip (the primary grab target); a press starts a live
-// reposition that writes the model inside one drag transaction (one undo), so
-// the canvas redraws the label following the pointer with no preview plumbing.
+// the label's NAME chip (the primary grab target).
+//
+// Track P (T6 fix): a drag promotes the node into the DOM overlay via the
+// transient `uiState.labelDrag` (Renderer.hybridIds), then pushes the live
+// offset there each frame — so the label follows the pointer as a SINGLE-node
+// DOM re-render. The model is written ONCE on release (one undo). The earlier
+// implementation wrote the model every pointermove, which redrew EVERY visible
+// canvas node per frame (~10 fps at 1000 visible nodes; perf-results/decision-log
+// Track P) — the regression this fix removes.
 
 // Below this zoom labels are too small to grab precisely; skip the layer (also
 // bounds the div count — at very low zoom the whole diagram can be on screen).
@@ -69,13 +75,16 @@ interface DragState {
   startClientY: number;
   startOffset: number;
   started: boolean;
+  /** Last previewed offset — the value committed to the model on release. */
+  lastOffset: number;
 }
 
 export const NodeLabelHitLayer = ({ nodes }: Props) => {
   const { getTilePosition } = useCanvasMode();
   const uiStoreApi = useUiStateStoreApi();
-  const { beginDragTransaction, commitDragTransaction, updateViewItem } =
-    useSceneActions();
+  // Only the single on-release commit touches the model now (T6 fix); the live
+  // drag is a transient DOM preview via uiStore.actions.setLabelDrag.
+  const { updateViewItem } = useSceneActions();
   // Coarse zoom + mode gates — boolean selectors so this only re-renders when
   // the gate flips, not on every zoom tick.
   const active = useUiStateStore(
@@ -100,9 +109,10 @@ export const NodeLabelHitLayer = ({ nodes }: Props) => {
       if (!d.started) {
         if (Math.abs(e.clientY - d.startClientY) < DRAG_SLOP_PX) return;
         d.started = true;
-        // Open the history bracket only once the gesture is really a drag, so a
-        // plain click commits nothing.
-        beginDragTransaction();
+        // Past slop: promote the node into the DOM overlay (via labelDrag), so the
+        // label now moves as a single-node DOM re-render. A plain click never gets
+        // here, so it neither promotes nor commits.
+        uiStoreApi.getState().actions.setLabelDrag(d.id, d.startOffset);
       }
       e.preventDefault();
       const offset = resolveDraggedOffset({
@@ -110,9 +120,13 @@ export const NodeLabelHitLayer = ({ nodes }: Props) => {
         pointerDeltaScreenY: e.clientY - d.startClientY,
         zoom: uiStoreApi.getState().zoom
       });
-      updateViewItem(d.id, { labelHeight: offset });
+      d.lastOffset = offset;
+      // Transient preview only — NO model write, so the canvas is NOT redrawn each
+      // frame (the old per-frame updateViewItem redrew every visible node → ~10 fps
+      // at 1000 visible). Committed once on release below.
+      uiStoreApi.getState().actions.setLabelDrag(d.id, offset);
     },
-    [beginDragTransaction, updateViewItem, uiStoreApi]
+    [uiStoreApi]
   );
 
   const onWindowUp = useCallback(() => {
@@ -121,18 +135,25 @@ export const NodeLabelHitLayer = ({ nodes }: Props) => {
     window.removeEventListener('pointermove', onWindowMove);
     window.removeEventListener('pointerup', onWindowUp);
     window.removeEventListener('pointercancel', onWindowUp);
-    if (d?.started) commitDragTransaction();
-  }, [onWindowMove, commitDragTransaction]);
+    if (d?.started) {
+      // One model write = one history entry; then drop the preview so the node
+      // returns to the canvas drawn at its committed height.
+      updateViewItem(d.id, { labelHeight: d.lastOffset });
+      uiStoreApi.getState().actions.clearLabelDrag();
+    }
+  }, [onWindowMove, updateViewItem, uiStoreApi]);
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>, node: ViewItem) => {
       // Don't let the press fall through to the canvas hit-test / pan.
       e.stopPropagation();
+      const startOffset = node.labelHeight ?? DEFAULT_LABEL_HEIGHT;
       dragRef.current = {
         id: node.id,
         startClientY: e.clientY,
-        startOffset: node.labelHeight ?? DEFAULT_LABEL_HEIGHT,
-        started: false
+        startOffset,
+        started: false,
+        lastOffset: startOffset
       };
       window.addEventListener('pointermove', onWindowMove);
       window.addEventListener('pointerup', onWindowUp);
@@ -140,6 +161,20 @@ export const NodeLabelHitLayer = ({ nodes }: Props) => {
     },
     [onWindowMove, onWindowUp]
   );
+
+  // Safety net: if the layer unmounts mid-drag, drop the window listeners and any
+  // stale promotion so a node can't get stuck in the overlay.
+  useEffect(() => {
+    return () => {
+      window.removeEventListener('pointermove', onWindowMove);
+      window.removeEventListener('pointerup', onWindowUp);
+      window.removeEventListener('pointercancel', onWindowUp);
+      if (dragRef.current) {
+        dragRef.current = null;
+        uiStoreApi.getState().actions.clearLabelDrag();
+      }
+    };
+  }, [onWindowMove, onWindowUp, uiStoreApi]);
 
   if (!active) return null;
 

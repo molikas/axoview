@@ -200,6 +200,14 @@ const NodeContent = memo(
     const isSelected = useUiStateStore(
       (s) => s.itemControls?.type === 'ITEM' && s.itemControls.id === id
     );
+    // Track P (T6 fix): live preview height while THIS node's label is being
+    // dragged from the canvas (NodeLabelHitLayer promotes it into the DOM overlay
+    // and pushes the offset here). Only the dragged node's value changes, so only
+    // it re-renders per frame — no per-frame model write, no canvas redraw. Null
+    // for every other node and when no label drag is in flight.
+    const labelDragHeight = useUiStateStore((s) =>
+      s.labelDrag?.id === id ? s.labelDrag.height : null
+    );
 
     const isReadonly = editorMode === 'EXPLORABLE_READONLY';
     const isEditable = editorMode === 'EDITABLE';
@@ -311,7 +319,10 @@ const NodeContent = memo(
                 maxWidth={isEditingName ? 600 : 250}
                 expandDirection="BOTTOM"
                 labelHeight={
-                  labelOffsetPreview ?? labelHeight ?? DEFAULT_LABEL_HEIGHT
+                  labelDragHeight ??
+                  labelOffsetPreview ??
+                  labelHeight ??
+                  DEFAULT_LABEL_HEIGHT
                 }
                 reposition={
                   isEditable && isSelected && !isEditingName

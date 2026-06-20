@@ -313,6 +313,16 @@ export interface UiState {
    * `showLabel`. Merged at the same render sites as `previewHideLabels`.
    */
   exportHideLabels: boolean;
+  /**
+   * Transient on-canvas label-drag preview (ADR 0024 — Track P T6 fix). While a
+   * canvas (unselected) node's NAME label is being dragged via NodeLabelHitLayer,
+   * this holds the node id + the live signed `labelHeight`. It promotes that node
+   * into the DOM overlay (Renderer.hybridIds) so the label follows the pointer as
+   * a single-node DOM re-render (CSS preview), NOT a per-frame model write that
+   * would redraw every visible canvas node. UI-only, never persisted; the model
+   * is written ONCE on release. Null when no label drag is in flight.
+   */
+  labelDrag: { id: string; height: number } | null;
   /** Ephemeral annotation overlay (ADR 0014). Never persisted. */
   annotation: AnnotationState;
 }
@@ -440,6 +450,10 @@ export interface UiStateActions {
   setPreviewHideLabels: (hide: boolean) => void;
   /** Set the image-export hide-labels flag (UI-only; export-scoped store). */
   setExportHideLabels: (hide: boolean) => void;
+  /** Begin / update the transient on-canvas label-drag preview (ADR 0024 T6 fix). */
+  setLabelDrag: (id: string, height: number) => void;
+  /** End the label-drag preview (the model labelHeight is committed separately, once). */
+  clearLabelDrag: () => void;
   // --- Annotation overlay (ADR 0014) ---
   setAnnotationOpen: (open: boolean) => void;
   setAnnotationTool: (tool: AnnotationTool) => void;

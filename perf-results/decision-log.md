@@ -1353,6 +1353,22 @@ the DOM hybrid overlay (`hybridIds`) and reuse `Label.tsx`'s existing CSS-previe
 emits **one DOM div per visible labelled node** at zoom ≥ 0.4 (1000 divs @ N=1000) — a DOM vector the same
 fix (or a cursor-proximity cap) should also address.
 
+**🟢 FIX (implemented + verified, this session).** Routed the unselected-label drag through a
+transient UI-only `uiState.labelDrag = {id, height}` channel: on drag-start past slop the node is
+promoted into the DOM overlay (`Renderer.hybridIds`) and the live offset is pushed to `labelDrag` each
+frame — so the label follows the pointer as a **single-node DOM re-render**, with **no per-frame model
+write and no canvas redraw**; the model `labelHeight` is written **once on release** (one undo). Files:
+`types/ui.ts`, `uiStateStore.tsx` (field + `setLabelDrag`/`clearLabelDrag`), `Renderer.tsx`
+(`labelDragId` ∈ hybridIds), `Node.tsx` (`labelDragHeight` selector — only the dragged node re-renders),
+`NodeLabelHitLayer.tsx` (transient preview + single commit; drag-transaction dropped). **Result
+(PERF_LABELDRAG=1000): mean frame 103 → 17.5 ms (p95 16.75 = 60 fps), ~6×** — the single `max=83 ms`
+frame is the one-time promote/commit redraw, vs the old 103 ms EVERY frame. Zero effect on the
+spawn/drag baseline (`labelDrag` is null except during a label drag; `NodeContent` mounts only for the
+0-few overlay nodes). **Correctness: `label-drag.spec` 2/2** (incl. the real-mouse *unselected*-label
+drag — position-below + persists-across-reload + one-undo + selection-unchanged), `readable-labels`,
+`css-preview-mid-drag`, `canvas-node-render` green; lib unit green; the one e2e fail stays the
+pre-existing machine-specific `z-order` click. **→ KEEP. T6 regression resolved.**
+
 ### HTML/DOM-bloat stress (user request) — canvas scales beautifully
 
 `PERF_BLOAT=1000`: every node carries a rich/formatted description + notes + header-link + link; isometric
@@ -1398,5 +1414,6 @@ T7 handles, T8 zero- and all-offset render) are confirmed neutral; guardrails gr
 content-agnostically to 1000 richly-loaded elements; and the correctness anti-cheat shows **zero program
 regressions**. **Two drag-path findings:** (1) node collision-drag @500 +14% — **accepted** (instrumented;
 bounded off-grid-preview compute on an already-over-budget path); (2) **T6 unselected-label drag** — a real
-regression at scale (per-frame model write vs ADR-0024's CSS-preview design) — **flagged for a focused fix**
-(promote-to-overlay + reuse `Label.tsx` CSS-preview). The program is GREEN **pending the T6 fix decision**.
+regression at scale (per-frame model write vs ADR-0024's CSS-preview design) — **FIXED** this session
+(transient `labelDrag` overlay-promotion + single commit on drop; label-drag @1000 visible
+**103 → 17.5 ms/frame, 60 fps**; label-drag spec 2/2 + lib/e2e anti-cheat green). **The program is GREEN.**

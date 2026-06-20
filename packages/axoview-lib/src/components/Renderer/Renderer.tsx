@@ -160,14 +160,20 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
           .join(',')
       : ''
   );
+  // Track P (T6 fix): a canvas node whose NAME label is being dragged is promoted
+  // to the DOM overlay too, so the label follows the pointer in DOM (a single-node
+  // CSS-preview re-render) instead of a per-frame model write redrawing the whole
+  // canvas. A primitive id selector → re-renders only on label-drag start/end.
+  const labelDragId = useUiStateStore((s) => s.labelDrag?.id ?? null);
 
   const hybridIds = useMemo(() => {
-    if (!selectedNodeId && !draggingKey) return null;
+    if (!selectedNodeId && !draggingKey && !labelDragId) return null;
     const ids = new Set<string>();
     if (selectedNodeId) ids.add(selectedNodeId);
     if (draggingKey) for (const id of draggingKey.split(',')) ids.add(id);
+    if (labelDragId) ids.add(labelDragId);
     return ids;
-  }, [selectedNodeId, draggingKey]);
+  }, [selectedNodeId, draggingKey, labelDragId]);
 
   const visibleItems = useMemo(() => {
     const { minX, maxX, minY, maxY } = coarseBounds;

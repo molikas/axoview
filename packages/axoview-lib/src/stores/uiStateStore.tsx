@@ -79,6 +79,7 @@ const initialState = () => {
       previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
       previewHideLabels: false,
       exportHideLabels: false,
+      labelDrag: null,
       annotation: {
         open: false,
         // Open in the non-disruptive Select mode; the user picks a draw tool.
@@ -314,6 +315,17 @@ const initialState = () => {
           // the exported image. Scoped to the export dialog's own Axoview store,
           // so it never touches the live canvas or the model's `showLabel`.
           set({ exportHideLabels });
+        },
+        setLabelDrag: (id, height) => {
+          // Transient on-canvas label-drag preview (ADR 0024 — Track P T6 fix).
+          // Promotes the node to the DOM overlay (Renderer.hybridIds) and carries
+          // the live labelHeight, so the drag is a single-node DOM re-render — NOT
+          // a per-frame model write that redraws every visible canvas node
+          // (~10 fps at 1000 visible). Committed to the model once, on release.
+          set({ labelDrag: { id, height } });
+        },
+        clearLabelDrag: () => {
+          set({ labelDrag: null });
         },
         // --- Annotation overlay (ADR 0014) — ephemeral, never persisted ---
         setAnnotationOpen: (open) => {
