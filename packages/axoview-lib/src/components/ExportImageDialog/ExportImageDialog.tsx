@@ -29,7 +29,8 @@ import {
   downloadFile as downloadFileUtil,
   base64ToBlob,
   generateGenericFilename,
-  modelFromModelStore
+  modelFromModelStore,
+  computeRenderTarget
 } from 'src/utils';
 import { ModelStore, Coords } from 'src/types';
 import { useDiagramUtils } from 'src/hooks/useDiagramUtils';
@@ -130,9 +131,18 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
   const [cropArea, setCropArea] = useState<CropArea | null>(null);
   const [isInCropMode, setIsInCropMode] = useState(false);
 
-  // Scale/DPI state
+  // Scale/DPI state. The "Screenshot" preset (ADR 0025 §4) is the default
+  // selection: 2× · fit-to-content · labels on · PNG — the one-click "good
+  // screenshot" path. DPI presets remain for power users.
   const [exportScale, setExportScale] = useState<number>(2);
-  const [scaleMode, setScaleMode] = useState<'preset' | 'custom'>('preset');
+  const [scaleMode, setScaleMode] = useState<'screenshot' | 'preset' | 'custom'>(
+    'screenshot'
+  );
+
+  // Name-label visibility in the export (ADR 0025 §3). On by default (part of
+  // the Screenshot preset); drives both legibility (readableLabels counter-
+  // scale) and visibility on the hidden Axoview.
+  const [showLabels, setShowLabels] = useState(true);
 
   // DPI presets
   const dpiPresets = [
@@ -146,6 +156,14 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
   const bounds = useMemo(() => {
     return getUnprojectedBounds();
   }, [getUnprojectedBounds]);
+
+  // Clamp the requested scale against the browser's canvas limits (ADR 0025 §2).
+  // The same calculator runs inside exportAsImage/exportAsSVG; here it drives the
+  // user-visible "size was reduced" notice so the cap is never silent (#18).
+  const renderTarget = useMemo(
+    () => computeRenderTarget(bounds, exportScale),
+    [bounds, exportScale]
+  );
 
   // Track when the hidden Axoview has finished its first render cycle
   const axoviewLoadedRef = useRef(false);
@@ -465,6 +483,7 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
     showGrid,
     backgroundColor,
     expandLabels,
+    showLabels,
     cropToContent,
     exportScale,
     transparentBackground
@@ -676,7 +695,9 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
                   renderer={{
                     showGrid,
                     backgroundColor,
-                    expandLabels
+                    expandLabels,
+                    showLabels,
+                    readableLabels: showLabels
                   }}
                   onModelUpdated={handleHiddenAxoviewReady}
                 />
@@ -713,6 +734,18 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
                       checked={showGrid}
                       onChange={(event) => {
                         handleShowGridChange(event.target.checked);
+                      }}
+                    />
+                  }
+                />
+                <FormControlLabel
+                  label={t('showLabels')}
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={showLabels}
+                      onChange={(event) => {
+                        setShowLabels(event.target.checked);
                       }}
                     />
                   }
@@ -772,10 +805,22 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
 
                   <FormControl fullWidth size="small" sx={{ mb: 1 }}>
                     <Select
-                      value={scaleMode === 'preset' ? exportScale : 'custom'}
+                      value={
+                        scaleMode === 'screenshot'
+                          ? 'screenshot'
+                          : scaleMode === 'custom'
+                            ? 'custom'
+                            : exportScale
+                      }
                       onChange={(event) => {
                         const value = event.target.value;
-                        if (value === 'custom') {
+                        if (value === 'screenshot') {
+                          // Screenshot preset: 2× · fit-to-content · labels on.
+                          setScaleMode('screenshot');
+                          setExportScale(2);
+                          setShowLabels(true);
+                          if (cropToContent) handleCropToContentChange(false);
+                        } else if (value === 'custom') {
                           setScaleMode('custom');
                         } else {
                           setScaleMode('preset');
@@ -783,6 +828,9 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
                         }
                       }}
                     >
+                      <MenuItem value="screenshot">
+                        {t('screenshotPreset')}
+                      </MenuItem>
                       {dpiPresets.map((preset) => (
                         <MenuItem key={preset.value} value={preset.value}>
                           {preset.label}
@@ -791,6 +839,14 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
                       <MenuItem value="custom">{t('custom')}</MenuItem>
                     </Select>
                   </FormControl>
+
+                  {renderTarget.wasClamped && (
+                    <Alert severity="warning" sx={{ mb: 1 }}>
+                      {t('scaleClamped')}{' '}
+                      {renderTarget.width}&times;{renderTarget.height} px (
+                      {renderTarget.effectiveScale.toFixed(1)}x)
+                    </Alert>
+                  )}
 
                   {scaleMode === 'custom' && (
                     <Box sx={{ px: 1 }}>

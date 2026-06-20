@@ -77,6 +77,7 @@ const initialState = () => {
       isDirty: false,
       previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
       previewHideLabels: false,
+      exportHideLabels: false,
       annotation: {
         open: false,
         // Open in the non-disruptive Select mode; the user picks a draw tool.
@@ -306,6 +307,12 @@ const initialState = () => {
           // labels live without ever touching the model's `showLabel`, so it
           // cannot dirty/save the diagram. Cleared on view/mode switch above.
           set({ previewHideLabels });
+        },
+        setExportHideLabels: (exportHideLabels) => {
+          // UI-only image-export toggle (ADR 0025 §3): suppresses name labels in
+          // the exported image. Scoped to the export dialog's own Axoview store,
+          // so it never touches the live canvas or the model's `showLabel`.
+          set({ exportHideLabels });
         },
         // --- Annotation overlay (ADR 0014) — ephemeral, never persisted ---
         setAnnotationOpen: (open) => {

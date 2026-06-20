@@ -64,7 +64,10 @@ export function ExportPopover() {
             <ListItemIcon><JsonIcon fontSize="small" /></ListItemIcon>
             <ListItemText>Export JSON</ListItemText>
           </MenuItem>
-          <MenuItem onClick={() => handleOption(handleExportImage)}>
+          <MenuItem
+            onClick={() => handleOption(handleExportImage)}
+            data-axoview-id="toolbar-export-image"
+          >
             <ListItemIcon><ImageIcon fontSize="small" /></ListItemIcon>
             <ListItemText>Export Image</ListItemText>
           </MenuItem>

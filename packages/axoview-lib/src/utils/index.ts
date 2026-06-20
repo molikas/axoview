@@ -6,6 +6,7 @@ export * from './isoMath';
 export * from './hitDetection';
 export * from './renderer';
 export * from './exportOptions';
+export * from './renderTarget';
 export * from './model';
 export * from './findNearestUnoccupiedTile';
 export * from './spatialIndex';

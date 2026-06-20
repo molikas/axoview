@@ -259,15 +259,35 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
 
     // Persist user preferences to localStorage whenever they change.
     // Uses shallow equality on the selector above so this only fires on real changes.
+    // NON_INTERACTIVE instances (the export dialog's hidden Axoview, thumbnails)
+    // set renderer-driven label flags (expandLabels/readableLabels) on their own
+    // scoped store; persisting from them would leak those transient export values
+    // into the shared settings and flip the live canvas (ADR 0025).
     useEffect(() => {
+      if (editorMode === 'NON_INTERACTIVE') return;
       savePersistedSettings(persistableSettings);
-    }, [persistableSettings]);
+    }, [persistableSettings, editorMode]);
 
     useEffect(() => {
       if (renderer?.expandLabels !== undefined) {
         uiStateActions.setExpandLabels(renderer.expandLabels);
       }
     }, [renderer?.expandLabels, uiStateActions]);
+
+    // Image-export label controls (ADR 0025 §3). Scoped to this Axoview's own
+    // store, so the export dialog's hidden instance can keep labels legible and
+    // toggle their visibility without affecting the live canvas.
+    useEffect(() => {
+      if (renderer?.readableLabels !== undefined) {
+        uiStateActions.setReadableLabels(renderer.readableLabels);
+      }
+    }, [renderer?.readableLabels, uiStateActions]);
+
+    useEffect(() => {
+      if (renderer?.showLabels !== undefined) {
+        uiStateActions.setExportHideLabels(!renderer.showLabels);
+      }
+    }, [renderer?.showLabels, uiStateActions]);
 
     useEffect(() => {
       uiStateActions.setIconPackManager(iconPackManager || null);

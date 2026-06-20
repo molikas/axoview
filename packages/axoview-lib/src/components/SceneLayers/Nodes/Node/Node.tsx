@@ -178,6 +178,8 @@ const NodeContent = memo(
     const editorMode = useUiStateStore((s) => s.editorMode);
     // Present-mode hide-labels override (ADR 0013 addendum) — UI-only.
     const previewHideLabels = useUiStateStore((s) => s.previewHideLabels);
+    // Image-export hide-labels override (ADR 0025 §3) — UI-only, export-scoped.
+    const exportHideLabels = useUiStateStore((s) => s.exportHideLabels);
     // MQA #7 Path 2 — useSceneActions only (NOT useScene). The latter pulls
     // useSceneData which subscribes to {views, ...} shallow; `views` ticks
     // per drag frame and would force NodeContent to re-render past its memo
@@ -188,11 +190,9 @@ const NodeContent = memo(
     const isEditable = editorMode === 'EDITABLE';
     // Merge the model's `showLabel` with the present-mode hide-labels flag at the
     // single documented merge point (forced hidden only while presenting).
-    const labelVisible = isLabelVisibleInPreview(
-      showLabel !== false,
-      isReadonly,
-      previewHideLabels
-    );
+    const labelVisible =
+      isLabelVisibleInPreview(showLabel !== false, isReadonly, previewHideLabels) &&
+      !exportHideLabels;
     const hasLink = isReadonly && !!modelItem?.link;
 
     const [isEditingName, setIsEditingName] = useState(false);

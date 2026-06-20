@@ -1,6 +1,7 @@
 import domtoimage from 'dom-to-image-more';
 import { optimizeSvgDataUrl } from './svgOptimizer';
 import { stripDefaultIcons } from './leanSave';
+import { computeRenderTarget } from './renderTarget';
 import { Model, Size } from '../types';
 
 export const generateGenericFilename = (extension: string) => {
@@ -80,9 +81,12 @@ export const exportAsImage = async (
   scale: number = 1,
   bgcolor: string = '#ffffff'
 ) => {
-  // Calculate scaled dimensions
-  const width = size ? size.width * scale : el.clientWidth * scale;
-  const height = size ? size.height * scale : el.clientHeight * scale;
+  // Clamp the requested scale against the browser's canvas limits (ADR 0025 §2)
+  // so a large diagram at 4× yields a real image instead of a silent blank.
+  const baseW = size ? size.width : el.clientWidth;
+  const baseH = size ? size.height : el.clientHeight;
+  const target = computeRenderTarget({ width: baseW, height: baseH }, scale);
+  const { width, height, effectiveScale } = target;
 
   // dom-to-image-more is a better maintained fork
   const options = {
@@ -93,9 +97,9 @@ export const exportAsImage = async (
     quality: 1.0,
     // Apply CSS transform for high-quality scaling
     style:
-      scale !== 1
+      effectiveScale !== 1
         ? {
-            transform: `scale(${scale})`,
+            transform: `scale(${effectiveScale})`,
             transformOrigin: 'top left'
           }
         : undefined
@@ -121,8 +125,15 @@ export const exportAsSVG = async (
   size?: Size,
   bgcolor: string = '#ffffff'
 ) => {
-  const width = size ? size.width : el.clientWidth;
-  const height = size ? size.height : el.clientHeight;
+  // SVG exports at 1× (it is markup, not a raster), but the same calculator
+  // still clamps pathological bounds so the embedded foreignObject never
+  // exceeds what a browser will rasterize on download/preview (ADR 0025 §2).
+  const baseW = size ? size.width : el.clientWidth;
+  const baseH = size ? size.height : el.clientHeight;
+  const { width, height } = computeRenderTarget(
+    { width: baseW, height: baseH },
+    1
+  );
 
   const options = {
     width,

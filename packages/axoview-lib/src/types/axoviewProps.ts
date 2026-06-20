@@ -370,7 +370,10 @@ export interface LocaleProps {
     cropInstruction: string;
     options: string;
     showGrid: string;
+    showLabels: string;
     expandDescriptions: string;
+    screenshotPreset: string;
+    scaleClamped: string;
     cropToContent: string;
     backgroundColor: string;
     transparentBackground: string;

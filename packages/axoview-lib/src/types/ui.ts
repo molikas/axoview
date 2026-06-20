@@ -279,6 +279,14 @@ export interface UiState {
    * label render sites merge it through `isLabelVisibleInPreview`.
    */
   previewHideLabels: boolean;
+  /**
+   * Image-export "hide labels" flag (ADR 0025 §3). UI-only and scoped to the
+   * export dialog's hidden Axoview instance (each Axoview has its own store), so
+   * it never affects the live canvas. When true, node + connector *name* labels
+   * are suppressed in the exported image without touching the model's per-item
+   * `showLabel`. Merged at the same render sites as `previewHideLabels`.
+   */
+  exportHideLabels: boolean;
   /** Ephemeral annotation overlay (ADR 0014). Never persisted. */
   annotation: AnnotationState;
 }
@@ -404,6 +412,8 @@ export interface UiStateActions {
   clearPreviewLayerOverrides: () => void;
   /** Set the present-mode hide-labels flag (UI-only; never touches the model). */
   setPreviewHideLabels: (hide: boolean) => void;
+  /** Set the image-export hide-labels flag (UI-only; export-scoped store). */
+  setExportHideLabels: (hide: boolean) => void;
   // --- Annotation overlay (ADR 0014) ---
   setAnnotationOpen: (open: boolean) => void;
   setAnnotationTool: (tool: AnnotationTool) => void;

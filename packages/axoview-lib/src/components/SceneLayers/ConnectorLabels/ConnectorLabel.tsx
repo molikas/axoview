@@ -224,6 +224,8 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
   const editorMode = useUiStateStore((s) => s.editorMode);
   // Present-mode hide-labels override (ADR 0013 addendum) — UI-only.
   const previewHideLabels = useUiStateStore((s) => s.previewHideLabels);
+  // Image-export hide-labels override (ADR 0025 §3) — UI-only, export-scoped.
+  const exportHideLabels = useUiStateStore((s) => s.exportHideLabels);
   const isEditable = editorMode === 'EDITABLE';
   const isReadonly = editorMode === 'EXPLORABLE_READONLY';
 
@@ -257,11 +259,12 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
     // The synthetic name label follows the model's `showLabel`, then the
     // present-mode hide-labels override (single merge point). Other connector
     // labels are content, not name labels, so the toggle leaves them alone.
-    const nameVisible = isLabelVisibleInPreview(
-      connector.showLabel !== false,
-      isReadonly,
-      previewHideLabels
-    );
+    const nameVisible =
+      isLabelVisibleInPreview(
+        connector.showLabel !== false,
+        isReadonly,
+        previewHideLabels
+      ) && !exportHideLabels;
     if (!trimmedName || !nameVisible) return base;
     const synthetic: ConnectorLabelType = {
       id: '__name__',
@@ -271,7 +274,7 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
       height: 0
     };
     return [synthetic, ...base];
-  }, [connector, trimmedName, isReadonly, previewHideLabels]);
+  }, [connector, trimmedName, isReadonly, previewHideLabels, exportHideLabels]);
 
   const labelPositions = useMemo(() => {
     if (!scenePath?.tiles?.length) return [];

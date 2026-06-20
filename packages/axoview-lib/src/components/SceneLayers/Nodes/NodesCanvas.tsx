@@ -291,6 +291,8 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       // through the same single point as the DOM Node path (isLabelVisibleInPreview).
       const inPreview = ui.editorMode === 'EXPLORABLE_READONLY';
       const previewHideLabels = ui.previewHideLabels;
+      // Image-export hide-labels override (ADR 0025 §3) — UI-only, export-scoped.
+      const exportHideLabels = ui.exportHideLabels;
       const dpr = window.devicePixelRatio || 1;
       const W = rendererSize.width;
       const H = rendererSize.height;
@@ -409,7 +411,9 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
             node.showLabel !== false,
             inPreview,
             previewHideLabels
-          ) && Boolean(name || descText);
+          ) &&
+          !exportHideLabels &&
+          Boolean(name || descText);
         const labelHeight = node.labelHeight ?? DEFAULT_LABEL_HEIGHT;
 
         // ----- stalk line (D2-1) -----
@@ -624,6 +628,7 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
         s.rendererSize === p.rendererSize &&
         s.readableLabels === p.readableLabels &&
         s.previewHideLabels === p.previewHideLabels &&
+        s.exportHideLabels === p.exportHideLabels &&
         s.editorMode === p.editorMode
       ) {
         return;
