@@ -105,11 +105,30 @@ export interface DrawRectangleMode {
   id: string | null;
 }
 
-export const AnchorPositionOptions = {
+// Four corner anchors — these are the ones convertBoundsToNamedAnchors emits.
+export const CornerAnchorPositionOptions = {
   BOTTOM_LEFT: 'BOTTOM_LEFT',
   BOTTOM_RIGHT: 'BOTTOM_RIGHT',
   TOP_RIGHT: 'TOP_RIGHT',
   TOP_LEFT: 'TOP_LEFT'
+} as const;
+
+export type CornerAnchorPosition = keyof typeof CornerAnchorPositionOptions;
+
+// Four edge-midpoint anchors (ADR 0026) — each resizes one axis, the
+// opposite edge stays fixed.
+export const EdgeAnchorPositionOptions = {
+  TOP: 'TOP',
+  RIGHT: 'RIGHT',
+  BOTTOM: 'BOTTOM',
+  LEFT: 'LEFT'
+} as const;
+
+export type EdgeAnchorPosition = keyof typeof EdgeAnchorPositionOptions;
+
+export const AnchorPositionOptions = {
+  ...CornerAnchorPositionOptions,
+  ...EdgeAnchorPositionOptions
 } as const;
 
 export type AnchorPosition = keyof typeof AnchorPositionOptions;

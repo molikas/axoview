@@ -112,8 +112,8 @@ Lib jest green (1155) + both libs build clean. **Owed before promotion:** run th
 ### T6 — Label positioning & sizing (ADR 0024)
 - [ ] **#3** drag label up/down/below the node + resize height on canvas; signed offset model; stalk re-anchors.
 
-### T7 — Rectangle edge handles (ADR 0026)
-- [ ] **#11** add TOP/RIGHT/BOTTOM/LEFT midpoint anchors to `TransformRectangle` ([TransformRectangle.ts:37](../../packages/axoview-lib/src/interaction/modes/Rectangle/TransformRectangle.ts#L37)); correct iso + 2D projection; counter-scaled (UX §8.8).
+### T7 — Rectangle edge handles (ADR 0026) — **code complete**
+- [x] **#11** TOP/RIGHT/BOTTOM/LEFT midpoint anchors added to the anchor set (`EdgeAnchorPosition` in [ui.ts](../../packages/axoview-lib/src/types/ui.ts); `convertBoundsToNamedAnchors` narrowed to `CornerAnchorPosition`). [TransformControls.tsx](../../packages/axoview-lib/src/components/TransformControlsManager/TransformControls.tsx) derives each midpoint as the **average of its two adjacent corner screen positions** — exact on the visible edge in both iso (diamond) + 2D (square) with no projection-specific math; reuses `TransformAnchor` so the handles share the corners' screen-px sizing (UX §8.8). [TransformRectangle.ts](../../packages/axoview-lib/src/interaction/modes/Rectangle/TransformRectangle.ts) adds the single-axis branch: an edge drag takes one mouse coordinate, keeps the opposite edge + perpendicular range fixed, lands in the open begin/commit transaction (one undo entry). Unit-pinned (4 edge-axis cases in `TransformRectangle.test.ts`); e2e `rectangle-move-resize.spec` extended — RIGHT width-only in iso **and** 2D, TOP height-only in iso, corner tests still green. Lib jest 1173 green; both libs build clean.
 
 ### T8 — Off-grid positioning & collision (ADR 0023) — **highest risk, last**
 - [ ] **#12** global snap-to-grid toggle (persisted `uiState.snapToGrid`).

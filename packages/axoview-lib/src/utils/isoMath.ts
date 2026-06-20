@@ -26,7 +26,7 @@ import {
   BoundingBox,
   TextBox,
   View,
-  AnchorPosition
+  CornerAnchorPosition
 } from 'src/types';
 import { CoordsUtils } from 'src/utils/coordsUtils';
 import { SizeUtils } from 'src/utils/sizeUtils';
@@ -424,7 +424,7 @@ export const outermostCornerPositions: TileOrigin[] = [
 
 export const convertBoundsToNamedAnchors = (
   boundingBox: BoundingBox
-): { [key in AnchorPosition]: Coords } => ({
+): { [key in CornerAnchorPosition]: Coords } => ({
   BOTTOM_LEFT: boundingBox[0],
   BOTTOM_RIGHT: boundingBox[1],
   TOP_RIGHT: boundingBox[2],

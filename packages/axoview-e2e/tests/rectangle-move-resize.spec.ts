@@ -205,3 +205,115 @@ test.describe('Rectangle move + resize — Finding #6', () => {
     expect(afterW).toBeGreaterThan(beforeW);
   });
 });
+
+/**
+ * Edge-midpoint resize — ADR 0026 / Track T7.
+ *
+ * Same debug-bridge mode-entry seam as the corner RESIZE test above
+ * (TransformAnchor's onMouseDown is unobservable today), but
+ * selectedAnchor is an EDGE anchor. The contract under test is the new
+ * single-axis branch of TransformRectangle.mousemove: dragging an edge
+ * handle moves ONE axis and leaves the opposite edge — and therefore the
+ * perpendicular dimension — exactly unchanged, in BOTH projections.
+ */
+test.describe('Rectangle edge-midpoint resize — ADR 0026 (T7)', () => {
+  async function drawFiveByFive(page: import('@playwright/test').Page) {
+    const canvas = new CanvasPOM(page);
+    const rectFromPixel = await canvas.tileToScreen({ x: -2, y: -2 });
+    const rectToPixel = await canvas.tileToScreen({ x: 2, y: 2 });
+    await canvas.switchToRectangleMode();
+    await canvas.dragFromTo(rectFromPixel, rectToPixel);
+    await expect
+      .poll(() => getViewRectangleCount(page), { timeout: 5_000 })
+      .toBe(1);
+    await page.keyboard.press('s');
+    return getFirstRectangle(page);
+  }
+
+  async function dragEdge(
+    page: import('@playwright/test').Page,
+    rectId: string,
+    anchor: 'TOP' | 'RIGHT' | 'BOTTOM' | 'LEFT',
+    startTile: { x: number; y: number },
+    endTile: { x: number; y: number }
+  ) {
+    const canvas = new CanvasPOM(page);
+    await page.evaluate(
+      (args: { id: string; anchor: string }) => {
+        const ui = (window as any).__axoview__.ui;
+        ui.getState().actions.setItemControls({ type: 'RECTANGLE', id: args.id });
+        ui.getState().actions.setMode({
+          type: 'RECTANGLE.TRANSFORM',
+          id: args.id,
+          selectedAnchor: args.anchor,
+          showCursor: true
+        });
+      },
+      { id: rectId, anchor }
+    );
+    const startPixel = await canvas.tileToScreen(startTile);
+    const endPixel = await canvas.tileToScreen(endTile);
+    await canvas.dragFromTo(startPixel, endPixel);
+    return getFirstRectangle(page);
+  }
+
+  for (const projection of ['ISOMETRIC', '2D'] as const) {
+    test(`RIGHT edge drag grows width only (height fixed) — ${projection}`, async ({
+      page,
+      app
+    }) => {
+      void app;
+      const canvas = new CanvasPOM(page);
+      if (projection === '2D') await canvas.toggleCanvasMode();
+
+      const before = await drawFiveByFive(page);
+      expect(before).not.toBeNull();
+      const beforeMinY = Math.min(before!.from.y, before!.to.y);
+      const beforeMaxY = Math.max(before!.from.y, before!.to.y);
+      const beforeMinX = Math.min(before!.from.x, before!.to.x);
+      const beforeMaxX = Math.max(before!.from.x, before!.to.x);
+
+      // Drag the right edge midpoint outward in +x.
+      const after = await dragEdge(page, before!.id, 'RIGHT', { x: 2, y: 0 }, { x: 5, y: 0 });
+      expect(after).not.toBeNull();
+      expect(after!.id).toBe(before!.id);
+
+      const afterMinY = Math.min(after!.from.y, after!.to.y);
+      const afterMaxY = Math.max(after!.from.y, after!.to.y);
+      const afterMinX = Math.min(after!.from.x, after!.to.x);
+      const afterMaxX = Math.max(after!.from.x, after!.to.x);
+
+      // Height (y-range) unchanged — the opposite (left) edge fixed too.
+      expect(afterMinY).toBe(beforeMinY);
+      expect(afterMaxY).toBe(beforeMaxY);
+      expect(afterMinX).toBe(beforeMinX);
+      // Width grew.
+      expect(afterMaxX).toBeGreaterThan(beforeMaxX);
+    });
+  }
+
+  test('TOP edge drag grows height only (width fixed) — ISOMETRIC', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const before = await drawFiveByFive(page);
+    expect(before).not.toBeNull();
+    const beforeMinX = Math.min(before!.from.x, before!.to.x);
+    const beforeMaxX = Math.max(before!.from.x, before!.to.x);
+    const beforeMaxY = Math.max(before!.from.y, before!.to.y);
+
+    // +tileY = screen-up in iso; drag the top edge midpoint upward.
+    const after = await dragEdge(page, before!.id, 'TOP', { x: 0, y: 2 }, { x: 0, y: 5 });
+    expect(after).not.toBeNull();
+
+    const afterMinX = Math.min(after!.from.x, after!.to.x);
+    const afterMaxX = Math.max(after!.from.x, after!.to.x);
+    const afterMaxY = Math.max(after!.from.y, after!.to.y);
+
+    // Width (x-range) unchanged; height grew.
+    expect(afterMinX).toBe(beforeMinX);
+    expect(afterMaxX).toBe(beforeMaxX);
+    expect(afterMaxY).toBeGreaterThan(beforeMaxY);
+  });
+});
