@@ -327,15 +327,23 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
                 suppressOnboardingHints={suppressOnboardingHints}
               />
             </Box>
-            {editorMode !== 'EXPLORABLE_READONLY' && (
-              <LeftDockSlot
-                fileExplorerOpen={fileExplorerOpen}
-                onFileExplorerToggle={onFileExplorerToggle}
-                disableWorkingTabs={disableLeftDockWorkingTabs}
-              />
+            {/* NON_INTERACTIVE is a pure snapshot surface (image export +
+                thumbnails): render only the diagram, never the editor chrome.
+                Without this the docks (left tools, right sidebar, the bottom
+                zoom/Aa/help cluster) get captured into the exported image. */}
+            {editorMode !== 'NON_INTERACTIVE' && (
+              <>
+                {editorMode !== 'EXPLORABLE_READONLY' && (
+                  <LeftDockSlot
+                    fileExplorerOpen={fileExplorerOpen}
+                    onFileExplorerToggle={onFileExplorerToggle}
+                    disableWorkingTabs={disableLeftDockWorkingTabs}
+                  />
+                )}
+                <RightSidebarSlot editorMode={editorMode} />
+                <BottomDockSlot endSlot={bottomDockEnd} />
+              </>
             )}
-            <RightSidebarSlot editorMode={editorMode} />
-            <BottomDockSlot endSlot={bottomDockEnd} />
           </LayerContextProvider>
           </CanvasModeProvider>
         </Box>

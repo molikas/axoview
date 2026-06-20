@@ -83,6 +83,15 @@ jest.mock('src/hooks/useLayerContext', () => ({
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+// The right-tap context menu is a CANVAS affordance: it only arms when the
+// right-press lands on the renderer (usePanHandlers gates on
+// rendererEl.contains(target)). Real DOM nodes give the gate something to test
+// against — `rendererChild` lives inside `rendererNode`, `offCanvasNode` does not.
+const rendererNode = document.createElement('div');
+const rendererChild = document.createElement('div');
+rendererNode.appendChild(rendererChild);
+const offCanvasNode = document.createElement('div'); // a portaled Dialog/toolbar
+
 function makeEvent(
   overrides: Partial<{
     button: number;
@@ -104,7 +113,9 @@ function makeEvent(
     shiftKey: false,
     metaKey: false,
     type: 'mousedown',
-    target: null,
+    // Default to an on-canvas target so the right-tap gate is satisfied; the
+    // off-canvas case passes `target: offCanvasNode` explicitly.
+    target: rendererChild as EventTarget,
     clientX: 100,
     clientY: 100,
     preventDefault: jest.fn(),
@@ -131,7 +142,7 @@ beforeEach(() => {
   } as any;
   mockUiState.mode = { type: 'CURSOR', selection: null };
   mockUiState.selectedIds = [];
-  mockUiState.rendererEl = null;
+  mockUiState.rendererEl = rendererNode;
   mockGetItemAtTile.mockReturnValue(null);
 });
 
@@ -187,6 +198,23 @@ describe('usePanHandlers.handleMouseDown — pan bypass conditions', () => {
     expect(mockSetMode).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'PAN' })
     );
+  });
+
+  test('4b. right-click OFF the renderer (portaled Dialog/toolbar) → not armed; no canvas menu', () => {
+    const { result } = setup();
+    let downReturned = true;
+    act(() => {
+      downReturned = result.current.handleMouseDown(
+        makeEvent({ button: 2, target: offCanvasNode })
+      );
+    });
+    // Not a canvas gesture — the right-down is not consumed/armed, so the
+    // native menu survives and the right-up opens nothing.
+    expect(downReturned).toBe(false);
+    act(() => {
+      result.current.handleMouseUp(makeEvent({ button: 2, target: offCanvasNode }));
+    });
+    expect(mockOpenContextMenu).not.toHaveBeenCalled();
   });
 
   test('5. regular left-click (not in PAN) → returns false; no ctrl/alt/empty-area pans', () => {

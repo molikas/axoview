@@ -46,6 +46,12 @@ interface Props {
   onClose: () => void;
 }
 
+// The browser-compatibility notice is only relevant on Firefox (dom-to-image-more
+// has known foreignObject quirks there). Chrome/Edge — the recommended browsers —
+// never see it, so the dialog stays clean for the common case.
+const IS_FIREFOX =
+  typeof navigator !== 'undefined' && /firefox/i.test(navigator.userAgent);
+
 interface CropArea {
   x: number;
   y: number;
@@ -399,7 +405,9 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- redraw is driven by image/crop state; t only labels the crop hint
   }, [imageData, isInCropMode, cropArea, transparentBackground]);
 
-  const [showGrid, setShowGrid] = useState(false);
+  // Grid on by default — the exported diagram reads better with its isometric
+  // reference grid than on a bare background.
+  const [showGrid, setShowGrid] = useState(true);
   const handleShowGridChange = (checked: boolean) => {
     setShowGrid(checked);
   };
@@ -657,11 +665,13 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
       <DialogTitle>{t('title')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2}>
-          <Alert severity="info">
-            <strong>{t('compatibilityTitle')}</strong>
-            <br />
-            {t('compatibilityMessage')}
-          </Alert>
+          {IS_FIREFOX && (
+            <Alert severity="info">
+              <strong>{t('compatibilityTitle')}</strong>
+              <br />
+              {t('compatibilityMessage')}
+            </Alert>
+          )}
 
           <Box
             sx={{

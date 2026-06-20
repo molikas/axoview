@@ -147,6 +147,19 @@ export const usePanHandlers = () => {
       }
 
       if (e.button === 2) {
+        // The right-DRAG-pan / right-TAP-menu gestures (ADR 0022 §1, ADR 0027)
+        // are CANVAS affordances, but the listener is window-bound (so an
+        // off-canvas drag still flows). Only arm them when the press lands on
+        // the renderer — a right-click on a portaled overlay (the export
+        // Dialog, any MUI Popover/Menu) or the toolbar/panels must keep its
+        // native menu and never open the canvas context menu.
+        const target = e.target as Node | null;
+        const onRenderer =
+          !!rendererEl &&
+          !!target &&
+          (rendererEl === target || rendererEl.contains(target));
+        if (!onRenderer) return false;
+
         e.preventDefault();
         // Don't enter PAN immediately — defer until the drag threshold is
         // exceeded. On release without drag this becomes a context-menu tap
