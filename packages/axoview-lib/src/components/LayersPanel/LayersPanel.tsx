@@ -142,8 +142,14 @@ export const LayersPanel = () => {
   // Anchor for shift-click range selection — id of the last plain-clicked row.
   const anchorIdRef = useRef<string | null>(null);
 
-  // Layers displayed top-to-bottom = highest order first
-  const sortedLayers = [...layers].sort((a, b) => b.order - a.order);
+  // Layers displayed top-to-bottom = highest order first. Memoized so a
+  // selection change (which re-renders the panel via the itemControls/mode
+  // subscriptions) doesn't rebuild the array and invalidate visibleItemsFlat —
+  // keeping the per-selection parent work O(1) rather than O(N) items (T3).
+  const sortedLayers = useMemo(
+    () => [...layers].sort((a, b) => b.order - a.order),
+    [layers]
+  );
 
   const handleAddLayer = useCallback(() => {
     createLayer({ name: `Layer ${layers.length + 1}` });
@@ -317,31 +323,58 @@ export const LayersPanel = () => {
     [mode, itemControls, uiStateActions, buildLassoFromItems]
   );
 
+  // Latest closures the row-click handler needs, captured in a ref so
+  // handleItemClick stays identity-stable across renders. applyCtrlToggleSelect
+  // inherently depends on itemControls/mode (which change on every selection),
+  // so keeping it as a direct useCallback dep would churn the onClick prop for
+  // ALL rows on every selection and defeat LayerItemRow's memo — re-rendering
+  // every row per selection (the T3 lag). Reading the latest closures from the
+  // ref keeps behavior identical while letting the memo hold, so only the rows
+  // whose isSelected actually flips re-render.
+  const itemClickImpl = useRef({
+    tryShiftRangeSelect,
+    applyCtrlToggleSelect,
+    mode,
+    uiStateActions
+  });
+  itemClickImpl.current = {
+    tryShiftRangeSelect,
+    applyCtrlToggleSelect,
+    mode,
+    uiStateActions
+  };
+
   // Panel → canvas: clicking an item row selects it on canvas.
   // Modifier keys promote to a multi-select via LASSO mode (UX §4.1).
   const handleItemClick = useCallback(
     (item: LayerItem, modifiers: { shift: boolean; ctrl: boolean }) => {
+      const {
+        tryShiftRangeSelect: tryShift,
+        applyCtrlToggleSelect: applyCtrl,
+        mode: curMode,
+        uiStateActions: actions
+      } = itemClickImpl.current;
       const ref: ItemReference = { type: item.type, id: item.id };
 
-      if (tryShiftRangeSelect(item, modifiers.shift)) return;
+      if (tryShift(item, modifiers.shift)) return;
 
       if (modifiers.ctrl) {
-        applyCtrlToggleSelect(ref, item);
+        applyCtrl(ref, item);
         return;
       }
 
       // Plain click: drop any LASSO multi-select, single-select on canvas.
-      if (mode.type === 'LASSO') {
-        uiStateActions.setMode({
+      if (curMode.type === 'LASSO') {
+        actions.setMode({
           type: 'CURSOR',
           showCursor: true,
           mousedownItem: null
         });
       }
       anchorIdRef.current = item.id;
-      uiStateActions.setItemControls({ type: item.type, id: item.id });
+      actions.setItemControls({ type: item.type, id: item.id });
     },
-    [tryShiftRangeSelect, applyCtrlToggleSelect, mode, uiStateActions]
+    []
   );
 
   // Drag item to assign to a layer
