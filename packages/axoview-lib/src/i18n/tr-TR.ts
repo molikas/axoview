@@ -165,21 +165,6 @@ const locale: LocaleProps = {
       fixedUndo: 'Geri Al',
       fixedRedo: 'Yinele'
     },
-    pan: {
-      title: 'Kaydırma Ayarları',
-      mousePanOptions: 'Fare Kaydırma Seçenekleri',
-      emptyAreaClickPan: 'Boş alanda tıkla ve sürükle',
-      middleClickPan: 'Orta tık ve sürükle',
-      rightClickPan: 'Sağ tık ve sürükle',
-      ctrlClickPan: 'Ctrl + tık ve sürükle',
-      altClickPan: 'Alt + tık ve sürükle',
-      keyboardPanOptions: 'Klavye Kaydırma Seçenekleri',
-      arrowKeys: 'Ok tuşları',
-      wasdKeys: 'WASD tuşları',
-      ijklKeys: 'IJKL tuşları',
-      keyboardPanSpeed: 'Klavye Kaydırma Hızı',
-      note: 'Not: Kaydırma seçenekleri özel Kaydırma aracına ek olarak çalışır'
-    },
     connector: {
       title: 'Bağlayıcı Ayarları',
       connectionMode: 'Bağlantı Oluşturma Modu',

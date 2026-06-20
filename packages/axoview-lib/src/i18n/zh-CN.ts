@@ -154,21 +154,6 @@ const locale: LocaleProps = {
       fixedUndo: '撤销',
       fixedRedo: '重做'
     },
-    pan: {
-      title: '平移设置',
-      mousePanOptions: '鼠标平移选项',
-      emptyAreaClickPan: '点击并拖拽空白区域',
-      middleClickPan: '中键点击并拖拽',
-      rightClickPan: '右键点击并拖拽',
-      ctrlClickPan: 'Ctrl + 点击并拖拽',
-      altClickPan: 'Alt + 点击并拖拽',
-      keyboardPanOptions: '键盘平移选项',
-      arrowKeys: '方向键',
-      wasdKeys: 'WASD 键',
-      ijklKeys: 'IJKL 键',
-      keyboardPanSpeed: '键盘平移速度',
-      note: '注意：平移选项可与专用的平移工具一起使用'
-    },
     connector: {
       title: '连接器设置',
       connectionMode: '连接创建模式',

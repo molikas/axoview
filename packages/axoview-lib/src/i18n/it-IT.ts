@@ -166,21 +166,6 @@ const locale: LocaleProps = {
       fixedUndo: 'Annulla',
       fixedRedo: 'Ripeti'
     },
-    pan: {
-      title: 'Impostazioni Panoramica',
-      mousePanOptions: 'Opzioni panoramica con mouse',
-      emptyAreaClickPan: "Clicca e trascina su un'area vuota",
-      middleClickPan: 'Clic centrale e trascina',
-      rightClickPan: 'Clic destro e trascina',
-      ctrlClickPan: 'Ctrl + clic e trascina',
-      altClickPan: 'Alt + clic e trascina',
-      keyboardPanOptions: 'Opzioni panoramica con tastiera',
-      arrowKeys: 'Tasti freccia',
-      wasdKeys: 'Tasti WASD',
-      ijklKeys: 'Tasti IJKL',
-      keyboardPanSpeed: 'Velocità panoramica tastiera',
-      note: 'Nota: Le opzioni di panoramica funzionano insieme allo strumento Panoramica dedicato'
-    },
     connector: {
       title: 'Impostazioni Connettore',
       connectionMode: 'Modalità creazione connessione',

@@ -163,21 +163,6 @@ const locale: LocaleProps = {
       fixedUndo: 'পূর্বাবস্থায় ফেরান',
       fixedRedo: 'পুনরায় করুন'
     },
-    pan: {
-      title: 'প্যান সেটিংস',
-      mousePanOptions: 'মাউস প্যান বিকল্প',
-      emptyAreaClickPan: 'খালি এলাকায় ক্লিক করুন এবং টেনে আনুন',
-      middleClickPan: 'মধ্য ক্লিক করুন এবং টেনে আনুন',
-      rightClickPan: 'ডান ক্লিক করুন এবং টেনে আনুন',
-      ctrlClickPan: 'Ctrl + ক্লিক করুন এবং টেনে আনুন',
-      altClickPan: 'Alt + ক্লিক করুন এবং টেনে আনুন',
-      keyboardPanOptions: 'কীবোর্ড প্যান বিকল্প',
-      arrowKeys: 'তীর কী',
-      wasdKeys: 'WASD কী',
-      ijklKeys: 'IJKL কী',
-      keyboardPanSpeed: 'কীবোর্ড প্যান গতি',
-      note: 'নোট: নিবেদিত প্যান টুলের পাশাপাশি প্যান বিকল্পগুলি কাজ করে'
-    },
     connector: {
       title: 'সংযোগকারী সেটিংস',
       connectionMode: 'সংযোগ তৈরির মোড',

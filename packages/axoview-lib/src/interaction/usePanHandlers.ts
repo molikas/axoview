@@ -12,7 +12,6 @@ const RIGHT_DRAG_THRESHOLD = 4;
 export const usePanHandlers = () => {
   const modeType = useUiStateStore((state) => state.mode.type);
   const actions = useUiStateStore((state) => state.actions);
-  const panSettings = useUiStateStore((state) => state.panSettings);
   const rendererEl = useUiStateStore((state) => state.rendererEl);
   const uiStateApi = useUiStateStoreApi();
   const scene = useScene();
@@ -129,43 +128,10 @@ export const usePanHandlers = () => {
     }
   }, [actions, restorePreviousMode, uiStateApi]);
 
-  const isEmptyArea = useCallback(
-    (e: SlimMouseEvent): boolean => {
-      if (!rendererEl || e.target !== rendererEl) return false;
-
-      const itemAtTile = getItemAtTile({
-        tile: uiStateApi.getState().mouse.position.tile,
-        scene
-      });
-
-      return !itemAtTile;
-    },
-    [rendererEl, uiStateApi, scene]
-  );
-
-  // Left-button (no in-pan-mode exit) modifier pans: Ctrl-, Alt-, or empty-area
-  // click. Returns true if a pan started.
-  const tryModifierPan = useCallback(
-    (e: SlimMouseEvent): boolean => {
-      if (panSettings.ctrlClickPan && e.ctrlKey) {
-        e.preventDefault();
-        startPan('ctrl');
-        return true;
-      }
-      if (panSettings.altClickPan && e.altKey) {
-        e.preventDefault();
-        startPan('alt');
-        return true;
-      }
-      if (panSettings.emptyAreaClickPan && isEmptyArea(e)) {
-        startPan('empty');
-        return true;
-      }
-      return false;
-    },
-    [panSettings, startPan, isEmptyArea]
-  );
-
+  // Fixed pan model (ADR 0022 §6): middle-click and right-click drag both pan,
+  // always — no settings. The ctrl/alt/empty-area click-pan options were removed
+  // (they conflicted with Ctrl+click multi-select, Alt+click waypoint removal,
+  // and empty-area lasso/clear).
   const handleMouseDown = useCallback(
     (e: SlimMouseEvent): boolean => {
       // Left-click while in pan mode (keyboard-activated) exits to cursor
@@ -174,7 +140,7 @@ export const usePanHandlers = () => {
         return true;
       }
 
-      if (e.button === 1 && panSettings.middleClickPan) {
+      if (e.button === 1) {
         e.preventDefault();
         startPan('middle');
         return true;
@@ -182,25 +148,19 @@ export const usePanHandlers = () => {
 
       if (e.button === 2) {
         e.preventDefault();
-        if (panSettings.rightClickPan) {
-          // Don't enter PAN immediately — defer until drag threshold is exceeded.
-          // On release without drag this becomes a deselect click.
-          rightDownRef.current = true;
-          rightDownPositionRef.current = { x: e.clientX, y: e.clientY };
-          previousModeTypeRef.current = modeType;
-        }
-        // Always consume right mousedown regardless of setting — prevents right-click
-        // reaching Cursor.mousedown which would trigger the add-node context menu.
+        // Don't enter PAN immediately — defer until the drag threshold is
+        // exceeded. On release without drag this becomes a context-menu tap
+        // (ADR 0027) handled by handleRightButtonUp.
+        rightDownRef.current = true;
+        rightDownPositionRef.current = { x: e.clientX, y: e.clientY };
+        previousModeTypeRef.current = modeType;
+        // Always consume right mousedown — prevents it reaching Cursor.mousedown.
         return true;
-      }
-
-      if (e.button === 0) {
-        return tryModifierPan(e);
       }
 
       return false;
     },
-    [modeType, panSettings, startPan, endPan, tryModifierPan]
+    [modeType, startPan, endPan]
   );
 
   // Called on every mousemove. Returns true to suppress processMouseUpdate while right

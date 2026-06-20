@@ -9,7 +9,6 @@ import {
 } from 'src/utils';
 import { UiStateStore } from 'src/types';
 import { INITIAL_UI_STATE } from 'src/config';
-import { DEFAULT_PAN_SETTINGS } from 'src/config/panSettings';
 import { DEFAULT_ZOOM_SETTINGS } from 'src/config/zoomSettings';
 import { DEFAULT_LABEL_SETTINGS } from 'src/config/labelSettings';
 import { ANNOTATION_COLOR_PRESETS } from 'src/config/annotationSettings';
@@ -60,7 +59,6 @@ const initialState = () => {
       itemControls: null,
       selectedIds: [],
       enableDebugTools: false,
-      panSettings: persisted?.panSettings ?? DEFAULT_PAN_SETTINGS,
       zoomSettings: persisted?.zoomSettings ?? DEFAULT_ZOOM_SETTINGS,
       labelSettings: persisted?.labelSettings ?? DEFAULT_LABEL_SETTINGS,
       connectorInteractionMode: persisted?.connectorInteractionMode ?? 'click',
@@ -256,9 +254,6 @@ const initialState = () => {
         },
         setRendererSize: (size) => {
           set({ rendererSize: size });
-        },
-        setPanSettings: (panSettings) => {
-          set({ panSettings });
         },
         setZoomSettings: (zoomSettings) => {
           set({ zoomSettings });

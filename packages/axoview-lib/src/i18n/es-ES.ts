@@ -167,21 +167,6 @@ const locale: LocaleProps = {
       fixedUndo: 'Deshacer',
       fixedRedo: 'Rehacer'
     },
-    pan: {
-      title: 'Configuración de desplazamiento',
-      mousePanOptions: 'Opciones de desplazamiento con ratón',
-      emptyAreaClickPan: 'Clic y arrastrar en área vacía',
-      middleClickPan: 'Clic central y arrastrar',
-      rightClickPan: 'Clic derecho y arrastrar',
-      ctrlClickPan: 'Ctrl + clic y arrastrar',
-      altClickPan: 'Alt + clic y arrastrar',
-      keyboardPanOptions: 'Opciones de desplazamiento con teclado',
-      arrowKeys: 'Teclas de flechas',
-      wasdKeys: 'Teclas WASD',
-      ijklKeys: 'Teclas IJKL',
-      keyboardPanSpeed: 'Velocidad de desplazamiento con teclado',
-      note: 'Nota: Las opciones de desplazamiento funcionan además de la herramienta de desplazamiento dedicada'
-    },
     connector: {
       title: 'Configuración de conectores',
       connectionMode: 'Modo de creación de conexiones',

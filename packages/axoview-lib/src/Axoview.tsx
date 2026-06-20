@@ -97,7 +97,6 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
     });
     const persistableSettings = useUiStateStore(
       (state) => ({
-        panSettings: state.panSettings,
         zoomSettings: state.zoomSettings,
         labelSettings: state.labelSettings,
         connectorInteractionMode: state.connectorInteractionMode,

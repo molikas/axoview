@@ -9,16 +9,12 @@
  *    context menu (item menu + select if over an interactable item, else the
  *    empty-canvas menu); in a tool mode it aborts the tool (restore + clear).
  *
- * All other pan triggers are unchanged:
+ * Pan is now a FIXED model (ADR 0022 §6 — the panSettings customization surface
+ * was removed). Mouse-down triggers:
  *  1. Left-click while in PAN mode → endPan(), return true
- *  2. Middle-click + middleClickPan=true → startPan('middle'), return true
- *  3. Middle-click + middleClickPan=false → return false
- *  4. Right-click + rightClickPan=true → consume event (return true), NO immediate PAN
- *  5. Right-click + rightClickPan=false → return false
- *  6. Left-click + ctrlKey + ctrlClickPan=true → startPan('ctrl'), return true
- *  7. Left-click + altKey + altClickPan=true → startPan('alt'), return true
- *  8. Left-click + emptyAreaClickPan=true + empty area → startPan('empty'), return true
- *  9. Regular left-click, no modifiers, no pan settings → return false
+ *  2. Middle-click → startPan('middle'), return true (always)
+ *  3. Right-click → consume event (return true), NO immediate PAN (deferred)
+ *  4. Regular left-click (not in PAN) → return false (no ctrl/alt/empty pans)
  */
 
 import { renderHook, act } from '@testing-library/react';
@@ -40,13 +36,6 @@ const mockUiState = {
     setMouse: mockSetMouse,
     setSelectedIds: mockSetSelectedIds,
     openContextMenu: mockOpenContextMenu
-  },
-  panSettings: {
-    middleClickPan: true,
-    rightClickPan: true,
-    ctrlClickPan: true,
-    altClickPan: true,
-    emptyAreaClickPan: false
   },
   rendererEl: null as EventTarget | null,
   mouse: { position: { tile: { x: 5, y: 5 } } }
@@ -139,11 +128,6 @@ beforeEach(() => {
     setSelectedIds: mockSetSelectedIds,
     openContextMenu: mockOpenContextMenu
   } as any;
-  mockUiState.panSettings.middleClickPan = true;
-  mockUiState.panSettings.rightClickPan = true;
-  mockUiState.panSettings.ctrlClickPan = true;
-  mockUiState.panSettings.altClickPan = true;
-  mockUiState.panSettings.emptyAreaClickPan = false;
   mockUiState.rendererEl = null;
   mockGetItemAtTile.mockReturnValue(null);
 });
@@ -189,18 +173,7 @@ describe('usePanHandlers.handleMouseDown — pan bypass conditions', () => {
     );
   });
 
-  test('3. middle-click + middleClickPan=false → returns false', () => {
-    mockUiState.panSettings.middleClickPan = false;
-    const { result } = setup();
-    let returned: boolean = false;
-    act(() => {
-      returned = result.current.handleMouseDown(makeEvent({ button: 1 }));
-    });
-    expect(returned).toBe(false);
-    expect(mockSetMode).not.toHaveBeenCalled();
-  });
-
-  test('4. right-click + rightClickPan=true → consumes event (returns true) but does NOT immediately enter PAN', () => {
+  test('4. right-click → consumes event (returns true) but does NOT immediately enter PAN', () => {
     const { result } = setup();
     let returned: boolean = false;
     act(() => {
@@ -213,75 +186,19 @@ describe('usePanHandlers.handleMouseDown — pan bypass conditions', () => {
     );
   });
 
-  test('5. right-click + rightClickPan=false → still consumed (returns true) but no PAN or deselect state set', () => {
-    mockUiState.panSettings.rightClickPan = false;
+  test('5. regular left-click (not in PAN) → returns false; no ctrl/alt/empty-area pans', () => {
     const { result } = setup();
-    let returned: boolean = false;
-    act(() => {
-      returned = result.current.handleMouseDown(makeEvent({ button: 2 }));
-    });
-    // Always consumed — prevents Cursor.mousedown/mouseup from firing the context menu
-    expect(returned).toBe(true);
-    // No PAN mode entered and no deferred pan state set
-    expect(mockSetMode).not.toHaveBeenCalled();
-  });
-
-  test('6. left-click + ctrlKey + ctrlClickPan=true → startPan and returns true', () => {
-    const { result } = setup();
-    let returned: boolean = false;
-    act(() => {
-      returned = result.current.handleMouseDown(
-        makeEvent({ button: 0, ctrlKey: true })
-      );
-    });
-    expect(returned).toBe(true);
-    expect(mockSetMode).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'PAN' })
-    );
-  });
-
-  test('7. left-click + altKey + altClickPan=true → startPan and returns true', () => {
-    const { result } = setup();
-    let returned: boolean = false;
-    act(() => {
-      returned = result.current.handleMouseDown(
-        makeEvent({ button: 0, altKey: true })
-      );
-    });
-    expect(returned).toBe(true);
-    expect(mockSetMode).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'PAN' })
-    );
-  });
-
-  test('8. left-click + emptyAreaClickPan=true + rendererEl matches target + no item → startPan', () => {
-    const fakeEl = {} as EventTarget;
-    mockUiState.rendererEl = fakeEl;
-    mockUiState.panSettings.emptyAreaClickPan = true;
-    mockGetItemAtTile.mockReturnValue(null);
-    const { result } = setup();
-    let returned: boolean = false;
-    act(() => {
-      returned = result.current.handleMouseDown(
-        makeEvent({ button: 0, target: fakeEl })
-      );
-    });
-    expect(returned).toBe(true);
-    expect(mockSetMode).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'PAN' })
-    );
-  });
-
-  test('9. regular left-click, no modifiers, all pan settings default off → returns false', () => {
-    mockUiState.panSettings.ctrlClickPan = false;
-    mockUiState.panSettings.altClickPan = false;
-    mockUiState.panSettings.emptyAreaClickPan = false;
-    const { result } = setup();
-    let returned: boolean = false;
+    let returned = false;
     act(() => {
       returned = result.current.handleMouseDown(makeEvent({ button: 0 }));
     });
     expect(returned).toBe(false);
+    expect(mockSetMode).not.toHaveBeenCalled();
+    // Modifier-held left-clicks no longer pan either (the surface was removed).
+    act(() => {
+      result.current.handleMouseDown(makeEvent({ button: 0, ctrlKey: true }));
+      result.current.handleMouseDown(makeEvent({ button: 0, altKey: true }));
+    });
     expect(mockSetMode).not.toHaveBeenCalled();
   });
 });

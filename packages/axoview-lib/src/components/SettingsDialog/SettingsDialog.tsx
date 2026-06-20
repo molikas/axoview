@@ -16,7 +16,6 @@ import {
 import { Close as CloseIcon } from '@mui/icons-material';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { HotkeySettings } from '../HotkeySettings/HotkeySettings';
-import { PanSettings } from '../PanSettings/PanSettings';
 import { ZoomSettings } from '../ZoomSettings/ZoomSettings';
 import { LabelSettings } from '../LabelSettings/LabelSettings';
 import { ConnectorSettings } from '../ConnectorSettings/ConnectorSettings';
@@ -78,7 +77,6 @@ export const SettingsDialog = ({
       label: 'Canvas',
       content: (
         <>
-          <PanSettings />
           <Section title="Zoom">
             <ZoomSettings />
           </Section>

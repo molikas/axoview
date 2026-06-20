@@ -168,21 +168,6 @@ const locale: LocaleProps = {
       fixedUndo: 'Rückgängig',
       fixedRedo: 'Wiederholen'
     },
-    pan: {
-      title: 'Verschiebe-Einstellungen',
-      mousePanOptions: 'Maus-Verschiebe-Optionen',
-      emptyAreaClickPan: 'Auf leeren Bereich klicken und ziehen',
-      middleClickPan: 'Mittlere Maustaste und ziehen',
-      rightClickPan: 'Rechtsklick und ziehen',
-      ctrlClickPan: 'Strg + Klick und ziehen',
-      altClickPan: 'Alt + Klick und ziehen',
-      keyboardPanOptions: 'Tastatur-Verschiebe-Optionen',
-      arrowKeys: 'Pfeiltasten',
-      wasdKeys: 'WASD-Tasten',
-      ijklKeys: 'IJKL-Tasten',
-      keyboardPanSpeed: 'Tastatur-Verschiebegeschwindigkeit',
-      note: 'Hinweis: Verschiebe-Optionen funktionieren zusätzlich zum dedizierten Verschiebewerkzeug'
-    },
     connector: {
       title: 'Verbindungs-Einstellungen',
       connectionMode: 'Verbindungserstellungsmodus',

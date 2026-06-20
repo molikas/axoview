@@ -169,21 +169,6 @@ const locale: LocaleProps = {
       fixedUndo: 'Annuler',
       fixedRedo: 'Refaire'
     },
-    pan: {
-      title: 'Paramètres de déplacement',
-      mousePanOptions: 'Options de déplacement à la souris',
-      emptyAreaClickPan: 'Cliquer et glisser sur une zone vide',
-      middleClickPan: 'Clic du milieu et glisser',
-      rightClickPan: 'Clic droit et glisser',
-      ctrlClickPan: 'Ctrl + clic et glisser',
-      altClickPan: 'Alt + clic et glisser',
-      keyboardPanOptions: 'Options de déplacement au clavier',
-      arrowKeys: 'Touches fléchées',
-      wasdKeys: 'Touches WASD',
-      ijklKeys: 'Touches IJKL',
-      keyboardPanSpeed: 'Vitesse de déplacement au clavier',
-      note: "Remarque : Les options de déplacement fonctionnent en plus de l'outil de déplacement dédié"
-    },
     connector: {
       title: 'Paramètres des connecteurs',
       connectionMode: 'Mode de création de connexion',

@@ -7,7 +7,6 @@
  */
 
 import { TOOL_HOTKEYS } from 'src/config/hotkeys';
-import { DEFAULT_PAN_SETTINGS } from 'src/config/panSettings';
 import { DEFAULT_ZOOM_SETTINGS } from 'src/config/zoomSettings';
 
 // ---------------------------------------------------------------------------
@@ -31,42 +30,9 @@ describe('Tool hotkeys (fixed scheme)', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Pan settings defaults
-// ---------------------------------------------------------------------------
-describe('Pan settings defaults', () => {
-  it('middleClickPan is true by default', () => {
-    expect(DEFAULT_PAN_SETTINGS.middleClickPan).toBe(true);
-  });
-
-  it('rightClickPan is true by default', () => {
-    expect(DEFAULT_PAN_SETTINGS.rightClickPan).toBe(true);
-  });
-
-  it('ctrlClickPan is false by default', () => {
-    expect(DEFAULT_PAN_SETTINGS.ctrlClickPan).toBe(false);
-  });
-
-  it('altClickPan is false by default', () => {
-    expect(DEFAULT_PAN_SETTINGS.altClickPan).toBe(false);
-  });
-
-  it('emptyAreaClickPan is false by default', () => {
-    expect(DEFAULT_PAN_SETTINGS.emptyAreaClickPan).toBe(false);
-  });
-
-  it('arrowKeysPan is true by default', () => {
-    expect(DEFAULT_PAN_SETTINGS.arrowKeysPan).toBe(true);
-  });
-
-  it('wasdPan is false by default', () => {
-    expect(DEFAULT_PAN_SETTINGS.wasdPan).toBe(false);
-  });
-
-  it('keyboardPanSpeed is 20 by default', () => {
-    expect(DEFAULT_PAN_SETTINGS.keyboardPanSpeed).toBe(20);
-  });
-});
+// Pan customization was removed (ADR 0022 §6): pan is a fixed model
+// (middle/right-drag + arrow keys, always on), so there are no DEFAULT_PAN_SETTINGS
+// to guard anymore.
 
 // ---------------------------------------------------------------------------
 // Zoom settings defaults

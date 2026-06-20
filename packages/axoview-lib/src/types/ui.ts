@@ -1,11 +1,7 @@
 import { Coords, Size, EditorModeEnum } from './common';
 import { Icon } from './model';
 import { ItemReference } from './scene';
-import {
-  PanSettings,
-  ZoomSettings,
-  LabelSettings
-} from './settings';
+import { ZoomSettings, LabelSettings } from './settings';
 import { IconPackManagerProps, IconUsageScan } from './axoviewProps';
 
 interface AddItemControls {
@@ -231,7 +227,6 @@ export interface UiState {
   rendererEl: HTMLDivElement | null;
   rendererSize: Size;
   enableDebugTools: boolean;
-  panSettings: PanSettings;
   zoomSettings: ZoomSettings;
   labelSettings: LabelSettings;
   connectorInteractionMode: ConnectorInteractionMode;
@@ -380,7 +375,6 @@ export interface UiStateActions {
   setRendererEl: (el: HTMLDivElement) => void;
   setRendererSize: (size: Size) => void;
   setEnableDebugTools: (enabled: boolean) => void;
-  setPanSettings: (settings: PanSettings) => void;
   setZoomSettings: (settings: ZoomSettings) => void;
   setLabelSettings: (settings: LabelSettings) => void;
   setConnectorInteractionMode: (mode: ConnectorInteractionMode) => void;

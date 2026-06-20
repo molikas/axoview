@@ -166,21 +166,6 @@ const locale: LocaleProps = {
       fixedUndo: 'पूर्ववत करें',
       fixedRedo: 'फिर से करें'
     },
-    pan: {
-      title: 'पैन सेटिंग्स',
-      mousePanOptions: 'माउस पैन विकल्प',
-      emptyAreaClickPan: 'खाली क्षेत्र पर क्लिक करें और ड्रैग करें',
-      middleClickPan: 'मध्य क्लिक करें और ड्रैग करें',
-      rightClickPan: 'राइट क्लिक करें और ड्रैग करें',
-      ctrlClickPan: 'Ctrl + क्लिक करें और ड्रैग करें',
-      altClickPan: 'Alt + क्लिक करें और ड्रैग करें',
-      keyboardPanOptions: 'कीबोर्ड पैन विकल्प',
-      arrowKeys: 'एरो कुंजी',
-      wasdKeys: 'WASD कुंजी',
-      ijklKeys: 'IJKL कुंजी',
-      keyboardPanSpeed: 'कीबोर्ड पैन गति',
-      note: 'नोट: समर्पित पैन उपकरण के अलावा पैन विकल्प काम करते हैं'
-    },
     connector: {
       title: 'कनेक्टर सेटिंग्स',
       connectionMode: 'कनेक्शन निर्माण मोड',

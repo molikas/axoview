@@ -169,21 +169,6 @@ const locale: LocaleProps = {
       fixedUndo: 'Cofnij',
       fixedRedo: 'Ponów'
     },
-    pan: {
-      title: 'Ustawienia przesuwania',
-      mousePanOptions: 'Opcje przesuwania myszą',
-      emptyAreaClickPan: 'Kliknij i przesuń obszar',
-      middleClickPan: 'Kliknij środkowym przyciskiem myszy i przeciągnij',
-      rightClickPan: 'Kliknij prawym przyciskiem myszy i przeciągnij',
-      ctrlClickPan: 'Ctrl + kliknij i przeciągnij',
-      altClickPan: 'Alt + kliknij i przeciągnij',
-      keyboardPanOptions: 'Opcje przesuwania klawiaturą',
-      arrowKeys: 'Klawisze strzałek',
-      wasdKeys: 'Klawisze WASD',
-      ijklKeys: 'Klawisze IJKL',
-      keyboardPanSpeed: 'Szybkość przesuwu klawiatury',
-      note: 'Uwaga: Opcje przesuwania działają dodatkowo w stosunku do dedykowanego narzędzia przesuwania.'
-    },
     connector: {
       title: 'Ustawienia połączeń',
       connectionMode: 'Tryb tworzenia połączenia',

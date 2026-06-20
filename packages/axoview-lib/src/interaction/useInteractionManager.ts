@@ -517,61 +517,25 @@ const handleZOrderShortcut = (
   }
 };
 
-// Keyboard-pan unit vectors. Arrow keys match on the raw e.key; wasd / ijkl on
-// the lowercased key. Each group is independently gated by panSettings.
+// Keyboard pan — arrow keys only, at a fixed speed (ADR 0022 §6: the wasd/ijkl
+// schemes + the speed slider were removed with the pan-customization surface).
+const KEYBOARD_PAN_SPEED = 20;
 const ARROW_PAN_VECTORS: Record<string, { x: number; y: number }> = {
   ArrowUp: { x: 0, y: 1 },
   ArrowDown: { x: 0, y: -1 },
   ArrowLeft: { x: 1, y: 0 },
   ArrowRight: { x: -1, y: 0 }
 };
-const WASD_PAN_VECTORS: Record<string, { x: number; y: number }> = {
-  w: { x: 0, y: 1 },
-  s: { x: 0, y: -1 },
-  a: { x: 1, y: 0 },
-  d: { x: -1, y: 0 }
-};
-const IJKL_PAN_VECTORS: Record<string, { x: number; y: number }> = {
-  i: { x: 0, y: 1 },
-  k: { x: 0, y: -1 },
-  j: { x: 1, y: 0 },
-  l: { x: -1, y: 0 }
-};
 
-// Resolve a keystroke to a pan delta (in scroll units) given the enabled pan
-// schemes. Last enabled match wins — mirrors the original sequential overwrite
-// of panDx/panDy across the three setting blocks (the schemes use disjoint keys
-// in practice, so order is immaterial).
-const resolvePanDelta = (
-  e: KeyboardEvent,
-  key: string,
-  panSettings: State['uiState']['panSettings']
-): { x: number; y: number } | null => {
-  const speed = panSettings.keyboardPanSpeed;
-  let unit: { x: number; y: number } | undefined;
-  if (panSettings.arrowKeysPan && ARROW_PAN_VECTORS[e.key]) {
-    unit = ARROW_PAN_VECTORS[e.key];
-  }
-  if (panSettings.wasdPan && WASD_PAN_VECTORS[key]) {
-    unit = WASD_PAN_VECTORS[key];
-  }
-  if (panSettings.ijklPan && IJKL_PAN_VECTORS[key]) {
-    unit = IJKL_PAN_VECTORS[key];
-  }
-  if (!unit) return null;
-  return { x: unit.x * speed, y: unit.y * speed };
-};
-
-// Keyboard pan (arrow / wasd / ijkl) — consolidated here from usePanHandlers.
 const handleKeyboardPan = (e: KeyboardEvent, uiState: State['uiState']) => {
-  const delta = resolvePanDelta(e, e.key.toLowerCase(), uiState.panSettings);
-  if (!delta) return;
+  const unit = ARROW_PAN_VECTORS[e.key];
+  if (!unit) return;
   e.preventDefault();
   const currentScroll = uiState.scroll;
   uiState.actions.setScroll({
     position: CoordsUtils.add(currentScroll.position, {
-      x: delta.x,
-      y: delta.y
+      x: unit.x * KEYBOARD_PAN_SPEED,
+      y: unit.y * KEYBOARD_PAN_SPEED
     }),
     offset: currentScroll.offset
   });

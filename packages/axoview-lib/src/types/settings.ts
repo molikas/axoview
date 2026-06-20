@@ -1,5 +1,5 @@
 // Settings type definitions — kept here so all types are centrally located in /types/.
-// Default values live in /config/hotkeys.ts, /config/panSettings.ts, etc.
+// Default values live in /config/hotkeys.ts, /config/zoomSettings.ts, etc.
 
 export interface HotkeyMapping {
   select: string | null;
@@ -10,18 +10,6 @@ export interface HotkeyMapping {
   text: string | null;
   lasso: string | null;
   freehandLasso: string | null;
-}
-
-export interface PanSettings {
-  middleClickPan: boolean;
-  rightClickPan: boolean;
-  ctrlClickPan: boolean;
-  altClickPan: boolean;
-  emptyAreaClickPan: boolean;
-  arrowKeysPan: boolean;
-  wasdPan: boolean;
-  ijklPan: boolean;
-  keyboardPanSpeed: number;
 }
 
 export interface ZoomSettings {

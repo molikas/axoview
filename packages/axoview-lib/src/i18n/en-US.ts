@@ -165,21 +165,6 @@ const locale: LocaleProps = {
       fixedUndo: 'Undo',
       fixedRedo: 'Redo'
     },
-    pan: {
-      title: 'Pan Settings',
-      mousePanOptions: 'Mouse Pan Options',
-      emptyAreaClickPan: 'Click and drag on empty area',
-      middleClickPan: 'Middle click and drag',
-      rightClickPan: 'Right click and drag',
-      ctrlClickPan: 'Ctrl + click and drag',
-      altClickPan: 'Alt + click and drag',
-      keyboardPanOptions: 'Keyboard Pan Options',
-      arrowKeys: 'Arrow keys',
-      wasdKeys: 'WASD keys',
-      ijklKeys: 'IJKL keys',
-      keyboardPanSpeed: 'Keyboard Pan Speed',
-      note: 'Note: Pan options work in addition to the dedicated Pan tool'
-    },
     connector: {
       title: 'Connector Settings',
       connectionMode: 'Connection Creation Mode',

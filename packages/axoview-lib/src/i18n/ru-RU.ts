@@ -165,21 +165,6 @@ const locale: LocaleProps = {
       fixedUndo: 'Отменить',
       fixedRedo: 'Повторить'
     },
-    pan: {
-      title: 'Настройки перемещения',
-      mousePanOptions: 'Параметры перемещения мышью',
-      emptyAreaClickPan: 'Нажать и перетащить на пустой области',
-      middleClickPan: 'Средняя кнопка и перетаскивание',
-      rightClickPan: 'Правая кнопка и перетаскивание',
-      ctrlClickPan: 'Ctrl + нажатие и перетаскивание',
-      altClickPan: 'Alt + нажатие и перетаскивание',
-      keyboardPanOptions: 'Параметры перемещения клавиатурой',
-      arrowKeys: 'Клавиши стрелок',
-      wasdKeys: 'Клавиши WASD',
-      ijklKeys: 'Клавиши IJKL',
-      keyboardPanSpeed: 'Скорость перемещения клавиатурой',
-      note: 'Примечание: Параметры перемещения работают в дополнение к специальному инструменту перемещения'
-    },
     connector: {
       title: 'Настройки соединителя',
       connectionMode: 'Режим создания соединения',

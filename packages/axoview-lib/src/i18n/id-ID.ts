@@ -164,21 +164,6 @@ const locale: LocaleProps = {
       fixedUndo: 'Batalkan',
       fixedRedo: 'Ulangi'
     },
-    pan: {
-      title: 'Pengaturan Geser',
-      mousePanOptions: 'Opsi Geser Mouse',
-      emptyAreaClickPan: 'Klik dan seret pada area kosong',
-      middleClickPan: 'Klik tengah dan seret',
-      rightClickPan: 'Klik kanan dan seret',
-      ctrlClickPan: 'Ctrl + klik dan seret',
-      altClickPan: 'Alt + klik dan seret',
-      keyboardPanOptions: 'Opsi Geser Keyboard',
-      arrowKeys: 'Tombol panah',
-      wasdKeys: 'Tombol WASD',
-      ijklKeys: 'Tombol IJKL',
-      keyboardPanSpeed: 'Kecepatan Geser Keyboard',
-      note: 'Catatan: Opsi geser berfungsi selain alat Geser khusus'
-    },
     connector: {
       title: 'Pengaturan Konektor',
       connectionMode: 'Mode Pembuatan Koneksi',

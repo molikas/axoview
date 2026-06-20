@@ -158,21 +158,6 @@ export interface LocaleProps {
       fixedUndo: string;
       fixedRedo: string;
     };
-    pan: {
-      title: string;
-      mousePanOptions: string;
-      emptyAreaClickPan: string;
-      middleClickPan: string;
-      rightClickPan: string;
-      ctrlClickPan: string;
-      altClickPan: string;
-      keyboardPanOptions: string;
-      arrowKeys: string;
-      wasdKeys: string;
-      ijklKeys: string;
-      keyboardPanSpeed: string;
-      note: string;
-    };
     connector: {
       title: string;
       connectionMode: string;
