@@ -70,16 +70,6 @@ export const HelpDialog = () => {
       description: t('zoomOutDescription')
     },
     {
-      action: t('panCanvasAction'),
-      shortcut: t('panCanvasShortcut'),
-      description: t('panCanvasDescription')
-    },
-    {
-      action: t('togglePanToolAction'),
-      shortcut: t('togglePanToolShortcut'),
-      description: t('togglePanToolDescription')
-    },
-    {
       action: t('lassoSelectAction'),
       shortcut: t('lassoSelectShortcut'),
       description: t('lassoSelectDescription')
@@ -122,48 +112,51 @@ export const HelpDialog = () => {
     }
   ];
 
+  // The one opinionated pointer model (ADR 0022). Hardcoded English, matching
+  // the pre-existing hardcoded rows in this dialog — the per-tool i18n keys
+  // described the removed customizable model. Tool-activation keys (R/C/T/…)
+  // live in the Hotkeys settings tab.
   const mouseInteractions = [
     {
-      action: t('selectToolAction'),
-      shortcut: t('selectToolShortcut'),
-      description: t('selectToolDescription')
-    },
-    {
-      action: t('panToolAction'),
-      shortcut: t('panToolShortcut'),
-      description: t('panToolDescription')
-    },
-    {
-      action: t('addItemAction'),
-      shortcut: t('addItemShortcut'),
-      description: t('addItemDescription')
-    },
-    {
-      action: t('drawRectangleAction'),
-      shortcut: t('drawRectangleShortcut'),
-      description: t('drawRectangleDescription')
-    },
-    {
-      action: t('createConnectorAction'),
-      shortcut: t('createConnectorShortcut'),
-      description: t('createConnectorDescription')
-    },
-    {
-      action: t('addTextAction'),
-      shortcut: t('addTextShortcut'),
-      description: t('addTextDescription')
-    },
-    {
-      action: 'Remove Waypoint',
-      shortcut: 'Alt + Left-click',
+      action: 'Select',
+      shortcut: 'Left-click',
       description:
-        'Alt+click a connector waypoint (with the connector selected) to splice it out; endpoint anchors are preserved'
+        'Click an item to select it (highlights it and shows the floating action bar). Click empty canvas to clear the selection.'
     },
     {
-      action: 'Toggle Selection',
+      action: 'Open details',
+      shortcut: 'Double-click',
+      description:
+        'Double-click an item to open its details panel — the same as the “Details…” context-menu entry.'
+    },
+    {
+      action: 'Toggle selection',
       shortcut: 'Ctrl/Cmd + Left-click',
       description:
-        'Add or remove an item or connector from the persistent multi-selection; clicking a connector toggles it together with its waypoints'
+        'Add or remove an item from the multi-selection; a connector toggles together with its waypoints.'
+    },
+    {
+      action: 'Pan',
+      shortcut: 'Right-click + drag',
+      description:
+        'Hold the right button and drag to pan the canvas. Middle-click drag pans too; arrow keys nudge it.'
+    },
+    {
+      action: 'Context menu',
+      shortcut: 'Right-click (tap)',
+      description:
+        'A right-click without dragging opens the context menu — the item menu over an item, or the canvas menu over empty space. On touch, long-press.'
+    },
+    {
+      action: 'Remove waypoint',
+      shortcut: 'Alt + Left-click',
+      description:
+        'Alt+click a connector waypoint to splice it out (no need to select the connector first); endpoint anchors are preserved.'
+    },
+    {
+      action: 'Zoom',
+      shortcut: 'Scroll wheel',
+      description: 'Scroll to zoom toward the cursor.'
     }
   ];
 
