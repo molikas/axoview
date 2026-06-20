@@ -4,6 +4,7 @@ import { useModelStoreApi } from 'src/stores/modelStore';
 import { useScene } from 'src/hooks/useScene';
 import { Connector, Coords, Rectangle, TextBox, UiState } from 'src/types';
 import { generateId } from 'src/utils';
+import { resolvePlacement } from 'src/utils/resolvePlacement';
 import { findNearestUnoccupiedTilesForGroup } from 'src/utils/findNearestUnoccupiedTile';
 import { ClipboardItem, ClipboardPayload } from './clipboard';
 import { useClipboard } from './ClipboardContext';
@@ -255,19 +256,24 @@ export const useCopyPaste = () => {
 
     const uiState = uiStateApi.getState();
     const mouseTile = uiState.mouse.position.tile;
+    const globalSnap = uiState.snapToGrid ?? true;
 
     const offset = {
       x: mouseTile.x - clipboardData.centroid.x,
       y: mouseTile.y - clipboardData.centroid.y
     };
 
-    // Target tiles for items (before collision avoidance)
+    // Target tiles for items (before collision avoidance). Carry each item's
+    // own snap/collides so non-colliding pasted items (ADR 0023) don't force the
+    // block to shift around them.
     const targetItems = clipboardData.items.map((ci) => ({
       id: ci.viewItem.id,
       targetTile: {
         x: ci.viewItem.tile.x + offset.x,
         y: ci.viewItem.tile.y + offset.y
-      }
+      },
+      snap: ci.viewItem.snap,
+      collides: ci.viewItem.collides
     }));
 
     // Collision avoidance
@@ -286,12 +292,26 @@ export const useCopyPaste = () => {
     clipboardData.rectangles.forEach((r) => idMap.set(r.id, generateId()));
     clipboardData.textBoxes.forEach((tb) => idMap.set(tb.id, generateId()));
 
-    // Build remapped items
+    // Build remapped items. Route each through the one placement chokepoint:
+    // the `...ci.viewItem` spread preserves a copied item's own snap/collides/
+    // offset, and resolvePlacement clears a stale offset when the item snaps so
+    // off-grid-ness survives a copy without leaking onto snapped items.
     const newItems: ClipboardItem[] = clipboardData.items.map((ci, i) => {
       const newId = idMap.get(ci.viewItem.id)!;
+      const placement = resolvePlacement(
+        finalTiles[i],
+        ci.viewItem.offset,
+        ci.viewItem.snap,
+        globalSnap
+      );
       return {
         modelItem: { ...ci.modelItem, id: newId },
-        viewItem: { ...ci.viewItem, id: newId, tile: finalTiles[i] }
+        viewItem: {
+          ...ci.viewItem,
+          id: newId,
+          tile: placement.tile,
+          offset: placement.offset
+        }
       };
     });
 

@@ -136,7 +136,10 @@ export const useSceneActions = () => {
   // -------------------------------------------------------------------------
 
   const batchUpdateViewItemTiles = useCallback(
-    (updates: { id: string; tile: Coords }[]) => {
+    // `offset` (ADR 0023) rides the same drag commit: present (incl. cleared to
+    // undefined when re-snapping) on every touched item so the off-grid residual
+    // and the integer tile stay in lockstep.
+    (updates: { id: string; tile: Coords; offset?: Coords }[]) => {
       if (!currentViewId || updates.length === 0) return;
 
       const state = getState();
@@ -146,14 +149,13 @@ export const useSceneActions = () => {
       if (viewIndex === -1) return;
       const view = state.model.views[viewIndex];
 
-      const updateMap = new Map(updates.map((u) => [u.id, u.tile]));
+      const updateMap = new Map(updates.map((u) => [u.id, u]));
 
       // Structural copy of items array — only touched items get new refs.
-      const newItems = (view.items ?? []).map((item) =>
-        updateMap.has(item.id)
-          ? { ...item, tile: updateMap.get(item.id)! }
-          : item
-      );
+      const newItems = (view.items ?? []).map((item) => {
+        const u = updateMap.get(item.id);
+        return u ? { ...item, tile: u.tile, offset: u.offset } : item;
+      });
 
       const newView: View = { ...view, items: newItems };
       const newViews = state.model.views.slice();
@@ -215,7 +217,7 @@ export const useSceneActions = () => {
   // -------------------------------------------------------------------------
 
   const batchUpdateRectangles = useCallback(
-    (updates: { id: string; from: Coords; to: Coords }[]) => {
+    (updates: { id: string; from: Coords; to: Coords; offset?: Coords }[]) => {
       if (!currentViewId || updates.length === 0) return;
 
       const state = getState();
@@ -227,11 +229,10 @@ export const useSceneActions = () => {
       if (!view.rectangles || view.rectangles.length === 0) return;
 
       const updateMap = new Map(updates.map((u) => [u.id, u]));
-      const newRectangles = view.rectangles.map((r) =>
-        updateMap.has(r.id)
-          ? { ...r, from: updateMap.get(r.id)!.from, to: updateMap.get(r.id)!.to }
-          : r
-      );
+      const newRectangles = view.rectangles.map((r) => {
+        const u = updateMap.get(r.id);
+        return u ? { ...r, from: u.from, to: u.to, offset: u.offset } : r;
+      });
 
       const newView: View = { ...view, rectangles: newRectangles };
       const newViews = state.model.views.slice();
@@ -247,7 +248,7 @@ export const useSceneActions = () => {
   );
 
   const batchUpdateTextBoxTiles = useCallback(
-    (updates: { id: string; tile: Coords }[]) => {
+    (updates: { id: string; tile: Coords; offset?: Coords }[]) => {
       if (!currentViewId || updates.length === 0) return;
 
       const state = getState();
@@ -258,10 +259,11 @@ export const useSceneActions = () => {
       const view = state.model.views[viewIndex];
       if (!view.textBoxes || view.textBoxes.length === 0) return;
 
-      const updateMap = new Map(updates.map((u) => [u.id, u.tile]));
-      const newTextBoxes = view.textBoxes.map((t) =>
-        updateMap.has(t.id) ? { ...t, tile: updateMap.get(t.id)! } : t
-      );
+      const updateMap = new Map(updates.map((u) => [u.id, u]));
+      const newTextBoxes = view.textBoxes.map((t) => {
+        const u = updateMap.get(t.id);
+        return u ? { ...t, tile: u.tile, offset: u.offset } : t;
+      });
 
       const newView: View = { ...view, textBoxes: newTextBoxes };
       const newViews = state.model.views.slice();

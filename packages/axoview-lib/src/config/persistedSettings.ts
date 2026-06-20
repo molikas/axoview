@@ -16,6 +16,7 @@ export interface PersistedSettings {
   expandLabels?: boolean;
   readableLabels?: boolean;
   canvasMode?: CanvasMode;
+  snapToGrid?: boolean;
 }
 
 export const loadPersistedSettings = (): PersistedSettings | null => {

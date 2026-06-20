@@ -283,6 +283,13 @@ export interface UiState {
   isDirty: boolean;
   canvasMode: CanvasMode;
   /**
+   * Global snap-to-grid toggle (ADR 0023, #12). Default true; persisted,
+   * mirroring `canvasMode`. The default for new placements/drags — when false
+   * they commit a px offset instead of rounding to the integer tile. Per-item
+   * `snap` (on the view item) overrides this for individual items (#20).
+   */
+  snapToGrid: boolean;
+  /**
    * Preview-mode (EXPLORABLE_READONLY) layer visibility override (ADR 0013).
    * A UI-only override that never mutates the model's `layer.visible` and is
    * never persisted/saved — presenting a diagram can't dirty it. Cleared when
@@ -456,6 +463,10 @@ export interface UiStateActions {
   closeContextMenu: () => void;
   setIsDirty: (isDirty: boolean) => void;
   setCanvasMode: (mode: CanvasMode) => void;
+  /** Set the global snap-to-grid flag (persisted, mirrors setCanvasMode). */
+  setSnapToGrid: (snap: boolean) => void;
+  /** Flip the global snap-to-grid flag (canvas context-menu entry, #12). */
+  toggleSnapToGrid: () => void;
 }
 
 export type UiStateStore = UiState & {

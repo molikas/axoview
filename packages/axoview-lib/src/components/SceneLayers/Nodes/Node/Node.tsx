@@ -52,13 +52,14 @@ const NodeShell = styled('div')({ position: 'absolute' });
 
 const NodeTransform = styled('div')({
   position: 'absolute',
-  // --ff-x/--ff-y written by React from the model tile; --ff-drag-dx/dy mutated
-  // by DragItems via DOM during a drag. One translate3d → compositor-only
-  // updates (no layout, no per-frame React). (The tap-to-place carry affordance
-  // was superseded by direct manipulation — ADR 0018 Revision B — so there is no
-  // --ff-carry-scale here.)
+  // --ff-x/--ff-y written by React from the model tile; --ff-off-x/y the ADR 0023
+  // off-grid render offset (post-projection px, 0 when snapped); --ff-drag-dx/dy
+  // mutated by DragItems via DOM during a drag. All three are summed in one
+  // translate3d so they compose (compositor-only updates, no per-frame React)
+  // and the offset never fights the live drag delta. (The tap-to-place carry
+  // affordance was superseded by direct manipulation — ADR 0018 Revision B.)
   transform:
-    'translate3d(calc(var(--ff-x, 0px) + var(--ff-drag-dx, 0px)), calc(var(--ff-y, 0px) + var(--ff-drag-dy, 0px)), 0)',
+    'translate3d(calc(var(--ff-x, 0px) + var(--ff-off-x, 0px) + var(--ff-drag-dx, 0px)), calc(var(--ff-y, 0px) + var(--ff-off-y, 0px) + var(--ff-drag-dy, 0px)), 0)',
   willChange: 'transform'
 });
 
@@ -134,7 +135,11 @@ export const Node = memo(({ node, order }: Props) => {
         style={
           {
             '--ff-x': `${position.x}px`,
-            '--ff-y': `${position.y}px`
+            '--ff-y': `${position.y}px`,
+            // ADR 0023: off-grid residual as a post-projection translate; 0 when
+            // snapped. Composes with --ff-x/y and the live drag delta above.
+            '--ff-off-x': `${node.offset?.x ?? 0}px`,
+            '--ff-off-y': `${node.offset?.y ?? 0}px`
           } as React.CSSProperties
         }
       >

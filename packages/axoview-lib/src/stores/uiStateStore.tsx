@@ -65,6 +65,7 @@ const initialState = () => {
       expandLabels: persisted?.expandLabels ?? false,
       readableLabels: persisted?.readableLabels ?? false,
       canvasMode: persisted?.canvasMode ?? 'ISOMETRIC',
+      snapToGrid: persisted?.snapToGrid ?? true,
       iconPackManager: null, // Will be set by Axoview if provided
       iconUsageScan: null, // Will be set by Axoview if provided
       linkedDiagrams: [],
@@ -433,6 +434,12 @@ const initialState = () => {
         },
         setCanvasMode: (canvasMode) => {
           set({ canvasMode });
+        },
+        setSnapToGrid: (snapToGrid) => {
+          set({ snapToGrid });
+        },
+        toggleSnapToGrid: () => {
+          set({ snapToGrid: !get().snapToGrid });
         }
       }
     };

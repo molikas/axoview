@@ -9,7 +9,6 @@ import {
   Rectangle,
   Colors
 } from 'src/types';
-import { CoordsUtils } from 'src/utils';
 import { customVars } from './styles/theme';
 
 // TODO: This file could do with better organisation and convention for easier reading.
@@ -41,7 +40,12 @@ export const VIEW_DEFAULTS: Required<
 };
 
 export const VIEW_ITEM_DEFAULTS: Required<
-  Omit<ViewItem, 'id' | 'tile' | 'zIndex' | 'layerId' | 'showLabel'>
+  Omit<
+    ViewItem,
+    // ADR 0023 off-grid fields are omitted so they default to absent and
+    // lean-save never writes them on a snapped item.
+    'id' | 'tile' | 'zIndex' | 'layerId' | 'showLabel' | 'offset' | 'snap' | 'collides'
+  >
 > = {
   labelHeight: 80,
   labelFontSize: 14,
@@ -71,7 +75,10 @@ export const CONNECTOR_DEFAULTS: Required<
 export const CONNECTOR_SEARCH_OFFSET = { x: 1, y: 1 };
 
 export const TEXTBOX_DEFAULTS: Required<
-  Omit<TextBox, 'id' | 'tile' | 'layerId' | 'name'>
+  Omit<
+    TextBox,
+    'id' | 'tile' | 'layerId' | 'name' | 'offset' | 'snap' | 'collides'
+  >
 > = {
   orientation: 'X',
   fontSize: 0.6,
@@ -106,7 +113,18 @@ export const CANVAS_RICHTEXT_SCALE = {
 } as const;
 
 export const RECTANGLE_DEFAULTS: Required<
-  Omit<Rectangle, 'id' | 'from' | 'to' | 'color' | 'layerId' | 'name'>
+  Omit<
+    Rectangle,
+    | 'id'
+    | 'from'
+    | 'to'
+    | 'color'
+    | 'layerId'
+    | 'name'
+    | 'offset'
+    | 'snap'
+    | 'collides'
+  >
 > = {
   customColor: ''
 };
@@ -127,9 +145,12 @@ export const INITIAL_DATA: InitialData = {
 };
 export const INITIAL_UI_STATE = {
   zoom: 0.65,
+  // Literal zero coords (not CoordsUtils.zero()) so config.ts stays a LEAF module
+  // — importing the src/utils barrel here created a load-order cycle for any util
+  // that needs a config constant (e.g. resolvePlacement / coordinateTransforms).
   scroll: {
-    position: CoordsUtils.zero(),
-    offset: CoordsUtils.zero()
+    position: { x: 0, y: 0 },
+    offset: { x: 0, y: 0 }
   }
 };
 export const INITIAL_SCENE_STATE = {

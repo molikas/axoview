@@ -1,6 +1,6 @@
 import { Coords } from 'src/types';
 import { useScene } from 'src/hooks/useScene';
-import { TileIndex, buildTileIndex } from 'src/utils/spatialIndex';
+import { TileIndex, buildTileIndex, itemCollides } from 'src/utils/spatialIndex';
 
 /**
  * Finds the nearest unoccupied tile to the target tile using a spiral search pattern.
@@ -97,7 +97,7 @@ const firstFittingOffsetOnRing = (
  * compatibility.)
  */
 export const findNearestUnoccupiedTilesForGroup = (
-  items: { id: string; targetTile: Coords }[],
+  items: { id: string; targetTile: Coords; snap?: boolean; collides?: boolean }[],
   scene: ReturnType<typeof useScene>,
   excludeIds: string[] = []
 ): Coords[] | null => {
@@ -105,14 +105,23 @@ export const findNearestUnoccupiedTilesForGroup = (
 
   const exclude = new Set(excludeIds);
   const index = new TileIndex();
+  // Non-colliding scene items (ADR 0023) are not obstacles for placement.
   for (const item of scene.items) {
-    if (!exclude.has(item.id)) index.insert(item.id, item.tile);
+    if (!exclude.has(item.id) && itemCollides(item)) {
+      index.insert(item.id, item.tile);
+    }
   }
 
+  // Every input item gets a resolved tile in input order (below), but only
+  // COLLIDING movers constrain where the block can land — a non-colliding
+  // pasted item never forces the whole block to shift.
   const blockTiles = items.map((it) => it.targetTile);
+  const collisionTiles = items
+    .filter((it) => itemCollides(it))
+    .map((it) => it.targetTile);
 
   const blockClearsAt = (offset: Coords): boolean => {
-    for (const tile of blockTiles) {
+    for (const tile of collisionTiles) {
       if (index.isOccupied({ x: tile.x + offset.x, y: tile.y + offset.y })) {
         return false;
       }

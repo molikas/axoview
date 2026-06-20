@@ -402,7 +402,16 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
         const modelItem = itemsById.get(node.id);
         if (!modelItem) continue;
         drawn += 1;
-        const pos = getTilePos({ tile: node.tile, origin: 'CENTER' });
+        // ADR 0023: apply the off-grid offset as a final translate AFTER
+        // projection so at-rest canvas nodes match the DOM overlay exactly (no
+        // jump on select/drag). No-op branch when offset is absent (the common
+        // snapped case) — this loop runs every pan/zoom frame, so the snapped
+        // path must add no work and no allocation. stalk/icon/label all derive
+        // from `pos`, so this single shift offsets the whole node.
+        const base = getTilePos({ tile: node.tile, origin: 'CENTER' });
+        const pos = node.offset
+          ? { x: base.x + node.offset.x, y: base.y + node.offset.y }
+          : base;
 
         const name = modelItem.name;
         const descText = getDescriptionText(modelItem.description);

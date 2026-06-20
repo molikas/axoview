@@ -3,6 +3,19 @@ import { Coords } from 'src/types';
 const tileKey = (x: number, y: number) => `${x},${y}`;
 
 /**
+ * Per-item collision predicate (ADR 0023 §4). An unsnapped item *implies*
+ * `collides:false` unless the user explicitly re-enables it, so the predicate
+ * derives from `snap`: a node excluded from the index neither pushes others nor
+ * is pushed. Default (both absent) = collides, so every legacy item and every
+ * lean-saved default is unchanged. The menu's Enable/Disable collision writes
+ * `collides` explicitly to override the implied value.
+ */
+export const itemCollides = (item: {
+  snap?: boolean;
+  collides?: boolean;
+}): boolean => item.collides ?? item.snap !== false;
+
+/**
  * Uniform grid hash keyed by integer tile (OCCUPANCY-3). O(1) point queries
  * (at / isOccupied), O(1) incremental insert/move/remove, and a range() bbox
  * query for batch work (e.g. the block-placement collision check in
@@ -91,11 +104,21 @@ export class TileIndex {
 }
 
 // Build a fresh index from the current items. O(N) — call when the items array
-// changes (e.g. memoised on the array reference), not per frame.
+// changes (e.g. memoised on the array reference), not per frame. Items that
+// opt out of collision (ADR 0023, itemCollides false) are skipped, so they are
+// neither an obstacle nor occupy a tile for placement/drag purposes.
 export const buildTileIndex = (
-  items: ReadonlyArray<{ id: string; tile: Coords }>
+  items: ReadonlyArray<{
+    id: string;
+    tile: Coords;
+    snap?: boolean;
+    collides?: boolean;
+  }>
 ): TileIndex => {
   const index = new TileIndex();
-  for (const item of items) index.insert(item.id, item.tile);
+  for (const item of items) {
+    if (!itemCollides(item)) continue;
+    index.insert(item.id, item.tile);
+  }
   return index;
 };

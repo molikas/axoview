@@ -5,6 +5,7 @@ import {
   getItemAtTile,
   findNearestUnoccupiedTile
 } from 'src/utils';
+import { resolvePlacement, cursorTileResidual } from 'src/utils/resolvePlacement';
 import { VIEW_ITEM_DEFAULTS } from 'src/config';
 
 export const PlaceIcon: ModeActions = {
@@ -31,14 +32,33 @@ export const PlaceIcon: ModeActions = {
     if (uiState.mode.type !== 'PLACE_ICON') return;
 
     if (uiState.mode.id !== null) {
-      // Find the nearest unoccupied tile to the target position
-      const targetTile = findNearestUnoccupiedTile(
-        uiState.mouse.position.tile,
-        scene
-      );
+      const globalSnap = uiState.snapToGrid ?? true;
+      const cursorTile = uiState.mouse.position.tile;
+      // Snapped placement avoids occupied tiles (today's behaviour). Off-grid
+      // placement (global snap off, ADR 0023 #12) lands exactly under the cursor
+      // with a px residual — no collision search; route both through the one
+      // resolvePlacement chokepoint.
+      const targetTile = globalSnap
+        ? findNearestUnoccupiedTile(cursorTile, scene)
+        : cursorTile;
 
-      // Place the icon on the nearest unoccupied tile
       if (targetTile) {
+        const residual = globalSnap
+          ? undefined
+          : cursorTileResidual(
+              uiState.canvasMode,
+              uiState.mouse.position.screen,
+              targetTile,
+              uiState.zoom,
+              uiState.scroll,
+              uiState.rendererSize
+            );
+        const placement = resolvePlacement(
+          targetTile,
+          residual,
+          undefined,
+          globalSnap
+        );
         const modelItemId = generateId();
 
         scene.placeIcon({
@@ -50,7 +70,8 @@ export const PlaceIcon: ModeActions = {
           viewItem: {
             ...VIEW_ITEM_DEFAULTS,
             id: modelItemId,
-            tile: targetTile
+            tile: placement.tile,
+            offset: placement.offset
           }
         });
       }

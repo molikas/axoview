@@ -102,7 +102,8 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
         connectorInteractionMode: state.connectorInteractionMode,
         expandLabels: state.expandLabels,
         readableLabels: state.readableLabels,
-        canvasMode: state.canvasMode
+        canvasMode: state.canvasMode,
+        snapToGrid: state.snapToGrid
       }),
       shallow
     );

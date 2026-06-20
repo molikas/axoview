@@ -42,6 +42,30 @@ describe('viewItemSchema', () => {
       }).success
     ).toBe(true);
   });
+  it('round-trips the ADR 0023 off-grid fields (offset/snap/collides)', () => {
+    const item = {
+      id: 'item1',
+      tile: { x: 4, y: 5 },
+      // float px offset — non-integer must be allowed
+      offset: { x: 12.5, y: -3.25 },
+      snap: false,
+      collides: false
+    };
+    const result = viewItemSchema.safeParse(item);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).toMatchObject(item);
+  });
+
+  it('off-grid fields are optional — a snapped item omits them (lean-save)', () => {
+    const result = viewItemSchema.safeParse({ id: 'item1', tile: { x: 0, y: 0 } });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.offset).toBeUndefined();
+      expect(result.data.snap).toBeUndefined();
+      expect(result.data.collides).toBeUndefined();
+    }
+  });
+
   it('fails if required fields are missing', () => {
     const invalid = { tile: { x: 1, y: 2 } };
     const result = viewItemSchema.safeParse(invalid);

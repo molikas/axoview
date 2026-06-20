@@ -16,7 +16,16 @@ export const viewItemSchema = z.object({
   labelColor: z.string().optional(),
   showLabel: z.boolean().optional(),
   zIndex: z.number().int().optional(),
-  layerId: id.optional()
+  layerId: id.optional(),
+  // Off-grid positioning (ADR 0023). All optional/absent = today's behaviour
+  // byte-for-byte. `offset` is an unprojected px residual relative to the tile
+  // anchor (the renderer applies it as a final translate AFTER projection); the
+  // integer `tile` stays the engine's source of truth. `snap` (default true) =
+  // false commits the px offset instead of rounding; `collides` (default true)
+  // = false excludes the item from the TileIndex. Lean-save omits the defaults.
+  offset: coords.optional(),
+  snap: z.boolean().optional(),
+  collides: z.boolean().optional()
 });
 
 export const viewSchema = z.object({

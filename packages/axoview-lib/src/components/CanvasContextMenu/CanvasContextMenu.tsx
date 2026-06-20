@@ -30,6 +30,7 @@ import { useLayerContext } from 'src/hooks/useLayerContext';
 import { useLayerActions } from 'src/hooks/useLayerActions';
 import { useCopyPaste } from 'src/clipboard/useCopyPaste';
 import { collectSelectableRefs } from 'src/utils/selectableRefs';
+import { itemCollides } from 'src/utils';
 import {
   countUserFacingRefs,
   filterUserFacingRefs
@@ -67,6 +68,7 @@ const INLINE_RENAMEABLE = new Set(['ITEM', 'TEXTBOX', 'CONNECTOR']);
 export const CanvasContextMenu = () => {
   const contextMenu = useUiStateStore((s) => s.contextMenu);
   const selectedIds = useUiStateStore((s) => s.selectedIds);
+  const snapToGrid = useUiStateStore((s) => s.snapToGrid);
   const actions = useUiStateStore((s) => s.actions);
   const scene = useScene();
   const { layers, lockedIds, visibleIds } = useLayerContext();
@@ -173,9 +175,78 @@ export const CanvasContextMenu = () => {
     return scene.currentView.items?.find((i) => i.id === target.id)?.layerId;
   }, [scene, target]);
 
+  // ADR 0023 off-grid + collision. Snap/collision apply to ITEM / RECTANGLE /
+  // TEXTBOX (a connector has no placement of its own). Read the target's current
+  // view-item/rectangle/textbox to label + toggle the entries.
+  const offGridTarget = useMemo(() => {
+    if (!target) return null;
+    if (target.type === 'ITEM')
+      return scene.currentView.items?.find((i) => i.id === target.id) ?? null;
+    if (target.type === 'RECTANGLE')
+      return (
+        scene.currentView.rectangles?.find((r) => r.id === target.id) ?? null
+      );
+    if (target.type === 'TEXTBOX')
+      return scene.currentView.textBoxes?.find((t) => t.id === target.id) ?? null;
+    return null;
+  }, [scene, target]);
+
+  // Apply an off-grid field update to any placement ref via the type-appropriate
+  // scene action (connectors carry no snap/collides, so they are skipped).
+  const applyOffGrid = useCallback(
+    (
+      ref: ItemReference,
+      updates: { snap?: boolean; collides?: boolean; offset?: undefined }
+    ) => {
+      if (ref.type === 'ITEM') scene.updateViewItem(ref.id, updates);
+      else if (ref.type === 'RECTANGLE') scene.updateRectangle(ref.id, updates);
+      else if (ref.type === 'TEXTBOX') scene.updateTextBox(ref.id, updates);
+    },
+    [scene]
+  );
+
+  const handleToggleSnap = useCallback(() => {
+    if (!target || !offGridTarget) return;
+    if (offGridTarget.snap === false) {
+      // Re-snap: back to the grid AND clear the committed offset (one chokepoint
+      // owns clearing it; here it is the explicit snap action).
+      applyOffGrid(target, { snap: undefined, offset: undefined });
+    } else {
+      // Unsnap: collision is implied off via the itemCollides predicate.
+      applyOffGrid(target, { snap: false });
+    }
+  }, [target, offGridTarget, applyOffGrid]);
+
+  const handleToggleCollision = useCallback(() => {
+    if (!target || !offGridTarget) return;
+    applyOffGrid(target, { collides: !itemCollides(offGridTarget) });
+  }, [target, offGridTarget, applyOffGrid]);
+
+  // Bulk: unsnap / disable collision over every user-facing ref in the
+  // selection (waypoints stripped; connectors skipped), one undo entry.
+  const handleBulkUnsnap = useCallback(() => {
+    scene.transaction(() => {
+      filterUserFacingRefs(selectedIds).forEach((ref) =>
+        applyOffGrid(ref, { snap: false })
+      );
+    });
+  }, [scene, selectedIds, applyOffGrid]);
+
+  const handleBulkDisableCollision = useCallback(() => {
+    scene.transaction(() => {
+      filterUserFacingRefs(selectedIds).forEach((ref) =>
+        applyOffGrid(ref, { collides: false })
+      );
+    });
+  }, [scene, selectedIds, applyOffGrid]);
+
   if (!contextMenu) return null;
 
   const isItem = target?.type === 'ITEM';
+  // Off-grid commands apply to placeable items, not connectors.
+  const canOffGrid = !!target && target.type !== 'CONNECTOR';
+  const isUnsnapped = offGridTarget?.snap === false;
+  const collidesNow = offGridTarget ? itemCollides(offGridTarget) : true;
   const canRename = !!target && INLINE_RENAMEABLE.has(target.type);
   const multiCount = countUserFacingRefs(selectedIds);
 
@@ -272,22 +343,30 @@ export const CanvasContextMenu = () => {
                 <ListItemText>Assign to layer</ListItemText>
                 <ChevronRightIcon fontSize="small" sx={{ ml: 2, opacity: 0.6 }} />
               </MenuItem>,
-              <Divider key="d3" />,
-              // T8 (ADR 0023) — the unsnap / collision model fields don't exist
-              // yet. Render the catalogue entries disabled so the menu shows its
-              // full shape; T8 wires the handlers + per-item state.
-              <MenuItem key="snap" disabled>
-                <ListItemIcon>
-                  <SnapIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>Unsnap from grid</ListItemText>
-              </MenuItem>,
-              <MenuItem key="collision" disabled>
-                <ListItemIcon>
-                  <CollisionIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>Disable collision</ListItemText>
-              </MenuItem>,
+              canOffGrid && <Divider key="d3" />,
+              // ADR 0023 — per-item off-grid + collision. Snap toggles whether
+              // the item rounds to the grid (and clears its offset on re-snap);
+              // collision toggles whether it participates in the TileIndex.
+              canOffGrid && (
+                <MenuItem key="snap" onClick={run(handleToggleSnap)}>
+                  <ListItemIcon>
+                    <SnapIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>
+                    {isUnsnapped ? 'Snap to grid' : 'Unsnap from grid'}
+                  </ListItemText>
+                </MenuItem>
+              ),
+              canOffGrid && (
+                <MenuItem key="collision" onClick={run(handleToggleCollision)}>
+                  <ListItemIcon>
+                    <CollisionIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>
+                    {collidesNow ? 'Disable collision' : 'Enable collision'}
+                  </ListItemText>
+                </MenuItem>
+              ),
               <Divider key="d4" />,
               <MenuItem key="delete" onClick={run(handleDelete)}>
                 <ListItemIcon>
@@ -340,15 +419,16 @@ export const CanvasContextMenu = () => {
                 <ChevronRightIcon fontSize="small" sx={{ ml: 2, opacity: 0.6 }} />
               </MenuItem>,
               <Divider key="d2" />,
-              // T8 (ADR 0023) — bulk unsnap / collision land with the model
-              // fields; disabled placeholders for now (same as the item menu).
-              <MenuItem key="snap" disabled>
+              // ADR 0023 — bulk off-grid over the whole selection (one undo
+              // entry). The primary bulk intent: free a group from the grid /
+              // collision; re-snap or re-enable is per-item on the item menu.
+              <MenuItem key="snap" onClick={run(handleBulkUnsnap)}>
                 <ListItemIcon>
                   <SnapIcon fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>Unsnap from grid</ListItemText>
               </MenuItem>,
-              <MenuItem key="collision" disabled>
+              <MenuItem key="collision" onClick={run(handleBulkDisableCollision)}>
                 <ListItemIcon>
                   <CollisionIcon fontSize="small" />
                 </ListItemIcon>
@@ -387,11 +467,20 @@ export const CanvasContextMenu = () => {
                 <Hint>Ctrl+A</Hint>
               </MenuItem>,
               <Divider key="d1" />,
-              <MenuItem key="snap" disabled>
+              // ADR 0023 #12 — the global snap-to-grid toggle (persisted).
+              <MenuItem
+                key="snap"
+                onClick={run(() => actions.toggleSnapToGrid())}
+              >
                 <ListItemIcon>
-                  <SnapIcon fontSize="small" />
+                  <SnapIcon
+                    fontSize="small"
+                    color={snapToGrid ? 'primary' : undefined}
+                  />
                 </ListItemIcon>
-                <ListItemText>Snap to grid</ListItemText>
+                <ListItemText>
+                  {snapToGrid ? 'Disable snap to grid' : 'Enable snap to grid'}
+                </ListItemText>
               </MenuItem>
             ]}
       </Menu>

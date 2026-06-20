@@ -108,8 +108,22 @@ export const TextBox = memo(({ textBox }: Props) => {
     orientation: textBox.orientation
   });
 
+  // ADR 0023 off-grid: compose the unprojected-px offset into the same wrapper
+  // translate3d as the drag delta (the inner projected Box stays driven by the
+  // integer tile/size). Snapped text boxes keep the shared module-const style.
+  const dragStyle = useMemo(
+    () =>
+      textBox.offset
+        ? {
+            ...TEXTBOX_DRAG_STYLE,
+            transform: `translate3d(calc(var(--ff-drag-dx, 0px) + ${textBox.offset.x}px), calc(var(--ff-drag-dy, 0px) + ${textBox.offset.y}px), 0)`
+          }
+        : TEXTBOX_DRAG_STYLE,
+    [textBox.offset?.x, textBox.offset?.y] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   return (
-    <div data-drag-id={textBox.id} style={TEXTBOX_DRAG_STYLE}>
+    <div data-drag-id={textBox.id} style={dragStyle}>
       <Box style={css}>
         <Box
           onDoubleClick={startInlineEdit}
