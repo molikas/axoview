@@ -270,6 +270,15 @@ export interface UiState {
    * leaving preview or switching view. Ignored entirely in EDITABLE.
    */
   previewLayerOverrides: PreviewLayerOverrides;
+  /**
+   * Present-mode (EXPLORABLE_READONLY) "hide labels" flag (ADR 0013, 2026-06-18
+   * addendum). A UI-only toggle that hides node + connector *name* labels while
+   * presenting — it never mutates the model's per-item `showLabel`, is never
+   * persisted/saved (so presenting can't dirty the diagram), and is cleared when
+   * leaving present mode or switching view. Ignored entirely in EDITABLE. The
+   * label render sites merge it through `isLabelVisibleInPreview`.
+   */
+  previewHideLabels: boolean;
   /** Ephemeral annotation overlay (ADR 0014). Never persisted. */
   annotation: AnnotationState;
 }
@@ -393,6 +402,8 @@ export interface UiStateActions {
   setPreviewSoloLayer: (layerId: string | null) => void;
   /** Reset all preview layer overrides (e.g. on leaving preview / view switch). */
   clearPreviewLayerOverrides: () => void;
+  /** Set the present-mode hide-labels flag (UI-only; never touches the model). */
+  setPreviewHideLabels: (hide: boolean) => void;
   // --- Annotation overlay (ADR 0014) ---
   setAnnotationOpen: (open: boolean) => void;
   setAnnotationTool: (tool: AnnotationTool) => void;

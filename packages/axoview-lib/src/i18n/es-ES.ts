@@ -334,6 +334,10 @@ const locale: LocaleProps = {
     solo: 'Solo',
     unsolo: 'Salir de solo'
   },
+  previewLabelsToggle: {
+    hideLabels: 'Ocultar etiquetas',
+    showLabels: 'Mostrar etiquetas'
+  },
   annotationPalette: {
     pen: 'Anotar',
     select: 'Seleccionar',

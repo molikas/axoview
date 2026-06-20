@@ -328,6 +328,10 @@ const locale: LocaleProps = {
     solo: 'একক',
     unsolo: 'একক থেকে বেরিয়ে আসুন'
   },
+  previewLabelsToggle: {
+    hideLabels: 'লেবেল লুকান',
+    showLabels: 'লেবেল দেখান'
+  },
   annotationPalette: {
     pen: 'টীকা',
     select: 'নির্বাচন',

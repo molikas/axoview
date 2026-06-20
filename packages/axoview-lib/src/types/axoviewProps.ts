@@ -319,6 +319,10 @@ export interface LocaleProps {
     solo: string;
     unsolo: string;
   };
+  previewLabelsToggle: {
+    hideLabels: string;
+    showLabels: string;
+  };
   viewModeInfoPopover: {
     close: string;
   };

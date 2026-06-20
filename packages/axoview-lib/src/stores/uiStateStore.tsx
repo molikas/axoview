@@ -76,6 +76,7 @@ const initialState = () => {
       contextMenu: null,
       isDirty: false,
       previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
+      previewHideLabels: false,
       annotation: {
         open: false,
         // Open in the non-disruptive Select mode; the user picks a draw tool.
@@ -90,18 +91,21 @@ const initialState = () => {
         setView: (view) => {
           // A new view has its own layers — drop any preview override so a
           // solo'd/hidden layer id from the previous view can't leak across.
+          // The hide-labels flag is per-presentation too, so reset it as well.
           set({
             view,
-            previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null }
+            previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
+            previewHideLabels: false
           });
         },
         setEditorMode: (mode) => {
-          // Leaving (or entering) preview clears the ephemeral override so it
-          // never persists across mode switches (ADR 0013).
+          // Leaving (or entering) preview clears the ephemeral overrides so they
+          // never persist across mode switches (ADR 0013 + hide-labels addendum).
           set({
             editorMode: mode,
             mode: getStartingMode(mode),
-            previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null }
+            previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
+            previewHideLabels: false
           });
         },
         setIconCategoriesState: (iconCategoriesState) => {
@@ -296,6 +300,12 @@ const initialState = () => {
           set({
             previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null }
           });
+        },
+        setPreviewHideLabels: (previewHideLabels) => {
+          // UI-only present-mode toggle (ADR 0013 addendum): suppresses name
+          // labels live without ever touching the model's `showLabel`, so it
+          // cannot dirty/save the diagram. Cleared on view/mode switch above.
+          set({ previewHideLabels });
         },
         // --- Annotation overlay (ADR 0014) — ephemeral, never persisted ---
         setAnnotationOpen: (open) => {

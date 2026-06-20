@@ -28,6 +28,7 @@ import { ViewTabs } from 'src/components/ViewTabs/ViewTabs';
 import { NodeActionBar } from 'src/components/NodeActionBar/NodeActionBar';
 import { CanvasContextMenu } from 'src/components/CanvasContextMenu/CanvasContextMenu';
 import { PreviewLayerSwitcher } from 'src/components/PreviewLayerSwitcher/PreviewLayerSwitcher';
+import { PreviewLabelsToggle } from 'src/components/PreviewLabelsToggle/PreviewLabelsToggle';
 import { ViewModeInfoPopover } from 'src/components/ViewModeInfoPopover/ViewModeInfoPopover';
 import { AnnotationLayer } from 'src/components/AnnotationLayer/AnnotationLayer';
 import { AnnotationPalette } from 'src/components/AnnotationPalette/AnnotationPalette';
@@ -228,17 +229,21 @@ export const UiOverlay = ({
           </UiElement>
         )}
 
-        {/* Preview-mode layer switcher — top-left (feels more natural in a
-            presentation than bottom-left). View mode only; the component
-            self-gates on ≥2 layers (ADR 0013). High zIndex so it stays above
-            any left chrome that lingers in a forced-preview test environment. */}
+        {/* Present-mode chrome — top-left (feels more natural in a presentation
+            than bottom-left). View mode only. The layer switcher self-gates on
+            ≥2 layers (ADR 0013); the hide-labels toggle (2026-06-18 addendum)
+            always shows. High zIndex so it stays above any left chrome that
+            lingers in a forced-preview test environment. */}
         {editorMode === EditorModeEnum.EXPLORABLE_READONLY && (
-          <Box
+          <Stack
+            spacing={1}
+            alignItems="flex-start"
             sx={{ position: 'absolute', zIndex: 15 }}
             style={{ left: appPadding.x, top: appPadding.y }}
           >
             <PreviewLayerSwitcher />
-          </Box>
+            <PreviewLabelsToggle />
+          </Stack>
         )}
       </Box>
 

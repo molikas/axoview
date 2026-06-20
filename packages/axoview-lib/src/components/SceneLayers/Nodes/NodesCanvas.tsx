@@ -20,6 +20,7 @@ import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { resolveRenderOrder } from 'src/utils/renderOrder';
 import { stripHtmlTags } from 'src/utils/stripHtml';
+import { isLabelVisibleInPreview } from 'src/utils/previewLabelVisibility';
 
 // ---------------------------------------------------------------------------
 // NodesCanvas — T2 PoC. Imperative Canvas2D draw of the node layer (icon image
@@ -286,6 +287,10 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       pendingRef.current = false;
       const ui = uiApi.getState();
       const { scroll, zoom, rendererSize, readableLabels } = ui;
+      // Present-mode hide-labels override (ADR 0013 addendum) — UI-only; merged
+      // through the same single point as the DOM Node path (isLabelVisibleInPreview).
+      const inPreview = ui.editorMode === 'EXPLORABLE_READONLY';
+      const previewHideLabels = ui.previewHideLabels;
       const dpr = window.devicePixelRatio || 1;
       const W = rendererSize.width;
       const H = rendererSize.height;
@@ -386,6 +391,11 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       }
 
       let drawn = 0;
+      // Count of nodes that actually painted a label chip this frame. Published
+      // below so the present-mode hide-labels gate can be observed on the canvas
+      // renderer (no per-node DOM label exists in canvas mode) — same idea as
+      // data-label-scale / data-draw-count.
+      let labelsDrawn = 0;
       for (const node of sorted) {
         const modelItem = itemsById.get(node.id);
         if (!modelItem) continue;
@@ -395,7 +405,11 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
         const name = modelItem.name;
         const descText = getDescriptionText(modelItem.description);
         const hasLabel =
-          node.showLabel !== false && Boolean(name || descText);
+          isLabelVisibleInPreview(
+            node.showLabel !== false,
+            inPreview,
+            previewHideLabels
+          ) && Boolean(name || descText);
         const labelHeight = node.labelHeight ?? DEFAULT_LABEL_HEIGHT;
 
         // ----- stalk line (D2-1) -----
@@ -455,6 +469,7 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
 
         // ----- static label (name + description) -----
         if (hasLabel && drawLabels) {
+          labelsDrawn += 1;
           const chip = chipStyleRef.current;
           const fontSize = node.labelFontSize || LABEL_BASE_FONT_PX;
 
@@ -572,6 +587,7 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       // the DOM `[data-drag-id]` shell count, which reads ~0 with the bulk DOM path
       // gone.
       canvas.dataset.drawCount = String(drawn);
+      canvas.dataset.labelsDrawn = String(labelsDrawn);
     };
 
     const scheduleDraw = () => {
@@ -606,7 +622,9 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
         s.scroll === p.scroll &&
         s.zoom === p.zoom &&
         s.rendererSize === p.rendererSize &&
-        s.readableLabels === p.readableLabels
+        s.readableLabels === p.readableLabels &&
+        s.previewHideLabels === p.previewHideLabels &&
+        s.editorMode === p.editorMode
       ) {
         return;
       }

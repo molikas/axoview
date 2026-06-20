@@ -330,6 +330,10 @@ const locale: LocaleProps = {
     solo: 'सोलो',
     unsolo: 'सोलो से बाहर'
   },
+  previewLabelsToggle: {
+    hideLabels: 'लेबल छिपाएं',
+    showLabels: 'लेबल दिखाएं'
+  },
   annotationPalette: {
     pen: 'व्याख्या',
     select: 'चुनें',

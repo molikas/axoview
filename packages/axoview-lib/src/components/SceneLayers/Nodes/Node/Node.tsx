@@ -13,6 +13,7 @@ import { useRenderProbe } from 'src/utils/renderProbe';
 import { ExpandableLabel } from 'src/components/Label/ExpandableLabel';
 import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
 import { stripHtmlTags } from 'src/utils/stripHtml';
+import { isLabelVisibleInPreview } from 'src/utils/previewLabelVisibility';
 
 const INLINE_EDIT_EVENT = 'inlineEditNodeName';
 
@@ -175,6 +176,8 @@ const NodeContent = memo(
     const modelItem = useModelItem(id);
     const { iconComponent } = useIcon(modelItem?.icon);
     const editorMode = useUiStateStore((s) => s.editorMode);
+    // Present-mode hide-labels override (ADR 0013 addendum) — UI-only.
+    const previewHideLabels = useUiStateStore((s) => s.previewHideLabels);
     // MQA #7 Path 2 — useSceneActions only (NOT useScene). The latter pulls
     // useSceneData which subscribes to {views, ...} shallow; `views` ticks
     // per drag frame and would force NodeContent to re-render past its memo
@@ -183,6 +186,13 @@ const NodeContent = memo(
 
     const isReadonly = editorMode === 'EXPLORABLE_READONLY';
     const isEditable = editorMode === 'EDITABLE';
+    // Merge the model's `showLabel` with the present-mode hide-labels flag at the
+    // single documented merge point (forced hidden only while presenting).
+    const labelVisible = isLabelVisibleInPreview(
+      showLabel !== false,
+      isReadonly,
+      previewHideLabels
+    );
     const hasLink = isReadonly && !!modelItem?.link;
 
     const [isEditingName, setIsEditingName] = useState(false);
@@ -263,7 +273,7 @@ const NodeContent = memo(
       <NodeContentFlex
         style={{ cursor: isClickableInReadonly ? 'pointer' : 'inherit' }}
       >
-        {showLabel !== false &&
+        {labelVisible &&
           (modelItem?.name || description || isEditingName) && (
             <div data-testid="node-label" onDoubleClick={startInlineEdit}>
               <ExpandableLabel

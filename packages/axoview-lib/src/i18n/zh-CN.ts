@@ -316,6 +316,10 @@ const locale: LocaleProps = {
     solo: '单独显示',
     unsolo: '退出单独显示'
   },
+  previewLabelsToggle: {
+    hideLabels: '隐藏标签',
+    showLabels: '显示标签'
+  },
   annotationPalette: {
     pen: '批注',
     select: '选择',

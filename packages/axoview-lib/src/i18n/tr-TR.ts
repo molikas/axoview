@@ -330,6 +330,10 @@ const locale: LocaleProps = {
     solo: 'Solo',
     unsolo: 'Solodan çık'
   },
+  previewLabelsToggle: {
+    hideLabels: 'Etiketleri gizle',
+    showLabels: 'Etiketleri göster'
+  },
   annotationPalette: {
     pen: 'Açıklama',
     select: 'Seç',

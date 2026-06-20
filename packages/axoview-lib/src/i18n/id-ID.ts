@@ -329,6 +329,10 @@ const locale: LocaleProps = {
     solo: 'Solo',
     unsolo: 'Keluar dari solo'
   },
+  previewLabelsToggle: {
+    hideLabels: 'Sembunyikan label',
+    showLabels: 'Tampilkan label'
+  },
   annotationPalette: {
     pen: 'Anotasi',
     select: 'Pilih',
