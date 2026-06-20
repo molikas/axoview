@@ -29,7 +29,8 @@ const mockSetMouse = jest.fn();
 const mockSetSelectedIds = jest.fn();
 const mockOpenContextMenu = jest.fn();
 const mockUiState = {
-  mode: { type: 'CURSOR' as string, selection: null },
+  mode: { type: 'CURSOR' as string, selection: null as unknown },
+  selectedIds: [] as Array<{ type: string; id: string }>,
   actions: {
     setMode: mockSetMode,
     setItemControls: mockSetItemControls,
@@ -128,6 +129,8 @@ beforeEach(() => {
     setSelectedIds: mockSetSelectedIds,
     openContextMenu: mockOpenContextMenu
   } as any;
+  mockUiState.mode = { type: 'CURSOR', selection: null };
+  mockUiState.selectedIds = [];
   mockUiState.rendererEl = null;
   mockGetItemAtTile.mockReturnValue(null);
 });
@@ -308,6 +311,7 @@ describe('usePanHandlers.handleMouseUp', () => {
     expect(returned).toBe(true);
     expect(mockOpenContextMenu).toHaveBeenCalledWith({
       anchor: { x: 100, y: 100 },
+      variant: 'canvas',
       target: null
     });
     // Stale mousedown state must be cleared so Cursor.mousemove can't trigger lasso
@@ -337,7 +341,31 @@ describe('usePanHandlers.handleMouseUp', () => {
     expect(mockSetSelectedIds).toHaveBeenCalledWith([{ type: 'ITEM', id: 'n1' }]);
     expect(mockOpenContextMenu).toHaveBeenCalledWith({
       anchor: { x: 42, y: 24 },
+      variant: 'item',
       target: { type: 'ITEM', id: 'n1' }
+    });
+  });
+
+  test('right-tap on an item that is part of a multi-selection → bulk menu', () => {
+    mockGetItemAtTile.mockReturnValue({ type: 'ITEM', id: 'a' } as any);
+    mockUiState.selectedIds = [
+      { type: 'ITEM', id: 'a' },
+      { type: 'ITEM', id: 'b' }
+    ];
+    const { result } = setup();
+    act(() => {
+      result.current.handleMouseDown(makeEvent({ button: 2 }));
+    });
+    mockOpenContextMenu.mockClear();
+    act(() => {
+      result.current.handleMouseUp(
+        makeEvent({ button: 2, clientX: 10, clientY: 20 })
+      );
+    });
+    expect(mockOpenContextMenu).toHaveBeenCalledWith({
+      anchor: { x: 10, y: 20 },
+      variant: 'multi',
+      target: null
     });
   });
 

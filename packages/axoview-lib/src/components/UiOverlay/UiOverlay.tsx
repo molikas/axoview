@@ -27,7 +27,6 @@ import { NotificationSnackbar } from '../NotificationSnackbar/NotificationSnackb
 import { ViewTabs } from 'src/components/ViewTabs/ViewTabs';
 import { NodeActionBar } from 'src/components/NodeActionBar/NodeActionBar';
 import { CanvasContextMenu } from 'src/components/CanvasContextMenu/CanvasContextMenu';
-import { LassoLayerBar } from 'src/components/LassoLayerBar/LassoLayerBar';
 import { PreviewLayerSwitcher } from 'src/components/PreviewLayerSwitcher/PreviewLayerSwitcher';
 import { ViewModeInfoPopover } from 'src/components/ViewModeInfoPopover/ViewModeInfoPopover';
 import { AnnotationLayer } from 'src/components/AnnotationLayer/AnnotationLayer';
@@ -318,8 +317,6 @@ export const UiOverlay = ({
             />
           )}
 
-        {/* Lasso layer assign bar */}
-        {editorMode === EditorModeEnum.EDITABLE && <LassoLayerBar />}
       </SceneLayer>
 
       {/* Canvas context menu (ADR 0027) — portals to the document root, so it

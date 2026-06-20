@@ -41,6 +41,20 @@ function resolveSelectionIds(uiState: UiState): SelectionIds {
     };
   }
 
+  // CURSOR-mode multi-selection (Ctrl+click / Ctrl+A, or a lasso that settled to
+  // CURSOR). itemControls is null for a multi-selection, so without this the
+  // clipboard (and the context menu's bulk Cut/Copy/Duplicate) would resolve to
+  // nothing. CONNECTOR_ANCHOR waypoints are ignored by the per-kind filters.
+  if ((uiState.selectedIds?.length ?? 0) > 1) {
+    const refs = uiState.selectedIds;
+    return {
+      itemIds: refs.filter((r) => r.type === 'ITEM').map((r) => r.id),
+      connectorIds: refs.filter((r) => r.type === 'CONNECTOR').map((r) => r.id),
+      rectangleIds: refs.filter((r) => r.type === 'RECTANGLE').map((r) => r.id),
+      textBoxIds: refs.filter((r) => r.type === 'TEXTBOX').map((r) => r.id)
+    };
+  }
+
   const ctrl = uiState.itemControls;
   if (!ctrl) return EMPTY_SELECTION;
   switch (ctrl.type) {
@@ -212,6 +226,11 @@ export const useCopyPaste = () => {
         mousedownItem: null
       });
       uiState.actions.setItemControls(null);
+    } else if ((uiState.selectedIds?.length ?? 0) > 1) {
+      // CURSOR-mode multi-selection — delete every selected item (mirrors the
+      // Delete-key multi path + the context menu's bulk Delete).
+      scene.deleteSelectedItems(uiState.selectedIds);
+      uiState.actions.clearSelection();
     } else if (uiState.itemControls) {
       const ctrl = uiState.itemControls;
       if (ctrl.type === 'ITEM') scene.deleteViewItem(ctrl.id);

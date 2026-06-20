@@ -278,7 +278,14 @@ export interface UiState {
 export interface ContextMenuState {
   /** Screen-space anchor (client px) for the MUI Menu's anchorPosition. */
   anchor: { x: number; y: number };
-  /** The item the menu commands act on; `null` → empty-canvas menu. */
+  /**
+   * Which command set to show:
+   *  - `'item'`   → single-item menu (`target` set);
+   *  - `'multi'`  → bulk menu over the current `selectedIds` (`target` null);
+   *  - `'canvas'` → empty-canvas menu (`target` null).
+   */
+  variant: 'item' | 'multi' | 'canvas';
+  /** The item the menu commands act on; set only for the `'item'` variant. */
   target: ItemReference | null;
 }
 

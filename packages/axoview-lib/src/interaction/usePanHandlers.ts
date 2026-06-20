@@ -243,23 +243,7 @@ export const usePanHandlers = () => {
 
       const uiState = uiStateApi.getState();
       const currentModeType = uiState.mode.type;
-
-      // In a tool mode (lasso / freehand / connector …) a right-tap ABORTS the
-      // in-flight tool action and restores a clean mode — the long-standing
-      // "right-click cancels the tool" behavior. The context menu is a
-      // CURSOR-mode affordance, so it does not open here.
-      if (currentModeType !== 'CURSOR') {
-        uiState.actions.setItemControls(null);
-        uiState.actions.setMouse({ ...uiState.mouse, mousedown: null });
-        restoreModeAfterRightClick(currentModeType);
-        return true;
-      }
-
-      // CURSOR mode: open the context menu at the click point (screen px). An
-      // interactable item under the cursor → item menu (select it first so the
-      // clipboard / delete commands act on it); empty / locked / hidden →
-      // canvas menu. Locked + hidden items are non-interactable across every
-      // path (UX §4.3) — they fall through to the canvas menu.
+      const anchor = { x: e.clientX, y: e.clientY };
       const tile = uiState.mouse.position.tile;
       const item = getItemAtTile({ tile, scene });
       const { lockedIds, visibleIds } = layerContext;
@@ -267,18 +251,69 @@ export const usePanHandlers = () => {
         !!item &&
         !lockedIds.has(item.id) &&
         (visibleIds.size === 0 || visibleIds.has(item.id));
-      // Clear the stale mousedown so Cursor.mousemove can't start a lasso from
-      // it on the next frame.
+
+      // Multi-selection takes precedence (ADR 0027). A right-tap on an item that
+      // is part of the current multi-selection opens the BULK menu over the
+      // whole selection. The selection may live in `selectedIds` (Ctrl+click /
+      // Ctrl+A / a canvas lasso, mirrored on mouseup) OR in an active lasso's
+      // `mode.selection` (panel-driven multi-select, which doesn't populate
+      // selectedIds). Either qualifies.
+      const selectedIds = uiState.selectedIds;
+      const mode = uiState.mode;
+      const lassoItems =
+        (mode.type === 'LASSO' || mode.type === 'FREEHAND_LASSO') &&
+        mode.selection
+          ? mode.selection.items
+          : [];
+      const multiRefs = selectedIds.length > 1 ? selectedIds : lassoItems;
+      const itemInMulti =
+        itemInteractable &&
+        multiRefs.length > 1 &&
+        multiRefs.some((r) => r.type === item!.type && r.id === item!.id);
+      if (itemInMulti) {
+        // Make selectedIds the single source of truth the bulk menu reads
+        // (a panel lasso only set mode.selection), then settle to CURSOR so the
+        // lasso stops capturing — the multi-select outlines render from
+        // selectedIds, so they persist.
+        if (selectedIds.length <= 1) {
+          uiState.actions.setSelectedIds(multiRefs);
+        }
+        if (currentModeType !== 'CURSOR') {
+          uiState.actions.setMode({
+            type: 'CURSOR',
+            showCursor: true,
+            mousedownItem: null
+          });
+        }
+        uiState.actions.setMouse({ ...uiState.mouse, mousedown: null });
+        uiState.actions.openContextMenu({ anchor, variant: 'multi', target: null });
+        return true;
+      }
+
+      // In a tool mode (lasso / freehand / connector …) a right-tap with no
+      // multi-selection hit ABORTS the in-flight tool action — the long-standing
+      // "right-click cancels the tool" behavior. The single/canvas menus are a
+      // CURSOR-mode affordance, so they do not open here.
+      if (currentModeType !== 'CURSOR') {
+        uiState.actions.setItemControls(null);
+        uiState.actions.setMouse({ ...uiState.mouse, mousedown: null });
+        restoreModeAfterRightClick(currentModeType);
+        return true;
+      }
+
+      // CURSOR mode: an interactable item → item menu (select it first so the
+      // clipboard / delete commands act on it); empty / locked / hidden →
+      // canvas menu (UX §4.3).
       uiState.actions.setMouse({ ...uiState.mouse, mousedown: null });
-      const anchor = { x: e.clientX, y: e.clientY };
       if (item && itemInteractable) {
         uiState.actions.setSelectedIds([{ type: item.type, id: item.id }]);
         uiState.actions.openContextMenu({
           anchor,
+          variant: 'item',
           target: { type: item.type, id: item.id }
         });
       } else {
-        uiState.actions.openContextMenu({ anchor, target: null });
+        uiState.actions.openContextMenu({ anchor, variant: 'canvas', target: null });
       }
       return true;
     },

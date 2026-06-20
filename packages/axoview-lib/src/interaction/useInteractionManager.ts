@@ -1068,18 +1068,32 @@ export const useInteractionManager = () => {
         ts.longPressTimer = null;
         const uiState = uiStateApi.getState();
         if (ts.phase === 'item' && ts.downItem) {
-          // Hold on a node → open the per-item CONTEXT MENU for it (ADR 0027 §2;
+          // Hold on a node → open the CONTEXT MENU for it (ADR 0027 §2;
           // reassigned from the action bar, which now opens on tap-select). It
-          // appears during the hold; the user then lifts naturally. Select the
-          // item first so the menu's clipboard / delete commands act on it.
-          // Consume the rest of the gesture (phase 'menu').
-          uiState.actions.setSelectedIds([
-            { type: ts.downItem.type, id: ts.downItem.id }
-          ]);
-          uiState.actions.openContextMenu({
-            anchor: { x: ts.downScreen.x, y: ts.downScreen.y },
-            target: { type: ts.downItem.type, id: ts.downItem.id }
-          });
+          // appears during the hold; the user then lifts naturally. Consume the
+          // rest of the gesture (phase 'menu').
+          const downItem = ts.downItem;
+          const anchor = { x: ts.downScreen.x, y: ts.downScreen.y };
+          const selectedIds = uiState.selectedIds;
+          const inMulti =
+            selectedIds.length > 1 &&
+            selectedIds.some(
+              (r) => r.type === downItem.type && r.id === downItem.id
+            );
+          if (inMulti) {
+            // Long-press on a member of the multi-selection → bulk menu.
+            uiState.actions.openContextMenu({ anchor, variant: 'multi', target: null });
+          } else {
+            // Select the item first so the menu's clipboard / delete act on it.
+            uiState.actions.setSelectedIds([
+              { type: downItem.type, id: downItem.id }
+            ]);
+            uiState.actions.openContextMenu({
+              anchor,
+              variant: 'item',
+              target: { type: downItem.type, id: downItem.id }
+            });
+          }
           ts.phase = 'menu';
         } else if (ts.phase === 'pan-pending') {
           // Hold on empty → arm a one-shot marquee lasso from the press point.

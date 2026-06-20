@@ -30,6 +30,10 @@ import { useLayerContext } from 'src/hooks/useLayerContext';
 import { useLayerActions } from 'src/hooks/useLayerActions';
 import { useCopyPaste } from 'src/clipboard/useCopyPaste';
 import { collectSelectableRefs } from 'src/utils/selectableRefs';
+import {
+  countUserFacingRefs,
+  filterUserFacingRefs
+} from 'src/utils/connectorSelection';
 import { ItemReference } from 'src/types';
 
 // Keyboard hint chip on the right of a row (monospace, secondary) — mirrors the
@@ -62,6 +66,7 @@ const INLINE_RENAMEABLE = new Set(['ITEM', 'TEXTBOX', 'CONNECTOR']);
  */
 export const CanvasContextMenu = () => {
   const contextMenu = useUiStateStore((s) => s.contextMenu);
+  const selectedIds = useUiStateStore((s) => s.selectedIds);
   const actions = useUiStateStore((s) => s.actions);
   const scene = useScene();
   const { layers, lockedIds, visibleIds } = useLayerContext();
@@ -127,13 +132,28 @@ export const CanvasContextMenu = () => {
     [scene, target]
   );
 
+  const variant = contextMenu?.variant ?? 'item';
+
+  // Assign-to-layer dispatches to the single target, or — in the bulk menu — to
+  // every user-facing ref in the multi-selection (waypoints stripped; they ride
+  // with their connector — see filterUserFacingRefs).
   const handleAssignLayer = useCallback(
     (layerId: string | undefined) => {
-      if (target) assignLayerToItems(layerId, [target]);
+      if (variant === 'multi') {
+        assignLayerToItems(layerId, filterUserFacingRefs(selectedIds));
+      } else if (target) {
+        assignLayerToItems(layerId, [target]);
+      }
       close();
     },
-    [assignLayerToItems, target, close]
+    [variant, assignLayerToItems, selectedIds, target, close]
   );
+
+  // Bulk delete — every selected item (mirrors the Delete-key multi path).
+  const handleDeleteMulti = useCallback(() => {
+    scene.deleteSelectedItems(selectedIds);
+    actions.clearSelection();
+  }, [scene, actions, selectedIds]);
 
   const handleSelectAll = useCallback(() => {
     actions.setSelectedIds(
@@ -155,9 +175,9 @@ export const CanvasContextMenu = () => {
 
   if (!contextMenu) return null;
 
-  const isItemMenu = target !== null;
   const isItem = target?.type === 'ITEM';
   const canRename = !!target && INLINE_RENAMEABLE.has(target.type);
+  const multiCount = countUserFacingRefs(selectedIds);
 
   return (
     <>
@@ -175,7 +195,7 @@ export const CanvasContextMenu = () => {
         slotProps={{ paper: { sx: { minWidth: 200 } } }}
         MenuListProps={{ dense: true }}
       >
-        {isItemMenu
+        {variant === 'item'
           ? [
               <MenuItem key="details" onClick={run(handleDetails)}>
                 <ListItemIcon>
@@ -277,6 +297,74 @@ export const CanvasContextMenu = () => {
                 <Hint>Del</Hint>
               </MenuItem>
             ].filter(Boolean)
+          : variant === 'multi'
+          ? [
+              <MenuItem key="count" disabled>
+                <ListItemText
+                  primaryTypographyProps={{ variant: 'caption' }}
+                  sx={{ color: 'text.secondary' }}
+                >
+                  {multiCount} items selected
+                </ListItemText>
+              </MenuItem>,
+              <Divider key="d0" />,
+              <MenuItem key="cut" onClick={run(handleCut)}>
+                <ListItemIcon>
+                  <CutIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Cut</ListItemText>
+                <Hint>Ctrl+X</Hint>
+              </MenuItem>,
+              <MenuItem key="copy" onClick={run(handleCopy)}>
+                <ListItemIcon>
+                  <CopyIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Copy</ListItemText>
+                <Hint>Ctrl+C</Hint>
+              </MenuItem>,
+              <MenuItem key="duplicate" onClick={run(handleDuplicate)}>
+                <ListItemIcon>
+                  <DuplicateIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Duplicate</ListItemText>
+              </MenuItem>,
+              <Divider key="d1" />,
+              <MenuItem
+                key="layer"
+                onClick={(e) => setLayerAnchor(e.currentTarget)}
+              >
+                <ListItemIcon>
+                  <LayersIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Assign to layer</ListItemText>
+                <ChevronRightIcon fontSize="small" sx={{ ml: 2, opacity: 0.6 }} />
+              </MenuItem>,
+              <Divider key="d2" />,
+              // T8 (ADR 0023) — bulk unsnap / collision land with the model
+              // fields; disabled placeholders for now (same as the item menu).
+              <MenuItem key="snap" disabled>
+                <ListItemIcon>
+                  <SnapIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Unsnap from grid</ListItemText>
+              </MenuItem>,
+              <MenuItem key="collision" disabled>
+                <ListItemIcon>
+                  <CollisionIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Disable collision</ListItemText>
+              </MenuItem>,
+              <Divider key="d3" />,
+              <MenuItem key="delete" onClick={run(handleDeleteMulti)}>
+                <ListItemIcon>
+                  <DeleteIcon fontSize="small" color="error" />
+                </ListItemIcon>
+                <ListItemText sx={{ color: 'error.main' }}>
+                  Delete {multiCount} items
+                </ListItemText>
+                <Hint>Del</Hint>
+              </MenuItem>
+            ]
           : [
               <MenuItem key="add" onClick={run(handleAddItem)}>
                 <ListItemIcon>
