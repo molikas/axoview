@@ -9,7 +9,6 @@ import {
 } from 'src/utils';
 import { UiStateStore } from 'src/types';
 import { INITIAL_UI_STATE } from 'src/config';
-import { DEFAULT_HOTKEY_PROFILE, HotkeyProfile } from 'src/config/hotkeys';
 import { DEFAULT_PAN_SETTINGS } from 'src/config/panSettings';
 import { DEFAULT_ZOOM_SETTINGS } from 'src/config/zoomSettings';
 import { DEFAULT_LABEL_SETTINGS } from 'src/config/labelSettings';
@@ -61,7 +60,6 @@ const initialState = () => {
       itemControls: null,
       selectedIds: [],
       enableDebugTools: false,
-      hotkeyProfile: persisted?.hotkeyProfile ?? DEFAULT_HOTKEY_PROFILE,
       panSettings: persisted?.panSettings ?? DEFAULT_PAN_SETTINGS,
       zoomSettings: persisted?.zoomSettings ?? DEFAULT_ZOOM_SETTINGS,
       labelSettings: persisted?.labelSettings ?? DEFAULT_LABEL_SETTINGS,
@@ -258,9 +256,6 @@ const initialState = () => {
         },
         setRendererSize: (size) => {
           set({ rendererSize: size });
-        },
-        setHotkeyProfile: (hotkeyProfile: HotkeyProfile) => {
-          set({ hotkeyProfile });
         },
         setPanSettings: (panSettings) => {
           set({ panSettings });

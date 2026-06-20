@@ -10,7 +10,7 @@ import { useUiStateStore } from 'src/stores/uiStateStore';
 import { DialogTypeEnum } from 'src/types/ui';
 import { ElementsPanel } from './ElementsPanel';
 import { LayersPanel } from 'src/components/LayersPanel/LayersPanel';
-import { HOTKEY_PROFILES } from 'src/config/hotkeys';
+import { TOOL_HOTKEYS } from 'src/config/hotkeys';
 import { tooltipWithShortcut } from 'src/utils/tooltipWithShortcut';
 
 const STRIP_WIDTH = 40;
@@ -47,8 +47,7 @@ export const LeftDock = ({
   const activeLeftTab = useUiStateStore((s) => s.activeLeftTab);
   const setActiveLeftTab = useUiStateStore((s) => s.actions.setActiveLeftTab);
   const setDialog = useUiStateStore((s) => s.actions.setDialog);
-  const hotkeyProfile = useUiStateStore((s) => s.hotkeyProfile);
-  const hotkeys = HOTKEY_PROFILES[hotkeyProfile];
+  const hotkeys = TOOL_HOTKEYS;
 
   const tabShortcut: Record<LeftTabId, string | null | undefined> = {
     ELEMENTS: hotkeys.addItem?.toUpperCase(),

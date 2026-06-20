@@ -2,7 +2,6 @@
 // Errors are silently swallowed so a corrupt/missing entry never crashes the editor.
 
 import type {
-  HotkeyProfile,
   PanSettings,
   ZoomSettings,
   LabelSettings
@@ -12,7 +11,6 @@ import type { CanvasMode, ConnectorInteractionMode } from 'src/types/ui';
 const STORAGE_KEY = 'axoview_user_settings';
 
 export interface PersistedSettings {
-  hotkeyProfile?: HotkeyProfile;
   panSettings?: PanSettings;
   zoomSettings?: ZoomSettings;
   labelSettings?: LabelSettings;

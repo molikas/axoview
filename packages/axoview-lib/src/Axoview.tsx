@@ -97,7 +97,6 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
     });
     const persistableSettings = useUiStateStore(
       (state) => ({
-        hotkeyProfile: state.hotkeyProfile,
         panSettings: state.panSettings,
         zoomSettings: state.zoomSettings,
         labelSettings: state.labelSettings,

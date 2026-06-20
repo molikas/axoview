@@ -15,7 +15,7 @@ import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { IconButton } from 'src/components/IconButton/IconButton';
 import { UiElement } from 'src/components/UiElement/UiElement';
 import { useHistory } from 'src/hooks/useHistory';
-import { HOTKEY_PROFILES } from 'src/config/hotkeys';
+import { TOOL_HOTKEYS } from 'src/config/hotkeys';
 import { useTranslation } from 'src/stores/localeStore';
 import {
   isometricStrategy,
@@ -32,16 +32,13 @@ export const ToolMenu = () => {
     return state.mode;
   });
   const uiStateStoreActions = useUiStateStore((state) => state.actions);
-  const hotkeyProfile = useUiStateStore((state) => {
-    return state.hotkeyProfile;
-  });
   const connectorInteractionMode = useUiStateStore((state) => {
     return state.connectorInteractionMode;
   });
   const canvasMode = useUiStateStore((state) => state.canvasMode);
   const uiStateApi = useUiStateStoreApi();
 
-  const hotkeys = HOTKEY_PROFILES[hotkeyProfile];
+  const hotkeys = TOOL_HOTKEYS;
 
   // Iso↔2D switch preserves the user's zoom and viewport center (ADR locked
   // decision #6): re-project the tile under the viewport center and recompute

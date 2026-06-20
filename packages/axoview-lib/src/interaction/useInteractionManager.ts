@@ -21,7 +21,7 @@ import { useResizeObserver } from 'src/hooks/useResizeObserver';
 import { useScene } from 'src/hooks/useScene';
 import { useHistory } from 'src/hooks/useHistory';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
-import { HOTKEY_PROFILES } from 'src/config/hotkeys';
+import { TOOL_HOTKEYS } from 'src/config/hotkeys';
 import { resolveToolHotkey } from './toolHotkeys';
 import { TEXTBOX_DEFAULTS } from 'src/config';
 import { useLayerContext } from 'src/hooks/useLayerContext';
@@ -412,7 +412,7 @@ const handleFunctionKeys = (
   }
 };
 
-// Tool-selection hotkeys (configurable per HOTKEY_PROFILES).
+// Tool-selection hotkeys — one fixed read-only scheme (ADR 0022 §6).
 const handleToolHotkeys = (
   e: KeyboardEvent,
   isCtrlOrCmd: boolean,
@@ -420,8 +420,7 @@ const handleToolHotkeys = (
   key: string,
   deps: KeydownDeps
 ) => {
-  const mapping = HOTKEY_PROFILES[uiState.hotkeyProfile];
-  const action = resolveToolHotkey(isCtrlOrCmd, key, mapping);
+  const action = resolveToolHotkey(isCtrlOrCmd, key, TOOL_HOTKEYS);
   if (!action) return;
   e.preventDefault();
 

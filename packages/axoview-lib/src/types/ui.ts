@@ -2,7 +2,6 @@ import { Coords, Size, EditorModeEnum } from './common';
 import { Icon } from './model';
 import { ItemReference } from './scene';
 import {
-  HotkeyProfile,
   PanSettings,
   ZoomSettings,
   LabelSettings
@@ -232,7 +231,6 @@ export interface UiState {
   rendererEl: HTMLDivElement | null;
   rendererSize: Size;
   enableDebugTools: boolean;
-  hotkeyProfile: HotkeyProfile;
   panSettings: PanSettings;
   zoomSettings: ZoomSettings;
   labelSettings: LabelSettings;
@@ -382,7 +380,6 @@ export interface UiStateActions {
   setRendererEl: (el: HTMLDivElement) => void;
   setRendererSize: (size: Size) => void;
   setEnableDebugTools: (enabled: boolean) => void;
-  setHotkeyProfile: (profile: HotkeyProfile) => void;
   setPanSettings: (settings: PanSettings) => void;
   setZoomSettings: (settings: ZoomSettings) => void;
   setLabelSettings: (settings: LabelSettings) => void;

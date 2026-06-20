@@ -1,8 +1,6 @@
 // Settings type definitions — kept here so all types are centrally located in /types/.
 // Default values live in /config/hotkeys.ts, /config/panSettings.ts, etc.
 
-export type HotkeyProfile = 'qwerty' | 'smnrct' | 'none';
-
 export interface HotkeyMapping {
   select: string | null;
   pan: string | null;

@@ -1,38 +1,24 @@
-// Re-export types from canonical location for backwards compatibility.
-export type { HotkeyProfile, HotkeyMapping } from 'src/types/settings';
-import type { HotkeyProfile, HotkeyMapping } from 'src/types/settings';
+// Re-export the mapping shape from the canonical location.
+export type { HotkeyMapping } from 'src/types/settings';
+import type { HotkeyMapping } from 'src/types/settings';
 
-export const HOTKEY_PROFILES: Record<HotkeyProfile, HotkeyMapping> = {
-  qwerty: {
-    select: 'q',
-    pan: 'w',
-    addItem: 'e',
-    rectangle: 'r',
-    connector: 't',
-    text: 'y',
-    lasso: 'l',
-    freehandLasso: 'f'
-  },
-  smnrct: {
-    select: 's',
-    pan: 'm',
-    addItem: 'n',
-    rectangle: 'r',
-    connector: 'c',
-    text: 't',
-    lasso: 'l',
-    freehandLasso: 'f'
-  },
-  none: {
-    select: null,
-    pan: null,
-    addItem: null,
-    rectangle: null,
-    connector: null,
-    text: null,
-    lasso: null,
-    freehandLasso: null
-  }
+// One fixed, read-only tool-hotkey scheme (ADR 0022 §6). The profile selector
+// (qwerty / smnrct / none) and rebinding were removed: the only persistence
+// available is per-browser localStorage — a rebind wouldn't follow the user
+// across devices — so customization is deferred until per-user account storage
+// exists. The keys stay VISIBLE but read-only (HotkeySettings reference table +
+// HelpDialog) so users can still learn them.
+//
+// Locked keys: S select · M pan · N add-item · R rectangle · C connector ·
+// T text · L lasso · F freehand. (The mnemonic set that used to be the default
+// `smnrct` profile.)
+export const TOOL_HOTKEYS: HotkeyMapping = {
+  select: 's',
+  pan: 'm',
+  addItem: 'n',
+  rectangle: 'r',
+  connector: 'c',
+  text: 't',
+  lasso: 'l',
+  freehandLasso: 'f'
 };
-
-export const DEFAULT_HOTKEY_PROFILE: HotkeyProfile = 'smnrct';
