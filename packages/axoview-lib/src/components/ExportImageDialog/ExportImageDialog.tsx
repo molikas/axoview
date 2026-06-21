@@ -41,6 +41,7 @@ import { customVars } from 'src/styles/theme';
 import { ColorPicker } from 'src/components/ColorSelector/ColorPicker';
 import { DOMErrorBoundary } from 'src/components/DOMErrorBoundary';
 import { useTranslation } from 'src/stores/localeStore';
+import { waitForIconsDrawn } from './waitForIconsDrawn';
 
 interface Props {
   onClose: () => void;
@@ -114,43 +115,6 @@ function drawCropSelection(
   ctx.lineWidth = 2;
   ctx.strokeRect(cropArea.x, cropArea.y, cropArea.width, cropArea.height);
 }
-
-// A2: the export snapshots the hidden Axoview's Canvas2D node layer, but icon
-// bitmaps decode asynchronously (NodesCanvas.getImage creates an Image and only
-// paints it once `complete`). Waiting on model-ready + one rAF isn't enough — the
-// first frame can paint before any icon has decoded, dropping every icon node
-// from the capture (connectors are DOM/SVG, so they survive). NodesCanvas now
-// publishes `data-all-icons-drawn="true"` once a frame painted with every icon
-// bitmap available; poll that here before capturing. Resolves true when the
-// canvas reports ready, false once the timeout elapses (so export never hangs and
-// we fall back to capturing anyway, then recapturing — see the effect below).
-const waitForIconsDrawn = (
-  container: HTMLElement | null,
-  timeoutMs: number
-): Promise<boolean> =>
-  new Promise((resolve) => {
-    const start = performance.now();
-    const poll = () => {
-      const canvas = container?.querySelector<HTMLElement>(
-        '[data-testid="axoview-nodes-canvas"]'
-      );
-      // No canvas in the tree (e.g. DOM node renderer) → nothing to wait for.
-      if (!canvas) {
-        resolve(true);
-        return;
-      }
-      if (canvas.dataset.allIconsDrawn === 'true') {
-        resolve(true);
-        return;
-      }
-      if (performance.now() - start >= timeoutMs) {
-        resolve(false);
-        return;
-      }
-      requestAnimationFrame(poll);
-    };
-    requestAnimationFrame(poll);
-  });
 
 export const ExportImageDialog = memo(({ onClose }: Props) => {
   const { t } = useTranslation('exportImageDialog');

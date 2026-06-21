@@ -200,4 +200,56 @@ test.describe('Export image — T5 (ADR 0025)', () => {
     await expect(svgButton(page)).toBeEnabled({ timeout: 20_000 });
     await expect(page.getByAltText('preview')).toBeVisible({ timeout: 20_000 });
   });
+
+  test('#10: canvas-drawn icon nodes are present in the export PNG, not just connectors', async ({
+    page,
+    app
+  }) => {
+    void app;
+    await bootBlankDiagram(page);
+    // A single icon node, NO connector: all visible content lives on the
+    // Canvas2D node layer. If dom-to-image fails to rasterise the <canvas>, the
+    // export is all background — that is exactly the QA #10 regression.
+    await placeIcon(page, { x: 380, y: 280 });
+    await expect.poll(() => getModelItemCount(page), { timeout: 5_000 }).toBe(1);
+
+    await openImageDialogAndWaitReady(page);
+    await expect(svgButton(page)).toBeEnabled({ timeout: 20_000 });
+    await expect(page.getByAltText('preview')).toBeVisible({ timeout: 20_000 });
+
+    // Sample the preview PNG: the top-left pixel is the background; count pixels
+    // that differ from it. A captured icon yields a meaningful fraction.
+    const nonBgRatio = await page.evaluate(async () => {
+      const img = document.querySelector(
+        'img[alt="preview"]'
+      ) as HTMLImageElement | null;
+      if (!img) return -1;
+      if (!img.complete || img.naturalWidth === 0) {
+        await new Promise<void>((res) => {
+          img.onload = () => res();
+          img.onerror = () => res();
+        });
+      }
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      const ctx = c.getContext('2d');
+      if (!ctx || c.width === 0) return -1;
+      ctx.drawImage(img, 0, 0);
+      const { data } = ctx.getImageData(0, 0, c.width, c.height);
+      const [br, bg, bb, ba] = [data[0], data[1], data[2], data[3]];
+      let nonBg = 0;
+      const total = data.length / 4;
+      for (let i = 0; i < data.length; i += 4) {
+        const dr = Math.abs(data[i] - br);
+        const dg = Math.abs(data[i + 1] - bg);
+        const db = Math.abs(data[i + 2] - bb);
+        const da = Math.abs(data[i + 3] - ba);
+        if (dr + dg + db + da > 48) nonBg++;
+      }
+      return nonBg / total;
+    });
+
+    expect(nonBgRatio).toBeGreaterThan(0.01);
+  });
 });
