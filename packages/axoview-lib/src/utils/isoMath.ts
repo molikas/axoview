@@ -31,6 +31,7 @@ import {
 import { CoordsUtils } from 'src/utils/coordsUtils';
 import { SizeUtils } from 'src/utils/sizeUtils';
 import { findPath } from 'src/utils/pathfinder';
+import { htmlToPlainText } from 'src/utils/htmlToPlainText';
 import {
   clamp,
   roundToTwoDecimalPlaces,
@@ -446,12 +447,7 @@ const getPlainTextForMeasurement = (content: string): string => {
   if (!content?.trim().startsWith('<')) return content;
   const lines = content
     .split(/<\/p>|<\/div>|<br\s*\/?>/i)
-    .map((s) =>
-      s
-        .replace(/<[^>]*>/g, '')
-        .replace(/&nbsp;/g, ' ')
-        .trim()
-    )
+    .map((s) => htmlToPlainText(s).trim())
     .filter(Boolean);
   return lines.reduce((a, b) => (a.length > b.length ? a : b), '');
 };
@@ -504,10 +500,7 @@ export const splitIntoMeasurableBlocks = (
   let m: RegExpExecArray | null;
   while ((m = re.exec(content)) !== null) {
     const tag = m[1].toLowerCase();
-    const text = m[3]
-      .replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .trim();
+    const text = htmlToPlainText(m[3]).trim();
     if (!text) continue;
     const scale =
       CANVAS_RICHTEXT_SCALE[tag as keyof typeof CANVAS_RICHTEXT_SCALE] ?? 1.0;

@@ -1,6 +1,7 @@
 import React, { useMemo, memo, useCallback, useEffect, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import { toPx, CoordsUtils } from 'src/utils';
+import { decodeHtmlEntities } from 'src/utils/htmlToPlainText';
 import { useIsoProjection } from 'src/hooks/useIsoProjection';
 import { useTextBoxProps } from 'src/hooks/useTextBoxProps';
 import { useScene } from 'src/hooks/useScene';
@@ -28,15 +29,13 @@ interface Props {
 // Rich editing remains available via the side panel.
 const htmlToPlain = (s: string | undefined): string => {
   if (!s) return '';
-  return s
+  // Block tags → newlines (preserve line breaks), strip the rest, then decode
+  // entities via the shared util (A1 converge — also covers &#39;/&quot;/numeric).
+  const stripped = s
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/\n+$/, '');
+    .replace(/<[^>]*>/g, '');
+  return decodeHtmlEntities(stripped).replace(/\n+$/, '');
 };
 
 export const TextBox = memo(({ textBox }: Props) => {

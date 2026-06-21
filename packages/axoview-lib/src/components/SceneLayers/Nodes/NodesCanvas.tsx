@@ -19,7 +19,10 @@ import { useModelStoreApi } from 'src/stores/modelStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { resolveRenderOrder } from 'src/utils/renderOrder';
-import { stripHtmlTags } from 'src/utils/stripHtml';
+import {
+  htmlToPlainText,
+  decodeHtmlEntities
+} from 'src/utils/htmlToPlainText';
 import { isLabelVisibleInPreview } from 'src/utils/previewLabelVisibility';
 
 // ---------------------------------------------------------------------------
@@ -122,12 +125,12 @@ const roundRectPath = (
 };
 
 // Description (modelItem.description is rich-text HTML) → plain text, mirroring
-// Node.tsx's strip-and-trim visibility test. Returns '' when there's no visible
-// text so the canvas matches the DOM's "render the description only if non-empty".
-const getDescriptionText = (html: string | undefined): string => {
-  if (!html) return '';
-  return stripHtmlTags(html).replace(/\s+/g, ' ').trim();
-};
+// Node.tsx's strip-and-trim visibility test. Strips tags AND decodes entities so
+// Quill's literal `&nbsp;`/`&amp;` don't reach ctx.fillText (the DOM path decodes
+// for free when it renders the HTML; A1). Returns '' when there's no visible text
+// so the canvas matches the DOM's "render the description only if non-empty".
+const getDescriptionText = (html: string | undefined): string =>
+  htmlToPlainText(html).replace(/\s+/g, ' ').trim();
 
 // Greedy word-wrap to a pixel width. `ctx.font` must already be set by the
 // caller. Long single words overflow rather than breaking mid-word (acceptable —
@@ -413,7 +416,10 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
           ? { x: base.x + node.offset.x, y: base.y + node.offset.y }
           : base;
 
-        const name = modelItem.name;
+        // Name is plain text rendered verbatim by the DOM overlay, so decode
+        // entities only — never strip tags (a name like `List<T>` must survive
+        // and stay identical to the DOM Node it swaps with). A1 / hybrid parity.
+        const name = decodeHtmlEntities(modelItem.name);
         const descText = getDescriptionText(modelItem.description);
         const hasLabel =
           isLabelVisibleInPreview(
