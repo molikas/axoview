@@ -364,6 +364,9 @@ export interface LocaleProps {
     help: string;
     selected: string;
   };
+  modeHints: {
+    connector: string;
+  };
   previewLayerSwitcher: {
     layers: string;
     showLayer: string;

@@ -378,6 +378,9 @@ const locale: LocaleProps = {
     help: 'Bantuan (F1)',
     selected: '{count} dipilih'
   },
+  modeHints: {
+    connector: 'Seret antar item untuk menghubungkan • Esc untuk membatalkan'
+  },
   previewLayerSwitcher: {
     layers: 'Lapisan',
     showLayer: 'Tampilkan lapisan',

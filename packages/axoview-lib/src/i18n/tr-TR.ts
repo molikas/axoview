@@ -379,6 +379,9 @@ const locale: LocaleProps = {
     help: 'Yardım (F1)',
     selected: '{count} seçildi'
   },
+  modeHints: {
+    connector: 'Bağlamak için öğeler arasında sürükleyin • İptal için Esc'
+  },
   previewLayerSwitcher: {
     layers: 'Katmanlar',
     showLayer: 'Katmanı göster',

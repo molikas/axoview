@@ -379,6 +379,9 @@ const locale: LocaleProps = {
     help: 'सहायता (F1)',
     selected: '{count} चयनित'
   },
+  modeHints: {
+    connector: 'कनेक्ट करने के लिए आइटम के बीच ड्रैग करें • रद्द करने के लिए Esc'
+  },
   previewLayerSwitcher: {
     layers: 'परतें',
     showLayer: 'परत दिखाएं',

@@ -357,6 +357,9 @@ const locale: LocaleProps = {
     help: '帮助 (F1)',
     selected: '已选择 {count} 项'
   },
+  modeHints: {
+    connector: '在项目之间拖拽以连接 • 按 Esc 取消'
+  },
   previewLayerSwitcher: {
     layers: '图层',
     showLayer: '显示图层',

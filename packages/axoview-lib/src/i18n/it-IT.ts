@@ -381,6 +381,9 @@ const locale: LocaleProps = {
     help: 'Aiuto (F1)',
     selected: '{count} selezionati'
   },
+  modeHints: {
+    connector: 'Trascina tra gli elementi per collegare • Esc per annullare'
+  },
   previewLayerSwitcher: {
     layers: 'Livelli',
     showLayer: 'Mostra livello',

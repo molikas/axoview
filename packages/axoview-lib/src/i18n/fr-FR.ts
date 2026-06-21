@@ -383,6 +383,9 @@ const locale: LocaleProps = {
     help: 'Aide (F1)',
     selected: '{count} sélectionnés'
   },
+  modeHints: {
+    connector: 'Glissez entre les éléments pour connecter • Échap pour annuler'
+  },
   previewLayerSwitcher: {
     layers: 'Calques',
     showLayer: 'Afficher le calque',

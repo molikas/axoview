@@ -377,6 +377,9 @@ const locale: LocaleProps = {
     help: 'সাহায্য (F1)',
     selected: '{count}টি নির্বাচিত'
   },
+  modeHints: {
+    connector: 'সংযোগ করতে আইটেমগুলির মধ্যে টেনে আনুন • বাতিল করতে Esc'
+  },
   previewLayerSwitcher: {
     layers: 'স্তর',
     showLayer: 'স্তর দেখান',

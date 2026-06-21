@@ -32,6 +32,7 @@ import { PreviewLabelsToggle } from 'src/components/PreviewLabelsToggle/PreviewL
 import { ViewModeInfoPopover } from 'src/components/ViewModeInfoPopover/ViewModeInfoPopover';
 import { AnnotationLayer } from 'src/components/AnnotationLayer/AnnotationLayer';
 import { AnnotationPalette } from 'src/components/AnnotationPalette/AnnotationPalette';
+import { ConnectorModeHint } from '../ModeHint/ConnectorModeHint';
 
 type ToolName = 'TOOL_MENU' | 'ITEM_CONTROLS' | 'VIEW_TITLE' | 'VIEW_TABS';
 
@@ -282,6 +283,8 @@ export const UiOverlay = ({
         )}
 
       <PlaceIconLayer />
+
+      <ConnectorModeHint />
 
       {dialog === DialogTypeEnum.EXPORT_IMAGE && (
         <ExportImageDialog

@@ -379,6 +379,9 @@ const locale: LocaleProps = {
     help: 'Ajuda (F1)',
     selected: '{count} selecionados'
   },
+  modeHints: {
+    connector: 'Arraste entre os itens para conectar • Esc para cancelar'
+  },
   previewLayerSwitcher: {
     layers: 'Camadas',
     showLayer: 'Mostrar camada',

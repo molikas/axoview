@@ -381,6 +381,9 @@ const locale: LocaleProps = {
     help: 'Hilfe (F1)',
     selected: '{count} ausgewählt'
   },
+  modeHints: {
+    connector: 'Zum Verbinden zwischen Elementen ziehen • Esc zum Abbrechen'
+  },
   previewLayerSwitcher: {
     layers: 'Ebenen',
     showLayer: 'Ebene einblenden',

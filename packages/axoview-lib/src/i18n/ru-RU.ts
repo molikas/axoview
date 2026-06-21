@@ -379,6 +379,9 @@ const locale: LocaleProps = {
     help: 'Помощь (F1)',
     selected: 'Выбрано: {count}'
   },
+  modeHints: {
+    connector: 'Перетащите между элементами для соединения • Esc для отмены'
+  },
   previewLayerSwitcher: {
     layers: 'Слои',
     showLayer: 'Показать слой',

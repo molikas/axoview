@@ -378,6 +378,9 @@ const locale: LocaleProps = {
     help: 'Help (F1)',
     selected: '{count} selected'
   },
+  modeHints: {
+    connector: 'Drag between items to connect • Esc to cancel'
+  },
   previewLayerSwitcher: {
     layers: 'Layers',
     showLayer: 'Show layer',
