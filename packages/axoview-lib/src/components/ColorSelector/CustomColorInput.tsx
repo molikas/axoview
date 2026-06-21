@@ -22,6 +22,13 @@ interface Props {
 
 const HEX_RE = /^#[0-9A-F]{6}$/i;
 
+// Accept a 6-digit hex typed without the leading '#' ("FF5733" → "#FF5733") so a
+// value the user clearly meant isn't treated as invalid and discarded (E2).
+const normalizeHex = (v: string): string => {
+  const t = v.trim();
+  return /^[0-9A-F]{6}$/i.test(t) ? `#${t}` : t;
+};
+
 export const CustomColorInput = ({ value, onChange }: Props) => {
   const [localValue, setLocalValue] = useState(value);
 
@@ -42,35 +49,44 @@ export const CustomColorInput = ({ value, onChange }: Props) => {
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setLocalValue(newValue);
-    // If it's a valid hex, update immediately
-    if (HEX_RE.test(newValue)) {
-      onChange(newValue);
+    const raw = e.target.value;
+    setLocalValue(raw);
+    // Commit immediately once it's a valid hex (a missing '#' is accepted).
+    const hex = normalizeHex(raw);
+    if (HEX_RE.test(hex)) {
+      onChange(hex);
     }
   };
 
   const handleBlur = () => {
-    // On blur, if invalid, revert to prop value
-    if (!HEX_RE.test(localValue)) {
+    // On blur, normalise a valid value (adds the '#') and commit it; only revert
+    // to the prop value when the input is genuinely not a hex colour.
+    const hex = normalizeHex(localValue);
+    if (HEX_RE.test(hex)) {
+      setLocalValue(hex);
+      onChange(hex);
+    } else {
       setLocalValue(value);
     }
   };
 
-  // E2: Enter commits a valid hex; Esc cancels the in-progress edit. Both
+  // E2: Enter and Esc both COMMIT a valid hex (incl. one typed without '#') and
   // stopPropagation so the keystroke never reaches the window-level canvas
   // handler — Esc otherwise runs handleEscapeKey (which fires BEFORE the
-  // editable-target guard) and closed the whole Properties panel mid-edit,
-  // discarding the typed value. Mirrors the F2 inline-rename pattern (ux §3.1).
+  // editable-target guard), closing the Properties panel mid-edit and
+  // discarding the value. Only genuinely invalid input is reverted on Esc.
+  // Mirrors the F2 inline-rename pattern (ux §3.1).
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
+    if (e.key === 'Enter' || e.key === 'Escape') {
+      if (e.key === 'Enter') e.preventDefault();
       e.stopPropagation();
-      if (HEX_RE.test(localValue)) onChange(localValue);
-      (e.target as HTMLInputElement).blur();
-    } else if (e.key === 'Escape') {
-      e.stopPropagation();
-      setLocalValue(value); // revert the unsaved edit; panel stays open
+      const hex = normalizeHex(localValue);
+      if (HEX_RE.test(hex)) {
+        onChange(hex);
+        setLocalValue(hex);
+      } else if (e.key === 'Escape') {
+        setLocalValue(value); // cancel genuinely invalid input
+      }
       (e.target as HTMLInputElement).blur();
     }
   };
