@@ -13,8 +13,13 @@ import { LayersPanel } from 'src/components/LayersPanel/LayersPanel';
 import { TOOL_HOTKEYS } from 'src/config/hotkeys';
 import { tooltipWithShortcut } from 'src/utils/tooltipWithShortcut';
 
-const STRIP_WIDTH = 40;
-const PANEL_WIDTH = 240;
+// Exported so canvas-anchored chrome (NodeActionBar — B4 / decision #5) can
+// derive the dock's right edge to clamp against, without duplicating the magic
+// numbers. STRIP is always present in edit mode; PANEL adds when a left tab is
+// open. FILE_EXPLORER is an app-level surface (its open state is a prop here, not
+// in the store), so lib-internal clamps account for STRIP + PANEL only.
+export const STRIP_WIDTH = 40;
+export const PANEL_WIDTH = 240;
 const FILE_EXPLORER_WIDTH = 280;
 
 type LeftTabId = 'ELEMENTS' | 'LAYERS';

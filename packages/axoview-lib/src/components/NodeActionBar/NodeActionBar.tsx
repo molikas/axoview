@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState
+} from 'react';
 import {
   Box,
   Paper,
@@ -32,6 +38,7 @@ import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useTranslation } from 'src/stores/localeStore';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { useLayerActions } from 'src/hooks/useLayerActions';
+import { STRIP_WIDTH, PANEL_WIDTH } from 'src/components/LeftDock/LeftDock';
 import {
   ItemType,
   dispatch,
@@ -71,21 +78,92 @@ export const NodeActionBar = ({ type, id, tile: connectorTile }: Props) => {
     null
   );
   const wrapperRef = useRef<HTMLDivElement>(null);
+  // Anchor tile for the active item — refreshed on every render, read by the
+  // direct-subscription placement below (mirrors ViewModeInfoPopover.anchorTileRef).
+  const anchorTileRef = useRef<Coords | undefined>(undefined);
 
-  // Counter-scale unconditionally — bar stays at natural pixel size at every
-  // zoom level (UX §8.8). Bypasses React render, same pattern as SceneLayer.
-  useEffect(() => {
-    const apply = (zoom: number) => {
-      if (!wrapperRef.current) return;
-      const counter = 1 / zoom;
-      wrapperRef.current.style.transform = `translateX(-50%) scale(${counter})`;
-    };
-    apply(uiStoreApi.getState().zoom);
-    return uiStoreApi.subscribe((state, prev) => {
-      if (state.zoom === prev.zoom) return;
-      apply(state.zoom);
+  // B4 / decision #5: place the bar in SCREEN space (it renders outside the
+  // SceneLayer — see UiOverlay), mirroring ViewModeInfoPopover's mechanism:
+  //   - default ABOVE the anchor (the bar's historical spot), horizontally
+  //     centered on it;
+  //   - FLIP BELOW when sitting above would clip past the renderer's top edge;
+  //   - CLAMP horizontally so the bar never slides under the LeftDock's right
+  //     edge nor past the renderer's right edge.
+  // Driven off the uiStoreApi scroll/zoom/rendererSize (and activeLeftTab)
+  // subscription so pan/zoom never re-renders React. In screen space the bar is
+  // already at natural pixel size, which is exactly the screen-pixel-stability
+  // (UX §8.8) the old in-SceneLayer 1/zoom counter-scale existed to provide —
+  // so no scale() is applied here (same as ViewModeInfoPopover).
+  const applyPlacement = useCallback(() => {
+    const el = wrapperRef.current;
+    const tile = anchorTileRef.current;
+    if (!el || !tile) return;
+    const { scroll, zoom, rendererSize, activeLeftTab } = uiStoreApi.getState();
+    if (!rendererSize.width || !rendererSize.height) return;
+
+    // Tile point → screen px (same transform the SceneLayer applies internally).
+    const toScreen = (p: Coords) => ({
+      x: rendererSize.width / 2 + scroll.position.x + zoom * p.x,
+      y: rendererSize.height / 2 + scroll.position.y + zoom * p.y
     });
-  }, [uiStoreApi]);
+    const topAnchor = toScreen(getTilePosition({ tile, origin: 'TOP' }));
+    const bottomAnchor = toScreen(getTilePosition({ tile, origin: 'BOTTOM' }));
+
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    const GAP = 12; // matches the old `top: pos.y - 40` standoff at natural size
+    const MARGIN = 8;
+
+    // LeftDock right edge in renderer-x: the strip is always present in edit
+    // mode; the Elements/Layers panel adds its width when a tab is open. The app
+    // file-explorer surface isn't visible to the lib (its open state is a prop,
+    // not store), so it's intentionally out of this clamp — STRIP + PANEL only.
+    const dockRight = STRIP_WIDTH + (activeLeftTab !== null ? PANEL_WIDTH : 0);
+
+    // Vertical: prefer ABOVE; flip BELOW when the bar's top would clip the
+    // renderer top. transform's Y term anchors the bar to the chosen edge.
+    const fitsAbove = topAnchor.y - GAP - h >= MARGIN;
+    const placeAbove = fitsAbove;
+    const topPx = placeAbove ? topAnchor.y - GAP : bottomAnchor.y + GAP;
+    const tyPercent = placeAbove ? '-100%' : '0%';
+
+    // Horizontal: centered on the anchor, then clamped so the whole bar stays
+    // between the dock's right edge and the renderer's right edge.
+    const half = w / 2;
+    const minCenter = dockRight + MARGIN + half;
+    const maxCenter = rendererSize.width - MARGIN - half;
+    // When the available band is narrower than the bar, minCenter > maxCenter;
+    // prefer staying clear of the dock (left bound wins) so it isn't occluded.
+    const leftPx =
+      minCenter <= maxCenter
+        ? Math.min(Math.max(topAnchor.x, minCenter), maxCenter)
+        : minCenter;
+
+    el.style.left = `${leftPx}px`;
+    el.style.top = `${topPx}px`;
+    el.style.transform = `translate(-50%, ${tyPercent})`;
+  }, [uiStoreApi, getTilePosition]);
+
+  // Reposition pre-paint when the active item / its size changes (no visible jump).
+  useLayoutEffect(() => {
+    applyPlacement();
+  });
+
+  // Reposition on pan / zoom / resize / left-tab toggle without re-rendering React.
+  useEffect(() => {
+    applyPlacement();
+    return uiStoreApi.subscribe((state, prev) => {
+      if (
+        state.scroll === prev.scroll &&
+        state.zoom === prev.zoom &&
+        state.rendererSize === prev.rendererSize &&
+        state.activeLeftTab === prev.activeLeftTab
+      ) {
+        return;
+      }
+      applyPlacement();
+    });
+  }, [uiStoreApi, applyPlacement]);
 
   const handleDelete = useCallback(() => {
     uiStateActions.setItemControls(null);
@@ -157,26 +235,22 @@ export const NodeActionBar = ({ type, id, tile: connectorTile }: Props) => {
     [assignLayerToItems, type, id]
   );
 
-  // Derive position based on element type
-  const getPosition = useCallback(() => {
-    if (type === 'ITEM' && viewItem) {
-      return getTilePosition({ tile: viewItem.tile, origin: 'TOP' });
-    }
-    if (type === 'TEXTBOX' && textBox) {
-      return getTilePosition({ tile: textBox.tile, origin: 'TOP' });
-    }
+  // Derive the anchor TILE for the active element type. Screen placement (incl.
+  // origin TOP/BOTTOM for the flip) is computed from this tile in applyPlacement.
+  const getAnchorTile = (): Coords | null => {
+    if (type === 'ITEM' && viewItem) return viewItem.tile;
+    if (type === 'TEXTBOX' && textBox) return textBox.tile;
     if (type === 'RECTANGLE' && rectangle) {
-      const midX = (rectangle.from.x + rectangle.to.x) / 2;
-      const topY = Math.min(rectangle.from.y, rectangle.to.y);
-      return getTilePosition({ tile: { x: midX, y: topY }, origin: 'TOP' });
+      return {
+        x: (rectangle.from.x + rectangle.to.x) / 2,
+        y: Math.min(rectangle.from.y, rectangle.to.y)
+      };
     }
-    if (type === 'CONNECTOR' && connectorTile) {
-      return getTilePosition({ tile: connectorTile, origin: 'TOP' });
-    }
+    if (type === 'CONNECTOR' && connectorTile) return connectorTile;
     return null;
-  }, [type, viewItem, textBox, rectangle, connectorTile, getTilePosition]);
+  };
 
-  // Guard: can't render without position or the type's backing item data.
+  // Guard: can't render without an anchor or the type's backing item data.
   const hasRequiredData = (): boolean => {
     if (type === 'ITEM') return !!viewItem && !!modelItem;
     if (type === 'CONNECTOR') return !!connector;
@@ -185,8 +259,11 @@ export const NodeActionBar = ({ type, id, tile: connectorTile }: Props) => {
     return false;
   };
 
-  const pos = getPosition();
-  if (!pos || !hasRequiredData()) return null;
+  const anchorTile = getAnchorTile();
+  // Refresh the ref every render so the direct-subscription placement uses the
+  // live tile (it survives the early return below only when there's a tile).
+  anchorTileRef.current = anchorTile ?? undefined;
+  if (!anchorTile || !hasRequiredData()) return null;
 
   // Per-type source values — table lookup avoids long type-dispatch ternaries.
   const notesByType: Record<ItemType, string | undefined> = {
@@ -256,13 +333,15 @@ export const NodeActionBar = ({ type, id, tile: connectorTile }: Props) => {
     <Box
       ref={wrapperRef}
       sx={{
+        // left / top / transform are set imperatively by applyPlacement
+        // (screen-space, top-anchored with edge flip-below + horizontal clamp).
         position: 'absolute',
-        left: pos.x,
-        top: pos.y - 40,
-        transform: 'translateX(-50%)',
-        transformOrigin: 'center bottom',
         pointerEvents: 'auto',
-        zIndex: 10
+        // B4 / decision #5: render ABOVE the LeftDock stacking context (dock is
+        // zIndex 20) so the bar is never hidden behind it near the left edge.
+        // Just above the dock — below MUI Portal-rendered menus/tooltips, which
+        // sit at the document root.
+        zIndex: 21
       }}
       onMouseDown={(e) => e.stopPropagation()}
     >

@@ -305,24 +305,25 @@ export const UiOverlay = ({
 
       <NotificationSnackbar />
 
-      <SceneLayer>
-        {/* Floating action bar — edit mode only, hidden while dragging.
-            Opened by right-click on an item (mqa-results.md #1); left-click
-            selection no longer auto-shows the bar. */}
-        {editorMode === EditorModeEnum.EDITABLE &&
-          itemActionBarOpen &&
-          itemControls &&
-          itemControls.type !== 'ADD_ITEM' &&
-          itemControls.type !== 'CONNECTOR_ANCHOR' &&
-          mode.type !== 'DRAG_ITEMS' && (
-            <NodeActionBar
-              type={itemControls.type}
-              id={itemControls.id}
-              tile={itemControls.tile}
-            />
-          )}
-
-      </SceneLayer>
+      {/* Floating action bar — edit mode only, hidden while dragging.
+          Opened by right-click on an item (mqa-results.md #1); left-click
+          selection no longer auto-shows the bar.
+          B4 / decision #5: lives OUTSIDE the SceneLayer (screen-space), so it can
+          flip/clamp against the viewport and sit above the LeftDock stacking
+          context — same mechanism as ViewModeInfoPopover. It tracks the item via
+          a direct store subscription (scroll/zoom/rendererSize/activeLeftTab). */}
+      {editorMode === EditorModeEnum.EDITABLE &&
+        itemActionBarOpen &&
+        itemControls &&
+        itemControls.type !== 'ADD_ITEM' &&
+        itemControls.type !== 'CONNECTOR_ANCHOR' &&
+        mode.type !== 'DRAG_ITEMS' && (
+          <NodeActionBar
+            type={itemControls.type}
+            id={itemControls.id}
+            tile={itemControls.tile}
+          />
+        )}
 
       {/* Canvas context menu (ADR 0027) — portals to the document root, so it
           lives outside the SceneLayer. Edit mode only; self-gates on the
