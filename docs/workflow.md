@@ -1,6 +1,6 @@
 # Workflow — Canonical session cadence
 
-> **Status:** Authoritative · **Last updated:** 2026-05-20 · **Audience:** anyone (human or Claude) opening a session against this repo.
+> **Status:** Authoritative · **Last updated:** 2026-06-21 · **Audience:** anyone (human or Claude) opening a session against this repo.
 >
 > This doc names the canonical sequence of a working session: which skill fires when, where the artifacts land, and what the design principles are. It is the single source of truth for "how we work here." Skill bodies cross-reference this doc; this doc does not duplicate skill bodies.
 
@@ -95,6 +95,7 @@ A session moves left-to-right through the stages below. Most sessions skip stage
 | Iterative bug-fix / polish loop on shipped surfaces | `/shake-out` | Per-issue verification loop; one coherent commit per bundle. |
 | Pre-merge code or security review | `/review` / `/security-review` | Built-in skills; fire just before `/ship`. |
 | Promote `integration` → `master` | `/ship` | Test gate + version-coherence check + interactive plan. Doesn't bump versions. |
+| Periodic usability validation (pre-release / post-UX-overhaul) | UX journey test — [ADR 0028](adr/0028-ux-journey-testing-protocol.md) | Persona-driven Chrome-agent run + **mandatory code-verification** of severe findings → a `docs/tactical/` backlog. On-demand, not a slash command yet. |
 
 **Boundaries that have caused confusion before:**
 
@@ -193,6 +194,26 @@ Skill bodies use `cd packages/...`, `npm run ...`, `grep`. Claude Code's harness
 
 `/review` and `/security-review` (built-in plugin skills) fire **between `/notes` doc sync and `/ship` promotion**. Both are surfaced by the Claude Code system reminder when relevant. The cadence diagram shows the slot; the skills themselves are plugin-provided and not in `.claude/commands/`.
 
+## UX journey testing
+
+The usability analog of the perf harness ([ADR 0020](adr/0020-engine-perf-harness-and-measurement-protocol.md)
++ [perf-charter](tactical/perf-charter.md)): an **on-demand**, persona-driven journey test of the live UI,
+governed by [ADR 0028 — UX Journey-Testing Protocol](adr/0028-ux-journey-testing-protocol.md). Run it
+**periodically** — before a release, after a broad UX-surface change (an overhaul like ADRs 0022–0027), or
+when usability is in question — **not** every session.
+
+- **Driver:** the Claude for Chrome agent (Sonnet-class) against the `integration` preview (storage-less;
+  server-mode surfaces need a self-hosted build).
+- **Personas:** five fixed personas — beginner · intermediate · expert · presenter · keyboard/i18n — one per run.
+- **Discipline:** the capability map + do-not-report list are **regenerated from the current build each
+  run** (the in-app Help dialog is the canonical interaction model), never copied — a stale map poisons the
+  run (it did on the first attempt).
+- **Mandatory verification gate:** every S1/S2 finding is cross-checked against current code (`file:line`)
+  before it earns a fix task — the agent manufactures false blockers (the first run's two loudest "S1s"
+  were both artifacts). Confirmed artifacts are recorded, not actioned.
+- **Output:** a short-lived `docs/tactical/` backlog (the implementation handover) — see
+  [ux-retest-fixes.md](tactical/ux-retest-fixes.md), the first run.
+
 ## Process debt — deferred skills
 
 Per [productization-audit.md A.9.4](tactical/productization-audit.md), nine missing-skill candidates were catalogued. The triage:
@@ -208,6 +229,11 @@ Per [productization-audit.md A.9.4](tactical/productization-audit.md), nine miss
 | 7 | `/workflow-check` (print cadence + decision table) | **defer** | Fold into a "Quick reference" section here instead of a skill; saves skill-list bloat. |
 | 8 | `/ux-baseline` (Phase 5b grep extract) | **defer** | Fold into `/shake-out` as an optional first-step flag. |
 | 9 | `/perf-baseline` (Phase 5c grep extract) | **defer** | Same fold-into-/shake-out treatment as #8. |
+
+**2026-06-21 addition — `/ux-journey-test`:** assemble persona prompts → run the Chrome-agent journey test
+→ verification cross-check. A new deferred candidate from [ADR 0028](adr/0028-ux-journey-testing-protocol.md),
+sibling to the deferred `/ux-baseline` (#8). Documented-only for now (the protocol lives in ADR 0028); build
+the command if on-demand UX runs become frequent enough to be worth templating.
 
 **Net effect on productization gate (M8):** zero new skills must be built. The productization baseline blocks on alignment-and-cadence work (this doc + C.9.2 stale-ref pass), not on skill construction.
 
