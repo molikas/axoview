@@ -211,8 +211,8 @@ when usability is in question — **not** every session.
 - **Mandatory verification gate:** every S1/S2 finding is cross-checked against current code (`file:line`)
   before it earns a fix task — the agent manufactures false blockers (the first run's two loudest "S1s"
   were both artifacts). Confirmed artifacts are recorded, not actioned.
-- **Output:** a short-lived `docs/tactical/` backlog (the implementation handover) — see
-  [ux-retest-fixes.md](tactical/ux-retest-fixes.md), the first run.
+- **Output:** a short-lived `docs/tactical/` backlog (the implementation handover) — the first run was
+  `ux-retest-fixes.md` (shipped + wrapped; decisions in the ADR 0019/0022/0023/0025 addenda + git history).
 
 ## Process debt — deferred skills
 

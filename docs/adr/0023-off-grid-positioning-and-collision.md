@@ -46,6 +46,8 @@ All drag/paste/placement position resolution goes through a single helper, `reso
 
 When `collides === false`, paste/drag/rigid-stamp skip the tile-hash occupancy test for that item and the `TileIndex` does not index it (neither pushes others nor is pushed). Colliding items behave exactly as today.
 
+**2026-06-21 (UX re-test addendum):** Two clarifications from the journey-test runs (ADR 0028). **Snap UX:** the per-item "Snap/Unsnap from grid" override is shown in the context menu **only when the global snap toggle is on** — with global snap off a per-item snap override is meaningless, so it is hidden; the global toggle itself renders a checked state when on. (Per-item collision overrides are unaffected.) **Round-trip:** the off-grid fields (`offset`/`snap`/`collides`) survive a full export→import cycle for nodes, rectangles and text boxes, and for both new diagrams and pre-existing ones — items lacking the fields default to snapped/colliding, and a saved `snap:false` is preserved. The export serialises the full `views` and the loader parses them via `modelSchema` without stripping; locked by a round-trip test.
+
 ## Consequences
 
 **Positive:** minimal blast radius — the integer-tile invariant the whole engine relies on is preserved; per-item granularity matches the cherry-pick workflow; offset in unprojected px works in both projections.

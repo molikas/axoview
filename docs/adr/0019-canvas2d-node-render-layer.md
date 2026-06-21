@@ -65,6 +65,18 @@ deleted — canvas is unconditional. There is no all-DOM fallback for the bulk p
 gate running against canvas unconditionally, and the spawn anti-cheat switches from a
 DOM-shell count (reads 0/N in canvas mode) to a **canvas draw count**.
 
+**2026-06-21 (UX re-test addendum):** Two correctness signals were added to the canvas
+layer from the journey-test runs (ADR 0028). **(A1)** Text drawn to the canvas — node
+names and rich-description captions — is **HTML-decoded** (`&nbsp;`, `&amp;`, `&lt;`,
+numeric entities → chars) before `ctx.fillText`, via one shared
+[`htmlToPlainText`](../../packages/axoview-lib/src/utils/htmlToPlainText.ts) util (a
+decode-only variant keeps the verbatim name, e.g. `List<T>`). The DOM/popover path
+already decoded via the browser; the canvas path did not, so Quill's literal `&nbsp;`
+reached the bitmap. **(A2)** `NodesCanvas.draw()` publishes a `data-all-icons-drawn`
+dataset flag (alongside the draw count) once a frame paints with every icon bitmap
+decoded — the image-export capture waits on it (see
+[ADR 0025](0025-image-export-robustness-and-presets.md)).
+
 ## Consequences
 
 **Positive:**

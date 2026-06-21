@@ -20,6 +20,8 @@ The export dialog ([`ExportImageDialog.tsx`](../../packages/axoview-lib/src/comp
 3. **Labels in export.** Ensure node **name labels** render in the exported image (distinct from `expandLabels` rich descriptions); expose label visibility as an explicit export option.
 4. **"Screenshot" preset.** A named default preset that yields on-screen-quality output in one click — proposed: **2× · fit-to-content · labels on · PNG** — selected by default. DPI presets remain available for power users.
 
+**2026-06-21 (UX re-test addendum):** Two robustness fixes from the journey-test runs (ADR 0028). **Capture timing (#10):** the export snapshots a hidden `NON_INTERACTIVE` Axoview whose Canvas2D icons decode asynchronously; the capture waits for that canvas to **mount AND** report `data-all-icons-drawn` ([ADR 0019](0019-canvas2d-node-render-layer.md) A2) before snapshotting, with a recapture fallback. A not-yet-mounted canvas must not short-circuit the wait — doing so captured a blank frame *and* skipped the recapture, dropping every icon (connectors, being DOM/SVG, survived), which surfaced only on slower deployed mounts. **SVG resilience (F-02):** `cacheBust` is dropped (it forced a cross-origin re-fetch of every resource, which some hosts reject with "Failed to fetch"), and on any residual `toSvg` failure the export degrades to a raster-backed SVG (the PNG capture embedded in an `<image>`) rather than dead-ending — honouring decision 1 (never silently throw).
+
 ## Consequences
 
 **Positive:** robust, predictable export; large diagrams stop silently failing; the common "good screenshot" path is one click.

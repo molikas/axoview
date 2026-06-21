@@ -90,7 +90,8 @@ re-raised.
 
 **6. Output.** A short-lived **tactical bug backlog** in `docs/tactical/` (the implementation handover),
 prioritised, each row carrying the verified root cause + fix + effort. The first run produced
-[docs/tactical/ux-retest-fixes.md](../tactical/ux-retest-fixes.md).
+`docs/tactical/ux-retest-fixes.md` (since shipped + wrapped — its decisions are folded into the
+ADR 0019/0022/0023/0025 addenda; the backlog itself lives in git history).
 
 ## Consequences
 
@@ -172,5 +173,5 @@ candidate** — sibling to `/audit`/`/shake-out`, and a relative of the deferred
   (Help dialog + `known_issues.md`), not copied from a prior run.
 - **Workflow:** [workflow.md](../workflow.md) references this ADR as the on-demand usability-validation
   step.
-- **Manual verification:** the first run ([docs/tactical/ux-retest-fixes.md](../tactical/ux-retest-fixes.md))
-  demonstrates the full loop end-to-end.
+- **Manual verification:** the first run (`docs/tactical/ux-retest-fixes.md`, now wrapped into the
+  ADR 0019/0022/0023/0025 addenda + git history) demonstrated the full loop end-to-end.

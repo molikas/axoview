@@ -75,6 +75,16 @@ What this change makes **redundant**, **contradicts**, or **orphans**, and how e
 - **Orphaned** → per-item commands lost their right-click home, and #20's commands had none → [ADR 0027](0027-canvas-context-menu.md) builds the menu and defines bar/menu/panel labor.
 - **Mirror surfaces** → the LayersPanel must match the open/select split (row single-click = select, double-click = open) per [ADR 0006 addendum](0006-canvas-selection-contract.md) (§4.1 two-way sync). **View mode is intentionally different**, not an oversight: `EXPLORABLE_READONLY` keeps its click-to-pin [`ViewModeInfoPopover`](0012-view-mode-node-info-popover.md) (a presentation read surface), because there is no editing/selection there to disambiguate.
 
+**2026-06-21 (UX re-test addendum):** The two 2026-06-21 journey-test runs (ADR 0028) hardened the click/keyboard semantics:
+
+- **Double-click-to-add is removed for good.** Right-click → "Add item" (the [ADR 0027](0027-canvas-context-menu.md) menu) is the single canonical add affordance; a second trigger was redundant. This strikes the earlier "double-click → QuickAdd" promise in §3 — double-click now only opens Details (on an item) or no-ops (empty canvas).
+- **Icon placement is gesture-gated.** A plain tap on an Elements-panel icon only *arms* placement; a node is placed by a subsequent canvas click or a drag-onto-canvas (a past-tap-slop "moved" signal), because pointer capture makes both `e.target` and `elementFromPoint` resolve to the panel icon mid-drag. An off-canvas no-move release keeps the arm — it never drops a stray node. After one placement the tool returns to CURSOR (no lingering placement cursor; the preview cursor is an outline diamond).
+- **Esc returns from any persistent tool mode to Select** (CONNECTOR, PLACE_ICON, RECTANGLE.DRAW, TEXTBOX, LASSO, PAN), after first aborting an in-progress connector. This generalises the connector-abort-priority fix; transient modes (DRAG_ITEMS, RECTANGLE.TRANSFORM, RECONNECT_ANCHOR) keep their own abort logic.
+- **Connector first-click on empty canvas is a no-op** until an ITEM is targeted (no free-floating tile-anchored connectors from a stray click).
+- **Arrow keys are selection-aware** (amending the §6 "arrows = pan only" choice): a selected ITEM/RECTANGLE/TEXTBOX is nudged one tile per press (single-undo transaction); with nothing selected, arrows pan.
+- **`NodeActionBar` is screen-space** with edge flip/clamp (mirroring `ViewModeInfoPopover`) and renders above the LeftDock stacking context, so the start-connector affordance stays reachable near viewport edges.
+- **Mode clarity:** an active CONNECTOR tool shows a click-through hint pill ("Drag between items to connect • Esc to cancel") so the mode and its exit are discoverable.
+
 ## Consequences
 
 **Positive:** predictable, opinionated model; right-click freed for panning; less surface area and dead code; one place to reason about open-vs-select.
