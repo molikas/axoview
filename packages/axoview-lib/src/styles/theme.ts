@@ -175,10 +175,12 @@ export const themeConfig: ThemeOptions = {
         // the only other cue, so keyboard focus was invisible (P5-02). Scoped to
         // :focus-visible (Mui-focusVisible) so it stays keyboard-only and never
         // shows on mouse press; existing per-row rings are unaffected. Never add
-        // outline:0 anywhere.
+        // outline:0 anywhere. F-12 (a11y): primary.dark + 3px so the ring clears
+        // WCAG 3:1 against light surfaces (primary.main was marginal); the plain
+        // Icon-tile <Box> ring mirrors these exact values.
         root: ({ theme }) => ({
           '&.Mui-focusVisible': {
-            outline: `2px solid ${theme.palette.primary.main}`,
+            outline: `3px solid ${theme.palette.primary.dark}`,
             outlineOffset: '2px',
             borderRadius: 'inherit'
           }

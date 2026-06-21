@@ -147,9 +147,11 @@ export const Icon = React.forwardRef<HTMLDivElement, Props>(function Icon(
           '&:hover': { bgcolor: 'action.hover' },
           // C1 sibling: the theme-wide :focus-visible ring is on MuiButtonBase,
           // but this tile is a plain <Box>, so it needs its own keyboard focus
-          // outline (same 2px primary ring + offset) so roving focus is visible.
+          // outline. F-12 (a11y): primary.dark (not .main) so the ring clears
+          // WCAG 3:1 against the light Elements panel, 3px for perceptibility;
+          // outlineOffset keeps a gap so it reads against both tile and panel.
           '&:focus-visible': {
-            outline: (theme) => `2px solid ${theme.palette.primary.main}`,
+            outline: (theme) => `3px solid ${theme.palette.primary.dark}`,
             outlineOffset: '2px'
           },
           '&:hover .ff-icon-delete, &:focus-within .ff-icon-delete': {
