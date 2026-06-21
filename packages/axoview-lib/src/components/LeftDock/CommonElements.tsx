@@ -2,7 +2,8 @@ import React, { useCallback } from 'react';
 import { Box, Typography, Tooltip } from '@mui/material';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useScene } from 'src/hooks/useScene';
-import { generateId } from 'src/utils';
+import { useCanvasMode } from 'src/contexts/CanvasModeContext';
+import { generateId, viewportCenterTile } from 'src/utils';
 import { TEXTBOX_DEFAULTS } from 'src/config';
 
 // Simple flat SVG thumbnails matching the tool icons
@@ -129,6 +130,7 @@ export const CommonElements = () => {
   const uiStateApi = useUiStateStoreApi();
   const mode = useUiStateStore((s) => s.mode);
   const { createTextBox } = useScene();
+  const { screenToTile } = useCanvasMode();
 
   const handleRectangleMouseDown = useCallback(() => {
     uiStateActions.setMode({
@@ -140,14 +142,28 @@ export const CommonElements = () => {
 
   const handleTextMouseDown = useCallback(() => {
     const textBoxId = generateId();
-    const mouseTile = uiStateApi.getState().mouse.position.tile;
-    createTextBox({ ...TEXTBOX_DEFAULTS, id: textBoxId, tile: mouseTile });
+    const ui = uiStateApi.getState();
+    const mouseTile = ui.mouse.position.tile;
+    // B9: mouse.position.tile is still the initial {0,0} until the pointer first
+    // enters the canvas, so clicking the Text card before hovering the canvas
+    // dropped the box at the origin. Fall back to the viewport-centre tile in
+    // that case (the shared helper C2 introduced).
+    const tile =
+      mouseTile.x === 0 && mouseTile.y === 0
+        ? viewportCenterTile({
+            rendererSize: ui.rendererSize,
+            scroll: ui.scroll,
+            zoom: ui.zoom,
+            screenToTile
+          })
+        : mouseTile;
+    createTextBox({ ...TEXTBOX_DEFAULTS, id: textBoxId, tile });
     uiStateActions.setMode({
       type: 'TEXTBOX',
       showCursor: false,
       id: textBoxId
     });
-  }, [uiStateApi, uiStateActions, createTextBox]);
+  }, [uiStateApi, uiStateActions, createTextBox, screenToTile]);
 
   const handleConnectorMouseDown = useCallback(() => {
     uiStateActions.setMode({

@@ -24,6 +24,9 @@ import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { TOOL_HOTKEYS } from 'src/config/hotkeys';
 import { resolveToolHotkey } from './toolHotkeys';
 import { handleEscapeKey } from './handleEscapeKey';
+import { handleArrowKey } from './handleArrowKey';
+import { viewportCenterTile } from 'src/utils/viewportCenterTile';
+import type { ScreenToTileFn } from 'src/utils/renderer';
 import { TEXTBOX_DEFAULTS } from 'src/config';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { collectSelectableRefs } from 'src/utils/selectableRefs';
@@ -161,6 +164,9 @@ interface KeydownDeps {
   deleteRectangle: SceneApi['deleteRectangle'];
   updateViewItem: SceneApi['updateViewItem'];
   commitDragTransaction: SceneApi['commitDragTransaction'];
+  // B9: mode-aware screen→tile (useCanvasMode) so the text hotkey can fall back
+  // to the viewport-centre tile when the cursor never entered the canvas.
+  screenToTile: ScreenToTileFn;
 }
 
 // True when the keystroke target is a text-editing surface — typing there must
@@ -410,10 +416,24 @@ const handleToolHotkeys = (
       break;
     case 'text': {
       const textBoxId = generateId();
+      // B9: mouse.position.tile is still the initial {0,0} until the pointer
+      // first enters the canvas, so the text hotkey dropped the box at the
+      // origin. Fall back to the viewport-centre tile in that case (Rectangle /
+      // icon click-place use the live cursor tile and are unaffected).
+      const cursorTile = uiState.mouse.position.tile;
+      const textTile =
+        cursorTile.x === 0 && cursorTile.y === 0
+          ? viewportCenterTile({
+              rendererSize: uiState.rendererSize,
+              scroll: uiState.scroll,
+              zoom: uiState.zoom,
+              screenToTile: deps.screenToTile
+            })
+          : cursorTile;
       deps.createTextBox({
         ...TEXTBOX_DEFAULTS,
         id: textBoxId,
-        tile: uiState.mouse.position.tile
+        tile: textTile
       });
       uiState.actions.setMode({
         type: 'TEXTBOX',
@@ -468,29 +488,10 @@ const handleZOrderShortcut = (
   }
 };
 
-// Keyboard pan — arrow keys only, at a fixed speed (ADR 0022 §6: the wasd/ijkl
-// schemes + the speed slider were removed with the pan-customization surface).
-const KEYBOARD_PAN_SPEED = 20;
-const ARROW_PAN_VECTORS: Record<string, { x: number; y: number }> = {
-  ArrowUp: { x: 0, y: 1 },
-  ArrowDown: { x: 0, y: -1 },
-  ArrowLeft: { x: 1, y: 0 },
-  ArrowRight: { x: -1, y: 0 }
-};
-
-const handleKeyboardPan = (e: KeyboardEvent, uiState: State['uiState']) => {
-  const unit = ARROW_PAN_VECTORS[e.key];
-  if (!unit) return;
-  e.preventDefault();
-  const currentScroll = uiState.scroll;
-  uiState.actions.setScroll({
-    position: CoordsUtils.add(currentScroll.position, {
-      x: unit.x * KEYBOARD_PAN_SPEED,
-      y: unit.y * KEYBOARD_PAN_SPEED
-    }),
-    offset: currentScroll.offset
-  });
-};
+// Arrow-key handling (selection-aware nudge OR pan) is extracted to
+// ./handleArrowKey (B6 — amends ADR 0022 §6: arrows nudge the selected
+// ITEM/RECT/TEXTBOX one tile in a single-undo transaction, else pan) so the
+// nudge branch is unit-testable in isolation. The dispatcher calls it below.
 
 export const useInteractionManager = () => {
   const rendererRef = useRef<HTMLElement | undefined>(undefined);
@@ -589,7 +590,8 @@ export const useInteractionManager = () => {
       deleteTextBox,
       deleteRectangle,
       updateViewItem,
-      commitDragTransaction
+      commitDragTransaction,
+      screenToTile
     };
 
     // Thin dispatcher — the gesture order, fall-through semantics, and early
@@ -620,7 +622,14 @@ export const useInteractionManager = () => {
       handleFunctionKeys(e, uiState, deps);
       handleToolHotkeys(e, isCtrlOrCmd, uiState, key, deps);
       handleZOrderShortcut(e, isCtrlOrCmd, uiState, deps);
-      handleKeyboardPan(e, uiState);
+      handleArrowKey(e, uiState, {
+        getScene: () => deps.sceneRef.current,
+        beginDragTransaction: deps.sceneRef.current.beginDragTransaction,
+        commitDragTransaction: deps.sceneRef.current.commitDragTransaction,
+        batchUpdateViewItemTiles: deps.sceneRef.current.batchUpdateViewItemTiles,
+        batchUpdateRectangles: deps.sceneRef.current.batchUpdateRectangles,
+        batchUpdateTextBoxTiles: deps.sceneRef.current.batchUpdateTextBoxTiles
+      });
     };
 
     window.addEventListener('keydown', handleKeyDown);
