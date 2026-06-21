@@ -39,9 +39,14 @@ const handleClickFirst = (
   { uiState, scene }: State,
   itemAtTile: ItemAtTile
 ) => {
+  // B3 / Decision #4 (option A): the first click must land on an ITEM. A stray
+  // first click on empty canvas otherwise created a free-floating tile-anchored
+  // connector that counted in Ctrl+A and saved (and, seeded from the action bar,
+  // stranded on Esc abort). No-op until a node is under the cursor.
+  if (itemAtTile?.type !== 'ITEM') return;
+
   const tile = uiState.mouse.position.tile;
-  const startAnchor =
-    itemAtTile?.type === 'ITEM' ? { itemId: itemAtTile.id } : { tile };
+  const startAnchor = { itemId: itemAtTile.id };
 
   // Create a connector but don't finalize it yet.
   const newConnector = createConnectorAt(scene.colors[0].id, itemAtTile, tile);

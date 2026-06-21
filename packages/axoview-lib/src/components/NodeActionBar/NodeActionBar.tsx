@@ -122,6 +122,11 @@ export const NodeActionBar = ({ type, id, tile: connectorTile }: Props) => {
     beginDragTransaction();
     createConnector(newConnector);
     uiStateActions.setItemControls(null);
+    // B2 / Decision #3: clear the source-node selection the action bar leaves
+    // behind, so an Esc mid-connection reaches connector-abort instead of being
+    // consumed by the selection-clear path (belt-and-suspenders with the Esc
+    // priority reorder in useInteractionManager.handleEscapeKey).
+    uiStateActions.clearSelection();
     uiStateActions.setMode({
       type: 'CONNECTOR',
       showCursor: true,

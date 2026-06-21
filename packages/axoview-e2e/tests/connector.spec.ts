@@ -257,14 +257,27 @@ test.describe('Connector — T2 #2: lasso captures a free-floating endpoint', ()
     const canvas = new CanvasPOM(page);
 
     // 1. Draw a connector between two FREE tiles → both endpoints tile-bound.
+    //    Click-mode's first click on empty canvas is now a no-op (B3 / Decision
+    //    #4 — no free-floating connector from a stray click), so the free→free
+    //    fixture is created via drag mode: press-drag-release is a deliberate
+    //    gesture, not a stray click, and is unaffected by B3.
+    await page.evaluate(() =>
+      (window as any).__axoview__.ui
+        .getState()
+        .actions.setConnectorInteractionMode('drag')
+    );
     await page.keyboard.press('c');
     await expect.poll(() => getUiModeType(page), { timeout: 2_000 }).toBe('CONNECTOR');
     const A: PomCanvasPoint = { x: 300, y: 260 };
     const B: PomCanvasPoint = { x: 560, y: 400 };
-    await canvas.clickAt(A);
-    await page.waitForTimeout(100);
-    await canvas.clickAt(B);
+    await canvas.dragFromTo(A, B);
     await expect.poll(() => getModelConnectorCount(page), { timeout: 5_000 }).toBe(1);
+    // Restore the default click mode so it doesn't leak into other specs.
+    await page.evaluate(() =>
+      (window as any).__axoview__.ui
+        .getState()
+        .actions.setConnectorInteractionMode('click')
+    );
 
     const before = await getTileEndpointAnchors(page);
     expect(before).not.toBeNull();

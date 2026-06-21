@@ -7,6 +7,7 @@ import {
 } from 'src/utils';
 import { resolvePlacement, cursorTileResidual } from 'src/utils/resolvePlacement';
 import { VIEW_ITEM_DEFAULTS } from 'src/config';
+import { exceedsTapSlop } from 'src/config/tapGesture';
 
 export const PlaceIcon: ModeActions = {
   mousemove: () => {},
@@ -28,8 +29,28 @@ export const PlaceIcon: ModeActions = {
       uiState.actions.setItemControls(null);
     }
   },
-  mouseup: ({ uiState, scene }) => {
+  mouseup: ({ uiState, scene, isRendererInteraction }) => {
     if (uiState.mode.type !== 'PLACE_ICON') return;
+
+    // B1 / Decision #2: a plain TAP on an Elements-panel icon must only ARM
+    // placement — it must NOT place a node (the old ungated mouseup placed one
+    // at the panel-projected tile, then nulled mode.id, so the real canvas click
+    // did nothing). Two gestures legitimately place; one must not:
+    //   • canvas tap (after arming): its mousedown is on the canvas → captured →
+    //     the release reports isRendererInteraction → place.
+    //   • drag-from-panel: mouse capture makes the release target the panel icon
+    //     (so isRendererInteraction can't see it), but a past-tap-slop move is
+    //     the reliable "this was a drag onto the canvas" signal → place.
+    //   • arming tap on the icon: neither a renderer release nor a move → arm only.
+    // A hit-test can't help here: the panel overlays the renderer, and capture
+    // makes both e.target AND elementFromPoint resolve to the icon mid-drag.
+    const moved =
+      !!uiState.mouse.mousedown &&
+      exceedsTapSlop(
+        uiState.mouse.mousedown.screen,
+        uiState.mouse.position.screen
+      );
+    if (!isRendererInteraction && !moved) return;
 
     if (uiState.mode.id !== null) {
       const globalSnap = uiState.snapToGrid ?? true;

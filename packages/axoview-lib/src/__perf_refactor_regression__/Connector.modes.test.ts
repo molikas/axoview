@@ -113,7 +113,11 @@ describe('Connector.mousedown click mode — first click', () => {
     mockGetItemAtTile.mockReturnValue(null);
   });
 
-  it('creates connector with tile anchors on empty space and sets isConnecting=true', () => {
+  it('B3: is a no-op on empty space — the first click must target an ITEM (Decision #4)', () => {
+    // Decision #4 (option A): a stray first click on empty canvas previously
+    // committed a free-floating tile-anchored connector that counted in Ctrl+A
+    // and saved (and stranded on Esc abort when seeded from the action bar). The
+    // first click is now a no-op until a node is under the cursor.
     const uiState = makeUiState({
       mode: {
         type: 'CONNECTOR',
@@ -131,20 +135,9 @@ describe('Connector.mousedown click mode — first click', () => {
       isRendererInteraction: true
     } as any);
 
-    expect(scene.createConnector).toHaveBeenCalledWith(
-      expect.objectContaining({
-        anchors: expect.arrayContaining([
-          expect.objectContaining({ ref: { tile: { x: 5, y: 5 } } })
-        ])
-      })
-    );
-    expect(uiState.actions.setMode).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'CONNECTOR',
-        isConnecting: true,
-        startAnchor: { tile: { x: 5, y: 5 } }
-      })
-    );
+    expect(scene.createConnector).not.toHaveBeenCalled();
+    expect(scene.beginDragTransaction).not.toHaveBeenCalled();
+    expect(uiState.actions.setMode).not.toHaveBeenCalled();
   });
 
   it('creates connector with item anchors when clicking on a node', () => {

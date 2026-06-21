@@ -23,6 +23,7 @@ import { useHistory } from 'src/hooks/useHistory';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { TOOL_HOTKEYS } from 'src/config/hotkeys';
 import { resolveToolHotkey } from './toolHotkeys';
+import { handleEscapeKey } from './handleEscapeKey';
 import { TEXTBOX_DEFAULTS } from 'src/config';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { collectSelectableRefs } from 'src/utils/selectableRefs';
@@ -170,63 +171,9 @@ const isEditableTarget = (target: HTMLElement): boolean =>
   target.contentEditable === 'true' ||
   !!target.closest('.ql-editor');
 
-// Esc inside CONNECTOR mode: abort an in-flight connection and reset the mode.
-const handleConnectorEscape = (
-  uiState: State['uiState'],
-  deps: KeydownDeps
-) => {
-  if (uiState.mode.type !== 'CONNECTOR') return;
-  const connectorMode = uiState.mode;
-
-  const isConnectionInProgress =
-    (uiState.connectorInteractionMode === 'click' &&
-      connectorMode.isConnecting) ||
-    (uiState.connectorInteractionMode === 'drag' && connectorMode.id !== null);
-
-  if (isConnectionInProgress && connectorMode.id) {
-    deps.deleteConnector(connectorMode.id);
-    // D-4 abort-symmetry: handleClickFirst/handleDragStart opened a drag
-    // transaction; aborting without committing would leak the open bracket and
-    // suppress saveToHistoryBeforeChange for every later edit (behavior-map
-    // §3.1/§4.5). Closing it after the delete nets to zero patches (no spurious
-    // history entry) but clears dragInProgress.
-    deps.commitDragTransaction();
-
-    uiState.actions.setMode({
-      type: 'CONNECTOR',
-      showCursor: true,
-      id: null,
-      startAnchor: undefined,
-      isConnecting: false
-    });
-  }
-};
-
-// Escape: clear panel → clear multi-selection → abort connector. Always
-// consumes the keystroke. Returns true when handled (Escape pressed).
-const handleEscapeKey = (
-  e: KeyboardEvent,
-  uiState: State['uiState'],
-  deps: KeydownDeps
-): boolean => {
-  if (e.key !== 'Escape') return false;
-  e.preventDefault();
-
-  if (uiState.itemControls) {
-    uiState.actions.setItemControls(null);
-    return true;
-  }
-
-  // Multi-selection: Esc clears it when no panel is open
-  // (panel-clear path above handles single-selection). ADR-0006.
-  if (uiState.selectedIds.length > 0) {
-    uiState.actions.clearSelection();
-    return true;
-  }
-
-  handleConnectorEscape(uiState, deps);
-  return true;
-};
+// Esc handling (handleConnectorEscape + handleEscapeKey) is extracted to
+// ./handleEscapeKey so the connector-abort-first priority (B2 / Decision #3) is
+// unit-testable in isolation — the full hook needs a provider stack to mount.
 
 // Delete the single item currently in itemControls, dispatched by its type.
 const deleteItemControlsTarget = (
@@ -440,8 +387,12 @@ const handleToolHotkeys = (
       uiState.actions.setItemControls(null);
       break;
     case 'addItem':
-      // Open Elements tab in the left dock
-      uiState.actions.setActiveLeftTab('ELEMENTS');
+      // B7: toggle the Elements tab in the left dock (open if closed, close if
+      // already showing) to match the LeftDock button. Was an unconditional
+      // open, so N could never close the panel.
+      uiState.actions.setActiveLeftTab(
+        uiState.activeLeftTab === 'ELEMENTS' ? null : 'ELEMENTS'
+      );
       break;
     case 'rectangle':
       uiState.actions.setMode({
