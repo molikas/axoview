@@ -12,8 +12,28 @@
         "diagrams": "Diagramy",
         "share": "Udostępnij"
     },
+    "exportMenu": {
+        "tooltip": "Eksportuj",
+        "json": "Eksportuj JSON",
+        "image": "Eksportuj obraz",
+        "projectZip": "Eksportuj projekt (.zip)"
+    },
+    "emptyState": {
+        "newDiagram": "Nowy diagram",
+        "import": "Importuj"
+    },
+    "fileExplorer": {
+        "title": "Diagramy",
+        "import": "Importuj",
+        "exportProject": "Eksportuj projekt",
+        "newDiagram": "Nowy diagram",
+        "newFolder": "Nowy folder",
+        "refresh": "Odśwież",
+        "collapseAll": "Zwiń wszystko"
+    },
     "status": {
         "current": "Obecny",
+        "session": "Sesja",
         "untitled": "Diagram bez tytułu",
         "modified": "Zmodyfikowany",
         "sessionStorageNote": "Tylko pamięć sesji – eksportuj, aby zapisać na stałe",

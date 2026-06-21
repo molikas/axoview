@@ -8,8 +8,28 @@
         "quickSaveSession": "Simpan Cepat (Sesi)",
         "serverStorage": "Penyimpanan Server"
     },
+    "exportMenu": {
+        "tooltip": "Ekspor",
+        "json": "Ekspor JSON",
+        "image": "Ekspor Gambar",
+        "projectZip": "Ekspor Proyek (.zip)"
+    },
+    "emptyState": {
+        "newDiagram": "Diagram baru",
+        "import": "Impor"
+    },
+    "fileExplorer": {
+        "title": "Diagram",
+        "import": "Impor",
+        "exportProject": "Ekspor proyek",
+        "newDiagram": "Diagram baru",
+        "newFolder": "Folder baru",
+        "refresh": "Segarkan",
+        "collapseAll": "Ciutkan semua"
+    },
     "status": {
         "current": "Saat Ini",
+        "session": "Sesi",
         "untitled": "Diagram Tanpa Judul",
         "modified": "Dimodifikasi",
         "sessionStorageNote": "Hanya penyimpanan sesi - ekspor untuk menyimpan secara permanen"

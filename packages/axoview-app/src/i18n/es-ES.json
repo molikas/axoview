@@ -12,8 +12,28 @@
         "diagrams": "Diagramas",
         "share": "Compartir"
     },
+    "exportMenu": {
+        "tooltip": "Exportar",
+        "json": "Exportar JSON",
+        "image": "Exportar imagen",
+        "projectZip": "Exportar proyecto (.zip)"
+    },
+    "emptyState": {
+        "newDiagram": "Nuevo diagrama",
+        "import": "Importar"
+    },
+    "fileExplorer": {
+        "title": "Diagramas",
+        "import": "Importar",
+        "exportProject": "Exportar proyecto",
+        "newDiagram": "Nuevo diagrama",
+        "newFolder": "Nueva carpeta",
+        "refresh": "Actualizar",
+        "collapseAll": "Contraer todo"
+    },
     "status": {
         "current": "Actual",
+        "session": "Sesión",
         "untitled": "Diagrama sin título",
         "modified": "Modificado",
         "sessionStorageNote": "Solo almacenamiento de sesión - exporta para guardar permanentemente",

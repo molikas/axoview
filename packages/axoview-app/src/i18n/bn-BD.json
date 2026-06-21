@@ -12,8 +12,28 @@
         "diagrams": "Diagrams",
         "share": "Share"
     },
+    "exportMenu": {
+        "tooltip": "রপ্তানি",
+        "json": "JSON রপ্তানি করুন",
+        "image": "ছবি রপ্তানি করুন",
+        "projectZip": "প্রকল্প রপ্তানি করুন (.zip)"
+    },
+    "emptyState": {
+        "newDiagram": "নতুন ডায়াগ্রাম",
+        "import": "আমদানি"
+    },
+    "fileExplorer": {
+        "title": "ডায়াগ্রাম",
+        "import": "আমদানি",
+        "exportProject": "প্রকল্প রপ্তানি করুন",
+        "newDiagram": "নতুন ডায়াগ্রাম",
+        "newFolder": "নতুন ফোল্ডার",
+        "refresh": "রিফ্রেশ করুন",
+        "collapseAll": "সব সংকুচিত করুন"
+    },
     "status": {
         "current": "বর্তমান",
+        "session": "সেশন",
         "untitled": "শিরোনামহীন ডায়াগ্রাম",
         "modified": "পরিবর্তিত",
         "sessionStorageNote": "শুধুমাত্র সেশন স্টোরেজ - স্থায়ীভাবে সংরক্ষণ করতে রপ্তানি করুন",

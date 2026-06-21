@@ -8,8 +8,28 @@
     "quickSaveSession": "Schnellspeichern (Browser)",
     "serverStorage": "Server-Speicher"
   },
+  "exportMenu": {
+    "tooltip": "Exportieren",
+    "json": "JSON exportieren",
+    "image": "Bild exportieren",
+    "projectZip": "Projekt exportieren (.zip)"
+  },
+  "emptyState": {
+    "newDiagram": "Neues Diagramm",
+    "import": "Importieren"
+  },
+  "fileExplorer": {
+    "title": "Diagramme",
+    "import": "Importieren",
+    "exportProject": "Projekt exportieren",
+    "newDiagram": "Neues Diagramm",
+    "newFolder": "Neuer Ordner",
+    "refresh": "Aktualisieren",
+    "collapseAll": "Alle einklappen"
+  },
   "status": {
     "current": "Aktuell",
+    "session": "Sitzung",
     "untitled": "Unbenanntes Diagramm",
     "modified": "Geändert",
     "sessionStorageNote": "Nur Browserspeicher – zum dauerhaften Speichern exportieren"

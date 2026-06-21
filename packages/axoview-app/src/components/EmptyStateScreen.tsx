@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Box, Button, CardActionArea, Paper } from '@mui/material';
 import { AddCircleOutline as AddIcon, FileUploadOutlined as ImportIcon } from '@mui/icons-material';
 
@@ -46,6 +47,8 @@ interface Props {
 }
 
 export function EmptyStateScreen({ onCreate, onImport }: Props) {
+  // D11: translate both the visible card labels and their aria-labels.
+  const { t } = useTranslation('app');
   return (
     <Box
       sx={{
@@ -62,7 +65,7 @@ export function EmptyStateScreen({ onCreate, onImport }: Props) {
       <Paper elevation={3} sx={cardSx}>
         <CardActionArea
           onClick={onCreate}
-          aria-label="New diagram"
+          aria-label={t('emptyState.newDiagram')}
           data-axoview-id="screen-empty-create"
           sx={cardActionSx}
         >
@@ -76,7 +79,7 @@ export function EmptyStateScreen({ onCreate, onImport }: Props) {
             aria-hidden
             sx={labelSx}
           >
-            New diagram
+            {t('emptyState.newDiagram')}
           </Button>
         </CardActionArea>
       </Paper>
@@ -84,7 +87,7 @@ export function EmptyStateScreen({ onCreate, onImport }: Props) {
       <Paper elevation={3} sx={cardSx}>
         <CardActionArea
           onClick={onImport}
-          aria-label="Import"
+          aria-label={t('emptyState.import')}
           data-axoview-id="screen-empty-import"
           sx={cardActionSx}
         >
@@ -98,7 +101,7 @@ export function EmptyStateScreen({ onCreate, onImport }: Props) {
             aria-hidden
             sx={labelSx}
           >
-            Import
+            {t('emptyState.import')}
           </Button>
         </CardActionArea>
       </Paper>

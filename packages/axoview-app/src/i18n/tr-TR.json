@@ -12,8 +12,28 @@
         "diagrams": "Diyagramlar",
         "share": "Paylaş"
     },
+    "exportMenu": {
+        "tooltip": "Dışa Aktar",
+        "json": "JSON Olarak Dışa Aktar",
+        "image": "Görüntü Olarak Dışa Aktar",
+        "projectZip": "Projeyi Dışa Aktar (.zip)"
+    },
+    "emptyState": {
+        "newDiagram": "Yeni diyagram",
+        "import": "İçe Aktar"
+    },
+    "fileExplorer": {
+        "title": "Diyagramlar",
+        "import": "İçe Aktar",
+        "exportProject": "Projeyi dışa aktar",
+        "newDiagram": "Yeni diyagram",
+        "newFolder": "Yeni klasör",
+        "refresh": "Yenile",
+        "collapseAll": "Tümünü daralt"
+    },
     "status": {
         "current": "Mevcut",
+        "session": "Oturum",
         "untitled": "İsimsiz Diyagram",
         "modified": "Değiştirildi",
         "sessionStorageNote": "Yalnızca oturum depolama - kalıcı olarak kaydetmek için dışa aktar",

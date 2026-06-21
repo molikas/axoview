@@ -12,8 +12,28 @@
         "diagrams": "Diagrams",
         "share": "Share"
     },
+    "exportMenu": {
+        "tooltip": "निर्यात करें",
+        "json": "JSON निर्यात करें",
+        "image": "छवि निर्यात करें",
+        "projectZip": "प्रोजेक्ट निर्यात करें (.zip)"
+    },
+    "emptyState": {
+        "newDiagram": "नया आरेख",
+        "import": "आयात करें"
+    },
+    "fileExplorer": {
+        "title": "आरेख",
+        "import": "आयात करें",
+        "exportProject": "प्रोजेक्ट निर्यात करें",
+        "newDiagram": "नया आरेख",
+        "newFolder": "नया फ़ोल्डर",
+        "refresh": "रिफ़्रेश करें",
+        "collapseAll": "सभी संक्षिप्त करें"
+    },
     "status": {
         "current": "वर्तमान",
+        "session": "सत्र",
         "untitled": "शीर्षकहीन आरेख",
         "modified": "संशोधित",
         "sessionStorageNote": "केवल सत्र स्टोरेज - स्थायी रूप से सहेजने के लिए निर्यात करें",

@@ -108,7 +108,7 @@ export function StatusCluster() {
         </Typography>
       )}
       <Chip
-        label={<Typography variant="micro" component="span">Session</Typography>}
+        label={<Typography variant="micro" component="span">{t('status.session', 'Session')}</Typography>}
         size="small"
         sx={{
           height: 16,

@@ -12,8 +12,28 @@
         "diagrams": "Диаграммы",
         "share": "Поделиться"
     },
+    "exportMenu": {
+        "tooltip": "Экспорт",
+        "json": "Экспорт в JSON",
+        "image": "Экспорт изображения",
+        "projectZip": "Экспорт проекта (.zip)"
+    },
+    "emptyState": {
+        "newDiagram": "Новая диаграмма",
+        "import": "Импорт"
+    },
+    "fileExplorer": {
+        "title": "Диаграммы",
+        "import": "Импорт",
+        "exportProject": "Экспорт проекта",
+        "newDiagram": "Новая диаграмма",
+        "newFolder": "Новая папка",
+        "refresh": "Обновить",
+        "collapseAll": "Свернуть все"
+    },
     "status": {
         "current": "Текущий",
+        "session": "Сеанс",
         "untitled": "Диаграмма без названия",
         "modified": "Изменено",
         "sessionStorageNote": "Только хранилище сеанса - экспортируйте для постоянного сохранения",

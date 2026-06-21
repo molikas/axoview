@@ -12,8 +12,28 @@
         "quickSaveSession": "快速保存（会话）",
         "serverStorage": "服务端存储"
     },
+    "exportMenu": {
+        "tooltip": "导出",
+        "json": "导出 JSON",
+        "image": "导出图片",
+        "projectZip": "导出项目 (.zip)"
+    },
+    "emptyState": {
+        "newDiagram": "新建图表",
+        "import": "导入"
+    },
+    "fileExplorer": {
+        "title": "图表",
+        "import": "导入",
+        "exportProject": "导出项目",
+        "newDiagram": "新建图表",
+        "newFolder": "新建文件夹",
+        "refresh": "刷新",
+        "collapseAll": "全部折叠"
+    },
     "status": {
         "current": "当前",
+        "session": "会话",
         "untitled": "未命名图表",
         "modified": "已修改",
         "unsaved": "未保存",
