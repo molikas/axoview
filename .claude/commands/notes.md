@@ -1,0 +1,241 @@
+# /notes — Axoview End-of-Session Doc Sync
+
+Run at the end of any coding session — features, bug fixes, or refactors — to sync all repository documentation with what actually shipped. Derives content from commits and code; asks only for what it cannot infer. Never commits automatically: always stops for user review.
+
+> **UX principles maintenance:** if the session introduced or changed UI patterns (new layout primitive, new keyboard shortcut, new affordance behavior, etc.), check whether [`docs/ux-principles.md`](../../docs/ux-principles.md) needs an update. The doc is a living reference — it should reflect what actually shipped.
+>
+> **Recently shipped decisions reference list:** when summarising the session's durable output (CHANGELOG body, architecture.md cross-refs, README updates), link the relevant ADRs — currently 0001–0006 plus **0008 (naming convention, Accepted 2026-05-20)**, **0009 (deployment topology, Accepted 2026-05-20)**, **0010 (session backend contract, Accepted 2026-05-20)**. ADR 0007 (runtime trace harness) is still a placeholder; do not cite it as shipped.
+
+---
+
+## Phase 0 — Survey (automated, no questions)
+
+Run all of the following before asking anything. The survey determines scope — phases that find nothing to update are skipped entirely.
+
+### 0a. Establish the session boundary
+
+```bash
+# If on a feature branch: commits since branching from master
+git merge-base HEAD master   # → <base-sha>
+git log --oneline <base-sha>..HEAD
+
+# If already on master: commits since the last version tag
+git describe --tags --abbrev=0   # → last tag (e.g. 2026.5.3)
+git log --oneline <last-tag>..HEAD
+```
+
+Save the commit list and the base SHA — every subsequent step references them.
+
+### 0b. Read the change map
+
+```bash
+git log --pretty=format:'%h %s%n%b%n---' <base>..HEAD
+git diff <base>..HEAD --stat
+```
+
+Group commits by conventional-commit prefix:
+- `feat` / `ux` → **Added** (CHANGELOG) / README candidate
+- `fix` → **Fixed**
+- `perf` → **Performance**
+- `chore` / `refactor` → **Changed** (non-user-facing) or **Removed**
+- `security` → **Security**
+- `docs` → skip (already doc work)
+- `test` → **Tests**
+- `ci` → **Changed** (infra) or skip
+
+### 0c. Read current doc state (in parallel)
+
+1. `CHANGELOG.md` — the full `[Unreleased]` section. Note which commits are already captured.
+2. `docs/tactical/` — list all tactical docs; for each, check whether all sub-tasks are `[x]`. Flag fully-complete ones.
+3. `docs/testing.md` — header line (total tests + suites).
+4. `known_issues.md` — full content.
+5. `PLAN.md` Phase Status Dashboard — note any phases that were `[~]` or `[ ]`.
+6. `README.md` — the "What this fork adds" section headings only (don't read the full file).
+
+### 0d. Determine scope
+
+Build a checklist of which files actually need updating. Only include a file if the survey found evidence it needs changing:
+
+| File | Update if… |
+|---|---|
+| `CHANGELOG.md` | Any commits not yet in `[Unreleased]` |
+| `README.md` | `feat` / `ux` commits that add a user-visible feature not covered in existing bullets |
+| `docs/architecture.md` | New subsystem, new pattern, new known issue, or "gotcha" in commit bodies |
+| `docs/testing.md` | Test files added or test counts changed in the diff |
+| `docs/perf-troubleshooting.md` | A `perf` commit landed AND any of the documented anti-patterns (A-1..A-6) was exercised — append a case-study subsection |
+| `known_issues.md` | Bug surfaced or fixed that isn't already tracked |
+| `PLAN.md` | A phase that was `[~]` or `[ ]` is now complete |
+| **Release cut** | Version bump + CHANGELOG section cut (only on explicit request) |
+| **Tactical wrap** | Fully-complete tactical docs identified in 0c |
+
+Report the scope to the user in one line before Phase 1: *"I'll update: CHANGELOG, docs/architecture.md, docs/testing.md. Skipping: README (no new user-facing features), known_issues.md (nothing new), PLAN.md (no phase completed)."*
+
+---
+
+## Phase 1 — Gap analysis (one batched prompt, ≤6 questions)
+
+Ask only questions whose answers cannot be derived from the diff. Skip any question that the survey already answered with confidence. Batch all remaining questions into a single message.
+
+**Q1 — README additions?** *(ask only if `feat`/`ux` commits exist)*
+Are any of these user-visible features missing from "What this fork adds"? If yes, which section do they belong under (or is it a new section)?
+
+**Q2 — Architecture context?** *(ask only if the diff touches architectural surfaces: new providers, new services, new store slices, new patterns)*
+Anything non-obvious that `docs/architecture.md` needs to capture — a hidden constraint, a new invariant, a gotcha? Code explains *what*; this captures *why*.
+
+**Q3 — Known issues?** *(ask only if `fix` commits exist or the session surfaced new bugs)*
+Any bugs surfaced or fixed that aren't in `known_issues.md`? Bugs to add, or existing entries to mark resolved?
+
+**Q4 — Release cut?** *(always ask)*
+Should I bump the version to `YYYY.M.D` (today) and cut `[Unreleased]` into a dated release section? Yes / No.
+
+**Q5 — Tactical wrap-up?** *(ask only if 0c flagged fully-complete tactical docs)*
+These tactical docs have all sub-tasks checked: `<list>`. Should I run the wrap-up for any of them (adds PLAN.md one-liner, deletes the file)?
+
+**Q6 — Anything else?** *(always ask, can be skipped)*
+Anything the commits don't capture that should go in the docs — a decision made in conversation, a deferred item, a design choice?
+
+If the user says "you decide" on any question, apply these defaults:
+- Q1: Add to README only if the feature is genuinely new to the "What this fork adds" surface (not a bug fix or internal refactor).
+- Q2: Skip unless the commit body explicitly describes a non-obvious constraint or pattern.
+- Q3: Add a known issue only if there's a concrete symptom + workaround.
+- Q4: No release cut unless explicitly requested.
+- Q5: Wrap only if every sub-task is `[x]` with no `[ ]` or `[~]` remaining.
+
+---
+
+## Phase 2 — Execute
+
+Work through the scoped file list from Phase 0d in this order. Read each file immediately before editing. Never rewrite existing content — only add.
+
+### CHANGELOG.md
+
+Add entries to the `[Unreleased]` section only. Group by Keep-a-Changelog category (`Added / Changed / Fixed / Removed / Performance / Security / Tests`). One bullet per logical change — not one per commit (multiple commits implementing one feature = one bullet). Derive wording from commit subjects + bodies; do not invent content. If a commit body is too vague to describe accurately, leave a `<!-- TODO: expand -->` placeholder.
+
+Skip commits already captured in `[Unreleased]`. Do not touch any dated release section below.
+
+Format each bullet as the existing entries do — terse, precise, lowercase after the dash, no trailing period.
+
+### README.md
+
+*(only if Phase 1 Q1 confirmed additions)*
+
+Insert new bullet(s) under the correct section of "What this fork adds". Match the existing bullet style exactly (bold lead term, em-dash, explanation). Never rewrite existing bullets. If a new section is needed, add it at the end of the existing sections with a `###` heading.
+
+Do not touch anything outside the "What this fork adds" block.
+
+### docs/architecture.md
+
+*(only if Phase 1 Q2 or diff warrants)*
+
+Make surgical insertions only:
+
+- **Section 1 (Feature Inventory)** — add table rows for new features. Match the existing `| Feature | Source | Entry Point | Key Data | Gotchas |` format.
+- **New `§ 2x` subsection** — only if a genuinely new subsystem appeared (new package, new provider, new architectural layer). Append after the last existing `§ 2x` section, before `## 3. Test Audit`.
+- **Section 7 (Known Issues)** — add a new `### 7x.` entry for any open issues. Mark fixed ones `✅ FIXED (date)` in the heading.
+- **"Last updated" line** — bump date to today and increment revision number by 1.
+
+Never rewrite existing sections. Cross-link to ADRs where relevant.
+
+### docs/testing.md
+
+*(only if test files changed in the diff)*
+
+- Bump the header `Total: ~N tests · N suites` line.
+- Add rows to the **Branch additions** table for new suites (suite name, what's covered).
+- Do not modify the Layer tables — those are manually curated.
+
+### known_issues.md
+
+*(only if Phase 1 Q3 identified items)*
+
+Add new issues in this format:
+
+```markdown
+## <Short symptom title>
+
+**Symptom:** One sentence.
+
+**Workaround:** Concrete steps, or "None known."
+
+**Status:** Open / Fixed in <commit-sha> (date)
+```
+
+For issues now fixed: append `**Status:** Fixed in <sha> (date)` to the existing entry — do not delete it. Closed issues are still useful for searchability.
+
+### PLAN.md
+
+*(only if a phase completed)*
+
+- Flip the phase row from `[ ]`/`[~]` → `[x]` in the Phase Status Dashboard.
+- Append a one-line summary under the relevant phase section: `- <What shipped> — see <ADR or file links> (date)`.
+- Touch nothing else. PLAN.md is a strategic dashboard, not a feature log.
+
+---
+
+## Phase 3 — Release cut (only if Phase 1 Q4 = yes)
+
+```
+1. Determine today's date → YYYY.M.D (no leading zeros)
+2. Bump "version" in all 5 package.json files:
+     package.json
+     packages/axoview-app/package.json
+     packages/axoview-lib/package.json
+     packages/axoview-backend/package.json
+     packages/axoview-worker/package.json
+3. In CHANGELOG.md:
+   a. Add a fresh empty [Unreleased] section at the very top (after the header)
+   b. Rename the current [Unreleased] heading → [YYYY.M.D] — YYYY-MM-DD
+4. Do NOT push — this is staged alongside the doc changes for a single review commit
+```
+
+---
+
+## Phase 4 — Tactical wrap-up (only if Phase 1 Q5 = yes)
+
+For each approved tactical doc:
+
+1. Read the doc's Wrap-up section for its specific PLAN.md one-liner text.
+2. Append that line under the correct PLAN.md phase (same rule as Phase 2 PLAN.md above).
+3. Delete the tactical doc file.
+4. Remove its bullet from the `**Active tactical docs:**` list in the convention memory file (`C:\Users\isidenica\.claude\projects\c--myTemp-FossFLOW\memory\project_docs_convention.md`).
+5. If the tactical doc referenced a decision-pointer memory (e.g. `project_2br_decisions.md`), check whether that memory is now stale and update or retire it.
+
+---
+
+## Phase 5 — Review & commit
+
+**Do not run `git commit` automatically.**
+
+1. Run `git diff --stat` on all staged changes. Show the user the summary.
+2. Propose a commit message in this format:
+
+```
+docs(notes): end-of-session sync — YYYY-MM-DD
+
+- CHANGELOG: <N> new entries (Added/Fixed/...)
+- README: <what was added, or "no changes">
+- docs/architecture.md: <what was added, rev N→N+1, or "no changes">
+- docs/testing.md: <count update, or "no changes">
+- known_issues.md: <what was added/closed, or "no changes">
+- PLAN.md: <phase update, or "no changes">
+[- Release cut: YYYY.M.D]
+[- Tactical wrap: <topic>]
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+```
+
+3. Tell the user: *"Review the diff above. Run `git commit` when ready, or let me know what to adjust."*
+
+Stop here. Do not push.
+
+---
+
+## Hard rules
+
+- **Read before write** — every file is read in Phase 0 or immediately before editing. Never blind-append.
+- **Additive only** — never rewrite existing content in any file. Add bullets, add rows, add sections. Existing prose stays intact.
+- **Derives from commits** — CHANGELOG entries come from `git log` bodies. If a commit message is too vague, use `<!-- TODO: expand -->` rather than inventing content.
+- **Never commit automatically** — Phase 5 always stops for user review.
+- **Scope to the session** — if the survey found nothing changed in a file, don't touch it. Don't pad.
+- **One concern, one file** — if a change touches both README and architecture.md, update both correctly rather than consolidating into one.
+- **`PLAN.md` is a dashboard** — only the Phase Status Dashboard checkboxes and the one-line phase summary. Never touch phase content blocks.
