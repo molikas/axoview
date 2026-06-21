@@ -105,5 +105,5 @@ If multiple unrelated bug-classes were fixed, ask the user whether to split into
 
 ## Reference
 
-- Slash command lives at `.claude/commands/shake-out.md`. **Personal (the directory is in `.gitignore`)** — edits are local to your machine and not shared with collaborators.
+- Slash command lives at `.claude/commands/shake-out.md` — **tracked in git** (`.claude/commands/` is exempted from the `.claude` `.gitignore` rule), so edits are versioned and shared with collaborators.
 - Sibling: [`/audit`](audit.md) — the heavy quality/architecture sweep. Use that one when you need depth, not the shake-out loop.

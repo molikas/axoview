@@ -197,7 +197,7 @@ For each approved tactical doc:
 1. Read the doc's Wrap-up section for its specific PLAN.md one-liner text.
 2. Append that line under the correct PLAN.md phase (same rule as Phase 2 PLAN.md above).
 3. Delete the tactical doc file.
-4. Remove its bullet from the `**Active tactical docs:**` list in the convention memory file (`C:\Users\isidenica\.claude\projects\c--myTemp-FossFLOW\memory\project_docs_convention.md`).
+4. Remove its bullet from the `**Active tactical docs:**` list in the convention memory file `project_docs_convention.md` (in your project's Claude memory directory; the absolute path is shown in the auto-loaded `MEMORY.md` index header in your context).
 5. If the tactical doc referenced a decision-pointer memory (e.g. `project_2br_decisions.md`), check whether that memory is now stale and update or retire it.
 
 ---

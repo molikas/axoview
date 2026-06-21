@@ -22,7 +22,7 @@ Before doing anything else, in parallel:
 1. Read `docs/adr/` (`ls` + `Read` each ADR's header — Status, Date, Supersedes/Superseded-by lines are enough; full body only when the mode targets a specific ADR).
 2. Read `docs/tactical/` index (`ls` + skim the `Status:` line of each).
 3. Read `PLAN.md` headings (Phase Status Dashboard) to know which phase a new feature lands under.
-4. Read the convention memory: `C:\Users\isidenica\.claude\projects\c--myTemp-FossFLOW\memory\project_docs_convention.md`.
+4. Read the convention memory `project_docs_convention.md` (in your project's Claude memory directory — the absolute path is shown in the auto-loaded `MEMORY.md` index header in your context).
 5. If any related decision-pointer memories exist (e.g. `project_2br_decisions.md`), read those too.
 
 Use this snapshot to pick the next ADR number, detect naming collisions, and answer "does this feature already have a tactical doc?" without asking the user.
