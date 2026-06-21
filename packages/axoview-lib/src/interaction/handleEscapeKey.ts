@@ -8,6 +8,21 @@ export interface EscapeDeps {
   commitDragTransaction: () => void;
 }
 
+// Persistent TOOL modes Esc returns to Select (CURSOR) from — the universal
+// convention (draw.io / Figma / Miro / Lucid). Transient interaction modes
+// (DRAG_ITEMS, RECTANGLE.TRANSFORM, RECONNECT_ANCHOR) own their own abort logic
+// and are NOT force-exited here; INTERACTIONS_DISABLED stays locked; CURSOR is
+// already Select. (F-01.)
+const TOOL_MODES_EXITED_BY_ESCAPE = new Set<State['uiState']['mode']['type']>([
+  'PAN',
+  'PLACE_ICON',
+  'CONNECTOR',
+  'RECTANGLE.DRAW',
+  'TEXTBOX',
+  'LASSO',
+  'FREEHAND_LASSO'
+]);
+
 // Esc inside CONNECTOR mode: abort an in-flight connection and reset the mode.
 // Returns true when it actually aborted an in-progress connector (so the caller
 // can give connector-abort priority over panel/selection clear — B2).
@@ -59,6 +74,20 @@ export const handleEscapeKey = (
   // node selected, so otherwise the selectedIds branch below would consume the
   // first Esc — clearing the selection and stranding the orphan connector.
   if (handleConnectorEscape(uiState, deps)) {
+    return true;
+  }
+
+  // F-01: Esc returns from any persistent tool mode (idle CONNECTOR after a
+  // connection is drawn, PLACE_ICON, RECTANGLE.DRAW, TEXTBOX, LASSO, PAN, …) to
+  // Select. Previously Esc only aborted an *in-progress* connector and then
+  // cleared the panel/selection, so an idle tool mode swallowed the keystroke
+  // with no visible effect and the user was stranded until they pressed S.
+  if (TOOL_MODES_EXITED_BY_ESCAPE.has(uiState.mode.type)) {
+    uiState.actions.setMode({
+      type: 'CURSOR',
+      showCursor: true,
+      mousedownItem: null
+    });
     return true;
   }
 

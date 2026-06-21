@@ -103,3 +103,64 @@ describe('handleEscapeKey — connector-abort priority (B2 / Decision #3)', () =
     expect(uiState.actions.clearSelection).not.toHaveBeenCalled();
   });
 });
+
+describe('handleEscapeKey — returns from a tool mode to Select (F-01)', () => {
+  it('exits idle CONNECTOR mode to CURSOR (reported bug: drew a connector, Esc did nothing)', () => {
+    const uiState = makeUiState({
+      mode: { type: 'CONNECTOR', id: null, isConnecting: false }
+    });
+    const deps = makeDeps();
+
+    const handled = handleEscapeKey(makeEsc(), uiState, deps);
+
+    expect(handled).toBe(true);
+    expect(deps.deleteConnector).not.toHaveBeenCalled(); // nothing in progress to abort
+    expect(uiState.actions.setMode).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'CURSOR' })
+    );
+  });
+
+  it.each([
+    'PLACE_ICON',
+    'RECTANGLE.DRAW',
+    'TEXTBOX',
+    'LASSO',
+    'FREEHAND_LASSO',
+    'PAN'
+  ])('exits %s tool mode to CURSOR', (type) => {
+    const uiState = makeUiState({ mode: { type } });
+
+    handleEscapeKey(makeEsc(), uiState, makeDeps());
+
+    expect(uiState.actions.setMode).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'CURSOR' })
+    );
+  });
+
+  it('does NOT force-exit the transient DRAG_ITEMS mode (it owns its own abort)', () => {
+    const uiState = makeUiState({
+      mode: { type: 'DRAG_ITEMS' },
+      selectedIds: [{ type: 'ITEM', id: 'a' }]
+    });
+
+    handleEscapeKey(makeEsc(), uiState, makeDeps());
+
+    expect(uiState.actions.setMode).not.toHaveBeenCalled();
+    // Falls through to the selection-clear branch instead.
+    expect(uiState.actions.clearSelection).toHaveBeenCalledTimes(1);
+  });
+
+  it('tool-mode exit wins over clearing a lingering selection (two Esc to fully reset)', () => {
+    const uiState = makeUiState({
+      mode: { type: 'CONNECTOR', id: null, isConnecting: false },
+      selectedIds: [{ type: 'ITEM', id: 'n1' }]
+    });
+
+    handleEscapeKey(makeEsc(), uiState, makeDeps());
+
+    expect(uiState.actions.setMode).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'CURSOR' })
+    );
+    expect(uiState.actions.clearSelection).not.toHaveBeenCalled();
+  });
+});
