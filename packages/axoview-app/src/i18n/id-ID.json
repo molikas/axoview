@@ -12,7 +12,8 @@
         "tooltip": "Ekspor",
         "json": "Ekspor JSON",
         "image": "Ekspor Gambar",
-        "projectZip": "Ekspor Proyek (.zip)"
+        "projectZip": "Ekspor Proyek (.zip)",
+        "jsonExported": "{{filename}} diekspor"
     },
     "emptyState": {
         "newDiagram": "Diagram baru",

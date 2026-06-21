@@ -16,7 +16,8 @@
         "tooltip": "निर्यात करें",
         "json": "JSON निर्यात करें",
         "image": "छवि निर्यात करें",
-        "projectZip": "प्रोजेक्ट निर्यात करें (.zip)"
+        "projectZip": "प्रोजेक्ट निर्यात करें (.zip)",
+        "jsonExported": "{{filename}} निर्यात किया गया"
     },
     "emptyState": {
         "newDiagram": "नया आरेख",

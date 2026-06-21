@@ -16,7 +16,8 @@
         "tooltip": "导出",
         "json": "导出 JSON",
         "image": "导出图片",
-        "projectZip": "导出项目 (.zip)"
+        "projectZip": "导出项目 (.zip)",
+        "jsonExported": "已导出 {{filename}}"
     },
     "emptyState": {
         "newDiagram": "新建图表",

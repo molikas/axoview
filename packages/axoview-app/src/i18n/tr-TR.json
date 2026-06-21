@@ -16,7 +16,8 @@
         "tooltip": "Dışa Aktar",
         "json": "JSON Olarak Dışa Aktar",
         "image": "Görüntü Olarak Dışa Aktar",
-        "projectZip": "Projeyi Dışa Aktar (.zip)"
+        "projectZip": "Projeyi Dışa Aktar (.zip)",
+        "jsonExported": "{{filename}} dışa aktarıldı"
     },
     "emptyState": {
         "newDiagram": "Yeni diyagram",

@@ -16,7 +16,8 @@
         "tooltip": "Exportar",
         "json": "Exportar JSON",
         "image": "Exportar imagen",
-        "projectZip": "Exportar proyecto (.zip)"
+        "projectZip": "Exportar proyecto (.zip)",
+        "jsonExported": "{{filename}} exportado"
     },
     "emptyState": {
         "newDiagram": "Nuevo diagrama",

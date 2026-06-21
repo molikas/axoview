@@ -854,13 +854,20 @@ export function DiagramLifecycleProvider({
       type: 'application/json'
     });
     const url = URL.createObjectURL(blob);
+    const filename = `${diagramName || 'diagram'}-${new Date().toISOString().split('T')[0]}.json`;
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${diagramName || 'diagram'}-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
     setShowExportDialog(false);
-  }, [currentModel, diagramData, diagramName]);
+    // F-10: confirm the silent download succeeded (H11 feedback). The browser's
+    // own download chrome is easy to miss, so a short success toast closes the loop.
+    notificationStore.push({
+      severity: 'success',
+      message: t('exportMenu.jsonExported', { filename })
+    });
+  }, [currentModel, diagramData, diagramName, t]);
 
   // ---------------------------------------------------------------------------
   // Server-mode: load diagram into canvas

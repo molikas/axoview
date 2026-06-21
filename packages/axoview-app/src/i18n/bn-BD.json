@@ -16,7 +16,8 @@
         "tooltip": "রপ্তানি",
         "json": "JSON রপ্তানি করুন",
         "image": "ছবি রপ্তানি করুন",
-        "projectZip": "প্রকল্প রপ্তানি করুন (.zip)"
+        "projectZip": "প্রকল্প রপ্তানি করুন (.zip)",
+        "jsonExported": "{{filename}} রপ্তানি করা হয়েছে"
     },
     "emptyState": {
         "newDiagram": "নতুন ডায়াগ্রাম",
