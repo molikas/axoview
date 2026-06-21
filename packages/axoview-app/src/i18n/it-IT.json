@@ -41,7 +41,12 @@
         "savedAt": "Salvato alle {{time}}",
         "savedYesterdayAt": "Salvato ieri alle {{time}}",
         "savedOnDate": "Salvato il {{day}} {{month}} alle {{time}}",
-        "savedOnDateYear": "Salvato il {{day}} {{month}} {{year}} alle {{time}}"
+        "savedOnDateYear": "Salvato il {{day}} {{month}} {{year}} alle {{time}}",
+        "sessionBanner": "Il tuo lavoro esiste solo in questa scheda del browser. Usa Esporta → Esporta progetto per conservarlo.",
+        "dismiss": "Ignora"
+    },
+    "settings": {
+        "language": "Lingua"
     },
     "toolbar": {
         "presentSaveFirst": "Salva prima di presentare",

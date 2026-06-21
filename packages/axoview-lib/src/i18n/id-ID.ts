@@ -375,7 +375,8 @@ const locale: LocaleProps = {
     zoomIn: 'Perbesar',
     fitToScreen: 'Sesuaikan ke layar',
     keepLabelsReadable: 'Jaga label tetap terbaca',
-    help: 'Bantuan (F1)'
+    help: 'Bantuan (F1)',
+    selected: '{count} dipilih'
   },
   previewLayerSwitcher: {
     layers: 'Lapisan',

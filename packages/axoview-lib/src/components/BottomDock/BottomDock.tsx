@@ -70,7 +70,7 @@ export const BottomDock = ({ endSlot }: BottomDockProps = {}) => {
       <Box sx={{ display: 'flex', alignItems: 'center', minHeight: 24 }}>
         {selectedCount > 1 && (
           <Chip
-            label={`${selectedCount} selected`}
+            label={t('selected').replace('{count}', String(selectedCount))}
             size="small"
             color="primary"
             sx={{

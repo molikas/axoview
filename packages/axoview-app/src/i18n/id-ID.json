@@ -32,7 +32,16 @@
         "session": "Sesi",
         "untitled": "Diagram Tanpa Judul",
         "modified": "Dimodifikasi",
-        "sessionStorageNote": "Hanya penyimpanan sesi - ekspor untuk menyimpan secara permanen"
+        "sessionStorageNote": "Hanya penyimpanan sesi - ekspor untuk menyimpan secara permanen",
+        "savedAt": "Disimpan pukul {{time}}",
+        "savedYesterdayAt": "Disimpan kemarin pukul {{time}}",
+        "savedOnDate": "Disimpan {{day}} {{month}} pukul {{time}}",
+        "savedOnDateYear": "Disimpan {{day}} {{month}} {{year}} pukul {{time}}",
+        "sessionBanner": "Pekerjaan Anda hanya tersimpan di tab browser ini. Gunakan Ekspor → Ekspor proyek untuk menyimpannya.",
+        "dismiss": "Tutup"
+    },
+    "settings": {
+        "language": "Bahasa"
     },
     "dialog": {
         "save": {

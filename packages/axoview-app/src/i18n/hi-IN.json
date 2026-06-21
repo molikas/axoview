@@ -41,7 +41,12 @@
         "savedAt": "Saved at {{time}}",
         "savedYesterdayAt": "Saved yesterday at {{time}}",
         "savedOnDate": "Saved {{month}} {{day}} at {{time}}",
-        "savedOnDateYear": "Saved {{month}} {{day}}, {{year}} at {{time}}"
+        "savedOnDateYear": "Saved {{month}} {{day}}, {{year}} at {{time}}",
+        "sessionBanner": "आपका काम केवल इस ब्राउज़र टैब में रहता है। इसे रखने के लिए निर्यात → प्रोजेक्ट निर्यात करें का उपयोग करें।",
+        "dismiss": "खारिज करें"
+    },
+    "settings": {
+        "language": "भाषा"
     },
     "toolbar": {
         "presentSaveFirst": "Save first to present",

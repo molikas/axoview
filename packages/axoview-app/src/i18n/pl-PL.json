@@ -41,7 +41,12 @@
         "savedAt": "Zapisano o {{time}}",
         "savedYesterdayAt": "Zapisano wczoraj o {{time}}",
         "savedOnDate": "Zapisano {{day}} {{month}} o {{time}}",
-        "savedOnDateYear": "Zapisano {{day}} {{month}} {{year}} o {{time}}"
+        "savedOnDateYear": "Zapisano {{day}} {{month}} {{year}} o {{time}}",
+        "sessionBanner": "Twoja praca istnieje tylko w tej karcie przeglądarki. Użyj opcji Eksportuj → Eksportuj projekt, aby ją zachować.",
+        "dismiss": "Odrzuć"
+    },
+    "settings": {
+        "language": "Język"
     },
     "toolbar": {
         "presentSaveFirst": "Najpierw zapisz, aby zaprezentować",

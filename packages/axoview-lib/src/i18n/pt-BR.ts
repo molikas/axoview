@@ -376,7 +376,8 @@ const locale: LocaleProps = {
     zoomIn: 'Aumentar zoom',
     fitToScreen: 'Ajustar à tela',
     keepLabelsReadable: 'Manter rótulos legíveis',
-    help: 'Ajuda (F1)'
+    help: 'Ajuda (F1)',
+    selected: '{count} selecionados'
   },
   previewLayerSwitcher: {
     layers: 'Camadas',

@@ -32,7 +32,16 @@
     "session": "Sitzung",
     "untitled": "Unbenanntes Diagramm",
     "modified": "Geändert",
-    "sessionStorageNote": "Nur Browserspeicher – zum dauerhaften Speichern exportieren"
+    "sessionStorageNote": "Nur Browserspeicher – zum dauerhaften Speichern exportieren",
+    "savedAt": "Gespeichert um {{time}}",
+    "savedYesterdayAt": "Gestern um {{time}} gespeichert",
+    "savedOnDate": "Am {{day}} {{month}} um {{time}} gespeichert",
+    "savedOnDateYear": "Am {{day}} {{month}} {{year}} um {{time}} gespeichert",
+    "sessionBanner": "Deine Arbeit existiert nur in diesem Browser-Tab. Nutze Exportieren → Projekt exportieren, um sie zu behalten.",
+    "dismiss": "Schließen"
+  },
+  "settings": {
+    "language": "Sprache"
   },
   "dialog": {
     "save": {

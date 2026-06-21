@@ -374,7 +374,8 @@ const locale: LocaleProps = {
     zoomIn: 'জুম ইন',
     fitToScreen: 'স্ক্রিনে ফিট করুন',
     keepLabelsReadable: 'লেবেল পঠনযোগ্য রাখুন',
-    help: 'সাহায্য (F1)'
+    help: 'সাহায্য (F1)',
+    selected: '{count}টি নির্বাচিত'
   },
   previewLayerSwitcher: {
     layers: 'স্তর',

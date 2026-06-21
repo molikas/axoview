@@ -378,7 +378,8 @@ const locale: LocaleProps = {
     zoomIn: 'Vergrößern',
     fitToScreen: 'An Bildschirm anpassen',
     keepLabelsReadable: 'Beschriftungen lesbar halten',
-    help: 'Hilfe (F1)'
+    help: 'Hilfe (F1)',
+    selected: '{count} ausgewählt'
   },
   previewLayerSwitcher: {
     layers: 'Ebenen',

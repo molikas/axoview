@@ -380,7 +380,8 @@ const locale: LocaleProps = {
     zoomIn: 'Acercar',
     fitToScreen: 'Ajustar a pantalla',
     keepLabelsReadable: 'Mantener etiquetas legibles',
-    help: 'Ayuda (F1)'
+    help: 'Ayuda (F1)',
+    selected: '{count} seleccionados'
   },
   previewLayerSwitcher: {
     layers: 'Capas',

@@ -354,7 +354,8 @@ const locale: LocaleProps = {
     zoomIn: '放大',
     fitToScreen: '适应屏幕',
     keepLabelsReadable: '保持标签清晰可读',
-    help: '帮助 (F1)'
+    help: '帮助 (F1)',
+    selected: '已选择 {count} 项'
   },
   previewLayerSwitcher: {
     layers: '图层',

@@ -381,7 +381,8 @@ const locale: LocaleProps = {
     zoomIn: 'Powiększ',
     fitToScreen: 'Dopasuj do ekranu',
     keepLabelsReadable: 'Zachowaj czytelność etykiet',
-    help: 'Pomoc (F1)'
+    help: 'Pomoc (F1)',
+    selected: 'Zaznaczono: {count}'
   },
   previewLayerSwitcher: {
     layers: 'Warstwy',

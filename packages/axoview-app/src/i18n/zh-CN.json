@@ -41,7 +41,12 @@
         "savedYesterdayAt": "昨天 {{time}} 已保存",
         "savedOnDate": "{{month}} {{day}} {{time}} 已保存",
         "savedOnDateYear": "{{year}} 年 {{month}} {{day}} {{time}} 已保存",
-        "sessionStorageNote": "仅会话存储 - 导出以永久保存"
+        "sessionStorageNote": "仅会话存储 - 导出以永久保存",
+        "sessionBanner": "您的工作仅保存在此浏览器标签页中。请使用导出 → 导出项目以保留它。",
+        "dismiss": "关闭"
+    },
+    "settings": {
+        "language": "语言"
     },
     "toolbar": {
         "presentSaveFirst": "请先保存以演示",

@@ -41,7 +41,12 @@
         "savedAt": "{{time}} tarihinde kaydedildi",
         "savedYesterdayAt": "Dün {{time}} tarihinde kaydedildi",
         "savedOnDate": "{{day}} {{month}} {{time}} tarihinde kaydedildi",
-        "savedOnDateYear": "{{day}} {{month}} {{year}}, {{time}} tarihinde kaydedildi"
+        "savedOnDateYear": "{{day}} {{month}} {{year}}, {{time}} tarihinde kaydedildi",
+        "sessionBanner": "Çalışmanız yalnızca bu tarayıcı sekmesinde bulunur. Saklamak için Dışa Aktar → Projeyi dışa aktar seçeneğini kullanın.",
+        "dismiss": "Kapat"
+    },
+    "settings": {
+        "language": "Dil"
     },
     "toolbar": {
         "presentSaveFirst": "Sunmadan önce kaydedin",

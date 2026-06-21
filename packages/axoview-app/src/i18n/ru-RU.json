@@ -41,7 +41,12 @@
         "savedAt": "Сохранено в {{time}}",
         "savedYesterdayAt": "Сохранено вчера в {{time}}",
         "savedOnDate": "Сохранено {{day}} {{month}} в {{time}}",
-        "savedOnDateYear": "Сохранено {{day}} {{month}} {{year}} в {{time}}"
+        "savedOnDateYear": "Сохранено {{day}} {{month}} {{year}} в {{time}}",
+        "sessionBanner": "Ваша работа хранится только в этой вкладке браузера. Используйте Экспорт → Экспорт проекта, чтобы сохранить её.",
+        "dismiss": "Закрыть"
+    },
+    "settings": {
+        "language": "Язык"
     },
     "toolbar": {
         "presentSaveFirst": "Сначала сохраните для презентации",

@@ -41,7 +41,12 @@
         "savedYesterdayAt": "Saved yesterday at {{time}}",
         "savedOnDate": "Saved {{month}} {{day}} at {{time}}",
         "savedOnDateYear": "Saved {{month}} {{day}}, {{year}} at {{time}}",
-        "sessionStorageNote": "Session storage only - export to save permanently"
+        "sessionStorageNote": "Session storage only - export to save permanently",
+        "sessionBanner": "Your work lives in this browser tab only. Use Export → Export project to keep it.",
+        "dismiss": "Dismiss"
+    },
+    "settings": {
+        "language": "Language"
     },
     "toolbar": {
         "presentSaveFirst": "Save first to present",

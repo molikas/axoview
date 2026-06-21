@@ -41,7 +41,12 @@
         "savedAt": "Guardado a las {{time}}",
         "savedYesterdayAt": "Guardado ayer a las {{time}}",
         "savedOnDate": "Guardado el {{day}} {{month}} a las {{time}}",
-        "savedOnDateYear": "Guardado el {{day}} {{month}} {{year}} a las {{time}}"
+        "savedOnDateYear": "Guardado el {{day}} {{month}} {{year}} a las {{time}}",
+        "sessionBanner": "Tu trabajo solo existe en esta pestaña del navegador. Usa Exportar → Exportar proyecto para conservarlo.",
+        "dismiss": "Descartar"
+    },
+    "settings": {
+        "language": "Idioma"
     },
     "toolbar": {
         "presentSaveFirst": "Guarda primero para presentar",

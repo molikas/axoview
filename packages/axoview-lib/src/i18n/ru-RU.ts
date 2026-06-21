@@ -376,7 +376,8 @@ const locale: LocaleProps = {
     zoomIn: 'Увеличить',
     fitToScreen: 'По размеру экрана',
     keepLabelsReadable: 'Сохранять читаемость подписей',
-    help: 'Помощь (F1)'
+    help: 'Помощь (F1)',
+    selected: 'Выбрано: {count}'
   },
   previewLayerSwitcher: {
     layers: 'Слои',

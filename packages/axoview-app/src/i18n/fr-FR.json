@@ -41,7 +41,12 @@
         "savedAt": "Enregistré à {{time}}",
         "savedYesterdayAt": "Enregistré hier à {{time}}",
         "savedOnDate": "Enregistré le {{day}} {{month}} à {{time}}",
-        "savedOnDateYear": "Enregistré le {{day}} {{month}} {{year}} à {{time}}"
+        "savedOnDateYear": "Enregistré le {{day}} {{month}} {{year}} à {{time}}",
+        "sessionBanner": "Votre travail n'existe que dans cet onglet du navigateur. Utilisez Exporter → Exporter le projet pour le conserver.",
+        "dismiss": "Ignorer"
+    },
+    "settings": {
+        "language": "Langue"
     },
     "toolbar": {
         "presentSaveFirst": "Enregistrez d'abord pour présenter",

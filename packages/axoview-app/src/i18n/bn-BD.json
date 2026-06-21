@@ -41,7 +41,12 @@
         "savedAt": "Saved at {{time}}",
         "savedYesterdayAt": "Saved yesterday at {{time}}",
         "savedOnDate": "Saved {{month}} {{day}} at {{time}}",
-        "savedOnDateYear": "Saved {{month}} {{day}}, {{year}} at {{time}}"
+        "savedOnDateYear": "Saved {{month}} {{day}}, {{year}} at {{time}}",
+        "sessionBanner": "আপনার কাজ শুধুমাত্র এই ব্রাউজার ট্যাবে থাকে। এটি রাখতে রপ্তানি → প্রকল্প রপ্তানি করুন ব্যবহার করুন।",
+        "dismiss": "বাতিল করুন"
+    },
+    "settings": {
+        "language": "ভাষা"
     },
     "toolbar": {
         "presentSaveFirst": "Save first to present",

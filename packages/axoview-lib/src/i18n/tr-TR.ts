@@ -376,7 +376,8 @@ const locale: LocaleProps = {
     zoomIn: 'Yaklaştır',
     fitToScreen: 'Ekrana sığdır',
     keepLabelsReadable: 'Etiketleri okunabilir tut',
-    help: 'Yardım (F1)'
+    help: 'Yardım (F1)',
+    selected: '{count} seçildi'
   },
   previewLayerSwitcher: {
     layers: 'Katmanlar',

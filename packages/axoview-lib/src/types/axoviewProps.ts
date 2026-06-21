@@ -362,6 +362,7 @@ export interface LocaleProps {
     fitToScreen: string;
     keepLabelsReadable: string;
     help: string;
+    selected: string;
   };
   previewLayerSwitcher: {
     layers: string;

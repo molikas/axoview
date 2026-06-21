@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, IconButton, Typography } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
 
 const DISMISS_KEY = 'axoview-session-banner-dismissed';
 
 export function LocalModeBanner() {
+  const { t } = useTranslation('app');
   const [dismissed, setDismissed] = useState<boolean>(() => {
     try {
       return localStorage.getItem(DISMISS_KEY) === '1';
@@ -41,13 +43,13 @@ export function LocalModeBanner() {
       role="status"
     >
       <Typography variant="caption" color="text.secondary">
-        Your work lives in this browser tab only. Use Export → Export project to keep it.
+        {t('status.sessionBanner')}
       </Typography>
       <Box sx={{ flex: 1 }} />
       <IconButton
         size="small"
         onClick={handleDismiss}
-        aria-label="Dismiss"
+        aria-label={t('status.dismiss')}
         sx={{ color: 'text.secondary' }}
       >
         <CloseIcon fontSize="small" />

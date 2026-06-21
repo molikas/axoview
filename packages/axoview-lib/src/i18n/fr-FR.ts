@@ -380,7 +380,8 @@ const locale: LocaleProps = {
     zoomIn: 'Zoom avant',
     fitToScreen: "Ajuster à l'écran",
     keepLabelsReadable: 'Garder les étiquettes lisibles',
-    help: 'Aide (F1)'
+    help: 'Aide (F1)',
+    selected: '{count} sélectionnés'
   },
   previewLayerSwitcher: {
     layers: 'Calques',
