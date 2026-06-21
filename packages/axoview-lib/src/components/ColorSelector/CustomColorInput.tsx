@@ -20,6 +20,8 @@ interface Props {
   onChange: (color: string) => void;
 }
 
+const HEX_RE = /^#[0-9A-F]{6}$/i;
+
 export const CustomColorInput = ({ value, onChange }: Props) => {
   const [localValue, setLocalValue] = useState(value);
 
@@ -43,15 +45,33 @@ export const CustomColorInput = ({ value, onChange }: Props) => {
     const newValue = e.target.value;
     setLocalValue(newValue);
     // If it's a valid hex, update immediately
-    if (/^#[0-9A-F]{6}$/i.test(newValue)) {
+    if (HEX_RE.test(newValue)) {
       onChange(newValue);
     }
   };
 
   const handleBlur = () => {
     // On blur, if invalid, revert to prop value
-    if (!/^#[0-9A-F]{6}$/i.test(localValue)) {
+    if (!HEX_RE.test(localValue)) {
       setLocalValue(value);
+    }
+  };
+
+  // E2: Enter commits a valid hex; Esc cancels the in-progress edit. Both
+  // stopPropagation so the keystroke never reaches the window-level canvas
+  // handler — Esc otherwise runs handleEscapeKey (which fires BEFORE the
+  // editable-target guard) and closed the whole Properties panel mid-edit,
+  // discarding the typed value. Mirrors the F2 inline-rename pattern (ux §3.1).
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (HEX_RE.test(localValue)) onChange(localValue);
+      (e.target as HTMLInputElement).blur();
+    } else if (e.key === 'Escape') {
+      e.stopPropagation();
+      setLocalValue(value); // revert the unsaved edit; panel stays open
+      (e.target as HTMLInputElement).blur();
     }
   };
 
@@ -64,6 +84,7 @@ export const CustomColorInput = ({ value, onChange }: Props) => {
         value={localValue}
         onChange={handleTextChange}
         onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
         variant="standard"
         size="small"
         slotProps={{
