@@ -46,10 +46,6 @@ const locale: LocaleProps = {
     deselectShortcut: 'Left-click (empty area)',
     deselectDescription:
       'Deselect the current selection and return to select mode',
-    addNodeGroupAction: 'Add Node / Rectangle',
-    addNodeGroupShortcut: 'Double-click (empty area)',
-    addNodeGroupDescription:
-      'Opens the Add popover at the cursor: pick an icon to place a node, or click Rectangle to add a background area for visually grouping nodes',
     // Mouse interactions
     selectToolAction: 'Select Tool',
     selectToolShortcut: 'Click Select button',

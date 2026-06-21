@@ -47,10 +47,6 @@ const locale: LocaleProps = {
     deselectShortcut: 'Lewy przycisk (pusty obszar)',
     deselectDescription:
       'Odznacz bieżące zaznaczenie i wróć do trybu zaznaczania',
-    addNodeGroupAction: 'Add Node / Group',
-    addNodeGroupShortcut: 'Podwójne kliknięcie (pusty obszar)',
-    addNodeGroupDescription:
-      'Opens the Add popover at the cursor: pick an icon to place a node, or click Group to add a background area for visually grouping nodes',
     // Mouse interactions
     selectToolAction: 'Wybierz narzędzie',
     selectToolShortcut: 'Kliknij przycisk Wybierz',

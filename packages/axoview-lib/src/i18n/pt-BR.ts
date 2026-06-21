@@ -46,10 +46,6 @@ const locale: LocaleProps = {
     deselectShortcut: 'Clique esquerdo (área vazia)',
     deselectDescription:
       'Desfazer a seleção atual e retornar ao modo de seleção',
-    addNodeGroupAction: 'Add Node / Group',
-    addNodeGroupShortcut: 'Duplo clique (área vazia)',
-    addNodeGroupDescription:
-      'Opens the Add popover at the cursor: pick an icon to place a node, or click Group to add a background area for visually grouping nodes',
     // Mouse interactions
     selectToolAction: 'Ferramenta de seleção',
     selectToolShortcut: 'Clique no botão Selecionar',

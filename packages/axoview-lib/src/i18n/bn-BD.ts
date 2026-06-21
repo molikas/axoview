@@ -46,10 +46,6 @@ const locale: LocaleProps = {
     deselectShortcut: 'বাম-ক্লিক (খালি এলাকা)',
     deselectDescription:
       'বর্তমান নির্বাচন বাতিল করুন এবং নির্বাচন মোডে ফিরুন',
-    addNodeGroupAction: 'Add Node / Group',
-    addNodeGroupShortcut: 'ডাবল-ক্লিক (খালি এলাকা)',
-    addNodeGroupDescription:
-      'Opens the Add popover at the cursor: pick an icon to place a node, or click Group to add a background area for visually grouping nodes',
     // Mouse interactions
     selectToolAction: 'নির্বাচন টুল',
     selectToolShortcut: 'নির্বাচন বোতামে ক্লিক করুন',

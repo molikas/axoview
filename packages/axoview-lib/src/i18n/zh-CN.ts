@@ -43,10 +43,6 @@ const locale: LocaleProps = {
     deselectAction: '取消选择',
     deselectShortcut: '左键单击（空白区域）',
     deselectDescription: '取消当前选择并返回选择模式',
-    addNodeGroupAction: 'Add Node / Group',
-    addNodeGroupShortcut: '双击（空白区域）',
-    addNodeGroupDescription:
-      'Opens the Add popover at the cursor: pick an icon to place a node, or click Group to add a background area for visually grouping nodes',
     // Mouse interactions
     selectToolAction: '选择工具',
     selectToolShortcut: '点击选择按钮',

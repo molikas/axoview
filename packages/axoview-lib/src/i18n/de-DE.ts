@@ -46,10 +46,6 @@ const locale: LocaleProps = {
     deselectShortcut: 'Linksklick (leerer Bereich)',
     deselectDescription:
       'Aktuelle Auswahl aufheben und zum Auswahlmodus zurückkehren',
-    addNodeGroupAction: 'Knoten / Gruppe hinzufügen',
-    addNodeGroupShortcut: 'Doppelklick (leerer Bereich)',
-    addNodeGroupDescription:
-      'Öffnet das Hinzufügen-Popover am Cursor: Symbol auswählen, um einen Knoten zu platzieren, oder auf Gruppe klicken, um einen Hintergrundbereich für die visuelle Gruppierung von Knoten hinzuzufügen',
     // Mouse interactions
     selectToolAction: 'Auswahlwerkzeug',
     selectToolShortcut: 'Auswahl-Schaltfläche klicken',

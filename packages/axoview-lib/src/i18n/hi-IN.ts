@@ -46,10 +46,6 @@ const locale: LocaleProps = {
     deselectShortcut: 'बाएँ-क्लिक (खाली क्षेत्र)',
     deselectDescription:
       'वर्तमान चयन रद्द करें और चयन मोड में वापस जाएं',
-    addNodeGroupAction: 'Add Node / Group',
-    addNodeGroupShortcut: 'डबल-क्लिक (खाली क्षेत्र)',
-    addNodeGroupDescription:
-      'Opens the Add popover at the cursor: pick an icon to place a node, or click Group to add a background area for visually grouping nodes',
     // Mouse interactions
     selectToolAction: 'चयन उपकरण',
     selectToolShortcut: 'चयन बटन क्लिक करें',

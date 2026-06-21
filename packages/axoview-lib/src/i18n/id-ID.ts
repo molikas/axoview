@@ -46,10 +46,6 @@ const locale: LocaleProps = {
     deselectShortcut: 'Klik Kiri (area kosong)',
     deselectDescription:
       'Batalkan pilihan saat ini dan kembali ke mode pilih',
-    addNodeGroupAction: 'Add Node / Group',
-    addNodeGroupShortcut: 'Klik ganda (area kosong)',
-    addNodeGroupDescription:
-      'Opens the Add popover at the cursor: pick an icon to place a node, or click Group to add a background area for visually grouping nodes',
     // Mouse interactions
     selectToolAction: 'Alat Pilih',
     selectToolShortcut: 'Klik tombol Pilih',

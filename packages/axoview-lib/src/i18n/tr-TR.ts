@@ -45,10 +45,6 @@ const locale: LocaleProps = {
     deselectAction: 'Seçimi Kaldır',
     deselectShortcut: 'Sol tık (boş alan)',
     deselectDescription: 'Mevcut seçimi kaldır ve seçim moduna dön',
-    addNodeGroupAction: 'Add Node / Group',
-    addNodeGroupShortcut: 'Çift tık (boş alan)',
-    addNodeGroupDescription:
-      'Opens the Add popover at the cursor: pick an icon to place a node, or click Group to add a background area for visually grouping nodes',
     // Mouse interactions
     selectToolAction: 'Seçim Aracı',
     selectToolShortcut: 'Seç butonuna tıkla',

@@ -622,8 +622,9 @@ export const Cursor: ModeActions = {
       resolveClickSelection(state, uiState.mode.mousedownItem);
     } else {
       // Plain left-click on empty canvas, or the tail of a completed drag —
-      // clear the persistent selection. (Adding items is handled by
-      // double-click via QuickAddNodePopover.)
+      // clear the persistent selection. (B8: there is no double-click-to-add —
+      // it was removed for good; right-click → "Add item" is the canonical add
+      // path. Double-click opens Details on an item / no-ops on empty canvas.)
       (uiState.actions.clearSelection ??
         (() => uiState.actions.setItemControls(null)))();
     }
