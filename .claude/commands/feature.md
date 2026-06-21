@@ -22,10 +22,10 @@ Before doing anything else, in parallel:
 1. Read `docs/adr/` (`ls` + `Read` each ADR's header — Status, Date, Supersedes/Superseded-by lines are enough; full body only when the mode targets a specific ADR).
 2. Read `docs/tactical/` index (`ls` + skim the `Status:` line of each).
 3. Read `PLAN.md` headings (Phase Status Dashboard) to know which phase a new feature lands under.
-4. Read the convention memory `project_docs_convention.md` (in your project's Claude memory directory — the absolute path is shown in the auto-loaded `MEMORY.md` index header in your context).
-5. If any related decision-pointer memories exist (e.g. `project_2br_decisions.md`), read those too.
+4. Read [`docs/workflow.md`](../../docs/workflow.md) — the authoritative session cadence + convention rules. It is versioned in the repo, so it travels with every clone.
+5. **Optional accelerator (skip silently if absent):** if a `project_docs_convention.md` memory exists in your project's Claude memory directory (path shown in the auto-loaded `MEMORY.md` header), read it for a pre-digested convention summary plus any decision-pointer memories it references (e.g. `project_2br_decisions.md`). It is a cache, not the source of truth — steps 1–4 (the repo) always win on conflict.
 
-Use this snapshot to pick the next ADR number, detect naming collisions, and answer "does this feature already have a tactical doc?" without asking the user.
+Use this snapshot to pick the next ADR number, detect naming collisions, and answer "does this feature already have a tactical doc?" without asking the user. **The repo (`docs/adr/` + `docs/tactical/`) is the source of truth — never the memory cache.**
 
 ## Mode: `start`
 
@@ -91,7 +91,7 @@ Pick the next sequential number (zero-padded to 4). Create `docs/adr/NNNN-kebab-
 - **Manual verification:** ...
 ```
 
-After writing, update the **Existing ADRs** list in `project_docs_convention.md` memory (one new bullet, sorted by number). Bump the date in that memory's heading.
+The new ADR file in `docs/adr/` is the durable record. If the optional `project_docs_convention.md` memory exists, also refresh its **Existing ADRs** list (one new bullet, sorted by number; bump the date in its heading) — but never block on it; the repo is authoritative.
 
 ### Phase 3 — Scaffold tactical doc (if Phase 1 said yes)
 
@@ -152,7 +152,7 @@ When all sub-tasks are complete and the smoke checklist passes:
    - <Feature> shipped — see docs/adr/NNNN..NNNN and (this file's git history).
    ```
 2. Delete this file. The ADRs are the durable record; this checklist's job is done.
-3. Update memory pointer `<relevant memory>` if any decisions here supersede or extend it.
+3. Update any relevant memory pointer (optional — only if one exists) if decisions here supersede or extend it.
 
 ## Notes for Claude
 
@@ -160,7 +160,7 @@ When all sub-tasks are complete and the smoke checklist passes:
 - <Anything load-bearing about ordering, coupling, or things-that-look-wrong-but-aren't.>
 ```
 
-After writing, add a `**Active tactical docs:**` bullet to `project_docs_convention.md` memory.
+The new file in `docs/tactical/` is the record. If the optional `project_docs_convention.md` memory exists, add a matching `**Active tactical docs:**` bullet there too.
 
 ### Phase 4 — Hand off
 
@@ -177,21 +177,21 @@ When a small new constraint or follow-up belongs *inside* an existing ADR rather
    ```
 3. If the addition introduces new acceptance criteria, append them to the bottom of the existing **Acceptance criteria** list (don't rewrite the originals).
 4. Leave Status as `Accepted` — addendums don't supersede.
-5. Do **not** touch the convention memory unless the addendum changes the ADR's one-line summary there.
+5. The ADR file is the record; do **not** touch the optional convention memory unless it exists *and* the addendum changes the ADR's one-line summary there.
 
 ## Mode: `supersede`
 
 1. Read the old ADR.
 2. Create a new ADR via the `start` template, with `**Supersedes:** ADR NNNN` filled in.
 3. Edit the old ADR: `**Status:** Superseded` and `**Superseded by:** ADR MMMM`. Leave the rest of the body intact for historical record.
-4. Update the convention memory's ADR list — the new ADR's bullet replaces the old one's purpose, but keep the old number listed (with `(superseded)` suffix) so cross-references in git history still resolve.
+4. The ADR files carry the Supersedes/Superseded-by cross-links — that's the durable record. If the optional convention memory exists, update its ADR list too: the new ADR's bullet replaces the old one's purpose, but keep the old number listed (with `(superseded)` suffix) so cross-references in git history still resolve.
 
 ## Mode: `wrap`
 
 1. Read the tactical doc fully and confirm with the user that all sub-tasks are checked off.
 2. Identify the relevant `PLAN.md` phase from the doc's "Wrap-up" section. Append the single-line entry under that phase — do not edit anything else in `PLAN.md`.
 3. Delete the tactical doc file.
-4. Refresh memory:
+4. Refresh memory **(optional — skip silently if these memories don't exist on this machine):**
    - Remove the `**Active tactical docs:**` bullet for this topic from `project_docs_convention.md`.
    - If the doc had a paired decision-pointer memory (e.g. `project_2br_decisions.md`), check whether any of its content needs to be moved/superseded now that the tactical scaffolding is gone.
 5. Print a one-line confirmation with the deleted path and the PLAN.md line that was added.

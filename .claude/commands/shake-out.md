@@ -84,7 +84,7 @@ If artifacts do need updating, **do it in one batch at the end of the session, n
 | [known_issues.md](../../known_issues.md) | Append any unresolved bug with: symptom, workaround, status. Create the file if it doesn't exist. |
 | `MEMORY.md` (auto-memory) | Add a feedback memory only if the user gave durable preference guidance (e.g. "always strip secrets before commit", "never amend"). Skip for one-off task context. |
 
-Project doc conventions (per `project_docs_convention.md` memory): ADRs in `docs/adr/`, tactical plans in `docs/tactical/`, both lifecycle-aware (tactical doc gets deleted at merge time per its own wrap-up section).
+Project doc conventions (see [docs/workflow.md](../../docs/workflow.md); the `project_docs_convention.md` memory, if present, is an optional cache): ADRs in `docs/adr/`, tactical plans in `docs/tactical/`, both lifecycle-aware (tactical doc gets deleted at merge time per its own wrap-up section).
 
 ### 6. Commit and push
 
