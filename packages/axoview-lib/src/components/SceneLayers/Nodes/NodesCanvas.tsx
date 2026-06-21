@@ -401,6 +401,15 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       // renderer (no per-node DOM label exists in canvas mode) — same idea as
       // data-label-scale / data-draw-count.
       let labelsDrawn = 0;
+      // A2: true only when EVERY node that should paint an icon had a decoded
+      // bitmap available this frame. getImage returns null for a non-empty icon
+      // URL whose Image hasn't finished decoding yet — that node's icon is
+      // skipped, so the snapshot would miss it. The image-export flow polls this
+      // signal before its first capture (mirrors drawCount/labelsDrawn). Nodes
+      // with no icon (DEFAULT_ICON.url === '') resolve to null immediately but
+      // have nothing to paint, so they must NOT flip this false — the per-node
+      // check below gates on a truthy icon.url first (O(1), no allocation).
+      let allIconsDrawn = true;
       for (const node of sorted) {
         const modelItem = itemsById.get(node.id);
         if (!modelItem) continue;
@@ -457,6 +466,12 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
         // ----- icon -----
         const icon = resolveIcon(modelItem.icon, iconsById);
         const img = getImage(icon.url);
+        // A2: a node that should paint an icon (non-empty URL) but whose bitmap
+        // isn't decoded yet (img === null) was skipped this frame. Flag it so the
+        // export waits for the icon layer before snapshotting. The icon.url guard
+        // excludes the no-icon/DEFAULT_ICON case (url === '') — nothing to draw,
+        // so it must not flip the signal. O(1), no allocation.
+        if (icon.url && !img) allIconsDrawn = false;
         if (img) {
           const scale = icon.scale || 1;
           ctx.save();
@@ -611,6 +626,12 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       // gone.
       canvas.dataset.drawCount = String(drawn);
       canvas.dataset.labelsDrawn = String(labelsDrawn);
+      // A2: "true" only when no node's icon was skipped this frame for a
+      // not-yet-decoded bitmap. The image-export dialog awaits this before its
+      // first capture so canvas-drawn icons aren't dropped from the snapshot
+      // (connectors are DOM/SVG and survive regardless). Same publish shape as
+      // the drawCount/labelsDrawn anti-cheat datasets above.
+      canvas.dataset.allIconsDrawn = String(allIconsDrawn);
     };
 
     const scheduleDraw = () => {

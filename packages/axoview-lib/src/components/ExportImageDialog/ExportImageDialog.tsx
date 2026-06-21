@@ -115,6 +115,43 @@ function drawCropSelection(
   ctx.strokeRect(cropArea.x, cropArea.y, cropArea.width, cropArea.height);
 }
 
+// A2: the export snapshots the hidden Axoview's Canvas2D node layer, but icon
+// bitmaps decode asynchronously (NodesCanvas.getImage creates an Image and only
+// paints it once `complete`). Waiting on model-ready + one rAF isn't enough — the
+// first frame can paint before any icon has decoded, dropping every icon node
+// from the capture (connectors are DOM/SVG, so they survive). NodesCanvas now
+// publishes `data-all-icons-drawn="true"` once a frame painted with every icon
+// bitmap available; poll that here before capturing. Resolves true when the
+// canvas reports ready, false once the timeout elapses (so export never hangs and
+// we fall back to capturing anyway, then recapturing — see the effect below).
+const waitForIconsDrawn = (
+  container: HTMLElement | null,
+  timeoutMs: number
+): Promise<boolean> =>
+  new Promise((resolve) => {
+    const start = performance.now();
+    const poll = () => {
+      const canvas = container?.querySelector<HTMLElement>(
+        '[data-testid="axoview-nodes-canvas"]'
+      );
+      // No canvas in the tree (e.g. DOM node renderer) → nothing to wait for.
+      if (!canvas) {
+        resolve(true);
+        return;
+      }
+      if (canvas.dataset.allIconsDrawn === 'true') {
+        resolve(true);
+        return;
+      }
+      if (performance.now() - start >= timeoutMs) {
+        resolve(false);
+        return;
+      }
+      requestAnimationFrame(poll);
+    };
+    requestAnimationFrame(poll);
+  });
+
 export const ExportImageDialog = memo(({ onClose }: Props) => {
   const { t } = useTranslation('exportImageDialog');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -466,12 +503,47 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
     setSvgData(undefined);
     setExportError(false);
     isExporting.current = false;
-    // One rAF is enough here — the model update callback already guarantees a
-    // paint cycle has occurred
-    const id = requestAnimationFrame(() => {
-      exportImageRef.current();
-    });
-    return () => cancelAnimationFrame(id);
+
+    let cancelled = false;
+    // A2: model-ready + one rAF guarantees React painted, but the canvas icon
+    // bitmaps decode asynchronously and may not be on the first frame. Wait for
+    // NodesCanvas to report `data-all-icons-drawn="true"` before capturing, so
+    // icon nodes aren't dropped from the snapshot. Cap the wait so a stuck/broken
+    // icon can never hang the export — we capture anyway and recapture below once
+    // the icons finish.
+    const ICONS_READY_TIMEOUT_MS = 400;
+    // Longer budget for the post-capture recovery: slow icon decodes (large
+    // sprites / many nodes) may exceed the initial window; give them more room
+    // before giving up on a better frame.
+    const ICONS_RECAPTURE_TIMEOUT_MS = 2000;
+
+    const run = async () => {
+      const iconsReady = await waitForIconsDrawn(
+        containerRef.current,
+        ICONS_READY_TIMEOUT_MS
+      );
+      if (cancelled) return;
+      // Await the capture so the recapture below can't race the in-flight
+      // exportImage (which guards on isExporting.current) or clobber its result.
+      await exportImageRef.current();
+      // A2 recapture fallback: the first capture fired before the icon layer was
+      // ready (the wait timed out), so the snapshot may be missing icons. Keep
+      // waiting for the canvas to report all icons drawn, then capture once more
+      // to replace the incomplete image. Bounded by ICONS_RECAPTURE_TIMEOUT_MS so
+      // it always resolves and stops.
+      if (iconsReady || cancelled) return;
+      const nowReady = await waitForIconsDrawn(
+        containerRef.current,
+        ICONS_RECAPTURE_TIMEOUT_MS
+      );
+      if (cancelled || !nowReady) return;
+      await exportImageRef.current();
+    };
+    run();
+
+    return () => {
+      cancelled = true;
+    };
   }, [axoviewReadySignal]);
 
   // Re-export when options change — only after the initial load has completed
