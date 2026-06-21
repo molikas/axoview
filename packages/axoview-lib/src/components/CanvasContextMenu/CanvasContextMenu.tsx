@@ -22,7 +22,8 @@ import {
   BlockOutlined as CollisionIcon,
   AddBoxOutlined as AddItemIcon,
   SelectAllOutlined as SelectAllIcon,
-  ChevronRight as ChevronRightIcon
+  ChevronRight as ChevronRightIcon,
+  Check as CheckIcon
 } from '@mui/icons-material';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useTranslation } from 'src/stores/localeStore';
@@ -364,7 +365,11 @@ export const CanvasContextMenu = () => {
               // ADR 0023 — per-item off-grid + collision. Snap toggles whether
               // the item rounds to the grid (and clears its offset on re-snap);
               // collision toggles whether it participates in the TileIndex.
-              canOffGrid && (
+              // The per-item snap override is only meaningful while GLOBAL grid
+              // snap is ON — when the whole canvas is already off-grid, an
+              // "unsnap this item" entry is a no-op users found confusing, so we
+              // hide it then (collision is grid-independent and stays).
+              canOffGrid && snapToGrid && (
                 <MenuItem key="snap" onClick={run(handleToggleSnap)}>
                   <ListItemIcon>
                     <SnapIcon fontSize="small" />
@@ -441,12 +446,15 @@ export const CanvasContextMenu = () => {
               // ADR 0023 — bulk off-grid over the whole selection (one undo
               // entry). The primary bulk intent: free a group from the grid /
               // collision; re-snap or re-enable is per-item on the item menu.
-              <MenuItem key="snap" onClick={run(handleBulkUnsnap)}>
-                <ListItemIcon>
-                  <SnapIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>{t('unsnapFromGrid')}</ListItemText>
-              </MenuItem>,
+              // Only meaningful while GLOBAL snap is ON (see the item menu note).
+              snapToGrid && (
+                <MenuItem key="snap" onClick={run(handleBulkUnsnap)}>
+                  <ListItemIcon>
+                    <SnapIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{t('unsnapFromGrid')}</ListItemText>
+                </MenuItem>
+              ),
               <MenuItem key="collision" onClick={run(handleBulkDisableCollision)}>
                 <ListItemIcon>
                   <CollisionIcon fontSize="small" />
@@ -487,6 +495,11 @@ export const CanvasContextMenu = () => {
               </MenuItem>,
               <Divider key="d1" />,
               // ADR 0023 #12 — the global snap-to-grid toggle (persisted).
+              // Stateful: a stable "Snap to grid" label + a trailing check when
+              // global snap is ON, so the canvas-wide state is legible at a
+              // glance rather than inferred from an Enable/Disable verb. This is
+              // the single source of truth for grid snapping; per-item snap
+              // overrides only surface while it's ON. (User feedback.)
               <MenuItem
                 key="snap"
                 onClick={run(() => actions.toggleSnapToGrid())}
@@ -497,9 +510,10 @@ export const CanvasContextMenu = () => {
                     color={snapToGrid ? 'primary' : undefined}
                   />
                 </ListItemIcon>
-                <ListItemText>
-                  {snapToGrid ? t('disableSnapToGrid') : t('enableSnapToGrid')}
-                </ListItemText>
+                <ListItemText>{t('snapToGrid')}</ListItemText>
+                {snapToGrid && (
+                  <CheckIcon fontSize="small" color="primary" sx={{ ml: 2 }} />
+                )}
               </MenuItem>
             ]}
       </Menu>
