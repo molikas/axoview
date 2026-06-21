@@ -10,6 +10,8 @@ interface Props {
   /** Per-icon delete handler — Icon.tsx only renders the badge for imported icons */
   onDelete?: (icon: Icon) => void;
   deleteTooltip?: string;
+  /** C2 / Decision #7 — Enter/Space keyboard placement, forwarded to each grid. */
+  onActivate?: (icon: Icon) => void;
 }
 
 export const Icons = ({
@@ -17,7 +19,8 @@ export const Icons = ({
   onClick,
   onMouseDown,
   onDelete,
-  deleteTooltip
+  deleteTooltip,
+  onActivate
 }: Props) => {
   return (
     <Grid container spacing={1} sx={{ py: 2 }}>
@@ -30,6 +33,7 @@ export const Icons = ({
               onMouseDown={onMouseDown}
               onDelete={onDelete}
               deleteTooltip={deleteTooltip}
+              onActivate={onActivate}
             />
           </Grid>
         );

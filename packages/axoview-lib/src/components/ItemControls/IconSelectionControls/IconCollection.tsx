@@ -22,6 +22,8 @@ interface Props {
   /** Per-icon delete handler — Icon.tsx only renders the badge for imported icons */
   onDelete?: (icon: IconI) => void;
   deleteTooltip?: string;
+  /** C2 / Decision #7 — Enter/Space keyboard placement, forwarded to the grid. */
+  onActivate?: (icon: IconI) => void;
   isExpanded: boolean;
 }
 
@@ -32,6 +34,7 @@ export const IconCollection = ({
   onMouseDown,
   onDelete,
   deleteTooltip,
+  onActivate,
   isExpanded: _isExpanded
 }: Props) => {
   const [isExpanded, setIsExpanded] = useState(_isExpanded);
@@ -103,6 +106,7 @@ export const IconCollection = ({
             onClick={onClick}
             onDelete={onDelete}
             deleteTooltip={deleteTooltip}
+            onActivate={onActivate}
           />
           {isLargePack && (
             <Typography

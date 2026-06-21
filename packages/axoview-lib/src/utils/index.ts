@@ -5,6 +5,7 @@ export * from './pathfinder';
 export * from './isoMath';
 export * from './hitDetection';
 export * from './renderer';
+export * from './viewportCenterTile';
 export * from './exportOptions';
 export * from './renderTarget';
 export * from './model';
