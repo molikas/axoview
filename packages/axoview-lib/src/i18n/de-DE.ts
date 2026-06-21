@@ -77,7 +77,56 @@ const locale: LocaleProps = {
     copyDescription: 'Ausgewählte(s) Element(e) in die Zwischenablage kopieren',
     pasteAction: 'Einfügen',
     pasteDescription:
-      'Zwischenablage-Elemente an der Mausposition einfügen; wird versetzt, um Überlappungen zu vermeiden'
+      'Zwischenablage-Elemente an der Mausposition einfügen; wird versetzt, um Überlappungen zu vermeiden',
+    // D10 — Select all row
+    selectAllAction: 'Alles auswählen',
+    selectAllShortcut: 'Strg+A',
+    selectAllDescription:
+      'Alle sichtbaren, nicht gesperrten Elemente der aktiven Ansicht auswählen (Elemente, Rechtecke, Textfelder, Verbindungen + ihre Wegpunkte)',
+    // D10 — tool-activation keys (ADR 0022 §6)
+    keyRenameAction: 'Umbenennen',
+    keyRenameShortcut: 'F2',
+    keyRenameDescription: 'Ausgewähltes Element oder Diagramm inline umbenennen',
+    keyAddItemAction: 'Element hinzufügen / Elemente',
+    keyAddItemShortcut: 'N',
+    keyAddItemDescription: 'Elemente-Panel umschalten, um ein neues Element zu platzieren',
+    keyConnectorAction: 'Verbindung',
+    keyConnectorShortcut: 'C',
+    keyConnectorDescription: 'Zum Verbindungswerkzeug wechseln',
+    keyLassoAction: 'Lasso-Auswahl',
+    keyLassoShortcut: 'L',
+    keyLassoDescription: 'Zum Lasso-Auswahlwerkzeug wechseln',
+    keySelectAction: 'Auswählen',
+    keySelectShortcut: 'S',
+    keySelectDescription: 'Zum Auswahlwerkzeug wechseln',
+    // D10 — mouse interactions
+    miSelectAction: 'Auswählen',
+    miSelectMethod: 'Linksklick',
+    miSelectDescription:
+      'Auf ein Element klicken, um es auszuwählen (hebt es hervor und zeigt die schwebende Aktionsleiste). Auf die leere Leinwand klicken, um die Auswahl aufzuheben.',
+    miOpenDetailsAction: 'Details öffnen',
+    miOpenDetailsMethod: 'Doppelklick',
+    miOpenDetailsDescription:
+      'Auf ein Element doppelklicken, um sein Detailfenster zu öffnen — wie der Eintrag „Details…“ im Kontextmenü.',
+    miToggleSelectionAction: 'Auswahl umschalten',
+    miToggleSelectionMethod: 'Strg/Cmd + Linksklick',
+    miToggleSelectionDescription:
+      'Ein Element zur Mehrfachauswahl hinzufügen oder daraus entfernen; eine Verbindung schaltet zusammen mit ihren Wegpunkten um.',
+    miPanAction: 'Verschieben',
+    miPanMethod: 'Rechtsklick + Ziehen',
+    miPanDescription:
+      'Rechte Maustaste halten und ziehen, um die Leinwand zu verschieben. Ziehen mit der mittleren Taste verschiebt ebenfalls; Pfeiltasten bewegen sie schrittweise.',
+    miContextMenuAction: 'Kontextmenü',
+    miContextMenuMethod: 'Rechtsklick (Tippen)',
+    miContextMenuDescription:
+      'Ein Rechtsklick ohne Ziehen öffnet das Kontextmenü — das Elementmenü über einem Element oder das Leinwandmenü über leerem Raum. Auf Touch-Geräten: langes Drücken.',
+    miRemoveWaypointAction: 'Wegpunkt entfernen',
+    miRemoveWaypointMethod: 'Alt + Linksklick',
+    miRemoveWaypointDescription:
+      'Mit Alt+Klick auf einen Verbindungs-Wegpunkt diesen herausnehmen (die Verbindung muss nicht zuerst ausgewählt werden); Endpunkt-Anker bleiben erhalten.',
+    miZoomAction: 'Zoomen',
+    miZoomMethod: 'Mausrad',
+    miZoomDescription: 'Scrollen, um zum Cursor zu zoomen.'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'Tipp: Verbindungen erstellen',
@@ -136,6 +185,16 @@ const locale: LocaleProps = {
       'linksklicken Sie auf das Ende der Verbindung und ziehen Sie es zum gewünschten Knoten.'
   },
   settings: {
+    // D3 — SettingsDialog chrome
+    title: 'Einstellungen',
+    close: 'Schließen',
+    canvas: 'Leinwand',
+    language: 'Sprache',
+    about: 'Über',
+    languageDescription:
+      'Wählen Sie die Anzeigesprache für die Anwendungsoberfläche.',
+    zoomSection: 'Zoom',
+    labelsSection: 'Beschriftungen',
     zoom: {
       description: 'Zoom-Verhalten beim Verwenden des Mausrads konfigurieren.',
       zoomToCursor: 'Zoom zum Cursor',
@@ -355,7 +414,9 @@ const locale: LocaleProps = {
     description: 'Beschriftungsanzeigeeinstellungen konfigurieren',
     expandButtonPadding: 'Erweitern-Schaltfläche Innenabstand',
     expandButtonPaddingDesc:
-      'Unterer Innenabstand bei sichtbarer Erweitern-Schaltfläche (verhindert Textüberlappung)'
+      'Unterer Innenabstand bei sichtbarer Erweitern-Schaltfläche (verhindert Textüberlappung)',
+    // D13
+    currentValue: 'Aktuell: {value} Theme-Einheiten'
   },
   iconSelectionControls: {
     close: 'Schließen',
@@ -414,12 +475,77 @@ const locale: LocaleProps = {
     addItem: 'Element hinzufügen',
     rectangle: 'Rechteck',
     connector: 'Verbinder',
-    text: 'Text'
+    text: 'Text',
+    common: 'Allgemein',
+    // D5
+    switchTo2D: 'Zur 2D-Ansicht wechseln',
+    switchToIsometric: 'Zur isometrischen Ansicht wechseln',
+    clickMode: 'Klicken',
+    dragMode: 'Ziehen'
   },
   quickIconSelector: {
     recentlyUsed: 'ZULETZT VERWENDET',
     searchResults: 'SUCHERGEBNISSE ({count} Symbole)',
     noIconsFound: 'Keine Symbole für "{term}" gefunden'
+  },
+  canvasContextMenu: {
+    details: 'Details…',
+    rename: 'Umbenennen',
+    cut: 'Ausschneiden',
+    copy: 'Kopieren',
+    paste: 'Einfügen',
+    duplicate: 'Duplizieren',
+    bringForward: 'Nach vorne',
+    sendBackward: 'Nach hinten',
+    assignToLayer: 'Ebene zuweisen',
+    snapToGrid: 'Am Raster ausrichten',
+    unsnapFromGrid: 'Vom Raster lösen',
+    disableCollision: 'Kollision deaktivieren',
+    enableCollision: 'Kollision aktivieren',
+    delete: 'Löschen',
+    addItem: 'Element hinzufügen',
+    selectAll: 'Alles auswählen',
+    enableSnapToGrid: 'Rasterausrichtung aktivieren',
+    disableSnapToGrid: 'Rasterausrichtung deaktivieren',
+    itemsSelectedOne: '{count} Element ausgewählt',
+    itemsSelectedOther: '{count} Elemente ausgewählt',
+    deleteItemsOne: '{count} Element löschen',
+    deleteItemsOther: '{count} Elemente löschen',
+    removeFromLayer: 'Von Ebene entfernen',
+    noLayers: 'Keine Ebenen — fügen Sie eine im Ebenen-Panel hinzu'
+  },
+  // D4 — LeftDock
+  leftDock: {
+    fileExplorer: 'Datei-Explorer',
+    elements: 'Elemente',
+    layers: 'Ebenen',
+    settings: 'Einstellungen',
+    openDiagramFirst: 'öffnen oder erstellen Sie zuerst ein Diagramm'
+  },
+  // D8 — LayersPanel
+  layersPanel: {
+    header: 'Ebenen',
+    addLayer: 'Ebene hinzufügen',
+    deleteSelectedLayer: 'Ausgewählte Ebene löschen',
+    noLayersYet: 'Noch keine Ebenen. Klicken Sie auf +, um eine hinzuzufügen.',
+    unassigned: 'Nicht zugewiesen ({count})',
+    dropToUnassign: 'Elemente hier ablegen, um die Zuweisung aufzuheben',
+    layerN: 'Ebene {count}'
+  },
+  // D7 — clipboard toast strings; {count}/{percent} interpolated.
+  clipboard: {
+    copiedOne: '{count} Element kopiert',
+    copiedOther: '{count} Elemente kopiert',
+    cutOne: '{count} Element ausgeschnitten',
+    cutOther: '{count} Elemente ausgeschnitten',
+    pastedOne: '{count} Element eingefügt',
+    pastedOther: '{count} Elemente eingefügt',
+    nothingToPaste: 'Nichts zum Einfügen',
+    routingConnectors: 'Wird eingefügt… Verbindungen werden geroutet ({percent}%)'
+  },
+  // D13 — default page name; {count} interpolated.
+  page: {
+    pageName: 'Seite {count}'
   }
 };
 

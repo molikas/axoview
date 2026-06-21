@@ -76,7 +76,56 @@ const locale: LocaleProps = {
     copyDescription: 'Copiar os itens selecionados para a área de transferência',
     pasteAction: 'Colar',
     pasteDescription:
-      'Colar itens da área de transferência na posição do mouse; deslocado para evitar sobreposição'
+      'Colar itens da área de transferência na posição do mouse; deslocado para evitar sobreposição',
+    // D10 — Select all row
+    selectAllAction: 'Selecionar tudo',
+    selectAllShortcut: 'Ctrl+A',
+    selectAllDescription:
+      'Selecionar todos os itens visíveis e desbloqueados na vista ativa (itens, retângulos, caixas de texto, conectores + seus pontos de rota)',
+    // D10 — tool-activation keys (ADR 0022 §6)
+    keyRenameAction: 'Renomear',
+    keyRenameShortcut: 'F2',
+    keyRenameDescription: 'Renomear o item ou diagrama selecionado em linha',
+    keyAddItemAction: 'Adicionar item / Elementos',
+    keyAddItemShortcut: 'N',
+    keyAddItemDescription: 'Alternar o painel Elementos para colocar um novo item',
+    keyConnectorAction: 'Conector',
+    keyConnectorShortcut: 'C',
+    keyConnectorDescription: 'Mudar para a ferramenta de conector',
+    keyLassoAction: 'Seleção por laço',
+    keyLassoShortcut: 'L',
+    keyLassoDescription: 'Mudar para a ferramenta de seleção por laço',
+    keySelectAction: 'Selecionar',
+    keySelectShortcut: 'S',
+    keySelectDescription: 'Mudar para a ferramenta de seleção',
+    // D10 — mouse interactions
+    miSelectAction: 'Selecionar',
+    miSelectMethod: 'Clique esquerdo',
+    miSelectDescription:
+      'Clique em um item para selecioná-lo (destaca-o e mostra a barra de ações flutuante). Clique na tela vazia para limpar a seleção.',
+    miOpenDetailsAction: 'Abrir detalhes',
+    miOpenDetailsMethod: 'Clique duplo',
+    miOpenDetailsDescription:
+      'Clique duas vezes em um item para abrir o painel de detalhes — igual à entrada «Detalhes…» do menu de contexto.',
+    miToggleSelectionAction: 'Alternar seleção',
+    miToggleSelectionMethod: 'Ctrl/Cmd + Clique esquerdo',
+    miToggleSelectionDescription:
+      'Adicionar ou remover um item da seleção múltipla; um conector é alternado junto com seus pontos de rota.',
+    miPanAction: 'Mover',
+    miPanMethod: 'Clique direito + arrastar',
+    miPanDescription:
+      'Segure o botão direito e arraste para mover a tela. Arrastar com o botão do meio também move; as setas a deslocam.',
+    miContextMenuAction: 'Menu de contexto',
+    miContextMenuMethod: 'Clique direito (toque)',
+    miContextMenuDescription:
+      'Um clique direito sem arrastar abre o menu de contexto — o menu do item sobre um item, ou o menu da tela sobre um espaço vazio. No touch, pressione e segure.',
+    miRemoveWaypointAction: 'Remover ponto de rota',
+    miRemoveWaypointMethod: 'Alt + Clique esquerdo',
+    miRemoveWaypointDescription:
+      'Alt+clique em um ponto de rota de um conector para removê-lo (sem precisar selecionar o conector primeiro); as âncoras das extremidades são preservadas.',
+    miZoomAction: 'Zoom',
+    miZoomMethod: 'Roda do mouse',
+    miZoomDescription: 'Role para aplicar zoom em direção ao cursor.'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'Dica: Criar conectores',
@@ -132,6 +181,16 @@ const locale: LocaleProps = {
       'clique com o botão esquerdo na extremidade do conector e arraste-o para o nó desejado.'
   },
   settings: {
+    // D3 — SettingsDialog chrome
+    title: 'Configurações',
+    close: 'Fechar',
+    canvas: 'Tela',
+    language: 'Idioma',
+    about: 'Sobre',
+    languageDescription:
+      'Selecione o idioma de exibição da interface do aplicativo.',
+    zoomSection: 'Zoom',
+    labelsSection: 'Rótulos',
     zoom: {
       description:
         'Configurar o comportamento do zoom ao usar a roda do mouse.',
@@ -353,7 +412,9 @@ const locale: LocaleProps = {
     description: 'Configurar ajustes de exibição de rótulos',
     expandButtonPadding: 'Preenchimento do botão expandir',
     expandButtonPaddingDesc:
-      'Preenchimento inferior quando o botão expandir está visível (evita sobreposição de texto)'
+      'Preenchimento inferior quando o botão expandir está visível (evita sobreposição de texto)',
+    // D13
+    currentValue: 'Atual: {value} unidades de tema'
   },
   iconSelectionControls: {
     close: 'Fechar',
@@ -411,12 +472,77 @@ const locale: LocaleProps = {
     addItem: 'Adicionar item',
     rectangle: 'Retângulo',
     connector: 'Conector',
-    text: 'Texto'
+    text: 'Texto',
+    common: 'Comuns',
+    // D5
+    switchTo2D: 'Mudar para vista 2D',
+    switchToIsometric: 'Mudar para vista isométrica',
+    clickMode: 'Clicar',
+    dragMode: 'Arrastar'
   },
   quickIconSelector: {
     recentlyUsed: 'USADOS RECENTEMENTE',
     searchResults: 'RESULTADOS DA BUSCA ({count} ícones)',
     noIconsFound: 'Nenhum ícone encontrado para "{term}"'
+  },
+  canvasContextMenu: {
+    details: 'Detalhes…',
+    rename: 'Renomear',
+    cut: 'Recortar',
+    copy: 'Copiar',
+    paste: 'Colar',
+    duplicate: 'Duplicar',
+    bringForward: 'Trazer para frente',
+    sendBackward: 'Enviar para trás',
+    assignToLayer: 'Atribuir à camada',
+    snapToGrid: 'Ajustar à grade',
+    unsnapFromGrid: 'Desafixar da grade',
+    disableCollision: 'Desativar colisão',
+    enableCollision: 'Ativar colisão',
+    delete: 'Excluir',
+    addItem: 'Adicionar item',
+    selectAll: 'Selecionar tudo',
+    enableSnapToGrid: 'Ativar ajuste à grade',
+    disableSnapToGrid: 'Desativar ajuste à grade',
+    itemsSelectedOne: '{count} item selecionado',
+    itemsSelectedOther: '{count} itens selecionados',
+    deleteItemsOne: 'Excluir {count} item',
+    deleteItemsOther: 'Excluir {count} itens',
+    removeFromLayer: 'Remover da camada',
+    noLayers: 'Sem camadas — adicione uma no painel de camadas'
+  },
+  // D4 — LeftDock
+  leftDock: {
+    fileExplorer: 'Explorador de arquivos',
+    elements: 'Elementos',
+    layers: 'Camadas',
+    settings: 'Configurações',
+    openDiagramFirst: 'abra ou crie um diagrama primeiro'
+  },
+  // D8 — LayersPanel
+  layersPanel: {
+    header: 'Camadas',
+    addLayer: 'Adicionar camada',
+    deleteSelectedLayer: 'Excluir camada selecionada',
+    noLayersYet: 'Ainda não há camadas. Clique em + para adicionar uma.',
+    unassigned: 'Não atribuído ({count})',
+    dropToUnassign: 'Solte itens aqui para desatribuir',
+    layerN: 'Camada {count}'
+  },
+  // D7 — clipboard toast strings; {count}/{percent} interpolated.
+  clipboard: {
+    copiedOne: '{count} item copiado',
+    copiedOther: '{count} itens copiados',
+    cutOne: '{count} item recortado',
+    cutOther: '{count} itens recortados',
+    pastedOne: '{count} item colado',
+    pastedOther: '{count} itens colados',
+    nothingToPaste: 'Nada para colar',
+    routingConnectors: 'Colando… roteando conectores ({percent}%)'
+  },
+  // D13 — default page name; {count} interpolated.
+  page: {
+    pageName: 'Página {count}'
   }
 };
 

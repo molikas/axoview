@@ -32,6 +32,12 @@ export const DEFAULT_FONT_FAMILY = 'Roboto, Arial, sans-serif';
 export const VIEW_DEFAULTS: Required<
   Omit<View, 'id' | 'description' | 'lastUpdated' | 'layers'>
 > = {
+  // D13 — data-layer fallback only. config.ts is a LEAF module (see the
+  // INITIAL_UI_STATE note below) and cannot call useTranslation, so the
+  // localised page name lives in the `page.pageName` i18n key and is applied at
+  // the creation surface (useSceneActions.createView), which always overrides
+  // this. Kept in sync with `page.pageName`'s en-US value for the rare path that
+  // reads VIEW_DEFAULTS.name directly.
   name: 'Page 1',
   items: [],
   connectors: [],

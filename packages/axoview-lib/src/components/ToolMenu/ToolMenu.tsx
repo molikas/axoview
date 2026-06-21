@@ -159,7 +159,10 @@ export const ToolMenu = () => {
           <Chip
             label={
               <Typography variant="micro" component="span">
-                {connectorInteractionMode === 'click' ? 'Click' : 'Drag'}
+                {/* D5 — connector-mode chip routed through i18n */}
+                {connectorInteractionMode === 'click'
+                  ? t('clickMode')
+                  : t('dragMode')}
               </Typography>
             }
             size="small"
@@ -171,7 +174,8 @@ export const ToolMenu = () => {
         {/* Canvas mode toggle */}
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
         <IconButton
-          name={canvasMode === 'ISOMETRIC' ? 'Switch to 2D view' : 'Switch to isometric view'}
+          // D5 — canvas-mode toggle tooltip routed through i18n
+          name={canvasMode === 'ISOMETRIC' ? t('switchTo2D') : t('switchToIsometric')}
           Icon={canvasMode === 'ISOMETRIC' ? <CartesianIcon /> : <IsometricIcon />}
           onClick={handleToggleCanvasMode}
           isActive={false}

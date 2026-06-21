@@ -78,7 +78,56 @@ const locale: LocaleProps = {
     copyDescription: 'Copier les éléments sélectionnés dans le presse-papiers',
     pasteAction: 'Coller',
     pasteDescription:
-      'Coller les éléments du presse-papiers à la position de la souris ; décalage pour éviter les chevauchements'
+      'Coller les éléments du presse-papiers à la position de la souris ; décalage pour éviter les chevauchements',
+    // D10 — Select all row
+    selectAllAction: 'Tout sélectionner',
+    selectAllShortcut: 'Ctrl+A',
+    selectAllDescription:
+      'Sélectionner tous les éléments visibles et déverrouillés de la vue active (éléments, rectangles, zones de texte, connecteurs + leurs points de passage)',
+    // D10 — tool-activation keys (ADR 0022 §6)
+    keyRenameAction: 'Renommer',
+    keyRenameShortcut: 'F2',
+    keyRenameDescription: 'Renommer l’élément ou le diagramme sélectionné sur place',
+    keyAddItemAction: 'Ajouter un élément / Éléments',
+    keyAddItemShortcut: 'N',
+    keyAddItemDescription: 'Basculer le panneau Éléments pour placer un nouvel élément',
+    keyConnectorAction: 'Connecteur',
+    keyConnectorShortcut: 'C',
+    keyConnectorDescription: 'Passer à l’outil connecteur',
+    keyLassoAction: 'Sélection lasso',
+    keyLassoShortcut: 'L',
+    keyLassoDescription: 'Passer à l’outil de sélection lasso',
+    keySelectAction: 'Sélectionner',
+    keySelectShortcut: 'S',
+    keySelectDescription: 'Passer à l’outil de sélection',
+    // D10 — mouse interactions
+    miSelectAction: 'Sélectionner',
+    miSelectMethod: 'Clic gauche',
+    miSelectDescription:
+      'Cliquer sur un élément pour le sélectionner (le met en évidence et affiche la barre d’actions flottante). Cliquer sur le canevas vide pour effacer la sélection.',
+    miOpenDetailsAction: 'Ouvrir les détails',
+    miOpenDetailsMethod: 'Double-clic',
+    miOpenDetailsDescription:
+      'Double-cliquer sur un élément pour ouvrir son panneau de détails — comme l’entrée « Détails… » du menu contextuel.',
+    miToggleSelectionAction: 'Basculer la sélection',
+    miToggleSelectionMethod: 'Ctrl/Cmd + Clic gauche',
+    miToggleSelectionDescription:
+      'Ajouter ou retirer un élément de la sélection multiple ; un connecteur bascule avec ses points de passage.',
+    miPanAction: 'Déplacer',
+    miPanMethod: 'Clic droit + glisser',
+    miPanDescription:
+      'Maintenir le bouton droit et glisser pour déplacer le canevas. Le glisser-clic du milieu déplace aussi ; les flèches le décalent.',
+    miContextMenuAction: 'Menu contextuel',
+    miContextMenuMethod: 'Clic droit (appui)',
+    miContextMenuDescription:
+      'Un clic droit sans glisser ouvre le menu contextuel — le menu de l’élément sur un élément, ou le menu du canevas sur un espace vide. Sur écran tactile, appui long.',
+    miRemoveWaypointAction: 'Supprimer le point de passage',
+    miRemoveWaypointMethod: 'Alt + Clic gauche',
+    miRemoveWaypointDescription:
+      'Alt+clic sur un point de passage de connecteur pour le retirer (pas besoin de sélectionner le connecteur d’abord) ; les ancres d’extrémité sont préservées.',
+    miZoomAction: 'Zoomer',
+    miZoomMethod: 'Molette',
+    miZoomDescription: 'Faire défiler pour zoomer vers le curseur.'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'Astuce : Créer des connecteurs',
@@ -136,6 +185,16 @@ const locale: LocaleProps = {
       "cliquez avec le bouton gauche sur l'extrémité du connecteur et faites-le glisser vers le nœud souhaité."
   },
   settings: {
+    // D3 — SettingsDialog chrome
+    title: 'Paramètres',
+    close: 'Fermer',
+    canvas: 'Canevas',
+    language: 'Langue',
+    about: 'À propos',
+    languageDescription:
+      "Sélectionnez la langue d'affichage de l'interface de l'application.",
+    zoomSection: 'Zoom',
+    labelsSection: 'Étiquettes',
     zoom: {
       description:
         "Configurer le comportement du zoom lors de l'utilisation de la molette de la souris.",
@@ -357,7 +416,9 @@ const locale: LocaleProps = {
     description: "Configurer les paramètres d'affichage des étiquettes",
     expandButtonPadding: 'Rembourrage du bouton développer',
     expandButtonPaddingDesc:
-      'Rembourrage inférieur lorsque le bouton développer est visible (évite le chevauchement du texte)'
+      'Rembourrage inférieur lorsque le bouton développer est visible (évite le chevauchement du texte)',
+    // D13
+    currentValue: 'Actuel : {value} unités de thème'
   },
   iconSelectionControls: {
     close: 'Fermer',
@@ -416,12 +477,77 @@ const locale: LocaleProps = {
     addItem: 'Ajouter un élément',
     rectangle: 'Rectangle',
     connector: 'Connecteur',
-    text: 'Texte'
+    text: 'Texte',
+    common: 'Communs',
+    // D5
+    switchTo2D: 'Passer en vue 2D',
+    switchToIsometric: 'Passer en vue isométrique',
+    clickMode: 'Clic',
+    dragMode: 'Glisser'
   },
   quickIconSelector: {
     recentlyUsed: 'RÉCEMMENT UTILISÉS',
     searchResults: 'RÉSULTATS DE RECHERCHE ({count} icônes)',
     noIconsFound: 'Aucune icône correspondant à "{term}"'
+  },
+  canvasContextMenu: {
+    details: 'Détails…',
+    rename: 'Renommer',
+    cut: 'Couper',
+    copy: 'Copier',
+    paste: 'Coller',
+    duplicate: 'Dupliquer',
+    bringForward: 'Avancer',
+    sendBackward: 'Reculer',
+    assignToLayer: 'Affecter au calque',
+    snapToGrid: 'Aligner sur la grille',
+    unsnapFromGrid: 'Détacher de la grille',
+    disableCollision: 'Désactiver la collision',
+    enableCollision: 'Activer la collision',
+    delete: 'Supprimer',
+    addItem: 'Ajouter un élément',
+    selectAll: 'Tout sélectionner',
+    enableSnapToGrid: "Activer l'alignement sur la grille",
+    disableSnapToGrid: "Désactiver l'alignement sur la grille",
+    itemsSelectedOne: '{count} élément sélectionné',
+    itemsSelectedOther: '{count} éléments sélectionnés',
+    deleteItemsOne: 'Supprimer {count} élément',
+    deleteItemsOther: 'Supprimer {count} éléments',
+    removeFromLayer: 'Retirer du calque',
+    noLayers: 'Aucun calque — ajoutez-en un dans le panneau des calques'
+  },
+  // D4 — LeftDock
+  leftDock: {
+    fileExplorer: 'Explorateur de fichiers',
+    elements: 'Éléments',
+    layers: 'Calques',
+    settings: 'Paramètres',
+    openDiagramFirst: 'ouvrez ou créez d’abord un diagramme'
+  },
+  // D8 — LayersPanel
+  layersPanel: {
+    header: 'Calques',
+    addLayer: 'Ajouter un calque',
+    deleteSelectedLayer: 'Supprimer le calque sélectionné',
+    noLayersYet: 'Aucun calque pour l’instant. Cliquez sur + pour en ajouter un.',
+    unassigned: 'Non assigné ({count})',
+    dropToUnassign: 'Déposez des éléments ici pour les désassigner',
+    layerN: 'Calque {count}'
+  },
+  // D7 — clipboard toast strings; {count}/{percent} interpolated.
+  clipboard: {
+    copiedOne: '{count} élément copié',
+    copiedOther: '{count} éléments copiés',
+    cutOne: '{count} élément coupé',
+    cutOther: '{count} éléments coupés',
+    pastedOne: '{count} élément collé',
+    pastedOther: '{count} éléments collés',
+    nothingToPaste: 'Rien à coller',
+    routingConnectors: 'Collage… routage des connecteurs ({percent}%)'
+  },
+  // D13 — default page name; {count} interpolated.
+  page: {
+    pageName: 'Page {count}'
   }
 };
 

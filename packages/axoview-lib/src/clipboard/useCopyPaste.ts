@@ -6,6 +6,7 @@ import { Connector, Coords, Rectangle, TextBox, UiState } from 'src/types';
 import { generateId } from 'src/utils';
 import { resolvePlacement } from 'src/utils/resolvePlacement';
 import { findNearestUnoccupiedTilesForGroup } from 'src/utils/findNearestUnoccupiedTile';
+import { useTranslation } from 'src/stores/localeStore';
 import { ClipboardItem, ClipboardPayload } from './clipboard';
 import { useClipboard } from './ClipboardContext';
 
@@ -107,6 +108,9 @@ export const useCopyPaste = () => {
   const modelStoreApi = useModelStoreApi();
   const scene = useScene();
   const clipboard = useClipboard();
+  // D7 — toast strings come from i18n; counts pluralise via one/other keys with
+  // a {count} placeholder (never `+ 's'`), the routing toast via {percent}.
+  const { t } = useTranslation('clipboard');
 
   const showNotification = useCallback(
     (message: string, severity: 'info' | 'success' | 'warning') => {
@@ -196,15 +200,22 @@ export const useCopyPaste = () => {
     };
   }, [uiStateApi, modelStoreApi, scene]);
 
+  // D7 — pick the singular/plural key and interpolate {count}; never `+ 's'`.
+  const formatCount = useCallback(
+    (one: 'copiedOne' | 'cutOne' | 'pastedOne', other: 'copiedOther' | 'cutOther' | 'pastedOther', count: number) =>
+      t(count === 1 ? one : other).replace('{count}', String(count)),
+    [t]
+  );
+
   const handleCopy = useCallback(() => {
     const result = buildPayload();
     if (!result) return;
     clipboard.set(result.payload);
     showNotification(
-      `Copied ${result.count} item${result.count !== 1 ? 's' : ''}`,
+      formatCount('copiedOne', 'copiedOther', result.count),
       'info'
     );
-  }, [buildPayload, showNotification, clipboard]);
+  }, [buildPayload, showNotification, clipboard, formatCount]);
 
   const handleCut = useCallback(() => {
     const result = buildPayload();
@@ -242,15 +253,15 @@ export const useCopyPaste = () => {
     }
 
     showNotification(
-      `Cut ${result.count} item${result.count !== 1 ? 's' : ''}`,
+      formatCount('cutOne', 'cutOther', result.count),
       'success'
     );
-  }, [buildPayload, showNotification, uiStateApi, scene, clipboard]);
+  }, [buildPayload, showNotification, uiStateApi, scene, clipboard, formatCount]);
 
   const handlePaste = useCallback(() => {
     const clipboardData = clipboard.get();
     if (!clipboardData) {
-      showNotification('Nothing to paste', 'warning');
+      showNotification(t('nothingToPaste'), 'warning');
       return;
     }
 
@@ -382,12 +393,15 @@ export const useCopyPaste = () => {
       ? (done: number, total: number) => {
           if (done >= total) {
             showNotification(
-              `Pasted ${pastedCount} item${pastedCount !== 1 ? 's' : ''}`,
+              formatCount('pastedOne', 'pastedOther', pastedCount),
               'success'
             );
           } else {
             const pct = Math.round((done / total) * 100);
-            showNotification(`Pasting… routing connectors (${pct}%)`, 'info');
+            showNotification(
+              t('routingConnectors').replace('{percent}', String(pct)),
+              'info'
+            );
           }
         }
       : undefined;
@@ -415,13 +429,16 @@ export const useCopyPaste = () => {
 
     if (!isLargePaste) {
       showNotification(
-        `Pasted ${pastedCount} item${pastedCount !== 1 ? 's' : ''}`,
+        formatCount('pastedOne', 'pastedOther', pastedCount),
         'success'
       );
     } else {
-      showNotification('Pasting… routing connectors (0%)', 'info');
+      showNotification(
+        t('routingConnectors').replace('{percent}', '0'),
+        'info'
+      );
     }
-  }, [showNotification, uiStateApi, scene, clipboard]);
+  }, [showNotification, uiStateApi, scene, clipboard, t, formatCount]);
 
   return { handleCopy, handleCut, handlePaste };
 };

@@ -76,7 +76,56 @@ const locale: LocaleProps = {
     copyDescription: 'নির্বাচিত আইটেম ক্লিপবোর্ডে কপি করুন',
     pasteAction: 'পেস্ট করুন',
     pasteDescription:
-      'ক্লিপবোর্ড আইটেম মাউস অবস্থানে পেস্ট করুন; ওভারল্যাপ এড়াতে অফসেট'
+      'ক্লিপবোর্ড আইটেম মাউস অবস্থানে পেস্ট করুন; ওভারল্যাপ এড়াতে অফসেট',
+    // D10 — Select all row
+    selectAllAction: 'সব নির্বাচন করুন',
+    selectAllShortcut: 'Ctrl+A',
+    selectAllDescription:
+      'সক্রিয় ভিউতে সমস্ত দৃশ্যমান, আনলক করা আইটেম নির্বাচন করুন (আইটেম, আয়তক্ষেত্র, টেক্সট বক্স, কানেক্টর + তাদের ওয়েপয়েন্ট)',
+    // D10 — tool-activation keys (ADR 0022 §6)
+    keyRenameAction: 'নাম পরিবর্তন',
+    keyRenameShortcut: 'F2',
+    keyRenameDescription: 'নির্বাচিত আইটেম বা ডায়াগ্রামের নাম ইনলাইন পরিবর্তন করুন',
+    keyAddItemAction: 'আইটেম যোগ করুন / এলিমেন্ট',
+    keyAddItemShortcut: 'N',
+    keyAddItemDescription: 'নতুন আইটেম রাখতে এলিমেন্ট প্যানেল টগল করুন',
+    keyConnectorAction: 'কানেক্টর',
+    keyConnectorShortcut: 'C',
+    keyConnectorDescription: 'কানেক্টর টুলে স্যুইচ করুন',
+    keyLassoAction: 'ল্যাসো নির্বাচন',
+    keyLassoShortcut: 'L',
+    keyLassoDescription: 'ল্যাসো নির্বাচন টুলে স্যুইচ করুন',
+    keySelectAction: 'নির্বাচন',
+    keySelectShortcut: 'S',
+    keySelectDescription: 'নির্বাচন টুলে স্যুইচ করুন',
+    // D10 — mouse interactions
+    miSelectAction: 'নির্বাচন',
+    miSelectMethod: 'বাম-ক্লিক',
+    miSelectDescription:
+      'একটি আইটেম নির্বাচন করতে ক্লিক করুন (এটি হাইলাইট করে এবং ভাসমান অ্যাকশন বার দেখায়)। নির্বাচন মুছতে খালি ক্যানভাসে ক্লিক করুন।',
+    miOpenDetailsAction: 'বিবরণ খুলুন',
+    miOpenDetailsMethod: 'ডবল-ক্লিক',
+    miOpenDetailsDescription:
+      'একটি আইটেমের বিবরণ প্যানেল খুলতে ডবল-ক্লিক করুন — কনটেক্সট মেনুর «বিবরণ…» এন্ট্রির মতোই।',
+    miToggleSelectionAction: 'নির্বাচন টগল করুন',
+    miToggleSelectionMethod: 'Ctrl/Cmd + বাম-ক্লিক',
+    miToggleSelectionDescription:
+      'বহু-নির্বাচন থেকে একটি আইটেম যোগ বা সরান; একটি কানেক্টর তার ওয়েপয়েন্টসহ টগল হয়।',
+    miPanAction: 'প্যান',
+    miPanMethod: 'ডান-ক্লিক + টেনে আনুন',
+    miPanDescription:
+      'ক্যানভাস প্যান করতে ডান বোতাম ধরে টেনে আনুন। মধ্য-বোতাম টানলেও প্যান হয়; তীর কী এটি সরায়।',
+    miContextMenuAction: 'কনটেক্সট মেনু',
+    miContextMenuMethod: 'ডান-ক্লিক (ট্যাপ)',
+    miContextMenuDescription:
+      'টেনে না এনে ডান-ক্লিক করলে কনটেক্সট মেনু খোলে — আইটেমের উপর আইটেম মেনু, বা খালি জায়গায় ক্যানভাস মেনু। টাচে, দীর্ঘক্ষণ চাপুন।',
+    miRemoveWaypointAction: 'ওয়েপয়েন্ট সরান',
+    miRemoveWaypointMethod: 'Alt + বাম-ক্লিক',
+    miRemoveWaypointDescription:
+      'একটি কানেক্টর ওয়েপয়েন্ট সরাতে Alt+ক্লিক করুন (প্রথমে কানেক্টর নির্বাচন করার দরকার নেই); প্রান্তের অ্যাঙ্কর সংরক্ষিত থাকে।',
+    miZoomAction: 'জুম',
+    miZoomMethod: 'স্ক্রল হুইল',
+    miZoomDescription: 'কার্সারের দিকে জুম করতে স্ক্রল করুন।'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'টিপ: সংযোগকারী তৈরি করা',
@@ -131,6 +180,16 @@ const locale: LocaleProps = {
     instruction: 'সংযোগকারীর শেষে বাম-ক্লিক করুন এবং এটিকে পছন্দসই নোডে টানুন।'
   },
   settings: {
+    // D3 — SettingsDialog chrome
+    title: 'সেটিংস',
+    close: 'বন্ধ করুন',
+    canvas: 'ক্যানভাস',
+    language: 'ভাষা',
+    about: 'সম্পর্কে',
+    languageDescription:
+      'অ্যাপ্লিকেশন ইন্টারফেসের জন্য প্রদর্শন ভাষা নির্বাচন করুন।',
+    zoomSection: 'জুম',
+    labelsSection: 'লেবেল',
     zoom: {
       description: 'মাউস হুইল ব্যবহার করার সময় জুম আচরণ কনফিগার করুন।',
       zoomToCursor: 'কার্সারে জুম করুন',
@@ -351,7 +410,9 @@ const locale: LocaleProps = {
     description: 'লেবেল প্রদর্শন সেটিংস কনফিগার করুন',
     expandButtonPadding: 'বিস্তার বোতাম প্যাডিং',
     expandButtonPaddingDesc:
-      'বিস্তার বোতাম দৃশ্যমান হলে নিচের প্যাডিং (পাঠ্য ওভারল্যাপ প্রতিরোধ করে)'
+      'বিস্তার বোতাম দৃশ্যমান হলে নিচের প্যাডিং (পাঠ্য ওভারল্যাপ প্রতিরোধ করে)',
+    // D13
+    currentValue: 'বর্তমান: {value} থিম ইউনিট'
   },
   iconSelectionControls: {
     close: 'বন্ধ করুন',
@@ -409,12 +470,77 @@ const locale: LocaleProps = {
     addItem: 'আইটেম যোগ করুন',
     rectangle: 'আয়তক্ষেত্র',
     connector: 'সংযোগকারী',
-    text: 'পাঠ্য'
+    text: 'পাঠ্য',
+    common: 'সাধারণ',
+    // D5
+    switchTo2D: '2D ভিউতে স্যুইচ করুন',
+    switchToIsometric: 'আইসোমেট্রিক ভিউতে স্যুইচ করুন',
+    clickMode: 'ক্লিক',
+    dragMode: 'টেনে আনুন'
   },
   quickIconSelector: {
     recentlyUsed: 'সম্প্রতি ব্যবহৃত',
     searchResults: 'অনুসন্ধান ফলাফল ({count}টি আইকন)',
     noIconsFound: '"{term}" এর সাথে মিলে এমন কোনো আইকন পাওয়া যায়নি'
+  },
+  canvasContextMenu: {
+    details: 'বিস্তারিত…',
+    rename: 'নাম পরিবর্তন করুন',
+    cut: 'কাটুন',
+    copy: 'কপি করুন',
+    paste: 'পেস্ট করুন',
+    duplicate: 'অনুলিপি করুন',
+    bringForward: 'সামনে আনুন',
+    sendBackward: 'পিছনে পাঠান',
+    assignToLayer: 'স্তরে বরাদ্দ করুন',
+    snapToGrid: 'গ্রিডে স্ন্যাপ করুন',
+    unsnapFromGrid: 'গ্রিড থেকে আনস্ন্যাপ করুন',
+    disableCollision: 'সংঘর্ষ নিষ্ক্রিয় করুন',
+    enableCollision: 'সংঘর্ষ সক্রিয় করুন',
+    delete: 'মুছুন',
+    addItem: 'আইটেম যোগ করুন',
+    selectAll: 'সব নির্বাচন করুন',
+    enableSnapToGrid: 'গ্রিড স্ন্যাপ সক্রিয় করুন',
+    disableSnapToGrid: 'গ্রিড স্ন্যাপ নিষ্ক্রিয় করুন',
+    itemsSelectedOne: '{count}টি আইটেম নির্বাচিত',
+    itemsSelectedOther: '{count}টি আইটেম নির্বাচিত',
+    deleteItemsOne: '{count}টি আইটেম মুছুন',
+    deleteItemsOther: '{count}টি আইটেম মুছুন',
+    removeFromLayer: 'স্তর থেকে সরান',
+    noLayers: 'কোনো স্তর নেই — স্তর প্যানেলে একটি যোগ করুন'
+  },
+  // D4 — LeftDock
+  leftDock: {
+    fileExplorer: 'ফাইল এক্সপ্লোরার',
+    elements: 'উপাদান',
+    layers: 'স্তর',
+    settings: 'সেটিংস',
+    openDiagramFirst: 'প্রথমে একটি ডায়াগ্রাম খুলুন বা তৈরি করুন'
+  },
+  // D8 — LayersPanel
+  layersPanel: {
+    header: 'স্তর',
+    addLayer: 'স্তর যোগ করুন',
+    deleteSelectedLayer: 'নির্বাচিত স্তর মুছুন',
+    noLayersYet: 'এখনও কোনো স্তর নেই। যোগ করতে + এ ক্লিক করুন।',
+    unassigned: 'অনির্ধারিত ({count})',
+    dropToUnassign: 'নির্ধারণ বাতিল করতে এখানে আইটেম ছাড়ুন',
+    layerN: 'স্তর {count}'
+  },
+  // D7 — clipboard toast strings; {count}/{percent} interpolated.
+  clipboard: {
+    copiedOne: '{count}টি আইটেম কপি করা হয়েছে',
+    copiedOther: '{count}টি আইটেম কপি করা হয়েছে',
+    cutOne: '{count}টি আইটেম কাট করা হয়েছে',
+    cutOther: '{count}টি আইটেম কাট করা হয়েছে',
+    pastedOne: '{count}টি আইটেম পেস্ট করা হয়েছে',
+    pastedOther: '{count}টি আইটেম পেস্ট করা হয়েছে',
+    nothingToPaste: 'পেস্ট করার কিছু নেই',
+    routingConnectors: 'পেস্ট করা হচ্ছে… কানেক্টর রুট করা হচ্ছে ({percent}%)'
+  },
+  // D13 — default page name; {count} interpolated.
+  page: {
+    pageName: 'পৃষ্ঠা {count}'
   }
 };
 

@@ -74,13 +74,14 @@ export const SettingsDialog = ({
     },
     {
       id: 'canvas',
-      label: 'Canvas',
+      // D3 — tab label + section titles routed through i18n
+      label: t('settings.canvas'),
       content: (
         <>
-          <Section title="Zoom">
+          <Section title={t('settings.zoomSection')}>
             <ZoomSettings />
           </Section>
-          <Section title="Labels">
+          <Section title={t('settings.labelsSection')}>
             <LabelSettings />
           </Section>
         </>
@@ -112,11 +113,12 @@ export const SettingsDialog = ({
   if (languageSelector) {
     tabs.push({
       id: 'language',
-      label: 'Language',
+      // D3 — tab label + description routed through i18n
+      label: t('settings.language'),
       content: (
         <Section>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Select the display language for the application interface.
+            {t('settings.languageDescription')}
           </Typography>
           {languageSelector}
         </Section>
@@ -125,7 +127,13 @@ export const SettingsDialog = ({
   }
 
   // "Geeky tail" — rendered under a divider in the rail
-  tabs.push({ id: 'about', label: 'About', content: <AboutTab />, tail: true });
+  // D3 — tab label routed through i18n
+  tabs.push({
+    id: 'about',
+    label: t('settings.about'),
+    content: <AboutTab />,
+    tail: true
+  });
 
   const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
   const firstTailIndex = tabs.findIndex((tab) => tab.tail);
@@ -144,9 +152,10 @@ export const SettingsDialog = ({
       }}
     >
       <DialogTitle sx={{ pr: 6 }}>
-        Settings
+        {/* D3 — dialog title routed through i18n */}
+        {t('settings.title')}
         <IconButton
-          aria-label="close"
+          aria-label={t('settings.close')}
           onClick={handleClose}
           data-axoview-id="dialog-settings-close"
           sx={{
@@ -218,7 +227,8 @@ export const SettingsDialog = ({
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose}>Close</Button>
+        {/* D3 — Close button routed through i18n */}
+        <Button onClick={handleClose}>{t('settings.close')}</Button>
       </DialogActions>
     </Dialog>
   );

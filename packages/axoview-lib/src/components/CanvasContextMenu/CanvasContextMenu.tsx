@@ -25,6 +25,7 @@ import {
   ChevronRight as ChevronRightIcon
 } from '@mui/icons-material';
 import { useUiStateStore } from 'src/stores/uiStateStore';
+import { useTranslation } from 'src/stores/localeStore';
 import { useScene } from 'src/hooks/useScene';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { useLayerActions } from 'src/hooks/useLayerActions';
@@ -66,6 +67,9 @@ const INLINE_RENAMEABLE = new Set(['ITEM', 'TEXTBOX', 'CONNECTOR']);
  * `contextMenu` store slice; mount it once (edit mode) in UiOverlay.
  */
 export const CanvasContextMenu = () => {
+  // D1 — every label below is routed through the canvasContextMenu namespace
+  // (was hardcoded English in all locales). Count rows interpolate {count}.
+  const { t } = useTranslation('canvasContextMenu');
   const contextMenu = useUiStateStore((s) => s.contextMenu);
   const selectedIds = useUiStateStore((s) => s.selectedIds);
   const snapToGrid = useUiStateStore((s) => s.snapToGrid);
@@ -250,6 +254,19 @@ export const CanvasContextMenu = () => {
   const canRename = !!target && INLINE_RENAMEABLE.has(target.type);
   const multiCount = countUserFacingRefs(selectedIds);
 
+  // D1 — pluralise the count rows through i18n: pick the singular/plural key by
+  // count, then interpolate {count} (the lib t() has no built-in interpolation,
+  // so we string-replace, matching QuickIconSelector/IconPackSettings). Never
+  // append an 's' — that breaks every non-English locale.
+  const countLabel = (
+    oneKey: 'itemsSelectedOne' | 'deleteItemsOne',
+    otherKey: 'itemsSelectedOther' | 'deleteItemsOther'
+  ) =>
+    t(multiCount === 1 ? oneKey : otherKey).replace(
+      '{count}',
+      String(multiCount)
+    );
+
   return (
     <>
       <Menu
@@ -272,14 +289,14 @@ export const CanvasContextMenu = () => {
                 <ListItemIcon>
                   <DetailsIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>Details…</ListItemText>
+                <ListItemText>{t('details')}</ListItemText>
               </MenuItem>,
               canRename && (
                 <MenuItem key="rename" onClick={run(handleRename)}>
                   <ListItemIcon>
                     <RenameIcon fontSize="small" />
                   </ListItemIcon>
-                  <ListItemText>Rename</ListItemText>
+                  <ListItemText>{t('rename')}</ListItemText>
                   <Hint>F2</Hint>
                 </MenuItem>
               ),
@@ -288,28 +305,28 @@ export const CanvasContextMenu = () => {
                 <ListItemIcon>
                   <CutIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>Cut</ListItemText>
+                <ListItemText>{t('cut')}</ListItemText>
                 <Hint>Ctrl+X</Hint>
               </MenuItem>,
               <MenuItem key="copy" onClick={run(handleCopy)}>
                 <ListItemIcon>
                   <CopyIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>Copy</ListItemText>
+                <ListItemText>{t('copy')}</ListItemText>
                 <Hint>Ctrl+C</Hint>
               </MenuItem>,
               <MenuItem key="paste" onClick={run(handlePaste)}>
                 <ListItemIcon>
                   <PasteIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>Paste</ListItemText>
+                <ListItemText>{t('paste')}</ListItemText>
                 <Hint>Ctrl+V</Hint>
               </MenuItem>,
               <MenuItem key="duplicate" onClick={run(handleDuplicate)}>
                 <ListItemIcon>
                   <DuplicateIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>Duplicate</ListItemText>
+                <ListItemText>{t('duplicate')}</ListItemText>
               </MenuItem>,
               <Divider key="d2" />,
               isItem && (
@@ -320,7 +337,7 @@ export const CanvasContextMenu = () => {
                   <ListItemIcon>
                     <BringForwardIcon fontSize="small" />
                   </ListItemIcon>
-                  <ListItemText>Bring forward</ListItemText>
+                  <ListItemText>{t('bringForward')}</ListItemText>
                   <Hint>Ctrl+]</Hint>
                 </MenuItem>
               ),
@@ -329,7 +346,7 @@ export const CanvasContextMenu = () => {
                   <ListItemIcon>
                     <SendBackIcon fontSize="small" />
                   </ListItemIcon>
-                  <ListItemText>Send backward</ListItemText>
+                  <ListItemText>{t('sendBackward')}</ListItemText>
                   <Hint>Ctrl+[</Hint>
                 </MenuItem>
               ),
@@ -340,7 +357,7 @@ export const CanvasContextMenu = () => {
                 <ListItemIcon>
                   <LayersIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>Assign to layer</ListItemText>
+                <ListItemText>{t('assignToLayer')}</ListItemText>
                 <ChevronRightIcon fontSize="small" sx={{ ml: 2, opacity: 0.6 }} />
               </MenuItem>,
               canOffGrid && <Divider key="d3" />,
@@ -353,7 +370,7 @@ export const CanvasContextMenu = () => {
                     <SnapIcon fontSize="small" />
                   </ListItemIcon>
                   <ListItemText>
-                    {isUnsnapped ? 'Snap to grid' : 'Unsnap from grid'}
+                    {isUnsnapped ? t('snapToGrid') : t('unsnapFromGrid')}
                   </ListItemText>
                 </MenuItem>
               ),
@@ -363,7 +380,7 @@ export const CanvasContextMenu = () => {
                     <CollisionIcon fontSize="small" />
                   </ListItemIcon>
                   <ListItemText>
-                    {collidesNow ? 'Disable collision' : 'Enable collision'}
+                    {collidesNow ? t('disableCollision') : t('enableCollision')}
                   </ListItemText>
                 </MenuItem>
               ),
@@ -372,7 +389,9 @@ export const CanvasContextMenu = () => {
                 <ListItemIcon>
                   <DeleteIcon fontSize="small" color="error" />
                 </ListItemIcon>
-                <ListItemText sx={{ color: 'error.main' }}>Delete</ListItemText>
+                <ListItemText sx={{ color: 'error.main' }}>
+                  {t('delete')}
+                </ListItemText>
                 <Hint>Del</Hint>
               </MenuItem>
             ].filter(Boolean)
@@ -383,7 +402,7 @@ export const CanvasContextMenu = () => {
                   primaryTypographyProps={{ variant: 'caption' }}
                   sx={{ color: 'text.secondary' }}
                 >
-                  {multiCount} items selected
+                  {countLabel('itemsSelectedOne', 'itemsSelectedOther')}
                 </ListItemText>
               </MenuItem>,
               <Divider key="d0" />,
@@ -391,21 +410,21 @@ export const CanvasContextMenu = () => {
                 <ListItemIcon>
                   <CutIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>Cut</ListItemText>
+                <ListItemText>{t('cut')}</ListItemText>
                 <Hint>Ctrl+X</Hint>
               </MenuItem>,
               <MenuItem key="copy" onClick={run(handleCopy)}>
                 <ListItemIcon>
                   <CopyIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>Copy</ListItemText>
+                <ListItemText>{t('copy')}</ListItemText>
                 <Hint>Ctrl+C</Hint>
               </MenuItem>,
               <MenuItem key="duplicate" onClick={run(handleDuplicate)}>
                 <ListItemIcon>
                   <DuplicateIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>Duplicate</ListItemText>
+                <ListItemText>{t('duplicate')}</ListItemText>
               </MenuItem>,
               <Divider key="d1" />,
               <MenuItem
@@ -415,7 +434,7 @@ export const CanvasContextMenu = () => {
                 <ListItemIcon>
                   <LayersIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>Assign to layer</ListItemText>
+                <ListItemText>{t('assignToLayer')}</ListItemText>
                 <ChevronRightIcon fontSize="small" sx={{ ml: 2, opacity: 0.6 }} />
               </MenuItem>,
               <Divider key="d2" />,
@@ -426,13 +445,13 @@ export const CanvasContextMenu = () => {
                 <ListItemIcon>
                   <SnapIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>Unsnap from grid</ListItemText>
+                <ListItemText>{t('unsnapFromGrid')}</ListItemText>
               </MenuItem>,
               <MenuItem key="collision" onClick={run(handleBulkDisableCollision)}>
                 <ListItemIcon>
                   <CollisionIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>Disable collision</ListItemText>
+                <ListItemText>{t('disableCollision')}</ListItemText>
               </MenuItem>,
               <Divider key="d3" />,
               <MenuItem key="delete" onClick={run(handleDeleteMulti)}>
@@ -440,7 +459,7 @@ export const CanvasContextMenu = () => {
                   <DeleteIcon fontSize="small" color="error" />
                 </ListItemIcon>
                 <ListItemText sx={{ color: 'error.main' }}>
-                  Delete {multiCount} items
+                  {countLabel('deleteItemsOne', 'deleteItemsOther')}
                 </ListItemText>
                 <Hint>Del</Hint>
               </MenuItem>
@@ -450,20 +469,20 @@ export const CanvasContextMenu = () => {
                 <ListItemIcon>
                   <AddItemIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>Add item</ListItemText>
+                <ListItemText>{t('addItem')}</ListItemText>
               </MenuItem>,
               <MenuItem key="paste" onClick={run(handlePaste)}>
                 <ListItemIcon>
                   <PasteIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>Paste</ListItemText>
+                <ListItemText>{t('paste')}</ListItemText>
                 <Hint>Ctrl+V</Hint>
               </MenuItem>,
               <MenuItem key="selectall" onClick={run(handleSelectAll)}>
                 <ListItemIcon>
                   <SelectAllIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>Select all</ListItemText>
+                <ListItemText>{t('selectAll')}</ListItemText>
                 <Hint>Ctrl+A</Hint>
               </MenuItem>,
               <Divider key="d1" />,
@@ -479,7 +498,7 @@ export const CanvasContextMenu = () => {
                   />
                 </ListItemIcon>
                 <ListItemText>
-                  {snapToGrid ? 'Disable snap to grid' : 'Enable snap to grid'}
+                  {snapToGrid ? t('disableSnapToGrid') : t('enableSnapToGrid')}
                 </ListItemText>
               </MenuItem>
             ]}
@@ -496,12 +515,12 @@ export const CanvasContextMenu = () => {
       >
         {layers.length === 0 && (
           <MenuItem disabled>
-            <ListItemText>No layers — add one in the Layers panel</ListItemText>
+            <ListItemText>{t('noLayers')}</ListItemText>
           </MenuItem>
         )}
         {currentLayerId && (
           <MenuItem onClick={() => handleAssignLayer(undefined)}>
-            <ListItemText>Remove from layer</ListItemText>
+            <ListItemText>{t('removeFromLayer')}</ListItemText>
           </MenuItem>
         )}
         {currentLayerId && <Divider />}

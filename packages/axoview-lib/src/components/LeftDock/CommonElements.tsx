@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react';
 import { Box, Typography, Tooltip } from '@mui/material';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
+import { useTranslation } from 'src/stores/localeStore';
 import { useScene } from 'src/hooks/useScene';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { generateId, viewportCenterTile } from 'src/utils';
@@ -126,6 +127,9 @@ const ElementCard = ({
 );
 
 export const CommonElements = () => {
+  // D9 — labels were hardcoded English; route through i18n. Rectangle/Text/
+  // Connector reuse the existing toolMenu.* keys; "Common" is a new toolMenu key.
+  const { t } = useTranslation('toolMenu');
   const uiStateActions = useUiStateStore((s) => s.actions);
   const uiStateApi = useUiStateStoreApi();
   const mode = useUiStateStore((s) => s.mode);
@@ -180,7 +184,7 @@ export const CommonElements = () => {
         variant="overline"
         sx={{ display: 'block', mb: 1, color: 'text.disabled' }}
       >
-        Common
+        {t('common')}
       </Typography>
       <Box
         sx={{
@@ -190,19 +194,19 @@ export const CommonElements = () => {
         }}
       >
         <ElementCard
-          label="Rectangle"
+          label={t('rectangle')}
           icon={<RectangleSvg />}
           isActive={mode.type === 'RECTANGLE.DRAW'}
           onMouseDown={handleRectangleMouseDown}
         />
         <ElementCard
-          label="Text"
+          label={t('text')}
           icon={<TextSvg />}
           isActive={mode.type === 'TEXTBOX'}
           onMouseDown={handleTextMouseDown}
         />
         <ElementCard
-          label="Connector"
+          label={t('connector')}
           icon={<ConnectorSvg />}
           isActive={mode.type === 'CONNECTOR'}
           onMouseDown={handleConnectorMouseDown}

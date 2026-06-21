@@ -12,6 +12,7 @@ import { ElementsPanel } from './ElementsPanel';
 import { LayersPanel } from 'src/components/LayersPanel/LayersPanel';
 import { TOOL_HOTKEYS } from 'src/config/hotkeys';
 import { tooltipWithShortcut } from 'src/utils/tooltipWithShortcut';
+import { useTranslation } from 'src/stores/localeStore';
 
 // Exported so canvas-anchored chrome (NodeActionBar — B4 / decision #5) can
 // derive the dock's right edge to clamp against, without duplicating the magic
@@ -24,16 +25,22 @@ const FILE_EXPLORER_WIDTH = 280;
 
 type LeftTabId = 'ELEMENTS' | 'LAYERS';
 
-const WORKING_TABS: { id: LeftTabId; icon: React.ReactNode; tooltip: string }[] = [
+// D4 — tooltip text is i18n-keyed (resolved at render via t()), since this
+// array is module-level and can't call the hook directly.
+const WORKING_TABS: {
+  id: LeftTabId;
+  icon: React.ReactNode;
+  tooltipKey: 'elements' | 'layers';
+}[] = [
   {
     id: 'ELEMENTS',
     icon: <WidgetsOutlined sx={{ fontSize: 20 }} />,
-    tooltip: 'Elements'
+    tooltipKey: 'elements'
   },
   {
     id: 'LAYERS',
     icon: <LayersOutlined sx={{ fontSize: 20 }} />,
-    tooltip: 'Layers'
+    tooltipKey: 'layers'
   }
 ];
 
@@ -49,6 +56,7 @@ export const LeftDock = ({
   onFileExplorerToggle,
   disableWorkingTabs
 }: LeftDockProps) => {
+  const { t } = useTranslation('leftDock');
   const activeLeftTab = useUiStateStore((s) => s.activeLeftTab);
   const setActiveLeftTab = useUiStateStore((s) => s.actions.setActiveLeftTab);
   const setDialog = useUiStateStore((s) => s.actions.setDialog);
@@ -95,7 +103,7 @@ export const LeftDock = ({
       >
         {/* Navigation region — File Explorer */}
         {onFileExplorerToggle && (
-          <Tooltip title="File explorer" placement="right">
+          <Tooltip title={t('fileExplorer')} placement="right">
             <IconButton
               size="small"
               onClick={onFileExplorerToggle}
@@ -121,9 +129,11 @@ export const LeftDock = ({
         {/* Working region — Elements + Layers (mutex pair) */}
         {WORKING_TABS.map((tab) => {
           const isActive = activeLeftTab === tab.id && !disableWorkingTabs;
+          // D4 — tooltip + disabled-state hint routed through i18n.
+          const tabLabel = t(tab.tooltipKey);
           const tooltipTitle = disableWorkingTabs
-            ? `${tab.tooltip} — open or create a diagram first`
-            : tooltipWithShortcut(tab.tooltip, tabShortcut[tab.id]);
+            ? `${tabLabel} — ${t('openDiagramFirst')}`
+            : tooltipWithShortcut(tabLabel, tabShortcut[tab.id]);
           return (
             <Tooltip key={tab.id} title={tooltipTitle} placement="right">
               <span>
@@ -151,7 +161,7 @@ export const LeftDock = ({
 
         {/* System anchor — pushed to the bottom */}
         <Box sx={{ mt: 'auto', pb: 1 }}>
-          <Tooltip title="Settings" placement="right">
+          <Tooltip title={t('settings')} placement="right">
             <IconButton
               size="small"
               onClick={() => setDialog(DialogTypeEnum.SETTINGS)}

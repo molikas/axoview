@@ -75,7 +75,56 @@ const locale: LocaleProps = {
     copyDescription: 'Seçili öğeleri panoya kopyala',
     pasteAction: 'Yapıştır',
     pasteDescription:
-      'Pano öğelerini fare konumuna yapıştır; üst üste binmeyi önlemek için kaydırılır'
+      'Pano öğelerini fare konumuna yapıştır; üst üste binmeyi önlemek için kaydırılır',
+    // D10 — Select all row
+    selectAllAction: 'Tümünü seç',
+    selectAllShortcut: 'Ctrl+A',
+    selectAllDescription:
+      'Etkin görünümdeki tüm görünür, kilitli olmayan öğeleri seç (öğeler, dikdörtgenler, metin kutuları, bağlayıcılar + ara noktaları)',
+    // D10 — tool-activation keys (ADR 0022 §6)
+    keyRenameAction: 'Yeniden adlandır',
+    keyRenameShortcut: 'F2',
+    keyRenameDescription: 'Seçili öğeyi veya diyagramı yerinde yeniden adlandır',
+    keyAddItemAction: 'Öğe ekle / Öğeler',
+    keyAddItemShortcut: 'N',
+    keyAddItemDescription: 'Yeni bir öğe yerleştirmek için Öğeler panelini aç/kapat',
+    keyConnectorAction: 'Bağlayıcı',
+    keyConnectorShortcut: 'C',
+    keyConnectorDescription: 'Bağlayıcı aracına geç',
+    keyLassoAction: 'Kement seçimi',
+    keyLassoShortcut: 'L',
+    keyLassoDescription: 'Kement seçim aracına geç',
+    keySelectAction: 'Seç',
+    keySelectShortcut: 'S',
+    keySelectDescription: 'Seçim aracına geç',
+    // D10 — mouse interactions
+    miSelectAction: 'Seç',
+    miSelectMethod: 'Sol tıklama',
+    miSelectDescription:
+      'Bir öğeyi seçmek için tıklayın (vurgular ve kayan eylem çubuğunu gösterir). Seçimi temizlemek için boş tuvale tıklayın.',
+    miOpenDetailsAction: 'Ayrıntıları aç',
+    miOpenDetailsMethod: 'Çift tıklama',
+    miOpenDetailsDescription:
+      'Ayrıntılar panelini açmak için bir öğeye çift tıklayın — bağlam menüsündeki «Ayrıntılar…» girişiyle aynı.',
+    miToggleSelectionAction: 'Seçimi değiştir',
+    miToggleSelectionMethod: 'Ctrl/Cmd + Sol tıklama',
+    miToggleSelectionDescription:
+      'Bir öğeyi çoklu seçime ekleyin veya çıkarın; bir bağlayıcı, ara noktalarıyla birlikte değişir.',
+    miPanAction: 'Kaydır',
+    miPanMethod: 'Sağ tıklama + sürükle',
+    miPanDescription:
+      'Tuvali kaydırmak için sağ düğmeyi basılı tutup sürükleyin. Orta düğmeyle sürükleme de kaydırır; ok tuşları onu iter.',
+    miContextMenuAction: 'Bağlam menüsü',
+    miContextMenuMethod: 'Sağ tıklama (dokunma)',
+    miContextMenuDescription:
+      'Sürüklemeden yapılan sağ tıklama bağlam menüsünü açar — bir öğenin üzerinde öğe menüsü veya boş alanın üzerinde tuval menüsü. Dokunmatik ekranda uzun basın.',
+    miRemoveWaypointAction: 'Ara noktayı kaldır',
+    miRemoveWaypointMethod: 'Alt + Sol tıklama',
+    miRemoveWaypointDescription:
+      'Bir bağlayıcı ara noktasını çıkarmak için Alt+tıklayın (önce bağlayıcıyı seçmeye gerek yok); uç bağlantı noktaları korunur.',
+    miZoomAction: 'Yakınlaştır',
+    miZoomMethod: 'Fare tekerleği',
+    miZoomDescription: 'İmlece doğru yakınlaştırmak için kaydırın.'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'İpucu: Bağlayıcı Oluşturma',
@@ -132,6 +181,16 @@ const locale: LocaleProps = {
       'bağlayıcının ucuna sol tıklayın ve istediğiniz düğüme sürükleyin.'
   },
   settings: {
+    // D3 — SettingsDialog chrome
+    title: 'Ayarlar',
+    close: 'Kapat',
+    canvas: 'Tuval',
+    language: 'Dil',
+    about: 'Hakkında',
+    languageDescription:
+      'Uygulama arayüzü için görüntüleme dilini seçin.',
+    zoomSection: 'Yakınlaştırma',
+    labelsSection: 'Etiketler',
     zoom: {
       description:
         'Fare tekerleği kullanılırken yakınlaştırma davranışını yapılandırın.',
@@ -353,7 +412,9 @@ const locale: LocaleProps = {
     description: 'Etiket görüntüleme ayarlarını yapılandır',
     expandButtonPadding: 'Genişlet düğmesi dolgusu',
     expandButtonPaddingDesc:
-      'Genişlet düğmesi görünür olduğunda alt dolgu (metin üst üste binmesini önler)'
+      'Genişlet düğmesi görünür olduğunda alt dolgu (metin üst üste binmesini önler)',
+    // D13
+    currentValue: 'Geçerli: {value} tema birimi'
   },
   iconSelectionControls: {
     close: 'Kapat',
@@ -411,12 +472,77 @@ const locale: LocaleProps = {
     addItem: 'Öğe ekle',
     rectangle: 'Dikdörtgen',
     connector: 'Bağlayıcı',
-    text: 'Metin'
+    text: 'Metin',
+    common: 'Ortak',
+    // D5
+    switchTo2D: '2D görünüme geç',
+    switchToIsometric: 'İzometrik görünüme geç',
+    clickMode: 'Tıkla',
+    dragMode: 'Sürükle'
   },
   quickIconSelector: {
     recentlyUsed: 'SON KULLANILAN',
     searchResults: 'ARAMA SONUÇLARI ({count} simge)',
     noIconsFound: '"{term}" ile eşleşen simge bulunamadı'
+  },
+  canvasContextMenu: {
+    details: 'Ayrıntılar…',
+    rename: 'Yeniden adlandır',
+    cut: 'Kes',
+    copy: 'Kopyala',
+    paste: 'Yapıştır',
+    duplicate: 'Çoğalt',
+    bringForward: 'Öne getir',
+    sendBackward: 'Arkaya gönder',
+    assignToLayer: 'Katmana ata',
+    snapToGrid: 'Izgaraya yapıştır',
+    unsnapFromGrid: 'Izgaradan ayır',
+    disableCollision: 'Çakışmayı devre dışı bırak',
+    enableCollision: 'Çakışmayı etkinleştir',
+    delete: 'Sil',
+    addItem: 'Öğe ekle',
+    selectAll: 'Tümünü seç',
+    enableSnapToGrid: 'Izgaraya yapışmayı etkinleştir',
+    disableSnapToGrid: 'Izgaraya yapışmayı devre dışı bırak',
+    itemsSelectedOne: '{count} öğe seçildi',
+    itemsSelectedOther: '{count} öğe seçildi',
+    deleteItemsOne: '{count} öğeyi sil',
+    deleteItemsOther: '{count} öğeyi sil',
+    removeFromLayer: 'Katmandan kaldır',
+    noLayers: 'Katman yok — Katmanlar panelinden bir tane ekleyin'
+  },
+  // D4 — LeftDock
+  leftDock: {
+    fileExplorer: 'Dosya gezgini',
+    elements: 'Öğeler',
+    layers: 'Katmanlar',
+    settings: 'Ayarlar',
+    openDiagramFirst: 'önce bir diyagram açın veya oluşturun'
+  },
+  // D8 — LayersPanel
+  layersPanel: {
+    header: 'Katmanlar',
+    addLayer: 'Katman ekle',
+    deleteSelectedLayer: 'Seçili katmanı sil',
+    noLayersYet: 'Henüz katman yok. Eklemek için + simgesine tıklayın.',
+    unassigned: 'Atanmamış ({count})',
+    dropToUnassign: 'Atamayı kaldırmak için öğeleri buraya bırakın',
+    layerN: 'Katman {count}'
+  },
+  // D7 — clipboard toast strings; {count}/{percent} interpolated.
+  clipboard: {
+    copiedOne: '{count} öğe kopyalandı',
+    copiedOther: '{count} öğe kopyalandı',
+    cutOne: '{count} öğe kesildi',
+    cutOther: '{count} öğe kesildi',
+    pastedOne: '{count} öğe yapıştırıldı',
+    pastedOther: '{count} öğe yapıştırıldı',
+    nothingToPaste: 'Yapıştırılacak bir şey yok',
+    routingConnectors: 'Yapıştırılıyor… bağlayıcılar yönlendiriliyor ({percent}%)'
+  },
+  // D13 — default page name; {count} interpolated.
+  page: {
+    pageName: 'Sayfa {count}'
   }
 };
 

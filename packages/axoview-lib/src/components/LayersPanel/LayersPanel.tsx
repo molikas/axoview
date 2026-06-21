@@ -11,6 +11,7 @@ import { AddOutlined, DeleteOutlineOutlined } from '@mui/icons-material';
 import { useLayerContext, LayerItem } from 'src/hooks/useLayerContext';
 import { useLayerActions } from 'src/hooks/useLayerActions';
 import { useUiStateStore } from 'src/stores/uiStateStore';
+import { useTranslation } from 'src/stores/localeStore';
 import { useScene } from 'src/hooks/useScene';
 import { useSceneData } from 'src/hooks/useSceneData';
 import { ItemReference, Coords } from 'src/types';
@@ -73,6 +74,7 @@ const computeBoundingTiles = (
 };
 
 export const LayersPanel = () => {
+  const { t } = useTranslation('layersPanel');
   const { layers, itemCountByLayerId, unassignedCount, itemsByLayerId } =
     useLayerContext();
   const {
@@ -152,8 +154,11 @@ export const LayersPanel = () => {
   );
 
   const handleAddLayer = useCallback(() => {
-    createLayer({ name: `Layer ${layers.length + 1}` });
-  }, [createLayer, layers.length]);
+    // D8 — default layer name interpolated via i18n ({count}), not concat.
+    createLayer({
+      name: t('layerN').replace('{count}', String(layers.length + 1))
+    });
+  }, [createLayer, layers.length, t]);
 
   const handleDeleteSelected = useCallback(() => {
     if (!selectedLayerId) return;
@@ -504,7 +509,8 @@ export const LayersPanel = () => {
         sx={{ px: 1.5, py: 1, flexShrink: 0 }}
       >
         <Typography variant="overline" color="text.secondary">
-          Layers
+          {/* D8 — header routed through i18n */}
+          {t('header')}
         </Typography>
         <Stack
           className="ff-layers-header-actions"
@@ -516,7 +522,7 @@ export const LayersPanel = () => {
             '&:focus-within': { opacity: 1 }
           }}
         >
-          <Tooltip title="Add layer" placement="top">
+          <Tooltip title={t('addLayer')} placement="top">
             <IconButton
               size="small"
               onClick={handleAddLayer}
@@ -526,7 +532,7 @@ export const LayersPanel = () => {
               <AddOutlined fontSize="small" />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Delete selected layer" placement="top">
+          <Tooltip title={t('deleteSelectedLayer')} placement="top">
             <span>
               <IconButton
                 size="small"
@@ -551,7 +557,8 @@ export const LayersPanel = () => {
             color="text.disabled"
             sx={{ display: 'block', textAlign: 'center', mt: 2, mb: 1 }}
           >
-            No layers yet. Click + to add one.
+            {/* D8 — empty-state routed through i18n */}
+            {t('noLayersYet')}
           </Typography>
         )}
         {sortedLayers.length > 0 && (
@@ -640,7 +647,8 @@ export const LayersPanel = () => {
             color="text.disabled"
             sx={{ display: 'block', px: 0.5, pt: 0.5, pb: 0.25 }}
           >
-            Unassigned ({unassignedCount})
+            {/* D8 — "Unassigned (N)" count interpolated via i18n, not concat */}
+            {t('unassigned').replace('{count}', String(unassignedCount))}
           </Typography>
           {unassignedCount === 0 ? (
             <Typography
@@ -648,7 +656,8 @@ export const LayersPanel = () => {
               color="text.disabled"
               sx={{ display: 'block', px: 1, pb: 0.75, fontStyle: 'italic' }}
             >
-              Drop items here to unassign
+              {/* D8 — drop hint routed through i18n */}
+              {t('dropToUnassign')}
             </Typography>
           ) : (
             unassignedItems.map((item) => (

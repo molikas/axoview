@@ -20,6 +20,7 @@ import { Close as CloseIcon } from '@mui/icons-material';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { DialogTypeEnum } from 'src/types/ui';
 import { FIXED_SHORTCUTS } from 'src/config/shortcuts';
+import { TOOL_HOTKEYS } from 'src/config/hotkeys';
 import { useTranslation } from 'src/stores/localeStore';
 
 export const HelpDialog = () => {
@@ -37,6 +38,10 @@ export const HelpDialog = () => {
   const handleClose = () => {
     setDialog(null);
   };
+
+  // D10 — TOOL_HOTKEYS values are `string | null` (HotkeyMapping). The current
+  // scheme binds every tool, but stay null-safe (and uppercase for display).
+  const keyLabel = (key: string | null): string => (key ?? '').toUpperCase();
 
   const keyboardShortcuts = [
     {
@@ -80,15 +85,43 @@ export const HelpDialog = () => {
       description: t('deselectDescription')
     },
     {
-      action: 'Select All',
-      shortcut: 'Ctrl+A',
-      description:
-        'Select every visible, unlocked item in the active view (items, rectangles, text boxes, connectors + their waypoints)'
+      // D10 — was hardcoded English; now routed through helpDialog keys.
+      action: t('selectAllAction'),
+      shortcut: t('selectAllShortcut'),
+      description: t('selectAllDescription')
     },
     {
       action: t('deleteSelectedAction'),
       shortcut: t('deleteSelectedShortcut'),
       description: t('deleteSelectedDescription')
+    },
+    // D10 — undocumented tool-activation keys (ADR 0022 §6 locked defaults), now
+    // surfaced so users can learn them. Tool keys come from TOOL_HOTKEYS;
+    // F2 (rename) is a fixed handler key, not a rebindable tool hotkey.
+    {
+      action: t('keySelectAction'),
+      shortcut: keyLabel(TOOL_HOTKEYS.select),
+      description: t('keySelectDescription')
+    },
+    {
+      action: t('keyAddItemAction'),
+      shortcut: keyLabel(TOOL_HOTKEYS.addItem),
+      description: t('keyAddItemDescription')
+    },
+    {
+      action: t('keyConnectorAction'),
+      shortcut: keyLabel(TOOL_HOTKEYS.connector),
+      description: t('keyConnectorDescription')
+    },
+    {
+      action: t('keyLassoAction'),
+      shortcut: keyLabel(TOOL_HOTKEYS.lasso),
+      description: t('keyLassoDescription')
+    },
+    {
+      action: t('keyRenameAction'),
+      shortcut: 'F2',
+      description: t('keyRenameDescription')
     },
     {
       action: t('cutAction'),
@@ -107,51 +140,44 @@ export const HelpDialog = () => {
     }
   ];
 
-  // The one opinionated pointer model (ADR 0022). Hardcoded English, matching
-  // the pre-existing hardcoded rows in this dialog — the per-tool i18n keys
-  // described the removed customizable model. Tool-activation keys (R/C/T/…)
-  // live in the Hotkeys settings tab.
+  // D10 — the one opinionated pointer model (ADR 0022), now routed through
+  // helpDialog keys (was a hardcoded English array). `*Method` is the column-2
+  // gesture string.
   const mouseInteractions = [
     {
-      action: 'Select',
-      shortcut: 'Left-click',
-      description:
-        'Click an item to select it (highlights it and shows the floating action bar). Click empty canvas to clear the selection.'
+      action: t('miSelectAction'),
+      shortcut: t('miSelectMethod'),
+      description: t('miSelectDescription')
     },
     {
-      action: 'Open details',
-      shortcut: 'Double-click',
-      description:
-        'Double-click an item to open its details panel — the same as the “Details…” context-menu entry.'
+      action: t('miOpenDetailsAction'),
+      shortcut: t('miOpenDetailsMethod'),
+      description: t('miOpenDetailsDescription')
     },
     {
-      action: 'Toggle selection',
-      shortcut: 'Ctrl/Cmd + Left-click',
-      description:
-        'Add or remove an item from the multi-selection; a connector toggles together with its waypoints.'
+      action: t('miToggleSelectionAction'),
+      shortcut: t('miToggleSelectionMethod'),
+      description: t('miToggleSelectionDescription')
     },
     {
-      action: 'Pan',
-      shortcut: 'Right-click + drag',
-      description:
-        'Hold the right button and drag to pan the canvas. Middle-click drag pans too; arrow keys nudge it.'
+      action: t('miPanAction'),
+      shortcut: t('miPanMethod'),
+      description: t('miPanDescription')
     },
     {
-      action: 'Context menu',
-      shortcut: 'Right-click (tap)',
-      description:
-        'A right-click without dragging opens the context menu — the item menu over an item, or the canvas menu over empty space. On touch, long-press.'
+      action: t('miContextMenuAction'),
+      shortcut: t('miContextMenuMethod'),
+      description: t('miContextMenuDescription')
     },
     {
-      action: 'Remove waypoint',
-      shortcut: 'Alt + Left-click',
-      description:
-        'Alt+click a connector waypoint to splice it out (no need to select the connector first); endpoint anchors are preserved.'
+      action: t('miRemoveWaypointAction'),
+      shortcut: t('miRemoveWaypointMethod'),
+      description: t('miRemoveWaypointDescription')
     },
     {
-      action: 'Zoom',
-      shortcut: 'Scroll wheel',
-      description: 'Scroll to zoom toward the cursor.'
+      action: t('miZoomAction'),
+      shortcut: t('miZoomMethod'),
+      description: t('miZoomDescription')
     }
   ];
 

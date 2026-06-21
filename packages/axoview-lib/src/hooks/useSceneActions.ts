@@ -26,10 +26,15 @@ import { generateId, getConnectorPath } from 'src/utils';
 import { useView } from 'src/hooks/useView';
 import { VIEW_DEFAULTS } from 'src/config';
 import { allocateHistorySequence } from 'src/stores/historySequence';
+import { useTranslation } from 'src/stores/localeStore';
 
 export const useSceneActions = () => {
   const { changeView } = useView();
   const currentViewId = useUiStateStore((state) => state.view);
+  // D13 — default page name is localised at creation time (mirrors how
+  // LayersPanel applies layersPanel.layerN). The name is stored model data, so
+  // it's generated here, at the creation surface, rather than at display.
+  const { t } = useTranslation('page');
 
   const transactionInProgress = useRef(false);
   const pendingStateRef = useRef<State | null>(null);
@@ -684,14 +689,17 @@ export const useSceneActions = () => {
         payload: {
           ...VIEW_DEFAULTS,
           ...newViewPartial,
-          name: newViewPartial?.name ?? `Page ${views.length + 1}`
+          // D13 — interpolate {count} via i18n, never concatenate.
+          name:
+            newViewPartial?.name ??
+            t('pageName').replace('{count}', String(views.length + 1))
         },
         ctx: { viewId: newViewId, state: getState() }
       });
       setState(newState);
       changeView(newViewId, newState.model);
     },
-    [getState, setState, modelStoreApi, changeView]
+    [getState, setState, modelStoreApi, changeView, t]
   );
 
   const deleteView = useCallback(
