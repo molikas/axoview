@@ -123,7 +123,7 @@ describe('PlaceIcon.mousedown', () => {
 });
 
 describe('PlaceIcon.mouseup', () => {
-  it('places icon at nearest unoccupied tile and clears mode.id', () => {
+  it('places icon at nearest unoccupied tile and returns to CURSOR', () => {
     const targetTile = { x: 2, y: 3 };
     mockFindNearestUnoccupiedTile.mockReturnValue(targetTile);
     const uiState = makeUiState();
@@ -145,9 +145,9 @@ describe('PlaceIcon.mouseup', () => {
         tile: targetTile
       })
     });
-    // mode.id should be nulled out
+    // After placing, return to Select mode (no lingering placement cursor).
     expect(mockSetMode).toHaveBeenCalledWith(
-      expect.objectContaining({ id: null })
+      expect.objectContaining({ type: 'CURSOR' })
     );
   });
 
@@ -189,11 +189,11 @@ describe('PlaceIcon.mouseup', () => {
 
     expect(mockPlaceIcon).toHaveBeenCalled();
     expect(mockSetMode).toHaveBeenCalledWith(
-      expect.objectContaining({ id: null })
+      expect.objectContaining({ type: 'CURSOR' })
     );
   });
 
-  it('does not place icon when no unoccupied tile is found', () => {
+  it('does not place icon when no unoccupied tile is found, but still returns to CURSOR', () => {
     mockFindNearestUnoccupiedTile.mockReturnValue(null);
     const uiState = makeUiState();
 
@@ -204,9 +204,9 @@ describe('PlaceIcon.mouseup', () => {
     });
 
     expect(mockPlaceIcon).not.toHaveBeenCalled();
-    // Still clears mode.id
+    // A placement was attempted (id was armed) → still leave placement mode.
     expect(mockSetMode).toHaveBeenCalledWith(
-      expect.objectContaining({ id: null })
+      expect.objectContaining({ type: 'CURSOR' })
     );
   });
 

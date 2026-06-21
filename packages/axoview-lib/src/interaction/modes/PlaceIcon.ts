@@ -96,6 +96,17 @@ export const PlaceIcon: ModeActions = {
           }
         });
       }
+
+      // After a placement attempt, return to Select mode instead of lingering in
+      // PLACE_ICON. The leftover placement cursor (a node-like diamond tracking
+      // the pointer) read as "clicking keeps adding"; re-arm by clicking another
+      // icon. The next canvas click is then a normal select/clear. (User feedback.)
+      uiState.actions.setMode({
+        type: 'CURSOR',
+        showCursor: true,
+        mousedownItem: null
+      });
+      return;
     }
 
     uiState.actions.setMode(

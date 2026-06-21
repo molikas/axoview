@@ -18,7 +18,12 @@ export const Cursor = memo(() => {
     <IsoTileArea
       from={tile}
       to={tile}
-      fill={chroma(theme.palette.primary.main).alpha(0.5).css()}
+      // Outline + barely-there fill (was a solid alpha-0.5 diamond). The grid
+      // cursor tracks the pointer in select / connector / placement modes, so it
+      // must read as "pointer position," never as a placed node — a filled
+      // diamond made empty clicks look like they spawned a node. (User feedback.)
+      fill={chroma(theme.palette.primary.main).alpha(0.1).css()}
+      stroke={{ width: 2, color: theme.palette.primary.main }}
       cornerRadius={10 * zoom}
     />
   );
