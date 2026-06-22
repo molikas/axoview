@@ -7,7 +7,7 @@
   "main": "src/app.ts",
   "scripts": {
     "deploy": "wrangler deploy",
-    "dev": "wrangler pages dev ../axoview-app/build --compatibility-date=2025-01-01 --binding-from-toml",
+    "dev": "wrangler pages dev ../axoview-app/build --compatibility-date=2025-01-01",
     "test": "npx --no-install jest"
   },
   "dependencies": {
@@ -15,6 +15,6 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260426.1",
-    "wrangler": "^3.114.17"
+    "wrangler": "^4.103.0"
   }
 }
