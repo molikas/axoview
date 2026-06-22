@@ -63,6 +63,20 @@ export class AppToolbarPOM {
     return byAxoviewId(this.page, 'toolbar-export-project-zip');
   }
 
+  exportImageMenuItem() {
+    return byAxoviewId(this.page, 'toolbar-export-image');
+  }
+
+  /**
+   * Opens the Export-as-image dialog via the Export popover's "Export Image"
+   * menu item. The dialog (axoview-lib ExportImageDialog) mounts a hidden
+   * Axoview and renders PNG + SVG previews. Drive it via its own controls.
+   */
+  async clickExportImage() {
+    await this.clickExport();
+    await this.exportImageMenuItem().click();
+  }
+
   /** Opens the Export popover. The popover renders the JSON / Image / Project ZIP menu items. */
   async clickExport() {
     await this.exportButton().click();

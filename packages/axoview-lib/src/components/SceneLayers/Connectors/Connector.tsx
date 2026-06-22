@@ -2,7 +2,9 @@ import React, { useMemo, memo } from 'react';
 import { useTheme, Box } from '@mui/material';
 import { UNPROJECTED_TILE_SIZE, CONNECTOR_DEFAULTS } from 'src/config';
 import { getColorVariant, getConnectorDirectionIcon } from 'src/utils';
+import { connectorEndpointVertexDelta } from 'src/utils/resolvePlacement';
 import { Svg } from 'src/components/Svg/Svg';
+import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useIsoProjection } from 'src/hooks/useIsoProjection';
 import type { useScene } from 'src/hooks/useScene';
 import { useColor } from 'src/hooks/useColor';
@@ -15,9 +17,33 @@ interface Props {
   currentView: ReturnType<typeof useScene>['currentView'];
 }
 
-export const Connector = memo(({ connector }: Props) => {
+const ZERO_DELTA = { x: 0, y: 0 };
+
+export const Connector = memo(({ connector, currentView }: Props) => {
   useRenderProbe('Connector', connector.id);
   const theme = useTheme();
+  const { strategy } = useCanvasMode();
+
+  // ADR 0023: an endpoint anchored to an off-grid node must render at the node's
+  // OFFSET (rendered) position, not its bare tile. Routing stays integer-tile
+  // (getConnectorPath is untouched); only the FIRST/LAST path vertex shifts by
+  // the node's offset, converted into the connector's vertex space. tiles[0] ↔
+  // anchors[0], tiles[last] ↔ anchors[last]. Non-item endpoints get no shift.
+  const endpointDeltas = useMemo(() => {
+    const items = currentView?.items ?? [];
+    const deltaFor = (anchor: (typeof connector.anchors)[number] | undefined) => {
+      const itemId = anchor?.ref?.item;
+      if (!itemId) return ZERO_DELTA;
+      const viewItem = items.find((it) => it.id === itemId);
+      if (!viewItem?.offset) return ZERO_DELTA;
+      return connectorEndpointVertexDelta(strategy.projectionName, viewItem.offset);
+    };
+    const anchors = connector.anchors;
+    return {
+      start: deltaFor(anchors[0]),
+      end: deltaFor(anchors[anchors.length - 1])
+    };
+  }, [connector.anchors, currentView?.items, strategy.projectionName]);
 
   // Subscribe only to this connector's scene data — O(1) per path write instead of O(N).
   const sceneConnector = useSceneStore(
@@ -68,13 +94,17 @@ export const Connector = memo(({ connector }: Props) => {
 
   const pathString = useMemo(() => {
     if (!hasTiles) return '';
-    return connectorPath!.tiles.reduce((acc: string, tile) => {
-      return `${acc} ${tile.x * UNPROJECTED_TILE_SIZE + drawOffset.x},${
-        tile.y * UNPROJECTED_TILE_SIZE + drawOffset.y
+    const tiles = connectorPath!.tiles;
+    const last = tiles.length - 1;
+    return tiles.reduce((acc: string, tile, i) => {
+      const off =
+        i === 0 ? endpointDeltas.start : i === last ? endpointDeltas.end : ZERO_DELTA;
+      return `${acc} ${tile.x * UNPROJECTED_TILE_SIZE + drawOffset.x + off.x},${
+        tile.y * UNPROJECTED_TILE_SIZE + drawOffset.y + off.y
       }`;
     }, '');
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional fine-grained dep on connectorPath?.tiles; whole connectorPath over-invalidates
-  }, [connectorPath?.tiles, drawOffset, hasTiles]);
+  }, [connectorPath?.tiles, drawOffset, hasTiles, endpointDeltas]);
 
   const offsetPaths = useMemo(() => {
     if (!hasTiles) return null;
@@ -120,8 +150,15 @@ export const Connector = memo(({ connector }: Props) => {
         dy = dirX / len;
       }
 
-      const x = curr.x * UNPROJECTED_TILE_SIZE + drawOffset.x;
-      const y = curr.y * UNPROJECTED_TILE_SIZE + drawOffset.y;
+      // Endpoint vertices follow the anchored node's off-grid offset (ADR 0023).
+      const endOff =
+        i === 0
+          ? endpointDeltas.start
+          : i === tiles.length - 1
+            ? endpointDeltas.end
+            : ZERO_DELTA;
+      const x = curr.x * UNPROJECTED_TILE_SIZE + drawOffset.x + endOff.x;
+      const y = curr.y * UNPROJECTED_TILE_SIZE + drawOffset.y + endOff.y;
 
       path1Points.push(`${x + dx * offset},${y + dy * offset}`);
       path2Points.push(`${x - dx * offset},${y - dy * offset}`);
@@ -134,7 +171,8 @@ export const Connector = memo(({ connector }: Props) => {
     merged.lineType,
     connectorWidthPx,
     drawOffset,
-    hasTiles
+    hasTiles,
+    endpointDeltas
   ]);
 
   const directionIcon = useMemo(() => {

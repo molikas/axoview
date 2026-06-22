@@ -1,9 +1,13 @@
 import React, { useMemo, memo, useCallback, useEffect, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import { toPx, CoordsUtils } from 'src/utils';
+import { decodeHtmlEntities } from 'src/utils/htmlToPlainText';
+import { stripHtmlTags } from 'src/utils/stripHtml';
+import { sanitizeHtml } from 'src/utils/sanitizeHtml';
 import { useIsoProjection } from 'src/hooks/useIsoProjection';
 import { useTextBoxProps } from 'src/hooks/useTextBoxProps';
-import { useScene } from 'src/hooks/useScene';
+import { useSceneData } from 'src/hooks/useSceneData';
+import { useSceneActions } from 'src/hooks/useSceneActions';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 
@@ -21,28 +25,30 @@ const TEXTBOX_DRAG_STYLE: React.CSSProperties = {
 };
 
 interface Props {
-  textBox: ReturnType<typeof useScene>['textBoxes'][0];
+  textBox: ReturnType<typeof useSceneData>['textBoxes'][0];
 }
 
 // Strip HTML tags so existing rich-text content can be edited as plain text inline.
 // Rich editing remains available via the side panel.
 const htmlToPlain = (s: string | undefined): string => {
   if (!s) return '';
-  return s
+  // Block tags → newlines (preserve line breaks), then strip the rest via the
+  // shared FIXPOINT stripper and decode entities (A1 converge — also covers
+  // &#39;/&quot;/numeric). The fixpoint strip (vs a single `/<[^>]*>/g` pass)
+  // can't leave a reassembled tag behind, clearing CodeQL
+  // js/incomplete-multi-character-sanitization on this path.
+  const withBreaks = s
     .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/\n+$/, '');
+    .replace(/<\/p>/gi, '\n');
+  return decodeHtmlEntities(stripHtmlTags(withBreaks)).replace(/\n+$/, '');
 };
 
 export const TextBox = memo(({ textBox }: Props) => {
   const { paddingX, fontProps } = useTextBoxProps(textBox);
   const editorMode = useUiStateStore((s) => s.editorMode);
-  const { updateTextBox } = useScene();
+  // Actions only (not useScene): this textbox sits in the drag hot path and must
+  // not re-render on every scene mutation just to hold updateTextBox (perf A-1).
+  const { updateTextBox } = useSceneActions();
   const isEditable = editorMode === 'EDITABLE';
   const [isEditing, setIsEditing] = useState(false);
 
@@ -108,8 +114,31 @@ export const TextBox = memo(({ textBox }: Props) => {
     orientation: textBox.orientation
   });
 
+  // ADR 0023 off-grid: compose the unprojected-px offset into the same wrapper
+  // translate3d as the drag delta (the inner projected Box stays driven by the
+  // integer tile/size). Snapped text boxes keep the shared module-const style.
+  const dragStyle = useMemo(
+    () =>
+      textBox.offset
+        ? {
+            ...TEXTBOX_DRAG_STYLE,
+            transform: `translate3d(calc(var(--ff-drag-dx, 0px) + ${textBox.offset.x}px), calc(var(--ff-drag-dy, 0px) + ${textBox.offset.y}px), 0)`
+          }
+        : TEXTBOX_DRAG_STYLE,
+    [textBox.offset?.x, textBox.offset?.y] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  // ADR 0029: the read view renders Quill HTML via dangerouslySetInnerHTML.
+  // Sanitize first so a shared/imported diagram can't smuggle a stored-XSS
+  // payload (<img onerror>/<svg onload>) into the viewer's origin. Memoised so
+  // this text box (drag hot path) doesn't re-sanitize on unrelated re-renders.
+  const sanitizedContent = useMemo(
+    () => (textBox.content ? sanitizeHtml(textBox.content) : ''),
+    [textBox.content]
+  );
+
   return (
-    <div data-drag-id={textBox.id} style={TEXTBOX_DRAG_STYLE}>
+    <div data-drag-id={textBox.id} style={dragStyle}>
       <Box style={css}>
         <Box
           onDoubleClick={startInlineEdit}
@@ -177,7 +206,7 @@ export const TextBox = memo(({ textBox }: Props) => {
             }}
           >
             {textBox.content?.trim().startsWith('<') ? (
-              <span dangerouslySetInnerHTML={{ __html: textBox.content }} />
+              <span dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
             ) : (
               textBox.content
             )}

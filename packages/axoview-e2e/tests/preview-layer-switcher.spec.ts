@@ -10,12 +10,16 @@
  * changes, so forcing EXPLORABLE_READONLY via the debug bridge sticks — the
  * realistic way to exercise the lib surface without a readonly share URL.
  */
+import path from 'path';
 import { appTest as test, expect } from '../fixtures/app.fixture';
 import { LayersPanelPOM } from '../pom/LayersPanelPOM';
+import { EmptyStateScreenPOM } from '../pom/EmptyStateScreenPOM';
 import { byAxoviewId, byLibTestId } from '../helpers/selectors';
 import { waitForDebugBridge } from '../helpers/store';
 
 type Page = import('@playwright/test').Page;
+
+const FIXTURE_JSON = path.join(__dirname, '..', 'fixtures', 'sample-diagram.json');
 
 const LOCAL_STORAGE_KEYS = [
   'axoview-diagrams',
@@ -52,6 +56,51 @@ async function bootBlankDiagram(page: Page) {
   await waitForDebugBridge(page);
 }
 
+// The blank diagram has no items; the hide-labels DOM check needs named nodes.
+// Import the shared sample (items Alpha/Beta, both showLabel-default) the same
+// way readable-labels.spec does.
+async function importSampleDiagram(page: Page) {
+  await page.evaluate((keys: string[]) => {
+    for (const k of keys) localStorage.removeItem(k);
+  }, LOCAL_STORAGE_KEYS);
+  await page.reload();
+  const emptyState = new EmptyStateScreenPOM(page);
+  await emptyState.expectVisible();
+  const [fileChooser] = await Promise.all([
+    page.waitForEvent('filechooser', { timeout: 5_000 }),
+    emptyState.clickImport()
+  ]);
+  await fileChooser.setFiles(FIXTURE_JSON);
+  await byLibTestId(page, 'axoview-canvas').waitFor({ state: 'visible', timeout: 10_000 });
+  await waitForDebugBridge(page);
+  // Named nodes render either as DOM (`node-label`) or, under the default canvas
+  // node renderer (ADR 0019), as canvas pixels (`axoview-nodes-canvas`). Wait for
+  // whichever surface this run uses.
+  await page
+    .locator('[data-testid="node-label"], [data-testid="axoview-nodes-canvas"]')
+    .first()
+    .waitFor({ state: 'attached', timeout: 10_000 });
+}
+
+/**
+ * Number of name labels currently painted, read renderer-agnostically.
+ * Canvas renderer: NodesCanvas publishes `data-labels-drawn` (chips painted this
+ * frame). DOM renderer: count the `node-label` elements. Either way, 0 ⇒ hidden.
+ */
+const getVisibleLabelCount = (page: Page): Promise<number> =>
+  page.evaluate(() => {
+    const canvas = document.querySelector(
+      '[data-testid="axoview-nodes-canvas"]'
+    );
+    if (canvas) {
+      return parseInt(
+        (canvas as HTMLElement).dataset.labelsDrawn ?? '0',
+        10
+      );
+    }
+    return document.querySelectorAll('[data-testid="node-label"]').length;
+  });
+
 const setEditorMode = (page: Page, mode: string): Promise<void> =>
   page.evaluate((m: string) => {
     (window as any).__axoview__.ui.getState().actions.setEditorMode(m);
@@ -64,8 +113,22 @@ const getOverrides = (
     () => (window as any).__axoview__.ui.getState().previewLayerOverrides
   );
 
+const getHideLabels = (page: Page): Promise<boolean> =>
+  page.evaluate(
+    () => !!(window as any).__axoview__.ui.getState().previewHideLabels
+  );
+
 const getIsDirty = (page: Page): Promise<boolean> =>
   page.evaluate(() => !!(window as any).__axoview__.ui.getState().isDirty);
+
+/** showLabel flags of the active view's items (model truth). */
+const getModelShowLabels = (page: Page): Promise<Array<boolean | undefined>> =>
+  page.evaluate(() => {
+    const viewId = (window as any).__axoview__.ui.getState().view;
+    const views = (window as any).__axoview__.model.getState().views;
+    const view = (viewId && views.find((v: any) => v.id === viewId)) ?? views[0];
+    return (view?.items ?? []).map((i: any) => i.showLabel);
+  });
 
 /** Visibility flags of the active view's layers (model truth). */
 const getModelLayerVisibility = (page: Page): Promise<boolean[]> =>
@@ -152,5 +215,84 @@ test.describe('Preview layer switcher — Thread B (ADR 0013)', () => {
       soloLayerId: null
     });
     await expect(switcher).toHaveCount(0);
+  });
+});
+
+test.describe('Present-mode hide-labels — Thread B (ADR 0013 addendum)', () => {
+  // No blank-diagram boot here: this test imports the sample fixture via the
+  // empty-state file chooser, which only fires when the file tree is empty.
+  test.beforeEach(async ({ page, app }) => {
+    void app;
+    await pinOnboardingDismissed(page);
+  });
+
+  test('hide-labels toggle hides name labels live; UI-only, non-dirty, clears on leaving present', async ({
+    page
+  }) => {
+    // Fixture import (reload + file chooser) plus several toggle round-trips runs
+    // past the default 30s budget on a cold run.
+    test.setTimeout(60_000);
+    // Named nodes (Alpha/Beta) so there are real labels to hide.
+    await importSampleDiagram(page);
+
+    const toggle = byAxoviewId(page, 'preview-labels-toggle');
+
+    // Edit chrome: the present-mode toggle is not shown in edit mode, and labels
+    // render (showLabel defaults on).
+    await expect(toggle).toHaveCount(0);
+    const labelCount = await getVisibleLabelCount(page);
+    expect(labelCount).toBeGreaterThan(0);
+
+    const showLabelsBefore = await getModelShowLabels(page);
+
+    // Enter present — the toggle appears (regardless of layer count) and labels
+    // still render; the override flag starts off.
+    await setEditorMode(page, 'EXPLORABLE_READONLY');
+    await expect(toggle).toBeVisible();
+    expect(await getHideLabels(page)).toBe(false);
+    await expect
+      .poll(() => getVisibleLabelCount(page), { timeout: 3_000 })
+      .toBe(labelCount);
+
+    const dirtyInPreview = await getIsDirty(page);
+
+    // Forcing EXPLORABLE_READONLY via the debug bridge leaves the app's left
+    // file-explorer chrome mounted (it would be absent in a real present surface),
+    // and its diagram-title row sits over this top-left toggle. A real pointer
+    // click would land on that overlay, so dispatch the click straight on the
+    // toggle element — its real onClick (flag flip → live label hide, no model
+    // write) is what's under test; visibility/affordance is asserted separately.
+    const clickToggle = () => toggle.dispatchEvent('click');
+
+    // Toggle on → name labels disappear live; recorded in the UI flag only.
+    await clickToggle();
+    await expect.poll(() => getHideLabels(page), { timeout: 3_000 }).toBe(true);
+    await expect
+      .poll(() => getVisibleLabelCount(page), { timeout: 3_000 })
+      .toBe(0);
+    // Model showLabel is untouched and the toggle did not dirty the diagram.
+    expect(await getModelShowLabels(page)).toEqual(showLabelsBefore);
+    expect(await getIsDirty(page)).toBe(dirtyInPreview);
+
+    // Toggle off → labels restored live.
+    await clickToggle();
+    await expect.poll(() => getHideLabels(page), { timeout: 3_000 }).toBe(false);
+    await expect
+      .poll(() => getVisibleLabelCount(page), { timeout: 3_000 })
+      .toBe(labelCount);
+    expect(await getModelShowLabels(page)).toEqual(showLabelsBefore);
+    expect(await getIsDirty(page)).toBe(dirtyInPreview);
+
+    // Hide again, then leave present — the ephemeral flag clears; the toggle is
+    // gone and every label is back (the model was never touched).
+    await clickToggle();
+    await expect.poll(() => getHideLabels(page), { timeout: 3_000 }).toBe(true);
+    await setEditorMode(page, 'EDITABLE');
+    expect(await getHideLabels(page)).toBe(false);
+    await expect(toggle).toHaveCount(0);
+    await expect
+      .poll(() => getVisibleLabelCount(page), { timeout: 3_000 })
+      .toBe(labelCount);
+    expect(await getModelShowLabels(page)).toEqual(showLabelsBefore);
   });
 });

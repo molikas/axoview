@@ -46,10 +46,6 @@ const locale: LocaleProps = {
     deselectShortcut: 'Klik Kiri (area kosong)',
     deselectDescription:
       'Batalkan pilihan saat ini dan kembali ke mode pilih',
-    addNodeGroupAction: 'Add Node / Group',
-    addNodeGroupShortcut: 'Klik ganda (area kosong)',
-    addNodeGroupDescription:
-      'Opens the Add popover at the cursor: pick an icon to place a node, or click Group to add a background area for visually grouping nodes',
     // Mouse interactions
     selectToolAction: 'Alat Pilih',
     selectToolShortcut: 'Klik tombol Pilih',
@@ -80,7 +76,56 @@ const locale: LocaleProps = {
     copyDescription: 'Salin item yang dipilih ke clipboard',
     pasteAction: 'Tempel',
     pasteDescription:
-      'Tempel item clipboard di posisi mouse; digeser untuk menghindari tumpang tindih'
+      'Tempel item clipboard di posisi mouse; digeser untuk menghindari tumpang tindih',
+    // D10 — Select all row
+    selectAllAction: 'Pilih semua',
+    selectAllShortcut: 'Ctrl+A',
+    selectAllDescription:
+      'Pilih semua item yang terlihat dan tidak terkunci di tampilan aktif (item, persegi panjang, kotak teks, konektor + titik jalurnya)',
+    // D10 — tool-activation keys (ADR 0022 §6)
+    keyRenameAction: 'Ganti nama',
+    keyRenameShortcut: 'F2',
+    keyRenameDescription: 'Ganti nama item atau diagram terpilih secara langsung',
+    keyAddItemAction: 'Tambah item / Elemen',
+    keyAddItemShortcut: 'N',
+    keyAddItemDescription: 'Alihkan panel Elemen untuk menempatkan item baru',
+    keyConnectorAction: 'Konektor',
+    keyConnectorShortcut: 'C',
+    keyConnectorDescription: 'Beralih ke alat konektor',
+    keyLassoAction: 'Pilih laso',
+    keyLassoShortcut: 'L',
+    keyLassoDescription: 'Beralih ke alat pilih laso',
+    keySelectAction: 'Pilih',
+    keySelectShortcut: 'S',
+    keySelectDescription: 'Beralih ke alat pilih',
+    // D10 — mouse interactions
+    miSelectAction: 'Pilih',
+    miSelectMethod: 'Klik kiri',
+    miSelectDescription:
+      'Klik item untuk memilihnya (menyorotnya dan menampilkan bilah tindakan mengambang). Klik kanvas kosong untuk menghapus pilihan.',
+    miOpenDetailsAction: 'Buka detail',
+    miOpenDetailsMethod: 'Klik ganda',
+    miOpenDetailsDescription:
+      'Klik ganda item untuk membuka panel detailnya — sama seperti entri «Detail…» di menu konteks.',
+    miToggleSelectionAction: 'Alihkan pilihan',
+    miToggleSelectionMethod: 'Ctrl/Cmd + Klik kiri',
+    miToggleSelectionDescription:
+      'Tambah atau hapus item dari pilihan ganda; konektor dialihkan bersama titik jalurnya.',
+    miPanAction: 'Geser',
+    miPanMethod: 'Klik kanan + seret',
+    miPanDescription:
+      'Tahan tombol kanan dan seret untuk menggeser kanvas. Seret klik tengah juga menggeser; tombol panah menggesernya.',
+    miContextMenuAction: 'Menu konteks',
+    miContextMenuMethod: 'Klik kanan (ketuk)',
+    miContextMenuDescription:
+      'Klik kanan tanpa menyeret membuka menu konteks — menu item di atas item, atau menu kanvas di atas ruang kosong. Pada layar sentuh, tekan lama.',
+    miRemoveWaypointAction: 'Hapus titik jalur',
+    miRemoveWaypointMethod: 'Alt + Klik kiri',
+    miRemoveWaypointDescription:
+      'Alt+klik titik jalur konektor untuk menghapusnya (tanpa perlu memilih konektor terlebih dahulu); jangkar ujung dipertahankan.',
+    miZoomAction: 'Zoom',
+    miZoomMethod: 'Roda gulir',
+    miZoomDescription: 'Gulir untuk memperbesar ke arah kursor.'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'Tip: Membuat Konektor',
@@ -136,6 +181,16 @@ const locale: LocaleProps = {
       'klik kiri pada ujung konektor dan seret ke node yang diinginkan.'
   },
   settings: {
+    // D3 — SettingsDialog chrome
+    title: 'Pengaturan',
+    close: 'Tutup',
+    canvas: 'Kanvas',
+    language: 'Bahasa',
+    about: 'Tentang',
+    languageDescription:
+      'Pilih bahasa tampilan untuk antarmuka aplikasi.',
+    zoomSection: 'Zoom',
+    labelsSection: 'Label',
     zoom: {
       description: 'Konfigurasi perilaku zoom saat menggunakan roda mouse.',
       zoomToCursor: 'Zoom ke Kursor',
@@ -163,21 +218,6 @@ const locale: LocaleProps = {
       fixedPaste: 'Tempel',
       fixedUndo: 'Batalkan',
       fixedRedo: 'Ulangi'
-    },
-    pan: {
-      title: 'Pengaturan Geser',
-      mousePanOptions: 'Opsi Geser Mouse',
-      emptyAreaClickPan: 'Klik dan seret pada area kosong',
-      middleClickPan: 'Klik tengah dan seret',
-      rightClickPan: 'Klik kanan dan seret',
-      ctrlClickPan: 'Ctrl + klik dan seret',
-      altClickPan: 'Alt + klik dan seret',
-      keyboardPanOptions: 'Opsi Geser Keyboard',
-      arrowKeys: 'Tombol panah',
-      wasdKeys: 'Tombol WASD',
-      ijklKeys: 'Tombol IJKL',
-      keyboardPanSpeed: 'Kecepatan Geser Keyboard',
-      note: 'Catatan: Opsi geser berfungsi selain alat Geser khusus'
     },
     connector: {
       title: 'Pengaturan Konektor',
@@ -335,7 +375,11 @@ const locale: LocaleProps = {
     zoomIn: 'Perbesar',
     fitToScreen: 'Sesuaikan ke layar',
     keepLabelsReadable: 'Jaga label tetap terbaca',
-    help: 'Bantuan (F1)'
+    help: 'Bantuan (F1)',
+    selected: '{count} dipilih'
+  },
+  modeHints: {
+    connector: 'Seret antar item untuk menghubungkan • Esc untuk membatalkan'
   },
   previewLayerSwitcher: {
     layers: 'Lapisan',
@@ -343,6 +387,10 @@ const locale: LocaleProps = {
     hideLayer: 'Sembunyikan lapisan',
     solo: 'Solo',
     unsolo: 'Keluar dari solo'
+  },
+  previewLabelsToggle: {
+    hideLabels: 'Sembunyikan label',
+    showLabels: 'Tampilkan label'
   },
   annotationPalette: {
     pen: 'Anotasi',
@@ -367,7 +415,9 @@ const locale: LocaleProps = {
     description: 'Konfigurasi pengaturan tampilan label',
     expandButtonPadding: 'Padding tombol perluas',
     expandButtonPaddingDesc:
-      'Padding bawah saat tombol perluas terlihat (mencegah tumpang tindih teks)'
+      'Padding bawah saat tombol perluas terlihat (mencegah tumpang tindih teks)',
+    // D13
+    currentValue: 'Saat ini: {value} unit tema'
   },
   iconSelectionControls: {
     close: 'Tutup',
@@ -395,7 +445,10 @@ const locale: LocaleProps = {
     cropInstruction: 'Klik dan seret untuk memilih area yang ingin diekspor',
     options: 'Opsi',
     showGrid: 'Tampilkan kisi',
+    showLabels: 'Tampilkan label',
     expandDescriptions: 'Perluas deskripsi',
+    screenshotPreset: 'Tangkapan layar (disarankan)',
+    scaleClamped: 'Ukuran ekspor dikurangi agar sesuai dengan batas gambar browser:',
     cropToContent: 'Pangkas ke konten',
     backgroundColor: 'Warna latar belakang',
     transparentBackground: 'Latar belakang transparan',
@@ -422,12 +475,77 @@ const locale: LocaleProps = {
     addItem: 'Tambah item',
     rectangle: 'Persegi panjang',
     connector: 'Konektor',
-    text: 'Teks'
+    text: 'Teks',
+    common: 'Umum',
+    // D5
+    switchTo2D: 'Beralih ke tampilan 2D',
+    switchToIsometric: 'Beralih ke tampilan isometrik',
+    clickMode: 'Klik',
+    dragMode: 'Seret'
   },
   quickIconSelector: {
     recentlyUsed: 'BARU DIGUNAKAN',
     searchResults: 'HASIL PENCARIAN ({count} ikon)',
     noIconsFound: 'Tidak ada ikon yang cocok dengan "{term}"'
+  },
+  canvasContextMenu: {
+    details: 'Detail…',
+    rename: 'Ganti nama',
+    cut: 'Potong',
+    copy: 'Salin',
+    paste: 'Tempel',
+    duplicate: 'Duplikat',
+    bringForward: 'Bawa ke depan',
+    sendBackward: 'Kirim ke belakang',
+    assignToLayer: 'Tetapkan ke lapisan',
+    snapToGrid: 'Jepret ke kisi',
+    unsnapFromGrid: 'Lepas dari kisi',
+    disableCollision: 'Nonaktifkan tabrakan',
+    enableCollision: 'Aktifkan tabrakan',
+    delete: 'Hapus',
+    addItem: 'Tambah item',
+    selectAll: 'Pilih semua',
+    enableSnapToGrid: 'Aktifkan jepret ke kisi',
+    disableSnapToGrid: 'Nonaktifkan jepret ke kisi',
+    itemsSelectedOne: '{count} item dipilih',
+    itemsSelectedOther: '{count} item dipilih',
+    deleteItemsOne: 'Hapus {count} item',
+    deleteItemsOther: 'Hapus {count} item',
+    removeFromLayer: 'Hapus dari lapisan',
+    noLayers: 'Tidak ada lapisan — tambahkan satu di panel Lapisan'
+  },
+  // D4 — LeftDock
+  leftDock: {
+    fileExplorer: 'Penjelajah berkas',
+    elements: 'Elemen',
+    layers: 'Lapisan',
+    settings: 'Pengaturan',
+    openDiagramFirst: 'buka atau buat diagram terlebih dahulu'
+  },
+  // D8 — LayersPanel
+  layersPanel: {
+    header: 'Lapisan',
+    addLayer: 'Tambah lapisan',
+    deleteSelectedLayer: 'Hapus lapisan terpilih',
+    noLayersYet: 'Belum ada lapisan. Klik + untuk menambahkan.',
+    unassigned: 'Belum ditetapkan ({count})',
+    dropToUnassign: 'Lepaskan item di sini untuk membatalkan penetapan',
+    layerN: 'Lapisan {count}'
+  },
+  // D7 — clipboard toast strings; {count}/{percent} interpolated.
+  clipboard: {
+    copiedOne: '{count} item disalin',
+    copiedOther: '{count} item disalin',
+    cutOne: '{count} item dipotong',
+    cutOther: '{count} item dipotong',
+    pastedOne: '{count} item ditempel',
+    pastedOther: '{count} item ditempel',
+    nothingToPaste: 'Tidak ada yang bisa ditempel',
+    routingConnectors: 'Menempel… merutekan konektor ({percent}%)'
+  },
+  // D13 — default page name; {count} interpolated.
+  page: {
+    pageName: 'Halaman {count}'
   }
 };
 

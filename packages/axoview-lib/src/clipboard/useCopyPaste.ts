@@ -4,7 +4,9 @@ import { useModelStoreApi } from 'src/stores/modelStore';
 import { useScene } from 'src/hooks/useScene';
 import { Connector, Coords, Rectangle, TextBox, UiState } from 'src/types';
 import { generateId } from 'src/utils';
+import { resolvePlacement } from 'src/utils/resolvePlacement';
 import { findNearestUnoccupiedTilesForGroup } from 'src/utils/findNearestUnoccupiedTile';
+import { useTranslation } from 'src/stores/localeStore';
 import { ClipboardItem, ClipboardPayload } from './clipboard';
 import { useClipboard } from './ClipboardContext';
 
@@ -37,6 +39,20 @@ function resolveSelectionIds(uiState: UiState): SelectionIds {
       rectangleIds: refs
         .filter((r) => r.type === 'RECTANGLE')
         .map((r) => r.id),
+      textBoxIds: refs.filter((r) => r.type === 'TEXTBOX').map((r) => r.id)
+    };
+  }
+
+  // CURSOR-mode multi-selection (Ctrl+click / Ctrl+A, or a lasso that settled to
+  // CURSOR). itemControls is null for a multi-selection, so without this the
+  // clipboard (and the context menu's bulk Cut/Copy/Duplicate) would resolve to
+  // nothing. CONNECTOR_ANCHOR waypoints are ignored by the per-kind filters.
+  if ((uiState.selectedIds?.length ?? 0) > 1) {
+    const refs = uiState.selectedIds;
+    return {
+      itemIds: refs.filter((r) => r.type === 'ITEM').map((r) => r.id),
+      connectorIds: refs.filter((r) => r.type === 'CONNECTOR').map((r) => r.id),
+      rectangleIds: refs.filter((r) => r.type === 'RECTANGLE').map((r) => r.id),
       textBoxIds: refs.filter((r) => r.type === 'TEXTBOX').map((r) => r.id)
     };
   }
@@ -92,6 +108,9 @@ export const useCopyPaste = () => {
   const modelStoreApi = useModelStoreApi();
   const scene = useScene();
   const clipboard = useClipboard();
+  // D7 — toast strings come from i18n; counts pluralise via one/other keys with
+  // a {count} placeholder (never `+ 's'`), the routing toast via {percent}.
+  const { t } = useTranslation('clipboard');
 
   const showNotification = useCallback(
     (message: string, severity: 'info' | 'success' | 'warning') => {
@@ -181,15 +200,22 @@ export const useCopyPaste = () => {
     };
   }, [uiStateApi, modelStoreApi, scene]);
 
+  // D7 — pick the singular/plural key and interpolate {count}; never `+ 's'`.
+  const formatCount = useCallback(
+    (one: 'copiedOne' | 'cutOne' | 'pastedOne', other: 'copiedOther' | 'cutOther' | 'pastedOther', count: number) =>
+      t(count === 1 ? one : other).replace('{count}', String(count)),
+    [t]
+  );
+
   const handleCopy = useCallback(() => {
     const result = buildPayload();
     if (!result) return;
     clipboard.set(result.payload);
     showNotification(
-      `Copied ${result.count} item${result.count !== 1 ? 's' : ''}`,
+      formatCount('copiedOne', 'copiedOther', result.count),
       'info'
     );
-  }, [buildPayload, showNotification, clipboard]);
+  }, [buildPayload, showNotification, clipboard, formatCount]);
 
   const handleCut = useCallback(() => {
     const result = buildPayload();
@@ -212,6 +238,11 @@ export const useCopyPaste = () => {
         mousedownItem: null
       });
       uiState.actions.setItemControls(null);
+    } else if ((uiState.selectedIds?.length ?? 0) > 1) {
+      // CURSOR-mode multi-selection — delete every selected item (mirrors the
+      // Delete-key multi path + the context menu's bulk Delete).
+      scene.deleteSelectedItems(uiState.selectedIds);
+      uiState.actions.clearSelection();
     } else if (uiState.itemControls) {
       const ctrl = uiState.itemControls;
       if (ctrl.type === 'ITEM') scene.deleteViewItem(ctrl.id);
@@ -222,33 +253,38 @@ export const useCopyPaste = () => {
     }
 
     showNotification(
-      `Cut ${result.count} item${result.count !== 1 ? 's' : ''}`,
+      formatCount('cutOne', 'cutOther', result.count),
       'success'
     );
-  }, [buildPayload, showNotification, uiStateApi, scene, clipboard]);
+  }, [buildPayload, showNotification, uiStateApi, scene, clipboard, formatCount]);
 
   const handlePaste = useCallback(() => {
     const clipboardData = clipboard.get();
     if (!clipboardData) {
-      showNotification('Nothing to paste', 'warning');
+      showNotification(t('nothingToPaste'), 'warning');
       return;
     }
 
     const uiState = uiStateApi.getState();
     const mouseTile = uiState.mouse.position.tile;
+    const globalSnap = uiState.snapToGrid ?? true;
 
     const offset = {
       x: mouseTile.x - clipboardData.centroid.x,
       y: mouseTile.y - clipboardData.centroid.y
     };
 
-    // Target tiles for items (before collision avoidance)
+    // Target tiles for items (before collision avoidance). Carry each item's
+    // own snap/collides so non-colliding pasted items (ADR 0023) don't force the
+    // block to shift around them.
     const targetItems = clipboardData.items.map((ci) => ({
       id: ci.viewItem.id,
       targetTile: {
         x: ci.viewItem.tile.x + offset.x,
         y: ci.viewItem.tile.y + offset.y
-      }
+      },
+      snap: ci.viewItem.snap,
+      collides: ci.viewItem.collides
     }));
 
     // Collision avoidance
@@ -267,12 +303,26 @@ export const useCopyPaste = () => {
     clipboardData.rectangles.forEach((r) => idMap.set(r.id, generateId()));
     clipboardData.textBoxes.forEach((tb) => idMap.set(tb.id, generateId()));
 
-    // Build remapped items
+    // Build remapped items. Route each through the one placement chokepoint:
+    // the `...ci.viewItem` spread preserves a copied item's own snap/collides/
+    // offset, and resolvePlacement clears a stale offset when the item snaps so
+    // off-grid-ness survives a copy without leaking onto snapped items.
     const newItems: ClipboardItem[] = clipboardData.items.map((ci, i) => {
       const newId = idMap.get(ci.viewItem.id)!;
+      const placement = resolvePlacement(
+        finalTiles[i],
+        ci.viewItem.offset,
+        ci.viewItem.snap,
+        globalSnap
+      );
       return {
         modelItem: { ...ci.modelItem, id: newId },
-        viewItem: { ...ci.viewItem, id: newId, tile: finalTiles[i] }
+        viewItem: {
+          ...ci.viewItem,
+          id: newId,
+          tile: placement.tile,
+          offset: placement.offset
+        }
       };
     });
 
@@ -343,12 +393,15 @@ export const useCopyPaste = () => {
       ? (done: number, total: number) => {
           if (done >= total) {
             showNotification(
-              `Pasted ${pastedCount} item${pastedCount !== 1 ? 's' : ''}`,
+              formatCount('pastedOne', 'pastedOther', pastedCount),
               'success'
             );
           } else {
             const pct = Math.round((done / total) * 100);
-            showNotification(`Pasting… routing connectors (${pct}%)`, 'info');
+            showNotification(
+              t('routingConnectors').replace('{percent}', String(pct)),
+              'info'
+            );
           }
         }
       : undefined;
@@ -376,13 +429,16 @@ export const useCopyPaste = () => {
 
     if (!isLargePaste) {
       showNotification(
-        `Pasted ${pastedCount} item${pastedCount !== 1 ? 's' : ''}`,
+        formatCount('pastedOne', 'pastedOther', pastedCount),
         'success'
       );
     } else {
-      showNotification('Pasting… routing connectors (0%)', 'info');
+      showNotification(
+        t('routingConnectors').replace('{percent}', '0'),
+        'info'
+      );
     }
-  }, [showNotification, uiStateApi, scene, clipboard]);
+  }, [showNotification, uiStateApi, scene, clipboard, t, formatCount]);
 
   return { handleCopy, handleCut, handlePaste };
 };

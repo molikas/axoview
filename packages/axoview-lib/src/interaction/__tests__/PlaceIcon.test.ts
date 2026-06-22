@@ -123,7 +123,7 @@ describe('PlaceIcon.mousedown', () => {
 });
 
 describe('PlaceIcon.mouseup', () => {
-  it('places icon at nearest unoccupied tile and clears mode.id', () => {
+  it('places icon at nearest unoccupied tile and returns to CURSOR', () => {
     const targetTile = { x: 2, y: 3 };
     mockFindNearestUnoccupiedTile.mockReturnValue(targetTile);
     const uiState = makeUiState();
@@ -145,13 +145,55 @@ describe('PlaceIcon.mouseup', () => {
         tile: targetTile
       })
     });
-    // mode.id should be nulled out
+    // After placing, return to Select mode (no lingering placement cursor).
     expect(mockSetMode).toHaveBeenCalledWith(
-      expect.objectContaining({ id: null })
+      expect.objectContaining({ type: 'CURSOR' })
     );
   });
 
-  it('does not place icon when no unoccupied tile is found', () => {
+  it('B1: a no-move tap on the panel icon arms but does not place (off-canvas, not moved)', () => {
+    // The arming tap's own pointer-up lands on the panel icon
+    // (isRendererInteraction=false) and the gesture did not move. Ungated, it
+    // placed a node at the panel-projected tile and nulled mode.id, so the real
+    // canvas click did nothing. It must be a no-op that leaves mode.id armed.
+    const uiState = makeUiState();
+
+    PlaceIcon.mouseup?.({
+      uiState: uiState as any,
+      scene: makeScene() as any,
+      isRendererInteraction: false
+    });
+
+    expect(mockPlaceIcon).not.toHaveBeenCalled();
+    expect(mockSetMode).not.toHaveBeenCalled();
+  });
+
+  it('B1: a drag-from-panel release places even when the release target is off-canvas (moved past tap-slop)', () => {
+    // Mouse capture makes the release target the panel icon, so
+    // isRendererInteraction is false even though the cursor is over the canvas;
+    // the past-tap-slop move is what identifies the drag-to-place.
+    const targetTile = { x: 2, y: 3 };
+    mockFindNearestUnoccupiedTile.mockReturnValue(targetTile);
+    const uiState = makeUiState({
+      mouse: {
+        position: { tile: { x: 2, y: 3 }, screen: { x: 500, y: 500 } },
+        mousedown: { screen: { x: 0, y: 0 } }
+      }
+    });
+
+    PlaceIcon.mouseup?.({
+      uiState: uiState as any,
+      scene: makeScene() as any,
+      isRendererInteraction: false
+    });
+
+    expect(mockPlaceIcon).toHaveBeenCalled();
+    expect(mockSetMode).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'CURSOR' })
+    );
+  });
+
+  it('does not place icon when no unoccupied tile is found, but still returns to CURSOR', () => {
     mockFindNearestUnoccupiedTile.mockReturnValue(null);
     const uiState = makeUiState();
 
@@ -162,9 +204,9 @@ describe('PlaceIcon.mouseup', () => {
     });
 
     expect(mockPlaceIcon).not.toHaveBeenCalled();
-    // Still clears mode.id
+    // A placement was attempted (id was armed) → still leave placement mode.
     expect(mockSetMode).toHaveBeenCalledWith(
-      expect.objectContaining({ id: null })
+      expect.objectContaining({ type: 'CURSOR' })
     );
   });
 

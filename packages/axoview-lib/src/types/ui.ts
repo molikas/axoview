@@ -1,12 +1,7 @@
 import { Coords, Size, EditorModeEnum } from './common';
 import { Icon } from './model';
 import { ItemReference } from './scene';
-import {
-  HotkeyProfile,
-  PanSettings,
-  ZoomSettings,
-  LabelSettings
-} from './settings';
+import { ZoomSettings, LabelSettings } from './settings';
 import { IconPackManagerProps, IconUsageScan } from './axoviewProps';
 
 interface AddItemControls {
@@ -110,11 +105,28 @@ export interface DrawRectangleMode {
   id: string | null;
 }
 
-export const AnchorPositionOptions = {
+// Four corner anchors — these are the ones convertBoundsToNamedAnchors emits.
+export const CornerAnchorPositionOptions = {
   BOTTOM_LEFT: 'BOTTOM_LEFT',
   BOTTOM_RIGHT: 'BOTTOM_RIGHT',
   TOP_RIGHT: 'TOP_RIGHT',
   TOP_LEFT: 'TOP_LEFT'
+} as const;
+
+export type CornerAnchorPosition = keyof typeof CornerAnchorPositionOptions;
+
+// Four edge-midpoint anchors (ADR 0026) — each resizes one axis, the
+// opposite edge stays fixed.
+export const EdgeAnchorPositionOptions = {
+  TOP: 'TOP',
+  RIGHT: 'RIGHT',
+  BOTTOM: 'BOTTOM',
+  LEFT: 'LEFT'
+} as const;
+
+export const AnchorPositionOptions = {
+  ...CornerAnchorPositionOptions,
+  ...EdgeAnchorPositionOptions
 } as const;
 
 export type AnchorPosition = keyof typeof AnchorPositionOptions;
@@ -232,8 +244,6 @@ export interface UiState {
   rendererEl: HTMLDivElement | null;
   rendererSize: Size;
   enableDebugTools: boolean;
-  hotkeyProfile: HotkeyProfile;
-  panSettings: PanSettings;
   zoomSettings: ZoomSettings;
   labelSettings: LabelSettings;
   connectorInteractionMode: ConnectorInteractionMode;
@@ -258,9 +268,25 @@ export interface UiState {
    * selection. Cleared whenever the selection changes or is dismissed.
    */
   itemActionBarOpen: boolean;
+  /**
+   * Canvas context menu (ADR 0027) — the per-item / empty-canvas command
+   * surface. `null` = closed. Opened by a right-click TAP (mouse) or a touch
+   * long-press; right-DRAG pans instead (ADR 0022 §1). `target` is the item the
+   * menu acts on, or `null` for the empty-canvas menu. `anchor` is screen-space
+   * (client px) — the MUI Menu portals to the document root, so no §8.8
+   * counter-scale is needed.
+   */
+  contextMenu: ContextMenuState | null;
   /** true when model has changed since last export-to-file or explicit save */
   isDirty: boolean;
   canvasMode: CanvasMode;
+  /**
+   * Global snap-to-grid toggle (ADR 0023, #12). Default true; persisted,
+   * mirroring `canvasMode`. The default for new placements/drags — when false
+   * they commit a px offset instead of rounding to the integer tile. Per-item
+   * `snap` (on the view item) overrides this for individual items (#20).
+   */
+  snapToGrid: boolean;
   /**
    * Preview-mode (EXPLORABLE_READONLY) layer visibility override (ADR 0013).
    * A UI-only override that never mutates the model's `layer.visible` and is
@@ -268,8 +294,50 @@ export interface UiState {
    * leaving preview or switching view. Ignored entirely in EDITABLE.
    */
   previewLayerOverrides: PreviewLayerOverrides;
+  /**
+   * Present-mode (EXPLORABLE_READONLY) "hide labels" flag (ADR 0013, 2026-06-18
+   * addendum). A UI-only toggle that hides node + connector *name* labels while
+   * presenting — it never mutates the model's per-item `showLabel`, is never
+   * persisted/saved (so presenting can't dirty the diagram), and is cleared when
+   * leaving present mode or switching view. Ignored entirely in EDITABLE. The
+   * label render sites merge it through `isLabelVisibleInPreview`.
+   */
+  previewHideLabels: boolean;
+  /**
+   * Image-export "hide labels" flag (ADR 0025 §3). UI-only and scoped to the
+   * export dialog's hidden Axoview instance (each Axoview has its own store), so
+   * it never affects the live canvas. When true, node + connector *name* labels
+   * are suppressed in the exported image without touching the model's per-item
+   * `showLabel`. Merged at the same render sites as `previewHideLabels`.
+   */
+  exportHideLabels: boolean;
+  /**
+   * Transient on-canvas label-drag preview (ADR 0024 — Track P T6 fix). While a
+   * canvas (unselected) node's NAME label is being dragged via NodeLabelHitLayer,
+   * this holds the node id + the live signed `labelHeight`. It promotes that node
+   * into the DOM overlay (Renderer.hybridIds) so the label follows the pointer as
+   * a single-node DOM re-render (CSS preview), NOT a per-frame model write that
+   * would redraw every visible canvas node. UI-only, never persisted; the model
+   * is written ONCE on release. Null when no label drag is in flight.
+   */
+  labelDrag: { id: string; height: number } | null;
   /** Ephemeral annotation overlay (ADR 0014). Never persisted. */
   annotation: AnnotationState;
+}
+
+/** Canvas context-menu state (ADR 0027). */
+export interface ContextMenuState {
+  /** Screen-space anchor (client px) for the MUI Menu's anchorPosition. */
+  anchor: { x: number; y: number };
+  /**
+   * Which command set to show:
+   *  - `'item'`   → single-item menu (`target` set);
+   *  - `'multi'`  → bulk menu over the current `selectedIds` (`target` null);
+   *  - `'canvas'` → empty-canvas menu (`target` null).
+   */
+  variant: 'item' | 'multi' | 'canvas';
+  /** The item the menu commands act on; set only for the `'item'` variant. */
+  target: ItemReference | null;
 }
 
 /** UI-only preview layer override (ADR 0013). */
@@ -337,10 +405,24 @@ export interface UiStateActions {
   setDialog: (dialog: keyof typeof DialogTypeEnum | null) => void;
   setZoom: (zoom: number) => void;
   setScroll: (scroll: Scroll) => void;
-  setItemControls: (itemControls: ItemControls | null) => void;
+  /**
+   * Sets the item the right Properties panel + action bar target.
+   *
+   * `options.openPanel` (default `true`) mounts the Properties dock — the
+   * explicit "open details" gesture (double-click / panel events / layer-row
+   * double-click). Pass `false` for **select-only** (ADR 0022 §3): the panel
+   * target + action bar update, but the dock is NOT mounted. Passing `null`
+   * always clears.
+   */
+  setItemControls: (
+    itemControls: ItemControls | null,
+    options?: { openPanel?: boolean }
+  ) => void;
   /**
    * Replaces the current canvas selection. Internally derives itemControls
-   * (single-item case) or clears it (empty / multi-select).
+   * (single-item case) or clears it (empty / multi-select). Per ADR 0022 §3 a
+   * single selection drives highlight + action bar only — it no longer mounts
+   * the Properties panel (that is the double-click / setItemControls path).
    */
   setSelectedIds: (ids: ItemReference[]) => void;
   /** Adds the item if absent, removes it if present. Updates itemControls accordingly. */
@@ -351,8 +433,6 @@ export interface UiStateActions {
   setRendererEl: (el: HTMLDivElement) => void;
   setRendererSize: (size: Size) => void;
   setEnableDebugTools: (enabled: boolean) => void;
-  setHotkeyProfile: (profile: HotkeyProfile) => void;
-  setPanSettings: (settings: PanSettings) => void;
   setZoomSettings: (settings: ZoomSettings) => void;
   setLabelSettings: (settings: LabelSettings) => void;
   setConnectorInteractionMode: (mode: ConnectorInteractionMode) => void;
@@ -364,6 +444,14 @@ export interface UiStateActions {
   setPreviewSoloLayer: (layerId: string | null) => void;
   /** Reset all preview layer overrides (e.g. on leaving preview / view switch). */
   clearPreviewLayerOverrides: () => void;
+  /** Set the present-mode hide-labels flag (UI-only; never touches the model). */
+  setPreviewHideLabels: (hide: boolean) => void;
+  /** Set the image-export hide-labels flag (UI-only; export-scoped store). */
+  setExportHideLabels: (hide: boolean) => void;
+  /** Begin / update the transient on-canvas label-drag preview (ADR 0024 T6 fix). */
+  setLabelDrag: (id: string, height: number) => void;
+  /** End the label-drag preview (the model labelHeight is committed separately, once). */
+  clearLabelDrag: () => void;
   // --- Annotation overlay (ADR 0014) ---
   setAnnotationOpen: (open: boolean) => void;
   setAnnotationTool: (tool: AnnotationTool) => void;
@@ -381,8 +469,16 @@ export interface UiStateActions {
   setActiveLeftTab: (tab: 'ELEMENTS' | 'LAYERS' | null) => void;
   setRightSidebarOpen: (open: boolean) => void;
   setItemActionBarOpen: (open: boolean) => void;
+  /** Open the canvas context menu (ADR 0027). */
+  openContextMenu: (menu: ContextMenuState) => void;
+  /** Close the canvas context menu. */
+  closeContextMenu: () => void;
   setIsDirty: (isDirty: boolean) => void;
   setCanvasMode: (mode: CanvasMode) => void;
+  /** Set the global snap-to-grid flag (persisted, mirrors setCanvasMode). */
+  setSnapToGrid: (snap: boolean) => void;
+  /** Flip the global snap-to-grid flag (canvas context-menu entry, #12). */
+  toggleSnapToGrid: () => void;
 }
 
 export type UiStateStore = UiState & {

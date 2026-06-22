@@ -175,6 +175,59 @@ describe('TransformRectangle.mousemove', () => {
   });
 });
 
+describe('TransformRectangle.mousemove — edge-midpoint anchors (ADR 0026)', () => {
+  // getBoundingBox is mocked, so the meaningful assertion is the two
+  // defining corners the code feeds it for the resize (call index 1; call 0
+  // is the current-bounds read). Their coords encode the axis math: the
+  // moving edge takes a mouse coordinate, the opposite edge stays fixed,
+  // and the perpendicular range is carried over unchanged.
+  const secondGetBoundingBoxArg = () => mockGetBoundingBox.mock.calls[1][0];
+
+  function dragEdge(anchor: string, mouseTile: { x: number; y: number }) {
+    mockHasMovedTile.mockReturnValue(true);
+    const uiState = makeUiState({
+      mode: { type: 'RECTANGLE.TRANSFORM', id: 'rect-1', selectedAnchor: anchor, showCursor: true },
+      mouse: { position: { tile: mouseTile }, mousedown: null }
+    });
+    TransformRectangle.mousemove?.({ uiState: uiState as any, scene: makeScene() as any, isRendererInteraction: true });
+  }
+
+  it('TOP drag moves the high-Y edge, keeps BOTTOM fixed + width unchanged', () => {
+    dragEdge('TOP', { x: 5, y: 0 });
+    // fixed BOTTOM_LEFT + new corner takes TOP_RIGHT.x (width kept) and mouse.y.
+    expect(secondGetBoundingBoxArg()).toEqual([
+      { x: 2, y: 6 },
+      { x: 8, y: 0 }
+    ]);
+    expect(mockBatchUpdateRectangles).toHaveBeenCalledTimes(1);
+  });
+
+  it('BOTTOM drag moves the low-Y edge, keeps TOP fixed + width unchanged', () => {
+    dragEdge('BOTTOM', { x: 5, y: 9 });
+    expect(secondGetBoundingBoxArg()).toEqual([
+      { x: 2, y: 2 },
+      { x: 8, y: 9 }
+    ]);
+  });
+
+  it('LEFT drag moves the low-X edge, keeps RIGHT fixed + height unchanged', () => {
+    dragEdge('LEFT', { x: -1, y: 5 });
+    // fixed TOP_RIGHT + new corner takes mouse.x and BOTTOM_LEFT.y (height kept).
+    expect(secondGetBoundingBoxArg()).toEqual([
+      { x: 8, y: 2 },
+      { x: -1, y: 6 }
+    ]);
+  });
+
+  it('RIGHT drag moves the high-X edge, keeps LEFT fixed + height unchanged', () => {
+    dragEdge('RIGHT', { x: 11, y: 5 });
+    expect(secondGetBoundingBoxArg()).toEqual([
+      { x: 2, y: 2 },
+      { x: 11, y: 6 }
+    ]);
+  });
+});
+
 describe('TransformRectangle.mousedown', () => {
   it('is a no-op (handled by TransformAnchor component)', () => {
     expect(() => TransformRectangle.mousedown?.({

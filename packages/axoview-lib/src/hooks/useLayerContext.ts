@@ -12,6 +12,7 @@ import { useUiStateStore } from 'src/stores/uiStateStore';
 import { Layer, ViewItem, Connector, Rectangle, TextBox } from 'src/types';
 import { getItemByIdOrThrow } from 'src/utils';
 import { isEntityVisibleInPreview } from 'src/utils/previewLayerVisibility';
+import { stripHtmlTags } from 'src/utils/stripHtml';
 
 export type LayerItemType = 'ITEM' | 'CONNECTOR' | 'RECTANGLE' | 'TEXTBOX';
 
@@ -63,12 +64,7 @@ interface LayerContextProviderProps {
 
 /** Strip HTML tags and return first N chars of plain text. */
 const stripHtml = (html: string, maxLen = 24): string => {
-  return (
-    html
-      .replace(/<[^>]*>/g, '')
-      .trim()
-      .slice(0, maxLen) || '(empty)'
-  );
+  return stripHtmlTags(html).trim().slice(0, maxLen) || '(empty)';
 };
 
 export const LayerContextProvider = ({

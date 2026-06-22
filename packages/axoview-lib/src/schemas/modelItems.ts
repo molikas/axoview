@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { id, constrainedStrings } from './common';
+import { id, constrainedStrings, ARRAY_MAX } from './common';
 
 export const modelItemSchema = z.object({
   id,
@@ -11,4 +11,4 @@ export const modelItemSchema = z.object({
   icon: id.optional()
 });
 
-export const modelItemsSchema = z.array(modelItemSchema);
+export const modelItemsSchema = z.array(modelItemSchema).max(ARRAY_MAX.modelItems);

@@ -5,18 +5,16 @@
  *  - Right mousedown: consume event, defer pan entry until drag threshold.
  *  - Right mousemove (>4px): enter PAN mode.
  *  - Right mouseup after drag: exit PAN, restore previous mode.
- *  - Right mouseup without drag: deselect (close itemControls, clear lasso selection).
+ *  - Right mouseup without drag (ADR 0027): in CURSOR mode opens the canvas
+ *    context menu (item menu + select if over an interactable item, else the
+ *    empty-canvas menu); in a tool mode it aborts the tool (restore + clear).
  *
- * All other pan triggers are unchanged:
+ * Pan is now a FIXED model (ADR 0022 §6 — the panSettings customization surface
+ * was removed). Mouse-down triggers:
  *  1. Left-click while in PAN mode → endPan(), return true
- *  2. Middle-click + middleClickPan=true → startPan('middle'), return true
- *  3. Middle-click + middleClickPan=false → return false
- *  4. Right-click + rightClickPan=true → consume event (return true), NO immediate PAN
- *  5. Right-click + rightClickPan=false → return false
- *  6. Left-click + ctrlKey + ctrlClickPan=true → startPan('ctrl'), return true
- *  7. Left-click + altKey + altClickPan=true → startPan('alt'), return true
- *  8. Left-click + emptyAreaClickPan=true + empty area → startPan('empty'), return true
- *  9. Regular left-click, no modifiers, no pan settings → return false
+ *  2. Middle-click → startPan('middle'), return true (always)
+ *  3. Right-click → consume event (return true), NO immediate PAN (deferred)
+ *  4. Regular left-click (not in PAN) → return false (no ctrl/alt/empty pans)
  */
 
 import { renderHook, act } from '@testing-library/react';
@@ -28,19 +26,17 @@ import { usePanHandlers } from '../usePanHandlers';
 const mockSetMode = jest.fn();
 const mockSetItemControls = jest.fn();
 const mockSetMouse = jest.fn();
+const mockSetSelectedIds = jest.fn();
+const mockOpenContextMenu = jest.fn();
 const mockUiState = {
-  mode: { type: 'CURSOR' as string, selection: null },
+  mode: { type: 'CURSOR' as string, selection: null as unknown },
+  selectedIds: [] as Array<{ type: string; id: string }>,
   actions: {
     setMode: mockSetMode,
     setItemControls: mockSetItemControls,
-    setMouse: mockSetMouse
-  },
-  panSettings: {
-    middleClickPan: true,
-    rightClickPan: true,
-    ctrlClickPan: true,
-    altClickPan: true,
-    emptyAreaClickPan: false
+    setMouse: mockSetMouse,
+    setSelectedIds: mockSetSelectedIds,
+    openContextMenu: mockOpenContextMenu
   },
   rendererEl: null as EventTarget | null,
   mouse: { position: { tile: { x: 5, y: 5 } } }
@@ -75,9 +71,27 @@ jest.mock('src/hooks/useScene', () => ({
   }))
 }));
 
+// usePanHandlers consults the layer context to treat locked/hidden items as
+// background for the right-tap menu (UX §4.3). Default: no locked/hidden ids.
+jest.mock('src/hooks/useLayerContext', () => ({
+  useLayerContext: jest.fn(() => ({
+    lockedIds: new Set<string>(),
+    visibleIds: new Set<string>()
+  }))
+}));
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+// The right-tap context menu is a CANVAS affordance: it only arms when the
+// right-press lands on the renderer (usePanHandlers gates on
+// rendererEl.contains(target)). Real DOM nodes give the gate something to test
+// against — `rendererChild` lives inside `rendererNode`, `offCanvasNode` does not.
+const rendererNode = document.createElement('div');
+const rendererChild = document.createElement('div');
+rendererNode.appendChild(rendererChild);
+const offCanvasNode = document.createElement('div'); // a portaled Dialog/toolbar
+
 function makeEvent(
   overrides: Partial<{
     button: number;
@@ -99,7 +113,9 @@ function makeEvent(
     shiftKey: false,
     metaKey: false,
     type: 'mousedown',
-    target: null,
+    // Default to an on-canvas target so the right-tap gate is satisfied; the
+    // off-canvas case passes `target: offCanvasNode` explicitly.
+    target: rendererChild as EventTarget,
     clientX: 100,
     clientY: 100,
     preventDefault: jest.fn(),
@@ -120,14 +136,13 @@ beforeEach(() => {
   mockUiState.actions = {
     setMode: mockSetMode,
     setItemControls: mockSetItemControls,
-    setMouse: mockSetMouse
+    setMouse: mockSetMouse,
+    setSelectedIds: mockSetSelectedIds,
+    openContextMenu: mockOpenContextMenu
   } as any;
-  mockUiState.panSettings.middleClickPan = true;
-  mockUiState.panSettings.rightClickPan = true;
-  mockUiState.panSettings.ctrlClickPan = true;
-  mockUiState.panSettings.altClickPan = true;
-  mockUiState.panSettings.emptyAreaClickPan = false;
-  mockUiState.rendererEl = null;
+  mockUiState.mode = { type: 'CURSOR', selection: null };
+  mockUiState.selectedIds = [];
+  mockUiState.rendererEl = rendererNode;
   mockGetItemAtTile.mockReturnValue(null);
 });
 
@@ -172,18 +187,7 @@ describe('usePanHandlers.handleMouseDown — pan bypass conditions', () => {
     );
   });
 
-  test('3. middle-click + middleClickPan=false → returns false', () => {
-    mockUiState.panSettings.middleClickPan = false;
-    const { result } = setup();
-    let returned: boolean = false;
-    act(() => {
-      returned = result.current.handleMouseDown(makeEvent({ button: 1 }));
-    });
-    expect(returned).toBe(false);
-    expect(mockSetMode).not.toHaveBeenCalled();
-  });
-
-  test('4. right-click + rightClickPan=true → consumes event (returns true) but does NOT immediately enter PAN', () => {
+  test('4. right-click → consumes event (returns true) but does NOT immediately enter PAN', () => {
     const { result } = setup();
     let returned: boolean = false;
     act(() => {
@@ -196,75 +200,36 @@ describe('usePanHandlers.handleMouseDown — pan bypass conditions', () => {
     );
   });
 
-  test('5. right-click + rightClickPan=false → still consumed (returns true) but no PAN or deselect state set', () => {
-    mockUiState.panSettings.rightClickPan = false;
+  test('4b. right-click OFF the renderer (portaled Dialog/toolbar) → not armed; no canvas menu', () => {
     const { result } = setup();
-    let returned: boolean = false;
+    let downReturned = true;
     act(() => {
-      returned = result.current.handleMouseDown(makeEvent({ button: 2 }));
-    });
-    // Always consumed — prevents Cursor.mousedown/mouseup from firing the context menu
-    expect(returned).toBe(true);
-    // No PAN mode entered and no deferred pan state set
-    expect(mockSetMode).not.toHaveBeenCalled();
-  });
-
-  test('6. left-click + ctrlKey + ctrlClickPan=true → startPan and returns true', () => {
-    const { result } = setup();
-    let returned: boolean = false;
-    act(() => {
-      returned = result.current.handleMouseDown(
-        makeEvent({ button: 0, ctrlKey: true })
+      downReturned = result.current.handleMouseDown(
+        makeEvent({ button: 2, target: offCanvasNode })
       );
     });
-    expect(returned).toBe(true);
-    expect(mockSetMode).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'PAN' })
-    );
-  });
-
-  test('7. left-click + altKey + altClickPan=true → startPan and returns true', () => {
-    const { result } = setup();
-    let returned: boolean = false;
+    // Not a canvas gesture — the right-down is not consumed/armed, so the
+    // native menu survives and the right-up opens nothing.
+    expect(downReturned).toBe(false);
     act(() => {
-      returned = result.current.handleMouseDown(
-        makeEvent({ button: 0, altKey: true })
-      );
+      result.current.handleMouseUp(makeEvent({ button: 2, target: offCanvasNode }));
     });
-    expect(returned).toBe(true);
-    expect(mockSetMode).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'PAN' })
-    );
+    expect(mockOpenContextMenu).not.toHaveBeenCalled();
   });
 
-  test('8. left-click + emptyAreaClickPan=true + rendererEl matches target + no item → startPan', () => {
-    const fakeEl = {} as EventTarget;
-    mockUiState.rendererEl = fakeEl;
-    mockUiState.panSettings.emptyAreaClickPan = true;
-    mockGetItemAtTile.mockReturnValue(null);
+  test('5. regular left-click (not in PAN) → returns false; no ctrl/alt/empty-area pans', () => {
     const { result } = setup();
-    let returned: boolean = false;
-    act(() => {
-      returned = result.current.handleMouseDown(
-        makeEvent({ button: 0, target: fakeEl })
-      );
-    });
-    expect(returned).toBe(true);
-    expect(mockSetMode).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'PAN' })
-    );
-  });
-
-  test('9. regular left-click, no modifiers, all pan settings default off → returns false', () => {
-    mockUiState.panSettings.ctrlClickPan = false;
-    mockUiState.panSettings.altClickPan = false;
-    mockUiState.panSettings.emptyAreaClickPan = false;
-    const { result } = setup();
-    let returned: boolean = false;
+    let returned = false;
     act(() => {
       returned = result.current.handleMouseDown(makeEvent({ button: 0 }));
     });
     expect(returned).toBe(false);
+    expect(mockSetMode).not.toHaveBeenCalled();
+    // Modifier-held left-clicks no longer pan either (the surface was removed).
+    act(() => {
+      result.current.handleMouseDown(makeEvent({ button: 0, ctrlKey: true }));
+      result.current.handleMouseDown(makeEvent({ button: 0, altKey: true }));
+    });
     expect(mockSetMode).not.toHaveBeenCalled();
   });
 });
@@ -356,20 +321,27 @@ describe('usePanHandlers.handleMouseUp', () => {
     expect(returned).toBe(false);
   });
 
-  test('right-click without drag → deselect: closes itemControls, clears mousedown, returns true', () => {
+  test('right-tap on empty canvas (CURSOR) → opens the empty-canvas context menu', () => {
+    mockGetItemAtTile.mockReturnValue(null);
     const { result } = setup();
     act(() => {
       result.current.handleMouseDown(makeEvent({ button: 2 }));
     });
     mockSetMode.mockClear();
-    mockSetItemControls.mockClear();
+    mockOpenContextMenu.mockClear();
     mockSetMouse.mockClear();
     let returned: boolean = false;
     act(() => {
-      returned = result.current.handleMouseUp(makeEvent({ button: 2 }));
+      returned = result.current.handleMouseUp(
+        makeEvent({ button: 2, clientX: 100, clientY: 100 })
+      );
     });
     expect(returned).toBe(true);
-    expect(mockSetItemControls).toHaveBeenCalledWith(null);
+    expect(mockOpenContextMenu).toHaveBeenCalledWith({
+      anchor: { x: 100, y: 100 },
+      variant: 'canvas',
+      target: null
+    });
     // Stale mousedown state must be cleared so Cursor.mousemove can't trigger lasso
     expect(mockSetMouse).toHaveBeenCalledWith(
       expect.objectContaining({ mousedown: null })
@@ -377,6 +349,52 @@ describe('usePanHandlers.handleMouseUp', () => {
     expect(mockSetMode).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'PAN' })
     );
+  });
+
+  test('right-tap on an interactable item (CURSOR) → selects it + opens the item menu', () => {
+    mockGetItemAtTile.mockReturnValue({ type: 'ITEM', id: 'n1' } as any);
+    const { result } = setup();
+    act(() => {
+      result.current.handleMouseDown(makeEvent({ button: 2 }));
+    });
+    mockSetSelectedIds.mockClear();
+    mockOpenContextMenu.mockClear();
+    let returned: boolean = false;
+    act(() => {
+      returned = result.current.handleMouseUp(
+        makeEvent({ button: 2, clientX: 42, clientY: 24 })
+      );
+    });
+    expect(returned).toBe(true);
+    expect(mockSetSelectedIds).toHaveBeenCalledWith([{ type: 'ITEM', id: 'n1' }]);
+    expect(mockOpenContextMenu).toHaveBeenCalledWith({
+      anchor: { x: 42, y: 24 },
+      variant: 'item',
+      target: { type: 'ITEM', id: 'n1' }
+    });
+  });
+
+  test('right-tap on an item that is part of a multi-selection → bulk menu', () => {
+    mockGetItemAtTile.mockReturnValue({ type: 'ITEM', id: 'a' } as any);
+    mockUiState.selectedIds = [
+      { type: 'ITEM', id: 'a' },
+      { type: 'ITEM', id: 'b' }
+    ];
+    const { result } = setup();
+    act(() => {
+      result.current.handleMouseDown(makeEvent({ button: 2 }));
+    });
+    mockOpenContextMenu.mockClear();
+    act(() => {
+      result.current.handleMouseUp(
+        makeEvent({ button: 2, clientX: 10, clientY: 20 })
+      );
+    });
+    expect(mockOpenContextMenu).toHaveBeenCalledWith({
+      anchor: { x: 10, y: 20 },
+      variant: 'multi',
+      target: null
+    });
   });
 
   test('right-drag then release → exits PAN and restores previous mode (CURSOR)', () => {

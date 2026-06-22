@@ -5,7 +5,9 @@ import {
   getItemAtTile,
   findNearestUnoccupiedTile
 } from 'src/utils';
+import { resolvePlacement, cursorTileResidual } from 'src/utils/resolvePlacement';
 import { VIEW_ITEM_DEFAULTS } from 'src/config';
+import { exceedsTapSlop } from 'src/config/tapGesture';
 
 export const PlaceIcon: ModeActions = {
   mousemove: () => {},
@@ -27,18 +29,57 @@ export const PlaceIcon: ModeActions = {
       uiState.actions.setItemControls(null);
     }
   },
-  mouseup: ({ uiState, scene }) => {
+  mouseup: ({ uiState, scene, isRendererInteraction }) => {
     if (uiState.mode.type !== 'PLACE_ICON') return;
 
-    if (uiState.mode.id !== null) {
-      // Find the nearest unoccupied tile to the target position
-      const targetTile = findNearestUnoccupiedTile(
-        uiState.mouse.position.tile,
-        scene
+    // B1 / Decision #2: a plain TAP on an Elements-panel icon must only ARM
+    // placement — it must NOT place a node (the old ungated mouseup placed one
+    // at the panel-projected tile, then nulled mode.id, so the real canvas click
+    // did nothing). Two gestures legitimately place; one must not:
+    //   • canvas tap (after arming): its mousedown is on the canvas → captured →
+    //     the release reports isRendererInteraction → place.
+    //   • drag-from-panel: mouse capture makes the release target the panel icon
+    //     (so isRendererInteraction can't see it), but a past-tap-slop move is
+    //     the reliable "this was a drag onto the canvas" signal → place.
+    //   • arming tap on the icon: neither a renderer release nor a move → arm only.
+    // A hit-test can't help here: the panel overlays the renderer, and capture
+    // makes both e.target AND elementFromPoint resolve to the icon mid-drag.
+    const moved =
+      !!uiState.mouse.mousedown &&
+      exceedsTapSlop(
+        uiState.mouse.mousedown.screen,
+        uiState.mouse.position.screen
       );
+    if (!isRendererInteraction && !moved) return;
 
-      // Place the icon on the nearest unoccupied tile
+    if (uiState.mode.id !== null) {
+      const globalSnap = uiState.snapToGrid ?? true;
+      const cursorTile = uiState.mouse.position.tile;
+      // Snapped placement avoids occupied tiles (today's behaviour). Off-grid
+      // placement (global snap off, ADR 0023 #12) lands exactly under the cursor
+      // with a px residual — no collision search; route both through the one
+      // resolvePlacement chokepoint.
+      const targetTile = globalSnap
+        ? findNearestUnoccupiedTile(cursorTile, scene)
+        : cursorTile;
+
       if (targetTile) {
+        const residual = globalSnap
+          ? undefined
+          : cursorTileResidual(
+              uiState.canvasMode,
+              uiState.mouse.position.screen,
+              targetTile,
+              uiState.zoom,
+              uiState.scroll,
+              uiState.rendererSize
+            );
+        const placement = resolvePlacement(
+          targetTile,
+          residual,
+          undefined,
+          globalSnap
+        );
         const modelItemId = generateId();
 
         scene.placeIcon({
@@ -50,10 +91,22 @@ export const PlaceIcon: ModeActions = {
           viewItem: {
             ...VIEW_ITEM_DEFAULTS,
             id: modelItemId,
-            tile: targetTile
+            tile: placement.tile,
+            offset: placement.offset
           }
         });
       }
+
+      // After a placement attempt, return to Select mode instead of lingering in
+      // PLACE_ICON. The leftover placement cursor (a node-like diamond tracking
+      // the pointer) read as "clicking keeps adding"; re-arm by clicking another
+      // icon. The next canvas click is then a normal select/clear. (User feedback.)
+      uiState.actions.setMode({
+        type: 'CURSOR',
+        showCursor: true,
+        mousedownItem: null
+      });
+      return;
     }
 
     uiState.actions.setMode(

@@ -14,17 +14,21 @@ import {
   getItemAtTile,
   generateId,
   incrementZoom,
-  decrementZoom,
-  CoordsUtils
+  decrementZoom
 } from 'src/utils';
 import { useResizeObserver } from 'src/hooks/useResizeObserver';
 import { useScene } from 'src/hooks/useScene';
 import { useHistory } from 'src/hooks/useHistory';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
-import { HOTKEY_PROFILES } from 'src/config/hotkeys';
+import { TOOL_HOTKEYS } from 'src/config/hotkeys';
+import { resolveToolHotkey } from './toolHotkeys';
+import { handleEscapeKey } from './handleEscapeKey';
+import { handleArrowKey } from './handleArrowKey';
+import { viewportCenterTile } from 'src/utils/viewportCenterTile';
+import type { ScreenToTileFn } from 'src/utils/renderer';
 import { TEXTBOX_DEFAULTS } from 'src/config';
 import { useLayerContext } from 'src/hooks/useLayerContext';
-import { getConnectorWaypointRefs } from 'src/utils/connectorSelection';
+import { collectSelectableRefs } from 'src/utils/selectableRefs';
 import { Cursor } from './modes/Cursor';
 import { DragItems } from './modes/DragItems';
 import { DrawRectangle } from './modes/Rectangle/DrawRectangle';
@@ -66,6 +70,50 @@ type PointerKind = 'mouse' | 'touch' | 'pen';
 // menu; empty → lasso). Slightly under the OS ~500ms callout so our menu wins.
 const LONG_PRESS_MS = 450;
 
+// ADR 0027 touch reconciliation: a long-press opens the context menu DURING the
+// hold, while the finger is still down. When the finger lifts, the browser
+// synthesises a compatibility mouse sequence (mousedown → mouseup → click) at
+// the press point. Portaled to <body>, the MUI Menu backdrop sits under that
+// point, so that synthesised mousedown/click immediately dismisses the
+// just-opened menu (the "verify on a device" risk ADR 0027 flagged). The
+// spec-compliant cure is to cancel the terminating `touchend`, which suppresses
+// the whole compat-mouse sequence; we also swallow a stray backdrop
+// mousedown/click in the capture phase as a belt-and-suspenders fallback for
+// environments that synthesise the click without a cancelable touchend. The
+// menu therefore survives the lift; a later, deliberate tap-away (a fresh touch
+// sequence) still dismisses it. Everything self-removes after the first
+// terminating event or 700 ms, so it can never eat a real interaction.
+const suppressLongPressGestureEnd = () => {
+  let timer: ReturnType<typeof setTimeout>;
+  const cleanup = () => {
+    window.removeEventListener('touchend', onTouchEnd, true);
+    window.removeEventListener('mousedown', onBackdropMouse, true);
+    window.removeEventListener('click', onBackdropMouse, true);
+    clearTimeout(timer);
+  };
+  const onTouchEnd = (ev: TouchEvent) => {
+    // Cancel the compat-mouse sequence the lift would otherwise synthesise.
+    if (ev.cancelable) ev.preventDefault();
+  };
+  const onBackdropMouse = (ev: MouseEvent) => {
+    if ((ev.target as HTMLElement | null)?.closest('.MuiBackdrop-root')) {
+      ev.stopPropagation();
+      ev.preventDefault();
+    }
+    // The click is the last event of the sequence — clean up once it lands.
+    if (ev.type === 'click') cleanup();
+  };
+  window.addEventListener('touchend', onTouchEnd, { capture: true, passive: false });
+  window.addEventListener('mousedown', onBackdropMouse, true);
+  window.addEventListener('click', onBackdropMouse, true);
+  timer = setTimeout(cleanup, 700);
+};
+
+// Max gap between two taps on the SAME item for the second to count as a
+// double-tap (→ open the details panel, ADR 0022 §5). Debounced against the
+// single-tap select so a deliberate double-tap doesn't just re-select.
+const DOUBLE_TAP_MS = 300;
+
 interface TouchGestureState {
   // Active touch/pen pointers by pointerId → latest client position.
   pointers: Map<number, { x: number; y: number }>;
@@ -92,6 +140,11 @@ interface TouchGestureState {
   // True while a long-press-armed marquee is running, so its commit returns to
   // CURSOR (one-shot lasso without an explicit tool switch).
   autoLasso: boolean;
+  // Double-tap detection (ADR 0022 §5): timestamp + item of the last stationary
+  // item-tap, so a second tap on the same item within DOUBLE_TAP_MS opens the
+  // details panel instead of just re-selecting.
+  lastTapTime: number;
+  lastTapItem: ItemReference | null;
 }
 
 const pointerDistance = (
@@ -149,6 +202,9 @@ interface KeydownDeps {
   deleteRectangle: SceneApi['deleteRectangle'];
   updateViewItem: SceneApi['updateViewItem'];
   commitDragTransaction: SceneApi['commitDragTransaction'];
+  // B9: mode-aware screen→tile (useCanvasMode) so the text hotkey can fall back
+  // to the viewport-centre tile when the cursor never entered the canvas.
+  screenToTile: ScreenToTileFn;
 }
 
 // True when the keystroke target is a text-editing surface — typing there must
@@ -159,63 +215,9 @@ const isEditableTarget = (target: HTMLElement): boolean =>
   target.contentEditable === 'true' ||
   !!target.closest('.ql-editor');
 
-// Esc inside CONNECTOR mode: abort an in-flight connection and reset the mode.
-const handleConnectorEscape = (
-  uiState: State['uiState'],
-  deps: KeydownDeps
-) => {
-  if (uiState.mode.type !== 'CONNECTOR') return;
-  const connectorMode = uiState.mode;
-
-  const isConnectionInProgress =
-    (uiState.connectorInteractionMode === 'click' &&
-      connectorMode.isConnecting) ||
-    (uiState.connectorInteractionMode === 'drag' && connectorMode.id !== null);
-
-  if (isConnectionInProgress && connectorMode.id) {
-    deps.deleteConnector(connectorMode.id);
-    // D-4 abort-symmetry: handleClickFirst/handleDragStart opened a drag
-    // transaction; aborting without committing would leak the open bracket and
-    // suppress saveToHistoryBeforeChange for every later edit (behavior-map
-    // §3.1/§4.5). Closing it after the delete nets to zero patches (no spurious
-    // history entry) but clears dragInProgress.
-    deps.commitDragTransaction();
-
-    uiState.actions.setMode({
-      type: 'CONNECTOR',
-      showCursor: true,
-      id: null,
-      startAnchor: undefined,
-      isConnecting: false
-    });
-  }
-};
-
-// Escape: clear panel → clear multi-selection → abort connector. Always
-// consumes the keystroke. Returns true when handled (Escape pressed).
-const handleEscapeKey = (
-  e: KeyboardEvent,
-  uiState: State['uiState'],
-  deps: KeydownDeps
-): boolean => {
-  if (e.key !== 'Escape') return false;
-  e.preventDefault();
-
-  if (uiState.itemControls) {
-    uiState.actions.setItemControls(null);
-    return true;
-  }
-
-  // Multi-selection: Esc clears it when no panel is open
-  // (panel-clear path above handles single-selection). ADR-0006.
-  if (uiState.selectedIds.length > 0) {
-    uiState.actions.clearSelection();
-    return true;
-  }
-
-  handleConnectorEscape(uiState, deps);
-  return true;
-};
+// Esc handling (handleConnectorEscape + handleEscapeKey) is extracted to
+// ./handleEscapeKey so the connector-abort-first priority (B2 / Decision #3) is
+// unit-testable in isolation — the full hook needs a provider stack to mount.
 
 // Delete the single item currently in itemControls, dispatched by its type.
 const deleteItemControlsTarget = (
@@ -287,38 +289,6 @@ const handleDeleteOrBackspace = (
   }
 
   return false;
-};
-
-const makeInteractableCheck =
-  (lockedIds: ReadonlySet<string>, visibleIds: ReadonlySet<string>) =>
-  (id: string) =>
-    !lockedIds.has(id) && (visibleIds.size === 0 || visibleIds.has(id));
-
-// Ctrl+A target set: every visible + unlocked item in the active view,
-// including connector waypoints (which aren't free — see
-// getConnectorWaypointRefs). Respects ux-principles §4.3, mirroring lasso. ADR-0006.
-const collectSelectableRefs = (
-  scene: SceneApi,
-  lockedIds: ReadonlySet<string>,
-  visibleIds: ReadonlySet<string>
-): ItemReference[] => {
-  const isInteractable = makeInteractableCheck(lockedIds, visibleIds);
-  const refs: ItemReference[] = [];
-  for (const item of scene.items) {
-    if (isInteractable(item.id)) refs.push({ type: 'ITEM', id: item.id });
-  }
-  for (const r of scene.rectangles) {
-    if (isInteractable(r.id)) refs.push({ type: 'RECTANGLE', id: r.id });
-  }
-  for (const tb of scene.textBoxes) {
-    if (isInteractable(tb.id)) refs.push({ type: 'TEXTBOX', id: tb.id });
-  }
-  for (const c of scene.connectors) {
-    if (!isInteractable(c.id)) continue;
-    refs.push({ type: 'CONNECTOR', id: c.id });
-    refs.push(...getConnectorWaypointRefs(c));
-  }
-  return refs;
 };
 
 // Ctrl+A: select all interactable items, switching to CURSOR mode so the
@@ -433,40 +403,15 @@ const handleFunctionKeys = (
   }
 };
 
-const TOOL_HOTKEY_ACTIONS = [
-  'select',
-  'pan',
-  'addItem',
-  'rectangle',
-  'connector',
-  'text',
-  'lasso',
-  'freehandLasso'
-] as const;
-
-type ToolHotkeyAction = (typeof TOOL_HOTKEY_ACTIONS)[number];
-
-// Resolve a keystroke to the matching tool-hotkey action for the active
-// profile, or null. First match wins (mirrors the original else-if order).
-const resolveToolHotkey = (
-  key: string,
-  mapping: Record<ToolHotkeyAction, string | null>
-): ToolHotkeyAction | null => {
-  for (const action of TOOL_HOTKEY_ACTIONS) {
-    if (mapping[action] && key === mapping[action]) return action;
-  }
-  return null;
-};
-
-// Tool-selection hotkeys (configurable per HOTKEY_PROFILES).
+// Tool-selection hotkeys — one fixed read-only scheme (ADR 0022 §6).
 const handleToolHotkeys = (
   e: KeyboardEvent,
+  isCtrlOrCmd: boolean,
   uiState: State['uiState'],
   key: string,
   deps: KeydownDeps
 ) => {
-  const mapping = HOTKEY_PROFILES[uiState.hotkeyProfile];
-  const action = resolveToolHotkey(key, mapping);
+  const action = resolveToolHotkey(isCtrlOrCmd, key, TOOL_HOTKEYS);
   if (!action) return;
   e.preventDefault();
 
@@ -486,8 +431,12 @@ const handleToolHotkeys = (
       uiState.actions.setItemControls(null);
       break;
     case 'addItem':
-      // Open Elements tab in the left dock
-      uiState.actions.setActiveLeftTab('ELEMENTS');
+      // B7: toggle the Elements tab in the left dock (open if closed, close if
+      // already showing) to match the LeftDock button. Was an unconditional
+      // open, so N could never close the panel.
+      uiState.actions.setActiveLeftTab(
+        uiState.activeLeftTab === 'ELEMENTS' ? null : 'ELEMENTS'
+      );
       break;
     case 'rectangle':
       uiState.actions.setMode({
@@ -505,10 +454,24 @@ const handleToolHotkeys = (
       break;
     case 'text': {
       const textBoxId = generateId();
+      // B9: mouse.position.tile is still the initial {0,0} until the pointer
+      // first enters the canvas, so the text hotkey dropped the box at the
+      // origin. Fall back to the viewport-centre tile in that case (Rectangle /
+      // icon click-place use the live cursor tile and are unaffected).
+      const cursorTile = uiState.mouse.position.tile;
+      const textTile =
+        cursorTile.x === 0 && cursorTile.y === 0
+          ? viewportCenterTile({
+              rendererSize: uiState.rendererSize,
+              scroll: uiState.scroll,
+              zoom: uiState.zoom,
+              screenToTile: deps.screenToTile
+            })
+          : cursorTile;
       deps.createTextBox({
         ...TEXTBOX_DEFAULTS,
         id: textBoxId,
-        tile: uiState.mouse.position.tile
+        tile: textTile
       });
       uiState.actions.setMode({
         type: 'TEXTBOX',
@@ -563,65 +526,10 @@ const handleZOrderShortcut = (
   }
 };
 
-// Keyboard-pan unit vectors. Arrow keys match on the raw e.key; wasd / ijkl on
-// the lowercased key. Each group is independently gated by panSettings.
-const ARROW_PAN_VECTORS: Record<string, { x: number; y: number }> = {
-  ArrowUp: { x: 0, y: 1 },
-  ArrowDown: { x: 0, y: -1 },
-  ArrowLeft: { x: 1, y: 0 },
-  ArrowRight: { x: -1, y: 0 }
-};
-const WASD_PAN_VECTORS: Record<string, { x: number; y: number }> = {
-  w: { x: 0, y: 1 },
-  s: { x: 0, y: -1 },
-  a: { x: 1, y: 0 },
-  d: { x: -1, y: 0 }
-};
-const IJKL_PAN_VECTORS: Record<string, { x: number; y: number }> = {
-  i: { x: 0, y: 1 },
-  k: { x: 0, y: -1 },
-  j: { x: 1, y: 0 },
-  l: { x: -1, y: 0 }
-};
-
-// Resolve a keystroke to a pan delta (in scroll units) given the enabled pan
-// schemes. Last enabled match wins — mirrors the original sequential overwrite
-// of panDx/panDy across the three setting blocks (the schemes use disjoint keys
-// in practice, so order is immaterial).
-const resolvePanDelta = (
-  e: KeyboardEvent,
-  key: string,
-  panSettings: State['uiState']['panSettings']
-): { x: number; y: number } | null => {
-  const speed = panSettings.keyboardPanSpeed;
-  let unit: { x: number; y: number } | undefined;
-  if (panSettings.arrowKeysPan && ARROW_PAN_VECTORS[e.key]) {
-    unit = ARROW_PAN_VECTORS[e.key];
-  }
-  if (panSettings.wasdPan && WASD_PAN_VECTORS[key]) {
-    unit = WASD_PAN_VECTORS[key];
-  }
-  if (panSettings.ijklPan && IJKL_PAN_VECTORS[key]) {
-    unit = IJKL_PAN_VECTORS[key];
-  }
-  if (!unit) return null;
-  return { x: unit.x * speed, y: unit.y * speed };
-};
-
-// Keyboard pan (arrow / wasd / ijkl) — consolidated here from usePanHandlers.
-const handleKeyboardPan = (e: KeyboardEvent, uiState: State['uiState']) => {
-  const delta = resolvePanDelta(e, e.key.toLowerCase(), uiState.panSettings);
-  if (!delta) return;
-  e.preventDefault();
-  const currentScroll = uiState.scroll;
-  uiState.actions.setScroll({
-    position: CoordsUtils.add(currentScroll.position, {
-      x: delta.x,
-      y: delta.y
-    }),
-    offset: currentScroll.offset
-  });
-};
+// Arrow-key handling (selection-aware nudge OR pan) is extracted to
+// ./handleArrowKey (B6 — amends ADR 0022 §6: arrows nudge the selected
+// ITEM/RECT/TEXTBOX one tile in a single-undo transaction, else pan) so the
+// nudge branch is unit-testable in isolation. The dispatcher calls it below.
 
 export const useInteractionManager = () => {
   const rendererRef = useRef<HTMLElement | undefined>(undefined);
@@ -648,7 +556,9 @@ export const useInteractionManager = () => {
     pinchLastDistance: 0,
     pinchLastCentroid: { x: 0, y: 0 },
     longPressTimer: null,
-    autoLasso: false
+    autoLasso: false,
+    lastTapTime: 0,
+    lastTapItem: null
   });
 
   const modeType = useUiStateStore((state) => state.mode.type);
@@ -718,7 +628,8 @@ export const useInteractionManager = () => {
       deleteTextBox,
       deleteRectangle,
       updateViewItem,
-      commitDragTransaction
+      commitDragTransaction,
+      screenToTile
     };
 
     // Thin dispatcher — the gesture order, fall-through semantics, and early
@@ -747,9 +658,16 @@ export const useInteractionManager = () => {
       }
 
       handleFunctionKeys(e, uiState, deps);
-      handleToolHotkeys(e, uiState, key, deps);
+      handleToolHotkeys(e, isCtrlOrCmd, uiState, key, deps);
       handleZOrderShortcut(e, isCtrlOrCmd, uiState, deps);
-      handleKeyboardPan(e, uiState);
+      handleArrowKey(e, uiState, {
+        getScene: () => deps.sceneRef.current,
+        beginDragTransaction: deps.sceneRef.current.beginDragTransaction,
+        commitDragTransaction: deps.sceneRef.current.commitDragTransaction,
+        batchUpdateViewItemTiles: deps.sceneRef.current.batchUpdateViewItemTiles,
+        batchUpdateRectangles: deps.sceneRef.current.batchUpdateRectangles,
+        batchUpdateTextBoxTiles: deps.sceneRef.current.batchUpdateTextBoxTiles
+      });
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -925,14 +843,41 @@ export const useInteractionManager = () => {
 
   const onContextMenu = useCallback(
     (e: SlimMouseEvent) => {
-      // The contextmenu listener is bound to `window` (ADR 0018 — pointer
-      // capture needs the superset surface), so scope BOTH the preventDefault
-      // and the action-bar reaction to right-clicks that land inside the
-      // Renderer container. An off-canvas right-click (toolbar, property panel, a
-      // text input's native Cut/Copy/Paste menu, the file-explorer tree) must
-      // keep its native menu AND must never open a canvas item's action bar for a
-      // stale projected tile. Mirrors the downOnCanvas gate used by the pointer
-      // handlers.
+      // ADR 0022 §1 / §3 + ADR 0027: right-click no longer opens the panel/bar.
+      // The bar opens on selection; right-DRAG pans + right-TAP opens our canvas
+      // context menu, both owned by usePanHandlers (mouse) / the touch long-press
+      // path. This listener exists ONLY to swallow the OS context menu so it
+      // can't double up with ours.
+      //
+      // Two cases must suppress: (1) the right-click landed inside the Renderer
+      // (so the canvas owns it); (2) OUR menu is already open — the OS
+      // contextmenu fires just after our pointerup opened it, and by then the
+      // MUI backdrop (portaled to <body>, outside rendererEl) may be the event
+      // target, so the scope check alone would miss it and leak the OS menu.
+      // An off-canvas right-click with our menu closed (toolbar, a text input's
+      // native Cut/Copy/Paste, the file tree) keeps its native menu.
+      const target = e.target as Node | null;
+      const inRenderer =
+        !!rendererEl &&
+        !!target &&
+        (rendererEl === target || rendererEl.contains(target));
+      const ourMenuOpen = uiStateApi.getState().contextMenu !== null;
+      if (!inRenderer && !ourMenuOpen) return;
+      e.preventDefault();
+    },
+    [rendererEl, uiStateApi]
+  );
+
+  // Double-click on a canvas item opens its details panel (ADR 0022 §1). Mouse
+  // only — touch double-tap is handled by the touch state machine. Scoped to
+  // the renderer (window-bound listener, like onContextMenu) so a double-click
+  // in a panel / toolbar never opens a stale item's panel. The node/textbox
+  // label's inline-rename dblclick calls stopPropagation, so it never reaches
+  // here — double-click the body opens the panel, double-click the label
+  // renames. Locked/hidden items are non-interactive (UX §4.3).
+  const onDoubleClick = useCallback(
+    (e: SlimMouseEvent) => {
+      if (pointerTypeRef.current !== 'mouse') return;
       const target = e.target as Node | null;
       if (
         !rendererEl ||
@@ -941,35 +886,24 @@ export const useInteractionManager = () => {
       ) {
         return;
       }
-      e.preventDefault();
-      // On touch/pen the long-press timer opens the action bar DURING the hold
-      // (so it appears before the finger lifts); suppress the OS contextmenu here
-      // to avoid a double-open. Mouse right-click keeps the immediate path.
-      if (pointerTypeRef.current !== 'mouse') return;
       const uiState = uiStateApi.getState();
+      if (uiState.editorMode !== 'EDITABLE') return;
       const tile = uiState.mouse.position.tile;
       const item = getItemAtTile({ tile, scene });
-      // Locked or hidden items are non-interactive (mqa-results.md #2) — fall
-      // through to the empty-canvas branch so right-click can't open their
-      // action bar.
+      if (!item) return;
       const { lockedIds, visibleIds } = layerContext;
-      const itemIsInteractable =
-        !!item &&
+      const interactable =
         !lockedIds.has(item.id) &&
         (visibleIds.size === 0 || visibleIds.has(item.id));
-      if (item && itemIsInteractable) {
-        // Right-click on an item selects it AND opens the floating action bar.
-        // This is the only path that opens the bar — left-click only selects
-        // (mqa-results.md #1).
-        const controls: ItemControls =
-          item.type === 'CONNECTOR'
-            ? { type: 'CONNECTOR', id: item.id, tile }
-            : { type: item.type, id: item.id };
-        uiState.actions.setItemControls(controls);
-        uiState.actions.setItemActionBarOpen(true);
-      }
+      if (!interactable) return;
+      // openPanel defaults true → mounts the Properties dock.
+      const controls: ItemControls =
+        item.type === 'CONNECTOR'
+          ? { type: 'CONNECTOR', id: item.id, tile }
+          : { type: item.type, id: item.id };
+      uiState.actions.setItemControls(controls);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional fine-grained deps on the layerContext Sets read here; whole layerContext over-invalidates
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fine-grained deps on the layerContext Sets; whole layerContext over-invalidates
     [uiStateApi, scene, rendererEl, layerContext.lockedIds, layerContext.visibleIds]
   );
 
@@ -1132,14 +1066,35 @@ export const useInteractionManager = () => {
         ts.longPressTimer = null;
         const uiState = uiStateApi.getState();
         if (ts.phase === 'item' && ts.downItem) {
-          // Hold on a node → open the per-item action bar for it (during the
-          // hold; the user then lifts naturally). Consume the rest of the gesture.
-          const controls: ItemControls =
-            ts.downItem.type === 'CONNECTOR'
-              ? { type: 'CONNECTOR', id: ts.downItem.id, tile: ts.downTile }
-              : { type: ts.downItem.type, id: ts.downItem.id };
-          uiState.actions.setItemControls(controls);
-          uiState.actions.setItemActionBarOpen(true);
+          // Hold on a node → open the CONTEXT MENU for it (ADR 0027 §2;
+          // reassigned from the action bar, which now opens on tap-select). It
+          // appears during the hold; the user then lifts naturally. Consume the
+          // rest of the gesture (phase 'menu').
+          const downItem = ts.downItem;
+          const anchor = { x: ts.downScreen.x, y: ts.downScreen.y };
+          const selectedIds = uiState.selectedIds;
+          const inMulti =
+            selectedIds.length > 1 &&
+            selectedIds.some(
+              (r) => r.type === downItem.type && r.id === downItem.id
+            );
+          if (inMulti) {
+            // Long-press on a member of the multi-selection → bulk menu.
+            uiState.actions.openContextMenu({ anchor, variant: 'multi', target: null });
+          } else {
+            // Select the item first so the menu's clipboard / delete act on it.
+            uiState.actions.setSelectedIds([
+              { type: downItem.type, id: downItem.id }
+            ]);
+            uiState.actions.openContextMenu({
+              anchor,
+              variant: 'item',
+              target: { type: downItem.type, id: downItem.id }
+            });
+          }
+          // Keep the menu alive across the finger-lift compat-mouse sequence
+          // (see suppressLongPressGestureEnd).
+          suppressLongPressGestureEnd();
           ts.phase = 'menu';
         } else if (ts.phase === 'pan-pending') {
           // Hold on empty → arm a one-shot marquee lasso from the press point.
@@ -1351,6 +1306,36 @@ export const useInteractionManager = () => {
         // drag; RECONNECT_ANCHOR commits the reconnect; Lasso.mouseup commits an
         // auto-lasso marquee.
         forwardMouse(e, 'mouseup', interactionsEl);
+        // Double-tap on an item → open its details panel (ADR 0022 §5). Only a
+        // stationary tap on an interactable item counts; a drag (move past slop)
+        // or an auto-lasso marquee resets the streak. The mouseup above already
+        // (re-)selected it; this just escalates the second tap to "open".
+        const movedItem = exceedsTapSlop(ts.downScreen, {
+          x: e.clientX,
+          y: e.clientY
+        });
+        if (!ts.autoLasso && !movedItem && ts.downItem) {
+          const now = Date.now();
+          const sameItem =
+            !!ts.lastTapItem &&
+            ts.lastTapItem.id === ts.downItem.id &&
+            ts.lastTapItem.type === ts.downItem.type;
+          if (sameItem && now - ts.lastTapTime < DOUBLE_TAP_MS) {
+            const controls: ItemControls =
+              ts.downItem.type === 'CONNECTOR'
+                ? { type: 'CONNECTOR', id: ts.downItem.id, tile: ts.downTile }
+                : { type: ts.downItem.type, id: ts.downItem.id };
+            uiStateApi.getState().actions.setItemControls(controls);
+            ts.lastTapTime = 0;
+            ts.lastTapItem = null;
+          } else {
+            ts.lastTapTime = now;
+            ts.lastTapItem = ts.downItem;
+          }
+        } else {
+          ts.lastTapTime = 0;
+          ts.lastTapItem = null;
+        }
         if (ts.autoLasso) {
           // One-shot lasso: return to CURSOR so the next gesture isn't lasso.
           uiStateApi.getState().actions.setMode({
@@ -1608,6 +1593,7 @@ export const useInteractionManager = () => {
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('pointercancel', onPointerCancel);
     window.addEventListener('contextmenu', onContextMenu);
+    window.addEventListener('dblclick', onDoubleClick);
     rendererEl.addEventListener('wheel', onScroll, { passive: true });
     rendererEl.addEventListener('dragstart', onDragStart);
 
@@ -1617,6 +1603,7 @@ export const useInteractionManager = () => {
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerCancel);
       window.removeEventListener('contextmenu', onContextMenu);
+      window.removeEventListener('dblclick', onDoubleClick);
       rendererEl.removeEventListener('wheel', onScroll);
       rendererEl.removeEventListener('dragstart', onDragStart);
       if (touchRaf !== null) cancelAnimationFrame(touchRaf);
@@ -1626,6 +1613,7 @@ export const useInteractionManager = () => {
     modeType,
     onMouseEvent,
     onContextMenu,
+    onDoubleClick,
     rendererEl,
     rendererSize,
     uiStateApi,

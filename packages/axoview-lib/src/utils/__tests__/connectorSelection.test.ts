@@ -17,6 +17,7 @@
 
 import {
   getConnectorWaypointRefs,
+  getConnectorMovementAnchorRefs,
   countUserFacingRefs,
   filterUserFacingRefs,
   isUserFacingRef
@@ -90,6 +91,66 @@ describe('getConnectorWaypointRefs', () => {
     expect(getConnectorWaypointRefs(c)).toEqual([
       { type: 'CONNECTOR_ANCHOR', id: 'w1' }
     ]);
+  });
+});
+
+describe('getConnectorMovementAnchorRefs', () => {
+  // The movement superset (ADR 0006 addendum #2): unlike the delete-safe
+  // waypoint helper, this INCLUDES free-floating (tile-bound) endpoints so a
+  // lasso-selected connector drags rigidly. Splice-safety is upheld elsewhere
+  // (endpoints only travel with their parent CONNECTOR; delete removes the
+  // connector wholesale).
+
+  it('returns [] for a fully node-bound connector (no tile anchors)', () => {
+    const c = mkConnector([
+      { id: 'e0', ref: { item: 'n1' } },
+      { id: 'e1', ref: { item: 'n2' } }
+    ]);
+    expect(getConnectorMovementAnchorRefs(c)).toEqual([]);
+  });
+
+  it('returns middle waypoints only when endpoints are node-bound (matches waypoint helper)', () => {
+    const c = mkConnector([
+      { id: 'e0', ref: { item: 'n1' } },
+      { id: 'w1', ref: { tile: { x: 3, y: 5 } } },
+      { id: 'e1', ref: { item: 'n2' } }
+    ]);
+    expect(getConnectorMovementAnchorRefs(c)).toEqual([
+      { type: 'CONNECTOR_ANCHOR', id: 'w1' }
+    ]);
+  });
+
+  it('INCLUDES tile-bound endpoints — the difference from getConnectorWaypointRefs', () => {
+    const c = mkConnector([
+      { id: 'e0', ref: { tile: { x: 1, y: 1 } } },
+      { id: 'w1', ref: { tile: { x: 2, y: 2 } } },
+      { id: 'e1', ref: { tile: { x: 3, y: 3 } } }
+    ]);
+    // All three tile-bound anchors come along for rigid movement…
+    expect(getConnectorMovementAnchorRefs(c)).toEqual([
+      { type: 'CONNECTOR_ANCHOR', id: 'e0' },
+      { type: 'CONNECTOR_ANCHOR', id: 'w1' },
+      { type: 'CONNECTOR_ANCHOR', id: 'e1' }
+    ]);
+    // …whereas the delete-safe helper still excludes the endpoints.
+    expect(getConnectorWaypointRefs(c)).toEqual([
+      { type: 'CONNECTOR_ANCHOR', id: 'w1' }
+    ]);
+  });
+
+  it('handles empty / undefined / single-anchor connectors safely', () => {
+    expect(getConnectorMovementAnchorRefs(mkConnector([]))).toEqual([]);
+    expect(
+      getConnectorMovementAnchorRefs({
+        id: 'x',
+        anchors: undefined
+      } as unknown as Connector)
+    ).toEqual([]);
+    expect(
+      getConnectorMovementAnchorRefs(
+        mkConnector([{ id: 'e0', ref: { tile: { x: 1, y: 1 } } }])
+      )
+    ).toEqual([]);
   });
 });
 

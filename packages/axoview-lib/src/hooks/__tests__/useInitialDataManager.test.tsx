@@ -76,6 +76,7 @@ describe('useInitialDataManager - Orphaned Connector Handling', () => {
         setIconCategoriesState: jest.fn(),
         setFreshlyLoadedCategoryIds: jest.fn(),
         setSelectedIds: jest.fn(),
+        setNotification: jest.fn(),
         resetUiState: jest.fn()
       },
       rendererEl: null,
@@ -401,6 +402,47 @@ describe('useInitialDataManager - Orphaned Connector Handling', () => {
     expect(console.error).toHaveBeenCalledWith(
       '[useInitialDataManager] Model validation failed:',
       [{ message: 'Validation failed' }]
+    );
+    expect(mockModelStore.actions.set).not.toHaveBeenCalled();
+    expect(result.current.isReady).toBe(false);
+  });
+
+  it('surfaces a rejected (e.g. oversized) import via setNotification — ux §6.3', () => {
+    const { result } = renderHook(() => useInitialDataManager());
+
+    // Mirror the shape the real schema emits when a .max() array bound trips
+    // (ADR 0029 import-DoS guard): a rejected import must not fail silently.
+    mockModelSchema.safeParse.mockReturnValueOnce({
+      success: false,
+      error: {
+        issues: [
+          {
+            path: ['views', 0, 'items'],
+            message: 'Array must contain at most 50000 element(s)'
+          }
+        ]
+      }
+    });
+
+    const initialData: InitialData = {
+      version: '1.0',
+      title: 'Test',
+      description: '',
+      colors: [],
+      icons: [],
+      items: [],
+      views: []
+    };
+
+    act(() => {
+      result.current.load(initialData);
+    });
+
+    expect(mockUiStateStore.actions.setNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: 'error',
+        message: expect.stringContaining('Could not load diagram')
+      })
     );
     expect(mockModelStore.actions.set).not.toHaveBeenCalled();
     expect(result.current.isReady).toBe(false);

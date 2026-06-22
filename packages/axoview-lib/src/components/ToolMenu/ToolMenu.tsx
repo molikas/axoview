@@ -15,7 +15,7 @@ import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { IconButton } from 'src/components/IconButton/IconButton';
 import { UiElement } from 'src/components/UiElement/UiElement';
 import { useHistory } from 'src/hooks/useHistory';
-import { HOTKEY_PROFILES } from 'src/config/hotkeys';
+import { TOOL_HOTKEYS } from 'src/config/hotkeys';
 import { useTranslation } from 'src/stores/localeStore';
 import {
   isometricStrategy,
@@ -32,16 +32,13 @@ export const ToolMenu = () => {
     return state.mode;
   });
   const uiStateStoreActions = useUiStateStore((state) => state.actions);
-  const hotkeyProfile = useUiStateStore((state) => {
-    return state.hotkeyProfile;
-  });
   const connectorInteractionMode = useUiStateStore((state) => {
     return state.connectorInteractionMode;
   });
   const canvasMode = useUiStateStore((state) => state.canvasMode);
   const uiStateApi = useUiStateStoreApi();
 
-  const hotkeys = HOTKEY_PROFILES[hotkeyProfile];
+  const hotkeys = TOOL_HOTKEYS;
 
   // Iso↔2D switch preserves the user's zoom and viewport center (ADR locked
   // decision #6): re-project the tile under the viewport center and recompute
@@ -162,7 +159,10 @@ export const ToolMenu = () => {
           <Chip
             label={
               <Typography variant="micro" component="span">
-                {connectorInteractionMode === 'click' ? 'Click' : 'Drag'}
+                {/* D5 — connector-mode chip routed through i18n */}
+                {connectorInteractionMode === 'click'
+                  ? t('clickMode')
+                  : t('dragMode')}
               </Typography>
             }
             size="small"
@@ -174,7 +174,8 @@ export const ToolMenu = () => {
         {/* Canvas mode toggle */}
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
         <IconButton
-          name={canvasMode === 'ISOMETRIC' ? 'Switch to 2D view' : 'Switch to isometric view'}
+          // D5 — canvas-mode toggle tooltip routed through i18n
+          name={canvasMode === 'ISOMETRIC' ? t('switchTo2D') : t('switchToIsometric')}
           Icon={canvasMode === 'ISOMETRIC' ? <CartesianIcon /> : <IsometricIcon />}
           onClick={handleToggleCanvasMode}
           isActive={false}

@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { getItemAtTile, setWindowCursor } from 'src/utils';
 import { useScene } from 'src/hooks/useScene';
+import { useLayerContext } from 'src/hooks/useLayerContext';
 import { SlimMouseEvent } from 'src/types';
 
 // Pixels the mouse must travel while right-button held before pan activates.
@@ -11,10 +12,10 @@ const RIGHT_DRAG_THRESHOLD = 4;
 export const usePanHandlers = () => {
   const modeType = useUiStateStore((state) => state.mode.type);
   const actions = useUiStateStore((state) => state.actions);
-  const panSettings = useUiStateStore((state) => state.panSettings);
   const rendererEl = useUiStateStore((state) => state.rendererEl);
   const uiStateApi = useUiStateStoreApi();
   const scene = useScene();
+  const layerContext = useLayerContext();
 
   // Stable scene callbacks (useScene() returns a fresh wrapper object each
   // render, but these members come from useSceneActions useCallbacks and keep a
@@ -127,43 +128,10 @@ export const usePanHandlers = () => {
     }
   }, [actions, restorePreviousMode, uiStateApi]);
 
-  const isEmptyArea = useCallback(
-    (e: SlimMouseEvent): boolean => {
-      if (!rendererEl || e.target !== rendererEl) return false;
-
-      const itemAtTile = getItemAtTile({
-        tile: uiStateApi.getState().mouse.position.tile,
-        scene
-      });
-
-      return !itemAtTile;
-    },
-    [rendererEl, uiStateApi, scene]
-  );
-
-  // Left-button (no in-pan-mode exit) modifier pans: Ctrl-, Alt-, or empty-area
-  // click. Returns true if a pan started.
-  const tryModifierPan = useCallback(
-    (e: SlimMouseEvent): boolean => {
-      if (panSettings.ctrlClickPan && e.ctrlKey) {
-        e.preventDefault();
-        startPan('ctrl');
-        return true;
-      }
-      if (panSettings.altClickPan && e.altKey) {
-        e.preventDefault();
-        startPan('alt');
-        return true;
-      }
-      if (panSettings.emptyAreaClickPan && isEmptyArea(e)) {
-        startPan('empty');
-        return true;
-      }
-      return false;
-    },
-    [panSettings, startPan, isEmptyArea]
-  );
-
+  // Fixed pan model (ADR 0022 §6): middle-click and right-click drag both pan,
+  // always — no settings. The ctrl/alt/empty-area click-pan options were removed
+  // (they conflicted with Ctrl+click multi-select, Alt+click waypoint removal,
+  // and empty-area lasso/clear).
   const handleMouseDown = useCallback(
     (e: SlimMouseEvent): boolean => {
       // Left-click while in pan mode (keyboard-activated) exits to cursor
@@ -172,33 +140,40 @@ export const usePanHandlers = () => {
         return true;
       }
 
-      if (e.button === 1 && panSettings.middleClickPan) {
+      if (e.button === 1) {
         e.preventDefault();
         startPan('middle');
         return true;
       }
 
       if (e.button === 2) {
-        e.preventDefault();
-        if (panSettings.rightClickPan) {
-          // Don't enter PAN immediately — defer until drag threshold is exceeded.
-          // On release without drag this becomes a deselect click.
-          rightDownRef.current = true;
-          rightDownPositionRef.current = { x: e.clientX, y: e.clientY };
-          previousModeTypeRef.current = modeType;
-        }
-        // Always consume right mousedown regardless of setting — prevents right-click
-        // reaching Cursor.mousedown which would trigger the add-node context menu.
-        return true;
-      }
+        // The right-DRAG-pan / right-TAP-menu gestures (ADR 0022 §1, ADR 0027)
+        // are CANVAS affordances, but the listener is window-bound (so an
+        // off-canvas drag still flows). Only arm them when the press lands on
+        // the renderer — a right-click on a portaled overlay (the export
+        // Dialog, any MUI Popover/Menu) or the toolbar/panels must keep its
+        // native menu and never open the canvas context menu.
+        const target = e.target as Node | null;
+        const onRenderer =
+          !!rendererEl &&
+          !!target &&
+          (rendererEl === target || rendererEl.contains(target));
+        if (!onRenderer) return false;
 
-      if (e.button === 0) {
-        return tryModifierPan(e);
+        e.preventDefault();
+        // Don't enter PAN immediately — defer until the drag threshold is
+        // exceeded. On release without drag this becomes a context-menu tap
+        // (ADR 0027) handled by handleRightButtonUp.
+        rightDownRef.current = true;
+        rightDownPositionRef.current = { x: e.clientX, y: e.clientY };
+        previousModeTypeRef.current = modeType;
+        // Always consume right mousedown — prevents it reaching Cursor.mousedown.
+        return true;
       }
 
       return false;
     },
-    [modeType, panSettings, startPan, endPan, tryModifierPan]
+    [modeType, startPan, endPan]
   );
 
   // Called on every mousemove. Returns true to suppress processMouseUpdate while right
@@ -260,49 +235,108 @@ export const usePanHandlers = () => {
   );
 
   const handleRightButtonUp = useCallback(
-    (): boolean => {
+    (e: SlimMouseEvent): boolean => {
       const wasDragging =
         isPanningRef.current && panMethodRef.current === 'right';
 
       rightDownRef.current = false;
       rightDownPositionRef.current = null;
 
+      // Right-DRAG past threshold = pan (ADR 0022 §1) — never a menu.
       if (wasDragging) {
         endPan();
         return true;
       }
 
-      // Right-click without drag: deselect — close item controls and clear any lasso selection.
-      // Exception: if there is an item under the cursor, let the contextmenu event handle it
-      // (the item context menu will open) rather than deselecting.
-      if (previousModeTypeRef.current !== null) {
-        const uiState = uiStateApi.getState();
-        const tile = uiState.mouse.position.tile;
-        const itemUnderCursor = getItemAtTile({ tile, scene });
-        if (itemUnderCursor) {
-          // Don't deselect — contextmenu event will show the item context menu
-          previousModeTypeRef.current = null;
-          return true;
+      // Right-TAP below threshold (ADR 0027 §2). previousModeTypeRef was seeded
+      // on right-down only when right-click-pan was armed; null means a stray
+      // right mouseup we still consume to keep it off Cursor.mouseup.
+      if (previousModeTypeRef.current === null) return true;
+      previousModeTypeRef.current = null;
+
+      const uiState = uiStateApi.getState();
+      const currentModeType = uiState.mode.type;
+      const anchor = { x: e.clientX, y: e.clientY };
+      const tile = uiState.mouse.position.tile;
+      const item = getItemAtTile({ tile, scene });
+      const { lockedIds, visibleIds } = layerContext;
+      const itemInteractable =
+        !!item &&
+        !lockedIds.has(item.id) &&
+        (visibleIds.size === 0 || visibleIds.has(item.id));
+
+      // Multi-selection takes precedence (ADR 0027). A right-tap on an item that
+      // is part of the current multi-selection opens the BULK menu over the
+      // whole selection. The selection may live in `selectedIds` (Ctrl+click /
+      // Ctrl+A / a canvas lasso, mirrored on mouseup) OR in an active lasso's
+      // `mode.selection` (panel-driven multi-select, which doesn't populate
+      // selectedIds). Either qualifies.
+      const selectedIds = uiState.selectedIds;
+      const mode = uiState.mode;
+      const lassoItems =
+        (mode.type === 'LASSO' || mode.type === 'FREEHAND_LASSO') &&
+        mode.selection
+          ? mode.selection.items
+          : [];
+      const multiRefs = selectedIds.length > 1 ? selectedIds : lassoItems;
+      const itemInMulti =
+        itemInteractable &&
+        multiRefs.length > 1 &&
+        multiRefs.some((r) => r.type === item!.type && r.id === item!.id);
+      if (itemInMulti) {
+        // Make selectedIds the single source of truth the bulk menu reads
+        // (a panel lasso only set mode.selection), then settle to CURSOR so the
+        // lasso stops capturing — the multi-select outlines render from
+        // selectedIds, so they persist.
+        if (selectedIds.length <= 1) {
+          uiState.actions.setSelectedIds(multiRefs);
         }
-        uiState.actions.setItemControls(null);
-        // Clear stale mousedown state so Cursor mode doesn't pick it up next frame
+        if (currentModeType !== 'CURSOR') {
+          uiState.actions.setMode({
+            type: 'CURSOR',
+            showCursor: true,
+            mousedownItem: null
+          });
+        }
         uiState.actions.setMouse({ ...uiState.mouse, mousedown: null });
-        restoreModeAfterRightClick(uiState.mode.type);
-        previousModeTypeRef.current = null;
+        uiState.actions.openContextMenu({ anchor, variant: 'multi', target: null });
         return true;
       }
 
-      // Always consume right mouseup — prevents Cursor.mouseup from firing which
-      // would open the add-node context menu on a right-click with rightClickPan off.
+      // In a tool mode (lasso / freehand / connector …) a right-tap with no
+      // multi-selection hit ABORTS the in-flight tool action — the long-standing
+      // "right-click cancels the tool" behavior. The single/canvas menus are a
+      // CURSOR-mode affordance, so they do not open here.
+      if (currentModeType !== 'CURSOR') {
+        uiState.actions.setItemControls(null);
+        uiState.actions.setMouse({ ...uiState.mouse, mousedown: null });
+        restoreModeAfterRightClick(currentModeType);
+        return true;
+      }
+
+      // CURSOR mode: an interactable item → item menu (select it first so the
+      // clipboard / delete commands act on it); empty / locked / hidden →
+      // canvas menu (UX §4.3).
+      uiState.actions.setMouse({ ...uiState.mouse, mousedown: null });
+      if (item && itemInteractable) {
+        uiState.actions.setSelectedIds([{ type: item.type, id: item.id }]);
+        uiState.actions.openContextMenu({
+          anchor,
+          variant: 'item',
+          target: { type: item.type, id: item.id }
+        });
+      } else {
+        uiState.actions.openContextMenu({ anchor, variant: 'canvas', target: null });
+      }
       return true;
     },
-    [endPan, uiStateApi, scene, restoreModeAfterRightClick]
+    [endPan, uiStateApi, scene, layerContext, restoreModeAfterRightClick]
   );
 
   const handleMouseUp = useCallback(
     (e: SlimMouseEvent): boolean => {
       if (e.button === 2) {
-        return handleRightButtonUp();
+        return handleRightButtonUp(e);
       }
 
       if (!isPanningRef.current) return false;

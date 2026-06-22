@@ -28,6 +28,7 @@ import { Icons } from 'src/components/ItemControls/IconSelectionControls/Icons';
 import { IconGrid } from 'src/components/ItemControls/IconSelectionControls/IconGrid';
 import { useIconFiltering } from 'src/hooks/useIconFiltering';
 import { useIconCategories } from 'src/hooks/useIconCategories';
+import { useKeyboardIconPlacement } from 'src/hooks/useKeyboardIconPlacement';
 import { generateId } from 'src/utils';
 import { useTranslation } from 'src/stores/localeStore';
 import { CommonElements } from './CommonElements';
@@ -88,6 +89,12 @@ export const ElementsPanel = () => {
     },
     [uiStateActions]
   );
+
+  // C2 / Decision #7: keyboard activation (Enter/Space on a focused tile). The
+  // mouse path arms PLACE_ICON then places at the cursor on release; keyboard
+  // has no cursor, so place directly at the viewport-centre tile via the shared
+  // helper (reuses the same scene.placeIcon chokepoint the mouse flow ends in).
+  const handleIconActivate = useKeyboardIconPlacement();
 
   // Step 1: user picks files → stash them, open the dialog
   const handleFileChange = useCallback(
@@ -299,6 +306,7 @@ export const ElementsPanel = () => {
             <IconGrid
               icons={filteredIcons}
               onMouseDown={handleIconMouseDown}
+              onActivate={handleIconActivate}
               onDelete={handleIconDelete}
             />
           </Box>
@@ -306,6 +314,7 @@ export const ElementsPanel = () => {
           <Icons
             iconCategories={iconCategories}
             onMouseDown={handleIconMouseDown}
+            onActivate={handleIconActivate}
             onDelete={handleIconDelete}
           />
         )}

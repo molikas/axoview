@@ -16,6 +16,7 @@ import {
 } from '@mui/icons-material';
 import { ModelItem, ViewItem } from 'src/types';
 import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
+import { stripHtmlTags } from 'src/utils/stripHtml';
 import { useModelItem } from 'src/hooks/useModelItem';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { Section } from '../../components/Section';
@@ -58,7 +59,7 @@ export const NodeInfoTab = ({
 
   const hasCaption =
     !!modelItem.description &&
-    modelItem.description.replace(/<[^>]*>/g, '').trim() !== '';
+    stripHtmlTags(modelItem.description).trim() !== '';
 
   if (readOnly) {
     return (
@@ -245,7 +246,7 @@ export const NodeInfoTab = ({
           value={modelItem.description}
           onChange={(text) => {
             const hasContent = (val: string | undefined) =>
-              !!val && val.replace(/<[^>]*>/g, '').trim() !== '';
+              !!val && stripHtmlTags(val).trim() !== '';
             const isEmpty = !hasContent(text);
             const storedIsEmpty = !hasContent(modelItem.description);
             if (isEmpty && storedIsEmpty) return;

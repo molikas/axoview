@@ -24,6 +24,9 @@ jest.mock('src/utils', () => ({
   getItemAtTile: (...args: any[]) => mockGetItemAtTile(...args),
   getItemByIdOrThrow: (...args: any[]) => mockGetItemByIdOrThrow(...args),
   getAnchorParent: (...args: any[]) => mockGetAnchorParent(...args),
+  // ADR 0023 collision predicate — default to colliding (matches the real impl
+  // for items without snap/collides fields, which these fixtures use).
+  itemCollides: (item: any) => item?.collides ?? item?.snap !== false,
   CoordsUtils: {
     subtract: (a: any, b: any) => ({ x: a.x - b.x, y: a.y - b.y }),
     isEqual: (a: any, b: any) => a.x === b.x && a.y === b.y,

@@ -19,7 +19,11 @@ import { useModelStoreApi } from 'src/stores/modelStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { resolveRenderOrder } from 'src/utils/renderOrder';
-import { stripHtmlTags } from 'src/utils/stripHtml';
+import {
+  htmlToPlainText,
+  decodeHtmlEntities
+} from 'src/utils/htmlToPlainText';
+import { isLabelVisibleInPreview } from 'src/utils/previewLabelVisibility';
 
 // ---------------------------------------------------------------------------
 // NodesCanvas — T2 PoC. Imperative Canvas2D draw of the node layer (icon image
@@ -121,12 +125,12 @@ const roundRectPath = (
 };
 
 // Description (modelItem.description is rich-text HTML) → plain text, mirroring
-// Node.tsx's strip-and-trim visibility test. Returns '' when there's no visible
-// text so the canvas matches the DOM's "render the description only if non-empty".
-const getDescriptionText = (html: string | undefined): string => {
-  if (!html) return '';
-  return stripHtmlTags(html).replace(/\s+/g, ' ').trim();
-};
+// Node.tsx's strip-and-trim visibility test. Strips tags AND decodes entities so
+// Quill's literal `&nbsp;`/`&amp;` don't reach ctx.fillText (the DOM path decodes
+// for free when it renders the HTML; A1). Returns '' when there's no visible text
+// so the canvas matches the DOM's "render the description only if non-empty".
+const getDescriptionText = (html: string | undefined): string =>
+  htmlToPlainText(html).replace(/\s+/g, ' ').trim();
 
 // Greedy word-wrap to a pixel width. `ctx.font` must already be set by the
 // caller. Long single words overflow rather than breaking mid-word (acceptable —
@@ -286,6 +290,12 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       pendingRef.current = false;
       const ui = uiApi.getState();
       const { scroll, zoom, rendererSize, readableLabels } = ui;
+      // Present-mode hide-labels override (ADR 0013 addendum) — UI-only; merged
+      // through the same single point as the DOM Node path (isLabelVisibleInPreview).
+      const inPreview = ui.editorMode === 'EXPLORABLE_READONLY';
+      const previewHideLabels = ui.previewHideLabels;
+      // Image-export hide-labels override (ADR 0025 §3) — UI-only, export-scoped.
+      const exportHideLabels = ui.exportHideLabels;
       const dpr = window.devicePixelRatio || 1;
       const W = rendererSize.width;
       const H = rendererSize.height;
@@ -386,16 +396,48 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       }
 
       let drawn = 0;
+      // Count of nodes that actually painted a label chip this frame. Published
+      // below so the present-mode hide-labels gate can be observed on the canvas
+      // renderer (no per-node DOM label exists in canvas mode) — same idea as
+      // data-label-scale / data-draw-count.
+      let labelsDrawn = 0;
+      // A2: true only when EVERY node that should paint an icon had a decoded
+      // bitmap available this frame. getImage returns null for a non-empty icon
+      // URL whose Image hasn't finished decoding yet — that node's icon is
+      // skipped, so the snapshot would miss it. The image-export flow polls this
+      // signal before its first capture (mirrors drawCount/labelsDrawn). Nodes
+      // with no icon (DEFAULT_ICON.url === '') resolve to null immediately but
+      // have nothing to paint, so they must NOT flip this false — the per-node
+      // check below gates on a truthy icon.url first (O(1), no allocation).
+      let allIconsDrawn = true;
       for (const node of sorted) {
         const modelItem = itemsById.get(node.id);
         if (!modelItem) continue;
         drawn += 1;
-        const pos = getTilePos({ tile: node.tile, origin: 'CENTER' });
+        // ADR 0023: apply the off-grid offset as a final translate AFTER
+        // projection so at-rest canvas nodes match the DOM overlay exactly (no
+        // jump on select/drag). No-op branch when offset is absent (the common
+        // snapped case) — this loop runs every pan/zoom frame, so the snapped
+        // path must add no work and no allocation. stalk/icon/label all derive
+        // from `pos`, so this single shift offsets the whole node.
+        const base = getTilePos({ tile: node.tile, origin: 'CENTER' });
+        const pos = node.offset
+          ? { x: base.x + node.offset.x, y: base.y + node.offset.y }
+          : base;
 
-        const name = modelItem.name;
+        // Name is plain text rendered verbatim by the DOM overlay, so decode
+        // entities only — never strip tags (a name like `List<T>` must survive
+        // and stay identical to the DOM Node it swaps with). A1 / hybrid parity.
+        const name = decodeHtmlEntities(modelItem.name);
         const descText = getDescriptionText(modelItem.description);
         const hasLabel =
-          node.showLabel !== false && Boolean(name || descText);
+          isLabelVisibleInPreview(
+            node.showLabel !== false,
+            inPreview,
+            previewHideLabels
+          ) &&
+          !exportHideLabels &&
+          Boolean(name || descText);
         const labelHeight = node.labelHeight ?? DEFAULT_LABEL_HEIGHT;
 
         // ----- stalk line (D2-1) -----
@@ -405,7 +447,10 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
         // round cap, width 3, black. The canvas drew NO stalk before — at-rest
         // (canvas) nodes showed none and selecting one popped it in via the DOM
         // overlay (the reported "stalk invisible until click").
-        if (hasLabel && labelHeight > 0 && drawLabels) {
+        // ADR 0024: labelHeight is a SIGNED offset — positive draws the stalk up
+        // (legacy), negative draws it down (below-node). `pos.y - labelHeight`
+        // handles both; only the zero case (no stalk) is skipped.
+        if (hasLabel && labelHeight !== 0 && drawLabels) {
           ctx.save();
           ctx.setLineDash([0, 6]);
           ctx.lineCap = 'round';
@@ -421,6 +466,12 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
         // ----- icon -----
         const icon = resolveIcon(modelItem.icon, iconsById);
         const img = getImage(icon.url);
+        // A2: a node that should paint an icon (non-empty URL) but whose bitmap
+        // isn't decoded yet (img === null) was skipped this frame. Flag it so the
+        // export waits for the icon layer before snapshotting. The icon.url guard
+        // excludes the no-icon/DEFAULT_ICON case (url === '') — nothing to draw,
+        // so it must not flip the signal. O(1), no allocation.
+        if (icon.url && !img) allIconsDrawn = false;
         if (img) {
           const scale = icon.scale || 1;
           ctx.save();
@@ -455,6 +506,7 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
 
         // ----- static label (name + description) -----
         if (hasLabel && drawLabels) {
+          labelsDrawn += 1;
           const chip = chipStyleRef.current;
           const fontSize = node.labelFontSize || LABEL_BASE_FONT_PX;
 
@@ -530,11 +582,12 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
 
           ctx.save();
           // Chip is centered horizontally on the tile and floats `labelHeight`
-          // above the tile center; counter-scale is about its bottom-center.
+          // from the tile center. ADR 0024: when the offset is negative the chip
+          // sits BELOW (y0 = 0, top-center scale); above keeps bottom-center.
           ctx.translate(pos.x, pos.y - labelHeight);
           ctx.scale(counterScale, counterScale);
           const x0 = -chipW / 2;
-          const y0 = -chipH;
+          const y0 = labelHeight < 0 ? 0 : -chipH;
           roundRectPath(ctx, x0, y0, chipW, chipH, chip.radius);
           ctx.fillStyle = chip.bg;
           ctx.fill();
@@ -572,6 +625,13 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       // the DOM `[data-drag-id]` shell count, which reads ~0 with the bulk DOM path
       // gone.
       canvas.dataset.drawCount = String(drawn);
+      canvas.dataset.labelsDrawn = String(labelsDrawn);
+      // A2: "true" only when no node's icon was skipped this frame for a
+      // not-yet-decoded bitmap. The image-export dialog awaits this before its
+      // first capture so canvas-drawn icons aren't dropped from the snapshot
+      // (connectors are DOM/SVG and survive regardless). Same publish shape as
+      // the drawCount/labelsDrawn anti-cheat datasets above.
+      canvas.dataset.allIconsDrawn = String(allIconsDrawn);
     };
 
     const scheduleDraw = () => {
@@ -606,7 +666,10 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
         s.scroll === p.scroll &&
         s.zoom === p.zoom &&
         s.rendererSize === p.rendererSize &&
-        s.readableLabels === p.readableLabels
+        s.readableLabels === p.readableLabels &&
+        s.previewHideLabels === p.previewHideLabels &&
+        s.exportHideLabels === p.exportHideLabels &&
+        s.editorMode === p.editorMode
       ) {
         return;
       }

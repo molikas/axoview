@@ -4,7 +4,7 @@ import { Box, Chip, IconButton, Tooltip } from '@mui/material';
 import { ZoomControls } from 'src/components/ZoomControls/ZoomControls';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { DialogTypeEnum } from 'src/types/ui';
-import { tooltipWithShortcut } from 'src/utils/tooltipWithShortcut';
+import { useTranslation } from 'src/stores/localeStore';
 import { countUserFacingRefs } from 'src/utils/connectorSelection';
 
 // Lucid-style help icon: circle with question mark
@@ -37,6 +37,10 @@ interface BottomDockProps {
 }
 
 export const BottomDock = ({ endSlot }: BottomDockProps = {}) => {
+  // D6 — reuse the already-translated (previously orphaned) zoomControls.help
+  // key instead of the hardcoded "Help (F1)". The value already carries the
+  // "(F1)" suffix, so it is used as the full tooltip text.
+  const { t } = useTranslation('zoomControls');
   const uiStateActions = useUiStateStore((s) => s.actions);
   // Count user-facing refs only — waypoint CONNECTOR_ANCHORs are bookkeeping,
   // not items the user thinks they selected. See utils/connectorSelection.
@@ -66,7 +70,7 @@ export const BottomDock = ({ endSlot }: BottomDockProps = {}) => {
       <Box sx={{ display: 'flex', alignItems: 'center', minHeight: 24 }}>
         {selectedCount > 1 && (
           <Chip
-            label={`${selectedCount} selected`}
+            label={t('selected').replace('{count}', String(selectedCount))}
             size="small"
             color="primary"
             sx={{
@@ -82,7 +86,7 @@ export const BottomDock = ({ endSlot }: BottomDockProps = {}) => {
       {/* Right zone: zoom controls + help + optional end slot */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
         <ZoomControls />
-        <Tooltip title={tooltipWithShortcut('Help', 'F1')} placement="top">
+        <Tooltip title={t('help')} placement="top">
           <IconButton
             size="small"
             onClick={() => uiStateActions.setDialog(DialogTypeEnum.HELP)}

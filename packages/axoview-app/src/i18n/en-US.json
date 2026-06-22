@@ -12,8 +12,29 @@
         "quickSaveSession": "Quick Save (Session)",
         "serverStorage": "Server Storage"
     },
+    "exportMenu": {
+        "tooltip": "Export",
+        "json": "Export JSON",
+        "image": "Export Image",
+        "projectZip": "Export Project (.zip)",
+        "jsonExported": "Exported {{filename}}"
+    },
+    "emptyState": {
+        "newDiagram": "New diagram",
+        "import": "Import"
+    },
+    "fileExplorer": {
+        "title": "Diagrams",
+        "import": "Import",
+        "exportProject": "Export project",
+        "newDiagram": "New diagram",
+        "newFolder": "New folder",
+        "refresh": "Refresh",
+        "collapseAll": "Collapse all"
+    },
     "status": {
         "current": "Current",
+        "session": "Session",
         "untitled": "Untitled Diagram",
         "modified": "Modified",
         "unsaved": "Unsaved",
@@ -21,12 +42,17 @@
         "savedYesterdayAt": "Saved yesterday at {{time}}",
         "savedOnDate": "Saved {{month}} {{day}} at {{time}}",
         "savedOnDateYear": "Saved {{month}} {{day}}, {{year}} at {{time}}",
-        "sessionStorageNote": "Session storage only - export to save permanently"
+        "sessionStorageNote": "Session storage only - export to save permanently",
+        "sessionBanner": "Your work lives in this browser tab only. Use Export → Export project to keep it.",
+        "dismiss": "Dismiss"
+    },
+    "settings": {
+        "language": "Language"
     },
     "toolbar": {
-        "previewSaveFirst": "Save first to preview",
-        "saveAndPreview": "Save & Preview",
-        "preview": "Preview",
+        "presentSaveFirst": "Save first to present",
+        "saveAndPresent": "Save & Present",
+        "present": "Present",
         "backToEditing": "Back to editing",
         "share": {
             "disabled": {

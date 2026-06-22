@@ -43,10 +43,6 @@ const locale: LocaleProps = {
     deselectAction: '取消选择',
     deselectShortcut: '左键单击（空白区域）',
     deselectDescription: '取消当前选择并返回选择模式',
-    addNodeGroupAction: 'Add Node / Group',
-    addNodeGroupShortcut: '双击（空白区域）',
-    addNodeGroupDescription:
-      'Opens the Add popover at the cursor: pick an icon to place a node, or click Group to add a background area for visually grouping nodes',
     // Mouse interactions
     selectToolAction: '选择工具',
     selectToolShortcut: '点击选择按钮',
@@ -75,7 +71,49 @@ const locale: LocaleProps = {
     copyAction: '复制',
     copyDescription: '将所选项目复制到剪贴板',
     pasteAction: '粘贴',
-    pasteDescription: '将剪贴板项目粘贴到鼠标位置；偏移以避免重叠'
+    pasteDescription: '将剪贴板项目粘贴到鼠标位置；偏移以避免重叠',
+    // D10 — Select all row
+    selectAllAction: '全选',
+    selectAllShortcut: 'Ctrl+A',
+    selectAllDescription: '选择当前视图中所有可见且未锁定的项目（项目、矩形、文本框、连接线及其路径点）',
+    // D10 — tool-activation keys (ADR 0022 §6)
+    keyRenameAction: '重命名',
+    keyRenameShortcut: 'F2',
+    keyRenameDescription: '就地重命名选定的项目或图表',
+    keyAddItemAction: '添加项目 / 元素',
+    keyAddItemShortcut: 'N',
+    keyAddItemDescription: '切换元素面板以放置新项目',
+    keyConnectorAction: '连接线',
+    keyConnectorShortcut: 'C',
+    keyConnectorDescription: '切换到连接线工具',
+    keyLassoAction: '套索选择',
+    keyLassoShortcut: 'L',
+    keyLassoDescription: '切换到套索选择工具',
+    keySelectAction: '选择',
+    keySelectShortcut: 'S',
+    keySelectDescription: '切换到选择工具',
+    // D10 — mouse interactions
+    miSelectAction: '选择',
+    miSelectMethod: '左键单击',
+    miSelectDescription: '单击项目以选择它（高亮显示并显示浮动操作栏）。单击空白画布以清除选择。',
+    miOpenDetailsAction: '打开详情',
+    miOpenDetailsMethod: '双击',
+    miOpenDetailsDescription: '双击项目以打开其详情面板——与右键菜单中的“详情…”项相同。',
+    miToggleSelectionAction: '切换选择',
+    miToggleSelectionMethod: 'Ctrl/Cmd + 左键单击',
+    miToggleSelectionDescription: '从多选中添加或移除项目；连接线会与其路径点一起切换。',
+    miPanAction: '平移',
+    miPanMethod: '右键单击 + 拖动',
+    miPanDescription: '按住右键并拖动以平移画布。中键拖动也可平移；方向键可微移。',
+    miContextMenuAction: '右键菜单',
+    miContextMenuMethod: '右键单击（轻点）',
+    miContextMenuDescription: '不拖动的右键单击会打开右键菜单——在项目上为项目菜单，在空白处为画布菜单。触屏上为长按。',
+    miRemoveWaypointAction: '移除路径点',
+    miRemoveWaypointMethod: 'Alt + 左键单击',
+    miRemoveWaypointDescription: 'Alt+单击连接线路径点以将其删除（无需先选择连接线）；端点锚点会被保留。',
+    miZoomAction: '缩放',
+    miZoomMethod: '滚轮',
+    miZoomDescription: '滚动以朝光标方向缩放。'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: '提示：创建连接器',
@@ -126,6 +164,15 @@ const locale: LocaleProps = {
     instruction: '左键单击连接器末端并将其拖动到所需节点。'
   },
   settings: {
+    // D3 — SettingsDialog chrome
+    title: '设置',
+    close: '关闭',
+    canvas: '画布',
+    language: '语言',
+    about: '关于',
+    languageDescription: '选择应用程序界面的显示语言。',
+    zoomSection: '缩放',
+    labelsSection: '标签',
     zoom: {
       description: '配置使用鼠标滚轮时的缩放行为。',
       zoomToCursor: '光标缩放',
@@ -153,21 +200,6 @@ const locale: LocaleProps = {
       fixedPaste: '粘贴',
       fixedUndo: '撤销',
       fixedRedo: '重做'
-    },
-    pan: {
-      title: '平移设置',
-      mousePanOptions: '鼠标平移选项',
-      emptyAreaClickPan: '点击并拖拽空白区域',
-      middleClickPan: '中键点击并拖拽',
-      rightClickPan: '右键点击并拖拽',
-      ctrlClickPan: 'Ctrl + 点击并拖拽',
-      altClickPan: 'Alt + 点击并拖拽',
-      keyboardPanOptions: '键盘平移选项',
-      arrowKeys: '方向键',
-      wasdKeys: 'WASD 键',
-      ijklKeys: 'IJKL 键',
-      keyboardPanSpeed: '键盘平移速度',
-      note: '注意：平移选项可与专用的平移工具一起使用'
     },
     connector: {
       title: '连接器设置',
@@ -322,7 +354,11 @@ const locale: LocaleProps = {
     zoomIn: '放大',
     fitToScreen: '适应屏幕',
     keepLabelsReadable: '保持标签清晰可读',
-    help: '帮助 (F1)'
+    help: '帮助 (F1)',
+    selected: '已选择 {count} 项'
+  },
+  modeHints: {
+    connector: '在项目之间拖拽以连接 • 按 Esc 取消'
   },
   previewLayerSwitcher: {
     layers: '图层',
@@ -330,6 +366,10 @@ const locale: LocaleProps = {
     hideLayer: '隐藏图层',
     solo: '单独显示',
     unsolo: '退出单独显示'
+  },
+  previewLabelsToggle: {
+    hideLabels: '隐藏标签',
+    showLabels: '显示标签'
   },
   annotationPalette: {
     pen: '批注',
@@ -353,7 +393,9 @@ const locale: LocaleProps = {
   labelSettings: {
     description: '配置标签显示设置',
     expandButtonPadding: '展开按钮内边距',
-    expandButtonPaddingDesc: '展开按钮可见时的底部内边距（防止文字重叠）'
+    expandButtonPaddingDesc: '展开按钮可见时的底部内边距（防止文字重叠）',
+    // D13
+    currentValue: '当前：{value} 主题单位'
   },
   iconSelectionControls: {
     close: '关闭',
@@ -380,7 +422,10 @@ const locale: LocaleProps = {
     cropInstruction: '点击并拖动以选择要导出的区域',
     options: '选项',
     showGrid: '显示网格',
+    showLabels: '显示标签',
     expandDescriptions: '展开描述',
+    screenshotPreset: '屏幕截图（推荐）',
+    scaleClamped: '导出尺寸已缩小以适应浏览器图片限制：',
     cropToContent: '裁剪到内容',
     backgroundColor: '背景颜色',
     transparentBackground: '透明背景',
@@ -406,12 +451,77 @@ const locale: LocaleProps = {
     addItem: '添加项目',
     rectangle: '矩形',
     connector: '连接器',
-    text: '文本'
+    text: '文本',
+    common: '常用',
+    // D5
+    switchTo2D: '切换到 2D 视图',
+    switchToIsometric: '切换到等距视图',
+    clickMode: '点击',
+    dragMode: '拖动'
   },
   quickIconSelector: {
     recentlyUsed: '最近使用',
     searchResults: '搜索结果（{count} 个图标）',
     noIconsFound: '未找到匹配 "{term}" 的图标'
+  },
+  canvasContextMenu: {
+    details: '详情…',
+    rename: '重命名',
+    cut: '剪切',
+    copy: '复制',
+    paste: '粘贴',
+    duplicate: '创建副本',
+    bringForward: '上移一层',
+    sendBackward: '下移一层',
+    assignToLayer: '指定到图层',
+    snapToGrid: '对齐到网格',
+    unsnapFromGrid: '取消对齐网格',
+    disableCollision: '禁用碰撞',
+    enableCollision: '启用碰撞',
+    delete: '删除',
+    addItem: '添加项目',
+    selectAll: '全选',
+    enableSnapToGrid: '启用网格对齐',
+    disableSnapToGrid: '禁用网格对齐',
+    itemsSelectedOne: '已选择 {count} 个项目',
+    itemsSelectedOther: '已选择 {count} 个项目',
+    deleteItemsOne: '删除 {count} 个项目',
+    deleteItemsOther: '删除 {count} 个项目',
+    removeFromLayer: '从图层移除',
+    noLayers: '没有图层 — 在图层面板中添加一个'
+  },
+  // D4 — LeftDock
+  leftDock: {
+    fileExplorer: '文件资源管理器',
+    elements: '元素',
+    layers: '图层',
+    settings: '设置',
+    openDiagramFirst: '请先打开或创建一个图表'
+  },
+  // D8 — LayersPanel
+  layersPanel: {
+    header: '图层',
+    addLayer: '添加图层',
+    deleteSelectedLayer: '删除选定图层',
+    noLayersYet: '暂无图层。点击 + 添加一个。',
+    unassigned: '未分配 ({count})',
+    dropToUnassign: '将项目拖放到此处以取消分配',
+    layerN: '图层 {count}'
+  },
+  // D7 — clipboard toast strings; {count}/{percent} interpolated.
+  clipboard: {
+    copiedOne: '已复制 {count} 个项目',
+    copiedOther: '已复制 {count} 个项目',
+    cutOne: '已剪切 {count} 个项目',
+    cutOther: '已剪切 {count} 个项目',
+    pastedOne: '已粘贴 {count} 个项目',
+    pastedOther: '已粘贴 {count} 个项目',
+    nothingToPaste: '没有可粘贴的内容',
+    routingConnectors: '正在粘贴…正在布线连接线（{percent}%）'
+  },
+  // D13 — default page name; {count} interpolated.
+  page: {
+    pageName: '第 {count} 页'
   }
 };
 

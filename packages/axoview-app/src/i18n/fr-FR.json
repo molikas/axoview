@@ -12,8 +12,29 @@
         "diagrams": "Diagrammes",
         "share": "Partager"
     },
+    "exportMenu": {
+        "tooltip": "Exporter",
+        "json": "Exporter en JSON",
+        "image": "Exporter en image",
+        "projectZip": "Exporter le projet (.zip)",
+        "jsonExported": "{{filename}} exporté"
+    },
+    "emptyState": {
+        "newDiagram": "Nouveau diagramme",
+        "import": "Importer"
+    },
+    "fileExplorer": {
+        "title": "Diagrammes",
+        "import": "Importer",
+        "exportProject": "Exporter le projet",
+        "newDiagram": "Nouveau diagramme",
+        "newFolder": "Nouveau dossier",
+        "refresh": "Actualiser",
+        "collapseAll": "Tout réduire"
+    },
     "status": {
         "current": "Actuel",
+        "session": "Session",
         "untitled": "Diagramme sans titre",
         "modified": "Modifié",
         "sessionStorageNote": "Stockage de session uniquement - exportez pour enregistrer définitivement",
@@ -21,12 +42,17 @@
         "savedAt": "Enregistré à {{time}}",
         "savedYesterdayAt": "Enregistré hier à {{time}}",
         "savedOnDate": "Enregistré le {{day}} {{month}} à {{time}}",
-        "savedOnDateYear": "Enregistré le {{day}} {{month}} {{year}} à {{time}}"
+        "savedOnDateYear": "Enregistré le {{day}} {{month}} {{year}} à {{time}}",
+        "sessionBanner": "Votre travail n'existe que dans cet onglet du navigateur. Utilisez Exporter → Exporter le projet pour le conserver.",
+        "dismiss": "Ignorer"
+    },
+    "settings": {
+        "language": "Langue"
     },
     "toolbar": {
-        "previewSaveFirst": "Enregistrez d'abord pour prévisualiser",
-        "saveAndPreview": "Enregistrer et prévisualiser",
-        "preview": "Prévisualiser"
+        "presentSaveFirst": "Enregistrez d'abord pour présenter",
+        "saveAndPresent": "Enregistrer et présenter",
+        "present": "Présenter"
     },
     "share": {
         "title": "Partager le diagramme",

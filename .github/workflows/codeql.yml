@@ -7,6 +7,13 @@
 # merged them — the legacy `javascript` and `typescript` values still resolve
 # to the same set, but `javascript-typescript` is the canonical id).
 #
+# `actions` analyses the repo's GitHub Actions workflows for workflow-level
+# vulnerabilities and matches the code-scanning baseline that expects an
+# `actions` configuration — without it the required "CodeQL" PR check reports
+# "configuration not found". Python is intentionally NOT analysed: the repo has
+# 0 .py files, so the stale python baseline is cleared in repo settings (Code
+# security → Code scanning), never by adding a phantom python config here.
+#
 # Repo-level CodeQL must be enabled in GitHub repo settings
 # (Settings → Code security and analysis → CodeQL) for results to surface on
 # the Security tab — see T4 external-action checklist.
@@ -37,6 +44,8 @@ jobs:
       matrix:
         include:
           - language: javascript-typescript
+            build-mode: none
+          - language: actions
             build-mode: none
 
     steps:

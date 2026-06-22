@@ -50,16 +50,35 @@ interface Props {
    */
   onDelete?: () => void;
   deleteTooltip?: string;
+  /**
+   * C2 / Decision #7 — roving-tabindex (a11y). The grid (IconGrid) makes exactly
+   * ONE tile `tabIndex=0` and the rest `tabIndex=-1`; arrow keys move focus and
+   * the focused tile becomes the new 0. Defaults to -1 so a stray render outside
+   * a roving grid is still non-focusable. The keydown handler is owned by the
+   * grid (arrow nav) and this tile (Enter/Space → place via onActivate).
+   */
+  tabIndex?: number;
+  /** Enter/Space on the focused tile — places the icon at the viewport centre. */
+  onActivate?: () => void;
+  /** Arrow-key navigation handler, injected by the roving grid. */
+  onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
 }
 
-export const Icon = ({
-  icon,
-  onClick,
-  onMouseDown,
-  onDoubleClick,
-  onDelete,
-  deleteTooltip
-}: Props) => {
+// forwardRef so the roving grid can call `.focus()` on the tile it moves to.
+export const Icon = React.forwardRef<HTMLDivElement, Props>(function Icon(
+  {
+    icon,
+    onClick,
+    onMouseDown,
+    onDoubleClick,
+    onDelete,
+    deleteTooltip,
+    tabIndex = -1,
+    onActivate,
+    onKeyDown
+  },
+  ref
+) {
   const showDelete = !!onDelete && icon.collection === 'imported';
 
   return (
@@ -71,6 +90,7 @@ export const Icon = ({
       enterNextDelay={200}
     >
       <Box
+        ref={ref}
         onClick={onClick}
         onMouseDown={onMouseDown}
         // Touch: arm placement at pointerdown (onMouseDown only fires as a compat
@@ -89,6 +109,27 @@ export const Icon = ({
           onMouseDown?.();
         }}
         onDoubleClick={onDoubleClick}
+        // C2 / Decision #7 — keyboard a11y (UX §2 affordances, §3 keyboard).
+        // The tile is a real button to AT and to the keyboard: role+label expose
+        // it; Enter/Space place the icon at the viewport centre (keyboard has no
+        // cursor); arrow keys (onKeyDown, from the roving grid) move focus. The
+        // grid owns which tile is tabbable (roving tabIndex).
+        role="button"
+        aria-label={icon.name}
+        tabIndex={tabIndex}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+            // Prevent Space from scrolling the panel/page, and stop the key from
+            // bubbling to the window-level canvas handler (the tile is a <Box>,
+            // so isEditableTarget is false and the canvas would otherwise also
+            // react). Mirrors the UX §3.1 F2-rename stopPropagation rule.
+            e.preventDefault();
+            e.stopPropagation();
+            onActivate?.();
+            return;
+          }
+          onKeyDown?.(e);
+        }}
         data-axoview-id="canvas-icon-grid-item"
         sx={{
           position: 'relative',
@@ -104,6 +145,15 @@ export const Icon = ({
           // scroll — that fires pointercancel and aborts the drag-to-place.
           touchAction: 'none',
           '&:hover': { bgcolor: 'action.hover' },
+          // C1 sibling: the theme-wide :focus-visible ring is on MuiButtonBase,
+          // but this tile is a plain <Box>, so it needs its own keyboard focus
+          // outline. F-12 (a11y): primary.dark (not .main) so the ring clears
+          // WCAG 3:1 against the light Elements panel, 3px for perceptibility;
+          // outlineOffset keeps a gap so it reads against both tile and panel.
+          '&:focus-visible': {
+            outline: (theme) => `3px solid ${theme.palette.primary.dark}`,
+            outlineOffset: '2px'
+          },
           '&:hover .ff-icon-delete, &:focus-within .ff-icon-delete': {
             opacity: 1
           }
@@ -162,4 +212,4 @@ export const Icon = ({
       </Box>
     </Tooltip>
   );
-};
+});

@@ -10,6 +10,7 @@ import {
   sortByPosition,
   getGridSubset,
   isWithinBounds,
+  doBoundsOverlap,
   getBoundingBox,
   getBoundingBoxSize,
   getIsoMatrix,
@@ -120,6 +121,43 @@ describe('isWithinBounds', () => {
   it('returns false for tile outside bounds', () => {
     expect(isWithinBounds({ x: 5, y: 5 }, bounds)).toBe(false);
     expect(isWithinBounds({ x: -1, y: 2 }, bounds)).toBe(false);
+  });
+});
+
+describe('doBoundsOverlap', () => {
+  // Marquee fixed at (0,0)-(10,10); vary the other rect.
+  const m1 = { x: 0, y: 0 };
+  const m2 = { x: 10, y: 10 };
+
+  it('true when a long rect is crossed through its MIDDLE (the #16 fix)', () => {
+    // Horizontal bar (-20..20) on row y=5: not enclosed by the marquee, but
+    // its middle overlaps — old all-corners rule missed this.
+    expect(
+      doBoundsOverlap({ x: -20, y: 5 }, { x: 20, y: 5 }, m1, m2)
+    ).toBe(true);
+  });
+
+  it('true when fully enclosed', () => {
+    expect(doBoundsOverlap({ x: 2, y: 2 }, { x: 4, y: 4 }, m1, m2)).toBe(true);
+  });
+
+  it('true on edge contact (touching counts as overlap)', () => {
+    expect(doBoundsOverlap({ x: 10, y: 5 }, { x: 15, y: 5 }, m1, m2)).toBe(true);
+  });
+
+  it('false when fully separated on either axis', () => {
+    expect(doBoundsOverlap({ x: 11, y: 0 }, { x: 20, y: 10 }, m1, m2)).toBe(
+      false
+    );
+    expect(doBoundsOverlap({ x: 0, y: 11 }, { x: 10, y: 20 }, m1, m2)).toBe(
+      false
+    );
+  });
+
+  it('is order-independent for each corner pair (negative-axis corners ok)', () => {
+    // Mirrors a textbox whose far corner is up-left of its origin (orientation Y).
+    expect(doBoundsOverlap({ x: 5, y: 5 }, { x: 3, y: -2 }, m1, m2)).toBe(true);
+    expect(doBoundsOverlap(m2, m1, { x: 4, y: 4 }, { x: 2, y: 2 })).toBe(true);
   });
 });
 

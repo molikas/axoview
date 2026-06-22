@@ -22,7 +22,8 @@ parts/
 prime/
 stage/
 overlay/
-.claude
+.claude/*
+!.claude/commands/
 diagrams/
 # Static analysis reports
 reports/

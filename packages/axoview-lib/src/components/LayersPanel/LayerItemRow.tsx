@@ -37,27 +37,29 @@ interface Props {
   item: LayerItem;
   isSelected: boolean;
   onClick: (item: LayerItem, modifiers: { shift: boolean; ctrl: boolean }) => void;
+  /** Double-click → open the item's details panel (ADR 0022 §3 / 0006 addendum). */
+  onOpen?: (item: LayerItem) => void;
   onRename?: (item: LayerItem, newName: string) => void;
   onDragStart?: (item: LayerItem) => void;
   onToggleLabel?: (item: LayerItem) => void;
 }
 
 export const LayerItemRow = memo(
-  ({ item, isSelected, onClick, onRename, onDragStart, onToggleLabel }: Props) => {
+  ({ item, isSelected, onClick, onOpen, onRename, onDragStart, onToggleLabel }: Props) => {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
     const rowRef = useRef<HTMLDivElement>(null);
 
-    const startEditFromDblClick = useCallback(
+    // Double-click opens the details panel, mirroring the canvas open/select
+    // split (ADR 0022 §3). Rename is F2 (handleRowKeyDown), universal per UX
+    // §3.1 — no longer double-click, so the two gestures don't collide.
+    const handleDoubleClick = useCallback(
       (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!onRename || !RENAMEABLE.has(item.type)) return;
-        setDraft(item.name);
-        setEditing(true);
-        setTimeout(() => inputRef.current?.select(), 0);
+        if (!editing) onOpen?.(item);
       },
-      [item.name, item.type, onRename]
+      [editing, onOpen, item]
     );
 
     const commitEdit = useCallback(() => {
@@ -103,7 +105,7 @@ export const LayerItemRow = memo(
             rowRef.current?.focus();
           }
         }}
-        onDoubleClick={startEditFromDblClick}
+        onDoubleClick={handleDoubleClick}
         onKeyDown={handleRowKeyDown}
         onMouseDown={(e) => {
           if (!editing) {

@@ -18,5 +18,10 @@ export const textBoxSchema = z.object({
       z.literal(ProjectionOrientationEnum.Y)
     ])
     .optional(),
-  layerId: id.optional()
+  layerId: id.optional(),
+  // Off-grid positioning (ADR 0023) — optional/absent = snapped. See
+  // viewItemSchema for the field semantics; `tile` stays an integer tile.
+  offset: coords.optional(),
+  snap: z.boolean().optional(),
+  collides: z.boolean().optional()
 });

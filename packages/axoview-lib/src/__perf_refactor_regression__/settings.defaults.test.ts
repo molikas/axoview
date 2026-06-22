@@ -6,84 +6,33 @@
  * that should be intentional and visible in a test failure.
  */
 
-import { DEFAULT_HOTKEY_PROFILE, HOTKEY_PROFILES } from 'src/config/hotkeys';
-import { DEFAULT_PAN_SETTINGS } from 'src/config/panSettings';
+import { TOOL_HOTKEYS } from 'src/config/hotkeys';
 import { DEFAULT_ZOOM_SETTINGS } from 'src/config/zoomSettings';
 
 // ---------------------------------------------------------------------------
-// Hotkey defaults
+// Tool hotkeys — one fixed read-only scheme (ADR 0022 §6). The qwerty/smnrct/
+// none profiles + the selector were removed; these guard the locked keys.
 // ---------------------------------------------------------------------------
-describe('Hotkey defaults', () => {
-  it('DEFAULT_HOTKEY_PROFILE is smnrct', () => {
-    expect(DEFAULT_HOTKEY_PROFILE).toBe('smnrct');
+describe('Tool hotkeys (fixed scheme)', () => {
+  it('binds the locked keys S/M/N/R/C/T/L/F', () => {
+    expect(TOOL_HOTKEYS.select).toBe('s');
+    expect(TOOL_HOTKEYS.pan).toBe('m');
+    expect(TOOL_HOTKEYS.addItem).toBe('n');
+    expect(TOOL_HOTKEYS.rectangle).toBe('r');
+    expect(TOOL_HOTKEYS.connector).toBe('c');
+    expect(TOOL_HOTKEYS.text).toBe('t');
+    expect(TOOL_HOTKEYS.lasso).toBe('l');
+    expect(TOOL_HOTKEYS.freehandLasso).toBe('f');
   });
 
-  it('smnrct profile has correct key assignments', () => {
-    expect(HOTKEY_PROFILES.smnrct.select).toBe('s');
-    expect(HOTKEY_PROFILES.smnrct.pan).toBe('m');
-    expect(HOTKEY_PROFILES.smnrct.addItem).toBe('n');
-    expect(HOTKEY_PROFILES.smnrct.rectangle).toBe('r');
-    expect(HOTKEY_PROFILES.smnrct.connector).toBe('c');
-    expect(HOTKEY_PROFILES.smnrct.text).toBe('t');
-    expect(HOTKEY_PROFILES.smnrct.lasso).toBe('l');
-    expect(HOTKEY_PROFILES.smnrct.freehandLasso).toBe('f');
-  });
-
-  it('none profile has all null keys', () => {
-    const noneKeys = Object.values(HOTKEY_PROFILES.none);
-    expect(noneKeys.every((k) => k === null)).toBe(true);
-  });
-
-  it('all three profiles are defined (qwerty, smnrct, none)', () => {
-    expect(HOTKEY_PROFILES.qwerty).toBeDefined();
-    expect(HOTKEY_PROFILES.smnrct).toBeDefined();
-    expect(HOTKEY_PROFILES.none).toBeDefined();
-  });
-
-  it('qwerty and smnrct have no null keys', () => {
-    const qwertyKeys = Object.values(HOTKEY_PROFILES.qwerty);
-    const smnrctKeys = Object.values(HOTKEY_PROFILES.smnrct);
-    expect(qwertyKeys.every((k) => k !== null)).toBe(true);
-    expect(smnrctKeys.every((k) => k !== null)).toBe(true);
+  it('has no unbound (null) keys', () => {
+    expect(Object.values(TOOL_HOTKEYS).every((k) => k !== null)).toBe(true);
   });
 });
 
-// ---------------------------------------------------------------------------
-// Pan settings defaults
-// ---------------------------------------------------------------------------
-describe('Pan settings defaults', () => {
-  it('middleClickPan is true by default', () => {
-    expect(DEFAULT_PAN_SETTINGS.middleClickPan).toBe(true);
-  });
-
-  it('rightClickPan is true by default', () => {
-    expect(DEFAULT_PAN_SETTINGS.rightClickPan).toBe(true);
-  });
-
-  it('ctrlClickPan is false by default', () => {
-    expect(DEFAULT_PAN_SETTINGS.ctrlClickPan).toBe(false);
-  });
-
-  it('altClickPan is false by default', () => {
-    expect(DEFAULT_PAN_SETTINGS.altClickPan).toBe(false);
-  });
-
-  it('emptyAreaClickPan is false by default', () => {
-    expect(DEFAULT_PAN_SETTINGS.emptyAreaClickPan).toBe(false);
-  });
-
-  it('arrowKeysPan is true by default', () => {
-    expect(DEFAULT_PAN_SETTINGS.arrowKeysPan).toBe(true);
-  });
-
-  it('wasdPan is false by default', () => {
-    expect(DEFAULT_PAN_SETTINGS.wasdPan).toBe(false);
-  });
-
-  it('keyboardPanSpeed is 20 by default', () => {
-    expect(DEFAULT_PAN_SETTINGS.keyboardPanSpeed).toBe(20);
-  });
-});
+// Pan customization was removed (ADR 0022 §6): pan is a fixed model
+// (middle/right-drag + arrow keys, always on), so there are no DEFAULT_PAN_SETTINGS
+// to guard anymore.
 
 // ---------------------------------------------------------------------------
 // Zoom settings defaults

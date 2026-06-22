@@ -74,6 +74,55 @@ export const TransformRectangle: ModeActions = {
             to: nextNamedBounds.BOTTOM_RIGHT
           }
         ]);
+      } else if (
+        uiState.mode.selectedAnchor === 'TOP' ||
+        uiState.mode.selectedAnchor === 'BOTTOM' ||
+        uiState.mode.selectedAnchor === 'LEFT' ||
+        uiState.mode.selectedAnchor === 'RIGHT'
+      ) {
+        // Edge-midpoint drag (ADR 0026): resize ONE axis, opposite edge
+        // fixed. The two defining corners are the fixed corner plus a new
+        // corner that takes the moving coordinate from the mouse and keeps
+        // the perpendicular range from the current bounds.
+        const mouseTile = uiState.mouse.position.tile;
+        let pair: [typeof namedBounds.TOP_LEFT, typeof namedBounds.TOP_LEFT];
+
+        if (uiState.mode.selectedAnchor === 'TOP') {
+          // Move the high-Y edge (TOP); keep the BOTTOM (low-Y) edge fixed.
+          pair = [
+            namedBounds.BOTTOM_LEFT,
+            { x: namedBounds.TOP_RIGHT.x, y: mouseTile.y }
+          ];
+        } else if (uiState.mode.selectedAnchor === 'BOTTOM') {
+          // Move the low-Y edge (BOTTOM); keep the TOP (high-Y) edge fixed.
+          pair = [
+            namedBounds.TOP_LEFT,
+            { x: namedBounds.BOTTOM_RIGHT.x, y: mouseTile.y }
+          ];
+        } else if (uiState.mode.selectedAnchor === 'LEFT') {
+          // Move the low-X edge (LEFT); keep the RIGHT (high-X) edge fixed.
+          pair = [
+            namedBounds.TOP_RIGHT,
+            { x: mouseTile.x, y: namedBounds.BOTTOM_LEFT.y }
+          ];
+        } else {
+          // RIGHT — move the high-X edge; keep the LEFT (low-X) edge fixed.
+          pair = [
+            namedBounds.TOP_LEFT,
+            { x: mouseTile.x, y: namedBounds.BOTTOM_RIGHT.y }
+          ];
+        }
+
+        const nextBounds = getBoundingBox(pair);
+        const nextNamedBounds = convertBoundsToNamedAnchors(nextBounds);
+
+        scene.batchUpdateRectangles([
+          {
+            id: uiState.mode.id,
+            from: nextNamedBounds.TOP_LEFT,
+            to: nextNamedBounds.BOTTOM_RIGHT
+          }
+        ]);
       }
     }
   },

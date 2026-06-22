@@ -50,9 +50,6 @@ export interface LocaleProps {
     deselectAction: string;
     deselectShortcut: string;
     deselectDescription: string;
-    addNodeGroupAction: string;
-    addNodeGroupShortcut: string;
-    addNodeGroupDescription: string;
     deleteSelectedAction: string;
     deleteSelectedShortcut: string;
     deleteSelectedDescription: string;
@@ -81,6 +78,50 @@ export interface LocaleProps {
     copyDescription: string;
     pasteAction: string;
     pasteDescription: string;
+    // D10 — "Select all" keyboard-shortcut row (was hardcoded English).
+    selectAllAction: string;
+    selectAllShortcut: string;
+    selectAllDescription: string;
+    // D10 — undocumented tool-activation keys (ADR 0022 §6 locked defaults):
+    // F2 rename · N add item/Elements · C connector · L lasso · S select.
+    keyRenameAction: string;
+    keyRenameShortcut: string;
+    keyRenameDescription: string;
+    keyAddItemAction: string;
+    keyAddItemShortcut: string;
+    keyAddItemDescription: string;
+    keyConnectorAction: string;
+    keyConnectorShortcut: string;
+    keyConnectorDescription: string;
+    keyLassoAction: string;
+    keyLassoShortcut: string;
+    keyLassoDescription: string;
+    keySelectAction: string;
+    keySelectShortcut: string;
+    keySelectDescription: string;
+    // D10 — mouse-interactions block (was a hardcoded array). One pointer model
+    // per ADR 0022. `*Method` is the shortcut/gesture shown in the Method column.
+    miSelectAction: string;
+    miSelectMethod: string;
+    miSelectDescription: string;
+    miOpenDetailsAction: string;
+    miOpenDetailsMethod: string;
+    miOpenDetailsDescription: string;
+    miToggleSelectionAction: string;
+    miToggleSelectionMethod: string;
+    miToggleSelectionDescription: string;
+    miPanAction: string;
+    miPanMethod: string;
+    miPanDescription: string;
+    miContextMenuAction: string;
+    miContextMenuMethod: string;
+    miContextMenuDescription: string;
+    miRemoveWaypointAction: string;
+    miRemoveWaypointMethod: string;
+    miRemoveWaypointDescription: string;
+    miZoomAction: string;
+    miZoomMethod: string;
+    miZoomDescription: string;
   };
   connectorHintTooltip: {
     tipCreatingConnectors: string;
@@ -131,6 +172,16 @@ export interface LocaleProps {
     instruction: string;
   };
   settings: {
+    // D3 — SettingsDialog chrome: dialog title, Close, the Canvas/Language/About
+    // tab labels, the language-tab description and the Zoom/Labels section titles.
+    title: string;
+    close: string;
+    canvas: string;
+    language: string;
+    about: string;
+    languageDescription: string;
+    zoomSection: string;
+    labelsSection: string;
     zoom: {
       description: string;
       zoomToCursor: string;
@@ -157,21 +208,6 @@ export interface LocaleProps {
       fixedPaste: string;
       fixedUndo: string;
       fixedRedo: string;
-    };
-    pan: {
-      title: string;
-      mousePanOptions: string;
-      emptyAreaClickPan: string;
-      middleClickPan: string;
-      rightClickPan: string;
-      ctrlClickPan: string;
-      altClickPan: string;
-      keyboardPanOptions: string;
-      arrowKeys: string;
-      wasdKeys: string;
-      ijklKeys: string;
-      keyboardPanSpeed: string;
-      note: string;
     };
     connector: {
       title: string;
@@ -326,6 +362,10 @@ export interface LocaleProps {
     fitToScreen: string;
     keepLabelsReadable: string;
     help: string;
+    selected: string;
+  };
+  modeHints: {
+    connector: string;
   };
   previewLayerSwitcher: {
     layers: string;
@@ -333,6 +373,10 @@ export interface LocaleProps {
     hideLayer: string;
     solo: string;
     unsolo: string;
+  };
+  previewLabelsToggle: {
+    hideLabels: string;
+    showLabels: string;
   };
   viewModeInfoPopover: {
     close: string;
@@ -357,6 +401,8 @@ export interface LocaleProps {
     description: string;
     expandButtonPadding: string;
     expandButtonPaddingDesc: string;
+    // D13 — "Current: {value} theme units" caption (was hardcoded English).
+    currentValue: string;
   };
   iconSelectionControls: {
     close: string;
@@ -381,7 +427,10 @@ export interface LocaleProps {
     cropInstruction: string;
     options: string;
     showGrid: string;
+    showLabels: string;
     expandDescriptions: string;
+    screenshotPreset: string;
+    scaleClamped: string;
     cropToContent: string;
     backgroundColor: string;
     transparentBackground: string;
@@ -408,6 +457,14 @@ export interface LocaleProps {
     rectangle: string;
     connector: string;
     text: string;
+    // D9 — region header for the LeftDock "Common" elements group. The
+    // rectangle/text/connector labels reuse the keys above.
+    common: string;
+    // D5 — canvas-mode toggle tooltips + the connector-mode chip (Click/Drag).
+    switchTo2D: string;
+    switchToIsometric: string;
+    clickMode: string;
+    dragMode: string;
   };
   quickIconSelector: {
     /** @deprecated removed in 2026-05 shake-out; kept optional for non-English locales pending cleanup */
@@ -419,6 +476,77 @@ export interface LocaleProps {
     helpSearch?: string;
     /** @deprecated removed in 2026-05 shake-out; kept optional for non-English locales pending cleanup */
     helpBrowse?: string;
+  };
+  // D1 — CanvasContextMenu (ADR 0027). Item / multi / canvas variants + the
+  // layer-assign flyout. Count rows pluralise via separate one/other keys with
+  // a `{count}` placeholder (interpolated at the component with .replace), never
+  // by appending an 's'.
+  canvasContextMenu: {
+    details: string;
+    rename: string;
+    cut: string;
+    copy: string;
+    paste: string;
+    duplicate: string;
+    bringForward: string;
+    sendBackward: string;
+    assignToLayer: string;
+    snapToGrid: string;
+    unsnapFromGrid: string;
+    disableCollision: string;
+    enableCollision: string;
+    delete: string;
+    addItem: string;
+    selectAll: string;
+    enableSnapToGrid: string;
+    disableSnapToGrid: string;
+    // Multi-selection count row + bulk delete (singular / plural, {count}).
+    itemsSelectedOne: string;
+    itemsSelectedOther: string;
+    deleteItemsOne: string;
+    deleteItemsOther: string;
+    // Layer-assign flyout.
+    removeFromLayer: string;
+    noLayers: string;
+  };
+  // D4 — LeftDock icon-strip tooltips + the disabled-state hint suffix shown
+  // when no diagram is loaded ("<tab> — open or create a diagram first").
+  leftDock: {
+    fileExplorer: string;
+    elements: string;
+    layers: string;
+    settings: string;
+    openDiagramFirst: string;
+  };
+  // D8 — LayersPanel chrome: header, add/delete tooltips, empty-state, the
+  // Unassigned group header (with a {count} placeholder) + its drop hint, and
+  // the default "Layer {count}" name (interpolated, never concatenated).
+  layersPanel: {
+    header: string;
+    addLayer: string;
+    deleteSelectedLayer: string;
+    noLayersYet: string;
+    unassigned: string;
+    dropToUnassign: string;
+    layerN: string;
+  };
+  // D7 — useCopyPaste toast strings. Counts pluralise via separate one/other
+  // keys with a `{count}` placeholder (interpolated at the hook with .replace),
+  // never by appending an 's'. The routing toast interpolates `{percent}`.
+  clipboard: {
+    copiedOne: string;
+    copiedOther: string;
+    cutOne: string;
+    cutOther: string;
+    pastedOne: string;
+    pastedOther: string;
+    nothingToPaste: string;
+    routingConnectors: string;
+  };
+  // D13 — default page name. Interpolated via `{count}` (never concatenated)
+  // and applied at creation time in useSceneActions (mirrors layersPanel.layerN).
+  page: {
+    pageName: string;
   };
   // other namespaces can be added here
 }

@@ -6,7 +6,8 @@ import {
   CoordsUtils,
   getAnchorParent,
   getItemAtTile,
-  setWindowCursor
+  setWindowCursor,
+  itemCollides
 } from 'src/utils';
 import { UNPROJECTED_TILE_SIZE, PROJECTED_TILE_SIZE } from 'src/config';
 
@@ -49,6 +50,21 @@ const previewAnchorTiles = new Map<string, Coords>();
 // the drag shows a CSS translate3d; committed to the model once on mouseup.
 const previewRectangles = new Map<string, { from: Coords; to: Coords }>();
 const previewTextBoxes = new Map<string, Coords>();
+// Off-grid residual (ADR 0023) accumulated per dragged item alongside the tile
+// preview. `undefined` = snapped (offset cleared on commit). Kept in lockstep
+// with the tile maps above and committed together on mouseup.
+const previewNodeOffsets = new Map<string, Coords | undefined>();
+const previewRectOffsets = new Map<string, Coords | undefined>();
+const previewTextBoxOffsets = new Map<string, Coords | undefined>();
+
+// An item is off-grid (commits a px residual instead of snapping) when the
+// global toggle is off OR the item itself is unsnapped (ADR 0023). Mirrors the
+// snapped test in resolvePlacement; kept inline so the drag hot path has no
+// extra import indirection.
+const isOffGrid = (
+  snap: boolean | undefined,
+  globalSnap: boolean
+): boolean => !((snap ?? true) && globalSnap);
 
 // D4-4: external (non-dragged) item occupancy is invariant during a drag — the
 // dragged items move via CSS only, the model isn't written — so it's snapshotted
@@ -59,11 +75,14 @@ let externalOccupiedCache: Set<string> | null = null;
 
 function buildExternalOccupied(
   draggedItemIds: Set<string>,
-  items: { id: string; tile: Coords }[]
+  items: { id: string; tile: Coords; snap?: boolean; collides?: boolean }[]
 ): Set<string> {
   const occupied = new Set<string>();
+  // Non-colliding items (ADR 0023) are not drag obstacles.
   for (const si of items) {
-    if (!draggedItemIds.has(si.id)) occupied.add(`${si.tile.x},${si.tile.y}`);
+    if (!draggedItemIds.has(si.id) && itemCollides(si)) {
+      occupied.add(`${si.tile.x},${si.tile.y}`);
+    }
   }
   return occupied;
 }
@@ -121,12 +140,21 @@ function computeNodeUpdates(
   if (itemRefs.length === 0) return null;
 
   const draggedIdSet = new Set(itemRefs.map((i) => i.id));
-  const targets = itemRefs.map((item) => ({
-    id: item.id,
-    targetTile: initialTiles[item.id]
-      ? CoordsUtils.add(initialTiles[item.id], mouseOffset)
-      : getItemByIdOrThrow(scene.items, item.id).value.tile
-  }));
+  const targets = itemRefs.map((item) => {
+    // Non-throwing lookup for the collision flag (default: collides). The tile
+    // still comes from initialTiles when present (preserving the original throw
+    // only for the genuinely-missing else branch).
+    const found = scene.items.find((it) => it.id === item.id);
+    return {
+      id: item.id,
+      targetTile: initialTiles[item.id]
+        ? CoordsUtils.add(initialTiles[item.id], mouseOffset)
+        : getItemByIdOrThrow(scene.items, item.id).value.tile,
+      // A non-colliding mover (ADR 0023) is never blocked and never blocks its
+      // dragged siblings.
+      collides: found ? itemCollides(found) : true
+    };
+  });
 
   // Built once at drag entry (D4-4); fall back to building it if absent (e.g. a
   // direct call outside an open drag).
@@ -135,6 +163,7 @@ function computeNodeUpdates(
 
   const targetKeys = new Set<string>();
   for (const t of targets) {
+    if (!t.collides) continue;
     const key = `${t.targetTile.x},${t.targetTile.y}`;
     if (occupied.has(key) || targetKeys.has(key)) return null;
     targetKeys.add(key);
@@ -144,10 +173,20 @@ function computeNodeUpdates(
 }
 
 // Apply CSS preview for nodes (no model write, no React, no immer).
+//
+// Snapped nodes step by whole tiles (the projected integer-tile delta — today's
+// behaviour). Off-grid nodes (ADR 0023) follow the pointer pixel-for-pixel: the
+// CSS preview is the precise unprojected-px cursor delta, and the committed
+// `offset` is the item's current offset plus the SUB-TILE residual (the part of
+// the precise delta beyond the whole-tile step). Tile + offset therefore stay in
+// lockstep so the on-drop commit matches the preview exactly (no jump).
 function applyNodePreview(
   nodeUpdates: NodeUpdate[] | null,
   initialTiles: Record<string, Coords>,
-  canvasMode: 'ISOMETRIC' | '2D'
+  preciseDelta: Coords,
+  scene: ReturnType<typeof useScene>,
+  canvasMode: 'ISOMETRIC' | '2D',
+  globalSnap: boolean
 ) {
   if (!nodeUpdates) return;
   for (const u of nodeUpdates) {
@@ -155,9 +194,25 @@ function applyNodePreview(
     if (!initial) continue;
     const dx = u.tile.x - initial.x;
     const dy = u.tile.y - initial.y;
-    const pixels = tileDeltaToPixels(dx, dy, canvasMode);
-    applyCssOffset(u.id, pixels.x, pixels.y);
+    const tilePx = tileDeltaToPixels(dx, dy, canvasMode);
+    const viewItem = scene.items.find((it) => it.id === u.id);
     previewTiles.set(u.id, u.tile);
+
+    const current = viewItem?.offset ?? CoordsUtils.zero();
+    if (viewItem && isOffGrid(viewItem.snap, globalSnap)) {
+      applyCssOffset(u.id, preciseDelta.x, preciseDelta.y);
+      previewNodeOffsets.set(u.id, {
+        x: current.x + (preciseDelta.x - tilePx.x),
+        y: current.y + (preciseDelta.y - tilePx.y)
+      });
+    } else {
+      // Snapped: the commit clears the offset, and the renderer always applies
+      // the (still-stale) model offset during the preview — so subtract it here
+      // (current) to keep the preview pixel-identical to the post-commit render
+      // (base + tilePx) and avoid a one-frame jump on release.
+      applyCssOffset(u.id, tilePx.x - current.x, tilePx.y - current.y);
+      previewNodeOffsets.set(u.id, undefined);
+    }
   }
 }
 
@@ -230,10 +285,12 @@ const dragItems = (
   items: ItemReference[],
   tile: Coords,
   mouseOffset: Coords,
+  preciseDelta: Coords,
   initialTiles: Record<string, Coords>,
   initialRectangles: Record<string, { from: Coords; to: Coords }>,
   scene: ReturnType<typeof useScene>,
-  canvasMode: 'ISOMETRIC' | '2D'
+  canvasMode: 'ISOMETRIC' | '2D',
+  globalSnap: boolean
 ) => {
   const itemRefs = items.filter((item) => item.type === 'ITEM');
   const textBoxRefs = items.filter((item) => item.type === 'TEXTBOX');
@@ -247,7 +304,14 @@ const dragItems = (
     scene,
     externalOccupiedCache
   );
-  applyNodePreview(nodeUpdates, initialTiles, canvasMode);
+  applyNodePreview(
+    nodeUpdates,
+    initialTiles,
+    preciseDelta,
+    scene,
+    canvasMode,
+    globalSnap
+  );
 
   const anchorReconnects = accumulateAnchorPreview(
     anchorRefs,
@@ -271,20 +335,50 @@ const dragItems = (
   // happen — entry records them) are skipped, mirroring the node preview.
   if (rectangleRefs.length > 0 || textBoxRefs.length > 0) {
     const pixels = tileDeltaToPixels(mouseOffset.x, mouseOffset.y, canvasMode);
+    // Sub-tile residual shared by every off-grid item this frame (the part of
+    // the precise cursor delta beyond the whole-tile step).
+    const residual = { x: preciseDelta.x - pixels.x, y: preciseDelta.y - pixels.y };
     for (const item of rectangleRefs) {
       const init = initialRectangles[item.id];
       if (!init) continue;
-      applyCssOffset(item.id, pixels.x, pixels.y);
+      const rect = scene.rectangles.find((r) => r.id === item.id);
+      const offGrid = !!rect && isOffGrid(rect.snap, globalSnap);
+      const rectOffset = rect?.offset ?? CoordsUtils.zero();
+      // Off-grid: follow the pointer (preciseDelta). Snapped: the wrapper still
+      // renders the stale model offset during the preview, so subtract it so the
+      // preview matches the post-commit (offset-cleared) position.
+      const css = offGrid
+        ? preciseDelta
+        : { x: pixels.x - rectOffset.x, y: pixels.y - rectOffset.y };
+      applyCssOffset(item.id, css.x, css.y);
       previewRectangles.set(item.id, {
         from: CoordsUtils.add(init.from, mouseOffset),
         to: CoordsUtils.add(init.to, mouseOffset)
       });
+      previewRectOffsets.set(
+        item.id,
+        offGrid
+          ? CoordsUtils.add(rect!.offset ?? CoordsUtils.zero(), residual)
+          : undefined
+      );
     }
     for (const item of textBoxRefs) {
       const init = initialTiles[item.id];
       if (!init) continue;
-      applyCssOffset(item.id, pixels.x, pixels.y);
+      const textBox = scene.textBoxes.find((t) => t.id === item.id);
+      const offGrid = !!textBox && isOffGrid(textBox.snap, globalSnap);
+      const tbOffset = textBox?.offset ?? CoordsUtils.zero();
+      const css = offGrid
+        ? preciseDelta
+        : { x: pixels.x - tbOffset.x, y: pixels.y - tbOffset.y };
+      applyCssOffset(item.id, css.x, css.y);
       previewTextBoxes.set(item.id, CoordsUtils.add(init, mouseOffset));
+      previewTextBoxOffsets.set(
+        item.id,
+        offGrid
+          ? CoordsUtils.add(textBox!.offset ?? CoordsUtils.zero(), residual)
+          : undefined
+      );
     }
   }
 
@@ -301,6 +395,9 @@ export const DragItems: ModeActions = {
     previewAnchorTiles.clear();
     previewRectangles.clear();
     previewTextBoxes.clear();
+    previewNodeOffsets.clear();
+    previewRectOffsets.clear();
+    previewTextBoxOffsets.clear();
     // D4-4: snapshot external (non-dragged) item occupancy once for the whole
     // drag — it's invariant, so the per-frame collision check reads this instead
     // of rebuilding an O(N) Set each frame.
@@ -325,6 +422,9 @@ export const DragItems: ModeActions = {
     previewAnchorTiles.clear();
     previewRectangles.clear();
     previewTextBoxes.clear();
+    previewNodeOffsets.clear();
+    previewRectOffsets.clear();
+    previewTextBoxOffsets.clear();
     externalOccupiedCache = null;
     scene.commitDragTransaction();
   },
@@ -335,6 +435,22 @@ export const DragItems: ModeActions = {
       uiState.mouse.position.tile,
       uiState.mouse.mousedown.tile
     );
+
+    // Precise (sub-tile) pointer delta in unprojected px — screen delta divided
+    // by zoom (the SceneLayer applies scale(zoom) outside the drag translate).
+    // Drives off-grid previews; snapped items ignore it (ADR 0023). Falls back to
+    // the whole-tile projected delta when screen coords are absent (real getMouse
+    // always sets them; this only guards partial test mocks).
+    const zoom = uiState.zoom || 1;
+    const downScreen = uiState.mouse.mousedown.screen;
+    const posScreen = uiState.mouse.position.screen;
+    const preciseDelta =
+      downScreen && posScreen
+        ? {
+            x: (posScreen.x - downScreen.x) / zoom,
+            y: (posScreen.y - downScreen.y) / zoom
+          }
+        : tileDeltaToPixels(mouseOffset.x, mouseOffset.y, uiState.canvasMode);
 
     const hasDraggedNode = uiState.mode.items.some((i) => i.type === 'ITEM');
     const draggedIds = new Set(uiState.mode.items.map((i) => i.id));
@@ -356,10 +472,12 @@ export const DragItems: ModeActions = {
       uiState.mode.items,
       uiState.mouse.position.tile,
       mouseOffset,
+      preciseDelta,
       uiState.mode.initialTiles,
       uiState.mode.initialRectangles,
       scene,
-      uiState.canvasMode
+      uiState.canvasMode,
+      uiState.snapToGrid ?? true
     );
   },
   mouseup: ({ uiState, scene }) => {
@@ -370,7 +488,11 @@ export const DragItems: ModeActions = {
     // reads their keys to find the [data-drag-id] elements).
     if (previewTiles.size > 0) {
       scene.batchUpdateViewItemTiles(
-        Array.from(previewTiles, ([id, tile]) => ({ id, tile }))
+        Array.from(previewTiles, ([id, tile]) => ({
+          id,
+          tile,
+          offset: previewNodeOffsets.get(id)
+        }))
       );
     }
     if (previewRectangles.size > 0) {
@@ -378,19 +500,27 @@ export const DragItems: ModeActions = {
         Array.from(previewRectangles, ([id, r]) => ({
           id,
           from: r.from,
-          to: r.to
+          to: r.to,
+          offset: previewRectOffsets.get(id)
         }))
       );
     }
     if (previewTextBoxes.size > 0) {
       scene.batchUpdateTextBoxTiles(
-        Array.from(previewTextBoxes, ([id, tile]) => ({ id, tile }))
+        Array.from(previewTextBoxes, ([id, tile]) => ({
+          id,
+          tile,
+          offset: previewTextBoxOffsets.get(id)
+        }))
       );
     }
     clearAllCssOffsets();
     previewTiles.clear();
     previewRectangles.clear();
     previewTextBoxes.clear();
+    previewNodeOffsets.clear();
+    previewRectOffsets.clear();
+    previewTextBoxOffsets.clear();
     externalOccupiedCache = null;
 
     // Commit waypoint anchor preview tiles. Group by parent connector so we

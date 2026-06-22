@@ -46,10 +46,6 @@ const locale: LocaleProps = {
     deselectShortcut: 'Left-click (empty area)',
     deselectDescription:
       'Deselect the current selection and return to select mode',
-    addNodeGroupAction: 'Add Node / Rectangle',
-    addNodeGroupShortcut: 'Double-click (empty area)',
-    addNodeGroupDescription:
-      'Opens the Add popover at the cursor: pick an icon to place a node, or click Rectangle to add a background area for visually grouping nodes',
     // Mouse interactions
     selectToolAction: 'Select Tool',
     selectToolShortcut: 'Click Select button',
@@ -81,7 +77,56 @@ const locale: LocaleProps = {
     copyDescription: 'Copy selected item(s) to clipboard',
     pasteAction: 'Paste',
     pasteDescription:
-      'Paste clipboard items at mouse position; offsets to avoid overlap'
+      'Paste clipboard items at mouse position; offsets to avoid overlap',
+    // D10 — Select all row
+    selectAllAction: 'Select all',
+    selectAllShortcut: 'Ctrl+A',
+    selectAllDescription:
+      'Select every visible, unlocked item in the active view (items, rectangles, text boxes, connectors + their waypoints)',
+    // D10 — tool-activation keys (ADR 0022 §6)
+    keyRenameAction: 'Rename',
+    keyRenameShortcut: 'F2',
+    keyRenameDescription: 'Rename the selected item or diagram inline',
+    keyAddItemAction: 'Add item / Elements',
+    keyAddItemShortcut: 'N',
+    keyAddItemDescription: 'Toggle the Elements panel to place a new item',
+    keyConnectorAction: 'Connector',
+    keyConnectorShortcut: 'C',
+    keyConnectorDescription: 'Switch to the connector tool',
+    keyLassoAction: 'Lasso select',
+    keyLassoShortcut: 'L',
+    keyLassoDescription: 'Switch to the lasso selection tool',
+    keySelectAction: 'Select',
+    keySelectShortcut: 'S',
+    keySelectDescription: 'Switch to the select tool',
+    // D10 — mouse interactions
+    miSelectAction: 'Select',
+    miSelectMethod: 'Left-click',
+    miSelectDescription:
+      'Click an item to select it (highlights it and shows the floating action bar). Click empty canvas to clear the selection.',
+    miOpenDetailsAction: 'Open details',
+    miOpenDetailsMethod: 'Double-click',
+    miOpenDetailsDescription:
+      'Double-click an item to open its details panel — the same as the “Details…” context-menu entry.',
+    miToggleSelectionAction: 'Toggle selection',
+    miToggleSelectionMethod: 'Ctrl/Cmd + Left-click',
+    miToggleSelectionDescription:
+      'Add or remove an item from the multi-selection; a connector toggles together with its waypoints.',
+    miPanAction: 'Pan',
+    miPanMethod: 'Right-click + drag',
+    miPanDescription:
+      'Hold the right button and drag to pan the canvas. Middle-click drag pans too; arrow keys nudge it.',
+    miContextMenuAction: 'Context menu',
+    miContextMenuMethod: 'Right-click (tap)',
+    miContextMenuDescription:
+      'A right-click without dragging opens the context menu — the item menu over an item, or the canvas menu over empty space. On touch, long-press.',
+    miRemoveWaypointAction: 'Remove waypoint',
+    miRemoveWaypointMethod: 'Alt + Left-click',
+    miRemoveWaypointDescription:
+      'Alt+click a connector waypoint to splice it out (no need to select the connector first); endpoint anchors are preserved.',
+    miZoomAction: 'Zoom',
+    miZoomMethod: 'Scroll wheel',
+    miZoomDescription: 'Scroll to zoom toward the cursor.'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'Tip: Creating Connectors',
@@ -137,6 +182,16 @@ const locale: LocaleProps = {
       'left-click on the end of the connector and drag it to the desired node.'
   },
   settings: {
+    // D3 — SettingsDialog chrome
+    title: 'Settings',
+    close: 'Close',
+    canvas: 'Canvas',
+    language: 'Language',
+    about: 'About',
+    languageDescription:
+      'Select the display language for the application interface.',
+    zoomSection: 'Zoom',
+    labelsSection: 'Labels',
     zoom: {
       description: 'Configure zoom behavior when using the mouse wheel.',
       zoomToCursor: 'Zoom to Cursor',
@@ -164,21 +219,6 @@ const locale: LocaleProps = {
       fixedPaste: 'Paste',
       fixedUndo: 'Undo',
       fixedRedo: 'Redo'
-    },
-    pan: {
-      title: 'Pan Settings',
-      mousePanOptions: 'Mouse Pan Options',
-      emptyAreaClickPan: 'Click and drag on empty area',
-      middleClickPan: 'Middle click and drag',
-      rightClickPan: 'Right click and drag',
-      ctrlClickPan: 'Ctrl + click and drag',
-      altClickPan: 'Alt + click and drag',
-      keyboardPanOptions: 'Keyboard Pan Options',
-      arrowKeys: 'Arrow keys',
-      wasdKeys: 'WASD keys',
-      ijklKeys: 'IJKL keys',
-      keyboardPanSpeed: 'Keyboard Pan Speed',
-      note: 'Note: Pan options work in addition to the dedicated Pan tool'
     },
     connector: {
       title: 'Connector Settings',
@@ -335,7 +375,11 @@ const locale: LocaleProps = {
     zoomIn: 'Zoom in',
     fitToScreen: 'Fit to screen',
     keepLabelsReadable: 'Keep labels readable',
-    help: 'Help (F1)'
+    help: 'Help (F1)',
+    selected: '{count} selected'
+  },
+  modeHints: {
+    connector: 'Drag between items to connect • Esc to cancel'
   },
   previewLayerSwitcher: {
     layers: 'Layers',
@@ -343,6 +387,10 @@ const locale: LocaleProps = {
     hideLayer: 'Hide layer',
     solo: 'Solo',
     unsolo: 'Exit solo'
+  },
+  previewLabelsToggle: {
+    hideLabels: 'Hide labels',
+    showLabels: 'Show labels'
   },
   annotationPalette: {
     pen: 'Annotate',
@@ -367,7 +415,9 @@ const locale: LocaleProps = {
     description: 'Configure label display settings',
     expandButtonPadding: 'Expand Button Padding',
     expandButtonPaddingDesc:
-      'Bottom padding when expand button is visible (prevents text overlap)'
+      'Bottom padding when expand button is visible (prevents text overlap)',
+    // D13
+    currentValue: 'Current: {value} theme units'
   },
   iconSelectionControls: {
     close: 'Close',
@@ -394,7 +444,10 @@ const locale: LocaleProps = {
     cropInstruction: 'Click and drag to select the area you want to export',
     options: 'Options',
     showGrid: 'Show grid',
+    showLabels: 'Show labels',
     expandDescriptions: 'Expand descriptions',
+    screenshotPreset: 'Screenshot (recommended)',
+    scaleClamped: 'Export size reduced to fit the browser image limit:',
     cropToContent: 'Crop to content',
     backgroundColor: 'Background color',
     transparentBackground: 'Transparent background',
@@ -421,12 +474,78 @@ const locale: LocaleProps = {
     addItem: 'Add item',
     rectangle: 'Rectangle',
     connector: 'Connector',
-    text: 'Text'
+    text: 'Text',
+    common: 'Common',
+    // D5
+    switchTo2D: 'Switch to 2D view',
+    switchToIsometric: 'Switch to isometric view',
+    clickMode: 'Click',
+    dragMode: 'Drag'
   },
   quickIconSelector: {
     recentlyUsed: 'RECENTLY USED',
     searchResults: 'SEARCH RESULTS ({count} icons)',
     noIconsFound: 'No icons found matching "{term}"'
+  },
+  // D1 — CanvasContextMenu (ADR 0027). Sentence case per ux §7.2.
+  canvasContextMenu: {
+    details: 'Details…',
+    rename: 'Rename',
+    cut: 'Cut',
+    copy: 'Copy',
+    paste: 'Paste',
+    duplicate: 'Duplicate',
+    bringForward: 'Bring forward',
+    sendBackward: 'Send backward',
+    assignToLayer: 'Assign to layer',
+    snapToGrid: 'Snap to grid',
+    unsnapFromGrid: 'Unsnap from grid',
+    disableCollision: 'Disable collision',
+    enableCollision: 'Enable collision',
+    delete: 'Delete',
+    addItem: 'Add item',
+    selectAll: 'Select all',
+    enableSnapToGrid: 'Enable snap to grid',
+    disableSnapToGrid: 'Disable snap to grid',
+    itemsSelectedOne: '{count} item selected',
+    itemsSelectedOther: '{count} items selected',
+    deleteItemsOne: 'Delete {count} item',
+    deleteItemsOther: 'Delete {count} items',
+    removeFromLayer: 'Remove from layer',
+    noLayers: 'No layers — add one in the Layers panel'
+  },
+  // D4 — LeftDock icon-strip tooltips + disabled-state hint. Sentence case.
+  leftDock: {
+    fileExplorer: 'File explorer',
+    elements: 'Elements',
+    layers: 'Layers',
+    settings: 'Settings',
+    openDiagramFirst: 'open or create a diagram first'
+  },
+  // D8 — LayersPanel chrome. Sentence case; {count} is interpolated.
+  layersPanel: {
+    header: 'Layers',
+    addLayer: 'Add layer',
+    deleteSelectedLayer: 'Delete selected layer',
+    noLayersYet: 'No layers yet. Click + to add one.',
+    unassigned: 'Unassigned ({count})',
+    dropToUnassign: 'Drop items here to unassign',
+    layerN: 'Layer {count}'
+  },
+  // D7 — clipboard toast strings; {count}/{percent} interpolated, never concat.
+  clipboard: {
+    copiedOne: 'Copied {count} item',
+    copiedOther: 'Copied {count} items',
+    cutOne: 'Cut {count} item',
+    cutOther: 'Cut {count} items',
+    pastedOne: 'Pasted {count} item',
+    pastedOther: 'Pasted {count} items',
+    nothingToPaste: 'Nothing to paste',
+    routingConnectors: 'Pasting… routing connectors ({percent}%)'
+  },
+  // D13 — default page name; {count} interpolated.
+  page: {
+    pageName: 'Page {count}'
   }
 };
 

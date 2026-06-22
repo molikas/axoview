@@ -9,8 +9,6 @@ import {
 } from 'src/utils';
 import { UiStateStore } from 'src/types';
 import { INITIAL_UI_STATE } from 'src/config';
-import { DEFAULT_HOTKEY_PROFILE, HotkeyProfile } from 'src/config/hotkeys';
-import { DEFAULT_PAN_SETTINGS } from 'src/config/panSettings';
 import { DEFAULT_ZOOM_SETTINGS } from 'src/config/zoomSettings';
 import { DEFAULT_LABEL_SETTINGS } from 'src/config/labelSettings';
 import { ANNOTATION_COLOR_PRESETS } from 'src/config/annotationSettings';
@@ -61,14 +59,13 @@ const initialState = () => {
       itemControls: null,
       selectedIds: [],
       enableDebugTools: false,
-      hotkeyProfile: persisted?.hotkeyProfile ?? DEFAULT_HOTKEY_PROFILE,
-      panSettings: persisted?.panSettings ?? DEFAULT_PAN_SETTINGS,
       zoomSettings: persisted?.zoomSettings ?? DEFAULT_ZOOM_SETTINGS,
       labelSettings: persisted?.labelSettings ?? DEFAULT_LABEL_SETTINGS,
       connectorInteractionMode: persisted?.connectorInteractionMode ?? 'click',
       expandLabels: persisted?.expandLabels ?? false,
       readableLabels: persisted?.readableLabels ?? false,
       canvasMode: persisted?.canvasMode ?? 'ISOMETRIC',
+      snapToGrid: persisted?.snapToGrid ?? true,
       iconPackManager: null, // Will be set by Axoview if provided
       iconUsageScan: null, // Will be set by Axoview if provided
       linkedDiagrams: [],
@@ -77,8 +74,12 @@ const initialState = () => {
       rightSidebarOpen: false,
       rightSidebarAutoOpened: false,
       itemActionBarOpen: false,
+      contextMenu: null,
       isDirty: false,
       previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
+      previewHideLabels: false,
+      exportHideLabels: false,
+      labelDrag: null,
       annotation: {
         open: false,
         // Open in the non-disruptive Select mode; the user picks a draw tool.
@@ -93,18 +94,21 @@ const initialState = () => {
         setView: (view) => {
           // A new view has its own layers — drop any preview override so a
           // solo'd/hidden layer id from the previous view can't leak across.
+          // The hide-labels flag is per-presentation too, so reset it as well.
           set({
             view,
-            previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null }
+            previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
+            previewHideLabels: false
           });
         },
         setEditorMode: (mode) => {
-          // Leaving (or entering) preview clears the ephemeral override so it
-          // never persists across mode switches (ADR 0013).
+          // Leaving (or entering) preview clears the ephemeral overrides so they
+          // never persist across mode switches (ADR 0013 + hide-labels addendum).
           set({
             editorMode: mode,
             mode: getStartingMode(mode),
-            previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null }
+            previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
+            previewHideLabels: false
           });
         },
         setIconCategoriesState: (iconCategoriesState) => {
@@ -146,7 +150,7 @@ const initialState = () => {
         setScroll: ({ position, offset }) => {
           set({ scroll: { position, offset: offset ?? get().scroll.offset } });
         },
-        setItemControls: (itemControls) => {
+        setItemControls: (itemControls, options) => {
           if (itemControls !== null) {
             const { rightSidebarOpen, rightSidebarAutoOpened } = get();
             // If user manually pinned the panel open, don't mark it as auto-opened
@@ -162,12 +166,27 @@ const initialState = () => {
               itemControls.type === 'ADD_ITEM'
                 ? get().selectedIds
                 : [{ type: itemControls.type, id: itemControls.id }];
+            // ADR 0022 §3: select-only (openPanel:false) updates the panel
+            // TARGET + opens the floating action bar, but does NOT mount the
+            // Properties dock. The explicit open path (double-click, panel
+            // events) keeps openPanel:true (the default) and mounts it.
+            const openPanel = options?.openPanel ?? true;
+            if (!openPanel) {
+              set({
+                itemControls,
+                selectedIds: nextSelected,
+                // Bar opens on selection (edit mode); view mode reads via the
+                // canvas popover, so no bar there.
+                itemActionBarOpen:
+                  !inView && itemControls.type !== 'ADD_ITEM'
+              });
+              return;
+            }
             set({
               itemControls,
               selectedIds: nextSelected,
               rightSidebarOpen: inView ? rightSidebarOpen : true,
-              // New / changed selection always closes the floating action bar.
-              // The bar is only opened by an explicit right-click (mqa-results.md #1).
+              // Opening the panel replaces the floating action bar.
               itemActionBarOpen: false,
               ...(!inView && !alreadyPinned && { rightSidebarAutoOpened: true })
             });
@@ -190,17 +209,19 @@ const initialState = () => {
           //  - >1   → no panel (heterogeneous edits aren't meaningful here)
           if (ids.length === 1) {
             const only = ids[0];
-            const { rightSidebarOpen, rightSidebarAutoOpened } = get();
-            const alreadyPinned = rightSidebarOpen && !rightSidebarAutoOpened;
             // View mode reads item info via the canvas popover (ADR 0012) — no
-            // right-dock auto-open there (edit mode unchanged).
+            // action bar there (edit mode unchanged).
             const inView = get().editorMode === 'EXPLORABLE_READONLY';
+            // ADR 0022 §3: a single selection drives highlight + action bar
+            // only. It derives the panel TARGET (itemControls) for F2 / delete /
+            // double-click, but does NOT mount the Properties dock — leave
+            // rightSidebarOpen / rightSidebarAutoOpened untouched so an
+            // already-open panel keeps tracking selection (§4.1 two-way sync)
+            // while a closed one stays closed until an explicit double-click.
             set({
               selectedIds: ids,
               itemControls: { type: only.type, id: only.id },
-              rightSidebarOpen: inView ? rightSidebarOpen : true,
-              itemActionBarOpen: false,
-              ...(!inView && !alreadyPinned && { rightSidebarAutoOpened: true })
+              itemActionBarOpen: !inView
             });
           } else {
             const autoOpened = get().rightSidebarAutoOpened;
@@ -240,12 +261,6 @@ const initialState = () => {
         },
         setRendererSize: (size) => {
           set({ rendererSize: size });
-        },
-        setHotkeyProfile: (hotkeyProfile: HotkeyProfile) => {
-          set({ hotkeyProfile });
-        },
-        setPanSettings: (panSettings) => {
-          set({ panSettings });
         },
         setZoomSettings: (zoomSettings) => {
           set({ zoomSettings });
@@ -288,6 +303,29 @@ const initialState = () => {
           set({
             previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null }
           });
+        },
+        setPreviewHideLabels: (previewHideLabels) => {
+          // UI-only present-mode toggle (ADR 0013 addendum): suppresses name
+          // labels live without ever touching the model's `showLabel`, so it
+          // cannot dirty/save the diagram. Cleared on view/mode switch above.
+          set({ previewHideLabels });
+        },
+        setExportHideLabels: (exportHideLabels) => {
+          // UI-only image-export toggle (ADR 0025 §3): suppresses name labels in
+          // the exported image. Scoped to the export dialog's own Axoview store,
+          // so it never touches the live canvas or the model's `showLabel`.
+          set({ exportHideLabels });
+        },
+        setLabelDrag: (id, height) => {
+          // Transient on-canvas label-drag preview (ADR 0024 — Track P T6 fix).
+          // Promotes the node to the DOM overlay (Renderer.hybridIds) and carries
+          // the live labelHeight, so the drag is a single-node DOM re-render — NOT
+          // a per-frame model write that redraws every visible canvas node
+          // (~10 fps at 1000 visible). Committed to the model once, on release.
+          set({ labelDrag: { id, height } });
+        },
+        clearLabelDrag: () => {
+          set({ labelDrag: null });
         },
         // --- Annotation overlay (ADR 0014) — ephemeral, never persisted ---
         setAnnotationOpen: (open) => {
@@ -395,11 +433,25 @@ const initialState = () => {
         setItemActionBarOpen: (itemActionBarOpen) => {
           set({ itemActionBarOpen });
         },
+        openContextMenu: (contextMenu) => {
+          // Opening the menu closes the floating action bar so the two command
+          // surfaces don't stack on the same item (ADR 0027 §4).
+          set({ contextMenu, itemActionBarOpen: false });
+        },
+        closeContextMenu: () => {
+          set({ contextMenu: null });
+        },
         setIsDirty: (isDirty) => {
           set({ isDirty });
         },
         setCanvasMode: (canvasMode) => {
           set({ canvasMode });
+        },
+        setSnapToGrid: (snapToGrid) => {
+          set({ snapToGrid });
+        },
+        toggleSnapToGrid: () => {
+          set({ snapToGrid: !get().snapToGrid });
         }
       }
     };

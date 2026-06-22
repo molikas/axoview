@@ -67,6 +67,22 @@ describe('TileIndex', () => {
     expect(idx.at({ x: 1, y: 2 })).toEqual(['b']);
   });
 
+  it('buildTileIndex skips non-colliding items (ADR 0023)', () => {
+    const idx = buildTileIndex([
+      { id: 'wall', tile: { x: 0, y: 0 } },
+      // unsnapped ⇒ implied collides:false ⇒ not an obstacle
+      { id: 'ghost', tile: { x: 1, y: 1 }, snap: false },
+      // explicit collides:false on a snapped item
+      { id: 'phantom', tile: { x: 2, y: 2 }, collides: false },
+      // explicit collides:true re-enables collision on an unsnapped item
+      { id: 'solid', tile: { x: 3, y: 3 }, snap: false, collides: true }
+    ]);
+    expect(idx.isOccupied({ x: 0, y: 0 })).toBe(true);
+    expect(idx.isOccupied({ x: 1, y: 1 })).toBe(false);
+    expect(idx.isOccupied({ x: 2, y: 2 })).toBe(false);
+    expect(idx.isOccupied({ x: 3, y: 3 })).toBe(true);
+  });
+
   // The risk register's invariant: after a random sequence of insert/move/remove
   // the index must agree with a brute-force scan of a ground-truth id→tile map.
   it('matches a brute-force occupancy scan after random ops (invariant)', () => {

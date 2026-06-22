@@ -39,7 +39,9 @@ import { byAxoviewId, byLibTestId } from '../helpers/selectors';
 import {
   getModelConnectorCount,
   getModelItemCount,
-  getUiMode
+  getUiMode,
+  getViewRectangleCount,
+  getViewTextBoxCount
 } from '../helpers/store';
 
 const getUiModeType = async (page: import('@playwright/test').Page) => {
@@ -240,5 +242,126 @@ test.describe('Multi-select + drag — Finding #4 (pure-lasso 5e-5 variant)', ()
     expect(itemDeltas[0]).toEqual(itemDeltas[1]);
     expect(waypointDelta).toEqual(itemDeltas[0]);
     expect(itemDeltas[0].dx !== 0 || itemDeltas[0].dy !== 0).toBe(true);
+  });
+});
+
+/**
+ * Lasso intersection semantics (canvas-UX overhaul T2 #16, ADR 0006 addendum).
+ *
+ * The headline complaint: a lasso dragged through the MIDDLE of a long
+ * rectangle (or over a text body) failed to select it because the old rule
+ * required all four corners enclosed. The fix makes rectangles select on ANY
+ * overlap and textboxes hit on their full bounds. The precise geometry is
+ * pinned by the lib unit tests (Lasso.intersection.test.ts); this spec lifts
+ * the user-observable end to the browser.
+ */
+const getFirstRectangleTiles = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => {
+    const viewId = (window as any).__axoview__.ui.getState().view;
+    const views = (window as any).__axoview__.model.getState().views;
+    const view = (viewId && views.find((v: any) => v.id === viewId)) ?? views[0];
+    const r = (view?.rectangles ?? [])[0];
+    return r ? { id: r.id, from: r.from, to: r.to } : null;
+  });
+
+test.describe('Lasso intersection — rectangle middle + mixed (T2 #16)', () => {
+  test('lasso through the MIDDLE of a long rectangle selects it (not just full-enclosure)', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const canvas = new CanvasPOM(page);
+
+    // A WIDE rectangle whose left/right ends overhang any small marquee.
+    await canvas.switchToRectangleMode();
+    await canvas.dragFromTo({ x: 200, y: 300 }, { x: 640, y: 380 });
+    await expect
+      .poll(() => getViewRectangleCount(page), { timeout: 5_000 })
+      .toBe(1);
+
+    const rect = await getFirstRectangleTiles(page);
+    expect(rect).not.toBeNull();
+
+    // Marquee = a 2-tile vertical strip centred on the rectangle's middle.
+    // It overlaps the rect's middle band but is nowhere near enclosing the
+    // far-apart corners — the old all-corners rule would have missed it.
+    const midTile = {
+      x: Math.round((rect!.from.x + rect!.to.x) / 2),
+      y: Math.round((rect!.from.y + rect!.to.y) / 2)
+    };
+    const m1 = await canvas.tileToScreen(midTile);
+    const m2 = await canvas.tileToScreen({ x: midTile.x, y: midTile.y + 2 });
+
+    await page.keyboard.press('l');
+    await expect
+      .poll(async () => (await getUiMode(page))?.type ?? null, { timeout: 2_000 })
+      .toBe('LASSO');
+    await canvas.dragFromTo(m1, m2);
+
+    const types = await getLassoSelectionTypes(page);
+    expect(types).toContain('RECTANGLE');
+  });
+
+  test('one marquee over a rectangle AND a textbox selects both', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const canvas = new CanvasPOM(page);
+
+    await canvas.switchToRectangleMode();
+    await canvas.dragFromTo({ x: 240, y: 240 }, { x: 360, y: 340 });
+    await expect
+      .poll(() => getViewRectangleCount(page), { timeout: 5_000 })
+      .toBe(1);
+
+    await canvas.placeTextBoxAt({ x: 520, y: 320 });
+    await expect
+      .poll(() => getViewTextBoxCount(page), { timeout: 5_000 })
+      .toBe(1);
+
+    const rect = await getFirstRectangleTiles(page);
+    expect(rect).not.toBeNull();
+    const tb = await page.evaluate(() => {
+      const viewId = (window as any).__axoview__.ui.getState().view;
+      const views = (window as any).__axoview__.model.getState().views;
+      const view = (viewId && views.find((v: any) => v.id === viewId)) ?? views[0];
+      const t = (view?.textBoxes ?? [])[0];
+      return t ? t.tile : null;
+    });
+    expect(tb).not.toBeNull();
+
+    // Build the marquee from the TILE-SPACE bounding box of both shapes, then
+    // project its FOUR corners and take the screen bbox + margin. A screen
+    // bbox of scattered iso-projected points does NOT invert to a tile-rect
+    // containing them (iso is a rotation); projecting the tile-box corners
+    // does, so the marquee's tile-rect reliably encloses both shapes.
+    const allTiles = [rect!.from, rect!.to, tb];
+    const minX = Math.min(...allTiles.map((t: any) => t.x));
+    const maxX = Math.max(...allTiles.map((t: any) => t.x));
+    const minY = Math.min(...allTiles.map((t: any) => t.y));
+    const maxY = Math.max(...allTiles.map((t: any) => t.y));
+    const corners = [
+      { x: minX, y: minY },
+      { x: maxX, y: minY },
+      { x: maxX, y: maxY },
+      { x: minX, y: maxY }
+    ];
+    const pts = await Promise.all(corners.map((t) => canvas.tileToScreen(t)));
+    const xs = pts.map((p) => p.x);
+    const ys = pts.map((p) => p.y);
+    const MARGIN = 120;
+    const from = { x: Math.min(...xs) - MARGIN, y: Math.min(...ys) - MARGIN };
+    const to = { x: Math.max(...xs) + MARGIN, y: Math.max(...ys) + MARGIN };
+
+    await page.keyboard.press('l');
+    await expect
+      .poll(async () => (await getUiMode(page))?.type ?? null, { timeout: 2_000 })
+      .toBe('LASSO');
+    await canvas.dragFromTo(from, to);
+
+    const types = await getLassoSelectionTypes(page);
+    expect(types).toContain('RECTANGLE');
+    expect(types).toContain('TEXTBOX');
   });
 });

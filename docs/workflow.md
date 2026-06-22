@@ -1,6 +1,6 @@
 # Workflow — Canonical session cadence
 
-> **Status:** Authoritative · **Last updated:** 2026-05-20 · **Audience:** anyone (human or Claude) opening a session against this repo.
+> **Status:** Authoritative · **Last updated:** 2026-06-21 · **Audience:** anyone (human or Claude) opening a session against this repo.
 >
 > This doc names the canonical sequence of a working session: which skill fires when, where the artifacts land, and what the design principles are. It is the single source of truth for "how we work here." Skill bodies cross-reference this doc; this doc does not duplicate skill bodies.
 
@@ -8,7 +8,7 @@
 
 - [docs/architecture.md](architecture.md) — what the codebase actually contains. Open before any structural decision.
 - [docs/ux-principles.md](ux-principles.md) — design language. Every UI-touching session reads this.
-- [MEMORY.md](../../../Users/isidenica/.claude/projects/c--myTemp-FossFLOW/memory/MEMORY.md) — the persistent context index (auto-loaded by Claude Code).
+- `MEMORY.md` (in your Claude project memory directory) — the persistent context index (auto-loaded by Claude Code).
 - [PLAN.md](../PLAN.md) — phase dashboard. **Read for context; never edit phase content outside `/feature wrap`.**
 - [docs/adr/](adr/) — every locked decision. New work starts by reading the relevant ADR header.
 - [docs/tactical/](tactical/) — short-lived working docs. Each tactical's "Read first" block names the ADRs it implements.
@@ -95,6 +95,7 @@ A session moves left-to-right through the stages below. Most sessions skip stage
 | Iterative bug-fix / polish loop on shipped surfaces | `/shake-out` | Per-issue verification loop; one coherent commit per bundle. |
 | Pre-merge code or security review | `/review` / `/security-review` | Built-in skills; fire just before `/ship`. |
 | Promote `integration` → `master` | `/ship` | Test gate + version-coherence check + interactive plan. Doesn't bump versions. |
+| Periodic usability validation (pre-release / post-UX-overhaul) | UX journey test — [ADR 0028](adr/0028-ux-journey-testing-protocol.md) | Persona-driven Chrome-agent run + **mandatory code-verification** of severe findings → a `docs/tactical/` backlog. On-demand, not a slash command yet. |
 
 **Boundaries that have caused confusion before:**
 
@@ -146,23 +147,23 @@ This audit (`productization-audit.md`) is the most recent worked example. Future
 
 **Why:** the audit's value is reproducibility. If a finding can't be re-walked by a fresh reader running the same grep, it isn't a finding — it's an intuition. The discrepancies between intuition and code are where bugs hide.
 
-**Practiced version:** when a session falls into "I keep reading the same file and the answer isn't there," the move is to instrument (logging, a script, a screenshot) and let the runtime answer. See [feedback_diagnose_with_logs](../../../Users/isidenica/.claude/projects/c--myTemp-FossFLOW/memory/feedback_diagnose_with_logs.md) for the memory.
+**Practiced version:** when a session falls into "I keep reading the same file and the answer isn't there," the move is to instrument (logging, a script, a screenshot) and let the runtime answer. See the `feedback_diagnose_with_logs` memory for it.
 
 ### 2. Screenshot-driven, not theory-driven
 
 **Rule:** when working on a visible surface, the screenshot or the live browser is the source of truth. Theories about what code "should" do are subordinate to what the user sees.
 
-**Why:** see [feedback_be_serious_not_eager](../../../Users/isidenica/.claude/projects/c--myTemp-FossFLOW/memory/feedback_be_serious_not_eager.md). Multiple past sessions piled extra moves onto a delivered artifact because the agent felt eager; that pattern degrades trust and burns context. **Plans aren't fixes.** Bundling extra moves after a delivered artifact is anti-pattern.
+**Why:** see the `feedback_be_serious_not_eager` memory. Multiple past sessions piled extra moves onto a delivered artifact because the agent felt eager; that pattern degrades trust and burns context. **Plans aren't fixes.** Bundling extra moves after a delivered artifact is anti-pattern.
 
 This principle is why `/audit` and `/shake-out` both emphasize "verify, don't pile on" — the design didn't accidentally converge there; the memory was the driver.
 
 ### 3. Intent verification — stop signs
 
-**Rule:** a why-question from the user about a chosen approach is a stop. A visual/words mismatch in the user's request is a question, not a decision to pick a side. See [feedback_intent_verification](../../../Users/isidenica/.claude/projects/c--myTemp-FossFLOW/memory/feedback_intent_verification.md).
+**Rule:** a why-question from the user about a chosen approach is a stop. A visual/words mismatch in the user's request is a question, not a decision to pick a side. See the `feedback_intent_verification` memory.
 
 ### 4. Decisions live in ADRs; status lives in PLAN.md; details live in tacticals
 
-The three-tier doc convention is the project's most-used pattern. See [project_docs_convention](../../../Users/isidenica/.claude/projects/c--myTemp-FossFLOW/memory/project_docs_convention.md).
+The three-tier doc convention is the project's most-used pattern. See the `project_docs_convention` memory.
 
 - **ADRs** — durable. One concern per ADR. Status: Proposed → Accepted → Superseded.
 - **Tacticals** — short-lived. Deleted at wrap; PLAN.md gets a one-line entry pointing to the ADRs.
@@ -181,9 +182,37 @@ This is why C.9.2 (skill stale-ref pass) ran together with C.9.1 (this doc) — 
 
 Skill bodies use `cd packages/...`, `npm run ...`, `grep`. Claude Code's harness translates `cd` cleanly across Windows/PowerShell + Bash, so the pattern works on the active dev platform. **A strict-PowerShell-only environment would trip.** This is documented friction, not a rewrite target.
 
+### 7. Whole-experience coherence — trace the ripple
+
+**Rule:** every proposed change states what it makes **redundant**, what it **contradicts**, and what it **orphans** — and reconciles or explicitly flags each *before* it ships. A fix that lands cleanly in isolation but leaves a sibling control stranded, duplicates an affordance, or depends on a surface that doesn't exist is **not done**. Grep to confirm any surface a plan leans on actually exists — *"put it in the X menu"* requires that X menu to be real, or scoped as a build dependency.
+
+**Why:** a per-issue study is well-grounded (Principle 1) yet coherence-blind *by construction* — isolating issues is exactly where cross-issue contradictions hide. The 2026-06-18 canvas-ux-overhaul scaffold routed a command into a context menu that doesn't exist while a sibling ADR reassigned that menu's trigger (right-click) to pan. This is the **opposite** failure from Principle 2's "don't pile on" — hold both at once: **minimal moves, maximal coherence.** See the `feedback_whole_experience_coherence` memory.
+
+**Practiced version:** `/feature` (Phase 1.5) and `/audit` (Phase 5d) run a mandatory consequences pass that names the redundant/contradicted/orphaned surfaces per change and reconciles against mirroring surfaces — selection two-way sync ([ux-principles §4.1](ux-principles.md#41-two-way-panel--canvas-sync)), item-type parity (§5), the edit/view/present split (§11).
+
 ## Review gate
 
 `/review` and `/security-review` (built-in plugin skills) fire **between `/notes` doc sync and `/ship` promotion**. Both are surfaced by the Claude Code system reminder when relevant. The cadence diagram shows the slot; the skills themselves are plugin-provided and not in `.claude/commands/`.
+
+## UX journey testing
+
+The usability analog of the perf harness ([ADR 0020](adr/0020-engine-perf-harness-and-measurement-protocol.md)
++ [perf-charter](tactical/perf-charter.md)): an **on-demand**, persona-driven journey test of the live UI,
+governed by [ADR 0028 — UX Journey-Testing Protocol](adr/0028-ux-journey-testing-protocol.md). Run it
+**periodically** — before a release, after a broad UX-surface change (an overhaul like ADRs 0022–0027), or
+when usability is in question — **not** every session.
+
+- **Driver:** the Claude for Chrome agent (Sonnet-class) against the `integration` preview (storage-less;
+  server-mode surfaces need a self-hosted build).
+- **Personas:** five fixed personas — beginner · intermediate · expert · presenter · keyboard/i18n — one per run.
+- **Discipline:** the capability map + do-not-report list are **regenerated from the current build each
+  run** (the in-app Help dialog is the canonical interaction model), never copied — a stale map poisons the
+  run (it did on the first attempt).
+- **Mandatory verification gate:** every S1/S2 finding is cross-checked against current code (`file:line`)
+  before it earns a fix task — the agent manufactures false blockers (the first run's two loudest "S1s"
+  were both artifacts). Confirmed artifacts are recorded, not actioned.
+- **Output:** a short-lived `docs/tactical/` backlog (the implementation handover) — the first run was
+  `ux-retest-fixes.md` (shipped + wrapped; decisions in the ADR 0019/0022/0023/0025 addenda + git history).
 
 ## Process debt — deferred skills
 
@@ -200,6 +229,11 @@ Per [productization-audit.md A.9.4](tactical/productization-audit.md), nine miss
 | 7 | `/workflow-check` (print cadence + decision table) | **defer** | Fold into a "Quick reference" section here instead of a skill; saves skill-list bloat. |
 | 8 | `/ux-baseline` (Phase 5b grep extract) | **defer** | Fold into `/shake-out` as an optional first-step flag. |
 | 9 | `/perf-baseline` (Phase 5c grep extract) | **defer** | Same fold-into-/shake-out treatment as #8. |
+
+**2026-06-21 addition — `/ux-journey-test`:** assemble persona prompts → run the Chrome-agent journey test
+→ verification cross-check. A new deferred candidate from [ADR 0028](adr/0028-ux-journey-testing-protocol.md),
+sibling to the deferred `/ux-baseline` (#8). Documented-only for now (the protocol lives in ADR 0028); build
+the command if on-demand UX runs become frequent enough to be worth templating.
 
 **Net effect on productization gate (M8):** zero new skills must be built. The productization baseline blocks on alignment-and-cadence work (this doc + C.9.2 stale-ref pass), not on skill construction.
 
@@ -225,5 +259,5 @@ The audit identified nine anomalies (A.9.5 S1–S9). The ones with a written res
 ## See also
 
 - [productization-audit.md A.9](tactical/productization-audit.md) — the audit pass that produced this doc.
-- [MEMORY.md](../../../Users/isidenica/.claude/projects/c--myTemp-FossFLOW/memory/MEMORY.md) — memory index. Every design principle above links to its memory backing.
+- `MEMORY.md` (Claude project memory) — memory index. Every design principle above links to its memory backing.
 - [.claude/commands/](../.claude/commands/) — the in-scope skill bodies. Each one's behaviour is its own source of truth; this doc references but does not duplicate.

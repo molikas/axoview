@@ -26,10 +26,15 @@ import { generateId, getConnectorPath } from 'src/utils';
 import { useView } from 'src/hooks/useView';
 import { VIEW_DEFAULTS } from 'src/config';
 import { allocateHistorySequence } from 'src/stores/historySequence';
+import { useTranslation } from 'src/stores/localeStore';
 
 export const useSceneActions = () => {
   const { changeView } = useView();
   const currentViewId = useUiStateStore((state) => state.view);
+  // D13 — default page name is localised at creation time (mirrors how
+  // LayersPanel applies layersPanel.layerN). The name is stored model data, so
+  // it's generated here, at the creation surface, rather than at display.
+  const { t } = useTranslation('page');
 
   const transactionInProgress = useRef(false);
   const pendingStateRef = useRef<State | null>(null);
@@ -136,7 +141,10 @@ export const useSceneActions = () => {
   // -------------------------------------------------------------------------
 
   const batchUpdateViewItemTiles = useCallback(
-    (updates: { id: string; tile: Coords }[]) => {
+    // `offset` (ADR 0023) rides the same drag commit: present (incl. cleared to
+    // undefined when re-snapping) on every touched item so the off-grid residual
+    // and the integer tile stay in lockstep.
+    (updates: { id: string; tile: Coords; offset?: Coords }[]) => {
       if (!currentViewId || updates.length === 0) return;
 
       const state = getState();
@@ -146,14 +154,13 @@ export const useSceneActions = () => {
       if (viewIndex === -1) return;
       const view = state.model.views[viewIndex];
 
-      const updateMap = new Map(updates.map((u) => [u.id, u.tile]));
+      const updateMap = new Map(updates.map((u) => [u.id, u]));
 
       // Structural copy of items array — only touched items get new refs.
-      const newItems = (view.items ?? []).map((item) =>
-        updateMap.has(item.id)
-          ? { ...item, tile: updateMap.get(item.id)! }
-          : item
-      );
+      const newItems = (view.items ?? []).map((item) => {
+        const u = updateMap.get(item.id);
+        return u ? { ...item, tile: u.tile, offset: u.offset } : item;
+      });
 
       const newView: View = { ...view, items: newItems };
       const newViews = state.model.views.slice();
@@ -215,7 +222,7 @@ export const useSceneActions = () => {
   // -------------------------------------------------------------------------
 
   const batchUpdateRectangles = useCallback(
-    (updates: { id: string; from: Coords; to: Coords }[]) => {
+    (updates: { id: string; from: Coords; to: Coords; offset?: Coords }[]) => {
       if (!currentViewId || updates.length === 0) return;
 
       const state = getState();
@@ -227,11 +234,10 @@ export const useSceneActions = () => {
       if (!view.rectangles || view.rectangles.length === 0) return;
 
       const updateMap = new Map(updates.map((u) => [u.id, u]));
-      const newRectangles = view.rectangles.map((r) =>
-        updateMap.has(r.id)
-          ? { ...r, from: updateMap.get(r.id)!.from, to: updateMap.get(r.id)!.to }
-          : r
-      );
+      const newRectangles = view.rectangles.map((r) => {
+        const u = updateMap.get(r.id);
+        return u ? { ...r, from: u.from, to: u.to, offset: u.offset } : r;
+      });
 
       const newView: View = { ...view, rectangles: newRectangles };
       const newViews = state.model.views.slice();
@@ -247,7 +253,7 @@ export const useSceneActions = () => {
   );
 
   const batchUpdateTextBoxTiles = useCallback(
-    (updates: { id: string; tile: Coords }[]) => {
+    (updates: { id: string; tile: Coords; offset?: Coords }[]) => {
       if (!currentViewId || updates.length === 0) return;
 
       const state = getState();
@@ -258,10 +264,11 @@ export const useSceneActions = () => {
       const view = state.model.views[viewIndex];
       if (!view.textBoxes || view.textBoxes.length === 0) return;
 
-      const updateMap = new Map(updates.map((u) => [u.id, u.tile]));
-      const newTextBoxes = view.textBoxes.map((t) =>
-        updateMap.has(t.id) ? { ...t, tile: updateMap.get(t.id)! } : t
-      );
+      const updateMap = new Map(updates.map((u) => [u.id, u]));
+      const newTextBoxes = view.textBoxes.map((t) => {
+        const u = updateMap.get(t.id);
+        return u ? { ...t, tile: u.tile, offset: u.offset } : t;
+      });
 
       const newView: View = { ...view, textBoxes: newTextBoxes };
       const newViews = state.model.views.slice();
@@ -682,14 +689,17 @@ export const useSceneActions = () => {
         payload: {
           ...VIEW_DEFAULTS,
           ...newViewPartial,
-          name: newViewPartial?.name ?? `Page ${views.length + 1}`
+          // D13 — interpolate {count} via i18n, never concatenate.
+          name:
+            newViewPartial?.name ??
+            t('pageName').replace('{count}', String(views.length + 1))
         },
         ctx: { viewId: newViewId, state: getState() }
       });
       setState(newState);
       changeView(newViewId, newState.model);
     },
-    [getState, setState, modelStoreApi, changeView]
+    [getState, setState, modelStoreApi, changeView, t]
   );
 
   const deleteView = useCallback(
@@ -798,14 +808,18 @@ export const useSceneActions = () => {
             const nextAnchors = connector.anchors.filter(
               (a) => !removeSet.has(a.id)
             );
-            // Defensive guard: a CONNECTOR_ANCHOR ref should only ever target
-            // a middle waypoint (per getConnectorWaypointRefs contract), so
-            // the splice should always leave >= 2 anchors. If a selection
-            // path ever violates that contract (Lasso/FreehandLasso partial-
-            // selection branch did, before the 2026-05-25 fix), cascade-
-            // delete the connector instead of leaving it with <2 anchors —
-            // a 1-anchor connector throws "Connector needs at least two
-            // anchors" in isoMath and blocks placeIcon (regression caught
+            // Defensive guard: any CONNECTOR_ANCHOR ref that REACHES the splice
+            // here targets a middle waypoint, so the splice should always leave
+            // >= 2 anchors. Lasso can now capture a free-floating ENDPOINT
+            // anchor for movement (getConnectorMovementAnchorRefs, ADR 0006
+            // addendum #2), but only alongside its parent CONNECTOR — and that
+            // connector is in `deletingConnectorIds`, so the loop above skips it
+            // and we never splice its endpoint. If a future selection path ever
+            // violates that (a partial selection capturing an endpoint without
+            // its connector — Lasso/FreehandLasso did, before the 2026-05-25
+            // fix), cascade-delete the connector instead of leaving it with <2
+            // anchors — a 1-anchor connector throws "Connector needs at least
+            // two anchors" in isoMath and blocks placeIcon (regression caught
             // 2026-05-25).
             if (nextAnchors.length < 2) {
               deleteConnector(connector.id);
@@ -967,7 +981,6 @@ export const useSceneActions = () => {
           // callback.
           const issues = validateView(newView, { model: newState.model });
           if (issues.length > 0) {
-            // eslint-disable-next-line no-console
             console.warn(
               '[axoview] paste produced an invalid view; skipping',
               issues[0]

@@ -241,6 +241,40 @@ const handleSelectedConnectorMousedown = (state: State): boolean => {
   return true;
 };
 
+// #1: Alt+click a connector waypoint removes it WITHOUT the connector being
+// pre-selected (ADR 0022 §1 / locked decision #4). The selected-connector path
+// above already handles Alt+click on the *selected* connector (DOM-precise via
+// targetAnchorId); this covers every other connector by tile-matching the
+// waypoint under the cursor — the bend is visible on the path even with no
+// overlay handles drawn. Endpoints are never removed. Returns true if a waypoint
+// was spliced (caller stops); leaves selection untouched (altSpliceConsumed makes
+// the mouseup skip its selection-clearing branch).
+const handleAltClickWaypointRemoval = (state: State): boolean => {
+  const { uiState, scene } = state;
+  if (!uiState.mouse.modifiers?.alt) return false;
+
+  for (const connector of scene.hitConnectors) {
+    const clicked = findClickedConnectorAnchor(
+      connector,
+      uiState,
+      scene.currentView
+    );
+    if (!clicked) continue;
+    const isEndpoint =
+      clicked.index === 0 || clicked.index === connector.anchors.length - 1;
+    if (isEndpoint) continue;
+
+    const nextAnchors = connector.anchors.filter(
+      (a) => a.id !== clicked.anchor.id
+    );
+    scene.updateConnector(connector.id, { anchors: nextAnchors });
+    altSpliceConsumed = true;
+    setMousedownBookkeeping(state, null, true);
+    return true;
+  }
+  return false;
+};
+
 // Generic item hit-detection. Items on locked or hidden layers are treated as
 // background — not selectable, not draggable (mqa-results.md #2).
 // isItemInteractable may be undefined in tests that bypass the State type via
@@ -267,6 +301,7 @@ const mousedown: ModeActionsAction = (state) => {
   if (uiState.mode.type !== 'CURSOR' || !isRendererInteraction) return;
 
   if (handleSelectedConnectorMousedown(state)) return;
+  if (handleAltClickWaypointRemoval(state)) return;
 
   selectItemAtTileMousedown(state);
 };
@@ -422,9 +457,11 @@ const toggleConnectorGroupSelection = (
   uiState.actions.setSelectedIds!(next);
 };
 
-// CONNECTOR-on-tile needs the tile for the panel — keep using setItemControls
-// (which mirrors into selectedIds internally). Ctrl+click routes through the
-// group-toggle gesture path instead.
+// CONNECTOR-on-tile needs the tile so the action bar can anchor itself (a
+// connector has no intrinsic tile). Single-click is select-only (ADR 0022 §3):
+// setItemControls with openPanel:false sets the target + opens the bar without
+// mounting the panel — the panel opens on double-click. Ctrl+click routes
+// through the group-toggle gesture path instead.
 const handleConnectorClickSelection = (
   state: State,
   connectorId: string,
@@ -434,11 +471,14 @@ const handleConnectorClickSelection = (
   if (ctrlHeld && typeof uiState.actions.setSelectedIds === 'function') {
     toggleConnectorGroupSelection(state, connectorId);
   } else {
-    uiState.actions.setItemControls({
-      type: 'CONNECTOR',
-      id: connectorId,
-      tile: uiState.mouse.position.tile
-    });
+    uiState.actions.setItemControls(
+      {
+        type: 'CONNECTOR',
+        id: connectorId,
+        tile: uiState.mouse.position.tile
+      },
+      { openPanel: false }
+    );
   }
 };
 
@@ -552,11 +592,17 @@ export const Cursor: ModeActions = {
       return;
     }
 
-    // MQA #16: drag started outside the canvas (e.g. text drag-select inside a
-    // properties-panel input that ended over the canvas). No canvas-side
-    // mousedown was tracked and no item was registered. Ignore the mouseup so
-    // the panel doesn't dismiss when the user just selected text past its edge.
-    if (!uiState.mouse.mousedown && !uiState.mode.mousedownHandled) {
+    // MQA #16 / ADR 0022 §4 (#6): the press did not land on the canvas, so this
+    // release is the tail of a gesture that started elsewhere — most often a
+    // text drag-select inside a properties-panel input that crossed the canvas
+    // boundary and lifted over it. `getMouse` records `mouse.mousedown` for ANY
+    // mousedown (even off-canvas), so the old `!mouse.mousedown` guard missed
+    // this case and the release fell through to clearSelection — dismissing the
+    // panel mid-text-selection. `mousedownHandled` is set ONLY by
+    // Cursor.mousedown when the press hit the renderer (isRendererInteraction),
+    // so an unhandled press is the precise signal that the gesture began
+    // off-canvas. In that case never mutate the canvas selection.
+    if (!uiState.mode.mousedownHandled) {
       setMousedownBookkeeping(state, null, false);
       return;
     }
@@ -576,8 +622,9 @@ export const Cursor: ModeActions = {
       resolveClickSelection(state, uiState.mode.mousedownItem);
     } else {
       // Plain left-click on empty canvas, or the tail of a completed drag —
-      // clear the persistent selection. (Adding items is handled by
-      // double-click via QuickAddNodePopover.)
+      // clear the persistent selection. (B8: there is no double-click-to-add —
+      // it was removed for good; right-click → "Add item" is the canonical add
+      // path. Double-click opens Details on an item / no-ops on empty canvas.)
       (uiState.actions.clearSelection ??
         (() => uiState.actions.setItemControls(null)))();
     }

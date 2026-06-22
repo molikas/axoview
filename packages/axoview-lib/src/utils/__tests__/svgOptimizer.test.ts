@@ -2,8 +2,28 @@ import {
   stripIrrelevantProperties,
   roundNumbers,
   roundStyleDeclarations,
-  pruneHiddenElements
+  pruneHiddenElements,
+  utf8ToBase64,
+  optimizeSvgDataUrl
 } from '../svgOptimizer';
+
+// dom-to-image-more escapes only %, # and \n (escapeXhtml). Mirror that so the
+// fixtures match the real shape `optimizeSvgDataUrl` receives.
+const escapeXhtml = (s: string) =>
+  s.replace(/%/g, '%25').replace(/#/g, '%23').replace(/\n/g, '%0A');
+
+const makeSvgDataUri = (inner: string, w = 100, h = 50) =>
+  `data:image/svg+xml;charset=utf-8,${escapeXhtml(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><foreignObject width="${w}" height="${h}">${inner}</foreignObject></svg>`
+  )}`;
+
+// Decode a base64 SVG data-URL back to its UTF-8 text.
+const decodeBase64Svg = (dataUrl: string) => {
+  const b64 = dataUrl.replace('data:image/svg+xml;base64,', '');
+  return new TextDecoder().decode(
+    Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Phase 1 — stripIrrelevantProperties
@@ -198,6 +218,72 @@ describe('roundStyleDeclarations', () => {
     expect(result).toContain('font-size: 13.600000px');
     expect(result).toContain('line-height: 16.320000px');
     expect(result).toContain('letter-spacing: 0.127568px');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// utf8ToBase64 — Unicode round-trip (issue #9)
+// ---------------------------------------------------------------------------
+
+describe('utf8ToBase64', () => {
+  test('round-trips ASCII', () => {
+    expect(new TextDecoder().decode(
+      Uint8Array.from(atob(utf8ToBase64('Hello')), (c) => c.charCodeAt(0))
+    )).toBe('Hello');
+  });
+
+  test('round-trips multi-byte Unicode (CJK, accents, emoji)', () => {
+    const s = 'Café 日本語 🚀 Ñoño €';
+    const decoded = new TextDecoder().decode(
+      Uint8Array.from(atob(utf8ToBase64(s)), (c) => c.charCodeAt(0))
+    );
+    expect(decoded).toBe(s);
+  });
+
+  test('does NOT throw on a lone surrogate (broken paste)', () => {
+    // The old btoa(unescape(encodeURIComponent())) path threw URIError here.
+    expect(() => utf8ToBase64('broken\uD83Dpaste')).not.toThrow();
+  });
+
+  test('handles a large string without exceeding fromCharCode limits', () => {
+    const big = 'あ'.repeat(50_000);
+    expect(() => utf8ToBase64(big)).not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// optimizeSvgDataUrl — end-to-end Unicode + resilience (issue #9)
+// ---------------------------------------------------------------------------
+
+describe('optimizeSvgDataUrl', () => {
+  test('preserves Unicode label content through optimization', async () => {
+    const uri = makeSvgDataUri(
+      '<div xmlns="http://www.w3.org/1999/xhtml" style="width:50%">Café 日本語 🚀</div>'
+    );
+    const out = await optimizeSvgDataUrl(uri);
+    expect(out.startsWith('data:image/svg+xml;base64,')).toBe(true);
+    const decoded = decodeBase64Svg(out);
+    expect(decoded).toContain('Café');
+    expect(decoded).toContain('日本語');
+    expect(decoded).toContain('🚀');
+  });
+
+  test('never throws on a lone surrogate in a label', async () => {
+    const uri = makeSvgDataUri(
+      '<div xmlns="http://www.w3.org/1999/xhtml">broken\uD83Dpaste</div>'
+    );
+    let out = '';
+    await expect(
+      (async () => {
+        out = await optimizeSvgDataUrl(uri);
+      })()
+    ).resolves.toBeUndefined();
+    expect(out.length).toBeGreaterThan(0);
+  });
+
+  test('returns the input untouched for an unknown data-URL format', async () => {
+    const weird = 'data:image/png;base64,AAAA';
+    expect(await optimizeSvgDataUrl(weird)).toBe(weird);
   });
 });
 

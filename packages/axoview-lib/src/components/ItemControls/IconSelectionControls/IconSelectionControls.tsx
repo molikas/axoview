@@ -17,6 +17,7 @@ import { Section } from 'src/components/ItemControls/components/Section';
 import { Searchbox } from 'src/components/ItemControls/IconSelectionControls/Searchbox';
 import { useIconFiltering } from 'src/hooks/useIconFiltering';
 import { useIconCategories } from 'src/hooks/useIconCategories';
+import { useKeyboardIconPlacement } from 'src/hooks/useKeyboardIconPlacement';
 import {
   Close as CloseIcon,
   FileUpload as FileUploadIcon
@@ -61,6 +62,10 @@ export const IconSelectionControls = () => {
     },
     [mode, uiStateActions]
   );
+
+  // C2 / Decision #7: keyboard activation (Enter/Space) places the icon at the
+  // viewport-centre tile — see useKeyboardIconPlacement. Shared with ElementsPanel.
+  const onActivate = useKeyboardIconPlacement();
 
   const handleImportClick = useCallback(() => {
     fileInputRef.current?.click();
@@ -246,11 +251,19 @@ export const IconSelectionControls = () => {
     >
       {filteredIcons && (
         <Section>
-          <IconGrid icons={filteredIcons} onMouseDown={onMouseDown} />
+          <IconGrid
+            icons={filteredIcons}
+            onMouseDown={onMouseDown}
+            onActivate={onActivate}
+          />
         </Section>
       )}
       {!filteredIcons && (
-        <Icons iconCategories={iconCategories} onMouseDown={onMouseDown} />
+        <Icons
+          iconCategories={iconCategories}
+          onMouseDown={onMouseDown}
+          onActivate={onActivate}
+        />
       )}
 
       <Section>

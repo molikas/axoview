@@ -1,6 +1,7 @@
 import domtoimage from 'dom-to-image-more';
-import { optimizeSvgDataUrl } from './svgOptimizer';
+import { optimizeSvgDataUrl, utf8ToBase64 } from './svgOptimizer';
 import { stripDefaultIcons } from './leanSave';
+import { computeRenderTarget } from './renderTarget';
 import { Model, Size } from '../types';
 
 export const generateGenericFilename = (extension: string) => {
@@ -80,22 +81,27 @@ export const exportAsImage = async (
   scale: number = 1,
   bgcolor: string = '#ffffff'
 ) => {
-  // Calculate scaled dimensions
-  const width = size ? size.width * scale : el.clientWidth * scale;
-  const height = size ? size.height * scale : el.clientHeight * scale;
+  // Clamp the requested scale against the browser's canvas limits (ADR 0025 §2)
+  // so a large diagram at 4× yields a real image instead of a silent blank.
+  const baseW = size ? size.width : el.clientWidth;
+  const baseH = size ? size.height : el.clientHeight;
+  const target = computeRenderTarget({ width: baseW, height: baseH }, scale);
+  const { width, height, effectiveScale } = target;
 
-  // dom-to-image-more is a better maintained fork
+  // dom-to-image-more is a better maintained fork. No cacheBust: the export
+  // renders a fresh hidden Axoview each time (nothing stale to bust), and the
+  // busting query param makes dom-to-image re-fetch every resource — which some
+  // hosts reject cross-origin with "Failed to fetch" (F-02).
   const options = {
     width,
     height,
-    cacheBust: true,
     bgcolor,
     quality: 1.0,
     // Apply CSS transform for high-quality scaling
     style:
-      scale !== 1
+      effectiveScale !== 1
         ? {
-            transform: `scale(${scale})`,
+            transform: `scale(${effectiveScale})`,
             transformOrigin: 'top left'
           }
         : undefined
@@ -107,13 +113,24 @@ export const exportAsImage = async (
   } catch (error) {
     console.error('Export failed, trying fallback method:', error);
     // Fallback: try with minimal options
-    return await domtoimage.toPng(el, {
-      width,
-      height,
-      cacheBust: true,
-      bgcolor
-    });
+    return await domtoimage.toPng(el, { width, height, bgcolor });
   }
+};
+
+// Wrap a PNG raster in a minimal SVG document. Used as the SVG-export fallback
+// when dom-to-image's native toSvg cannot inline a resource on the deployed host
+// ("Failed to fetch") — a raster inside <svg> is degraded (not vector) but it is
+// a usable, downloadable file rather than a dead-end (ADR 0011 / F-02).
+const rasterPngToSvgDataUrl = (
+  pngDataUrl: string,
+  width: number,
+  height: number
+): string => {
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" ` +
+    `viewBox="0 0 ${width} ${height}">` +
+    `<image href="${pngDataUrl}" width="${width}" height="${height}"/></svg>`;
+  return `data:image/svg+xml;base64,${utf8ToBase64(svg)}`;
 };
 
 export const exportAsSVG = async (
@@ -121,13 +138,21 @@ export const exportAsSVG = async (
   size?: Size,
   bgcolor: string = '#ffffff'
 ) => {
-  const width = size ? size.width : el.clientWidth;
-  const height = size ? size.height : el.clientHeight;
+  // SVG exports at 1× (it is markup, not a raster), but the same calculator
+  // still clamps pathological bounds so the embedded foreignObject never
+  // exceeds what a browser will rasterize on download/preview (ADR 0025 §2).
+  const baseW = size ? size.width : el.clientWidth;
+  const baseH = size ? size.height : el.clientHeight;
+  const { width, height } = computeRenderTarget(
+    { width: baseW, height: baseH },
+    1
+  );
 
+  // No cacheBust — see exportAsImage. Re-fetching resources with a busting query
+  // is what makes the deployed SVG export throw "Failed to fetch" (F-02).
   const options = {
     width,
     height,
-    cacheBust: true,
     bgcolor,
     quality: 1.0
   };
@@ -136,13 +161,12 @@ export const exportAsSVG = async (
     const svgData = await domtoimage.toSvg(el, options);
     return optimizeSvgDataUrl(svgData);
   } catch (error) {
-    console.error('SVG export failed, trying fallback method:', error);
-    const fallback = await domtoimage.toSvg(el, {
-      width,
-      height,
-      cacheBust: true,
-      bgcolor
-    });
-    return optimizeSvgDataUrl(fallback);
+    // Native SVG generation can fail on hosts that reject dom-to-image's
+    // cross-origin resource fetch. Retrying toSvg would fail identically, so
+    // degrade to a raster-backed SVG (the PNG capture path works) — the download
+    // always produces a usable file instead of dead-ending (ADR 0011 / F-02).
+    console.error('SVG export failed; falling back to a raster-backed SVG:', error);
+    const pngDataUrl = await domtoimage.toPng(el, { width, height, bgcolor });
+    return rasterPngToSvgDataUrl(pngDataUrl, width, height);
   }
 };

@@ -20,6 +20,7 @@ import { Close as CloseIcon } from '@mui/icons-material';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { DialogTypeEnum } from 'src/types/ui';
 import { FIXED_SHORTCUTS } from 'src/config/shortcuts';
+import { TOOL_HOTKEYS } from 'src/config/hotkeys';
 import { useTranslation } from 'src/stores/localeStore';
 
 export const HelpDialog = () => {
@@ -37,6 +38,10 @@ export const HelpDialog = () => {
   const handleClose = () => {
     setDialog(null);
   };
+
+  // D10 — TOOL_HOTKEYS values are `string | null` (HotkeyMapping). The current
+  // scheme binds every tool, but stay null-safe (and uppercase for display).
+  const keyLabel = (key: string | null): string => (key ?? '').toUpperCase();
 
   const keyboardShortcuts = [
     {
@@ -70,16 +75,6 @@ export const HelpDialog = () => {
       description: t('zoomOutDescription')
     },
     {
-      action: t('panCanvasAction'),
-      shortcut: t('panCanvasShortcut'),
-      description: t('panCanvasDescription')
-    },
-    {
-      action: t('togglePanToolAction'),
-      shortcut: t('togglePanToolShortcut'),
-      description: t('togglePanToolDescription')
-    },
-    {
       action: t('lassoSelectAction'),
       shortcut: t('lassoSelectShortcut'),
       description: t('lassoSelectDescription')
@@ -90,20 +85,43 @@ export const HelpDialog = () => {
       description: t('deselectDescription')
     },
     {
-      action: t('addNodeGroupAction'),
-      shortcut: t('addNodeGroupShortcut'),
-      description: t('addNodeGroupDescription')
-    },
-    {
-      action: 'Select All',
-      shortcut: 'Ctrl+A',
-      description:
-        'Select every visible, unlocked item in the active view (items, rectangles, text boxes, connectors + their waypoints)'
+      // D10 — was hardcoded English; now routed through helpDialog keys.
+      action: t('selectAllAction'),
+      shortcut: t('selectAllShortcut'),
+      description: t('selectAllDescription')
     },
     {
       action: t('deleteSelectedAction'),
       shortcut: t('deleteSelectedShortcut'),
       description: t('deleteSelectedDescription')
+    },
+    // D10 — undocumented tool-activation keys (ADR 0022 §6 locked defaults), now
+    // surfaced so users can learn them. Tool keys come from TOOL_HOTKEYS;
+    // F2 (rename) is a fixed handler key, not a rebindable tool hotkey.
+    {
+      action: t('keySelectAction'),
+      shortcut: keyLabel(TOOL_HOTKEYS.select),
+      description: t('keySelectDescription')
+    },
+    {
+      action: t('keyAddItemAction'),
+      shortcut: keyLabel(TOOL_HOTKEYS.addItem),
+      description: t('keyAddItemDescription')
+    },
+    {
+      action: t('keyConnectorAction'),
+      shortcut: keyLabel(TOOL_HOTKEYS.connector),
+      description: t('keyConnectorDescription')
+    },
+    {
+      action: t('keyLassoAction'),
+      shortcut: keyLabel(TOOL_HOTKEYS.lasso),
+      description: t('keyLassoDescription')
+    },
+    {
+      action: t('keyRenameAction'),
+      shortcut: 'F2',
+      description: t('keyRenameDescription')
     },
     {
       action: t('cutAction'),
@@ -122,48 +140,44 @@ export const HelpDialog = () => {
     }
   ];
 
+  // D10 — the one opinionated pointer model (ADR 0022), now routed through
+  // helpDialog keys (was a hardcoded English array). `*Method` is the column-2
+  // gesture string.
   const mouseInteractions = [
     {
-      action: t('selectToolAction'),
-      shortcut: t('selectToolShortcut'),
-      description: t('selectToolDescription')
+      action: t('miSelectAction'),
+      shortcut: t('miSelectMethod'),
+      description: t('miSelectDescription')
     },
     {
-      action: t('panToolAction'),
-      shortcut: t('panToolShortcut'),
-      description: t('panToolDescription')
+      action: t('miOpenDetailsAction'),
+      shortcut: t('miOpenDetailsMethod'),
+      description: t('miOpenDetailsDescription')
     },
     {
-      action: t('addItemAction'),
-      shortcut: t('addItemShortcut'),
-      description: t('addItemDescription')
+      action: t('miToggleSelectionAction'),
+      shortcut: t('miToggleSelectionMethod'),
+      description: t('miToggleSelectionDescription')
     },
     {
-      action: t('drawRectangleAction'),
-      shortcut: t('drawRectangleShortcut'),
-      description: t('drawRectangleDescription')
+      action: t('miPanAction'),
+      shortcut: t('miPanMethod'),
+      description: t('miPanDescription')
     },
     {
-      action: t('createConnectorAction'),
-      shortcut: t('createConnectorShortcut'),
-      description: t('createConnectorDescription')
+      action: t('miContextMenuAction'),
+      shortcut: t('miContextMenuMethod'),
+      description: t('miContextMenuDescription')
     },
     {
-      action: t('addTextAction'),
-      shortcut: t('addTextShortcut'),
-      description: t('addTextDescription')
+      action: t('miRemoveWaypointAction'),
+      shortcut: t('miRemoveWaypointMethod'),
+      description: t('miRemoveWaypointDescription')
     },
     {
-      action: 'Remove Waypoint',
-      shortcut: 'Alt + Left-click',
-      description:
-        'Alt+click a connector waypoint (with the connector selected) to splice it out; endpoint anchors are preserved'
-    },
-    {
-      action: 'Toggle Selection',
-      shortcut: 'Ctrl/Cmd + Left-click',
-      description:
-        'Add or remove an item or connector from the persistent multi-selection; clicking a connector toggles it together with its waypoints'
+      action: t('miZoomAction'),
+      shortcut: t('miZoomMethod'),
+      description: t('miZoomDescription')
     }
   ];
 

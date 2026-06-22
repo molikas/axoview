@@ -317,16 +317,44 @@ const COORDINATE_ATTRS = [
   'stroke-dashoffset'
 ];
 
-// Decode a data URL → raw SVG string. Returns null for an unknown format
-// (caller returns the URL untouched).
+// Decode a data URL → raw SVG string. Returns null for an unknown or
+// undecodable format (caller returns the URL untouched).
 function decodeSvgDataUrl(svgDataUrl: string): string | null {
-  if (svgDataUrl.startsWith(SVG_BASE64_PREFIX)) {
-    return atob(svgDataUrl.slice(SVG_BASE64_PREFIX.length));
-  }
-  if (svgDataUrl.startsWith(SVG_TEXT_PREFIX)) {
-    return decodeURIComponent(svgDataUrl.slice(SVG_TEXT_PREFIX.length));
+  try {
+    if (svgDataUrl.startsWith(SVG_BASE64_PREFIX)) {
+      return atob(svgDataUrl.slice(SVG_BASE64_PREFIX.length));
+    }
+    if (svgDataUrl.startsWith(SVG_TEXT_PREFIX)) {
+      // dom-to-image-more escapes only %, # and \n (escapeXhtml), so the only
+      // percent-sequences here are valid — but a stray % from upstream content
+      // would make decodeURIComponent throw. Degrade to "unknown" rather than
+      // propagate, so export never fails on a decode edge case.
+      return decodeURIComponent(svgDataUrl.slice(SVG_TEXT_PREFIX.length));
+    }
+  } catch {
+    return null;
   }
   return null;
+}
+
+/**
+ * UTF-8 → base64 that never throws on malformed UTF-16.
+ *
+ * The previous `btoa(unescape(encodeURIComponent(s)))` path threw
+ * `URIError: URI malformed` whenever a node/connector name contained a lone
+ * surrogate (e.g. half an emoji from a broken paste) — `encodeURIComponent`
+ * rejects unpaired surrogates. `TextEncoder` substitutes U+FFFD instead of
+ * throwing, so the SVG download always produces a valid file (issue #9).
+ */
+export function utf8ToBase64(input: string): string {
+  const bytes = new TextEncoder().encode(input);
+  // Chunk to stay clear of String.fromCharCode argument limits on large SVGs.
+  let binary = '';
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
 }
 
 // Phase 1 + 2: strip irrelevant style properties and round numbers in the
@@ -378,11 +406,16 @@ export async function optimizeSvgDataUrl(svgDataUrl: string): Promise<string> {
     roundCoordinateAttrs(allElements[i]);
   }
 
-  // Serialize back to string
-  const serializer = new XMLSerializer();
-  const optimized = serializer.serializeToString(doc);
-
-  // Re-encode as base64 to avoid URL-encoding issues with complex SVG content
-  const encoded = btoa(unescape(encodeURIComponent(optimized)));
-  return `${SVG_BASE64_PREFIX}${encoded}`;
+  // Serialize back to string and re-encode as base64 (avoids URL-encoding
+  // issues with complex SVG content). If serialization/encoding fails for any
+  // reason, fall back to the original data-URL — it is itself a valid,
+  // downloadable SVG, so export degrades gracefully instead of throwing (#9).
+  try {
+    const serializer = new XMLSerializer();
+    const optimized = serializer.serializeToString(doc);
+    return `${SVG_BASE64_PREFIX}${utf8ToBase64(optimized)}`;
+  } catch (err) {
+    console.warn('[svgOptimizer] encode failed, returning original', err);
+    return svgDataUrl;
+  }
 }

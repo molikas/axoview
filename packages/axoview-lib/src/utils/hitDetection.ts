@@ -2,7 +2,6 @@
 // Kept separate from isoMath.ts so the WeakMap spatial index is isolated and testable.
 
 import { Coords, Size, ItemReference, TextBox } from 'src/types';
-import { CoordsUtils } from 'src/utils/coordsUtils';
 import {
   getBoundingBox,
   isWithinBounds,
@@ -79,7 +78,14 @@ export const getItemAtTile = ({
         pathTile,
         con.path!.rectangle.from
       );
-      return CoordsUtils.isEqual(globalPathTile, tile);
+      // B5: connector lines render ~1-2px wide, so exact tile equality made them
+      // near-impossible to click. Accept any query tile within Chebyshev-1
+      // (the 8-neighbourhood, max(|dx|,|dy|) <= 1) of a path tile. Computed
+      // inline to avoid per-pointer-event allocations in this hot path.
+      return (
+        Math.abs(globalPathTile.x - tile.x) <= 1 &&
+        Math.abs(globalPathTile.y - tile.y) <= 1
+      );
     });
   });
 

@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { Tooltip } from '@mui/material';
-import { useUiStateStore } from 'src/stores/uiStateStore';
+import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useScene } from 'src/hooks/useScene';
 import {
   getAnchorTile,
@@ -106,9 +106,57 @@ const AnchorInnerDot = ({
   );
 };
 
+// Counter-scale wrapper: positions a handle at its tile point and cancels the
+// SceneLayer's transform: scale(zoom) so the control keeps a constant *screen*
+// size at any zoom — the waypoint hit area stays usable below 1× zoom instead of
+// shrinking with the canvas (UX §8.8, #1). Subscribes to zoom via the store the
+// same way SceneLayer does (direct DOM ref, no React re-render on pan/zoom); the
+// wrapper shrink-wraps the handle, so translate(-50%,-50%) centers it on `pos`
+// and scale(1/zoom) holds its screen size. Unconditional 1/zoom — never
+// min(1, 1/zoom), which would leave it shrunken when zoomed out.
+const AnchorScale = ({
+  pos,
+  children
+}: {
+  pos: Coords;
+  children: React.ReactNode;
+}) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const storeApi = useUiStateStoreApi();
+
+  useEffect(() => {
+    const apply = (zoom: number) => {
+      if (ref.current) {
+        ref.current.style.transform = `translate(-50%, -50%) scale(${1 / zoom})`;
+      }
+    };
+    apply(storeApi.getState().zoom);
+    return storeApi.subscribe((state, prev) => {
+      if (state.zoom !== prev.zoom) apply(state.zoom);
+    });
+  }, [storeApi]);
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: 'absolute',
+        left: pos.x,
+        top: pos.y,
+        transformOrigin: 'center center',
+        // Transparent to the pointer so it never intercepts clicks meant for the
+        // canvas (endpoint handles are pointerEvents:'none' for click-through to
+        // reconnect); the waypoint handle inside re-enables pointerEvents:'auto'.
+        pointerEvents: 'none'
+      }}
+    >
+      {children}
+    </div>
+  );
+};
+
 interface AnchorHandleProps {
   anchorId: string;
-  pos: Coords;
   radius: number;
   hitR: number;
   isEndpoint: boolean;
@@ -117,8 +165,10 @@ interface AnchorHandleProps {
 }
 
 // The rendered anchor control: a transparent hit area wrapping a frosted visual
-// disc + inner marker. forwardRef so MUI Tooltip (waypoints) can attach its ref
-// and inject hover handlers via the spread props — same DOM as a bare div.
+// disc + inner marker. Sized in fixed px (centered by its AnchorScale wrapper,
+// which both positions it at `pos` and counter-scales it). forwardRef so MUI
+// Tooltip (waypoints) can attach its ref and inject hover handlers via the spread
+// props — same DOM as a bare div.
 const AnchorHandle = React.forwardRef<
   HTMLDivElement,
   AnchorHandleProps & React.HTMLAttributes<HTMLDivElement>
@@ -126,7 +176,6 @@ const AnchorHandle = React.forwardRef<
   (
     {
       anchorId,
-      pos,
       radius,
       hitR,
       isEndpoint,
@@ -140,9 +189,6 @@ const AnchorHandle = React.forwardRef<
       ref={ref}
       data-anchor-id={!isEndpoint ? anchorId : undefined}
       style={{
-        position: 'absolute',
-        left: pos.x - hitR,
-        top: pos.y - hitR,
         width: hitR * 2,
         height: hitR * 2,
         borderRadius: '50%',
@@ -238,37 +284,37 @@ export const ConnectorAnchorOverlay = () => {
 
         if (isEndpoint) {
           return (
-            <AnchorHandle
-              key={anchor.id}
-              anchorId={anchor.id}
-              pos={pos}
-              radius={radius}
-              hitR={hitR}
-              isEndpoint
-              isSource={isSource}
-              isReconnecting={isReconnecting}
-            />
+            <AnchorScale key={anchor.id} pos={pos}>
+              <AnchorHandle
+                anchorId={anchor.id}
+                radius={radius}
+                hitR={hitR}
+                isEndpoint
+                isSource={isSource}
+                isReconnecting={isReconnecting}
+              />
+            </AnchorScale>
           );
         }
         return (
-          <Tooltip
-            key={anchor.id}
-            title="Alt+click to remove"
-            enterDelay={600}
-            enterNextDelay={600}
-            placement="top"
-            arrow
-          >
-            <AnchorHandle
-              anchorId={anchor.id}
-              pos={pos}
-              radius={radius}
-              hitR={hitR}
-              isEndpoint={false}
-              isSource={isSource}
-              isReconnecting={isReconnecting}
-            />
-          </Tooltip>
+          <AnchorScale key={anchor.id} pos={pos}>
+            <Tooltip
+              title="Alt+click to remove"
+              enterDelay={600}
+              enterNextDelay={600}
+              placement="top"
+              arrow
+            >
+              <AnchorHandle
+                anchorId={anchor.id}
+                radius={radius}
+                hitR={hitR}
+                isEndpoint={false}
+                isSource={isSource}
+                isReconnecting={isReconnecting}
+              />
+            </Tooltip>
+          </AnchorScale>
         );
       })}
     </>

@@ -26,11 +26,12 @@ import {
   BoundingBox,
   TextBox,
   View,
-  AnchorPosition
+  CornerAnchorPosition
 } from 'src/types';
 import { CoordsUtils } from 'src/utils/coordsUtils';
 import { SizeUtils } from 'src/utils/sizeUtils';
 import { findPath } from 'src/utils/pathfinder';
+import { htmlToPlainText } from 'src/utils/htmlToPlainText';
 import {
   clamp,
   roundToTwoDecimalPlaces,
@@ -158,6 +159,31 @@ export const getGridSubset = (tiles: Coords[]) => {
 export const isWithinBounds = (tile: Coords, bounds: Coords[]) => {
   const { lowX, lowY, highX, highY } = sortByPosition(bounds);
   return tile.x >= lowX && tile.x <= highX && tile.y >= lowY && tile.y <= highY;
+};
+
+// Axis-aligned overlap test between two tile rectangles, each given as two
+// opposite corners (in either order). Returns true when they share any area —
+// i.e. they touch or intersect. Used by lasso intersection semantics so a
+// marquee selects a rectangle/textbox it merely overlaps, not only one it fully
+// encloses (ADR 0006 addendum). Allocation-free: reads the four corner objects
+// directly, since getItemsInBounds runs every marquee-drag frame.
+export const doBoundsOverlap = (
+  aFrom: Coords,
+  aTo: Coords,
+  bFrom: Coords,
+  bTo: Coords
+): boolean => {
+  const aLowX = Math.min(aFrom.x, aTo.x);
+  const aHighX = Math.max(aFrom.x, aTo.x);
+  const aLowY = Math.min(aFrom.y, aTo.y);
+  const aHighY = Math.max(aFrom.y, aTo.y);
+  const bLowX = Math.min(bFrom.x, bTo.x);
+  const bHighX = Math.max(bFrom.x, bTo.x);
+  const bLowY = Math.min(bFrom.y, bTo.y);
+  const bHighY = Math.max(bFrom.y, bTo.y);
+  return (
+    aLowX <= bHighX && aHighX >= bLowX && aLowY <= bHighY && aHighY >= bLowY
+  );
 };
 
 export const getBoundingBox = (
@@ -399,7 +425,7 @@ export const outermostCornerPositions: TileOrigin[] = [
 
 export const convertBoundsToNamedAnchors = (
   boundingBox: BoundingBox
-): { [key in AnchorPosition]: Coords } => ({
+): { [key in CornerAnchorPosition]: Coords } => ({
   BOTTOM_LEFT: boundingBox[0],
   BOTTOM_RIGHT: boundingBox[1],
   TOP_RIGHT: boundingBox[2],
@@ -421,12 +447,7 @@ const getPlainTextForMeasurement = (content: string): string => {
   if (!content?.trim().startsWith('<')) return content;
   const lines = content
     .split(/<\/p>|<\/div>|<br\s*\/?>/i)
-    .map((s) =>
-      s
-        .replace(/<[^>]*>/g, '')
-        .replace(/&nbsp;/g, ' ')
-        .trim()
-    )
+    .map((s) => htmlToPlainText(s).trim())
     .filter(Boolean);
   return lines.reduce((a, b) => (a.length > b.length ? a : b), '');
 };
@@ -479,10 +500,7 @@ export const splitIntoMeasurableBlocks = (
   let m: RegExpExecArray | null;
   while ((m = re.exec(content)) !== null) {
     const tag = m[1].toLowerCase();
-    const text = m[3]
-      .replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .trim();
+    const text = htmlToPlainText(m[3]).trim();
     if (!text) continue;
     const scale =
       CANVAS_RICHTEXT_SCALE[tag as keyof typeof CANVAS_RICHTEXT_SCALE] ?? 1.0;

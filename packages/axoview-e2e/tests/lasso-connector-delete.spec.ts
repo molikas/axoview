@@ -101,6 +101,14 @@ test.describe('Lasso × connector × delete-cascade — Track 5e-1 (PR #6 regres
     // 1. Draw a connector between two FREE tiles (no icons). This is the
     //    exact PR #6 scenario — tile-bound endpoints were the trigger for
     //    the partial-selection else-branch bug.
+    //    Click-mode's first click on empty canvas is now a no-op (B3 / Decision
+    //    #4 — no free-floating connector from a stray click), so the free→free
+    //    fixture is drawn in drag mode (a deliberate press-drag-release).
+    await page.evaluate(() =>
+      (window as any).__axoview__.ui
+        .getState()
+        .actions.setConnectorInteractionMode('drag')
+    );
     await page.keyboard.press('c');
     await expect.poll(() => getUiModeType(page), { timeout: 2_000 }).toBe(
       'CONNECTOR'
@@ -108,10 +116,13 @@ test.describe('Lasso × connector × delete-cascade — Track 5e-1 (PR #6 regres
 
     const CONN_START: CanvasPoint = { x: 240, y: 240 };
     const CONN_END: CanvasPoint = { x: 600, y: 400 };
-    await canvas.clickAt(CONN_START);
-    await page.waitForTimeout(100);
-    await canvas.clickAt(CONN_END);
+    await canvas.dragFromTo(CONN_START, CONN_END);
     await expect.poll(() => getModelConnectorCount(page), { timeout: 5_000 }).toBe(1);
+    await page.evaluate(() =>
+      (window as any).__axoview__.ui
+        .getState()
+        .actions.setConnectorInteractionMode('click')
+    );
 
     // 2. Enter LASSO mode via hotkey (`l` in both qwerty + smnrct profiles).
     await page.keyboard.press('l');
@@ -160,6 +171,13 @@ test.describe('Lasso × connector × delete-cascade — Track 5e-1 (PR #6 regres
     // 1. Draw a diagonal connector between two free tiles, endpoints far
     //    enough apart that a thin horizontal strip across the middle
     //    contains neither endpoint.
+    //    Free→free via drag mode — click-mode's first click on empty canvas is
+    //    a no-op now (B3 / Decision #4).
+    await page.evaluate(() =>
+      (window as any).__axoview__.ui
+        .getState()
+        .actions.setConnectorInteractionMode('drag')
+    );
     await page.keyboard.press('c');
     await expect.poll(() => getUiModeType(page), { timeout: 2_000 }).toBe(
       'CONNECTOR'
@@ -167,10 +185,13 @@ test.describe('Lasso × connector × delete-cascade — Track 5e-1 (PR #6 regres
 
     const TOP_LEFT: CanvasPoint = { x: 220, y: 200 };
     const BOTTOM_RIGHT: CanvasPoint = { x: 620, y: 460 };
-    await canvas.clickAt(TOP_LEFT);
-    await page.waitForTimeout(100);
-    await canvas.clickAt(BOTTOM_RIGHT);
+    await canvas.dragFromTo(TOP_LEFT, BOTTOM_RIGHT);
     await expect.poll(() => getModelConnectorCount(page), { timeout: 5_000 }).toBe(1);
+    await page.evaluate(() =>
+      (window as any).__axoview__.ui
+        .getState()
+        .actions.setConnectorInteractionMode('click')
+    );
 
     // 2. Lasso a thin horizontal strip across the middle. Neither endpoint
     //    is inside; the connector's diagonal path crosses through it. This

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   IconButton,
   ListItemIcon,
@@ -17,6 +18,8 @@ import {
 import { useDiagramLifecycle } from '../providers/DiagramLifecycleProvider';
 
 export function ExportPopover() {
+  // D2: route the trigger tooltip + the three menu labels through app i18n.
+  const { t } = useTranslation('app');
   const {
     handleExportJSON,
     handleExportImage,
@@ -33,7 +36,7 @@ export function ExportPopover() {
 
   return (
     <>
-      <Tooltip title="Export" placement="bottom">
+      <Tooltip title={t('exportMenu.tooltip')} placement="bottom">
         <span>
           <IconButton
             ref={buttonRef}
@@ -62,18 +65,21 @@ export function ExportPopover() {
             data-axoview-id="toolbar-export-json"
           >
             <ListItemIcon><JsonIcon fontSize="small" /></ListItemIcon>
-            <ListItemText>Export JSON</ListItemText>
+            <ListItemText>{t('exportMenu.json')}</ListItemText>
           </MenuItem>
-          <MenuItem onClick={() => handleOption(handleExportImage)}>
+          <MenuItem
+            onClick={() => handleOption(handleExportImage)}
+            data-axoview-id="toolbar-export-image"
+          >
             <ListItemIcon><ImageIcon fontSize="small" /></ListItemIcon>
-            <ListItemText>Export Image</ListItemText>
+            <ListItemText>{t('exportMenu.image')}</ListItemText>
           </MenuItem>
           <MenuItem
             onClick={() => handleOption(handleExportProject)}
             data-axoview-id="toolbar-export-project-zip"
           >
             <ListItemIcon><ProjectZipIcon fontSize="small" /></ListItemIcon>
-            <ListItemText>Export Project (.zip)</ListItemText>
+            <ListItemText>{t('exportMenu.projectZip')}</ListItemText>
           </MenuItem>
         </MenuList>
       </Popover>

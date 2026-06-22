@@ -8,11 +8,15 @@ import { useIcon } from 'src/hooks/useIcon';
 import { ViewItem } from 'src/types';
 import { useModelItem } from 'src/hooks/useModelItem';
 import { useSceneActions } from 'src/hooks/useSceneActions';
-import { useUiStateStore } from 'src/stores/uiStateStore';
+import {
+  useUiStateStore,
+  useUiStateStoreApi
+} from 'src/stores/uiStateStore';
 import { useRenderProbe } from 'src/utils/renderProbe';
 import { ExpandableLabel } from 'src/components/Label/ExpandableLabel';
 import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
 import { stripHtmlTags } from 'src/utils/stripHtml';
+import { isLabelVisibleInPreview } from 'src/utils/previewLabelVisibility';
 
 const INLINE_EDIT_EVENT = 'inlineEditNodeName';
 
@@ -48,13 +52,14 @@ const NodeShell = styled('div')({ position: 'absolute' });
 
 const NodeTransform = styled('div')({
   position: 'absolute',
-  // --ff-x/--ff-y written by React from the model tile; --ff-drag-dx/dy mutated
-  // by DragItems via DOM during a drag. One translate3d → compositor-only
-  // updates (no layout, no per-frame React). (The tap-to-place carry affordance
-  // was superseded by direct manipulation — ADR 0018 Revision B — so there is no
-  // --ff-carry-scale here.)
+  // --ff-x/--ff-y written by React from the model tile; --ff-off-x/y the ADR 0023
+  // off-grid render offset (post-projection px, 0 when snapped); --ff-drag-dx/dy
+  // mutated by DragItems via DOM during a drag. All three are summed in one
+  // translate3d so they compose (compositor-only updates, no per-frame React)
+  // and the offset never fights the live drag delta. (The tap-to-place carry
+  // affordance was superseded by direct manipulation — ADR 0018 Revision B.)
   transform:
-    'translate3d(calc(var(--ff-x, 0px) + var(--ff-drag-dx, 0px)), calc(var(--ff-y, 0px) + var(--ff-drag-dy, 0px)), 0)',
+    'translate3d(calc(var(--ff-x, 0px) + var(--ff-off-x, 0px) + var(--ff-drag-dx, 0px)), calc(var(--ff-y, 0px) + var(--ff-off-y, 0px) + var(--ff-drag-dy, 0px)), 0)',
   willChange: 'transform'
 });
 
@@ -98,12 +103,17 @@ const NotesBadge = styled('div')({
 
 // Display-mode label title: theme.typography.body1 + the fixed overrides baked
 // once. Per-node labelFontSize / labelColor go via inline style.
+// #10: break long words so a caption that is a link (the name renders as an <a>
+// when headerLink is set) wraps inside the label chip instead of being clipped by
+// its overflow:hidden. Matches the inline-edit wrap idiom; covers plain names too.
 const LabelTitle = styled('p')(({ theme }) => ({
   ...theme.typography.body1,
   margin: 0,
   fontWeight: 600,
   fontSize: 14,
-  color: theme.palette.text.primary
+  color: theme.palette.text.primary,
+  wordBreak: 'break-word',
+  overflowWrap: 'anywhere'
 }));
 
 export const Node = memo(({ node, order }: Props) => {
@@ -125,7 +135,11 @@ export const Node = memo(({ node, order }: Props) => {
         style={
           {
             '--ff-x': `${position.x}px`,
-            '--ff-y': `${position.y}px`
+            '--ff-y': `${position.y}px`,
+            // ADR 0023: off-grid residual as a post-projection translate; 0 when
+            // snapped. Composes with --ff-x/y and the live drag delta above.
+            '--ff-off-x': `${node.offset?.x ?? 0}px`,
+            '--ff-off-y': `${node.offset?.y ?? 0}px`
           } as React.CSSProperties
         }
       >
@@ -170,17 +184,57 @@ const NodeContent = memo(
     const modelItem = useModelItem(id);
     const { iconComponent } = useIcon(modelItem?.icon);
     const editorMode = useUiStateStore((s) => s.editorMode);
+    // Present-mode hide-labels override (ADR 0013 addendum) — UI-only.
+    const previewHideLabels = useUiStateStore((s) => s.previewHideLabels);
+    // Image-export hide-labels override (ADR 0025 §3) — UI-only, export-scoped.
+    const exportHideLabels = useUiStateStore((s) => s.exportHideLabels);
     // MQA #7 Path 2 — useSceneActions only (NOT useScene). The latter pulls
     // useSceneData which subscribes to {views, ...} shallow; `views` ticks
     // per drag frame and would force NodeContent to re-render past its memo
     // gate, defeating the split.
-    const { updateModelItem } = useSceneActions();
+    const { updateModelItem, updateViewItem } = useSceneActions();
+    const uiStoreApi = useUiStateStoreApi();
+    // Single-selection signal for the on-canvas label drag (ADR 0024). A
+    // primitive boolean selector: only this node flips when selection changes,
+    // and only the selected/dragged nodes are mounted as DOM here anyway.
+    const isSelected = useUiStateStore(
+      (s) => s.itemControls?.type === 'ITEM' && s.itemControls.id === id
+    );
+    // Track P (T6 fix): live preview height while THIS node's label is being
+    // dragged from the canvas (NodeLabelHitLayer promotes it into the DOM overlay
+    // and pushes the offset here). Only the dragged node's value changes, so only
+    // it re-renders per frame — no per-frame model write, no canvas redraw. Null
+    // for every other node and when no label drag is in flight.
+    const labelDragHeight = useUiStateStore((s) =>
+      s.labelDrag?.id === id ? s.labelDrag.height : null
+    );
 
     const isReadonly = editorMode === 'EXPLORABLE_READONLY';
     const isEditable = editorMode === 'EDITABLE';
+    // Merge the model's `showLabel` with the present-mode hide-labels flag at the
+    // single documented merge point (forced hidden only while presenting).
+    const labelVisible =
+      isLabelVisibleInPreview(showLabel !== false, isReadonly, previewHideLabels) &&
+      !exportHideLabels;
     const hasLink = isReadonly && !!modelItem?.link;
 
     const [isEditingName, setIsEditingName] = useState(false);
+
+    // ADR 0024 label reposition — drag the label chip itself to move it above or
+    // below the node. Live preview held here (not the model) so the gesture is a
+    // pure React preview; the model is written ONCE on release (one history
+    // entry). Null when not dragging.
+    const [labelOffsetPreview, setLabelOffsetPreview] = useState<number | null>(
+      null
+    );
+
+    const commitLabelOffset = useCallback(
+      (offset: number) => {
+        updateViewItem(id, { labelHeight: offset });
+        setLabelOffsetPreview(null);
+      },
+      [updateViewItem, id]
+    );
 
     // F2 handler in useInteractionManager dispatches this event for the
     // currently-selected item; match by id so only that node enters edit mode.
@@ -258,13 +312,27 @@ const NodeContent = memo(
       <NodeContentFlex
         style={{ cursor: isClickableInReadonly ? 'pointer' : 'inherit' }}
       >
-        {showLabel !== false &&
+        {labelVisible &&
           (modelItem?.name || description || isEditingName) && (
             <div data-testid="node-label" onDoubleClick={startInlineEdit}>
               <ExpandableLabel
                 maxWidth={isEditingName ? 600 : 250}
                 expandDirection="BOTTOM"
-                labelHeight={labelHeight ?? DEFAULT_LABEL_HEIGHT}
+                labelHeight={
+                  labelDragHeight ??
+                  labelOffsetPreview ??
+                  labelHeight ??
+                  DEFAULT_LABEL_HEIGHT
+                }
+                reposition={
+                  isEditable && isSelected && !isEditingName
+                    ? {
+                        getZoom: () => uiStoreApi.getState().zoom,
+                        onPreview: setLabelOffsetPreview,
+                        onCommit: commitLabelOffset
+                      }
+                    : undefined
+                }
               >
                 <LabelStack>
                   {isEditingName ? (

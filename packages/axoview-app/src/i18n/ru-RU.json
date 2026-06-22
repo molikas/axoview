@@ -12,8 +12,29 @@
         "diagrams": "Диаграммы",
         "share": "Поделиться"
     },
+    "exportMenu": {
+        "tooltip": "Экспорт",
+        "json": "Экспорт в JSON",
+        "image": "Экспорт изображения",
+        "projectZip": "Экспорт проекта (.zip)",
+        "jsonExported": "Файл {{filename}} экспортирован"
+    },
+    "emptyState": {
+        "newDiagram": "Новая диаграмма",
+        "import": "Импорт"
+    },
+    "fileExplorer": {
+        "title": "Диаграммы",
+        "import": "Импорт",
+        "exportProject": "Экспорт проекта",
+        "newDiagram": "Новая диаграмма",
+        "newFolder": "Новая папка",
+        "refresh": "Обновить",
+        "collapseAll": "Свернуть все"
+    },
     "status": {
         "current": "Текущий",
+        "session": "Сеанс",
         "untitled": "Диаграмма без названия",
         "modified": "Изменено",
         "sessionStorageNote": "Только хранилище сеанса - экспортируйте для постоянного сохранения",
@@ -21,12 +42,17 @@
         "savedAt": "Сохранено в {{time}}",
         "savedYesterdayAt": "Сохранено вчера в {{time}}",
         "savedOnDate": "Сохранено {{day}} {{month}} в {{time}}",
-        "savedOnDateYear": "Сохранено {{day}} {{month}} {{year}} в {{time}}"
+        "savedOnDateYear": "Сохранено {{day}} {{month}} {{year}} в {{time}}",
+        "sessionBanner": "Ваша работа хранится только в этой вкладке браузера. Используйте Экспорт → Экспорт проекта, чтобы сохранить её.",
+        "dismiss": "Закрыть"
+    },
+    "settings": {
+        "language": "Язык"
     },
     "toolbar": {
-        "previewSaveFirst": "Сначала сохраните для предварительного просмотра",
-        "saveAndPreview": "Сохранить и просмотреть",
-        "preview": "Просмотр"
+        "presentSaveFirst": "Сначала сохраните для презентации",
+        "saveAndPresent": "Сохранить и презентовать",
+        "present": "Презентация"
     },
     "share": {
         "title": "Поделиться диаграммой",

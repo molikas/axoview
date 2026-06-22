@@ -12,8 +12,29 @@
         "quickSaveSession": "快速保存（会话）",
         "serverStorage": "服务端存储"
     },
+    "exportMenu": {
+        "tooltip": "导出",
+        "json": "导出 JSON",
+        "image": "导出图片",
+        "projectZip": "导出项目 (.zip)",
+        "jsonExported": "已导出 {{filename}}"
+    },
+    "emptyState": {
+        "newDiagram": "新建图表",
+        "import": "导入"
+    },
+    "fileExplorer": {
+        "title": "图表",
+        "import": "导入",
+        "exportProject": "导出项目",
+        "newDiagram": "新建图表",
+        "newFolder": "新建文件夹",
+        "refresh": "刷新",
+        "collapseAll": "全部折叠"
+    },
     "status": {
         "current": "当前",
+        "session": "会话",
         "untitled": "未命名图表",
         "modified": "已修改",
         "unsaved": "未保存",
@@ -21,12 +42,17 @@
         "savedYesterdayAt": "昨天 {{time}} 已保存",
         "savedOnDate": "{{month}} {{day}} {{time}} 已保存",
         "savedOnDateYear": "{{year}} 年 {{month}} {{day}} {{time}} 已保存",
-        "sessionStorageNote": "仅会话存储 - 导出以永久保存"
+        "sessionStorageNote": "仅会话存储 - 导出以永久保存",
+        "sessionBanner": "您的工作仅保存在此浏览器标签页中。请使用导出 → 导出项目以保留它。",
+        "dismiss": "关闭"
+    },
+    "settings": {
+        "language": "语言"
     },
     "toolbar": {
-        "previewSaveFirst": "请先保存以预览",
-        "saveAndPreview": "保存并预览",
-        "preview": "预览"
+        "presentSaveFirst": "请先保存以演示",
+        "saveAndPresent": "保存并演示",
+        "present": "演示"
     },
     "share": {
         "title": "分享图表",

@@ -11,9 +11,11 @@ import { AddOutlined, DeleteOutlineOutlined } from '@mui/icons-material';
 import { useLayerContext, LayerItem } from 'src/hooks/useLayerContext';
 import { useLayerActions } from 'src/hooks/useLayerActions';
 import { useUiStateStore } from 'src/stores/uiStateStore';
+import { useTranslation } from 'src/stores/localeStore';
 import { useScene } from 'src/hooks/useScene';
 import { useSceneData } from 'src/hooks/useSceneData';
 import { ItemReference, Coords } from 'src/types';
+import { filterUserFacingRefs } from 'src/utils/connectorSelection';
 import { LayerRow } from './LayerRow';
 import { LayerItemRow } from './LayerItemRow';
 
@@ -72,6 +74,7 @@ const computeBoundingTiles = (
 };
 
 export const LayersPanel = () => {
+  const { t } = useTranslation('layersPanel');
   const { layers, itemCountByLayerId, unassignedCount, itemsByLayerId } =
     useLayerContext();
   const {
@@ -113,28 +116,49 @@ export const LayersPanel = () => {
   // Bidirectional: read current canvas selection
   const itemControls = useUiStateStore((s) => s.itemControls);
   const mode = useUiStateStore((s) => s.mode);
+  const selectedIds = useUiStateStore((s) => s.selectedIds);
   const uiStateActions = useUiStateStore((s) => s.actions);
 
   const selectedItemId =
     itemControls && itemControls.type !== 'ADD_ITEM' ? itemControls.id : null;
 
-  // IDs in the current LASSO multi-selection (if any) — used for row highlight.
-  const lassoSelectedIds = useMemo(() => {
-    if (mode.type === 'LASSO' && mode.selection) {
-      return new Set(mode.selection.items.map((i) => i.id));
-    }
-    return new Set<string>();
-  }, [mode]);
+  // The current canvas multi-selection, regardless of how it was produced:
+  // a LASSO/freehand drag and panel Ctrl-clicks live in `mode.selection`, while
+  // a canvas Ctrl-click / Ctrl+A lives in `uiState.selectedIds` (ADR 0006 §6).
+  // The panel mirrors BOTH so a canvas Ctrl-multi-select lights up the rows
+  // (ADR 0006 addendum #13 / UX §4.1) — not only LASSO-mode selection.
+  const selectedRefs = useMemo<ItemReference[]>(
+    () =>
+      mode.type === 'LASSO' && mode.selection
+        ? mode.selection.items
+        : selectedIds,
+    [mode, selectedIds]
+  );
+
+  // Row-highlight id set, unioning every selection source.
+  const highlightedIds = useMemo(
+    () => new Set(selectedRefs.map((i) => i.id)),
+    [selectedRefs]
+  );
 
   // Anchor for shift-click range selection — id of the last plain-clicked row.
   const anchorIdRef = useRef<string | null>(null);
 
-  // Layers displayed top-to-bottom = highest order first
-  const sortedLayers = [...layers].sort((a, b) => b.order - a.order);
+  // Layers displayed top-to-bottom = highest order first. Memoized so a
+  // selection change (which re-renders the panel via the itemControls/mode
+  // subscriptions) doesn't rebuild the array and invalidate visibleItemsFlat —
+  // keeping the per-selection parent work O(1) rather than O(N) items (T3).
+  const sortedLayers = useMemo(
+    () => [...layers].sort((a, b) => b.order - a.order),
+    [layers]
+  );
 
   const handleAddLayer = useCallback(() => {
-    createLayer({ name: `Layer ${layers.length + 1}` });
-  }, [createLayer, layers.length]);
+    // D8 — default layer name interpolated via i18n ({count}), not concat.
+    createLayer({
+      name: t('layerN').replace('{count}', String(layers.length + 1))
+    });
+  }, [createLayer, layers.length, t]);
 
   const handleDeleteSelected = useCallback(() => {
     if (!selectedLayerId) return;
@@ -295,7 +319,9 @@ export const LayersPanel = () => {
           showCursor: true,
           mousedownItem: null
         });
-        uiStateActions.setItemControls({ type: next[0].type, id: next[0].id });
+        // Select-only (ADR 0022 §3) — collapsing a multi-select to one item
+        // highlights it + opens the bar, but doesn't mount the panel.
+        uiStateActions.setSelectedIds([{ type: next[0].type, id: next[0].id }]);
       } else {
         buildLassoFromItems(next);
       }
@@ -304,31 +330,73 @@ export const LayersPanel = () => {
     [mode, itemControls, uiStateActions, buildLassoFromItems]
   );
 
+  // Latest closures the row-click handler needs, captured in a ref so
+  // handleItemClick stays identity-stable across renders. applyCtrlToggleSelect
+  // inherently depends on itemControls/mode (which change on every selection),
+  // so keeping it as a direct useCallback dep would churn the onClick prop for
+  // ALL rows on every selection and defeat LayerItemRow's memo — re-rendering
+  // every row per selection (the T3 lag). Reading the latest closures from the
+  // ref keeps behavior identical while letting the memo hold, so only the rows
+  // whose isSelected actually flips re-render.
+  const itemClickImpl = useRef({
+    tryShiftRangeSelect,
+    applyCtrlToggleSelect,
+    mode,
+    uiStateActions
+  });
+  itemClickImpl.current = {
+    tryShiftRangeSelect,
+    applyCtrlToggleSelect,
+    mode,
+    uiStateActions
+  };
+
   // Panel → canvas: clicking an item row selects it on canvas.
   // Modifier keys promote to a multi-select via LASSO mode (UX §4.1).
   const handleItemClick = useCallback(
     (item: LayerItem, modifiers: { shift: boolean; ctrl: boolean }) => {
+      const {
+        tryShiftRangeSelect: tryShift,
+        applyCtrlToggleSelect: applyCtrl,
+        mode: curMode,
+        uiStateActions: actions
+      } = itemClickImpl.current;
       const ref: ItemReference = { type: item.type, id: item.id };
 
-      if (tryShiftRangeSelect(item, modifiers.shift)) return;
+      if (tryShift(item, modifiers.shift)) return;
 
       if (modifiers.ctrl) {
-        applyCtrlToggleSelect(ref, item);
+        applyCtrl(ref, item);
         return;
       }
 
       // Plain click: drop any LASSO multi-select, single-select on canvas.
-      if (mode.type === 'LASSO') {
-        uiStateActions.setMode({
+      // Select-only (highlight + canvas sync + action bar), NOT open — mirrors
+      // the canvas single-click (ADR 0022 §3 / §4.1). The panel opens on
+      // double-click (handleItemOpen).
+      if (curMode.type === 'LASSO') {
+        actions.setMode({
           type: 'CURSOR',
           showCursor: true,
           mousedownItem: null
         });
       }
       anchorIdRef.current = item.id;
+      actions.setSelectedIds([{ type: item.type, id: item.id }]);
+    },
+    []
+  );
+
+  // Panel → canvas: double-clicking a row opens its details panel, mirroring the
+  // canvas open/select split (ADR 0022 §3 / ADR 0006 addendum). `uiStateActions`
+  // is the store's stable actions object, so this stays identity-stable across
+  // selection re-renders — preserving the T3 memo (commit c875b652): a selection
+  // re-renders 2 rows, not all N.
+  const handleItemOpen = useCallback(
+    (item: LayerItem) => {
       uiStateActions.setItemControls({ type: item.type, id: item.id });
     },
-    [tryShiftRangeSelect, applyCtrlToggleSelect, mode, uiStateActions]
+    [uiStateActions]
   );
 
   // Drag item to assign to a layer
@@ -351,12 +419,25 @@ export const LayersPanel = () => {
         itemDragState.overLayerId === '__unassigned__'
           ? undefined
           : itemDragState.overLayerId;
-      assignLayerToItems(target, [
-        { type: itemDragState.item.type, id: itemDragState.item.id }
-      ]);
+      const draggedRef: ItemReference = {
+        type: itemDragState.item.type,
+        id: itemDragState.item.id
+      };
+      // Bulk: if the dragged row is part of the current multi-selection, assign
+      // the WHOLE selection to the target layer, not just the dragged item
+      // (ADR 0006 addendum #13). filterUserFacingRefs drops CONNECTOR_ANCHOR
+      // refs — waypoints can't be layer-assigned (UX §4.4). Otherwise assign
+      // just the dragged item.
+      const draggedInSelection = selectedRefs.some(
+        (r) => r.id === draggedRef.id && r.type === draggedRef.type
+      );
+      const refs = draggedInSelection
+        ? filterUserFacingRefs(selectedRefs)
+        : [draggedRef];
+      assignLayerToItems(target, refs);
     }
     setItemDragState(null);
-  }, [itemDragState, assignLayerToItems]);
+  }, [itemDragState, assignLayerToItems, selectedRefs]);
 
   // Simple drag-to-reorder via mousedown/mousemove on drag handle
   const [dragState, setDragState] = useState<{
@@ -428,7 +509,8 @@ export const LayersPanel = () => {
         sx={{ px: 1.5, py: 1, flexShrink: 0 }}
       >
         <Typography variant="overline" color="text.secondary">
-          Layers
+          {/* D8 — header routed through i18n */}
+          {t('header')}
         </Typography>
         <Stack
           className="ff-layers-header-actions"
@@ -440,7 +522,7 @@ export const LayersPanel = () => {
             '&:focus-within': { opacity: 1 }
           }}
         >
-          <Tooltip title="Add layer" placement="top">
+          <Tooltip title={t('addLayer')} placement="top">
             <IconButton
               size="small"
               onClick={handleAddLayer}
@@ -450,7 +532,7 @@ export const LayersPanel = () => {
               <AddOutlined fontSize="small" />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Delete selected layer" placement="top">
+          <Tooltip title={t('deleteSelectedLayer')} placement="top">
             <span>
               <IconButton
                 size="small"
@@ -475,7 +557,8 @@ export const LayersPanel = () => {
             color="text.disabled"
             sx={{ display: 'block', textAlign: 'center', mt: 2, mb: 1 }}
           >
-            No layers yet. Click + to add one.
+            {/* D8 — empty-state routed through i18n */}
+            {t('noLayersYet')}
           </Typography>
         )}
         {sortedLayers.length > 0 && (
@@ -526,8 +609,9 @@ export const LayersPanel = () => {
                         <LayerItemRow
                           key={item.id}
                           item={item}
-                          isSelected={item.id === selectedItemId || lassoSelectedIds.has(item.id)}
+                          isSelected={item.id === selectedItemId || highlightedIds.has(item.id)}
                           onClick={handleItemClick}
+                          onOpen={handleItemOpen}
                           onRename={handleItemRename}
                           onDragStart={handleItemDragStart}
                           onToggleLabel={handleToggleLabel}
@@ -563,7 +647,8 @@ export const LayersPanel = () => {
             color="text.disabled"
             sx={{ display: 'block', px: 0.5, pt: 0.5, pb: 0.25 }}
           >
-            Unassigned ({unassignedCount})
+            {/* D8 — "Unassigned (N)" count interpolated via i18n, not concat */}
+            {t('unassigned').replace('{count}', String(unassignedCount))}
           </Typography>
           {unassignedCount === 0 ? (
             <Typography
@@ -571,15 +656,17 @@ export const LayersPanel = () => {
               color="text.disabled"
               sx={{ display: 'block', px: 1, pb: 0.75, fontStyle: 'italic' }}
             >
-              Drop items here to unassign
+              {/* D8 — drop hint routed through i18n */}
+              {t('dropToUnassign')}
             </Typography>
           ) : (
             unassignedItems.map((item) => (
               <LayerItemRow
                 key={item.id}
                 item={item}
-                isSelected={item.id === selectedItemId}
+                isSelected={item.id === selectedItemId || highlightedIds.has(item.id)}
                 onClick={handleItemClick}
+                onOpen={handleItemOpen}
                 onRename={handleItemRename}
                 onDragStart={handleItemDragStart}
                 onToggleLabel={handleToggleLabel}

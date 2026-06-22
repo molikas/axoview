@@ -46,10 +46,6 @@ const locale: LocaleProps = {
     deselectShortcut: 'बाएँ-क्लिक (खाली क्षेत्र)',
     deselectDescription:
       'वर्तमान चयन रद्द करें और चयन मोड में वापस जाएं',
-    addNodeGroupAction: 'Add Node / Group',
-    addNodeGroupShortcut: 'डबल-क्लिक (खाली क्षेत्र)',
-    addNodeGroupDescription:
-      'Opens the Add popover at the cursor: pick an icon to place a node, or click Group to add a background area for visually grouping nodes',
     // Mouse interactions
     selectToolAction: 'चयन उपकरण',
     selectToolShortcut: 'चयन बटन क्लिक करें',
@@ -81,7 +77,56 @@ const locale: LocaleProps = {
     copyDescription: 'चयनित आइटम क्लिपबोर्ड पर कॉपी करें',
     pasteAction: 'पेस्ट करें',
     pasteDescription:
-      'क्लिपबोर्ड आइटम माउस की स्थिति पर पेस्ट करें; ओवरलैप से बचने के लिए ऑफसेट'
+      'क्लिपबोर्ड आइटम माउस की स्थिति पर पेस्ट करें; ओवरलैप से बचने के लिए ऑफसेट',
+    // D10 — Select all row
+    selectAllAction: 'सभी चुनें',
+    selectAllShortcut: 'Ctrl+A',
+    selectAllDescription:
+      'सक्रिय दृश्य में सभी दृश्यमान, अनलॉक आइटम चुनें (आइटम, आयत, टेक्स्ट बॉक्स, कनेक्टर + उनके वेपॉइंट)',
+    // D10 — tool-activation keys (ADR 0022 §6)
+    keyRenameAction: 'नाम बदलें',
+    keyRenameShortcut: 'F2',
+    keyRenameDescription: 'चयनित आइटम या आरेख का नाम इनलाइन बदलें',
+    keyAddItemAction: 'आइटम जोड़ें / एलिमेंट्स',
+    keyAddItemShortcut: 'N',
+    keyAddItemDescription: 'नया आइटम रखने के लिए एलिमेंट्स पैनल टॉगल करें',
+    keyConnectorAction: 'कनेक्टर',
+    keyConnectorShortcut: 'C',
+    keyConnectorDescription: 'कनेक्टर टूल पर स्विच करें',
+    keyLassoAction: 'लासो चयन',
+    keyLassoShortcut: 'L',
+    keyLassoDescription: 'लासो चयन टूल पर स्विच करें',
+    keySelectAction: 'चुनें',
+    keySelectShortcut: 'S',
+    keySelectDescription: 'चयन टूल पर स्विच करें',
+    // D10 — mouse interactions
+    miSelectAction: 'चुनें',
+    miSelectMethod: 'बायाँ-क्लिक',
+    miSelectDescription:
+      'किसी आइटम को चुनने के लिए उस पर क्लिक करें (इसे हाइलाइट करता है और फ़्लोटिंग एक्शन बार दिखाता है)। चयन हटाने के लिए खाली कैनवास पर क्लिक करें।',
+    miOpenDetailsAction: 'विवरण खोलें',
+    miOpenDetailsMethod: 'डबल-क्लिक',
+    miOpenDetailsDescription:
+      'किसी आइटम का विवरण पैनल खोलने के लिए उस पर डबल-क्लिक करें — संदर्भ मेनू की «विवरण…» प्रविष्टि के समान।',
+    miToggleSelectionAction: 'चयन टॉगल करें',
+    miToggleSelectionMethod: 'Ctrl/Cmd + बायाँ-क्लिक',
+    miToggleSelectionDescription:
+      'किसी आइटम को बहु-चयन में जोड़ें या हटाएँ; कनेक्टर अपने वेपॉइंट के साथ टॉगल होता है।',
+    miPanAction: 'पैन करें',
+    miPanMethod: 'दायाँ-क्लिक + खींचें',
+    miPanDescription:
+      'कैनवास को पैन करने के लिए दायाँ बटन दबाए रखें और खींचें। मध्य-बटन खींचने से भी पैन होता है; तीर कुंजियाँ इसे खिसकाती हैं।',
+    miContextMenuAction: 'संदर्भ मेनू',
+    miContextMenuMethod: 'दायाँ-क्लिक (टैप)',
+    miContextMenuDescription:
+      'बिना खींचे दायाँ-क्लिक संदर्भ मेनू खोलता है — किसी आइटम पर आइटम मेनू, या खाली स्थान पर कैनवास मेनू। टच पर, देर तक दबाएँ।',
+    miRemoveWaypointAction: 'वेपॉइंट हटाएँ',
+    miRemoveWaypointMethod: 'Alt + बायाँ-क्लिक',
+    miRemoveWaypointDescription:
+      'किसी कनेक्टर वेपॉइंट को हटाने के लिए Alt+क्लिक करें (पहले कनेक्टर चुनने की आवश्यकता नहीं); अंतिम-बिंदु एंकर सुरक्षित रहते हैं।',
+    miZoomAction: 'ज़ूम',
+    miZoomMethod: 'स्क्रॉल व्हील',
+    miZoomDescription: 'कर्सर की ओर ज़ूम करने के लिए स्क्रॉल करें।'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'टिप: कनेक्टर बनाना',
@@ -137,6 +182,16 @@ const locale: LocaleProps = {
       'कनेक्टर के अंत पर बाईं-क्लिक करें और इसे वांछित नोड पर खींचें।'
   },
   settings: {
+    // D3 — SettingsDialog chrome
+    title: 'सेटिंग्स',
+    close: 'बंद करें',
+    canvas: 'कैनवास',
+    language: 'भाषा',
+    about: 'परिचय',
+    languageDescription:
+      'एप्लिकेशन इंटरफ़ेस के लिए प्रदर्शन भाषा चुनें।',
+    zoomSection: 'ज़ूम',
+    labelsSection: 'लेबल',
     zoom: {
       description:
         'माउस व्हील का उपयोग करते समय ज़ूम व्यवहार को कॉन्फ़िगर करें।',
@@ -165,21 +220,6 @@ const locale: LocaleProps = {
       fixedPaste: 'पेस्ट करें',
       fixedUndo: 'पूर्ववत करें',
       fixedRedo: 'फिर से करें'
-    },
-    pan: {
-      title: 'पैन सेटिंग्स',
-      mousePanOptions: 'माउस पैन विकल्प',
-      emptyAreaClickPan: 'खाली क्षेत्र पर क्लिक करें और ड्रैग करें',
-      middleClickPan: 'मध्य क्लिक करें और ड्रैग करें',
-      rightClickPan: 'राइट क्लिक करें और ड्रैग करें',
-      ctrlClickPan: 'Ctrl + क्लिक करें और ड्रैग करें',
-      altClickPan: 'Alt + क्लिक करें और ड्रैग करें',
-      keyboardPanOptions: 'कीबोर्ड पैन विकल्प',
-      arrowKeys: 'एरो कुंजी',
-      wasdKeys: 'WASD कुंजी',
-      ijklKeys: 'IJKL कुंजी',
-      keyboardPanSpeed: 'कीबोर्ड पैन गति',
-      note: 'नोट: समर्पित पैन उपकरण के अलावा पैन विकल्प काम करते हैं'
     },
     connector: {
       title: 'कनेक्टर सेटिंग्स',
@@ -336,7 +376,11 @@ const locale: LocaleProps = {
     zoomIn: 'ज़ूम इन',
     fitToScreen: 'स्क्रीन में फ़िट करें',
     keepLabelsReadable: 'लेबल पठनीय रखें',
-    help: 'सहायता (F1)'
+    help: 'सहायता (F1)',
+    selected: '{count} चयनित'
+  },
+  modeHints: {
+    connector: 'कनेक्ट करने के लिए आइटम के बीच ड्रैग करें • रद्द करने के लिए Esc'
   },
   previewLayerSwitcher: {
     layers: 'परतें',
@@ -344,6 +388,10 @@ const locale: LocaleProps = {
     hideLayer: 'परत छिपाएं',
     solo: 'सोलो',
     unsolo: 'सोलो से बाहर'
+  },
+  previewLabelsToggle: {
+    hideLabels: 'लेबल छिपाएं',
+    showLabels: 'लेबल दिखाएं'
   },
   annotationPalette: {
     pen: 'व्याख्या',
@@ -368,7 +416,9 @@ const locale: LocaleProps = {
     description: 'लेबल प्रदर्शन सेटिंग कॉन्फ़िगर करें',
     expandButtonPadding: 'विस्तार बटन पैडिंग',
     expandButtonPaddingDesc:
-      'विस्तार बटन दृश्यमान होने पर नीचे की पैडिंग (टेक्स्ट ओवरलैप रोकता है)'
+      'विस्तार बटन दृश्यमान होने पर नीचे की पैडिंग (टेक्स्ट ओवरलैप रोकता है)',
+    // D13
+    currentValue: 'वर्तमान: {value} थीम इकाइयाँ'
   },
   iconSelectionControls: {
     close: 'बंद करें',
@@ -396,7 +446,10 @@ const locale: LocaleProps = {
       'निर्यात करने के लिए क्षेत्र चुनने हेतु क्लिक करें और खींचें',
     options: 'विकल्प',
     showGrid: 'ग्रिड दिखाएं',
+    showLabels: 'लेबल दिखाएं',
     expandDescriptions: 'विवरण विस्तृत करें',
+    screenshotPreset: 'स्क्रीनशॉट (अनुशंसित)',
+    scaleClamped: 'ब्राउज़र छवि सीमा में फिट करने के लिए निर्यात आकार घटाया गया:',
     cropToContent: 'सामग्री पर क्रॉप करें',
     backgroundColor: 'पृष्ठभूमि रंग',
     transparentBackground: 'पारदर्शी पृष्ठभूमि',
@@ -423,12 +476,77 @@ const locale: LocaleProps = {
     addItem: 'आइटम जोड़ें',
     rectangle: 'आयत',
     connector: 'कनेक्टर',
-    text: 'पाठ'
+    text: 'पाठ',
+    common: 'सामान्य',
+    // D5
+    switchTo2D: '2D दृश्य पर स्विच करें',
+    switchToIsometric: 'आइसोमेट्रिक दृश्य पर स्विच करें',
+    clickMode: 'क्लिक',
+    dragMode: 'खींचें'
   },
   quickIconSelector: {
     recentlyUsed: 'हाल ही में उपयोग किए गए',
     searchResults: 'खोज परिणाम ({count} आइकन)',
     noIconsFound: '"{term}" से मेल खाने वाला कोई आइकन नहीं मिला'
+  },
+  canvasContextMenu: {
+    details: 'विवरण…',
+    rename: 'नाम बदलें',
+    cut: 'काटें',
+    copy: 'कॉपी करें',
+    paste: 'पेस्ट करें',
+    duplicate: 'डुप्लिकेट करें',
+    bringForward: 'आगे लाएँ',
+    sendBackward: 'पीछे भेजें',
+    assignToLayer: 'परत को असाइन करें',
+    snapToGrid: 'ग्रिड पर स्नैप करें',
+    unsnapFromGrid: 'ग्रिड से अनस्नैप करें',
+    disableCollision: 'टकराव अक्षम करें',
+    enableCollision: 'टकराव सक्षम करें',
+    delete: 'हटाएँ',
+    addItem: 'आइटम जोड़ें',
+    selectAll: 'सभी चुनें',
+    enableSnapToGrid: 'ग्रिड स्नैप सक्षम करें',
+    disableSnapToGrid: 'ग्रिड स्नैप अक्षम करें',
+    itemsSelectedOne: '{count} आइटम चयनित',
+    itemsSelectedOther: '{count} आइटम चयनित',
+    deleteItemsOne: '{count} आइटम हटाएँ',
+    deleteItemsOther: '{count} आइटम हटाएँ',
+    removeFromLayer: 'परत से हटाएँ',
+    noLayers: 'कोई परत नहीं — परत पैनल में एक जोड़ें'
+  },
+  // D4 — LeftDock
+  leftDock: {
+    fileExplorer: 'फ़ाइल एक्सप्लोरर',
+    elements: 'तत्व',
+    layers: 'परतें',
+    settings: 'सेटिंग्स',
+    openDiagramFirst: 'पहले कोई आरेख खोलें या बनाएं'
+  },
+  // D8 — LayersPanel
+  layersPanel: {
+    header: 'परतें',
+    addLayer: 'परत जोड़ें',
+    deleteSelectedLayer: 'चयनित परत हटाएं',
+    noLayersYet: 'अभी तक कोई परत नहीं। जोड़ने के लिए + पर क्लिक करें।',
+    unassigned: 'अनिर्दिष्ट ({count})',
+    dropToUnassign: 'असाइन हटाने के लिए आइटम यहां छोड़ें',
+    layerN: 'परत {count}'
+  },
+  // D7 — clipboard toast strings; {count}/{percent} interpolated.
+  clipboard: {
+    copiedOne: '{count} आइटम कॉपी किया गया',
+    copiedOther: '{count} आइटम कॉपी किए गए',
+    cutOne: '{count} आइटम कट किया गया',
+    cutOther: '{count} आइटम कट किए गए',
+    pastedOne: '{count} आइटम पेस्ट किया गया',
+    pastedOther: '{count} आइटम पेस्ट किए गए',
+    nothingToPaste: 'पेस्ट करने के लिए कुछ नहीं',
+    routingConnectors: 'पेस्ट हो रहा है… कनेक्टर रूट हो रहे हैं ({percent}%)'
+  },
+  // D13 — default page name; {count} interpolated.
+  page: {
+    pageName: 'पृष्ठ {count}'
   }
 };
 

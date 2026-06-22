@@ -29,7 +29,8 @@ import {
   downloadFile as downloadFileUtil,
   base64ToBlob,
   generateGenericFilename,
-  modelFromModelStore
+  modelFromModelStore,
+  computeRenderTarget
 } from 'src/utils';
 import { ModelStore, Coords } from 'src/types';
 import { useDiagramUtils } from 'src/hooks/useDiagramUtils';
@@ -40,10 +41,17 @@ import { customVars } from 'src/styles/theme';
 import { ColorPicker } from 'src/components/ColorSelector/ColorPicker';
 import { DOMErrorBoundary } from 'src/components/DOMErrorBoundary';
 import { useTranslation } from 'src/stores/localeStore';
+import { waitForIconsDrawn } from './waitForIconsDrawn';
 
 interface Props {
   onClose: () => void;
 }
+
+// The browser-compatibility notice is only relevant on Firefox (dom-to-image-more
+// has known foreignObject quirks there). Chrome/Edge — the recommended browsers —
+// never see it, so the dialog stays clean for the common case.
+const IS_FIREFOX =
+  typeof navigator !== 'undefined' && /firefox/i.test(navigator.userAgent);
 
 interface CropArea {
   x: number;
@@ -130,9 +138,18 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
   const [cropArea, setCropArea] = useState<CropArea | null>(null);
   const [isInCropMode, setIsInCropMode] = useState(false);
 
-  // Scale/DPI state
+  // Scale/DPI state. The "Screenshot" preset (ADR 0025 §4) is the default
+  // selection: 2× · fit-to-content · labels on · PNG — the one-click "good
+  // screenshot" path. DPI presets remain for power users.
   const [exportScale, setExportScale] = useState<number>(2);
-  const [scaleMode, setScaleMode] = useState<'preset' | 'custom'>('preset');
+  const [scaleMode, setScaleMode] = useState<'screenshot' | 'preset' | 'custom'>(
+    'screenshot'
+  );
+
+  // Name-label visibility in the export (ADR 0025 §3). On by default (part of
+  // the Screenshot preset); drives both legibility (readableLabels counter-
+  // scale) and visibility on the hidden Axoview.
+  const [showLabels, setShowLabels] = useState(true);
 
   // DPI presets
   const dpiPresets = [
@@ -146,6 +163,14 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
   const bounds = useMemo(() => {
     return getUnprojectedBounds();
   }, [getUnprojectedBounds]);
+
+  // Clamp the requested scale against the browser's canvas limits (ADR 0025 §2).
+  // The same calculator runs inside exportAsImage/exportAsSVG; here it drives the
+  // user-visible "size was reduced" notice so the cap is never silent (#18).
+  const renderTarget = useMemo(
+    () => computeRenderTarget(bounds, exportScale),
+    [bounds, exportScale]
+  );
 
   // Track when the hidden Axoview has finished its first render cycle
   const axoviewLoadedRef = useRef(false);
@@ -381,7 +406,9 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- redraw is driven by image/crop state; t only labels the crop hint
   }, [imageData, isInCropMode, cropArea, transparentBackground]);
 
-  const [showGrid, setShowGrid] = useState(false);
+  // Grid on by default — the exported diagram reads better with its isometric
+  // reference grid than on a bare background.
+  const [showGrid, setShowGrid] = useState(true);
   const handleShowGridChange = (checked: boolean) => {
     setShowGrid(checked);
   };
@@ -440,12 +467,47 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
     setSvgData(undefined);
     setExportError(false);
     isExporting.current = false;
-    // One rAF is enough here — the model update callback already guarantees a
-    // paint cycle has occurred
-    const id = requestAnimationFrame(() => {
-      exportImageRef.current();
-    });
-    return () => cancelAnimationFrame(id);
+
+    let cancelled = false;
+    // A2: model-ready + one rAF guarantees React painted, but the canvas icon
+    // bitmaps decode asynchronously and may not be on the first frame. Wait for
+    // NodesCanvas to report `data-all-icons-drawn="true"` before capturing, so
+    // icon nodes aren't dropped from the snapshot. Cap the wait so a stuck/broken
+    // icon can never hang the export — we capture anyway and recapture below once
+    // the icons finish.
+    const ICONS_READY_TIMEOUT_MS = 400;
+    // Longer budget for the post-capture recovery: slow icon decodes (large
+    // sprites / many nodes) may exceed the initial window; give them more room
+    // before giving up on a better frame.
+    const ICONS_RECAPTURE_TIMEOUT_MS = 2000;
+
+    const run = async () => {
+      const iconsReady = await waitForIconsDrawn(
+        containerRef.current,
+        ICONS_READY_TIMEOUT_MS
+      );
+      if (cancelled) return;
+      // Await the capture so the recapture below can't race the in-flight
+      // exportImage (which guards on isExporting.current) or clobber its result.
+      await exportImageRef.current();
+      // A2 recapture fallback: the first capture fired before the icon layer was
+      // ready (the wait timed out), so the snapshot may be missing icons. Keep
+      // waiting for the canvas to report all icons drawn, then capture once more
+      // to replace the incomplete image. Bounded by ICONS_RECAPTURE_TIMEOUT_MS so
+      // it always resolves and stops.
+      if (iconsReady || cancelled) return;
+      const nowReady = await waitForIconsDrawn(
+        containerRef.current,
+        ICONS_RECAPTURE_TIMEOUT_MS
+      );
+      if (cancelled || !nowReady) return;
+      await exportImageRef.current();
+    };
+    run();
+
+    return () => {
+      cancelled = true;
+    };
   }, [axoviewReadySignal]);
 
   // Re-export when options change — only after the initial load has completed
@@ -455,16 +517,23 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
     setSvgData(undefined);
     setExportError(false);
     isExporting.current = false;
+    let raf = 0;
     const timer = setTimeout(() => {
-      requestAnimationFrame(() => {
+      raf = requestAnimationFrame(() => {
         exportImageRef.current();
       });
     }, 50);
-    return () => clearTimeout(timer);
+    // Cancel BOTH the timer and any scheduled frame on unmount/re-run, so a late
+    // rAF can't fire exportImage (setState) after the dialog has closed.
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(raf);
+    };
   }, [
     showGrid,
     backgroundColor,
     expandLabels,
+    showLabels,
     cropToContent,
     exportScale,
     transparentBackground
@@ -638,11 +707,13 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
       <DialogTitle>{t('title')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2}>
-          <Alert severity="info">
-            <strong>{t('compatibilityTitle')}</strong>
-            <br />
-            {t('compatibilityMessage')}
-          </Alert>
+          {IS_FIREFOX && (
+            <Alert severity="info">
+              <strong>{t('compatibilityTitle')}</strong>
+              <br />
+              {t('compatibilityMessage')}
+            </Alert>
+          )}
 
           <Box
             sx={{
@@ -676,7 +747,9 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
                   renderer={{
                     showGrid,
                     backgroundColor,
-                    expandLabels
+                    expandLabels,
+                    showLabels,
+                    readableLabels: showLabels
                   }}
                   onModelUpdated={handleHiddenAxoviewReady}
                 />
@@ -713,6 +786,18 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
                       checked={showGrid}
                       onChange={(event) => {
                         handleShowGridChange(event.target.checked);
+                      }}
+                    />
+                  }
+                />
+                <FormControlLabel
+                  label={t('showLabels')}
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={showLabels}
+                      onChange={(event) => {
+                        setShowLabels(event.target.checked);
                       }}
                     />
                   }
@@ -772,10 +857,22 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
 
                   <FormControl fullWidth size="small" sx={{ mb: 1 }}>
                     <Select
-                      value={scaleMode === 'preset' ? exportScale : 'custom'}
+                      value={
+                        scaleMode === 'screenshot'
+                          ? 'screenshot'
+                          : scaleMode === 'custom'
+                            ? 'custom'
+                            : exportScale
+                      }
                       onChange={(event) => {
                         const value = event.target.value;
-                        if (value === 'custom') {
+                        if (value === 'screenshot') {
+                          // Screenshot preset: 2× · fit-to-content · labels on.
+                          setScaleMode('screenshot');
+                          setExportScale(2);
+                          setShowLabels(true);
+                          if (cropToContent) handleCropToContentChange(false);
+                        } else if (value === 'custom') {
                           setScaleMode('custom');
                         } else {
                           setScaleMode('preset');
@@ -783,6 +880,9 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
                         }
                       }}
                     >
+                      <MenuItem value="screenshot">
+                        {t('screenshotPreset')}
+                      </MenuItem>
                       {dpiPresets.map((preset) => (
                         <MenuItem key={preset.value} value={preset.value}>
                           {preset.label}
@@ -791,6 +891,14 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
                       <MenuItem value="custom">{t('custom')}</MenuItem>
                     </Select>
                   </FormControl>
+
+                  {renderTarget.wasClamped && (
+                    <Alert severity="warning" sx={{ mb: 1 }}>
+                      {t('scaleClamped')}{' '}
+                      {renderTarget.width}&times;{renderTarget.height} px (
+                      {renderTarget.effectiveScale.toFixed(1)}x)
+                    </Alert>
+                  )}
 
                   {scaleMode === 'custom' && (
                     <Box sx={{ px: 1 }}>

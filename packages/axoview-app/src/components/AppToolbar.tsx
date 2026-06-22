@@ -17,7 +17,7 @@ import {
   SaveOutlined as SaveIcon,
   ShareOutlined as ShareIcon,
   Close as CloseIcon,
-  VisibilityOutlined as PreviewIcon,
+  SlideshowOutlined as PresentIcon,
   ArrowBack as ArrowBackIcon
 } from '@mui/icons-material';
 import { useAppStorage } from '../providers/AppStorageContext';
@@ -218,7 +218,7 @@ export function AppToolbar() {
 
             <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
-            {/* Group 3: Document actions — Export + Share + Preview. Share is
+            {/* Group 3: Document actions — Export + Share + Present. Share is
                 render-disabled (not hidden) without server storage so the
                 affordance still signals the feature exists. */}
             <ExportPopover />
@@ -239,8 +239,8 @@ export function AppToolbar() {
             <Tooltip
               title={
                 !currentDiagramId
-                  ? t('toolbar.previewSaveFirst', 'Save first to preview')
-                  : t('toolbar.preview', 'Preview')
+                  ? t('toolbar.presentSaveFirst', 'Save first to present')
+                  : t('toolbar.present', 'Present')
               }
               placement="bottom"
             >
@@ -252,7 +252,7 @@ export function AppToolbar() {
                   data-axoview-id="toolbar-preview"
                   sx={{ borderRadius: 1, color: 'inherit' }}
                 >
-                  <PreviewIcon sx={{ fontSize: 18 }} />
+                  <PresentIcon sx={{ fontSize: 18 }} />
                 </IconButton>
               </span>
             </Tooltip>

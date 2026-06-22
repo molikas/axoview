@@ -239,6 +239,28 @@ export const makeScreenToTileFn =
       rendererSize
     );
 
+/** The transform strategy for a canvas mode. */
+export const getStrategy = (
+  canvasMode: 'ISOMETRIC' | '2D'
+): CoordinateTransformStrategy =>
+  canvasMode === '2D' ? cartesian2DStrategy : isometricStrategy;
+
+/**
+ * The unprojected (pre-zoom, pre-scroll) canvas point under a screen-space
+ * cursor — the inverse of the SceneLayer's `translate(scroll) scale(zoom)`.
+ * `toScreen`/`fromCanvasPoint` operate in this space, so it is the bridge from
+ * a raw mouse position to the off-grid residual (ADR 0023 resolvePlacement).
+ */
+export const screenToCanvasPoint = (
+  screen: Coords,
+  zoom: number,
+  scroll: Scroll,
+  rendererSize: Size
+): Coords => ({
+  x: (screen.x - rendererSize.width * 0.5 - scroll.position.x) / zoom,
+  y: (screen.y - rendererSize.height * 0.5 - scroll.position.y) / zoom
+});
+
 // ---------------------------------------------------------------------------
 // Canvas-mode (iso↔2D) switch — preserve zoom + viewport center
 // ---------------------------------------------------------------------------

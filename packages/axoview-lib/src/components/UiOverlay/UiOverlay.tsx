@@ -26,11 +26,13 @@ import { LazyLoadingWelcomeNotification } from '../LazyLoadingWelcomeNotificatio
 import { NotificationSnackbar } from '../NotificationSnackbar/NotificationSnackbar';
 import { ViewTabs } from 'src/components/ViewTabs/ViewTabs';
 import { NodeActionBar } from 'src/components/NodeActionBar/NodeActionBar';
-import { LassoLayerBar } from 'src/components/LassoLayerBar/LassoLayerBar';
+import { CanvasContextMenu } from 'src/components/CanvasContextMenu/CanvasContextMenu';
 import { PreviewLayerSwitcher } from 'src/components/PreviewLayerSwitcher/PreviewLayerSwitcher';
+import { PreviewLabelsToggle } from 'src/components/PreviewLabelsToggle/PreviewLabelsToggle';
 import { ViewModeInfoPopover } from 'src/components/ViewModeInfoPopover/ViewModeInfoPopover';
 import { AnnotationLayer } from 'src/components/AnnotationLayer/AnnotationLayer';
 import { AnnotationPalette } from 'src/components/AnnotationPalette/AnnotationPalette';
+import { ConnectorModeHint } from '../ModeHint/ConnectorModeHint';
 
 type ToolName = 'TOOL_MENU' | 'ITEM_CONTROLS' | 'VIEW_TITLE' | 'VIEW_TABS';
 
@@ -228,17 +230,21 @@ export const UiOverlay = ({
           </UiElement>
         )}
 
-        {/* Preview-mode layer switcher — top-left (feels more natural in a
-            presentation than bottom-left). View mode only; the component
-            self-gates on ≥2 layers (ADR 0013). High zIndex so it stays above
-            any left chrome that lingers in a forced-preview test environment. */}
+        {/* Present-mode chrome — top-left (feels more natural in a presentation
+            than bottom-left). View mode only. The layer switcher self-gates on
+            ≥2 layers (ADR 0013); the hide-labels toggle (2026-06-18 addendum)
+            always shows. High zIndex so it stays above any left chrome that
+            lingers in a forced-preview test environment. */}
         {editorMode === EditorModeEnum.EXPLORABLE_READONLY && (
-          <Box
+          <Stack
+            spacing={1}
+            alignItems="flex-start"
             sx={{ position: 'absolute', zIndex: 15 }}
             style={{ left: appPadding.x, top: appPadding.y }}
           >
             <PreviewLayerSwitcher />
-          </Box>
+            <PreviewLabelsToggle />
+          </Stack>
         )}
       </Box>
 
@@ -278,6 +284,8 @@ export const UiOverlay = ({
 
       <PlaceIconLayer />
 
+      <ConnectorModeHint />
+
       {dialog === DialogTypeEnum.EXPORT_IMAGE && (
         <ExportImageDialog
           onClose={() => {
@@ -300,26 +308,30 @@ export const UiOverlay = ({
 
       <NotificationSnackbar />
 
-      <SceneLayer>
-        {/* Floating action bar — edit mode only, hidden while dragging.
-            Opened by right-click on an item (mqa-results.md #1); left-click
-            selection no longer auto-shows the bar. */}
-        {editorMode === EditorModeEnum.EDITABLE &&
-          itemActionBarOpen &&
-          itemControls &&
-          itemControls.type !== 'ADD_ITEM' &&
-          itemControls.type !== 'CONNECTOR_ANCHOR' &&
-          mode.type !== 'DRAG_ITEMS' && (
-            <NodeActionBar
-              type={itemControls.type}
-              id={itemControls.id}
-              tile={itemControls.tile}
-            />
-          )}
+      {/* Floating action bar — edit mode only, hidden while dragging.
+          Opened by right-click on an item (mqa-results.md #1); left-click
+          selection no longer auto-shows the bar.
+          B4 / decision #5: lives OUTSIDE the SceneLayer (screen-space), so it can
+          flip/clamp against the viewport and sit above the LeftDock stacking
+          context — same mechanism as ViewModeInfoPopover. It tracks the item via
+          a direct store subscription (scroll/zoom/rendererSize/activeLeftTab). */}
+      {editorMode === EditorModeEnum.EDITABLE &&
+        itemActionBarOpen &&
+        itemControls &&
+        itemControls.type !== 'ADD_ITEM' &&
+        itemControls.type !== 'CONNECTOR_ANCHOR' &&
+        mode.type !== 'DRAG_ITEMS' && (
+          <NodeActionBar
+            type={itemControls.type}
+            id={itemControls.id}
+            tile={itemControls.tile}
+          />
+        )}
 
-        {/* Lasso layer assign bar */}
-        {editorMode === EditorModeEnum.EDITABLE && <LassoLayerBar />}
-      </SceneLayer>
+      {/* Canvas context menu (ADR 0027) — portals to the document root, so it
+          lives outside the SceneLayer. Edit mode only; self-gates on the
+          contextMenu store slice. */}
+      {editorMode === EditorModeEnum.EDITABLE && <CanvasContextMenu />}
 
       {/* View-mode item info popover — screen-space, side-anchored read surface
           that replaces the right dock in EXPLORABLE_READONLY (ADR 0012). Lives

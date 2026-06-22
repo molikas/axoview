@@ -12,8 +12,29 @@
         "diagrams": "Diagramas",
         "share": "Compartir"
     },
+    "exportMenu": {
+        "tooltip": "Exportar",
+        "json": "Exportar JSON",
+        "image": "Exportar imagen",
+        "projectZip": "Exportar proyecto (.zip)",
+        "jsonExported": "{{filename}} exportado"
+    },
+    "emptyState": {
+        "newDiagram": "Nuevo diagrama",
+        "import": "Importar"
+    },
+    "fileExplorer": {
+        "title": "Diagramas",
+        "import": "Importar",
+        "exportProject": "Exportar proyecto",
+        "newDiagram": "Nuevo diagrama",
+        "newFolder": "Nueva carpeta",
+        "refresh": "Actualizar",
+        "collapseAll": "Contraer todo"
+    },
     "status": {
         "current": "Actual",
+        "session": "Sesión",
         "untitled": "Diagrama sin título",
         "modified": "Modificado",
         "sessionStorageNote": "Solo almacenamiento de sesión - exporta para guardar permanentemente",
@@ -21,12 +42,17 @@
         "savedAt": "Guardado a las {{time}}",
         "savedYesterdayAt": "Guardado ayer a las {{time}}",
         "savedOnDate": "Guardado el {{day}} {{month}} a las {{time}}",
-        "savedOnDateYear": "Guardado el {{day}} {{month}} {{year}} a las {{time}}"
+        "savedOnDateYear": "Guardado el {{day}} {{month}} {{year}} a las {{time}}",
+        "sessionBanner": "Tu trabajo solo existe en esta pestaña del navegador. Usa Exportar → Exportar proyecto para conservarlo.",
+        "dismiss": "Descartar"
+    },
+    "settings": {
+        "language": "Idioma"
     },
     "toolbar": {
-        "previewSaveFirst": "Guarda primero para previsualizar",
-        "saveAndPreview": "Guardar y previsualizar",
-        "preview": "Previsualizar"
+        "presentSaveFirst": "Guarda primero para presentar",
+        "saveAndPresent": "Guardar y presentar",
+        "present": "Presentar"
     },
     "share": {
         "title": "Compartir diagrama",

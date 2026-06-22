@@ -46,10 +46,6 @@ const locale: LocaleProps = {
     deselectShortcut: 'Clic sinistro (area vuota)',
     deselectDescription:
       'Deseleziona la selezione corrente e torna alla modalità selezione',
-    addNodeGroupAction: 'Add Node / Group',
-    addNodeGroupShortcut: 'Doppio clic (area vuota)',
-    addNodeGroupDescription:
-      'Opens the Add popover at the cursor: pick an icon to place a node, or click Group to add a background area for visually grouping nodes',
     // Mouse interactions
     selectToolAction: 'Strumento Selezione',
     selectToolShortcut: 'Clicca il pulsante Selezione',
@@ -81,7 +77,56 @@ const locale: LocaleProps = {
     copyDescription: 'Copia gli elementi selezionati negli appunti',
     pasteAction: 'Incolla',
     pasteDescription:
-      'Incolla gli elementi degli appunti alla posizione del mouse; sposta per evitare sovrapposizioni'
+      'Incolla gli elementi degli appunti alla posizione del mouse; sposta per evitare sovrapposizioni',
+    // D10 — Select all row
+    selectAllAction: 'Seleziona tutto',
+    selectAllShortcut: 'Ctrl+A',
+    selectAllDescription:
+      'Seleziona tutti gli elementi visibili e sbloccati nella vista attiva (elementi, rettangoli, caselle di testo, connettori + i loro punti di passaggio)',
+    // D10 — tool-activation keys (ADR 0022 §6)
+    keyRenameAction: 'Rinomina',
+    keyRenameShortcut: 'F2',
+    keyRenameDescription: 'Rinomina l’elemento o il diagramma selezionato in linea',
+    keyAddItemAction: 'Aggiungi elemento / Elementi',
+    keyAddItemShortcut: 'N',
+    keyAddItemDescription: 'Attiva/disattiva il pannello Elementi per inserire un nuovo elemento',
+    keyConnectorAction: 'Connettore',
+    keyConnectorShortcut: 'C',
+    keyConnectorDescription: 'Passa allo strumento connettore',
+    keyLassoAction: 'Selezione lazo',
+    keyLassoShortcut: 'L',
+    keyLassoDescription: 'Passa allo strumento di selezione lazo',
+    keySelectAction: 'Seleziona',
+    keySelectShortcut: 'S',
+    keySelectDescription: 'Passa allo strumento di selezione',
+    // D10 — mouse interactions
+    miSelectAction: 'Seleziona',
+    miSelectMethod: 'Clic sinistro',
+    miSelectDescription:
+      'Fai clic su un elemento per selezionarlo (lo evidenzia e mostra la barra delle azioni flottante). Fai clic sulla tela vuota per annullare la selezione.',
+    miOpenDetailsAction: 'Apri dettagli',
+    miOpenDetailsMethod: 'Doppio clic',
+    miOpenDetailsDescription:
+      'Fai doppio clic su un elemento per aprire il suo pannello dei dettagli, come la voce «Dettagli…» del menu contestuale.',
+    miToggleSelectionAction: 'Attiva/disattiva selezione',
+    miToggleSelectionMethod: 'Ctrl/Cmd + Clic sinistro',
+    miToggleSelectionDescription:
+      'Aggiungi o rimuovi un elemento dalla selezione multipla; un connettore si attiva/disattiva insieme ai suoi punti di passaggio.',
+    miPanAction: 'Sposta',
+    miPanMethod: 'Clic destro + trascina',
+    miPanDescription:
+      'Tieni premuto il pulsante destro e trascina per spostare la tela. Anche il trascinamento con il tasto centrale sposta; i tasti freccia la muovono.',
+    miContextMenuAction: 'Menu contestuale',
+    miContextMenuMethod: 'Clic destro (tocco)',
+    miContextMenuDescription:
+      'Un clic destro senza trascinare apre il menu contestuale: il menu dell’elemento sopra un elemento, o il menu della tela sopra uno spazio vuoto. Su touch, tieni premuto a lungo.',
+    miRemoveWaypointAction: 'Rimuovi punto di passaggio',
+    miRemoveWaypointMethod: 'Alt + Clic sinistro',
+    miRemoveWaypointDescription:
+      'Alt+clic su un punto di passaggio di un connettore per rimuoverlo (senza dover prima selezionare il connettore); gli ancoraggi terminali vengono conservati.',
+    miZoomAction: 'Zoom',
+    miZoomMethod: 'Rotellina',
+    miZoomDescription: 'Scorri per ingrandire verso il cursore.'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'Suggerimento: Creazione connettori',
@@ -137,6 +182,16 @@ const locale: LocaleProps = {
       'clicca con il tasto sinistro sulla fine del connettore e trascinalo sul nodo desiderato.'
   },
   settings: {
+    // D3 — SettingsDialog chrome
+    title: 'Impostazioni',
+    close: 'Chiudi',
+    canvas: 'Tela',
+    language: 'Lingua',
+    about: 'Informazioni',
+    languageDescription:
+      "Seleziona la lingua di visualizzazione dell'interfaccia dell'applicazione.",
+    zoomSection: 'Zoom',
+    labelsSection: 'Etichette',
     zoom: {
       description:
         'Configura il comportamento dello zoom quando si usa la rotella del mouse.',
@@ -165,21 +220,6 @@ const locale: LocaleProps = {
       fixedPaste: 'Incolla',
       fixedUndo: 'Annulla',
       fixedRedo: 'Ripeti'
-    },
-    pan: {
-      title: 'Impostazioni Panoramica',
-      mousePanOptions: 'Opzioni panoramica con mouse',
-      emptyAreaClickPan: "Clicca e trascina su un'area vuota",
-      middleClickPan: 'Clic centrale e trascina',
-      rightClickPan: 'Clic destro e trascina',
-      ctrlClickPan: 'Ctrl + clic e trascina',
-      altClickPan: 'Alt + clic e trascina',
-      keyboardPanOptions: 'Opzioni panoramica con tastiera',
-      arrowKeys: 'Tasti freccia',
-      wasdKeys: 'Tasti WASD',
-      ijklKeys: 'Tasti IJKL',
-      keyboardPanSpeed: 'Velocità panoramica tastiera',
-      note: 'Nota: Le opzioni di panoramica funzionano insieme allo strumento Panoramica dedicato'
     },
     connector: {
       title: 'Impostazioni Connettore',
@@ -338,7 +378,11 @@ const locale: LocaleProps = {
     zoomIn: 'Aumenta zoom',
     fitToScreen: 'Adatta allo schermo',
     keepLabelsReadable: 'Mantieni le etichette leggibili',
-    help: 'Aiuto (F1)'
+    help: 'Aiuto (F1)',
+    selected: '{count} selezionati'
+  },
+  modeHints: {
+    connector: 'Trascina tra gli elementi per collegare • Esc per annullare'
   },
   previewLayerSwitcher: {
     layers: 'Livelli',
@@ -346,6 +390,10 @@ const locale: LocaleProps = {
     hideLayer: 'Nascondi livello',
     solo: 'Solo',
     unsolo: 'Esci da solo'
+  },
+  previewLabelsToggle: {
+    hideLabels: 'Nascondi etichette',
+    showLabels: 'Mostra etichette'
   },
   annotationPalette: {
     pen: 'Annota',
@@ -370,7 +418,9 @@ const locale: LocaleProps = {
     description: 'Configura le impostazioni di visualizzazione delle etichette',
     expandButtonPadding: 'Spaziatura pulsante espandi',
     expandButtonPaddingDesc:
-      'Spaziatura inferiore quando il pulsante espandi è visibile (evita la sovrapposizione del testo)'
+      'Spaziatura inferiore quando il pulsante espandi è visibile (evita la sovrapposizione del testo)',
+    // D13
+    currentValue: 'Attuale: {value} unità del tema'
   },
   iconSelectionControls: {
     close: 'Chiudi',
@@ -398,7 +448,10 @@ const locale: LocaleProps = {
     cropInstruction: "Clicca e trascina per selezionare l'area da esportare",
     options: 'Opzioni',
     showGrid: 'Mostra griglia',
+    showLabels: 'Mostra etichette',
     expandDescriptions: 'Espandi descrizioni',
+    screenshotPreset: 'Screenshot (consigliato)',
+    scaleClamped: 'Dimensione di esportazione ridotta per rientrare nel limite immagine del browser:',
     cropToContent: 'Ritaglia al contenuto',
     backgroundColor: 'Colore di sfondo',
     transparentBackground: 'Sfondo trasparente',
@@ -425,12 +478,77 @@ const locale: LocaleProps = {
     addItem: 'Aggiungi elemento',
     rectangle: 'Rettangolo',
     connector: 'Connettore',
-    text: 'Testo'
+    text: 'Testo',
+    common: 'Comuni',
+    // D5
+    switchTo2D: 'Passa alla vista 2D',
+    switchToIsometric: 'Passa alla vista isometrica',
+    clickMode: 'Clic',
+    dragMode: 'Trascina'
   },
   quickIconSelector: {
     recentlyUsed: 'USATI DI RECENTE',
     searchResults: 'RISULTATI RICERCA ({count} icone)',
     noIconsFound: 'Nessuna icona trovata per "{term}"'
+  },
+  canvasContextMenu: {
+    details: 'Dettagli…',
+    rename: 'Rinomina',
+    cut: 'Taglia',
+    copy: 'Copia',
+    paste: 'Incolla',
+    duplicate: 'Duplica',
+    bringForward: 'Porta avanti',
+    sendBackward: 'Porta indietro',
+    assignToLayer: 'Assegna al livello',
+    snapToGrid: 'Aggancia alla griglia',
+    unsnapFromGrid: 'Sgancia dalla griglia',
+    disableCollision: 'Disattiva collisione',
+    enableCollision: 'Attiva collisione',
+    delete: 'Elimina',
+    addItem: 'Aggiungi elemento',
+    selectAll: 'Seleziona tutto',
+    enableSnapToGrid: 'Attiva aggancio alla griglia',
+    disableSnapToGrid: 'Disattiva aggancio alla griglia',
+    itemsSelectedOne: '{count} elemento selezionato',
+    itemsSelectedOther: '{count} elementi selezionati',
+    deleteItemsOne: 'Elimina {count} elemento',
+    deleteItemsOther: 'Elimina {count} elementi',
+    removeFromLayer: 'Rimuovi dal livello',
+    noLayers: 'Nessun livello — aggiungine uno nel pannello dei livelli'
+  },
+  // D4 — LeftDock
+  leftDock: {
+    fileExplorer: 'Esplora file',
+    elements: 'Elementi',
+    layers: 'Livelli',
+    settings: 'Impostazioni',
+    openDiagramFirst: 'apri o crea prima un diagramma'
+  },
+  // D8 — LayersPanel
+  layersPanel: {
+    header: 'Livelli',
+    addLayer: 'Aggiungi livello',
+    deleteSelectedLayer: 'Elimina livello selezionato',
+    noLayersYet: 'Ancora nessun livello. Fai clic su + per aggiungerne uno.',
+    unassigned: 'Non assegnato ({count})',
+    dropToUnassign: 'Rilascia qui gli elementi per annullarne l’assegnazione',
+    layerN: 'Livello {count}'
+  },
+  // D7 — clipboard toast strings; {count}/{percent} interpolated.
+  clipboard: {
+    copiedOne: '{count} elemento copiato',
+    copiedOther: '{count} elementi copiati',
+    cutOne: '{count} elemento tagliato',
+    cutOther: '{count} elementi tagliati',
+    pastedOne: '{count} elemento incollato',
+    pastedOther: '{count} elementi incollati',
+    nothingToPaste: 'Niente da incollare',
+    routingConnectors: 'Incollaggio… instradamento connettori ({percent}%)'
+  },
+  // D13 — default page name; {count} interpolated.
+  page: {
+    pageName: 'Pagina {count}'
   }
 };
 

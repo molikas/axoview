@@ -8,11 +8,41 @@
         "quickSaveSession": "Simpan Cepat (Sesi)",
         "serverStorage": "Penyimpanan Server"
     },
+    "exportMenu": {
+        "tooltip": "Ekspor",
+        "json": "Ekspor JSON",
+        "image": "Ekspor Gambar",
+        "projectZip": "Ekspor Proyek (.zip)",
+        "jsonExported": "{{filename}} diekspor"
+    },
+    "emptyState": {
+        "newDiagram": "Diagram baru",
+        "import": "Impor"
+    },
+    "fileExplorer": {
+        "title": "Diagram",
+        "import": "Impor",
+        "exportProject": "Ekspor proyek",
+        "newDiagram": "Diagram baru",
+        "newFolder": "Folder baru",
+        "refresh": "Segarkan",
+        "collapseAll": "Ciutkan semua"
+    },
     "status": {
         "current": "Saat Ini",
+        "session": "Sesi",
         "untitled": "Diagram Tanpa Judul",
         "modified": "Dimodifikasi",
-        "sessionStorageNote": "Hanya penyimpanan sesi - ekspor untuk menyimpan secara permanen"
+        "sessionStorageNote": "Hanya penyimpanan sesi - ekspor untuk menyimpan secara permanen",
+        "savedAt": "Disimpan pukul {{time}}",
+        "savedYesterdayAt": "Disimpan kemarin pukul {{time}}",
+        "savedOnDate": "Disimpan {{day}} {{month}} pukul {{time}}",
+        "savedOnDateYear": "Disimpan {{day}} {{month}} {{year}} pukul {{time}}",
+        "sessionBanner": "Pekerjaan Anda hanya tersimpan di tab browser ini. Gunakan Ekspor → Ekspor proyek untuk menyimpannya.",
+        "dismiss": "Tutup"
+    },
+    "settings": {
+        "language": "Bahasa"
     },
     "dialog": {
         "save": {

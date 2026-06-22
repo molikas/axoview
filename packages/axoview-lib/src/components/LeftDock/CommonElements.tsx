@@ -1,8 +1,10 @@
 import React, { useCallback } from 'react';
 import { Box, Typography, Tooltip } from '@mui/material';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
+import { useTranslation } from 'src/stores/localeStore';
 import { useScene } from 'src/hooks/useScene';
-import { generateId } from 'src/utils';
+import { useCanvasMode } from 'src/contexts/CanvasModeContext';
+import { generateId, viewportCenterTile } from 'src/utils';
 import { TEXTBOX_DEFAULTS } from 'src/config';
 
 // Simple flat SVG thumbnails matching the tool icons
@@ -125,10 +127,14 @@ const ElementCard = ({
 );
 
 export const CommonElements = () => {
+  // D9 — labels were hardcoded English; route through i18n. Rectangle/Text/
+  // Connector reuse the existing toolMenu.* keys; "Common" is a new toolMenu key.
+  const { t } = useTranslation('toolMenu');
   const uiStateActions = useUiStateStore((s) => s.actions);
   const uiStateApi = useUiStateStoreApi();
   const mode = useUiStateStore((s) => s.mode);
   const { createTextBox } = useScene();
+  const { screenToTile } = useCanvasMode();
 
   const handleRectangleMouseDown = useCallback(() => {
     uiStateActions.setMode({
@@ -140,14 +146,28 @@ export const CommonElements = () => {
 
   const handleTextMouseDown = useCallback(() => {
     const textBoxId = generateId();
-    const mouseTile = uiStateApi.getState().mouse.position.tile;
-    createTextBox({ ...TEXTBOX_DEFAULTS, id: textBoxId, tile: mouseTile });
+    const ui = uiStateApi.getState();
+    const mouseTile = ui.mouse.position.tile;
+    // B9: mouse.position.tile is still the initial {0,0} until the pointer first
+    // enters the canvas, so clicking the Text card before hovering the canvas
+    // dropped the box at the origin. Fall back to the viewport-centre tile in
+    // that case (the shared helper C2 introduced).
+    const tile =
+      mouseTile.x === 0 && mouseTile.y === 0
+        ? viewportCenterTile({
+            rendererSize: ui.rendererSize,
+            scroll: ui.scroll,
+            zoom: ui.zoom,
+            screenToTile
+          })
+        : mouseTile;
+    createTextBox({ ...TEXTBOX_DEFAULTS, id: textBoxId, tile });
     uiStateActions.setMode({
       type: 'TEXTBOX',
       showCursor: false,
       id: textBoxId
     });
-  }, [uiStateApi, uiStateActions, createTextBox]);
+  }, [uiStateApi, uiStateActions, createTextBox, screenToTile]);
 
   const handleConnectorMouseDown = useCallback(() => {
     uiStateActions.setMode({
@@ -164,7 +184,7 @@ export const CommonElements = () => {
         variant="overline"
         sx={{ display: 'block', mb: 1, color: 'text.disabled' }}
       >
-        Common
+        {t('common')}
       </Typography>
       <Box
         sx={{
@@ -174,19 +194,19 @@ export const CommonElements = () => {
         }}
       >
         <ElementCard
-          label="Rectangle"
+          label={t('rectangle')}
           icon={<RectangleSvg />}
           isActive={mode.type === 'RECTANGLE.DRAW'}
           onMouseDown={handleRectangleMouseDown}
         />
         <ElementCard
-          label="Text"
+          label={t('text')}
           icon={<TextSvg />}
           isActive={mode.type === 'TEXTBOX'}
           onMouseDown={handleTextMouseDown}
         />
         <ElementCard
-          label="Connector"
+          label={t('connector')}
           icon={<ConnectorSvg />}
           isActive={mode.type === 'CONNECTOR'}
           onMouseDown={handleConnectorMouseDown}

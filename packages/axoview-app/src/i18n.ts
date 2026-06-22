@@ -66,7 +66,7 @@ export const supportedLanguages = [
     value: 'ru-RU'
   },
   {
-    label: 'Italian',
+    label: 'Italiano',
     value: 'it-IT'
   },
   {

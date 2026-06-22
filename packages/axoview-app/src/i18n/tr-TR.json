@@ -12,8 +12,29 @@
         "diagrams": "Diyagramlar",
         "share": "Paylaş"
     },
+    "exportMenu": {
+        "tooltip": "Dışa Aktar",
+        "json": "JSON Olarak Dışa Aktar",
+        "image": "Görüntü Olarak Dışa Aktar",
+        "projectZip": "Projeyi Dışa Aktar (.zip)",
+        "jsonExported": "{{filename}} dışa aktarıldı"
+    },
+    "emptyState": {
+        "newDiagram": "Yeni diyagram",
+        "import": "İçe Aktar"
+    },
+    "fileExplorer": {
+        "title": "Diyagramlar",
+        "import": "İçe Aktar",
+        "exportProject": "Projeyi dışa aktar",
+        "newDiagram": "Yeni diyagram",
+        "newFolder": "Yeni klasör",
+        "refresh": "Yenile",
+        "collapseAll": "Tümünü daralt"
+    },
     "status": {
         "current": "Mevcut",
+        "session": "Oturum",
         "untitled": "İsimsiz Diyagram",
         "modified": "Değiştirildi",
         "sessionStorageNote": "Yalnızca oturum depolama - kalıcı olarak kaydetmek için dışa aktar",
@@ -21,12 +42,17 @@
         "savedAt": "{{time}} tarihinde kaydedildi",
         "savedYesterdayAt": "Dün {{time}} tarihinde kaydedildi",
         "savedOnDate": "{{day}} {{month}} {{time}} tarihinde kaydedildi",
-        "savedOnDateYear": "{{day}} {{month}} {{year}}, {{time}} tarihinde kaydedildi"
+        "savedOnDateYear": "{{day}} {{month}} {{year}}, {{time}} tarihinde kaydedildi",
+        "sessionBanner": "Çalışmanız yalnızca bu tarayıcı sekmesinde bulunur. Saklamak için Dışa Aktar → Projeyi dışa aktar seçeneğini kullanın.",
+        "dismiss": "Kapat"
+    },
+    "settings": {
+        "language": "Dil"
     },
     "toolbar": {
-        "previewSaveFirst": "Önizlemek için önce kaydedin",
-        "saveAndPreview": "Kaydet ve Önizle",
-        "preview": "Önizle"
+        "presentSaveFirst": "Sunmadan önce kaydedin",
+        "saveAndPresent": "Kaydet ve Sun",
+        "present": "Sun"
     },
     "share": {
         "title": "Diyagramı Paylaş",

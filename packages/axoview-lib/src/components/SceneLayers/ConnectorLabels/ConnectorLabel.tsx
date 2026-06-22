@@ -11,8 +11,9 @@ import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { PROJECTED_TILE_SIZE, UNPROJECTED_TILE_SIZE } from 'src/config';
 import { Label } from 'src/components/Label/Label';
 import { Connector, ConnectorLabel as ConnectorLabelType } from 'src/types';
-import { useScene } from 'src/hooks/useScene';
+import { useSceneActions } from 'src/hooks/useSceneActions';
 import { useUiStateStore } from 'src/stores/uiStateStore';
+import { isLabelVisibleInPreview } from 'src/utils/previewLabelVisibility';
 
 const INLINE_EDIT_EVENT = 'inlineEditNodeName';
 
@@ -141,7 +142,14 @@ const ConnectorNameLabel = ({
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
           <Typography
             variant="body2"
-            sx={{ fontWeight: 400, color: url ? 'primary.main' : 'text.primary' }}
+            sx={{
+              fontWeight: 400,
+              color: url ? 'primary.main' : 'text.primary',
+              // #10: wrap a long connector name/link instead of clipping it on the
+              // Label chip's overflow:hidden (parity with the node caption, §5.2).
+              wordBreak: 'break-word',
+              overflowWrap: 'anywhere'
+            }}
           >
             {label.text}
           </Typography>
@@ -189,6 +197,10 @@ const ConnectorTextLabel = ({
         sx={{
           fontWeight: 400,
           color: label.labelColor || 'text.primary',
+          // #10: keep long text labels wrapping (not clipped), matching the name
+          // label above so every connector label behaves the same.
+          wordBreak: 'break-word',
+          overflowWrap: 'anywhere',
           ...(label.fontSize ? { fontSize: `${label.fontSize}px` } : {})
         }}
       >
@@ -208,9 +220,17 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
     (a, b) => a === b
   );
   const { getTilePosition } = useCanvasMode();
-  const { updateConnector } = useScene();
+  // Actions only (not useScene): this label sits in the drag hot path, so it
+  // must not re-render on every scene mutation just to hold the updateConnector
+  // callback. useSceneActions has no data subscription (perf A-1).
+  const { updateConnector } = useSceneActions();
   const editorMode = useUiStateStore((s) => s.editorMode);
+  // Present-mode hide-labels override (ADR 0013 addendum) — UI-only.
+  const previewHideLabels = useUiStateStore((s) => s.previewHideLabels);
+  // Image-export hide-labels override (ADR 0025 §3) — UI-only, export-scoped.
+  const exportHideLabels = useUiStateStore((s) => s.exportHideLabels);
   const isEditable = editorMode === 'EDITABLE';
+  const isReadonly = editorMode === 'EXPLORABLE_READONLY';
 
   const [isEditingName, setIsEditingName] = useState(false);
 
@@ -239,7 +259,16 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
 
   const labels = useMemo(() => {
     const base = getConnectorLabels(connector);
-    if (!trimmedName || connector.showLabel === false) return base;
+    // The synthetic name label follows the model's `showLabel`, then the
+    // present-mode hide-labels override (single merge point). Other connector
+    // labels are content, not name labels, so the toggle leaves them alone.
+    const nameVisible =
+      isLabelVisibleInPreview(
+        connector.showLabel !== false,
+        isReadonly,
+        previewHideLabels
+      ) && !exportHideLabels;
+    if (!trimmedName || !nameVisible) return base;
     const synthetic: ConnectorLabelType = {
       id: '__name__',
       text: trimmedName,
@@ -248,7 +277,7 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
       height: 0
     };
     return [synthetic, ...base];
-  }, [connector, trimmedName]);
+  }, [connector, trimmedName, isReadonly, previewHideLabels, exportHideLabels]);
 
   const labelPositions = useMemo(() => {
     if (!scenePath?.tiles?.length) return [];

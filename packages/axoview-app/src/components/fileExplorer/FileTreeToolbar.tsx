@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Box, IconButton, Tooltip, Typography } from '@mui/material';
 import {
   ArticleOutlined as NewDiagramIcon,
@@ -27,6 +28,9 @@ export function FileTreeToolbar({
   onImport,
   onExportProject
 }: Props) {
+  // D12: translate the toolbar button tooltips. The heading (providerLabel) is
+  // translated upstream in FileExplorer where the storage provider is known.
+  const { t } = useTranslation('app');
   return (
     <Box
       sx={{
@@ -66,25 +70,25 @@ export function FileTreeToolbar({
           '&:focus-within': { opacity: 1 }
         }}
       >
-        <Tooltip title="Import" placement="bottom">
+        <Tooltip title={t('fileExplorer.import')} placement="bottom">
           <IconButton size="small" onClick={onImport} sx={{ flexShrink: 0 }}>
             <ImportIcon sx={{ fontSize: 16 }} />
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="Export project" placement="bottom">
+        <Tooltip title={t('fileExplorer.exportProject')} placement="bottom">
           <IconButton size="small" onClick={onExportProject} sx={{ flexShrink: 0 }}>
             <ExportIcon sx={{ fontSize: 16 }} />
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="New diagram" placement="bottom">
+        <Tooltip title={t('fileExplorer.newDiagram')} placement="bottom">
           <IconButton size="small" onClick={onNewDiagram} sx={{ flexShrink: 0 }}>
             <NewDiagramIcon sx={{ fontSize: 16 }} />
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="New folder" placement="bottom">
+        <Tooltip title={t('fileExplorer.newFolder')} placement="bottom">
           <IconButton
             size="small"
             onClick={onNewFolder}
@@ -95,13 +99,13 @@ export function FileTreeToolbar({
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="Refresh" placement="bottom">
+        <Tooltip title={t('fileExplorer.refresh')} placement="bottom">
           <IconButton size="small" onClick={onRefresh} sx={{ flexShrink: 0 }}>
             <RefreshIcon sx={{ fontSize: 16 }} />
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="Collapse all" placement="bottom">
+        <Tooltip title={t('fileExplorer.collapseAll')} placement="bottom">
           <IconButton size="small" onClick={onCollapseAll} sx={{ flexShrink: 0 }}>
             <CollapseAllIcon sx={{ fontSize: 16 }} />
           </IconButton>

@@ -1,4 +1,6 @@
 import { useRef, useState, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { Tree, TreeApi, NodeApi } from 'react-arborist';
 import { exportAsJSON, mergeBundledFixtures, type Model } from 'axoview';
 import {
@@ -81,9 +83,11 @@ function FileTreeRow({
   );
 }
 
-function providerIdToLabel(id: string): string {
+// D12: the default heading ("Diagrams") is translated; "Google Drive" is a
+// proper noun and stays verbatim across locales.
+function providerIdToLabel(id: string, t: TFunction): string {
   if (id === 'google-drive') return 'Google Drive';
-  return 'Diagrams';
+  return t('fileExplorer.title');
 }
 
 function injectPendingNode(
@@ -114,6 +118,7 @@ function injectPendingNode(
 }
 
 export function FileExplorer() {
+  const { t } = useTranslation('app');
   const { storage, serverStorageAvailable } = useAppStorage();
   const {
     currentDiagram,
@@ -154,7 +159,7 @@ export function FileExplorer() {
     dirtyDiagramIds
   );
 
-  const providerLabel = providerIdToLabel(storage?.id ?? 'local');
+  const providerLabel = providerIdToLabel(storage?.id ?? 'local', t);
 
   // Folder id of the currently selected node (or null for root)
   const selectedFolderId = useMemo((): string | null => {

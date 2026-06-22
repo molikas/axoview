@@ -31,6 +31,10 @@ export const TransformControls = ({ from, to, onAnchorMouseDown }: Props) => {
 
     const corners = getBoundingBox([from, to]);
     const namedCorners = convertBoundsToNamedAnchors(corners);
+
+    // Screen position of each corner handle, keyed by corner name so the
+    // edge midpoints can be derived as averages of the visible corners.
+    const cornerScreen = {} as Record<string, Coords>;
     const cornerPositions = Object.entries(namedCorners).map(
       ([key, value], i) => {
         let position: Coords;
@@ -49,6 +53,7 @@ export const TransformControls = ({ from, to, onAnchorMouseDown }: Props) => {
           });
         }
 
+        cornerScreen[key] = position;
         return {
           key,
           position,
@@ -59,7 +64,28 @@ export const TransformControls = ({ from, to, onAnchorMouseDown }: Props) => {
       }
     );
 
-    return cornerPositions;
+    // Edge-midpoint handles (ADR 0026). Averaging the two adjacent corner
+    // screen positions lands the midpoint exactly on the visible edge in
+    // BOTH iso (diamond) and 2D (square) — no projection-specific math.
+    const midpoint = (a: Coords, b: Coords): Coords => ({
+      x: (a.x + b.x) / 2,
+      y: (a.y + b.y) / 2
+    });
+    const edgeCornerPairs: [AnchorPosition, string, string][] = [
+      ['TOP', 'TOP_LEFT', 'TOP_RIGHT'],
+      ['RIGHT', 'TOP_RIGHT', 'BOTTOM_RIGHT'],
+      ['BOTTOM', 'BOTTOM_LEFT', 'BOTTOM_RIGHT'],
+      ['LEFT', 'TOP_LEFT', 'BOTTOM_LEFT']
+    ];
+    const edgePositions = edgeCornerPairs.map(([key, a, b]) => ({
+      key,
+      position: midpoint(cornerScreen[a], cornerScreen[b]),
+      onMouseDown: () => {
+        onAnchorMouseDown(key);
+      }
+    }));
+
+    return [...cornerPositions, ...edgePositions];
   }, [onAnchorMouseDown, from, to, getTilePosition, strategy.projectionName]);
 
   return (

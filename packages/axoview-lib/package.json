@@ -30,6 +30,7 @@
     "@mui/material": "^7.3.9",
     "chroma-js": "^3.2.0",
     "dom-to-image-more": "^3.7.2",
+    "dompurify": "^3.4.11",
     "immer": "^11.1.4",
     "mui-color-input": "^8.0.0",
     "pathfinding": "^0.4.18",

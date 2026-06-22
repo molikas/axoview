@@ -45,7 +45,11 @@ export const LabelSettings = () => {
           sx={{ mt: 2 }}
         />
         <Typography variant="caption" color="text.secondary">
-          Current: {labelSettings.expandButtonPadding} theme units
+          {/* D13 — was hardcoded English; {value} interpolated via i18n. */}
+          {t('currentValue').replace(
+            '{value}',
+            String(labelSettings.expandButtonPadding)
+          )}
         </Typography>
       </Box>
     </Box>

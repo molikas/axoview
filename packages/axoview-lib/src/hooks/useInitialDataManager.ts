@@ -19,6 +19,7 @@ import { useView } from 'src/hooks/useView';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { modelSchema } from 'src/schemas/model';
 import { mergeBundledFixtures } from 'src/utils/leanSave';
+import { sanitizeHtml } from 'src/utils/sanitizeHtml';
 
 // Must match the threshold in IconCollection.tsx so newly-loaded large packs
 // (e.g. Material Icons) are not auto-expanded (which would freeze the browser).
@@ -56,6 +57,19 @@ export const useInitialDataManager = () => {
           const normView: RawObject = { ...(isObj(view) ? view : {}) };
           if (!normView.name && typeof normView.title === 'string') {
             normView.name = normView.title;
+          }
+
+          // ADR 0029 (defense-in-depth): sanitize text-box rich text once on the
+          // way in, so an imported/shared diagram can't carry a stored-XSS
+          // payload into the TextBox dangerouslySetInnerHTML sink. The sink
+          // re-sanitizes at render too; cleaning here also keeps the stored and
+          // exported model clean.
+          if (Array.isArray(normView.textBoxes)) {
+            normView.textBoxes = normView.textBoxes.map((tb) =>
+              isObj(tb) && typeof tb.content === 'string'
+                ? { ...tb, content: sanitizeHtml(tb.content) }
+                : tb
+            );
           }
 
           if (!normView.connectors) return normView;

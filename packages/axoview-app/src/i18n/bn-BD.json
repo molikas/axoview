@@ -12,8 +12,29 @@
         "diagrams": "Diagrams",
         "share": "Share"
     },
+    "exportMenu": {
+        "tooltip": "রপ্তানি",
+        "json": "JSON রপ্তানি করুন",
+        "image": "ছবি রপ্তানি করুন",
+        "projectZip": "প্রকল্প রপ্তানি করুন (.zip)",
+        "jsonExported": "{{filename}} রপ্তানি করা হয়েছে"
+    },
+    "emptyState": {
+        "newDiagram": "নতুন ডায়াগ্রাম",
+        "import": "আমদানি"
+    },
+    "fileExplorer": {
+        "title": "ডায়াগ্রাম",
+        "import": "আমদানি",
+        "exportProject": "প্রকল্প রপ্তানি করুন",
+        "newDiagram": "নতুন ডায়াগ্রাম",
+        "newFolder": "নতুন ফোল্ডার",
+        "refresh": "রিফ্রেশ করুন",
+        "collapseAll": "সব সংকুচিত করুন"
+    },
     "status": {
         "current": "বর্তমান",
+        "session": "সেশন",
         "untitled": "শিরোনামহীন ডায়াগ্রাম",
         "modified": "পরিবর্তিত",
         "sessionStorageNote": "শুধুমাত্র সেশন স্টোরেজ - স্থায়ীভাবে সংরক্ষণ করতে রপ্তানি করুন",
@@ -21,12 +42,17 @@
         "savedAt": "Saved at {{time}}",
         "savedYesterdayAt": "Saved yesterday at {{time}}",
         "savedOnDate": "Saved {{month}} {{day}} at {{time}}",
-        "savedOnDateYear": "Saved {{month}} {{day}}, {{year}} at {{time}}"
+        "savedOnDateYear": "Saved {{month}} {{day}}, {{year}} at {{time}}",
+        "sessionBanner": "আপনার কাজ শুধুমাত্র এই ব্রাউজার ট্যাবে থাকে। এটি রাখতে রপ্তানি → প্রকল্প রপ্তানি করুন ব্যবহার করুন।",
+        "dismiss": "বাতিল করুন"
+    },
+    "settings": {
+        "language": "ভাষা"
     },
     "toolbar": {
-        "previewSaveFirst": "Save first to preview",
-        "saveAndPreview": "Save & Preview",
-        "preview": "Preview"
+        "presentSaveFirst": "Save first to present",
+        "saveAndPresent": "Save & Present",
+        "present": "Present"
     },
     "share": {
         "title": "Share Diagram",

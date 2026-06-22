@@ -24,6 +24,26 @@ describe('textBoxSchema', () => {
       }).success
     ).toBe(true);
   });
+  it('round-trips off-grid fields and stays optional (ADR 0023)', () => {
+    const tb = {
+      id: 'tb1',
+      tile: { x: 0, y: 0 },
+      content: 'Text',
+      offset: { x: 9.75, y: 4 },
+      snap: false,
+      collides: false
+    };
+    const result = textBoxSchema.safeParse(tb);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).toMatchObject(tb);
+    const lean = textBoxSchema.safeParse({
+      id: 'tb1',
+      tile: { x: 0, y: 0 },
+      content: 'Text'
+    });
+    expect(lean.success).toBe(true);
+    if (lean.success) expect(lean.data.snap).toBeUndefined();
+  });
   it('fails if content is missing', () => {
     const invalid = { id: 'tb1', tile: { x: 0, y: 0 } };
     const result = textBoxSchema.safeParse(invalid);
