@@ -80,6 +80,18 @@ CI: [`perf-smoke.yml`](../.github/workflows/perf-smoke.yml) runs a small-N `npm 
 
 ---
 
+### Connector real-mouse + free-line additions (2026-06-22) — ADR 0022 addendum
+
+The connector "locked / can't place" regression slipped through because every canvas E2E dispatches **synthetic** PointerEvents on the `canvas-interactions` box (forcing `isRendererInteraction` and only firing move+down+up at one point). The new spec drives **real `page.mouse`** so it exercises the actual `elementFromPoint` hit-test and real drag gestures:
+
+| Suite | Type | Covers |
+|---|---|---|
+| `connector-realmouse.spec.ts` | E2E | **real-mouse** connector draw: a DRAG from a node commits + doesn't lock the tool; a DRAG between two nodes connects; a DRAG between two EMPTY tiles draws a free-floating (tile↔tile) line; a lone CLICK on empty creates nothing (stray-click guard); + an `elementFromPoint` guard that a node press resolves to `canvas-interactions` (catches z-order regressions) |
+| `interaction/__tests__/Connector.test.ts` (extended) | lib unit | click-mode first press arms a tile-anchored connector on empty (free-floating start, ADR 0022 addendum) |
+| `__perf_refactor_regression__/Connector.modes.test.ts` (extended) | lib unit | click-mode `mouseup`: drag completes (node OR empty start); lone empty click reverts the provisional connector; lone node click stays armed |
+
+---
+
 ## Quick Reference
 
 | Layer | Suites | Tests |
