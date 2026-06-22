@@ -2,6 +2,7 @@ node_modules/
 dist/
 build/
 .worker-build/
+.wrangler/
 *.log
 .env
 .env.local
