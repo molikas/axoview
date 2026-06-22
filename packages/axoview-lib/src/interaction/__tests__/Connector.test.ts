@@ -44,17 +44,24 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-describe('Connector.mousedown — click-mode first click (B3 / Decision #4)', () => {
-  it('is a no-op on empty canvas (no ITEM under the cursor)', () => {
+describe('Connector.mousedown — click-mode first press (ADR 0022 addendum)', () => {
+  it('arms a free-floating (tile-anchored) connector on empty canvas', () => {
     mockGetItemAtTile.mockReturnValue(null);
 
     Connector.mousedown?.(makeState() as any);
 
-    // No stray tile-anchored connector is created, no transaction opened, and
-    // the mode stays idle (no startAnchor armed) so a later click can still start.
-    expect(mockCreateConnector).not.toHaveBeenCalled();
-    expect(mockBeginDragTransaction).not.toHaveBeenCalled();
-    expect(mockSetMode).not.toHaveBeenCalled();
+    // Empty start is allowed: a drag draws a free line; a lone click is reverted
+    // on mouseup (the stray-click guard). The press here ARMS a tile-anchored
+    // connector and opens the transaction.
+    expect(mockBeginDragTransaction).toHaveBeenCalledTimes(1);
+    expect(mockCreateConnector).toHaveBeenCalledTimes(1);
+    expect(mockSetMode).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'CONNECTOR',
+        isConnecting: true,
+        startAnchor: { tile: { x: 1, y: 1 } }
+      })
+    );
   });
 
   it('arms a connector when the first click lands on an ITEM', () => {

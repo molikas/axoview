@@ -41,6 +41,7 @@ function makeScene(overrides: any = {}) {
     currentView: { connectors: overrides.connectors ?? [] },
     createConnector: jest.fn(),
     updateConnector: jest.fn(),
+    deleteConnector: jest.fn(),
     beginDragTransaction: jest.fn(),
     commitDragTransaction: jest.fn(),
     ...overrides
@@ -113,11 +114,11 @@ describe('Connector.mousedown click mode — first click', () => {
     mockGetItemAtTile.mockReturnValue(null);
   });
 
-  it('B3: is a no-op on empty space — the first click must target an ITEM (Decision #4)', () => {
-    // Decision #4 (option A): a stray first click on empty canvas previously
-    // committed a free-floating tile-anchored connector that counted in Ctrl+A
-    // and saved (and stranded on Esc abort when seeded from the action bar). The
-    // first click is now a no-op until a node is under the cursor.
+  it('arms a free-floating (tile-anchored) connector on empty space (ADR 0022 addendum)', () => {
+    // Empty start is allowed so the user can draw a line on the canvas. The
+    // stray-click guard now lives on mouseup: a lone click that started on empty
+    // is reverted; a deliberate drag draws the line. Here the press ARMS a
+    // tile-anchored connector and opens the transaction.
     const uiState = makeUiState({
       mode: {
         type: 'CONNECTOR',
@@ -135,9 +136,15 @@ describe('Connector.mousedown click mode — first click', () => {
       isRendererInteraction: true
     } as any);
 
-    expect(scene.createConnector).not.toHaveBeenCalled();
-    expect(scene.beginDragTransaction).not.toHaveBeenCalled();
-    expect(uiState.actions.setMode).not.toHaveBeenCalled();
+    expect(scene.beginDragTransaction).toHaveBeenCalledTimes(1);
+    expect(scene.createConnector).toHaveBeenCalledTimes(1);
+    expect(uiState.actions.setMode).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'CONNECTOR',
+        isConnecting: true,
+        startAnchor: { tile: { x: 5, y: 5 } }
+      })
+    );
   });
 
   it('creates connector with item anchors when clicking on a node', () => {
@@ -423,17 +430,127 @@ describe('Connector.mouseup drag mode', () => {
     );
   });
 
-  it('does NOT reset mode in click mode (click mode completes on second mousedown)', () => {
+  it('click mode, press-DRAG-release (travel past slop): completes the connector on mouseup', () => {
+    // Regression: the connector hint advertises "drag between items to connect",
+    // but in the default click mode a drag only ARMED the connector on mousedown
+    // and the release was a no-op — leaving a provisional connector glued to the
+    // cursor (the "connector is locked / left-click won't place it" bug). A drag
+    // must now commit on release.
+    const connector = {
+      id: 'conn-1',
+      color: 'color-1',
+      anchors: [
+        { id: 'a0', ref: { item: 'node-A' } },
+        { id: 'a1', ref: { tile: { x: 5, y: 5 } } }
+      ]
+    };
     const uiState = makeUiState({
       mode: {
         type: 'CONNECTOR',
         showCursor: true,
         id: 'conn-1',
-        isConnecting: true
+        isConnecting: true,
+        startAnchor: { itemId: 'node-A' }
       },
-      connectorInteractionMode: 'click'
+      connectorInteractionMode: 'click',
+      // down far from up → drag → must complete.
+      mouse: {
+        position: { screen: { x: 200, y: 160 }, tile: { x: 9, y: 7 } },
+        mousedown: { screen: { x: 10, y: 10 }, tile: { x: 5, y: 5 } }
+      }
     });
-    Connector.mouseup!({ uiState, scene: makeScene() } as any);
+    const scene = makeScene({ connectors: [connector] });
+    Connector.mouseup!({ uiState, scene } as any);
+    expect(scene.updateConnector).toHaveBeenCalledWith('conn-1', expect.any(Object));
+    expect(scene.commitDragTransaction).toHaveBeenCalled();
+    expect(uiState.actions.setMode).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'CONNECTOR', id: null, isConnecting: false })
+    );
+  });
+
+  it('click mode, DRAG from EMPTY (free line): commits the free-floating connector on release', () => {
+    // ADR 0022 addendum: a deliberate drag that started on empty canvas draws a
+    // free-floating line and commits on release — same completion path as a node
+    // start, just with a tile start anchor.
+    const connector = {
+      id: 'conn-1',
+      color: 'color-1',
+      anchors: [
+        { id: 'a0', ref: { tile: { x: 1, y: 1 } } },
+        { id: 'a1', ref: { tile: { x: 5, y: 5 } } }
+      ]
+    };
+    const uiState = makeUiState({
+      mode: {
+        type: 'CONNECTOR',
+        showCursor: true,
+        id: 'conn-1',
+        isConnecting: true,
+        startAnchor: { tile: { x: 1, y: 1 } }
+      },
+      connectorInteractionMode: 'click',
+      mouse: {
+        position: { screen: { x: 220, y: 180 }, tile: { x: 9, y: 7 } },
+        mousedown: { screen: { x: 10, y: 10 }, tile: { x: 1, y: 1 } }
+      }
+    });
+    const scene = makeScene({ connectors: [connector] });
+    Connector.mouseup!({ uiState, scene } as any);
+    expect(scene.updateConnector).toHaveBeenCalledWith('conn-1', expect.any(Object));
+    expect(scene.commitDragTransaction).toHaveBeenCalled();
+    expect(scene.deleteConnector).not.toHaveBeenCalled();
+    expect(uiState.actions.setMode).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'CONNECTOR', id: null, isConnecting: false })
+    );
+  });
+
+  it('click mode, lone CLICK that started on EMPTY: reverts the provisional connector (stray-click guard)', () => {
+    // The stray-click guard: a click (no travel) that started on empty canvas
+    // must leave NOTHING behind — the provisional connector is deleted and the
+    // transaction closed, so no free-floating junk is saved (ADR 0022).
+    const uiState = makeUiState({
+      mode: {
+        type: 'CONNECTOR',
+        showCursor: true,
+        id: 'conn-1',
+        isConnecting: true,
+        startAnchor: { tile: { x: 5, y: 5 } }
+      },
+      connectorInteractionMode: 'click',
+      mouse: {
+        position: { screen: { x: 12, y: 11 }, tile: { x: 5, y: 5 } },
+        mousedown: { screen: { x: 10, y: 10 }, tile: { x: 5, y: 5 } }
+      }
+    });
+    const scene = makeScene();
+    Connector.mouseup!({ uiState, scene } as any);
+    expect(scene.deleteConnector).toHaveBeenCalledWith('conn-1');
+    expect(scene.commitDragTransaction).toHaveBeenCalled();
+    expect(scene.updateConnector).not.toHaveBeenCalled();
+    expect(uiState.actions.setMode).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'CONNECTOR', id: null, isConnecting: false })
+    );
+  });
+
+  it('click mode, lone CLICK that started on a NODE: stays armed (no revert)', () => {
+    const uiState = makeUiState({
+      mode: {
+        type: 'CONNECTOR',
+        showCursor: true,
+        id: 'conn-1',
+        isConnecting: true,
+        startAnchor: { itemId: 'node-A' }
+      },
+      connectorInteractionMode: 'click',
+      mouse: {
+        position: { screen: { x: 12, y: 11 }, tile: { x: 5, y: 5 } },
+        mousedown: { screen: { x: 10, y: 10 }, tile: { x: 5, y: 5 } }
+      }
+    });
+    const scene = makeScene();
+    Connector.mouseup!({ uiState, scene } as any);
+    expect(scene.deleteConnector).not.toHaveBeenCalled();
+    expect(scene.commitDragTransaction).not.toHaveBeenCalled();
     expect(uiState.actions.setMode).not.toHaveBeenCalled();
   });
 });
