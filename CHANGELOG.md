@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.0.0](https://github.com/molikas/axoview/compare/v2.1.1...v3.0.0) (2026-06-22)
 
+> **Backfill (#49, #50 — added 2026-06-22):** v3.0.0 also shipped PRs [#49](https://github.com/molikas/axoview/pull/49) and [#50](https://github.com/molikas/axoview/pull/50), whose squash-merge titles were not conventional commits, so the auto-generated notes below omitted them. Recorded here for completeness; durable decisions live in ADRs 0018–0029.
+>
+> **Added** — Canvas2D node render layer (ADR 0019); touch & pen gesture contract — tap/drag/pinch/long-press/lasso (ADR 0018); canvas context menu, per-item + multi-select (ADR 0027); off-grid positioning + per-item collision (ADR 0023); node-label direct-drag, positioning & sizing (ADR 0024); rectangle edge-midpoint transform handles (ADR 0026); image-export robustness + Screenshot preset (ADR 0025); engine performance harness `npm run perf` + `perf-smoke` CI gate (ADR 0020); UX journey-testing protocol with a code-verification gate (ADR 0028).
+>
+> **Changed** — canvas pointer-interaction model: single-click select · double-click open · right-drag pan · right-tap context menu; pan customization + the multi-profile hotkey selector removed and double-click-to-add dropped in favor of right-click "Add item" (ADR 0022); selection-contract addenda — lasso/endpoint capture + LayersPanel two-way mirror (ADR 0006); Esc returns from any tool mode to Select; full i18n sweep across all 14 locales.
+>
+> **Performance** — paste O(N³) → O(N+C) via a derived `TileIndex` + rigid-stamp placement, fixing the ~150-node paste freeze (ADR 0021); compositor-only node drag + CSS-preview label drag (~103 → ~17.5 ms/frame).
+>
+> **Fixed** — D-7 dual-stack + D-8 paste→undo→redo connector-path correctness; canvas label HTML-decode; image-export canvas-mount race (dropped icons on slow hosts); SVG-export resilience; selection-aware arrow-key nudge; journey-test polish (keyboard-operable icon grid, focus rings, hex input, snap state).
+>
+> **Removed** — pan-customization settings + the multi-profile hotkey selector (ADR 0022); the floating Assign-layer bar (folded into the context menu, ADR 0027).
+>
+> **Security** — sanitize user-authored HTML (Quill) through DOMPurify before any `dangerouslySetInnerHTML` sink (ADR 0029); 4 CodeQL high alerts resolved at source via a shared `stripHtmlTags` fixpoint.
+>
+> **Tests** — paste / spatial-index / perf-harness guard suites; touch E2E specs; journey-test E2E.
+
 ### ⚠ BREAKING CHANGES
 
 * **deps:** handled: wrangler 4 pages dev reads wrangler.toml
@@ -678,10 +694,6 @@ All notable changes to this fork are documented here.
 For upstream FossFLOW history (pre-fork), see [docs/upstream-changelog.md](docs/upstream-changelog.md).
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning uses a date-based scheme: `YYYY.M.D` — the version always reflects the date the release was cut from `master`. The live demo at [demo-fce.pages.dev](https://demo-fce.pages.dev/) always runs the latest version.
-
----
-
-## [Unreleased]
 
 ---
 
