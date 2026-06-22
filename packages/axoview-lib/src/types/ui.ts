@@ -124,8 +124,6 @@ export const EdgeAnchorPositionOptions = {
   LEFT: 'LEFT'
 } as const;
 
-export type EdgeAnchorPosition = keyof typeof EdgeAnchorPositionOptions;
-
 export const AnchorPositionOptions = {
   ...CornerAnchorPositionOptions,
   ...EdgeAnchorPositionOptions
