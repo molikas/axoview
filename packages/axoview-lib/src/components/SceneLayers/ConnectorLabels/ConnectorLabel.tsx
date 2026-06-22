@@ -11,7 +11,7 @@ import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { PROJECTED_TILE_SIZE, UNPROJECTED_TILE_SIZE } from 'src/config';
 import { Label } from 'src/components/Label/Label';
 import { Connector, ConnectorLabel as ConnectorLabelType } from 'src/types';
-import { useScene } from 'src/hooks/useScene';
+import { useSceneActions } from 'src/hooks/useSceneActions';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { isLabelVisibleInPreview } from 'src/utils/previewLabelVisibility';
 
@@ -220,7 +220,10 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
     (a, b) => a === b
   );
   const { getTilePosition } = useCanvasMode();
-  const { updateConnector } = useScene();
+  // Actions only (not useScene): this label sits in the drag hot path, so it
+  // must not re-render on every scene mutation just to hold the updateConnector
+  // callback. useSceneActions has no data subscription (perf A-1).
+  const { updateConnector } = useSceneActions();
   const editorMode = useUiStateStore((s) => s.editorMode);
   // Present-mode hide-labels override (ADR 0013 addendum) — UI-only.
   const previewHideLabels = useUiStateStore((s) => s.previewHideLabels);

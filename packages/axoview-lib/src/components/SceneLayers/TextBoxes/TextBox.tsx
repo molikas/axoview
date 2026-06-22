@@ -2,9 +2,11 @@ import React, { useMemo, memo, useCallback, useEffect, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import { toPx, CoordsUtils } from 'src/utils';
 import { decodeHtmlEntities } from 'src/utils/htmlToPlainText';
+import { stripHtmlTags } from 'src/utils/stripHtml';
 import { useIsoProjection } from 'src/hooks/useIsoProjection';
 import { useTextBoxProps } from 'src/hooks/useTextBoxProps';
-import { useScene } from 'src/hooks/useScene';
+import { useSceneData } from 'src/hooks/useSceneData';
+import { useSceneActions } from 'src/hooks/useSceneActions';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 
@@ -22,26 +24,30 @@ const TEXTBOX_DRAG_STYLE: React.CSSProperties = {
 };
 
 interface Props {
-  textBox: ReturnType<typeof useScene>['textBoxes'][0];
+  textBox: ReturnType<typeof useSceneData>['textBoxes'][0];
 }
 
 // Strip HTML tags so existing rich-text content can be edited as plain text inline.
 // Rich editing remains available via the side panel.
 const htmlToPlain = (s: string | undefined): string => {
   if (!s) return '';
-  // Block tags → newlines (preserve line breaks), strip the rest, then decode
-  // entities via the shared util (A1 converge — also covers &#39;/&quot;/numeric).
-  const stripped = s
+  // Block tags → newlines (preserve line breaks), then strip the rest via the
+  // shared FIXPOINT stripper and decode entities (A1 converge — also covers
+  // &#39;/&quot;/numeric). The fixpoint strip (vs a single `/<[^>]*>/g` pass)
+  // can't leave a reassembled tag behind, clearing CodeQL
+  // js/incomplete-multi-character-sanitization on this path.
+  const withBreaks = s
     .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n')
-    .replace(/<[^>]*>/g, '');
-  return decodeHtmlEntities(stripped).replace(/\n+$/, '');
+    .replace(/<\/p>/gi, '\n');
+  return decodeHtmlEntities(stripHtmlTags(withBreaks)).replace(/\n+$/, '');
 };
 
 export const TextBox = memo(({ textBox }: Props) => {
   const { paddingX, fontProps } = useTextBoxProps(textBox);
   const editorMode = useUiStateStore((s) => s.editorMode);
-  const { updateTextBox } = useScene();
+  // Actions only (not useScene): this textbox sits in the drag hot path and must
+  // not re-render on every scene mutation just to hold updateTextBox (perf A-1).
+  const { updateTextBox } = useSceneActions();
   const isEditable = editorMode === 'EDITABLE';
   const [isEditing, setIsEditing] = useState(false);
 

@@ -3,6 +3,20 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EmptyStateScreen } from '../EmptyStateScreen';
 
+// react-i18next is not initialised in jsdom tests, so a bare `t(key)` echoes the
+// key and the accessible-name assertions below would see "emptyState.import"
+// instead of the shipped copy. Stub `t` to resolve the two keys this screen uses
+// to their en-US strings (mirrors the SaveErrorDialog/ImportErrorDialog tests).
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) =>
+      ({
+        'emptyState.newDiagram': 'New diagram',
+        'emptyState.import': 'Import'
+      })[key] ?? key
+  })
+}));
+
 const getCreateHook = () =>
   document.querySelector('[data-axoview-id="screen-empty-create"]');
 const getImportHook = () =>

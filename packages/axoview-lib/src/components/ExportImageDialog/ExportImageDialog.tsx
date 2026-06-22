@@ -517,12 +517,18 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
     setSvgData(undefined);
     setExportError(false);
     isExporting.current = false;
+    let raf = 0;
     const timer = setTimeout(() => {
-      requestAnimationFrame(() => {
+      raf = requestAnimationFrame(() => {
         exportImageRef.current();
       });
     }, 50);
-    return () => clearTimeout(timer);
+    // Cancel BOTH the timer and any scheduled frame on unmount/re-run, so a late
+    // rAF can't fire exportImage (setState) after the dialog has closed.
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(raf);
+    };
   }, [
     showGrid,
     backgroundColor,

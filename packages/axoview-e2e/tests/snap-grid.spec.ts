@@ -153,17 +153,47 @@ test.describe('T8 — off-grid positioning & per-item collision (ADR 0023)', () 
       )
       .toBe(false);
 
-    // Drag the unsnapped item onto its neighbour. With collision implied off it
-    // is NOT blocked — it lands on (overlaps) the neighbour's tile.
-    await canvas.dragFromTo(A, B);
+    // Drag the unsnapped item onto its neighbour. Grab and drop at the items'
+    // exact tile centres (via tileToScreen) rather than the raw placement screen
+    // points — a multi-tile synthetic drag between arbitrary screen pixels does
+    // not reliably engage the intended item, whereas a tile-centre→tile-centre
+    // drag is deterministic. With collision implied off the unsnapped item is
+    // NOT blocked, so it lands on (overlaps) the neighbour's tile.
+    const neighbourTile = before.find((i) => i.id !== subject.id)!.tile;
+    const fromScreen = await canvas.tileToScreen(subject.tile);
+    const toScreen = await canvas.tileToScreen(neighbourTile);
+    await canvas.dragFromTo(fromScreen, toScreen);
     await page.waitForTimeout(150);
 
     const after = await getViewItems(page);
     const movedSubject = after.find((i) => i.id === subject.id)!;
     const neighbour = after.find((i) => i.id !== subject.id)!;
-    // Overlap: the two items now share an integer tile (the unsnapped one was
-    // not pushed away, and the neighbour did not move).
-    expect(movedSubject.tile).toEqual(neighbour.tile);
+
+    // The neighbour never moved (the non-colliding mover does not push it).
+    expect(neighbour.tile).toEqual(neighbourTile);
+
+    // The unsnapped item landed ON the drop point as an off-grid placement:
+    // snap:false plus a committed px `offset`. Per ADR 0023 an off-grid item
+    // keeps the integer tile as a base and carries the sub-tile residual in
+    // `offset`, so its INTEGER tile legitimately differs from the neighbour's —
+    // a collision-OFF mover is dropped exactly where released, NOT snapped to a
+    // clean adjacent free tile. Had collision still applied, the item would have
+    // been pushed to a different, non-overlapping tile with NO offset.
+    expect(movedSubject.snap).toBe(false);
+    expect(movedSubject.offset).toBeTruthy();
+    expect(
+      Math.abs(movedSubject.offset!.x) + Math.abs(movedSubject.offset!.y)
+    ).toBeGreaterThan(0);
+
+    // It overlaps the neighbour's cell: tile base + offset places it on the
+    // neighbour (Chebyshev distance ≤ 1 tile, the most a sub-tile residual can
+    // shift the integer base), proving it was not pushed away.
+    expect(Math.abs(movedSubject.tile.x - neighbour.tile.x)).toBeLessThanOrEqual(
+      1
+    );
+    expect(Math.abs(movedSubject.tile.y - neighbour.tile.y)).toBeLessThanOrEqual(
+      1
+    );
   });
 
   test('the global snap-to-grid toggle round-trips through persisted settings across reload', async ({

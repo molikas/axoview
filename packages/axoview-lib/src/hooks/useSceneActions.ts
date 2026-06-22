@@ -981,7 +981,6 @@ export const useSceneActions = () => {
           // callback.
           const issues = validateView(newView, { model: newState.model });
           if (issues.length > 0) {
-            // eslint-disable-next-line no-console
             console.warn(
               '[axoview] paste produced an invalid view; skipping',
               issues[0]

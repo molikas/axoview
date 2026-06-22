@@ -58,7 +58,7 @@ test.describe('Mode transitions — Track 5e-6', () => {
     await expect.poll(() => getUiModeType(page), { timeout: 2_000 }).toBe('CURSOR');
   });
 
-  test('5e-6: Esc from CONNECTOR mode with no in-flight connector is a no-op (mode stays CONNECTOR)', async ({ page, app }) => {
+  test('5e-6: Esc from idle CONNECTOR mode returns to Select/CURSOR (F-01)', async ({ page, app }) => {
     void app;
 
     await page.keyboard.press('c');
@@ -66,13 +66,15 @@ test.describe('Mode transitions — Track 5e-6', () => {
       .poll(() => getUiModeType(page), { timeout: 2_000 })
       .toBe('CONNECTOR');
 
-    // Esc with no isConnecting / no mode.id — useInteractionManager
-    // line 130's isConnectionInProgress is false; the early-return at
-    // line 152 fires after the selectedIds + itemControls guards. Mode
-    // stays CONNECTOR; no spurious delete or transition.
+    // Esc with nothing in flight: handleConnectorEscape returns false (no
+    // in-progress connector), so Esc falls through to the F-01 tool-mode exit —
+    // CONNECTOR is in TOOL_MODES_EXITED_BY_ESCAPE, so the mode returns to CURSOR.
+    // (Previously Esc was swallowed and the user was stranded in the tool until
+    // pressing 's'; see handleEscapeKey.ts + handleEscapeKey.test.ts 'exits idle
+    // CONNECTOR mode to CURSOR'.)
     await page.keyboard.press('Escape');
     await expect
       .poll(() => getUiModeType(page), { timeout: 2_000 })
-      .toBe('CONNECTOR');
+      .toBe('CURSOR');
   });
 });

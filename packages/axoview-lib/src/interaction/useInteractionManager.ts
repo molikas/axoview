@@ -14,8 +14,7 @@ import {
   getItemAtTile,
   generateId,
   incrementZoom,
-  decrementZoom,
-  CoordsUtils
+  decrementZoom
 } from 'src/utils';
 import { useResizeObserver } from 'src/hooks/useResizeObserver';
 import { useScene } from 'src/hooks/useScene';
@@ -70,6 +69,45 @@ type PointerKind = 'mouse' | 'touch' | 'pen';
 // Hold duration before a stationary touch becomes a long-press (node → context
 // menu; empty → lasso). Slightly under the OS ~500ms callout so our menu wins.
 const LONG_PRESS_MS = 450;
+
+// ADR 0027 touch reconciliation: a long-press opens the context menu DURING the
+// hold, while the finger is still down. When the finger lifts, the browser
+// synthesises a compatibility mouse sequence (mousedown → mouseup → click) at
+// the press point. Portaled to <body>, the MUI Menu backdrop sits under that
+// point, so that synthesised mousedown/click immediately dismisses the
+// just-opened menu (the "verify on a device" risk ADR 0027 flagged). The
+// spec-compliant cure is to cancel the terminating `touchend`, which suppresses
+// the whole compat-mouse sequence; we also swallow a stray backdrop
+// mousedown/click in the capture phase as a belt-and-suspenders fallback for
+// environments that synthesise the click without a cancelable touchend. The
+// menu therefore survives the lift; a later, deliberate tap-away (a fresh touch
+// sequence) still dismisses it. Everything self-removes after the first
+// terminating event or 700 ms, so it can never eat a real interaction.
+const suppressLongPressGestureEnd = () => {
+  let timer: ReturnType<typeof setTimeout>;
+  const cleanup = () => {
+    window.removeEventListener('touchend', onTouchEnd, true);
+    window.removeEventListener('mousedown', onBackdropMouse, true);
+    window.removeEventListener('click', onBackdropMouse, true);
+    clearTimeout(timer);
+  };
+  const onTouchEnd = (ev: TouchEvent) => {
+    // Cancel the compat-mouse sequence the lift would otherwise synthesise.
+    if (ev.cancelable) ev.preventDefault();
+  };
+  const onBackdropMouse = (ev: MouseEvent) => {
+    if ((ev.target as HTMLElement | null)?.closest('.MuiBackdrop-root')) {
+      ev.stopPropagation();
+      ev.preventDefault();
+    }
+    // The click is the last event of the sequence — clean up once it lands.
+    if (ev.type === 'click') cleanup();
+  };
+  window.addEventListener('touchend', onTouchEnd, { capture: true, passive: false });
+  window.addEventListener('mousedown', onBackdropMouse, true);
+  window.addEventListener('click', onBackdropMouse, true);
+  timer = setTimeout(cleanup, 700);
+};
 
 // Max gap between two taps on the SAME item for the second to count as a
 // double-tap (→ open the details panel, ADR 0022 §5). Debounced against the
@@ -1054,6 +1092,9 @@ export const useInteractionManager = () => {
               target: { type: downItem.type, id: downItem.id }
             });
           }
+          // Keep the menu alive across the finger-lift compat-mouse sequence
+          // (see suppressLongPressGestureEnd).
+          suppressLongPressGestureEnd();
           ts.phase = 'menu';
         } else if (ts.phase === 'pan-pending') {
           // Hold on empty → arm a one-shot marquee lasso from the press point.

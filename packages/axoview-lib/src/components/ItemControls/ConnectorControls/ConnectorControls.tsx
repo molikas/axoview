@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
-  Connector,
   ConnectorLabel,
   connectorStyleOptions,
   connectorLineTypeOptions
