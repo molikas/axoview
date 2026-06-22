@@ -1,4 +1,5 @@
 import { viewItemSchema, viewSchema, viewsSchema } from '../views';
+import { ARRAY_MAX } from '../common';
 
 describe('viewItemSchema', () => {
   it('validates a correct view item', () => {
@@ -159,5 +160,33 @@ describe('viewsSchema', () => {
         })
       ).toBe(true);
     }
+  });
+});
+
+describe('viewSchema array bounds — import-DoS guard (ADR 0029)', () => {
+  const items = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ id: `i${i}`, tile: { x: 0, y: 0 } }));
+
+  it('rejects an items array over the cap', () => {
+    const result = viewSchema.safeParse({
+      id: 'v1',
+      name: 'V',
+      items: items(ARRAY_MAX.viewItems + 1)
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some((iss: any) => iss.path.includes('items'))
+      ).toBe(true);
+    }
+  });
+
+  it('accepts a realistically large diagram under the cap', () => {
+    const result = viewSchema.safeParse({
+      id: 'v1',
+      name: 'V',
+      items: items(1000)
+    });
+    expect(result.success).toBe(true);
   });
 });

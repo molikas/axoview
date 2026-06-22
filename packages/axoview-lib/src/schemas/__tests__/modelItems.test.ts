@@ -1,4 +1,5 @@
 import { modelItemSchema, modelItemsSchema } from '../modelItems';
+import { ARRAY_MAX } from '../common';
 
 describe('modelItemSchema', () => {
   it('validates a correct model item', () => {
@@ -106,5 +107,19 @@ describe('modelItemsSchema', () => {
         })
       ).toBe(true);
     }
+  });
+
+  describe('array bound — import-DoS guard (ADR 0029)', () => {
+    const items = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({ id: `i${i}`, name: `n${i}` }));
+
+    it('rejects an items array over the cap', () => {
+      const result = modelItemsSchema.safeParse(items(ARRAY_MAX.modelItems + 1));
+      expect(result.success).toBe(false);
+    });
+
+    it('accepts a realistically large model under the cap', () => {
+      expect(modelItemsSchema.safeParse(items(1000)).success).toBe(true);
+    });
   });
 });

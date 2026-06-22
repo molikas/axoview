@@ -3,6 +3,7 @@ import {
   connectorLabelSchema,
   connectorSchema
 } from '../connector';
+import { ARRAY_MAX } from '../common';
 
 describe('anchorSchema', () => {
   it('validates a correct anchor', () => {
@@ -174,5 +175,29 @@ describe('connectorSchema — anchor count at schema level', () => {
       anchors: [{ id: 'a1', ref: { item: 'x' } }]
     });
     expect(result.success).toBe(true);
+  });
+});
+
+describe('connectorSchema — anchors bound (import-DoS guard, ADR 0029)', () => {
+  const anchors = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ id: `a${i}`, ref: { item: 'x' } }));
+
+  it('rejects an anchors array over the cap', () => {
+    const result = connectorSchema.safeParse({
+      id: 'c1',
+      anchors: anchors(ARRAY_MAX.connectorAnchors + 1)
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some((iss: any) => iss.path.includes('anchors'))
+      ).toBe(true);
+    }
+  });
+
+  it('accepts a normal anchor count', () => {
+    expect(
+      connectorSchema.safeParse({ id: 'c1', anchors: anchors(4) }).success
+    ).toBe(true);
   });
 });

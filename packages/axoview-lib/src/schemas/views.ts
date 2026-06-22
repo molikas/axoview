@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { id, constrainedStrings, coords } from './common';
+import { id, constrainedStrings, coords, ARRAY_MAX } from './common';
 import { rectangleSchema } from './rectangle';
 import { connectorSchema } from './connector';
 import { textBoxSchema } from './textBox';
@@ -33,10 +33,10 @@ export const viewSchema = z.object({
   lastUpdated: z.string().datetime().optional(),
   name: constrainedStrings.name,
   description: constrainedStrings.description.optional(),
-  items: z.array(viewItemSchema),
-  rectangles: z.array(rectangleSchema).optional(),
-  connectors: z.array(connectorSchema).optional(),
-  textBoxes: z.array(textBoxSchema).optional(),
+  items: z.array(viewItemSchema).max(ARRAY_MAX.viewItems),
+  rectangles: z.array(rectangleSchema).max(ARRAY_MAX.rectangles).optional(),
+  connectors: z.array(connectorSchema).max(ARRAY_MAX.connectors).optional(),
+  textBoxes: z.array(textBoxSchema).max(ARRAY_MAX.textBoxes).optional(),
   layers: layersSchema.optional()
 });
 

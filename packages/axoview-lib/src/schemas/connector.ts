@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { coords, id, constrainedStrings, NOTES_MAX_LENGTH } from './common';
+import { coords, id, constrainedStrings, NOTES_MAX_LENGTH, ARRAY_MAX } from './common';
 
 export const connectorStyleOptions = ['SOLID', 'DOTTED', 'DASHED'] as const;
 export const connectorLineTypeOptions = [
@@ -51,6 +51,6 @@ export const connectorSchema = z.object({
   style: z.enum(connectorStyleOptions).optional(),
   lineType: z.enum(connectorLineTypeOptions).optional(),
   showArrow: z.boolean().optional(),
-  anchors: z.array(anchorSchema),
+  anchors: z.array(anchorSchema).max(ARRAY_MAX.connectorAnchors),
   layerId: id.optional()
 });
