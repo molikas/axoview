@@ -35,19 +35,21 @@ const createConnectorAt = (
   anchors: [makeAnchor(itemAtTile, tile), makeAnchor(itemAtTile, tile)]
 });
 
-// Click mode, first click: create the connector and arm the second click.
+// Click mode, first press: create the connector and arm it. The start anchor
+// binds to the node under the cursor, or to the raw tile for a free-floating
+// connector (drawing a line on empty canvas — ADR 0022 addendum).
+//
+// ADR 0022's "no free-floating connector from a stray click" guard is preserved
+// not by blocking the empty start here, but by REVERTING it on mouseup when the
+// gesture turned out to be a lone click (see the mouseup handler): a stray empty
+// click leaves nothing behind, while a deliberate drag from empty draws the line.
 const handleClickFirst = (
   { uiState, scene }: State,
   itemAtTile: ItemAtTile
 ) => {
-  // B3 / Decision #4 (option A): the first click must land on an ITEM. A stray
-  // first click on empty canvas otherwise created a free-floating tile-anchored
-  // connector that counted in Ctrl+A and saved (and, seeded from the action bar,
-  // stranded on Esc abort). No-op until a node is under the cursor.
-  if (itemAtTile?.type !== 'ITEM') return;
-
   const tile = uiState.mouse.position.tile;
-  const startAnchor = { itemId: itemAtTile.id };
+  const startAnchor =
+    itemAtTile?.type === 'ITEM' ? { itemId: itemAtTile.id } : { tile };
 
   // Create a connector but don't finalize it yet.
   const newConnector = createConnectorAt(scene.colors[0].id, itemAtTile, tile);
@@ -245,22 +247,42 @@ export const Connector: ModeActions = {
       return;
     }
 
-    // Click mode: a press→DRAG→release also completes the connection. The tool
-    // hint advertises "drag between items to connect", and dragging is the
-    // intuitive gesture, but the first mousedown only ARMS the connector
-    // (handleClickFirst) — without this branch a drag-release left a provisional
-    // connector glued to the cursor with the drag-transaction still open (the
-    // "connector is locked / left-click won't place it" regression). A pure
-    // click (no travel past the tap slop) is left armed for the canonical second
-    // click — so click-then-click is unchanged. Mirrors handleClickSecond at the
-    // release tile/item.
+    // Click mode.
     if (!uiState.mode.isConnecting) return;
+
+    // A press→DRAG→release completes the connection. The tool hint advertises
+    // "drag between items to connect", and dragging is the intuitive gesture,
+    // but the first mousedown only ARMS the connector (handleClickFirst) —
+    // without this a drag-release left a provisional connector glued to the
+    // cursor with the drag-transaction still open (the "connector is locked /
+    // left-click won't place it" regression). This commits at the release
+    // tile/item for BOTH a node start and a free-floating empty start.
     const down = uiState.mouse.mousedown?.screen;
-    if (!down || !exceedsTapSlop(down, uiState.mouse.position.screen)) return;
-    const itemAtTile = getItemAtTile({
-      tile: uiState.mouse.position.tile,
-      scene
+    const dragged =
+      !!down && exceedsTapSlop(down, uiState.mouse.position.screen);
+    if (dragged) {
+      const itemAtTile = getItemAtTile({
+        tile: uiState.mouse.position.tile,
+        scene
+      });
+      handleClickSecond(state, itemAtTile);
+      return;
+    }
+
+    // A lone click (no travel past the tap slop). If it STARTED on a node, leave
+    // it armed for the canonical second click (click-then-click is unchanged).
+    // If it started on EMPTY canvas it's a stray click — revert the provisional
+    // connector so it can never land as free-floating junk (ADR 0022's
+    // stray-click guard, now scoped to a click instead of blocking the gesture).
+    if (uiState.mode.startAnchor?.itemId) return;
+    scene.deleteConnector(uiState.mode.id);
+    scene.commitDragTransaction();
+    uiState.actions.setMode({
+      type: 'CONNECTOR',
+      showCursor: true,
+      id: null,
+      startAnchor: undefined,
+      isConnecting: false
     });
-    handleClickSecond(state, itemAtTile);
   }
 };

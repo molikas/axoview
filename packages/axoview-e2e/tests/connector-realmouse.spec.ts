@@ -226,4 +226,74 @@ test.describe('Connector — real-mouse draw (default click interaction mode)', 
     const mode = await getUiMode(page);
     expect(mode?.id ?? null).toBeNull();
   });
+
+  // ADR 0022 addendum (refined 2026-06-22): you can draw a free-floating line on
+  // empty canvas with a DRAG, while a lone stray click on empty stays a no-op.
+  test('a real DRAG between two EMPTY tiles draws a free-floating connector (both ends tile-bound)', async ({
+    page,
+    app
+  }) => {
+    void app;
+    await boot(page);
+    await closeElementsPanel(page);
+
+    await page.keyboard.press('c');
+    await expect
+      .poll(async () => (await getUiMode(page))?.type ?? null, { timeout: 2_000 })
+      .toBe('CONNECTOR');
+
+    // Two empty points in the canvas interior (right of any dock).
+    const box = await byAxoviewId(page, 'canvas-interactions').boundingBox();
+    if (!box) throw new Error('no interactions box');
+    const from = { x: box.x + box.width * 0.42, y: box.y + box.height * 0.4 };
+    const to = { x: box.x + box.width * 0.62, y: box.y + box.height * 0.62 };
+
+    await realMouseDrag(page, from, to);
+    await expect
+      .poll(() => getModelConnectorCount(page), { timeout: 3_000 })
+      .toBe(1);
+
+    // Both endpoints are tile-bound (free-floating — not attached to any node).
+    const endpoints = await page.evaluate(() => {
+      const ui = (window as any).__axoview__.ui.getState();
+      const views = (window as any).__axoview__.model.getState().views;
+      const view = (ui.view && views.find((v: any) => v.id === ui.view)) ?? views[0];
+      const c = (view?.connectors ?? [])[0];
+      if (!c) return null;
+      const last = c.anchors.length - 1;
+      return [c.anchors[0], c.anchors[last]].map((a: any) => ({
+        tile: a.ref?.tile ?? null,
+        item: a.ref?.item ?? null
+      }));
+    });
+    expect(endpoints).not.toBeNull();
+    expect(endpoints!.every((e) => e.tile !== null && e.item == null)).toBe(true);
+
+    const mode = await getUiMode(page);
+    expect(mode?.id ?? null).toBeNull();
+  });
+
+  test('a lone CLICK on empty canvas does NOT create a connector (stray-click guard)', async ({
+    page,
+    app
+  }) => {
+    void app;
+    await boot(page);
+    await closeElementsPanel(page);
+
+    await page.keyboard.press('c');
+    await expect
+      .poll(async () => (await getUiMode(page))?.type ?? null, { timeout: 2_000 })
+      .toBe('CONNECTOR');
+
+    const box = await byAxoviewId(page, 'canvas-interactions').boundingBox();
+    if (!box) throw new Error('no interactions box');
+    await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.5);
+    await page.waitForTimeout(250);
+
+    // Stray click leaves nothing behind.
+    expect(await getModelConnectorCount(page)).toBe(0);
+    const mode = await getUiMode(page);
+    expect(mode?.id ?? null).toBeNull();
+  });
 });
