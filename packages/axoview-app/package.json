@@ -32,12 +32,6 @@
     "clean": "rm -rf build",
     "test": "npx --no-install jest"
   },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
   "browserslist": {
     "production": [
       ">0.2%",

@@ -661,7 +661,7 @@ Worker bundle is the only built artefact with a hard ceiling: **< 1 MB uncompres
 There are two Cloudflare config files; they are kept in lockstep by hand. Per [ADR 0009 D5](adr/0009-deployment-topology.md):
 
 - **Repo-root [`wrangler.toml`](../wrangler.toml) is authoritative for deploy** — the "Deploy to Cloudflare" button and `wrangler pages deploy` from the repo root both read it. 8 lines today (`pages_build_output_dir`, `AUTH_MODE=shared-token`, no R2 binding).
-- **Worker-package [`packages/axoview-worker/wrangler.toml`](../packages/axoview-worker/wrangler.toml) is retained for local-dev workflows** — the package's `npm run dev` invokes `wrangler pages dev ../axoview-app/build --binding-from-toml`, which reads bindings from the `wrangler.toml` in cwd. Killing this file would break that workflow.
+- **Worker-package [`packages/axoview-worker/wrangler.toml`](../packages/axoview-worker/wrangler.toml) is retained for local-dev workflows** — the package's `npm run dev` invokes `wrangler pages dev ../axoview-app/build --compatibility-date=2025-01-01`; wrangler 4 auto-discovers the `wrangler.toml` in cwd for `[vars]` bindings (the explicit `--binding-from-toml` flag was removed in PR #51 — it is invalid under wrangler 4). Killing this file would break that workflow.
 
 The drift risk is real: any change to `[vars]` or `compatibility_date` MUST be applied to both. A future consolidation (symlink or generator script) is a follow-up, not an ADR. This is flagged in [§7.8](#78-cross-package-observations) and named explicitly here as a reviewer-watch item.
 

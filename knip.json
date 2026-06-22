@@ -4,18 +4,14 @@
   "ignoreBinaries": ["playwright", "wrangler", "jest"],
   "ignore": ["packages/axoview-backend/src/adapters/types.ts"],
   "ignoreDependencies": [
-    "core-js",
-    "msw",
     "pathfinding",
     "@types/pathfinding",
     "jsdom",
     "@types/jsdom",
-    "@types/quill",
     "prettier",
     "@testing-library/jest-dom",
     "@testing-library/user-event",
     "conventional-changelog-conventionalcommits",
-    "eslint-config-react-app",
     "hono",
     "@jest/globals"
   ],
