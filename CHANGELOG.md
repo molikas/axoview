@@ -5,6 +5,34 @@ All notable changes to Axoview will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0](https://github.com/molikas/axoview/compare/v2.1.1...v3.0.0) (2026-06-22)
+
+### ⚠ BREAKING CHANGES
+
+* **deps:** handled: wrangler 4 pages dev reads wrangler.toml
+automatically, so the obsolete --binding-from-toml flag is removed from the
+worker dev script. Verified: wrangler pages functions build compiles (CI
+gate), worker bundle ~93KB (<1MB), lib+app build + jest + knip all green.
+
+One unrelated dev-only HIGH remains: undici 6.26.0 bundled inside the npm CLI
+via semantic-release -> @semantic-release/npm -> node-gyp. It is vendored in
+the npm tarball (npm audit fix cannot reach it) and needs an upstream bump;
+not shipped in production.
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+* chore(deps): drop dead deps (core-js, msw, @types/quill) + CRA eslintConfig; fix stale wrangler docs
+
+Dependency-hygiene cleanup from the npm audit review, plus the doc
+
+### Bug Fixes
+
+* **deps:** wrangler v4 bump + dependency-hygiene cleanup & stale-doc fixes ([#51](https://github.com/molikas/axoview/issues/51)) ([a011f6b](https://github.com/molikas/axoview/commit/a011f6bcd457147ce2e887269619c02d8af9d875))
+
+### Documentation
+
+* touch/pen wrap bookkeeping (ADR 0018 addendum + PLAN accuracy) ([#46](https://github.com/molikas/axoview/issues/46)) ([982cfd6](https://github.com/molikas/axoview/commit/982cfd683cd067631315a774537ae4aec4f4598c)), closes [#32](https://github.com/molikas/axoview/issues/32) [#34](https://github.com/molikas/axoview/issues/34)
+
 ## [2.1.1](https://github.com/molikas/axoview/compare/v2.1.0...v2.1.1) (2026-06-14)
 
 ### Bug Fixes
