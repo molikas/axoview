@@ -423,7 +423,7 @@ describe('Connector.mouseup drag mode', () => {
     );
   });
 
-  it('does NOT reset mode in click mode (click mode completes on second mousedown)', () => {
+  it('click mode, pure CLICK (no travel past slop): stays armed for the second click', () => {
     const uiState = makeUiState({
       mode: {
         type: 'CONNECTOR',
@@ -431,10 +431,55 @@ describe('Connector.mouseup drag mode', () => {
         id: 'conn-1',
         isConnecting: true
       },
-      connectorInteractionMode: 'click'
+      connectorInteractionMode: 'click',
+      // down == up → no drag → must remain armed (canonical click-then-click).
+      mouse: {
+        position: { screen: { x: 10, y: 10 }, tile: { x: 5, y: 5 } },
+        mousedown: { screen: { x: 10, y: 10 }, tile: { x: 5, y: 5 } }
+      }
     });
-    Connector.mouseup!({ uiState, scene: makeScene() } as any);
+    const scene = makeScene();
+    Connector.mouseup!({ uiState, scene } as any);
     expect(uiState.actions.setMode).not.toHaveBeenCalled();
+    expect(scene.commitDragTransaction).not.toHaveBeenCalled();
+  });
+
+  it('click mode, press-DRAG-release (travel past slop): completes the connector on mouseup', () => {
+    // Regression: the connector hint advertises "drag between items to connect",
+    // but in the default click mode a drag only ARMED the connector on mousedown
+    // and the release was a no-op — leaving a provisional connector glued to the
+    // cursor (the "connector is locked / left-click won't place it" bug). A drag
+    // must now commit on release.
+    const connector = {
+      id: 'conn-1',
+      color: 'color-1',
+      anchors: [
+        { id: 'a0', ref: { item: 'node-A' } },
+        { id: 'a1', ref: { tile: { x: 5, y: 5 } } }
+      ]
+    };
+    const uiState = makeUiState({
+      mode: {
+        type: 'CONNECTOR',
+        showCursor: true,
+        id: 'conn-1',
+        isConnecting: true,
+        startAnchor: { itemId: 'node-A' }
+      },
+      connectorInteractionMode: 'click',
+      // down far from up → drag → must complete.
+      mouse: {
+        position: { screen: { x: 200, y: 160 }, tile: { x: 9, y: 7 } },
+        mousedown: { screen: { x: 10, y: 10 }, tile: { x: 5, y: 5 } }
+      }
+    });
+    const scene = makeScene({ connectors: [connector] });
+    Connector.mouseup!({ uiState, scene } as any);
+    expect(scene.updateConnector).toHaveBeenCalledWith('conn-1', expect.any(Object));
+    expect(scene.commitDragTransaction).toHaveBeenCalled();
+    expect(uiState.actions.setMode).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'CONNECTOR', id: null, isConnecting: false })
+    );
   });
 });
 

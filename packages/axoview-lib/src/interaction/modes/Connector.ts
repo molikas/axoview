@@ -5,6 +5,7 @@ import {
   hasMovedTile,
   setWindowCursor
 } from 'src/utils';
+import { exceedsTapSlop } from 'src/config/tapGesture';
 import {
   ModeActions,
   Connector as ConnectorI,
@@ -221,10 +222,11 @@ export const Connector: ModeActions = {
       handleClickSecond(state, itemAtTile);
     }
   },
-  mouseup: ({ uiState, scene }) => {
+  mouseup: (state) => {
+    const { uiState, scene } = state;
     if (uiState.mode.type !== 'CONNECTOR' || !uiState.mode.id) return;
 
-    // Only handle mouseup for drag mode
+    // Drag mode: the press→drag→release commits the connection on release.
     if (uiState.connectorInteractionMode === 'drag') {
       scene.commitDragTransaction();
       if (uiState.mode.type === 'CONNECTOR' && uiState.mode.returnToCursor) {
@@ -240,7 +242,25 @@ export const Connector: ModeActions = {
           id: null
         });
       }
+      return;
     }
-    // Click mode handles completion in mousedown (second click)
+
+    // Click mode: a press→DRAG→release also completes the connection. The tool
+    // hint advertises "drag between items to connect", and dragging is the
+    // intuitive gesture, but the first mousedown only ARMS the connector
+    // (handleClickFirst) — without this branch a drag-release left a provisional
+    // connector glued to the cursor with the drag-transaction still open (the
+    // "connector is locked / left-click won't place it" regression). A pure
+    // click (no travel past the tap slop) is left armed for the canonical second
+    // click — so click-then-click is unchanged. Mirrors handleClickSecond at the
+    // release tile/item.
+    if (!uiState.mode.isConnecting) return;
+    const down = uiState.mouse.mousedown?.screen;
+    if (!down || !exceedsTapSlop(down, uiState.mouse.position.screen)) return;
+    const itemAtTile = getItemAtTile({
+      tile: uiState.mouse.position.tile,
+      scene
+    });
+    handleClickSecond(state, itemAtTile);
   }
 };
