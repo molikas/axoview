@@ -28,6 +28,7 @@ import { ColorSelector } from 'src/components/ColorSelector/ColorSelector';
 import { CustomColorInput } from 'src/components/ColorSelector/CustomColorInput';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useScene } from 'src/hooks/useScene';
+import { stripHtmlTags } from 'src/utils/stripHtml';
 import {
   Close as CloseIcon,
   Add as AddIcon,
@@ -251,7 +252,7 @@ export const ConnectorControls = ({ id }: Props) => {
     connector.lineType === 'DOUBLE' || connector.lineType === 'DOUBLE_WITH_CIRCLE';
 
   const hasNotes =
-    !!connector.notes && connector.notes.replace(/<[^>]*>/g, '').trim() !== '';
+    !!connector.notes && stripHtmlTags(connector.notes).trim() !== '';
 
   return (
     <ControlsContainer>
@@ -650,7 +651,7 @@ export const ConnectorControls = ({ id }: Props) => {
               value={connector.notes}
               onChange={(text) => {
                 const hasContent = (v?: string) =>
-                  !!v && v.replace(/<[^>]*>/g, '').trim() !== '';
+                  !!v && stripHtmlTags(v).trim() !== '';
                 const empty = !hasContent(text);
                 if (empty && !hasContent(connector.notes)) return;
                 if (connector.notes !== text)

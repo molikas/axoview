@@ -3,6 +3,7 @@ import { Box, Typography } from '@mui/material';
 import { toPx, CoordsUtils } from 'src/utils';
 import { decodeHtmlEntities } from 'src/utils/htmlToPlainText';
 import { stripHtmlTags } from 'src/utils/stripHtml';
+import { sanitizeHtml } from 'src/utils/sanitizeHtml';
 import { useIsoProjection } from 'src/hooks/useIsoProjection';
 import { useTextBoxProps } from 'src/hooks/useTextBoxProps';
 import { useSceneData } from 'src/hooks/useSceneData';
@@ -127,6 +128,15 @@ export const TextBox = memo(({ textBox }: Props) => {
     [textBox.offset?.x, textBox.offset?.y] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
+  // ADR 0029: the read view renders Quill HTML via dangerouslySetInnerHTML.
+  // Sanitize first so a shared/imported diagram can't smuggle a stored-XSS
+  // payload (<img onerror>/<svg onload>) into the viewer's origin. Memoised so
+  // this text box (drag hot path) doesn't re-sanitize on unrelated re-renders.
+  const sanitizedContent = useMemo(
+    () => (textBox.content ? sanitizeHtml(textBox.content) : ''),
+    [textBox.content]
+  );
+
   return (
     <div data-drag-id={textBox.id} style={dragStyle}>
       <Box style={css}>
@@ -196,7 +206,7 @@ export const TextBox = memo(({ textBox }: Props) => {
             }}
           >
             {textBox.content?.trim().startsWith('<') ? (
-              <span dangerouslySetInnerHTML={{ __html: textBox.content }} />
+              <span dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
             ) : (
               textBox.content
             )}
