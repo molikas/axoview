@@ -73,19 +73,45 @@ export const getItemAtTile = ({
 
   const connector = scene.hitConnectors.find((con) => {
     if (!con.path?.tiles) return false;
-    return con.path.tiles.find((pathTile) => {
-      const globalPathTile = connectorPathTileToGlobal(
-        pathTile,
-        con.path!.rectangle.from
-      );
-      // B5: connector lines render ~1-2px wide, so exact tile equality made them
-      // near-impossible to click. Accept any query tile within Chebyshev-1
-      // (the 8-neighbourhood, max(|dx|,|dy|) <= 1) of a path tile. Computed
-      // inline to avoid per-pointer-event allocations in this hot path.
-      return (
-        Math.abs(globalPathTile.x - tile.x) <= 1 &&
-        Math.abs(globalPathTile.y - tile.y) <= 1
-      );
+    const pathTiles = con.path.tiles;
+    const origin = con.path.rectangle.from;
+
+    // B5: connector lines render ~1-2px wide, so exact tile equality made them
+    // near-impossible to click. Accept any query tile within Chebyshev-1 (the
+    // 8-neighbourhood, max(|dx|,|dy|) <= 1) of a path tile.
+    //
+    // Exception — a NODE-anchored endpoint sits ON the node's tile, so that ±1
+    // halo ballooned the connector's hit region into the whole ring of empty
+    // tiles AROUND a connected node: a left-click just beside the node selected
+    // the connector (and opened its context menu) instead of clearing the
+    // selection / switching to pointer (reported confusion). When the query tile
+    // is in the 8-neighbourhood of a node-anchored endpoint, drop the tolerance
+    // and require an EXACT path-tile match: the visible line still selects, the
+    // node remains its own hit target, and the empty tiles beside it are free
+    // again. Free-floating (tile) endpoints keep the halo — their thin loose end
+    // needs it. Endpoints are pathTiles[0] / pathTiles[last]; "node-anchored" ==
+    // that global tile is occupied by an item (tileIndex hit).
+    let nearNodeEndpoint = false;
+    for (let k = 0; k < 2 && !nearNodeEndpoint; k += 1) {
+      const endTile = k === 0 ? pathTiles[0] : pathTiles[pathTiles.length - 1];
+      const g = connectorPathTileToGlobal(endTile, origin);
+      if (
+        tileIndex.has(`${g.x},${g.y}`) &&
+        Math.abs(g.x - tile.x) <= 1 &&
+        Math.abs(g.y - tile.y) <= 1
+      ) {
+        nearNodeEndpoint = true;
+      }
+    }
+
+    // Computed inline (no per-tile allocation) — this runs per pointer event.
+    return pathTiles.some((pathTile) => {
+      const globalPathTile = connectorPathTileToGlobal(pathTile, origin);
+      const dx = Math.abs(globalPathTile.x - tile.x);
+      const dy = Math.abs(globalPathTile.y - tile.y);
+      if (dx === 0 && dy === 0) return true;
+      if (nearNodeEndpoint) return false;
+      return dx <= 1 && dy <= 1;
     });
   });
 
