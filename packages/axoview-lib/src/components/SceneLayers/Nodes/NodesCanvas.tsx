@@ -673,7 +673,24 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       ) {
         return;
       }
-      scheduleDraw();
+      // Pan/zoom must repaint the canvas SYNCHRONOUSLY, in the same store tick as
+      // the DOM SceneLayers — Grid.tsx and SceneLayer.tsx apply their CSS
+      // transform inline inside this very subscription (no rAF). The mouse-pan
+      // path runs setScroll INSIDE the useRAFThrottle rAF callback, so a nested
+      // requestAnimationFrame here (scheduleDraw) wouldn't fire until the NEXT
+      // frame — leaving the canvas node layer one frame behind the grid,
+      // connectors and selected-node overlay for the whole drag. That cross-
+      // surface frame skew is the visible "rubber-band" drift on pan. Drawing now
+      // keeps every surface on the same frame. The draw is the same O(visible)
+      // paint that ran a frame later before, so per-frame cost is unchanged (pan
+      // is already throttled to ≤1 scroll write/frame upstream). Non-navigation
+      // changes (label/mode visibility toggles) aren't latency-coupled to the DOM
+      // transform, so they stay rAF-coalesced.
+      if (s.scroll !== p.scroll || s.zoom !== p.zoom) {
+        drawNow();
+      } else {
+        scheduleDraw();
+      }
     });
     const unsubModel = modelApi.subscribe((s, p) => {
       if (s.items === p.items && s.icons === p.icons) return;

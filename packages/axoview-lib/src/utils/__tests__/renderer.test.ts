@@ -279,3 +279,105 @@ describe('getItemAtTile() — stacked rectangle z-order', () => {
     expect(getItemAtTile({ tile: { x: 4, y: 4 }, scene } as any)).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// getItemAtTile() — connector hit tolerance near node-anchored endpoints
+// (shake-out 2026-06-23). A node-bound connector ends ON the node's tile; the ±1
+// click-tolerance halo (B5) ballooned the connector's hit region into the ring of
+// empty tiles AROUND the connected node, so a left-click just beside the node
+// selected the connector (and opened its context menu) instead of clearing the
+// selection. The halo is suppressed in the 8-neighbourhood of a node-anchored
+// endpoint (exact match only there) but kept for the open line and for
+// free-floating (tile) endpoints. The first two tests fail on the pre-fix code.
+// ---------------------------------------------------------------------------
+describe('getItemAtTile() — connector tolerance near node endpoints', () => {
+  // connectorPathTileToGlobal(tile, origin) === origin - tile (the search offset
+  // cancels), so with origin {0,0} a path tile is just the negation of its global
+  // tile — build the path straight from the global tiles it should occupy.
+  const pathFromGlobals = (globals: Coords[]) => ({
+    tiles: globals.map((g) => ({ x: -g.x, y: -g.y })),
+    rectangle: { from: { x: 0, y: 0 } }
+  });
+
+  // Node A (0,0) → Node B (5,0): a straight horizontal connector through y=0,
+  // both ends anchored to a node.
+  const nodeToNodeScene = {
+    items: [
+      { id: 'A', tile: { x: 0, y: 0 } },
+      { id: 'B', tile: { x: 5, y: 0 } }
+    ],
+    textBoxes: [],
+    connectors: [],
+    rectangles: [],
+    hitConnectors: [
+      {
+        id: 'c1',
+        path: pathFromGlobals([
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { x: 2, y: 0 },
+          { x: 3, y: 0 },
+          { x: 4, y: 0 },
+          { x: 5, y: 0 }
+        ])
+      }
+    ]
+  };
+
+  test('empty tile beside a connected node does NOT select the connector', () => {
+    // (5,1) sits directly above node B — empty, off the line. Pre-fix it fell in
+    // the ±1 halo of the endpoint at (5,0) and wrongly returned the connector.
+    expect(
+      getItemAtTile({ tile: { x: 5, y: 1 }, scene: nodeToNodeScene } as any)
+    ).toBeNull();
+    // The far side of the node too (opposite the incoming line) — matches the
+    // reported cursor-on-the-far-side-still-selects-connector symptom.
+    expect(
+      getItemAtTile({ tile: { x: 6, y: 0 }, scene: nodeToNodeScene } as any)
+    ).toBeNull();
+  });
+
+  test('the node tile itself still selects the node', () => {
+    expect(
+      getItemAtTile({ tile: { x: 5, y: 0 }, scene: nodeToNodeScene } as any)
+    ).toEqual({ type: 'ITEM', id: 'B' });
+  });
+
+  test('an exact tile on the line still selects the connector', () => {
+    expect(
+      getItemAtTile({ tile: { x: 2, y: 0 }, scene: nodeToNodeScene } as any)
+    ).toEqual({ type: 'CONNECTOR', id: 'c1' });
+  });
+
+  test('±1 tolerance is preserved in the open middle of the line', () => {
+    // (2,1) is one tile off the line, far from both nodes — still clickable.
+    expect(
+      getItemAtTile({ tile: { x: 2, y: 1 }, scene: nodeToNodeScene } as any)
+    ).toEqual({ type: 'CONNECTOR', id: 'c1' });
+  });
+
+  test('a free-floating (tile) endpoint keeps its ±1 halo', () => {
+    // Node A (0,0) → free tile (5,5) with NO node there: the loose end keeps the
+    // tolerance, so a click beside it still selects the connector.
+    const freeEndScene = {
+      ...nodeToNodeScene,
+      items: [{ id: 'A', tile: { x: 0, y: 0 } }],
+      hitConnectors: [
+        {
+          id: 'c2',
+          path: pathFromGlobals([
+            { x: 0, y: 0 },
+            { x: 1, y: 1 },
+            { x: 2, y: 2 },
+            { x: 3, y: 3 },
+            { x: 4, y: 4 },
+            { x: 5, y: 5 }
+          ])
+        }
+      ]
+    };
+    expect(
+      getItemAtTile({ tile: { x: 5, y: 6 }, scene: freeEndScene } as any)
+    ).toEqual({ type: 'CONNECTOR', id: 'c2' });
+  });
+});
