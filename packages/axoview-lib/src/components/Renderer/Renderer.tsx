@@ -29,6 +29,14 @@ const NO_HYBRID_NODES: ViewItem[] = [];
 // Extra tiles of padding around the screen edges to avoid visible pop-in.
 const VIEWPORT_TILE_PADDING = 4;
 
+// Coalescing windows for the viewport-culling re-render during a continuous
+// pan/zoom gesture (see the coarseBounds subscriber). A fast fling otherwise
+// re-culls on most frames; these throttle it to a handful of times/sec off the
+// per-frame path while keeping the cull current within VIEWPORT_TILE_PADDING.
+const PAN_GESTURE_GAP_MS = 250; // scroll/zoom changes closer than this = one gesture
+const PAN_BOUNDS_THROTTLE_MS = 180; // max cull cadence mid-gesture
+const PAN_SETTLE_MS = 120; // flush the final cull this long after motion stops
+
 interface TileBounds {
   minX: number;
   maxX: number;
@@ -70,6 +78,27 @@ const tileBoundsEqual = (a: TileBounds, b: TileBounds) =>
   a.minY === b.minY &&
   a.maxY === b.maxY;
 
+// Returns `next` unless it is element-wise identical (same length, same item
+// refs in order) to the previous result — in which case the previous array ref
+// is reused. A coarseBounds change reallocates the filtered visible* arrays even
+// when membership is unchanged (the common case when the whole diagram fits and
+// a pan only shifts the bounds); reusing the ref lets the memoized connector
+// layers and the NodesCanvas [nodes] effect bail instead of re-rendering /
+// redrawing. Mirrors the in-render ref-cache pattern already used in NodesCanvas.
+function useStableList<T>(next: T[]): T[] {
+  const ref = useRef<T[]>(next);
+  const prev = ref.current;
+  if (
+    prev !== next &&
+    prev.length === next.length &&
+    prev.every((p, i) => p === next[i])
+  ) {
+    return prev;
+  }
+  ref.current = next;
+  return next;
+}
+
 export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const interactionsRef = useRef<HTMLDivElement>(null);
@@ -101,7 +130,34 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
     return computeTileBounds(s.scroll, s.zoom, s.rendererSize, screenToTile);
   });
 
+  // Viewport-culling re-render, decoupled from the per-frame pan path.
+  //
+  // coarseBounds drives a React re-render of the connector/label layers and
+  // hands NodesCanvas a fresh `visibleItems` array. Firing setCoarseBounds
+  // synchronously on every scroll write re-rendered + re-culled on most frames
+  // of a fast pan — and because this subscriber runs inside the pan rAF, right
+  // next to the synchronous canvas repaint, those re-renders plus the
+  // per-crossing array/Set allocations were the long-task bursts + heap churn on
+  // large diagrams. So: an isolated change (zoom step, fit-to-view, programmatic
+  // scroll, resize) culls immediately, but a continuous gesture (mouse pan, touch
+  // pan, pinch — all detected generically as a rapid stream of changes) throttles
+  // the cull off the per-frame path and always flushes once motion settles.
+  // VIEWPORT_TILE_PADDING keeps already-rendered content on-screen during the
+  // throttled window. This leaves the #54 synchronous canvas repaint untouched
+  // (NodesCanvas keeps painting the committed set every frame), so no
+  // cross-surface rubber-band returns.
   useEffect(() => {
+    let lastChangeAt = 0;
+    let lastCommitAt = 0;
+    let pending: TileBounds | null = null;
+    let settleTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const commit = (bounds: TileBounds) => {
+      lastCommitAt = performance.now();
+      pending = null;
+      setCoarseBounds((cur) => (tileBoundsEqual(cur, bounds) ? cur : bounds));
+    };
+
     const unsubscribe = uiStateApi.subscribe((state, prev) => {
       if (
         state.scroll === prev.scroll &&
@@ -116,11 +172,29 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
         state.rendererSize,
         screenToTile
       );
-      setCoarseBounds((cur) =>
-        tileBoundsEqual(cur, newBounds) ? cur : newBounds
-      );
+      pending = newBounds;
+      const now = performance.now();
+      const continuous = now - lastChangeAt < PAN_GESTURE_GAP_MS;
+      lastChangeAt = now;
+
+      // Isolated change / gesture start → cull now. Mid-gesture → at most once
+      // per PAN_BOUNDS_THROTTLE_MS so edges still populate without per-frame cost.
+      if (!continuous || now - lastCommitAt >= PAN_BOUNDS_THROTTLE_MS) {
+        commit(newBounds);
+      }
+      // Always (re)arm a trailing flush so the final viewport culls exactly once
+      // the gesture stops, wherever the throttle last landed.
+      if (settleTimer) clearTimeout(settleTimer);
+      settleTimer = setTimeout(() => {
+        settleTimer = null;
+        if (pending) commit(pending);
+      }, PAN_SETTLE_MS);
     });
-    return unsubscribe;
+
+    return () => {
+      if (settleTimer) clearTimeout(settleTimer);
+      unsubscribe();
+    };
   }, [uiStateApi, screenToTile]);
 
   useEffect(() => {
@@ -175,7 +249,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
     return ids;
   }, [selectedNodeId, draggingKey, labelDragId]);
 
-  const visibleItems = useMemo(() => {
+  const visibleItemsRaw = useMemo(() => {
     const { minX, maxX, minY, maxY } = coarseBounds;
     if (minX === -Infinity) return items; // bounds not yet computed
     return items.filter(
@@ -186,6 +260,9 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
         item.tile.y <= maxY
     );
   }, [items, coarseBounds]);
+  // Keep the same array ref when a bounds change exposed no new node, so the
+  // connector layers + the NodesCanvas [nodes] effect bail (see useStableList).
+  const visibleItems = useStableList(visibleItemsRaw);
 
   // The selected node, lifted out of the canvas into a DOM <Node> overlay (see
   // selectedNodeId). Referentially stable (NO_HYBRID_NODES) when nothing is
@@ -205,7 +282,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
     return visibleItems.filter((item) => !hybridIds.has(item.id));
   }, [hybridIds, visibleItems]);
 
-  const visibleConnectors = useMemo(() => {
+  const visibleConnectorsRaw = useMemo(() => {
     const { minX, maxX, minY, maxY } = coarseBounds;
     if (minX === -Infinity) return connectors;
     // Use hitConnectors (which carry path data) to cull off-screen connectors,
@@ -227,6 +304,9 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
     );
     return connectors.filter((c) => visibleIds.has(c.id));
   }, [connectors, hitConnectors, coarseBounds]);
+  // Reuse the same array ref when the visible connector set is unchanged across
+  // a bounds shift, so Connectors / ConnectorLabels memo-bail (see useStableList).
+  const visibleConnectors = useStableList(visibleConnectorsRaw);
 
   return (
     <Box

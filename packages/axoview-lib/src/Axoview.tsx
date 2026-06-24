@@ -73,6 +73,7 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
       height = '100%',
       onModelUpdated,
       enableDebugTools = false,
+      exposeStoreBridge = false,
       editorMode = 'EDITABLE',
       renderer,
       iconPackManager,
@@ -130,7 +131,9 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
     const { changeView } = useView();
     useEffect(() => {
       const shouldExpose =
-        enableDebugTools || process.env.NODE_ENV !== 'production';
+        enableDebugTools ||
+        exposeStoreBridge ||
+        process.env.NODE_ENV !== 'production';
       if (!shouldExpose) return;
       const debugBridge = {
         ui: uiStore,
@@ -182,7 +185,7 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
       };
       // Store instances are stable (created once in Provider via useRef)
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [enableDebugTools]);
+    }, [enableDebugTools, exposeStoreBridge]);
 
     const { load } = initialDataManager;
     const { markClean } = useDirtyTracker(initialDataManager.isReady);
