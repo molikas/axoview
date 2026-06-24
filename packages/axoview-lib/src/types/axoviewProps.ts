@@ -591,6 +591,15 @@ export interface AxoviewProps {
   width?: number | string;
   height?: number | string;
   enableDebugTools?: boolean;
+  /**
+   * Exposes the read-only store bridge (`window.__axoview__`) WITHOUT turning on
+   * the in-canvas debug tools (the SizeIndicator overlay). The perf
+   * DiagnosticsOverlay reads live node/connector/textbox counts through this
+   * bridge; dev builds expose it unconditionally, prod builds only when this (or
+   * `enableDebugTools`) is true. Wire it to the perf-monitoring toggle so a
+   * production capture isn't blind to scene counts.
+   */
+  exposeStoreBridge?: boolean;
   editorMode?: keyof typeof EditorModeEnum;
   renderer?: RendererProps;
   locale?: LocaleProps;

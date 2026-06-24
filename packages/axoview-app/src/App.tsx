@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore
+} from 'react';
 import { BrowserRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Box } from '@mui/material';
@@ -30,6 +37,7 @@ import { ExportProjectZipDialog } from './components/fileExplorer/ExportProjectZ
 import { ImportDialog } from './components/fileExplorer/ImportDialog';
 import { parseProject, importProject } from './services/project/projectZip';
 import { notificationStore } from './stores/notificationStore';
+import { diagnosticsStore } from './stores/diagnosticsStore';
 import ChangeLanguage from './components/ChangeLanguage';
 import './App.css';
 
@@ -127,6 +135,16 @@ function EditorShell() {
     closeProjectExport,
     currentModel
   } = useDiagramLifecycle();
+
+  // When the perf-monitoring overlay is on, also expose the lib's read-only
+  // store bridge (window.__axoview__) so DiagnosticsOverlay can read live
+  // node/connector/textbox counts. The bridge is gated out of production builds
+  // otherwise (lib Axoview.tsx) — which is why ni/nc/ntb logged 0 in the Docker
+  // captures. Dev builds expose it regardless of this flag.
+  const perfMonitoringEnabled = useSyncExternalStore(
+    diagnosticsStore.subscribe,
+    diagnosticsStore.getEnabled
+  );
 
   // Workspace-wide icon usage scan injected into <Axoview>. The lib's
   // ElementsPanel calls this from the delete-imported-icon confirm flow.
@@ -314,6 +332,7 @@ function EditorShell() {
             ref={axoviewRef}
             initialData={frozenInitialDataRef.current}
             onModelUpdated={handleModelUpdated}
+            exposeStoreBridge={perfMonitoringEnabled}
             editorMode={isReadonlyUrl ? 'EXPLORABLE_READONLY' : 'EDITABLE'}
             locale={currentLocale}
             iconPackManager={iconPackManagerProp}
