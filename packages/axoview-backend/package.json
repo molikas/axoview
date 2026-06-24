@@ -1,6 +1,6 @@
 {
   "name": "axoview-backend",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "private": true,
   "description": "Optional backend server for Axoview persistent storage",
   "main": "server.js",
