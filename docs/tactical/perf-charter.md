@@ -6,13 +6,28 @@ multi-session handoff. The committed **decision log** (`perf-results/decision-lo
 and **baseline table** (`perf-results/baseline.md`) are the running memory — the
 context window is scratch.
 
-> **Status (2026-06-15):** **T2 SHIPPED** — Canvas2D node renderer is the default
-> (Iters 7–11; [ADR 0019](../adr/0019-canvas2d-node-render-layer.md)). The durable
-> **harness + measurement protocol + tier ladder + LEB60 north-star** are now promoted
-> to [ADR 0020](../adr/0020-engine-perf-harness-and-measurement-protocol.md) (the
-> authoritative copy; the sections below are retained as the working context). This
-> charter remains active for **T3 (simulation engine — LEB60)**; it is fully retired
-> only when T3 ships. T3 opens against ADR 0020 + `perf-results/`.
+> **Status (updated 2026-06-25):** **T1 + T2 BANKED and MERGED TO MASTER.** Canvas2D
+> is the production node renderer (Iters 7–11; [ADR 0019](../adr/0019-canvas2d-node-render-layer.md));
+> the canvas-UX-overhaul perf gate ("Track P") confirmed the budget held tip-vs-pre.
+> The durable **harness + measurement protocol + tier ladder + LEB60 north-star** are
+> promoted to [ADR 0020](../adr/0020-engine-perf-harness-and-measurement-protocol.md)
+> (authoritative copy; sections below are working context).
+>
+> **What the charter is active for now: the NEW large-diagram _pan_ sub-track (T2.5 / R1).**
+> A pan-performance floor surfaced AFTER this charter froze — the program only ever
+> measured *spawn* and *drag*; **there is no pan scenario in the harness**. R1 (the
+> per-frame synchronous canvas-repaint floor) is OPEN in [`known_issues.md`](../../known_issues.md)
+> and is the subject of branch `fix/large-diagram-pan-perf`. See the **2026-06-25
+> resume point** in [`perf-results/decision-log.md`](../../perf-results/decision-log.md)
+> for the current state and next steps.
+>
+> **🔭 T3 (simulation engine — LEB60) and T4 (WebGL) are DEFERRED (decision 2026-06-25):
+> continue evolving Canvas2D, do NOT rewrite the engine.** The LEB60 / "kids' tile-world
+> sim" product mandate (line ~89 below) is **not ratified** in any vision doc, ADR, or
+> product register; Axoview ships as a static diagram editor that Canvas2D serves
+> sub-linearly to ~2,000 nodes. T3/T4 reopen only when **(a)** the sim product is
+> ratified **and (b)** a tick-workload harness measures a real Canvas2D ceiling (the RED
+> gate below). A full isoflow-fork engine rewrite was evaluated and declined for now.
 
 ---
 
@@ -82,9 +97,10 @@ structures rendered at 60fps idle; **today ≈ 25**.
 |---|---|---|---|
 | **T0** — measured today | 25 / ~20 | tiny | — (DOM/SVG + React per node) |
 | **T1** — stop the bleeding | 300 / ~50 | small | fix idle churn, memoize render, no per-frame React on bulk-paste. **NO rewrite.** |
-| **T2** — render rewrite | 2,000 / ~200 | medium | **Canvas2D** layer decoupled from React + viewport culling |
-| **T3** — simulation engine ⭐ | 2,000 / **1,000** | 256×256 | **ECS + fixed-timestep tick loop + spatial-hash collision**; tick decoupled from render |
-| **T4** — stretch / near-engine | 10,000 / **5,000+** | large | **WebGL instanced** sprites; batched per-tick rule eval |
+| **T2** — render rewrite ✅ | 2,000 / ~200 | medium | **Canvas2D** layer decoupled from React + viewport culling — **BANKED (master)** |
+| **T2.5** — pan / large-diagram floor 🔧 | steady-60fps pan @SSB | medium | dirty-region / layered redraw **or** sync-small/async-large hybrid + a `measurePan` harness scenario (R1, [`known_issues.md`](../../known_issues.md)). **ACTIVE sub-track** (`fix/large-diagram-pan-perf`). |
+| **T3** — simulation engine ⭐ 🔭 | 2,000 / **1,000** | 256×256 | **ECS + fixed-timestep tick loop + spatial-hash collision**; tick decoupled from render — **DEFERRED** (unratified product + unmeasured ceiling; see Status) |
+| **T4** — stretch / near-engine 🔭 | 10,000 / **5,000+** | large | **WebGL instanced** sprites; batched per-tick rule eval — **DEFERRED** (only if a measured Canvas2D ceiling forces it) |
 
 **T3 KRs (the product target — kids' tile-world sim):** 1,000 animals moving
 1 tile/tick @ 10 ticks/s with collision, atop 2,000 structures on a 256×256
@@ -189,7 +205,8 @@ after human sign-off on these, switch to GREEN-default self-paced looping.
 
 ## Environment notes (Windows / this clone)
 
-- Repo: `C:\myTemp\axoview_perf`  ·  Work branch: `perf/engine`.
+- Repo: `c:\myTemp\FossFLOW` (the `perf/engine` T1+T2 work is **merged to master**).
+  Current sub-track branch: `fix/large-diagram-pan-perf` (T2.5 / R1 pan floor).
 - Windows / PowerShell primary; Bash tool available for POSIX scripts.
 - **Build gotcha:** axoview-app reads axoview-lib from `dist/`, NOT source. After
   every `npm run build:lib` you MUST restart the dev server or rsbuild's resolver

@@ -1417,3 +1417,92 @@ bounded off-grid-preview compute on an already-over-budget path); (2) **T6 unsel
 regression at scale (per-frame model write vs ADR-0024's CSS-preview design) — **FIXED** this session
 (transient `labelDrag` overlay-promotion + single commit on drop; label-drag @1000 visible
 **103 → 17.5 ms/frame, 60 fps**; label-drag spec 2/2 + lib/e2e anti-cheat green). **The program is GREEN.**
+
+---
+
+## ▶ COLD-START RESUME POINT (newest — 2026-06-25) — SUPERSEDES the Iter-11 resume point
+
+**The Iter-11 resume point above is obsolete.** T1 + T2 (and the canvas-UX Track-P gate) are
+**merged to master**; the engine has kept evolving since. Current branch:
+`fix/large-diagram-pan-perf` (HEAD `3cf76c08`). This resume point reconciles the plan with
+what actually shipped and records the **2026-06-25 strategic decision**.
+
+### Where the program actually stands (vs the frozen charter)
+
+- **T1 + T2 BANKED, merged to master.** `NodesCanvas` is the unconditional bulk node
+  renderer; canvas-UX Track P proved spawn neutral tip-vs-pre. Tier ladder T0→T2 done.
+- **Stale charter doc state — now fixed.** The charter header named branch `perf/engine`
+  and clone `C:\myTemp\axoview_perf`; corrected to `c:\myTemp\FossFLOW` /
+  `fix/large-diagram-pan-perf`. Tier ladder annotated (T2 ✅, T2.5 active, T3/T4 deferred).
+- **🔴 NEW sub-track the charter never modeled: large-diagram PAN (T2.5 / R1).** The whole
+  program measured *spawn* + *drag* — **never pan**, and **the harness has no pan scenario.**
+  Shipped on this branch: **#54** synchronous canvas repaint (killed the canvas-trails-DOM
+  rubber-band that appeared once canvas became the bulk renderer) and **`3cf76c08`**
+  decoupled viewport culling from the pan frame (removed per-tile-crossing reconcile + O(N)
+  visible-array churn; Grid reads RO-tracked size instead of per-frame `getBoundingClientRect`).
+  **OPEN — R1** ([`known_issues.md`](../known_issues.md)): the per-frame *synchronous* canvas
+  repaint floor — ~24–55 fps AC, **~6–8 fps CPU-throttled** on a ~54-node scene. Fix =
+  dirty-region / layered redraw **or** sync-small/async-large hybrid (the latter risks
+  reintroducing the #54 rubber-band on exactly the large scenes that show the symptom).
+- **Connectors still DOM/SVG** (confirmed by `3cf76c08`, whose stabilization exists so
+  "Connectors/ConnectorLabels memo-bail"). The ~968 SVG paths are ~most of the ~11.5k DOM
+  elements at N=1000 — the documented remaining Canvas2D headroom (Iter 7 / bloat-1000).
+
+### 🔭 DECISION 2026-06-25 — continue evolving Canvas2D; NO engine rewrite (T3/T4 deferred)
+
+A full **isoflow-fork engine rewrite** (replace the engine with a WebGL/ECS substrate behind
+the feature contract) was evaluated in depth (engine-architecture map + feature/UI-contract
+inventory + test-landscape audit + a 3-stance design panel + adversarial stress-test) and
+**declined for now.** Rationale (all evidence-backed):
+
+1. **The only forcing function is unratified.** WebGL/ECS (T4/T3) is justified *only* by
+   LEB60 — the moving-entity "kids' tile-world sim." That mandate exists in **exactly one
+   place**, the charter's `T3 KRs` line — not in any vision doc, ADR, or product register;
+   the deferred-features register is empty of it; every technical review frames Axoview as a
+   *static diagram editor*. The WebGL trigger is **predicted, never measured.**
+2. **No clean engine to extract.** "The engine" is woven through React hooks, three
+   Context-scoped Zustand stores, and a MUI theme that reaches into the canvas paint loop
+   (`NodesCanvas` reads the live theme for chip parity with the DOM hybrid). The render seam
+   **doesn't exist yet** (`Renderer.tsx` mounts `NodesCanvas` directly). Dual hand-synced
+   projection (`isoMath` vs `coordinateTransforms`, ~20 files); two dense tangles
+   (`useSceneActions` 1050 LOC, `useInteractionManager` 1631 LOC incl. a ~450-line touch/pen
+   state machine).
+3. **The test net can't gate a render rewrite.** ~88% of e2e asserts *state*, not *pixels*;
+   there is **no visual-regression baseline.** A rewrite could pass every green gate and ship
+   a visibly broken isometric canvas — label counter-scale, signed-stalk geometry, off-grid
+   offset-after-projection, edge-handle projection, annotation iso↔2D freeze are all
+   `[ENGINE]` behaviors **not held by store shapes.**
+4. **Cost vs payoff.** Realistic full-rewrite estimate ~40–60 focused sessions just to
+   *re-reach* today's contract before any new capability, starving the committed roadmap
+   (parked at Phase 3A). Canvas2D is sub-linear + content-agnostic to ~2,000 nodes
+   (bloat-1000), heap <5 KB/entity — plenty of road for a diagram editor.
+
+**T3/T4 reopen only when (a) the sim product is ratified AND (b) a tick-workload harness
+measures a real Canvas2D ceiling** (the charter RED gate — a *measured* PoC, not a forecast).
+
+### NEXT (no-regret work, valid regardless of the eventual T3/T4 call)
+
+1. **Build the missing harness coverage:** a `measurePan` scenario **and** the Phase-0.5
+   tick-workload harness (N entities moving 1 tile/tick + collision). These gate everything
+   downstream and don't exist. Reuse the ADR-0020 protocol (same-session interleaved A/B,
+   calibration index). Prereq for pan: a **large-N** `NodesCanvas.scrollSync` guard variant
+   (the current guard renders `nodes={[]}` — a false-safe that would stay green while real
+   scenes regress).
+2. **Close R1** — dirty-region / layered redraw (the cheap per-node string-normalization
+   lever is dead: drag CPU profiles show ~0 self-time there; the cost is the canvas draw
+   calls). This is the binding pan bottleneck on the current branch.
+3. **Fold connectors onto the canvas** — the real remaining Canvas2D headroom. **Prereq
+   (harness honesty):** the bulk `model.set` spawn path **bypasses connector routing**
+   (`syncScene`/`computePathsAsync`), so connectors currently render null and are measured as
+   *free* (Iter-7 caveat). Fix the harness to route connectors on spawn BEFORE trusting any
+   before/after fold measurement — it may reveal A* routing as a real, never-measured cost.
+   Budget honestly: connector *labels* (inline rename, link affordances) + 3 line-types with
+   arrows are the hard 80%, not a 2-session geometry port.
+
+**Gotchas unchanged:** same-session interleaved A/B + stable calibration index mandatory
+(cross-session drift ~9–22% ≫ within-run ~2%); `git checkout -- perf-results/baseline.md`
+after any partial/diagnostic run; let `npm run perf` own the dev-server lifecycle; kill stray
+:3000 listeners. Correctness gate: `npx playwright test --config
+packages/axoview-e2e/playwright.config.ts --project=chromium drag-collision
+undo-redo-cross-cutting undo-redo-dual-stack multi-select-drag z-order
+rectangle-overlap-zorder css-preview-mid-drag rename readable-labels`.
