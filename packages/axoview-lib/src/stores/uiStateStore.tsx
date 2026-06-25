@@ -29,7 +29,6 @@ const canvasResetForAnnotation = (
   mode: getStartingMode(state.editorMode),
   itemControls: null,
   selectedIds: [],
-  itemActionBarOpen: false,
   ...(state.rightSidebarAutoOpened
     ? { rightSidebarOpen: false, rightSidebarAutoOpened: false }
     : {})
@@ -73,7 +72,6 @@ const initialState = () => {
       activeLeftTab: null,
       rightSidebarOpen: false,
       rightSidebarAutoOpened: false,
-      itemActionBarOpen: false,
       contextMenu: null,
       isDirty: false,
       previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
@@ -126,7 +124,6 @@ const initialState = () => {
             },
             itemControls: null,
             selectedIds: [],
-            itemActionBarOpen: false,
             zoom: INITIAL_UI_STATE.zoom
           });
         },
@@ -167,18 +164,14 @@ const initialState = () => {
                 ? get().selectedIds
                 : [{ type: itemControls.type, id: itemControls.id }];
             // ADR 0022 §3: select-only (openPanel:false) updates the panel
-            // TARGET + opens the floating action bar, but does NOT mount the
-            // Properties dock. The explicit open path (double-click, panel
-            // events) keeps openPanel:true (the default) and mounts it.
+            // TARGET but does NOT mount the Properties dock. The explicit open
+            // path (double-click, context-menu commands) keeps openPanel:true
+            // (the default) and mounts it.
             const openPanel = options?.openPanel ?? true;
             if (!openPanel) {
               set({
                 itemControls,
-                selectedIds: nextSelected,
-                // Bar opens on selection (edit mode); view mode reads via the
-                // canvas popover, so no bar there.
-                itemActionBarOpen:
-                  !inView && itemControls.type !== 'ADD_ITEM'
+                selectedIds: nextSelected
               });
               return;
             }
@@ -186,15 +179,12 @@ const initialState = () => {
               itemControls,
               selectedIds: nextSelected,
               rightSidebarOpen: inView ? rightSidebarOpen : true,
-              // Opening the panel replaces the floating action bar.
-              itemActionBarOpen: false,
               ...(!inView && !alreadyPinned && { rightSidebarAutoOpened: true })
             });
           } else {
             const autoOpened = get().rightSidebarAutoOpened;
             set({
               itemControls,
-              itemActionBarOpen: false,
               ...(autoOpened && {
                 rightSidebarOpen: false,
                 rightSidebarAutoOpened: false
@@ -209,26 +199,21 @@ const initialState = () => {
           //  - >1   → no panel (heterogeneous edits aren't meaningful here)
           if (ids.length === 1) {
             const only = ids[0];
-            // View mode reads item info via the canvas popover (ADR 0012) — no
-            // action bar there (edit mode unchanged).
-            const inView = get().editorMode === 'EXPLORABLE_READONLY';
-            // ADR 0022 §3: a single selection drives highlight + action bar
-            // only. It derives the panel TARGET (itemControls) for F2 / delete /
-            // double-click, but does NOT mount the Properties dock — leave
-            // rightSidebarOpen / rightSidebarAutoOpened untouched so an
-            // already-open panel keeps tracking selection (§4.1 two-way sync)
-            // while a closed one stays closed until an explicit double-click.
+            // ADR 0022 §3: a single selection drives highlight + derives the
+            // panel TARGET (itemControls) for F2 / delete / double-click, but
+            // does NOT mount the Properties dock — leave rightSidebarOpen /
+            // rightSidebarAutoOpened untouched so an already-open panel keeps
+            // tracking selection (§4.1 two-way sync) while a closed one stays
+            // closed until an explicit double-click.
             set({
               selectedIds: ids,
-              itemControls: { type: only.type, id: only.id },
-              itemActionBarOpen: !inView
+              itemControls: { type: only.type, id: only.id }
             });
           } else {
             const autoOpened = get().rightSidebarAutoOpened;
             set({
               selectedIds: ids,
               itemControls: null,
-              itemActionBarOpen: false,
               ...(autoOpened && {
                 rightSidebarOpen: false,
                 rightSidebarAutoOpened: false
@@ -430,13 +415,8 @@ const initialState = () => {
         setRightSidebarOpen: (rightSidebarOpen) => {
           set({ rightSidebarOpen, rightSidebarAutoOpened: false });
         },
-        setItemActionBarOpen: (itemActionBarOpen) => {
-          set({ itemActionBarOpen });
-        },
         openContextMenu: (contextMenu) => {
-          // Opening the menu closes the floating action bar so the two command
-          // surfaces don't stack on the same item (ADR 0027 §4).
-          set({ contextMenu, itemActionBarOpen: false });
+          set({ contextMenu });
         },
         closeContextMenu: () => {
           set({ contextMenu: null });

@@ -356,16 +356,6 @@ const locale: LocaleProps = {
   deleteButton: {
     delete: 'Delete'
   },
-  nodeActionBar: {
-    style: 'Style',
-    editName: 'Edit name',
-    editLink: 'Edit link',
-    addLink: 'Add link',
-    editNotes: 'Edit notes',
-    addNotes: 'Add notes',
-    startConnector: 'Start connector',
-    delete: 'Delete'
-  },
   quickAddNodePopover: {
     add: 'Add',
     rectangle: 'Rectangle'
@@ -489,6 +479,7 @@ const locale: LocaleProps = {
   },
   // D1 — CanvasContextMenu (ADR 0027). Sentence case per ux §7.2.
   canvasContextMenu: {
+    addNote: 'Add note',
     details: 'Details…',
     rename: 'Rename',
     cut: 'Cut',

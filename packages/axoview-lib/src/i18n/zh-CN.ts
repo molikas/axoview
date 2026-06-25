@@ -335,16 +335,6 @@ const locale: LocaleProps = {
   deleteButton: {
     delete: '删除'
   },
-  nodeActionBar: {
-    style: '样式',
-    editName: '编辑名称',
-    editLink: '编辑链接',
-    addLink: '添加链接',
-    editNotes: '编辑备注',
-    addNotes: '添加备注',
-    startConnector: '开始连接',
-    delete: '删除'
-  },
   quickAddNodePopover: {
     add: '添加',
     rectangle: '分组'
@@ -465,6 +455,7 @@ const locale: LocaleProps = {
     noIconsFound: '未找到匹配 "{term}" 的图标'
   },
   canvasContextMenu: {
+    addNote: '添加备注',
     details: '详情…',
     rename: '重命名',
     cut: '剪切',

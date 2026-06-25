@@ -92,6 +92,18 @@ The connector "locked / can't place" regression slipped through because every ca
 
 ---
 
+### Shake-out additions (2026-06-25)
+
+UI bug-fix pass: removed the floating `NodeActionBar` (right-click context menu becomes the sole per-item surface, + "Add note"), moved ViewTabs into the BottomDock, and gave the canvas inline-rename editors a click-away commit contract (ADR 0022 §4).
+
+| Suite | Type | Covers |
+|---|---|---|
+| `hooks/__tests__/useInlineRename.test.tsx` | lib unit | inline-rename click-away contract (ADR 0022 §4): Enter + plain blur (left-click-away) COMMIT; Escape + right-click-away CANCEL; capture-phase pointerdown blurs before the canvas deselect unmounts the editor; pointerdown inside the editor is ignored; Shift+Enter newline in multiline mode |
+| `multiSelect.contract.test.ts` · `annotationOpenReset.contract.test.ts` (updated) | lib unit | dropped the `itemActionBarOpen` assertions — single-select is now purely select-only (derives the panel TARGET, mounts no surface) after the action-bar removal |
+| `contextmenu-scope.spec.ts` · `label-drag.spec.ts` · `touch-longpress.spec.ts` (updated) | E2E | de-referenced the removed `itemActionBarOpen` store slice; contextmenu-scope now pins only the preventDefault scoping (its ADR 0018 purpose); long-press still asserts the context menu opens |
+
+---
+
 ## Quick Reference
 
 | Layer | Suites | Tests |

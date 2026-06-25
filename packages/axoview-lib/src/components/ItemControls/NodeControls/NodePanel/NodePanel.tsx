@@ -316,14 +316,16 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
         case 'focusName':
           setActiveTab(TAB_DETAILS);
           requestAnimationFrame(() => {
-            nameRef.current?.focus();
+            nameRef.current?.focus({ preventScroll: true });
             nameRef.current?.select();
           });
           break;
         case 'focusLink':
           setActiveTab(TAB_DETAILS);
           setShowLink(true);
-          requestAnimationFrame(() => linkRef.current?.focus());
+          requestAnimationFrame(() =>
+            linkRef.current?.focus({ preventScroll: true })
+          );
           break;
         case 'scrollToAppearance':
           setActiveTab(TAB_STYLE);

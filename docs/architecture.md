@@ -1,6 +1,6 @@
 # Axoview — Architecture Reference
 
-**Last updated:** 2026-06-16 (rev 23 — pre-T3 perf hardening: paste O(N), derived TileIndex, canvas sort cache + ADR 0021 cross-refs)
+**Last updated:** 2026-06-25 (rev 24 — shake-out: removed the floating `NodeActionBar` (right-click context menu is now the sole per-item command surface, + "Add note"); ViewTabs moved into the BottomDock; inline-rename click-away contract via `useInlineRename`)
 **Codebase root:** `packages/axoview-lib/src` (library) · `packages/axoview-app/src` (application shell) · `packages/axoview-backend/src` (Express + fs adapter) · `packages/axoview-worker/src` (Hono + Cloudflare Pages Functions)
 
 **Purpose:** This is the **orientation map** — what the codebase contains and where each piece lives, tight enough to read in five minutes before touching a surface. It is deliberately *not* the comprehensive reference: decisions live in ADRs, the deep architectural narrative + file-by-file inventory + KPIs live in the frozen technical review, the test catalogue lives in `testing.md`, and runtime issues live in `known_issues.md`. Each section below points to its deeper source.
@@ -112,9 +112,8 @@ Persistence flow + canonical type location (`types/settings.ts`) in [§2j](#2j-c
 |---|---|---|
 | Dialogs (Export/Help/Settings) | `ExportImageDialog`, `HelpDialog`, `SettingsDialog` | `uiState.dialog` set |
 | Notification snackbar | `NotificationSnackbar` (lib) · `NotificationStack` (app) | `uiState.notification` / `notificationStore` |
-| Context menu | `ContextMenuManager` | `uiState.contextMenu` set (reserved for future right-click; no longer left-click triggered) |
+| Context menu | `CanvasContextMenu` (ADR 0027) | `uiState.contextMenu` set (right-click tap / long-press; the sole per-item command surface — Details/Rename/Add note/cut/copy/layer/z-order/delete) |
 | Item controls panel | `ItemControlsManager` → `NodePanel` | `uiState.itemControls` set; EDITABLE = 3-tab (Details/Style/Notes), READONLY = single-scroll |
-| Floating action bar | `NodeActionBar` | EDITABLE + ITEM + mode ≠ DRAG_ITEMS |
 | Quick add popover | `QuickAddNodePopover` | EDITABLE; on `canvasEmptyDblClick` |
 | Preview button | toolbar `IconButton` | EDITABLE + server storage + saved diagram |
 | ToolMenu | `ToolMenu` | EDITABLE; Undo/Redo/Select/Lasso/Freehand/Pan/Connector (Rectangle + Text moved to Elements panel) |
@@ -138,7 +137,7 @@ Overlay region/ownership rules are locked in [ADR 0005 — Toolbar & Dock Layout
 
 | Mode | Interactions |
 |---|---|
-| `EDITABLE` | All modes; ToolMenu, ItemControls tabs, ViewTabs, NodeActionBar, double-click popover |
+| `EDITABLE` | All modes; ToolMenu, ItemControls tabs, ViewTabs (in bottom dock), right-click context menu, double-click popover |
 | `EXPLORABLE_READONLY` | Pan + Zoom; click a node with caption/notes opens single-scroll readonly panel; ViewTabs shown |
 | `NON_INTERACTIVE` | No interactions, no UI tools (`INTERACTIONS_DISABLED` mode) |
 
@@ -247,9 +246,8 @@ Window-level listeners in `useInteractionManager` capture **all** mouse/touch/ke
 1. `ControlsContainer.tsx` (ItemControls panel)
 2. ToolMenu Box wrapper in `UiOverlay.tsx`
 3. `NodePanel.tsx` (`onMouseDown` + `onContextMenu`)
-4. `NodeActionBar.tsx`
 
-Custom-event buses: `nodePanel` (action bar → panel tab focus), `canvasEmptyDblClick` (interaction manager → QuickAddNodePopover), `inlineEditNodeName` (F2 → Node/TextBox). Touch events are synthesized to mouse events; `touchend` zeroes `clientX/Y` (a known wrong-position bug for touch).
+Custom-event buses: `nodePanel` (context-menu "Add note" → panel Notes-tab focus), `canvasEmptyDblClick` (interaction manager → QuickAddNodePopover), `inlineEditNodeName` (F2 → Node/TextBox/ConnectorLabel inline rename, see `useInlineRename`). Touch events are synthesized to mouse events; `touchend` zeroes `clientX/Y` (a known wrong-position bug for touch).
 
 ### 2j. Configuration Layer
 

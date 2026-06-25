@@ -12,6 +12,7 @@ import { PROJECTED_TILE_SIZE, UNPROJECTED_TILE_SIZE } from 'src/config';
 import { Label } from 'src/components/Label/Label';
 import { Connector, ConnectorLabel as ConnectorLabelType } from 'src/types';
 import { useSceneActions } from 'src/hooks/useSceneActions';
+import { useInlineRename } from 'src/hooks/useInlineRename';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { isLabelVisibleInPreview } from 'src/utils/previewLabelVisibility';
 
@@ -42,7 +43,13 @@ const ConnectorNameEditor = ({
   name: string;
   onCommit: (raw: string) => void;
   onCancel: () => void;
-}) => (
+}) => {
+  const inlineRename = useInlineRename({
+    active: true,
+    commit: onCommit,
+    cancel: onCancel
+  });
+  return (
   <Box
     sx={{ position: 'absolute', pointerEvents: 'auto', zIndex: 10 }}
     style={{ left: position.x, top: position.y }}
@@ -55,27 +62,9 @@ const ConnectorNameEditor = ({
       onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
-      onBlur={(e) => onCommit(e.currentTarget.innerText)}
-      onKeyDown={(e) => {
-        e.stopPropagation();
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          (e.currentTarget as HTMLElement).blur();
-        } else if (e.key === 'Escape') {
-          e.preventDefault();
-          onCancel();
-        }
-      }}
-      ref={(el) => {
-        if (el && document.activeElement !== el) {
-          el.focus();
-          const range = document.createRange();
-          range.selectNodeContents(el);
-          const sel = window.getSelection();
-          sel?.removeAllRanges();
-          sel?.addRange(range);
-        }
-      }}
+      onBlur={inlineRename.onBlur}
+      onKeyDown={inlineRename.onKeyDown}
+      ref={inlineRename.setRef}
       sx={{
         outline: '1px solid rgba(0,0,0,0.3)',
         borderRadius: 1,
@@ -93,7 +82,8 @@ const ConnectorNameEditor = ({
       {name}
     </Typography>
   </Box>
-);
+  );
+};
 
 // Name label (not editing) — clickable when headerLink is set.
 const ConnectorNameLabel = ({

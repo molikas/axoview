@@ -23,8 +23,13 @@ import {
   AddBoxOutlined as AddItemIcon,
   SelectAllOutlined as SelectAllIcon,
   ChevronRight as ChevronRightIcon,
-  Check as CheckIcon
+  Check as CheckIcon,
+  StickyNote2Outlined as AddNoteIcon
 } from '@mui/icons-material';
+import {
+  dispatch as dispatchPanelEvent,
+  ItemType
+} from 'src/components/NodeActionBar/NodeActionBar.helpers';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useTranslation } from 'src/stores/localeStore';
 import { useScene } from 'src/hooks/useScene';
@@ -110,6 +115,16 @@ export const CanvasContextMenu = () => {
       new CustomEvent('inlineEditNodeName', { detail: { id: target.id } })
     );
   }, [target]);
+
+  const handleAddNote = useCallback(() => {
+    if (!target) return;
+    // Open the details panel, then (one frame later, once the freshly-mounted
+    // controls have attached their panel-event listener) switch to the Notes tab.
+    actions.setItemControls({ type: target.type, id: target.id });
+    requestAnimationFrame(() =>
+      dispatchPanelEvent(target.type as ItemType, 'focusNotes')
+    );
+  }, [actions, target]);
 
   const handleDelete = useCallback(() => {
     if (!target) return;
@@ -253,6 +268,9 @@ export const CanvasContextMenu = () => {
   const isUnsnapped = offGridTarget?.snap === false;
   const collidesNow = offGridTarget ? itemCollides(offGridTarget) : true;
   const canRename = !!target && INLINE_RENAMEABLE.has(target.type);
+  // Only nodes (ITEM) and connectors carry a `notes` field / Notes tab.
+  const canAddNote =
+    !!target && (target.type === 'ITEM' || target.type === 'CONNECTOR');
   const multiCount = countUserFacingRefs(selectedIds);
 
   // D1 — pluralise the count rows through i18n: pick the singular/plural key by
@@ -299,6 +317,14 @@ export const CanvasContextMenu = () => {
                   </ListItemIcon>
                   <ListItemText>{t('rename')}</ListItemText>
                   <Hint>F2</Hint>
+                </MenuItem>
+              ),
+              canAddNote && (
+                <MenuItem key="addNote" onClick={run(handleAddNote)}>
+                  <ListItemIcon>
+                    <AddNoteIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{t('addNote')}</ListItemText>
                 </MenuItem>
               ),
               <Divider key="d1" />,

@@ -1,5 +1,11 @@
 # Canvas Interaction Behavior Map — Pre-Rewrite Reference (KR1–KR5)
 
+> **⚠️ Later change (2026-06-25 shake-out):** the floating `NodeActionBar`
+> documented below (esp. §4.3) was **removed**; the right-click `CanvasContextMenu`
+> (ADR 0027) is now the sole per-item command surface (with "Add note" added).
+> Sections that reference the action bar are historical — see the
+> [ADR 0027 addendum](../adr/0027-canvas-context-menu.md).
+
 > **Status:** Reference · **Owner:** molikas · **Created:** 2026-06-13 ·
 > **Updated:** 2026-06-14 (blind-spot closure: D-7 confirmed live bug w/ test;
 > KR2 2D parity; KR3 undo vectors D-8/D-9; KR4 capture surfaces; KR5 floor +

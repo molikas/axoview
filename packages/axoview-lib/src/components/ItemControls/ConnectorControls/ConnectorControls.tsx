@@ -155,7 +155,7 @@ export const ConnectorControls = ({ id }: Props) => {
       if (detail?.id === id) {
         setActiveTab(TAB_DETAILS);
         requestAnimationFrame(() => {
-          nameRef.current?.focus();
+          nameRef.current?.focus({ preventScroll: true });
           nameRef.current?.select();
         });
       }
@@ -173,7 +173,7 @@ export const ConnectorControls = ({ id }: Props) => {
       } else if (action === 'focusName') {
         setActiveTab(TAB_DETAILS);
         requestAnimationFrame(() => {
-          nameRef.current?.focus();
+          nameRef.current?.focus({ preventScroll: true });
           nameRef.current?.select();
         });
       } else if (action === 'focusLink') {

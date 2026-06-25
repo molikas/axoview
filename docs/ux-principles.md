@@ -461,7 +461,7 @@ If you need to set a child's height generically, target a class or component sel
 
 ### 8.8 Canvas-anchored chrome is screen-pixel-stable
 
-Floating chrome positioned in canvas-tile coordinates ([`NodeActionBar`](../packages/axoview-lib/src/components/NodeActionBar/NodeActionBar.tsx), future right-click menus) must counter-scale the `SceneLayer`'s `transform: scale(zoom)` so it stays at natural pixel size at every zoom level.
+Floating chrome positioned in canvas-tile coordinates ([`ViewModeInfoPopover`](../packages/axoview-lib/src/components/ViewModeInfoPopover/ViewModeInfoPopover.tsx) — anchored to the item's tile) must counter-scale the `SceneLayer`'s `transform: scale(zoom)` so it stays at natural pixel size at every zoom level. (The floating `NodeActionBar` that originally motivated this principle was removed in the 2026-06-25 shake-out; the screen-space `CanvasContextMenu` replaced it and needs no counter-scale.)
 
 Pattern:
 
@@ -569,7 +569,7 @@ When building parallel surfaces, **read these first**:
 | Inline canvas rename | [`Node.tsx`](../packages/axoview-lib/src/components/SceneLayers/Nodes/Node/Node.tsx) (search `inlineEditNodeName`) |
 | Theme-driven typography contract | [`theme.ts`](../packages/axoview-lib/src/styles/theme.ts) — see §1.5 |
 | Standard search input (panel-level) | [`Searchbox.tsx`](../packages/axoview-lib/src/components/ItemControls/IconSelectionControls/Searchbox.tsx) |
-| Counter-scaled canvas-anchored chrome | [`NodeActionBar.tsx`](../packages/axoview-lib/src/components/NodeActionBar/NodeActionBar.tsx) — see §8.8 |
+| Counter-scaled canvas-anchored chrome | [`ViewModeInfoPopover.tsx`](../packages/axoview-lib/src/components/ViewModeInfoPopover/ViewModeInfoPopover.tsx) — see §8.8 |
 | Quiet mode banner | [`SessionModeBanner.tsx`](../packages/axoview-app/src/components/SessionModeBanner.tsx) — see §8.5 |
 | Validation surfacing | [`useInitialDataManager.ts`](../packages/axoview-lib/src/hooks/useInitialDataManager.ts) — see §6.3 |
 

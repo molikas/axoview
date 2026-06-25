@@ -359,16 +359,6 @@ const locale: LocaleProps = {
   deleteButton: {
     delete: 'Löschen'
   },
-  nodeActionBar: {
-    style: 'Stil',
-    editName: 'Name bearbeiten',
-    editLink: 'Link bearbeiten',
-    addLink: 'Link hinzufügen',
-    editNotes: 'Notizen bearbeiten',
-    addNotes: 'Notizen hinzufügen',
-    startConnector: 'Verbindung starten',
-    delete: 'Löschen'
-  },
   quickAddNodePopover: {
     add: 'Hinzufügen',
     rectangle: 'Gruppe'
@@ -493,6 +483,7 @@ const locale: LocaleProps = {
     noIconsFound: 'Keine Symbole für "{term}" gefunden'
   },
   canvasContextMenu: {
+    addNote: 'Notiz hinzufügen',
     details: 'Details…',
     rename: 'Umbenennen',
     cut: 'Ausschneiden',

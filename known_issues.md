@@ -208,7 +208,7 @@ Pattern: **allocation-rate-limited GC pressure**, not a CPU bottleneck. V8 holds
 
 ### §5.1 e2e coverage follow-ups (P1, deferred — not introduced by this work)
 
-Closed in the ADR 0018 e2e revision: touch tap-select/place/pan/pinch/abort, the D-7 dual-stack undo repro, and the CSS-preview-mid-drag P0 invariant. Still open as P1 (pre-existing canvas-interaction gaps): a NodeActionBar invocation/dismissal e2e, a per-mode Escape-abort matrix e2e, a RAF-throttle-under-load unit assertion, and a pan/zoom zero-scene-re-render render-probe. Filed so they aren't lost; lower priority than the shipped touch coverage.
+Closed in the ADR 0018 e2e revision: touch tap-select/place/pan/pinch/abort, the D-7 dual-stack undo repro, and the CSS-preview-mid-drag P0 invariant. Still open as P1 (pre-existing canvas-interaction gaps): a per-mode Escape-abort matrix e2e, a RAF-throttle-under-load unit assertion, and a pan/zoom zero-scene-re-render render-probe. (The former "NodeActionBar invocation/dismissal e2e" gap is moot — the action bar was removed in the 2026-06-25 shake-out.) Filed so they aren't lost; lower priority than the shipped touch coverage.
 
 ## Track P (canvas-ux-overhaul) — perf-gate follow-ups
 
@@ -230,3 +230,39 @@ The program-end perf gate ([ADR 0020](docs/adr/0020-engine-perf-harness-and-meas
 **Workaround:** Edit large diagrams on AC power (on-power pan has no freezes); lower zoom / fewer on-screen nodes reduces the per-frame cost.
 
 **Status:** Open, deferred — explicitly parked 2026-06-24 in favour of shipping the verified burst fix. The cheap lever (caching per-node string normalisation) will **not** move it: the committed drag CPU profiles ([perf-results/dragprofile-*.md](perf-results/)) show ~0 self-time there. The real cost is the canvas draw calls themselves, so a genuine fix means one of: **(a)** a dirty-region / layered-canvas redraw (only repaint the changed region), or **(b)** a sync-on-small / async-on-large hybrid — which directly risks reintroducing the #54 trailing rubber-band on exactly the large scenes that exhibit the symptom. Two guards must land **before** attempting (a)/(b): the existing #54 guard ([NodesCanvas.scrollSync.test.tsx](packages/axoview-lib/src/components/SceneLayers/Nodes/__tests__/NodesCanvas.scrollSync.test.tsx)) renders `nodes={[]}`, so a node-count gate would keep it green while silently regressing real scenes (a false-safe — add a large-N variant); and there is **no pan scenario** in the perf harness ([engine-perf.spec.ts](packages/axoview-e2e/perf/engine-perf.spec.ts)), so this floor is unmeasured by CI (add a `measurePan` scenario).
+
+## Image export drops connectors in ISOMETRIC view (2D export is fine)
+
+**Symptom:** Exporting a diagram as an image (PNG/SVG) omits all **connectors** when the
+view is **isometric**. The same diagram exported from **2D view** includes connectors
+correctly. Nodes, text boxes, and labels export fine in both projections; only
+connectors are missing, and only in iso.
+
+**Root cause (confirmed by the iso-vs-2D split):** connectors are the only scene
+elements rendered as a nested inline `<svg>` (nodes are Canvas2D; text boxes/labels are
+HTML). In iso, `useIsoProjection` puts the projection's CSS `matrix()` skew on the
+connector's wrapper `<Box>` ([`getProjectionCss`](packages/axoview-lib/src/contexts/CanvasModeContext.tsx) returns the matrix in ISO, an empty
+string in 2D — [`useIsoProjection.ts`](packages/axoview-lib/src/hooks/useIsoProjection.ts)), and the inner
+[`<Svg>`](packages/axoview-lib/src/components/SceneLayers/Connectors/Connector.tsx) additionally carries `transform: scale(-1, 1)`. The image export
+([`exportOptions.ts`](packages/axoview-lib/src/utils/exportOptions.ts) → `dom-to-image-more`) serializes the DOM into a
+`<foreignObject>` and rasterizes it; a nested inline `<svg>` (with its own transform)
+under a `matrix()`-skewed ancestor is exactly the case `dom-to-image-more` mishandles.
+In 2D the wrapper has no transform, so the same `<svg>` rasterizes fine. Related: ADR 0025
+(image-export robustness).
+
+**Next diagnostic step (was in-flight, instrumentation since removed):** temporary
+`[export-diag]` logging was added to `exportImage` to split the two possible fixes but
+the run's console output was never captured. Re-add a probe (or read the captured
+serialized SVG) to determine:
+- serialized SVG **lacks** `<polyline>` -> `dom-to-image` drops it during clone/serialize
+  -> fix lives in the export path (restructure what is cloned), no live-render change.
+- serialized SVG **has** `<polyline>` but PNG is blank -> browser won't rasterize the
+  `<svg>` under the iso `matrix()` -> fix means flattening the connector's transform
+  (move the iso matrix off the wrapper / combine onto the svg), which touches the shared
+  live connector renderer and must be visually verified in both iso live + iso export.
+
+**Workaround:** export from **2D view**, or (until fixed) screenshot the iso canvas.
+
+**Status:** Open, deferred. Diagnosed to the iso `matrix()` + nested `<svg>` interaction
+in `dom-to-image-more`; the remaining fork (serialization vs rasterization) needs one
+console capture before a fix is chosen. Filed from the 2026-06-25 shake-out (item #5).

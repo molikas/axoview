@@ -357,16 +357,6 @@ const locale: LocaleProps = {
   deleteButton: {
     delete: 'Удалить'
   },
-  nodeActionBar: {
-    style: 'Стиль',
-    editName: 'Редактировать название',
-    editLink: 'Редактировать ссылку',
-    addLink: 'Добавить ссылку',
-    editNotes: 'Редактировать заметки',
-    addNotes: 'Добавить заметки',
-    startConnector: 'Начать соединитель',
-    delete: 'Удалить'
-  },
   quickAddNodePopover: {
     add: 'Добавить',
     rectangle: 'Группа'
@@ -490,6 +480,7 @@ const locale: LocaleProps = {
     noIconsFound: 'Иконки, соответствующие "{term}", не найдены'
   },
   canvasContextMenu: {
+    addNote: 'Добавить заметку',
     details: 'Подробности…',
     rename: 'Переименовать',
     cut: 'Вырезать',

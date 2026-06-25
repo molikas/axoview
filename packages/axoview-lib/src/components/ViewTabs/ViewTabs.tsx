@@ -1,13 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import {
-  Box,
-  Card,
-  IconButton,
-  Tooltip,
-  TextField,
-  Typography,
-  useTheme
-} from '@mui/material';
+import { Box, IconButton, Tooltip, TextField, Typography } from '@mui/material';
 import { Add, Close, Edit, Check, ChevronRight } from '@mui/icons-material';
 import { useModelStore } from 'src/stores/modelStore';
 import { useUiStateStore } from 'src/stores/uiStateStore';
@@ -21,8 +13,16 @@ type EditingTarget = { kind: 'title' } | { kind: 'view'; id: string } | null;
 // follow-up, 2026-05-15).
 const MAX_PAGES = 5;
 
+// Flat icon-button style mirroring BottomDock's btnSx so the page selector
+// reads as part of the dock chrome, not a floating elevated card.
+const iconBtnSx = {
+  p: 0.25,
+  borderRadius: 1,
+  color: 'text.secondary',
+  '&:hover': { bgcolor: 'action.hover', color: 'text.primary' }
+} as const;
+
 export const ViewTabs = () => {
-  const theme = useTheme();
   const { t } = useTranslation('viewTabs');
 
   const views = useModelStore((state) => state.views);
@@ -89,17 +89,18 @@ export const ViewTabs = () => {
 
   const canDelete = views.length > 1;
 
-  const cardBase = {
-    borderRadius: 2,
-    boxShadow: 1,
-    p: 0,
+  // Flat tab — no card/shadow. The active page reads via a subtle neutral
+  // "selected" fill (matching the dock's monochrome chrome) rather than a bold
+  // filled accent pill.
+  const tabBase = {
     display: 'flex',
     flexDirection: 'row' as const,
     alignItems: 'center',
-    px: 1.5,
-    py: 0.75,
-    minWidth: 120,
-    maxWidth: 240,
+    gap: 0.25,
+    px: 1,
+    py: 0.25,
+    borderRadius: 1,
+    maxWidth: 200,
     transition: 'background-color 0.15s'
   };
 
@@ -109,34 +110,28 @@ export const ViewTabs = () => {
         display: 'flex',
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 0.5,
+        gap: 0.25,
+        minWidth: 0,
         pointerEvents: 'auto'
       }}
     >
-      {/* Diagram title card — read-only; name is managed via Save / file manager */}
-      <Card
+      {/* Diagram title — read-only; name is managed via Save / file manager */}
+      <Typography
+        variant="body2"
+        noWrap
         sx={{
-          ...cardBase,
-          backgroundColor: '#ffffff'
+          flexShrink: 0,
+          fontWeight: 600,
+          color: 'text.secondary',
+          fontSize: '0.8125rem',
+          px: 0.5
         }}
       >
-        <Typography
-          variant="body2"
-          noWrap
-          sx={{
-            flexGrow: 1,
-            fontWeight: 600,
-            color: 'text.secondary',
-            fontSize: '0.875rem',
-            lineHeight: 1.5
-          }}
-        >
-          {title}
-        </Typography>
-      </Card>
+        {title}
+      </Typography>
 
       <ChevronRight
-        sx={{ color: 'text.disabled', width: 18, height: 18, flexShrink: 0 }}
+        sx={{ color: 'text.disabled', width: 16, height: 16, flexShrink: 0 }}
       />
 
       {/* View tabs */}
@@ -149,21 +144,16 @@ export const ViewTabs = () => {
           <Box
             key={view.id}
             onClick={() => handleTabClick(view.id)}
-            sx={{ cursor: 'pointer', display: 'flex' }}
+            sx={{ cursor: 'pointer', display: 'flex', minWidth: 0 }}
           >
-            <Card
+            <Box
               sx={{
-                ...cardBase,
-                backgroundColor: isActive
-                  ? theme.palette.primary.main
-                  : '#ffffff',
+                ...tabBase,
+                bgcolor: isActive ? 'action.selected' : 'transparent',
+                color: isActive ? 'text.primary' : 'text.secondary',
                 '&:hover': isViewEditing
-                  ? { backgroundColor: '#ffffff' }
-                  : {
-                      backgroundColor: isActive
-                        ? theme.palette.primary.dark
-                        : '#f5f5f5'
-                    }
+                  ? {}
+                  : { bgcolor: isActive ? 'action.selected' : 'action.hover' }
               }}
             >
               {isViewEditing ? (
@@ -178,16 +168,15 @@ export const ViewTabs = () => {
                   variant="standard"
                   sx={{
                     flexGrow: 1,
-                    minWidth: 70,
+                    minWidth: 60,
                     backgroundColor: 'transparent'
                   }}
                   slotProps={{
                     htmlInput: {
                       style: {
-                        fontSize: '0.875rem',
+                        fontSize: '0.8125rem',
                         padding: 0,
-                        background: 'transparent',
-                        color: '#000000'
+                        background: 'transparent'
                       }
                     }
                   }}
@@ -199,8 +188,8 @@ export const ViewTabs = () => {
                   sx={{
                     flexGrow: 1,
                     fontWeight: isActive ? 600 : 400,
-                    color: isActive ? 'white' : 'text.primary',
-                    fontSize: '0.875rem',
+                    color: 'inherit',
+                    fontSize: '0.8125rem',
                     lineHeight: 1.5
                   }}
                 >
@@ -217,7 +206,7 @@ export const ViewTabs = () => {
                         e.stopPropagation();
                         commitEdit();
                       }}
-                      sx={{ ml: 0.5, p: 0.25 }}
+                      sx={iconBtnSx}
                     >
                       <Check sx={{ width: 14, height: 14 }} />
                     </IconButton>
@@ -230,20 +219,13 @@ export const ViewTabs = () => {
                         startEdit({ kind: 'view', id: view.id }, view.name, e)
                       }
                       sx={{
-                        ml: 0.5,
-                        p: 0.25,
+                        ...iconBtnSx,
                         opacity: 0,
-                        '&:hover': { opacity: 1 },
-                        '.MuiCard-root:hover &': { opacity: 0.7 }
+                        '.MuiBox-root:hover > &': { opacity: 0.7 },
+                        '&:hover': { opacity: 1, bgcolor: 'action.hover' }
                       }}
                     >
-                      <Edit
-                        sx={{
-                          width: 13,
-                          height: 13,
-                          color: isActive ? 'white' : 'action'
-                        }}
-                      />
+                      <Edit sx={{ width: 13, height: 13 }} />
                     </IconButton>
                   </Tooltip>
                 ))}
@@ -257,24 +239,17 @@ export const ViewTabs = () => {
                       deleteView(view.id);
                     }}
                     sx={{
-                      ml: 0.25,
-                      p: 0.25,
+                      ...iconBtnSx,
                       opacity: 0,
-                      '&:hover': { opacity: 1 },
-                      '.MuiCard-root:hover &': { opacity: 0.7 }
+                      '.MuiBox-root:hover > &': { opacity: 0.7 },
+                      '&:hover': { opacity: 1, bgcolor: 'action.hover' }
                     }}
                   >
-                    <Close
-                      sx={{
-                        width: 13,
-                        height: 13,
-                        color: isActive ? 'white' : 'action'
-                      }}
-                    />
+                    <Close sx={{ width: 13, height: 13 }} />
                   </IconButton>
                 </Tooltip>
               )}
-            </Card>
+            </Box>
           </Box>
         );
       })}
@@ -290,14 +265,7 @@ export const ViewTabs = () => {
                 size="small"
                 onClick={() => createView()}
                 disabled={atLimit}
-                sx={{
-                  p: 0.75,
-                  backgroundColor: '#ffffff',
-                  border: 1,
-                  borderColor: 'grey.300',
-                  borderRadius: 1,
-                  '&:hover': { backgroundColor: '#f5f5f5' }
-                }}
+                sx={iconBtnSx}
               >
                 <Add sx={{ width: 16, height: 16 }} />
               </IconButton>

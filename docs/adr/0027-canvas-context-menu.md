@@ -59,3 +59,29 @@ The tap-vs-drag split reuses the existing `rightDownRef` + `RIGHT_DRAG_THRESHOLD
 - **e2e:** right-tap an item → menu with the expected commands; right-drag → pan, no menu; right-tap empty → canvas menu; "Unsnap" + "Disable collision" present (ties ADR 0023); "Details…" opens the same panel as double-click; long-press opens the menu on touch.
 - **Manual:** the same command in the action bar and the menu does the same thing; no command is orphaned by the ADR 0022 gesture changes.
 - **Build clean.**
+
+## Addendum — 2026-06-25 (NodeActionBar removed; menu is the sole per-item surface)
+
+The floating `NodeActionBar` was **removed** (shake-out item #3). It duplicated the
+right-click menu for every command that mattered, and the dual-surface "keep in
+sync / police duplication drift" cost flagged in the risks above was not paying for
+itself. The division of labor is now **menu = per-item commands · panel = editing**
+(no bar tier).
+
+Reconciling the §4 "no command reachable only via a removed gesture" invariant after
+the bar's removal:
+
+- **Notes** was the only bar affordance with no other home → added as **"Add note"**
+  in the `item` menu variant (nodes + connectors only — the two types with a `notes`
+  field). It opens the details panel on the Notes tab (reuses the existing
+  `focusNotes` panel-event).
+- **Style** and **Edit link** stay reachable via **Details…** → the panel's Style tab
+  / link field.
+- **Start connector** stays reachable via the connector tool in the ToolMenu.
+- **z-order / layer / delete / rename** were already in the menu.
+
+Store/dead-code cleanup: the `itemActionBarOpen` slice + `setItemActionBarOpen`
+action were deleted from the UI store; single-click/tap is now purely select-only
+(derives the panel TARGET, mounts no surface). The panel-event dispatch helper
+(`NodeActionBar.helpers.ts`) survives — it is still the channel "Add note" and the
+per-type ItemControls listeners use.
