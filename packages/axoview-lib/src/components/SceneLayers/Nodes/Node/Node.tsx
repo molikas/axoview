@@ -15,6 +15,7 @@ import {
 import { useRenderProbe } from 'src/utils/renderProbe';
 import { ExpandableLabel } from 'src/components/Label/ExpandableLabel';
 import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
+import { useInlineRename } from 'src/hooks/useInlineRename';
 import { stripHtmlTags } from 'src/utils/stripHtml';
 import { isLabelVisibleInPreview } from 'src/utils/previewLabelVisibility';
 
@@ -271,6 +272,12 @@ const NodeContent = memo(
       [updateModelItem, id, modelItem?.name]
     );
 
+    const inlineRename = useInlineRename({
+      active: isEditingName,
+      commit: commitName,
+      cancel: () => setIsEditingName(false)
+    });
+
     // MQA #22 / #25 (3rd pass): the chip / hover-popover patterns were both
     // wrong. The user wants the existing read-only details panel (NodePanel
     // readOnly) to open on left-click of the node body — same component, same
@@ -345,27 +352,9 @@ const NodeContent = memo(
                       onMouseDown={(e) => e.stopPropagation()}
                       onClick={(e) => e.stopPropagation()}
                       onDoubleClick={(e) => e.stopPropagation()}
-                      onBlur={(e) => commitName(e.currentTarget.innerText)}
-                      onKeyDown={(e) => {
-                        e.stopPropagation();
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          (e.currentTarget as HTMLElement).blur();
-                        } else if (e.key === 'Escape') {
-                          e.preventDefault();
-                          setIsEditingName(false);
-                        }
-                      }}
-                      ref={(el) => {
-                        if (el && document.activeElement !== el) {
-                          el.focus();
-                          const range = document.createRange();
-                          range.selectNodeContents(el);
-                          const sel = window.getSelection();
-                          sel?.removeAllRanges();
-                          sel?.addRange(range);
-                        }
-                      }}
+                      onBlur={inlineRename.onBlur}
+                      onKeyDown={inlineRename.onKeyDown}
+                      ref={inlineRename.setRef}
                       sx={{
                         outline: '1px solid rgba(0,0,0,0.3)',
                         borderRadius: 1,

@@ -37,7 +37,11 @@ The user also asked to **remove the canvas-interaction customization surface and
 | Ctrl/⌘+click | Toggle multi-selection (ADR 0006, unchanged). |
 | Alt+click a connector waypoint | Remove the waypoint — **without** requiring the connector to be selected first (relax `handleSelectedConnectorMousedown`). |
 
-### 2. Action bar opens on selection
+### 2. Action bar opens on selection — SUPERSEDED (shake-out 2026-06-25, see addendum)
+
+> **Superseded:** the floating action bar was **removed** in the 2026-06-25 shake-out. Single-click/tap is now
+> select-only and mounts no surface; the sole per-item command surface is the context menu ([ADR 0027](0027-canvas-context-menu.md)).
+> Division of labor collapsed from three tiers to two: menu = per-item commands · panel = editing. The original §2 read:
 
 The floating `NodeActionBar` is opened by **selection** (single-click / tap), not by right-click. It carries the 3–4 most-frequent quick actions; the **full** command list lives in the context menu ([ADR 0027](0027-canvas-context-menu.md)), and full editing in the details panel. Division of labor — bar = curated shortcuts · menu = catch-all · panel = editing — is the [ADR 0027 §4](0027-canvas-context-menu.md) invariant: **no command is reachable only via a removed gesture.**
 
@@ -103,3 +107,25 @@ What this change makes **redundant**, **contradicts**, or **orphans**, and how e
 - **e2e (new `details-interaction.spec`):** single-click selects + no panel; double-click opens panel; right-click press-drag pans; right-click **tap opens the context menu** (item) / canvas menu (empty), never the panel ([ADR 0027](0027-canvas-context-menu.md)); name-field text-drag crossing the panel keeps it open.
 - **Manual + touch device:** tap = select, double-tap = details, long-press = bar; no double-open.
 - **Build clean;** `grep -r panSettings packages/` returns nothing; `HelpDialog` reflects the new model.
+
+## Addendum — 2026-06-25 (action bar removed; inline-rename commit contract)
+
+**Floating action bar removed (shake-out #3).** The "Select only — highlight + open
+the floating action bar" outcome in §1 / §2 / §3 / the touch table is now **select-only,
+mounts no surface**: a single left-click/tap derives the panel TARGET (`itemControls`)
+for F2 / delete / double-click but opens neither the (now-deleted) bar nor the
+Properties dock. The per-item command surface is the context menu ([ADR 0027](0027-canvas-context-menu.md))
+exclusively. The `itemActionBarOpen` store slice was deleted; long-press still opens
+the context menu.
+
+### 4. Inline-rename commit contract (canvas contentEditable editors)
+
+The canvas inline-rename editors (node label, text box, connector name) commit on a
+**left-click-away** and on **Enter**; they **cancel** on a **right-click-away** and on
+**Escape** (shake-out #6). Previously a left-click-away was silently lost: clicking the
+canvas deselects the element, which unmounts the contentEditable *before* its `onBlur`
+commit ran (only Enter, which blurs explicitly first, persisted). The shared
+[`useInlineRename`](../../packages/axoview-lib/src/hooks/useInlineRename.ts) hook installs
+a capture-phase `pointerdown` listener while editing that blurs the editor
+synchronously — ahead of the canvas's own deselect handler — so the commit lands before
+the unmount; the pointer button selects commit (left) vs cancel (right).

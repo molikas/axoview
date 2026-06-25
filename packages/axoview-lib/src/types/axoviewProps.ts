@@ -342,16 +342,6 @@ export interface LocaleProps {
   deleteButton: {
     delete: string;
   };
-  nodeActionBar: {
-    style: string;
-    editName: string;
-    editLink: string;
-    addLink: string;
-    editNotes: string;
-    addNotes: string;
-    startConnector: string;
-    delete: string;
-  };
   quickAddNodePopover: {
     add: string;
     rectangle: string;
@@ -484,6 +474,7 @@ export interface LocaleProps {
   canvasContextMenu: {
     details: string;
     rename: string;
+    addNote: string;
     cut: string;
     copy: string;
     paste: string;

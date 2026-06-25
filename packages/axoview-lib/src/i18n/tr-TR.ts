@@ -357,16 +357,6 @@ const locale: LocaleProps = {
   deleteButton: {
     delete: 'Sil'
   },
-  nodeActionBar: {
-    style: 'Stil',
-    editName: 'Adı düzenle',
-    editLink: 'Bağlantıyı düzenle',
-    addLink: 'Bağlantı ekle',
-    editNotes: 'Notları düzenle',
-    addNotes: 'Not ekle',
-    startConnector: 'Bağlayıcı başlat',
-    delete: 'Sil'
-  },
   quickAddNodePopover: {
     add: 'Ekle',
     rectangle: 'Grup'
@@ -490,6 +480,7 @@ const locale: LocaleProps = {
     noIconsFound: '"{term}" ile eşleşen simge bulunamadı'
   },
   canvasContextMenu: {
+    addNote: 'Not ekle',
     details: 'Ayrıntılar…',
     rename: 'Yeniden adlandır',
     cut: 'Kes',

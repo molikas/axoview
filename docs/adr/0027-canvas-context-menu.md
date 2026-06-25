@@ -42,11 +42,11 @@ The tap-vs-drag split reuses the existing `rightDownRef` + `RIGHT_DRAG_THRESHOLD
 
 | Surface | Trigger | Contents |
 |---|---|---|
-| `NodeActionBar` | selection (single-click / tap) | the 3–4 most-frequent quick actions (edit name, style, notes, delete) |
-| **Context menu** | right-tap / long-press | the **full** command list, including the rare ones (unsnap, collision, z-order, layer assign) |
+| ~~`NodeActionBar`~~ | ~~selection (single-click / tap)~~ | ~~the 3–4 most-frequent quick actions~~ — **removed 2026-06-25 (see addendum below); no bar tier** |
+| **Context menu** | right-tap / long-press | the **full** command list, including the rare ones (unsnap, collision, z-order, layer assign) — now the **sole** per-item command surface |
 | Details panel | double-click | full editing (tabs: Details / Style / Notes) |
 
-**Invariant:** no command is reachable *only* via a removed gesture. The context menu is the catch-all home; the action bar is a curated shortcut subset; the panel is for editing. A command that lives in the bar must also live in the menu.
+**Invariant:** no command is reachable *only* via a removed gesture. The context menu is the catch-all home; the panel is for editing. *(Pre-shake-out this also read "the action bar is a curated shortcut subset; a command that lives in the bar must also live in the menu" — the bar tier was removed 2026-06-25, so that clause no longer applies; see the addendum below.)*
 
 ## Consequences
 
@@ -59,3 +59,29 @@ The tap-vs-drag split reuses the existing `rightDownRef` + `RIGHT_DRAG_THRESHOLD
 - **e2e:** right-tap an item → menu with the expected commands; right-drag → pan, no menu; right-tap empty → canvas menu; "Unsnap" + "Disable collision" present (ties ADR 0023); "Details…" opens the same panel as double-click; long-press opens the menu on touch.
 - **Manual:** the same command in the action bar and the menu does the same thing; no command is orphaned by the ADR 0022 gesture changes.
 - **Build clean.**
+
+## Addendum — 2026-06-25 (NodeActionBar removed; menu is the sole per-item surface)
+
+The floating `NodeActionBar` was **removed** (shake-out item #3). It duplicated the
+right-click menu for every command that mattered, and the dual-surface "keep in
+sync / police duplication drift" cost flagged in the risks above was not paying for
+itself. The division of labor is now **menu = per-item commands · panel = editing**
+(no bar tier).
+
+Reconciling the §4 "no command reachable only via a removed gesture" invariant after
+the bar's removal:
+
+- **Notes** was the only bar affordance with no other home → added as **"Add note"**
+  in the `item` menu variant (nodes + connectors only — the two types with a `notes`
+  field). It opens the details panel on the Notes tab (reuses the existing
+  `focusNotes` panel-event).
+- **Style** and **Edit link** stay reachable via **Details…** → the panel's Style tab
+  / link field.
+- **Start connector** stays reachable via the connector tool in the ToolMenu.
+- **z-order / layer / delete / rename** were already in the menu.
+
+Store/dead-code cleanup: the `itemActionBarOpen` slice + `setItemActionBarOpen`
+action were deleted from the UI store; single-click/tap is now purely select-only
+(derives the panel TARGET, mounts no surface). The panel-event dispatch helper
+(`NodeActionBar.helpers.ts`) survives — it is still the channel "Add note" and the
+per-type ItemControls listeners use.

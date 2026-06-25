@@ -42,8 +42,8 @@ below at all — and two grips plus the Style panel's height slider read as thre
 overlapping controls. Revised decision:
 
 1. **The label chip itself is the drag handle** — press the label and drag it
-   above/below the node. No separate grip, so nothing competes with the action
-   bar (the label is a large target; the press starts the drag via `window`
+   above/below the node. No separate grip, so nothing competes with the per-item
+   selection chrome (the label is a large target; the press starts the drag via `window`
    pointer listeners, robust once the pointer leaves the chip). A press under the
    drag slop still selects / double-clicks-to-rename. The label of an **unselected**
    node — drawn on the canvas (ADR 0019), so it has no DOM element — is grabbed via

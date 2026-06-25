@@ -2,6 +2,7 @@ import React from 'react';
 import type { ReactNode } from 'react';
 import { Box, Chip, IconButton, Tooltip } from '@mui/material';
 import { ZoomControls } from 'src/components/ZoomControls/ZoomControls';
+import { ViewTabs } from 'src/components/ViewTabs/ViewTabs';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { DialogTypeEnum } from 'src/types/ui';
 import { useTranslation } from 'src/stores/localeStore';
@@ -66,8 +67,18 @@ export const BottomDock = ({ endSlot }: BottomDockProps = {}) => {
         zIndex: 20
       }}
     >
-      {/* Left zone: multi-selection feedback (anchor for future bulk-action UI) */}
-      <Box sx={{ display: 'flex', alignItems: 'center', minHeight: 24 }}>
+      {/* Left zone: page selector (ViewTabs) + multi-selection feedback */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          minHeight: 24,
+          minWidth: 0,
+          overflow: 'hidden'
+        }}
+      >
+        <ViewTabs />
         {selectedCount > 1 && (
           <Chip
             label={t('selected').replace('{count}', String(selectedCount))}
@@ -77,6 +88,7 @@ export const BottomDock = ({ endSlot }: BottomDockProps = {}) => {
               height: 24,
               fontWeight: 500,
               userSelect: 'none',
+              flexShrink: 0,
               '& .MuiChip-label': { px: 1.25 }
             }}
           />

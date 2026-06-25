@@ -3,22 +3,21 @@
  *
  * Regression guard. The Pointer-Events rewrite moved the `contextmenu` listener
  * from the renderer element to `window` (pointer capture needs the superset
- * surface). The handler must therefore scope BOTH its preventDefault and its
- * action-bar reaction to right-clicks that land INSIDE the Renderer container:
+ * surface). The handler must therefore scope its preventDefault to right-clicks
+ * that land INSIDE the Renderer container:
  *
  *   - an off-canvas right-click (toolbar, property panel, a text input's native
  *     Cut/Copy/Paste menu, the file-explorer tree) must keep its native menu
- *     (defaultPrevented === false) and must NOT open a canvas item's action bar
- *     for whatever tile the mouse last projected onto;
+ *     (defaultPrevented === false);
  *   - a right-click over a canvas node must still be swallowed (defaultPrevented
- *     === true). Per ADR 0022/0027 right-click no longer opens the action bar
- *     (the bar opens on selection; the context menu opens via the right-TAP
- *     pointer path, exercised by the context-menu specs) — so the preventDefault
- *     is the only canvas-scoped reaction this listener still owns.
+ *     === true) so the OS menu can't double up with the canvas context menu
+ *     (which opens via the right-TAP pointer path, exercised by the context-menu
+ *     specs).
  *
- * Pre-fix the listener preventDefault'd every contextmenu on the page and could
- * open the action bar from an off-canvas right-click — this spec pins both
- * directions so that can't regress.
+ * Pre-fix the listener preventDefault'd every contextmenu on the page — this
+ * spec pins both directions so that can't regress. (The floating action bar was
+ * removed in the 2026-06-25 shake-out; the only canvas-scoped reaction this
+ * listener owns is now the preventDefault.)
  */
 import { canvasReadyTest as test, expect } from '../fixtures/app.fixture';
 import { CanvasPOM } from '../pom/CanvasPOM';
@@ -34,18 +33,12 @@ const nodeTile = (page: Page) =>
     return (views.find((x: any) => x.id === v) ?? views[0]).items[0].tile;
   });
 
-const actionBarOpen = (page: Page) =>
-  page.evaluate(
-    () => (window as any).__axoview__.ui.getState().itemActionBarOpen === true
-  );
-
-// CURSOR mode, no selection, action bar closed — a known start state.
+// CURSOR mode, no selection — a known start state.
 const resetCanvas = (page: Page) =>
   page.evaluate(() => {
     const ui = (window as any).__axoview__.ui.getState();
     ui.actions.setMode({ type: 'CURSOR', showCursor: true, mousedownItem: null });
     ui.actions.setItemControls(null);
-    ui.actions.setItemActionBarOpen(false);
     ui.actions.clearSelection();
   });
 
@@ -86,7 +79,7 @@ const rightClickCanvasAt = (canvas: CanvasPOM, point: { x: number; y: number }) 
   }, point);
 
 test.describe('contextmenu scoping (window-bound listener)', () => {
-  test('off-canvas right-click keeps its native menu and does not open the action bar', async ({
+  test('off-canvas right-click keeps its native menu (no preventDefault)', async ({
     page,
     app
   }) => {
@@ -96,18 +89,15 @@ test.describe('contextmenu scoping (window-bound listener)', () => {
     await expect.poll(() => getModelItemCount(page), { timeout: 5_000 }).toBe(1);
     await resetCanvas(page);
 
-    // Seed the mouse OVER the node so mouse.position.tile resolves to it — this
-    // is exactly the stale tile a pre-fix off-canvas right-click would have used
-    // to open the action bar.
+    // Seed the mouse OVER the node so mouse.position.tile resolves to it — the
+    // stale tile a pre-fix off-canvas right-click would have acted on.
     const point = await canvas.tileToScreen(await nodeTile(page));
     await canvas.dispatchAt(['mousemove'], point);
-    expect(await actionBarOpen(page)).toBe(false);
 
     const defaultPrevented = await rightClickOffCanvas(page);
 
-    // Native menu preserved, and the canvas item's action bar stayed closed.
+    // Native menu preserved — the listener did not swallow an off-canvas click.
     expect(defaultPrevented).toBe(false);
-    expect(await actionBarOpen(page)).toBe(false);
   });
 
   test('right-click over a canvas node is swallowed by the window-bound listener (positive control)', async ({
@@ -126,12 +116,8 @@ test.describe('contextmenu scoping (window-bound listener)', () => {
     const defaultPrevented = await rightClickCanvasAt(canvas, point);
 
     // The in-renderer right-click is swallowed so the OS menu can't double up
-    // with ours. Per ADR 0022/0027 the raw `contextmenu` event no longer opens
-    // the action bar (the bar opens on selection; the canvas context menu opens
-    // via the right-TAP pointer path in usePanHandlers, covered by the
-    // context-menu specs). So the only thing this scoping listener owns here is
-    // the preventDefault — the action bar must stay closed.
+    // with the canvas context menu (which opens via the right-TAP pointer path
+    // in usePanHandlers, covered by the context-menu specs).
     expect(defaultPrevented).toBe(true);
-    expect(await actionBarOpen(page)).toBe(false);
   });
 });

@@ -356,16 +356,6 @@ const locale: LocaleProps = {
   deleteButton: {
     delete: 'Hapus'
   },
-  nodeActionBar: {
-    style: 'Gaya',
-    editName: 'Edit nama',
-    editLink: 'Edit tautan',
-    addLink: 'Tambah tautan',
-    editNotes: 'Edit catatan',
-    addNotes: 'Tambah catatan',
-    startConnector: 'Mulai konektor',
-    delete: 'Hapus'
-  },
   quickAddNodePopover: {
     add: 'Tambah',
     rectangle: 'Grup'
@@ -489,6 +479,7 @@ const locale: LocaleProps = {
     noIconsFound: 'Tidak ada ikon yang cocok dengan "{term}"'
   },
   canvasContextMenu: {
+    addNote: 'Tambah catatan',
     details: 'Detail…',
     rename: 'Ganti nama',
     cut: 'Potong',

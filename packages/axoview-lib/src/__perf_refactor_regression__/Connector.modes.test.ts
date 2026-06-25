@@ -274,7 +274,7 @@ describe('Connector.mousedown click mode — second click', () => {
         id: connectorId,
         startAnchor: { itemId: 'node-A' },
         isConnecting: true,
-        returnToCursor: true // set by NodeActionBar "Start connector" button
+        returnToCursor: true // set by the LeftDock 'Connector' tool button (CommonElements.handleConnectorMouseDown)
       },
       connectorInteractionMode: 'click'
     });

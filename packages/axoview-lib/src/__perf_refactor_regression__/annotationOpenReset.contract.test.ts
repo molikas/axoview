@@ -32,7 +32,7 @@ describe('annotation open — canvas tool reset', () => {
     expect(result.current.s.mode.type).toBe('CURSOR');
   });
 
-  it('clears the active selection + action bar on open', () => {
+  it('clears the active selection on open', () => {
     const { result } = setup();
     act(() => result.current.a.setEditorMode('EDITABLE'));
     act(() => result.current.a.setSelectedIds([{ type: 'CONNECTOR', id: 'c1' }]));
@@ -41,7 +41,6 @@ describe('annotation open — canvas tool reset', () => {
     act(() => result.current.a.setAnnotationOpen(true));
     expect(result.current.s.itemControls).toBeNull();
     expect(result.current.s.selectedIds).toHaveLength(0);
-    expect(result.current.s.itemActionBarOpen).toBe(false);
   });
 
   it('resets to the mode-appropriate default in preview (PAN)', () => {

@@ -357,16 +357,6 @@ const locale: LocaleProps = {
   deleteButton: {
     delete: 'हटाएं'
   },
-  nodeActionBar: {
-    style: 'शैली',
-    editName: 'नाम संपादित करें',
-    editLink: 'लिंक संपादित करें',
-    addLink: 'लिंक जोड़ें',
-    editNotes: 'नोट्स संपादित करें',
-    addNotes: 'नोट्स जोड़ें',
-    startConnector: 'कनेक्टर शुरू करें',
-    delete: 'हटाएं'
-  },
   quickAddNodePopover: {
     add: 'जोड़ें',
     rectangle: 'समूह'
@@ -490,6 +480,7 @@ const locale: LocaleProps = {
     noIconsFound: '"{term}" से मेल खाने वाला कोई आइकन नहीं मिला'
   },
   canvasContextMenu: {
+    addNote: 'नोट जोड़ें',
     details: 'विवरण…',
     rename: 'नाम बदलें',
     cut: 'काटें',

@@ -4,16 +4,16 @@
  * Verifies the store-level invariant that ties selectedIds to itemControls:
  *  - selectedIds.length === 0 → itemControls null, panel closed
  *  - selectedIds.length === 1 → itemControls set to that single item; per
- *    ADR 0022 §3 this is SELECT-ONLY — it opens the floating action bar
- *    (itemActionBarOpen) but no longer mounts the Properties dock. The dock
- *    opens on the explicit double-click / setItemControls (openPanel) path.
+ *    ADR 0022 §3 this is SELECT-ONLY — it derives the panel TARGET but does
+ *    NOT mount the Properties dock. The dock opens on the explicit
+ *    double-click / setItemControls (openPanel) path.
  *  - selectedIds.length  > 1 → itemControls null (panel auto-hides), MQA #9
  *
  * Also covers the toggle behaviour from MQA #8 (Ctrl+click semantics) and the
  * convenience clearSelection action.
  *
  * Why a pure store test: every consumer of itemControls (NodePanel, ConnectorControls,
- * NodeActionBar, the two-way layer-row sync) depends on this invariant. If a future
+ * the two-way layer-row sync) depends on this invariant. If a future
  * change breaks it, the panel will either render with stale state (length > 1
  * showing one item's fields) or fail to mount on single-select — both are silent UX
  * regressions that wouldn't surface in a build but would visibly break the app.
@@ -48,21 +48,17 @@ describe('ADR-0006 — multi-select contract', () => {
     expect(result.current.s.itemControls).toBeNull();
   });
 
-  it('setSelectedIds([single]) selects only — bar opens, panel does NOT (ADR 0022 §3)', () => {
+  it('setSelectedIds([single]) selects only — panel does NOT mount (ADR 0022 §3)', () => {
     const { result } = renderHook(
       () => useUiStateStore((s) => ({ s, a: s.actions })),
       { wrapper }
     );
-    // The action bar is an EDITABLE affordance (view mode uses the canvas
-    // popover instead — ADR 0012). The default store mode is read-only.
     act(() => result.current.a.setEditorMode('EDITABLE'));
     act(() => result.current.a.setSelectedIds([itemB]));
     expect(result.current.s.selectedIds).toEqual([itemB]);
     expect(result.current.s.itemControls).toEqual({ type: 'ITEM', id: 'b' });
-    // Select-only: the Properties dock is NOT mounted on single-click…
+    // Select-only: the Properties dock is NOT mounted on single-click.
     expect(result.current.s.rightSidebarOpen).toBe(false);
-    // …but the floating action bar opens.
-    expect(result.current.s.itemActionBarOpen).toBe(true);
   });
 
   it('double-click path (setItemControls) opens the dock; >1 selection auto-hides it (MQA #9)', () => {
@@ -83,13 +79,12 @@ describe('ADR-0006 — multi-select contract', () => {
     expect(result.current.s.rightSidebarOpen).toBe(false);
   });
 
-  it('setItemControls(openPanel:false) is select-only — bar opens, dock stays put', () => {
+  it('setItemControls(openPanel:false) is select-only — dock stays put', () => {
     const { result } = renderHook(
       () => useUiStateStore((s) => ({ s, a: s.actions })),
       { wrapper }
     );
     act(() => result.current.a.setEditorMode('EDITABLE'));
-    // Connector single-click routes here (it needs the tile for the bar).
     act(() =>
       result.current.a.setItemControls(
         { type: 'CONNECTOR', id: 'x', tile: { x: 1, y: 2 } },
@@ -99,7 +94,6 @@ describe('ADR-0006 — multi-select contract', () => {
     expect(result.current.s.selectedIds).toEqual([{ type: 'CONNECTOR', id: 'x' }]);
     expect(result.current.s.itemControls).toMatchObject({ type: 'CONNECTOR', id: 'x' });
     expect(result.current.s.rightSidebarOpen).toBe(false);
-    expect(result.current.s.itemActionBarOpen).toBe(true);
   });
 
   it('view mode: single selection does NOT auto-open the right dock (ADR 0012)', () => {

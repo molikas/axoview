@@ -14,13 +14,14 @@ import { TOOL_HOTKEYS } from 'src/config/hotkeys';
 import { tooltipWithShortcut } from 'src/utils/tooltipWithShortcut';
 import { useTranslation } from 'src/stores/localeStore';
 
-// Exported so canvas-anchored chrome (NodeActionBar — B4 / decision #5) can
-// derive the dock's right edge to clamp against, without duplicating the magic
-// numbers. STRIP is always present in edit mode; PANEL adds when a left tab is
-// open. FILE_EXPLORER is an app-level surface (its open state is a prop here, not
-// in the store), so lib-internal clamps account for STRIP + PANEL only.
-export const STRIP_WIDTH = 40;
-export const PANEL_WIDTH = 240;
+// Dock width constants. STRIP is always present in edit mode; PANEL adds when a
+// left tab is open. FILE_EXPLORER is an app-level surface (its open state is a
+// prop here, not in the store), so lib-internal clamps account for STRIP + PANEL
+// only. (These were once exported for the canvas-anchored NodeActionBar to clamp
+// against; that surface was removed in the 2026-06-25 shake-out, so they are now
+// module-local.)
+const STRIP_WIDTH = 40;
+const PANEL_WIDTH = 240;
 const FILE_EXPLORER_WIDTH = 280;
 
 type LeftTabId = 'ELEMENTS' | 'LAYERS';

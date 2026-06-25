@@ -1,5 +1,11 @@
 # Canvas Interaction Behavior Map — Pre-Rewrite Reference (KR1–KR5)
 
+> **⚠️ Later change (2026-06-25 shake-out):** the floating `NodeActionBar`
+> documented below (esp. §4.3) was **removed**; the right-click `CanvasContextMenu`
+> (ADR 0027) is now the sole per-item command surface (with "Add note" added).
+> Sections that reference the action bar are historical — see the
+> [ADR 0027 addendum](../adr/0027-canvas-context-menu.md).
+
 > **Status:** Reference · **Owner:** molikas · **Created:** 2026-06-13 ·
 > **Updated:** 2026-06-14 (blind-spot closure: D-7 confirmed live bug w/ test;
 > KR2 2D parity; KR3 undo vectors D-8/D-9; KR4 capture surfaces; KR5 floor +
@@ -173,8 +179,8 @@ unaffected by where listeners bind, but the path is in `screen` coords from
 | `mousemove` | while `isConnecting`, gated by `hasMovedTile`: rewrite anchor[1] to the hovered ITEM or raw tile via `scene.updateConnector` (per-frame model write — the GC-cliff path, §3.5). | same (`connectorInteractionMode==='drag'`). | [L156-204](../../packages/axoview-lib/src/interaction/modes/Connector.ts#L156-L204) |
 | `mouseup` | travel past tap-slop since the arming press → **complete** (mirrors `handleClickSecond`) at the release tile/item — for a node OR a free-floating empty start (ADR 0022 addendum: drag draws the line). No travel = a lone click: one that started on **EMPTY** is reverted (`deleteConnector` + `commitDragTransaction` — the stray-click guard); one on a **NODE** stays armed for the 2nd click. | `commitDragTransaction`; return to CURSOR (if `returnToCursor`) or reset to idle CONNECTOR. | [L227-272](../../packages/axoview-lib/src/interaction/modes/Connector.ts#L227-L272) |
 
-`returnToCursor` is set by the NodeActionBar "Add connection" path
-([NodeActionBar.tsx:106-133](../../packages/axoview-lib/src/components/NodeActionBar/NodeActionBar.tsx#L106-L133)),
+`returnToCursor` was set by the NodeActionBar "Add connection" path
+(`NodeActionBar.tsx:106-133`, removed 2026-06-25; the flag is now set by the LeftDock Connector tool — `LeftDock/CommonElements.tsx`),
 which **also** opens the drag-txn bracket so the create+drag collapses to one
 undo (MQA #5).
 
@@ -639,9 +645,9 @@ recovers the true origins above.
 - **What:** `SceneLayer` subscribes to `uiStateStore` and writes
   `transform: translate(...) scale(zoom)` **directly to the DOM ref**, never
   re-rendering React on pan/zoom ([SceneLayer.tsx:16-37](../../packages/axoview-lib/src/components/SceneLayer/SceneLayer.tsx#L16-L37)).
-  Two dependents copy the pattern: **NodeActionBar §8.8** counter-scales
-  `scale(1/zoom)` so the bar stays screen-pixel-stable
-  ([NodeActionBar.tsx:75-88](../../packages/axoview-lib/src/components/NodeActionBar/NodeActionBar.tsx#L75-L88));
+  Two dependents copied the pattern: **NodeActionBar §8.8** counter-scaled
+  `scale(1/zoom)` so the bar stayed screen-pixel-stable
+  (`NodeActionBar.tsx:75-88`, removed 2026-06-25; `ViewModeInfoPopover` still uses the pattern);
   **ExpandableLabel §8.9** publishes `--axoview-label-scale`
   (`computeLabelCounterScale`, [labelScale.ts](../../packages/axoview-lib/src/utils/labelScale.ts)).
 - **Commit:** wave A (`7a554ba`) for `SceneLayer`; §8.8/§8.9 layered later
@@ -893,7 +899,7 @@ entry per stack ([useSceneActions.ts:92-110](../../packages/axoview-lib/src/hook
 - **Connector drag-mode redo** (`1f823f8`, 2026-05-15). NodeActionBar
   "Add connection" created the connector **without** `beginDragTransaction`, so
   every tile crossed became its own entry. Fixed by opening the bracket in
-  `handleStartConnector` ([NodeActionBar.tsx:115-122](../../packages/axoview-lib/src/components/NodeActionBar/NodeActionBar.tsx#L115-L122)).
+  `handleStartConnector` (`NodeActionBar.tsx:115-122`, removed 2026-06-25).
 
 **D-7 — ✅ CONFIRMED LIVE BUG (2026-06-14): stack-depth SKEW re-creates the
 MQA #5 *symptom* class via a different mechanism.** On `commit`, if a store didn't actually change,

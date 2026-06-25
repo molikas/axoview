@@ -40,7 +40,7 @@ export const TextBoxControls = ({ id }: Props) => {
       const action = (e as CustomEvent<string>).detail;
       if (action === 'focusName') {
         requestAnimationFrame(() => {
-          nameRef.current?.focus();
+          nameRef.current?.focus({ preventScroll: true });
           nameRef.current?.select();
         });
       }

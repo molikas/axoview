@@ -24,8 +24,6 @@ import { HelpDialog } from '../HelpDialog/HelpDialog';
 import { SettingsDialog } from '../SettingsDialog/SettingsDialog';
 import { LazyLoadingWelcomeNotification } from '../LazyLoadingWelcomeNotification/LazyLoadingWelcomeNotification';
 import { NotificationSnackbar } from '../NotificationSnackbar/NotificationSnackbar';
-import { ViewTabs } from 'src/components/ViewTabs/ViewTabs';
-import { NodeActionBar } from 'src/components/NodeActionBar/NodeActionBar';
 import { CanvasContextMenu } from 'src/components/CanvasContextMenu/CanvasContextMenu';
 import { PreviewLayerSwitcher } from 'src/components/PreviewLayerSwitcher/PreviewLayerSwitcher';
 import { PreviewLabelsToggle } from 'src/components/PreviewLabelsToggle/PreviewLabelsToggle';
@@ -99,24 +97,18 @@ export const UiOverlay = ({
   const {
     uiStateActions,
     enableDebugTools,
-    mode,
     dialog,
-    itemControls,
     editorMode,
     iconPackManager,
-    rightSidebarOpen,
-    itemActionBarOpen
+    rightSidebarOpen
   } = useUiStateStore(
     (state) => ({
       uiStateActions: state.actions,
       enableDebugTools: state.enableDebugTools,
-      mode: state.mode,
       dialog: state.dialog,
-      itemControls: state.itemControls,
       editorMode: state.editorMode,
       iconPackManager: state.iconPackManager,
-      rightSidebarOpen: state.rightSidebarOpen,
-      itemActionBarOpen: state.itemActionBarOpen
+      rightSidebarOpen: state.rightSidebarOpen
     }),
     shallow
   );
@@ -195,23 +187,9 @@ export const UiOverlay = ({
           </Box>
         )}
 
-        {availableTools.includes('VIEW_TABS') && (
-          <Box
-            sx={{
-              position: 'absolute',
-              display: 'flex',
-              justifyContent: 'center',
-              transform: 'translateX(-50%)'
-            }}
-            style={{
-              left: rendererSize.width / 2,
-              top: rendererSize.height - appPadding.y * 2,
-              maxWidth: rendererSize.width - 300
-            }}
-          >
-            <ViewTabs />
-          </Box>
-        )}
+        {/* ViewTabs (page selector) lives in the BottomDock now (it used to
+            float centered above the canvas and blocked the view during
+            screenshots/presentation). */}
 
         {enableDebugTools && (
           <UiElement
@@ -307,26 +285,6 @@ export const UiOverlay = ({
       {iconPackManager && !suppressOnboardingHints && <LazyLoadingWelcomeNotification />}
 
       <NotificationSnackbar />
-
-      {/* Floating action bar — edit mode only, hidden while dragging.
-          Opened by right-click on an item (mqa-results.md #1); left-click
-          selection no longer auto-shows the bar.
-          B4 / decision #5: lives OUTSIDE the SceneLayer (screen-space), so it can
-          flip/clamp against the viewport and sit above the LeftDock stacking
-          context — same mechanism as ViewModeInfoPopover. It tracks the item via
-          a direct store subscription (scroll/zoom/rendererSize/activeLeftTab). */}
-      {editorMode === EditorModeEnum.EDITABLE &&
-        itemActionBarOpen &&
-        itemControls &&
-        itemControls.type !== 'ADD_ITEM' &&
-        itemControls.type !== 'CONNECTOR_ANCHOR' &&
-        mode.type !== 'DRAG_ITEMS' && (
-          <NodeActionBar
-            type={itemControls.type}
-            id={itemControls.id}
-            tile={itemControls.tile}
-          />
-        )}
 
       {/* Canvas context menu (ADR 0027) — portals to the document root, so it
           lives outside the SceneLayer. Edit mode only; self-gates on the

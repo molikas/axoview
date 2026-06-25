@@ -16,8 +16,8 @@ diagram) the text becomes **too small to read**.
 This is a **legibility** problem, confirmed with the user 2026-06-11 (the original report said
 "slow," which was a typo for "small" — there is no measured performance issue here, and none is
 being designed for). The node's interactive chrome already solves the analogous problem by
-**counter-scaling** to stay pixel-stable ([ux-principles §8.8](../ux-principles.md),
-[`NodeActionBar`](../../packages/axoview-lib/src/components/NodeActionBar/NodeActionBar.tsx)); the
+**counter-scaling** to stay pixel-stable ([ux-principles §8.8](../ux-principles.md), e.g.
+[`ViewModeInfoPopover`](../../packages/axoview-lib/src/components/ViewModeInfoPopover/ViewModeInfoPopover.tsx)); the
 name labels do not.
 
 ## Decision
@@ -53,7 +53,7 @@ zoomed-out overview.
 ## Implementation notes (non-binding)
 
 - Reuse the zoom-subscription / counter-scale pattern from
-  [`NodeActionBar`](../../packages/axoview-lib/src/components/NodeActionBar/NodeActionBar.tsx)
+  [`ViewModeInfoPopover`](../../packages/axoview-lib/src/components/ViewModeInfoPopover/ViewModeInfoPopover.tsx)
   (per [ux-principles §8.8](../ux-principles.md)): direct DOM ref subscribed to `uiState.zoom`,
   bypassing React render, applying `transform: scale(...)` to the label only.
 - Add the toggle (e.g. an "Aa" icon) to [`ZoomControls`](../../packages/axoview-lib/src/components/ZoomControls/ZoomControls.tsx),

@@ -1,5 +1,9 @@
 # Canvas Interaction Model — Pre-Refactor Baseline (Reference)
 
+> **⚠️ Later change (2026-06-25 shake-out):** the floating `NodeActionBar`
+> referenced below was **removed**; the right-click `CanvasContextMenu` (ADR 0027)
+> is now the sole per-item command surface. Those references are historical.
+
 > **Status:** Reference · **Owner:** molikas · **Created:** 2026-06-13
 > **Purpose:** Document the *current* canvas interaction model **before** the
 > Pointer-Events rewrite (ADR 0018 / `touch-pen-gesture-contract.md`), so the

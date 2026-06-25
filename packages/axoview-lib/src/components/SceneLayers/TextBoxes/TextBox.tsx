@@ -8,6 +8,7 @@ import { useIsoProjection } from 'src/hooks/useIsoProjection';
 import { useTextBoxProps } from 'src/hooks/useTextBoxProps';
 import { useSceneData } from 'src/hooks/useSceneData';
 import { useSceneActions } from 'src/hooks/useSceneActions';
+import { useInlineRename } from 'src/hooks/useInlineRename';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 
@@ -82,6 +83,13 @@ export const TextBox = memo(({ textBox }: Props) => {
     },
     [updateTextBox, textBox.id, textBox.content]
   );
+
+  const inlineRename = useInlineRename({
+    active: isEditing,
+    commit,
+    cancel: () => setIsEditing(false),
+    multiline: true
+  });
 
   const { strategy } = useCanvasMode();
   // 2D-Y orientation renders as a wide-and-short rectangle that
@@ -161,27 +169,9 @@ export const TextBox = memo(({ textBox }: Props) => {
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
             onDoubleClick={(e) => e.stopPropagation()}
-            onBlur={(e) => commit(e.currentTarget.innerText)}
-            onKeyDown={(e) => {
-              e.stopPropagation();
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                (e.currentTarget as HTMLElement).blur();
-              } else if (e.key === 'Escape') {
-                e.preventDefault();
-                setIsEditing(false);
-              }
-            }}
-            ref={(el) => {
-              if (el && document.activeElement !== el) {
-                el.focus();
-                const range = document.createRange();
-                range.selectNodeContents(el);
-                const sel = window.getSelection();
-                sel?.removeAllRanges();
-                sel?.addRange(range);
-              }
-            }}
+            onBlur={inlineRename.onBlur}
+            onKeyDown={inlineRename.onKeyDown}
+            ref={inlineRename.setRef}
             sx={{
               ...fontProps,
               outline: '1px solid rgba(0,0,0,0.3)',

@@ -184,6 +184,10 @@ This differs from §2.1 because:
 
 `:focus-within` is required so keyboard navigation through the icons still reveals them. Reference: ADR-0005 §5b.
 
+### 2.4 The context menu is the *sole* per-item command surface
+
+Right-click (desktop) or long-press (touch) on a node, connector, text box, or rectangle opens a single context menu — the catch-all home for every per-item command (ADR 0027). There is **no floating quick-action bar**: the old bar/menu/panel three-tier model collapsed to two in the 2026-06-25 shake-out — **menu = per-item commands · details panel = editing**. A single click/tap is **select-only** (it derives the panel target but mounts no surface; §4.4); double-click opens the editing panel. Don't reintroduce a selection-triggered floating toolbar — it duplicates the menu and competes with the move-is-drag model (§9.1). Reference: [`CanvasContextMenu.tsx`](../packages/axoview-lib/src/components/CanvasContextMenu/CanvasContextMenu.tsx).
+
 ---
 
 ## 3. Keyboard
@@ -198,6 +202,8 @@ When implementing F2:
 - `e.stopPropagation()` in the row's `onKeyDown` to prevent canvas-level F2 from also firing
 
 Reference: [`LayerItemRow.tsx`](../packages/axoview-lib/src/components/LayersPanel/LayerItemRow.tsx).
+
+**Canvas inline-rename commits on click-away, and the blur *cause* decides commit-vs-cancel** (ADR 0022 §4 / [`useInlineRename`](../packages/axoview-lib/src/hooks/useInlineRename.ts)): **Enter** or a **left-click away** commits; **Escape** or a **right-click away** cancels. A capture-phase `pointerdown` listener blurs the editor synchronously, *ahead* of the canvas deselect that would otherwise unmount it before `onBlur` could fire — so the edit is never silently lost on click-away.
 
 ### 3.2 Enter confirms, Escape cancels — in every dialog
 
@@ -237,7 +243,7 @@ Visual indicator for locked rows lives in [`LayerRow.tsx`](../packages/axoview-l
 
 ### 4.4 Multi-select gesture matrix
 
-Persistent canvas multi-selection lives in `uiState.selectedIds: ItemReference[]`. The right Properties panel is per-item — so `selectedIds.length === 1` keeps `itemControls` in sync and the panel opens; `0` or `> 1` closes it. Bulk editing isn't part of this contract.
+Persistent canvas multi-selection lives in `uiState.selectedIds: ItemReference[]`. The right Properties panel is per-item — so `selectedIds.length === 1` keeps `itemControls` in sync as the panel **target**, but a single click/tap is **select-only** and mounts no surface (the floating action bar was removed in the 2026-06-25 shake-out); the panel opens on explicit **double-click** (ADR 0022 §3 / ADR 0006 §7 addendum). `0` or `> 1` clears the target and closes it. Bulk editing isn't part of this contract.
 
 | Gesture | Outcome |
 |---|---|
@@ -461,7 +467,7 @@ If you need to set a child's height generically, target a class or component sel
 
 ### 8.8 Canvas-anchored chrome is screen-pixel-stable
 
-Floating chrome positioned in canvas-tile coordinates ([`NodeActionBar`](../packages/axoview-lib/src/components/NodeActionBar/NodeActionBar.tsx), future right-click menus) must counter-scale the `SceneLayer`'s `transform: scale(zoom)` so it stays at natural pixel size at every zoom level.
+Floating chrome positioned in canvas-tile coordinates ([`ViewModeInfoPopover`](../packages/axoview-lib/src/components/ViewModeInfoPopover/ViewModeInfoPopover.tsx) — anchored to the item's tile) must counter-scale the `SceneLayer`'s `transform: scale(zoom)` so it stays at natural pixel size at every zoom level. (The floating `NodeActionBar` that originally motivated this principle was removed in the 2026-06-25 shake-out; the screen-space `CanvasContextMenu` replaced it and needs no counter-scale.)
 
 Pattern:
 
@@ -505,7 +511,7 @@ View-only mode (`EXPLORABLE_READONLY`) is a *presentation* surface, not an editi
 
 [`PreviewLayerSwitcher`](../packages/axoview-lib/src/components/PreviewLayerSwitcher/PreviewLayerSwitcher.tsx) (ADR 0013) is the layer-control instance of the same idea:
 
-- **Placement & affordance:** a compact corner overlay (bottom-left, clear of `ViewTabs` and `ZoomControls`), semi-transparent at rest and full-opacity on hover (§2) — present but not obtrusive while presenting.
+- **Placement & affordance:** a compact corner overlay (top-left — reads more naturally in a presentation than bottom-left), semi-transparent at rest and full-opacity on hover (§2) — present but not obtrusive while presenting.
 - **Ephemeral, never destructive:** presentation controls apply a **UI-only override** (`uiState.previewLayerOverrides`), never mutating saved model state (`layer.visible`) and never dirtying/saving. The override clears on leaving preview or switching view. When a view-mode control mirrors an edit-mode one, keep the merge in **one** place (here, `LayerContextProvider`) with a documented precedence so the two visibility sources can't desync.
 - **Gated to where it's useful:** shown only in view mode and only when there's a real choice (≥2 layers).
 
@@ -537,7 +543,7 @@ There is no touch tool-palette and no tap-to-place. At touch-down the gesture ma
 
 ### 9.2 Long-press is a *contextual reveal*, and it fires during the hold
 
-Hold on a node → its floating action bar opens **while the finger is still down** (≈450 ms), so the user sees the result and then lifts naturally — never "lift, wait, menu appears." Hold on empty then drag → a one-shot marquee lasso, inferred from the gesture so the user never has to switch to the lasso tool first. Any movement past tap-slop cancels a pending hold (it was a drag, not a press).
+Hold on a node → its **context menu** opens **while the finger is still down** (≈450 ms; ADR 0027 §2 — the per-item command surface that replaced the removed floating action bar), so the user sees the result and then lifts naturally — never "lift, wait, menu appears." Hold on empty then drag → a one-shot marquee lasso, inferred from the gesture so the user never has to switch to the lasso tool first. Any movement past tap-slop cancels a pending hold (it was a drag, not a press).
 
 ### 9.3 Affordances appear only when the gesture is live
 
@@ -569,7 +575,7 @@ When building parallel surfaces, **read these first**:
 | Inline canvas rename | [`Node.tsx`](../packages/axoview-lib/src/components/SceneLayers/Nodes/Node/Node.tsx) (search `inlineEditNodeName`) |
 | Theme-driven typography contract | [`theme.ts`](../packages/axoview-lib/src/styles/theme.ts) — see §1.5 |
 | Standard search input (panel-level) | [`Searchbox.tsx`](../packages/axoview-lib/src/components/ItemControls/IconSelectionControls/Searchbox.tsx) |
-| Counter-scaled canvas-anchored chrome | [`NodeActionBar.tsx`](../packages/axoview-lib/src/components/NodeActionBar/NodeActionBar.tsx) — see §8.8 |
+| Counter-scaled canvas-anchored chrome | [`ViewModeInfoPopover.tsx`](../packages/axoview-lib/src/components/ViewModeInfoPopover/ViewModeInfoPopover.tsx) — see §8.8 |
 | Quiet mode banner | [`SessionModeBanner.tsx`](../packages/axoview-app/src/components/SessionModeBanner.tsx) — see §8.5 |
 | Validation surfacing | [`useInitialDataManager.ts`](../packages/axoview-lib/src/hooks/useInitialDataManager.ts) — see §6.3 |
 

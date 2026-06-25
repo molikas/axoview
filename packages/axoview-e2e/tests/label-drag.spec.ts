@@ -63,11 +63,10 @@ async function placeAndSelectNamedNode(page: Page): Promise<string> {
       it.id === item.id ? { ...it, name: it.name || 'Drag Me' } : it
     );
     st.actions.set({ items });
-    // Select (single) without opening the action bar so it can't overlap the
-    // label. The reposition gesture gates on itemControls only.
+    // Select (single) without opening the Properties panel. The reposition
+    // gesture gates on itemControls only.
     ui.actions.setMode({ type: 'CURSOR', showCursor: true, mousedownItem: null });
     ui.actions.setItemControls({ type: 'ITEM', id: item.id }, { openPanel: false });
-    ui.actions.setItemActionBarOpen(false);
     return item.id as string;
   });
 }

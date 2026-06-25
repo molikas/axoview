@@ -23,8 +23,13 @@ import {
   AddBoxOutlined as AddItemIcon,
   SelectAllOutlined as SelectAllIcon,
   ChevronRight as ChevronRightIcon,
-  Check as CheckIcon
+  Check as CheckIcon,
+  StickyNote2Outlined as AddNoteIcon
 } from '@mui/icons-material';
+import {
+  dispatch as dispatchPanelEvent,
+  ItemType
+} from 'src/components/NodeActionBar/NodeActionBar.helpers';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useTranslation } from 'src/stores/localeStore';
 import { useScene } from 'src/hooks/useScene';
@@ -57,11 +62,11 @@ const INLINE_RENAMEABLE = new Set(['ITEM', 'TEXTBOX', 'CONNECTOR']);
 /**
  * Canvas context menu (ADR 0027) — the per-item / empty-canvas command surface.
  *
- * Division of labor (ADR 0027 §4): the NodeActionBar carries the 3–4 quick
- * actions on selection; THIS menu is the full catalogue on right-tap /
- * long-press; the details panel is for editing. No command is reachable only
- * via a removed gesture — everything here is also reachable elsewhere (the bar,
- * the panel, or a hotkey).
+ * Division of labor (ADR 0027 §4, 2026-06-25 addendum): this menu is now the
+ * SOLE per-item command surface — the floating NodeActionBar was removed, so the
+ * three-tier model collapsed to two: menu = per-item commands (right-tap /
+ * long-press), details panel = editing. No command is reachable only via a
+ * removed gesture — everything here also has a panel or hotkey route.
  *
  * Rendered via MUI Menu → portals to the document root, so it is screen-pixel
  * stable at any zoom (UX §8.8 — no counter-scale needed). Self-gates on the
@@ -80,7 +85,7 @@ export const CanvasContextMenu = () => {
   const { assignLayerToItems } = useLayerActions();
   const { handleCopy, handleCut, handlePaste } = useCopyPaste();
 
-  // Layer-assign flyout anchor (a secondary Menu, like NodeActionBar).
+  // Layer-assign flyout anchor (a secondary, nested MUI Menu).
   const [layerAnchor, setLayerAnchor] = useState<HTMLElement | null>(null);
 
   const close = useCallback(() => {
@@ -110,6 +115,16 @@ export const CanvasContextMenu = () => {
       new CustomEvent('inlineEditNodeName', { detail: { id: target.id } })
     );
   }, [target]);
+
+  const handleAddNote = useCallback(() => {
+    if (!target) return;
+    // Open the details panel, then (one frame later, once the freshly-mounted
+    // controls have attached their panel-event listener) switch to the Notes tab.
+    actions.setItemControls({ type: target.type, id: target.id });
+    requestAnimationFrame(() =>
+      dispatchPanelEvent(target.type as ItemType, 'focusNotes')
+    );
+  }, [actions, target]);
 
   const handleDelete = useCallback(() => {
     if (!target) return;
@@ -253,6 +268,9 @@ export const CanvasContextMenu = () => {
   const isUnsnapped = offGridTarget?.snap === false;
   const collidesNow = offGridTarget ? itemCollides(offGridTarget) : true;
   const canRename = !!target && INLINE_RENAMEABLE.has(target.type);
+  // Only nodes (ITEM) and connectors carry a `notes` field / Notes tab.
+  const canAddNote =
+    !!target && (target.type === 'ITEM' || target.type === 'CONNECTOR');
   const multiCount = countUserFacingRefs(selectedIds);
 
   // D1 — pluralise the count rows through i18n: pick the singular/plural key by
@@ -299,6 +317,14 @@ export const CanvasContextMenu = () => {
                   </ListItemIcon>
                   <ListItemText>{t('rename')}</ListItemText>
                   <Hint>F2</Hint>
+                </MenuItem>
+              ),
+              canAddNote && (
+                <MenuItem key="addNote" onClick={run(handleAddNote)}>
+                  <ListItemIcon>
+                    <AddNoteIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{t('addNote')}</ListItemText>
                 </MenuItem>
               ),
               <Divider key="d1" />,
@@ -518,7 +544,7 @@ export const CanvasContextMenu = () => {
             ]}
       </Menu>
 
-      {/* Layer-assign flyout — mirrors NodeActionBar's pattern. */}
+      {/* Layer-assign flyout — a secondary MUI Menu nested in the context menu. */}
       <Menu
         anchorEl={layerAnchor}
         open={!!layerAnchor}

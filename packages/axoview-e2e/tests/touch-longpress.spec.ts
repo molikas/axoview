@@ -1,9 +1,8 @@
 /**
  * touch-longpress.spec — ADR 0018 long-press gestures (reconciled with ADR 0027).
  *   - Hold on a node → its CANVAS CONTEXT MENU opens DURING the hold. ADR 0027 §2
- *     reassigned long-press from the action bar to the context menu (the bar now
- *     opens on tap-select); the press still selects the item so the menu's
- *     clipboard/delete commands act on it.
+ *     routes long-press to the context menu; the press still selects the item so
+ *     the menu's clipboard/delete commands act on it.
  *   - Hold on empty canvas, then drag → marquee lasso select (no tool switch).
  */
 import { canvasReadyTest as test, expect } from '../fixtures/app.fixture';
@@ -18,11 +17,6 @@ const nodeTile = (page: import('@playwright/test').Page) =>
     const views = (window as any).__axoview__.model.getState().views;
     return (views.find((x: any) => x.id === v) ?? views[0]).items[0].tile;
   });
-
-const actionBarOpen = (page: import('@playwright/test').Page) =>
-  page.evaluate(
-    () => (window as any).__axoview__.ui.getState().itemActionBarOpen === true
-  );
 
 const contextMenuOpen = (page: import('@playwright/test').Page) =>
   page.evaluate(
@@ -48,12 +42,11 @@ test.describe('Touch — long-press gestures', () => {
 
     await touch.hold(await touch.tilePoint(await nodeTile(page)), 600);
 
-    // ADR 0027 §2: long-press on an item opens the context menu (not the action
-    // bar) and selects the item so the menu's commands target it.
+    // ADR 0027 §2: long-press on an item opens the context menu and selects the
+    // item so the menu's commands target it.
     await expect
       .poll(() => contextMenuOpen(page), { timeout: 3_000 })
       .toBe(true);
-    expect(await actionBarOpen(page)).toBe(false);
     await expect
       .poll(async () => (await selectedIds(page)).length, { timeout: 3_000 })
       .toBeGreaterThan(0);
@@ -84,9 +77,8 @@ test.describe('Touch — long-press gestures', () => {
 
     // Genuine marquee select — the drag past slop cancels the pending hold, so
     // the long-press item/canvas context menu never opens; the marquee just
-    // selects the enclosed node. (The action bar legitimately follows a single
-    // selection, so it is not the discriminator here — the absence of a context
-    // menu is.)
+    // selects the enclosed node. The absence of a context menu is the
+    // discriminator.
     expect(await contextMenuOpen(page)).toBe(false);
     await expect
       .poll(async () => (await selectedIds(page)).length, { timeout: 5_000 })

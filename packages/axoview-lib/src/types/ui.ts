@@ -263,12 +263,6 @@ export interface UiState {
   /** true when the right sidebar was opened automatically by node selection (not manually pinned) */
   rightSidebarAutoOpened: boolean;
   /**
-   * Floating NodeActionBar visibility. The bar is opened by an explicit
-   * right-click on an item (mqa-results.md #1), not by every left-click
-   * selection. Cleared whenever the selection changes or is dismissed.
-   */
-  itemActionBarOpen: boolean;
-  /**
    * Canvas context menu (ADR 0027) — the per-item / empty-canvas command
    * surface. `null` = closed. Opened by a right-click TAP (mouse) or a touch
    * long-press; right-DRAG pans instead (ADR 0022 §1). `target` is the item the
@@ -468,7 +462,6 @@ export interface UiStateActions {
   setNotification: (notification: Notification | null) => void;
   setActiveLeftTab: (tab: 'ELEMENTS' | 'LAYERS' | null) => void;
   setRightSidebarOpen: (open: boolean) => void;
-  setItemActionBarOpen: (open: boolean) => void;
   /** Open the canvas context menu (ADR 0027). */
   openContextMenu: (menu: ContextMenuState) => void;
   /** Close the canvas context menu. */

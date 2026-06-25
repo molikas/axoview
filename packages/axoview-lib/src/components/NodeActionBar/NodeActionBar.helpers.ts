@@ -1,6 +1,8 @@
-// Pure, render-independent helpers for NodeActionBar. Extracted to a sibling
-// module so they can be unit-tested without dragging in MUI and the ~15 hooks
-// the component depends on. No behavior change — NodeActionBar imports these.
+// Pure, render-independent helpers for the item panel-event channel. Originally
+// extracted from the (now-removed) NodeActionBar; still the canonical home for
+// the panel-event dispatch + the notes-visibility check, used by the canvas
+// context menu's "Add note" command, the per-type ItemControls listeners, and
+// ViewModeInfoPopover. Unit-tested without dragging in MUI.
 
 export type ItemType = 'ITEM' | 'CONNECTOR' | 'TEXTBOX' | 'RECTANGLE';
 

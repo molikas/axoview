@@ -53,8 +53,7 @@ Scope changes:
 
 Positioning follows [ux-principles §8.8](../ux-principles.md): an MUI `Popover` renders via
 Portal at the document root, so it is already screen-pixel-stable; it anchors to the item's DOM
-node (the same anchor [`NodeActionBar`](../../packages/axoview-lib/src/components/NodeActionBar/NodeActionBar.tsx)
-uses).
+node (the canvas-anchored-chrome anchor pattern per [ux-principles §8.8](../ux-principles.md)).
 
 **Placement (revised 2026-06-12 — shake-out):** the popover is **side-anchored** — to the right of
 the item, vertically centered — so it never occludes the item or its top-mounted name caption (the

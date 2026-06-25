@@ -3,7 +3,14 @@
 **Status:** Accepted (shipped 2026-06-14)
 **Date:** 2026-06-13
 **Supersedes:** none
-**Superseded by:** none
+**Superseded by:** the per-item **command surface** for long-press is now the context menu — see [ADR 0027](0027-canvas-context-menu.md) (2026-06-25 addendum). The gesture mechanics below (timer-based, opens *during* the hold, tap-slop cancel, `pointerType` branch) are unchanged.
+
+> **Shake-out supersession (2026-06-25) — long-press opens the context menu, not the NodeActionBar.**
+> The floating `NodeActionBar` was **removed** in the 2026-06-25 shake-out (see [ADR 0027](0027-canvas-context-menu.md)
+> addendum). Wherever this ADR says long-press / the timer "opens the NodeActionBar," read **opens the
+> per-item context menu** ([ADR 0027](0027-canvas-context-menu.md)) — the same hold mechanics, a different
+> (and now sole) command surface. The D-6 "Properties-panel route on touch" requirement is satisfied by the
+> menu's **Details…** item. Inline references below are corrected in place; the gesture model is otherwise intact.
 
 > **Implementation deviation (2026-06-14) — listener surface is `window`, not
 > `rendererEl`.** Resolved decision (3) bound the pointer listeners to the
@@ -94,10 +101,11 @@ boundaries. This mirrors `AnnotationLayer`'s already-shipped approach.
 >
 > There is no `CARRY_ITEM` mode and no tap‑to‑place. **Long‑press is no longer
 > overloaded** (move is a drag, not a hold): the OS `contextmenu` from a
-> long‑press opens the per‑item **NodeActionBar** for the pressed node — reliable
+> long‑press opens the per‑item **context menu** ([ADR 0027](0027-canvas-context-menu.md); originally the
+> NodeActionBar, removed 2026-06-25) for the pressed node — reliable
 > now because the touch pointerdown seeds `uiState.mouse.position`. That also
 > closes the earlier D‑6 gap (delete / z‑order are reachable on touch via the
-> long‑press action bar). Decisions 3, 4 and 6 below are **superseded** by this
+> long‑press menu). Decisions 3, 4 and 6 below are **superseded** by this
 > revision; the foundation (Pointer Events, `pointerType` branch, px tap‑vs‑pan
 > threshold, guardrails, pinch) is unchanged.
 
@@ -105,7 +113,8 @@ boundaries. This mirrors `AnnotationLayer`'s already-shipped approach.
 > direct-manipulation model above shipped with these refinements; they are the
 > authoritative description of long-press and panel placement:
 > - **Long-press is timer-based and opens *during* the hold.** A ≈450 ms timer
->   (`LONG_PRESS_MS`) — not the OS `contextmenu` event — opens the NodeActionBar
+>   (`LONG_PRESS_MS`) — not the OS `contextmenu` event — opens the context menu
+>   ([ADR 0027](0027-canvas-context-menu.md); originally the NodeActionBar, removed 2026-06-25)
 >   for the pressed node while the finger is still down, so it appears before the
 >   lift. The OS `contextmenu` is gated to `pointerType==='mouse'` (mouse keeps the
 >   immediate right-click path; touch uses the timer). Any move past `TAP_SLOP_PX`
@@ -120,9 +129,9 @@ boundaries. This mirrors `AnnotationLayer`'s already-shipped approach.
 >   initial tap — then tracks the finger to the target tile.
 > - **Window-bound `contextmenu` is renderer-scoped.** Because the listeners bind
 >   to `window` (see the top-of-file deviation note), both `preventDefault()` and
->   the action-bar reaction are gated on `rendererEl.contains(e.target)`, so an
+>   the context-menu reaction are gated on `rendererEl.contains(e.target)`, so an
 >   off-canvas right-click keeps its native menu (text-input Cut/Copy/Paste, the
->   file-explorer tree) and never opens a canvas item's action bar for a stale tile.
+>   file-explorer tree) and never opens a canvas item's context menu for a stale tile.
 
 ### 2. Branch on `pointerType` — do **not** replace the desktop model
 
@@ -327,13 +336,20 @@ The questions surfaced 2026-06-13 by the pre-rewrite mapping
 **resolved by the ADR owner.** These bind the implementation; the execution
 sequence is in the [tactical plan](../tactical/touch-pen-gesture-contract.md).
 
-1. **D-6 — Per-item actions on touch route through the Properties panel.** The
+1. **D-6 — Per-item actions on touch route through the Properties panel.**
+   *(Superseded twice: by the 2026-06-14 (B) revision, which gave touch long-press the
+   per-item command surface directly; then by the 2026-06-25 shake-out, which removed the
+   floating NodeActionBar entirely and made the **context menu** the sole per-item surface on
+   **both** input types — right-click on desktop, long-press on touch (see the top banner and
+   [ADR 0027](0027-canvas-context-menu.md)). The "Properties-panel route on touch" requirement
+   below is satisfied by the menu's **Details…** item, so the desktop/touch split no longer
+   applies.)* The original decision read: the
    floating NodeActionBar stays **desktop / right-click-only**; tap-on-selected
    remains GRAB (Decision 4, unchanged). On touch, the per-item actions
    (delete, assign-layer, start-connector, z-order, edit name/style/notes/link)
    are reached through the right-hand **Properties panel**, which already opens on
    selection. No new gesture, no new canvas chrome. Implementation must confirm
-   every NodeActionBar action has a Properties-panel route on touch and file a
+   every per-item action has a menu/panel route on touch and file a
    follow-up for any that don't.
 
 2. **D-2 — "Node stays at origin" is scoped to the CSS-preview node carry only.**

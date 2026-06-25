@@ -30,7 +30,7 @@ selectedIds: ItemReference[];   // persistent multi-selection on the canvas
 
 **Invariant:** when `selectedIds.length === 1`, `itemControls` mirrors that single item. When the length is 0 or > 1, `itemControls` is `null`. The store actions enforce this in both directions — callers that already use `setItemControls` (e.g. layer-row clicks) keep working; multi-select callers go through `setSelectedIds` / `toggleSelected` / `clearSelection`.
 
-This means the panel-mounting code, the rename helpers, the F2 binding, NodeActionBar, and every existing consumer of `itemControls` is **unchanged**. Only multi-select-aware code reads `selectedIds`.
+This means the panel-mounting code, the rename helpers, the F2 binding, and every existing consumer of `itemControls` is **unchanged**. Only multi-select-aware code reads `selectedIds`. *(The floating NodeActionBar was also an `itemControls` consumer at adoption time; it was removed in the 2026-06-25 shake-out — see [ADR 0027](0027-canvas-context-menu.md) addendum — without affecting this invariant.)*
 
 ### 2. Gesture matrix
 
@@ -82,7 +82,7 @@ New acceptance criteria: lasso through the middle of a long rectangle / over a t
 
 ### Positive
 
-- Existing single-item consumers (NodePanel, ConnectorControls, RectangleControls, TextBoxControls, NodeActionBar, two-way layer-row sync) need **zero changes**. The contract is additive.
+- Existing single-item consumers (NodePanel, ConnectorControls, RectangleControls, TextBoxControls, two-way layer-row sync) need **zero changes**. The contract is additive.
 - Lasso modes become a richer producer (they mirror into `selectedIds`), but the lasso *modes themselves* are unchanged — same in-mode visuals, same drag-from-selection behaviour.
 - Bulk delete works uniformly: the keyboard handler now has one path for "many items selected" regardless of whether they came from Ctrl+click, Ctrl+A, or a finished lasso.
 - The auto-hide rule for the panel is a pure derivation. There's no "should panel close?" decision scattered across call sites.
