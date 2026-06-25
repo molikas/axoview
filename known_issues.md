@@ -230,7 +230,6 @@ The program-end perf gate ([ADR 0020](docs/adr/0020-engine-perf-harness-and-meas
 **Workaround:** Edit large diagrams on AC power (on-power pan has no freezes); lower zoom / fewer on-screen nodes reduces the per-frame cost.
 
 **Status:** Open, deferred — explicitly parked 2026-06-24 in favour of shipping the verified burst fix. The cheap lever (caching per-node string normalisation) will **not** move it: the committed drag CPU profiles ([perf-results/dragprofile-*.md](perf-results/)) show ~0 self-time there. The real cost is the canvas draw calls themselves, so a genuine fix means one of: **(a)** a dirty-region / layered-canvas redraw (only repaint the changed region), or **(b)** a sync-on-small / async-on-large hybrid — which directly risks reintroducing the #54 trailing rubber-band on exactly the large scenes that exhibit the symptom. Two guards must land **before** attempting (a)/(b): the existing #54 guard ([NodesCanvas.scrollSync.test.tsx](packages/axoview-lib/src/components/SceneLayers/Nodes/__tests__/NodesCanvas.scrollSync.test.tsx)) renders `nodes={[]}`, so a node-count gate would keep it green while silently regressing real scenes (a false-safe — add a large-N variant); and there is **no pan scenario** in the perf harness ([engine-perf.spec.ts](packages/axoview-e2e/perf/engine-perf.spec.ts)), so this floor is unmeasured by CI (add a `measurePan` scenario).
-
 ## Image export drops connectors in ISOMETRIC view (2D export is fine)
 
 **Symptom:** Exporting a diagram as an image (PNG/SVG) omits all **connectors** when the
