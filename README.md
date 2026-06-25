@@ -21,13 +21,13 @@ Source and issue tracker: [github.com/molikas/axoview](https://github.com/molika
 - **Delete key** — `Delete` or `Backspace` removes selected items.
 - **Undo/redo** — Full multi-step history for all canvas changes.
 - **Multi-view diagrams** — Multiple named views (tabs) within a single file, each an independent canvas.
-- **Inline rename on canvas** — `F2` with a node or text-box selected, or double-click on its label, enters inline-edit on the canvas itself (not the side-panel input). Auto-grows rightward and wraps at maxWidth. Enter / blur commits, Escape cancels.
+- **Inline rename on canvas** — `F2` with a node or text-box selected, or double-click on its label, enters inline-edit on the canvas itself (not the side-panel input). Auto-grows rightward and wraps at maxWidth. Enter or clicking away (left-click) commits; Escape or right-click-away cancels.
 
 ### Nodes and text
 
 - **Node panel — Details / Style / Notes tabs** — Selecting a node opens the right Properties panel with three tabs. *Details*: name, caption (short text shown on the canvas below the node name), and optional link. *Style*: icon picker, icon size, label font/color/height. *Notes*: full-height rich-text editor for private documentation — never shown on the canvas itself.
 - **Caption vs Notes** — "Caption" is canvas-visible text (subtitle under the node name). "Notes" is hidden documentation only accessible in the panel. Both fields are rich-text (Quill), stored separately in the model.
-- **Floating action bar** — When a node is selected in edit mode a compact pill bar appears above the node on the canvas with seven icon buttons: Style, Edit name, Edit/Add link, Edit/Add notes, **Start connector** (draws a new connector from this node and returns to cursor after connecting), Delete. The bar is polymorphic — connectors, text boxes, and rectangles get the same affordance (Style / Edit name / Notes / Delete) anchored above the click point.
+- **Right-click / long-press context menu** — Right-clicking a node, connector, text box, or rectangle in edit mode (or long-pressing on touch) opens a context menu — the single per-item command surface. Items include Details, Rename (F2-able types), **Add note**, Cut, Copy, Paste, Duplicate, Assign to layer (flyout), Bring forward / Send back, and Delete. (Replaces the earlier floating action bar, removed in the 2026-06-25 shake-out; see [ADR 0027](docs/adr/0027-canvas-context-menu.md).)
 - **Connector parity with nodes** — Connectors are first-class peers: `name`, `notes`, optional `headerLink`, and a synthetic name label drawn at the midpoint of the line. F2 inline-renames the connector on the canvas; the name label becomes a clickable link when a URL is set. Connector controls panel mirrors the node panel exactly — Details / Style / Notes tabs.
 - **Name field for text boxes and rectangles** — Both gain an optional name shown in the layers panel and rename-able via F2 in the layers tree.
 - **Note indicator dot** — Nodes with non-empty Notes show a small blue dot at the top-right of their icon on the canvas.
@@ -54,7 +54,7 @@ Source and issue tracker: [github.com/molikas/axoview](https://github.com/molika
 ### Touch & pen
 
 - **Direct-manipulation touch & pen** — Full touchscreen / stylus support built on Pointer Events (no mouse emulation). Disambiguated by what's under the finger at touch-down (Figma / Miro model): tap a node selects it, tap empty clears; one-finger drag on a node moves it (drag a connector endpoint to reconnect); one-finger drag on empty canvas pans; two-finger pinch zooms and pans together. The mouse/desktop path is unchanged. See [ADR 0018](docs/adr/0018-touch-pen-gesture-contract.md).
-- **Long-press gestures** — Hold on a node to open its floating action bar (the context-menu equivalent) — it appears **during** the hold, before you lift. Hold on empty canvas then drag to start a marquee lasso without first switching to the lasso tool.
+- **Long-press gestures** — Hold on a node to open its **context menu** — it appears **during** the hold, before you lift. Hold on empty canvas then drag to start a marquee lasso without first switching to the lasso tool.
 - **Drag from the Elements panel** — Press an icon in the Elements panel and drag it onto the canvas to place a node where you lift. A preview ghost follows your finger during the drag (it stays hidden until the drag actually starts, so nothing appears prematurely on tap).
 - **Tool modes own the touch drag** — In lasso, freehand-lasso, rectangle, connector, or text-box modes a one-finger drag drives the tool (marquee, freehand path, draw, connect) instead of panning. Transform handles resize on touch.
 
@@ -184,7 +184,7 @@ For local development without Docker, or for Cloudflare deploys, see [docs/deplo
 - [docs/architecture.md](docs/architecture.md) — feature inventory, store/reducer/mode architecture, test audit, gap analysis.
 - [docs/deployment.md](docs/deployment.md) — local / Docker / Cloudflare deploy walkthroughs.
 - [docs/testing.md](docs/testing.md) — regression suite reference (~1009 tests across 93 jest suites; Playwright E2E in `packages/axoview-e2e/`).
-- [docs/adr/](docs/adr/) — architectural decision records (10 ADRs covering project zip format, icon catalog merge, lean save, connector parity, toolbar/dock contract, canvas selection, naming convention, deployment topology, session backend contract, error UX contract).
+- [docs/adr/](docs/adr/) — architectural decision records (ADRs 0001–0029: project/storage formats, canvas selection & pointer-interaction model, the context-menu per-item surface, touch/pen gesture contract, rendering & perf harness, deployment & session backend, error & UX contracts, and more).
 - [PLAN.md](PLAN.md) — strategic phased roadmap (Phases 0A → 4A).
 - [CHANGELOG.md](CHANGELOG.md) — fork-only changelog (Keep a Changelog format).
 - [docs/upstream-changelog.md](docs/upstream-changelog.md) — pre-fork upstream history (preserved for traceability).

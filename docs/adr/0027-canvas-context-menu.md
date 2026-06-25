@@ -42,11 +42,11 @@ The tap-vs-drag split reuses the existing `rightDownRef` + `RIGHT_DRAG_THRESHOLD
 
 | Surface | Trigger | Contents |
 |---|---|---|
-| `NodeActionBar` | selection (single-click / tap) | the 3–4 most-frequent quick actions (edit name, style, notes, delete) |
-| **Context menu** | right-tap / long-press | the **full** command list, including the rare ones (unsnap, collision, z-order, layer assign) |
+| ~~`NodeActionBar`~~ | ~~selection (single-click / tap)~~ | ~~the 3–4 most-frequent quick actions~~ — **removed 2026-06-25 (see addendum below); no bar tier** |
+| **Context menu** | right-tap / long-press | the **full** command list, including the rare ones (unsnap, collision, z-order, layer assign) — now the **sole** per-item command surface |
 | Details panel | double-click | full editing (tabs: Details / Style / Notes) |
 
-**Invariant:** no command is reachable *only* via a removed gesture. The context menu is the catch-all home; the action bar is a curated shortcut subset; the panel is for editing. A command that lives in the bar must also live in the menu.
+**Invariant:** no command is reachable *only* via a removed gesture. The context menu is the catch-all home; the panel is for editing. *(Pre-shake-out this also read "the action bar is a curated shortcut subset; a command that lives in the bar must also live in the menu" — the bar tier was removed 2026-06-25, so that clause no longer applies; see the addendum below.)*
 
 ## Consequences
 

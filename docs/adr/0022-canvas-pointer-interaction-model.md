@@ -37,7 +37,11 @@ The user also asked to **remove the canvas-interaction customization surface and
 | Ctrl/⌘+click | Toggle multi-selection (ADR 0006, unchanged). |
 | Alt+click a connector waypoint | Remove the waypoint — **without** requiring the connector to be selected first (relax `handleSelectedConnectorMousedown`). |
 
-### 2. Action bar opens on selection
+### 2. Action bar opens on selection — SUPERSEDED (shake-out 2026-06-25, see addendum)
+
+> **Superseded:** the floating action bar was **removed** in the 2026-06-25 shake-out. Single-click/tap is now
+> select-only and mounts no surface; the sole per-item command surface is the context menu ([ADR 0027](0027-canvas-context-menu.md)).
+> Division of labor collapsed from three tiers to two: menu = per-item commands · panel = editing. The original §2 read:
 
 The floating `NodeActionBar` is opened by **selection** (single-click / tap), not by right-click. It carries the 3–4 most-frequent quick actions; the **full** command list lives in the context menu ([ADR 0027](0027-canvas-context-menu.md)), and full editing in the details panel. Division of labor — bar = curated shortcuts · menu = catch-all · panel = editing — is the [ADR 0027 §4](0027-canvas-context-menu.md) invariant: **no command is reachable only via a removed gesture.**
 
@@ -107,7 +111,7 @@ What this change makes **redundant**, **contradicts**, or **orphans**, and how e
 ## Addendum — 2026-06-25 (action bar removed; inline-rename commit contract)
 
 **Floating action bar removed (shake-out #3).** The "Select only — highlight + open
-the floating action bar" outcome in §1 / §3 / the touch table is now **select-only,
+the floating action bar" outcome in §1 / §2 / §3 / the touch table is now **select-only,
 mounts no surface**: a single left-click/tap derives the panel TARGET (`itemControls`)
 for F2 / delete / double-click but opens neither the (now-deleted) bar nor the
 Properties dock. The per-item command surface is the context menu ([ADR 0027](0027-canvas-context-menu.md))

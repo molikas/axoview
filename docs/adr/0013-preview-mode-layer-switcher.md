@@ -28,7 +28,7 @@ only when `currentView.layers.length > 0`.
 
 - **Position:** ~~bottom-left corner~~ **top-left corner** (revised 2026-06-12 — shake-out: a
   presenter reads a layer control as top-left chrome more naturally than bottom-left). Still clear
-  of `ViewTabs` (bottom-center) and `ZoomControls` (bottom-right).
+  of the BottomDock (the bottom bar holds the page selector and zoom controls now).
 - **Behavior:** per-layer **visibility toggles** (matching the existing additive model — multiple
   layers can be on at once) plus a per-layer **"solo"** action (show only this layer).
 - **Affordance:** semi-transparent at rest, full opacity on hover (presentation-friendly, per

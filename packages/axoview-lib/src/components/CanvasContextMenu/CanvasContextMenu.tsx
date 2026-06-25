@@ -62,11 +62,11 @@ const INLINE_RENAMEABLE = new Set(['ITEM', 'TEXTBOX', 'CONNECTOR']);
 /**
  * Canvas context menu (ADR 0027) — the per-item / empty-canvas command surface.
  *
- * Division of labor (ADR 0027 §4): the NodeActionBar carries the 3–4 quick
- * actions on selection; THIS menu is the full catalogue on right-tap /
- * long-press; the details panel is for editing. No command is reachable only
- * via a removed gesture — everything here is also reachable elsewhere (the bar,
- * the panel, or a hotkey).
+ * Division of labor (ADR 0027 §4, 2026-06-25 addendum): this menu is now the
+ * SOLE per-item command surface — the floating NodeActionBar was removed, so the
+ * three-tier model collapsed to two: menu = per-item commands (right-tap /
+ * long-press), details panel = editing. No command is reachable only via a
+ * removed gesture — everything here also has a panel or hotkey route.
  *
  * Rendered via MUI Menu → portals to the document root, so it is screen-pixel
  * stable at any zoom (UX §8.8 — no counter-scale needed). Self-gates on the
@@ -85,7 +85,7 @@ export const CanvasContextMenu = () => {
   const { assignLayerToItems } = useLayerActions();
   const { handleCopy, handleCut, handlePaste } = useCopyPaste();
 
-  // Layer-assign flyout anchor (a secondary Menu, like NodeActionBar).
+  // Layer-assign flyout anchor (a secondary, nested MUI Menu).
   const [layerAnchor, setLayerAnchor] = useState<HTMLElement | null>(null);
 
   const close = useCallback(() => {
@@ -544,7 +544,7 @@ export const CanvasContextMenu = () => {
             ]}
       </Menu>
 
-      {/* Layer-assign flyout — mirrors NodeActionBar's pattern. */}
+      {/* Layer-assign flyout — a secondary MUI Menu nested in the context menu. */}
       <Menu
         anchorEl={layerAnchor}
         open={!!layerAnchor}
