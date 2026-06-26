@@ -36,12 +36,14 @@ export function AppToolbar() {
     isReadonlyUrl,
     currentDiagram,
     setSidebarTogglePortalTarget,
+    setStyleControlsPortalTarget,
     handleSaveClick,
     handlePreviewClick
   } = useDiagramLifecycle();
 
   const shareButtonRef = useRef<HTMLButtonElement>(null);
   const [sidebarPortalSet, setSidebarPortalSet] = useState(false);
+  const [stylePortalSet, setStylePortalSet] = useState(false);
   const [showSharePopover, setShowSharePopover] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
@@ -193,7 +195,21 @@ export function AppToolbar() {
           </Stack>
         ) : (
           <>
-            {/* Group 1: View modes — reserved per ADR 0005, future ADRs add controls here */}
+            {/* Group 1: View modes / Format (ADR 0005 reserved slot). Style
+                controls strip — portal filled by the lib's UiOverlay (which has
+                the selection store + scene actions in scope). Controls self-gate
+                on the current selection. */}
+            <Box
+              ref={(el: HTMLDivElement | null) => {
+                if (el && !stylePortalSet) {
+                  setStylePortalSet(true);
+                  setStyleControlsPortalTarget(el);
+                }
+              }}
+              sx={{ display: 'inline-flex', alignItems: 'center' }}
+            />
+
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
             {/* Group 2: Save group — Save action (local mode only) + StatusCluster */}
             {!serverStorageAvailable && (

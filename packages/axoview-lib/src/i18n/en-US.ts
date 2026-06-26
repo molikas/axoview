@@ -480,6 +480,7 @@ const locale: LocaleProps = {
   // D1 — CanvasContextMenu (ADR 0027). Sentence case per ux §7.2.
   canvasContextMenu: {
     addNote: 'Add note',
+    addLabel: 'Add label',
     details: 'Details…',
     rename: 'Rename',
     cut: 'Cut',
@@ -511,7 +512,8 @@ const locale: LocaleProps = {
     elements: 'Elements',
     layers: 'Layers',
     settings: 'Settings',
-    openDiagramFirst: 'open or create a diagram first'
+    openDiagramFirst: 'open or create a diagram first',
+    collapsePanel: 'Collapse panel'
   },
   // D8 — LayersPanel chrome. Sentence case; {count} is interpolated.
   layersPanel: {

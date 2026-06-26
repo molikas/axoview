@@ -105,6 +105,8 @@ interface DiagramLifecycleContextValue {
   setToolbarPortalTarget: (el: HTMLElement) => void;
   sidebarTogglePortalTarget: HTMLElement | null;
   setSidebarTogglePortalTarget: (el: HTMLElement) => void;
+  styleControlsPortalTarget: HTMLElement | null;
+  setStyleControlsPortalTarget: (el: HTMLElement) => void;
   // Actions
   handleSaveClick: () => Promise<void>;
   handleOpenClick: () => void;
@@ -326,6 +328,8 @@ export function DiagramLifecycleProvider({
   const [toolbarPortalTarget, setToolbarPortalTarget] =
     useState<HTMLElement | null>(null);
   const [sidebarTogglePortalTarget, setSidebarTogglePortalTarget] =
+    useState<HTMLElement | null>(null);
+  const [styleControlsPortalTarget, setStyleControlsPortalTarget] =
     useState<HTMLElement | null>(null);
 
   // ---------------------------------------------------------------------------
@@ -1431,6 +1435,8 @@ export function DiagramLifecycleProvider({
     setToolbarPortalTarget,
     sidebarTogglePortalTarget,
     setSidebarTogglePortalTarget,
+    styleControlsPortalTarget,
+    setStyleControlsPortalTarget,
     handleSaveClick,
     handleOpenClick,
     handlePreviewClick,

@@ -71,8 +71,19 @@ export function StatusCluster() {
     })();
 
     if (!content) return null;
+    // Reserve a stable width so the toolbar doesn't expand/contract as the
+    // status cycles "Saving…" ↔ "Saved at HH:MM" (the right group is
+    // right-anchored, so any width change here shifts the style strip).
     return (
-      <Box sx={{ display: 'flex', alignItems: 'center', px: 0.5 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          px: 0.5,
+          minWidth: '9.5em'
+        }}
+      >
         {content}
       </Box>
     );
@@ -80,12 +91,9 @@ export function StatusCluster() {
 
   // Session mode: save state text + SESSION chip + storage gauge.
   // The orange SESSION chip already conveys mode; no wrapper background.
-  const saveText = lastSaved
-    ? `${formatSavedAt(lastSaved, t)}${hasUnsavedChanges ? ' •' : ''}`
-    : hasUnsavedChanges
-      ? t('status.unsaved', 'Unsaved')
-      : '';
-
+  // The unsaved-changes bullet is rendered with reserved space (visibility,
+  // not conditional mount) so it appearing/disappearing doesn't change the
+  // text width and jitter the toolbar.
   return (
     <Box
       sx={{
@@ -95,7 +103,7 @@ export function StatusCluster() {
         px: 0.5
       }}
     >
-      {saveText && (
+      {lastSaved ? (
         <Typography
           variant="caption"
           sx={{
@@ -104,9 +112,26 @@ export function StatusCluster() {
             userSelect: 'none'
           }}
         >
-          {saveText}
+          {formatSavedAt(lastSaved, t)}
+          <Box
+            component="span"
+            sx={{ visibility: hasUnsavedChanges ? 'visible' : 'hidden' }}
+          >
+            {' •'}
+          </Box>
         </Typography>
-      )}
+      ) : hasUnsavedChanges ? (
+        <Typography
+          variant="caption"
+          sx={{
+            color: 'text.secondary',
+            whiteSpace: 'nowrap',
+            userSelect: 'none'
+          }}
+        >
+          {t('status.unsaved', 'Unsaved')}
+        </Typography>
+      ) : null}
       <Chip
         label={<Typography variant="micro" component="span">{t('status.session', 'Session')}</Typography>}
         size="small"

@@ -1,5 +1,5 @@
 import { Coords, Size, EditorModeEnum } from './common';
-import { Icon } from './model';
+import { Icon, Connector } from './model';
 import { ItemReference } from './scene';
 import { ZoomSettings, LabelSettings } from './settings';
 import { IconPackManagerProps, IconUsageScan } from './axoviewProps';
@@ -211,6 +211,13 @@ export const DialogTypeEnum = {
 
 export type ConnectorInteractionMode = 'click' | 'drag';
 
+// Pre-draw style applied to the next connector (and edited live on the selected
+// one). A subset of the connector model — only the appearance fields the top-bar
+// controls expose.
+export type ConnectorDefaults = Partial<
+  Pick<Connector, 'color' | 'customColor' | 'style' | 'lineType' | 'width' | 'showArrow'>
+>;
+
 export interface Notification {
   message: string;
   severity: 'info' | 'success' | 'warning' | 'error';
@@ -247,6 +254,13 @@ export interface UiState {
   zoomSettings: ZoomSettings;
   labelSettings: LabelSettings;
   connectorInteractionMode: ConnectorInteractionMode;
+  /**
+   * Pending style for the NEXT connector drawn (sticky for the session). The
+   * top-bar connector controls edit this when the connector tool is armed with
+   * nothing selected, so line colour/style/type/width/arrow can be set BEFORE
+   * drawing. createConnectorAt applies it to each new connector.
+   */
+  connectorDefaults: ConnectorDefaults;
   expandLabels: boolean;
   /**
    * Opt-in "keep labels readable" toggle (ADR 0015). When on, node name labels
@@ -430,6 +444,8 @@ export interface UiStateActions {
   setZoomSettings: (settings: ZoomSettings) => void;
   setLabelSettings: (settings: LabelSettings) => void;
   setConnectorInteractionMode: (mode: ConnectorInteractionMode) => void;
+  /** Merge a patch into the pending connector style (next-drawn defaults). */
+  setConnectorDefaults: (patch: ConnectorDefaults) => void;
   setExpandLabels: (expand: boolean) => void;
   setReadableLabels: (readable: boolean) => void;
   /** Toggle a layer's preview visibility override (no-op on the model). */

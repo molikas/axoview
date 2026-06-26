@@ -61,6 +61,7 @@ const initialState = () => {
       zoomSettings: persisted?.zoomSettings ?? DEFAULT_ZOOM_SETTINGS,
       labelSettings: persisted?.labelSettings ?? DEFAULT_LABEL_SETTINGS,
       connectorInteractionMode: persisted?.connectorInteractionMode ?? 'click',
+      connectorDefaults: {},
       expandLabels: persisted?.expandLabels ?? false,
       readableLabels: persisted?.readableLabels ?? false,
       canvasMode: persisted?.canvasMode ?? 'ISOMETRIC',
@@ -255,6 +256,9 @@ const initialState = () => {
         },
         setConnectorInteractionMode: (connectorInteractionMode) => {
           set({ connectorInteractionMode });
+        },
+        setConnectorDefaults: (patch) => {
+          set({ connectorDefaults: { ...get().connectorDefaults, ...patch } });
         },
         setExpandLabels: (expandLabels) => {
           set({ expandLabels });

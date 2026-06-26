@@ -1,9 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import {
-  ConnectorLabel,
-  connectorStyleOptions,
-  connectorLineTypeOptions
-} from 'src/types';
+import { ConnectorLabel } from 'src/types';
 import {
   Box,
   Tabs,
@@ -14,8 +10,6 @@ import {
   Slider,
   Select,
   MenuItem,
-  ToggleButton,
-  ToggleButtonGroup,
   TextField,
   IconButton as MUIIconButton,
   FormControlLabel,
@@ -24,8 +18,6 @@ import {
   Paper
 } from '@mui/material';
 import { useConnector } from 'src/hooks/useConnector';
-import { ColorSelector } from 'src/components/ColorSelector/ColorSelector';
-import { CustomColorInput } from 'src/components/ColorSelector/CustomColorInput';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useScene } from 'src/hooks/useScene';
 import { stripHtmlTags } from 'src/utils/stripHtml';
@@ -48,8 +40,7 @@ const INLINE_EDIT_EVENT = 'inlineEditNodeName';
 const PANEL_EVENT = 'connectorPanel';
 
 const TAB_DETAILS = 0;
-const TAB_STYLE = 1;
-const TAB_NOTES = 2;
+const TAB_NOTES = 1;
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -73,63 +64,9 @@ const TabPanel = ({ children, index, value }: TabPanelProps) => (
   </Box>
 );
 
-// The schema-derived value unions (the exported ConnectorStyle/ConnectorLineType
-// are `keyof typeof <array>` — array indices, not the value union — so derive the
-// element types directly from the option tuples).
-type LineStyle = (typeof connectorStyleOptions)[number];
-type LineType = (typeof connectorLineTypeOptions)[number];
-
-// #5: icon pickers replace the two <Select> dropdowns. Each option renders a
-// small SVG that previews the actual line — far more legible than a worded
-// dropdown (matches the draw.io / Figma line-picker pattern; UX §2 affordances).
-// strokeDasharray mirrors the real connector render.
-const STYLE_DASHARRAY: Record<LineStyle, string | undefined> = {
-  SOLID: undefined,
-  DOTTED: '2 3',
-  DASHED: '6 4'
-};
-
-const LineStylePreview = ({ style }: { style: LineStyle }) => (
-  <svg width={26} height={12} viewBox="0 0 26 12" aria-hidden="true">
-    <line
-      x1={2}
-      y1={6}
-      x2={24}
-      y2={6}
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeDasharray={STYLE_DASHARRAY[style]}
-    />
-  </svg>
-);
-
-const LineTypePreview = ({ type }: { type: LineType }) => {
-  if (type === 'SINGLE') {
-    return (
-      <svg width={26} height={12} viewBox="0 0 26 12" aria-hidden="true">
-        <line
-          x1={2}
-          y1={6}
-          x2={24}
-          y2={6}
-          stroke="currentColor"
-          strokeWidth={2}
-          strokeLinecap="round"
-        />
-      </svg>
-    );
-  }
-  return (
-    <svg width={26} height={12} viewBox="0 0 26 12" aria-hidden="true">
-      <line x1={2} y1={4} x2={24} y2={4} stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
-      <line x1={2} y1={8} x2={24} y2={8} stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
-      {type === 'DOUBLE_WITH_CIRCLE' && (
-        <circle cx={13} cy={6} r={3} fill="none" stroke="currentColor" strokeWidth={1.5} />
-      )}
-    </svg>
-  );
-};
+// Connector line style/type previews + the Style tab moved out: those controls
+// now live in the top-bar style strip (TopBarStyleControls). The Details tab
+// still reads connector.lineType (label line placement), it just no longer edits it.
 
 interface Props {
   id: string;
@@ -143,7 +80,6 @@ export const ConnectorControls = ({ id }: Props) => {
   const editorMode = useUiStateStore((s) => s.editorMode);
 
   const [activeTab, setActiveTab] = useState(TAB_DETAILS);
-  const [useCustomColor, setUseCustomColor] = useState(!!connector?.customColor);
   const [showLink, setShowLink] = useState(!!connector?.headerLink);
   const nameRef = useRef<HTMLInputElement>(null);
 
@@ -168,9 +104,7 @@ export const ConnectorControls = ({ id }: Props) => {
   useEffect(() => {
     const handler = (e: Event) => {
       const action = (e as CustomEvent<string>).detail;
-      if (action === 'scrollToAppearance') {
-        setActiveTab(TAB_STYLE);
-      } else if (action === 'focusName') {
+      if (action === 'focusName') {
         setActiveTab(TAB_DETAILS);
         requestAnimationFrame(() => {
           nameRef.current?.focus({ preventScroll: true });
@@ -180,6 +114,12 @@ export const ConnectorControls = ({ id }: Props) => {
         setActiveTab(TAB_DETAILS);
       } else if (action === 'focusNotes') {
         setActiveTab(TAB_NOTES);
+      } else if (action === 'addLabel') {
+        // Triggered from the canvas context menu ("Add label"). Reuse the same
+        // creation path as the in-panel + button via a ref (avoids stale
+        // closure against this once-registered listener).
+        setActiveTab(TAB_DETAILS);
+        addLabelRef.current();
       }
     };
     window.addEventListener(PANEL_EVENT, handler);
@@ -210,6 +150,11 @@ export const ConnectorControls = ({ id }: Props) => {
       endLabelHeight: undefined
     });
   }, [connector, labels, updateConnector]);
+
+  // Kept fresh each render so the once-registered panel-event listener can call
+  // the latest handleAddLabel without re-subscribing.
+  const addLabelRef = useRef(handleAddLabel);
+  addLabelRef.current = handleAddLabel;
 
   const handleUpdateLabel = useCallback(
     (labelId: string, updates: Partial<ConnectorLabel>) => {
@@ -283,7 +228,6 @@ export const ConnectorControls = ({ id }: Props) => {
             }}
           >
             <Tab label={t('details')} value={TAB_DETAILS} />
-            <Tab label={t('style')} value={TAB_STYLE} />
             <Tab
               label={hasNotes ? t('notesModified') : t('notes')}
               value={TAB_NOTES}
@@ -531,117 +475,8 @@ export const ConnectorControls = ({ id }: Props) => {
           </Section>
         </TabPanel>
 
-        {/* Style tab */}
-        <TabPanel value={activeTab} index={TAB_STYLE}>
-          <Section title={t('color')}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={useCustomColor}
-                  onChange={(e) => {
-                    setUseCustomColor(e.target.checked);
-                    if (!e.target.checked) updateConnector(connector.id, { customColor: '' });
-                  }}
-                />
-              }
-              label={t('useCustomColor')}
-              sx={{ mb: 1 }}
-            />
-            {useCustomColor ? (
-              <CustomColorInput
-                value={connector.customColor || '#000000'}
-                onChange={(color) => updateConnector(connector.id, { customColor: color })}
-              />
-            ) : (
-              <ColorSelector
-                onChange={(color) => updateConnector(connector.id, { color, customColor: '' })}
-                activeColor={connector.color}
-              />
-            )}
-          </Section>
-
-          <Section title={t('width')}>
-            <Box sx={{ px: 1 }}>
-              <Slider
-                marks
-                step={5}
-                min={10}
-                max={30}
-                value={connector.width}
-                onChange={(_, newWidth) => updateConnector(connector.id, { width: newWidth as number })}
-              />
-            </Box>
-          </Section>
-
-          <Section title={t('lineStyle')}>
-            <ToggleButtonGroup
-              value={connector.style || 'SOLID'}
-              exclusive
-              fullWidth
-              size="small"
-              onChange={(_e, style: LineStyle | null) => {
-                if (!style) return;
-                updateConnector(connector.id, { style });
-              }}
-            >
-              {connectorStyleOptions.map((style) => {
-                const label = style === 'SOLID' ? t('solid')
-                  : style === 'DOTTED' ? t('dotted')
-                  : t('dashed');
-                return (
-                  <ToggleButton key={style} value={style} aria-label={label}>
-                    <Tooltip title={label} placement="top">
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <LineStylePreview style={style} />
-                      </Box>
-                    </Tooltip>
-                  </ToggleButton>
-                );
-              })}
-            </ToggleButtonGroup>
-          </Section>
-
-          <Section title={t('lineType')}>
-            <ToggleButtonGroup
-              value={connector.lineType || 'SINGLE'}
-              exclusive
-              fullWidth
-              size="small"
-              onChange={(_e, lineType: LineType | null) => {
-                if (!lineType) return;
-                updateConnector(connector.id, { lineType });
-              }}
-            >
-              {connectorLineTypeOptions.map((type) => {
-                const label = type === 'SINGLE' ? t('singleLine')
-                  : type === 'DOUBLE' ? t('doubleLine')
-                  : t('doubleLineWithCircle');
-                return (
-                  <ToggleButton key={type} value={type} aria-label={label}>
-                    <Tooltip title={label} placement="top">
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <LineTypePreview type={type} />
-                      </Box>
-                    </Tooltip>
-                  </ToggleButton>
-                );
-              })}
-            </ToggleButtonGroup>
-          </Section>
-
-          <Section>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={connector.showArrow !== false}
-                  onChange={(e) => updateConnector(connector.id, { showArrow: e.target.checked })}
-                />
-              }
-              label={t('showArrow')}
-            />
-          </Section>
-
-        </TabPanel>
+        {/* Style tab removed — colour, width, line style/type and show-arrow now
+            live in the top-bar style strip (TopBarStyleControls). */}
 
         {/* Notes tab */}
         <TabPanel value={activeTab} index={TAB_NOTES}>

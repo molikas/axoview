@@ -456,6 +456,7 @@ const locale: LocaleProps = {
   },
   canvasContextMenu: {
     addNote: '添加备注',
+    addLabel: '添加标签',
     details: '详情…',
     rename: '重命名',
     cut: '剪切',
@@ -487,7 +488,8 @@ const locale: LocaleProps = {
     elements: '元素',
     layers: '图层',
     settings: '设置',
-    openDiagramFirst: '请先打开或创建一个图表'
+    openDiagramFirst: '请先打开或创建一个图表',
+    collapsePanel: '收起面板'
   },
   // D8 — LayersPanel
   layersPanel: {

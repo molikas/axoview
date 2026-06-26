@@ -188,6 +188,24 @@ This differs from §2.1 because:
 
 Right-click (desktop) or long-press (touch) on a node, connector, text box, or rectangle opens a single context menu — the catch-all home for every per-item command (ADR 0027). There is **no floating quick-action bar**: the old bar/menu/panel three-tier model collapsed to two in the 2026-06-25 shake-out — **menu = per-item commands · details panel = editing**. A single click/tap is **select-only** (it derives the panel target but mounts no surface; §4.4); double-click opens the editing panel. Don't reintroduce a selection-triggered floating toolbar — it duplicates the menu and competes with the move-is-drag model (§9.1). Reference: [`CanvasContextMenu.tsx`](../packages/axoview-lib/src/components/CanvasContextMenu/CanvasContextMenu.tsx).
 
+> **Docked toolbar editing is exempt** (not "floating"). The top-bar style strip ([`TopBarStyleControls.tsx`](../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx), ADR 0005 Group 1 "Format" slot) surfaces a subset of detail-panel style controls in the always-present toolbar chrome — the Google-Docs/Figma pattern of a persistent format toolbar that mirrors a side panel. It is **docked**, **global**, and **selection-gated** (controls enable/disable, they don't float to the cursor), so it does not reintroduce the canvas-anchored quick-action bar this section forbids.
+
+### 2.5 Toolbar controls need a hard enabled/disabled contrast
+
+A selection-gated toolbar (the style strip) shows every control at all times; inapplicable ones disable rather than hide, so the user learns the full command surface. That only works if **disabled reads as clearly inert** — otherwise the toolbar looks broken, not gated. Two rules:
+
+- **Enabled = `text.primary` (≈0.87), disabled = `action.disabled` (≈0.26).** The default `action.active` (0.54) for an enabled icon sits too close to disabled (0.26) to scan at a glance — push enabled darker.
+- **Force icons to inherit the button colour.** The theme pins `MuiSvgIcon` to `color: 'action'` (theme.ts), which overrides the button's disabled colour, so a disabled icon-button keeps full-strength icons and looks enabled. Add `'& .MuiSvgIcon-root': { color: 'inherit' }` on any toolbar control whose enabled/disabled state must read visually.
+
+```tsx
+sx={{
+  color: disabled ? 'action.disabled' : 'text.primary',
+  '& .MuiSvgIcon-root': { color: 'inherit' } // defeat the global color:'action' pin
+}}
+```
+
+Pair the disabled state with a tooltip that says *why* it's disabled and how to enable it (e.g. *"Select a connection to set its line style"*) — same spirit as §8.3.
+
 ---
 
 ## 3. Keyboard

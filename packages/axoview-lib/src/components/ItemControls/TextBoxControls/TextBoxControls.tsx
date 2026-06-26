@@ -1,25 +1,17 @@
 import React, { useEffect, useRef } from 'react';
-import { ProjectionOrientationEnum } from 'src/types';
 import {
   Box,
-  ToggleButton,
-  ToggleButtonGroup,
   Slider,
   IconButton as MUIIconButton,
   TextField
 } from '@mui/material';
-import {
-  TextRotationNone as TextRotationNoneIcon,
-  Close as CloseIcon
-} from '@mui/icons-material';
+import { Close as CloseIcon } from '@mui/icons-material';
 import { useTextBox } from 'src/hooks/useTextBox';
 import { useUiStateStore } from 'src/stores/uiStateStore';
-import { getIsoProjectionCss } from 'src/utils';
 import { useScene } from 'src/hooks/useScene';
 import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
 import { ControlsContainer } from '../components/ControlsContainer';
 import { Section } from '../components/Section';
-import { LabelColorPicker } from '../components/LabelColorPicker';
 import { useTranslation } from 'src/stores/localeStore';
 
 const PANEL_EVENT = 'textBoxPanel';
@@ -95,34 +87,8 @@ export const TextBoxControls = ({ id }: Props) => {
             />
           </Box>
         </Section>
-        <Section title={t('textColor')}>
-          <LabelColorPicker
-            value={textBox.color}
-            onChange={(color) => updateTextBox(textBox.id, { color })}
-          />
-        </Section>
-        <Section title={t('alignment')}>
-          <ToggleButtonGroup
-            value={textBox.orientation}
-            exclusive
-            onChange={(e, orientation) => {
-              if (textBox.orientation === orientation || orientation === null)
-                return;
-              updateTextBox(textBox.id, { orientation });
-            }}
-          >
-            <ToggleButton value={ProjectionOrientationEnum.X}>
-              <TextRotationNoneIcon sx={{ transform: getIsoProjectionCss() }} />
-            </ToggleButton>
-            <ToggleButton value={ProjectionOrientationEnum.Y}>
-              <TextRotationNoneIcon
-                sx={{
-                  transform: `scale(-1, 1) ${getIsoProjectionCss()} scale(-1, 1)`
-                }}
-              />
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Section>
+        {/* Text colour + alignment moved to the top-bar style strip
+            (TopBarStyleControls): text color + text direction. */}
       </Box>
     </ControlsContainer>
   );

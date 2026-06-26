@@ -28,6 +28,7 @@ import { CanvasContextMenu } from 'src/components/CanvasContextMenu/CanvasContex
 import { PreviewLayerSwitcher } from 'src/components/PreviewLayerSwitcher/PreviewLayerSwitcher';
 import { PreviewLabelsToggle } from 'src/components/PreviewLabelsToggle/PreviewLabelsToggle';
 import { ViewModeInfoPopover } from 'src/components/ViewModeInfoPopover/ViewModeInfoPopover';
+import { TopBarStyleControls } from 'src/components/TopBarStyleControls/TopBarStyleControls';
 import { AnnotationLayer } from 'src/components/AnnotationLayer/AnnotationLayer';
 import { AnnotationPalette } from 'src/components/AnnotationPalette/AnnotationPalette';
 import { ConnectorModeHint } from '../ModeHint/ConnectorModeHint';
@@ -70,6 +71,7 @@ const PlaceIconLayer = () => {
 interface UiOverlayProps {
   toolbarPortalTarget?: HTMLElement | null;
   sidebarTogglePortalTarget?: HTMLElement | null;
+  styleControlsPortalTarget?: HTMLElement | null;
   languageSelector?: React.ReactNode;
   suppressOnboardingHints?: boolean;
   /** @deprecated use toolbarPortalTarget */
@@ -79,6 +81,7 @@ interface UiOverlayProps {
 export const UiOverlay = ({
   toolbarPortalTarget,
   sidebarTogglePortalTarget,
+  styleControlsPortalTarget,
   languageSelector,
   suppressOnboardingHints,
   menuPortalTarget
@@ -240,6 +243,13 @@ export const UiOverlay = ({
           PropTypes.node check on Box's children rejects ReactPortal (its
           $$typeof is react.portal, not react.element). Portals render into
           their target node regardless of where they sit in the JSX tree. */}
+      {/* Top-bar style controls strip — only in the full editor; the app gates
+          the portal target to the editable toolbar branch, and we additionally
+          gate on EDITABLE so readonly/snapshot surfaces never expose edit affordances. */}
+      {styleControlsPortalTarget &&
+        editorMode === EditorModeEnum.EDITABLE &&
+        createPortal(<TopBarStyleControls />, styleControlsPortalTarget)}
+
       {(sidebarTogglePortalTarget ?? portalTarget) &&
         createPortal(
           <Tooltip title="Toggle Properties panel" placement="bottom">

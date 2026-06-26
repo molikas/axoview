@@ -480,6 +480,7 @@ const locale: LocaleProps = {
   },
   canvasContextMenu: {
     addNote: 'Tambah catatan',
+    addLabel: 'Tambah label',
     details: 'Detail…',
     rename: 'Ganti nama',
     cut: 'Potong',
@@ -511,7 +512,8 @@ const locale: LocaleProps = {
     elements: 'Elemen',
     layers: 'Lapisan',
     settings: 'Pengaturan',
-    openDiagramFirst: 'buka atau buat diagram terlebih dahulu'
+    openDiagramFirst: 'buka atau buat diagram terlebih dahulu',
+    collapsePanel: 'Ciutkan panel'
   },
   // D8 — LayersPanel
   layersPanel: {

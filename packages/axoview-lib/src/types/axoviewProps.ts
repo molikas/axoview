@@ -475,6 +475,7 @@ export interface LocaleProps {
     details: string;
     rename: string;
     addNote: string;
+    addLabel: string;
     cut: string;
     copy: string;
     paste: string;
@@ -508,6 +509,7 @@ export interface LocaleProps {
     layers: string;
     settings: string;
     openDiagramFirst: string;
+    collapsePanel: string;
   };
   // D8 — LayersPanel chrome: header, add/delete tooltips, empty-state, the
   // Unassigned group header (with a {count} placeholder) + its drop hint, and
@@ -609,6 +611,8 @@ export interface AxoviewProps {
   toolbarPortalTarget?: HTMLElement | null;
   /** Portal target for the sidebar toggle buttons (right zone). When omitted, toggles render in toolbarPortalTarget. */
   sidebarTogglePortalTarget?: HTMLElement | null;
+  /** Portal target for the top-bar style controls strip (text/fill/connection colour, line style, text direction, rich text). Controls self-gate on the current selection. */
+  styleControlsPortalTarget?: HTMLElement | null;
   /** @deprecated use toolbarPortalTarget */
   menuPortalTarget?: HTMLElement | null;
   /** Extra content rendered at the right end of the BottomDock (after the help icon). */

@@ -24,7 +24,8 @@ import {
   SelectAllOutlined as SelectAllIcon,
   ChevronRight as ChevronRightIcon,
   Check as CheckIcon,
-  StickyNote2Outlined as AddNoteIcon
+  StickyNote2Outlined as AddNoteIcon,
+  NewLabelOutlined as AddLabelIcon
 } from '@mui/icons-material';
 import {
   dispatch as dispatchPanelEvent,
@@ -124,6 +125,15 @@ export const CanvasContextMenu = () => {
     requestAnimationFrame(() =>
       dispatchPanelEvent(target.type as ItemType, 'focusNotes')
     );
+  }, [actions, target]);
+
+  const handleAddLabel = useCallback(() => {
+    if (target?.type !== 'CONNECTOR') return;
+    // Open the connector's details, then (one frame later, once the freshly
+    // mounted controls have attached their panel-event listener) create a label
+    // through the same path as the in-panel + button.
+    actions.setItemControls({ type: 'CONNECTOR', id: target.id });
+    requestAnimationFrame(() => dispatchPanelEvent('CONNECTOR', 'addLabel'));
   }, [actions, target]);
 
   const handleDelete = useCallback(() => {
@@ -271,6 +281,8 @@ export const CanvasContextMenu = () => {
   // Only nodes (ITEM) and connectors carry a `notes` field / Notes tab.
   const canAddNote =
     !!target && (target.type === 'ITEM' || target.type === 'CONNECTOR');
+  // Labels are a connector-only concept (ADR 0011 connector labels array).
+  const canAddLabel = target?.type === 'CONNECTOR';
   const multiCount = countUserFacingRefs(selectedIds);
 
   // D1 — pluralise the count rows through i18n: pick the singular/plural key by
@@ -317,6 +329,14 @@ export const CanvasContextMenu = () => {
                   </ListItemIcon>
                   <ListItemText>{t('rename')}</ListItemText>
                   <Hint>F2</Hint>
+                </MenuItem>
+              ),
+              canAddLabel && (
+                <MenuItem key="addLabel" onClick={run(handleAddLabel)}>
+                  <ListItemIcon>
+                    <AddLabelIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{t('addLabel')}</ListItemText>
                 </MenuItem>
               ),
               canAddNote && (

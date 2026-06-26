@@ -53,6 +53,7 @@ function makeUiState(overrides: any = {}) {
     mode: overrides.mode ?? { type: 'CONNECTOR', showCursor: true, id: null },
     mouse: overrides.mouse ?? { position: { tile: { x: 5, y: 5 } } },
     connectorInteractionMode: overrides.connectorInteractionMode ?? 'click',
+    connectorDefaults: overrides.connectorDefaults ?? {},
     actions: overrides.actions ?? { setMode: jest.fn() }
   };
 }
@@ -391,6 +392,58 @@ describe('Connector.mousedown drag mode', () => {
     const [createdConnector] = scene.createConnector.mock.calls[0];
     expect(createdConnector.anchors[0].ref).toEqual({ item: 'nodeA' });
   });
+
+  it('applies connectorDefaults (pre-draw style) to the new connector', () => {
+    const uiState = makeUiState({
+      mode: { type: 'CONNECTOR', showCursor: true, id: null },
+      connectorInteractionMode: 'drag',
+      connectorDefaults: {
+        color: 'color-9',
+        style: 'DASHED',
+        lineType: 'DOUBLE',
+        width: 25,
+        showArrow: false
+      }
+    });
+    const scene = makeScene();
+    Connector.mousedown!({
+      uiState,
+      scene,
+      isRendererInteraction: true
+    } as any);
+
+    const [created] = scene.createConnector.mock.calls[0];
+    expect(created).toMatchObject({
+      color: 'color-9',
+      style: 'DASHED',
+      lineType: 'DOUBLE',
+      width: 25,
+      showArrow: false
+    });
+  });
+
+  it('preserves returnToCursor across drag-start (palette one-shot tool)', () => {
+    const uiState = makeUiState({
+      mode: {
+        type: 'CONNECTOR',
+        showCursor: true,
+        id: null,
+        returnToCursor: true
+      },
+      connectorInteractionMode: 'drag'
+    });
+    Connector.mousedown!({
+      uiState,
+      scene: makeScene(),
+      isRendererInteraction: true
+    } as any);
+
+    // Without preserving this, the dragged connector would leave the tool armed
+    // instead of resetting to the pointer on release.
+    expect(uiState.actions.setMode).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'CONNECTOR', returnToCursor: true })
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -427,6 +480,26 @@ describe('Connector.mouseup drag mode', () => {
     Connector.mouseup!({ uiState, scene: makeScene() } as any);
     expect(uiState.actions.setMode).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'CONNECTOR', id: null })
+    );
+  });
+
+  it('returns to CURSOR on release in drag mode when returnToCursor is set', () => {
+    const uiState = makeUiState({
+      mode: {
+        type: 'CONNECTOR',
+        showCursor: true,
+        id: 'conn-1',
+        returnToCursor: true
+      },
+      connectorInteractionMode: 'drag'
+    });
+    Connector.mouseup!({ uiState, scene: makeScene() } as any);
+    expect(uiState.actions.setMode).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'CURSOR',
+        showCursor: true,
+        mousedownItem: null
+      })
     );
   });
 

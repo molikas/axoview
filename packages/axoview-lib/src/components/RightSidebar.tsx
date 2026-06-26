@@ -1,6 +1,6 @@
 import React from 'react';
-import { Box, Typography } from '@mui/material';
-import { TuneOutlined } from '@mui/icons-material';
+import { Box, Typography, IconButton, Tooltip } from '@mui/material';
+import { TuneOutlined, ChevronRight as CollapseIcon } from '@mui/icons-material';
 import { EditorModeEnum } from 'src/types';
 import { ItemControlsManager } from 'src/components/ItemControls/ItemControlsManager';
 import { useUiStateStore } from 'src/stores/uiStateStore';
@@ -12,6 +12,9 @@ interface Props {
 
 export const RightSidebar = ({ open, editorMode }: Props) => {
   const itemControls = useUiStateStore((s) => s.itemControls);
+  const setRightSidebarOpen = useUiStateStore(
+    (s) => s.actions.setRightSidebarOpen
+  );
 
   const readOnly = editorMode === EditorModeEnum.EXPLORABLE_READONLY;
   const hasSelection = itemControls !== null;
@@ -32,9 +35,52 @@ export const RightSidebar = ({ open, editorMode }: Props) => {
         display: 'flex',
         flexDirection: 'column',
         zIndex: 10,
-        boxShadow: open ? 3 : 0
+        boxShadow: open ? 3 : 0,
+        // Reveal the collapse tab only on dock hover/focus (§2.3).
+        '&:hover .ax-collapse-tab, &:focus-within .ax-collapse-tab': {
+          opacity: 1,
+          pointerEvents: 'all'
+        }
       }}
     >
+      {/* Explicit collapse affordance — an edge "tab" on the dock's left border,
+          mirroring the left-dock handles. Invisible + inert until the dock is
+          hovered/focused (§2.3). The top-bar toggle already opens/closes this
+          dock; this gives users the directional arrow they look for to dismiss
+          it. Arrow points right (the collapse direction). Hardcoded label matches
+          the sibling right-dock chrome (UiOverlay "Toggle Properties panel"). */}
+      {open && (
+        <Tooltip title="Collapse panel" placement="left">
+          <IconButton
+            className="ax-collapse-tab"
+            size="small"
+            onClick={() => setRightSidebarOpen(false)}
+            data-axoview-id="right-sidebar-collapse"
+            sx={{
+              position: 'absolute',
+              top: '50%',
+              left: -22,
+              transform: 'translateY(-50%)',
+              width: 22,
+              height: 44,
+              borderRadius: '8px 0 0 8px',
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRight: 'none',
+              color: 'text.secondary',
+              boxShadow: 2,
+              opacity: 0,
+              pointerEvents: 'none',
+              transition: 'opacity 120ms ease',
+              '&:hover': { bgcolor: 'action.hover', color: 'text.primary' },
+              '&:focus-visible': { opacity: 1, pointerEvents: 'all' }
+            }}
+          >
+            <CollapseIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Tooltip>
+      )}
       {hasSelection ? (
         <Box sx={{ height: '100%', overflowY: 'auto' }}>
           <ItemControlsManager readOnly={readOnly} />

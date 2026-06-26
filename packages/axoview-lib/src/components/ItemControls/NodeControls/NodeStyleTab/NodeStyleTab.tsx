@@ -8,7 +8,6 @@ import { ModelItem, ViewItem } from 'src/types';
 import { useModelItem } from 'src/hooks/useModelItem';
 import { useModelStore } from 'src/stores/modelStore';
 import { Section } from '../../components/Section';
-import { LabelColorPicker } from '../../components/LabelColorPicker';
 import { QuickIconSelector } from '../QuickIconSelector';
 import { useTranslation } from 'src/stores/localeStore';
 
@@ -126,30 +125,9 @@ export const NodeStyleTab = ({
         </Section>
       )}
 
-      {/* Label colour */}
-      {modelItem.name && (
-        <Section title={t('labelColor')}>
-          <LabelColorPicker
-            value={node.labelColor}
-            onChange={(color) => onViewItemUpdated({ labelColor: color })}
-          />
-        </Section>
-      )}
-
-      {/* Label position — signed offset (ADR 0024): negative drops the label
-          below the node, mirroring the on-canvas drag-the-label gesture. */}
-      {modelItem.name && (
-        <Section title={t('labelHeight')}>
-          <Slider
-            marks
-            step={20}
-            min={-200}
-            max={280}
-            value={node.labelHeight ?? 80}
-            onChange={(_, v) => onViewItemUpdated({ labelHeight: v as number })}
-          />
-        </Section>
-      )}
+      {/* Label colour moved to the top-bar style strip (TopBarStyleControls →
+          text color). Label height (signed offset, ADR 0024) stays adjustable by
+          dragging the label on canvas. */}
     </Stack>
   );
 };

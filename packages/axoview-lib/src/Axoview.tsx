@@ -81,6 +81,7 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
       linkedDiagrams,
       toolbarPortalTarget,
       sidebarTogglePortalTarget,
+      styleControlsPortalTarget,
       languageSelector,
       bottomDockEnd,
       suppressOnboardingHints,
@@ -327,6 +328,7 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
               <UiOverlay
                 toolbarPortalTarget={portalTarget}
                 sidebarTogglePortalTarget={sidebarTogglePortalTarget}
+                styleControlsPortalTarget={styleControlsPortalTarget}
                 languageSelector={languageSelector}
                 suppressOnboardingHints={suppressOnboardingHints}
               />

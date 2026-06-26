@@ -10,6 +10,7 @@ import {
   ModeActions,
   Connector as ConnectorI,
   ConnectorAnchor,
+  ConnectorDefaults,
   Coords,
   State
 } from 'src/types';
@@ -25,13 +26,23 @@ const makeAnchor = (itemAtTile: ItemAtTile, tile: Coords): ConnectorAnchor =>
     : { id: generateId(), ref: { tile } };
 
 // A brand-new two-ended connector with both anchors pinned to the same target.
+// Pre-draw style defaults (set via the top-bar connector controls while the tool
+// is armed) are applied here so the next connector inherits them; an unset field
+// falls back to the connector schema default. `color` falls back to the scene's
+// first colour when no default colour is chosen.
 const createConnectorAt = (
   colorId: string,
   itemAtTile: ItemAtTile,
-  tile: Coords
+  tile: Coords,
+  defaults: ConnectorDefaults = {}
 ): ConnectorI => ({
   id: generateId(),
-  color: colorId,
+  color: defaults.color ?? colorId,
+  ...(defaults.customColor ? { customColor: defaults.customColor } : {}),
+  ...(defaults.style ? { style: defaults.style } : {}),
+  ...(defaults.lineType ? { lineType: defaults.lineType } : {}),
+  ...(defaults.width !== undefined ? { width: defaults.width } : {}),
+  ...(defaults.showArrow !== undefined ? { showArrow: defaults.showArrow } : {}),
   anchors: [makeAnchor(itemAtTile, tile), makeAnchor(itemAtTile, tile)]
 });
 
@@ -52,7 +63,12 @@ const handleClickFirst = (
     itemAtTile?.type === 'ITEM' ? { itemId: itemAtTile.id } : { tile };
 
   // Create a connector but don't finalize it yet.
-  const newConnector = createConnectorAt(scene.colors[0].id, itemAtTile, tile);
+  const newConnector = createConnectorAt(
+    scene.colors[0].id,
+    itemAtTile,
+    tile,
+    uiState.connectorDefaults
+  );
 
   // Open one history entry for the entire create→drag→commit lifecycle.
   // commitDragTransaction is called on the second click (or mouseup in drag mode).
@@ -132,7 +148,8 @@ const handleDragStart = (
   const newConnector = createConnectorAt(
     scene.colors[0].id,
     itemAtTile,
-    uiState.mouse.position.tile
+    uiState.mouse.position.tile,
+    uiState.connectorDefaults
   );
 
   // Drag-mode: open one history entry for the whole press→drag→release.
@@ -142,7 +159,16 @@ const handleDragStart = (
   uiState.actions.setMode({
     type: 'CONNECTOR',
     showCursor: true,
-    id: newConnector.id
+    id: newConnector.id,
+    // Preserve the one-shot flag across the drag (mirrors handleClickFirst).
+    // The palette Connector tool sets returnToCursor:true so it pops back to the
+    // pointer after one connector; without carrying it here the flag was dropped
+    // at mousedown and a drag-drawn connector left the tool armed instead of
+    // resetting to the cursor on release.
+    returnToCursor:
+      uiState.mode.type === 'CONNECTOR'
+        ? uiState.mode.returnToCursor
+        : undefined
   });
 };
 

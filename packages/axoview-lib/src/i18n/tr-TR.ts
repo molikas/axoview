@@ -481,6 +481,7 @@ const locale: LocaleProps = {
   },
   canvasContextMenu: {
     addNote: 'Not ekle',
+    addLabel: 'Etiket ekle',
     details: 'Ayrıntılar…',
     rename: 'Yeniden adlandır',
     cut: 'Kes',
@@ -512,7 +513,8 @@ const locale: LocaleProps = {
     elements: 'Öğeler',
     layers: 'Katmanlar',
     settings: 'Ayarlar',
-    openDiagramFirst: 'önce bir diyagram açın veya oluşturun'
+    openDiagramFirst: 'önce bir diyagram açın veya oluşturun',
+    collapsePanel: 'Paneli daralt'
   },
   // D8 — LayersPanel
   layersPanel: {

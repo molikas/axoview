@@ -486,6 +486,7 @@ const locale: LocaleProps = {
   },
   canvasContextMenu: {
     addNote: 'Ajouter une note',
+    addLabel: 'Ajouter une étiquette',
     details: 'Détails…',
     rename: 'Renommer',
     cut: 'Couper',
@@ -517,7 +518,8 @@ const locale: LocaleProps = {
     elements: 'Éléments',
     layers: 'Calques',
     settings: 'Paramètres',
-    openDiagramFirst: 'ouvrez ou créez d’abord un diagramme'
+    openDiagramFirst: 'ouvrez ou créez d’abord un diagramme',
+    collapsePanel: 'Réduire le panneau'
   },
   // D8 — LayersPanel
   layersPanel: {

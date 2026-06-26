@@ -481,6 +481,7 @@ const locale: LocaleProps = {
   },
   canvasContextMenu: {
     addNote: 'Добавить заметку',
+    addLabel: 'Добавить метку',
     details: 'Подробности…',
     rename: 'Переименовать',
     cut: 'Вырезать',
@@ -512,7 +513,8 @@ const locale: LocaleProps = {
     elements: 'Элементы',
     layers: 'Слои',
     settings: 'Настройки',
-    openDiagramFirst: 'сначала откройте или создайте диаграмму'
+    openDiagramFirst: 'сначала откройте или создайте диаграмму',
+    collapsePanel: 'Свернуть панель'
   },
   // D8 — LayersPanel
   layersPanel: {

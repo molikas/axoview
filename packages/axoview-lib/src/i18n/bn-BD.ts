@@ -479,6 +479,7 @@ const locale: LocaleProps = {
   },
   canvasContextMenu: {
     addNote: 'নোট যোগ করুন',
+    addLabel: 'লেবেল যোগ করুন',
     details: 'বিস্তারিত…',
     rename: 'নাম পরিবর্তন করুন',
     cut: 'কাটুন',
@@ -510,7 +511,8 @@ const locale: LocaleProps = {
     elements: 'উপাদান',
     layers: 'স্তর',
     settings: 'সেটিংস',
-    openDiagramFirst: 'প্রথমে একটি ডায়াগ্রাম খুলুন বা তৈরি করুন'
+    openDiagramFirst: 'প্রথমে একটি ডায়াগ্রাম খুলুন বা তৈরি করুন',
+    collapsePanel: 'প্যানেল সঙ্কুচিত করুন'
   },
   // D8 — LayersPanel
   layersPanel: {
