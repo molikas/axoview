@@ -336,6 +336,9 @@ const locale: LocaleProps = {
     doubleLineWithCircle: 'Daireli çift çizgi'
   },
   textBoxControls: {
+    bold: 'Bold',
+    backgroundColor: 'Background color',
+    removeBackground: 'Remove background',
     close: 'Kapat',
     name: 'Ad',
     namePlaceholder: 'Eleman adı…',
@@ -460,6 +463,7 @@ const locale: LocaleProps = {
     error: 'Resim dışa aktarılamadı'
   },
   toolMenu: {
+    label: 'Label',
     undo: 'Geri Al',
     redo: 'Yinele',
     select: 'Seç',

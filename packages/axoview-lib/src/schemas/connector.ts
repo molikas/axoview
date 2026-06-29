@@ -16,7 +16,10 @@ export const connectorLabelSchema = z.object({
   line: z.enum(['1', '2']).optional(), // Which line for double line types (defaults to '1')
   showLine: z.boolean().optional(), // Show the dotted line connecting label to connector (defaults to true)
   fontSize: z.number().min(8).max(24).optional(), // Font size in px (defaults to theme body2 ~12px)
-  labelColor: z.string().optional() // Text color (defaults to black)
+  labelColor: z.string().optional(), // Text color (defaults to black)
+  bold: z.boolean().optional(),
+  italic: z.boolean().optional(),
+  strikethrough: z.boolean().optional()
 });
 
 export const anchorSchema = z.object({
@@ -44,6 +47,9 @@ export const connectorSchema = z.object({
   nameLabelHeight: z.number().optional(),
   nameLabelFontSize: z.number().min(8).max(24).optional(),
   nameLabelColor: z.string().optional(),
+  nameLabelBold: z.boolean().optional(),
+  nameLabelItalic: z.boolean().optional(),
+  nameLabelStrikethrough: z.boolean().optional(),
   // Legacy label fields (for backward compatibility)
   description: constrainedStrings.description.optional(),
   startLabel: constrainedStrings.description.optional(),

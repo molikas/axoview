@@ -471,15 +471,23 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
           labelsDrawn += 1;
           const chip = chipStyleRef.current;
           const fontSize = node.labelFontSize || LABEL_BASE_FONT_PX;
+          const labelBold = node.labelBold;
+          const labelItalic = node.labelItalic;
+          const labelStrike = node.labelStrikethrough;
 
-          // D3-2: measure once per (fontSize, name) and reuse across pan/zoom
-          // redraws — chip geometry is content-determined. The live counter-scale
-          // is applied at draw time below, not baked into the cache.
-          const layoutKey = `${fontSize}:${name}`;
+          // D3-2: measure once per (fontSize, weight, style, name) and reuse
+          // across pan/zoom redraws — chip geometry is content-determined. Bold /
+          // italic change the measured width, so they're part of the key. The
+          // live counter-scale is applied at draw time below, not baked here.
+          const layoutKey = `${fontSize}:${labelBold ? 1 : 0}:${
+            labelItalic ? 1 : 0
+          }:${name}`;
           let layout = labelLayoutCacheRef.current.get(layoutKey);
           if (!layout) {
             const innerMaxW = LABEL_CHIP_MAX_W - chip.padX * 2;
-            const nameFont = `600 ${fontSize}px ${DEFAULT_FONT_FAMILY}`;
+            const nameFont = `${labelItalic ? 'italic ' : ''}${
+              labelBold ? 700 : 600
+            } ${fontSize}px ${DEFAULT_FONT_FAMILY}`;
             const nameLineH = fontSize * 1.5;
 
             ctx.font = nameFont;
@@ -522,6 +530,17 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
           ctx.font = nameFont;
           ctx.fillStyle = node.labelColor || chip.text;
           ctx.fillText(name, textX, textY + (nameLineH - fontSize) / 2);
+          // Strikethrough: Canvas2D has no text-decoration, so draw the rule
+          // manually across the chip's inner width at the line's vertical centre.
+          if (labelStrike) {
+            const strikeY = textY + nameLineH / 2;
+            ctx.strokeStyle = node.labelColor || chip.text;
+            ctx.lineWidth = Math.max(1, fontSize / 14);
+            ctx.beginPath();
+            ctx.moveTo(textX, strikeY);
+            ctx.lineTo(textX + (chipW - chip.padX * 2), strikeY);
+            ctx.stroke();
+          }
           ctx.restore();
         }
       }

@@ -328,6 +328,9 @@ export interface LocaleProps {
     textSize: string;
     textColor: string;
     alignment: string;
+    bold: string;
+    backgroundColor: string;
+    removeBackground: string;
   };
   rectangleControls: {
     close: string;
@@ -450,6 +453,7 @@ export interface LocaleProps {
     rectangle: string;
     connector: string;
     text: string;
+    label: string;
     // D9 — region header for the LeftDock "Common" elements group. The
     // rectangle/text/connector labels reuse the keys above.
     common: string;

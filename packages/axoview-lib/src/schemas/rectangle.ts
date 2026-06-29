@@ -6,6 +6,11 @@ export const rectangleSchema = z.object({
   name: z.string().max(200).optional(),
   color: id.optional(),
   customColor: z.string().optional(), // For custom RGB colors
+  // Border (frame) overrides. Absent = the legacy look: a 1px solid stroke in a
+  // darker shade derived from the fill. Set via the top-bar style strip.
+  borderColor: z.string().optional(),
+  borderWidth: z.number().optional(),
+  borderStyle: z.enum(['SOLID', 'DOTTED', 'DASHED']).optional(),
   from: coords,
   to: coords,
   layerId: id.optional(),

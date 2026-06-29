@@ -32,7 +32,7 @@ describe('countHtmlLines — weighted line counting (MQA #11 B1)', () => {
     // Quill normalises typed plain text to `<p>...</p>` on edit. The auto-
     // grown height must account for the paragraph's bottom margin.
     expect(countHtmlLines('<p>Text</p>')).toBeGreaterThan(1);
-    expect(countHtmlLines('<p>Text</p>')).toBeCloseTo(1.9, 5);
+    expect(countHtmlLines('<p>Text</p>')).toBeCloseTo(1.5, 5);
   });
 
   it('h1 weighs significantly more than a paragraph', () => {
@@ -62,13 +62,13 @@ describe('countHtmlLines — weighted line counting (MQA #11 B1)', () => {
     const total = countHtmlLines(
       '<h1>Title</h1><p>Body</p><blockquote>Quote</blockquote>'
     );
-    expect(total).toBeCloseTo(3.35 + 1.9 + 2.5, 5);
+    expect(total).toBeCloseTo(3.35 + 1.5 + 2.5, 5);
   });
 
   it('list items count via <li> (the <ul>/<ol> wrapper is structural)', () => {
     const list = countHtmlLines('<ul><li>One</li><li>Two</li></ul>');
-    // li is 1.7 units each
-    expect(list).toBeCloseTo(1.7 * 2, 5);
+    // li is 1.5 units each
+    expect(list).toBeCloseTo(1.5 * 2, 5);
   });
 
   it('unknown block tags fall back to 1 unit', () => {

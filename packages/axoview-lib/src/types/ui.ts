@@ -142,6 +142,9 @@ export interface TextBoxMode {
   type: 'TEXTBOX';
   showCursor: boolean;
   id: string | null;
+  // Which preset to drop when this armed mode places on the canvas. Absent =
+  // a plain text box; 'label' = the floating chip preset.
+  variant?: 'text' | 'label';
 }
 
 export interface LassoMode {

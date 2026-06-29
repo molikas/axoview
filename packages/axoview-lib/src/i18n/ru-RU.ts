@@ -336,6 +336,9 @@ const locale: LocaleProps = {
     doubleLineWithCircle: 'Двойная линия с кругом'
   },
   textBoxControls: {
+    bold: 'Bold',
+    backgroundColor: 'Background color',
+    removeBackground: 'Remove background',
     close: 'Закрыть',
     name: 'Название',
     namePlaceholder: 'Имя элемента…',
@@ -460,6 +463,7 @@ const locale: LocaleProps = {
     error: 'Не удалось экспортировать изображение'
   },
   toolMenu: {
+    label: 'Label',
     undo: 'Отменить',
     redo: 'Повторить',
     select: 'Выделить',

@@ -50,7 +50,18 @@ export const VIEW_ITEM_DEFAULTS: Required<
     ViewItem,
     // ADR 0023 off-grid fields are omitted so they default to absent and
     // lean-save never writes them on a snapped item.
-    'id' | 'tile' | 'zIndex' | 'layerId' | 'showLabel' | 'offset' | 'snap' | 'collides'
+    | 'id'
+    | 'tile'
+    | 'zIndex'
+    | 'layerId'
+    | 'showLabel'
+    | 'offset'
+    | 'snap'
+    | 'collides'
+    // Label B/I/S default to absent (unstyled); lean-save omits them.
+    | 'labelBold'
+    | 'labelItalic'
+    | 'labelStrikethrough'
   >
 > = {
   labelHeight: 80,
@@ -74,6 +85,9 @@ export const CONNECTOR_DEFAULTS: Required<
     | 'nameLabelHeight'
     | 'nameLabelFontSize'
     | 'nameLabelColor'
+    | 'nameLabelBold'
+    | 'nameLabelItalic'
+    | 'nameLabelStrikethrough'
   >
 > = {
   width: 10,
@@ -98,7 +112,18 @@ export const CONNECTOR_SEARCH_OFFSET = { x: 1, y: 1 };
 export const TEXTBOX_DEFAULTS: Required<
   Omit<
     TextBox,
-    'id' | 'tile' | 'layerId' | 'name' | 'offset' | 'snap' | 'collides'
+    | 'id'
+    | 'tile'
+    | 'layerId'
+    | 'name'
+    | 'offset'
+    | 'snap'
+    | 'collides'
+    // Label-only / stacking fields default to absent so a plain text box stays
+    // a plain iso text box at the default stacking order (lean-save omits them).
+    | 'variant'
+    | 'backgroundColor'
+    | 'zIndex'
   >
 > = {
   orientation: 'X',
@@ -107,8 +132,20 @@ export const TEXTBOX_DEFAULTS: Required<
   color: '',
   isBold: false,
   isItalic: false,
-  isUnderline: false
+  isUnderline: false,
+  isStrikethrough: false
 };
+
+// "Label" element preset (the Common deck). A floating chip that looks like the
+// label on a node (upright billboard, white chip), not attached to anything, no
+// collision. Everything else (layers, drag, formatting, background colour,
+// z-order) is shared with the text box.
+export const LABEL_DEFAULTS = {
+  ...TEXTBOX_DEFAULTS,
+  variant: 'label',
+  content: 'Label',
+  collides: false
+} as const;
 
 export const TEXTBOX_PADDING = 0.2;
 export const TEXTBOX_FONT_WEIGHT = 'normal';
@@ -145,6 +182,11 @@ export const RECTANGLE_DEFAULTS: Required<
     | 'offset'
     | 'snap'
     | 'collides'
+    // Border overrides default to absent (derived-from-fill look); lean-save
+    // omits them on an unstyled rectangle.
+    | 'borderColor'
+    | 'borderWidth'
+    | 'borderStyle'
   >
 > = {
   customColor: ''

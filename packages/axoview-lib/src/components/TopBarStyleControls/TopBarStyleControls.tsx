@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Box,
+  Button,
   IconButton,
   Popover,
   Tooltip,
@@ -15,7 +16,11 @@ import {
 import {
   FormatColorText as TextColorIcon,
   FormatSize as TextSizeIcon,
+  FormatBold as BoldIcon,
+  FormatItalic as ItalicIcon,
+  StrikethroughS as StrikethroughIcon,
   FormatColorFill as FillIcon,
+  BorderStyle as BorderIcon,
   Timeline as ConnectionColorIcon,
   TextRotationNone as TextRotationNoneIcon,
   EditNote as RichTextIcon,
@@ -35,7 +40,7 @@ import { ProjectionOrientationEnum } from 'src/types';
 import { connectorStyleOptions, connectorLineTypeOptions } from 'src/schemas';
 import { getIsoProjectionCss } from 'src/utils';
 import { LabelColorPicker } from '../ItemControls/components/LabelColorPicker';
-import { ColorSelector } from '../ColorSelector/ColorSelector';
+import { ColorSwatch } from '../ColorSelector/ColorSwatch';
 import { CustomColorInput } from '../ColorSelector/CustomColorInput';
 import { RichTextEditor } from '../RichTextEditor/RichTextEditor';
 import { QuickIconSelector } from '../ItemControls/NodeControls/QuickIconSelector';
@@ -168,24 +173,92 @@ const StripButton = ({
   );
 };
 
+const WHITE = '#ffffff';
+// Sentinel stored in a fill's customColor to mean "transparent" (a no-fill
+// rectangle keeps a visible outline and stays hittable — see Rectangle.tsx).
+const TRANSPARENT = 'transparent';
+const isQuickColor = (c?: string) => {
+  const v = (c || '').toLowerCase();
+  return v === WHITE || v === TRANSPARENT;
+};
+
+// "No color" swatch (white circle + red slash), matching ColorSwatch's footprint
+// so it sits inline with the colour swatches.
+const NoColorSwatch = ({
+  isActive,
+  onClick
+}: {
+  isActive?: boolean;
+  onClick: () => void;
+}) => (
+  <Button
+    onClick={onClick}
+    variant="text"
+    size="small"
+    aria-label="No color"
+    sx={{ width: 40, height: 40, minWidth: 'auto' }}
+  >
+    <Box
+      sx={{
+        position: 'relative',
+        width: 28,
+        height: 28,
+        borderRadius: '100%',
+        border: '1px solid',
+        borderColor: 'grey.600',
+        bgcolor: 'background.paper',
+        overflow: 'hidden',
+        transform: `scale(${isActive ? 1.25 : 1})`
+      }}
+    >
+      <Box
+        sx={{
+          position: 'absolute',
+          top: '50%',
+          left: '-10%',
+          width: '120%',
+          height: '2px',
+          bgcolor: 'error.main',
+          transform: 'translateY(-50%) rotate(-45deg)'
+        }}
+      />
+    </Box>
+  </Button>
+);
+
 interface PresetCustomColorProps {
   presetId?: string;
   customColor?: string;
   onSelectPreset: (id: string) => void;
   onCustomChange: (hex: string) => void;
   onDisableCustom: () => void;
+  // When provided, a "no color" swatch clears the fill (transparent) — used for
+  // a text box / label background and the rectangle fill.
+  onNoColor?: () => void;
 }
 
-// The preset-or-custom colour body shared by the rectangle-fill and
-// connector-colour controls (matches RectangleControls / ConnectorControls).
+// The preset-or-custom colour body shared by the rectangle-fill, text/label
+// background and connector-colour controls. White trails the scene presets
+// (lightest-last convention); "no color" trails white where clearing is
+// meaningful (onNoColor supplied). All swatches flow inline in one grid.
 const PresetCustomColor = ({
   presetId,
   customColor,
   onSelectPreset,
   onCustomChange,
-  onDisableCustom
+  onDisableCustom,
+  onNoColor
 }: PresetCustomColorProps) => {
-  const [useCustom, setUseCustom] = useState(Boolean(customColor));
+  const { colors } = useScene();
+  // White / transparent are fixed swatches, not "custom" — keep them in the grid
+  // view so reopening the popover doesn't land on the custom input.
+  const [useCustom, setUseCustom] = useState(
+    Boolean(customColor) && !isQuickColor(customColor)
+  );
+  const whiteActive = (customColor || '').toLowerCase() === WHITE;
+  const noColorActive =
+    (customColor || '').toLowerCase() === TRANSPARENT ||
+    (!presetId && !customColor);
 
   return (
     <Box>
@@ -205,7 +278,24 @@ const PresetCustomColor = ({
       {useCustom ? (
         <CustomColorInput value={customColor || '#000000'} onChange={onCustomChange} />
       ) : (
-        <ColorSelector activeColor={presetId} onChange={onSelectPreset} />
+        <Box sx={{ display: 'flex', flexWrap: 'wrap' }}>
+          {colors.map((color) => (
+            <ColorSwatch
+              key={color.id}
+              hex={color.value}
+              isActive={!whiteActive && !noColorActive && presetId === color.id}
+              onClick={() => onSelectPreset(color.id)}
+            />
+          ))}
+          <ColorSwatch
+            hex={WHITE}
+            isActive={whiteActive}
+            onClick={() => onCustomChange(WHITE)}
+          />
+          {onNoColor && (
+            <NoColorSwatch isActive={noColorActive} onClick={onNoColor} />
+          )}
+        </Box>
       )}
     </Box>
   );
@@ -469,6 +559,70 @@ export const TopBarStyleControls = () => {
       }
     : null;
 
+  // --- Bold / italic / strikethrough — same target resolution as text colour,
+  // for the things WITHOUT a rich-text editor: a node label, a connector name
+  // label, a selected connector labels[] entry, and a floating Label chip.
+  // A plain text box is EXCLUDED — it formats per-character via its rich-text
+  // editor, so a whole-box B/I/S would fight that (two layers; CSS can't
+  // subtract). Each supported type stores its own boolean trio.
+  const labelTextBox = textBox && textBox.variant === 'label' ? textBox : null;
+  const formatEnabled = Boolean(
+    node || labelTextBox || activeLabel || isNameLabel
+  );
+  const formatValue = {
+    bold: node
+      ? node.labelBold
+      : labelTextBox
+      ? labelTextBox.isBold
+      : isNameLabel
+      ? connector?.nameLabelBold
+      : activeLabel?.bold,
+    italic: node
+      ? node.labelItalic
+      : labelTextBox
+      ? labelTextBox.isItalic
+      : isNameLabel
+      ? connector?.nameLabelItalic
+      : activeLabel?.italic,
+    strike: node
+      ? node.labelStrikethrough
+      : labelTextBox
+      ? labelTextBox.isStrikethrough
+      : isNameLabel
+      ? connector?.nameLabelStrikethrough
+      : activeLabel?.strikethrough
+  };
+  const setFormat = (next: {
+    bold: boolean;
+    italic: boolean;
+    strike: boolean;
+  }) => {
+    if (node)
+      updateViewItem(node.id, {
+        labelBold: next.bold,
+        labelItalic: next.italic,
+        labelStrikethrough: next.strike
+      });
+    else if (labelTextBox)
+      updateTextBox(labelTextBox.id, {
+        isBold: next.bold,
+        isItalic: next.italic,
+        isStrikethrough: next.strike
+      });
+    else if (isNameLabel && connector)
+      updateConnector(connector.id, {
+        nameLabelBold: next.bold,
+        nameLabelItalic: next.italic,
+        nameLabelStrikethrough: next.strike
+      });
+    else if (activeLabel)
+      updateActiveLabel({
+        bold: next.bold,
+        italic: next.italic,
+        strikethrough: next.strike
+      });
+  };
+
   // --- Connector style target. The connection-colour + line-options controls
   // operate on the selected connector, or — when the connector tool is armed
   // with nothing selected — on the pending defaults the next drawn connector
@@ -542,14 +696,78 @@ export const TopBarStyleControls = () => {
         )}
       </StripButton>
 
-      {/* Background colour (rectangle) */}
-      <StripButton
-        tooltip={rectangle ? 'Background color' : 'Select a rectangle to set its background color'}
-        disabled={!rectangle}
-        icon={<FillIcon sx={{ fontSize: 18 }} />}
-        colorBar={rectangle ? resolveHex(rectangle.color, rectangle.customColor) : undefined}
+      {/* Bold / italic / strikethrough — applies to the whole text box / label
+          (a label has no rich-text toolbar, so this is its only B/I/S). On a
+          rich text box it layers over inline formatting; clearing here won't
+          undo inline <strong>/<em> set via the rich-text editor. */}
+      <Tooltip
+        title={
+          formatEnabled
+            ? 'Bold / italic / strikethrough'
+            : 'Select a node, label, or connection label (text boxes format via rich text)'
+        }
+        placement="bottom"
       >
-        {rectangle && (
+        <span>
+          <ToggleButtonGroup
+            size="small"
+            disabled={!formatEnabled}
+            value={
+              formatEnabled
+                ? [
+                    formatValue.bold ? 'bold' : '',
+                    formatValue.italic ? 'italic' : '',
+                    formatValue.strike ? 'strike' : ''
+                  ].filter(Boolean)
+                : []
+            }
+            onChange={(_e, vals: string[]) => {
+              if (!formatEnabled) return;
+              setFormat({
+                bold: vals.includes('bold'),
+                italic: vals.includes('italic'),
+                strike: vals.includes('strike')
+              });
+            }}
+            sx={{
+              '& .MuiSvgIcon-root': { color: 'inherit' },
+              '& .MuiToggleButton-root': { color: 'text.primary', px: 0.75 },
+              '& .MuiToggleButton-root.Mui-disabled': { color: 'action.disabled' }
+            }}
+          >
+            <ToggleButton value="bold" aria-label="Bold">
+              <BoldIcon sx={{ fontSize: 18 }} />
+            </ToggleButton>
+            <ToggleButton value="italic" aria-label="Italic">
+              <ItalicIcon sx={{ fontSize: 18 }} />
+            </ToggleButton>
+            <ToggleButton value="strike" aria-label="Strikethrough">
+              <StrikethroughIcon sx={{ fontSize: 18 }} />
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </span>
+      </Tooltip>
+
+      {/* Background colour — rectangle fill, or a text box / label chip.
+          A text box stores a raw hex in `backgroundColor`; clearing it removes
+          the fill (and resets a label chip to white). */}
+      <StripButton
+        tooltip={
+          rectangle || textBox
+            ? 'Background color'
+            : 'Select a rectangle, text, or label to set its background color'
+        }
+        disabled={!rectangle && !textBox}
+        icon={<FillIcon sx={{ fontSize: 18 }} />}
+        colorBar={
+          rectangle
+            ? resolveHex(rectangle.color, rectangle.customColor)
+            : textBox
+            ? textBox.backgroundColor || '#ffffff'
+            : undefined
+        }
+      >
+        {rectangle ? (
           <PresetCustomColor
             presetId={rectangle.color}
             customColor={rectangle.customColor}
@@ -560,7 +778,114 @@ export const TopBarStyleControls = () => {
               updateRectangle(rectangle.id, { customColor })
             }
             onDisableCustom={() => updateRectangle(rectangle.id, { customColor: '' })}
+            onNoColor={() =>
+              updateRectangle(rectangle.id, { customColor: TRANSPARENT })
+            }
           />
+        ) : textBox ? (
+          <PresetCustomColor
+            presetId={colors.find((c) => c.value === textBox.backgroundColor)?.id}
+            customColor={
+              textBox.backgroundColor &&
+              !colors.some((c) => c.value === textBox.backgroundColor)
+                ? textBox.backgroundColor
+                : undefined
+            }
+            onSelectPreset={(id) =>
+              updateTextBox(textBox.id, { backgroundColor: resolveHex(id) })
+            }
+            onCustomChange={(hex) =>
+              updateTextBox(textBox.id, { backgroundColor: hex })
+            }
+            onDisableCustom={() =>
+              updateTextBox(textBox.id, { backgroundColor: undefined })
+            }
+            onNoColor={() =>
+              updateTextBox(textBox.id, { backgroundColor: undefined })
+            }
+          />
+        ) : null}
+      </StripButton>
+
+      {/* Border (rectangle) — line style + width + colour for the frame. */}
+      <StripButton
+        tooltip={
+          rectangle ? 'Border' : 'Select a rectangle to set its border'
+        }
+        disabled={!rectangle}
+        popoverWidth={240}
+        icon={<BorderIcon sx={{ fontSize: 18 }} />}
+        colorBar={rectangle ? rectangle.borderColor || undefined : undefined}
+      >
+        {rectangle && (
+          <Box>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: 'block', mb: 0.5 }}
+            >
+              Line style
+            </Typography>
+            <ToggleButtonGroup
+              value={rectangle.borderStyle || 'SOLID'}
+              exclusive
+              fullWidth
+              size="small"
+              onChange={(_e, style: LineStyle | null) => {
+                if (!style) return;
+                updateRectangle(rectangle.id, { borderStyle: style });
+              }}
+            >
+              {connectorStyleOptions.map((style) => (
+                <ToggleButton key={style} value={style} aria-label={style}>
+                  <LineStylePreview style={style} />
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+
+            <Box sx={{ mt: 1.5 }}>
+              <LabeledSlider
+                label="Width"
+                value={rectangle.borderWidth ?? 2}
+                displayValue={String(rectangle.borderWidth ?? 2)}
+                min={2}
+                max={30}
+                step={4}
+                onChange={(borderWidth) =>
+                  updateRectangle(rectangle.id, { borderWidth })
+                }
+              />
+            </Box>
+
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: 'block', mt: 1.5, mb: 0.5 }}
+            >
+              Border color
+            </Typography>
+            <PresetCustomColor
+              presetId={colors.find((c) => c.value === rectangle.borderColor)?.id}
+              customColor={
+                rectangle.borderColor &&
+                !colors.some((c) => c.value === rectangle.borderColor)
+                  ? rectangle.borderColor
+                  : undefined
+              }
+              onSelectPreset={(id) =>
+                updateRectangle(rectangle.id, { borderColor: resolveHex(id) })
+              }
+              onCustomChange={(hex) =>
+                updateRectangle(rectangle.id, { borderColor: hex })
+              }
+              onDisableCustom={() =>
+                updateRectangle(rectangle.id, { borderColor: undefined })
+              }
+              onNoColor={() =>
+                updateRectangle(rectangle.id, { borderColor: TRANSPARENT })
+              }
+            />
+          </Box>
         )}
       </StripButton>
 
@@ -772,6 +1097,13 @@ export const TopBarStyleControls = () => {
               value={textBox.content}
               onChange={(html) => updateTextBox(textBox.id, { content: html })}
               height={120}
+              contentStyle={{
+                fontWeight: textBox.isBold ? 700 : undefined,
+                fontStyle: textBox.isItalic ? 'italic' : undefined,
+                textDecoration: textBox.isStrikethrough
+                  ? 'line-through'
+                  : undefined
+              }}
             />
           </Box>
         )}

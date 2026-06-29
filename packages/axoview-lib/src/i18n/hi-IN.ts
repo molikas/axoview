@@ -336,6 +336,9 @@ const locale: LocaleProps = {
     doubleLineWithCircle: 'गोले के साथ दोहरी रेखा'
   },
   textBoxControls: {
+    bold: 'Bold',
+    backgroundColor: 'Background color',
+    removeBackground: 'Remove background',
     close: 'बंद करें',
     name: 'नाम',
     namePlaceholder: 'तत्व का नाम…',
@@ -460,6 +463,7 @@ const locale: LocaleProps = {
     error: 'छवि निर्यात नहीं हो सकी'
   },
   toolMenu: {
+    label: 'Label',
     undo: 'पूर्ववत करें',
     redo: 'फिर से करें',
     select: 'चयन करें',

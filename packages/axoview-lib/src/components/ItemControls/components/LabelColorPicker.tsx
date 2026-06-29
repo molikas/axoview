@@ -11,9 +11,11 @@ interface Props {
 }
 
 const BLACK = '#000000';
+const WHITE = '#ffffff';
 
 const isPresetColor = (hex: string | undefined, presetHexValues: string[]) => {
-  if (!hex || hex.toLowerCase() === BLACK) return true;
+  if (!hex || hex.toLowerCase() === BLACK || hex.toLowerCase() === WHITE)
+    return true;
   return presetHexValues.some((v) => v.toLowerCase() === hex.toLowerCase());
 };
 
@@ -37,8 +39,12 @@ export const LabelColorPicker = ({ value, onChange }: Props) => {
   }, [value]);
 
   const activeHex = value || BLACK;
-  // Deduplicate: exclude any scene color that is already black
-  const sceneColors = colors.filter((c) => c.value.toLowerCase() !== BLACK);
+  // Deduplicate: exclude any scene color that is already black or white (both are
+  // offered as fixed swatches below).
+  const sceneColors = colors.filter(
+    (c) =>
+      c.value.toLowerCase() !== BLACK && c.value.toLowerCase() !== WHITE
+  );
 
   return (
     <Box>
@@ -83,6 +89,12 @@ export const LabelColorPicker = ({ value, onChange }: Props) => {
               onClick={() => onChange(color.value)}
             />
           ))}
+          {/* White — kept last (convention: lightest swatch trails the set) */}
+          <ColorSwatch
+            hex={WHITE}
+            isActive={value?.toLowerCase() === WHITE}
+            onClick={() => onChange(WHITE)}
+          />
         </Box>
       )}
     </Box>

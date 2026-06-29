@@ -149,6 +149,9 @@ export const Node = memo(({ node, order }: Props) => {
           labelHeight={node.labelHeight}
           labelFontSize={node.labelFontSize}
           labelColor={node.labelColor}
+          labelBold={node.labelBold}
+          labelItalic={node.labelItalic}
+          labelStrikethrough={node.labelStrikethrough}
         />
       </NodeTransform>
     </NodeShell>
@@ -170,6 +173,9 @@ interface NodeContentProps {
   labelHeight?: number;
   labelFontSize?: number;
   labelColor?: string;
+  labelBold?: boolean;
+  labelItalic?: boolean;
+  labelStrikethrough?: boolean;
 }
 
 const NodeContent = memo(
@@ -178,7 +184,10 @@ const NodeContent = memo(
     showLabel,
     labelHeight,
     labelFontSize,
-    labelColor
+    labelColor,
+    labelBold,
+    labelItalic,
+    labelStrikethrough
   }: NodeContentProps) => {
     useRenderProbe('NodeContent', id);
     const modelItem = useModelItem(id);
@@ -339,7 +348,8 @@ const NodeContent = memo(
                 <LabelStack>
                   {isEditingName ? (
                     <Typography
-                      fontWeight={600}
+                      fontWeight={labelBold ? 700 : 600}
+                      fontStyle={labelItalic ? 'italic' : 'normal'}
                       fontSize={labelFontSize ?? 14}
                       color={labelColor || 'text.primary'}
                       contentEditable
@@ -361,7 +371,8 @@ const NodeContent = memo(
                         width: 'max-content',
                         maxWidth: '100%',
                         whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word'
+                        wordBreak: 'break-word',
+                        textDecoration: labelStrikethrough ? 'line-through' : 'none'
                       }}
                     >
                       {modelItem?.name ?? ''}
@@ -373,7 +384,12 @@ const NodeContent = memo(
                           ...(labelFontSize
                             ? { fontSize: labelFontSize }
                             : null),
-                          ...(labelColor ? { color: labelColor } : null)
+                          ...(labelColor ? { color: labelColor } : null),
+                          ...(labelBold ? { fontWeight: 700 } : null),
+                          ...(labelItalic ? { fontStyle: 'italic' } : null),
+                          ...(labelStrikethrough
+                            ? { textDecoration: 'line-through' }
+                            : null)
                         }}
                       >
                         {modelItem.headerLink ? (

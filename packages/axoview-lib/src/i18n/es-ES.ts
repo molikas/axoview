@@ -340,6 +340,9 @@ const locale: LocaleProps = {
     doubleLineWithCircle: 'Línea doble con círculo'
   },
   textBoxControls: {
+    bold: 'Bold',
+    backgroundColor: 'Background color',
+    removeBackground: 'Remove background',
     close: 'Cerrar',
     name: 'Nombre',
     namePlaceholder: 'Nombre del elemento…',
@@ -465,6 +468,7 @@ const locale: LocaleProps = {
     error: 'No se pudo exportar la imagen'
   },
   toolMenu: {
+    label: 'Label',
     undo: 'Deshacer',
     redo: 'Rehacer',
     select: 'Seleccionar',

@@ -437,10 +437,15 @@ export const convertBoundsToNamedAnchors = (
 // ---------------------------------------------------------------------------
 
 export const getTextBoxEndTile = (textBox: TextBox, size: Size) => {
+  // The far corner of the box, including the row count (size.height). The text
+  // grows from the tile by size.width along the run and by size.height-1 across
+  // the rows; omitting the height made multi-line boxes report a 1-row footprint
+  // (selection outline + hit area only covered the first row).
+  const rows = Math.max(0, size.height - 1);
   if (textBox.orientation === ProjectionOrientationEnum.X) {
-    return CoordsUtils.add(textBox.tile, { x: size.width, y: 0 });
+    return CoordsUtils.add(textBox.tile, { x: size.width, y: -rows });
   }
-  return CoordsUtils.add(textBox.tile, { x: 0, y: -size.width });
+  return CoordsUtils.add(textBox.tile, { x: rows, y: -size.width });
 };
 
 const getPlainTextForMeasurement = (content: string): string => {
@@ -464,8 +469,8 @@ const BLOCK_HEIGHT_UNITS: Record<string, number> = {
   h4: 1.1 * 1.4 + 0.4 + 0.2, // 2.14
   h5: 1.0 * 1.4 + 0.3 + 0.2, // 1.9
   h6: 1.0 * 1.4 + 0.3 + 0.2, // 1.9
-  p: 1.0 * 1.5 + 0 + 0.4, // 1.9
-  li: 1.0 * 1.5 + 0 + 0.2, // 1.7
+  p: 1.0 * 1.3 + 0 + 0.2, // 1.5
+  li: 1.0 * 1.3 + 0 + 0.2, // 1.5
   blockquote: 1.0 * 1.5 + 0.5 + 0.5, // 2.5
   pre: 0.9 * 1.5 + 0.5 + 0.5 // 2.35
 };

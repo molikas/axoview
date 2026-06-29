@@ -177,7 +177,9 @@ const ConnectorNameLabel = ({
           <Typography
             variant="body2"
             sx={{
-              fontWeight: 400,
+              fontWeight: label.bold ? 700 : 400,
+              fontStyle: label.italic ? 'italic' : 'normal',
+              textDecoration: label.strikethrough ? 'line-through' : 'none',
               color: label.labelColor || (linkActive ? 'primary.main' : 'text.primary'),
               // #10: wrap a long connector name/link instead of clipping it on the
               // Label chip's overflow:hidden (parity with the node caption, §5.2).
@@ -260,7 +262,9 @@ const ConnectorTextLabel = ({
       <Typography
         variant="body2"
         sx={{
-          fontWeight: 400,
+          fontWeight: label.bold ? 700 : 400,
+          fontStyle: label.italic ? 'italic' : 'normal',
+          textDecoration: label.strikethrough ? 'line-through' : 'none',
           color: label.labelColor || 'text.primary',
           // #10: keep long text labels wrapping (not clipped), matching the name
           // label above so every connector label behaves the same.
@@ -382,7 +386,10 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
       line: '1',
       height: connector.nameLabelHeight ?? 0,
       fontSize: connector.nameLabelFontSize,
-      labelColor: connector.nameLabelColor
+      labelColor: connector.nameLabelColor,
+      bold: connector.nameLabelBold,
+      italic: connector.nameLabelItalic,
+      strikethrough: connector.nameLabelStrikethrough
     };
     return [synthetic, ...baseLabels];
   }, [
@@ -393,6 +400,9 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
     connector.nameLabelHeight,
     connector.nameLabelFontSize,
     connector.nameLabelColor,
+    connector.nameLabelBold,
+    connector.nameLabelItalic,
+    connector.nameLabelStrikethrough,
     isReadonly,
     previewHideLabels,
     exportHideLabels

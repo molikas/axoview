@@ -9,6 +9,10 @@ interface Props {
   readOnly?: boolean;
   height?: number;
   styles?: React.CSSProperties;
+  // Base typography for the editing surface — used to mirror an element-level
+  // bold/italic/strikethrough so the editor reads the same as the canvas. Inline
+  // (per-character) formatting in the content still layers on top.
+  contentStyle?: React.CSSProperties;
 }
 
 // Rich text formatting tools
@@ -43,7 +47,8 @@ export const RichTextEditor = ({
   onChange,
   readOnly,
   height = 120,
-  styles
+  styles,
+  contentStyle
 }: Props) => {
   const isMountedRef = useRef(false);
 
@@ -118,7 +123,8 @@ export const RichTextEditor = ({
           '.ql-editor': {
             whiteSpace: 'pre-wrap',
             padding: '12px 15px',
-            ...(readOnly ? { p: 0 } : {})
+            ...(readOnly ? { p: 0 } : {}),
+            ...contentStyle
           },
           '.ql-tooltip': {
             zIndex: 1000

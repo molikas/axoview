@@ -335,6 +335,9 @@ const locale: LocaleProps = {
     doubleLineWithCircle: 'Garis ganda dengan lingkaran'
   },
   textBoxControls: {
+    bold: 'Bold',
+    backgroundColor: 'Background color',
+    removeBackground: 'Remove background',
     close: 'Tutup',
     name: 'Nama',
     namePlaceholder: 'Nama elemen…',
@@ -459,6 +462,7 @@ const locale: LocaleProps = {
     error: 'Tidak dapat mengekspor gambar'
   },
   toolMenu: {
+    label: 'Label',
     undo: 'Batalkan',
     redo: 'Ulangi',
     select: 'Pilih',

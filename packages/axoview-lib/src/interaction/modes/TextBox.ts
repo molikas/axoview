@@ -1,7 +1,13 @@
-import { setWindowCursor } from 'src/utils';
+import { setWindowCursor, generateId } from 'src/utils';
 import { resolvePlacement, cursorTileResidual } from 'src/utils/resolvePlacement';
+import { TEXTBOX_DEFAULTS, LABEL_DEFAULTS } from 'src/config';
+import { exceedsTapSlop } from 'src/config/tapGesture';
 import { ModeActions } from 'src/types';
 
+// Point-and-click placement (mirrors PlaceIcon): the Elements deck ARMS this
+// mode with no element created; the next canvas click drops a text box / label
+// at the cursor and returns to CURSOR. A right-click cancels (handled in
+// usePanHandlers — the armed tool aborts to CURSOR without placing).
 export const TextBox: ModeActions = {
   entry: () => {
     setWindowCursor('crosshair');
@@ -9,11 +15,22 @@ export const TextBox: ModeActions = {
   exit: () => {
     setWindowCursor('default');
   },
-  mousemove: ({ uiState, scene }) => {
-    if (uiState.mode.type !== 'TEXTBOX' || !uiState.mode.id) return;
+  mousemove: () => {},
+  mouseup: ({ uiState, scene, isRendererInteraction }) => {
+    if (uiState.mode.type !== 'TEXTBOX') return;
 
-    // Route placement through the one chokepoint: off-grid (global snap off,
-    // ADR 0023) lands the text box under the cursor with a px residual.
+    // Distinguish the arming tap on the deck card (no renderer release, no move →
+    // just arm) from a real placement: a canvas tap (renderer release) or a
+    // drag from the panel onto the canvas (past tap-slop). Same gating PlaceIcon
+    // uses so the panel click only arms.
+    const moved =
+      !!uiState.mouse.mousedown &&
+      exceedsTapSlop(
+        uiState.mouse.mousedown.screen,
+        uiState.mouse.position.screen
+      );
+    if (!isRendererInteraction && !moved) return;
+
     const globalSnap = uiState.snapToGrid ?? true;
     const tile = uiState.mouse.position.tile;
     const residual = globalSnap
@@ -28,23 +45,17 @@ export const TextBox: ModeActions = {
         );
     const placement = resolvePlacement(tile, residual, undefined, globalSnap);
 
-    scene.updateTextBox(uiState.mode.id, {
+    const id = generateId();
+    const defaults =
+      uiState.mode.variant === 'label' ? LABEL_DEFAULTS : TEXTBOX_DEFAULTS;
+    scene.createTextBox({
+      ...defaults,
+      id,
       tile: placement.tile,
       offset: placement.offset
     });
-  },
-  mouseup: ({ uiState, scene, isRendererInteraction }) => {
-    if (uiState.mode.type !== 'TEXTBOX' || !uiState.mode.id) return;
 
-    if (!isRendererInteraction) {
-      scene.deleteTextBox(uiState.mode.id);
-    } else {
-      uiState.actions.setItemControls({
-        type: 'TEXTBOX',
-        id: uiState.mode.id
-      });
-    }
-
+    uiState.actions.setItemControls({ type: 'TEXTBOX', id });
     uiState.actions.setMode({
       type: 'CURSOR',
       showCursor: true,

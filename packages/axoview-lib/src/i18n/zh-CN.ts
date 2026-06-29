@@ -314,6 +314,9 @@ const locale: LocaleProps = {
     doubleLineWithCircle: '带圆圈的双线'
   },
   textBoxControls: {
+    bold: 'Bold',
+    backgroundColor: 'Background color',
+    removeBackground: 'Remove background',
     close: '关闭',
     name: '名称',
     namePlaceholder: '元素名称…',
@@ -435,6 +438,7 @@ const locale: LocaleProps = {
     error: '无法导出图片'
   },
   toolMenu: {
+    label: 'Label',
     undo: '撤销',
     redo: '重做',
     select: '选择',

@@ -70,10 +70,16 @@ export const TextBoxControls = ({ id }: Props) => {
             value={textBox.content}
             onChange={(html) => updateTextBox(textBox.id, { content: html })}
             height={120}
+            contentStyle={{
+              fontWeight: textBox.isBold ? 700 : undefined,
+              fontStyle: textBox.isItalic ? 'italic' : undefined,
+              textDecoration: textBox.isStrikethrough ? 'line-through' : undefined
+            }}
           />
         </Section>
-        {/* Text size, colour + alignment moved to the top-bar style strip
-            (TopBarStyleControls): text size + text color + text direction. */}
+        {/* All styling lives on the top-bar style strip (TopBarStyleControls):
+            text size + colour + direction, and background colour (text + label).
+            Bold/italic/etc. are in the rich-text editor above. */}
       </Box>
     </ControlsContainer>
   );

@@ -22,11 +22,25 @@ const RECT_DRAG_STYLE: React.CSSProperties = {
 };
 
 export const Rectangle = memo(
-  ({ id, from, to, color: colorId, customColor, offset }: Props) => {
+  ({
+    id,
+    from,
+    to,
+    color: colorId,
+    customColor,
+    offset,
+    borderColor,
+    borderWidth,
+    borderStyle
+  }: Props) => {
     const predefinedColor = useColor(colorId);
 
     // Use custom color if provided, otherwise use the predefined color value.
     const colorValue = customColor ? customColor : predefinedColor?.value;
+    // 'transparent' is an explicit no-fill choice (distinct from an unset colour,
+    // which renders nothing): keep a visible grey outline so the area is still
+    // seen and selectable (SVG fill="transparent" stays hit-testable).
+    const isTransparent = colorValue === 'transparent';
 
     // ADR 0023 off-grid: compose the unprojected-px offset into the SAME
     // translate3d that hosts the live drag delta, so they add (the IsoTileArea
@@ -45,11 +59,20 @@ export const Rectangle = memo(
 
     // Memoise the chroma-derived stroke variant so it isn't recomputed on every
     // render (the chroma pipeline is unmemoised). Keyed on the colour string.
-    const strokeColor = useMemo(
-      () =>
-        colorValue ? getColorVariant(colorValue, 'dark', { grade: 2 }) : '',
-      [colorValue]
-    );
+    // Border: explicit overrides win; otherwise fall back to the legacy look
+    // (grey outline for a transparent rect, else a darker shade of the fill).
+    const strokeColor = useMemo(() => {
+      if (borderColor) return borderColor;
+      if (isTransparent) return '#9e9e9e';
+      return colorValue ? getColorVariant(colorValue, 'dark', { grade: 2 }) : '';
+    }, [colorValue, isTransparent, borderColor]);
+
+    const strokeWidth = borderWidth ?? (isTransparent ? 2 : 1);
+    const dashArray = useMemo(() => {
+      if (borderStyle === 'DASHED') return `${strokeWidth * 3} ${strokeWidth * 2}`;
+      if (borderStyle === 'DOTTED') return `${strokeWidth} ${strokeWidth * 2}`;
+      return undefined;
+    }, [borderStyle, strokeWidth]);
 
     if (!colorValue) {
       return null;
@@ -64,7 +87,8 @@ export const Rectangle = memo(
           cornerRadius={22}
           stroke={{
             color: strokeColor,
-            width: 1
+            width: strokeWidth,
+            dashArray
           }}
         />
       </div>

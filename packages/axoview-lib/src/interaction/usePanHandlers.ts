@@ -229,6 +229,14 @@ export const usePanHandlers = () => {
           showCursor: true,
           mousedownItem: null
         });
+      } else if (currentModeType === 'TEXTBOX') {
+        // Armed text/label placement: right-click cancels the tool entirely
+        // (drop nothing, return to select) rather than re-arming.
+        actions.setMode({
+          type: 'CURSOR',
+          showCursor: true,
+          mousedownItem: null
+        });
       }
     },
     [actions, abortInFlightConnector]

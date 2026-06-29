@@ -201,14 +201,21 @@ export const CanvasContextMenu = () => {
     handlePaste();
   }, [handleCopy, handlePaste]);
 
-  // Z-order: read the current view item's zIndex, nudge it. ITEM only — the
-  // same scope as the action bar / Ctrl+]/Ctrl+[.
+  // Z-order: read the current item's zIndex and nudge it. Nodes (ITEM) reorder
+  // among nodes; text boxes / labels (TEXTBOX) reorder among text boxes.
   const nudgeZOrder = useCallback(
     (delta: number) => {
-      if (target?.type !== 'ITEM') return;
-      const viewItem = scene.currentView.items?.find((i) => i.id === target.id);
-      const currentZ = viewItem?.zIndex ?? 0;
-      scene.updateViewItem(target.id, { zIndex: currentZ + delta });
+      if (target?.type === 'ITEM') {
+        const viewItem = scene.currentView.items?.find(
+          (i) => i.id === target.id
+        );
+        scene.updateViewItem(target.id, {
+          zIndex: (viewItem?.zIndex ?? 0) + delta
+        });
+      } else if (target?.type === 'TEXTBOX') {
+        const tb = scene.currentView.textBoxes?.find((t) => t.id === target.id);
+        scene.updateTextBox(target.id, { zIndex: (tb?.zIndex ?? 0) + delta });
+      }
     },
     [scene, target]
   );
@@ -322,6 +329,9 @@ export const CanvasContextMenu = () => {
   if (!contextMenu) return null;
 
   const isItem = target?.type === 'ITEM';
+  // Z-order (bring forward / send backward) applies to nodes and text boxes /
+  // labels — both carry a `zIndex` and a stacked render order.
+  const canZOrder = target?.type === 'ITEM' || target?.type === 'TEXTBOX';
   // Off-grid commands apply to placeable items, not connectors.
   const canOffGrid = !!target && target.type !== 'CONNECTOR';
   const isUnsnapped = offGridTarget?.snap === false;
@@ -425,7 +435,7 @@ export const CanvasContextMenu = () => {
                 <ListItemText>{t('duplicate')}</ListItemText>
               </MenuItem>,
               <Divider key="d2" />,
-              isItem && (
+              canZOrder && (
                 <MenuItem
                   key="forward"
                   onClick={run(() => nudgeZOrder(1))}
@@ -434,16 +444,16 @@ export const CanvasContextMenu = () => {
                     <BringForwardIcon fontSize="small" />
                   </ListItemIcon>
                   <ListItemText>{t('bringForward')}</ListItemText>
-                  <Hint>Ctrl+]</Hint>
+                  {isItem && <Hint>Ctrl+]</Hint>}
                 </MenuItem>
               ),
-              isItem && (
+              canZOrder && (
                 <MenuItem key="back" onClick={run(() => nudgeZOrder(-1))}>
                   <ListItemIcon>
                     <SendBackIcon fontSize="small" />
                   </ListItemIcon>
                   <ListItemText>{t('sendBackward')}</ListItemText>
-                  <Hint>Ctrl+[</Hint>
+                  {isItem && <Hint>Ctrl+[</Hint>}
                 </MenuItem>
               ),
               <MenuItem

@@ -334,6 +334,9 @@ const locale: LocaleProps = {
     doubleLineWithCircle: 'বৃত্তসহ দ্বিগুণ লাইন'
   },
   textBoxControls: {
+    bold: 'Bold',
+    backgroundColor: 'Background color',
+    removeBackground: 'Remove background',
     close: 'বন্ধ করুন',
     name: 'নাম',
     namePlaceholder: 'উপাদানের নাম…',
@@ -458,6 +461,7 @@ const locale: LocaleProps = {
     error: 'ছবি রপ্তানি করা যায়নি'
   },
   toolMenu: {
+    label: 'Label',
     undo: 'পূর্বাবস্থায় ফেরান',
     redo: 'পুনরায় করুন',
     select: 'নির্বাচন করুন',

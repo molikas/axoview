@@ -30,7 +30,7 @@ import {
 //   - List indent 1.75em — clearly past body text; matches what the
 //     in-editor Quill snow preview displays.
 const richTextStyles = {
-  '& p': { margin: '0 0 0.4em', padding: 0 },
+  '& p': { margin: '0 0 0.2em', padding: 0 },
   '& h1': {
     fontSize: `${CANVAS_RICHTEXT_SCALE.h1}em`,
     fontWeight: 700,
@@ -57,7 +57,7 @@ const richTextStyles = {
   },
   '& li': {
     marginBottom: '0.2em',
-    lineHeight: 1.5,
+    lineHeight: 1.3,
     paddingLeft: '0.25em'
   },
   '& blockquote': {
@@ -99,9 +99,15 @@ export const useTextBoxProps = (textBox: TextBox) => {
       fontFamily: DEFAULT_FONT_FAMILY,
       fontWeight: textBox.isBold ? 700 : TEXTBOX_FONT_WEIGHT,
       fontStyle: textBox.isItalic ? 'italic' : 'normal',
-      textDecoration: textBox.isUnderline ? 'underline' : 'none',
+      textDecoration:
+        [
+          textBox.isUnderline ? 'underline' : '',
+          textBox.isStrikethrough ? 'line-through' : ''
+        ]
+          .filter(Boolean)
+          .join(' ') || 'none',
       color: textBox.color || 'inherit',
-      lineHeight: 1.5,
+      lineHeight: 1.3,
       ...richTextStyles
     };
   }, [
@@ -109,6 +115,7 @@ export const useTextBoxProps = (textBox: TextBox) => {
     textBox.isBold,
     textBox.isItalic,
     textBox.isUnderline,
+    textBox.isStrikethrough,
     textBox.color
   ]);
 
