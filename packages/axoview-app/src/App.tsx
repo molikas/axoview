@@ -437,7 +437,7 @@ function EditorShell() {
               }}
             >
               <EmptyStateScreen
-                onCreate={() => handleCreateBlankDiagram(null)}
+                onCreate={() => handleCreateBlankDiagram(null, 'elements')}
                 onImport={handleImportClick}
               />
             </div>

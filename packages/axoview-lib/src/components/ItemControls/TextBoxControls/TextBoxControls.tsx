@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import {
   Box,
-  Slider,
   IconButton as MUIIconButton,
   TextField
 } from '@mui/material';
@@ -73,22 +72,8 @@ export const TextBoxControls = ({ id }: Props) => {
             height={120}
           />
         </Section>
-        <Section title={t('textSize')}>
-          <Box sx={{ px: 1 }}>
-            <Slider
-              marks
-              step={0.15}
-              min={0.15}
-              max={0.9}
-              value={textBox.fontSize}
-              onChange={(e, newSize) =>
-                updateTextBox(textBox.id, { fontSize: newSize as number })
-              }
-            />
-          </Box>
-        </Section>
-        {/* Text colour + alignment moved to the top-bar style strip
-            (TopBarStyleControls): text color + text direction. */}
+        {/* Text size, colour + alignment moved to the top-bar style strip
+            (TopBarStyleControls): text size + text color + text direction. */}
       </Box>
     </ControlsContainer>
   );

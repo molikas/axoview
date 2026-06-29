@@ -1,5 +1,6 @@
 import React from 'react';
 import { Stack, Typography, Divider, IconButton, Tooltip } from '@mui/material';
+import { LabelOutlined, LabelOffOutlined } from '@mui/icons-material';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useDiagramUtils } from 'src/hooks/useDiagramUtils';
 import { MAX_ZOOM, MIN_ZOOM } from 'src/config';
@@ -40,9 +41,13 @@ const btnSx = {
 
 export const ZoomControls = () => {
   const { t } = useTranslation('zoomControls');
+  // The hide-labels toggle reuses the existing (already-translated) labels-toggle
+  // strings; it moved here from the presentation-only chrome and is now global.
+  const { t: tLabels } = useTranslation('previewLabelsToggle');
   const uiStateStoreActions = useUiStateStore((s) => s.actions);
   const zoom = useUiStateStore((s) => s.zoom);
   const readableLabels = useUiStateStore((s) => s.readableLabels);
+  const hideLabels = useUiStateStore((s) => s.previewHideLabels);
   const { fitToView } = useDiagramUtils();
 
   return (
@@ -130,6 +135,33 @@ export const ZoomControls = () => {
           >
             Aa
           </Typography>
+        </IconButton>
+      </Tooltip>
+
+      <Tooltip
+        title={hideLabels ? tLabels('showLabels') : tLabels('hideLabels')}
+        placement="top"
+      >
+        <IconButton
+          size="small"
+          onClick={() =>
+            uiStateStoreActions.setPreviewHideLabels(!hideLabels)
+          }
+          aria-pressed={hideLabels}
+          sx={{
+            ...btnSx,
+            ...(hideLabels && {
+              bgcolor: 'action.selected',
+              color: 'text.primary'
+            })
+          }}
+          data-axoview-id="canvas-hide-labels"
+        >
+          {hideLabels ? (
+            <LabelOffOutlined sx={{ fontSize: 16 }} />
+          ) : (
+            <LabelOutlined sx={{ fontSize: 16 }} />
+          )}
         </IconButton>
       </Tooltip>
     </Stack>

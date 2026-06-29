@@ -428,6 +428,9 @@ const locale: LocaleProps = {
     placeholder: 'Поиск иконок'
   },
   exportImageDialog: {
+    groupAppearance: 'Appearance',
+    groupBackground: 'Background',
+    groupCrop: 'Crop',
     title: 'Экспортировать как изображение',
     compatibilityTitle: 'Уведомление о совместимости браузера',
     compatibilityMessage:

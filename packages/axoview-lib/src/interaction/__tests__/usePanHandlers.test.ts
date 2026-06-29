@@ -370,7 +370,9 @@ describe('usePanHandlers.handleMouseUp', () => {
     expect(mockOpenContextMenu).toHaveBeenCalledWith({
       anchor: { x: 42, y: 24 },
       variant: 'item',
-      target: { type: 'ITEM', id: 'n1' }
+      target: { type: 'ITEM', id: 'n1' },
+      // Clicked tile carried for connector "Add label" placement.
+      tile: { x: 5, y: 5 }
     });
   });
 

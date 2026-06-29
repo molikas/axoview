@@ -428,6 +428,9 @@ const locale: LocaleProps = {
     placeholder: 'आइकन खोजें'
   },
   exportImageDialog: {
+    groupAppearance: 'Appearance',
+    groupBackground: 'Background',
+    groupCrop: 'Crop',
     title: 'छवि के रूप में निर्यात करें',
     compatibilityTitle: 'ब्राउज़र संगतता सूचना',
     compatibilityMessage:

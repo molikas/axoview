@@ -363,9 +363,6 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
       <SceneLayer>
         <TextBoxes textBoxes={textBoxes} />
       </SceneLayer>
-      <SceneLayer>
-        <ConnectorLabels connectors={visibleConnectors} />
-      </SceneLayer>
       {enableDebugTools && (
         <SceneLayer>
           <SizeIndicator />
@@ -386,6 +383,14 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
       <NodesCanvas nodes={visibleItems} skipNodes={hybridNodes} />
       <SceneLayer>
         <NodeLabelHitLayer nodes={canvasLabelNodes} />
+      </SceneLayer>
+      {/* Connector labels render ABOVE the interactions box (like
+          NodeLabelHitLayer) so a press on a label chip targets the label —
+          its onPointerDown + stopPropagation then own the gesture. Below the
+          interactions box the box ate every press, so label drag/select did
+          nothing and the connector got dragged instead. */}
+      <SceneLayer>
+        <ConnectorLabels connectors={visibleConnectors} />
       </SceneLayer>
       {hybridNodes.length > 0 && (
         <SceneLayer>

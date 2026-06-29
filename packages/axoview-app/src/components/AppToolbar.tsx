@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -18,7 +18,9 @@ import {
   ShareOutlined as ShareIcon,
   Close as CloseIcon,
   SlideshowOutlined as PresentIcon,
-  ArrowBack as ArrowBackIcon
+  ArrowBack as ArrowBackIcon,
+  VisibilityOutlined as ShowControlsIcon,
+  VisibilityOffOutlined as HideControlsIcon
 } from '@mui/icons-material';
 import { useAppStorage } from '../providers/AppStorageContext';
 import { useDiagramLifecycle } from '../providers/DiagramLifecycleProvider';
@@ -42,9 +44,32 @@ export function AppToolbar() {
   } = useDiagramLifecycle();
 
   const shareButtonRef = useRef<HTMLButtonElement>(null);
-  const [sidebarPortalSet, setSidebarPortalSet] = useState(false);
-  const [stylePortalSet, setStylePortalSet] = useState(false);
+  // STABLE portal-target refs. The toolbar's editable branch unmounts when you
+  // enter presentation and remounts on return — a *new* DOM node each time. The
+  // old "set once" guard left the portal pointing at the stale (detached) node,
+  // so the top-bar style strip + sidebar toggle vanished after a present→edit
+  // round-trip. A stable callback ref fires on every mount (el) / unmount (null),
+  // so the portal target always tracks the live node. (Stable identity → React
+  // does not re-invoke it on ordinary re-renders, so no thrash.)
+  const setStyleControlsRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      // Re-point on every (re)mount of the toolbar's editable branch. On unmount
+      // (el === null) we keep the old target — harmless, since the portal isn't
+      // rendered in presentation; the next mount supplies the live node.
+      if (el) setStyleControlsPortalTarget(el);
+    },
+    [setStyleControlsPortalTarget]
+  );
+  const setSidebarToggleRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      if (el) setSidebarTogglePortalTarget(el);
+    },
+    [setSidebarTogglePortalTarget]
+  );
   const [showSharePopover, setShowSharePopover] = useState(false);
+  // View-only "hide all controls" — bridged to the lib (separate store) via a
+  // window event the lib's UiOverlay listens for. Local state drives the button.
+  const [hideControls, setHideControls] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [shareLoading, setShareLoading] = useState(false);
@@ -179,6 +204,38 @@ export function AppToolbar() {
               variant="outlined"
               size="small"
             />
+            <Tooltip
+              title={t(
+                hideControls
+                  ? 'toolbar.showControls'
+                  : 'toolbar.hideControls',
+                hideControls ? 'Show controls' : 'Hide controls'
+              )}
+            >
+              <IconButton
+                size="small"
+                aria-pressed={hideControls}
+                onClick={() => {
+                  const next = !hideControls;
+                  setHideControls(next);
+                  window.dispatchEvent(
+                    new CustomEvent('axoview-set-hide-view-controls', {
+                      detail: { hide: next }
+                    })
+                  );
+                }}
+                data-axoview-id="toolbar-hide-view-controls"
+                sx={{
+                  ...(hideControls && { bgcolor: 'action.selected' })
+                }}
+              >
+                {hideControls ? (
+                  <ShowControlsIcon sx={{ fontSize: 18 }} />
+                ) : (
+                  <HideControlsIcon sx={{ fontSize: 18 }} />
+                )}
+              </IconButton>
+            </Tooltip>
             {(location.state as { fromEditor?: boolean } | null)?.fromEditor && (
               <Tooltip title={t('toolbar.backToEditing', 'Back to editing')}>
                 <Button
@@ -200,12 +257,7 @@ export function AppToolbar() {
                 the selection store + scene actions in scope). Controls self-gate
                 on the current selection. */}
             <Box
-              ref={(el: HTMLDivElement | null) => {
-                if (el && !stylePortalSet) {
-                  setStylePortalSet(true);
-                  setStyleControlsPortalTarget(el);
-                }
-              }}
+              ref={setStyleControlsRef}
               sx={{ display: 'inline-flex', alignItems: 'center' }}
             />
 
@@ -277,12 +329,7 @@ export function AppToolbar() {
 
             {/* Group 4: Sidebar toggle — Properties panel portal */}
             <Box
-              ref={(el: HTMLDivElement | null) => {
-                if (el && !sidebarPortalSet) {
-                  setSidebarPortalSet(true);
-                  setSidebarTogglePortalTarget(el);
-                }
-              }}
+              ref={setSidebarToggleRef}
               sx={{ display: 'inline-flex', alignItems: 'center' }}
             />
           </>

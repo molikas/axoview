@@ -428,6 +428,9 @@ const locale: LocaleProps = {
     placeholder: 'Simge ara'
   },
   exportImageDialog: {
+    groupAppearance: 'Appearance',
+    groupBackground: 'Background',
+    groupCrop: 'Crop',
     title: 'Resim olarak dışa aktar',
     compatibilityTitle: 'Tarayıcı Uyumluluk Bildirimi',
     compatibilityMessage:

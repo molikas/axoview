@@ -416,6 +416,9 @@ export interface LocaleProps {
     compatibilityMessage: string;
     cropInstruction: string;
     options: string;
+    groupAppearance: string;
+    groupBackground: string;
+    groupCrop: string;
     showGrid: string;
     showLabels: string;
     expandDescriptions: string;

@@ -20,6 +20,7 @@ import {
   TextRotationNone as TextRotationNoneIcon,
   EditNote as RichTextIcon,
   PhotoSizeSelectLarge as IconSizeIcon,
+  ImageOutlined as ChangeIconIcon,
   ArrowDropDown as CaretIcon
 } from '@mui/icons-material';
 import { useUiStateStore } from 'src/stores/uiStateStore';
@@ -37,6 +38,7 @@ import { LabelColorPicker } from '../ItemControls/components/LabelColorPicker';
 import { ColorSelector } from '../ColorSelector/ColorSelector';
 import { CustomColorInput } from '../ColorSelector/CustomColorInput';
 import { RichTextEditor } from '../RichTextEditor/RichTextEditor';
+import { QuickIconSelector } from '../ItemControls/NodeControls/QuickIconSelector';
 
 // Google-Docs-style inline strip that surfaces a subset of the right-dock style
 // controls in the top bar. It is portaled (via UiOverlay) into a slot the app
@@ -343,12 +345,21 @@ const IconSizeControl = ({
 export const TopBarStyleControls = () => {
   const itemControls = useUiStateStore((s) => s.itemControls);
   const mode = useUiStateStore((s) => s.mode);
+  const selectedConnectorLabel = useUiStateStore(
+    (s) => s.selectedConnectorLabel
+  );
   const connectorDefaults = useUiStateStore((s) => s.connectorDefaults);
   const setConnectorDefaults = useUiStateStore(
     (s) => s.actions.setConnectorDefaults
   );
-  const { colors, updateViewItem, updateTextBox, updateConnector, updateRectangle } =
-    useScene();
+  const {
+    colors,
+    updateViewItem,
+    updateModelItem,
+    updateTextBox,
+    updateConnector,
+    updateRectangle
+  } = useScene();
 
   const sel = itemControls && itemControls.type !== 'ADD_ITEM' ? itemControls : null;
   // Hooks must run unconditionally; each returns null when the id is absent from
@@ -374,23 +385,45 @@ export const TopBarStyleControls = () => {
   const resolveHex = (presetId?: string, customColor?: string) =>
     customColor || colors.find((c) => c.id === presetId)?.value;
 
-  // --- Text colour (node label / text node / connector labels) ---
+  // --- Text colour / size target the ONE selected connector label (a labels[]
+  // entry the user clicked on canvas), so styling is per-label rather than
+  // applied to every label at once. Node / text box are unchanged.
   const connectorLabels = connector?.labels ?? [];
-  const textColorEnabled = Boolean(
-    node || textBox || (connector && connectorLabels.length > 0)
-  );
+  const activeLabelId =
+    connector && selectedConnectorLabel?.connectorId === connector.id
+      ? selectedConnectorLabel.labelId
+      : null;
+  // The primary name label ('__name__') stores its style on the connector's
+  // nameLabel* fields, not in labels[]; every other selected label is a labels[]
+  // entry.
+  const isNameLabel = !!connector && activeLabelId === '__name__';
+  const activeLabel =
+    activeLabelId && activeLabelId !== '__name__'
+      ? connectorLabels.find((l) => l.id === activeLabelId) ?? null
+      : null;
+  const updateActiveLabel = (patch: Partial<(typeof connectorLabels)[number]>) => {
+    if (!connector || !activeLabel) return;
+    updateConnector(connector.id, {
+      labels: connectorLabels.map((l) =>
+        l.id === activeLabel.id ? { ...l, ...patch } : l
+      )
+    });
+  };
+
+  const textColorEnabled = Boolean(node || textBox || activeLabel || isNameLabel);
   const textColorValue = node
     ? node.labelColor
     : textBox
     ? textBox.color
-    : connectorLabels[0]?.labelColor;
+    : isNameLabel
+    ? connector?.nameLabelColor
+    : activeLabel?.labelColor;
   const onTextColorChange = (color: string | undefined) => {
     if (node) updateViewItem(node.id, { labelColor: color });
     else if (textBox) updateTextBox(textBox.id, { color });
-    else if (connector)
-      updateConnector(connector.id, {
-        labels: connectorLabels.map((l) => ({ ...l, labelColor: color }))
-      });
+    else if (isNameLabel && connector)
+      updateConnector(connector.id, { nameLabelColor: color });
+    else if (activeLabel) updateActiveLabel({ labelColor: color });
   };
 
   // --- Text size (presented as a unified % scale; mapped to each type's native
@@ -417,16 +450,22 @@ export const TopBarStyleControls = () => {
         step: 0.15,
         onChange: (v) => updateTextBox(textBox.id, { fontSize: v })
       }
-    : connector && connectorLabels.length > 0
+    : isNameLabel && connector
     ? {
-        value: connectorLabels[0]?.fontSize ?? 12,
+        value: connector.nameLabelFontSize ?? 12,
         min: 8,
         max: 24,
         step: 1,
         onChange: (v) =>
-          updateConnector(connector.id, {
-            labels: connectorLabels.map((l) => ({ ...l, fontSize: v }))
-          })
+          updateConnector(connector.id, { nameLabelFontSize: v })
+      }
+    : activeLabel
+    ? {
+        value: activeLabel.fontSize ?? 12,
+        min: 8,
+        max: 24,
+        step: 1,
+        onChange: (v) => updateActiveLabel({ fontSize: v })
       }
     : null;
 
@@ -522,6 +561,33 @@ export const TopBarStyleControls = () => {
             }
             onDisableCustom={() => updateRectangle(rectangle.id, { customColor: '' })}
           />
+        )}
+      </StripButton>
+
+      {/* Change icon (node) — moved here from the node Details panel. */}
+      <StripButton
+        tooltip={node ? 'Change icon' : 'Select a node to change its icon'}
+        disabled={!node}
+        popoverWidth={320}
+        icon={
+          currentIcon?.url ? (
+            <Box
+              component="img"
+              src={currentIcon.url}
+              sx={{ width: 18, height: 18, display: 'block', objectFit: 'contain' }}
+            />
+          ) : (
+            <ChangeIconIcon sx={{ fontSize: 18 }} />
+          )
+        }
+      >
+        {node && (
+          <Box sx={{ maxHeight: 360, overflowY: 'auto' }}>
+            <QuickIconSelector
+              currentIconId={modelItem?.icon}
+              onIconSelected={(icon) => updateModelItem(node.id, { icon: icon.id })}
+            />
+          </Box>
         )}
       </StripButton>
 

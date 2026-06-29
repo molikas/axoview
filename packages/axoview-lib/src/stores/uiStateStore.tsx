@@ -77,8 +77,10 @@ const initialState = () => {
       isDirty: false,
       previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
       previewHideLabels: false,
+      hideViewControls: false,
       exportHideLabels: false,
       labelDrag: null,
+      selectedConnectorLabel: null,
       annotation: {
         open: false,
         // Open in the non-disruptive Select mode; the user picks a draw tool.
@@ -93,21 +95,21 @@ const initialState = () => {
         setView: (view) => {
           // A new view has its own layers — drop any preview override so a
           // solo'd/hidden layer id from the previous view can't leak across.
-          // The hide-labels flag is per-presentation too, so reset it as well.
+          // (hide-labels is now a GLOBAL toggle, not per-view, so it persists.)
           set({
             view,
-            previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
-            previewHideLabels: false
+            previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null }
           });
         },
         setEditorMode: (mode) => {
-          // Leaving (or entering) preview clears the ephemeral overrides so they
-          // never persist across mode switches (ADR 0013 + hide-labels addendum).
+          // Leaving (or entering) preview clears the ephemeral preview overrides
+          // and the view-only "hide all controls" flag so they never persist
+          // across mode switches (ADR 0013). hide-labels is global → untouched.
           set({
             editorMode: mode,
             mode: getStartingMode(mode),
             previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
-            previewHideLabels: false
+            hideViewControls: false
           });
         },
         setIconCategoriesState: (iconCategoriesState) => {
@@ -172,13 +174,15 @@ const initialState = () => {
             if (!openPanel) {
               set({
                 itemControls,
-                selectedIds: nextSelected
+                selectedIds: nextSelected,
+                selectedConnectorLabel: null
               });
               return;
             }
             set({
               itemControls,
               selectedIds: nextSelected,
+              selectedConnectorLabel: null,
               rightSidebarOpen: inView ? rightSidebarOpen : true,
               ...(!inView && !alreadyPinned && { rightSidebarAutoOpened: true })
             });
@@ -186,6 +190,7 @@ const initialState = () => {
             const autoOpened = get().rightSidebarAutoOpened;
             set({
               itemControls,
+              selectedConnectorLabel: null,
               ...(autoOpened && {
                 rightSidebarOpen: false,
                 rightSidebarAutoOpened: false
@@ -208,13 +213,15 @@ const initialState = () => {
             // closed until an explicit double-click.
             set({
               selectedIds: ids,
-              itemControls: { type: only.type, id: only.id }
+              itemControls: { type: only.type, id: only.id },
+              selectedConnectorLabel: null
             });
           } else {
             const autoOpened = get().rightSidebarAutoOpened;
             set({
               selectedIds: ids,
               itemControls: null,
+              selectedConnectorLabel: null,
               ...(autoOpened && {
                 rightSidebarOpen: false,
                 rightSidebarAutoOpened: false
@@ -294,10 +301,17 @@ const initialState = () => {
           });
         },
         setPreviewHideLabels: (previewHideLabels) => {
-          // UI-only present-mode toggle (ADR 0013 addendum): suppresses name
-          // labels live without ever touching the model's `showLabel`, so it
-          // cannot dirty/save the diagram. Cleared on view/mode switch above.
+          // UI-only GLOBAL hide-labels toggle (bottom-dock zoom cluster, both
+          // editing + presentation): suppresses name labels live without ever
+          // touching the model's `showLabel`, so it cannot dirty/save. Persists
+          // across view/mode switches (it is a session-wide view preference).
           set({ previewHideLabels });
+        },
+        setHideViewControls: (hideViewControls) => {
+          // UI-only view-only toggle: hides the on-canvas presentation chrome
+          // (layer switcher, annotation palette, bottom dock) for a clean
+          // screenshot. Cleared on mode switch above.
+          set({ hideViewControls });
         },
         setExportHideLabels: (exportHideLabels) => {
           // UI-only image-export toggle (ADR 0025 §3): suppresses name labels in
@@ -315,6 +329,9 @@ const initialState = () => {
         },
         clearLabelDrag: () => {
           set({ labelDrag: null });
+        },
+        setSelectedConnectorLabel: (sel) => {
+          set({ selectedConnectorLabel: sel });
         },
         // --- Annotation overlay (ADR 0014) — ephemeral, never persisted ---
         setAnnotationOpen: (open) => {

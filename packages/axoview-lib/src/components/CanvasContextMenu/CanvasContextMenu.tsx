@@ -34,11 +34,17 @@ import {
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useTranslation } from 'src/stores/localeStore';
 import { useScene } from 'src/hooks/useScene';
+import { useSceneData } from 'src/hooks/useSceneData';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { useLayerActions } from 'src/hooks/useLayerActions';
 import { useCopyPaste } from 'src/clipboard/useCopyPaste';
 import { collectSelectableRefs } from 'src/utils/selectableRefs';
-import { itemCollides } from 'src/utils';
+import {
+  itemCollides,
+  getConnectorLabels,
+  connectorPathTileToGlobal,
+  generateId
+} from 'src/utils';
 import {
   countUserFacingRefs,
   filterUserFacingRefs
@@ -82,6 +88,7 @@ export const CanvasContextMenu = () => {
   const snapToGrid = useUiStateStore((s) => s.snapToGrid);
   const actions = useUiStateStore((s) => s.actions);
   const scene = useScene();
+  const sceneData = useSceneData();
   const { layers, lockedIds, visibleIds } = useLayerContext();
   const { assignLayerToItems } = useLayerActions();
   const { handleCopy, handleCut, handlePaste } = useCopyPaste();
@@ -129,12 +136,54 @@ export const CanvasContextMenu = () => {
 
   const handleAddLabel = useCallback(() => {
     if (target?.type !== 'CONNECTOR') return;
-    // Open the connector's details, then (one frame later, once the freshly
-    // mounted controls have attached their panel-event listener) create a label
-    // through the same path as the in-panel + button.
-    actions.setItemControls({ type: 'CONNECTOR', id: target.id });
-    requestAnimationFrame(() => dispatchPanelEvent('CONNECTOR', 'addLabel'));
-  }, [actions, target]);
+    const connector = scene.currentView.connectors?.find(
+      (c) => c.id === target.id
+    );
+    if (!connector) return;
+    const baseLabels = getConnectorLabels(connector);
+    // Drop the label where the user clicked: the position % of the path tile
+    // nearest the right-click tile. Falls back to the midpoint if the path or
+    // click tile is unavailable.
+    let position = 50;
+    const path = sceneData.hitConnectors.find((c) => c.id === target.id)?.path;
+    const clickedTile = contextMenu?.tile;
+    if (path?.tiles?.length && clickedTile) {
+      let bestIdx = 0;
+      let bestDist = Infinity;
+      path.tiles.forEach((t, i) => {
+        const g = connectorPathTileToGlobal(t, path.rectangle.from);
+        const d = (g.x - clickedTile.x) ** 2 + (g.y - clickedTile.y) ** 2;
+        if (d < bestDist) {
+          bestDist = d;
+          bestIdx = i;
+        }
+      });
+      position =
+        path.tiles.length > 1
+          ? Math.round((bestIdx / (path.tiles.length - 1)) * 100)
+          : 50;
+    }
+    const labelId = generateId();
+    scene.updateConnector(target.id, {
+      labels: [...baseLabels, { id: labelId, text: '', position, height: 0, line: '1' }],
+      description: undefined,
+      startLabel: undefined,
+      endLabel: undefined,
+      startLabelHeight: undefined,
+      centerLabelHeight: undefined,
+      endLabelHeight: undefined
+    });
+    actions.setSelectedConnectorLabel({ connectorId: target.id, labelId });
+    // Inline-edit the new label on canvas (no details panel). Empty text on
+    // commit discards it, so an accidental "Add label" never leaves a blank one.
+    requestAnimationFrame(() =>
+      window.dispatchEvent(
+        new CustomEvent('inlineEditConnectorLabel', {
+          detail: { connectorId: target.id, labelId }
+        })
+      )
+    );
+  }, [actions, target, scene, sceneData, contextMenu]);
 
   const handleDelete = useCallback(() => {
     if (!target) return;

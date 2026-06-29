@@ -303,14 +303,22 @@ export interface UiState {
    */
   previewLayerOverrides: PreviewLayerOverrides;
   /**
-   * Present-mode (EXPLORABLE_READONLY) "hide labels" flag (ADR 0013, 2026-06-18
-   * addendum). A UI-only toggle that hides node + connector *name* labels while
-   * presenting — it never mutates the model's per-item `showLabel`, is never
-   * persisted/saved (so presenting can't dirty the diagram), and is cleared when
-   * leaving present mode or switching view. Ignored entirely in EDITABLE. The
-   * label render sites merge it through `isLabelVisibleInPreview`.
+   * GLOBAL "hide labels" flag (bottom-dock zoom cluster, both editing and
+   * presentation). A UI-only toggle that hides node + connector *name* labels —
+   * it never mutates the model's per-item `showLabel` and is never
+   * persisted/saved (so it can't dirty the diagram). Persists across view/mode
+   * switches (a session-wide view preference). The label render sites merge it
+   * through `isLabelVisibleInPreview`. (Name kept for back-compat; it is no
+   * longer preview-only.)
    */
   previewHideLabels: boolean;
+  /**
+   * View-only (EXPLORABLE_READONLY) "hide all controls" flag. A UI-only toggle
+   * that hides the on-canvas presentation chrome (layer switcher, annotation
+   * palette, bottom dock) for a clean screenshot. Never persisted; cleared on
+   * mode switch.
+   */
+  hideViewControls: boolean;
   /**
    * Image-export "hide labels" flag (ADR 0025 §3). UI-only and scoped to the
    * export dialog's hidden Axoview instance (each Axoview has its own store), so
@@ -329,6 +337,14 @@ export interface UiState {
    * is written ONCE on release. Null when no label drag is in flight.
    */
   labelDrag: { id: string; height: number } | null;
+  /**
+   * The currently-selected connector label (a `labels[]` entry), so the top-bar
+   * style strip can target ONE label's text size/colour and the canvas can
+   * highlight it. `connectorId` scopes the selection so a stale id from a
+   * previous connector is ignored. Cleared whenever the selected item changes.
+   * UI-only, never persisted.
+   */
+  selectedConnectorLabel: { connectorId: string; labelId: string } | null;
   /** Ephemeral annotation overlay (ADR 0014). Never persisted. */
   annotation: AnnotationState;
 }
@@ -346,6 +362,11 @@ export interface ContextMenuState {
   variant: 'item' | 'multi' | 'canvas';
   /** The item the menu commands act on; set only for the `'item'` variant. */
   target: ItemReference | null;
+  /**
+   * The tile under the cursor when the menu opened. Used by connector "Add
+   * label" so the new label lands where the user clicked, not at the midpoint.
+   */
+  tile?: Coords;
 }
 
 /** UI-only preview layer override (ADR 0013). */
@@ -454,14 +475,20 @@ export interface UiStateActions {
   setPreviewSoloLayer: (layerId: string | null) => void;
   /** Reset all preview layer overrides (e.g. on leaving preview / view switch). */
   clearPreviewLayerOverrides: () => void;
-  /** Set the present-mode hide-labels flag (UI-only; never touches the model). */
+  /** Set the global hide-labels flag (UI-only; never touches the model). */
   setPreviewHideLabels: (hide: boolean) => void;
+  /** Set the view-only "hide all controls" flag (UI-only; cleared on mode switch). */
+  setHideViewControls: (hide: boolean) => void;
   /** Set the image-export hide-labels flag (UI-only; export-scoped store). */
   setExportHideLabels: (hide: boolean) => void;
   /** Begin / update the transient on-canvas label-drag preview (ADR 0024 T6 fix). */
   setLabelDrag: (id: string, height: number) => void;
   /** End the label-drag preview (the model labelHeight is committed separately, once). */
   clearLabelDrag: () => void;
+  /** Select (or clear) the connector label the top-bar style strip targets. */
+  setSelectedConnectorLabel: (
+    sel: { connectorId: string; labelId: string } | null
+  ) => void;
   // --- Annotation overlay (ADR 0014) ---
   setAnnotationOpen: (open: boolean) => void;
   setAnnotationTool: (tool: AnnotationTool) => void;

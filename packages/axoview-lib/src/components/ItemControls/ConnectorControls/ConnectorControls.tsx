@@ -7,7 +7,6 @@ import {
   IconButton,
   Tooltip,
   Button,
-  Slider,
   Select,
   MenuItem,
   TextField,
@@ -15,7 +14,9 @@ import {
   FormControlLabel,
   Switch,
   Typography,
-  Paper
+  Paper,
+  Collapse,
+  Chip
 } from '@mui/material';
 import { useConnector } from 'src/hooks/useConnector';
 import { useUiStateStore } from 'src/stores/uiStateStore';
@@ -27,12 +28,12 @@ import {
   Delete as DeleteIcon,
   InsertLink as InsertLinkIcon,
   VisibilityOutlined as ShowLabelIcon,
-  VisibilityOffOutlined as HideLabelIcon
+  VisibilityOffOutlined as HideLabelIcon,
+  ExpandMore as ExpandMoreIcon
 } from '@mui/icons-material';
 import { getConnectorLabels, generateId } from 'src/utils';
 import { ControlsContainer } from '../components/ControlsContainer';
 import { Section } from '../components/Section';
-import { LabelColorPicker } from '../components/LabelColorPicker';
 import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
 import { useTranslation } from 'src/stores/localeStore';
 
@@ -78,9 +79,22 @@ export const ConnectorControls = ({ id }: Props) => {
   const connector = useConnector(id);
   const { updateConnector } = useScene();
   const editorMode = useUiStateStore((s) => s.editorMode);
+  // Per-label selection (shared with the canvas + top-bar style strip): clicking
+  // a label card here selects it so the top bar targets it and the canvas
+  // highlights it. Position/size/colour are set on the canvas + top bar now.
+  const selectedConnectorLabel = useUiStateStore(
+    (s) => s.selectedConnectorLabel
+  );
 
   const [activeTab, setActiveTab] = useState(TAB_DETAILS);
   const [showLink, setShowLink] = useState(!!connector?.headerLink);
+  // Option A: positioned labels[] are the advanced/power surface, demoted behind
+  // a disclosure so the single `name` (the midpoint label) is the obvious path.
+  // Start expanded only when the connector already has labels, so existing
+  // power-user content isn't hidden.
+  const [showAdvanced, setShowAdvanced] = useState(
+    () => (connector?.labels?.length ?? 0) > 0
+  );
   const nameRef = useRef<HTMLInputElement>(null);
 
   // F2 from canvas focuses the Name field on the Details tab
@@ -114,12 +128,6 @@ export const ConnectorControls = ({ id }: Props) => {
         setActiveTab(TAB_DETAILS);
       } else if (action === 'focusNotes') {
         setActiveTab(TAB_NOTES);
-      } else if (action === 'addLabel') {
-        // Triggered from the canvas context menu ("Add label"). Reuse the same
-        // creation path as the in-panel + button via a ref (avoids stale
-        // closure against this once-registered listener).
-        setActiveTab(TAB_DETAILS);
-        addLabelRef.current();
       }
     };
     window.addEventListener(PANEL_EVENT, handler);
@@ -149,12 +157,21 @@ export const ConnectorControls = ({ id }: Props) => {
       centerLabelHeight: undefined,
       endLabelHeight: undefined
     });
-  }, [connector, labels, updateConnector]);
-
-  // Kept fresh each render so the once-registered panel-event listener can call
-  // the latest handleAddLabel without re-subscribing.
-  const addLabelRef = useRef(handleAddLabel);
-  addLabelRef.current = handleAddLabel;
+    uiStateActions.setSelectedConnectorLabel({
+      connectorId: connector.id,
+      labelId: newLabel.id
+    });
+    // Edit the new label inline on canvas; empty text on commit discards it, so
+    // an accidental add never leaves a blank label. (The card below also lets
+    // you type the text.)
+    requestAnimationFrame(() =>
+      window.dispatchEvent(
+        new CustomEvent('inlineEditConnectorLabel', {
+          detail: { connectorId: connector.id, labelId: newLabel.id }
+        })
+      )
+    );
+  }, [connector, labels, updateConnector, uiStateActions]);
 
   const handleUpdateLabel = useCallback(
     (labelId: string, updates: Partial<ConnectorLabel>) => {
@@ -299,8 +316,32 @@ export const ConnectorControls = ({ id }: Props) => {
             )}
           </Section>
 
-          {/* Additional labels */}
+          {/* Advanced labels — positioned, styled labels along the path. Demoted
+              behind a disclosure (Option A) so the single `name` (the midpoint
+              label) is the obvious path. Auto-expanded when labels already
+              exist so power-user content isn't hidden. */}
           <Section title={t('additionalLabels')}>
+            <Button
+              fullWidth
+              size="small"
+              onClick={() => setShowAdvanced((v) => !v)}
+              startIcon={
+                <ExpandMoreIcon
+                  sx={{
+                    transition: 'transform 150ms ease',
+                    transform: showAdvanced ? 'rotate(180deg)' : 'none'
+                  }}
+                />
+              }
+              sx={{ justifyContent: 'flex-start', textTransform: 'none', mb: 1 }}
+            >
+              {showAdvanced ? t('hideLabel') : t('showLabel')}
+              {labels.length > 0 && (
+                <Chip size="small" label={labels.length} sx={{ ml: 1, height: 18 }} />
+              )}
+            </Button>
+
+            <Collapse in={showAdvanced} unmountOnExit>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
               <Button
                 startIcon={<AddIcon />}
@@ -319,95 +360,97 @@ export const ConnectorControls = ({ id }: Props) => {
               </Typography>
             )}
 
-              {labels.map((label, index) => (
-                <Paper key={label.id} variant="outlined" sx={{ p: 2, mb: 2 }}>
-                  <Box
+              {labels.length > 0 && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: 'block', mb: 1 }}
+                >
+                  Drag a label on the canvas to position it; use the top bar for
+                  its text size and colour.
+                </Typography>
+              )}
+
+              {labels.map((label, index) => {
+                const isSelected =
+                  selectedConnectorLabel?.connectorId === connector.id &&
+                  selectedConnectorLabel.labelId === label.id;
+                return (
+                  <Paper
+                    key={label.id}
+                    variant="outlined"
+                    onClick={() =>
+                      uiStateActions.setSelectedConnectorLabel({
+                        connectorId: connector.id,
+                        labelId: label.id
+                      })
+                    }
                     sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      mb: 1
+                      p: 2,
+                      mb: 2,
+                      cursor: 'pointer',
+                      ...(isSelected
+                        ? { outline: '2px solid', outlineColor: 'primary.main' }
+                        : {})
                     }}
                   >
-                    <Typography variant="caption" color="text.secondary">
-                      Label {index + 1}
-                    </Typography>
-                    <MUIIconButton
-                      size="small"
-                      onClick={() => handleDeleteLabel(label.id)}
-                      color="error"
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </MUIIconButton>
-                  </Box>
-
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ mb: 0.5, display: 'block' }}
-                  >
-                    Text
-                  </Typography>
-                  <TextField
-                    value={label.text}
-                    onChange={(e) => handleUpdateLabel(label.id, { text: e.target.value })}
-                    fullWidth
-                    size="small"
-                    sx={{ mb: 2 }}
-                  />
-
-                  <Box sx={{ mb: 2 }}>
                     <Box
                       sx={{
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        mb: 0.5
+                        mb: 1
                       }}
                     >
                       <Typography variant="caption" color="text.secondary">
-                        Position (%)
+                        Label {index + 1}
                       </Typography>
-                      <TextField
-                        type="number"
+                      <MUIIconButton
                         size="small"
-                        value={label.position}
-                        onChange={(e) => {
-                          const inputValue = e.target.value;
-                          if (inputValue === '') {
-                            handleUpdateLabel(label.id, { position: 0 });
-                            return;
-                          }
-                          const val = parseInt(inputValue, 10);
-                          if (!Number.isNaN(val)) {
-                            handleUpdateLabel(label.id, {
-                              position: Math.max(0, Math.min(100, val))
-                            });
-                          }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteLabel(label.id);
                         }}
-                        onBlur={(e) => {
-                          if (e.target.value === '') handleUpdateLabel(label.id, { position: 0 });
-                        }}
-                        slotProps={{ htmlInput: { min: 0, max: 100 } }}
-                        sx={{ width: 70 }}
-                      />
+                        color="error"
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </MUIIconButton>
                     </Box>
-                    <Slider
-                      step={1}
-                      min={0}
-                      max={100}
-                      value={label.position}
-                      onChange={(_, val) => handleUpdateLabel(label.id, { position: val as number })}
+
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ mb: 0.5, display: 'block' }}
+                    >
+                      Text
+                    </Typography>
+                    <TextField
+                      value={label.text}
+                      onChange={(e) =>
+                        handleUpdateLabel(label.id, { text: e.target.value })
+                      }
+                      // A label with no text has no reason to exist: clearing it
+                      // and blurring removes the label (matches the canvas
+                      // inline-edit behaviour).
+                      onBlur={() => {
+                        if (!label.text.trim()) handleDeleteLabel(label.id);
+                      }}
+                      fullWidth
+                      size="small"
+                      sx={{ mb: isDoubleLineType ? 2 : 1 }}
                     />
+
                     {isDoubleLineType && (
-                      <Box sx={{ mt: 1 }}>
+                      <Box sx={{ mb: 1 }}>
                         <Typography variant="caption" color="text.secondary">
                           Line
                         </Typography>
                         <Select
                           value={label.line || '1'}
                           onChange={(e) =>
-                            handleUpdateLabel(label.id, { line: e.target.value as '1' | '2' })
+                            handleUpdateLabel(label.id, {
+                              line: e.target.value as '1' | '2'
+                            })
                           }
                           fullWidth
                           size="small"
@@ -417,61 +460,26 @@ export const ConnectorControls = ({ id }: Props) => {
                         </Select>
                       </Box>
                     )}
-                  </Box>
 
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Height offset
-                    </Typography>
-                    <Slider
-                      marks
-                      step={10}
-                      min={-100}
-                      max={100}
-                      value={label.height || 0}
-                      onChange={(_, value) => handleUpdateLabel(label.id, { height: value as number })}
-                    />
-                  </Box>
-
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Font size
-                    </Typography>
-                    <Slider
-                      marks
-                      step={1}
-                      min={8}
-                      max={24}
-                      value={label.fontSize ?? 12}
-                      onChange={(_, value) =>
-                        handleUpdateLabel(label.id, { fontSize: value as number })
-                      }
-                    />
-                  </Box>
-
-                  <Box sx={{ mb: 1 }}>
-                    <Typography variant="caption" color="text.secondary">
-                      Label color
-                    </Typography>
-                    <LabelColorPicker
-                      value={label.labelColor}
-                      onChange={(color) => handleUpdateLabel(label.id, { labelColor: color })}
-                    />
-                  </Box>
-
-                  <Box>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={label.showLine !== false}
-                          onChange={(e) => handleUpdateLabel(label.id, { showLine: e.target.checked })}
-                        />
-                      }
-                      label="Show dotted line"
-                    />
-                  </Box>
-                </Paper>
-              ))}
+                    <Box>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={label.showLine !== false}
+                            onChange={(e) =>
+                              handleUpdateLabel(label.id, {
+                                showLine: e.target.checked
+                              })
+                            }
+                          />
+                        }
+                        label="Show dotted line"
+                      />
+                    </Box>
+                  </Paper>
+                );
+              })}
+            </Collapse>
           </Section>
         </TabPanel>
 

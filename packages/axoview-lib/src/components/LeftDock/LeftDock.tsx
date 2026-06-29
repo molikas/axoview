@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Box, Divider, IconButton, Tooltip } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material';
 import {
@@ -89,6 +89,15 @@ export const LeftDock = ({
   const setActiveLeftTab = useUiStateStore((s) => s.actions.setActiveLeftTab);
   const setDialog = useUiStateStore((s) => s.actions.setDialog);
   const hotkeys = TOOL_HOTKEYS;
+
+  // App→lib bridge: the empty-state "New diagram" wants to drop the user
+  // straight into the Elements deck (no file explorer). The app dispatches this
+  // after creating + loading the blank diagram.
+  useEffect(() => {
+    const handler = () => setActiveLeftTab('ELEMENTS');
+    window.addEventListener('axoview-open-elements', handler);
+    return () => window.removeEventListener('axoview-open-elements', handler);
+  }, [setActiveLeftTab]);
 
   const tabShortcut: Record<LeftTabId, string | null | undefined> = {
     ELEMENTS: hotkeys.addItem?.toUpperCase(),

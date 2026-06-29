@@ -60,6 +60,65 @@ interface CropArea {
   height: number;
 }
 
+// Crop preview canvas size + interactive-handle tuning. The crop rectangle is
+// resizable (8 handles) and movable, so the user trims to the exact edges
+// instead of drawing once and guessing.
+const CROP_CANVAS_W = 500;
+const CROP_CANVAS_H = 300;
+const CROP_HANDLE_DRAW = 8; // drawn handle square (px)
+const CROP_HANDLE_HIT = 12; // grab radius around a handle (px)
+const CROP_MIN_SIZE = 20; // smallest allowed crop edge (px)
+
+type CropHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
+
+const cropHandlePoints = (c: CropArea): Record<CropHandle, Coords> => ({
+  nw: { x: c.x, y: c.y },
+  n: { x: c.x + c.width / 2, y: c.y },
+  ne: { x: c.x + c.width, y: c.y },
+  e: { x: c.x + c.width, y: c.y + c.height / 2 },
+  se: { x: c.x + c.width, y: c.y + c.height },
+  s: { x: c.x + c.width / 2, y: c.y + c.height },
+  sw: { x: c.x, y: c.y + c.height },
+  w: { x: c.x, y: c.y + c.height / 2 }
+});
+
+const CROP_HANDLE_CURSORS: Record<CropHandle, string> = {
+  nw: 'nwse-resize',
+  se: 'nwse-resize',
+  ne: 'nesw-resize',
+  sw: 'nesw-resize',
+  n: 'ns-resize',
+  s: 'ns-resize',
+  e: 'ew-resize',
+  w: 'ew-resize'
+};
+
+// Which part of the crop the pointer is over: a resize handle, the interior
+// (move), or outside (start a fresh selection).
+const cropRegionAt = (
+  px: number,
+  py: number,
+  c: CropArea
+): CropHandle | 'move' | 'outside' => {
+  const pts = cropHandlePoints(c);
+  for (const key of Object.keys(pts) as CropHandle[]) {
+    const p = pts[key];
+    if (
+      Math.abs(px - p.x) <= CROP_HANDLE_HIT &&
+      Math.abs(py - p.y) <= CROP_HANDLE_HIT
+    ) {
+      return key;
+    }
+  }
+  if (px >= c.x && px <= c.x + c.width && py >= c.y && py <= c.y + c.height) {
+    return 'move';
+  }
+  return 'outside';
+};
+
+const clampNum = (v: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, v));
+
 // Paint a transparency checkerboard across the canvas backdrop.
 function drawCheckerboard(
   ctx: CanvasRenderingContext2D,
@@ -114,6 +173,27 @@ function drawCropSelection(
   ctx.strokeStyle = '#2196f3';
   ctx.lineWidth = 2;
   ctx.strokeRect(cropArea.x, cropArea.y, cropArea.width, cropArea.height);
+
+  // Resize handles (corners + edge midpoints) — the grab targets.
+  const pts = cropHandlePoints(cropArea);
+  ctx.lineWidth = 1.5;
+  (Object.keys(pts) as CropHandle[]).forEach((k) => {
+    const p = pts[k];
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(
+      p.x - CROP_HANDLE_DRAW / 2,
+      p.y - CROP_HANDLE_DRAW / 2,
+      CROP_HANDLE_DRAW,
+      CROP_HANDLE_DRAW
+    );
+    ctx.strokeStyle = '#2196f3';
+    ctx.strokeRect(
+      p.x - CROP_HANDLE_DRAW / 2,
+      p.y - CROP_HANDLE_DRAW / 2,
+      CROP_HANDLE_DRAW,
+      CROP_HANDLE_DRAW
+    );
+  });
 }
 
 export const ExportImageDialog = memo(({ onClose }: Props) => {
@@ -121,8 +201,16 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const cropCanvasRef = useRef<HTMLCanvasElement>(null);
   const isExporting = useRef<boolean>(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState<Coords | null>(null);
+  // In-progress crop gesture (resize a handle / move the box / draw a fresh
+  // one). A ref so per-frame pointer moves don't re-render on the gesture
+  // bookkeeping — only setCropArea (which drives the redraw) does.
+  const cropDragRef = useRef<{
+    mode: 'new' | 'move' | CropHandle;
+    startX: number;
+    startY: number;
+    startCrop: CropArea | null;
+  } | null>(null);
+  const [canvasCursor, setCanvasCursor] = useState<string>('crosshair');
   const currentView = useUiStateStore((state) => state.view);
   const [imageData, setImageData] = React.useState<string>();
   const [svgData, setSvgData] = useState<string>();
@@ -147,8 +235,7 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
   );
 
   // Name-label visibility in the export (ADR 0025 §3). On by default (part of
-  // the Screenshot preset); drives both legibility (readableLabels counter-
-  // scale) and visibility on the hidden Axoview.
+  // the Screenshot preset).
   const [showLabels, setShowLabels] = useState(true);
 
   // DPI presets
@@ -305,66 +392,142 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
     }
   }, [cropArea, imageData, cropToContent, cropImage, isInCropMode]);
 
-  // Mouse handlers for crop selection
+  // Pointer → canvas-internal coords (handles any CSS scaling of the canvas).
+  const getCanvasPoint = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>): Coords | null => {
+      const canvas = cropCanvasRef.current;
+      if (!canvas) return null;
+      const rect = canvas.getBoundingClientRect();
+      const sx = rect.width ? canvas.width / rect.width : 1;
+      const sy = rect.height ? canvas.height / rect.height : 1;
+      return {
+        x: (e.clientX - rect.left) * sx,
+        y: (e.clientY - rect.top) * sy
+      };
+    },
+    []
+  );
+
+  // Mouse handlers for crop selection — resize a handle, move the box, or (when
+  // pressing outside an existing box) draw a fresh one.
   const handleMouseDown = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
       if (!isInCropMode) return;
-
       e.preventDefault();
-      const canvas = cropCanvasRef.current;
-      if (!canvas) return;
+      const p = getCanvasPoint(e);
+      if (!p) return;
 
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
-      setDragStart({ x, y });
-      setIsDragging(true);
-      setCropArea(null);
+      const region = cropArea ? cropRegionAt(p.x, p.y, cropArea) : 'outside';
+      if (region === 'outside' || !cropArea) {
+        cropDragRef.current = {
+          mode: 'new',
+          startX: p.x,
+          startY: p.y,
+          startCrop: null
+        };
+        setCropArea(null);
+      } else {
+        cropDragRef.current = {
+          mode: region, // 'move' | a handle
+          startX: p.x,
+          startY: p.y,
+          startCrop: cropArea
+        };
+      }
     },
-    [isInCropMode]
+    [isInCropMode, cropArea, getCanvasPoint]
   );
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (!isDragging || !dragStart || !isInCropMode) return;
+      if (!isInCropMode) return;
+      const p = getCanvasPoint(e);
+      if (!p) return;
+
+      const drag = cropDragRef.current;
+      if (!drag) {
+        // Hover: reflect what a press would do via the cursor.
+        const region = cropArea
+          ? cropRegionAt(p.x, p.y, cropArea)
+          : 'outside';
+        setCanvasCursor(
+          region === 'outside'
+            ? 'crosshair'
+            : region === 'move'
+              ? 'move'
+              : CROP_HANDLE_CURSORS[region]
+        );
+        return;
+      }
 
       e.preventDefault();
-      const canvas = cropCanvasRef.current;
-      if (!canvas) return;
+      const px = clampNum(p.x, 0, CROP_CANVAS_W);
+      const py = clampNum(p.y, 0, CROP_CANVAS_H);
 
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+      if (drag.mode === 'new') {
+        setCropArea({
+          x: Math.min(drag.startX, px),
+          y: Math.min(drag.startY, py),
+          width: Math.abs(px - drag.startX),
+          height: Math.abs(py - drag.startY)
+        });
+        return;
+      }
 
-      const newCropArea: CropArea = {
-        x: Math.min(dragStart.x, x),
-        y: Math.min(dragStart.y, y),
-        width: Math.abs(x - dragStart.x),
-        height: Math.abs(y - dragStart.y)
-      };
+      const s = drag.startCrop;
+      if (!s) return;
 
-      setCropArea(newCropArea);
+      if (drag.mode === 'move') {
+        setCropArea({
+          x: clampNum(s.x + (px - drag.startX), 0, CROP_CANVAS_W - s.width),
+          y: clampNum(s.y + (py - drag.startY), 0, CROP_CANVAS_H - s.height),
+          width: s.width,
+          height: s.height
+        });
+        return;
+      }
+
+      // Resize: move the edges the grabbed handle controls, keep the opposite
+      // edges fixed, and never let an edge cross its opposite (min size).
+      let l = s.x;
+      let t = s.y;
+      let r = s.x + s.width;
+      let b = s.y + s.height;
+      const h = drag.mode;
+      if (h.includes('w')) l = clampNum(px, 0, r - CROP_MIN_SIZE);
+      if (h.includes('e')) r = clampNum(px, l + CROP_MIN_SIZE, CROP_CANVAS_W);
+      if (h.includes('n')) t = clampNum(py, 0, b - CROP_MIN_SIZE);
+      if (h.includes('s')) b = clampNum(py, t + CROP_MIN_SIZE, CROP_CANVAS_H);
+      setCropArea({ x: l, y: t, width: r - l, height: b - t });
     },
-    [isDragging, dragStart, isInCropMode]
+    [isInCropMode, cropArea, getCanvasPoint]
   );
+
+  const endCropDrag = useCallback(() => {
+    const drag = cropDragRef.current;
+    cropDragRef.current = null;
+    // A stray click that drew a near-zero box → drop it rather than leave a
+    // tiny invalid crop.
+    if (
+      drag?.mode === 'new' &&
+      cropArea &&
+      (cropArea.width < CROP_MIN_SIZE || cropArea.height < CROP_MIN_SIZE)
+    ) {
+      setCropArea(null);
+    }
+  }, [cropArea]);
 
   const handleMouseUp = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (!isDragging) return;
-
       e.preventDefault();
-      setIsDragging(false);
-      setDragStart(null);
+      endCropDrag();
     },
-    [isDragging]
+    [endCropDrag]
   );
 
-  // Add mouse leave handler to stop dragging when leaving canvas
   const handleMouseLeave = useCallback(() => {
-    setIsDragging(false);
-    setDragStart(null);
-  }, []);
+    endCropDrag();
+  }, [endCropDrag]);
 
   // Draw crop overlay
   useEffect(() => {
@@ -413,11 +576,6 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
     setShowGrid(checked);
   };
 
-  const [expandLabels, setExpandLabels] = useState(true);
-  const handleExpandLabelsChange = (checked: boolean) => {
-    setExpandLabels(checked);
-  };
-
   const handleTransparentBackgroundChange = (checked: boolean) => {
     setTransparentBackground(checked);
     if (checked) {
@@ -431,29 +589,38 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
     setBackgroundColor(color);
   };
 
+  // Start crop mode with the whole image selected, so the user trims edges
+  // inward (and never has to guess where to start the box).
+  const fullCropArea = (): CropArea => ({
+    x: 0,
+    y: 0,
+    width: CROP_CANVAS_W,
+    height: CROP_CANVAS_H
+  });
+
   const handleCropToContentChange = (checked: boolean) => {
     setCropToContent(checked);
+    cropDragRef.current = null;
+    setCroppedImageData(undefined);
     if (checked) {
       setIsInCropMode(true);
-      setCropArea(null);
-      setCroppedImageData(undefined);
-      setIsDragging(false);
-      setDragStart(null);
+      setCropArea(fullCropArea());
     } else {
       setIsInCropMode(false);
       setCropArea(null);
-      setCroppedImageData(undefined);
-      setIsDragging(false);
-      setDragStart(null);
     }
   };
 
   const handleRecrop = () => {
+    cropDragRef.current = null;
     setIsInCropMode(true);
-    setCropArea(null);
+    setCropArea(fullCropArea());
     setCroppedImageData(undefined);
-    setIsDragging(false);
-    setDragStart(null);
+  };
+
+  const handleResetCrop = () => {
+    cropDragRef.current = null;
+    setCropArea(fullCropArea());
   };
 
   const handleAcceptCrop = () => {
@@ -532,7 +699,6 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
   }, [
     showGrid,
     backgroundColor,
-    expandLabels,
     showLabels,
     cropToContent,
     exportScale,
@@ -567,17 +733,14 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
 
   const displayImage = croppedImageData || imageData;
 
-  const getCanvasCursor = () => {
-    if (!isInCropMode) return 'default';
-    return isDragging ? 'grabbing' : 'crosshair';
-  };
+  const getCanvasCursor = () => (isInCropMode ? canvasCursor : 'default');
 
   const renderCropCanvas = () => (
     <Box>
       <canvas
         ref={cropCanvasRef}
-        width={500}
-        height={300}
+        width={CROP_CANVAS_W}
+        height={CROP_CANVAS_H}
         style={{
           maxWidth: '100%',
           maxHeight: '300px',
@@ -651,11 +814,7 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
           <Button variant="contained" size="small" onClick={handleAcceptCrop}>
             {t('applyCrop')}
           </Button>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => setCropArea(null)}
-          >
+          <Button variant="outlined" size="small" onClick={handleResetCrop}>
             {t('clearSelection')}
           </Button>
         </Stack>
@@ -747,9 +906,12 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
                   renderer={{
                     showGrid,
                     backgroundColor,
-                    expandLabels,
-                    showLabels,
-                    readableLabels: showLabels
+                    // Always fully expand labels in the export so a long node
+                    // name is never truncated/collapsed in the captured image.
+                    // (User control removed — it referenced the now-gone node
+                    // caption/description.)
+                    expandLabels: true,
+                    showLabels
                   }}
                   onModelUpdated={handleHiddenAxoviewReady}
                 />
@@ -778,79 +940,119 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
                   {t('options')}
                 </Typography>
 
-                <FormControlLabel
-                  label={t('showGrid')}
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={showGrid}
-                      onChange={(event) => {
-                        handleShowGridChange(event.target.checked);
-                      }}
-                    />
-                  }
-                />
-                <FormControlLabel
-                  label={t('showLabels')}
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={showLabels}
-                      onChange={(event) => {
-                        setShowLabels(event.target.checked);
-                      }}
-                    />
-                  }
-                />
-                <FormControlLabel
-                  label={t('expandDescriptions')}
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={expandLabels}
-                      onChange={(event) => {
-                        handleExpandLabelsChange(event.target.checked);
-                      }}
-                    />
-                  }
-                />
+                {/* Appearance */}
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontWeight: 600,
+                    color: 'text.secondary',
+                    display: 'block',
+                    mt: 0.5
+                  }}
+                >
+                  {t('groupAppearance')}
+                </Typography>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    columnGap: 1
+                  }}
+                >
+                  <FormControlLabel
+                    label={t('showGrid')}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={showGrid}
+                        onChange={(event) =>
+                          handleShowGridChange(event.target.checked)
+                        }
+                      />
+                    }
+                  />
+                  <FormControlLabel
+                    label={t('showLabels')}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={showLabels}
+                        onChange={(event) => setShowLabels(event.target.checked)}
+                      />
+                    }
+                  />
+                </Box>
+
+                {/* Background */}
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontWeight: 600,
+                    color: 'text.secondary',
+                    display: 'block',
+                    mt: 1.5
+                  }}
+                >
+                  {t('groupBackground')}
+                </Typography>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    columnGap: 2
+                  }}
+                >
+                  <FormControlLabel
+                    label={t('backgroundColor')}
+                    control={
+                      <ColorPicker
+                        value={backgroundColor}
+                        onChange={handleBackgroundColorChange}
+                        disabled={transparentBackground}
+                      />
+                    }
+                  />
+                  <FormControlLabel
+                    label={t('transparentBackground')}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={transparentBackground}
+                        onChange={(event) =>
+                          handleTransparentBackgroundChange(event.target.checked)
+                        }
+                      />
+                    }
+                  />
+                </Box>
+
+                {/* Crop */}
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontWeight: 600,
+                    color: 'text.secondary',
+                    display: 'block',
+                    mt: 1.5
+                  }}
+                >
+                  {t('groupCrop')}
+                </Typography>
                 <FormControlLabel
                   label={t('cropToContent')}
                   control={
                     <Checkbox
                       size="small"
                       checked={cropToContent}
-                      onChange={(event) => {
-                        handleCropToContentChange(event.target.checked);
-                      }}
-                    />
-                  }
-                />
-                <FormControlLabel
-                  label={t('backgroundColor')}
-                  control={
-                    <ColorPicker
-                      value={backgroundColor}
-                      onChange={handleBackgroundColorChange}
-                      disabled={transparentBackground}
+                      onChange={(event) =>
+                        handleCropToContentChange(event.target.checked)
+                      }
                     />
                   }
                 />
 
-                <FormControlLabel
-                  label={t('transparentBackground')}
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={transparentBackground}
-                      onChange={(event) => {
-                        handleTransparentBackgroundChange(event.target.checked);
-                      }}
-                    />
-                  }
-                />
-
-                <Box sx={{ mt: 2, mb: 1 }}>
+                <Box sx={{ mt: 1.5, mb: 1 }}>
                   <Typography variant="caption" component="div" sx={{ mb: 1 }}>
                     {t('exportQuality')}
                   </Typography>

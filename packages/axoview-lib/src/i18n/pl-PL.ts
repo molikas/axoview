@@ -433,6 +433,9 @@ const locale: LocaleProps = {
     placeholder: 'Szukaj ikon'
   },
   exportImageDialog: {
+    groupAppearance: 'Appearance',
+    groupBackground: 'Background',
+    groupCrop: 'Crop',
     title: 'Eksportuj jako obraz',
     compatibilityTitle: 'Uwaga dotycząca zgodności przeglądarki',
     compatibilityMessage:

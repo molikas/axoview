@@ -36,6 +36,14 @@ export const connectorSchema = z.object({
   notes: z.string().max(NOTES_MAX_LENGTH).optional(),
   headerLink: z.string().max(2048).optional(),
   showLabel: z.boolean().optional(),
+  // Presentation of the primary `name` label (the Option-A midpoint label) so it
+  // can be dragged / styled on canvas like a labels[] entry without being
+  // promoted into labels[] (which would break its identity / F2 / Layers role).
+  // All optional; absent = midpoint, on-line, default size/colour.
+  nameLabelPosition: z.number().min(0).max(100).optional(),
+  nameLabelHeight: z.number().optional(),
+  nameLabelFontSize: z.number().min(8).max(24).optional(),
+  nameLabelColor: z.string().optional(),
   // Legacy label fields (for backward compatibility)
   description: constrainedStrings.description.optional(),
   startLabel: constrainedStrings.description.optional(),

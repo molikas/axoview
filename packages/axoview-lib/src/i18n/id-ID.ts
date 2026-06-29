@@ -428,6 +428,9 @@ const locale: LocaleProps = {
     placeholder: 'Cari ikon'
   },
   exportImageDialog: {
+    groupAppearance: 'Appearance',
+    groupBackground: 'Background',
+    groupCrop: 'Crop',
     title: 'Ekspor sebagai gambar',
     compatibilityTitle: 'Pemberitahuan Kompatibilitas Browser',
     compatibilityMessage:

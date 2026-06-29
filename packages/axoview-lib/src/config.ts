@@ -59,7 +59,22 @@ export const VIEW_ITEM_DEFAULTS: Required<
 };
 
 export const CONNECTOR_DEFAULTS: Required<
-  Omit<Connector, 'id' | 'color' | 'layerId' | 'name' | 'notes' | 'headerLink' | 'showLabel'>
+  Omit<
+    Connector,
+    | 'id'
+    | 'color'
+    | 'layerId'
+    | 'name'
+    | 'notes'
+    | 'headerLink'
+    | 'showLabel'
+    // Name-label presentation overrides default to absent (midpoint, on-line,
+    // default size/colour) so lean-save never writes them on an unstyled name.
+    | 'nameLabelPosition'
+    | 'nameLabelHeight'
+    | 'nameLabelFontSize'
+    | 'nameLabelColor'
+  >
 > = {
   width: 10,
   description: '',

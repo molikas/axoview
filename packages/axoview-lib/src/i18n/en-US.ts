@@ -337,7 +337,7 @@ const locale: LocaleProps = {
   textBoxControls: {
     close: 'Close',
     name: 'Name',
-    namePlaceholder: 'Element name…',
+    namePlaceholder: 'Name (shown in Layers)…',
     text: 'Text',
     textSize: 'Text size',
     textColor: 'Text color',
@@ -346,7 +346,7 @@ const locale: LocaleProps = {
   rectangleControls: {
     close: 'Close',
     name: 'Name',
-    namePlaceholder: 'Element name…',
+    namePlaceholder: 'Name (shown in Layers)…',
     color: 'Color',
     useCustomColor: 'Use Custom Color'
   },
@@ -427,11 +427,14 @@ const locale: LocaleProps = {
     placeholder: 'Search icons'
   },
   exportImageDialog: {
+    groupAppearance: 'Appearance',
+    groupBackground: 'Background',
+    groupCrop: 'Crop',
     title: 'Export as image',
     compatibilityTitle: 'Browser Compatibility Notice',
     compatibilityMessage:
       'For best results, please use Chrome or Edge. Firefox currently has compatibility issues with the export feature.',
-    cropInstruction: 'Click and drag to select the area you want to export',
+    cropInstruction: 'Drag the edges or corners to set the crop area',
     options: 'Options',
     showGrid: 'Show grid',
     showLabels: 'Show labels',
@@ -446,7 +449,7 @@ const locale: LocaleProps = {
     recrop: 'Recrop',
     cropApplied: 'Crop applied successfully',
     applyCrop: 'Apply Crop',
-    clearSelection: 'Clear Selection',
+    clearSelection: 'Reset',
     cropHint:
       'Select an area to crop, or uncheck "Crop to content" to use full image',
     cancel: 'Cancel',
@@ -479,7 +482,7 @@ const locale: LocaleProps = {
   },
   // D1 — CanvasContextMenu (ADR 0027). Sentence case per ux §7.2.
   canvasContextMenu: {
-    addNote: 'Add note',
+    addNote: 'Add/edit note',
     addLabel: 'Add label',
     details: 'Details…',
     rename: 'Rename',

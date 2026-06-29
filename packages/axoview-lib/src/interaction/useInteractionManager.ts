@@ -1089,7 +1089,9 @@ export const useInteractionManager = () => {
             uiState.actions.openContextMenu({
               anchor,
               variant: 'item',
-              target: { type: downItem.type, id: downItem.id }
+              target: { type: downItem.type, id: downItem.id },
+              // Where the finger pressed — connector "Add label" drops it here.
+              tile: ts.downTile
             });
           }
           // Keep the menu alive across the finger-lift compat-mouse sequence

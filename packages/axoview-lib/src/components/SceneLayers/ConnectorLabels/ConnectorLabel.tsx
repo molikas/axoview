@@ -1,4 +1,4 @@
-import React, { useMemo, memo, useEffect, useState, useCallback } from 'react';
+import React, { useMemo, memo, useEffect, useState, useCallback, useRef } from 'react';
 import { Box, Typography } from '@mui/material';
 import { OpenInNew as OpenInNewIcon } from '@mui/icons-material';
 import { useSceneStore } from 'src/stores/sceneStore';
@@ -10,13 +10,17 @@ import {
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { PROJECTED_TILE_SIZE, UNPROJECTED_TILE_SIZE } from 'src/config';
 import { Label } from 'src/components/Label/Label';
-import { Connector, ConnectorLabel as ConnectorLabelType } from 'src/types';
+import { Connector, ConnectorLabel as ConnectorLabelType, Coords } from 'src/types';
 import { useSceneActions } from 'src/hooks/useSceneActions';
 import { useInlineRename } from 'src/hooks/useInlineRename';
-import { useUiStateStore } from 'src/stores/uiStateStore';
+import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { isLabelVisibleInPreview } from 'src/utils/previewLabelVisibility';
 
 const INLINE_EDIT_EVENT = 'inlineEditNodeName';
+// Pointer travel before a press on a label becomes a reposition drag (rather
+// than a select click). Mirrors Label.tsx's node-label drag slop.
+const LABEL_DRAG_SLOP_PX = 4;
+const LABEL_HEIGHT_CLAMP = 300;
 
 interface LabelPosition {
   x: number;
@@ -32,15 +36,20 @@ const resolveConnectorUrl = (
     : `https://${headerLink}`;
 };
 
-// Inline contentEditable editor for the connector name label.
+// Inline contentEditable editor for a connector label (name or a labels[]
+// entry). It renders THROUGH the same <Label> wrapper + outer Box geometry the
+// static label uses, with the SAME labelHeight — so entering edit doesn't make
+// the chip jump from its lifted/dragged spot back to the path midpoint.
 const ConnectorNameEditor = ({
   position,
   name,
+  labelHeight = 0,
   onCommit,
   onCancel
 }: {
   position: LabelPosition;
   name: string;
+  labelHeight?: number;
   onCommit: (raw: string) => void;
   onCancel: () => void;
 }) => {
@@ -50,69 +59,101 @@ const ConnectorNameEditor = ({
     cancel: onCancel
   });
   return (
-  <Box
-    sx={{ position: 'absolute', pointerEvents: 'auto', zIndex: 10 }}
-    style={{ left: position.x, top: position.y }}
-  >
-    <Typography
-      variant="body2"
-      fontWeight={400}
-      contentEditable
-      suppressContentEditableWarning
-      onMouseDown={(e) => e.stopPropagation()}
-      onClick={(e) => e.stopPropagation()}
-      onDoubleClick={(e) => e.stopPropagation()}
-      onBlur={inlineRename.onBlur}
-      onKeyDown={inlineRename.onKeyDown}
-      ref={inlineRename.setRef}
-      sx={{
-        outline: '1px solid rgba(0,0,0,0.3)',
-        borderRadius: 1,
-        px: 0.75,
-        bgcolor: '#fff',
-        minWidth: 20,
-        cursor: 'text',
-        display: 'inline-block',
-        width: 'max-content',
-        maxWidth: 200,
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word'
+    <Box
+      sx={{ position: 'absolute', pointerEvents: 'auto', zIndex: 10 }}
+      style={{
+        maxWidth: PROJECTED_TILE_SIZE.width,
+        left: position.x,
+        top: position.y
       }}
     >
-      {name}
-    </Typography>
-  </Box>
+      <Label
+        maxWidth={150}
+        labelHeight={labelHeight}
+        showLine={false}
+        sx={{
+          py: 0.75,
+          px: 1,
+          borderRadius: 2,
+          backgroundColor: '#fff',
+          opacity: 1,
+          // The chip clips its content by default; let the editor grow as the
+          // user types instead of hiding the caret.
+          overflow: 'visible'
+        }}
+      >
+        <Typography
+          variant="body2"
+          fontWeight={400}
+          contentEditable
+          suppressContentEditableWarning
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+          onBlur={inlineRename.onBlur}
+          onKeyDown={inlineRename.onKeyDown}
+          ref={inlineRename.setRef}
+          sx={{
+            outline: 'none',
+            minWidth: 20,
+            cursor: 'text',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word'
+          }}
+        >
+          {name}
+        </Typography>
+      </Label>
+    </Box>
   );
 };
 
-// Name label (not editing) — clickable when headerLink is set.
+// Primary name label. In EDITABLE mode it is a first-class interactive label
+// (click to select, drag to reposition + lift off the line, style via the top
+// bar) — same as a labels[] entry, but its placement/style live on the
+// connector's nameLabel* fields. In view/read-only mode it stays a clickable
+// link when headerLink is set.
 const ConnectorNameLabel = ({
   position,
   label,
-  headerLink
+  headerLink,
+  interactive,
+  selected,
+  onPointerDown
 }: {
   position: LabelPosition;
   label: ConnectorLabelType;
   headerLink?: string;
+  interactive: boolean;
+  selected: boolean;
+  onPointerDown: (e: React.PointerEvent) => void;
 }) => {
   const url = resolveConnectorUrl(headerLink);
+  // The link is a view-mode affordance; while editing, a click selects the
+  // label (and a drag repositions it) instead of navigating away.
+  const linkActive = !!url && !interactive;
   return (
     <Box
       sx={{
         position: 'absolute',
-        pointerEvents: url ? 'auto' : 'none',
-        cursor: url ? 'pointer' : 'default'
+        pointerEvents: interactive || linkActive ? 'auto' : 'none',
+        cursor: interactive ? 'grab' : linkActive ? 'pointer' : 'default',
+        touchAction: interactive ? 'none' : undefined,
+        userSelect: interactive ? 'none' : undefined,
+        WebkitUserSelect: interactive ? 'none' : undefined
       }}
       style={{
         maxWidth: PROJECTED_TILE_SIZE.width,
         left: position.x,
         top: position.y
       }}
+      onPointerDown={interactive ? onPointerDown : undefined}
       onClick={
-        url
+        linkActive
           ? (e) => {
               e.stopPropagation();
-              window.open(url, '_blank', 'noopener,noreferrer');
+              window.open(url!, '_blank', 'noopener,noreferrer');
             }
           : undefined
       }
@@ -126,7 +167,10 @@ const ConnectorNameLabel = ({
           px: 1,
           borderRadius: 2,
           backgroundColor: 'background.paper',
-          opacity: 0.95
+          opacity: 0.95,
+          ...(selected
+            ? { outline: '2px solid', outlineColor: 'primary.main', opacity: 1 }
+            : {})
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
@@ -134,16 +178,17 @@ const ConnectorNameLabel = ({
             variant="body2"
             sx={{
               fontWeight: 400,
-              color: url ? 'primary.main' : 'text.primary',
+              color: label.labelColor || (linkActive ? 'primary.main' : 'text.primary'),
               // #10: wrap a long connector name/link instead of clipping it on the
               // Label chip's overflow:hidden (parity with the node caption, §5.2).
               wordBreak: 'break-word',
-              overflowWrap: 'anywhere'
+              overflowWrap: 'anywhere',
+              ...(label.fontSize ? { fontSize: `${label.fontSize}px` } : {})
             }}
           >
             {label.text}
           </Typography>
-          {url && (
+          {linkActive && (
             <OpenInNewIcon
               sx={{ fontSize: 11, color: 'primary.main', flexShrink: 0 }}
             />
@@ -154,21 +199,48 @@ const ConnectorNameLabel = ({
   );
 };
 
-// Standard (non-name) connector label.
+// Standard (non-name) connector label. In EDITABLE mode it is interactive:
+// click to select (so the top-bar style strip targets it), drag to reposition
+// along the path + lift it off the line. A selected label shows a primary
+// outline.
 const ConnectorTextLabel = ({
   position,
-  label
+  label,
+  interactive,
+  selected,
+  onPointerDown,
+  onStartEdit
 }: {
   position: LabelPosition;
   label: ConnectorLabelType;
+  interactive: boolean;
+  selected: boolean;
+  onPointerDown: (e: React.PointerEvent) => void;
+  onStartEdit: () => void;
 }) => (
   <Box
-    sx={{ position: 'absolute', pointerEvents: 'none' }}
+    sx={{
+      position: 'absolute',
+      pointerEvents: interactive ? 'auto' : 'none',
+      cursor: interactive ? 'grab' : 'default',
+      touchAction: interactive ? 'none' : undefined,
+      userSelect: interactive ? 'none' : undefined,
+      WebkitUserSelect: interactive ? 'none' : undefined
+    }}
     style={{
       maxWidth: PROJECTED_TILE_SIZE.width,
       left: position.x,
       top: position.y
     }}
+    onPointerDown={interactive ? onPointerDown : undefined}
+    onDoubleClick={
+      interactive
+        ? (e) => {
+            e.stopPropagation();
+            onStartEdit();
+          }
+        : undefined
+    }
   >
     <Label
       maxWidth={150}
@@ -179,7 +251,10 @@ const ConnectorTextLabel = ({
         px: 1,
         borderRadius: 2,
         backgroundColor: 'background.paper',
-        opacity: 0.95
+        opacity: 0.95,
+        ...(selected
+          ? { outline: '2px solid', outlineColor: 'primary.main', opacity: 1 }
+          : {})
       }}
     >
       <Typography
@@ -222,17 +297,55 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
   const isEditable = editorMode === 'EDITABLE';
   const isReadonly = editorMode === 'EXPLORABLE_READONLY';
 
+  // Per-label selection (top-bar style target) + live reposition preview.
+  const uiStoreApi = useUiStateStoreApi();
+  const selectedConnectorLabel = useUiStateStore((s) => s.selectedConnectorLabel);
+  const uiActions = useUiStateStore((s) => s.actions);
+  const selectedLabelId =
+    selectedConnectorLabel?.connectorId === connector.id
+      ? selectedConnectorLabel.labelId
+      : null;
+  const [dragPreview, setDragPreview] = useState<{
+    labelId: string;
+    position: number;
+    height: number;
+  } | null>(null);
+
   const [isEditingName, setIsEditingName] = useState(false);
+  // The labels[] entry being inline-edited on canvas (null = none). Set by the
+  // 'inlineEditConnectorLabel' event (context-menu / panel "Add label") and by
+  // double-clicking a label.
+  const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
+
+  // Enter inline edit for a specific label (fired right after creation).
+  useEffect(() => {
+    if (!isEditable) return;
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ connectorId: string; labelId: string }>)
+        .detail;
+      if (detail?.connectorId === connector.id) setEditingLabelId(detail.labelId);
+    };
+    window.addEventListener('inlineEditConnectorLabel', handler);
+    return () => window.removeEventListener('inlineEditConnectorLabel', handler);
+  }, [connector.id, isEditable]);
 
   useEffect(() => {
     if (!isEditable) return;
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ id: string }>).detail;
-      if (detail?.id === connector.id) setIsEditingName(true);
+      if (detail?.id !== connector.id) return;
+      // F2 / context-menu "Rename": edit the SELECTED labels[] entry if one is
+      // selected; otherwise fall back to the primary name label.
+      const sel = uiStoreApi.getState().selectedConnectorLabel;
+      if (sel?.connectorId === connector.id && sel.labelId !== '__name__') {
+        setEditingLabelId(sel.labelId);
+      } else {
+        setIsEditingName(true);
+      }
     };
     window.addEventListener(INLINE_EDIT_EVENT, handler);
     return () => window.removeEventListener(INLINE_EDIT_EVENT, handler);
-  }, [connector.id, isEditable]);
+  }, [connector.id, isEditable, uiStoreApi]);
 
   const commitName = useCallback(
     (raw: string) => {
@@ -247,8 +360,11 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
 
   const trimmedName = connector.name?.trim() ?? '';
 
+  // Single source for the connector's authored labels[] (also migrates legacy
+  // fields). Used to render and to commit a reposition by id.
+  const baseLabels = useMemo(() => getConnectorLabels(connector), [connector]);
+
   const labels = useMemo(() => {
-    const base = getConnectorLabels(connector);
     // The synthetic name label follows the model's `showLabel`, then the
     // present-mode hide-labels override (single merge point). Other connector
     // labels are content, not name labels, so the toggle leaves them alone.
@@ -258,25 +374,261 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
         isReadonly,
         previewHideLabels
       ) && !exportHideLabels;
-    if (!trimmedName || !nameVisible) return base;
+    if (!trimmedName || !nameVisible) return baseLabels;
     const synthetic: ConnectorLabelType = {
       id: '__name__',
       text: trimmedName,
-      position: 50,
+      position: connector.nameLabelPosition ?? 50,
       line: '1',
-      height: 0
+      height: connector.nameLabelHeight ?? 0,
+      fontSize: connector.nameLabelFontSize,
+      labelColor: connector.nameLabelColor
     };
-    return [synthetic, ...base];
-  }, [connector, trimmedName, isReadonly, previewHideLabels, exportHideLabels]);
+    return [synthetic, ...baseLabels];
+  }, [
+    baseLabels,
+    trimmedName,
+    connector.showLabel,
+    connector.nameLabelPosition,
+    connector.nameLabelHeight,
+    connector.nameLabelFontSize,
+    connector.nameLabelColor,
+    isReadonly,
+    previewHideLabels,
+    exportHideLabels
+  ]);
+
+  // Scene positions of every path tile — maps a pointer position to the nearest
+  // point on the path (→ position %) while dragging a label.
+  const pathScenePoints = useMemo<Coords[]>(() => {
+    if (!scenePath?.tiles?.length) return [];
+    return scenePath.tiles.map((t) =>
+      getTilePosition({
+        tile: connectorPathTileToGlobal(t, scenePath.rectangle.from)
+      })
+    );
+  }, [scenePath, getTilePosition]);
+
+  // Commit a label's new position/height (one history entry). The primary name
+  // label stores its placement on the connector's nameLabel* fields (it is not a
+  // labels[] entry); every other label maps over baseLabels (which also folds
+  // legacy fields into labels[], matching the ConnectorControls edit handlers).
+  const commitLabel = useCallback(
+    (labelId: string, position: number, height: number) => {
+      if (labelId === '__name__') {
+        updateConnector(connector.id, {
+          nameLabelPosition: position,
+          nameLabelHeight: height
+        });
+        return;
+      }
+      updateConnector(connector.id, {
+        labels: baseLabels.map((l) =>
+          l.id === labelId ? { ...l, position, height } : l
+        ),
+        description: undefined,
+        startLabel: undefined,
+        endLabel: undefined,
+        startLabelHeight: undefined,
+        centerLabelHeight: undefined,
+        endLabelHeight: undefined
+      });
+    },
+    [updateConnector, connector.id, baseLabels]
+  );
+
+  // Remove a label entirely (a label with no text has no reason to exist).
+  const deleteLabel = useCallback(
+    (labelId: string) => {
+      updateConnector(connector.id, {
+        labels: baseLabels.filter((l) => l.id !== labelId),
+        description: undefined,
+        startLabel: undefined,
+        endLabel: undefined,
+        startLabelHeight: undefined,
+        centerLabelHeight: undefined,
+        endLabelHeight: undefined
+      });
+      if (selectedConnectorLabel?.labelId === labelId)
+        uiActions.setSelectedConnectorLabel(null);
+    },
+    [updateConnector, connector.id, baseLabels, selectedConnectorLabel, uiActions]
+  );
+
+  // Inline-edit commit: empty text deletes the label (no blank labels); else
+  // write the new text.
+  const commitLabelText = useCallback(
+    (labelId: string, raw: string) => {
+      setEditingLabelId(null);
+      const text = raw.trim();
+      if (!text) {
+        deleteLabel(labelId);
+        return;
+      }
+      updateConnector(connector.id, {
+        labels: baseLabels.map((l) => (l.id === labelId ? { ...l, text } : l)),
+        description: undefined,
+        startLabel: undefined,
+        endLabel: undefined,
+        startLabelHeight: undefined,
+        centerLabelHeight: undefined,
+        endLabelHeight: undefined
+      });
+    },
+    [updateConnector, connector.id, baseLabels, deleteLabel]
+  );
+
+  // Cancel (Escape / right-click away): a still-blank label (e.g. just added and
+  // never typed) is discarded; one that already had text is left untouched.
+  const cancelLabelEdit = useCallback(
+    (labelId: string) => {
+      setEditingLabelId(null);
+      const lbl = baseLabels.find((l) => l.id === labelId);
+      if (lbl && !lbl.text.trim()) deleteLabel(labelId);
+    },
+    [baseLabels, deleteLabel]
+  );
+
+  // ── Label select + reposition drag ───────────────────────────────────────
+  // Press a label: a release within slop selects it (so the top-bar style strip
+  // targets it); a release past slop commits a reposition. The model is written
+  // once on release; the gesture itself is a pure local preview.
+  const dragRef = useRef<{
+    labelId: string;
+    startX: number;
+    startY: number;
+    dragging: boolean;
+    lastPosition: number;
+    lastHeight: number;
+  } | null>(null);
+
+  const winMove = useCallback(
+    (e: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      if (!d.dragging) {
+        if (
+          Math.abs(e.clientX - d.startX) < LABEL_DRAG_SLOP_PX &&
+          Math.abs(e.clientY - d.startY) < LABEL_DRAG_SLOP_PX
+        )
+          return;
+        d.dragging = true;
+      }
+      e.preventDefault();
+      const { zoom, scroll, rendererSize, rendererEl } = uiStoreApi.getState();
+      if (!rendererEl || pathScenePoints.length === 0) return;
+      const rect = rendererEl.getBoundingClientRect();
+      // Inverse of the SceneLayer transform (centre + scroll + zoom·scene):
+      // pointer (screen px) → a scene point in getTilePosition's space.
+      const sceneX =
+        (e.clientX - rect.left - rendererSize.width / 2 - scroll.position.x) /
+        zoom;
+      const sceneY =
+        (e.clientY - rect.top - rendererSize.height / 2 - scroll.position.y) /
+        zoom;
+      let bestIdx = 0;
+      let bestDist = Infinity;
+      for (let i = 0; i < pathScenePoints.length; i += 1) {
+        const p = pathScenePoints[i];
+        const dist = (p.x - sceneX) ** 2 + (p.y - sceneY) ** 2;
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestIdx = i;
+        }
+      }
+      const position =
+        pathScenePoints.length > 1
+          ? Math.round((bestIdx / (pathScenePoints.length - 1)) * 100)
+          : 50;
+      const height = Math.max(
+        -LABEL_HEIGHT_CLAMP,
+        Math.min(
+          LABEL_HEIGHT_CLAMP,
+          Math.round(pathScenePoints[bestIdx].y - sceneY)
+        )
+      );
+      d.lastPosition = position;
+      d.lastHeight = height;
+      setDragPreview({ labelId: d.labelId, position, height });
+    },
+    [uiStoreApi, pathScenePoints]
+  );
+
+  const winUp = useCallback(() => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    window.removeEventListener('pointermove', winMove);
+    window.removeEventListener('pointerup', winUp);
+    window.removeEventListener('pointercancel', winUp);
+    if (!d) return;
+    if (d.dragging) {
+      commitLabel(d.labelId, d.lastPosition, d.lastHeight);
+      setDragPreview(null);
+      // Keep the just-dragged label selected so the top bar targets it.
+      uiActions.setSelectedConnectorLabel({
+        connectorId: connector.id,
+        labelId: d.labelId
+      });
+    } else {
+      // Plain click → select the connector (panel target) + this label.
+      uiActions.setItemControls(
+        { type: 'CONNECTOR', id: connector.id },
+        { openPanel: false }
+      );
+      uiActions.setSelectedConnectorLabel({
+        connectorId: connector.id,
+        labelId: d.labelId
+      });
+    }
+  }, [winMove, commitLabel, uiActions, connector.id]);
+
+  const startLabelDrag = useCallback(
+    (e: React.PointerEvent, label: ConnectorLabelType) => {
+      if (!isEditable) return;
+      e.stopPropagation();
+      dragRef.current = {
+        labelId: label.id,
+        startX: e.clientX,
+        startY: e.clientY,
+        dragging: false,
+        lastPosition: label.position,
+        lastHeight: label.height ?? 0
+      };
+      window.addEventListener('pointermove', winMove);
+      window.addEventListener('pointerup', winUp);
+      window.addEventListener('pointercancel', winUp);
+    },
+    [isEditable, winMove, winUp]
+  );
+
+  // Safety net: drop listeners if the label unmounts mid-drag.
+  useEffect(
+    () => () => {
+      window.removeEventListener('pointermove', winMove);
+      window.removeEventListener('pointerup', winUp);
+      window.removeEventListener('pointercancel', winUp);
+    },
+    [winMove, winUp]
+  );
 
   const labelPositions = useMemo(() => {
     if (!scenePath?.tiles?.length) return [];
 
     return labels
       .map((label) => {
+        // Apply the live drag preview to the dragged label so it follows the
+        // pointer without a per-frame model write.
+        const effLabel =
+          dragPreview && dragPreview.labelId === label.id
+            ? {
+                ...label,
+                position: dragPreview.position,
+                height: dragPreview.height
+              }
+            : label;
         const tileIndex = getLabelTileIndex(
           scenePath.tiles.length,
-          label.position
+          effLabel.position
         );
         const tile = scenePath.tiles[tileIndex];
         if (!tile) return null;
@@ -288,7 +640,7 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
         const lineType = connector.lineType || 'SINGLE';
         if (
           (lineType === 'DOUBLE' || lineType === 'DOUBLE_WITH_CIRCLE') &&
-          label.line === '2'
+          effLabel.line === '2'
         ) {
           const { tiles } = scenePath;
           if (tileIndex > 0 && tileIndex < tiles.length - 1) {
@@ -309,7 +661,7 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
           }
         }
 
-        return { label, position };
+        return { label: effLabel, position };
       })
       .filter(
         (
@@ -319,7 +671,14 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
           position: { x: number; y: number };
         } => item !== null
       );
-  }, [labels, scenePath, connector.lineType, connector.width, getTilePosition]);
+  }, [
+    labels,
+    dragPreview,
+    scenePath,
+    connector.lineType,
+    connector.width,
+    getTilePosition
+  ]);
 
   return (
     <>
@@ -330,6 +689,7 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
               key="__name__-edit"
               position={position}
               name={connector.name ?? ''}
+              labelHeight={label.height || 0}
               onCommit={commitName}
               onCancel={() => setIsEditingName(false)}
             />
@@ -343,6 +703,22 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
               position={position}
               label={label}
               headerLink={connector.headerLink}
+              interactive={isEditable}
+              selected={selectedLabelId === '__name__'}
+              onPointerDown={(e) => startLabelDrag(e, label)}
+            />
+          );
+        }
+
+        if (label.id === editingLabelId) {
+          return (
+            <ConnectorNameEditor
+              key={`${label.id}-edit`}
+              position={position}
+              name={label.text}
+              labelHeight={label.height || 0}
+              onCommit={(raw) => commitLabelText(label.id, raw)}
+              onCancel={() => cancelLabelEdit(label.id)}
             />
           );
         }
@@ -352,6 +728,10 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
             key={label.id}
             position={position}
             label={label}
+            interactive={isEditable}
+            selected={selectedLabelId === label.id}
+            onPointerDown={(e) => startLabelDrag(e, label)}
+            onStartEdit={() => setEditingLabelId(label.id)}
           />
         );
       })}

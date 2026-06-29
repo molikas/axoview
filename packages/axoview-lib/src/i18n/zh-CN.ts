@@ -405,6 +405,9 @@ const locale: LocaleProps = {
     placeholder: '搜索图标'
   },
   exportImageDialog: {
+    groupAppearance: 'Appearance',
+    groupBackground: 'Background',
+    groupCrop: 'Crop',
     title: '导出为图片',
     compatibilityTitle: '浏览器兼容性提示',
     compatibilityMessage:

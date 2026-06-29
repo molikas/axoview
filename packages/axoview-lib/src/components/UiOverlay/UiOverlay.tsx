@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Box,
@@ -26,7 +26,8 @@ import { LazyLoadingWelcomeNotification } from '../LazyLoadingWelcomeNotificatio
 import { NotificationSnackbar } from '../NotificationSnackbar/NotificationSnackbar';
 import { CanvasContextMenu } from 'src/components/CanvasContextMenu/CanvasContextMenu';
 import { PreviewLayerSwitcher } from 'src/components/PreviewLayerSwitcher/PreviewLayerSwitcher';
-import { PreviewLabelsToggle } from 'src/components/PreviewLabelsToggle/PreviewLabelsToggle';
+// PreviewLabelsToggle moved into the bottom-dock zoom cluster (global hide-labels
+// toggle), so it's no longer rendered here.
 import { ViewModeInfoPopover } from 'src/components/ViewModeInfoPopover/ViewModeInfoPopover';
 import { TopBarStyleControls } from 'src/components/TopBarStyleControls/TopBarStyleControls';
 import { AnnotationLayer } from 'src/components/AnnotationLayer/AnnotationLayer';
@@ -117,6 +118,19 @@ export const UiOverlay = ({
   );
 
   const { currentView } = useScene();
+  // View-only "hide all controls" (set by the app toolbar toggle via a window
+  // event) — hides the presentation chrome + annotation palette for a clean
+  // screenshot.
+  const hideViewControls = useUiStateStore((state) => state.hideViewControls);
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ hide: boolean }>).detail;
+      uiStateActions.setHideViewControls(!!detail?.hide);
+    };
+    window.addEventListener('axoview-set-hide-view-controls', handler);
+    return () =>
+      window.removeEventListener('axoview-set-hide-view-controls', handler);
+  }, [uiStateActions]);
   const availableTools = useMemo(() => {
     return getEditorModeMapping(editorMode);
   }, [editorMode]);
@@ -213,29 +227,30 @@ export const UiOverlay = ({
 
         {/* Present-mode chrome — top-left (feels more natural in a presentation
             than bottom-left). View mode only. The layer switcher self-gates on
-            ≥2 layers (ADR 0013); the hide-labels toggle (2026-06-18 addendum)
-            always shows. High zIndex so it stays above any left chrome that
-            lingers in a forced-preview test environment. */}
-        {editorMode === EditorModeEnum.EXPLORABLE_READONLY && (
-          <Stack
-            spacing={1}
-            alignItems="flex-start"
-            sx={{ position: 'absolute', zIndex: 15 }}
-            style={{ left: appPadding.x, top: appPadding.y }}
-          >
-            <PreviewLayerSwitcher />
-            <PreviewLabelsToggle />
-          </Stack>
-        )}
+            ≥2 layers (ADR 0013). Hidden by the view-only "hide all controls"
+            toggle. High zIndex so it stays above any left chrome that lingers in
+            a forced-preview test environment. */}
+        {editorMode === EditorModeEnum.EXPLORABLE_READONLY &&
+          !hideViewControls && (
+            <Stack
+              spacing={1}
+              alignItems="flex-start"
+              sx={{ position: 'absolute', zIndex: 15 }}
+              style={{ left: appPadding.x, top: appPadding.y }}
+            >
+              <PreviewLayerSwitcher />
+            </Stack>
+          )}
       </Box>
 
       {/* Ephemeral annotation overlay (ADR 0014) — available in edit + preview,
           never in export-preview. The layer self-gates on annotation.open; the
-          palette is a draggable floating control. */}
+          palette is a draggable floating control, hidden by the view-only
+          "hide all controls" toggle. */}
       {editorMode !== EditorModeEnum.NON_INTERACTIVE && (
         <>
           <AnnotationLayer />
-          <AnnotationPalette />
+          {!hideViewControls && <AnnotationPalette />}
         </>
       )}
 

@@ -15,8 +15,6 @@ import {
   VisibilityOffOutlined as HideNameIcon
 } from '@mui/icons-material';
 import { ModelItem, ViewItem } from 'src/types';
-import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
-import { stripHtmlTags } from 'src/utils/stripHtml';
 import { useModelItem } from 'src/hooks/useModelItem';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { Section } from '../../components/Section';
@@ -57,10 +55,6 @@ export const NodeInfoTab = ({
 
   if (!modelItem) return null;
 
-  const hasCaption =
-    !!modelItem.description &&
-    stripHtmlTags(modelItem.description).trim() !== '';
-
   if (readOnly) {
     return (
       <Stack>
@@ -90,27 +84,6 @@ export const NodeInfoTab = ({
             )}
           </Box>
         </Section>
-
-        {/* Caption (canvas text) */}
-        {hasCaption ? (
-          <Section title={t('caption')}>
-            <RichTextEditor
-              value={modelItem.description}
-              readOnly
-              height={80}
-            />
-          </Section>
-        ) : (
-          <Section>
-            <Typography
-              variant="body2"
-              color="text.disabled"
-              sx={{ fontStyle: 'italic' }}
-            >
-              {tPanel('noCaption')}
-            </Typography>
-          </Section>
-        )}
       </Stack>
     );
   }
@@ -167,6 +140,8 @@ export const NodeInfoTab = ({
           />
         )}
       </Section>
+
+      {/* Icon picker moved to the top-bar style strip (Change icon). */}
 
       {/* Link to diagram — only shown when diagrams are available */}
       {linkedDiagrams.length > 0 && (
@@ -231,30 +206,6 @@ export const NodeInfoTab = ({
           </Stack>
         </Section>
       )}
-
-      {/* Caption — short text shown on the canvas under the node name */}
-      <Section title={t('caption')}>
-        <Typography
-          variant="caption"
-          color="text.disabled"
-          sx={{ display: 'block', mb: 0.5 }}
-        >
-          {t('captionHint')}
-        </Typography>
-        <RichTextEditor
-          height={80}
-          value={modelItem.description}
-          onChange={(text) => {
-            const hasContent = (val: string | undefined) =>
-              !!val && stripHtmlTags(val).trim() !== '';
-            const isEmpty = !hasContent(text);
-            const storedIsEmpty = !hasContent(modelItem.description);
-            if (isEmpty && storedIsEmpty) return;
-            if (modelItem.description !== text)
-              onModelItemUpdated({ description: isEmpty ? undefined : text });
-          }}
-        />
-      </Section>
     </Stack>
   );
 };

@@ -426,6 +426,9 @@ const locale: LocaleProps = {
     placeholder: 'আইকন খুঁজুন'
   },
   exportImageDialog: {
+    groupAppearance: 'Appearance',
+    groupBackground: 'Background',
+    groupCrop: 'Crop',
     title: 'ছবি হিসেবে রপ্তানি করুন',
     compatibilityTitle: 'ব্রাউজার সামঞ্জস্যতা বিজ্ঞপ্তি',
     compatibilityMessage:

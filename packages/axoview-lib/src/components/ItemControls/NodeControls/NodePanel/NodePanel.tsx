@@ -16,14 +16,15 @@ import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useIcon } from 'src/hooks/useIcon';
 import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
 import { NodeInfoTab } from '../NodeInfoTab/NodeInfoTab';
-import { NodeStyleTab } from '../NodeStyleTab/NodeStyleTab';
 import { useTranslation } from 'src/stores/localeStore';
 
 const PANEL_EVENT = 'nodePanel';
 
+// Style tab removed: icon picker moved into Details, icon-size + label-font-size
+// live in the top-bar style strip. Node panel is now Details / Notes (mirrors
+// the connector panel).
 const TAB_DETAILS = 0;
-const TAB_STYLE = 1;
-const TAB_NOTES = 2;
+const TAB_NOTES = 1;
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -182,7 +183,7 @@ interface ReadOnlyNodePanelProps {
   iconUrl: string;
   linkedDiagrams: Array<{ id: string; name: string }>;
   hasNotes: boolean;
-  labels: { close: string; caption: string; notes: string };
+  labels: { close: string; notes: string };
   onClose: () => void;
 }
 
@@ -197,7 +198,8 @@ const ReadOnlyNodePanel = ({
   labels,
   onClose
 }: ReadOnlyNodePanelProps) => {
-  const hasCaption = htmlHasVisibleText(modelItem.description);
+  // Option A: the node caption (description) folds into Notes — it is no longer
+  // a separate read-only section here; legacy content is migrated at load.
   const linkedDiagramId = modelItem.link ?? null;
   const linkedDiagramMeta = linkedDiagramId
     ? linkedDiagrams.find((d) => d.id === linkedDiagramId)
@@ -251,26 +253,13 @@ const ReadOnlyNodePanel = ({
 
       {/* Scrollable body */}
       <Box sx={{ overflowY: 'auto', flex: 1 }}>
-        {hasCaption && (
-          <Box sx={{ px: 2, pt: 2, pb: 1 }}>
-            <Typography
-              variant="overline"
-              color="text.secondary"
-              sx={{ display: 'block', mb: 1 }}
-            >
-              {labels.caption}
-            </Typography>
-            <RichTextEditor value={modelItem.description} readOnly />
-          </Box>
-        )}
-        {hasCaption && hasLinkedDiagram && <Divider sx={{ mx: 2 }} />}
         {linkedDiagramId && (
           <LinkedDiagramSection
             linkedDiagramId={linkedDiagramId}
             linkedDiagramMeta={linkedDiagramMeta}
           />
         )}
-        {(hasCaption || hasLinkedDiagram) && hasNotes && <Divider sx={{ mx: 2 }} />}
+        {hasLinkedDiagram && hasNotes && <Divider sx={{ mx: 2 }} />}
         {hasNotes && (
           <Box sx={{ px: 2, pt: 2, pb: 2 }}>
             <Typography
@@ -327,9 +316,6 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
             linkRef.current?.focus({ preventScroll: true })
           );
           break;
-        case 'scrollToAppearance':
-          setActiveTab(TAB_STYLE);
-          break;
         case 'focusNotes':
           setActiveTab(TAB_NOTES);
           break;
@@ -366,7 +352,7 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
         iconUrl={iconUrl}
         linkedDiagrams={linkedDiagrams}
         hasNotes={hasNotes}
-        labels={{ close: t('close'), caption: t('caption'), notes: t('notes') }}
+        labels={{ close: t('close'), notes: t('notes') }}
         onClose={handleClose}
       />
     );
@@ -409,7 +395,6 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
           }}
         >
           <Tab label={t('details')} value={TAB_DETAILS} />
-          <Tab label={t('style')} value={TAB_STYLE} />
           <Tab
             label={hasNotes ? t('notesModified') : t('notes')}
             value={TAB_NOTES}
@@ -437,16 +422,6 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
           linkRef={linkRef}
           showLink={showLink}
           onShowLinkChange={setShowLink}
-        />
-      </TabPanel>
-
-      {/* Style tab */}
-      <TabPanel value={activeTab} index={TAB_STYLE}>
-        <NodeStyleTab
-          node={viewItem}
-          iconUrl={iconUrl}
-          onModelItemUpdated={onModelUpdate}
-          onViewItemUpdated={onViewUpdate}
         />
       </TabPanel>
 

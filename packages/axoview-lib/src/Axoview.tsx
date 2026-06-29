@@ -97,6 +97,9 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
     const uiStateActions = useUiStateStore((state) => {
       return state.actions;
     });
+    // View-only "hide all controls" — also drops the bottom dock for a clean
+    // screenshot. Only ever true in EXPLORABLE_READONLY (cleared on mode switch).
+    const hideViewControls = useUiStateStore((state) => state.hideViewControls);
     const persistableSettings = useUiStateStore(
       (state) => ({
         zoomSettings: state.zoomSettings,
@@ -347,7 +350,7 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
                   />
                 )}
                 <RightSidebarSlot editorMode={editorMode} />
-                <BottomDockSlot endSlot={bottomDockEnd} />
+                {!hideViewControls && <BottomDockSlot endSlot={bottomDockEnd} />}
               </>
             )}
           </LayerContextProvider>

@@ -14,7 +14,6 @@ import {
 } from 'src/stores/uiStateStore';
 import { useRenderProbe } from 'src/utils/renderProbe';
 import { ExpandableLabel } from 'src/components/Label/ExpandableLabel';
-import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
 import { useInlineRename } from 'src/hooks/useInlineRename';
 import { stripHtmlTags } from 'src/utils/stripHtml';
 import { isLabelVisibleInPreview } from 'src/utils/previewLabelVisibility';
@@ -286,18 +285,17 @@ const NodeContent = memo(
     // continues to work). The Node component just renders the visual; it does
     // not own the click handler anymore.
 
-    const description = useMemo(() => {
-      if (!modelItem?.description) return null;
-      const visible = stripHtmlTags(modelItem.description).trim();
-      return visible ? modelItem.description : null;
-    }, [modelItem?.description]);
+    // Option A: the node's rich `description`/caption is no longer a competing
+    // on-canvas text — it folds into Notes (migrated at load). The canvas label
+    // is now the single `name` text only. `description` stays in the schema for
+    // back-compat round-trip but is not rendered here.
 
     // MQA #22 / #25 (final polish): in preview mode, give clickable nodes the
     // pointing-finger cursor so the hover affordance matches Pan.mouseup's
     // panel-opening logic. "Clickable" === any content that would populate
-    // the readOnly NodePanel: linked diagram, external link, notes, or
-    // description. EDITABLE mode is unaffected (cursor stays inherit so the
-    // canvas tooling sets its own cursor).
+    // the readOnly NodePanel: linked diagram, external link, or notes.
+    // EDITABLE mode is unaffected (cursor stays inherit so the canvas tooling
+    // sets its own cursor).
     const visibleNotes = useMemo(() => {
       if (!modelItem?.notes) return null;
       const stripped = stripHtmlTags(modelItem.notes).trim();
@@ -306,10 +304,7 @@ const NodeContent = memo(
 
     const isClickableInReadonly =
       isReadonly &&
-      (!!modelItem?.link ||
-        !!modelItem?.headerLink ||
-        !!description ||
-        !!visibleNotes);
+      (!!modelItem?.link || !!modelItem?.headerLink || !!visibleNotes);
 
     if (!modelItem) {
       return null;
@@ -320,7 +315,7 @@ const NodeContent = memo(
         style={{ cursor: isClickableInReadonly ? 'pointer' : 'inherit' }}
       >
         {labelVisible &&
-          (modelItem?.name || description || isEditingName) && (
+          (modelItem?.name || isEditingName) && (
             <div data-testid="node-label" onDoubleClick={startInlineEdit}>
               <ExpandableLabel
                 maxWidth={isEditingName ? 600 : 250}
@@ -410,9 +405,6 @@ const NodeContent = memo(
                         )}
                       </LabelTitle>
                     )
-                  )}
-                  {description && (
-                    <RichTextEditor value={description} readOnly />
                   )}
                 </LabelStack>
               </ExpandableLabel>

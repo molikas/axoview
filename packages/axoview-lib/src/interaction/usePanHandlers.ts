@@ -323,7 +323,9 @@ export const usePanHandlers = () => {
         uiState.actions.openContextMenu({
           anchor,
           variant: 'item',
-          target: { type: item.type, id: item.id }
+          target: { type: item.type, id: item.id },
+          // Where the user clicked — connector "Add label" drops the label here.
+          tile: uiState.mouse.position.tile
         });
       } else {
         uiState.actions.openContextMenu({ anchor, variant: 'canvas', target: null });

@@ -122,7 +122,10 @@ interface DiagramLifecycleContextValue {
   notifyDiagramRenamedFromTree: (id: string, newName: string) => void;
   notifyDiagramDeletedFromTree: (id: string) => void;
   saveAllDirty: () => Promise<void>;
-  handleCreateBlankDiagram: (folderId: string | null) => Promise<void>;
+  handleCreateBlankDiagram: (
+    folderId: string | null,
+    focusAfter?: 'fileExplorer' | 'elements'
+  ) => Promise<void>;
   checkUnsavedBeforeNavigate: (onProceed: () => void) => void;
   // File explorer
   fileExplorerOpen: boolean;
@@ -939,7 +942,10 @@ export function DiagramLifecycleProvider({
   // Create blank diagram (for canvas card or file tree)
   // ---------------------------------------------------------------------------
   const handleCreateBlankDiagram = useCallback(
-    async (folderId: string | null) => {
+    async (
+      folderId: string | null,
+      focusAfter: 'fileExplorer' | 'elements' = 'fileExplorer'
+    ) => {
       if (!storageRef.current) return;
       try {
         const existing = await storageRef.current.listDiagrams();
@@ -955,9 +961,24 @@ export function DiagramLifecycleProvider({
           fitToScreen: true
         };
         const id = await storageRef.current.createDiagram(blankData, folderId);
-        setFileExplorerOpen(true);
+        // The empty-state "New diagram" wants to start diagramming, not manage
+        // files — open the Elements deck and leave the file explorer closed.
+        // The file-explorer creation paths keep opening the tree (default).
+        if (focusAfter === 'elements') {
+          setFileExplorerOpen(false);
+        } else {
+          setFileExplorerOpen(true);
+        }
         setFileTreeRefreshToken((n) => n + 1);
         await handleDiagramManagerLoad(id, blankData, name);
+        if (focusAfter === 'elements') {
+          // Bridge into the lib store (separate provider tree) the same way the
+          // other cross-boundary commands do — a window event the LeftDock
+          // listens for. rAF so the editor has mounted/enabled its working tabs.
+          requestAnimationFrame(() =>
+            window.dispatchEvent(new CustomEvent('axoview-open-elements'))
+          );
+        }
       } catch (e) {
         console.error('handleCreateBlankDiagram failed:', e);
         notificationStore.push({ severity: 'error', message: 'Failed to create diagram' });
