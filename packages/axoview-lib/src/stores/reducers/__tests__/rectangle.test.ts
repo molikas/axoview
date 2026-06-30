@@ -144,6 +144,16 @@ describe('rectangle reducer', () => {
 
       expect(result.model.views[0].rectangles![0].layerId).toBe('layer1');
     });
+
+    it('should update zIndex (z-order nudge path)', () => {
+      // Mirrors CanvasContextMenu nudgeZOrder: read current zIndex, apply delta.
+      const result = updateRectangle(
+        { id: 'rect1', zIndex: 1 },
+        mockContext
+      );
+
+      expect(result.model.views[0].rectangles![0].zIndex).toBe(1);
+    });
   });
 
   describe('createRectangle', () => {

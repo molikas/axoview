@@ -14,7 +14,12 @@ export const Rectangles = memo(({ rectangles }: Props) => {
     const filtered = rectangles.filter(
       (r) => visibleIds.size === 0 || visibleIds.has(r.id)
     );
-    return [...filtered].reverse();
+    // Higher zIndex paints later (on top). Stable sort over the reversed
+    // insertion order keeps the prior look for equal (default 0) zIndex — only
+    // explicit send-to-front/back moves a rect. Mirrors LabelsCanvas.
+    return [...filtered]
+      .reverse()
+      .sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
   }, [rectangles, visibleIds]);
 
   return (

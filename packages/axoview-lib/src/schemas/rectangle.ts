@@ -13,6 +13,11 @@ export const rectangleSchema = z.object({
   borderStyle: z.enum(['SOLID', 'DOTTED', 'DASHED']).optional(),
   from: coords,
   to: coords,
+  // Stacking order AMONG rectangles (send-to-front/back). Absent = 0; higher
+  // paints later (on top). Rectangles still paint structurally UNDER nodes/labels
+  // (SceneLayer order); this only reorders rectangle-vs-rectangle. Mirrors the
+  // Label/viewItem zIndex convention. Optional → zero-migration addition.
+  zIndex: z.number().int().optional(),
   layerId: id.optional(),
   // Off-grid positioning (ADR 0023) — optional/absent = snapped. A single
   // unprojected-px `offset` translates both corners at render time; `from`/`to`

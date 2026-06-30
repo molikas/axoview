@@ -216,6 +216,9 @@ export const CanvasContextMenu = () => {
       } else if (target?.type === 'LABEL') {
         const l = scene.currentView.labels?.find((x) => x.id === target.id);
         scene.updateLabel(target.id, { zIndex: (l?.zIndex ?? 0) + delta });
+      } else if (target?.type === 'RECTANGLE') {
+        const r = scene.currentView.rectangles?.find((x) => x.id === target.id);
+        scene.updateRectangle(target.id, { zIndex: (r?.zIndex ?? 0) + delta });
       }
     },
     [scene, target]
@@ -330,9 +333,13 @@ export const CanvasContextMenu = () => {
   if (!contextMenu) return null;
 
   const isItem = target?.type === 'ITEM';
-  // Z-order (bring forward / send backward) applies to nodes and text boxes /
-  // labels — both carry a `zIndex` and a stacked render order.
-  const canZOrder = target?.type === 'ITEM' || target?.type === 'LABEL';
+  // Z-order (bring forward / send backward) applies to nodes, floating labels,
+  // and rectangles — each carries a `zIndex` and a stacked render order within
+  // its layer. (TEXTBOX is excluded; it has no zIndex.)
+  const canZOrder =
+    target?.type === 'ITEM' ||
+    target?.type === 'LABEL' ||
+    target?.type === 'RECTANGLE';
   // Off-grid commands apply to placeable items, not connectors. Floating Labels
   // (ADR 0031) reposition by direct drag and aren't in the tile index (no
   // collision), so the snap/collision toggles don't apply to them either.

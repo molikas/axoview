@@ -26,6 +26,24 @@ describe('rectangleSchema', () => {
     expect(lean.success).toBe(true);
     if (lean.success) expect(lean.data.offset).toBeUndefined();
   });
+  it('accepts an optional integer zIndex and rejects a non-integer', () => {
+    expect(
+      rectangleSchema.safeParse({
+        id: 'rect1',
+        from: { x: 0, y: 0 },
+        to: { x: 1, y: 1 },
+        zIndex: 3
+      }).success
+    ).toBe(true);
+    expect(
+      rectangleSchema.safeParse({
+        id: 'rect1',
+        from: { x: 0, y: 0 },
+        to: { x: 1, y: 1 },
+        zIndex: 1.5
+      }).success
+    ).toBe(false);
+  });
   it('fails if from is missing', () => {
     const invalid = { id: 'rect1', to: { x: 1, y: 1 } };
     const result = rectangleSchema.safeParse(invalid);

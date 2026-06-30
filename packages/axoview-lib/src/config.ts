@@ -179,6 +179,7 @@ export const RECTANGLE_DEFAULTS: Required<
     | 'color'
     | 'layerId'
     | 'name'
+    | 'zIndex'
     | 'offset'
     | 'snap'
     | 'collides'
