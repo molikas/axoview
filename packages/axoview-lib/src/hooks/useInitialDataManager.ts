@@ -20,7 +20,7 @@ import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { modelSchema } from 'src/schemas/model';
 import { mergeBundledFixtures } from 'src/utils/leanSave';
 import { sanitizeHtml } from 'src/utils/sanitizeHtml';
-import { stripHtmlTags } from 'src/utils/stripHtml';
+import { foldNodeDescription } from 'src/utils/foldNodeDescription';
 
 // Must match the threshold in IconCollection.tsx so newly-loaded large packs
 // (e.g. Material Icons) are not auto-expanded (which would freeze the browser).
@@ -116,21 +116,9 @@ export const useInitialDataManager = () => {
         // name). Doing it here, on the way in and before save-tracking's load
         // baseline, means existing diagrams don't lose the content and the
         // stored/exported model converges on the new shape without dirtying the
-        // doc. Idempotent: `description` is dropped after folding, so a re-load
-        // is a no-op. The field stays in the schema for external round-trip.
-        rawData.items = asArray(rawData.items).map((item) => {
-          if (!isObj(item)) return item;
-          const description =
-            typeof item.description === 'string' ? item.description : '';
-          if (!stripHtmlTags(description).trim()) return item;
-          const notes = typeof item.notes === 'string' ? item.notes : '';
-          const merged = stripHtmlTags(notes).trim()
-            ? `${notes}${description}`
-            : description;
-          const next: RawObject = { ...item, notes: merged };
-          delete next.description;
-          return next;
-        });
+        // doc. See foldNodeDescription (ADR 0032): idempotent, block-separated,
+        // `description` dropped after fold (kept in schema for round-trip).
+        rawData.items = asArray(rawData.items).map(foldNodeDescription);
 
         // Re-type after normalisation — Zod will validate the structure next
         const initialData = rawData as unknown as typeof _initialData;
