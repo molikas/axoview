@@ -106,12 +106,16 @@ const initialState = () => {
           // Leaving (or entering) preview clears the ephemeral preview overrides
           // and the view-only "hide all controls" flag so they never persist
           // across mode switches (ADR 0013). hide-labels is global → untouched.
-          set({
+          // M1: also close the annotation palette so a Present-mode pen overlay
+          // doesn't linger into edit mode — but KEEP strokes (ADR 0014
+          // session-scoped); only the open flag is reset.
+          set((state) => ({
             editorMode: mode,
             mode: getStartingMode(mode),
             previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
-            hideViewControls: false
-          });
+            hideViewControls: false,
+            annotation: { ...state.annotation, open: false }
+          }));
         },
         setIconCategoriesState: (iconCategoriesState) => {
           set({ iconCategoriesState });

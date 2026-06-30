@@ -38,6 +38,7 @@ This means the panel-mounting code, the rename helpers, the F2 binding, and ever
 |---|---|
 | Left-click an item | replaces selection with `[item]` |
 | Ctrl/⌘+click an item | toggles `item` in/out of `selectedIds` |
+| **Shift+click an item** (2026-06-30, #10) | toggles `item` in/out of `selectedIds` — Shift is an additive-select modifier alongside Ctrl/⌘ (it was unbound on canvas; verified collision-free). Threaded via `uiState.mouse.modifiers?.shift` (§6). |
 | Left-click empty canvas | clears selection |
 | Ctrl/⌘+A | selects every visible + unlocked item in the active view |
 | Esc (no panel, no in-flight connector) | clears selection |

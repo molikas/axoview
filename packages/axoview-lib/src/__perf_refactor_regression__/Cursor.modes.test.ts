@@ -212,6 +212,65 @@ describe('Cursor.mouseup (real module)', () => {
     });
   });
 
+  // #10 (UX sweep 2026-06-30): Shift joins Ctrl/Cmd as an additive-select
+  // modifier on canvas. A Shift-click toggles the item into the selection
+  // (toggleSelected) rather than replacing it.
+  it('#10: Shift-click on an item is additive (toggleSelected), like Ctrl', () => {
+    const toggleSelected = jest.fn();
+    const setSelectedIds = jest.fn();
+    const uiState = makeUiState({
+      mode: {
+        type: 'CURSOR',
+        showCursor: true,
+        mousedownItem: { type: 'ITEM', id: 'node1' },
+        mousedownHandled: true
+      },
+      mouse: {
+        position: { tile: { x: 5, y: 5 }, screen: { x: 50, y: 50 } },
+        mousedown: { tile: { x: 5, y: 5 }, screen: { x: 50, y: 50 } },
+        delta: null,
+        modifiers: { ctrl: false, shift: true, meta: false }
+      },
+      actions: {
+        setMode: jest.fn(),
+        setItemControls: jest.fn(),
+        toggleSelected,
+        setSelectedIds
+      }
+    });
+    callMouseup(uiState);
+    expect(toggleSelected).toHaveBeenCalledWith({ type: 'ITEM', id: 'node1' });
+    expect(setSelectedIds).not.toHaveBeenCalled();
+  });
+
+  it('plain click (no modifier) replaces the selection (setSelectedIds)', () => {
+    const toggleSelected = jest.fn();
+    const setSelectedIds = jest.fn();
+    const uiState = makeUiState({
+      mode: {
+        type: 'CURSOR',
+        showCursor: true,
+        mousedownItem: { type: 'ITEM', id: 'node1' },
+        mousedownHandled: true
+      },
+      mouse: {
+        position: { tile: { x: 5, y: 5 }, screen: { x: 50, y: 50 } },
+        mousedown: { tile: { x: 5, y: 5 }, screen: { x: 50, y: 50 } },
+        delta: null,
+        modifiers: { ctrl: false, shift: false, meta: false }
+      },
+      actions: {
+        setMode: jest.fn(),
+        setItemControls: jest.fn(),
+        toggleSelected,
+        setSelectedIds
+      }
+    });
+    callMouseup(uiState);
+    expect(setSelectedIds).toHaveBeenCalledWith([{ type: 'ITEM', id: 'node1' }]);
+    expect(toggleSelected).not.toHaveBeenCalled();
+  });
+
   it('deselects (setItemControls null) on left-click empty canvas — no context menu, no event', () => {
     const uiState = makeUiState({
       mode: {

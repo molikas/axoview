@@ -517,13 +517,18 @@ const handleItemClickSelection = (
 // Resolve a no-movement click on a pressed item into a selection update.
 const resolveClickSelection = (state: State, clicked: ItemReference) => {
   const { uiState } = state;
-  const ctrlHeld =
-    uiState.mouse.modifiers?.ctrl || uiState.mouse.modifiers?.meta;
+  // #10: Shift joins Ctrl/Cmd as an additive-selection modifier on canvas
+  // (Shift was unbound here — verified collision-free). ADR 0006 §2 gesture
+  // matrix amended. The handlers treat this as the additive/toggle flag.
+  const additive =
+    uiState.mouse.modifiers?.ctrl ||
+    uiState.mouse.modifiers?.meta ||
+    uiState.mouse.modifiers?.shift;
 
   if (clicked.type === 'CONNECTOR') {
-    handleConnectorClickSelection(state, clicked.id, ctrlHeld);
+    handleConnectorClickSelection(state, clicked.id, additive);
   } else {
-    handleItemClickSelection(state, clicked, ctrlHeld);
+    handleItemClickSelection(state, clicked, additive);
   }
 };
 

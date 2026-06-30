@@ -190,6 +190,38 @@ describe('Pan.mousemove', () => {
       expect.objectContaining({ position: { x: 100, y: 200 } })
     );
   });
+
+  // M2 (UX sweep 2026-06-30): in EXPLORABLE_READONLY a left-press is a click
+  // (opens the node popover); a sub-threshold wobble must NOT pan or it flings
+  // the diagram. Past the slop the pan engages normally.
+  it('M2: does NOT scroll on sub-threshold left travel in EXPLORABLE_READONLY', () => {
+    const uiState = makeUiState({
+      editorMode: 'EXPLORABLE_READONLY',
+      mouse: {
+        position: { tile: { x: 5, y: 5 }, screen: { x: 52, y: 51 } }, // ~2.2px
+        mousedown: { tile: { x: 5, y: 5 }, screen: { x: 50, y: 50 } },
+        delta: { screen: { x: 2, y: 1 } }
+      }
+    });
+    Pan.mousemove!({ uiState, scene: makeScene() } as any);
+    expect(uiState.actions.setScroll).not.toHaveBeenCalled();
+  });
+
+  it('M2: scrolls once past the slop threshold in EXPLORABLE_READONLY', () => {
+    const uiState = makeUiState({
+      editorMode: 'EXPLORABLE_READONLY',
+      scroll: { position: { x: 100, y: 200 }, offset: { x: 0, y: 0 } },
+      mouse: {
+        position: { tile: { x: 5, y: 5 }, screen: { x: 60, y: 50 } }, // 10px
+        mousedown: { tile: { x: 5, y: 5 }, screen: { x: 50, y: 50 } },
+        delta: { screen: { x: 10, y: 0 } }
+      }
+    });
+    Pan.mousemove!({ uiState, scene: makeScene() } as any);
+    expect(uiState.actions.setScroll).toHaveBeenCalledWith(
+      expect.objectContaining({ position: { x: 110, y: 200 } })
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

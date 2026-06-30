@@ -107,4 +107,31 @@ describe('annotation open — canvas tool reset', () => {
     act(() => result.current.a.setAnnotationTool('select'));
     expect(result.current.s.mode.type).toBe('PAN');
   });
+
+  // M1 (UX sweep 2026-06-30): a Present-mode pen overlay lingered into edit mode
+  // after Present→edit. setEditorMode must close the palette but KEEP strokes
+  // (ADR 0014 session-scoped) — only the `open` flag resets.
+  it('closes the annotation palette on editor-mode switch but keeps strokes', () => {
+    const { result } = setup();
+    act(() => result.current.a.setEditorMode('EXPLORABLE_READONLY'));
+    act(() => result.current.a.setAnnotationOpen(true));
+    act(() =>
+      result.current.a.addAnnotationStroke({
+        id: 's1',
+        tool: 'pencil',
+        color: '#000',
+        thickness: 4,
+        points: [
+          { x: 0, y: 0 },
+          { x: 1, y: 1 }
+        ]
+      })
+    );
+    expect(result.current.s.annotation.open).toBe(true);
+
+    act(() => result.current.a.setEditorMode('EDITABLE'));
+
+    expect(result.current.s.annotation.open).toBe(false); // palette closed
+    expect(result.current.s.annotation.strokes).toHaveLength(1); // strokes kept
+  });
 });
