@@ -17,10 +17,10 @@
  * duplicated.
  *
  * RECTANGLE.DRAW and TEXTBOX modes are intentionally NOT cycled
- * through here: pressing the rectangle hotkey ('r') sets the mode
- * but doesn't draw anything until a drag, and pressing the textbox
- * hotkey ('t') creates a textbox at the current mouse tile as a
- * side-effect of the keydown — these have their own commits (J3 in
+ * through here: both only ARM a mode — pressing the rectangle hotkey
+ * ('r') draws nothing until a drag, and pressing the textbox hotkey
+ * ('t') arms TEXTBOX mode and creates a box only on the next canvas
+ * release — these have their own placement commits (J3 in
  * shapes.spec.ts) and aren't free mode toggles.
  *
  * Lazy data-axoview-id retrofits — none.

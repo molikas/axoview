@@ -12,7 +12,6 @@ import { DialogTypeEnum, ItemControls } from 'src/types/ui';
 import {
   getMouse,
   getItemAtTile,
-  generateId,
   incrementZoom,
   decrementZoom
 } from 'src/utils';
@@ -24,9 +23,7 @@ import { TOOL_HOTKEYS } from 'src/config/hotkeys';
 import { resolveToolHotkey } from './toolHotkeys';
 import { handleEscapeKey } from './handleEscapeKey';
 import { handleArrowKey } from './handleArrowKey';
-import { viewportCenterTile } from 'src/utils/viewportCenterTile';
 import type { ScreenToTileFn } from 'src/utils/renderer';
-import { TEXTBOX_DEFAULTS } from 'src/config';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { collectSelectableRefs } from 'src/utils/selectableRefs';
 import { Cursor } from './modes/Cursor';
@@ -194,7 +191,6 @@ interface KeydownDeps {
   handleCopy: () => void;
   handleCut: () => void;
   handlePaste: () => void;
-  createTextBox: SceneApi['createTextBox'];
   deleteSelectedItems: SceneApi['deleteSelectedItems'];
   deleteViewItem: SceneApi['deleteViewItem'];
   deleteConnector: SceneApi['deleteConnector'];
@@ -202,8 +198,8 @@ interface KeydownDeps {
   deleteRectangle: SceneApi['deleteRectangle'];
   updateViewItem: SceneApi['updateViewItem'];
   commitDragTransaction: SceneApi['commitDragTransaction'];
-  // B9: mode-aware screen→tile (useCanvasMode) so the text hotkey can fall back
-  // to the viewport-centre tile when the cursor never entered the canvas.
+  // Mode-aware screen→tile (useCanvasMode), used by the keydown helpers' tile
+  // resolution.
   screenToTile: ScreenToTileFn;
 }
 
@@ -452,34 +448,18 @@ const handleToolHotkeys = (
         showCursor: true
       });
       break;
-    case 'text': {
-      const textBoxId = generateId();
-      // B9: mouse.position.tile is still the initial {0,0} until the pointer
-      // first enters the canvas, so the text hotkey dropped the box at the
-      // origin. Fall back to the viewport-centre tile in that case (Rectangle /
-      // icon click-place use the live cursor tile and are unaffected).
-      const cursorTile = uiState.mouse.position.tile;
-      const textTile =
-        cursorTile.x === 0 && cursorTile.y === 0
-          ? viewportCenterTile({
-              rendererSize: uiState.rendererSize,
-              scroll: uiState.scroll,
-              zoom: uiState.zoom,
-              screenToTile: deps.screenToTile
-            })
-          : cursorTile;
-      deps.createTextBox({
-        ...TEXTBOX_DEFAULTS,
-        id: textBoxId,
-        tile: textTile
-      });
+    case 'text':
+      // Arm-only (mirrors rectangle / connector / icon): the hotkey enters
+      // TEXTBOX mode with no element created; the next canvas release drops a
+      // single text box (TextBox.mouseup is the sole create site). Eager-create
+      // here used to stack a second box on top of that release.
       uiState.actions.setMode({
         type: 'TEXTBOX',
-        showCursor: false,
-        id: textBoxId
+        showCursor: true,
+        id: null,
+        variant: 'text'
       });
       break;
-    }
     case 'lasso':
       uiState.actions.setMode({
         type: 'LASSO',
@@ -582,7 +562,6 @@ export const useInteractionManager = () => {
   const { handleCopy, handleCut, handlePaste } = useCopyPaste();
   const { screenToTile } = useCanvasMode();
   const {
-    createTextBox,
     deleteSelectedItems,
     deleteViewItem,
     deleteConnector,
@@ -621,7 +600,6 @@ export const useInteractionManager = () => {
       handleCopy,
       handleCut,
       handlePaste,
-      createTextBox,
       deleteSelectedItems,
       deleteViewItem,
       deleteConnector,
@@ -681,7 +659,6 @@ export const useInteractionManager = () => {
     canRedo,
     uiStateApi,
     modelStoreApi,
-    createTextBox,
     deleteSelectedItems,
     deleteViewItem,
     deleteConnector,

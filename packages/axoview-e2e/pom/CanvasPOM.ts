@@ -189,8 +189,9 @@ export class CanvasPOM {
   /**
    * Canonical textbox-placement flow:
    *   1. land mouse at the target tile (sets uiState.mouse.position.tile)
-   *   2. press `t` hotkey (creates textbox + enters TEXTBOX mode)
-   *   3. mouseup at the same tile (commits via isRendererInteraction = true)
+   *   2. press `t` hotkey (arms TEXTBOX mode — no box created yet)
+   *   3. mouseup at the same tile (the single create site; commits via
+   *      isRendererInteraction = true)
    */
   async placeTextBoxAt(point: CanvasPoint) {
     await this.dispatchAt(['mousemove'], point);
