@@ -45,12 +45,13 @@ import { CustomColorInput } from '../ColorSelector/CustomColorInput';
 import { RichTextEditor } from '../RichTextEditor/RichTextEditor';
 import { QuickIconSelector } from '../ItemControls/NodeControls/QuickIconSelector';
 
-// Google-Docs-style inline strip that surfaces a subset of the right-dock style
-// controls in the top bar. It is portaled (via UiOverlay) into a slot the app
+// Google-Docs-style inline strip and the CANONICAL styling surface (ADR 0030):
+// the single writer of visual styling for every item type. There is no
+// side-panel Style tab — the item panel is Details / Notes only; all visual
+// styling is reached here. It is portaled (via UiOverlay) into a slot the app
 // provides next to the session badge, so it lives INSIDE the lib's store
 // providers and can read selection + write through useScene like the detail
-// panels. The right dock is intentionally left untouched — this is a parallel
-// affordance, not a replacement.
+// panels.
 
 type LineStyle = (typeof connectorStyleOptions)[number];
 type LineType = (typeof connectorLineTypeOptions)[number];
@@ -235,6 +236,12 @@ interface PresetCustomColorProps {
   // When provided, a "no color" swatch clears the fill (transparent) — used for
   // a text box / label background and the rectangle fill.
   onNoColor?: () => void;
+  // Whether an ABSENT value (no preset + no custom) should read as "no color".
+  // True for fill/background, where absent renders nothing. False for the
+  // rectangle border, where an absent borderColor renders a DERIVED stroke — so
+  // the No-color swatch must NOT show active just because the colour is unset.
+  // Default true.
+  absentIsNoColor?: boolean;
 }
 
 // The preset-or-custom colour body shared by the rectangle-fill, text/label
@@ -247,7 +254,8 @@ const PresetCustomColor = ({
   onSelectPreset,
   onCustomChange,
   onDisableCustom,
-  onNoColor
+  onNoColor,
+  absentIsNoColor = true
 }: PresetCustomColorProps) => {
   const { colors } = useScene();
   // White / transparent are fixed swatches, not "custom" — keep them in the grid
@@ -258,7 +266,7 @@ const PresetCustomColor = ({
   const whiteActive = (customColor || '').toLowerCase() === WHITE;
   const noColorActive =
     (customColor || '').toLowerCase() === TRANSPARENT ||
-    (!presetId && !customColor);
+    (absentIsNoColor && !presetId && !customColor);
 
   return (
     <Box>
@@ -872,6 +880,9 @@ export const TopBarStyleControls = () => {
                   ? rectangle.borderColor
                   : undefined
               }
+              // Absent borderColor renders a DERIVED stroke, not nothing — so an
+              // unset border must not light up the No-color swatch.
+              absentIsNoColor={false}
               onSelectPreset={(id) =>
                 updateRectangle(rectangle.id, { borderColor: resolveHex(id) })
               }
