@@ -30,6 +30,7 @@ import { useViewItem } from 'src/hooks/useViewItem';
 import { useModelItem } from 'src/hooks/useModelItem';
 import { useConnector } from 'src/hooks/useConnector';
 import { useTextBox } from 'src/hooks/useTextBox';
+import { useLabel } from 'src/hooks/useLabel';
 import { useRectangle } from 'src/hooks/useRectangle';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useTranslation } from 'src/stores/localeStore';
@@ -102,6 +103,7 @@ export const ViewModeInfoPopover = () => {
   const modelItem = useModelItem(activeId);
   const connector = useConnector(activeId);
   const textBox = useTextBox(activeId);
+  const label = useLabel(activeId);
   const rectangle = useRectangle(activeId);
 
   const info = useMemo(() => {
@@ -128,6 +130,10 @@ export const ViewModeInfoPopover = () => {
       case 'TEXTBOX':
         name = textBox?.name;
         anchorTile = textBox?.tile;
+        break;
+      case 'LABEL':
+        name = label?.text;
+        anchorTile = label?.tile;
         break;
       case 'RECTANGLE':
         name = rectangle?.name;

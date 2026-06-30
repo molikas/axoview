@@ -54,11 +54,12 @@ export const getItemAtTile = ({
   // scene.items.find to recover an object whose only field we use is the id.)
   if (itemId !== undefined) return { type: 'ITEM', id: itemId };
 
-  // A regular text box claims its whole tile footprint and outranks connectors
-  // (clicking inside the box selects it). A floating label is excluded here — it
-  // is handled AFTER connectors with a tight hit (see below).
+  // A text box claims its whole tile footprint and outranks connectors (clicking
+  // inside the box selects it). Floating Labels are NOT tile-hit-tested — they
+  // are a separate entity hit via the pixel-accurate LabelHitLayer DOM proxy
+  // (ADR 0031 §4), so a connector passing UNDER a label chip stays selectable
+  // here everywhere the chip isn't.
   const textBox = scene.textBoxes.find((tb) => {
-    if (tb.variant === 'label') return false;
     const textBoxTo = getTextBoxEndTile(tb, tb.size);
     const textBoxBounds = getBoundingBox([
       tb.tile,
@@ -74,21 +75,6 @@ export const getItemAtTile = ({
   });
 
   if (textBox) return { type: 'TEXTBOX', id: textBox.id };
-
-  // Floating labels: a centred billboard chip, not a tile footprint. Match ONLY
-  // the anchor tile (where the chip is drawn) so the label's wide text bounds
-  // can't swallow nearby connector clicks. Checked BEFORE connectors so clicking
-  // the chip selects the label even when a connection passes close by — the
-  // connector stays clickable everywhere else along its line (only the single
-  // anchor tile, under the chip, resolves to the label).
-  const label = scene.textBoxes.find(
-    (tb) =>
-      tb.variant === 'label' &&
-      tb.tile.x === tile.x &&
-      tb.tile.y === tile.y
-  );
-
-  if (label) return { type: 'TEXTBOX', id: label.id };
 
   const connector = scene.hitConnectors.find((con) => {
     if (!con.path?.tiles) return false;

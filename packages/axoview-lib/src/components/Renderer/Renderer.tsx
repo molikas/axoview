@@ -8,6 +8,8 @@ import { Cursor } from 'src/components/Cursor/Cursor';
 import { Nodes } from 'src/components/SceneLayers/Nodes/Nodes';
 import { NodesCanvas } from 'src/components/SceneLayers/Nodes/NodesCanvas';
 import { NodeLabelHitLayer } from 'src/components/SceneLayers/Nodes/NodeLabelHitLayer';
+import { LabelsCanvas } from 'src/components/SceneLayers/Labels/LabelsCanvas';
+import { LabelHitLayer } from 'src/components/SceneLayers/Labels/LabelHitLayer';
 import { Rectangles } from 'src/components/SceneLayers/Rectangles/Rectangles';
 import { Connectors } from 'src/components/SceneLayers/Connectors/Connectors';
 import { ConnectorLabels } from 'src/components/SceneLayers/ConnectorLabels/ConnectorLabels';
@@ -119,6 +121,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
     connectors,
     hitConnectors,
     textBoxes,
+    labels,
     currentView
   } = useScene();
 
@@ -308,6 +311,21 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   // a bounds shift, so Connectors / ConnectorLabels memo-bail (see useStableList).
   const visibleConnectors = useStableList(visibleConnectorsRaw);
 
+  // Floating Labels (ADR 0031) — viewport-culled like nodes; layer-visibility +
+  // zIndex sort happen inside LabelsCanvas / LabelHitLayer.
+  const visibleLabelsRaw = useMemo(() => {
+    const { minX, maxX, minY, maxY } = coarseBounds;
+    if (minX === -Infinity) return labels;
+    return labels.filter(
+      (label) =>
+        label.tile.x >= minX &&
+        label.tile.x <= maxX &&
+        label.tile.y >= minY &&
+        label.tile.y <= maxY
+    );
+  }, [labels, coarseBounds]);
+  const visibleLabels = useStableList(visibleLabelsRaw);
+
   return (
     <Box
       ref={containerRef}
@@ -381,6 +399,14 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
         }}
       />
       <NodesCanvas nodes={visibleItems} skipNodes={hybridNodes} />
+      {/* Floating Labels (ADR 0031): the Canvas2D layer mounts IMMEDIATELY AFTER
+          NodesCanvas so a label paints ABOVE nodes (the cross-layer z-order fix
+          — TextBoxes are DOM-earlier and so are always occluded), with the
+          pixel-accurate DOM hit-proxy as a SceneLayer right after it. */}
+      <LabelsCanvas labels={visibleLabels} />
+      <SceneLayer>
+        <LabelHitLayer labels={visibleLabels} />
+      </SceneLayer>
       <SceneLayer>
         <NodeLabelHitLayer nodes={canvasLabelNodes} />
       </SceneLayer>

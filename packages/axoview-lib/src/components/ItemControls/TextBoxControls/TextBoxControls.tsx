@@ -72,8 +72,7 @@ export const TextBoxControls = ({ id }: Props) => {
             height={120}
             contentStyle={{
               fontWeight: textBox.isBold ? 700 : undefined,
-              fontStyle: textBox.isItalic ? 'italic' : undefined,
-              textDecoration: textBox.isStrikethrough ? 'line-through' : undefined
+              fontStyle: textBox.isItalic ? 'italic' : undefined
             }}
           />
         </Section>

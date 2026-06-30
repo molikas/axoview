@@ -142,9 +142,14 @@ export interface TextBoxMode {
   type: 'TEXTBOX';
   showCursor: boolean;
   id: string | null;
-  // Which preset to drop when this armed mode places on the canvas. Absent =
-  // a plain text box; 'label' = the floating chip preset.
-  variant?: 'text' | 'label';
+}
+
+// Armed floating-Label placement (ADR 0031) — its own mode, not a TextBox
+// variant. The Common deck arms it; the next canvas click drops a Label.
+export interface LabelMode {
+  type: 'LABEL';
+  showCursor: boolean;
+  id: string | null;
 }
 
 export interface LassoMode {
@@ -187,6 +192,7 @@ export type Mode =
   | TransformRectangleMode
   | DragItemsMode
   | TextBoxMode
+  | LabelMode
   | LassoMode
   | FreehandLassoMode
   | ReconnectAnchorMode;
@@ -341,6 +347,14 @@ export interface UiState {
    */
   labelDrag: { id: string; height: number } | null;
   /**
+   * Transient floating-Label move preview (ADR 0031). While a Label is dragged
+   * via LabelHitLayer this holds its id + the live tile/offset, so LabelsCanvas
+   * redraws the chip following the pointer WITHOUT a per-frame model write
+   * (which would re-render every hit-proxy div). UI-only, never persisted; the
+   * model position is committed ONCE on release. Null when no move is in flight.
+   */
+  labelMove: { id: string; tile: Coords; offset?: Coords } | null;
+  /**
    * The currently-selected connector label (a `labels[]` entry), so the top-bar
    * style strip can target ONE label's text size/colour and the canvas can
    * highlight it. `connectorId` scopes the selection so a stale id from a
@@ -488,6 +502,10 @@ export interface UiStateActions {
   setLabelDrag: (id: string, height: number) => void;
   /** End the label-drag preview (the model labelHeight is committed separately, once). */
   clearLabelDrag: () => void;
+  /** Begin / update the transient floating-Label move preview (ADR 0031). */
+  setLabelMove: (id: string, tile: Coords, offset?: Coords) => void;
+  /** End the label-move preview (the model tile/offset is committed separately, once). */
+  clearLabelMove: () => void;
   /** Select (or clear) the connector label the top-bar style strip targets. */
   setSelectedConnectorLabel: (
     sel: { connectorId: string; labelId: string } | null

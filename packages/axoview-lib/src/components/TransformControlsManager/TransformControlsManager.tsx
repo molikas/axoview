@@ -2,6 +2,7 @@ import React from 'react';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { RectangleTransformControls } from './RectangleTransformControls';
 import { TextBoxTransformControls } from './TextBoxTransformControls';
+import { LabelTransformControls } from './LabelTransformControls';
 import { NodeTransformControls } from './NodeTransformControls';
 
 export const TransformControlsManager = () => {
@@ -28,6 +29,10 @@ export const TransformControlsManager = () => {
               return (
                 <TextBoxTransformControls key={`tb-${ref.id}`} id={ref.id} />
               );
+            case 'LABEL':
+              return (
+                <LabelTransformControls key={`label-${ref.id}`} id={ref.id} />
+              );
             // CONNECTOR / CONNECTOR_ANCHOR: no transform handles by design.
             default:
               return null;
@@ -44,6 +49,8 @@ export const TransformControlsManager = () => {
       return <RectangleTransformControls id={itemControls.id} />;
     case 'TEXTBOX':
       return <TextBoxTransformControls id={itemControls.id} />;
+    case 'LABEL':
+      return <LabelTransformControls id={itemControls.id} />;
     default:
       return null;
   }

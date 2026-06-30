@@ -4,6 +4,7 @@ import {
   Icon,
   Connector,
   TextBox,
+  Label,
   ViewItem,
   View,
   Rectangle,
@@ -42,7 +43,8 @@ export const VIEW_DEFAULTS: Required<
   items: [],
   connectors: [],
   rectangles: [],
-  textBoxes: []
+  textBoxes: [],
+  labels: []
 };
 
 export const VIEW_ITEM_DEFAULTS: Required<
@@ -110,21 +112,7 @@ export const CONNECTOR_DEFAULTS: Required<
 export const CONNECTOR_SEARCH_OFFSET = { x: 1, y: 1 };
 
 export const TEXTBOX_DEFAULTS: Required<
-  Omit<
-    TextBox,
-    | 'id'
-    | 'tile'
-    | 'layerId'
-    | 'name'
-    | 'offset'
-    | 'snap'
-    | 'collides'
-    // Label-only / stacking fields default to absent so a plain text box stays
-    // a plain iso text box at the default stacking order (lean-save omits them).
-    | 'variant'
-    | 'backgroundColor'
-    | 'zIndex'
-  >
+  Omit<TextBox, 'id' | 'tile' | 'layerId' | 'name' | 'offset' | 'snap' | 'collides'>
 > = {
   orientation: 'X',
   fontSize: 0.6,
@@ -132,20 +120,32 @@ export const TEXTBOX_DEFAULTS: Required<
   color: '',
   isBold: false,
   isItalic: false,
-  isUnderline: false,
-  isStrikethrough: false
+  isUnderline: false
 };
 
-// "Label" element preset (the Common deck). A floating chip that looks like the
-// label on a node (upright billboard, white chip), not attached to anything, no
-// collision. Everything else (layers, drag, formatting, background colour,
-// z-order) is shared with the text box.
-export const LABEL_DEFAULTS = {
-  ...TEXTBOX_DEFAULTS,
-  variant: 'label',
-  content: 'Label',
-  collides: false
-} as const;
+// "Label" element preset (the Common deck) — a floating billboard chip (ADR
+// 0031), a first-class entity (not a text-box variant). Only `text` has a
+// non-absent default; all styling (px font, colour, B/I/S, background, z-order)
+// defaults to absent so an unstyled label round-trips lean.
+export const LABEL_DEFAULTS: Required<
+  Omit<
+    Label,
+    | 'id'
+    | 'tile'
+    | 'layerId'
+    | 'offset'
+    | 'snap'
+    | 'backgroundColor'
+    | 'color'
+    | 'fontSize'
+    | 'isBold'
+    | 'isItalic'
+    | 'isStrikethrough'
+    | 'zIndex'
+  >
+> = {
+  text: 'Label'
+};
 
 export const TEXTBOX_PADDING = 0.2;
 export const TEXTBOX_FONT_WEIGHT = 'normal';

@@ -99,13 +99,7 @@ export const useTextBoxProps = (textBox: TextBox) => {
       fontFamily: DEFAULT_FONT_FAMILY,
       fontWeight: textBox.isBold ? 700 : TEXTBOX_FONT_WEIGHT,
       fontStyle: textBox.isItalic ? 'italic' : 'normal',
-      textDecoration:
-        [
-          textBox.isUnderline ? 'underline' : '',
-          textBox.isStrikethrough ? 'line-through' : ''
-        ]
-          .filter(Boolean)
-          .join(' ') || 'none',
+      textDecoration: textBox.isUnderline ? 'underline' : 'none',
       color: textBox.color || 'inherit',
       lineHeight: 1.3,
       ...richTextStyles
@@ -115,7 +109,6 @@ export const useTextBoxProps = (textBox: TextBox) => {
     textBox.isBold,
     textBox.isItalic,
     textBox.isUnderline,
-    textBox.isStrikethrough,
     textBox.color
   ]);
 

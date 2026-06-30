@@ -13,6 +13,7 @@ import {
   colorsSchema,
   anchorSchema,
   textBoxSchema,
+  labelSchema,
   rectangleSchema,
   connectorStyleOptions,
   connectorLineTypeOptions,
@@ -37,6 +38,7 @@ export type ConnectorAnchor = z.infer<typeof anchorSchema>;
 export type ConnectorLabel = z.infer<typeof connectorLabelSchema>;
 export type Connector = z.infer<typeof connectorSchema>;
 export type TextBox = z.infer<typeof textBoxSchema>;
+export type Label = z.infer<typeof labelSchema>;
 export type Rectangle = z.infer<typeof rectangleSchema>;
 export type Layer = z.infer<typeof layerSchema>;
 export type Layers = z.infer<typeof layersSchema>;

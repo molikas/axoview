@@ -169,23 +169,20 @@ export const CommonElements = () => {
 
   // Point-and-click placement (like Rectangle / a node icon): arm the mode with
   // nothing created; the next canvas click drops the element and a right-click
-  // cancels (handled by the TextBox mode + usePanHandlers). `variant` selects
-  // the plain text box vs the floating-label preset.
+  // cancels (handled by the TextBox / Label mode + usePanHandlers).
   const handleTextMouseDown = useCallback(() => {
     uiStateActions.setMode({
       type: 'TEXTBOX',
       showCursor: true,
-      id: null,
-      variant: 'text'
+      id: null
     });
   }, [uiStateActions]);
 
   const handleLabelMouseDown = useCallback(() => {
     uiStateActions.setMode({
-      type: 'TEXTBOX',
+      type: 'LABEL',
       showCursor: true,
-      id: null,
-      variant: 'label'
+      id: null
     });
   }, [uiStateActions]);
 
@@ -222,13 +219,13 @@ export const CommonElements = () => {
         <ElementCard
           label={t('text')}
           icon={<TextSvg />}
-          isActive={mode.type === 'TEXTBOX' && mode.variant !== 'label'}
+          isActive={mode.type === 'TEXTBOX'}
           onMouseDown={handleTextMouseDown}
         />
         <ElementCard
           label={t('label')}
           icon={<LabelSvg />}
-          isActive={mode.type === 'TEXTBOX' && mode.variant === 'label'}
+          isActive={mode.type === 'LABEL'}
           onMouseDown={handleLabelMouseDown}
         />
         <ElementCard

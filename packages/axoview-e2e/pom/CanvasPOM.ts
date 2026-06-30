@@ -199,6 +199,21 @@ export class CanvasPOM {
     await this.dispatchAt(['mouseup'], point);
   }
 
+  /**
+   * Floating-Label placement (ADR 0031). The Label has no hotkey — the Common
+   * deck arms the LABEL mode — so arm it via the store, then drop on mouseup
+   * (mirrors placeTextBoxAt's land → arm → release flow).
+   */
+  async placeLabelAt(point: CanvasPoint) {
+    await this.dispatchAt(['mousemove'], point);
+    await this.page.evaluate(() => {
+      (window as any).__axoview__.ui
+        .getState()
+        .actions.setMode({ type: 'LABEL', showCursor: true, id: null });
+    });
+    await this.dispatchAt(['mouseup'], point);
+  }
+
   canvasModeToggleButton(): Locator {
     return byAxoviewId(this.page, 'canvas-mode-toggle');
   }

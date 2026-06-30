@@ -4,6 +4,7 @@ import {
   Connector,
   Rectangle,
   TextBox,
+  Label,
   Coords
 } from 'src/types';
 
@@ -17,6 +18,9 @@ export interface ClipboardPayload {
   connectors: Connector[];
   rectangles: Rectangle[];
   textBoxes: TextBox[];
+  // Optional so a payload from an older session/format (no Labels) still pastes
+  // (read sites guard with `?? []`). ADR 0031.
+  labels?: Label[];
   centroid: Coords;
 }
 
@@ -25,6 +29,7 @@ export interface PastePayload {
   connectors: Connector[];
   rectangles: Rectangle[];
   textBoxes: TextBox[];
+  labels?: Label[];
 }
 
 let _clipboard: ClipboardPayload | null = null;

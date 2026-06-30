@@ -1,15 +1,15 @@
 import { setWindowCursor, generateId } from 'src/utils';
 import { resolvePlacement, cursorTileResidual } from 'src/utils/resolvePlacement';
-import { TEXTBOX_DEFAULTS } from 'src/config';
+import { LABEL_DEFAULTS } from 'src/config';
 import { exceedsTapSlop } from 'src/config/tapGesture';
 import { ModeActions } from 'src/types';
 
-// Point-and-click placement (mirrors PlaceIcon): the Elements deck ARMS this
-// mode with no element created; the next canvas click drops a text box at the
-// cursor and returns to CURSOR. A right-click cancels (handled in usePanHandlers
-// — the armed tool aborts to CURSOR without placing). The floating Label has its
-// own mode (modes/Label.ts) — this mode is text-only (ADR 0031).
-export const TextBox: ModeActions = {
+// Point-and-click placement for the floating Label (ADR 0031), mirroring the
+// TextBox / PlaceIcon arm-then-drop flow: the Common deck ARMS this mode with no
+// element created; the next canvas click drops a Label at the cursor and returns
+// to CURSOR. A right-click cancels (usePanHandlers aborts the armed tool to
+// CURSOR without placing). Its own mode — not a TextBox variant.
+export const Label: ModeActions = {
   entry: () => {
     setWindowCursor('crosshair');
   },
@@ -18,12 +18,11 @@ export const TextBox: ModeActions = {
   },
   mousemove: () => {},
   mouseup: ({ uiState, scene, isRendererInteraction }) => {
-    if (uiState.mode.type !== 'TEXTBOX') return;
+    if (uiState.mode.type !== 'LABEL') return;
 
-    // Distinguish the arming tap on the deck card (no renderer release, no move →
-    // just arm) from a real placement: a canvas tap (renderer release) or a
-    // drag from the panel onto the canvas (past tap-slop). Same gating PlaceIcon
-    // uses so the panel click only arms.
+    // Distinguish the arming tap on the deck card (no renderer release, no move)
+    // from a real placement: a canvas tap (renderer release) or a drag from the
+    // panel onto the canvas (past tap-slop). Same gating as TextBox / PlaceIcon.
     const moved =
       !!uiState.mouse.mousedown &&
       exceedsTapSlop(
@@ -47,14 +46,14 @@ export const TextBox: ModeActions = {
     const placement = resolvePlacement(tile, residual, undefined, globalSnap);
 
     const id = generateId();
-    scene.createTextBox({
-      ...TEXTBOX_DEFAULTS,
+    scene.createLabel({
+      ...LABEL_DEFAULTS,
       id,
       tile: placement.tile,
       offset: placement.offset
     });
 
-    uiState.actions.setItemControls({ type: 'TEXTBOX', id });
+    uiState.actions.setItemControls({ type: 'LABEL', id });
     uiState.actions.setMode({
       type: 'CURSOR',
       showCursor: true,

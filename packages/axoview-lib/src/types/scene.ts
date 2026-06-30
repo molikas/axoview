@@ -16,6 +16,7 @@ export const ItemReferenceTypeOptions = {
   CONNECTOR: 'CONNECTOR',
   CONNECTOR_ANCHOR: 'CONNECTOR_ANCHOR',
   TEXTBOX: 'TEXTBOX',
+  LABEL: 'LABEL',
   RECTANGLE: 'RECTANGLE'
 } as const;
 

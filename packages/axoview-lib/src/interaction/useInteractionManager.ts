@@ -34,6 +34,7 @@ import { Connector } from './modes/Connector';
 import { Pan } from './modes/Pan';
 import { PlaceIcon } from './modes/PlaceIcon';
 import { TextBox } from './modes/TextBox';
+import { Label } from './modes/Label';
 import { Lasso } from './modes/Lasso';
 import { FreehandLasso } from './modes/FreehandLasso';
 import { ReconnectAnchor } from './modes/ReconnectAnchor';
@@ -52,6 +53,7 @@ const modes: { [k in string]: ModeActions } = {
   PAN: Pan,
   PLACE_ICON: PlaceIcon,
   TEXTBOX: TextBox,
+  LABEL: Label,
   LASSO: Lasso,
   FREEHAND_LASSO: FreehandLasso,
   RECONNECT_ANCHOR: ReconnectAnchor
@@ -456,8 +458,7 @@ const handleToolHotkeys = (
       uiState.actions.setMode({
         type: 'TEXTBOX',
         showCursor: true,
-        id: null,
-        variant: 'text'
+        id: null
       });
       break;
     case 'lasso':

@@ -47,17 +47,10 @@ const htmlToPlain = (s: string | undefined): string => {
 export const TextBox = memo(({ textBox }: Props) => {
   const { paddingX, fontProps } = useTextBoxProps(textBox);
   const editorMode = useUiStateStore((s) => s.editorMode);
-  // Selection highlight for the label chip (the iso text box uses the dashed
-  // TransformControls box instead; a label suppresses that — see
-  // TextBoxTransformControls).
-  const isSelected = useUiStateStore(
-    (s) => s.itemControls?.type === 'TEXTBOX' && s.itemControls.id === textBox.id
-  );
   // Actions only (not useScene): this textbox sits in the drag hot path and must
   // not re-render on every scene mutation just to hold updateTextBox (perf A-1).
   const { updateTextBox } = useSceneActions();
   const isEditable = editorMode === 'EDITABLE';
-  const isLabel = textBox.variant === 'label';
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
@@ -98,19 +91,7 @@ export const TextBox = memo(({ textBox }: Props) => {
     multiline: true
   });
 
-  const { strategy, getTilePosition } = useCanvasMode();
-
-  // A label is a billboard chip anchored at the tile centre (like a node label),
-  // not the iso-projected box. Its font is px-based (node-label scale) rather
-  // than the textbox's iso tile-scale, so it reads at a comparable size.
-  const labelPos = useMemo(
-    () => getTilePosition({ tile: textBox.tile, origin: 'CENTER' }),
-    [getTilePosition, textBox.tile]
-  );
-  const labelFont = useMemo(
-    () => ({ ...fontProps, fontSize: (textBox.fontSize ?? 0.6) * 24 }),
-    [fontProps, textBox.fontSize]
-  );
+  const { strategy } = useCanvasMode();
 
   // 2D-Y orientation renders as a wide-and-short rectangle that
   // useIsoProjection then rotates 90° (see MQA #11 in useIsoProjection.ts).
@@ -165,75 +146,6 @@ export const TextBox = memo(({ textBox }: Props) => {
     [textBox.content]
   );
 
-  // ── Label variant ─────────────────────────────────────────────────────────
-  // An upright chip centred on the tile, styled like a node name label (white
-  // rounded chip + subtle border), with an optional background colour. Shares
-  // the textbox drag wrapper (data-drag-id) + inline-edit, but skips the iso
-  // projection so it reads as a flat billboard, not text lying on the floor.
-  if (isLabel) {
-    return (
-      <div data-drag-id={textBox.id} style={dragStyle}>
-        <Box
-          onDoubleClick={startInlineEdit}
-          style={{ left: labelPos.x, top: labelPos.y }}
-          sx={{
-            position: 'absolute',
-            transform: 'translate(-50%, -50%)',
-            // The drag wrapper is a zero-width box, so a shrink-to-fit chip would
-            // collapse to ~1ch and stack the text vertically. max-content sizes
-            // the chip to its text on one line (then wraps only past maxWidth).
-            width: 'max-content',
-            maxWidth: 320,
-            px: 1,
-            py: 0.5,
-            borderRadius: 2,
-            border: '1px solid',
-            borderColor: 'grey.400',
-            bgcolor: textBox.backgroundColor || 'common.white',
-            boxShadow: 1,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-            textAlign: 'center',
-            pointerEvents: isEditable ? 'auto' : 'inherit',
-            ...(isSelected
-              ? { outline: '2px solid', outlineColor: 'primary.main' }
-              : {})
-          }}
-        >
-          {isEditing ? (
-            <Typography
-              contentEditable
-              suppressContentEditableWarning
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => e.stopPropagation()}
-              onDoubleClick={(e) => e.stopPropagation()}
-              onBlur={inlineRename.onBlur}
-              onKeyDown={inlineRename.onKeyDown}
-              ref={inlineRename.setRef}
-              sx={{
-                ...labelFont,
-                outline: 'none',
-                cursor: 'text',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word'
-              }}
-            >
-              {htmlToPlain(textBox.content)}
-            </Typography>
-          ) : (
-            <Typography sx={{ ...labelFont }}>
-              {textBox.content?.trim().startsWith('<') ? (
-                <span dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
-              ) : (
-                textBox.content
-              )}
-            </Typography>
-          )}
-        </Box>
-      </div>
-    );
-  }
-
   return (
     <div data-drag-id={textBox.id} style={dragStyle}>
       <Box style={css}>
@@ -248,16 +160,6 @@ export const TextBox = memo(({ textBox }: Props) => {
           width: '100%',
           height: '100%',
           px: toPx(paddingX),
-          // Optional fill covers the whole tile footprint so the colour lines up
-          // with the (tile-snapped) selection frame — same coverage model as a
-          // rectangle. The box height now tracks the row count (getTextBoxEndTile
-          // + tightened richtext units), so a single line no longer over-fills.
-          ...(textBox.backgroundColor
-            ? {
-                backgroundColor: textBox.backgroundColor,
-                borderRadius: toPx(paddingX)
-              }
-            : {}),
           pointerEvents: isEditable ? 'auto' : 'inherit'
         }}
       >

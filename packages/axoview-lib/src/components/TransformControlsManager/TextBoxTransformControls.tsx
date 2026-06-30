@@ -15,9 +15,7 @@ export const TextBoxTransformControls = ({ id }: Props) => {
     return getTextBoxEndTile(textBox, textBox.size);
   }, [textBox]);
 
-  // A label is an upright billboard chip (not the iso text box), so the iso
-  // resize/selection box doesn't apply — its selection outline lives on the chip.
-  if (!textBox || textBox.variant === 'label') {
+  if (!textBox) {
     return null;
   }
 

@@ -3,6 +3,7 @@ import { id, constrainedStrings, coords, ARRAY_MAX } from './common';
 import { rectangleSchema } from './rectangle';
 import { connectorSchema } from './connector';
 import { textBoxSchema } from './textBox';
+import { labelSchema } from './label';
 import { layersSchema } from './layer';
 
 export const viewItemSchema = z.object({
@@ -40,6 +41,7 @@ export const viewSchema = z.object({
   rectangles: z.array(rectangleSchema).max(ARRAY_MAX.rectangles).optional(),
   connectors: z.array(connectorSchema).max(ARRAY_MAX.connectors).optional(),
   textBoxes: z.array(textBoxSchema).max(ARRAY_MAX.textBoxes).optional(),
+  labels: z.array(labelSchema).max(ARRAY_MAX.labels).optional(),
   layers: layersSchema.optional()
 });
 

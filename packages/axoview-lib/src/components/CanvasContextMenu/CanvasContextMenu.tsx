@@ -190,6 +190,7 @@ export const CanvasContextMenu = () => {
     if (target.type === 'ITEM') scene.deleteViewItem(target.id);
     else if (target.type === 'CONNECTOR') scene.deleteConnector(target.id);
     else if (target.type === 'TEXTBOX') scene.deleteTextBox(target.id);
+    else if (target.type === 'LABEL') scene.deleteLabel(target.id);
     else if (target.type === 'RECTANGLE') scene.deleteRectangle(target.id);
     actions.setItemControls(null);
   }, [scene, actions, target]);
@@ -202,7 +203,7 @@ export const CanvasContextMenu = () => {
   }, [handleCopy, handlePaste]);
 
   // Z-order: read the current item's zIndex and nudge it. Nodes (ITEM) reorder
-  // among nodes; text boxes / labels (TEXTBOX) reorder among text boxes.
+  // among nodes; floating Labels (LABEL) among the Label layer (ADR 0031).
   const nudgeZOrder = useCallback(
     (delta: number) => {
       if (target?.type === 'ITEM') {
@@ -212,9 +213,9 @@ export const CanvasContextMenu = () => {
         scene.updateViewItem(target.id, {
           zIndex: (viewItem?.zIndex ?? 0) + delta
         });
-      } else if (target?.type === 'TEXTBOX') {
-        const tb = scene.currentView.textBoxes?.find((t) => t.id === target.id);
-        scene.updateTextBox(target.id, { zIndex: (tb?.zIndex ?? 0) + delta });
+      } else if (target?.type === 'LABEL') {
+        const l = scene.currentView.labels?.find((x) => x.id === target.id);
+        scene.updateLabel(target.id, { zIndex: (l?.zIndex ?? 0) + delta });
       }
     },
     [scene, target]
@@ -331,9 +332,12 @@ export const CanvasContextMenu = () => {
   const isItem = target?.type === 'ITEM';
   // Z-order (bring forward / send backward) applies to nodes and text boxes /
   // labels — both carry a `zIndex` and a stacked render order.
-  const canZOrder = target?.type === 'ITEM' || target?.type === 'TEXTBOX';
-  // Off-grid commands apply to placeable items, not connectors.
-  const canOffGrid = !!target && target.type !== 'CONNECTOR';
+  const canZOrder = target?.type === 'ITEM' || target?.type === 'LABEL';
+  // Off-grid commands apply to placeable items, not connectors. Floating Labels
+  // (ADR 0031) reposition by direct drag and aren't in the tile index (no
+  // collision), so the snap/collision toggles don't apply to them either.
+  const canOffGrid =
+    !!target && target.type !== 'CONNECTOR' && target.type !== 'LABEL';
   const isUnsnapped = offGridTarget?.snap === false;
   const collidesNow = offGridTarget ? itemCollides(offGridTarget) : true;
   const canRename = !!target && INLINE_RENAMEABLE.has(target.type);

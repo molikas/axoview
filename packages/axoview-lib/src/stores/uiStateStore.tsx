@@ -80,6 +80,7 @@ const initialState = () => {
       hideViewControls: false,
       exportHideLabels: false,
       labelDrag: null,
+      labelMove: null,
       selectedConnectorLabel: null,
       annotation: {
         open: false,
@@ -329,6 +330,16 @@ const initialState = () => {
         },
         clearLabelDrag: () => {
           set({ labelDrag: null });
+        },
+        setLabelMove: (id, tile, offset) => {
+          // Transient floating-Label move preview (ADR 0031). LabelsCanvas reads
+          // this to redraw the dragged chip following the pointer with NO model
+          // write, so the LabelHitLayer proxy divs don't re-render each frame.
+          // Committed to the model once, on release.
+          set({ labelMove: { id, tile, offset } });
+        },
+        clearLabelMove: () => {
+          set({ labelMove: null });
         },
         setSelectedConnectorLabel: (sel) => {
           set({ selectedConnectorLabel: sel });

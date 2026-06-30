@@ -8,6 +8,8 @@ interface SelectableScene {
   items: { id: string }[];
   rectangles: { id: string }[];
   textBoxes: { id: string }[];
+  // Optional so partial scenes (tests) don't crash; the live scene provides it.
+  labels?: { id: string }[];
   connectors: Parameters<typeof getConnectorWaypointRefs>[0][];
 }
 
@@ -38,6 +40,9 @@ export const collectSelectableRefs = (
   }
   for (const tb of scene.textBoxes) {
     if (isInteractable(tb.id)) refs.push({ type: 'TEXTBOX', id: tb.id });
+  }
+  for (const l of scene.labels ?? []) {
+    if (isInteractable(l.id)) refs.push({ type: 'LABEL', id: l.id });
   }
   for (const c of scene.connectors) {
     if (!isInteractable(c.id)) continue;

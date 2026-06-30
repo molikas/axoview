@@ -1,0 +1,129 @@
+/**
+ * label-entity.spec.ts — Floating Label as a first-class entity (ADR 0031).
+ *
+ * Covers the binary KR2 behaviours the extraction exists to deliver:
+ *   - placement: arming the Label tool + clicking drops exactly ONE Label
+ *     (Label.mouseup → scene.createLabel; its own mode, not a textBox variant).
+ *   - render / z-order: the placed Label paints on LabelsCanvas, which is mounted
+ *     DOM-AFTER NodesCanvas — so a label over a node renders ABOVE it (the
+ *     cross-layer z-order fix; the variant chip on the DOM-earlier TextBoxes
+ *     layer was always occluded).
+ *   - full-chip select: the pixel-accurate LabelHitLayer proxy spans the whole
+ *     chip, so a press anywhere on it selects the Label (not just the anchor
+ *     tile, the old variant's limitation).
+ */
+import { canvasReadyTest as test, expect } from '../fixtures/app.fixture';
+import { CanvasPOM, CanvasPoint } from '../pom/CanvasPOM';
+
+const getViewLabelCount = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => {
+    const viewId = (window as any).__axoview__.ui.getState().view;
+    const views = (window as any).__axoview__.model.getState().views;
+    const view =
+      (viewId && views.find((v: any) => v.id === viewId)) ?? views?.[0];
+    return Array.isArray(view?.labels) ? view.labels.length : 0;
+  });
+
+const getFirstLabelId = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => {
+    const viewId = (window as any).__axoview__.ui.getState().view;
+    const views = (window as any).__axoview__.model.getState().views;
+    const view =
+      (viewId && views.find((v: any) => v.id === viewId)) ?? views?.[0];
+    return (view?.labels ?? [])[0]?.id ?? null;
+  });
+
+const getItemControlsType = (page: import('@playwright/test').Page) =>
+  page.evaluate(
+    () => (window as any).__axoview__.ui.getState().itemControls?.type ?? null
+  );
+
+const clearSelection = (page: import('@playwright/test').Page) =>
+  page.evaluate(() =>
+    (window as any).__axoview__.ui.getState().actions.setItemControls(null)
+  );
+
+test.describe('Floating Label entity (ADR 0031)', () => {
+  test('placement: arming the Label tool + clicking creates exactly one Label', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const canvas = new CanvasPOM(page);
+
+    await canvas.placeLabelAt({ x: 400, y: 300 });
+    await expect.poll(() => getViewLabelCount(page), { timeout: 5_000 }).toBe(1);
+
+    await canvas.placeLabelAt({ x: 560, y: 380 });
+    await expect.poll(() => getViewLabelCount(page), { timeout: 5_000 }).toBe(2);
+  });
+
+  test('render/z-order: the Label paints on LabelsCanvas, DOM-after NodesCanvas (above nodes)', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const canvas = new CanvasPOM(page);
+
+    await canvas.placeLabelAt({ x: 400, y: 300 });
+    await expect.poll(() => getViewLabelCount(page), { timeout: 5_000 }).toBe(1);
+
+    // The Label layer is mounted AFTER the node layer in the DOM, so it paints
+    // on top (the z-order fix — a label tile placed over a node renders above it).
+    const labelsAfterNodes = await page.evaluate(() => {
+      const nodes = document.querySelector('[data-testid="axoview-nodes-canvas"]');
+      const labels = document.querySelector(
+        '[data-testid="axoview-labels-canvas"]'
+      );
+      if (!nodes || !labels) return null;
+      return Boolean(
+        nodes.compareDocumentPosition(labels) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      );
+    });
+    expect(labelsAfterNodes).toBe(true);
+
+    // The Canvas2D draw-count anti-cheat proves the label actually painted.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const c = document.querySelector(
+              '[data-testid="axoview-labels-canvas"]'
+            ) as HTMLCanvasElement | null;
+            return c ? parseInt(c.dataset.drawCount ?? '0', 10) : 0;
+          }),
+        { timeout: 5_000 }
+      )
+      .toBeGreaterThanOrEqual(1);
+  });
+
+  test('full-chip select: a press anywhere on the chip selects the Label', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const canvas = new CanvasPOM(page);
+
+    await canvas.placeLabelAt({ x: 400, y: 300 });
+    await expect.poll(() => getViewLabelCount(page), { timeout: 5_000 }).toBe(1);
+    const id = await getFirstLabelId(page);
+    expect(id).toBeTruthy();
+
+    // Placement auto-selects; clear so the click is what selects.
+    await clearSelection(page);
+    await expect.poll(() => getItemControlsType(page)).toBeNull();
+
+    const hit = page.locator(`[data-label-hit-id="${id}"]`);
+    await expect(hit).toBeVisible();
+    // The proxy spans the FULL chip, not a single anchor tile.
+    const box = await hit.boundingBox();
+    expect(box!.width).toBeGreaterThan(30);
+    // Press near the right edge — well off the anchor tile — to prove full-width.
+    await hit.click({ position: { x: box!.width - 4, y: box!.height / 2 } });
+
+    await expect
+      .poll(() => getItemControlsType(page), { timeout: 5_000 })
+      .toBe('LABEL');
+  });
+});

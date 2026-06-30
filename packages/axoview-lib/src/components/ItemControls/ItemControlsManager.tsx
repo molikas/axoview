@@ -6,6 +6,7 @@ import { IconSelectionControls } from 'src/components/ItemControls/IconSelection
 import { NodePanel } from './NodeControls/NodePanel/NodePanel';
 import { ConnectorControls } from './ConnectorControls/ConnectorControls';
 import { TextBoxControls } from './TextBoxControls/TextBoxControls';
+import { LabelControls } from './LabelControls/LabelControls';
 import { RectangleControls } from './RectangleControls/RectangleControls';
 
 interface NodePanelWrapperProps {
@@ -34,6 +35,8 @@ export const ItemControlsManager = ({ readOnly }: Props) => {
         return <ConnectorControls key={itemControls.id} id={itemControls.id} />;
       case 'TEXTBOX':
         return <TextBoxControls key={itemControls.id} id={itemControls.id} />;
+      case 'LABEL':
+        return <LabelControls key={itemControls.id} id={itemControls.id} />;
       case 'RECTANGLE':
         return <RectangleControls key={itemControls.id} id={itemControls.id} />;
       case 'ADD_ITEM':

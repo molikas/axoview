@@ -7,6 +7,7 @@ import {
   ViewItem,
   Rectangle,
   TextBox,
+  Label,
   Connector,
   ConnectorAnchor
 } from 'src/types';
@@ -26,6 +27,9 @@ interface LassoScene {
   // The rendered textbox carries a computed `size`; we need it to hit-test the
   // box's full bounds (not just its origin tile).
   textBoxes: (TextBox & { size: Size })[];
+  // Optional so partial scenes (tests / older callers) don't crash; reads guard
+  // with `?? []`. The live useScene scene always provides it. ADR 0031.
+  labels?: Label[];
   connectors: Connector[];
 }
 
@@ -69,6 +73,15 @@ const getItemsInBounds = (
     const endTextTile = getTextBoxEndTile(textBox, textBox.size);
     if (doBoundsOverlap(textBox.tile, endTextTile, startTile, endTile)) {
       items.push({ type: 'TEXTBOX', id: textBox.id });
+    }
+  });
+
+  // Floating Labels (ADR 0031) hit on their anchor tile — a billboard chip has
+  // no iso footprint, so a marquee covering the tile selects the label.
+  (scene.labels ?? []).forEach((label) => {
+    if (!isItemInteractable({ type: 'LABEL', id: label.id })) return;
+    if (isWithinBounds(label.tile, [startTile, endTile])) {
+      items.push({ type: 'LABEL', id: label.id });
     }
   });
 
@@ -176,6 +189,11 @@ export const Lasso: ModeActions = {
           } else if (item.type === 'TEXTBOX') {
             initialTiles[item.id] = getItemByIdOrThrow(
               scene.textBoxes,
+              item.id
+            ).value.tile;
+          } else if (item.type === 'LABEL') {
+            initialTiles[item.id] = getItemByIdOrThrow(
+              scene.labels ?? [],
               item.id
             ).value.tile;
           } else if (item.type === 'RECTANGLE') {

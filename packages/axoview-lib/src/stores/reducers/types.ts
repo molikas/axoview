@@ -3,6 +3,7 @@ import type * as viewReducers from './view';
 import type * as viewItemReducers from './viewItem';
 import type * as connectorReducers from './connector';
 import type * as textBoxReducers from './textBox';
+import type * as labelReducers from './label';
 import type * as rectangleReducers from './rectangle';
 
 export interface State {
@@ -71,6 +72,18 @@ type ViewReducerAction =
   | {
       action: 'DELETE_TEXTBOX';
       payload: Parameters<typeof textBoxReducers.deleteTextBox>[0];
+    }
+  | {
+      action: 'CREATE_LABEL';
+      payload: Parameters<typeof labelReducers.createLabel>[0];
+    }
+  | {
+      action: 'UPDATE_LABEL';
+      payload: Parameters<typeof labelReducers.updateLabel>[0];
+    }
+  | {
+      action: 'DELETE_LABEL';
+      payload: Parameters<typeof labelReducers.deleteLabel>[0];
     }
   | {
       action: 'CREATE_RECTANGLE';

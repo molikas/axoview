@@ -34,6 +34,7 @@ import { useModelItem } from 'src/hooks/useModelItem';
 import { useScene } from 'src/hooks/useScene';
 import { useViewItem } from 'src/hooks/useViewItem';
 import { useTextBox } from 'src/hooks/useTextBox';
+import { useLabel } from 'src/hooks/useLabel';
 import { useConnector } from 'src/hooks/useConnector';
 import { useRectangle } from 'src/hooks/useRectangle';
 import { ProjectionOrientationEnum } from 'src/types';
@@ -455,6 +456,7 @@ export const TopBarStyleControls = () => {
     updateViewItem,
     updateModelItem,
     updateTextBox,
+    updateLabel,
     updateConnector,
     updateRectangle
   } = useScene();
@@ -466,6 +468,7 @@ export const TopBarStyleControls = () => {
   const textBox = useTextBox(sel?.type === 'TEXTBOX' ? sel.id : '');
   const connector = useConnector(sel?.type === 'CONNECTOR' ? sel.id : '');
   const rectangle = useRectangle(sel?.type === 'RECTANGLE' ? sel.id : '');
+  const label = useLabel(sel?.type === 'LABEL' ? sel.id : '');
 
   // Icon size lives on the model icon's `scale` (shared by every node using that
   // icon) — same source the NodeStyleTab "Icon size" slider writes to.
@@ -508,17 +511,22 @@ export const TopBarStyleControls = () => {
     });
   };
 
-  const textColorEnabled = Boolean(node || textBox || activeLabel || isNameLabel);
+  const textColorEnabled = Boolean(
+    node || textBox || label || activeLabel || isNameLabel
+  );
   const textColorValue = node
     ? node.labelColor
     : textBox
     ? textBox.color
+    : label
+    ? label.color
     : isNameLabel
     ? connector?.nameLabelColor
     : activeLabel?.labelColor;
   const onTextColorChange = (color: string | undefined) => {
     if (node) updateViewItem(node.id, { labelColor: color });
     else if (textBox) updateTextBox(textBox.id, { color });
+    else if (label) updateLabel(label.id, { color });
     else if (isNameLabel && connector)
       updateConnector(connector.id, { nameLabelColor: color });
     else if (activeLabel) updateActiveLabel({ labelColor: color });
@@ -548,6 +556,14 @@ export const TopBarStyleControls = () => {
         step: 0.15,
         onChange: (v) => updateTextBox(textBox.id, { fontSize: v })
       }
+    : label
+    ? {
+        value: label.fontSize ?? 14,
+        min: 8,
+        max: 48,
+        step: 1,
+        onChange: (v) => updateLabel(label.id, { fontSize: v })
+      }
     : isNameLabel && connector
     ? {
         value: connector.nameLabelFontSize ?? 12,
@@ -573,29 +589,26 @@ export const TopBarStyleControls = () => {
   // A plain text box is EXCLUDED — it formats per-character via its rich-text
   // editor, so a whole-box B/I/S would fight that (two layers; CSS can't
   // subtract). Each supported type stores its own boolean trio.
-  const labelTextBox = textBox && textBox.variant === 'label' ? textBox : null;
-  const formatEnabled = Boolean(
-    node || labelTextBox || activeLabel || isNameLabel
-  );
+  const formatEnabled = Boolean(node || label || activeLabel || isNameLabel);
   const formatValue = {
     bold: node
       ? node.labelBold
-      : labelTextBox
-      ? labelTextBox.isBold
+      : label
+      ? label.isBold
       : isNameLabel
       ? connector?.nameLabelBold
       : activeLabel?.bold,
     italic: node
       ? node.labelItalic
-      : labelTextBox
-      ? labelTextBox.isItalic
+      : label
+      ? label.isItalic
       : isNameLabel
       ? connector?.nameLabelItalic
       : activeLabel?.italic,
     strike: node
       ? node.labelStrikethrough
-      : labelTextBox
-      ? labelTextBox.isStrikethrough
+      : label
+      ? label.isStrikethrough
       : isNameLabel
       ? connector?.nameLabelStrikethrough
       : activeLabel?.strikethrough
@@ -611,8 +624,8 @@ export const TopBarStyleControls = () => {
         labelItalic: next.italic,
         labelStrikethrough: next.strike
       });
-    else if (labelTextBox)
-      updateTextBox(labelTextBox.id, {
+    else if (label)
+      updateLabel(label.id, {
         isBold: next.bold,
         isItalic: next.italic,
         isStrikethrough: next.strike
@@ -756,22 +769,21 @@ export const TopBarStyleControls = () => {
         </span>
       </Tooltip>
 
-      {/* Background colour — rectangle fill, or a text box / label chip.
-          A text box stores a raw hex in `backgroundColor`; clearing it removes
-          the fill (and resets a label chip to white). */}
+      {/* Background colour — rectangle fill, or a floating Label chip (ADR 0031).
+          Clearing it removes the fill (and resets a label chip to white). */}
       <StripButton
         tooltip={
-          rectangle || textBox
+          rectangle || label
             ? 'Background color'
-            : 'Select a rectangle, text, or label to set its background color'
+            : 'Select a rectangle or label to set its background color'
         }
-        disabled={!rectangle && !textBox}
+        disabled={!rectangle && !label}
         icon={<FillIcon sx={{ fontSize: 18 }} />}
         colorBar={
           rectangle
             ? resolveHex(rectangle.color, rectangle.customColor)
-            : textBox
-            ? textBox.backgroundColor || '#ffffff'
+            : label
+            ? label.backgroundColor || '#ffffff'
             : undefined
         }
       >
@@ -790,26 +802,26 @@ export const TopBarStyleControls = () => {
               updateRectangle(rectangle.id, { customColor: TRANSPARENT })
             }
           />
-        ) : textBox ? (
+        ) : label ? (
           <PresetCustomColor
-            presetId={colors.find((c) => c.value === textBox.backgroundColor)?.id}
+            presetId={colors.find((c) => c.value === label.backgroundColor)?.id}
             customColor={
-              textBox.backgroundColor &&
-              !colors.some((c) => c.value === textBox.backgroundColor)
-                ? textBox.backgroundColor
+              label.backgroundColor &&
+              !colors.some((c) => c.value === label.backgroundColor)
+                ? label.backgroundColor
                 : undefined
             }
             onSelectPreset={(id) =>
-              updateTextBox(textBox.id, { backgroundColor: resolveHex(id) })
+              updateLabel(label.id, { backgroundColor: resolveHex(id) })
             }
             onCustomChange={(hex) =>
-              updateTextBox(textBox.id, { backgroundColor: hex })
+              updateLabel(label.id, { backgroundColor: hex })
             }
             onDisableCustom={() =>
-              updateTextBox(textBox.id, { backgroundColor: undefined })
+              updateLabel(label.id, { backgroundColor: undefined })
             }
             onNoColor={() =>
-              updateTextBox(textBox.id, { backgroundColor: undefined })
+              updateLabel(label.id, { backgroundColor: undefined })
             }
           />
         ) : null}
@@ -1110,10 +1122,7 @@ export const TopBarStyleControls = () => {
               height={120}
               contentStyle={{
                 fontWeight: textBox.isBold ? 700 : undefined,
-                fontStyle: textBox.isItalic ? 'italic' : undefined,
-                textDecoration: textBox.isStrikethrough
-                  ? 'line-through'
-                  : undefined
+                fontStyle: textBox.isItalic ? 'italic' : undefined
               }}
             />
           </Box>
