@@ -345,6 +345,13 @@ function installHarness() {
     // (no React work) and buildTileIndex excludes them all (empty obstacle set →
     // drag collision marginally cheaper). The integer `tile` is unchanged.
     const offsetMode = !!w.__perfOffset;
+    // E-slice styling-stress flags (dormant when off → default scene stays
+    // byte-identical, like the diagnostics above). Each loads the new label /
+    // border styling surfaces the productization spike introduced so the perf
+    // gate measures them.
+    const labelHeavy = !!w.__perfLabelHeavy; // every node label: B/I/S + colour + varied px
+    const connLabelHeavy = !!w.__perfConnLabelHeavy; // every connector labelled + styled
+    const bgHeavy = !!w.__perfBgHeavy; // dense grouping rects with fills + ≤30px borders
     const items: any[] = [];
     const vitems: any[] = [];
     const connectors: any[] = [];
@@ -372,6 +379,18 @@ function installHarness() {
         tile: { x: xBase + col, y: row },
         labelColor: LABEL_COLORS[i % LABEL_COLORS.length]
       };
+      if (labelHeavy) {
+        // Maximal node-label styling: the Canvas2D label draw now pays
+        // bold/italic font selection + a manually-stroked strikethrough + a
+        // non-default colour + a varied px size on every node (the heaviest
+        // per-frame label path — what the E-gate must not regress).
+        vi.labelBold = i % 2 === 0;
+        vi.labelItalic = i % 3 === 0;
+        vi.labelStrikethrough = i % 5 === 0;
+        vi.labelColor = LABEL_COLORS[1 + (i % (LABEL_COLORS.length - 1))];
+        vi.labelFontSize = 12 + (i % 5) * 2; // 12..20px
+        vi.showLabel = true;
+      }
       if (noLabel) vi.showLabel = false;
       if (offsetMode) {
         vi.offset = { x: 7, y: -5 };
@@ -390,7 +409,22 @@ function installHarness() {
             { id: 'a' + i + 'e', ref: { item: 'perf-' + (i + 1) } }
           ]
         };
-        if (i % 3 === 0) {
+        if (connLabelHeavy) {
+          // Every connector carries a styled additional label (the DOM
+          // ConnectorLabel path: B/I/S + colour + varied px), not just ~⅓.
+          c.labels = [
+            {
+              id: 'cl' + i,
+              text: 'edge ' + i,
+              position: 50,
+              fontSize: 10 + (i % 6) * 2, // 10..20px (schema 8..24)
+              labelColor: LABEL_COLORS[1 + (i % (LABEL_COLORS.length - 1))],
+              bold: i % 2 === 0,
+              italic: i % 3 === 0,
+              strikethrough: i % 4 === 0
+            }
+          ];
+        } else if (i % 3 === 0) {
           c.labels = [
             { id: 'cl' + i, text: 'edge ' + i, position: 50, fontSize: 12 }
           ];
@@ -400,11 +434,12 @@ function installHarness() {
     }
     // Grouping rectangles over ~5×5 blocks (varied colours).
     const rectangles: any[] = [];
-    const BLOCK = 5;
+    // bgHeavy: denser blocks (more overlap/overdraw) + a styled border per rect.
+    const BLOCK = bgHeavy ? 2 : 5;
     let k = 0;
     for (let by = 0; by < side; by += BLOCK) {
       for (let bx = 0; bx < side; bx += BLOCK) {
-        rectangles.push({
+        const rect: any = {
           id: 'r-' + k,
           color: PERF_COLORS[k % PERF_COLORS.length].id,
           from: { x: xBase + bx, y: by },
@@ -412,7 +447,13 @@ function installHarness() {
             x: xBase + Math.min(bx + BLOCK - 1, side - 1),
             y: Math.min(by + BLOCK - 1, side - 1)
           }
-        });
+        };
+        if (bgHeavy) {
+          rect.borderColor = PERF_COLORS[(k + 1) % PERF_COLORS.length].value;
+          rect.borderWidth = 8 + (k % 4) * 6; // 8..26px (≤30)
+          rect.borderStyle = (['SOLID', 'DOTTED', 'DASHED'] as const)[k % 3];
+        }
+        rectangles.push(rect);
         k++;
       }
     }
@@ -1264,6 +1305,187 @@ function installHarness() {
     };
   }
 
+  // ---- E-slice: sustained-pan repaint floor (measurePan, per pan-r1-design.md) ----
+  // The R1 floor: NodesCanvas.drawNow() repaints the full O(visible) node set
+  // SYNCHRONOUSLY on every scroll write (#54 lockstep). We drive that exact
+  // store write once per rAF — the same setScroll the real right-drag pan
+  // funnels through useRAFThrottle — and measure the per-frame repaint it
+  // triggers. Driving setScroll directly (rather than synthesizing a
+  // threshold-gated right-drag) keeps the measurement off the fragile gesture
+  // wiring; the cost measured (drawNow's repaint) is identical because drawNow
+  // subscribes to the scroll change, not to the pointer event. A bounded ±120px
+  // oscillation keeps the visible set ≈ N (a true repaint, not a cull).
+  // Anti-cheats: scroll changed each frame + draw-count stayed ≈ N.
+  async function measurePan(N: number, steps: number) {
+    resetState();
+    const scene = buildScene(N, 1);
+    fitForGrid(1, N);
+    const { view } = activeView();
+    ax()
+      .model.getState()
+      .actions.set(
+        {
+          items: scene.items,
+          views: viewsWith(
+            view.id,
+            scene.vitems,
+            scene.connectors,
+            scene.rectangles,
+            scene.textBoxes
+          )
+        },
+        true
+      );
+    ax().model.getState().actions.clearHistory();
+    ax().changeView(view.id, ax().model.getState());
+    await quiesce();
+    const uiActs = () => ax().ui.getState().actions;
+    const base = ax().ui.getState().scroll;
+    const baseX = base.position.x;
+    const baseY = base.position.y;
+    const canvasEl = document.querySelector(
+      '[data-testid="axoview-nodes-canvas"]'
+    ) as HTMLElement | null;
+    const drawCountNow = () =>
+      canvasEl ? parseInt(canvasEl.dataset.drawCount ?? '0', 10) || 0 : 0;
+    const drawAtStart = drawCountNow();
+    const frames: number[] = [];
+    const longTasks: Array<{ start: number; duration: number }> = [];
+    const stop = observeLongTasks(longTasks);
+    let scrollMoved = false;
+    let drawMin = Infinity;
+    let drawMax = 0;
+    let prev = await raf();
+    for (let s = 1; s <= steps; s++) {
+      const dx = Math.sin((s / steps) * Math.PI * 4) * 120;
+      const dy = Math.cos((s / steps) * Math.PI * 4) * 120;
+      uiActs().setScroll({
+        position: { x: baseX + dx, y: baseY + dy },
+        offset: { x: 0, y: 0 }
+      });
+      const now = await raf();
+      frames.push(now - prev);
+      prev = now;
+      const sc = ax().ui.getState().scroll;
+      if (sc.position.x !== baseX || sc.position.y !== baseY) scrollMoved = true;
+      const dc = drawCountNow();
+      if (dc < drawMin) drawMin = dc;
+      if (dc > drawMax) drawMax = dc;
+    }
+    stop();
+    uiActs().setScroll({
+      position: { x: baseX, y: baseY },
+      offset: { x: 0, y: 0 }
+    });
+    return {
+      frames,
+      longTasks,
+      panEngaged: scrollMoved,
+      drawAtStart,
+      drawMin: drawMin === Infinity ? 0 : drawMin,
+      drawMax
+    };
+  }
+
+  // ---- E-slice: floating-label-heavy (DOM chip layer stress; gates ADR 0031 E3) ----
+  // N floating Labels (textBox variant:'label') with B/I/U/S + colour +
+  // background, over the realistic node/connector/rect base. Floating labels are
+  // DOM (the TextBoxes SceneLayer) — the scaling surface ADR 0019 moved nodes
+  // off of — so this measures the DOM-label spawn/settle cost that decides the
+  // Label render substrate (DOM vs Canvas2D). buildScene omits text boxes because
+  // a bulk model.set leaves scene.textBoxes[id].size undefined (renderer crash);
+  // we pre-seed a placeholder size so the commit render survives, then
+  // changeView → syncScene recomputes the real getTextBoxDimensions size.
+  async function measureFloatingLabelHeavy(N: number, capMs: number) {
+    resetState();
+    const scene = buildScene(N, 1);
+    const side = Math.ceil(Math.sqrt(N));
+    const labelTextBoxes: any[] = [];
+    for (let i = 0; i < N; i++) {
+      const col = i % side;
+      const row = Math.floor(i / side);
+      labelTextBoxes.push({
+        id: 'flabel-' + i,
+        tile: { x: 1 + col, y: row },
+        content: '<p>Label ' + i + '</p>',
+        variant: 'label',
+        fontSize: 14 + (i % 4) * 2,
+        color: LABEL_COLORS[1 + (i % (LABEL_COLORS.length - 1))],
+        backgroundColor: PERF_COLORS[i % PERF_COLORS.length].value,
+        isBold: i % 2 === 0,
+        isItalic: i % 3 === 0,
+        isUnderline: i % 4 === 0,
+        isStrikethrough: i % 5 === 0
+      });
+    }
+    fitForGrid(1, N);
+    await quiesce();
+    const { view } = activeView();
+    // Pre-seed scene sizes so the model.set render doesn't read undefined size;
+    // changeView → syncScene overwrites these with the real measured sizes.
+    const seed: Record<string, { size: { width: number; height: number } }> = {};
+    for (const tb of labelTextBoxes) seed[tb.id] = { size: { width: 4, height: 1 } };
+    ax().scene.setState((s: any) => ({ textBoxes: { ...s.textBoxes, ...seed } }));
+    const newViews = viewsWith(
+      view.id,
+      scene.vitems,
+      scene.connectors,
+      scene.rectangles,
+      labelTextBoxes
+    );
+    const frames: number[] = [];
+    const longTasks: Array<{ start: number; duration: number }> = [];
+    const stop = observeLongTasks(longTasks);
+    const tc = performance.now();
+    ax()
+      .model.getState()
+      .actions.set({ items: scene.items, views: newViews }, false);
+    ax().changeView(view.id, ax().model.getState());
+    const commitMs = performance.now() - tc;
+    await captureUntilSettled(frames, capMs);
+    stop();
+    const canvasEl = document.querySelector(
+      '[data-testid="axoview-nodes-canvas"]'
+    ) as HTMLElement | null;
+    const renderedNodes = canvasEl
+      ? parseInt(canvasEl.dataset.drawCount ?? '0', 10) || 0
+      : 0;
+    const renderedLabels = document.querySelectorAll(
+      '[data-drag-id^="flabel-"]'
+    ).length;
+    return {
+      frames,
+      longTasks,
+      commitMs,
+      renderedNodes,
+      renderedLabels,
+      sceneCounts: {
+        nodes: scene.items.length,
+        connectors: scene.connectors.length,
+        rectangles: scene.rectangles.length,
+        textBoxes: labelTextBoxes.length
+      }
+    };
+  }
+
+  // Thin spawn-class wrappers: toggle a buildScene styling flag, then reuse the
+  // measureSpawn path (commit + settle + the draw-count == N anti-cheat) so the
+  // styled scene is measured identically to the bare-node baseline.
+  async function withSceneFlag<T>(flag: string, fn: () => Promise<T>): Promise<T> {
+    w[flag] = true;
+    try {
+      return await fn();
+    } finally {
+      w[flag] = false;
+    }
+  }
+  const measureLabelHeavy = (N: number, capMs: number) =>
+    withSceneFlag('__perfLabelHeavy', () => measureSpawn(N, capMs));
+  const measureConnLabelHeavy = (N: number, capMs: number) =>
+    withSceneFlag('__perfConnLabelHeavy', () => measureSpawn(N, capMs));
+  const measureBgHeavy = (N: number, capMs: number) =>
+    withSceneFlag('__perfBgHeavy', () => measureSpawn(N, capMs));
+
   w.__perfH = {
     measureSpawn,
     measureDrag,
@@ -1271,6 +1493,11 @@ function installHarness() {
     measureIdle,
     measureLabelDrag,
     measureBloat,
+    measurePan,
+    measureLabelHeavy,
+    measureConnLabelHeavy,
+    measureBgHeavy,
+    measureFloatingLabelHeavy,
     resetState,
     calibrate
   };
@@ -1743,6 +1970,207 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
       ].join('\n')
     );
     expect(last.drawCount, 'bloat: canvas drew every node (draw-count == N)').toBe(N);
+    return;
+  }
+
+  // ---------------------------------------------------------------------------
+  // E-slice styling/pan stress scenarios (productization perf gate). Each is
+  // env-gated, supports a comma-N list (e.g. PERF_LABELHEAVY=200,500,1000), and
+  // writes perf-results/<name>.md — baseline.md stays untouched (charter
+  // discipline), exactly like the PERF_BLOAT / PERF_LABELDRAG diagnostics above.
+  // ---------------------------------------------------------------------------
+  const parseNs = (v: string) =>
+    v.split(',').map((s) => parseInt(s.trim(), 10)).filter((n) => n > 0);
+
+  // Spawn-class styled scenario: commit a styled scene, report settle/longest/
+  // p95 + the draw-count==N anti-cheat. Mirrors the spawn baseline cells so the
+  // numbers are directly comparable to baseline.md's spawn column.
+  async function runSpawnClassScenario(
+    measureName: string,
+    fileTag: string,
+    title: string,
+    blurb: string,
+    Ns: number[]
+  ) {
+    fs.mkdirSync(RESULTS_DIR, { recursive: true });
+    const rows: string[] = [];
+    for (const N of Ns) {
+      const runOne = (): Promise<any> =>
+        page.evaluate(
+          ([m, n, cap]) => (window as any).__perfH[m as string](n, cap),
+          [measureName, N, SPAWN_CAP_MS] as const
+        );
+      for (let i = 0; i < WARMUP_RUNS; i++) await runOne();
+      const reps: any[] = [];
+      for (let r = 0; r < REPEATS; r++) reps.push(await runOne());
+      const m = reps.map((r) => metricsOf(r as RunResult));
+      const settles = m.map((x) => x.settle);
+      const p95s = m.map((x) => x.p95);
+      const maxs = m.map((x) => x.max);
+      const commits = reps.map((r) => r.commitMs).filter((x: number) => x != null);
+      const last = reps[reps.length - 1];
+      const drawn = last.renderedNodes ?? 0;
+      const labelInfo =
+        last.renderedLabels != null ? ` labels=${last.renderedLabels}/${N}` : '';
+      console.log(
+        `[${fileTag}] N=${N} cal=${round(calibrationMs, 1)} drawn=${drawn}/${N}${labelInfo} ` +
+          `commit=${round(median(commits.length ? commits : [0]), 1)}ms ` +
+          `settle=${round(median(settles))}ms p95=${round(median(p95s))}ms ` +
+          `longest=${round(median(maxs))}ms noise(CoV settle)=${covPct(settles)}%`
+      );
+      rows.push(
+        `| ${N} | ${drawn}/${N}${labelInfo} | ` +
+          `${round(median(commits.length ? commits : [0]), 1)} | ` +
+          `${round(median(settles))} | ${round(median(p95s))} | ` +
+          `${round(median(maxs))} | ${covPct(settles)}% |`
+      );
+      expect(
+        drawn,
+        `${fileTag}: canvas drew every node (draw-count == N) at N=${N}`
+      ).toBe(N);
+      if (last.renderedLabels != null) {
+        expect(
+          last.renderedLabels,
+          `${fileTag}: DOM rendered every floating label at N=${N}`
+        ).toBe(N);
+      }
+    }
+    fs.writeFileSync(
+      path.join(RESULTS_DIR, `${fileTag}.md`),
+      [
+        `# ${title}`,
+        '',
+        `_Generated ${new Date().toISOString()} · ${REPEATS} kept runs/cell ` +
+          `(${WARMUP_RUNS} warm-up), cal ${round(calibrationMs, 1)} ms. ${blurb}_`,
+        '',
+        '| N | drawn | commit (ms) | settle (ms) | p95 frame (ms) | longest (ms) | noise (CoV settle) |',
+        '|---|---|---|---|---|---|---|',
+        ...rows,
+        ''
+      ].join('\n')
+    );
+  }
+
+  if (process.env.PERF_LABELHEAVY) {
+    await runSpawnClassScenario(
+      'measureLabelHeavy',
+      'label-heavy',
+      'Label-heavy node spawn — B/I/S + colour + varied px on every node label',
+      'Every node label carries bold/italic/strikethrough + a non-default colour + a varied font ' +
+        'size — the heaviest Canvas2D label-draw path. Compare settle/p95 vs the bare-node spawn ' +
+        'baseline (baseline.md) to gate the node-label styling surface.',
+      parseNs(process.env.PERF_LABELHEAVY)
+    );
+    return;
+  }
+
+  if (process.env.PERF_CONNLABELHEAVY) {
+    await runSpawnClassScenario(
+      'measureConnLabelHeavy',
+      'conn-label-heavy',
+      'Connector-label-heavy spawn — every connector labelled + styled',
+      'Every connector (not just ~⅓) carries a styled additional label (the DOM ConnectorLabel ' +
+        'path: B/I/S + colour + varied px). Gates the connector-label styling surface against the ' +
+        'spawn baseline.',
+      parseNs(process.env.PERF_CONNLABELHEAVY)
+    );
+    return;
+  }
+
+  if (process.env.PERF_BGHEAVY) {
+    await runSpawnClassScenario(
+      'measureBgHeavy',
+      'bg-heavy',
+      'Background/border-heavy spawn — dense grouping rects with fills + ≤30px borders',
+      'Grouping rectangles at double density (BLOCK=2) each with a fill + a styled ≤30px border ' +
+        '(varied width/colour/style) → heavy fill+stroke overdraw. Gates the rectangle background/' +
+        'border surface against the spawn baseline.',
+      parseNs(process.env.PERF_BGHEAVY)
+    );
+    return;
+  }
+
+  if (process.env.PERF_FLOATLABELS) {
+    await runSpawnClassScenario(
+      'measureFloatingLabelHeavy',
+      'floating-label-heavy',
+      'Floating-label-heavy spawn — N DOM Label chips (B/I/U/S + colour + background)',
+      'N floating Labels (textBox variant:"label") over the realistic node/connector/rect base. ' +
+        'Floating labels are DOM (the scaling surface ADR 0019 moved nodes off of), so this is the ' +
+        'scenario that decides the Label render substrate (DOM vs Canvas2D) for ADR 0031 E3. ' +
+        'labels=N/N anti-cheats that every chip rendered.',
+      parseNs(process.env.PERF_FLOATLABELS)
+    );
+    return;
+  }
+
+  if (process.env.PERF_PAN) {
+    const Ns = parseNs(process.env.PERF_PAN);
+    // Optional CPU throttle (directional confirmation; the AC same-session A/B is
+    // the keep/revert gate per pan-r1-design.md). CDP, Node-side.
+    const throttle = process.env.PERF_THROTTLE
+      ? parseInt(process.env.PERF_THROTTLE, 10)
+      : 0;
+    let cdp: import('@playwright/test').CDPSession | null = null;
+    if (throttle > 0) {
+      cdp = await page.context().newCDPSession(page);
+      await cdp.send('Emulation.setCPUThrottlingRate', { rate: throttle });
+    }
+    fs.mkdirSync(RESULTS_DIR, { recursive: true });
+    const rows: string[] = [];
+    for (const N of Ns) {
+      const runPan = (): Promise<any> =>
+        page.evaluate(
+          ([n, s]) => (window as any).__perfH.measurePan(n, s),
+          [N, DRAG_STEPS] as const
+        );
+      for (let i = 0; i < WARMUP_RUNS; i++) await runPan();
+      const reps: any[] = [];
+      for (let r = 0; r < REPEATS; r++) reps.push(await runPan());
+      const m = reps.map((r) => metricsOf(r as RunResult));
+      const p95s = m.map((x) => x.p95);
+      const means = m.map((x) => x.meanFrame);
+      const maxs = m.map((x) => x.max);
+      const lts = m.map((x) => x.longTaskTotal);
+      const last = reps[reps.length - 1];
+      const engaged = reps.every((r) => r.panEngaged);
+      console.log(
+        `[pan] N=${N}${throttle ? ` throttle=${throttle}x` : ''} cal=${round(calibrationMs, 1)} ` +
+          `engaged=${engaged} draw≈[${last.drawMin}..${last.drawMax}]/${N} ` +
+          `mean=${round(median(means))}ms p95=${round(median(p95s))}ms ` +
+          `longest=${round(median(maxs))}ms longtask=${round(median(lts))}ms ` +
+          `noise(CoV mean)=${covPct(means)}%`
+      );
+      rows.push(
+        `| ${N} | ${last.drawMin}..${last.drawMax}/${N} | ${round(median(means))} | ` +
+          `${round(median(p95s))} | ${round(median(maxs))} | ${round(median(lts))} | ${covPct(means)}% |`
+      );
+      expect(engaged, `pan: scroll changed each frame (engaged) at N=${N}`).toBe(
+        true
+      );
+      expect(
+        last.drawMin,
+        `pan: canvas repainted ≈ all nodes (no cull) at N=${N}`
+      ).toBeGreaterThanOrEqual(Math.floor(N * 0.9));
+    }
+    if (cdp) await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+    fs.writeFileSync(
+      path.join(RESULTS_DIR, `pan${throttle ? `-throttle${throttle}x` : ''}.md`),
+      [
+        `# Sustained-pan repaint floor${throttle ? ` (CPU throttle ${throttle}×)` : ''} — measurePan`,
+        '',
+        `_Generated ${new Date().toISOString()} · ${REPEATS} kept runs/cell (${WARMUP_RUNS} warm-up), ` +
+          `cal ${round(calibrationMs, 1)} ms. Per-rAF setScroll oscillation; headline = p95 frame time ` +
+          `during sustained pan (the #54 synchronous drawNow repaint floor — pan-r1-design.md). This is ` +
+          `the FIRST pan baseline: measurePan did not exist on master, so there is no prior column to ` +
+          `regress against — it records the floor ENG-PAN R1 must beat (KR-P3)._`,
+        '',
+        '| N | draw-count range | mean frame (ms) | p95 frame (ms) | longest (ms) | long-task total (ms) | noise (CoV mean) |',
+        '|---|---|---|---|---|---|---|',
+        ...rows,
+        ''
+      ].join('\n')
+    );
     return;
   }
 
