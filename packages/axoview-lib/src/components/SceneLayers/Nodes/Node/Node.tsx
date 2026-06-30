@@ -267,22 +267,25 @@ const NodeContent = memo(
       [isEditable]
     );
 
-    const commitName = useCallback(
+    // ADR 0032 amendment: canvas inline-rename (F2 / double-click) edits the
+    // on-canvas `label`, not the identity `name` (which is renamed in Layers).
+    // The displayed/base value is the effective label text (`label ?? name`);
+    // clearing to empty writes `label: ''`, which hides the chip.
+    const commitLabel = useCallback(
       (raw: string) => {
         const next = raw.trim();
-        // Always commit whenever the value changed — including clearing to empty,
-        // which is how the user hides the label (matching the details-panel TextField).
-        if (next !== (modelItem?.name ?? '')) {
-          updateModelItem(id, { name: next });
+        const current = modelItem?.label ?? modelItem?.name ?? '';
+        if (next !== current) {
+          updateModelItem(id, { label: next });
         }
         setIsEditingName(false);
       },
-      [updateModelItem, id, modelItem?.name]
+      [updateModelItem, id, modelItem?.label, modelItem?.name]
     );
 
     const inlineRename = useInlineRename({
       active: isEditingName,
-      commit: commitName,
+      commit: commitLabel,
       cancel: () => setIsEditingName(false)
     });
 
@@ -319,12 +322,16 @@ const NodeContent = memo(
       return null;
     }
 
+    // ADR 0032 amendment: the on-canvas text is the `label` field, falling back
+    // to the identity `name` when absent. The DOM overlay mirrors NodesCanvas.
+    const labelText = modelItem.label ?? modelItem.name;
+
     return (
       <NodeContentFlex
         style={{ cursor: isClickableInReadonly ? 'pointer' : 'inherit' }}
       >
         {labelVisible &&
-          (modelItem?.name || isEditingName) && (
+          (labelText || isEditingName) && (
             <div data-testid="node-label" onDoubleClick={startInlineEdit}>
               <ExpandableLabel
                 maxWidth={isEditingName ? 600 : 250}
@@ -375,10 +382,10 @@ const NodeContent = memo(
                         textDecoration: labelStrikethrough ? 'line-through' : 'none'
                       }}
                     >
-                      {modelItem?.name ?? ''}
+                      {labelText ?? ''}
                     </Typography>
                   ) : (
-                    modelItem?.name && (
+                    labelText && (
                       <LabelTitle
                         style={{
                           ...(labelFontSize
@@ -414,10 +421,10 @@ const NodeContent = memo(
                               window.open(url, '_blank', 'noopener,noreferrer');
                             }}
                           >
-                            {modelItem.name}
+                            {labelText}
                           </a>
                         ) : (
-                          modelItem.name
+                          labelText
                         )}
                       </LabelTitle>
                     )

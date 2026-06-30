@@ -386,10 +386,12 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
           ? { x: base.x + node.offset.x, y: base.y + node.offset.y }
           : base;
 
-        // Name is plain text rendered verbatim by the DOM overlay, so decode
-        // entities only — never strip tags (a name like `List<T>` must survive
-        // and stay identical to the DOM Node it swaps with). A1 / hybrid parity.
-        const name = decodeHtmlEntities(modelItem.name);
+        // On-canvas label text (ADR 0032 amendment): the `label` field, falling
+        // back to the identity `name` when absent (pre-seed / brand-new nodes).
+        // Plain text rendered verbatim by the DOM overlay, so decode entities
+        // only — never strip tags (a label like `List<T>` must survive and stay
+        // identical to the DOM Node it swaps with). A1 / hybrid parity.
+        const name = decodeHtmlEntities(modelItem.label ?? modelItem.name);
         const hasLabel =
           isLabelVisibleInPreview(
             node.showLabel !== false,

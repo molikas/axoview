@@ -287,6 +287,8 @@ const locale: LocaleProps = {
   nodeInfoTab: {
     name: 'Nom',
     namePlaceholder: 'Nom du nœud…',
+    label: 'Étiquette',
+    labelPlaceholder: 'Étiquette affichée sur la forme…',
     removeLink: 'Supprimer le lien',
     addLink: 'Ajouter un lien au nom',
     linkPlaceholder: 'https://…',

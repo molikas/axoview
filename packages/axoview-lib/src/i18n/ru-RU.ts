@@ -283,6 +283,8 @@ const locale: LocaleProps = {
   nodeInfoTab: {
     name: 'Название',
     namePlaceholder: 'Имя узла…',
+    label: 'Подпись',
+    labelPlaceholder: 'Подпись, отображаемая на фигуре…',
     removeLink: 'Удалить ссылку',
     addLink: 'Добавить ссылку к названию',
     linkPlaceholder: 'https://…',

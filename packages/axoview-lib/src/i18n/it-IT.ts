@@ -285,6 +285,8 @@ const locale: LocaleProps = {
   nodeInfoTab: {
     name: 'Nome',
     namePlaceholder: 'Nome del nodo…',
+    label: 'Etichetta',
+    labelPlaceholder: 'Etichetta mostrata sulla forma…',
     removeLink: 'Rimuovi link',
     addLink: 'Aggiungi link al nome',
     linkPlaceholder: 'https://…',

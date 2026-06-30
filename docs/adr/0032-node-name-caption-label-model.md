@@ -1,9 +1,36 @@
 # ADR 0032 — Node Name / Caption / Label Model (Option A)
 
-**Status:** Accepted
+**Status:** Accepted (Decision §1 superseded by the 2026-06-30 amendment below)
 **Date:** 2026-06-29
 **Supersedes:** none (retires the on-canvas rich **caption**; relates to [ADR 0029](0029-sanitize-user-authored-html.md) since the description is user-authored HTML)
 **Superseded by:** none
+
+---
+
+## Amendment (2026-06-30) — decouple the on-canvas `label` from the identity `name`
+
+> **What this changes:** Decision **§1** ("`name` is the sole on-canvas identifier") is **superseded**. The `description`→`notes` fold (§2–§3) is **unchanged** — this amendment only changes *which field draws on the canvas* and *where each field is edited*. Driven by owner UX-sweep item #4 (the **#1 cross-persona confusion**: three testers typed in "Name" and nothing appeared on the shape — Devin D1/D11, Tomás T3).
+>
+> This is a **zero-migration addition** on the unpushed `integration` branch (a new optional field, seeded at load — see ADR 0031's carve-out reasoning). It does **not** create a migration converter.
+
+### New decision
+
+1. **`label` is the on-canvas text** — a new optional field on `modelItem` (it is *content*, peer to `name`/`notes`, not view geometry, so it lives on the model item, not the view item). Non-empty draws the chip; empty (explicit `''`) hides it; the existing `viewItem.showLabel` gate is unchanged and now gates the `label`.
+2. **`name` is the identity string only** — shown and renamed in the **Layers** panel; **hidden from the canvas**. It remains on `modelItem` (and remains the Layers/identity/search string).
+3. **Render source = `label ?? name`.** Every on-canvas label site (Canvas2D `NodesCanvas`, the DOM `Node` overlay, the `NodeLabelHitLayer` chip-measure) reads `label`, falling back to `name` when `label` is absent. The fallback means a node that never had a `label` set still shows its `name` — so nothing visibly changes before the seed runs and brand-new nodes (created with `name:'Untitled'`, no `label`) still show text.
+4. **Seed `label = name` at load** (critical — installed base). `seedNodeLabel` runs in the load normalization chokepoint (`useInitialDataManager`, right after `foldNodeDescription`), pure + idempotent: it copies `name`→`label` only when `name` is non-empty and `label` is absent. After load every saved node carries an explicit `label`, so renaming the identity `name` in Layers no longer moves the canvas text — the decouple is immediate for existing diagrams, with **no diagram visibly changing**.
+5. **Edit entry points:**
+   - **Canvas** F2 / double-click inline-rename → edits **`label`** (the on-canvas text).
+   - **Details (right deck)** primary text field → renamed **"Label"**, edits **`label`** (owner decision 2026-06-30: the field the user types into is the one that shows on the shape — directly resolving the #1 confusion). The link button + show/hide toggle still co-host this field.
+   - **Layers** row rename → edits **`name`** (identity), unchanged.
+
+### Scope
+
+**NODE only.** RECTANGLE and TEXTBOX are already decoupled (their `name` is Layers-only and never drew on canvas). CONNECTOR name-as-label is **out of scope** (left as-is). The `description`→`notes` fold and the "keep Name in Details" resolution of the original ADR are **superseded only for nodes** to the extent above; the Details panel for a node now hosts **Label** (not Name), with identity rename in Layers.
+
+### Why on `modelItem` not `viewItem`
+
+`label` is the node's *content* — the same in every view, like `name`/`notes`/`icon` — not view-local geometry (which is what `viewItem` carries: tile, `labelHeight`, `showLabel`, off-grid). Putting it on `modelItem` keeps the one-identity-per-node model and means a node's label is consistent across views, matching `name`.
 
 > **Correction of record:** a project note claimed this model "amends [ADR 0004](0004-connector-name-and-details-panel.md)." That is **false** — ADR 0004 is connector-only (connector `name`/`notes` parity). The node name/caption model has had **no ADR**; this is it.
 

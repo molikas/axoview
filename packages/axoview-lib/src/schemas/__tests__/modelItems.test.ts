@@ -74,6 +74,37 @@ describe('modelItemSchema', () => {
       }
     });
   });
+  describe('label field (ADR 0032 amendment — on-canvas label)', () => {
+    it('is optional — item without it is still valid', () => {
+      expect(
+        modelItemSchema.safeParse({ id: 'item1', name: 'Test' }).success
+      ).toBe(true);
+    });
+
+    it('round-trips a label distinct from name', () => {
+      const result = modelItemSchema.safeParse({
+        id: 'item1',
+        name: 'db-primary',
+        label: 'Primary DB'
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.label).toBe('Primary DB');
+        expect(result.data.name).toBe('db-primary');
+      }
+    });
+
+    it('accepts an explicit empty label (hides the on-canvas chip)', () => {
+      const result = modelItemSchema.safeParse({
+        id: 'item1',
+        name: 'Test',
+        label: ''
+      });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.label).toBe('');
+    });
+  });
+
   it('fails if required fields are missing', () => {
     const invalid = { name: 'Test' };
     const result = modelItemSchema.safeParse(invalid);

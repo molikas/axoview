@@ -92,10 +92,13 @@ export const NodeLabelHitLayer = ({ nodes }: Props) => {
   );
   const modelItems = useModelStore((s) => s.items);
 
+  // ADR 0032 amendment: the on-canvas chip shows `label` (fallback `name`), so
+  // size the hit box from that text to match the drawn chip.
   const namesById = useMemo(() => {
     const m = new Map<string, string>();
     for (const it of modelItems) {
-      if (it.name) m.set(it.id, it.name);
+      const text = it.label ?? it.name;
+      if (text) m.set(it.id, text);
     }
     return m;
   }, [modelItems]);

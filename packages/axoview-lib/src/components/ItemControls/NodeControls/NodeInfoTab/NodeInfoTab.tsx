@@ -55,14 +55,19 @@ export const NodeInfoTab = ({
 
   if (!modelItem) return null;
 
+  // ADR 0032 amendment (2026-06-30): the Details field edits the on-canvas
+  // `label` (the field you type into is what shows on the shape); the identity
+  // `name` is renamed in Layers. Effective text falls back to `name` pre-seed.
+  const labelText = modelItem.label ?? modelItem.name;
+
   if (readOnly) {
     return (
       <Stack>
-        {/* Name */}
-        <Section title={t('name')}>
+        {/* On-canvas label */}
+        <Section title={t('label')}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Typography variant="body2" fontWeight={600} sx={{ flex: 1 }}>
-              {modelItem.name || '—'}
+              {labelText || '—'}
             </Typography>
             {modelItem.headerLink && (
               <Tooltip title={t('openLink')}>
@@ -90,18 +95,18 @@ export const NodeInfoTab = ({
 
   return (
     <Stack>
-      {/* Name */}
-      <Section title={t('name')}>
+      {/* On-canvas label (identity `name` is renamed in Layers) */}
+      <Section title={t('label')}>
         <Stack direction="row" spacing={0.5} alignItems="center">
           <TextField
             inputRef={nameRef}
-            value={modelItem.name}
+            value={labelText}
             fullWidth
-            placeholder={t('namePlaceholder')}
+            placeholder={t('labelPlaceholder')}
             size="small"
             onChange={(e) => {
               const text = e.target.value;
-              if (modelItem.name !== text) onModelItemUpdated({ name: text });
+              if (labelText !== text) onModelItemUpdated({ label: text });
             }}
           />
           <Tooltip title={showLink ? t('removeLink') : t('addLink')}>

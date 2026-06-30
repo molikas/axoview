@@ -281,6 +281,8 @@ const locale: LocaleProps = {
   nodeInfoTab: {
     name: 'নাম',
     namePlaceholder: 'নোডের নাম…',
+    label: 'লেবেল',
+    labelPlaceholder: 'শেপে দেখানো লেবেল…',
     removeLink: 'লিঙ্ক সরান',
     addLink: 'নামে লিঙ্ক যোগ করুন',
     linkPlaceholder: 'https://…',

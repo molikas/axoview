@@ -268,6 +268,8 @@ export interface LocaleProps {
   nodeInfoTab: {
     name: string;
     namePlaceholder: string;
+    label: string;
+    labelPlaceholder: string;
     removeLink: string;
     addLink: string;
     linkPlaceholder: string;

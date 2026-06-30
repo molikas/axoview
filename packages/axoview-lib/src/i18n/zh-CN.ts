@@ -261,6 +261,8 @@ const locale: LocaleProps = {
   nodeInfoTab: {
     name: '名称',
     namePlaceholder: '节点名称…',
+    label: '标签',
+    labelPlaceholder: '显示在形状上的标签…',
     removeLink: '移除链接',
     addLink: '为名称添加链接',
     linkPlaceholder: 'https://…',

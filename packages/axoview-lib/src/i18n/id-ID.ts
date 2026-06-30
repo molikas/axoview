@@ -282,6 +282,8 @@ const locale: LocaleProps = {
   nodeInfoTab: {
     name: 'Nama',
     namePlaceholder: 'Nama node…',
+    label: 'Label',
+    labelPlaceholder: 'Label yang ditampilkan pada bentuk…',
     removeLink: 'Hapus tautan',
     addLink: 'Tambahkan tautan ke nama',
     linkPlaceholder: 'https://…',

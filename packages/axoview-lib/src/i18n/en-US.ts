@@ -282,6 +282,8 @@ const locale: LocaleProps = {
   nodeInfoTab: {
     name: 'Name',
     namePlaceholder: 'Node name…',
+    label: 'Label',
+    labelPlaceholder: 'Label shown on the shape…',
     removeLink: 'Remove link',
     addLink: 'Add link to name',
     linkPlaceholder: 'https://…',

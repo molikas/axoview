@@ -283,6 +283,8 @@ const locale: LocaleProps = {
   nodeInfoTab: {
     name: 'Ad',
     namePlaceholder: 'Düğüm adı…',
+    label: 'Etiket',
+    labelPlaceholder: 'Şekilde gösterilen etiket…',
     removeLink: 'Bağlantıyı kaldır',
     addLink: 'Ada bağlantı ekle',
     linkPlaceholder: 'https://…',

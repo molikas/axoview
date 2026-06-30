@@ -21,6 +21,7 @@ import { modelSchema } from 'src/schemas/model';
 import { mergeBundledFixtures } from 'src/utils/leanSave';
 import { sanitizeHtml } from 'src/utils/sanitizeHtml';
 import { foldNodeDescription } from 'src/utils/foldNodeDescription';
+import { seedNodeLabel } from 'src/utils/seedNodeLabel';
 
 // Must match the threshold in IconCollection.tsx so newly-loaded large packs
 // (e.g. Material Icons) are not auto-expanded (which would freeze the browser).
@@ -118,7 +119,13 @@ export const useInitialDataManager = () => {
         // stored/exported model converges on the new shape without dirtying the
         // doc. See foldNodeDescription (ADR 0032): idempotent, block-separated,
         // `description` dropped after fold (kept in schema for round-trip).
-        rawData.items = asArray(rawData.items).map(foldNodeDescription);
+        // ADR 0032 amendment (2026-06-30): the on-canvas text is now `label`,
+        // decoupled from the identity `name`. Seed `label = name` for saved
+        // nodes (idempotent) so existing diagrams keep their visible text and a
+        // later Layers rename of `name` doesn't move the canvas label.
+        rawData.items = asArray(rawData.items)
+          .map(foldNodeDescription)
+          .map(seedNodeLabel);
 
         // Re-type after normalisation — Zod will validate the structure next
         const initialData = rawData as unknown as typeof _initialData;
