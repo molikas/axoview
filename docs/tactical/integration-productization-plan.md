@@ -134,8 +134,12 @@ The **zero-migration window** is the governing constraint: the branch is unpushe
 - [ ] **F1 — Toolbar overflow fix (M).** The right cluster (toolbar-right + strip, `flexShrink:0`) clips on narrow viewports — Present/Share/sidebar-toggle become unreachable (the strip is now the **sole** styling surface, so it must never be clipped). **Measure the breakpoint first**, then add overflow handling (kebab menu absorbing strip controls below a breakpoint, or strip scroll); guarantee Group 3 + Group 4 always reachable. Verify ≤1024px. **Depends on D1.**
 - [ ] **F2 — Regression test floor (M).** `Cursor.ts getAnchorOrdering` off-path nearest-tile fallback (no-throw + nearest index); panel-shape parity test (node+connector render exactly Details+Notes); 3–5 Playwright strip smokes (text-color write, rectangle border, connector pre-draw inherit, no-color background). **Depends on B1/B3/C1.**
 
+### G. UX journey-test validation ⚠️ (the user's explicit requirement — the usability analog of Section E)
+> After the **perf** numbers are green (Section E), validate the **UX** of the productized surfaces the way [ADR 0028](../adr/0028-ux-journey-testing-protocol.md) prescribes — persona-driven journey testing via the **Claude for Chrome** agent, with the mandatory code-verification gate. UX regressions (discoverability, a11y, i18n, mode clarity) are exactly the class jest/typecheck/code-review miss.
+- [ ] **G1 — Persona-driven UX journey test (M–L).** Run the ADR 0028 protocol across **multiple personas** — **P1** beginner · **P2** intermediate (ex-draw.io/Lucid/Miro) · **P3** expert architect · **P4** presenter/consumer · **P5** keyboard-first & international — one persona per run. Each prompt = the **regenerated shared brief** (capability map re-derived from the in-app **Help dialog**; do-not-report list refreshed from `known_issues.md` — never frozen) + one persona card. Focus the sweep on the spike's surfaces: floating **Label** placement/edit/hit-target/z-order, the Option-A node-name model, the docked **style strip** (B/I/S, fill, border, connector, icon), rectangle borders/backgrounds, connector UX, export-label legibility. **Run against the LOCAL unpushed build** (`npm run build:lib && npm run dev`, localhost:3000) — **not** the deployed preview — so `integration` stays unpushed and the zero-migration window stays open. **Mandatory verification gate:** every **S1/S2** finding is cross-checked to `file:line` (fan-out, one verifier per cluster) with a `REAL/PARTIAL/ARTIFACT/BY_DESIGN/NEEDS_REPRO` verdict **before** it earns a fix task; confirmed artifacts are recorded, not actioned (ADR 0028 §5). **Output:** a short-lived `docs/tactical/` UX backlog (prioritised; each row = verified root cause + fix + effort). **Sequence AFTER E2 (perf gate) + the must-ship surfaces (C1, D1, F1)** so personas test the complete surface (P5's localisation findings track D1; the strip is un-i18n'd until then). A *focused* per-session UX smoke (1–2 personas on just the new slice) is fine earlier — e.g. after C1's perf re-measure. **AC:** every S1/S2 carries a code-verified verdict; the capability map was regenerated (not copied); confirmed S1/S2 fixes land before /ship.
+
 ### Suggested sequencing
-**Slice 0 (decide X1 caption + X2 name-field)** → A1 → (B1, B2, B3 in parallel) → **E1/E3 prototype → C1** (substrate decided before the Label layer is finalized) → D1 → E2 (full gate) → F1 → F2 → A3/A4/A5 doc accepts → **/ship**.
+**Slice 0 (decide X1 caption + X2 name-field)** → A1 → (B1, B2, B3 in parallel) → **E1/E3 prototype → C1** (substrate decided before the Label layer is finalized) → D1 → E2 (full gate) → F1 → F2 → **G1 (ADR 0028 persona UX journey test) → fix verified S1/S2** → A3/A4/A5 doc accepts → **/ship**.
 
 ## Deferred (catalogued — land as fast-follow PRs after master)
 
@@ -163,7 +167,7 @@ The **zero-migration window** is the governing constraint: the branch is unpushe
 
 ## Wrap-up
 
-When all must-ship slices are `[x]` and the smoke + perf gate pass:
+When all must-ship slices are `[x]` and the smoke + perf gate (E) + UX verification gate (G1) pass:
 
 1. Add a single line under the appropriate `PLAN.md` phase:
    ```
