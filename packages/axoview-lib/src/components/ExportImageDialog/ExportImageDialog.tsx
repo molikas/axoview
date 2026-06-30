@@ -911,7 +911,13 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
                     // (User control removed — it referenced the now-gone node
                     // caption/description.)
                     expandLabels: true,
-                    showLabels
+                    showLabels,
+                    // A large fit-to-view export sits below the LABEL_LOD_ZOOM
+                    // (0.25) cutoff, which would otherwise skip the whole name-
+                    // label draw. readableLabels keeps labels rendered + counter-
+                    // scaled to a legible size (ADR 0025 §3 / ADR 0015). Tied to
+                    // showLabels: nothing to keep readable when labels are off.
+                    readableLabels: showLabels
                   }}
                   onModelUpdated={handleHiddenAxoviewReady}
                 />
