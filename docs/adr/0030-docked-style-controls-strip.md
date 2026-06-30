@@ -1,6 +1,6 @@
 # ADR 0030 — Docked Style-Controls Strip as the Canonical Styling Surface
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06-29
 **Supersedes:** none (amends [ux-principles](../ux-principles.md) §2.4 / §2.5 / §5.1 / §5.2; supersedes the connector **Style** tab decision in [ADR 0004](0004-connector-name-and-details-panel.md) §"Right-sidebar panel"; fills the [ADR 0005](0005-toolbar-and-dock-layout-contract.md) Group 1 "Format" reserved slot)
 **Superseded by:** none
@@ -46,7 +46,7 @@ The strip renders **only in `EDITABLE` mode**, via `createPortal` into an app-su
 - **§2.4** — the blockquote is reworded: the strip **is the canonical styling surface** (not "mirrors a side panel"); the stale "side-panel styling fallback" framing is removed. The matching false header comment in `TopBarStyleControls.tsx` is corrected.
 - **§2.5** — retained as-is (the enabled/disabled contrast standard); this ADR ratifies it.
 
-> **Open refinement (2026-06-29):** whether the Details tab keeps the **Name** field or delegates rename to Layers/F2 (leaving Notes + type-specific) is an open UX decision tracked in [ADR 0032](0032-node-name-caption-label-model.md) + tactical Slice 0. It further thins the panel and must reconcile the home of the **inline link button** + **show/hide-name toggle** that the Name row currently co-hosts. Settle it before finalizing the §5.1 amendment.
+> **Resolved (2026-06-30):** the Details tab **KEEPS the Name field** — rename is also available via canvas/Layers **F2**, but Details remains the discoverable home and co-hosts the **inline link button** (edits `ModelItem.headerLink`) + the **show/hide-name toggle** (edits `ViewItem.showLabel`). Nothing is re-homed. The panel stays the two-tab **Details / Notes** shape. (Slice 0, [ADR 0032](0032-node-name-caption-label-model.md).)
 
 ## Consequences
 

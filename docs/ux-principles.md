@@ -188,7 +188,7 @@ This differs from §2.1 because:
 
 Right-click (desktop) or long-press (touch) on a node, connector, text box, or rectangle opens a single context menu — the catch-all home for every per-item command (ADR 0027). There is **no floating quick-action bar**: the old bar/menu/panel three-tier model collapsed to two in the 2026-06-25 shake-out — **menu = per-item commands · details panel = editing**. A single click/tap is **select-only** (it derives the panel target but mounts no surface; §4.4); double-click opens the editing panel. Don't reintroduce a selection-triggered floating toolbar — it duplicates the menu and competes with the move-is-drag model (§9.1). Reference: [`CanvasContextMenu.tsx`](../packages/axoview-lib/src/components/CanvasContextMenu/CanvasContextMenu.tsx).
 
-> **Docked toolbar editing is exempt** (not "floating"). The top-bar style strip ([`TopBarStyleControls.tsx`](../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx), ADR 0005 Group 1 "Format" slot) surfaces a subset of detail-panel style controls in the always-present toolbar chrome — the Google-Docs/Figma pattern of a persistent format toolbar that mirrors a side panel. It is **docked**, **global**, and **selection-gated** (controls enable/disable, they don't float to the cursor), so it does not reintroduce the canvas-anchored quick-action bar this section forbids.
+> **Docked toolbar editing is exempt** (not "floating"). The top-bar style strip ([`TopBarStyleControls.tsx`](../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx), ADR 0005 Group 1 "Format" slot) **is the canonical styling surface** — the single writer of visual styling for every item type ([ADR 0030](adr/0030-docked-style-controls-strip.md)) — in the always-present toolbar chrome, the Google-Docs/Figma persistent-format-toolbar pattern. The item panel is **Details / Notes** only; per-type side-panel styling was retired. The strip is **docked**, **global**, and **selection-gated** (controls enable/disable, they don't float to the cursor), so it does not reintroduce the canvas-anchored quick-action bar this section forbids.
 
 ### 2.5 Toolbar controls need a hard enabled/disabled contrast
 
@@ -288,16 +288,17 @@ Every selectable item type (Node, Connector, TextBox, Rectangle) is a **first-cl
 
 ### 5.1 Item controls panel structure
 
-Every item type's control panel has the same shape:
+Every item type's control panel has the same shape — **Details / Notes** (two tabs):
 
-- **Header**: tabs (Details / Style / Notes) + close button
+- **Header**: tabs (Details / Notes) + close button
 - **Details tab**: Name field with inline link button + show/hide name toggle, plus type-specific extras
-- **Style tab**: visual properties + Delete button
 - **Notes tab**: `RichTextEditor` bound to `notes` field, with non-empty marker on the tab
+
+Visual styling is **not** a panel tab — it lives in the docked style strip (§2.4 / §2.5, [ADR 0030](adr/0030-docked-style-controls-strip.md)), the single canonical styling surface. **Delete** lives in the context menu ([ADR 0027](adr/0027-canvas-context-menu.md)), not the panel.
 
 ### 5.2 Connector mirrors node
 
-Connectors have everything nodes have: `name`, `notes`, `headerLink`, `showLabel`, F2 inline rename, canvas name label, Details/Style/Notes tabs. They are not "lesser" items — they're peers.
+Connectors have everything nodes have: `name`, `notes`, `headerLink`, `showLabel`, F2 inline rename, canvas name label, Details / Notes tabs. They are not "lesser" items — they're peers.
 
 ### 5.3 No icon overloading across item types
 

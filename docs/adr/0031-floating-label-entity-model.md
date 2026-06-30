@@ -1,6 +1,6 @@
 # ADR 0031 — Floating Label as a First-Class Entity
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06-29
 **Supersedes:** none (resolves the [ux-principles §5](../ux-principles.md) item-type-parity exemption taken by the spike's `variant:'label'` text box; relates to [ADR 0024](0024-node-label-positioning-and-sizing.md) node-label positioning, [ADR 0019](0019-canvas2d-node-render-layer.md) Canvas2D render substrate, [ADR 0020](0020-engine-perf-harness-and-measurement-protocol.md) perf harness)
 **Superseded by:** none
@@ -54,3 +54,19 @@ The branch is **unpushed** — no saved diagram contains a `variant:'label'` ele
 - **Edit model:** a label cannot carry both rich text and whole-chip B/I/S (single model).
 - **Performance (gates the merge):** a label-heavy scenario (≥200 floating labels) shows **no p95 regression beyond the ADR 0020 noise band (<10%)** vs the master baseline for spawn + pan; the chosen substrate is recorded in an addendum.
 - **Coverage:** unit/e2e for placement, hit-branch, defaults, and the perf scenario.
+
+## Addendum — render substrate decided by measurement (2026-06-30)
+
+Point 6 (§Decision) deferred the DOM-vs-Canvas2D substrate to the [ADR 0020](0020-engine-perf-harness-and-measurement-protocol.md) harness. The E-slice perf gate now measures it. New scenarios in [`engine-perf.spec.ts`](../../packages/axoview-e2e/perf/engine-perf.spec.ts) at N ∈ {200, 500, 1000}, median-of-7, vs the master spawn baseline ([`perf-results/baseline.md`](../../perf-results/baseline.md)); full table in [`perf-results/e-slice-gate.md`](../../perf-results/e-slice-gate.md):
+
+| Surface (substrate) @ N=1000 | spawn p95 | settle | commit |
+|---|---|---|---|
+| bare-node baseline (master) | 79.18 ms | 183 ms | — |
+| node labels, full B/I/S (**Canvas2D**) | 79.99 ms | 200 ms | 513 ms |
+| backgrounds + ≤30px borders (**Canvas2D**) | 79.18 ms | 183 ms | 534 ms |
+| connector labels, all styled (DOM) | 79.25 ms | 183 ms | 504 ms |
+| **floating labels (DOM chips)** | **184.96 ms** | **600 ms** | **814 ms** |
+
+**Finding.** Every Canvas2D surface adds **≈0** to spawn p95 even at N=1000 (within the <10% noise band). The **DOM floating-label** layer is the lone outlier — it **~2.3× the spawn p95 and ~3× the settle** (over an N-node base), the exact DOM-layer scaling cliff [ADR 0019](0019-canvas2d-node-render-layer.md) moved nodes off of. The pan floor ([`perf-results/pan.md`](../../perf-results/pan.md)) confirms the synchronous-repaint cost is O(visible) regardless of substrate.
+
+**Decision (fires Point 6's "if DOM regresses, use Canvas2D" trigger).** The extracted `Label` layer (slice **C1**) renders on **Canvas2D** — a billboard text layer with viewport culling, the same substrate as node labels (which the table shows scales for free) — placed **above** the node layer for z-order. A DOM chip layer is rejected: it reintroduces the measured cliff. (Virtualizing a DOM layer is a fallback only if a Canvas2D billboard proves infeasible for hit-testing; the `NodeLabelHitLayer` proxy already shows the hit-layer can stay a thin DOM overlay over a Canvas2D paint.) This binds C1's render-layer implementation.

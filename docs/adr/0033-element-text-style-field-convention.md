@@ -1,6 +1,6 @@
 # ADR 0033 — Element Text-Style (Bold / Italic / Strikethrough) Field Convention
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06-29
 **Supersedes:** none (relates to [ADR 0030](0030-docked-style-controls-strip.md) — the strip is the single writer of these fields)
 **Superseded by:** none
