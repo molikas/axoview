@@ -380,4 +380,35 @@ describe('getItemAtTile() — connector tolerance near node endpoints', () => {
       getItemAtTile({ tile: { x: 5, y: 6 }, scene: freeEndScene } as any)
     ).toEqual({ type: 'CONNECTOR', id: 'c2' });
   });
+
+  // #5 (UX sweep 2026-06-30): click-SELECTION uses connectorMatch:'exact' so an
+  // empty tile beside an OPEN segment (not just near node endpoints) no longer
+  // grabs the connector. Hover / reconnect keep the default ±1 halo.
+  describe('connectorMatch: exact (click-selection, #5)', () => {
+    test('an empty tile beside the open middle does NOT select under exact', () => {
+      // (2,1) is one off the open line — the default halo selects it (preserved
+      // for hover/reconnect), but exact click-selection must clear instead.
+      expect(
+        getItemAtTile({
+          tile: { x: 2, y: 1 },
+          scene: nodeToNodeScene,
+          connectorMatch: 'exact'
+        } as any)
+      ).toBeNull();
+      // The default still grabs it — the halo is intact for hover/reconnect.
+      expect(
+        getItemAtTile({ tile: { x: 2, y: 1 }, scene: nodeToNodeScene } as any)
+      ).toEqual({ type: 'CONNECTOR', id: 'c1' });
+    });
+
+    test('an exact path tile still selects the connector under exact', () => {
+      expect(
+        getItemAtTile({
+          tile: { x: 2, y: 0 },
+          scene: nodeToNodeScene,
+          connectorMatch: 'exact'
+        } as any)
+      ).toEqual({ type: 'CONNECTOR', id: 'c1' });
+    });
+  });
 });

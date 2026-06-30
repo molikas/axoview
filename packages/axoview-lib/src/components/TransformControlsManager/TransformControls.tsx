@@ -97,6 +97,18 @@ export const TransformControls = ({ from, to, onAnchorMouseDown }: Props) => {
         }}
       >
         <g transform={`translate(${strokeWidth}, ${strokeWidth})`}>
+          {/* S3/A1: soft accent glow under the ring so node selection reads
+              clearly (the bare 2px dashed box was too faint — owner #1/#9). */}
+          <rect
+            width={pxSize.width - strokeWidth * 2}
+            height={pxSize.height - strokeWidth * 2}
+            rx={strokeWidth * 2}
+            fill="none"
+            stroke={TRANSFORM_CONTROLS_COLOR}
+            strokeWidth={strokeWidth * 3}
+            strokeOpacity={0.25}
+            strokeLinejoin="round"
+          />
           <rect
             width={pxSize.width - strokeWidth * 2}
             height={pxSize.height - strokeWidth * 2}

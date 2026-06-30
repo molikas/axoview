@@ -41,10 +41,19 @@ const getItemTileIndex = (
 
 export const getItemAtTile = ({
   tile,
-  scene
+  scene,
+  connectorMatch = 'halo'
 }: {
   tile: Coords;
   scene: HitTestScene;
+  // Connector hit tolerance (#5). 'halo' (default) keeps the ±1 Chebyshev
+  // neighbourhood — needed for hover and reconnect/waypoint grabbing on a thin
+  // line. 'exact' requires the query tile to BE a path tile — used for
+  // click-SELECTION so clicking an empty tile beside a connector clears the
+  // selection instead of grabbing the connector (owner #5). #54 already
+  // dropped the halo around node-anchored endpoints; this narrows the rest of
+  // the segment for the select gesture only.
+  connectorMatch?: 'halo' | 'exact';
 }): ItemReference | null => {
   const tileIndex = getItemTileIndex(scene.items);
   const itemId = tileIndex.get(`${tile.x},${tile.y}`);
@@ -115,6 +124,8 @@ export const getItemAtTile = ({
       const dx = Math.abs(globalPathTile.x - tile.x);
       const dy = Math.abs(globalPathTile.y - tile.y);
       if (dx === 0 && dy === 0) return true;
+      // Click-selection (#5): exact path-tile only — empty neighbours don't grab.
+      if (connectorMatch === 'exact') return false;
       if (nearNodeEndpoint) return false;
       return dx <= 1 && dy <= 1;
     });

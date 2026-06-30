@@ -292,9 +292,13 @@ const handleAltClickWaypointRemoval = (state: State): boolean => {
 // transition for empty-canvas drag.
 const selectItemAtTileMousedown = (state: State) => {
   const { uiState, scene, isItemInteractable } = state;
+  // #5: click-SELECTION uses exact connector tiles so an empty tile beside a
+  // connector clears the selection instead of grabbing it. Hover and
+  // reconnect/waypoint paths keep the ±1 halo (default).
   const itemAtTile = getItemAtTile({
     tile: uiState.mouse.position.tile,
-    scene
+    scene,
+    connectorMatch: 'exact'
   });
 
   if (itemAtTile && (!isItemInteractable || isItemInteractable(itemAtTile))) {
