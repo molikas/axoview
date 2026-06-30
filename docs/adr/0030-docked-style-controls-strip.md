@@ -33,7 +33,18 @@ No styling control lives in two surfaces. The strip is the styling path; the pan
 
 ### 2. Selection gating (inherits ADR 0006)
 
-The strip acts only when `itemControls` targets **exactly one** item (`selectedIds.length === 1`). With `0` or `>1` selected, every control is **disabled** (not hidden) per §2.5 — the user still learns the full command surface. **Exception:** when a creation tool is armed with nothing selected (e.g. the connector tool), the connection-color + line-options controls edit the session-scoped *pre-draw defaults* (`uiState.connectorDefaults`), which the next-drawn item inherits.
+The strip acts when `itemControls` targets **exactly one** item (`selectedIds.length === 1`), OR — per the amendment below — when a **homogeneous** multi-selection is active. With `0` selected, or a **heterogeneous** multi-selection, every control is **disabled** (not hidden) per §2.5 — the user still learns the full command surface. **Exception:** when a creation tool is armed with nothing selected (e.g. the connector tool), the connection-color + line-options controls edit the session-scoped *pre-draw defaults* (`uiState.connectorDefaults`), which the next-drawn item inherits.
+
+#### Amendment (2026-06-30) — bulk styling on a homogeneous multi-selection (owner #7/#11)
+
+The original "`>1` → every control disabled" rule blocked the single most-requested efficiency win (restyling N connectors / N labels one at a time — owner UX-sweep #7, a hard wall for diagram-builder personas). It is **superseded** for the homogeneous case:
+
+- When **every** item in a `>1` selection shares a `.type` (all CONNECTOR, all ITEM, all LABEL, all RECTANGLE, all TEXTBOX), the strip enables and treats the selection as a **bulk target**. The control values display the **representative** (first selected) item; each control's writer **fans out** the change over the whole selection inside one `useScene().transaction()` so it lands as a **single undo entry** (precedent: `deleteSelectedItems`).
+- A **heterogeneous** multi-selection stays fully disabled (a cross-type style edit isn't meaningful).
+- **Single-target-only controls** stay gated to exactly one selection even within a homogeneous bulk: **Change icon** and **Icon size** (an icon is a shared model asset) and the **Rich-text** editor (per-character, can't target a set). They show a "one at a time" tooltip when a bulk is active.
+- **#11 (relative font-size):** the text-size popover gains a **+/− stepper** for node labels / floating Labels that nudges **each** selected target from *its own* current px size (clamped; nodes 10–24, labels 8–48), preserving relative size differences across the selection — routed through the same transaction. The absolute % slider still sets all to one value.
+
+This keeps ADR 0006 as the selection source of truth (the strip reads `selectedIds`); it only widens *when* the strip acts.
 
 ### 3. Mode + portal contract
 

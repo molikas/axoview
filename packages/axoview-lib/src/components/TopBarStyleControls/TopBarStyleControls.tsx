@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   Button,
@@ -26,8 +26,11 @@ import {
   EditNote as RichTextIcon,
   PhotoSizeSelectLarge as IconSizeIcon,
   ImageOutlined as ChangeIconIcon,
-  ArrowDropDown as CaretIcon
+  ArrowDropDown as CaretIcon,
+  Add as AddIcon,
+  Remove as RemoveIcon
 } from '@mui/icons-material';
+import { LABEL_BASE_FONT_PX } from 'src/config/labelSettings';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useModelStore } from 'src/stores/modelStore';
 import { useModelItem } from 'src/hooks/useModelItem';
@@ -45,6 +48,7 @@ import { ColorSwatch } from '../ColorSelector/ColorSwatch';
 import { CustomColorInput } from '../ColorSelector/CustomColorInput';
 import { RichTextEditor } from '../RichTextEditor/RichTextEditor';
 import { QuickIconSelector } from '../ItemControls/NodeControls/QuickIconSelector';
+import { resolveHomogeneousBulk } from 'src/utils/bulkStyleTarget';
 
 // Google-Docs-style inline strip and the CANONICAL styling surface (ADR 0030):
 // the single writer of visual styling for every item type. There is no
@@ -105,6 +109,8 @@ interface StripButtonProps {
   /** Resolved hex shown as a thin underline bar; omit for non-colour controls. */
   colorBar?: string;
   popoverWidth?: number;
+  /** Optional test hook on the trigger button (e2e). */
+  testId?: string;
   children: React.ReactNode;
 }
 
@@ -118,6 +124,7 @@ const StripButton = ({
   icon,
   colorBar,
   popoverWidth = 240,
+  testId,
   children
 }: StripButtonProps) => {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -129,6 +136,7 @@ const StripButton = ({
           <IconButton
             size="small"
             disabled={disabled}
+            data-testid={testId}
             onClick={(e) => setAnchorEl(e.currentTarget)}
             sx={{
               borderRadius: 1,
@@ -443,6 +451,7 @@ const IconSizeControl = ({
 
 export const TopBarStyleControls = () => {
   const itemControls = useUiStateStore((s) => s.itemControls);
+  const selectedIds = useUiStateStore((s) => s.selectedIds);
   const mode = useUiStateStore((s) => s.mode);
   const selectedConnectorLabel = useUiStateStore(
     (s) => s.selectedConnectorLabel
@@ -453,15 +462,111 @@ export const TopBarStyleControls = () => {
   );
   const {
     colors,
-    updateViewItem,
+    currentView,
+    transaction,
+    // Raw single-target writers — wrapped below into bulk-aware shadows.
+    updateViewItem: applyViewItem,
     updateModelItem,
-    updateTextBox,
-    updateLabel,
-    updateConnector,
-    updateRectangle
+    updateTextBox: applyTextBox,
+    updateLabel: applyLabel,
+    updateConnector: applyConnector,
+    updateRectangle: applyRectangle
   } = useScene();
 
-  const sel = itemControls && itemControls.type !== 'ADD_ITEM' ? itemControls : null;
+  // S4 (#7) — ADR 0030 §2 amendment. A homogeneous multi-selection (every
+  // selected item shares a type) is a bulk-style target; the strip enables and
+  // each control's writer fans out across the whole selection in ONE
+  // transaction (one undo entry). Heterogeneous multi stays disabled.
+  const bulk = useMemo(
+    () => resolveHomogeneousBulk(selectedIds),
+    [selectedIds]
+  );
+  const isBulk = !!bulk;
+
+  // Representative target — the single controlled item, or the FIRST of a
+  // homogeneous multi-selection. Drives every control's displayed value (the
+  // type-keyed hooks below resolve against it) while writes fan out.
+  const sel = useMemo(
+    () =>
+      itemControls && itemControls.type !== 'ADD_ITEM'
+        ? itemControls
+        : bulk
+        ? { type: bulk.type, id: bulk.ids[0] }
+        : null,
+    [itemControls, bulk]
+  );
+
+  // Apply a per-id update to every target of `type` (the homogeneous selection,
+  // or the single representative). Multi fans out inside one transaction so the
+  // change is a single undo entry — mirrors deleteSelectedItems' pattern.
+  const applyToTargets = useCallback(
+    (type: string, apply: (id: string) => void) => {
+      const ids =
+        bulk && bulk.type === type
+          ? bulk.ids
+          : sel && sel.type === type
+          ? [sel.id]
+          : [];
+      if (ids.length <= 1) ids.forEach(apply);
+      else transaction(() => ids.forEach(apply));
+    },
+    [bulk, sel, transaction]
+  );
+
+  // Bulk-aware shadows: every single-target writer below now fans out across a
+  // homogeneous multi-selection automatically (the `id` arg is the
+  // representative; targets are resolved by type). Icon change/size and
+  // rich-text stay single — they're gated on !isBulk where rendered.
+  const updateViewItem = useCallback(
+    (_id: string, patch: Parameters<typeof applyViewItem>[1]) =>
+      applyToTargets('ITEM', (tid) => applyViewItem(tid, patch)),
+    [applyToTargets, applyViewItem]
+  );
+  const updateTextBox = useCallback(
+    (_id: string, patch: Parameters<typeof applyTextBox>[1]) =>
+      applyToTargets('TEXTBOX', (tid) => applyTextBox(tid, patch)),
+    [applyToTargets, applyTextBox]
+  );
+  const updateLabel = useCallback(
+    (_id: string, patch: Parameters<typeof applyLabel>[1]) =>
+      applyToTargets('LABEL', (tid) => applyLabel(tid, patch)),
+    [applyToTargets, applyLabel]
+  );
+  const updateConnector = useCallback(
+    (_id: string, patch: Parameters<typeof applyConnector>[1]) =>
+      applyToTargets('CONNECTOR', (tid) => applyConnector(tid, patch)),
+    [applyToTargets, applyConnector]
+  );
+  const updateRectangle = useCallback(
+    (_id: string, patch: Parameters<typeof applyRectangle>[1]) =>
+      applyToTargets('RECTANGLE', (tid) => applyRectangle(tid, patch)),
+    [applyToTargets, applyRectangle]
+  );
+
+  // #11 — relative font-size nudge for node labels / floating Labels. Each
+  // selected target steps from ITS OWN current size (preserving relative
+  // differences across a multi-selection), clamped, in one transaction.
+  const clampNum = (v: number, lo: number, hi: number) =>
+    Math.min(hi, Math.max(lo, v));
+  const nudgeFontSize = useCallback(
+    (delta: number) => {
+      if (sel?.type === 'ITEM') {
+        applyToTargets('ITEM', (id) => {
+          const cur =
+            currentView.items?.find((i) => i.id === id)?.labelFontSize ?? 14;
+          applyViewItem(id, { labelFontSize: clampNum(cur + delta, 10, 24) });
+        });
+      } else if (sel?.type === 'LABEL') {
+        applyToTargets('LABEL', (id) => {
+          const cur =
+            currentView.labels?.find((l) => l.id === id)?.fontSize ??
+            LABEL_BASE_FONT_PX;
+          applyLabel(id, { fontSize: clampNum(cur + delta, 8, 48) });
+        });
+      }
+    },
+    [sel, applyToTargets, currentView.items, currentView.labels, applyViewItem, applyLabel]
+  );
   // Hooks must run unconditionally; each returns null when the id is absent from
   // its collection, so gating by type keeps cross-collection id collisions safe.
   const node = useViewItem(sel?.type === 'ITEM' ? sel.id : '');
@@ -704,16 +809,55 @@ export const TopBarStyleControls = () => {
         }
         disabled={!textSize}
         popoverWidth={220}
+        testId="strip-text-size"
         icon={<TextSizeIcon sx={{ fontSize: 18 }} />}
       >
         {textSize && (
-          <PercentSizeSlider
-            value={textSize.value}
-            min={textSize.min}
-            max={textSize.max}
-            step={textSize.step}
-            onChange={textSize.onChange}
-          />
+          <Box>
+            <PercentSizeSlider
+              value={textSize.value}
+              min={textSize.min}
+              max={textSize.max}
+              step={textSize.step}
+              onChange={textSize.onChange}
+            />
+            {/* #11: relative +/- stepper for node-label / floating-Label px
+                sizes — bumps each selected target from its own size (preserving
+                relative differences across a multi-selection). */}
+            {(sel?.type === 'ITEM' || sel?.type === 'LABEL') && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 1,
+                  mt: 1
+                }}
+              >
+                <Tooltip title="Decrease size">
+                  <IconButton
+                    size="small"
+                    data-testid="bulk-font-decrease"
+                    onClick={() => nudgeFontSize(-2)}
+                  >
+                    <RemoveIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Tooltip>
+                <Typography variant="caption" color="text.secondary">
+                  {isBulk ? 'Step all' : 'Size'}
+                </Typography>
+                <Tooltip title="Increase size">
+                  <IconButton
+                    size="small"
+                    data-testid="bulk-font-increase"
+                    onClick={() => nudgeFontSize(2)}
+                  >
+                    <AddIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            )}
+          </Box>
         )}
       </StripButton>
 
@@ -912,10 +1056,17 @@ export const TopBarStyleControls = () => {
         )}
       </StripButton>
 
-      {/* Change icon (node) — moved here from the node Details panel. */}
+      {/* Change icon (node) — moved here from the node Details panel. Single
+          only: an icon is a shared model asset, not a per-selection field. */}
       <StripButton
-        tooltip={node ? 'Change icon' : 'Select a node to change its icon'}
-        disabled={!node}
+        tooltip={
+          isBulk
+            ? 'Change icon applies to one node at a time'
+            : node
+            ? 'Change icon'
+            : 'Select a node to change its icon'
+        }
+        disabled={!node || isBulk}
         popoverWidth={320}
         icon={
           currentIcon?.url ? (
@@ -941,8 +1092,14 @@ export const TopBarStyleControls = () => {
 
       {/* Icon size (node) */}
       <StripButton
-        tooltip={currentIcon ? 'Icon size' : 'Select a node to change its icon size'}
-        disabled={!currentIcon}
+        tooltip={
+          isBulk
+            ? 'Icon size applies to one node at a time'
+            : currentIcon
+            ? 'Icon size'
+            : 'Select a node to change its icon size'
+        }
+        disabled={!currentIcon || isBulk}
         popoverWidth={220}
         icon={<IconSizeIcon sx={{ fontSize: 18 }} />}
       >
@@ -1104,10 +1261,17 @@ export const TopBarStyleControls = () => {
         </span>
       </Tooltip>
 
-      {/* Rich text (text node) */}
+      {/* Rich text (text node) — single only: a per-character editor can't
+          target a multi-selection. */}
       <StripButton
-        tooltip={textBox ? 'Rich text' : 'Select a text box to edit rich text'}
-        disabled={!textBox}
+        tooltip={
+          isBulk
+            ? 'Rich text edits one text box at a time'
+            : textBox
+            ? 'Rich text'
+            : 'Select a text box to edit rich text'
+        }
+        disabled={!textBox || isBulk}
         popoverWidth={320}
         icon={<RichTextIcon sx={{ fontSize: 18 }} />}
       >
