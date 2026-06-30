@@ -33,6 +33,20 @@ All anti-cheats green (canvas draw-count == N; floating labels DOM count == N).
 
 **Finding.** Canvas2D surfaces (node-label B/I/S, backgrounds/borders) ride free — N=1000 p95 ≈ the 79.18 ms bare baseline. Connector labels (already DOM) add little. The **DOM floating-label** layer is the outlier: **~2.3× the spawn p95, ~3× the settle** at N=1000 — the [ADR 0019](../docs/adr/0019-canvas2d-node-render-layer.md) DOM-layer scaling cliff. This is the evidence behind the **C1 Label substrate = Canvas2D** decision ([ADR 0031](../docs/adr/0031-floating-label-entity-model.md) addendum, E3).
 
+### 2b. C1 validation — the Canvas2D Label layer, re-measured (2026-06-30)
+
+The C1 extraction ([ADR 0031](../docs/adr/0031-floating-label-entity-model.md)) landed the floating Label as a first-class Canvas2D layer (`LabelsCanvas` — billboard chips above the node layer + a per-(text, fontSize, B/I) layout cache mirroring `NodesCanvas`). The `floating-label-heavy` scenario was rewired from the retired textBox `variant:'label'` DOM chips to the new Label entity and re-run (median-of-7, dedicated server):
+
+| N | drawn / labels | commit | settle | p95 | noise (CoV) |
+|---|---|---|---|---|---|
+| 200 | 200/200 | 26.8 ms | 133 ms | 33.30 | 11.4%¹ |
+| 500 | 500/500 | 118.2 ms | 167 ms | 66.65 | 5.0% |
+| 1000 | 1000/1000 | 495.4 ms | 183 ms | **79.25** | 4.7% |
+
+¹ Small-N sits at the vsync quantization floor (bimodal), excluded from certification — same as §1.
+
+**Finding — the cliff is eliminated, the layer rides at baseline.** At N=1000 the Canvas2D Label layer is **79.25 ms p95 / 183 ms settle** — within the <10% band of the 79.18 ms / 183 ms bare-node baseline, and ≈ the node-label Canvas2D surface (79.99 ms). Versus the DOM-chip cliff (184.96 ms / 600 ms) that's **−57% p95 / −69% settle**. The per-frame `measureText` was the dominant cost; the layout cache (the same one that makes node labels free) drops the per-chip work to draw calls, so 1000 extra billboard chips add ≈0 spawn cost. Canvas2D draw-count anti-cheat green (labels=N/N at every N). **The E3 substrate decision is validated by the shipped C1 layer.**
+
 ## 3. Pan floor (first baseline — measurePan)
 
 `measurePan` did not exist on master (ENG-PAN R1 unstarted), so this is the **first** pan baseline (KR-P3), not a regression comparison. Per-rAF `setScroll` oscillation; headline = p95 frame time during sustained pan. Draw-count stayed at N each frame (no cull); pan engaged on every run.

@@ -279,7 +279,8 @@ function installHarness() {
     vitems: any[],
     connectors?: any[],
     rectangles?: any[],
-    textBoxes?: any[]
+    textBoxes?: any[],
+    labels?: any[]
   ) {
     const m = ax().model.getState();
     return m.views.map((v: any) =>
@@ -289,7 +290,8 @@ function installHarness() {
             items: vitems,
             connectors: connectors || [],
             rectangles: rectangles || [],
-            textBoxes: textBoxes || []
+            textBoxes: textBoxes || [],
+            labels: labels || []
           }
         : v
     );
@@ -1387,51 +1389,45 @@ function installHarness() {
     };
   }
 
-  // ---- E-slice: floating-label-heavy (DOM chip layer stress; gates ADR 0031 E3) ----
-  // N floating Labels (textBox variant:'label') with B/I/U/S + colour +
-  // background, over the realistic node/connector/rect base. Floating labels are
-  // DOM (the TextBoxes SceneLayer) — the scaling surface ADR 0019 moved nodes
-  // off of — so this measures the DOM-label spawn/settle cost that decides the
-  // Label render substrate (DOM vs Canvas2D). buildScene omits text boxes because
-  // a bulk model.set leaves scene.textBoxes[id].size undefined (renderer crash);
-  // we pre-seed a placeholder size so the commit render survives, then
-  // changeView → syncScene recomputes the real getTextBoxDimensions size.
+  // ---- E-slice: floating-label-heavy (Canvas2D Label layer; gates ADR 0031 E3) ----
+  // N floating Labels (the first-class Label entity, ADR 0031) with B/I/S +
+  // colour + background, over the realistic node/connector/rect base. Labels now
+  // render on the Canvas2D LabelsCanvas — the substrate ADR 0031 E3 chose after
+  // the DOM chip layer ~2.3×'d spawn p95 — so this re-measures the floating-label
+  // spawn/settle cost on the new substrate. Labels are MODEL-ONLY (no scene
+  // size), so the old scene-size pre-seed hack is gone.
   async function measureFloatingLabelHeavy(N: number, capMs: number) {
     resetState();
     const scene = buildScene(N, 1);
     const side = Math.ceil(Math.sqrt(N));
-    const labelTextBoxes: any[] = [];
+    const labels: any[] = [];
     for (let i = 0; i < N; i++) {
       const col = i % side;
       const row = Math.floor(i / side);
-      labelTextBoxes.push({
+      labels.push({
         id: 'flabel-' + i,
         tile: { x: 1 + col, y: row },
-        content: '<p>Label ' + i + '</p>',
-        variant: 'label',
+        text: 'Label ' + i,
         fontSize: 14 + (i % 4) * 2,
         color: LABEL_COLORS[1 + (i % (LABEL_COLORS.length - 1))],
         backgroundColor: PERF_COLORS[i % PERF_COLORS.length].value,
         isBold: i % 2 === 0,
         isItalic: i % 3 === 0,
-        isUnderline: i % 4 === 0,
         isStrikethrough: i % 5 === 0
       });
     }
     fitForGrid(1, N);
     await quiesce();
     const { view } = activeView();
-    // Pre-seed scene sizes so the model.set render doesn't read undefined size;
-    // changeView → syncScene overwrites these with the real measured sizes.
-    const seed: Record<string, { size: { width: number; height: number } }> = {};
-    for (const tb of labelTextBoxes) seed[tb.id] = { size: { width: 4, height: 1 } };
-    ax().scene.setState((s: any) => ({ textBoxes: { ...s.textBoxes, ...seed } }));
+    // Labels are MODEL-ONLY (ADR 0031) — no scene-size entry, so no pre-seed:
+    // the LabelsCanvas measures each chip itself, like node labels.
     const newViews = viewsWith(
       view.id,
       scene.vitems,
       scene.connectors,
       scene.rectangles,
-      labelTextBoxes
+      scene.textBoxes,
+      labels
     );
     const frames: number[] = [];
     const longTasks: Array<{ start: number; duration: number }> = [];
@@ -1450,9 +1446,15 @@ function installHarness() {
     const renderedNodes = canvasEl
       ? parseInt(canvasEl.dataset.drawCount ?? '0', 10) || 0
       : 0;
-    const renderedLabels = document.querySelectorAll(
-      '[data-drag-id^="flabel-"]'
-    ).length;
+    // Labels render on the Canvas2D LabelsCanvas now, so the anti-cheat reads its
+    // published draw-count (mirrors the node-canvas draw-count) — the DOM
+    // [data-drag-id] chips are gone.
+    const labelsCanvasEl = document.querySelector(
+      '[data-testid="axoview-labels-canvas"]'
+    ) as HTMLElement | null;
+    const renderedLabels = labelsCanvasEl
+      ? parseInt(labelsCanvasEl.dataset.drawCount ?? '0', 10) || 0
+      : 0;
     return {
       frames,
       longTasks,
@@ -1463,7 +1465,7 @@ function installHarness() {
         nodes: scene.items.length,
         connectors: scene.connectors.length,
         rectangles: scene.rectangles.length,
-        textBoxes: labelTextBoxes.length
+        labels: labels.length
       }
     };
   }
@@ -2031,7 +2033,7 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
       if (last.renderedLabels != null) {
         expect(
           last.renderedLabels,
-          `${fileTag}: DOM rendered every floating label at N=${N}`
+          `${fileTag}: Canvas2D drew every floating label (draw-count == N) at N=${N}`
         ).toBe(N);
       }
     }
@@ -2094,11 +2096,11 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
     await runSpawnClassScenario(
       'measureFloatingLabelHeavy',
       'floating-label-heavy',
-      'Floating-label-heavy spawn — N DOM Label chips (B/I/U/S + colour + background)',
-      'N floating Labels (textBox variant:"label") over the realistic node/connector/rect base. ' +
-        'Floating labels are DOM (the scaling surface ADR 0019 moved nodes off of), so this is the ' +
-        'scenario that decides the Label render substrate (DOM vs Canvas2D) for ADR 0031 E3. ' +
-        'labels=N/N anti-cheats that every chip rendered.',
+      'Floating-label-heavy spawn — N Canvas2D Label chips (B/I/S + colour + background)',
+      'N floating Labels (the first-class Label entity, ADR 0031) over the realistic ' +
+        'node/connector/rect base. Labels render on the Canvas2D LabelsCanvas — the substrate ' +
+        "ADR 0031 E3 chose after the DOM chip layer ~2.3×'d spawn p95 — so this re-measures the " +
+        'floating-label spawn cost on the new substrate. labels=N/N anti-cheats every chip drew.',
       parseNs(process.env.PERF_FLOATLABELS)
     );
     return;
