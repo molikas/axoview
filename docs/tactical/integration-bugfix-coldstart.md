@@ -8,13 +8,19 @@
 > - **S5** quick wins (#10 shift-select, M1, L3, M2) — `24c2458`
 > - Perf gate re-run for S2: same-machine A/B 0.4% p95 (no regression).
 >
-> **ROUND 2 — owner follow-ups (2026-07-01, in progress):**
-> 1. **#8 connector tool style → DEFAULT (reset-after-draw).** Owner picked resolution (a): each new connector draws with the baseline style, not the last-used. Reset `connectorDefaults` after each commit (rect/text/label already reset). ADR 0030 §2 note.
-> 2. **A3 hover outline** (finish S3): faint outline on the hovered item id.
-> 3. **i18n L2**: `config.ts` 'Text'/'Untitled', `RightSidebar` empty-state, 'Untitled Diagram' literals → lib i18n keys (translate at render, never persist translated text).
-> 4. **Presenter-mode hover popover = notes-only.** In EXPLORABLE_READONLY, the on-hover `ViewModeInfoPopover` should render **only when the node has notes** (and surface them); suppress the empty label-only popover.
+> **ROUND 2 — owner follow-ups DONE & committed (2026-07-01):**
+> 1. **#8 connector tool → DEFAULT style each draw** (`resetConnectorDefaults` on commit; ADR 0030 §2 note).
+> 2. **A3 hover outline** (faint `subtle` outline on hovered ITEM/RECTANGLE via `HoverOutline`).
+> 3. **i18n L2** = `rightSidebar` namespace (13 locales); persisted defaults (`'Untitled'`/`'Text'`/'Untitled Diagram') left canonical per the translate-at-render rule.
+> 4. **Presenter hover popover = notes-only** (`ViewModeInfoPopover` hover path requires notes; pinned click unchanged).
 >
-> **Still parked (need owner sign-off / separate track):** connector-color discoverability, N2 badge copy/color, E2 absolute z-order, K1 keyboard-selectable canvas, B1/B2 placement cue. **Needs repro:** owner #3 "click connection offset".
+> **ROUND 3 — parked items, owner-decided 2026-07-01, DONE & committed:**
+> - **E2 absolute z-order** → Bring-to-front / Send-to-back menu items + `Ctrl+Shift+]/[`, and `Ctrl+]/[` extended to rectangles + labels.
+> - **Connector-color discoverability** → arm-time accent-ring hint + "next connection" tooltip on the connection controls.
+> - **B1/B2 placement cue** → ghost preview + mode-hint pill for text box / label (and rectangle-draw pill).
+> - **#8 sticky-vs-default** → owner picked **default** (done in Round 2 above).
+>
+> **Still parked:** **N2** session-badge copy/color (intentional; leave unless reworded). **K1** keyboard-selectable canvas — larger a11y track, schedule separately. **#3** "click connection offset" — owner chose **retest after the #5 fix** (verify in the next hands-on pass; likely resolved by S3's #5 exact-tile click).
 
 > **How to use this doc.** This is a self-contained implementation brief for a fresh session. Read this file + [`ux-sweep-triage-2026-06-30.md`](ux-sweep-triage-2026-06-30.md) (verdicts) + [`owner-field-feedback-2026-06-30.md`](owner-field-feedback-2026-06-30.md) (raw owner items). Every `file:line` anchor below was produced by the ADR 0028 code-verification gate (two `ux-finding-verification` workflows, 15 read-only verifiers) — **confirm each anchor on touch** (line numbers drift). Implement slice by slice, in order; commit each slice separately.
 
