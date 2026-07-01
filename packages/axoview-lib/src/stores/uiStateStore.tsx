@@ -29,6 +29,7 @@ const canvasResetForAnnotation = (
   mode: getStartingMode(state.editorMode),
   itemControls: null,
   selectedIds: [],
+  hoveredItem: null,
   ...(state.rightSidebarAutoOpened
     ? { rightSidebarOpen: false, rightSidebarAutoOpened: false }
     : {})
@@ -57,6 +58,7 @@ const initialState = () => {
       },
       itemControls: null,
       selectedIds: [],
+      hoveredItem: null,
       enableDebugTools: false,
       zoomSettings: persisted?.zoomSettings ?? DEFAULT_ZOOM_SETTINGS,
       labelSettings: persisted?.labelSettings ?? DEFAULT_LABEL_SETTINGS,
@@ -154,6 +156,9 @@ const initialState = () => {
         },
         setScroll: ({ position, offset }) => {
           set({ scroll: { position, offset: offset ?? get().scroll.offset } });
+        },
+        setHoveredItem: (hoveredItem) => {
+          set({ hoveredItem });
         },
         setItemControls: (itemControls, options) => {
           if (itemControls !== null) {
@@ -271,6 +276,9 @@ const initialState = () => {
         },
         setConnectorDefaults: (patch) => {
           set({ connectorDefaults: { ...get().connectorDefaults, ...patch } });
+        },
+        resetConnectorDefaults: () => {
+          set({ connectorDefaults: {} });
         },
         setExpandLabels: (expandLabels) => {
           set({ expandLabels });

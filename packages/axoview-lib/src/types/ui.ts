@@ -254,6 +254,12 @@ export interface UiState {
    * single selected item; when 0 or > 1, itemControls is null. See ADR-0006.
    */
   selectedIds: ItemReference[];
+  /**
+   * A3 hover affordance: the item under the cursor in CURSOR/EDITABLE mode (or
+   * null). Drives a faint hover outline (HoverOutline). Updated by the Cursor
+   * hover path ONLY when the hovered ref changes, so it doesn't churn per tile.
+   */
+  hoveredItem: ItemReference | null;
   zoom: number;
   scroll: Scroll;
   mouse: Mouse;
@@ -460,6 +466,8 @@ export interface UiStateActions {
    * target + action bar update, but the dock is NOT mounted. Passing `null`
    * always clears.
    */
+  /** A3: set/clear the hovered item that drives the faint hover outline. */
+  setHoveredItem: (ref: ItemReference | null) => void;
   setItemControls: (
     itemControls: ItemControls | null,
     options?: { openPanel?: boolean }
@@ -484,6 +492,12 @@ export interface UiStateActions {
   setConnectorInteractionMode: (mode: ConnectorInteractionMode) => void;
   /** Merge a patch into the pending connector style (next-drawn defaults). */
   setConnectorDefaults: (patch: ConnectorDefaults) => void;
+  /**
+   * Clear the pending connector style so the NEXT draw uses the baseline (#8,
+   * 2026-07-01). A set style applies to exactly one connector, then resets —
+   * matching rect/text/label (no sticky last-used style).
+   */
+  resetConnectorDefaults: () => void;
   setExpandLabels: (expand: boolean) => void;
   setReadableLabels: (readable: boolean) => void;
   /** Toggle a layer's preview visibility override (no-op on the model). */
