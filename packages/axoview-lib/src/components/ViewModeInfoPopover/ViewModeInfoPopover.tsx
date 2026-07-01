@@ -148,19 +148,30 @@ export const ViewModeInfoPopover = () => {
         break;
     }
 
-    if (!anchorTile || !hasInfoPopoverContent(name, notes, headerLink)) {
+    if (!anchorTile) return null;
+
+    const hasNotes = !!notes && hasVisibleText(notes);
+
+    // Owner 2026-07-01: on HOVER, the popover appears ONLY when the item has
+    // notes — no empty name-only preview cluttering the canvas. A PINNED click
+    // is an explicit request for details, so it still shows name / link / notes
+    // via hasInfoPopoverContent.
+    if (isPinned) {
+      if (!hasInfoPopoverContent(name, notes, headerLink)) return null;
+    } else if (!hasNotes) {
       return null;
     }
 
     return {
       name: name?.trim() || '',
       notes,
-      hasNotes: !!notes && hasVisibleText(notes),
+      hasNotes,
       headerLink,
       anchorTile
     };
   }, [
     active,
+    isPinned,
     modelItem,
     viewItem,
     connector,
