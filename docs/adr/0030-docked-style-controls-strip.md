@@ -35,6 +35,8 @@ No styling control lives in two surfaces. The strip is the styling path; the pan
 
 The strip acts when `itemControls` targets **exactly one** item (`selectedIds.length === 1`), OR — per the amendment below — when a **homogeneous** multi-selection is active. With `0` selected, or a **heterogeneous** multi-selection, every control is **disabled** (not hidden) per §2.5 — the user still learns the full command surface. **Exception:** when a creation tool is armed with nothing selected (e.g. the connector tool), the connection-color + line-options controls edit the session-scoped *pre-draw defaults* (`uiState.connectorDefaults`), which the next-drawn item inherits.
 
+> **#8 (2026-07-01) — pre-draw style is one-shot, not sticky.** Owner picked resolution (a): each new connector draws with the **baseline** style, not the last-used. `connectorDefaults` is **reset** (`resetConnectorDefaults`) after every connector commit, so a style set in the strip applies to exactly one draw, then reverts — matching rect/text/label (which carry no persistent style). This removes the "surprise second line" (H1) without adopting the sticky-last-used convention.
+
 #### Amendment (2026-06-30) — bulk styling on a homogeneous multi-selection (owner #7/#11)
 
 The original "`>1` → every control disabled" rule blocked the single most-requested efficiency win (restyling N connectors / N labels one at a time — owner UX-sweep #7, a hard wall for diagram-builder personas). It is **superseded** for the homogeneous case:

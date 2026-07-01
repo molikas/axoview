@@ -122,6 +122,9 @@ const handleClickSecond = (
 
   scene.updateConnector(currentMode.id, newConnector);
   scene.commitDragTransaction();
+  // #8: a pre-draw style applies to exactly ONE connector — reset so the next
+  // draw defaults (no sticky last-used style).
+  uiState.actions.resetConnectorDefaults?.();
 
   if (currentMode.returnToCursor) {
     uiState.actions.setMode({
@@ -257,6 +260,7 @@ export const Connector: ModeActions = {
     // Drag mode: the press→drag→release commits the connection on release.
     if (uiState.connectorInteractionMode === 'drag') {
       scene.commitDragTransaction();
+      uiState.actions.resetConnectorDefaults?.(); // #8: one-shot pre-draw style
       if (uiState.mode.type === 'CONNECTOR' && uiState.mode.returnToCursor) {
         uiState.actions.setMode({
           type: 'CURSOR',

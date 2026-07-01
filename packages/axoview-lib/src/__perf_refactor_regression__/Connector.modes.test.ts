@@ -258,6 +258,38 @@ describe('Connector.mousedown click mode — second click', () => {
     );
   });
 
+  // #8 (2026-07-01): committing via the second click resets connectorDefaults
+  // so the next connector draws with the baseline style (one-shot pre-draw).
+  it('resets connectorDefaults after the second click (click mode)', () => {
+    const resetConnectorDefaults = jest.fn();
+    const existingConnector = {
+      id: 'conn-1',
+      color: 'color-1',
+      anchors: [
+        { id: 'a1', ref: { tile: { x: 2, y: 2 } } },
+        { id: 'a2', ref: { tile: { x: 2, y: 2 } } }
+      ]
+    };
+    const uiState = makeUiState({
+      mode: {
+        type: 'CONNECTOR',
+        showCursor: true,
+        id: 'conn-1',
+        startAnchor: { tile: { x: 2, y: 2 } },
+        isConnecting: true
+      },
+      connectorInteractionMode: 'click',
+      connectorDefaults: { style: 'DASHED' },
+      actions: { setMode: jest.fn(), resetConnectorDefaults }
+    });
+    Connector.mousedown!({
+      uiState,
+      scene: makeScene({ connectors: [existingConnector] }),
+      isRendererInteraction: true
+    } as any);
+    expect(resetConnectorDefaults).toHaveBeenCalledTimes(1);
+  });
+
   it('switches to CURSOR mode on second click when returnToCursor is set', () => {
     const connectorId = 'conn-2';
     const existingConnector = {
@@ -501,6 +533,21 @@ describe('Connector.mouseup drag mode', () => {
         mousedownItem: null
       })
     );
+  });
+
+  // #8 (2026-07-01): a pre-draw style is one-shot — committing a connector
+  // resets connectorDefaults so the NEXT draw uses the baseline (no sticky
+  // last-used style). Drag-mode commit path.
+  it('resets connectorDefaults after committing (drag mode)', () => {
+    const resetConnectorDefaults = jest.fn();
+    const uiState = makeUiState({
+      mode: { type: 'CONNECTOR', showCursor: true, id: 'conn-1' },
+      connectorInteractionMode: 'drag',
+      connectorDefaults: { style: 'DASHED' },
+      actions: { setMode: jest.fn(), resetConnectorDefaults }
+    });
+    Connector.mouseup!({ uiState, scene: makeScene() } as any);
+    expect(resetConnectorDefaults).toHaveBeenCalledTimes(1);
   });
 
   it('click mode, press-DRAG-release (travel past slop): completes the connector on mouseup', () => {
