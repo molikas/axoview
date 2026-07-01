@@ -478,6 +478,8 @@ const locale: LocaleProps = {
     duplicate: '创建副本',
     bringForward: '上移一层',
     sendBackward: '下移一层',
+    bringToFront: '置于顶层',
+    sendToBack: '置于底层',
     assignToLayer: '指定到图层',
     snapToGrid: '对齐到网格',
     unsnapFromGrid: '取消对齐网格',

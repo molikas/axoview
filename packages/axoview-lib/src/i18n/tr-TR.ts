@@ -503,6 +503,8 @@ const locale: LocaleProps = {
     duplicate: 'Çoğalt',
     bringForward: 'Öne getir',
     sendBackward: 'Arkaya gönder',
+    bringToFront: 'En öne getir',
+    sendToBack: 'En arkaya gönder',
     assignToLayer: 'Katmana ata',
     snapToGrid: 'Izgaraya yapıştır',
     unsnapFromGrid: 'Izgaradan ayır',

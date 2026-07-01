@@ -503,6 +503,8 @@ const locale: LocaleProps = {
     duplicate: 'Дублировать',
     bringForward: 'На передний план',
     sendBackward: 'На задний план',
+    bringToFront: 'На передний план',
+    sendToBack: 'На задний план',
     assignToLayer: 'Назначить слою',
     snapToGrid: 'Привязать к сетке',
     unsnapFromGrid: 'Открепить от сетки',

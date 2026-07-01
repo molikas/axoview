@@ -502,6 +502,8 @@ const locale: LocaleProps = {
     duplicate: 'Duplicate',
     bringForward: 'Bring forward',
     sendBackward: 'Send backward',
+    bringToFront: 'Bring to front',
+    sendToBack: 'Send to back',
     assignToLayer: 'Assign to layer',
     snapToGrid: 'Snap to grid',
     unsnapFromGrid: 'Unsnap from grid',

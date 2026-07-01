@@ -502,6 +502,8 @@ const locale: LocaleProps = {
     duplicate: 'Duplikat',
     bringForward: 'Bawa ke depan',
     sendBackward: 'Kirim ke belakang',
+    bringToFront: 'Bawa ke depan',
+    sendToBack: 'Kirim ke belakang',
     assignToLayer: 'Tetapkan ke lapisan',
     snapToGrid: 'Jepret ke kisi',
     unsnapFromGrid: 'Lepas dari kisi',

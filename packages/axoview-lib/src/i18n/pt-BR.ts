@@ -503,6 +503,8 @@ const locale: LocaleProps = {
     duplicate: 'Duplicar',
     bringForward: 'Trazer para frente',
     sendBackward: 'Enviar para trás',
+    bringToFront: 'Trazer para a frente',
+    sendToBack: 'Enviar para trás',
     assignToLayer: 'Atribuir à camada',
     snapToGrid: 'Ajustar à grade',
     unsnapFromGrid: 'Desafixar da grade',

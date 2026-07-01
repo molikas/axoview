@@ -507,6 +507,8 @@ const locale: LocaleProps = {
     duplicate: 'Duplikuj',
     bringForward: 'Przesuń do przodu',
     sendBackward: 'Przesuń do tyłu',
+    bringToFront: 'Przesuń na wierzch',
+    sendToBack: 'Przesuń na spód',
     assignToLayer: 'Przypisz do warstwy',
     snapToGrid: 'Przyciągnij do siatki',
     unsnapFromGrid: 'Odepnij od siatki',

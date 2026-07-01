@@ -501,6 +501,8 @@ const locale: LocaleProps = {
     duplicate: 'অনুলিপি করুন',
     bringForward: 'সামনে আনুন',
     sendBackward: 'পিছনে পাঠান',
+    bringToFront: 'সামনে আনুন',
+    sendToBack: 'পিছনে পাঠান',
     assignToLayer: 'স্তরে বরাদ্দ করুন',
     snapToGrid: 'গ্রিডে স্ন্যাপ করুন',
     unsnapFromGrid: 'গ্রিড থেকে আনস্ন্যাপ করুন',

@@ -505,6 +505,8 @@ const locale: LocaleProps = {
     duplicate: 'Duplica',
     bringForward: 'Porta avanti',
     sendBackward: 'Porta indietro',
+    bringToFront: 'Porta in primo piano',
+    sendToBack: 'Porta in secondo piano',
     assignToLayer: 'Assegna al livello',
     snapToGrid: 'Aggancia alla griglia',
     unsnapFromGrid: 'Sgancia dalla griglia',

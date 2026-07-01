@@ -117,5 +117,18 @@ test.describe('Z-order — Track 5e-4', () => {
     await expect
       .poll(() => getViewItemZIndex(page, itemId), { timeout: 3_000 })
       .toBe(1);
+
+    // E2 absolute: Ctrl+Shift+[ jumps to back (below all peers → <0), and
+    // Ctrl+Shift+] jumps to front (above all peers). With one node the peer set
+    // is {this}, so back = min(0, z)-1 and front = max(0, ...)+1.
+    await page.keyboard.press('Control+Shift+[');
+    await expect
+      .poll(() => getViewItemZIndex(page, itemId), { timeout: 3_000 })
+      .toBeLessThan(0);
+
+    await page.keyboard.press('Control+Shift+]');
+    await expect
+      .poll(() => getViewItemZIndex(page, itemId), { timeout: 3_000 })
+      .toBeGreaterThan(0);
   });
 });

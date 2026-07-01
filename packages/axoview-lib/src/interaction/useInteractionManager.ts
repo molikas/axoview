@@ -481,7 +481,9 @@ const handleToolHotkeys = (
   }
 };
 
-// Z-order: Ctrl+] bring forward, Ctrl+[ send backward (Tier-1 layer feature).
+// Z-order (E2): Ctrl+] / Ctrl+[ nudge forward / backward; Ctrl+Shift+] /
+// Ctrl+Shift+[ jump to front / back (absolute). Applies to the controlled
+// ITEM, RECTANGLE, or LABEL — each reorders within its own peer collection.
 const handleZOrderShortcut = (
   e: KeyboardEvent,
   isCtrlOrCmd: boolean,
@@ -490,20 +492,46 @@ const handleZOrderShortcut = (
 ) => {
   if (!isCtrlOrCmd || (e.key !== ']' && e.key !== '[')) return;
   const ctrl = uiState.itemControls;
-  if (ctrl?.type !== 'ITEM') return;
+  if (
+    ctrl?.type !== 'ITEM' &&
+    ctrl?.type !== 'RECTANGLE' &&
+    ctrl?.type !== 'LABEL'
+  )
+    return;
   e.preventDefault();
 
   const modelState = deps.modelStoreApi.getState();
   const currentView = uiState.view
     ? modelState.views.find((v: { id: string }) => v.id === uiState.view)
     : undefined;
-  const viewItem = currentView?.items?.find(
-    (i: { id: string }) => i.id === ctrl.id
-  );
-  if (viewItem) {
-    const currentZ = viewItem.zIndex ?? 0;
-    const delta = e.key === ']' ? 1 : -1;
-    deps.updateViewItem(ctrl.id, { zIndex: currentZ + delta });
+  if (!currentView) return;
+
+  const toFront = e.key === ']';
+  const scene = deps.sceneRef.current;
+
+  const reorder = (
+    peers: { id: string; zIndex?: number }[] | undefined,
+    write: (zIndex: number) => void
+  ) => {
+    const list = peers ?? [];
+    const self = list.find((p) => p.id === ctrl.id);
+    if (!self) return;
+    if (e.shiftKey) {
+      const zs = list.map((p) => p.zIndex ?? 0);
+      write(toFront ? Math.max(0, ...zs) + 1 : Math.min(0, ...zs) - 1);
+    } else {
+      write((self.zIndex ?? 0) + (toFront ? 1 : -1));
+    }
+  };
+
+  if (ctrl.type === 'ITEM') {
+    reorder(currentView.items, (z) => deps.updateViewItem(ctrl.id, { zIndex: z }));
+  } else if (ctrl.type === 'RECTANGLE') {
+    reorder(currentView.rectangles, (z) =>
+      scene.updateRectangle(ctrl.id, { zIndex: z })
+    );
+  } else if (ctrl.type === 'LABEL') {
+    reorder(currentView.labels, (z) => scene.updateLabel(ctrl.id, { zIndex: z }));
   }
 };
 

@@ -506,6 +506,8 @@ const locale: LocaleProps = {
     duplicate: 'Duplizieren',
     bringForward: 'Nach vorne',
     sendBackward: 'Nach hinten',
+    bringToFront: 'In den Vordergrund',
+    sendToBack: 'In den Hintergrund',
     assignToLayer: 'Ebene zuweisen',
     snapToGrid: 'Am Raster ausrichten',
     unsnapFromGrid: 'Vom Raster lösen',

@@ -508,6 +508,8 @@ const locale: LocaleProps = {
     duplicate: 'Dupliquer',
     bringForward: 'Avancer',
     sendBackward: 'Reculer',
+    bringToFront: 'Mettre au premier plan',
+    sendToBack: "Mettre à l'arrière-plan",
     assignToLayer: 'Affecter au calque',
     snapToGrid: 'Aligner sur la grille',
     unsnapFromGrid: 'Détacher de la grille',

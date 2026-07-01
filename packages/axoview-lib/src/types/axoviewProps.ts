@@ -495,6 +495,8 @@ export interface LocaleProps {
     duplicate: string;
     bringForward: string;
     sendBackward: string;
+    bringToFront: string;
+    sendToBack: string;
     assignToLayer: string;
     snapToGrid: string;
     unsnapFromGrid: string;

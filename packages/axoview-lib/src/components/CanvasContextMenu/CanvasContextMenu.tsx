@@ -224,6 +224,30 @@ export const CanvasContextMenu = () => {
     [scene, target]
   );
 
+  // E2 absolute z-order: jump the target above (front) or below (back) ALL its
+  // peers in one step, instead of nudging by ±1. Peers are the same-layer
+  // collection (nodes / labels / rectangles). Sets zIndex to max+1 / min-1.
+  const setZOrderExtreme = useCallback(
+    (toFront: boolean) => {
+      const peersFor = (): { zIndex?: number }[] | undefined => {
+        if (target?.type === 'ITEM') return scene.currentView.items;
+        if (target?.type === 'LABEL') return scene.currentView.labels;
+        if (target?.type === 'RECTANGLE') return scene.currentView.rectangles;
+        return undefined;
+      };
+      const peers = peersFor();
+      if (!target || !peers) return;
+      const zs = peers.map((p) => p.zIndex ?? 0);
+      const next = toFront ? Math.max(0, ...zs) + 1 : Math.min(0, ...zs) - 1;
+      if (target.type === 'ITEM') scene.updateViewItem(target.id, { zIndex: next });
+      else if (target.type === 'LABEL')
+        scene.updateLabel(target.id, { zIndex: next });
+      else if (target.type === 'RECTANGLE')
+        scene.updateRectangle(target.id, { zIndex: next });
+    },
+    [scene, target]
+  );
+
   const variant = contextMenu?.variant ?? 'item';
 
   // Assign-to-layer dispatches to the single target, or — in the bulk menu — to
@@ -465,6 +489,30 @@ export const CanvasContextMenu = () => {
                   </ListItemIcon>
                   <ListItemText>{t('sendBackward')}</ListItemText>
                   {isItem && <Hint>Ctrl+[</Hint>}
+                </MenuItem>
+              ),
+              canZOrder && (
+                <MenuItem
+                  key="tofront"
+                  onClick={run(() => setZOrderExtreme(true))}
+                >
+                  <ListItemIcon>
+                    <BringForwardIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{t('bringToFront')}</ListItemText>
+                  {isItem && <Hint>Ctrl+Shift+]</Hint>}
+                </MenuItem>
+              ),
+              canZOrder && (
+                <MenuItem
+                  key="toback"
+                  onClick={run(() => setZOrderExtreme(false))}
+                >
+                  <ListItemIcon>
+                    <SendBackIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{t('sendToBack')}</ListItemText>
+                  {isItem && <Hint>Ctrl+Shift+[</Hint>}
                 </MenuItem>
               ),
               <MenuItem

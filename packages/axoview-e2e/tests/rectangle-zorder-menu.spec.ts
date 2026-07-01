@@ -76,5 +76,19 @@ test.describe('Rectangle z-order via context menu — Slice S1 (#2)', () => {
     await expect
       .poll(async () => (await firstRectangle(page))!.zIndex, { timeout: 3_000 })
       .toBe(0);
+
+    // E2 absolute: Bring to front → jumps above all peers (>0); Send to back →
+    // below all peers (<0). (Single rect: max(0,0)+1=1, min(0,0)-1=-1.)
+    await openRectMenu(page, rect!.id);
+    await page.getByText('Bring to front', { exact: true }).click();
+    await expect
+      .poll(async () => (await firstRectangle(page))!.zIndex, { timeout: 3_000 })
+      .toBe(1);
+
+    await openRectMenu(page, rect!.id);
+    await page.getByText('Send to back', { exact: true }).click();
+    await expect
+      .poll(async () => (await firstRectangle(page))!.zIndex, { timeout: 3_000 })
+      .toBe(-1);
   });
 });
