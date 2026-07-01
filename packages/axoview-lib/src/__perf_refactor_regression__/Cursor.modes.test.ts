@@ -60,6 +60,7 @@ function makeUiState(overrides: any = {}) {
       delta: null
     },
     itemControls: overrides.itemControls ?? null,
+    hoveredItem: overrides.hoveredItem ?? null,
     actions: overrides.actions ?? {
       setMode: jest.fn(),
       setItemControls: jest.fn()
@@ -396,6 +397,43 @@ describe('Cursor.mousemove (real module)', () => {
     });
     callMousemove(uiState);
     expect(uiState.actions.setMode).not.toHaveBeenCalled();
+  });
+
+  // A3: hovering a NEW item publishes it as hoveredItem (drives the faint hover
+  // outline); moving off it clears to null. Only fires on ref change.
+  it('A3: hover over an item sets hoveredItem; only on change', () => {
+    mockHasMovedTile.mockReturnValue(true);
+    mockGetItemAtTile.mockReturnValue({ type: 'ITEM', id: 'n1' });
+    const setHoveredItem = jest.fn();
+    const uiState = makeUiState({
+      mode: {
+        type: 'CURSOR',
+        showCursor: true,
+        mousedownItem: null,
+        mousedownHandled: false
+      },
+      mouse: {
+        position: { tile: { x: 5, y: 5 }, screen: { x: 50, y: 50 } },
+        mousedown: null,
+        delta: null
+      },
+      itemControls: null,
+      actions: { setMode: jest.fn(), setItemControls: jest.fn(), setHoveredItem }
+    });
+    // hoveredItem starts undefined → hovering n1 is a change → set n1.
+    callMousemove(uiState);
+    expect(setHoveredItem).toHaveBeenCalledWith({ type: 'ITEM', id: 'n1' });
+
+    // Now already hovering n1 → no redundant write.
+    setHoveredItem.mockClear();
+    uiState.hoveredItem = { type: 'ITEM', id: 'n1' };
+    callMousemove(uiState);
+    expect(setHoveredItem).not.toHaveBeenCalled();
+
+    // Move onto empty tile → clears to null.
+    mockGetItemAtTile.mockReturnValue(null);
+    callMousemove(uiState);
+    expect(setHoveredItem).toHaveBeenCalledWith(null);
   });
 
   it('transitions to DRAG_ITEMS with showCursor:true when item dragged and position != mousedown', () => {

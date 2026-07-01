@@ -360,6 +360,20 @@ const updateHoverCursor = (state: State) => {
     scene
   });
   setWindowCursor(hoverItem ? 'pointer' : 'default');
+
+  // A3: publish the hovered item for the faint hover outline (HoverOutline),
+  // but only when the ref actually CHANGES — hover fires per tile move, so a
+  // per-move store write would churn every subscriber. Optional-called so the
+  // mode-action unit tests that mock a minimal actions map keep working.
+  const prev = uiState.hoveredItem ?? null;
+  const changed =
+    (prev?.id ?? null) !== (hoverItem?.id ?? null) ||
+    (prev?.type ?? null) !== (hoverItem?.type ?? null);
+  if (changed) {
+    uiState.actions.setHoveredItem?.(
+      hoverItem ? { type: hoverItem.type, id: hoverItem.id } : null
+    );
+  }
 };
 
 // Multi-select drag (ADR-0006): if the pressed item is part of the persistent

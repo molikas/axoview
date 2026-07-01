@@ -15,11 +15,22 @@ interface Props {
   from: Coords;
   to: Coords;
   onAnchorMouseDown?: (anchorPosition: AnchorPosition) => void;
+  /**
+   * A3 hover affordance: render a single faint outline (no dashed ring, no
+   * glow, no resize anchors) — visually distinct from, and lighter than, the
+   * selection ring. Used by HoverOutline for the hovered-but-unselected item.
+   */
+  subtle?: boolean;
 }
 
 const strokeWidth = 2;
 
-export const TransformControls = ({ from, to, onAnchorMouseDown }: Props) => {
+export const TransformControls = ({
+  from,
+  to,
+  onAnchorMouseDown,
+  subtle
+}: Props) => {
   const { css, pxSize } = useIsoProjection({
     from,
     to
@@ -96,32 +107,49 @@ export const TransformControls = ({ from, to, onAnchorMouseDown }: Props) => {
           pointerEvents: 'none'
         }}
       >
-        <g transform={`translate(${strokeWidth}, ${strokeWidth})`}>
-          {/* S3/A1: soft accent glow under the ring so node selection reads
-              clearly (the bare 2px dashed box was too faint — owner #1/#9). */}
-          <rect
-            width={pxSize.width - strokeWidth * 2}
-            height={pxSize.height - strokeWidth * 2}
-            rx={strokeWidth * 2}
-            fill="none"
-            stroke={TRANSFORM_CONTROLS_COLOR}
-            strokeWidth={strokeWidth * 3}
-            strokeOpacity={0.25}
-            strokeLinejoin="round"
-          />
-          <rect
-            width={pxSize.width - strokeWidth * 2}
-            height={pxSize.height - strokeWidth * 2}
-            fill="none"
-            stroke={TRANSFORM_CONTROLS_COLOR}
-            strokeDasharray={`${strokeWidth * 2} ${strokeWidth * 2}`}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-          />
-        </g>
+        {subtle ? (
+          // A3 hover: one faint solid rounded outline — lighter than the
+          // selection ring, no glow/dash/anchors.
+          <g transform={`translate(${strokeWidth}, ${strokeWidth})`}>
+            <rect
+              width={pxSize.width - strokeWidth * 2}
+              height={pxSize.height - strokeWidth * 2}
+              rx={strokeWidth * 2}
+              fill="none"
+              stroke={TRANSFORM_CONTROLS_COLOR}
+              strokeWidth={strokeWidth}
+              strokeOpacity={0.45}
+              strokeLinejoin="round"
+            />
+          </g>
+        ) : (
+          <g transform={`translate(${strokeWidth}, ${strokeWidth})`}>
+            {/* S3/A1: soft accent glow under the ring so node selection reads
+                clearly (the bare 2px dashed box was too faint — owner #1/#9). */}
+            <rect
+              width={pxSize.width - strokeWidth * 2}
+              height={pxSize.height - strokeWidth * 2}
+              rx={strokeWidth * 2}
+              fill="none"
+              stroke={TRANSFORM_CONTROLS_COLOR}
+              strokeWidth={strokeWidth * 3}
+              strokeOpacity={0.25}
+              strokeLinejoin="round"
+            />
+            <rect
+              width={pxSize.width - strokeWidth * 2}
+              height={pxSize.height - strokeWidth * 2}
+              fill="none"
+              stroke={TRANSFORM_CONTROLS_COLOR}
+              strokeDasharray={`${strokeWidth * 2} ${strokeWidth * 2}`}
+              strokeWidth={strokeWidth}
+              strokeLinecap="round"
+            />
+          </g>
+        )}
       </Svg>
 
-      {anchors.map(({ key, position, onMouseDown }) => {
+      {!subtle && anchors.map(({ key, position, onMouseDown }) => {
         return (
           <TransformAnchor
             key={key}
