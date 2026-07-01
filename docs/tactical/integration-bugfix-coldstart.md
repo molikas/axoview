@@ -1,5 +1,21 @@
 # Cold-start — integration bug-fix + zero-migration slices (post-UX-sweep)
 
+> **STATUS (2026-07-01).** Round 1 (S1–S5) **DONE & committed** on `integration`, one commit each, unit+e2e+typecheck green, **not shipped to master** (zero-mig window still open):
+> - **S1** rectangle z-order (#2) — `7d45852`
+> - **S2** node label↔name decouple (#4) — `c6ed63d` (ADR 0032 amendment; Details field → "Label" per owner)
+> - **S3** selection clarity — `365b538` (A1 node-ring glow + A2 connector halo + #5 exact-tile click; **A3 hover-outline was deferred**)
+> - **S4** bulk styling (#7 + #11) — `23c86e4` (ADR 0030 §2 amendment)
+> - **S5** quick wins (#10 shift-select, M1, L3, M2) — `24c2458`
+> - Perf gate re-run for S2: same-machine A/B 0.4% p95 (no regression).
+>
+> **ROUND 2 — owner follow-ups (2026-07-01, in progress):**
+> 1. **#8 connector tool style → DEFAULT (reset-after-draw).** Owner picked resolution (a): each new connector draws with the baseline style, not the last-used. Reset `connectorDefaults` after each commit (rect/text/label already reset). ADR 0030 §2 note.
+> 2. **A3 hover outline** (finish S3): faint outline on the hovered item id.
+> 3. **i18n L2**: `config.ts` 'Text'/'Untitled', `RightSidebar` empty-state, 'Untitled Diagram' literals → lib i18n keys (translate at render, never persist translated text).
+> 4. **Presenter-mode hover popover = notes-only.** In EXPLORABLE_READONLY, the on-hover `ViewModeInfoPopover` should render **only when the node has notes** (and surface them); suppress the empty label-only popover.
+>
+> **Still parked (need owner sign-off / separate track):** connector-color discoverability, N2 badge copy/color, E2 absolute z-order, K1 keyboard-selectable canvas, B1/B2 placement cue. **Needs repro:** owner #3 "click connection offset".
+
 > **How to use this doc.** This is a self-contained implementation brief for a fresh session. Read this file + [`ux-sweep-triage-2026-06-30.md`](ux-sweep-triage-2026-06-30.md) (verdicts) + [`owner-field-feedback-2026-06-30.md`](owner-field-feedback-2026-06-30.md) (raw owner items). Every `file:line` anchor below was produced by the ADR 0028 code-verification gate (two `ux-finding-verification` workflows, 15 read-only verifiers) — **confirm each anchor on touch** (line numbers drift). Implement slice by slice, in order; commit each slice separately.
 
 ## Mission
