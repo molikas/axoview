@@ -378,7 +378,10 @@ const locale: LocaleProps = {
     selected: '{count} selected'
   },
   modeHints: {
-    connector: 'Drag between items to connect • Esc to cancel'
+    connector: 'Drag between items to connect • Esc to cancel',
+    textBox: 'Click to place a text box • Esc to cancel',
+    label: 'Click to place a label • Esc to cancel',
+    rectangle: 'Drag to draw a rectangle • Esc to cancel'
   },
   previewLayerSwitcher: {
     layers: 'Layers',

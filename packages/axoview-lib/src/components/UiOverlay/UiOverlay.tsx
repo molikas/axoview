@@ -33,6 +33,8 @@ import { TopBarStyleControls } from 'src/components/TopBarStyleControls/TopBarSt
 import { AnnotationLayer } from 'src/components/AnnotationLayer/AnnotationLayer';
 import { AnnotationPalette } from 'src/components/AnnotationPalette/AnnotationPalette';
 import { ConnectorModeHint } from '../ModeHint/ConnectorModeHint';
+import { PlacementModeHint } from '../ModeHint/PlacementModeHint';
+import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 
 type ToolName = 'TOOL_MENU' | 'ITEM_CONTROLS' | 'VIEW_TITLE' | 'VIEW_TABS';
 
@@ -65,6 +67,50 @@ const PlaceIconLayer = () => {
   return (
     <SceneLayer disableAnimation>
       <DragAndDrop iconId={mode.id} tile={tile} />
+    </SceneLayer>
+  );
+};
+
+// B1/B2 — a faint ghost of the element that a TEXTBOX / LABEL placement will
+// drop, anchored to the hover tile (the icon tool already ghosts via
+// PlaceIconLayer; this generalizes the affordance to the other placement
+// tools). Isolated so UiOverlay doesn't re-render on mouse move.
+const PlacementGhostLayer = () => {
+  const modeType = useUiStateStore((s) => s.mode.type);
+  const tile = useUiStateStore(
+    (s) => s.mouse.position.tile,
+    (a, b) => a.x === b.x && a.y === b.y
+  );
+  const { getTilePosition } = useCanvasMode();
+  const theme = useTheme();
+
+  if (modeType !== 'TEXTBOX' && modeType !== 'LABEL') return null;
+  const isLabel = modeType === 'LABEL';
+  const pos = getTilePosition({ tile, origin: 'CENTER' });
+
+  return (
+    <SceneLayer disableAnimation>
+      <Box
+        data-testid="placement-ghost"
+        style={{
+          position: 'absolute',
+          left: pos.x,
+          top: pos.y,
+          transform: 'translate(-50%, -50%)',
+          pointerEvents: 'none',
+          opacity: 0.55,
+          padding: '4px 10px',
+          borderRadius: isLabel ? 6 : 4,
+          border: `2px dashed ${theme.palette.primary.main}`,
+          background: isLabel ? '#ffffff' : 'rgba(255,255,255,0.6)',
+          color: theme.palette.text.secondary,
+          fontSize: 13,
+          fontWeight: 600,
+          whiteSpace: 'nowrap'
+        }}
+      >
+        {isLabel ? 'Label' : 'Text'}
+      </Box>
     </SceneLayer>
   );
 };
@@ -286,8 +332,10 @@ export const UiOverlay = ({
         )}
 
       <PlaceIconLayer />
+      <PlacementGhostLayer />
 
       <ConnectorModeHint />
+      <PlacementModeHint />
 
       {dialog === DialogTypeEnum.EXPORT_IMAGE && (
         <ExportImageDialog

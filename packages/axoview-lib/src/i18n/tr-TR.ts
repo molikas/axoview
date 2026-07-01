@@ -379,7 +379,10 @@ const locale: LocaleProps = {
     selected: '{count} seçildi'
   },
   modeHints: {
-    connector: 'Bağlamak için öğeler arasında sürükleyin • İptal için Esc'
+    connector: 'Bağlamak için öğeler arasında sürükleyin • İptal için Esc',
+    textBox: 'Metin kutusu yerleştirmek için tıklayın • İptal için Esc',
+    label: 'Etiket yerleştirmek için tıklayın • İptal için Esc',
+    rectangle: 'Dikdörtgen çizmek için sürükleyin • İptal için Esc'
   },
   previewLayerSwitcher: {
     layers: 'Katmanlar',

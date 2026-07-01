@@ -357,7 +357,10 @@ const locale: LocaleProps = {
     selected: '已选择 {count} 项'
   },
   modeHints: {
-    connector: '在项目之间拖拽以连接 • 按 Esc 取消'
+    connector: '在项目之间拖拽以连接 • 按 Esc 取消',
+    textBox: '点击放置文本框 • Esc 取消',
+    label: '点击放置标签 • Esc 取消',
+    rectangle: '拖动以绘制矩形 • Esc 取消'
   },
   previewLayerSwitcher: {
     layers: '图层',

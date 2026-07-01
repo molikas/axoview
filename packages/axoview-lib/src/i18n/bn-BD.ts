@@ -377,7 +377,10 @@ const locale: LocaleProps = {
     selected: '{count}টি নির্বাচিত'
   },
   modeHints: {
-    connector: 'সংযোগ করতে আইটেমগুলির মধ্যে টেনে আনুন • বাতিল করতে Esc'
+    connector: 'সংযোগ করতে আইটেমগুলির মধ্যে টেনে আনুন • বাতিল করতে Esc',
+    textBox: 'টেক্সট বক্স রাখতে ক্লিক করুন • বাতিল করতে Esc',
+    label: 'লেবেল রাখতে ক্লিক করুন • বাতিল করতে Esc',
+    rectangle: 'আয়তক্ষেত্র আঁকতে টেনে আনুন • বাতিল করতে Esc'
   },
   previewLayerSwitcher: {
     layers: 'স্তর',

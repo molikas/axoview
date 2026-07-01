@@ -384,7 +384,10 @@ const locale: LocaleProps = {
     selected: 'Zaznaczono: {count}'
   },
   modeHints: {
-    connector: 'Przeciągnij między elementami, aby połączyć • Esc, aby anulować'
+    connector: 'Przeciągnij między elementami, aby połączyć • Esc, aby anulować',
+    textBox: 'Kliknij, aby umieścić pole tekstowe • Esc, aby anulować',
+    label: 'Kliknij, aby umieścić etykietę • Esc, aby anulować',
+    rectangle: 'Przeciągnij, aby narysować prostokąt • Esc, aby anulować'
   },
   previewLayerSwitcher: {
     layers: 'Warstwy',

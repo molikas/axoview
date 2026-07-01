@@ -381,7 +381,10 @@ const locale: LocaleProps = {
     selected: '{count} selezionati'
   },
   modeHints: {
-    connector: 'Trascina tra gli elementi per collegare • Esc per annullare'
+    connector: 'Trascina tra gli elementi per collegare • Esc per annullare',
+    textBox: 'Fai clic per posizionare una casella di testo • Esc per annullare',
+    label: "Fai clic per posizionare un'etichetta • Esc per annullare",
+    rectangle: 'Trascina per disegnare un rettangolo • Esc per annullare'
   },
   previewLayerSwitcher: {
     layers: 'Livelli',

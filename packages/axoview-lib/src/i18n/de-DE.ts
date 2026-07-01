@@ -381,7 +381,10 @@ const locale: LocaleProps = {
     selected: '{count} ausgewählt'
   },
   modeHints: {
-    connector: 'Zum Verbinden zwischen Elementen ziehen • Esc zum Abbrechen'
+    connector: 'Zum Verbinden zwischen Elementen ziehen • Esc zum Abbrechen',
+    textBox: 'Klicken, um ein Textfeld zu platzieren • Esc zum Abbrechen',
+    label: 'Klicken, um eine Beschriftung zu platzieren • Esc zum Abbrechen',
+    rectangle: 'Ziehen, um ein Rechteck zu zeichnen • Esc zum Abbrechen'
   },
   previewLayerSwitcher: {
     layers: 'Ebenen',

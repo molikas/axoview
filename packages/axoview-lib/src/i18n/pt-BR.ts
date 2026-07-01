@@ -379,7 +379,10 @@ const locale: LocaleProps = {
     selected: '{count} selecionados'
   },
   modeHints: {
-    connector: 'Arraste entre os itens para conectar • Esc para cancelar'
+    connector: 'Arraste entre os itens para conectar • Esc para cancelar',
+    textBox: 'Clique para inserir uma caixa de texto • Esc para cancelar',
+    label: 'Clique para inserir um rótulo • Esc para cancelar',
+    rectangle: 'Arraste para desenhar um retângulo • Esc para cancelar'
   },
   previewLayerSwitcher: {
     layers: 'Camadas',

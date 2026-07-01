@@ -379,7 +379,10 @@ const locale: LocaleProps = {
     selected: '{count} चयनित'
   },
   modeHints: {
-    connector: 'कनेक्ट करने के लिए आइटम के बीच ड्रैग करें • रद्द करने के लिए Esc'
+    connector: 'कनेक्ट करने के लिए आइटम के बीच ड्रैग करें • रद्द करने के लिए Esc',
+    textBox: 'टेक्स्ट बॉक्स रखने के लिए क्लिक करें • रद्द करने के लिए Esc',
+    label: 'लेबल रखने के लिए क्लिक करें • रद्द करने के लिए Esc',
+    rectangle: 'आयत बनाने के लिए खींचें • रद्द करने के लिए Esc'
   },
   previewLayerSwitcher: {
     layers: 'परतें',

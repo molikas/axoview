@@ -378,7 +378,10 @@ const locale: LocaleProps = {
     selected: '{count} dipilih'
   },
   modeHints: {
-    connector: 'Seret antar item untuk menghubungkan • Esc untuk membatalkan'
+    connector: 'Seret antar item untuk menghubungkan • Esc untuk membatalkan',
+    textBox: 'Klik untuk menempatkan kotak teks • Esc untuk batal',
+    label: 'Klik untuk menempatkan label • Esc untuk batal',
+    rectangle: 'Seret untuk menggambar persegi panjang • Esc untuk batal'
   },
   previewLayerSwitcher: {
     layers: 'Lapisan',

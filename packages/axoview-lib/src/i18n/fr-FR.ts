@@ -383,7 +383,10 @@ const locale: LocaleProps = {
     selected: '{count} sélectionnés'
   },
   modeHints: {
-    connector: 'Glissez entre les éléments pour connecter • Échap pour annuler'
+    connector: 'Glissez entre les éléments pour connecter • Échap pour annuler',
+    textBox: 'Cliquez pour placer une zone de texte • Échap pour annuler',
+    label: 'Cliquez pour placer une étiquette • Échap pour annuler',
+    rectangle: 'Faites glisser pour dessiner un rectangle • Échap pour annuler'
   },
   previewLayerSwitcher: {
     layers: 'Calques',
