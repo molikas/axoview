@@ -232,28 +232,35 @@ describe('getItemAtTile() — stacked rectangle z-order', () => {
     rectangles: []
   };
 
-  test('stacked rectangles — returns the last in array (visually topmost)', () => {
+  // NB: Rectangles.tsx paints reversed-insertion then sorted by zIndex asc, so
+  // the VISUAL top is (a) the highest zIndex, else (b) index 0 (the most recent
+  // draw — createRectangle unshifts). The hit-test must match that, or a click
+  // on an overlap grabs the rectangle underneath. These reproduce the reported
+  // bug: both FAIL against the old insertion-order `.reverse().find`.
+
+  test('honours zIndex — the higher-z rectangle (visually on top) is selected even when it is earlier in the array', () => {
     const scene = {
       ...emptyScene,
       rectangles: [
-        { id: 'r-bottom', from: { x: 0, y: 0 }, to: { x: 5, y: 5 } },
-        { id: 'r-top', from: { x: 0, y: 0 }, to: { x: 5, y: 5 } }
+        { id: 'r-high', from: { x: 0, y: 0 }, to: { x: 5, y: 5 }, zIndex: 3 },
+        { id: 'r-low', from: { x: 0, y: 0 }, to: { x: 5, y: 5 }, zIndex: 0 }
       ]
     };
-    const result = getItemAtTile({ tile: { x: 2, y: 2 }, scene } as any);
-    expect(result).toEqual({ type: 'RECTANGLE', id: 'r-top' });
+    expect(
+      getItemAtTile({ tile: { x: 2, y: 2 }, scene } as any)?.id
+    ).toBe('r-high');
   });
 
-  test('stacked rectangles — first in array (visually below) is not returned when top covers the same tile', () => {
+  test('equal zIndex overlap — the newest rectangle (index 0, painted on top) is selected, not the older one underneath', () => {
     const scene = {
       ...emptyScene,
       rectangles: [
-        { id: 'r-bottom', from: { x: 0, y: 0 }, to: { x: 5, y: 5 } },
-        { id: 'r-top', from: { x: 0, y: 0 }, to: { x: 5, y: 5 } }
+        { id: 'r-newest', from: { x: 0, y: 0 }, to: { x: 5, y: 5 } }, // on top
+        { id: 'r-older', from: { x: 0, y: 0 }, to: { x: 5, y: 5 } }
       ]
     };
     const result = getItemAtTile({ tile: { x: 2, y: 2 }, scene } as any);
-    expect(result?.id).not.toBe('r-bottom');
+    expect(result).toEqual({ type: 'RECTANGLE', id: 'r-newest' });
   });
 
   test('single rectangle — hit-test still works', () => {

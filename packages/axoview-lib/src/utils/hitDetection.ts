@@ -17,7 +17,7 @@ export interface HitTestScene {
     id: string;
     path?: { tiles: Coords[]; rectangle: { from: Coords } };
   }>;
-  rectangles: Array<{ id: string; from: Coords; to: Coords }>;
+  rectangles: Array<{ id: string; from: Coords; to: Coords; zIndex?: number }>;
 }
 
 // WeakMap-based spatial index: one Map<"x,y", id> per unique scene.items array reference.
@@ -133,9 +133,22 @@ export const getItemAtTile = ({
 
   if (connector) return { type: 'CONNECTOR', id: connector.id };
 
-  const rectangle = [...scene.rectangles]
+  // Rectangles paint in the SAME order Rectangles.tsx uses: reversed insertion,
+  // then a stable sort by (zIndex asc) — so the LAST element is the one drawn on
+  // top. A click on overlapping rectangles must select that visually-topmost
+  // one (honouring zIndex and matching what the user sees), not the first match
+  // in insertion order. Scan the paint order from the top down.
+  const rectPaintOrder = [...scene.rectangles]
     .reverse()
-    .find(({ from, to }) => isWithinBounds(tile, [from, to]));
+    .sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
+  let rectangle: (typeof rectPaintOrder)[number] | undefined;
+  for (let i = rectPaintOrder.length - 1; i >= 0; i -= 1) {
+    const r = rectPaintOrder[i];
+    if (isWithinBounds(tile, [r.from, r.to])) {
+      rectangle = r;
+      break;
+    }
+  }
 
   if (rectangle) return { type: 'RECTANGLE', id: rectangle.id };
 
