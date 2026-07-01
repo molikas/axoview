@@ -116,6 +116,9 @@ export const TEXTBOX_DEFAULTS: Required<
 > = {
   orientation: 'X',
   fontSize: 0.6,
+  // Persisted default content — kept canonical (NOT i18n'd): it is written into
+  // the saved model as user-editable text. Translating it would bake localized
+  // text into persisted JSON (i18n L2 rule: translate at render, never persist).
   content: 'Text',
   color: '',
   isBold: false,
@@ -199,6 +202,8 @@ export const MAX_ZOOM = 1;
 export const TRANSFORM_ANCHOR_SIZE = 30;
 export const TRANSFORM_CONTROLS_COLOR = '#0392ff';
 export const INITIAL_DATA: InitialData = {
+  // Persisted diagram title — canonical, NOT i18n'd (see the TextBox `content`
+  // note above): it lands in saved JSON. Localize only where it is DISPLAYED.
   title: 'Untitled',
   version: '',
   icons: [],

@@ -4,6 +4,10 @@ const locale: LocaleProps = {
   common: {
     exampleText: '这是一段示例文本'
   },
+  rightSidebar: {
+    collapsePanel: '收起面板',
+    emptyState: '选择节点、连接线或形状以查看其属性'
+  },
   helpDialog: {
     title: '键盘快捷键和帮助',
     close: '关闭',

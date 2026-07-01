@@ -4,6 +4,10 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'यह एक उदाहरण पाठ है'
   },
+  rightSidebar: {
+    collapsePanel: 'पैनल संक्षिप्त करें',
+    emptyState: 'गुण देखने के लिए एक नोड, कनेक्टर या आकृति चुनें'
+  },
   helpDialog: {
     title: 'कीबोर्ड शॉर्टकट और सहायता',
     close: 'बंद करें',

@@ -4,6 +4,10 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'Bu bir örnek metindir'
   },
+  rightSidebar: {
+    collapsePanel: 'Paneli daralt',
+    emptyState: 'Özelliklerini görüntülemek için bir düğüm, bağlayıcı veya şekil seçin'
+  },
   helpDialog: {
     title: 'Klavye Kısayolları ve Yardım',
     close: 'Kapat',

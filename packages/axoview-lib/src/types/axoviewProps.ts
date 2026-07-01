@@ -12,6 +12,10 @@ export interface LocaleProps {
   common: {
     exampleText: string;
   };
+  rightSidebar: {
+    collapsePanel: string;
+    emptyState: string;
+  };
   helpDialog: {
     title: string;
     close: string;

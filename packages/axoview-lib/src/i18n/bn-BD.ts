@@ -4,6 +4,10 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'এটি একটি উদাহরণ পাঠ্য'
   },
+  rightSidebar: {
+    collapsePanel: 'প্যানেল সঙ্কুচিত করুন',
+    emptyState: 'বৈশিষ্ট্য দেখতে একটি নোড, সংযোগকারী বা আকৃতি নির্বাচন করুন'
+  },
   helpDialog: {
     title: 'কীবোর্ড শর্টকাট এবং সহায়তা',
     close: 'বন্ধ করুন',

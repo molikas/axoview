@@ -4,6 +4,10 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'Это пример текста'
   },
+  rightSidebar: {
+    collapsePanel: 'Свернуть панель',
+    emptyState: 'Выберите узел, соединитель или фигуру, чтобы просмотреть свойства'
+  },
   helpDialog: {
     title: 'Горячие клавиши и справка',
     close: 'Закрыть',

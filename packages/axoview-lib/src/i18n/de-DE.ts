@@ -4,6 +4,10 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'Dies ist ein Beispieltext'
   },
+  rightSidebar: {
+    collapsePanel: 'Panel einklappen',
+    emptyState: 'Wählen Sie einen Knoten, Verbinder oder eine Form, um die Eigenschaften anzuzeigen'
+  },
   helpDialog: {
     title: 'Tastaturkürzel und Hilfe',
     close: 'Schließen',

@@ -4,6 +4,10 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'Ini adalah contoh teks'
   },
+  rightSidebar: {
+    collapsePanel: 'Ciutkan panel',
+    emptyState: 'Pilih node, konektor, atau bentuk untuk melihat propertinya'
+  },
   helpDialog: {
     title: 'Pintasan Keyboard & Bantuan',
     close: 'Tutup',

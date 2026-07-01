@@ -4,6 +4,7 @@ import { TuneOutlined, ChevronRight as CollapseIcon } from '@mui/icons-material'
 import { EditorModeEnum } from 'src/types';
 import { ItemControlsManager } from 'src/components/ItemControls/ItemControlsManager';
 import { useUiStateStore } from 'src/stores/uiStateStore';
+import { useTranslation } from 'src/stores/localeStore';
 
 interface Props {
   open: boolean;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export const RightSidebar = ({ open, editorMode }: Props) => {
+  const { t } = useTranslation('rightSidebar');
   const itemControls = useUiStateStore((s) => s.itemControls);
   const setRightSidebarOpen = useUiStateStore(
     (s) => s.actions.setRightSidebarOpen
@@ -50,7 +52,7 @@ export const RightSidebar = ({ open, editorMode }: Props) => {
           it. Arrow points right (the collapse direction). Hardcoded label matches
           the sibling right-dock chrome (UiOverlay "Toggle Properties panel"). */}
       {open && (
-        <Tooltip title="Collapse panel" placement="left">
+        <Tooltip title={t('collapsePanel')} placement="left">
           <IconButton
             className="ax-collapse-tab"
             size="small"
@@ -105,7 +107,7 @@ export const RightSidebar = ({ open, editorMode }: Props) => {
             textAlign="center"
             sx={{ lineHeight: 1.5 }}
           >
-            Select a node, connector or shape to view its properties
+            {t('emptyState')}
           </Typography>
         </Box>
       )}
