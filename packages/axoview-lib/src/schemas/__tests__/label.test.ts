@@ -49,6 +49,21 @@ describe('labelSchema', () => {
     }
   });
 
+  it('accepts an optional headerLink and keeps it optional', () => {
+    const withLink = labelSchema.safeParse({
+      id: 'l1',
+      tile: { x: 0, y: 0 },
+      text: 'Docs',
+      headerLink: 'https://example.com'
+    });
+    expect(withLink.success).toBe(true);
+    if (withLink.success) expect(withLink.data.headerLink).toBe('https://example.com');
+
+    const lean = labelSchema.safeParse({ id: 'l1', tile: { x: 0, y: 0 }, text: 'x' });
+    expect(lean.success).toBe(true);
+    if (lean.success) expect(lean.data.headerLink).toBeUndefined();
+  });
+
   it('fails if text is missing', () => {
     const result = labelSchema.safeParse({ id: 'l1', tile: { x: 0, y: 0 } });
     expect(result.success).toBe(false);

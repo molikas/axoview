@@ -9,6 +9,7 @@ import {
 } from 'src/utils';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { PROJECTED_TILE_SIZE, UNPROJECTED_TILE_SIZE } from 'src/config';
+import { LABEL_BASE_FONT_PX } from 'src/config/labelSettings';
 import { Label } from 'src/components/Label/Label';
 import { Connector, ConnectorLabel as ConnectorLabelType, Coords } from 'src/types';
 import { useSceneActions } from 'src/hooks/useSceneActions';
@@ -185,7 +186,7 @@ const ConnectorNameLabel = ({
               // Label chip's overflow:hidden (parity with the node caption, §5.2).
               wordBreak: 'break-word',
               overflowWrap: 'anywhere',
-              ...(label.fontSize ? { fontSize: `${label.fontSize}px` } : {})
+              fontSize: `${label.fontSize ?? LABEL_BASE_FONT_PX}px`
             }}
           >
             {label.text}
@@ -270,7 +271,7 @@ const ConnectorTextLabel = ({
           // label above so every connector label behaves the same.
           wordBreak: 'break-word',
           overflowWrap: 'anywhere',
-          ...(label.fontSize ? { fontSize: `${label.fontSize}px` } : {})
+          fontSize: `${label.fontSize ?? LABEL_BASE_FONT_PX}px`
         }}
       >
         {label.text}

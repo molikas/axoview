@@ -11,7 +11,8 @@ import {
   FormControlLabel,
   Switch,
   Slider,
-  Typography
+  Typography,
+  TextField
 } from '@mui/material';
 import {
   FormatColorText as TextColorIcon,
@@ -28,7 +29,10 @@ import {
   ImageOutlined as ChangeIconIcon,
   ArrowDropDown as CaretIcon,
   Add as AddIcon,
-  Remove as RemoveIcon
+  Remove as RemoveIcon,
+  InsertLink as LinkStripIcon,
+  VisibilityOutlined as ShowLabelIcon,
+  VisibilityOffOutlined as HideLabelIcon
 } from '@mui/icons-material';
 import { LABEL_BASE_FONT_PX } from 'src/config/labelSettings';
 import { useUiStateStore } from 'src/stores/uiStateStore';
@@ -49,6 +53,15 @@ import { CustomColorInput } from '../ColorSelector/CustomColorInput';
 import { RichTextEditor } from '../RichTextEditor/RichTextEditor';
 import { QuickIconSelector } from '../ItemControls/NodeControls/QuickIconSelector';
 import { resolveHomogeneousBulk } from 'src/utils/bulkStyleTarget';
+
+// Unified on-canvas label size range (px). Node labels, floating Labels, and
+// connector labels all share this range/step so the size control means the same
+// thing across every label type (size-consistency pass, 2026-07-01). The text
+// box is intentionally excluded — its size is a zoom SCALE (tile-space), not a
+// screen-px chrome size, so it keeps its own control.
+const LABEL_SIZE_MIN = 10;
+const LABEL_SIZE_MAX = 40;
+const LABEL_SIZE_STEP = 2;
 
 // Google-Docs-style inline strip and the CANONICAL styling surface (ADR 0030):
 // the single writer of visual styling for every item type. There is no
@@ -561,25 +574,6 @@ export const TopBarStyleControls = () => {
   // differences across a multi-selection), clamped, in one transaction.
   const clampNum = (v: number, lo: number, hi: number) =>
     Math.min(hi, Math.max(lo, v));
-  const nudgeFontSize = useCallback(
-    (delta: number) => {
-      if (sel?.type === 'ITEM') {
-        applyToTargets('ITEM', (id) => {
-          const cur =
-            currentView.items?.find((i) => i.id === id)?.labelFontSize ?? 14;
-          applyViewItem(id, { labelFontSize: clampNum(cur + delta, 10, 24) });
-        });
-      } else if (sel?.type === 'LABEL') {
-        applyToTargets('LABEL', (id) => {
-          const cur =
-            currentView.labels?.find((l) => l.id === id)?.fontSize ??
-            LABEL_BASE_FONT_PX;
-          applyLabel(id, { fontSize: clampNum(cur + delta, 8, 48) });
-        });
-      }
-    },
-    [sel, applyToTargets, currentView.items, currentView.labels, applyViewItem, applyLabel]
-  );
   // Hooks must run unconditionally; each returns null when the id is absent from
   // its collection, so gating by type keeps cross-collection id collisions safe.
   const node = useViewItem(sel?.type === 'ITEM' ? sel.id : '');
@@ -629,6 +623,45 @@ export const TopBarStyleControls = () => {
     });
   };
 
+  // #11 / size-consistency: relative +/- font nudge for every on-canvas LABEL
+  // type (node label, floating Label, connector name/added label) — each steps
+  // from its OWN size, clamped to the unified px range, so the +/- control means
+  // the same thing everywhere. Text box excluded (its size is a zoom scale).
+  const nudgeFontSize = (delta: number) => {
+    if (node) {
+      applyToTargets('ITEM', (id) => {
+        const cur =
+          currentView.items?.find((i) => i.id === id)?.labelFontSize ??
+          LABEL_BASE_FONT_PX;
+        applyViewItem(id, {
+          labelFontSize: clampNum(cur + delta, LABEL_SIZE_MIN, LABEL_SIZE_MAX)
+        });
+      });
+    } else if (label) {
+      applyToTargets('LABEL', (id) => {
+        const cur =
+          currentView.labels?.find((l) => l.id === id)?.fontSize ??
+          LABEL_BASE_FONT_PX;
+        applyLabel(id, {
+          fontSize: clampNum(cur + delta, LABEL_SIZE_MIN, LABEL_SIZE_MAX)
+        });
+      });
+    } else if (isNameLabel && connector) {
+      const cur = connector.nameLabelFontSize ?? LABEL_BASE_FONT_PX;
+      updateConnector(connector.id, {
+        nameLabelFontSize: clampNum(cur + delta, LABEL_SIZE_MIN, LABEL_SIZE_MAX)
+      });
+    } else if (activeLabel) {
+      const cur = activeLabel.fontSize ?? LABEL_BASE_FONT_PX;
+      updateActiveLabel({
+        fontSize: clampNum(cur + delta, LABEL_SIZE_MIN, LABEL_SIZE_MAX)
+      });
+    }
+  };
+  // Does the current target support the px label-size control (everything except
+  // the scale-based text box)?
+  const hasLabelSizeTarget = Boolean(node || label || isNameLabel || activeLabel);
+
   const textColorEnabled = Boolean(
     node || textBox || label || activeLabel || isNameLabel
   );
@@ -650,8 +683,10 @@ export const TopBarStyleControls = () => {
     else if (activeLabel) updateActiveLabel({ labelColor: color });
   };
 
-  // --- Text size (presented as a unified % scale; mapped to each type's native
-  // range: node label px 10–24, connector label px 8–24, text box scale 0.15–0.9).
+  // --- Text size. Every LABEL type (node / floating / connector) now shares one
+  // px range (LABEL_SIZE_MIN..MAX) so the control is consistent; the text box
+  // keeps its zoom-scale range (0.15–0.9) since its size is tile-space, not
+  // screen-px chrome.
   const textSize: {
     value: number;
     min: number;
@@ -660,10 +695,10 @@ export const TopBarStyleControls = () => {
     onChange: (v: number) => void;
   } | null = node
     ? {
-        value: node.labelFontSize ?? 14,
-        min: 10,
-        max: 24,
-        step: 2,
+        value: node.labelFontSize ?? LABEL_BASE_FONT_PX,
+        min: LABEL_SIZE_MIN,
+        max: LABEL_SIZE_MAX,
+        step: LABEL_SIZE_STEP,
         onChange: (v) => updateViewItem(node.id, { labelFontSize: v })
       }
     : textBox
@@ -676,27 +711,27 @@ export const TopBarStyleControls = () => {
       }
     : label
     ? {
-        value: label.fontSize ?? 14,
-        min: 8,
-        max: 48,
-        step: 1,
+        value: label.fontSize ?? LABEL_BASE_FONT_PX,
+        min: LABEL_SIZE_MIN,
+        max: LABEL_SIZE_MAX,
+        step: LABEL_SIZE_STEP,
         onChange: (v) => updateLabel(label.id, { fontSize: v })
       }
     : isNameLabel && connector
     ? {
-        value: connector.nameLabelFontSize ?? 12,
-        min: 8,
-        max: 24,
-        step: 1,
+        value: connector.nameLabelFontSize ?? LABEL_BASE_FONT_PX,
+        min: LABEL_SIZE_MIN,
+        max: LABEL_SIZE_MAX,
+        step: LABEL_SIZE_STEP,
         onChange: (v) =>
           updateConnector(connector.id, { nameLabelFontSize: v })
       }
     : activeLabel
     ? {
-        value: activeLabel.fontSize ?? 12,
-        min: 8,
-        max: 24,
-        step: 1,
+        value: activeLabel.fontSize ?? LABEL_BASE_FONT_PX,
+        min: LABEL_SIZE_MIN,
+        max: LABEL_SIZE_MAX,
+        step: LABEL_SIZE_STEP,
         onChange: (v) => updateActiveLabel({ fontSize: v })
       }
     : null;
@@ -795,6 +830,32 @@ export const TopBarStyleControls = () => {
       }
     : null;
 
+  // --- Link (owner 2026-07-01): set/clear an external link straight from the
+  // strip so you don't have to open the Details deck. Node → modelItem.headerLink
+  // (also renders the on-canvas label as a link); connector / floating Label →
+  // their headerLink (surfaced in the view-mode info popover).
+  const linkEnabled = Boolean(node || connector || label);
+  const linkValue = node
+    ? modelItem?.headerLink
+    : connector
+    ? connector.headerLink
+    : label
+    ? label.headerLink
+    : undefined;
+  const onLinkChange = (raw: string) => {
+    const next = raw.trim() || undefined;
+    if (node) updateModelItem(node.id, { headerLink: next });
+    else if (connector) updateConnector(connector.id, { headerLink: next });
+    else if (label) updateLabel(label.id, { headerLink: next });
+  };
+
+  // --- Show / hide the on-canvas node label (viewItem.showLabel) — previously
+  // only reachable via Details / Layers. Bulk-aware (updateViewItem fans out).
+  const labelHidden = node?.showLabel === false;
+  const onToggleShowLabel = () => {
+    if (node) updateViewItem(node.id, { showLabel: labelHidden ? undefined : false });
+  };
+
   return (
     <Box
       sx={{
@@ -842,7 +903,7 @@ export const TopBarStyleControls = () => {
             {/* #11: relative +/- stepper for node-label / floating-Label px
                 sizes — bumps each selected target from its own size (preserving
                 relative differences across a multi-selection). */}
-            {(sel?.type === 'ITEM' || sel?.type === 'LABEL') && (
+            {hasLabelSizeTarget && (
               <Box
                 sx={{
                   display: 'flex',
@@ -1073,6 +1134,67 @@ export const TopBarStyleControls = () => {
           </Box>
         )}
       </StripButton>
+
+      {/* Link — set/clear an external link on a node / connection / floating
+          Label straight from the strip (owner 2026-07-01), so the Details deck
+          isn't needed just to add a link. */}
+      <StripButton
+        tooltip={
+          linkEnabled
+            ? 'Link'
+            : 'Select a node, connection, or label to add a link'
+        }
+        disabled={!linkEnabled}
+        popoverWidth={280}
+        icon={<LinkStripIcon sx={{ fontSize: 18 }} />}
+        colorBar={undefined}
+      >
+        {linkEnabled && (
+          <TextField
+            autoFocus
+            fullWidth
+            size="small"
+            placeholder="https://…"
+            value={linkValue ?? ''}
+            onChange={(e) => onLinkChange(e.target.value)}
+            data-axoview-id="strip-link-input"
+          />
+        )}
+      </StripButton>
+
+      {/* Show / hide the on-canvas node label — inline toggle (no popover). */}
+      <Tooltip
+        title={
+          node
+            ? labelHidden
+              ? 'Show label'
+              : 'Hide label'
+            : 'Select a node to show or hide its label'
+        }
+        placement="bottom"
+      >
+        <span>
+          <IconButton
+            size="small"
+            disabled={!node}
+            onClick={onToggleShowLabel}
+            data-testid="strip-toggle-label"
+            sx={{
+              borderRadius: 1,
+              color: !node ? 'action.disabled' : 'text.primary',
+              '& .MuiSvgIcon-root': { color: 'inherit' },
+              px: 0.5,
+              py: 0.25
+            }}
+          >
+            {labelHidden ? (
+              <HideLabelIcon sx={{ fontSize: 18 }} />
+            ) : (
+              <ShowLabelIcon sx={{ fontSize: 18 }} />
+            )}
+          </IconButton>
+        </span>
+      </Tooltip>
 
       {/* Change icon (node) — moved here from the node Details panel. Single
           only: an icon is a shared model asset, not a per-selection field. */}

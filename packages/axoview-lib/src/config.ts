@@ -145,6 +145,7 @@ export const LABEL_DEFAULTS: Required<
     | 'isItalic'
     | 'isStrikethrough'
     | 'zIndex'
+    | 'headerLink'
   >
 > = {
   text: 'Label'

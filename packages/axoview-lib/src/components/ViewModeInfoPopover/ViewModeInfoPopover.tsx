@@ -133,6 +133,10 @@ export const ViewModeInfoPopover = () => {
         break;
       case 'LABEL':
         name = label?.text;
+        // A floating Label can carry a link (set from the strip). Read it here
+        // so it surfaces once labels become view-interactive (LabelHitLayer is
+        // edit-only today; view-mode label click is a follow-up).
+        headerLink = label?.headerLink;
         anchorTile = label?.tile;
         break;
       case 'RECTANGLE':

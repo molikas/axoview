@@ -3,6 +3,7 @@ import { Box, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { OpenInNew as OpenInNewIcon } from '@mui/icons-material';
 import { DEFAULT_LABEL_HEIGHT } from 'src/config';
+import { LABEL_BASE_FONT_PX } from 'src/config/labelSettings';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useIcon } from 'src/hooks/useIcon';
 import { ViewItem } from 'src/types';
@@ -110,7 +111,7 @@ const LabelTitle = styled('p')(({ theme }) => ({
   ...theme.typography.body1,
   margin: 0,
   fontWeight: 600,
-  fontSize: 14,
+  fontSize: LABEL_BASE_FONT_PX,
   color: theme.palette.text.primary,
   wordBreak: 'break-word',
   overflowWrap: 'anywhere'
@@ -357,7 +358,7 @@ const NodeContent = memo(
                     <Typography
                       fontWeight={labelBold ? 700 : 600}
                       fontStyle={labelItalic ? 'italic' : 'normal'}
-                      fontSize={labelFontSize ?? 14}
+                      fontSize={labelFontSize ?? LABEL_BASE_FONT_PX}
                       color={labelColor || 'text.primary'}
                       contentEditable
                       suppressContentEditableWarning

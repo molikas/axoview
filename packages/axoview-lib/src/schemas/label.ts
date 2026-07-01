@@ -31,6 +31,10 @@ export const labelSchema = z.object({
   // Cross-layer order vs nodes is structural (the layer mounts above
   // NodesCanvas — ADR 0031 §2), not expressed here.
   zIndex: z.number().int().optional(),
+  // Optional external link (2026-07-01) — parity with node/connector
+  // `headerLink`. Set from the top-bar Link control; opened from the view-mode
+  // info popover. Optional → zero-migration addition on the unpushed branch.
+  headerLink: z.string().max(2048).optional(),
   layerId: id.optional(),
   // Off-grid positioning (ADR 0023): a floating billboard can sit at a px
   // residual off its tile anchor. Absent/snapped = the tile centre. `tile`
