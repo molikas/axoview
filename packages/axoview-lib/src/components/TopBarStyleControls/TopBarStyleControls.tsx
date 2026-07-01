@@ -111,6 +111,8 @@ interface StripButtonProps {
   popoverWidth?: number;
   /** Optional test hook on the trigger button (e2e). */
   testId?: string;
+  /** Draw an accent ring to advertise the control is live (arm-time hint). */
+  highlight?: boolean;
   children: React.ReactNode;
 }
 
@@ -125,6 +127,7 @@ const StripButton = ({
   colorBar,
   popoverWidth = 240,
   testId,
+  highlight,
   children
 }: StripButtonProps) => {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -150,7 +153,17 @@ const StripButton = ({
               flexDirection: 'column',
               alignItems: 'center',
               px: 0.5,
-              py: 0.25
+              py: 0.25,
+              // Arm-time discoverability hint: a subtle accent ring so the user
+              // notices these controls are LIVE before drawing (they edit the
+              // pre-draw defaults). Cleared once something is selected.
+              ...(highlight
+                ? {
+                    boxShadow: (theme) =>
+                      `0 0 0 2px ${theme.palette.primary.main}`,
+                    bgcolor: 'action.hover'
+                  }
+                : {})
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -754,6 +767,11 @@ export const TopBarStyleControls = () => {
   // with nothing selected — on the pending defaults the next drawn connector
   // inherits. This is what makes the controls usable BEFORE drawing.
   const connectorToolActive = mode.type === 'CONNECTOR';
+  // Discoverability (owner 2026-07-01): when the connector tool is armed with
+  // nothing selected, the color/line controls already edit the PRE-DRAW
+  // defaults — but testers didn't notice. Flag that state to add an accent-ring
+  // hint + "next connection" wording so the pre-styling affordance is visible.
+  const connectorArmed = connectorToolActive && !connector;
   const connStyle = connector
     ? {
         color: connector.color,
@@ -1117,10 +1135,13 @@ export const TopBarStyleControls = () => {
           default while the connector tool is armed. */}
       <StripButton
         tooltip={
-          connStyle
+          connectorArmed
+            ? 'Color for the next connection you draw'
+            : connStyle
             ? 'Connection color'
             : 'Select a connection (or the connector tool) to set its color'
         }
+        highlight={connectorArmed}
         disabled={!connStyle}
         icon={<ConnectionColorIcon sx={{ fontSize: 18 }} />}
         colorBar={connStyle ? resolveHex(connStyle.color, connStyle.customColor) : undefined}
@@ -1139,10 +1160,13 @@ export const TopBarStyleControls = () => {
       {/* Connection line options — style + type + width + arrow */}
       <StripButton
         tooltip={
-          connStyle
+          connectorArmed
+            ? 'Line style for the next connection you draw'
+            : connStyle
             ? 'Line options'
             : 'Select a connection (or the connector tool) to set its line options'
         }
+        highlight={connectorArmed}
         disabled={!connStyle}
         popoverWidth={240}
         icon={
