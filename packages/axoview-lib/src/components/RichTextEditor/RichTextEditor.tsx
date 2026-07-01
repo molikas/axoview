@@ -126,8 +126,21 @@ export const RichTextEditor = ({
             ...(readOnly ? { p: 0 } : {}),
             ...contentStyle
           },
+          // Quill positions the link editor (.ql-tooltip) at the cursor; in the
+          // narrow Notes panel that pushed it off the left edge, where the panel
+          // clipped it so the "Enter link" input couldn't be seen in full. Pin
+          // it to the editor's left and cap its width so it always fits, and let
+          // a long URL wrap instead of overflowing.
           '.ql-tooltip': {
-            zIndex: 1000
+            zIndex: 1000,
+            left: '4px !important',
+            maxWidth: 'calc(100% - 8px)',
+            boxSizing: 'border-box',
+            whiteSpace: 'normal',
+            overflowWrap: 'anywhere'
+          },
+          '.ql-tooltip input[type=text]': {
+            minWidth: 0
           }
         }}
       >
