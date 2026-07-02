@@ -266,7 +266,10 @@ export const usePanHandlers = () => {
       const currentModeType = uiState.mode.type;
       const anchor = { x: e.clientX, y: e.clientY };
       const tile = uiState.mouse.position.tile;
-      const item = getItemAtTile({ tile, scene });
+      // #5: right-click SELECTS the target for its context menu, so use exact
+      // connector tiles — a right-click on an empty tile beside a connector must
+      // open the canvas menu, not grab the connector (matches the left-click fix).
+      const item = getItemAtTile({ tile, scene, connectorMatch: 'exact' });
       const { lockedIds, visibleIds } = layerContext;
       const itemInteractable =
         !!item &&

@@ -301,19 +301,24 @@ export const Lasso: ModeActions = {
       return;
     }
 
-    // Keep the selection visible, reset dragging flag
-    uiState.actions.setMode(
-      produce(uiState.mode, (draft) => {
-        if (draft.type === 'LASSO') {
-          draft.isDragging = false;
-        }
-      })
-    );
-
     // Mirror the lasso selection into the persistent multi-selection slice so
     // tools that read selectedIds (delete, Ctrl+A, panel auto-hide, the
     // BottomDock "N selected" badge) see the same set. ADR-0006. Optional-call
     // so mode-action unit tests with a minimal actions mock keep working.
     uiState.actions.setSelectedIds?.(uiState.mode.selection!.items);
+
+    // 2026-07-02: after the marquee completes, drop back to CURSOR (keeping the
+    // selection) instead of lingering in LASSO. This makes post-lasso clicks
+    // behave like every other modelling tool (Figma/draw.io): a plain click on
+    // empty canvas — even INSIDE the former marquee box — clears the selection;
+    // a click on an element selects just it; dragging a selected element moves
+    // the whole group (Cursor multi-select drag); dragging empty space starts a
+    // new marquee. Previously LASSO stayed active and a click inside the box was
+    // swallowed as a group-drag prep, so it never reset (the reported bug).
+    uiState.actions.setMode({
+      type: 'CURSOR',
+      showCursor: true,
+      mousedownItem: null
+    });
   }
 };

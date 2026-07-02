@@ -146,6 +146,28 @@ export const NodeLabelHitLayer = ({ nodes }: Props) => {
     }
   }, [onWindowMove, updateViewItem, uiStoreApi]);
 
+  // Double-click a node's on-canvas label to edit it (parity with connector
+  // labels, which are DOM and already double-click-editable). At rest a node
+  // label is Canvas2D with no DOM element, so the edit gesture never reached it;
+  // this proxy sits over the label, so a double-click here selects the node
+  // (promoting it into the DOM overlay) and then asks that overlay to enter
+  // inline-rename via the same event F2 uses. Dispatched on the next frame so
+  // the just-mounted node is listening.
+  const onLabelDoubleClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>, node: ViewItem) => {
+      e.stopPropagation();
+      const ui = uiStoreApi.getState();
+      if (ui.editorMode !== 'EDITABLE') return;
+      ui.actions.setSelectedIds?.([{ type: 'ITEM', id: node.id }]);
+      requestAnimationFrame(() => {
+        window.dispatchEvent(
+          new CustomEvent('inlineEditNodeName', { detail: { id: node.id } })
+        );
+      });
+    },
+    [uiStoreApi]
+  );
+
   const onPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>, node: ViewItem) => {
       // Don't let the press fall through to the canvas hit-test / pan.
@@ -200,6 +222,7 @@ export const NodeLabelHitLayer = ({ nodes }: Props) => {
             data-axoview-id="canvas-label-hit"
             data-label-hit-id={node.id}
             onPointerDown={(e) => onPointerDown(e, node)}
+            onDoubleClick={(e) => onLabelDoubleClick(e, node)}
             style={{
               position: 'absolute',
               left: pos.x - chip.width / 2,

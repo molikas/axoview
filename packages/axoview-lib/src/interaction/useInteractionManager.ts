@@ -895,7 +895,10 @@ export const useInteractionManager = () => {
       const uiState = uiStateApi.getState();
       if (uiState.editorMode !== 'EDITABLE') return;
       const tile = uiState.mouse.position.tile;
-      const item = getItemAtTile({ tile, scene });
+      // #5: double-click SELECTS (opens Details), so use exact connector tiles —
+      // a double-click on an empty tile beside a connector must not grab it
+      // (matches the left-click fix in Cursor).
+      const item = getItemAtTile({ tile, scene, connectorMatch: 'exact' });
       if (!item) return;
       const { lockedIds, visibleIds } = layerContext;
       const interactable =

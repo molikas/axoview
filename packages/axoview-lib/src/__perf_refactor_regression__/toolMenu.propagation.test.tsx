@@ -153,7 +153,9 @@ describe('Lasso.mouseup — mouse.mousedown guard (fix C, real module)', () => {
     );
   });
 
-  it('does NOT switch to CURSOR when there IS a selection with items', () => {
+  it('completes to CURSOR (keeping the selection) when the marquee caught items', () => {
+    // 2026-07-02: a marquee that caught items now drops back to CURSOR so
+    // post-lasso clicks behave like a normal cursor (Figma/draw.io parity).
     const uiState = makeUiState({
       mode: {
         type: 'LASSO',
@@ -170,7 +172,7 @@ describe('Lasso.mouseup — mouse.mousedown guard (fix C, real module)', () => {
       }
     });
     Lasso.mouseup!({ uiState, scene: {}, isRendererInteraction: true } as any);
-    expect(uiState.actions.setMode).not.toHaveBeenCalledWith(
+    expect(uiState.actions.setMode).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'CURSOR' })
     );
   });
