@@ -1,28 +1,23 @@
 /**
- * NodeInfoTabPOM — right-sidebar Node Info tab inside the ItemControls panel
- * (packages/axoview-lib/src/components/ItemControls/NodeControls/NodeInfoTab/
- * NodeInfoTab.tsx).
+ * NodeInfoTabPOM — the "Link to diagram" picker.
  *
- * Surface walkthrough:
- *   - The Node Info tab renders whenever a single canvas item is selected in
- *     edit mode (EXPLORABLE_READONLY routes to NodePanel instead — see
- *     `NodePanel.tsx` for that surface; this POM is edit-mode only).
- *   - The "Link to diagram" Section only mounts when `linkedDiagrams.length > 0`
- *     — i.e. another diagram exists in the project. The picker is an MUI
- *     Autocomplete; the listbox portals out of the panel subtree when open.
- *   - Once the model item carries a `link`, the open-linked-diagram IconButton
- *     renders next to the picker and dispatches `axoview-open-diagram-in-editor`
- *     on click. App.tsx listens for that event and calls openDiagramById, so
- *     the editor swaps onto the linked diagram in the same tab (no URL change).
+ * As of D2 (2026-07-02) the diagram-link picker moved OUT of the node Details
+ * deck and INTO the top-bar style strip's Link control, which is now the single
+ * Link surface (web URL + link-to-diagram). This POM drives that strip control:
+ *   1. select a node in edit mode,
+ *   2. open the strip Link popover (`data-testid="strip-link-button"`),
+ *   3. the diagram picker (an MUI Autocomplete) mounts inside the popover — but
+ *      only when `linkedDiagrams.length > 0` (another diagram exists).
+ *   4. once the model item carries a `link`, the open-linked-diagram IconButton
+ *      renders and dispatches `axoview-open-diagram-in-editor` on click; App.tsx
+ *      calls openDiagramById → the editor swaps onto the linked diagram in the
+ *      same tab (no URL change).
  *
- * Lazy data-axoview-id retrofits — Session 6 (Commit 1, J5):
- *   - `node-info-tab-link-picker`          (lib, NodeInfoTab.tsx <input>)
- *   - `node-info-tab-link-picker-listbox`  (lib, NodeInfoTab.tsx Autocomplete listbox)
- *   - `node-info-tab-open-linked`          (lib, NodeInfoTab.tsx IconButton)
- *
- * The legacy `data-testid="node-info-tab-open-linked-diagram"` stays in place
- * for the lib's own jest unit tests until that suite re-points; the new E2E
- * suite queries the axoview-id anchor exclusively.
+ * Anchors (lib, TopBarStyleControls.tsx):
+ *   - `strip-link-button`          (data-testid on the Link StripButton trigger)
+ *   - `strip-link-diagram-picker`  (Autocomplete <input>)
+ *   - `strip-link-diagram-listbox` (Autocomplete portaled listbox <ul>)
+ *   - `strip-link-diagram-open`    (open-linked IconButton)
  */
 import { Locator, Page } from '@playwright/test';
 import { byAxoviewId } from '../helpers/selectors';
@@ -30,38 +25,46 @@ import { byAxoviewId } from '../helpers/selectors';
 export class NodeInfoTabPOM {
   constructor(readonly page: Page) {}
 
+  private linkButton(): Locator {
+    return this.page.locator('[data-testid="strip-link-button"]');
+  }
+
   linkPickerInput(): Locator {
-    return byAxoviewId(this.page, 'node-info-tab-link-picker');
+    return byAxoviewId(this.page, 'strip-link-diagram-picker');
   }
 
   linkPickerListbox(): Locator {
-    return byAxoviewId(this.page, 'node-info-tab-link-picker-listbox');
+    return byAxoviewId(this.page, 'strip-link-diagram-listbox');
   }
 
   openLinkedDiagramButton(): Locator {
-    return byAxoviewId(this.page, 'node-info-tab-open-linked');
+    return byAxoviewId(this.page, 'strip-link-diagram-open');
   }
 
-  /** Resolves when the Node Info tab's link-picker input is mounted — a
-   *  reliable signal that the right sidebar is showing the selected item's
-   *  Info tab AND that at least one linkable diagram exists. */
-  async expectVisible(timeoutMs = 5_000) {
+  /** Opens the strip Link popover (idempotent: skips if the picker is already
+   *  visible). The diagram picker only mounts here when ≥1 linkable diagram
+   *  exists, so this doubles as the "diagram-link is available" gate. */
+  async openLinkPopover(timeoutMs = 5_000) {
+    if (await this.linkPickerInput().isVisible().catch(() => false)) return;
+    await this.linkButton().click();
     await this.linkPickerInput().waitFor({ state: 'visible', timeout: timeoutMs });
   }
 
+  /** Resolves when the strip Link popover shows the diagram picker — i.e. a node
+   *  is selected AND at least one linkable diagram exists. */
+  async expectVisible(timeoutMs = 5_000) {
+    await this.openLinkPopover(timeoutMs);
+  }
+
   /**
-   * Opens the Autocomplete dropdown by focusing the input + pressing
-   * ArrowDown. Returns the listbox locator so callers can interrogate option
-   * counts or pick a specific name. MUI's Autocomplete renders the listbox as
-   * a portaled <ul role="listbox"> child of body; the `data-axoview-id`
-   * retrofit on Autocomplete's `slotProps.listbox` lands on that <ul> node.
+   * Opens the Autocomplete dropdown by focusing the input + pressing ArrowDown.
+   * Returns the listbox locator. MUI portals the listbox as a <ul role="listbox">
+   * child of body; the `data-axoview-id` retrofit lands on that <ul>.
    */
   async openPicker(): Promise<Locator> {
+    await this.openLinkPopover();
     const input = this.linkPickerInput();
     await input.click();
-    // Down-arrow forces the listbox to open even when the input is empty —
-    // a bare click sometimes auto-populates a single option but keeps the
-    // dropdown collapsed if the input wasn't focused yet.
     await input.press('ArrowDown');
     const listbox = this.linkPickerListbox();
     await listbox.waitFor({ state: 'visible', timeout: 3_000 });
@@ -91,6 +94,7 @@ export class NodeInfoTabPOM {
    * same browser tab, stays in edit mode.
    */
   async clickOpenLinkedDiagram() {
+    await this.openLinkPopover();
     await this.openLinkedDiagramButton().click();
   }
 }

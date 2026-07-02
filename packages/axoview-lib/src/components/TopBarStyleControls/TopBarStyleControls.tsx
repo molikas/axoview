@@ -12,7 +12,9 @@ import {
   Switch,
   Slider,
   Typography,
-  TextField
+  TextField,
+  Autocomplete,
+  Stack
 } from '@mui/material';
 import {
   FormatColorText as TextColorIcon,
@@ -31,10 +33,12 @@ import {
   Add as AddIcon,
   Remove as RemoveIcon,
   InsertLink as LinkStripIcon,
+  OpenInNew as OpenInNewIcon,
   VisibilityOutlined as ShowLabelIcon,
   VisibilityOffOutlined as HideLabelIcon
 } from '@mui/icons-material';
 import { LABEL_BASE_FONT_PX } from 'src/config/labelSettings';
+import { useTranslation } from 'src/stores/localeStore';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useModelStore } from 'src/stores/modelStore';
 import { useModelItem } from 'src/hooks/useModelItem';
@@ -226,12 +230,14 @@ const NoColorSwatch = ({
 }: {
   isActive?: boolean;
   onClick: () => void;
-}) => (
+}) => {
+  const { t } = useTranslation('topBarStyleControls');
+  return (
   <Button
     onClick={onClick}
     variant="text"
     size="small"
-    aria-label="No color"
+    aria-label={t('noColor')}
     sx={{ width: 40, height: 40, minWidth: 'auto' }}
   >
     <Box
@@ -260,7 +266,8 @@ const NoColorSwatch = ({
       />
     </Box>
   </Button>
-);
+  );
+};
 
 interface PresetCustomColorProps {
   presetId?: string;
@@ -292,6 +299,7 @@ const PresetCustomColor = ({
   onNoColor,
   absentIsNoColor = true
 }: PresetCustomColorProps) => {
+  const { t } = useTranslation('topBarStyleControls');
   const { colors } = useScene();
   // White / transparent are fixed swatches, not "custom" — keep them in the grid
   // view so reopening the popover doesn't land on the custom input.
@@ -316,7 +324,7 @@ const PresetCustomColor = ({
             }}
           />
         }
-        label="Custom color"
+        label={t('customColor')}
       />
       {useCustom ? (
         <CustomColorInput value={customColor || '#000000'} onChange={onCustomChange} />
@@ -416,6 +424,7 @@ const PercentSizeSlider = ({
   step: number;
   onChange: (native: number) => void;
 }) => {
+  const { t } = useTranslation('topBarStyleControls');
   const toPct = (v: number) =>
     max === min ? 0 : ((v - min) / (max - min)) * 100;
   const toNative = (pct: number) => {
@@ -427,7 +436,7 @@ const PercentSizeSlider = ({
 
   return (
     <LabeledSlider
-      label="Text size"
+      label={t('textSize')}
       value={pct}
       displayValue={`${pct}%`}
       min={0}
@@ -448,6 +457,7 @@ const IconSizeControl = ({
   initialScale: number;
   onChange: (scale: number) => void;
 }) => {
+  const { t } = useTranslation('topBarStyleControls');
   const [localScale, setLocalScale] = useState(initialScale);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -460,7 +470,7 @@ const IconSizeControl = ({
 
   return (
     <LabeledSlider
-      label="Icon size"
+      label={t('iconSize')}
       value={localScale}
       displayValue={`${localScale.toFixed(1)}×`}
       min={0.3}
@@ -476,6 +486,7 @@ const IconSizeControl = ({
 };
 
 export const TopBarStyleControls = () => {
+  const { t } = useTranslation('topBarStyleControls');
   const itemControls = useUiStateStore((s) => s.itemControls);
   const selectedIds = useUiStateStore((s) => s.selectedIds);
   const mode = useUiStateStore((s) => s.mode);
@@ -486,6 +497,9 @@ export const TopBarStyleControls = () => {
   const setConnectorDefaults = useUiStateStore(
     (s) => s.actions.setConnectorDefaults
   );
+  // Diagram-to-diagram link targets (app-supplied). Powers the strip Link
+  // control's "Link to diagram" picker (D2 — consolidated from the node deck).
+  const linkedDiagrams = useUiStateStore((s) => s.linkedDiagrams);
   const {
     colors,
     currentView,
@@ -925,8 +939,8 @@ export const TopBarStyleControls = () => {
       <StripButton
         tooltip={
           textColorEnabled
-            ? 'Text color'
-            : 'Select a node, text, or connection label to set text color'
+            ? t('textColor')
+            : t('textColorDisabled')
         }
         disabled={!textColorEnabled}
         icon={<TextColorIcon sx={{ fontSize: 18 }} />}
@@ -939,10 +953,10 @@ export const TopBarStyleControls = () => {
       <StripButton
         tooltip={
           textSize
-            ? 'Text size'
+            ? t('textSize')
             : crossTypeLabelIds
-            ? 'Label size (all selected)'
-            : 'Select a node, text, or connection label to set text size'
+            ? t('labelSizeAllSelected')
+            : t('textSizeDisabled')
         }
         disabled={!textSize && !crossTypeLabelIds}
         popoverWidth={220}
@@ -961,7 +975,7 @@ export const TopBarStyleControls = () => {
               gap: 1
             }}
           >
-            <Tooltip title="Decrease label size">
+            <Tooltip title={t('decreaseLabelSize')}>
               <IconButton
                 size="small"
                 data-testid="crosstype-font-decrease"
@@ -971,9 +985,9 @@ export const TopBarStyleControls = () => {
               </IconButton>
             </Tooltip>
             <Typography variant="caption" color="text.secondary">
-              Label size
+              {t('labelSize')}
             </Typography>
-            <Tooltip title="Increase label size">
+            <Tooltip title={t('increaseLabelSize')}>
               <IconButton
                 size="small"
                 data-testid="crosstype-font-increase"
@@ -1006,7 +1020,7 @@ export const TopBarStyleControls = () => {
                   mt: 1
                 }}
               >
-                <Tooltip title="Decrease size">
+                <Tooltip title={t('decreaseSize')}>
                   <IconButton
                     size="small"
                     data-testid="bulk-font-decrease"
@@ -1016,9 +1030,9 @@ export const TopBarStyleControls = () => {
                   </IconButton>
                 </Tooltip>
                 <Typography variant="caption" color="text.secondary">
-                  {isBulk ? 'Step all' : 'Size'}
+                  {isBulk ? t('stepAll') : t('size')}
                 </Typography>
-                <Tooltip title="Increase size">
+                <Tooltip title={t('increaseSize')}>
                   <IconButton
                     size="small"
                     data-testid="bulk-font-increase"
@@ -1040,8 +1054,8 @@ export const TopBarStyleControls = () => {
       <Tooltip
         title={
           formatEnabled
-            ? 'Bold / italic / strikethrough'
-            : 'Select a node, label, or connection label (text boxes format via rich text)'
+            ? t('format')
+            : t('formatDisabled')
         }
         placement="bottom"
       >
@@ -1072,13 +1086,13 @@ export const TopBarStyleControls = () => {
               '& .MuiToggleButton-root.Mui-disabled': { color: 'action.disabled' }
             }}
           >
-            <ToggleButton value="bold" aria-label="Bold">
+            <ToggleButton value="bold" aria-label={t('bold')}>
               <BoldIcon sx={{ fontSize: 18 }} />
             </ToggleButton>
-            <ToggleButton value="italic" aria-label="Italic">
+            <ToggleButton value="italic" aria-label={t('italic')}>
               <ItalicIcon sx={{ fontSize: 18 }} />
             </ToggleButton>
-            <ToggleButton value="strike" aria-label="Strikethrough">
+            <ToggleButton value="strike" aria-label={t('strikethrough')}>
               <StrikethroughIcon sx={{ fontSize: 18 }} />
             </ToggleButton>
           </ToggleButtonGroup>
@@ -1090,8 +1104,8 @@ export const TopBarStyleControls = () => {
       <StripButton
         tooltip={
           rectangle || label
-            ? 'Background color'
-            : 'Select a rectangle or label to set its background color'
+            ? t('background')
+            : t('backgroundDisabled')
         }
         disabled={!rectangle && !label}
         icon={<FillIcon sx={{ fontSize: 18 }} />}
@@ -1144,7 +1158,7 @@ export const TopBarStyleControls = () => {
         {rectangle ? (
           <Box sx={{ mt: 1.5 }}>
             <LabeledSlider
-              label="Opacity"
+              label={t('opacity')}
               value={rectangle.fillOpacity ?? 1}
               displayValue={`${Math.round((rectangle.fillOpacity ?? 1) * 100)}%`}
               min={0}
@@ -1160,7 +1174,7 @@ export const TopBarStyleControls = () => {
         ) : label ? (
           <Box sx={{ mt: 1.5 }}>
             <LabeledSlider
-              label="Opacity"
+              label={t('opacity')}
               value={label.backgroundOpacity ?? 1}
               displayValue={`${Math.round((label.backgroundOpacity ?? 1) * 100)}%`}
               min={0}
@@ -1179,7 +1193,7 @@ export const TopBarStyleControls = () => {
       {/* Border (rectangle) — line style + width + colour for the frame. */}
       <StripButton
         tooltip={
-          rectangle ? 'Border' : 'Select a rectangle to set its border'
+          rectangle ? t('border') : t('borderDisabled')
         }
         disabled={!rectangle}
         popoverWidth={240}
@@ -1193,7 +1207,7 @@ export const TopBarStyleControls = () => {
               color="text.secondary"
               sx={{ display: 'block', mb: 0.5 }}
             >
-              Line style
+              {t('lineStyle')}
             </Typography>
             <ToggleButtonGroup
               value={rectangle.borderStyle || 'SOLID'}
@@ -1214,7 +1228,7 @@ export const TopBarStyleControls = () => {
 
             <Box sx={{ mt: 1.5 }}>
               <LabeledSlider
-                label="Width"
+                label={t('width')}
                 value={rectangle.borderWidth ?? 2}
                 displayValue={String(rectangle.borderWidth ?? 2)}
                 min={2}
@@ -1231,7 +1245,7 @@ export const TopBarStyleControls = () => {
               color="text.secondary"
               sx={{ display: 'block', mt: 1.5, mb: 0.5 }}
             >
-              Border color
+              {t('borderColor')}
             </Typography>
             <PresetCustomColor
               presetId={colors.find((c) => c.value === rectangle.borderColor)?.id}
@@ -1260,7 +1274,7 @@ export const TopBarStyleControls = () => {
 
             <Box sx={{ mt: 1.5 }}>
               <LabeledSlider
-                label="Opacity"
+                label={t('opacity')}
                 value={rectangle.borderOpacity ?? 1}
                 displayValue={`${Math.round((rectangle.borderOpacity ?? 1) * 100)}%`}
                 min={0}
@@ -1277,30 +1291,104 @@ export const TopBarStyleControls = () => {
         )}
       </StripButton>
 
-      {/* Link — set/clear an external link on a node / connection / floating
-          Label straight from the strip (owner 2026-07-01), so the Details deck
-          isn't needed just to add a link. */}
+      {/* Link — the single Link surface (D2): a web URL for any node / connection
+          / floating Label (headerLink), plus a "Link to diagram" picker for a
+          node (modelItem.link) when other diagrams exist. Consolidated here from
+          the node Details deck so both link kinds live in one place. */}
       <StripButton
         tooltip={
           linkEnabled
-            ? 'Link'
-            : 'Select a node, connection, or label to add a link'
+            ? t('link')
+            : t('linkDisabled')
         }
         disabled={!linkEnabled}
         popoverWidth={280}
+        testId="strip-link-button"
         icon={<LinkStripIcon sx={{ fontSize: 18 }} />}
         colorBar={undefined}
       >
         {linkEnabled && (
-          <TextField
-            autoFocus
-            fullWidth
-            size="small"
-            placeholder="https://…"
-            value={linkValue ?? ''}
-            onChange={(e) => onLinkChange(e.target.value)}
-            data-axoview-id="strip-link-input"
-          />
+          <Box>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: 'block', mb: 0.5 }}
+            >
+              {t('linkToWeb')}
+            </Typography>
+            <TextField
+              autoFocus
+              fullWidth
+              size="small"
+              placeholder={t('webLinkPlaceholder')}
+              value={linkValue ?? ''}
+              onChange={(e) => onLinkChange(e.target.value)}
+              data-axoview-id="strip-link-input"
+            />
+
+            {node && linkedDiagrams.length > 0 && (
+              <Box sx={{ mt: 1.5 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: 'block', mb: 0.5 }}
+                >
+                  {t('linkToDiagram')}
+                </Typography>
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <Autocomplete
+                    size="small"
+                    sx={{ flex: 1 }}
+                    options={linkedDiagrams}
+                    getOptionLabel={(opt) =>
+                      typeof opt === 'string' ? opt : opt.name
+                    }
+                    isOptionEqualToValue={(opt, val) => opt.id === val.id}
+                    value={
+                      linkedDiagrams.find((d) => d.id === modelItem?.link) ?? null
+                    }
+                    onChange={(_e, newVal) =>
+                      updateModelItem(node.id, { link: newVal?.id ?? undefined })
+                    }
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        placeholder={t('searchDiagrams')}
+                        inputProps={{
+                          ...params.inputProps,
+                          'data-axoview-id': 'strip-link-diagram-picker'
+                        }}
+                      />
+                    )}
+                    slotProps={{
+                      listbox: {
+                        'data-axoview-id': 'strip-link-diagram-listbox'
+                      } as React.ComponentProps<'ul'>
+                    }}
+                    clearOnEscape
+                    handleHomeEndKeys={false}
+                  />
+                  {modelItem?.link && (
+                    <Tooltip title={t('openLinkedDiagram')}>
+                      <IconButton
+                        size="small"
+                        onClick={() =>
+                          window.dispatchEvent(
+                            new CustomEvent('axoview-open-diagram-in-editor', {
+                              detail: { id: modelItem.link }
+                            })
+                          )
+                        }
+                        data-axoview-id="strip-link-diagram-open"
+                      >
+                        <OpenInNewIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </Stack>
+              </Box>
+            )}
+          </Box>
         )}
       </StripButton>
 
@@ -1309,9 +1397,9 @@ export const TopBarStyleControls = () => {
         title={
           node
             ? labelHidden
-              ? 'Show label'
-              : 'Hide label'
-            : 'Select a node to show or hide its label'
+              ? t('showLabel')
+              : t('hideLabel')
+            : t('showHideLabelDisabled')
         }
         placement="bottom"
       >
@@ -1343,10 +1431,10 @@ export const TopBarStyleControls = () => {
       <StripButton
         tooltip={
           isBulk
-            ? 'Change icon applies to one node at a time'
+            ? t('changeIconBulk')
             : node
-            ? 'Change icon'
-            : 'Select a node to change its icon'
+            ? t('changeIcon')
+            : t('changeIconDisabled')
         }
         disabled={!node || isBulk}
         popoverWidth={320}
@@ -1376,10 +1464,10 @@ export const TopBarStyleControls = () => {
       <StripButton
         tooltip={
           isBulk
-            ? 'Icon size applies to one node at a time'
+            ? t('iconSizeBulk')
             : currentIcon
-            ? 'Icon size'
-            : 'Select a node to change its icon size'
+            ? t('iconSize')
+            : t('iconSizeDisabled')
         }
         disabled={!currentIcon || isBulk}
         popoverWidth={220}
@@ -1400,10 +1488,10 @@ export const TopBarStyleControls = () => {
       <StripButton
         tooltip={
           connectorArmed
-            ? 'Color for the next connection you draw'
+            ? t('connectionColorPredraw')
             : connStyle
-            ? 'Connection color'
-            : 'Select a connection (or the connector tool) to set its color'
+            ? t('connectionColor')
+            : t('connectionColorDisabled')
         }
         highlight={connectorArmed}
         disabled={!connStyle}
@@ -1425,10 +1513,10 @@ export const TopBarStyleControls = () => {
       <StripButton
         tooltip={
           connectorArmed
-            ? 'Line style for the next connection you draw'
+            ? t('lineOptionsPredraw')
             : connStyle
-            ? 'Line options'
-            : 'Select a connection (or the connector tool) to set its line options'
+            ? t('lineOptions')
+            : t('lineOptionsDisabled')
         }
         highlight={connectorArmed}
         disabled={!connStyle}
@@ -1442,7 +1530,7 @@ export const TopBarStyleControls = () => {
         {connStyle && (
           <Box>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-              Line style
+              {t('lineStyle')}
             </Typography>
             <ToggleButtonGroup
               value={connStyle.style || 'SOLID'}
@@ -1462,7 +1550,7 @@ export const TopBarStyleControls = () => {
             </ToggleButtonGroup>
 
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5, mb: 0.5 }}>
-              Line type
+              {t('lineType')}
             </Typography>
             <ToggleButtonGroup
               value={connStyle.lineType || 'SINGLE'}
@@ -1483,7 +1571,7 @@ export const TopBarStyleControls = () => {
 
             <Box sx={{ mt: 1.5 }}>
               <LabeledSlider
-                label="Width"
+                label={t('width')}
                 value={connStyle.width ?? 10}
                 displayValue={String(connStyle.width ?? 10)}
                 min={10}
@@ -1501,7 +1589,7 @@ export const TopBarStyleControls = () => {
                   onChange={(e) => connStyle.apply({ showArrow: e.target.checked })}
                 />
               }
-              label="Show arrow"
+              label={t('showArrow')}
             />
           </Box>
         )}
@@ -1511,7 +1599,7 @@ export const TopBarStyleControls = () => {
 
       {/* Text direction (text node) — inline toggle, no popover */}
       <Tooltip
-        title={textBox ? 'Text direction' : 'Select a text box to set its direction'}
+        title={textBox ? t('textDirection') : t('textDirectionDisabled')}
         placement="bottom"
       >
         <span>
@@ -1532,12 +1620,12 @@ export const TopBarStyleControls = () => {
               '& .MuiToggleButton-root.Mui-disabled': { color: 'action.disabled' }
             }}
           >
-            <ToggleButton value={ProjectionOrientationEnum.X} aria-label="Text direction X">
+            <ToggleButton value={ProjectionOrientationEnum.X} aria-label={t('textDirectionX')}>
               <TextRotationNoneIcon
                 sx={{ fontSize: 18, transform: getIsoProjectionCss() }}
               />
             </ToggleButton>
-            <ToggleButton value={ProjectionOrientationEnum.Y} aria-label="Text direction Y">
+            <ToggleButton value={ProjectionOrientationEnum.Y} aria-label={t('textDirectionY')}>
               <TextRotationNoneIcon
                 sx={{
                   fontSize: 18,
@@ -1554,10 +1642,10 @@ export const TopBarStyleControls = () => {
       <StripButton
         tooltip={
           isBulk
-            ? 'Rich text edits one text box at a time'
+            ? t('richTextBulk')
             : textBox
-            ? 'Rich text'
-            : 'Select a text box to edit rich text'
+            ? t('richText')
+            : t('richTextDisabled')
         }
         disabled={!textBox || isBulk}
         popoverWidth={320}
@@ -1566,7 +1654,7 @@ export const TopBarStyleControls = () => {
         {textBox && (
           <Box>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-              Text
+              {t('text')}
             </Typography>
             <RichTextEditor
               value={textBox.content}

@@ -5,8 +5,7 @@ import {
   IconButton,
   Tooltip,
   Typography,
-  Box,
-  Autocomplete
+  Box
 } from '@mui/material';
 import {
   InsertLink as InsertLinkIcon,
@@ -16,7 +15,6 @@ import {
 } from '@mui/icons-material';
 import { ModelItem, ViewItem } from 'src/types';
 import { useModelItem } from 'src/hooks/useModelItem';
-import { useUiStateStore } from 'src/stores/uiStateStore';
 import { Section } from '../../components/Section';
 import { CollapsibleSection } from '../../components/CollapsibleSection';
 import { MetadataSection } from '../../components/MetadataSection';
@@ -46,7 +44,6 @@ export const NodeInfoTab = ({
   const { t } = useTranslation('nodeInfoTab');
   const { t: tPanel } = useTranslation('nodePanel');
   const modelItem = useModelItem(node.id);
-  const linkedDiagrams = useUiStateStore((s) => s.linkedDiagrams);
 
   const handleToggleLink = useCallback(() => {
     if (showLink && modelItem?.headerLink) {
@@ -149,70 +146,8 @@ export const NodeInfoTab = ({
       </CollapsibleSection>
 
       {/* Icon picker moved to the top-bar style strip (Change icon). */}
-
-      {/* Link to diagram — only shown when diagrams are available */}
-      {linkedDiagrams.length > 0 && (
-        <Section title={t('diagramLink')}>
-          <Typography
-            variant="caption"
-            color="text.disabled"
-            sx={{ display: 'block', mb: 0.5 }}
-          >
-            {t('diagramLinkHint')}
-          </Typography>
-          <Stack direction="row" spacing={0.5} alignItems="center">
-            <Autocomplete
-              size="small"
-              sx={{ flex: 1 }}
-              options={linkedDiagrams}
-              getOptionLabel={(opt) => (typeof opt === 'string' ? opt : opt.name)}
-              isOptionEqualToValue={(opt, val) => opt.id === val.id}
-              value={linkedDiagrams.find((d) => d.id === modelItem.link) ?? null}
-              onChange={(_e, newVal) => {
-                onModelItemUpdated({ link: newVal?.id ?? undefined });
-              }}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  placeholder={t('diagramLinkPlaceholder')}
-                  inputProps={{
-                    ...params.inputProps,
-                    'data-axoview-id': 'node-info-tab-link-picker'
-                  }}
-                />
-              )}
-              slotProps={{
-                listbox: {
-                  'data-axoview-id': 'node-info-tab-link-picker-listbox'
-                } as React.ComponentProps<'ul'>
-              }}
-              clearOnEscape
-              handleHomeEndKeys={false}
-            />
-            {modelItem.link && (
-              <Tooltip title={t('openDiagramLink')}>
-                <IconButton
-                  size="small"
-                  onClick={() => {
-                    // Edit-mode picker → open the linked diagram in the
-                    // editor (not the readonly view), same tab. App.tsx
-                    // listener resolves the name and calls openDiagramById.
-                    window.dispatchEvent(
-                      new CustomEvent('axoview-open-diagram-in-editor', {
-                        detail: { id: modelItem.link }
-                      })
-                    );
-                  }}
-                  data-axoview-id="node-info-tab-open-linked"
-                  data-testid="node-info-tab-open-linked-diagram"
-                >
-                  <OpenInNewIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-            )}
-          </Stack>
-        </Section>
-      )}
+      {/* "Link to diagram" moved to the top-bar Link control (D2) — the strip is
+          now the single Link surface (web URL + link-to-diagram). */}
 
       {/* Identity name (Layers-renamed, hidden from canvas) — available here in a
           collapsed Metadata section for parity with every other element. */}
