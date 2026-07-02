@@ -31,7 +31,9 @@ export const Rectangle = memo(
     offset,
     borderColor,
     borderWidth,
-    borderStyle
+    borderStyle,
+    fillOpacity,
+    borderOpacity
   }: Props) => {
     const predefinedColor = useColor(colorId);
 
@@ -84,11 +86,13 @@ export const Rectangle = memo(
           from={from}
           to={to}
           fill={colorValue}
+          fillOpacity={fillOpacity}
           cornerRadius={22}
           stroke={{
             color: strokeColor,
             width: strokeWidth,
-            dashArray
+            dashArray,
+            opacity: borderOpacity
           }}
         />
       </div>

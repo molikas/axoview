@@ -23,6 +23,10 @@ export const labelSchema = z.object({
   color: z.string().optional(),
   // Chip background colour (absent = the default white chip).
   backgroundColor: z.string().optional(),
+  // Chip background opacity (0..1). Absent = 1 = opaque. Applied as Canvas2D
+  // globalAlpha around the chip fill only (text + border stay opaque).
+  // Optional → zero-migration addition.
+  backgroundOpacity: z.number().min(0).max(1).optional(),
   // Whole-chip text style (ADR 0033 B/I/S field convention).
   isBold: z.boolean().optional(),
   isItalic: z.boolean().optional(),

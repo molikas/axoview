@@ -14,6 +14,11 @@ export const rectangleSchema = z.object({
   borderColor: z.string().optional(),
   borderWidth: z.number().optional(),
   borderStyle: z.enum(['SOLID', 'DOTTED', 'DASHED']).optional(),
+  // Fill + border opacity (0..1). Absent = 1 = fully opaque = the legacy look.
+  // Rendered as SVG fill-opacity / stroke-opacity (declarative, GPU-cheap; the
+  // same DOM feeds image export). Optional → zero-migration addition.
+  fillOpacity: z.number().min(0).max(1).optional(),
+  borderOpacity: z.number().min(0).max(1).optional(),
   from: coords,
   to: coords,
   // Stacking order AMONG rectangles (send-to-front/back). Absent = 0; higher

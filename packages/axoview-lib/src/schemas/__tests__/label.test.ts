@@ -33,6 +33,22 @@ describe('labelSchema', () => {
     if (result.success) expect(result.data).toMatchObject(label);
   });
 
+  it('accepts backgroundOpacity in [0,1], rejects out-of-range, stays optional', () => {
+    const base = { id: 'l1', tile: { x: 0, y: 0 }, text: 'Label' };
+    expect(
+      labelSchema.safeParse({ ...base, backgroundOpacity: 0.4 }).success
+    ).toBe(true);
+    expect(
+      labelSchema.safeParse({ ...base, backgroundOpacity: 1.2 }).success
+    ).toBe(false);
+    expect(
+      labelSchema.safeParse({ ...base, backgroundOpacity: -0.5 }).success
+    ).toBe(false);
+    const lean = labelSchema.safeParse(base);
+    expect(lean.success).toBe(true);
+    if (lean.success) expect(lean.data.backgroundOpacity).toBeUndefined();
+  });
+
   it('styling fields are optional — a lean label omits them (lean-save)', () => {
     const lean = labelSchema.safeParse({
       id: 'l1',

@@ -149,6 +149,7 @@ export const LABEL_DEFAULTS: Required<
     | 'offset'
     | 'snap'
     | 'backgroundColor'
+    | 'backgroundOpacity'
     | 'color'
     | 'fontSize'
     | 'isBold'
@@ -204,6 +205,9 @@ export const RECTANGLE_DEFAULTS: Required<
     | 'borderColor'
     | 'borderWidth'
     | 'borderStyle'
+    // Opacity defaults to absent (= 1 = opaque); lean-save omits it.
+    | 'fillOpacity'
+    | 'borderOpacity'
   >
 > = {
   customColor: ''

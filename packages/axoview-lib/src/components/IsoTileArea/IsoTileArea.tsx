@@ -8,16 +8,20 @@ interface Props {
   to: Coords;
   origin?: Coords;
   fill?: string;
+  /** SVG fill-opacity (0..1). Absent = 1 = opaque. */
+  fillOpacity?: number;
   cornerRadius?: number;
   stroke?: {
     width: number;
     color: string;
     dashArray?: string;
+    /** SVG stroke-opacity (0..1). Absent = 1 = opaque. */
+    opacity?: number;
   };
 }
 
 export const IsoTileArea = memo(
-  ({ from, to, fill = 'none', cornerRadius = 0, stroke }: Props) => {
+  ({ from, to, fill = 'none', fillOpacity, cornerRadius = 0, stroke }: Props) => {
     const { css, pxSize } = useIsoProjection({
       from,
       to
@@ -33,6 +37,10 @@ export const IsoTileArea = memo(
 
       if (stroke.dashArray) {
         params.strokeDasharray = stroke.dashArray;
+      }
+
+      if (stroke.opacity !== undefined) {
+        params.strokeOpacity = stroke.opacity;
       }
 
       return params;
@@ -56,6 +64,7 @@ export const IsoTileArea = memo(
           width={Math.max(0, pxSize.width - strokeW)}
           height={Math.max(0, pxSize.height - strokeW)}
           fill={fill}
+          fillOpacity={fillOpacity}
           rx={Math.max(0, cornerRadius - halfStroke)}
           {...strokeParams}
         />

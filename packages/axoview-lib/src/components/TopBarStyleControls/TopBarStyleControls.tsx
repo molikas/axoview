@@ -1141,6 +1141,39 @@ export const TopBarStyleControls = () => {
             }
           />
         ) : null}
+        {rectangle ? (
+          <Box sx={{ mt: 1.5 }}>
+            <LabeledSlider
+              label="Opacity"
+              value={rectangle.fillOpacity ?? 1}
+              displayValue={`${Math.round((rectangle.fillOpacity ?? 1) * 100)}%`}
+              min={0}
+              max={1}
+              step={0.1}
+              onChange={(v) =>
+                updateRectangle(rectangle.id, {
+                  fillOpacity: v >= 1 ? undefined : v
+                })
+              }
+            />
+          </Box>
+        ) : label ? (
+          <Box sx={{ mt: 1.5 }}>
+            <LabeledSlider
+              label="Opacity"
+              value={label.backgroundOpacity ?? 1}
+              displayValue={`${Math.round((label.backgroundOpacity ?? 1) * 100)}%`}
+              min={0}
+              max={1}
+              step={0.1}
+              onChange={(v) =>
+                updateLabel(label.id, {
+                  backgroundOpacity: v >= 1 ? undefined : v
+                })
+              }
+            />
+          </Box>
+        ) : null}
       </StripButton>
 
       {/* Border (rectangle) — line style + width + colour for the frame. */}
@@ -1224,6 +1257,22 @@ export const TopBarStyleControls = () => {
                 updateRectangle(rectangle.id, { borderColor: TRANSPARENT })
               }
             />
+
+            <Box sx={{ mt: 1.5 }}>
+              <LabeledSlider
+                label="Opacity"
+                value={rectangle.borderOpacity ?? 1}
+                displayValue={`${Math.round((rectangle.borderOpacity ?? 1) * 100)}%`}
+                min={0}
+                max={1}
+                step={0.1}
+                onChange={(v) =>
+                  updateRectangle(rectangle.id, {
+                    borderOpacity: v >= 1 ? undefined : v
+                  })
+                }
+              />
+            </Box>
           </Box>
         )}
       </StripButton>

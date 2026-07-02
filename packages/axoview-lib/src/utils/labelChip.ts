@@ -139,8 +139,13 @@ export const drawLabelChip = (
   const y0 = cy - chipH / 2;
 
   roundRectPath(ctx, x0, y0, chipW, chipH, LABEL_CHIP_RADIUS);
+  // The chip background can be translucent (backgroundOpacity); scope the alpha
+  // to the fill only so the border + text stay fully opaque.
+  const bgAlpha = label.backgroundOpacity ?? 1;
+  if (bgAlpha < 1) ctx.globalAlpha = bgAlpha;
   ctx.fillStyle = label.backgroundColor || colors.bg;
   ctx.fill();
+  if (bgAlpha < 1) ctx.globalAlpha = 1;
   ctx.lineWidth = 1;
   ctx.strokeStyle = colors.border;
   ctx.stroke();
