@@ -82,13 +82,9 @@ export const ConnectorControls = ({ id }: Props) => {
   );
 
   const [activeTab, setActiveTab] = useState(TAB_DETAILS);
-  // Option A: positioned labels[] are the advanced/power surface, demoted behind
-  // a disclosure so the single `name` (the midpoint label) is the obvious path.
-  // Start expanded only when the connector already has labels, so existing
-  // power-user content isn't hidden.
-  const [showAdvanced, setShowAdvanced] = useState(
-    () => (connector?.labels?.length ?? 0) > 0
-  );
+  // The connector's labels[] are its primary Details content now (name moved to
+  // Metadata), so the section is expanded by default (owner 2026-07-02).
+  const [showAdvanced, setShowAdvanced] = useState(true);
   // Panel events from the canvas context menu ("Add note" → focusNotes). F2 no
   // longer focuses a Name field here — on a connector F2 adds a labels[] entry
   // (ADR 0032 connector amendment); identity name lives in the Metadata section.
