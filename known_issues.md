@@ -2,14 +2,6 @@
 
 **Last pruned:** 2026-06-10 (v1.1 close-out). Open items below cross-checked against [technical-review-2026-06.md §11](docs/technical-review-2026-06.md); resolved entries removed (durable records live in the relevant ADR / perf-troubleshooting.md / git history).
 
-## Mixed rectangle+textbox lasso e2e selects only the textbox (test red)
-
-**Symptom:** `multi-select-drag-lasso.spec.ts › one marquee over a rectangle AND a textbox selects both` fails deterministically (3/3) on `integration`: after a marquee over a rectangle and a text box, `selectedIds` holds only the `TEXTBOX`. The single-rectangle lasso (`lasso through the MIDDLE of a long rectangle`) passes, and `getItemsInBounds` catches rectangles via any-overlap (`doBoundsOverlap`, [`Lasso.ts:62`](packages/axoview-lib/src/interaction/modes/Lasso.ts#L62)) — so the rectangle-catch logic itself is sound.
-
-**Workaround:** None needed (a real drag-lasso over a rectangle selects it; this is a test-geometry observation). Likely fragile iso-projected marquee geometry in the test — it builds the marquee from a screen-bbox of projected tile corners + a fixed 120px margin (the round-trip its own comment at lines 334-338 flags as tricky), which can under-cover a rectangle placed at the far screen-left in iso at 65% zoom. Classify via a runtime probe (log the computed marquee tile-rect vs the rectangle bounds) before either hardening the test to a precise tile-based marquee (as the MIDDLE test does) or filing a product bug.
-
-**Status:** Open (surfaced 2026-07-02 while fixing the lasso-reset helper staleness). This test was already red on `integration` before that fix — the fix restored the other 4 lasso assertions and exposed this distinct case.
-
 ## Partial-coverage i18n locales (de-DE + id-ID)
 
 **Symptom:** German (de-DE) and Indonesian (id-ID) have stub translations covering only the initial pre-rename string set. Newer strings (added since 2026-04) fall through to English. Users selecting these locales see mixed German/English or Indonesian/English UI.
