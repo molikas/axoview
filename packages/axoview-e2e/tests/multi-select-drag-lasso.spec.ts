@@ -76,9 +76,12 @@ const getWaypointTiles = (page: import('@playwright/test').Page) =>
 
 const getLassoSelectionTypes = (page: import('@playwright/test').Page) =>
   page.evaluate(() => {
-    const m = (window as any).__axoview__.ui.getState().mode;
-    if (m?.type !== 'LASSO') return [];
-    return ((m.selection?.items as any[]) ?? []).map((r) => r.type);
+    // A completed marquee mirrors its hits into the persistent `selectedIds`
+    // slice and then drops back to CURSOR (Lasso.mouseup, 2026-07-02), so read
+    // the persistent selection — the mode-scoped `mode.selection` is cleared on
+    // that exit and would read empty here.
+    const ids = (window as any).__axoview__.ui.getState().selectedIds;
+    return ((ids as any[]) ?? []).map((r) => r.type);
   });
 
 const injectMiddleWaypoint = (
@@ -214,9 +217,10 @@ test.describe('Multi-select + drag — Finding #4 (pure-lasso 5e-5 variant)', ()
     expect(selTypes).toContain('CONNECTOR');
 
     // 3. SECOND drag — mousedown on ICON_A's tile (inside the selection
-    //    bounds). Lasso.mousedown sets isDragging=true; the next
-    //    mousemove transitions to DRAG_ITEMS with initialTiles seeded
-    //    for items + waypoint (Lasso.ts:155-185).
+    //    bounds). The completed marquee left us in CURSOR with the group in
+    //    `selectedIds`, so the press+move promotes through Cursor's
+    //    multi-select drag path into DRAG_ITEMS, seeding initialTiles for the
+    //    items + waypoint.
     const iconAScreen = await canvas.tileToScreen(itemsBefore[0].tile);
     const DRAG_TO: CanvasPoint = {
       x: iconAScreen.x + 120,
