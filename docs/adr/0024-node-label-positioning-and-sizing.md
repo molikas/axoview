@@ -1,6 +1,6 @@
 # ADR 0024 — Node Label Positioning & Sizing
 
-**Status:** Proposed
+**Status:** Accepted (shipped — on-canvas label drag/height via `NodeLabelHitLayer`; the shared 18px base is recorded in the [ADR 0030](0030-docked-style-controls-strip.md) 2026-07-02 sizing amendment)
 **Date:** 2026-06-18
 **Supersedes:** none (interacts with [ADR 0015](0015-node-label-legibility-scaling.md))
 **Superseded by:** none

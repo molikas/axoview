@@ -1,6 +1,6 @@
 # Axoview UX Principles
 
-**Last updated:** 2026-06-10 (v1.1 close-out)
+**Last updated:** 2026-07-02 (integration reshape — styling→top-bar strip; identity name→Metadata section; name↔label decouple; unified label sizing)
 **Status:** Living reference. Update when principles evolve.
 **Audience:** Anyone (or any agent) building UI surfaces, fixing bugs, or reviewing PRs that touch the canvas, side panels, file explorer, or layers.
 
@@ -286,23 +286,27 @@ Full contract, call-site list, and rationale: [ADR 0006](adr/0006-canvas-selecti
 
 Every selectable item type (Node, Connector, TextBox, Rectangle) is a **first-class peer**. New item types (or extensions to existing ones) mirror what node already does.
 
-### 5.1 Item controls panel structure
+### 5.1 Item controls panel structure — a uniform stack of collapsible sections
 
-Every item type's control panel has the same shape — **Details / Notes** (two tabs):
+Every item type's control panel is the **same shape**: a vertical stack of **collapsible sections** (no tabs), under a header row with a close button ([`DeckHeader`](../packages/axoview-lib/src/components/ItemControls/components/DeckHeader.tsx)). The **first (content) section is open by default**; the rest are collapsed. A section can be opened by a deep-link — the context-menu **Add note** opens **Notes** on every type (via the `focusNotes` panel event).
 
-- **Header**: tabs (Details / Notes) + close button
-- **Details tab**: Name field with inline link button + show/hide name toggle, plus type-specific extras
-- **Notes tab**: `RichTextEditor` bound to `notes` field, with non-empty marker on the tab
+- **Content** (open): the type's primary on-canvas field — node **Label** (with the inline link button + show/hide-label toggle), text box / floating-Label **Text**, connector **Labels** (the `labels[]` editor). A rectangle has no text field, so its **Notes** section leads.
+- **Notes**: the shared [`NotesSection`](../packages/axoview-lib/src/components/ItemControls/components/NotesSection.tsx) (`RichTextEditor` bound to `notes`), with a "has content" dot on the header.
+- **Metadata**: the identity `name` in a collapsed [`MetadataSection`](../packages/axoview-lib/src/components/ItemControls/components/MetadataSection.tsx) ([ADR 0032](adr/0032-node-name-caption-label-model.md)) — present for every type whose identity is distinct from its content (node / connector / rectangle / text box), edited primarily in Layers. A floating **Label** has **no** Metadata section: its `text` is both content and identity.
 
-Visual styling is **not** a panel tab — it lives in the docked style strip (§2.4 / §2.5, [ADR 0030](adr/0030-docked-style-controls-strip.md)), the single canonical styling surface. **Delete** lives in the context menu ([ADR 0027](adr/0027-canvas-context-menu.md)), not the panel.
+All sections use one shared [`CollapsibleSection`](../packages/axoview-lib/src/components/ItemControls/components/CollapsibleSection.tsx) primitive, so the deck looks and behaves identically for every element. Visual styling is **not** a panel section — it lives in the docked style strip (§2.4 / §2.5, [ADR 0030](adr/0030-docked-style-controls-strip.md)), the single canonical styling surface. **Delete** lives in the context menu ([ADR 0027](adr/0027-canvas-context-menu.md)), not the panel.
 
 ### 5.2 Connector mirrors node
 
-Connectors have everything nodes have: `name`, `notes`, `headerLink`, `showLabel`, F2 inline rename, canvas name label, Details / Notes tabs. They are not "lesser" items — they're peers.
+Connectors are first-class peers of nodes: `name` (identity, Layers-only), `notes`, `headerLink`, `showLabel`, and the same collapsible-section deck (§5.1). Post-decouple ([ADR 0032](adr/0032-node-name-caption-label-model.md)) a connector's on-canvas text is its **`labels[]`** — the deck's lead content section (F2 adds a label at the midpoint; each is individually styled + linkable), **not** the identity `name` — the same name↔label decouple nodes have. Consequently the connector deck drops the show/hide-name toggle and the connector-level link: label visibility is the **Layers** eye toggle, and the whole-connector link is the strip's **Link** control. This is a *deliberate* parity divergence — a connector has no single on-canvas name, so a node-style name row would be meaningless.
 
 ### 5.3 No icon overloading across item types
 
 When designing new affordances, check that the icon doesn't already mean something else for a different item type.
+
+### 5.4 On-canvas label-like text shares one sizing model
+
+Item-type parity extends to *sizing*. Node labels, floating Labels, and connector labels all default to one base size (`LABEL_BASE_FONT_PX = 18`, [`labelSettings.ts`](../packages/axoview-lib/src/config/labelSettings.ts)) and are sized through **one** strip control — a single px range (10–40) with a relative **+/−** stepper that also works across a mixed label-bearing selection. Don't add a per-type size range or a second sizing control; derive from the shared base and override per element via the strip ([ADR 0030](adr/0030-docked-style-controls-strip.md) — 2026-07-02 sizing amendment). The text box is the deliberate exception: its size is *tile-space* (scales with the diagram), not screen-px chrome. This is the consistency target for label-like surfaces generally — **one base, one range, one control; derive, don't duplicate per type.**
 
 ---
 
@@ -587,7 +591,8 @@ When building parallel surfaces, **read these first**:
 | Layout primitive | [`Section.tsx`](../packages/axoview-lib/src/components/ItemControls/components/Section.tsx) |
 | Touch / pen gesture machine | [`useInteractionManager.ts`](../packages/axoview-lib/src/interaction/useInteractionManager.ts) (search `onTouchPointerDown`) |
 | Tabbed item panel | [`NodePanel.tsx`](../packages/axoview-lib/src/components/ItemControls/NodeControls/NodePanel/NodePanel.tsx) |
-| Name field + inline action buttons | [`NodeInfoTab.tsx`](../packages/axoview-lib/src/components/ItemControls/NodeControls/NodeInfoTab/NodeInfoTab.tsx) |
+| Label field + inline action buttons | [`NodeInfoTab.tsx`](../packages/axoview-lib/src/components/ItemControls/NodeControls/NodeInfoTab/NodeInfoTab.tsx) |
+| Collapsed identity + notes panel sections | [`MetadataSection.tsx`](../packages/axoview-lib/src/components/ItemControls/components/MetadataSection.tsx) · [`NotesSection.tsx`](../packages/axoview-lib/src/components/ItemControls/components/NotesSection.tsx) — see §5.1 |
 | Connector parity with node | [`ConnectorControls.tsx`](../packages/axoview-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx) |
 | Layer row with rename + action toggle | [`LayerItemRow.tsx`](../packages/axoview-lib/src/components/LayersPanel/LayerItemRow.tsx) |
 | Keyboard-first dialog | [`ConfirmDialog.tsx`](../packages/axoview-app/src/components/ConfirmDialog.tsx) |

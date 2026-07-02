@@ -48,6 +48,23 @@ The original "`>1` → every control disabled" rule blocked the single most-requ
 
 This keeps ADR 0006 as the selection source of truth (the strip reads `selectedIds`); it only widens *when* the strip acts.
 
+#### Amendment (2026-07-02) — unified cross-type label sizing (owner: "this kind of consistency, everywhere")
+
+The **per-type** font-size ranges in the 2026-06-30 amendment (point #11: "nodes 10–24, labels 8–48") are **superseded** by one shared sizing model — the owner's stated target for the surface generally (see [ux-principles §5.4](../ux-principles.md)):
+
+- **One base size.** `LABEL_BASE_FONT_PX = 18` ([`labelSettings.ts`](../../packages/axoview-lib/src/config/labelSettings.ts)) is the on-canvas default for **node labels, floating Labels, and connector labels** alike (bumped 14→18 so labels read without hand-bumping each one).
+- **One range + one stepper.** The strip's size control shares a single px range **10–40 / step 2** (`LABEL_SIZE_MIN/MAX/STEP`) across all three label types, and the relative **+/−** stepper nudges each from its own current size (was node/floating only). This replaces the divergent 10–24 / 8–48 ranges above.
+- **Cross-type on a mixed selection.** The stepper also applies across a **heterogeneous** label-bearing multi-selection (commit `2381bc7`) — the one place the strip acts on a mixed selection, because "make these all a bit bigger" is type-independent.
+- **Exception:** the **text box** keeps its tile-space zoom scale (0.15–0.9) — its size scales *with the diagram*, not as screen-px chrome, so it is deliberately excluded.
+
+The pattern to mirror for future label-like text: **one base, one range, one control — derive, don't duplicate per type.**
+
+#### Amendment (2026-07-02) — identity name → Metadata section; the strip Link control
+
+Two follow-on reshapes landed after §4's amendments and are recorded for the doc trail:
+- **Identity `name` moved out of the inline Details field into a collapsed "Metadata" disclosure** (`MetadataSection`) shared by node/connector/rectangle/textbox — see the [ADR 0032](0032-node-name-caption-label-model.md) 2026-07-02 amendment. §62 below ("KEEPS the Name field") is refined by that: the field is now **Label** (on-canvas text) with identity name in the collapsed Metadata section.
+- **The strip gained a Link control** editing `headerLink` (web URL) for node / connector / floating Label. Diagram-to-diagram linking (`modelItem.link`) is **not** on the strip — it remains node-only in the Details deck. Unifying the two into one strip Link control (Web URL | Link to diagram) is a productization-plan slice, not this ADR.
+
 ### 3. Mode + portal contract
 
 The strip renders **only in `EDITABLE` mode**, via `createPortal` into an app-supplied DOM slot (`styleControlsPortalTarget`, a callback-ref target the app provides through `DiagramLifecycleProvider`). This is the same lib→app bridge pattern as the sidebar-toggle portal. View/present modes never mount it (consistent with §8.10 ephemeral presentation chrome).

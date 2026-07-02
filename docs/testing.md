@@ -13,7 +13,7 @@
 
 **Run:** `npm test --workspace=packages/<pkg>` per package, or `npm test --workspaces` for all. The v1.1 wave added the backend (101) + worker (102) server-runtime suites — the only **high**-severity gap the post-v1.0.0 review named — plus the app-side error-UX, startup-timeout, parallelism-contract, file-explorer-delete, share-URL, and backend-routes contract suites. The single skipped test is `leanSave bundledFixtures[0]` (see [known_issues.md](../known_issues.md)).
 
-E2E suite lives at [`packages/axoview-e2e/`](../packages/axoview-e2e/) (Playwright, 50 spec files covering canonical journeys J1–J20 + the v1.1 cross-interaction additions + the Phase 6 presentation/annotation specs + the Phase 6.5 touch/pen specs). Touch specs run under a dedicated `chromium-touch` project (`hasTouch: true`, `testMatch: /touch-.*\.spec\.ts/`) and drive real touch via CDP `Input.dispatchTouchEvent`; the default `chromium` project ignores them. Runs on PRs + master push via [`.github/workflows/e2e-playwright.yml`](../.github/workflows/e2e-playwright.yml). Locally: `npm run test:e2e:ci` from repo root, or `npx playwright test --ui` from the package. The legacy Python/Selenium suite at `e2e-tests/` was deleted 2026-05-23 (audit C.2 I9 + tactical [docs/tactical/e2e-suite-rewrite.md](tactical/e2e-suite-rewrite.md) Session 7).
+E2E suite lives at [`packages/axoview-e2e/`](../packages/axoview-e2e/) (Playwright, 62 spec files covering canonical journeys J1–J20 + the v1.1 cross-interaction additions + the Phase 6 presentation/annotation specs + the Phase 6.5 touch/pen specs). Touch specs run under a dedicated `chromium-touch` project (`hasTouch: true`, `testMatch: /touch-.*\.spec\.ts/`) and drive real touch via CDP `Input.dispatchTouchEvent`; the default `chromium` project ignores them. Runs on PRs + master push via [`.github/workflows/e2e-playwright.yml`](../.github/workflows/e2e-playwright.yml). Locally: `npm run test:e2e:ci` from repo root, or `npx playwright test --ui` from the package. The legacy Python/Selenium suite at `e2e-tests/` was deleted 2026-05-23 (audit C.2 I9 + tactical [docs/tactical/e2e-suite-rewrite.md](tactical/e2e-suite-rewrite.md) Session 7).
 
 ### v1.1 close-out gates (2026-06-10)
 
@@ -101,6 +101,31 @@ UI bug-fix pass: removed the floating `NodeActionBar` (right-click context menu 
 | `hooks/__tests__/useInlineRename.test.tsx` | lib unit | inline-rename click-away contract (ADR 0022 §4): Enter + plain blur (left-click-away) COMMIT; Escape + right-click-away CANCEL; capture-phase pointerdown blurs before the canvas deselect unmounts the editor; pointerdown inside the editor is ignored; Shift+Enter newline in multiline mode |
 | `multiSelect.contract.test.ts` · `annotationOpenReset.contract.test.ts` (updated) | lib unit | dropped the `itemActionBarOpen` assertions — single-select is now purely select-only (derives the panel TARGET, mounts no surface) after the action-bar removal |
 | `contextmenu-scope.spec.ts` · `label-drag.spec.ts` · `touch-longpress.spec.ts` (updated) | E2E | de-referenced the removed `itemActionBarOpen` store slice; contextmenu-scope now pins only the preventDefault scoping (its ADR 0018 purpose); long-press still asserts the context menu opens |
+
+---
+
+### Integration branch additions (labels/text-styling + UX-sweep, 2026-07-02) — unshipped
+
+Shipped on `integration` with [ADRs 0030–0033](adr/) + the 5-persona UX-sweep fixes. Net-new: **9 lib-unit** suites + **12 E2E** specs (plus extensions to schema/reducer/interaction suites). Counts fold into the totals at `/ship`.
+
+| Suite | Type | Covers |
+|---|---|---|
+| `schemas/__tests__/label.test.ts` · `stores/reducers/__tests__/label.test.ts` | lib unit | floating **Label** entity ([ADR 0031](adr/0031-floating-label-entity-model.md)) — schema round-trip + create/update/nudge-z reducers |
+| `schemas/__tests__/notes.test.ts` | lib unit | `notes` on rectangle/textbox/label (parity with node/connector) |
+| `utils/__tests__/foldNodeDescription.test.ts` | lib unit | Option-A `description`→`notes` fold ([ADR 0032](adr/0032-node-name-caption-label-model.md)) — idempotent, block-separator, empty-skip |
+| `utils/__tests__/seedNodeLabel.test.ts` · `seedConnectorLabel.test.ts` | lib unit | `label = name` / `name`→`labels[]` load seeds — idempotent via marker (the zero-migration seed pattern) |
+| `utils/__tests__/bulkStyleTarget.test.ts` | lib unit | homogeneous bulk-target derivation for the strip ([ADR 0030](adr/0030-docked-style-controls-strip.md) §2 amendment) |
+| `IsoTileArea/__tests__/IsoTileArea.borderInset.test.tsx` | lib unit | rectangle border inset by `strokeWidth/2` (no clip on canvas/export) |
+| `interaction/__tests__/TextBox.test.ts` · `Label.test.ts` | lib unit | placement mode contract — arm-vs-place gating (arming tap creates nothing → no double-placement), exactly-one-create on a canvas release, drag-from-panel places, wrong-mode guard (added 2026-07-02) |
+| `label-entity.spec.ts` · `label-edit-and-placement-cancel.spec.ts` | E2E | Label placement, inline-edit, placement cancel (right-click/Escape) |
+| `node-label-decouple.spec.ts` · `connector-parity.spec.ts` · `connector-dot-and-label-placement.spec.ts` | E2E | node + connector name↔label decouple; connector Details/Notes parity; dot marker + 1-tile connector + label placement |
+| `bulk-style.spec.ts` · `cross-type-label-size.spec.ts` | E2E | bulk styling on a homogeneous selection; cross-type label sizing on a mixed selection |
+| `connector-selection-clarity.spec.ts` · `canvas-selection-polish.spec.ts` | E2E | connector halo/exact-hit; selection polish (lasso reset, dbl-click label edit) |
+| `rectangle-overlap-select.spec.ts` · `rectangle-zorder-menu.spec.ts` | E2E | overlapping-rectangle top-most select; rectangle z-order via context menu |
+| `presenter-hover-notes.spec.ts` | E2E | view-mode hover popover shows only when the node has notes |
+
+> **Placement-coverage (F2):** `TextBox.ts`/`Label.ts` mode arm-vs-place gating is now unit-covered (`interaction/__tests__/{TextBox,Label}.test.ts`, 2026-07-02). Still open: the placement mode-hint pill + mouse ghost, and right-click-cancel for TEXTBOX/LABEL/PLACE_ICON. See the productization plan's F2 slice.
+> **Known red (2026-07-02):** `multi-select-drag-lasso.spec.ts › one marquee over a rectangle AND a textbox selects both` — see [known_issues.md](../known_issues.md).
 
 ---
 

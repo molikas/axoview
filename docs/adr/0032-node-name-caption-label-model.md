@@ -51,6 +51,14 @@
 
 Connector only. The `__name__` synthetic-render path and the name-edit-on-F2 path are retired; `ConnectorNameLabel` is folded into `ConnectorTextLabel` (which now also renders the view-mode link). Unit-tested: seed idempotency + legacy-fold + never-re-seed ([`seedConnectorLabel.test.ts`](../../packages/axoview-lib/src/utils/__tests__/seedConnectorLabel.test.ts)).
 
+## Amendment (2026-07-02) — identity `name` moves to a shared "Metadata" section (all item types)
+
+> **What this changes:** the 2026-06-30 resolution "KEEP NAME IN DETAILS" (an inline Name field in the Details tab) is **refined**. Identity `name` is no longer a bare inline field — it now lives in a **collapsed "Metadata" disclosure** ([`MetadataSection`](../../packages/axoview-lib/src/components/ItemControls/components/MetadataSection.tsx), collapsed by default) used uniformly by **node, connector, rectangle, and textbox** panels.
+
+- The Details tab's primary content is the type's own field (node = **Label**, the on-canvas text); identity `name` is tucked into the collapsed Metadata section for de-emphasis and cross-type parity — identity is edited primarily in **Layers**. Notes moved to the shared `NotesSection` for the stacked types.
+- The node Details tab still co-hosts the **inline link button** (`headerLink`) + **show/hide-label toggle** (`showLabel`) on the Label field. The connector Details drops both (a connector has no single on-canvas name — visibility is the Layers eye toggle; the whole-connector link is the strip's Link control). This is a deliberate, documented parity divergence.
+- **Panel shape:** node/connector render Details + Notes as **tabs**; rectangle/textbox/label stack the sections inline. Unifying these behind the shared `NotesSection`/`MetadataSection` layout for all five types is a tracked coherence nit (not a data-model concern).
+
 ## Context
 
 The spike (commit `894cb3b2`) shipped the "Option A" (Figma derive-then-override) name/caption model for **nodes**, but with no decision of record. Before it, a node could carry a rich on-canvas **caption/description** in addition to its `name`. Option A collapses identity to a single on-canvas string (the `name`) and relocates the rich text into the node's **Notes**.

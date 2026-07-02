@@ -113,7 +113,7 @@ Persistence flow + canonical type location (`types/settings.ts`) in [§2j](#2j-c
 | Dialogs (Export/Help/Settings) | `ExportImageDialog`, `HelpDialog`, `SettingsDialog` | `uiState.dialog` set |
 | Notification snackbar | `NotificationSnackbar` (lib) · `NotificationStack` (app) | `uiState.notification` / `notificationStore` |
 | Context menu | `CanvasContextMenu` (ADR 0027) | `uiState.contextMenu` set (right-click tap / long-press; the sole per-item command surface — Details/Rename/Add note/cut/copy/layer/z-order/delete) |
-| Item controls panel | `ItemControlsManager` → `NodePanel` | `uiState.itemControls` set; EDITABLE = 3-tab (Details/Style/Notes), READONLY = single-scroll |
+| Item controls panel | `ItemControlsManager` → `NodePanel` | `uiState.itemControls` set; EDITABLE = 2-tab (Details/Notes) — styling moved to the docked strip ([ADR 0030](adr/0030-docked-style-controls-strip.md)), identity name in a collapsed Metadata section ([ADR 0032](adr/0032-node-name-caption-label-model.md)); READONLY = single-scroll |
 | Quick add popover | `QuickAddNodePopover` | EDITABLE; on `canvasEmptyDblClick` |
 | Preview button | toolbar `IconButton` | EDITABLE + server storage + saved diagram |
 | ToolMenu | `ToolMenu` | EDITABLE; Undo/Redo/Select/Lasso/Freehand/Pan/Connector (Rectangle + Text moved to Elements panel) |

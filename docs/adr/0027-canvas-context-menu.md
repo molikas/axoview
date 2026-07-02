@@ -1,6 +1,6 @@
 # ADR 0027 — Canvas Context Menu (the per-item command surface)
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06-18
 **Supersedes:** none (spawned from [ADR 0022](0022-canvas-pointer-interaction-model.md) §1; home for [ADR 0023](0023-off-grid-positioning-and-collision.md) commands; touch reconciliation with [ADR 0018](0018-touch-pen-gesture-contract.md))
 **Superseded by:** [ADR 0030](0030-docked-style-controls-strip.md) in part — the item panel is now **Details / Notes** (no Style tab) and **Delete** is owned by this context menu; visual styling lives in the docked style strip. The "Style tab" / "Details / Style / Notes" references below are historical (pre-0030).
