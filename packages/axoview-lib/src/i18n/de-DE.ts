@@ -368,6 +368,77 @@ const locale: LocaleProps = {
     color: 'Farbe',
     useCustomColor: 'Benutzerdefinierte Farbe verwenden'
   },
+  topBarStyleControls: {
+    noColor: 'Keine Farbe',
+    customColor: 'Benutzerdefinierte Farbe',
+    textSize: 'Textgröße',
+    iconSize: 'Symbolgröße',
+    textColor: 'Textfarbe',
+    textColorDisabled:
+      'Wählen Sie einen Knoten, Text oder eine Verbindungsbeschriftung, um die Textfarbe festzulegen',
+    textSizeDisabled:
+      'Wählen Sie einen Knoten, Text oder eine Verbindungsbeschriftung, um die Textgröße festzulegen',
+    labelSizeAllSelected: 'Beschriftungsgröße (alle ausgewählten)',
+    decreaseLabelSize: 'Beschriftungsgröße verringern',
+    increaseLabelSize: 'Beschriftungsgröße erhöhen',
+    labelSize: 'Beschriftungsgröße',
+    decreaseSize: 'Größe verringern',
+    increaseSize: 'Größe erhöhen',
+    stepAll: 'Alle anpassen',
+    size: 'Größe',
+    bold: 'Fett',
+    italic: 'Kursiv',
+    strikethrough: 'Durchgestrichen',
+    format: 'Fett / kursiv / durchgestrichen',
+    formatDisabled:
+      'Wählen Sie einen Knoten, eine Beschriftung oder eine Verbindungsbeschriftung (Textfelder werden über Rich-Text formatiert)',
+    background: 'Hintergrundfarbe',
+    backgroundDisabled:
+      'Wählen Sie ein Rechteck oder eine Beschriftung, um die Hintergrundfarbe festzulegen',
+    opacity: 'Deckkraft',
+    border: 'Rahmen',
+    borderDisabled: 'Wählen Sie ein Rechteck, um seinen Rahmen festzulegen',
+    lineStyle: 'Linienstil',
+    width: 'Breite',
+    borderColor: 'Rahmenfarbe',
+    link: 'Link',
+    linkDisabled:
+      'Wählen Sie einen Knoten, eine Verbindung oder eine Beschriftung, um einen Link hinzuzufügen',
+    linkToWeb: 'Link zum Web',
+    webLinkPlaceholder: 'https://…',
+    linkToDiagram: 'Link zum Diagramm',
+    searchDiagrams: 'Diagramme suchen…',
+    openLinkedDiagram: 'Verknüpftes Diagramm öffnen',
+    showLabel: 'Beschriftung anzeigen',
+    hideLabel: 'Beschriftung ausblenden',
+    showHideLabelDisabled:
+      'Wählen Sie einen Knoten, um seine Beschriftung ein- oder auszublenden',
+    changeIconBulk: 'Symbol ändern gilt jeweils für einen Knoten',
+    changeIcon: 'Symbol ändern',
+    changeIconDisabled: 'Wählen Sie einen Knoten, um sein Symbol zu ändern',
+    iconSizeBulk: 'Symbolgröße gilt jeweils für einen Knoten',
+    iconSizeDisabled:
+      'Wählen Sie einen Knoten, um seine Symbolgröße zu ändern',
+    connectionColorPredraw: 'Farbe für die nächste Verbindung, die Sie zeichnen',
+    connectionColor: 'Verbindungsfarbe',
+    connectionColorDisabled:
+      'Wählen Sie eine Verbindung (oder das Verbindungswerkzeug), um ihre Farbe festzulegen',
+    lineOptionsPredraw: 'Linienstil für die nächste Verbindung, die Sie zeichnen',
+    lineOptions: 'Linienoptionen',
+    lineOptionsDisabled:
+      'Wählen Sie eine Verbindung (oder das Verbindungswerkzeug), um ihre Linienoptionen festzulegen',
+    lineType: 'Linientyp',
+    showArrow: 'Pfeil anzeigen',
+    textDirection: 'Textrichtung',
+    textDirectionDisabled:
+      'Wählen Sie ein Textfeld, um seine Richtung festzulegen',
+    textDirectionX: 'Textrichtung X',
+    textDirectionY: 'Textrichtung Y',
+    richTextBulk: 'Rich-Text bearbeitet jeweils ein Textfeld',
+    richText: 'Rich-Text',
+    richTextDisabled: 'Wählen Sie ein Textfeld, um Rich-Text zu bearbeiten',
+    text: 'Text'
+  },
   labelColorPicker: {
     customColor: 'Benutzerdefinierte Farbe'
   },
