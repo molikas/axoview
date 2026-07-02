@@ -256,16 +256,8 @@ export interface LocaleProps {
     addPageDisabled: string;
   };
   nodePanel: {
-    details: string;
-    style: string;
     notes: string;
-    notesModified: string;
     close: string;
-    openLink: string;
-    caption: string;
-    noCaption: string;
-    showLabel: string;
-    hideLabel: string;
     showName: string;
     hideName: string;
   };
@@ -278,55 +270,17 @@ export interface LocaleProps {
     removeLink: string;
     addLink: string;
     linkPlaceholder: string;
-    caption: string;
-    captionHint: string;
     openLink: string;
-    diagramLink: string;
-    diagramLinkPlaceholder: string;
-    diagramLinkHint: string;
-    openDiagramLink: string;
-  };
-  nodeStyleTab: {
-    icon: string;
-    close: string;
-    change: string;
-    iconSize: string;
-    labelFontSize: string;
-    labelColor: string;
-    labelHeight: string;
   };
   connectorControls: {
     close: string;
     metadata: string;
-    labels: string;
-    details: string;
-    style: string;
     notes: string;
-    notesModified: string;
     name: string;
     namePlaceholder: string;
     additionalLabels: string;
     addLabel: string;
     noLabels: string;
-    addLink: string;
-    removeLink: string;
-    linkPlaceholder: string;
-    showLabel: string;
-    hideLabel: string;
-    showName: string;
-    hideName: string;
-    color: string;
-    width: string;
-    lineStyle: string;
-    lineType: string;
-    useCustomColor: string;
-    showArrow: string;
-    solid: string;
-    dotted: string;
-    dashed: string;
-    singleLine: string;
-    doubleLine: string;
-    doubleLineWithCircle: string;
   };
   textBoxControls: {
     close: string;
@@ -335,12 +289,6 @@ export interface LocaleProps {
     name: string;
     namePlaceholder: string;
     text: string;
-    textSize: string;
-    textColor: string;
-    alignment: string;
-    bold: string;
-    backgroundColor: string;
-    removeBackground: string;
   };
   topBarStyleControls: {
     noColor: string;
@@ -409,8 +357,6 @@ export interface LocaleProps {
     notes: string;
     name: string;
     namePlaceholder: string;
-    color: string;
-    useCustomColor: string;
   };
   labelColorPicker: {
     customColor: string;
@@ -500,7 +446,6 @@ export interface LocaleProps {
     groupCrop: string;
     showGrid: string;
     showLabels: string;
-    expandDescriptions: string;
     screenshotPreset: string;
     scaleClamped: string;
     cropToContent: string;
