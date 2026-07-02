@@ -81,7 +81,7 @@ describe('TextBox.mousemove', () => {
 });
 
 describe('TextBox.mouseup', () => {
-  it('a canvas release creates EXACTLY ONE text box, selects it, and returns to CURSOR', () => {
+  it('a canvas release creates EXACTLY ONE text box, selects it (deck stays closed), and returns to CURSOR', () => {
     TextBox.mouseup?.({
       uiState: makeUiState() as any,
       scene: makeScene() as any,
@@ -92,7 +92,12 @@ describe('TextBox.mouseup', () => {
     expect(mockCreateTextBox).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'generated-id', tile: { x: 2, y: 3 } })
     );
-    expect(mockSetItemControls).toHaveBeenCalledWith({ type: 'TEXTBOX', id: 'generated-id' });
+    // Place-and-type: selected (so the strip targets it) but the deck does NOT
+    // open — openPanel:false — the box drops into inline canvas edit next frame.
+    expect(mockSetItemControls).toHaveBeenCalledWith(
+      { type: 'TEXTBOX', id: 'generated-id' },
+      { openPanel: false }
+    );
     expect(mockSetMode).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'CURSOR', mousedownItem: null })
     );

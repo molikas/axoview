@@ -339,7 +339,14 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
 
   return (
     <ControlsContainer
-      header={<DeckHeader closeLabel={t('close')} onClose={handleClose} />}
+      header={
+        <DeckHeader
+          iconNode={iconUrl ? <Box component="img" src={iconUrl} /> : undefined}
+          title={modelItem.label ?? modelItem.name}
+          closeLabel={t('close')}
+          onClose={handleClose}
+        />
+      }
     >
       <NodeInfoTab
         node={viewItem}

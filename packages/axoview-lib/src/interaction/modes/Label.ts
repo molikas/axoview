@@ -53,15 +53,18 @@ export const Label: ModeActions = {
       offset: placement.offset
     });
 
-    // Select the freshly-placed label (selection ring + top-bar style target)
-    // but DON'T auto-open the Details deck (owner 2026-07-02) — placement should
-    // keep the canvas clear; the user opens the panel deliberately if they want
-    // it. Mirrors ADR 0022 §3 select-only (openPanel:false).
+    // Place-and-type (owner 2026-07-02): select the label so the top strip targets
+    // it, but DON'T open the Details deck; drop straight into inline edit on the
+    // canvas next frame (once the chip has mounted). A Label is just on-canvas
+    // text — edited inline + styled from the strip, never via a deck editor.
     uiState.actions.setItemControls({ type: 'LABEL', id }, { openPanel: false });
     uiState.actions.setMode({
       type: 'CURSOR',
       showCursor: true,
       mousedownItem: null
+    });
+    requestAnimationFrame(() => {
+      uiState.actions.setInlineEditLabelId?.(id);
     });
   }
 };

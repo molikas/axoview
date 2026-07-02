@@ -54,11 +54,21 @@ export const TextBox: ModeActions = {
       offset: placement.offset
     });
 
-    uiState.actions.setItemControls({ type: 'TEXTBOX', id });
+    // Place-and-type (owner 2026-07-02): select the box so the top strip targets
+    // it, but DON'T open the Details deck; drop straight into inline edit on the
+    // canvas next frame (once the box has mounted + attached its inline-edit
+    // listener). Text is edited on-canvas and formatted from the strip — the deck
+    // no longer carries a text editor. Matches Figma / draw.io.
+    uiState.actions.setItemControls({ type: 'TEXTBOX', id }, { openPanel: false });
     uiState.actions.setMode({
       type: 'CURSOR',
       showCursor: true,
       mousedownItem: null
+    });
+    requestAnimationFrame(() => {
+      window.dispatchEvent(
+        new CustomEvent('inlineEditNodeName', { detail: { id } })
+      );
     });
   }
 };

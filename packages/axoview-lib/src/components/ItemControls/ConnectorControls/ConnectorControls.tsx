@@ -38,6 +38,7 @@ interface Props {
 
 export const ConnectorControls = ({ id }: Props) => {
   const { t } = useTranslation('connectorControls');
+  const { t: tMenu } = useTranslation('toolMenu');
   const uiStateActions = useUiStateStore((state) => state.actions);
   const connector = useConnector(id);
   const { updateConnector } = useScene();
@@ -142,6 +143,8 @@ export const ConnectorControls = ({ id }: Props) => {
     <ControlsContainer
       header={
         <DeckHeader
+          type="CONNECTOR"
+          title={tMenu('connector')}
           closeLabel={t('close')}
           onClose={() => uiStateActions.setItemControls(null)}
         />

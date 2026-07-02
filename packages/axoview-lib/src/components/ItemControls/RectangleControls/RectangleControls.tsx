@@ -19,6 +19,7 @@ interface Props {
 // (names are Layers-first). Unified collapsible-section deck (ux-principles §5.1).
 export const RectangleControls = ({ id }: Props) => {
   const { t } = useTranslation('rectangleControls');
+  const { t: tMenu } = useTranslation('toolMenu');
   const uiStateActions = useUiStateStore((state) => state.actions);
   const rectangle = useRectangle(id);
   const { updateRectangle } = useScene();
@@ -40,6 +41,8 @@ export const RectangleControls = ({ id }: Props) => {
     <ControlsContainer
       header={
         <DeckHeader
+          type="RECTANGLE"
+          title={tMenu('rectangle')}
           closeLabel={t('close')}
           onClose={() => uiStateActions.setItemControls(null)}
         />

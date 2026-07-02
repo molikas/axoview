@@ -1,40 +1,94 @@
 import React from 'react';
-import { Box, IconButton, Tooltip } from '@mui/material';
-import { Close as CloseIcon } from '@mui/icons-material';
+import { Box, IconButton, Tooltip, Typography } from '@mui/material';
+import {
+  Close as CloseIcon,
+  CropSquareOutlined,
+  TextFieldsOutlined,
+  LabelOutlined,
+  TimelineOutlined
+} from '@mui/icons-material';
+
+type DeckType = 'RECTANGLE' | 'TEXTBOX' | 'LABEL' | 'CONNECTOR';
+
+// One icon per element type, chosen to read at a glance (square = rectangle,
+// "Aa" = text, tag = label, path = connector). A node passes its OWN icon via
+// `iconNode` instead, so the header mirrors what's on the canvas.
+const TYPE_ICON: Record<DeckType, React.ReactNode> = {
+  RECTANGLE: <CropSquareOutlined />,
+  TEXTBOX: <TextFieldsOutlined />,
+  LABEL: <LabelOutlined />,
+  CONNECTOR: <TimelineOutlined />
+};
 
 interface Props {
   closeLabel: string;
   onClose: () => void;
-  /** Optional leading adornment (e.g. an element icon). */
-  leading?: React.ReactNode;
+  /** Element-type identity shown on the left (title text). */
+  title?: string;
+  /** Picks the built-in type icon; omit when passing a custom `iconNode`. */
+  type?: DeckType;
+  /** Custom leading icon (e.g. a node's own icon image). Wins over `type`. */
+  iconNode?: React.ReactNode;
 }
 
-// Consistent Properties-deck header row (2026-07-02): an optional leading
-// adornment on the left and a close button on the right, over the
-// ControlsContainer divider. Replaces the per-panel mix of tab-bars and
-// floating close buttons so every element panel has the same chrome
+// Consistent Properties-deck header row (2026-07-02): a left-side element-type
+// identity (icon + name) and a close button on the right, over the
+// ControlsContainer divider. The identity gives the close button a companion so
+// it no longer reads as a lone, orphaned ✕ (deck-UX finding #15), and tells you
+// at a glance which element the deck is for. Same chrome for every type
 // (ux-principles §5.1).
-export const DeckHeader = ({ closeLabel, onClose, leading }: Props) => (
-  <Box
-    sx={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 1,
-      px: 1,
-      py: 0.5,
-      flexShrink: 0
-    }}
-  >
-    {leading}
-    <Box sx={{ flex: 1 }} />
-    <Tooltip title={closeLabel}>
-      <IconButton
-        size="small"
-        onClick={onClose}
-        sx={{ p: 0.5, flexShrink: 0 }}
-      >
-        <CloseIcon sx={{ fontSize: 15 }} />
-      </IconButton>
-    </Tooltip>
-  </Box>
-);
+export const DeckHeader = ({
+  closeLabel,
+  onClose,
+  title,
+  type,
+  iconNode
+}: Props) => {
+  const icon = iconNode ?? (type ? TYPE_ICON[type] : null);
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 0.75,
+        px: 1.25,
+        py: 0.75,
+        flexShrink: 0
+      }}
+    >
+      {icon && (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            color: 'text.secondary',
+            '& svg': { fontSize: 18 },
+            '& img': { width: 18, height: 18 }
+          }}
+        >
+          {icon}
+        </Box>
+      )}
+      {title && (
+        <Typography
+          variant="subtitle2"
+          sx={{
+            color: 'text.secondary',
+            fontWeight: 600,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          {title}
+        </Typography>
+      )}
+      <Box sx={{ flex: 1 }} />
+      <Tooltip title={closeLabel}>
+        <IconButton size="small" onClick={onClose} sx={{ p: 0.5, flexShrink: 0 }}>
+          <CloseIcon sx={{ fontSize: 15 }} />
+        </IconButton>
+      </Tooltip>
+    </Box>
+  );
+};
