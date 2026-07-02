@@ -404,6 +404,7 @@ export const ConnectorControls = ({ id }: Props) => {
 
           <MetadataSection
             title={t('metadata')}
+            fieldLabel={t('name')}
             name={connector.name ?? ''}
             placeholder={t('namePlaceholder')}
             onChange={(v) =>

@@ -217,6 +217,7 @@ export const NodeInfoTab = ({
           collapsed Metadata section for parity with every other element. */}
       <MetadataSection
         title={t('metadata')}
+        fieldLabel={t('name')}
         name={modelItem.name ?? ''}
         placeholder={t('namePlaceholder')}
         onChange={(v) => onModelItemUpdated({ name: v || undefined })}

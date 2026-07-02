@@ -42,6 +42,7 @@ export const RectangleControls = ({ id }: Props) => {
         />
         <MetadataSection
           title={t('metadata')}
+          fieldLabel={t('name')}
           name={rectangle.name ?? ''}
           placeholder={t('namePlaceholder')}
           onChange={(v) =>

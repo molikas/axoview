@@ -55,6 +55,7 @@ export const TextBoxControls = ({ id }: Props) => {
         />
         <MetadataSection
           title={t('metadata')}
+          fieldLabel={t('name')}
           name={textBox.name ?? ''}
           placeholder={t('namePlaceholder')}
           onChange={(v) => updateTextBox(textBox.id, { name: v || undefined })}

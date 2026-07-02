@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Box, Button, Collapse, TextField } from '@mui/material';
-import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material';
+import { Box, Collapse, TextField, Typography } from '@mui/material';
+import { KeyboardArrowRight as ChevronIcon } from '@mui/icons-material';
 
 interface Props {
   /** Section title (already translated), e.g. "Metadata". */
   title: string;
+  /** The field's label (already translated), e.g. "Name". */
+  fieldLabel: string;
   /** The identity name value. */
   name: string;
   /** Placeholder for the name input (already translated). */
@@ -15,48 +17,103 @@ interface Props {
 }
 
 // Collapsible "Metadata" section holding an element's identity `name` (2026-07-02).
-// Names are identity-only (renamed in Layers, hidden from the canvas), so the
-// deck keeps them available but tucked away rather than as a prominent top field
-// — every element panel uses this so name handling is consistent.
+// Deliberately quiet: a plain-text disclosure (NOT a filled button — that read as
+// the loudest thing in the panel) over a labeled key/value row. The value shows
+// as text and turns into an inline field on click, so it reads like metadata
+// rather than a bare input. Names are identity-only (renamed in Layers too).
 export const MetadataSection = ({
   title,
+  fieldLabel,
   name,
   placeholder,
   onChange,
   defaultExpanded = false
 }: Props) => {
   const [open, setOpen] = useState(defaultExpanded);
+  const [editing, setEditing] = useState(false);
+
   return (
     <Box sx={{ pt: 1.5, px: 2 }}>
-      <Button
-        fullWidth
-        size="small"
+      <Box
         onClick={() => setOpen((v) => !v)}
-        startIcon={
-          <ExpandMoreIcon
-            sx={{
-              transition: 'transform 150ms ease',
-              transform: open ? 'rotate(180deg)' : 'none'
-            }}
-          />
-        }
         sx={{
-          justifyContent: 'flex-start',
-          textTransform: 'none',
-          color: 'text.secondary'
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.25,
+          cursor: 'pointer',
+          color: 'text.secondary',
+          userSelect: 'none',
+          py: 0.25,
+          '&:hover': { color: 'text.primary' }
         }}
       >
-        {title}
-      </Button>
+        <ChevronIcon
+          sx={{
+            fontSize: 16,
+            transition: 'transform 150ms ease',
+            transform: open ? 'rotate(90deg)' : 'none'
+          }}
+        />
+        <Typography
+          variant="caption"
+          sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}
+        >
+          {title}
+        </Typography>
+      </Box>
+
       <Collapse in={open} unmountOnExit>
-        <Box sx={{ pt: 1 }}>
-          <TextField
-            placeholder={placeholder}
-            value={name}
-            size="small"
-            fullWidth
-            onChange={(e) => onChange(e.target.value)}
-          />
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: 1.5,
+            pl: 2.25,
+            pt: 0.5,
+            minHeight: 28
+          }}
+        >
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ minWidth: 52, flexShrink: 0 }}
+          >
+            {fieldLabel}
+          </Typography>
+          {editing ? (
+            <TextField
+              value={name}
+              placeholder={placeholder}
+              size="small"
+              variant="standard"
+              autoFocus
+              fullWidth
+              onChange={(e) => onChange(e.target.value)}
+              onBlur={() => setEditing(false)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === 'Escape') {
+                  e.preventDefault();
+                  (e.currentTarget as HTMLInputElement).blur();
+                }
+              }}
+            />
+          ) : (
+            <Typography
+              variant="body2"
+              onClick={() => setEditing(true)}
+              sx={{
+                flex: 1,
+                cursor: 'text',
+                color: name ? 'text.primary' : 'text.disabled',
+                borderRadius: 0.5,
+                px: 0.5,
+                mx: -0.5,
+                '&:hover': { bgcolor: 'action.hover' }
+              }}
+            >
+              {name || placeholder}
+            </Typography>
+          )}
         </Box>
       </Collapse>
     </Box>
