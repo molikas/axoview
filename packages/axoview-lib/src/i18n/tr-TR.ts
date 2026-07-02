@@ -293,7 +293,7 @@ const locale: LocaleProps = {
     notes: 'Notlar',
     name: 'Ad',
     namePlaceholder: 'Kenar etiketi…',
-    additionalLabels: 'Ek etiketler',
+    labels: 'Etiketler',
     addLabel: 'Etiket ekle',
     noLabels: 'Henüz etiket yok.'
   },

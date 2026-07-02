@@ -151,7 +151,7 @@ export const ConnectorControls = ({ id }: Props) => {
           along the path). Open by default; drag on the canvas to position, use
           the top bar for text size/colour. */}
       <CollapsibleSection
-        title={t('additionalLabels')}
+        title={t('labels')}
         defaultOpen
         trailing={
           labels.length > 0 ? (
@@ -242,13 +242,9 @@ export const ConnectorControls = ({ id }: Props) => {
                 </MUIIconButton>
               </Box>
 
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ mb: 0.5, display: 'block' }}
-              >
-                Text
-              </Typography>
+              {/* No "Text" sublabel — the field inside a "Label {n}" card is
+                  obviously the label's text, and "Text" here collided with the
+                  section name (owner 2026-07-02, "kill inversions"). */}
               <TextField
                 value={label.text}
                 autoFocus={label.id === justAddedId}

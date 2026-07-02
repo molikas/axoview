@@ -278,7 +278,7 @@ export interface LocaleProps {
     notes: string;
     name: string;
     namePlaceholder: string;
-    additionalLabels: string;
+    labels: string;
     addLabel: string;
     noLabels: string;
   };

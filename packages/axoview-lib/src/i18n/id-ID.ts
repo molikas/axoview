@@ -292,7 +292,7 @@ const locale: LocaleProps = {
     notes: 'Catatan',
     name: 'Nama',
     namePlaceholder: 'Label sisi…',
-    additionalLabels: 'Label tambahan',
+    labels: 'Label',
     addLabel: 'Tambah label',
     noLabels: 'Belum ada label.'
   },

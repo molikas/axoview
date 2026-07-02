@@ -22,6 +22,11 @@ interface Props {
 // on canvas (double-click / F2).
 export const LabelControls = ({ id }: Props) => {
   const { t } = useTranslation('textBoxControls');
+  // The floating Label's content section is titled "Label" (not "Text") — the
+  // element is called Label, so its content should be too (owner 2026-07-02,
+  // "match element, kill inversions"). Reuse the already-translated nodeInfoTab
+  // "Label" title + placeholder rather than minting duplicate keys.
+  const { t: tLabel } = useTranslation('nodeInfoTab');
   const uiStateActions = useUiStateStore((state) => state.actions);
   const label = useLabel(id);
   const { updateLabel } = useScene();
@@ -46,9 +51,9 @@ export const LabelControls = ({ id }: Props) => {
         />
       }
     >
-      <CollapsibleSection title={t('text')} defaultOpen>
+      <CollapsibleSection title={tLabel('label')} defaultOpen>
         <TextField
-          placeholder={t('namePlaceholder')}
+          placeholder={tLabel('labelPlaceholder')}
           value={label.text}
           size="small"
           fullWidth

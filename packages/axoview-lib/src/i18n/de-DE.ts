@@ -295,7 +295,7 @@ const locale: LocaleProps = {
     notes: 'Notizen',
     name: 'Name',
     namePlaceholder: 'Kantenbezeichnung…',
-    additionalLabels: 'Zusätzliche Beschriftungen',
+    labels: 'Beschriftungen',
     addLabel: 'Beschriftung hinzufügen',
     noLabels: 'Noch keine Beschriftungen.'
   },

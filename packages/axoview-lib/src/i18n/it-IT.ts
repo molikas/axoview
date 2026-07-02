@@ -295,7 +295,7 @@ const locale: LocaleProps = {
     notes: 'Note',
     name: 'Nome',
     namePlaceholder: "Etichetta dell'arco…",
-    additionalLabels: 'Etichette aggiuntive',
+    labels: 'Etichette',
     addLabel: 'Aggiungi etichetta',
     noLabels: 'Nessuna etichetta ancora.'
   },

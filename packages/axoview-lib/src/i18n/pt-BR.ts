@@ -293,7 +293,7 @@ const locale: LocaleProps = {
     notes: 'Notas',
     name: 'Nome',
     namePlaceholder: 'Rótulo da aresta…',
-    additionalLabels: 'Rótulos adicionais',
+    labels: 'Rótulos',
     addLabel: 'Adicionar rótulo',
     noLabels: 'Ainda não há rótulos.'
   },

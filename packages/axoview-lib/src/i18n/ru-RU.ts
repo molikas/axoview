@@ -293,7 +293,7 @@ const locale: LocaleProps = {
     notes: 'Заметки',
     name: 'Имя',
     namePlaceholder: 'Метка ребра…',
-    additionalLabels: 'Дополнительные метки',
+    labels: 'Метки',
     addLabel: 'Добавить метку',
     noLabels: 'Меток пока нет.'
   },

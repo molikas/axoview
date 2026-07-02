@@ -292,7 +292,7 @@ const locale: LocaleProps = {
     notes: 'Notes',
     name: 'Name',
     namePlaceholder: 'Edge label…',
-    additionalLabels: 'Additional labels',
+    labels: 'Labels',
     addLabel: 'Add label',
     noLabels: 'No labels yet.'
   },

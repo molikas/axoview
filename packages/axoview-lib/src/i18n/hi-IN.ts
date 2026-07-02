@@ -293,7 +293,7 @@ const locale: LocaleProps = {
     notes: 'नोट्स',
     name: 'नाम',
     namePlaceholder: 'किनारे का लेबल…',
-    additionalLabels: 'अतिरिक्त लेबल',
+    labels: 'लेबल',
     addLabel: 'लेबल जोड़ें',
     noLabels: 'अभी कोई लेबल नहीं।'
   },

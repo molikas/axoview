@@ -291,7 +291,7 @@ const locale: LocaleProps = {
     notes: 'নোট',
     name: 'নাম',
     namePlaceholder: 'প্রান্ত লেবেল…',
-    additionalLabels: 'অতিরিক্ত লেবেল',
+    labels: 'লেবেল',
     addLabel: 'লেবেল যোগ করুন',
     noLabels: 'এখনও কোনো লেবেল নেই।'
   },

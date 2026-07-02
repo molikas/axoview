@@ -271,7 +271,7 @@ const locale: LocaleProps = {
     notes: '备注',
     name: '名称',
     namePlaceholder: '边标签…',
-    additionalLabels: '附加标签',
+    labels: '标签',
     addLabel: '添加标签',
     noLabels: '暂无标签。'
   },
