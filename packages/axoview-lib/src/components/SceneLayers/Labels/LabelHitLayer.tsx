@@ -4,6 +4,7 @@ import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useSceneActions } from 'src/hooks/useSceneActions';
+import { useInlineRename } from 'src/hooks/useInlineRename';
 import {
   measureLabelChip,
   labelFontPx,
@@ -54,6 +55,87 @@ const fallbackChip = (text: string, fontSize: number): LabelChipLayout => {
   };
 };
 
+// Inline contentEditable editor for a floating Label (double-click / F2). It
+// overlays the chip at the same canvas-px rect the hit-proxy uses; while it is
+// mounted LabelsCanvas skips painting this label (uiState.inlineEditLabelId) so
+// the text isn't drawn twice. Left-click-away / Enter commit; right-click-away /
+// Escape cancel (useInlineRename's shared contract).
+const LabelInlineEditor = ({
+  label,
+  left,
+  top,
+  width,
+  fontSize,
+  onDone
+}: {
+  label: Label;
+  left: number;
+  top: number;
+  width: number;
+  fontSize: number;
+  onDone: () => void;
+}) => {
+  const { updateLabel } = useSceneActions();
+  const commit = useCallback(
+    (raw: string) => {
+      const text = raw.replace(/\n+$/, '');
+      // Empty text has no reason to draw — revert (keep the old text) rather than
+      // leaving a blank chip; the user can delete the label with Delete instead.
+      if (text.trim() && text !== label.text) {
+        updateLabel(label.id, { text });
+      }
+      onDone();
+    },
+    [updateLabel, label.id, label.text, onDone]
+  );
+  const inline = useInlineRename({
+    active: true,
+    commit,
+    cancel: onDone,
+    multiline: true
+  });
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: left - 8,
+        top: top - 4,
+        minWidth: width + 16,
+        zIndex: 20,
+        pointerEvents: 'auto'
+      }}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <div
+        contentEditable
+        suppressContentEditableWarning
+        ref={inline.setRef as unknown as React.Ref<HTMLDivElement>}
+        onBlur={inline.onBlur}
+        onKeyDown={inline.onKeyDown}
+        onDoubleClick={(e) => e.stopPropagation()}
+        style={{
+          font: `${label.isItalic ? 'italic ' : ''}${
+            label.isBold ? 700 : 400
+          } ${fontSize}px Roboto, Arial, sans-serif`,
+          color: label.color || '#222',
+          background: label.backgroundColor || '#fff',
+          border: '1px solid #90caf9',
+          borderRadius: 4,
+          padding: '4px 8px',
+          textAlign: 'center',
+          outline: 'none',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          cursor: 'text',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.2)'
+        }}
+      >
+        {label.text}
+      </div>
+    </div>
+  );
+};
+
 interface Props {
   labels: Label[];
 }
@@ -78,8 +160,26 @@ export const LabelHitLayer = ({ labels }: Props) => {
   const active = useUiStateStore(
     (s) => s.editorMode === 'EDITABLE' && s.zoom >= HIT_MIN_ZOOM
   );
+  const inlineEditLabelId = useUiStateStore((s) => s.inlineEditLabelId);
 
   const dragRef = useRef<DragState | null>(null);
+
+  // Double-click a label chip → inline-edit it (parity with node / connector
+  // labels; owner 2026-07-02). F2 on a selected label routes here too (via
+  // setInlineEditLabelId in the interaction manager).
+  const onDoubleClick = useCallback(
+    (e: React.MouseEvent, label: Label) => {
+      e.stopPropagation();
+      const actions = uiStoreApi.getState().actions;
+      actions.setItemControls({ type: 'LABEL', id: label.id }, { openPanel: false });
+      actions.setInlineEditLabelId(label.id);
+    },
+    [uiStoreApi]
+  );
+
+  const endInlineEdit = useCallback(() => {
+    uiStoreApi.getState().actions.setInlineEditLabelId(null);
+  }, [uiStoreApi]);
 
   const onWindowMove = useCallback(
     (e: PointerEvent) => {
@@ -181,16 +281,32 @@ export const LabelHitLayer = ({ labels }: Props) => {
         const pos = getTilePosition({ tile: label.tile, origin: 'CENTER' });
         const cx = pos.x + (label.offset?.x ?? 0);
         const cy = pos.y + (label.offset?.y ?? 0);
+        const left = cx - chip.chipW / 2;
+        const top = cy - chip.chipH / 2;
+        if (label.id === inlineEditLabelId) {
+          return (
+            <LabelInlineEditor
+              key={`${label.id}-edit`}
+              label={label}
+              left={left}
+              top={top}
+              width={chip.chipW}
+              fontSize={fontSize}
+              onDone={endInlineEdit}
+            />
+          );
+        }
         return (
           <div
             key={label.id}
             data-axoview-id="canvas-label-hit"
             data-label-hit-id={label.id}
             onPointerDown={(e) => onPointerDown(e, label)}
+            onDoubleClick={(e) => onDoubleClick(e, label)}
             style={{
               position: 'absolute',
-              left: cx - chip.chipW / 2,
-              top: cy - chip.chipH / 2,
+              left,
+              top,
               width: chip.chipW,
               height: chip.chipH,
               pointerEvents: 'auto',

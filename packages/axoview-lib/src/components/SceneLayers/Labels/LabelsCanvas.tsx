@@ -85,6 +85,9 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
       const ui = uiApi.getState();
       const { scroll, zoom, rendererSize } = ui;
       const move = ui.labelMove;
+      // The label being inline-edited is drawn by the DOM contentEditable in
+      // LabelHitLayer — skip it here so the text isn't painted twice.
+      const editingId = ui.inlineEditLabelId;
       const dpr = window.devicePixelRatio || 1;
       const W = rendererSize.width;
       const H = rendererSize.height;
@@ -136,6 +139,7 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
       let drawn = 0;
       const layoutCache = layoutCacheRef.current;
       for (const label of sorted) {
+        if (label.id === editingId) continue;
         // Live move-preview (LabelHitLayer) overrides the model position for the
         // one dragged label, WITHOUT a per-frame model write.
         const moved = move && move.id === label.id ? move : null;
@@ -194,7 +198,8 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
         s.scroll === p.scroll &&
         s.zoom === p.zoom &&
         s.rendererSize === p.rendererSize &&
-        s.labelMove === p.labelMove
+        s.labelMove === p.labelMove &&
+        s.inlineEditLabelId === p.inlineEditLabelId
       ) {
         return;
       }

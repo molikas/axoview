@@ -84,6 +84,7 @@ const initialState = () => {
       labelDrag: null,
       labelMove: null,
       selectedConnectorLabel: null,
+      inlineEditLabelId: null,
       annotation: {
         open: false,
         // Open in the non-disruptive Select mode; the user picks a draw tool.
@@ -352,6 +353,9 @@ const initialState = () => {
         },
         clearLabelMove: () => {
           set({ labelMove: null });
+        },
+        setInlineEditLabelId: (id) => {
+          set({ inlineEditLabelId: id });
         },
         setSelectedConnectorLabel: (sel) => {
           set({ selectedConnectorLabel: sel });

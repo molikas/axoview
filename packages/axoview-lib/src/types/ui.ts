@@ -368,6 +368,13 @@ export interface UiState {
    * UI-only, never persisted.
    */
   selectedConnectorLabel: { connectorId: string; labelId: string } | null;
+  /**
+   * The floating Label (ADR 0031) currently being inline-edited on canvas (via
+   * double-click or F2), or null. While set, LabelsCanvas skips painting that
+   * label (the DOM contentEditable in LabelHitLayer takes over) so the text
+   * isn't drawn twice. UI-only, never persisted.
+   */
+  inlineEditLabelId: string | null;
   /** Ephemeral annotation overlay (ADR 0014). Never persisted. */
   annotation: AnnotationState;
 }
@@ -524,6 +531,8 @@ export interface UiStateActions {
   setSelectedConnectorLabel: (
     sel: { connectorId: string; labelId: string } | null
   ) => void;
+  /** Enter / leave inline-edit for a floating Label (double-click / F2). */
+  setInlineEditLabelId: (id: string | null) => void;
   // --- Annotation overlay (ADR 0014) ---
   setAnnotationOpen: (open: boolean) => void;
   setAnnotationTool: (tool: AnnotationTool) => void;

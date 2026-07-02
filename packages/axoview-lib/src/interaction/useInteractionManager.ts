@@ -386,12 +386,16 @@ const handleFunctionKeys = (
       !focusTarget ||
       focusTarget === document.body ||
       (renderer ? renderer.contains(focusTarget) : false);
-    if (
-      (ctrl?.type === 'ITEM' ||
-        ctrl?.type === 'TEXTBOX' ||
-        ctrl?.type === 'CONNECTOR') &&
-      uiState.editorMode === 'EDITABLE' &&
-      cameFromRenderer
+    if (uiState.editorMode !== 'EDITABLE' || !cameFromRenderer) return;
+    if (ctrl?.type === 'LABEL') {
+      // Floating Label inline-edit is driven by uiState (LabelHitLayer renders
+      // the contentEditable), not the node/connector inlineEditNodeName event.
+      e.preventDefault();
+      uiState.actions.setInlineEditLabelId(ctrl.id);
+    } else if (
+      ctrl?.type === 'ITEM' ||
+      ctrl?.type === 'TEXTBOX' ||
+      ctrl?.type === 'CONNECTOR'
     ) {
       e.preventDefault();
       window.dispatchEvent(

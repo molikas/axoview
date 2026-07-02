@@ -229,9 +229,15 @@ export const usePanHandlers = () => {
           showCursor: true,
           mousedownItem: null
         });
-      } else if (currentModeType === 'TEXTBOX') {
-        // Armed text/label placement: right-click cancels the tool entirely
-        // (drop nothing, return to select) rather than re-arming.
+      } else if (
+        currentModeType === 'TEXTBOX' ||
+        currentModeType === 'LABEL' ||
+        currentModeType === 'RECTANGLE.DRAW' ||
+        currentModeType === 'PLACE_ICON'
+      ) {
+        // Armed placement (text / label / rectangle / node icon): right-click
+        // cancels the tool entirely (drop nothing, return to select) rather than
+        // re-arming — parity across every placement tool, matching CONNECTOR.
         actions.setMode({
           type: 'CURSOR',
           showCursor: true,
