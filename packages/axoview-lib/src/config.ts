@@ -85,6 +85,9 @@ export const CONNECTOR_DEFAULTS: Required<
     | 'notes'
     | 'headerLink'
     | 'showLabel'
+    // Migration marker — set by seedConnectorLabel on load, never a creation
+    // default.
+    | 'nameSeeded'
     // Name-label presentation overrides default to absent (midpoint, on-line,
     // default size/colour) so lean-save never writes them on an unstyled name.
     | 'nameLabelPosition'

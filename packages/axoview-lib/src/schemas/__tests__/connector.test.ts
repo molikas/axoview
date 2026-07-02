@@ -118,6 +118,26 @@ describe('connectorLabelSchema', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it('accepts and round-trips an optional headerLink (#4 connector-label links)', () => {
+    const result = connectorLabelSchema.safeParse({
+      ...baseLabel,
+      headerLink: 'https://example.com'
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.headerLink).toBe('https://example.com');
+    }
+  });
+
+  it('rejects a headerLink over 2048 chars', () => {
+    expect(
+      connectorLabelSchema.safeParse({
+        ...baseLabel,
+        headerLink: 'x'.repeat(2049)
+      }).success
+    ).toBe(false);
+  });
 });
 
 describe('connectorSchema — name and notes fields', () => {
@@ -157,6 +177,12 @@ describe('connectorSchema — name and notes fields', () => {
 
   it('connector without name or notes still validates', () => {
     expect(connectorSchema.safeParse(base).success).toBe(true);
+  });
+
+  it('accepts and round-trips the nameSeeded migration marker', () => {
+    const result = connectorSchema.safeParse({ ...base, nameSeeded: true });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.nameSeeded).toBe(true);
   });
 });
 

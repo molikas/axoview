@@ -34,6 +34,23 @@
 
 > **Correction of record:** a project note claimed this model "amends [ADR 0004](0004-connector-name-and-details-panel.md)." That is **false** — ADR 0004 is connector-only (connector `name`/`notes` parity). The node name/caption model has had **no ADR**; this is it.
 
+## Amendment (2026-07-02) — connector name↔label decouple (parity with the node amendment)
+
+> **What this changes:** the 2026-06-30 amendment (§ Scope) left **CONNECTOR** name-as-label out of scope. This brings connectors to the same decoupled model, driven by owner request ("decouple connection name and label the same way we did with nodes"). Same **zero-migration addition** posture on the unpushed `integration` branch — a new optional marker field, seeded at load.
+
+### New decision (connector)
+
+1. **On-canvas text = the connector's `labels[]`.** The synthetic `__name__` label (previously assembled in `ConnectorLabel.tsx` from `name` + `nameLabel*` and prepended to `getConnectorLabels`) is **no longer rendered**. `name` no longer draws.
+2. **`name` is identity only** — renamed in the **Layers** panel (unchanged row machinery), **hidden from the canvas**. The `nameLabel*` presentation fields stay in the schema for round-trip but are inert (the seed reads them once).
+3. **F2 on a selected connector = add a new `labels[]` entry at the midpoint (position 50) and immediately inline-edit it** (owner pick — a connector has no single on-canvas name to rename, so F2 *grows* the label set). If a specific label is already selected, F2 edits that one.
+4. **Seed `name`→`labels[]` at load.** [`src/utils/seedConnectorLabel.ts`](../../packages/axoview-lib/src/utils/seedConnectorLabel.ts) (mirrors `seedNodeLabel`) folds each existing connector's `name` into a midpoint label carrying its `nameLabel*` placement/style, then stamps **`nameSeeded: true`**. Pure + idempotent via the marker, which is set on **every** connector the pass touches (name present or not) — so a name later typed in Layers is pure identity and never re-seeded into a canvas label.
+5. **`showLabel` now gates all of a connector's labels** (mirroring a node's `showLabel` gating its label), replacing its old role of gating only the synthetic name. The now-meaningless "show/hide name" toggle is removed from connector **Details**; label visibility remains available from the **Layers** eye toggle.
+6. **Connector labels get an external link** (`connectorLabelSchema.headerLink`, parity with node-label links). A label with a link renders as a clickable `<a>`-style chip + `OpenInNewIcon` in view/read-only mode; the top-bar **Link** control targets the selected label's `headerLink` (whole-connector `headerLink` still applies when the connector itself, no label, is selected).
+
+### Scope (connector)
+
+Connector only. The `__name__` synthetic-render path and the name-edit-on-F2 path are retired; `ConnectorNameLabel` is folded into `ConnectorTextLabel` (which now also renders the view-mode link). Unit-tested: seed idempotency + legacy-fold + never-re-seed ([`seedConnectorLabel.test.ts`](../../packages/axoview-lib/src/utils/__tests__/seedConnectorLabel.test.ts)).
+
 ## Context
 
 The spike (commit `894cb3b2`) shipped the "Option A" (Figma derive-then-override) name/caption model for **nodes**, but with no decision of record. Before it, a node could carry a rich on-canvas **caption/description** in addition to its `name`. Option A collapses identity to a single on-canvas string (the `name`) and relocates the rich text into the node's **Notes**.

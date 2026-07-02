@@ -5,7 +5,8 @@ import { useSceneStore } from 'src/stores/sceneStore';
 import {
   connectorPathTileToGlobal,
   getConnectorLabels,
-  getLabelTileIndex
+  getLabelTileIndex,
+  generateId
 } from 'src/utils';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { PROJECTED_TILE_SIZE, UNPROJECTED_TILE_SIZE } from 'src/config';
@@ -110,27 +111,27 @@ const ConnectorNameEditor = ({
   );
 };
 
-// Primary name label. In EDITABLE mode it is a first-class interactive label
-// (click to select, drag to reposition + lift off the line, style via the top
-// bar) — same as a labels[] entry, but its placement/style live on the
-// connector's nameLabel* fields. In view/read-only mode it stays a clickable
-// link when headerLink is set.
-const ConnectorNameLabel = ({
+// Connector label. In EDITABLE mode it is interactive: click to select (so the
+// top-bar style strip targets it), double-click to inline-edit, drag to
+// reposition along the path + lift it off the line. A selected label shows a
+// primary outline. In view/read-only mode it renders as a clickable link when
+// the label carries a headerLink (parity with node-label links, #4).
+const ConnectorTextLabel = ({
   position,
   label,
-  headerLink,
   interactive,
   selected,
-  onPointerDown
+  onPointerDown,
+  onStartEdit
 }: {
   position: LabelPosition;
   label: ConnectorLabelType;
-  headerLink?: string;
   interactive: boolean;
   selected: boolean;
   onPointerDown: (e: React.PointerEvent) => void;
+  onStartEdit: () => void;
 }) => {
-  const url = resolveConnectorUrl(headerLink);
+  const url = resolveConnectorUrl(label.headerLink);
   // The link is a view-mode affordance; while editing, a click selects the
   // label (and a drag repositions it) instead of navigating away.
   const linkActive = !!url && !interactive;
@@ -150,6 +151,14 @@ const ConnectorNameLabel = ({
         top: position.y
       }}
       onPointerDown={interactive ? onPointerDown : undefined}
+      onDoubleClick={
+        interactive
+          ? (e) => {
+              e.stopPropagation();
+              onStartEdit();
+            }
+          : undefined
+      }
       onClick={
         linkActive
           ? (e) => {
@@ -162,7 +171,7 @@ const ConnectorNameLabel = ({
       <Label
         maxWidth={150}
         labelHeight={label.height || 0}
-        showLine={false}
+        showLine={label.showLine !== false}
         sx={{
           py: 0.75,
           px: 1,
@@ -181,9 +190,11 @@ const ConnectorNameLabel = ({
               fontWeight: label.bold ? 700 : 400,
               fontStyle: label.italic ? 'italic' : 'normal',
               textDecoration: label.strikethrough ? 'line-through' : 'none',
-              color: label.labelColor || (linkActive ? 'primary.main' : 'text.primary'),
-              // #10: wrap a long connector name/link instead of clipping it on the
-              // Label chip's overflow:hidden (parity with the node caption, §5.2).
+              color:
+                label.labelColor ||
+                (linkActive ? 'primary.main' : 'text.primary'),
+              // #10: keep long text labels wrapping (not clipped) on the Label
+              // chip's overflow:hidden (parity with the node caption, §5.2).
               wordBreak: 'break-word',
               overflowWrap: 'anywhere',
               fontSize: `${label.fontSize ?? LABEL_BASE_FONT_PX}px`
@@ -201,84 +212,6 @@ const ConnectorNameLabel = ({
     </Box>
   );
 };
-
-// Standard (non-name) connector label. In EDITABLE mode it is interactive:
-// click to select (so the top-bar style strip targets it), drag to reposition
-// along the path + lift it off the line. A selected label shows a primary
-// outline.
-const ConnectorTextLabel = ({
-  position,
-  label,
-  interactive,
-  selected,
-  onPointerDown,
-  onStartEdit
-}: {
-  position: LabelPosition;
-  label: ConnectorLabelType;
-  interactive: boolean;
-  selected: boolean;
-  onPointerDown: (e: React.PointerEvent) => void;
-  onStartEdit: () => void;
-}) => (
-  <Box
-    sx={{
-      position: 'absolute',
-      pointerEvents: interactive ? 'auto' : 'none',
-      cursor: interactive ? 'grab' : 'default',
-      touchAction: interactive ? 'none' : undefined,
-      userSelect: interactive ? 'none' : undefined,
-      WebkitUserSelect: interactive ? 'none' : undefined
-    }}
-    style={{
-      maxWidth: PROJECTED_TILE_SIZE.width,
-      left: position.x,
-      top: position.y
-    }}
-    onPointerDown={interactive ? onPointerDown : undefined}
-    onDoubleClick={
-      interactive
-        ? (e) => {
-            e.stopPropagation();
-            onStartEdit();
-          }
-        : undefined
-    }
-  >
-    <Label
-      maxWidth={150}
-      labelHeight={label.height || 0}
-      showLine={label.showLine !== false}
-      sx={{
-        py: 0.75,
-        px: 1,
-        borderRadius: 2,
-        backgroundColor: 'background.paper',
-        opacity: 0.95,
-        ...(selected
-          ? { outline: '2px solid', outlineColor: 'primary.main', opacity: 1 }
-          : {})
-      }}
-    >
-      <Typography
-        variant="body2"
-        sx={{
-          fontWeight: label.bold ? 700 : 400,
-          fontStyle: label.italic ? 'italic' : 'normal',
-          textDecoration: label.strikethrough ? 'line-through' : 'none',
-          color: label.labelColor || 'text.primary',
-          // #10: keep long text labels wrapping (not clipped), matching the name
-          // label above so every connector label behaves the same.
-          wordBreak: 'break-word',
-          overflowWrap: 'anywhere',
-          fontSize: `${label.fontSize ?? LABEL_BASE_FONT_PX}px`
-        }}
-      >
-        {label.text}
-      </Typography>
-    </Label>
-  </Box>
-);
 
 interface Props {
   connector: Connector;
@@ -316,7 +249,6 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
     height: number;
   } | null>(null);
 
-  const [isEditingName, setIsEditingName] = useState(false);
   // The labels[] entry being inline-edited on canvas (null = none). Set by the
   // 'inlineEditConnectorLabel' event (context-menu / panel "Add label") and by
   // double-clicking a label.
@@ -334,76 +266,55 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
     return () => window.removeEventListener('inlineEditConnectorLabel', handler);
   }, [connector.id, isEditable]);
 
+  // Single source for the connector's authored labels[] (also migrates legacy
+  // fields). Used to render and to commit a reposition by id.
+  const baseLabels = useMemo(() => getConnectorLabels(connector), [connector]);
+
   useEffect(() => {
     if (!isEditable) return;
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ id: string }>).detail;
       if (detail?.id !== connector.id) return;
-      // F2 / context-menu "Rename": edit the SELECTED labels[] entry if one is
-      // selected; otherwise fall back to the primary name label.
+      // F2 / context-menu "Rename" on a connector: if a labels[] entry is
+      // selected, inline-edit it. Otherwise ADD a new midpoint label and
+      // inline-edit it — a connector has no single on-canvas name post-decouple
+      // (ADR 0032 connector amendment), so F2 grows the label set (owner pick).
       const sel = uiStoreApi.getState().selectedConnectorLabel;
       if (sel?.connectorId === connector.id && sel.labelId !== '__name__') {
         setEditingLabelId(sel.labelId);
-      } else {
-        setIsEditingName(true);
+        return;
       }
+      const newId = generateId();
+      updateConnector(connector.id, {
+        labels: [...baseLabels, { id: newId, text: '', position: 50 }],
+        description: undefined,
+        startLabel: undefined,
+        endLabel: undefined,
+        startLabelHeight: undefined,
+        centerLabelHeight: undefined,
+        endLabelHeight: undefined
+      });
+      setEditingLabelId(newId);
     };
     window.addEventListener(INLINE_EDIT_EVENT, handler);
     return () => window.removeEventListener(INLINE_EDIT_EVENT, handler);
-  }, [connector.id, isEditable, uiStoreApi]);
+  }, [connector.id, isEditable, uiStoreApi, updateConnector, baseLabels]);
 
-  const commitName = useCallback(
-    (raw: string) => {
-      const next = raw.trim();
-      if (next !== (connector.name ?? '')) {
-        updateConnector(connector.id, { name: next || undefined });
-      }
-      setIsEditingName(false);
-    },
-    [updateConnector, connector.id, connector.name]
-  );
-
-  const trimmedName = connector.name?.trim() ?? '';
-
-  // Single source for the connector's authored labels[] (also migrates legacy
-  // fields). Used to render and to commit a reposition by id.
-  const baseLabels = useMemo(() => getConnectorLabels(connector), [connector]);
-
+  // On-canvas labels = the connector's labels[] (content). The identity `name`
+  // is decoupled (ADR 0032 connector amendment): Layers-renamed, never drawn.
+  // `showLabel` (+ the global/present hide-labels override) now gates all of a
+  // connector's labels, mirroring a node's showLabel gating its label.
   const labels = useMemo(() => {
-    // The synthetic name label follows the model's `showLabel`, then the
-    // present-mode hide-labels override (single merge point). Other connector
-    // labels are content, not name labels, so the toggle leaves them alone.
-    const nameVisible =
+    const visible =
       isLabelVisibleInPreview(
         connector.showLabel !== false,
         isReadonly,
         previewHideLabels
       ) && !exportHideLabels;
-    if (!trimmedName || !nameVisible) return baseLabels;
-    const synthetic: ConnectorLabelType = {
-      id: '__name__',
-      text: trimmedName,
-      position: connector.nameLabelPosition ?? 50,
-      line: '1',
-      height: connector.nameLabelHeight ?? 0,
-      fontSize: connector.nameLabelFontSize,
-      labelColor: connector.nameLabelColor,
-      bold: connector.nameLabelBold,
-      italic: connector.nameLabelItalic,
-      strikethrough: connector.nameLabelStrikethrough
-    };
-    return [synthetic, ...baseLabels];
+    return visible ? baseLabels : [];
   }, [
     baseLabels,
-    trimmedName,
     connector.showLabel,
-    connector.nameLabelPosition,
-    connector.nameLabelHeight,
-    connector.nameLabelFontSize,
-    connector.nameLabelColor,
-    connector.nameLabelBold,
-    connector.nameLabelItalic,
-    connector.nameLabelStrikethrough,
     isReadonly,
     previewHideLabels,
     exportHideLabels
@@ -420,19 +331,11 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
     );
   }, [scenePath, getTilePosition]);
 
-  // Commit a label's new position/height (one history entry). The primary name
-  // label stores its placement on the connector's nameLabel* fields (it is not a
-  // labels[] entry); every other label maps over baseLabels (which also folds
-  // legacy fields into labels[], matching the ConnectorControls edit handlers).
+  // Commit a label's new position/height (one history entry). Maps over
+  // baseLabels (which also folds legacy fields into labels[], matching the
+  // ConnectorControls edit handlers).
   const commitLabel = useCallback(
     (labelId: string, position: number, height: number) => {
-      if (labelId === '__name__') {
-        updateConnector(connector.id, {
-          nameLabelPosition: position,
-          nameLabelHeight: height
-        });
-        return;
-      }
       updateConnector(connector.id, {
         labels: baseLabels.map((l) =>
           l.id === labelId ? { ...l, position, height } : l
@@ -694,33 +597,6 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
   return (
     <>
       {labelPositions.map(({ label, position }) => {
-        if (label.id === '__name__' && isEditingName) {
-          return (
-            <ConnectorNameEditor
-              key="__name__-edit"
-              position={position}
-              name={connector.name ?? ''}
-              labelHeight={label.height || 0}
-              onCommit={commitName}
-              onCancel={() => setIsEditingName(false)}
-            />
-          );
-        }
-
-        if (label.id === '__name__') {
-          return (
-            <ConnectorNameLabel
-              key="__name__"
-              position={position}
-              label={label}
-              headerLink={connector.headerLink}
-              interactive={isEditable}
-              selected={selectedLabelId === '__name__'}
-              onPointerDown={(e) => startLabelDrag(e, label)}
-            />
-          );
-        }
-
         if (label.id === editingLabelId) {
           return (
             <ConnectorNameEditor

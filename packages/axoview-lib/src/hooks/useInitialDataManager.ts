@@ -22,6 +22,7 @@ import { mergeBundledFixtures } from 'src/utils/leanSave';
 import { sanitizeHtml } from 'src/utils/sanitizeHtml';
 import { foldNodeDescription } from 'src/utils/foldNodeDescription';
 import { seedNodeLabel } from 'src/utils/seedNodeLabel';
+import { seedConnectorLabel } from 'src/utils/seedConnectorLabel';
 
 // Must match the threshold in IconCollection.tsx so newly-loaded large packs
 // (e.g. Material Icons) are not auto-expanded (which would freeze the browser).
@@ -106,7 +107,12 @@ export const useInitialDataManager = () => {
               }
 
               return hasValidAnchors;
-            });
+            })
+            // ADR 0032 connector amendment (2026-07-02): fold each existing
+            // connector's identity `name` into a labels[] entry (idempotent via
+            // the nameSeeded marker) so the name↔label decouple keeps saved
+            // diagrams' visible text. Mirrors the node seedNodeLabel pass.
+            .map(seedConnectorLabel);
 
           return { ...normView, connectors: validConnectors };
         });

@@ -27,8 +27,6 @@ import {
   Add as AddIcon,
   Delete as DeleteIcon,
   InsertLink as InsertLinkIcon,
-  VisibilityOutlined as ShowLabelIcon,
-  VisibilityOffOutlined as HideLabelIcon,
   ExpandMore as ExpandMoreIcon
 } from '@mui/icons-material';
 import { getConnectorLabels, generateId } from 'src/utils';
@@ -289,16 +287,6 @@ export const ConnectorControls = ({ id }: Props) => {
                   }}
                 >
                   <InsertLinkIcon />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title={connector.showLabel === false ? t('showName') : t('hideName')}>
-                <IconButton
-                  size="small"
-                  onClick={() => updateConnector(connector.id, { showLabel: connector.showLabel === false ? undefined : false })}
-                >
-                  {connector.showLabel === false
-                    ? <HideLabelIcon sx={{ fontSize: 18 }} />
-                    : <ShowLabelIcon sx={{ fontSize: 18 }} />}
                 </IconButton>
               </Tooltip>
             </Box>

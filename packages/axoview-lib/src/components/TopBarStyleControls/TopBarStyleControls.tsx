@@ -885,8 +885,13 @@ export const TopBarStyleControls = () => {
   // (also renders the on-canvas label as a link); connector / floating Label →
   // their headerLink (surfaced in the view-mode info popover).
   const linkEnabled = Boolean(node || connector || label);
+  // When a specific connector label is selected on canvas, the Link control
+  // targets THAT label's headerLink (#4, parity with node-label links); with the
+  // connector itself selected (no label), it targets the whole-connector link.
   const linkValue = node
     ? modelItem?.headerLink
+    : activeLabel
+    ? activeLabel.headerLink
     : connector
     ? connector.headerLink
     : label
@@ -895,6 +900,7 @@ export const TopBarStyleControls = () => {
   const onLinkChange = (raw: string) => {
     const next = raw.trim() || undefined;
     if (node) updateModelItem(node.id, { headerLink: next });
+    else if (activeLabel) updateActiveLabel({ headerLink: next });
     else if (connector) updateConnector(connector.id, { headerLink: next });
     else if (label) updateLabel(label.id, { headerLink: next });
   };

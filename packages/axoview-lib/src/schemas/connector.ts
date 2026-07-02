@@ -19,7 +19,10 @@ export const connectorLabelSchema = z.object({
   labelColor: z.string().optional(), // Text color (defaults to black)
   bold: z.boolean().optional(),
   italic: z.boolean().optional(),
-  strikethrough: z.boolean().optional()
+  strikethrough: z.boolean().optional(),
+  // External link (parity with node-label / connector headerLink, 2026-07-02).
+  // When set, the label renders as a clickable link in view/read-only mode.
+  headerLink: z.string().max(2048).optional()
 });
 
 export const anchorSchema = z.object({
@@ -50,6 +53,12 @@ export const connectorSchema = z.object({
   nameLabelBold: z.boolean().optional(),
   nameLabelItalic: z.boolean().optional(),
   nameLabelStrikethrough: z.boolean().optional(),
+  // Migration marker (2026-07-02, ADR 0032 connector amendment): once a load
+  // has run seedConnectorLabel, this is `true`. It (a) makes the name→label seed
+  // idempotent and (b) marks the connector as living in the decoupled model, so
+  // `name` is identity-only (Layers-renamed, never drawn) and a later name edit
+  // is never re-seeded into a canvas label.
+  nameSeeded: z.boolean().optional(),
   // Legacy label fields (for backward compatibility)
   description: constrainedStrings.description.optional(),
   startLabel: constrainedStrings.description.optional(),
