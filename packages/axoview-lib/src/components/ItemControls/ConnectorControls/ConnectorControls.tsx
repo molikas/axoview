@@ -85,6 +85,9 @@ export const ConnectorControls = ({ id }: Props) => {
   // The connector's labels[] are its primary Details content now (name moved to
   // Metadata), so the section is expanded by default (owner 2026-07-02).
   const [showAdvanced, setShowAdvanced] = useState(true);
+  // The label just added from this panel — its Text field autofocuses so the
+  // user can type immediately (no canvas editor; see handleAddLabel).
+  const [justAddedId, setJustAddedId] = useState<string | null>(null);
   // Panel events from the canvas context menu ("Add note" → focusNotes). F2 no
   // longer focuses a Name field here — on a connector F2 adds a labels[] entry
   // (ADR 0032 connector amendment); identity name lives in the Metadata section.
@@ -126,16 +129,12 @@ export const ConnectorControls = ({ id }: Props) => {
       connectorId: connector.id,
       labelId: newLabel.id
     });
-    // Edit the new label inline on canvas; empty text on commit discards it, so
-    // an accidental add never leaves a blank label. (The card below also lets
-    // you type the text.)
-    requestAnimationFrame(() =>
-      window.dispatchEvent(
-        new CustomEvent('inlineEditConnectorLabel', {
-          detail: { connectorId: connector.id, labelId: newLabel.id }
-        })
-      )
-    );
+    // Edit in the PANEL, not on canvas: the new card's Text field autofocuses
+    // (justAddedId) so you can type immediately. Opening the canvas inline editor
+    // here was the bug — its capture-phase pointer listener committed the empty
+    // label (→ delete) the moment you clicked the panel field, so the card
+    // vanished and the click "fell through" to the canvas.
+    setJustAddedId(newLabel.id);
   }, [connector, labels, updateConnector, uiStateActions]);
 
   const handleUpdateLabel = useCallback(
@@ -336,6 +335,7 @@ export const ConnectorControls = ({ id }: Props) => {
                     </Typography>
                     <TextField
                       value={label.text}
+                      autoFocus={label.id === justAddedId}
                       onChange={(e) =>
                         handleUpdateLabel(label.id, { text: e.target.value })
                       }
