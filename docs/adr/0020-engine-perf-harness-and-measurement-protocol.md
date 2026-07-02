@@ -88,6 +88,35 @@ finding precede the multi-session overhaul, and the decision is presented before
 committing. Local minimum (3 consecutive sub-noise hypotheses) or a provable substrate
 ceiling triggers a findings report.
 
+**2026-07-02 (E-slice — labels & text-styling productization).** Productizing the
+labels/text-styling UX ([integration plan](../tactical/integration-productization-plan.md),
+slice E) added five styling/pan stress scenarios to the harness. Each conforms verbatim
+to §1–§6 — env-gated, comma-N lists (e.g. `PERF_LABELHEAVY=200,500,1000`),
+median-of-`REPEATS` with warm-up discarded, calibration-matched, CoV noise band reported —
+and each writes its own `perf-results/<name>.md`, leaving `baseline.md` **untouched** (the
+§3 charter discipline), exactly like the pre-existing `PERF_BLOAT` / `PERF_LABELDRAG`
+diagnostics:
+
+| Env knob | Report | What it stresses (substrate) |
+|---|---|---|
+| `PERF_LABELHEAVY` | `label-heavy.md` | every node label B/I/S + colour + varied px (**Canvas2D** label draw) |
+| `PERF_CONNLABELHEAVY` | `conn-label-heavy.md` | every connector carries a styled additional label (**DOM** `ConnectorLabel`) |
+| `PERF_BGHEAVY` | `bg-heavy.md` | double-density grouping rects with fills + ≤30px styled borders (**Canvas2D** fill+stroke overdraw) |
+| `PERF_FLOATLABELS` | `floating-label-heavy.md` | N first-class floating **Label** chips ([ADR 0031](0031-floating-label-entity-model.md), **Canvas2D** `LabelsCanvas`) |
+| `PERF_PAN` (+ optional `PERF_THROTTLE`) | `pan.md` | sustained per-rAF `setScroll` repaint floor (`measurePan`) |
+
+The four spawn-class scenarios reuse the spawn baseline's cells so their settle/p95 are
+directly comparable to `baseline.md`'s spawn column, and each extends the §6 anti-cheat
+with a **draw-count == N** assertion (`renderedNodes` for the node canvas; `renderedLabels`
+for the Canvas2D Label layer — every styled entity must actually draw). The gate result
+(median-of-7, N ∈ {200, 500, 1000}): base spawn unchanged at N ≥ 500, the Canvas2D surfaces
+ride at the ~79 ms baseline, and the DOM floating-label chip layer's ~2.3× spawn-p95 cliff
+is the measured evidence behind the **Label substrate = Canvas2D** decision
+([ADR 0031](0031-floating-label-entity-model.md) E3) — full numbers in
+[`perf-results/e-slice-gate.md`](../../perf-results/e-slice-gate.md). `measurePan` is the
+**first** pan baseline (it did not exist on master), so it records the floor ENG-PAN R1
+must beat (KR-P3), not a regression comparison.
+
 ## Consequences
 
 **Positive:**
@@ -109,6 +138,10 @@ ceiling triggers a findings report.
   `PERF_PROFILE` / `PERF_CPUPROFILE` (spawn), `PERF_DRAGPROFILE` (drag),
   `PERF_RENDERPROBE`, `PERF_NOLABEL`, `PERF_NOCONN`. (`PERF_CANVAS` is retired with the
   flag in ADR 0019.)
+- E-slice styling/pan scenarios (2026-07-02 addendum): `PERF_LABELHEAVY`,
+  `PERF_CONNLABELHEAVY`, `PERF_BGHEAVY`, `PERF_FLOATLABELS` (spawn-class, each writes
+  `perf-results/<name>.md`), and `PERF_PAN` (+ optional `PERF_THROTTLE`, CDP CPU throttle).
+  All comma-N; none touch `baseline.md`.
 - **Build/dev gotcha (load-bearing):** the rsbuild dev server desyncs from `dist/` after
   `build:lib` ("Can't resolve 'axoview'"). Let `npm run perf` own the lifecycle
   (build + fresh boot); do **not** `PERF_REUSE` against a hand-started dev server unless
@@ -127,3 +160,8 @@ ceiling triggers a findings report.
   the `docs/testing.md` section) survive the T2 `/feature wrap`; only the charter
   tactical and the T2-specific scaffolding are retired.
 - T3 can be opened against this ADR without reconstructing the methodology.
+- **(2026-07-02)** The E-slice styling/pan scenarios (`PERF_LABELHEAVY`,
+  `PERF_CONNLABELHEAVY`, `PERF_BGHEAVY`, `PERF_FLOATLABELS`, `PERF_PAN`) run under the §1–§6
+  protocol, each emitting its own `perf-results/*.md` without rewriting `baseline.md`, and
+  extend the §6 anti-cheat with a draw-count == N assertion (`renderedNodes` /
+  `renderedLabels`). Gate outcome recorded in `perf-results/e-slice-gate.md`.
