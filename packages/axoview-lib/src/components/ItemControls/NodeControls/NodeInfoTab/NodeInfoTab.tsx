@@ -18,6 +18,7 @@ import { ModelItem, ViewItem } from 'src/types';
 import { useModelItem } from 'src/hooks/useModelItem';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { Section } from '../../components/Section';
+import { CollapsibleSection } from '../../components/CollapsibleSection';
 import { MetadataSection } from '../../components/MetadataSection';
 import { useTranslation } from 'src/stores/localeStore';
 
@@ -97,7 +98,7 @@ export const NodeInfoTab = ({
   return (
     <Stack>
       {/* On-canvas label (identity `name` is renamed in Layers) */}
-      <Section title={t('label')}>
+      <CollapsibleSection title={t('label')} defaultOpen>
         <Stack direction="row" spacing={0.5} alignItems="center">
           <TextField
             inputRef={nameRef}
@@ -145,7 +146,7 @@ export const NodeInfoTab = ({
             }}
           />
         )}
-      </Section>
+      </CollapsibleSection>
 
       {/* Icon picker moved to the top-bar style strip (Change icon). */}
 

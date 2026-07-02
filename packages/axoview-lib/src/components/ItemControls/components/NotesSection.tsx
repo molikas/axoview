@@ -1,7 +1,8 @@
 import React from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
 import { stripHtmlTags } from 'src/utils/stripHtml';
+import { CollapsibleSection } from './CollapsibleSection';
 
 interface Props {
   /** Section title (already translated), e.g. "Notes". */
@@ -9,22 +10,52 @@ interface Props {
   value: string | undefined;
   onChange: (notes: string | undefined) => void;
   height?: number;
+  /** Initial open state (uncontrolled). */
+  defaultOpen?: boolean;
+  /** Controlled open (used for the context-menu "Add note" focus deep-link). */
+  open?: boolean;
+  onToggle?: () => void;
 }
 
 const hasContent = (v?: string) => !!v && stripHtmlTags(v).trim() !== '';
 
-// Shared rich-text Notes editor (2026-07-02). Notes are available on every
-// canvas element (node / connector / rectangle / text / label). Empty content is
-// written as `undefined` so an untouched Notes never dirties the model.
-export const NotesSection = ({ title, value, onChange, height = 200 }: Props) => (
-  <Box sx={{ pt: 1.5, px: 2 }}>
-    <Typography
-      variant="caption"
-      color="text.secondary"
-      sx={{ display: 'block', mb: 0.75 }}
-    >
-      {title}
-    </Typography>
+// Shared collapsible rich-text Notes section (2026-07-02). Notes are available
+// on every canvas element (node / connector / rectangle / text / label); the
+// section is one of the deck's uniform collapsibles (ux-principles §5.1). The
+// header carries a "has content" dot when notes exist (mirrors the old
+// Notes-tab marker). Empty content is written as `undefined` so an untouched
+// Notes never dirties the model.
+export const NotesSection = ({
+  title,
+  value,
+  onChange,
+  height = 200,
+  defaultOpen = false,
+  open,
+  onToggle
+}: Props) => (
+  <CollapsibleSection
+    title={title}
+    defaultOpen={defaultOpen}
+    open={open}
+    onToggle={onToggle}
+    trailing={
+      hasContent(value) ? (
+        <Box
+          component="span"
+          aria-hidden
+          sx={{
+            ml: 0.75,
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            bgcolor: 'primary.main',
+            display: 'inline-block'
+          }}
+        />
+      ) : undefined
+    }
+  >
     <RichTextEditor
       value={value}
       height={height}
@@ -34,5 +65,5 @@ export const NotesSection = ({ title, value, onChange, height = 200 }: Props) =>
         if (value !== text) onChange(empty ? undefined : text);
       }}
     />
-  </Box>
+  </CollapsibleSection>
 );
