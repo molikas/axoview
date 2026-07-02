@@ -293,15 +293,20 @@ const locale: LocaleProps = {
     namePlaceholder: 'প্রান্ত লেবেল…',
     labels: 'লেবেল',
     addLabel: 'লেবেল যোগ করুন',
-    noLabels: 'এখনও কোনো লেবেল নেই।'
+    noLabels: 'এখনও কোনো লেবেল নেই।',
+    labelN: 'লেবেল {count}',
+    positionHint:
+      'অবস্থান নির্ধারণ করতে ক্যানভাসে একটি লেবেল টেনে আনুন; এর পাঠ্যের আকার এবং রঙের জন্য উপরের বার ব্যবহার করুন।',
+    line: 'লাইন',
+    line1: 'লাইন ১',
+    line2: 'লাইন ২'
   },
   textBoxControls: {
     metadata: 'মেটাডেটা',
     notes: 'নোট',
     close: 'বন্ধ করুন',
     name: 'নাম',
-    namePlaceholder: 'উপাদানের নাম…',
-    text: 'পাঠ্য'
+    namePlaceholder: 'উপাদানের নাম…'
   },
   rectangleControls: {
     metadata: 'মেটাডেটা',
@@ -367,6 +372,7 @@ const locale: LocaleProps = {
       'লাইন বিকল্প সেট করতে একটি সংযোগ (বা সংযোগকারী টুল) নির্বাচন করুন',
     lineType: 'লাইন প্রকার',
     showArrow: 'তীর দেখান',
+    showDottedLine: 'বিন্দুযুক্ত রেখা দেখান',
     textDirection: 'পাঠ্যের দিক',
     textDirectionDisabled: 'দিক সেট করতে একটি টেক্সট বক্স নির্বাচন করুন',
     textDirectionX: 'পাঠ্যের দিক X',

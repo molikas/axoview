@@ -7,8 +7,6 @@ import {
   MenuItem,
   TextField,
   IconButton as MUIIconButton,
-  FormControlLabel,
-  Switch,
   Typography,
   Paper,
   Chip
@@ -194,8 +192,7 @@ export const ConnectorControls = ({ id }: Props) => {
             color="text.secondary"
             sx={{ display: 'block', mb: 1 }}
           >
-            Drag a label on the canvas to position it; use the top bar for its
-            text size and colour.
+            {t('positionHint')}
           </Typography>
         )}
 
@@ -231,7 +228,7 @@ export const ConnectorControls = ({ id }: Props) => {
                 }}
               >
                 <Typography variant="caption" color="text.secondary">
-                  Label {index + 1}
+                  {t('labelN').replace('{count}', String(index + 1))}
                 </Typography>
                 <MUIIconButton
                   size="small"
@@ -267,7 +264,7 @@ export const ConnectorControls = ({ id }: Props) => {
               {isDoubleLineType && (
                 <Box sx={{ mb: 1 }}>
                   <Typography variant="caption" color="text.secondary">
-                    Line
+                    {t('line')}
                   </Typography>
                   <Select
                     value={label.line || '1'}
@@ -279,27 +276,14 @@ export const ConnectorControls = ({ id }: Props) => {
                     fullWidth
                     size="small"
                   >
-                    <MenuItem value="1">Line 1</MenuItem>
-                    <MenuItem value="2">Line 2</MenuItem>
+                    <MenuItem value="1">{t('line1')}</MenuItem>
+                    <MenuItem value="2">{t('line2')}</MenuItem>
                   </Select>
                 </Box>
               )}
-
-              <Box>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={label.showLine !== false}
-                      onChange={(e) =>
-                        handleUpdateLabel(label.id, {
-                          showLine: e.target.checked
-                        })
-                      }
-                    />
-                  }
-                  label="Show dotted line"
-                />
-              </Box>
+              {/* "Show dotted line" (the label's leader line) is styling, so it
+                  lives on the top style strip when this label is selected (#10) —
+                  the deck stays content/notes only. */}
             </Paper>
           );
         })}

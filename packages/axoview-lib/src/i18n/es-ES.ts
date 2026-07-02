@@ -299,15 +299,19 @@ const locale: LocaleProps = {
     namePlaceholder: 'Etiqueta del enlace…',
     labels: 'Etiquetas',
     addLabel: 'Añadir etiqueta',
-    noLabels: 'Aún no hay etiquetas.'
+    noLabels: 'Aún no hay etiquetas.',
+    labelN: 'Etiqueta {count}',
+    positionHint: 'Arrastra una etiqueta en el lienzo para colocarla; usa la barra superior para su tamaño de texto y color.',
+    line: 'Línea',
+    line1: 'Línea 1',
+    line2: 'Línea 2'
   },
   textBoxControls: {
     metadata: 'Metadatos',
     notes: 'Notas',
     close: 'Cerrar',
     name: 'Nombre',
-    namePlaceholder: 'Nombre del elemento…',
-    text: 'Texto'
+    namePlaceholder: 'Nombre del elemento…'
   },
   rectangleControls: {
     metadata: 'Metadatos',
@@ -371,6 +375,7 @@ const locale: LocaleProps = {
     lineOptionsDisabled: 'Selecciona una conexión (o la herramienta de conector) para definir sus opciones de línea',
     lineType: 'Tipo de línea',
     showArrow: 'Mostrar flecha',
+    showDottedLine: 'Mostrar línea punteada',
     textDirection: 'Dirección del texto',
     textDirectionDisabled: 'Selecciona un cuadro de texto para definir su dirección',
     textDirectionX: 'Dirección del texto X',

@@ -281,6 +281,11 @@ export interface LocaleProps {
     labels: string;
     addLabel: string;
     noLabels: string;
+    labelN: string;
+    positionHint: string;
+    line: string;
+    line1: string;
+    line2: string;
   };
   textBoxControls: {
     close: string;
@@ -288,7 +293,6 @@ export interface LocaleProps {
     notes: string;
     name: string;
     namePlaceholder: string;
-    text: string;
   };
   topBarStyleControls: {
     noColor: string;
@@ -342,6 +346,7 @@ export interface LocaleProps {
     lineOptionsDisabled: string;
     lineType: string;
     showArrow: string;
+    showDottedLine: string;
     textDirection: string;
     textDirectionDisabled: string;
     textDirectionX: string;

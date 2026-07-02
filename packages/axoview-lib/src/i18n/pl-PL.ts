@@ -300,15 +300,19 @@ const locale: LocaleProps = {
     namePlaceholder: 'Etykieta krawędzi…',
     labels: 'Etykiety',
     addLabel: 'Dodaj etykietę',
-    noLabels: 'Brak etykiet.'
+    noLabels: 'Brak etykiet.',
+    labelN: 'Etykieta {count}',
+    positionHint: 'Przeciągnij etykietę na płótnie, aby ustawić jej położenie; użyj górnego paska, aby zmienić rozmiar i kolor tekstu.',
+    line: 'Linia',
+    line1: 'Linia 1',
+    line2: 'Linia 2'
   },
   textBoxControls: {
     metadata: 'Metadane',
     notes: 'Notatki',
     close: 'Zamknij',
     name: 'Nazwa',
-    namePlaceholder: 'Nazwa elementu…',
-    text: 'Tekst'
+    namePlaceholder: 'Nazwa elementu…'
   },
   rectangleControls: {
     metadata: 'Metadane',
@@ -374,6 +378,7 @@ const locale: LocaleProps = {
       'Zaznacz połączenie (lub narzędzie łącznika), aby ustawić jego opcje linii',
     lineType: 'Typ linii',
     showArrow: 'Pokaż strzałkę',
+    showDottedLine: 'Pokaż linię kropkowaną',
     textDirection: 'Kierunek tekstu',
     textDirectionDisabled: 'Zaznacz pole tekstowe, aby ustawić jego kierunek',
     textDirectionX: 'Kierunek tekstu X',

@@ -51,6 +51,8 @@ export const TextBox = memo(({ textBox }: Props) => {
   // not re-render on every scene mutation just to hold updateTextBox (perf A-1).
   const { updateTextBox } = useSceneActions();
   const isEditable = editorMode === 'EDITABLE';
+  const inlineEditTextBoxId = useUiStateStore((s) => s.inlineEditTextBoxId);
+  const uiActions = useUiStateStore((s) => s.actions);
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
@@ -62,6 +64,17 @@ export const TextBox = memo(({ textBox }: Props) => {
     window.addEventListener(INLINE_EDIT_EVENT, handler);
     return () => window.removeEventListener(INLINE_EDIT_EVENT, handler);
   }, [textBox.id, isEditable]);
+
+  // Place-and-type: a text box created via placement is flagged in the store
+  // (inlineEditTextBoxId) rather than by a one-shot event, so it reliably drops
+  // into inline edit when it mounts — an event dispatched from the placement
+  // handler would race the newly created box's mount. Consume the flag once.
+  useEffect(() => {
+    if (isEditable && inlineEditTextBoxId === textBox.id) {
+      setIsEditing(true);
+      uiActions.setInlineEditTextBoxId(null);
+    }
+  }, [inlineEditTextBoxId, textBox.id, isEditable, uiActions]);
 
   const startInlineEdit = useCallback(
     (e: React.MouseEvent) => {

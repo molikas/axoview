@@ -294,15 +294,20 @@ const locale: LocaleProps = {
     namePlaceholder: 'Edge label…',
     labels: 'Labels',
     addLabel: 'Add label',
-    noLabels: 'No labels yet.'
+    noLabels: 'No labels yet.',
+    labelN: 'Label {count}',
+    positionHint:
+      'Drag a label on the canvas to position it; use the top bar for its text size and colour.',
+    line: 'Line',
+    line1: 'Line 1',
+    line2: 'Line 2'
   },
   textBoxControls: {
     metadata: 'Metadata',
     notes: 'Notes',
     close: 'Close',
     name: 'Name',
-    namePlaceholder: 'Name (shown in Layers)…',
-    text: 'Text'
+    namePlaceholder: 'Name (shown in Layers)…'
   },
   rectangleControls: {
     metadata: 'Metadata',
@@ -368,6 +373,7 @@ const locale: LocaleProps = {
       'Select a connection (or the connector tool) to set its line options',
     lineType: 'Line type',
     showArrow: 'Show arrow',
+    showDottedLine: 'Show dotted line',
     textDirection: 'Text direction',
     textDirectionDisabled: 'Select a text box to set its direction',
     textDirectionX: 'Text direction X',

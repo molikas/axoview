@@ -1591,6 +1591,22 @@ export const TopBarStyleControls = () => {
               }
               label={t('showArrow')}
             />
+            {/* Per-label leader-line toggle — shown only when a specific
+                connector label is selected (moved here from the deck, #10). */}
+            {activeLabel && (
+              <FormControlLabel
+                sx={{ mt: 0.5, display: 'flex' }}
+                control={
+                  <Switch
+                    checked={activeLabel.showLine !== false}
+                    onChange={(e) =>
+                      updateActiveLabel({ showLine: e.target.checked })
+                    }
+                  />
+                }
+                label={t('showDottedLine')}
+              />
+            )}
           </Box>
         )}
       </StripButton>

@@ -299,15 +299,19 @@ const locale: LocaleProps = {
     namePlaceholder: "Libellé de l'arête…",
     labels: 'Étiquettes',
     addLabel: 'Ajouter une étiquette',
-    noLabels: 'Aucune étiquette pour le moment.'
+    noLabels: 'Aucune étiquette pour le moment.',
+    labelN: 'Étiquette {count}',
+    positionHint: 'Faites glisser une étiquette sur le canevas pour la positionner ; utilisez la barre supérieure pour sa taille de texte et sa couleur.',
+    line: 'Ligne',
+    line1: 'Ligne 1',
+    line2: 'Ligne 2'
   },
   textBoxControls: {
     metadata: 'Métadonnées',
     notes: 'Notes',
     close: 'Fermer',
     name: 'Nom',
-    namePlaceholder: "Nom de l'élément…",
-    text: 'Texte'
+    namePlaceholder: "Nom de l'élément…"
   },
   rectangleControls: {
     metadata: 'Métadonnées',
@@ -373,6 +377,7 @@ const locale: LocaleProps = {
       "Sélectionnez une connexion (ou l'outil connecteur) pour définir ses options de ligne",
     lineType: 'Type de ligne',
     showArrow: 'Afficher la flèche',
+    showDottedLine: 'Afficher la ligne pointillée',
     textDirection: 'Direction du texte',
     textDirectionDisabled: 'Sélectionnez une zone de texte pour définir sa direction',
     textDirectionX: 'Direction du texte X',

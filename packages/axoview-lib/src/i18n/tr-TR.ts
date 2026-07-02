@@ -295,15 +295,20 @@ const locale: LocaleProps = {
     namePlaceholder: 'Kenar etiketi…',
     labels: 'Etiketler',
     addLabel: 'Etiket ekle',
-    noLabels: 'Henüz etiket yok.'
+    noLabels: 'Henüz etiket yok.',
+    labelN: 'Etiket {count}',
+    positionHint:
+      'Konumlandırmak için tuvalde bir etiketi sürükleyin; metin boyutu ve rengi için üst çubuğu kullanın.',
+    line: 'Çizgi',
+    line1: 'Çizgi 1',
+    line2: 'Çizgi 2'
   },
   textBoxControls: {
     metadata: 'Meta veriler',
     notes: 'Notlar',
     close: 'Kapat',
     name: 'Ad',
-    namePlaceholder: 'Eleman adı…',
-    text: 'Metin'
+    namePlaceholder: 'Eleman adı…'
   },
   rectangleControls: {
     metadata: 'Meta veriler',
@@ -370,6 +375,7 @@ const locale: LocaleProps = {
       'Çizgi seçeneklerini ayarlamak için bir bağlantı (veya bağlayıcı aracı) seçin',
     lineType: 'Çizgi türü',
     showArrow: 'Oku göster',
+    showDottedLine: 'Noktalı çizgiyi göster',
     textDirection: 'Metin yönü',
     textDirectionDisabled: 'Yönünü ayarlamak için bir metin kutusu seçin',
     textDirectionX: 'Metin yönü X',

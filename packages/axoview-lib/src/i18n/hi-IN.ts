@@ -295,15 +295,19 @@ const locale: LocaleProps = {
     namePlaceholder: 'किनारे का लेबल…',
     labels: 'लेबल',
     addLabel: 'लेबल जोड़ें',
-    noLabels: 'अभी कोई लेबल नहीं।'
+    noLabels: 'अभी कोई लेबल नहीं।',
+    labelN: 'लेबल {count}',
+    positionHint: 'किसी लेबल को स्थिति में रखने के लिए उसे कैनवास पर खींचें; उसके पाठ के आकार और रंग के लिए ऊपरी बार का उपयोग करें।',
+    line: 'रेखा',
+    line1: 'रेखा 1',
+    line2: 'रेखा 2'
   },
   textBoxControls: {
     metadata: 'मेटाडेटा',
     notes: 'नोट्स',
     close: 'बंद करें',
     name: 'नाम',
-    namePlaceholder: 'तत्व का नाम…',
-    text: 'पाठ'
+    namePlaceholder: 'तत्व का नाम…'
   },
   rectangleControls: {
     metadata: 'मेटाडेटा',
@@ -364,6 +368,7 @@ const locale: LocaleProps = {
     lineOptionsDisabled: 'रेखा विकल्प सेट करने के लिए एक कनेक्शन (या कनेक्टर उपकरण) चुनें',
     lineType: 'रेखा प्रकार',
     showArrow: 'तीर दिखाएं',
+    showDottedLine: 'बिंदीदार रेखा दिखाएं',
     textDirection: 'पाठ की दिशा',
     textDirectionDisabled: 'दिशा सेट करने के लिए एक टेक्स्ट बॉक्स चुनें',
     textDirectionX: 'पाठ की दिशा X',

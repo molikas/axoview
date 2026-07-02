@@ -295,15 +295,20 @@ const locale: LocaleProps = {
     namePlaceholder: 'Rótulo da aresta…',
     labels: 'Rótulos',
     addLabel: 'Adicionar rótulo',
-    noLabels: 'Ainda não há rótulos.'
+    noLabels: 'Ainda não há rótulos.',
+    labelN: 'Rótulo {count}',
+    positionHint:
+      'Arraste um rótulo na tela para posicioná-lo; use a barra superior para o tamanho e a cor do texto.',
+    line: 'Linha',
+    line1: 'Linha 1',
+    line2: 'Linha 2'
   },
   textBoxControls: {
     metadata: 'Metadados',
     notes: 'Notas',
     close: 'Fechar',
     name: 'Nome',
-    namePlaceholder: 'Nome do elemento…',
-    text: 'Texto'
+    namePlaceholder: 'Nome do elemento…'
   },
   rectangleControls: {
     metadata: 'Metadados',
@@ -369,6 +374,7 @@ const locale: LocaleProps = {
       'Selecione uma conexão (ou a ferramenta de conector) para definir suas opções de linha',
     lineType: 'Tipo de linha',
     showArrow: 'Mostrar seta',
+    showDottedLine: 'Mostrar linha pontilhada',
     textDirection: 'Direção do texto',
     textDirectionDisabled: 'Selecione uma caixa de texto para definir sua direção',
     textDirectionX: 'Direção do texto X',

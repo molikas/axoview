@@ -297,15 +297,20 @@ const locale: LocaleProps = {
     namePlaceholder: 'Kantenbezeichnung…',
     labels: 'Beschriftungen',
     addLabel: 'Beschriftung hinzufügen',
-    noLabels: 'Noch keine Beschriftungen.'
+    noLabels: 'Noch keine Beschriftungen.',
+    labelN: 'Beschriftung {count}',
+    positionHint:
+      'Ziehen Sie eine Beschriftung auf die Leinwand, um sie zu positionieren; verwenden Sie die obere Leiste für ihre Textgröße und -farbe.',
+    line: 'Linie',
+    line1: 'Linie 1',
+    line2: 'Linie 2'
   },
   textBoxControls: {
     metadata: 'Metadaten',
     notes: 'Notizen',
     close: 'Schließen',
     name: 'Name',
-    namePlaceholder: 'Elementname…',
-    text: 'Text'
+    namePlaceholder: 'Elementname…'
   },
   rectangleControls: {
     metadata: 'Metadaten',
@@ -375,6 +380,7 @@ const locale: LocaleProps = {
       'Wählen Sie eine Verbindung (oder das Verbindungswerkzeug), um ihre Linienoptionen festzulegen',
     lineType: 'Linientyp',
     showArrow: 'Pfeil anzeigen',
+    showDottedLine: 'Gepunktete Linie anzeigen',
     textDirection: 'Textrichtung',
     textDirectionDisabled:
       'Wählen Sie ein Textfeld, um seine Richtung festzulegen',

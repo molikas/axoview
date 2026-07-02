@@ -294,15 +294,19 @@ const locale: LocaleProps = {
     namePlaceholder: 'Label sisi…',
     labels: 'Label',
     addLabel: 'Tambah label',
-    noLabels: 'Belum ada label.'
+    noLabels: 'Belum ada label.',
+    labelN: 'Label {count}',
+    positionHint: 'Seret label di kanvas untuk memposisikannya; gunakan bilah atas untuk ukuran teks dan warnanya.',
+    line: 'Garis',
+    line1: 'Garis 1',
+    line2: 'Garis 2'
   },
   textBoxControls: {
     metadata: 'Metadata',
     notes: 'Catatan',
     close: 'Tutup',
     name: 'Nama',
-    namePlaceholder: 'Nama elemen…',
-    text: 'Teks'
+    namePlaceholder: 'Nama elemen…'
   },
   rectangleControls: {
     metadata: 'Metadata',
@@ -368,6 +372,7 @@ const locale: LocaleProps = {
       'Pilih koneksi (atau alat konektor) untuk mengatur opsi garisnya',
     lineType: 'Tipe garis',
     showArrow: 'Tampilkan panah',
+    showDottedLine: 'Tampilkan garis putus-putus',
     textDirection: 'Arah teks',
     textDirectionDisabled: 'Pilih kotak teks untuk mengatur arahnya',
     textDirectionX: 'Arah teks X',

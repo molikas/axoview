@@ -297,15 +297,19 @@ const locale: LocaleProps = {
     namePlaceholder: "Etichetta dell'arco…",
     labels: 'Etichette',
     addLabel: 'Aggiungi etichetta',
-    noLabels: 'Nessuna etichetta ancora.'
+    noLabels: 'Nessuna etichetta ancora.',
+    labelN: 'Etichetta {count}',
+    positionHint: "Trascina un'etichetta sulla tela per posizionarla; usa la barra superiore per la dimensione e il colore del testo.",
+    line: 'Linea',
+    line1: 'Linea 1',
+    line2: 'Linea 2'
   },
   textBoxControls: {
     metadata: 'Metadati',
     notes: 'Note',
     close: 'Chiudi',
     name: 'Nome',
-    namePlaceholder: "Nome dell'elemento…",
-    text: 'Testo'
+    namePlaceholder: "Nome dell'elemento…"
   },
   rectangleControls: {
     metadata: 'Metadati',
@@ -372,6 +376,7 @@ const locale: LocaleProps = {
       'Seleziona una connessione (o lo strumento connettore) per impostarne le opzioni di linea',
     lineType: 'Tipo di linea',
     showArrow: 'Mostra freccia',
+    showDottedLine: 'Mostra linea punteggiata',
     textDirection: 'Direzione testo',
     textDirectionDisabled: 'Seleziona una casella di testo per impostarne la direzione',
     textDirectionX: 'Direzione testo X',

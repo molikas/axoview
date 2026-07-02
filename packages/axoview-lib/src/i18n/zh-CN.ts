@@ -273,15 +273,19 @@ const locale: LocaleProps = {
     namePlaceholder: '边标签…',
     labels: '标签',
     addLabel: '添加标签',
-    noLabels: '暂无标签。'
+    noLabels: '暂无标签。',
+    labelN: '标签 {count}',
+    positionHint: '在画布上拖动标签以调整其位置；在顶栏中设置其文本大小和颜色。',
+    line: '线条',
+    line1: '线条 1',
+    line2: '线条 2'
   },
   textBoxControls: {
     metadata: '元数据',
     notes: '备注',
     close: '关闭',
     name: '名称',
-    namePlaceholder: '元素名称…',
-    text: '文本'
+    namePlaceholder: '元素名称…'
   },
   rectangleControls: {
     metadata: '元数据',
@@ -342,6 +346,7 @@ const locale: LocaleProps = {
     lineOptionsDisabled: '选择连接线（或连接器工具）以设置其线条选项',
     lineType: '线条类型',
     showArrow: '显示箭头',
+    showDottedLine: '显示虚线',
     textDirection: '文本方向',
     textDirectionDisabled: '选择文本框以设置其方向',
     textDirectionX: '文本方向 X',

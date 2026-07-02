@@ -65,10 +65,8 @@ export const TextBox: ModeActions = {
       showCursor: true,
       mousedownItem: null
     });
-    requestAnimationFrame(() => {
-      window.dispatchEvent(
-        new CustomEvent('inlineEditNodeName', { detail: { id } })
-      );
-    });
+    // Flag the just-placed box to enter inline edit when it mounts (store-based,
+    // so it can't race the box's mount the way a one-shot event would).
+    uiState.actions.setInlineEditTextBoxId?.(id);
   }
 };

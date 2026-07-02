@@ -295,15 +295,19 @@ const locale: LocaleProps = {
     namePlaceholder: 'Метка ребра…',
     labels: 'Метки',
     addLabel: 'Добавить метку',
-    noLabels: 'Меток пока нет.'
+    noLabels: 'Меток пока нет.',
+    labelN: 'Метка {count}',
+    positionHint: 'Перетащите метку на холсте, чтобы разместить её; размер и цвет её текста задаются на верхней панели.',
+    line: 'Линия',
+    line1: 'Линия 1',
+    line2: 'Линия 2'
   },
   textBoxControls: {
     metadata: 'Метаданные',
     notes: 'Заметки',
     close: 'Закрыть',
     name: 'Название',
-    namePlaceholder: 'Имя элемента…',
-    text: 'Текст'
+    namePlaceholder: 'Имя элемента…'
   },
   rectangleControls: {
     metadata: 'Метаданные',
@@ -369,6 +373,7 @@ const locale: LocaleProps = {
       'Выберите соединение (или инструмент соединителя), чтобы задать параметры линии',
     lineType: 'Тип линии',
     showArrow: 'Показать стрелку',
+    showDottedLine: 'Показать пунктирную линию',
     textDirection: 'Направление текста',
     textDirectionDisabled: 'Выберите текстовое поле, чтобы задать его направление',
     textDirectionX: 'Направление текста по X',
