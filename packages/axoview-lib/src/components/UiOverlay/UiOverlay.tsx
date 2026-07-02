@@ -71,12 +71,21 @@ const PlaceIconLayer = () => {
   );
 };
 
-// B1/B2 — a faint ghost of the element that a TEXTBOX / LABEL placement will
-// drop, anchored to the hover tile (the icon tool already ghosts via
-// PlaceIconLayer; this generalizes the affordance to the other placement
-// tools). Isolated so UiOverlay doesn't re-render on mouse move.
+// B1/B2 — a faint ghost of the element a placement tool will drop, anchored to
+// the hover tile (the icon tool already ghosts via PlaceIconLayer; this
+// generalizes the affordance to text / label / rectangle / connector so the
+// armed tool shows WHAT it will place before the first click). Isolated so
+// UiOverlay doesn't re-render on mouse move.
 const PlacementGhostLayer = () => {
   const modeType = useUiStateStore((s) => s.mode.type);
+  // Connector: only ghost while the tool is armed BEFORE the first anchor — once
+  // connecting, the real rubber-band path takes over.
+  const connectorArmed = useUiStateStore(
+    (s) =>
+      s.mode.type === 'CONNECTOR' &&
+      !(s.mode as { startAnchor?: unknown }).startAnchor &&
+      !(s.mode as { isConnecting?: boolean }).isConnecting
+  );
   const tile = useUiStateStore(
     (s) => s.mouse.position.tile,
     (a, b) => a.x === b.x && a.y === b.y
@@ -84,10 +93,70 @@ const PlacementGhostLayer = () => {
   const { getTilePosition } = useCanvasMode();
   const theme = useTheme();
 
-  if (modeType !== 'TEXTBOX' && modeType !== 'LABEL') return null;
-  const isLabel = modeType === 'LABEL';
-  const pos = getTilePosition({ tile, origin: 'CENTER' });
+  const show =
+    modeType === 'TEXTBOX' ||
+    modeType === 'LABEL' ||
+    modeType === 'RECTANGLE.DRAW' ||
+    (modeType === 'CONNECTOR' && connectorArmed);
+  if (!show) return null;
 
+  const pos = getTilePosition({ tile, origin: 'CENTER' });
+  const accent = theme.palette.primary.main;
+
+  // Chip-style ghost for the text-ish tools (a faint copy of the element).
+  const chip = (labelText: string, radius: number, bg: string) => (
+    <Box
+      data-testid="placement-ghost"
+      style={{
+        position: 'absolute',
+        left: pos.x,
+        top: pos.y,
+        transform: 'translate(-50%, -50%)',
+        pointerEvents: 'none',
+        opacity: 0.55,
+        padding: '4px 10px',
+        borderRadius: radius,
+        border: `2px dashed ${accent}`,
+        background: bg,
+        color: theme.palette.text.secondary,
+        fontSize: 13,
+        fontWeight: 600,
+        whiteSpace: 'nowrap'
+      }}
+    >
+      {labelText}
+    </Box>
+  );
+
+  if (modeType === 'LABEL') return <SceneLayer disableAnimation>{chip('Label', 6, '#ffffff')}</SceneLayer>;
+  if (modeType === 'TEXTBOX') return <SceneLayer disableAnimation>{chip('Text', 4, 'rgba(255,255,255,0.6)')}</SceneLayer>;
+
+  if (modeType === 'RECTANGLE.DRAW') {
+    // A faint shape ghost (no text) hinting the rectangle the drag will draw.
+    return (
+      <SceneLayer disableAnimation>
+        <Box
+          data-testid="placement-ghost"
+          style={{
+            position: 'absolute',
+            left: pos.x,
+            top: pos.y,
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'none',
+            opacity: 0.5,
+            width: 56,
+            height: 36,
+            borderRadius: 4,
+            border: `2px dashed ${accent}`,
+            background: `${accent}22`
+          }}
+        />
+      </SceneLayer>
+    );
+  }
+
+  // CONNECTOR (armed): a faint start-point marker with a short arrow stub, so
+  // it's clear the next click begins a connection here.
   return (
     <SceneLayer disableAnimation>
       <Box
@@ -98,18 +167,14 @@ const PlacementGhostLayer = () => {
           top: pos.y,
           transform: 'translate(-50%, -50%)',
           pointerEvents: 'none',
-          opacity: 0.55,
-          padding: '4px 10px',
-          borderRadius: isLabel ? 6 : 4,
-          border: `2px dashed ${theme.palette.primary.main}`,
-          background: isLabel ? '#ffffff' : 'rgba(255,255,255,0.6)',
-          color: theme.palette.text.secondary,
-          fontSize: 13,
-          fontWeight: 600,
-          whiteSpace: 'nowrap'
+          opacity: 0.6
         }}
       >
-        {isLabel ? 'Label' : 'Text'}
+        <svg width="52" height="24" viewBox="0 0 52 24" fill="none">
+          <circle cx="8" cy="12" r="5" fill="none" stroke={accent} strokeWidth="2" strokeDasharray="3 2" />
+          <line x1="13" y1="12" x2="40" y2="12" stroke={accent} strokeWidth="2" strokeDasharray="4 3" />
+          <path d="M40 7 L48 12 L40 17 Z" fill={accent} />
+        </svg>
       </Box>
     </SceneLayer>
   );
