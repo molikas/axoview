@@ -289,6 +289,7 @@ const locale: LocaleProps = {
     hideName: 'Masquer le nom'
   },
   nodeInfoTab: {
+    metadata: 'Métadonnées',
     name: 'Nom',
     namePlaceholder: 'Nom du nœud…',
     label: 'Étiquette',
@@ -314,6 +315,7 @@ const locale: LocaleProps = {
     labelHeight: "Hauteur de l'étiquette"
   },
   connectorControls: {
+    metadata: 'Métadonnées',
     close: 'Fermer',
     labels: 'Étiquettes',
     details: 'Détails',
@@ -346,6 +348,8 @@ const locale: LocaleProps = {
     doubleLineWithCircle: 'Ligne double avec cercle'
   },
   textBoxControls: {
+    metadata: 'Métadonnées',
+    notes: 'Notes',
     bold: 'Bold',
     backgroundColor: 'Background color',
     removeBackground: 'Remove background',
@@ -358,6 +362,8 @@ const locale: LocaleProps = {
     alignment: 'Alignement'
   },
   rectangleControls: {
+    metadata: 'Métadonnées',
+    notes: 'Notes',
     close: 'Fermer',
     name: 'Nom',
     namePlaceholder: "Nom de l'élément…",

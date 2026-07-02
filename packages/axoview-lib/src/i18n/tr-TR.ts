@@ -285,6 +285,7 @@ const locale: LocaleProps = {
     hideName: 'Adı gizle'
   },
   nodeInfoTab: {
+    metadata: 'Meta veriler',
     name: 'Ad',
     namePlaceholder: 'Düğüm adı…',
     label: 'Etiket',
@@ -310,6 +311,7 @@ const locale: LocaleProps = {
     labelHeight: 'Etiket yüksekliği'
   },
   connectorControls: {
+    metadata: 'Meta veriler',
     close: 'Kapat',
     labels: 'Etiketler',
     details: 'Ayrıntılar',
@@ -342,6 +344,8 @@ const locale: LocaleProps = {
     doubleLineWithCircle: 'Daireli çift çizgi'
   },
   textBoxControls: {
+    metadata: 'Meta veriler',
+    notes: 'Notlar',
     bold: 'Bold',
     backgroundColor: 'Background color',
     removeBackground: 'Remove background',
@@ -354,6 +358,8 @@ const locale: LocaleProps = {
     alignment: 'Hizalama'
   },
   rectangleControls: {
+    metadata: 'Meta veriler',
+    notes: 'Notlar',
     close: 'Kapat',
     name: 'Ad',
     namePlaceholder: 'Eleman adı…',

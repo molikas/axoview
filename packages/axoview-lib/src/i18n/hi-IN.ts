@@ -285,6 +285,7 @@ const locale: LocaleProps = {
     hideName: 'नाम छुपाएं'
   },
   nodeInfoTab: {
+    metadata: 'मेटाडेटा',
     name: 'नाम',
     namePlaceholder: 'नोड का नाम…',
     label: 'लेबल',
@@ -310,6 +311,7 @@ const locale: LocaleProps = {
     labelHeight: 'लेबल की ऊँचाई'
   },
   connectorControls: {
+    metadata: 'मेटाडेटा',
     close: 'बंद करें',
     labels: 'लेबल',
     details: 'विवरण',
@@ -342,6 +344,8 @@ const locale: LocaleProps = {
     doubleLineWithCircle: 'गोले के साथ दोहरी रेखा'
   },
   textBoxControls: {
+    metadata: 'मेटाडेटा',
+    notes: 'नोट्स',
     bold: 'Bold',
     backgroundColor: 'Background color',
     removeBackground: 'Remove background',
@@ -354,6 +358,8 @@ const locale: LocaleProps = {
     alignment: 'संरेखण'
   },
   rectangleControls: {
+    metadata: 'मेटाडेटा',
+    notes: 'नोट्स',
     close: 'बंद करें',
     name: 'नाम',
     namePlaceholder: 'तत्व का नाम…',

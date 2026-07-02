@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { id, coords, constrainedStrings } from './common';
+import { id, coords, constrainedStrings, NOTES_MAX_LENGTH } from './common';
 
 // Floating Label — a first-class billboard chip (ADR 0031), peer to TextBox /
 // Node / Connector / Rectangle. Extracted from the retired textBox
@@ -35,6 +35,9 @@ export const labelSchema = z.object({
   // `headerLink`. Set from the top-bar Link control; opened from the view-mode
   // info popover. Optional → zero-migration addition on the unpushed branch.
   headerLink: z.string().max(2048).optional(),
+  // Rich-text notes (2026-07-02) — parity across all canvas elements. `text` is
+  // the on-canvas chip; `notes` is separate metadata. Optional → zero-migration.
+  notes: z.string().max(NOTES_MAX_LENGTH).optional(),
   layerId: id.optional(),
   // Off-grid positioning (ADR 0023): a floating billboard can sit at a px
   // residual off its tile anchor. Absent/snapped = the tile centre. `tile`

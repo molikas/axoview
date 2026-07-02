@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { ConnectorLabel } from 'src/types';
 import {
   Box,
@@ -26,16 +26,15 @@ import {
   Close as CloseIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
-  InsertLink as InsertLinkIcon,
   ExpandMore as ExpandMoreIcon
 } from '@mui/icons-material';
 import { getConnectorLabels, generateId } from 'src/utils';
 import { ControlsContainer } from '../components/ControlsContainer';
 import { Section } from '../components/Section';
+import { MetadataSection } from '../components/MetadataSection';
 import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
 import { useTranslation } from 'src/stores/localeStore';
 
-const INLINE_EDIT_EVENT = 'inlineEditNodeName';
 const PANEL_EVENT = 'connectorPanel';
 
 const TAB_DETAILS = 0;
@@ -76,7 +75,6 @@ export const ConnectorControls = ({ id }: Props) => {
   const uiStateActions = useUiStateStore((state) => state.actions);
   const connector = useConnector(id);
   const { updateConnector } = useScene();
-  const editorMode = useUiStateStore((s) => s.editorMode);
   // Per-label selection (shared with the canvas + top-bar style strip): clicking
   // a label card here selects it so the top bar targets it and the canvas
   // highlights it. Position/size/colour are set on the canvas + top bar now.
@@ -85,7 +83,6 @@ export const ConnectorControls = ({ id }: Props) => {
   );
 
   const [activeTab, setActiveTab] = useState(TAB_DETAILS);
-  const [showLink, setShowLink] = useState(!!connector?.headerLink);
   // Option A: positioned labels[] are the advanced/power surface, demoted behind
   // a disclosure so the single `name` (the midpoint label) is the obvious path.
   // Start expanded only when the connector already has labels, so existing
@@ -93,38 +90,13 @@ export const ConnectorControls = ({ id }: Props) => {
   const [showAdvanced, setShowAdvanced] = useState(
     () => (connector?.labels?.length ?? 0) > 0
   );
-  const nameRef = useRef<HTMLInputElement>(null);
-
-  // F2 from canvas focuses the Name field on the Details tab
-  useEffect(() => {
-    if (editorMode !== 'EDITABLE') return;
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent<{ id: string }>).detail;
-      if (detail?.id === id) {
-        setActiveTab(TAB_DETAILS);
-        requestAnimationFrame(() => {
-          nameRef.current?.focus({ preventScroll: true });
-          nameRef.current?.select();
-        });
-      }
-    };
-    window.addEventListener(INLINE_EDIT_EVENT, handler);
-    return () => window.removeEventListener(INLINE_EDIT_EVENT, handler);
-  }, [id, editorMode]);
-
-  // Action bar panel events (Style, Edit name, Notes)
+  // Panel events from the canvas context menu ("Add note" → focusNotes). F2 no
+  // longer focuses a Name field here — on a connector F2 adds a labels[] entry
+  // (ADR 0032 connector amendment); identity name lives in the Metadata section.
   useEffect(() => {
     const handler = (e: Event) => {
       const action = (e as CustomEvent<string>).detail;
-      if (action === 'focusName') {
-        setActiveTab(TAB_DETAILS);
-        requestAnimationFrame(() => {
-          nameRef.current?.focus({ preventScroll: true });
-          nameRef.current?.select();
-        });
-      } else if (action === 'focusLink') {
-        setActiveTab(TAB_DETAILS);
-      } else if (action === 'focusNotes') {
+      if (action === 'focusNotes') {
         setActiveTab(TAB_NOTES);
       }
     };
@@ -260,50 +232,10 @@ export const ConnectorControls = ({ id }: Props) => {
           </Tooltip>
         </Box>
 
-        {/* Details tab */}
+        {/* Details tab — the connector's on-canvas labels[] are the primary
+            content (name is identity-only, in the Metadata section below; the
+            whole-connector link is set from the top-bar Link control). */}
         <TabPanel value={activeTab} index={TAB_DETAILS}>
-          {/* Name + link + show-name toggles */}
-          <Section title={t('name')}>
-            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-              <TextField
-                inputRef={nameRef}
-                placeholder={t('namePlaceholder')}
-                value={connector.name ?? ''}
-                size="small"
-                fullWidth
-                onChange={(e) =>
-                  updateConnector(connector.id, { name: e.target.value || undefined })
-                }
-              />
-              <Tooltip title={showLink ? t('removeLink') : t('addLink')}>
-                <IconButton
-                  size="small"
-                  color={connector.headerLink ? 'primary' : 'default'}
-                  onClick={() => {
-                    if (showLink && connector.headerLink) {
-                      updateConnector(connector.id, { headerLink: undefined });
-                    }
-                    setShowLink((v) => !v);
-                  }}
-                >
-                  <InsertLinkIcon />
-                </IconButton>
-              </Tooltip>
-            </Box>
-            {showLink && (
-              <TextField
-                value={connector.headerLink ?? ''}
-                placeholder={t('linkPlaceholder')}
-                fullWidth
-                size="small"
-                sx={{ mt: 1 }}
-                onChange={(e) =>
-                  updateConnector(connector.id, { headerLink: e.target.value || undefined })
-                }
-              />
-            )}
-          </Section>
-
           {/* Advanced labels — positioned, styled labels along the path. Demoted
               behind a disclosure (Option A) so the single `name` (the midpoint
               label) is the obvious path. Auto-expanded when labels already
@@ -469,6 +401,15 @@ export const ConnectorControls = ({ id }: Props) => {
               })}
             </Collapse>
           </Section>
+
+          <MetadataSection
+            title={t('metadata')}
+            name={connector.name ?? ''}
+            placeholder={t('namePlaceholder')}
+            onChange={(v) =>
+              updateConnector(connector.id, { name: v || undefined })
+            }
+          />
         </TabPanel>
 
         {/* Style tab removed — colour, width, line style/type and show-arrow now

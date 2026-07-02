@@ -284,6 +284,7 @@ const locale: LocaleProps = {
     hideName: 'Sembunyikan nama'
   },
   nodeInfoTab: {
+    metadata: 'Metadata',
     name: 'Nama',
     namePlaceholder: 'Nama node…',
     label: 'Label',
@@ -309,6 +310,7 @@ const locale: LocaleProps = {
     labelHeight: 'Tinggi label'
   },
   connectorControls: {
+    metadata: 'Metadata',
     close: 'Tutup',
     labels: 'Label',
     details: 'Detail',
@@ -341,6 +343,8 @@ const locale: LocaleProps = {
     doubleLineWithCircle: 'Garis ganda dengan lingkaran'
   },
   textBoxControls: {
+    metadata: 'Metadata',
+    notes: 'Catatan',
     bold: 'Bold',
     backgroundColor: 'Background color',
     removeBackground: 'Remove background',
@@ -353,6 +357,8 @@ const locale: LocaleProps = {
     alignment: 'Perataan'
   },
   rectangleControls: {
+    metadata: 'Metadata',
+    notes: 'Catatan',
     close: 'Tutup',
     name: 'Nama',
     namePlaceholder: 'Nama elemen…',

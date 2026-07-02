@@ -109,6 +109,7 @@ const LabelInlineEditor = ({
       <div
         contentEditable
         suppressContentEditableWarning
+        data-testid="label-inline-editor"
         ref={inline.setRef as unknown as React.Ref<HTMLDivElement>}
         onBlur={inline.onBlur}
         onKeyDown={inline.onKeyDown}

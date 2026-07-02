@@ -263,6 +263,7 @@ const locale: LocaleProps = {
     hideName: '隐藏名称'
   },
   nodeInfoTab: {
+    metadata: '元数据',
     name: '名称',
     namePlaceholder: '节点名称…',
     label: '标签',
@@ -288,6 +289,7 @@ const locale: LocaleProps = {
     labelHeight: '标签高度'
   },
   connectorControls: {
+    metadata: '元数据',
     close: '关闭',
     labels: '标签',
     details: '详情',
@@ -320,6 +322,8 @@ const locale: LocaleProps = {
     doubleLineWithCircle: '带圆圈的双线'
   },
   textBoxControls: {
+    metadata: '元数据',
+    notes: '备注',
     bold: 'Bold',
     backgroundColor: 'Background color',
     removeBackground: 'Remove background',
@@ -332,6 +336,8 @@ const locale: LocaleProps = {
     alignment: '对齐方式'
   },
   rectangleControls: {
+    metadata: '元数据',
+    notes: '备注',
     close: '关闭',
     name: '名称',
     namePlaceholder: '元素名称…',

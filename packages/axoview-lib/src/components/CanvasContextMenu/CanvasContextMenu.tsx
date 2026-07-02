@@ -372,9 +372,9 @@ export const CanvasContextMenu = () => {
   const isUnsnapped = offGridTarget?.snap === false;
   const collidesNow = offGridTarget ? itemCollides(offGridTarget) : true;
   const canRename = !!target && INLINE_RENAMEABLE.has(target.type);
-  // Only nodes (ITEM) and connectors carry a `notes` field / Notes tab.
-  const canAddNote =
-    !!target && (target.type === 'ITEM' || target.type === 'CONNECTOR');
+  // Every canvas element carries a `notes` field now (2026-07-02) — node,
+  // connector, rectangle, text and label all expose a Notes editor.
+  const canAddNote = !!target;
   // Labels are a connector-only concept (ADR 0011 connector labels array).
   const canAddLabel = target?.type === 'CONNECTOR';
   const multiCount = countUserFacingRefs(selectedIds);

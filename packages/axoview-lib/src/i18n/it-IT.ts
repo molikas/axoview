@@ -287,6 +287,7 @@ const locale: LocaleProps = {
     hideName: 'Nascondi nome'
   },
   nodeInfoTab: {
+    metadata: 'Metadati',
     name: 'Nome',
     namePlaceholder: 'Nome del nodo…',
     label: 'Etichetta',
@@ -312,6 +313,7 @@ const locale: LocaleProps = {
     labelHeight: 'Altezza etichetta'
   },
   connectorControls: {
+    metadata: 'Metadati',
     close: 'Chiudi',
     labels: 'Etichette',
     details: 'Dettagli',
@@ -344,6 +346,8 @@ const locale: LocaleProps = {
     doubleLineWithCircle: 'Linea doppia con cerchio'
   },
   textBoxControls: {
+    metadata: 'Metadati',
+    notes: 'Note',
     bold: 'Bold',
     backgroundColor: 'Background color',
     removeBackground: 'Remove background',
@@ -356,6 +360,8 @@ const locale: LocaleProps = {
     alignment: 'Allineamento'
   },
   rectangleControls: {
+    metadata: 'Metadati',
+    notes: 'Note',
     close: 'Chiudi',
     name: 'Nome',
     namePlaceholder: "Nome dell'elemento…",

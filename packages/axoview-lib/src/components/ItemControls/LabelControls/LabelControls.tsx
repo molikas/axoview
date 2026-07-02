@@ -6,18 +6,18 @@ import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useScene } from 'src/hooks/useScene';
 import { ControlsContainer } from '../components/ControlsContainer';
 import { Section } from '../components/Section';
+import { NotesSection } from '../components/NotesSection';
 import { useTranslation } from 'src/stores/localeStore';
 
 interface Props {
   id: string;
 }
 
-// Floating Label panel (ADR 0031). Details/Notes parity, no Style tab — all
-// visual styling (size / colour / B/I/S / background) lives on the top-bar style
-// strip (ADR 0030). A Label has ONE edit model: plain text + whole-chip B/I/S,
-// so the panel is a single plain-text field (no rich-text editor — that, plus the
-// retired textBox `variant:'label'` rich-HTML branch, is the two-layer-formatting
-// fix). The label's `text` is also its identity (Layers / info popover).
+// Floating Label panel (ADR 0031). A Label's `text` is BOTH its on-canvas
+// content and its identity (Layers / info popover), so there is no separate
+// Name/Metadata section — the Text field is it. All visual styling lives on the
+// top-bar style strip (ADR 0030). Notes added 2026-07-02 (parity with all
+// elements). The chip is also editable inline on canvas (double-click / F2).
 export const LabelControls = ({ id }: Props) => {
   const { t } = useTranslation('textBoxControls');
   const uiStateActions = useUiStateStore((state) => state.actions);
@@ -49,8 +49,11 @@ export const LabelControls = ({ id }: Props) => {
             onChange={(e) => updateLabel(label.id, { text: e.target.value })}
           />
         </Section>
-        {/* All styling (text size/colour, B/I/S, background) lives on the
-            top-bar style strip (TopBarStyleControls) — ADR 0030. */}
+        <NotesSection
+          title={t('notes')}
+          value={label.notes}
+          onChange={(notes) => updateLabel(label.id, { notes })}
+        />
       </Box>
     </ControlsContainer>
   );

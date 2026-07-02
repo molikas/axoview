@@ -272,6 +272,7 @@ export interface LocaleProps {
   nodeInfoTab: {
     name: string;
     namePlaceholder: string;
+    metadata: string;
     label: string;
     labelPlaceholder: string;
     removeLink: string;
@@ -296,6 +297,7 @@ export interface LocaleProps {
   };
   connectorControls: {
     close: string;
+    metadata: string;
     labels: string;
     details: string;
     style: string;
@@ -328,6 +330,8 @@ export interface LocaleProps {
   };
   textBoxControls: {
     close: string;
+    metadata: string;
+    notes: string;
     name: string;
     namePlaceholder: string;
     text: string;
@@ -340,6 +344,8 @@ export interface LocaleProps {
   };
   rectangleControls: {
     close: string;
+    metadata: string;
+    notes: string;
     name: string;
     namePlaceholder: string;
     color: string;

@@ -1,10 +1,13 @@
 import { z } from 'zod';
 import { ProjectionOrientationEnum } from 'src/types/common';
-import { id, coords, constrainedStrings } from './common';
+import { id, coords, constrainedStrings, NOTES_MAX_LENGTH } from './common';
 
 export const textBoxSchema = z.object({
   id,
   name: z.string().max(200).optional(),
+  // Rich-text notes (2026-07-02) — parity across all canvas elements. The
+  // `content` field is the on-canvas text; `notes` is separate metadata.
+  notes: z.string().max(NOTES_MAX_LENGTH).optional(),
   tile: coords,
   content: constrainedStrings.description,
   fontSize: z.number().optional(),

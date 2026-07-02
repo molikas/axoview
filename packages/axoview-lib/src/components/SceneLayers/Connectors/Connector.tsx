@@ -239,6 +239,19 @@ export const Connector = memo(({ connector, currentView }: Props) => {
 
   const lineType = merged.lineType || 'SINGLE';
 
+  // A connector whose two anchors resolve to the SAME tile has a single-point
+  // path — an SVG polyline needs ≥2 points, so it would draw nothing (the
+  // element would be invisible + hard to select/delete). Render it as a dot
+  // marker at the tile so the (degenerate / zero-length) connector is visible
+  // and selectable. Owner 2026-07-02.
+  const dotPoint =
+    hasTiles && connectorPath!.tiles.length === 1
+      ? {
+          x: connectorPath!.tiles[0].x * UNPROJECTED_TILE_SIZE + drawOffset.x,
+          y: connectorPath!.tiles[0].y * UNPROJECTED_TILE_SIZE + drawOffset.y
+        }
+      : null;
+
   return (
     <Box data-testid="connector-path" style={css}>
       <Svg style={{ transform: 'scale(-1, 1)' }} viewboxSize={pxSize}>
@@ -257,6 +270,36 @@ export const Connector = memo(({ connector, currentView }: Props) => {
             strokeOpacity={0.35}
             fill="none"
           />
+        )}
+        {dotPoint && (
+          <>
+            {isSelected && (
+              <circle
+                data-testid="connector-selection-halo"
+                cx={dotPoint.x}
+                cy={dotPoint.y}
+                r={connectorWidthPx * 3}
+                fill={TRANSFORM_CONTROLS_COLOR}
+                fillOpacity={0.35}
+              />
+            )}
+            {/* White under-halo for contrast (matches the line's 1.4× halo),
+                then the coloured dot. */}
+            <circle
+              cx={dotPoint.x}
+              cy={dotPoint.y}
+              r={connectorWidthPx * 1.9}
+              fill={theme.palette.common.white}
+              fillOpacity={0.7}
+            />
+            <circle
+              data-testid="connector-dot"
+              cx={dotPoint.x}
+              cy={dotPoint.y}
+              r={connectorWidthPx * 1.4}
+              fill={getColorVariant(color.value, 'dark', { grade: 1 })}
+            />
+          </>
         )}
         {lineType === 'SINGLE' ? (
           <>

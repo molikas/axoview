@@ -285,6 +285,7 @@ const locale: LocaleProps = {
     hideName: 'Скрыть имя'
   },
   nodeInfoTab: {
+    metadata: 'Метаданные',
     name: 'Название',
     namePlaceholder: 'Имя узла…',
     label: 'Подпись',
@@ -310,6 +311,7 @@ const locale: LocaleProps = {
     labelHeight: 'Высота метки'
   },
   connectorControls: {
+    metadata: 'Метаданные',
     close: 'Закрыть',
     labels: 'Метки',
     details: 'Подробности',
@@ -342,6 +344,8 @@ const locale: LocaleProps = {
     doubleLineWithCircle: 'Двойная линия с кругом'
   },
   textBoxControls: {
+    metadata: 'Метаданные',
+    notes: 'Заметки',
     bold: 'Bold',
     backgroundColor: 'Background color',
     removeBackground: 'Remove background',
@@ -354,6 +358,8 @@ const locale: LocaleProps = {
     alignment: 'Выравнивание'
   },
   rectangleControls: {
+    metadata: 'Метаданные',
+    notes: 'Заметки',
     close: 'Закрыть',
     name: 'Название',
     namePlaceholder: 'Имя элемента…',

@@ -18,6 +18,7 @@ import { ModelItem, ViewItem } from 'src/types';
 import { useModelItem } from 'src/hooks/useModelItem';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { Section } from '../../components/Section';
+import { MetadataSection } from '../../components/MetadataSection';
 import { useTranslation } from 'src/stores/localeStore';
 
 interface Props {
@@ -211,6 +212,15 @@ export const NodeInfoTab = ({
           </Stack>
         </Section>
       )}
+
+      {/* Identity name (Layers-renamed, hidden from canvas) — available here in a
+          collapsed Metadata section for parity with every other element. */}
+      <MetadataSection
+        title={t('metadata')}
+        name={modelItem.name ?? ''}
+        placeholder={t('namePlaceholder')}
+        onChange={(v) => onModelItemUpdated({ name: v || undefined })}
+      />
     </Stack>
   );
 };

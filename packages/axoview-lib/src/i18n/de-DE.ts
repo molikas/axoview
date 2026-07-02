@@ -287,6 +287,7 @@ const locale: LocaleProps = {
     hideName: 'Name ausblenden'
   },
   nodeInfoTab: {
+    metadata: 'Metadaten',
     name: 'Name',
     namePlaceholder: 'Knotenname…',
     label: 'Beschriftung',
@@ -312,6 +313,7 @@ const locale: LocaleProps = {
     labelHeight: 'Beschriftungshöhe'
   },
   connectorControls: {
+    metadata: 'Metadaten',
     close: 'Schließen',
     labels: 'Beschriftungen',
     details: 'Details',
@@ -344,6 +346,8 @@ const locale: LocaleProps = {
     doubleLineWithCircle: 'Doppellinie mit Kreis'
   },
   textBoxControls: {
+    metadata: 'Metadaten',
+    notes: 'Notizen',
     bold: 'Bold',
     backgroundColor: 'Background color',
     removeBackground: 'Remove background',
@@ -356,6 +360,8 @@ const locale: LocaleProps = {
     alignment: 'Ausrichtung'
   },
   rectangleControls: {
+    metadata: 'Metadaten',
+    notes: 'Notizen',
     close: 'Schließen',
     name: 'Name',
     namePlaceholder: 'Elementname…',

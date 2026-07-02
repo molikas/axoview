@@ -283,6 +283,7 @@ const locale: LocaleProps = {
     hideName: 'নাম লুকান'
   },
   nodeInfoTab: {
+    metadata: 'মেটাডেটা',
     name: 'নাম',
     namePlaceholder: 'নোডের নাম…',
     label: 'লেবেল',
@@ -308,6 +309,7 @@ const locale: LocaleProps = {
     labelHeight: 'লেবেলের উচ্চতা'
   },
   connectorControls: {
+    metadata: 'মেটাডেটা',
     close: 'বন্ধ করুন',
     labels: 'লেবেল',
     details: 'বিবরণ',
@@ -340,6 +342,8 @@ const locale: LocaleProps = {
     doubleLineWithCircle: 'বৃত্তসহ দ্বিগুণ লাইন'
   },
   textBoxControls: {
+    metadata: 'মেটাডেটা',
+    notes: 'নোট',
     bold: 'Bold',
     backgroundColor: 'Background color',
     removeBackground: 'Remove background',
@@ -352,6 +356,8 @@ const locale: LocaleProps = {
     alignment: 'সারিবদ্ধতা'
   },
   rectangleControls: {
+    metadata: 'মেটাডেটা',
+    notes: 'নোট',
     close: 'বন্ধ করুন',
     name: 'নাম',
     namePlaceholder: 'উপাদানের নাম…',

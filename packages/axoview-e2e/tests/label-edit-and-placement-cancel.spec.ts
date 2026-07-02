@@ -60,7 +60,7 @@ test.describe('Floating Label inline edit (double-click / F2)', () => {
     await hit.waitFor({ state: 'visible', timeout: 3_000 });
     await hit.dblclick();
 
-    const editor = page.locator('[contenteditable="true"]');
+    const editor = page.locator('[data-testid="label-inline-editor"]');
     await editor.waitFor({ state: 'visible', timeout: 3_000 });
     // useInlineRename focuses + selects-all on mount, so typing replaces.
     await page.keyboard.type('Renamed');
@@ -83,7 +83,7 @@ test.describe('Floating Label inline edit (double-click / F2)', () => {
     await page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
     await page.keyboard.press('F2');
 
-    const editor = page.locator('[contenteditable="true"]');
+    const editor = page.locator('[data-testid="label-inline-editor"]');
     await editor.waitFor({ state: 'visible', timeout: 3_000 });
     await page.keyboard.type('ViaF2');
     await page.keyboard.press('Enter');

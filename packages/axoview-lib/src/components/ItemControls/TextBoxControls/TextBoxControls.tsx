@@ -1,9 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import {
-  Box,
-  IconButton as MUIIconButton,
-  TextField
-} from '@mui/material';
+import React from 'react';
+import { Box, IconButton as MUIIconButton } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { useTextBox } from 'src/hooks/useTextBox';
 import { useUiStateStore } from 'src/stores/uiStateStore';
@@ -11,34 +7,22 @@ import { useScene } from 'src/hooks/useScene';
 import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
 import { ControlsContainer } from '../components/ControlsContainer';
 import { Section } from '../components/Section';
+import { NotesSection } from '../components/NotesSection';
+import { MetadataSection } from '../components/MetadataSection';
 import { useTranslation } from 'src/stores/localeStore';
-
-const PANEL_EVENT = 'textBoxPanel';
 
 interface Props {
   id: string;
 }
 
+// Text panel (2026-07-02): the on-canvas rich text (`content`) is the primary
+// Details content; Notes and the collapsed Metadata (identity Name) follow, so
+// name handling matches every other element.
 export const TextBoxControls = ({ id }: Props) => {
   const { t } = useTranslation('textBoxControls');
   const uiStateActions = useUiStateStore((state) => state.actions);
   const textBox = useTextBox(id);
   const { updateTextBox } = useScene();
-  const nameRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const action = (e as CustomEvent<string>).detail;
-      if (action === 'focusName') {
-        requestAnimationFrame(() => {
-          nameRef.current?.focus({ preventScroll: true });
-          nameRef.current?.select();
-        });
-      }
-    };
-    window.addEventListener(PANEL_EVENT, handler);
-    return () => window.removeEventListener(PANEL_EVENT, handler);
-  }, []);
 
   if (!textBox) return null;
 
@@ -53,18 +37,6 @@ export const TextBoxControls = ({ id }: Props) => {
         >
           <CloseIcon />
         </MUIIconButton>
-        <Section title={t('name')}>
-          <TextField
-            inputRef={nameRef}
-            placeholder={t('namePlaceholder')}
-            value={textBox.name ?? ''}
-            size="small"
-            fullWidth
-            onChange={(e) =>
-              updateTextBox(textBox.id, { name: e.target.value || undefined })
-            }
-          />
-        </Section>
         <Section title={t('text')}>
           <RichTextEditor
             value={textBox.content}
@@ -76,9 +48,18 @@ export const TextBoxControls = ({ id }: Props) => {
             }}
           />
         </Section>
-        {/* All styling lives on the top-bar style strip (TopBarStyleControls):
-            text size + colour + direction, and background colour (text + label).
-            Bold/italic/etc. are in the rich-text editor above. */}
+        <NotesSection
+          title={t('notes')}
+          value={textBox.notes}
+          onChange={(notes) => updateTextBox(textBox.id, { notes })}
+        />
+        <MetadataSection
+          title={t('metadata')}
+          name={textBox.name ?? ''}
+          placeholder={t('namePlaceholder')}
+          onChange={(v) => updateTextBox(textBox.id, { name: v || undefined })}
+        />
+        {/* All styling lives on the top-bar style strip (TopBarStyleControls). */}
       </Box>
     </ControlsContainer>
   );

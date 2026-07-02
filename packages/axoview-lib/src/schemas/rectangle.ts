@@ -1,9 +1,12 @@
 import { z } from 'zod';
-import { id, coords } from './common';
+import { id, coords, NOTES_MAX_LENGTH } from './common';
 
 export const rectangleSchema = z.object({
   id,
   name: z.string().max(200).optional(),
+  // Rich-text notes (2026-07-02) — parity with node/connector; every canvas
+  // element can carry Notes. Optional → zero-migration addition.
+  notes: z.string().max(NOTES_MAX_LENGTH).optional(),
   color: id.optional(),
   customColor: z.string().optional(), // For custom RGB colors
   // Border (frame) overrides. Absent = the legacy look: a 1px solid stroke in a

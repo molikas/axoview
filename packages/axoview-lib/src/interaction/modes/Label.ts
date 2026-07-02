@@ -53,7 +53,11 @@ export const Label: ModeActions = {
       offset: placement.offset
     });
 
-    uiState.actions.setItemControls({ type: 'LABEL', id });
+    // Select the freshly-placed label (selection ring + top-bar style target)
+    // but DON'T auto-open the Details deck (owner 2026-07-02) — placement should
+    // keep the canvas clear; the user opens the panel deliberately if they want
+    // it. Mirrors ADR 0022 §3 select-only (openPanel:false).
+    uiState.actions.setItemControls({ type: 'LABEL', id }, { openPanel: false });
     uiState.actions.setMode({
       type: 'CURSOR',
       showCursor: true,

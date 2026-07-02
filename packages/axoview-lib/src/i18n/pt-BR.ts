@@ -285,6 +285,7 @@ const locale: LocaleProps = {
     hideName: 'Ocultar nome'
   },
   nodeInfoTab: {
+    metadata: 'Metadados',
     name: 'Nome',
     namePlaceholder: 'Nome do nó…',
     label: 'Rótulo',
@@ -310,6 +311,7 @@ const locale: LocaleProps = {
     labelHeight: 'Altura do rótulo'
   },
   connectorControls: {
+    metadata: 'Metadados',
     close: 'Fechar',
     labels: 'Rótulos',
     details: 'Detalhes',
@@ -342,6 +344,8 @@ const locale: LocaleProps = {
     doubleLineWithCircle: 'Linha dupla com círculo'
   },
   textBoxControls: {
+    metadata: 'Metadados',
+    notes: 'Notas',
     bold: 'Bold',
     backgroundColor: 'Background color',
     removeBackground: 'Remove background',
@@ -354,6 +358,8 @@ const locale: LocaleProps = {
     alignment: 'Alinhamento'
   },
   rectangleControls: {
+    metadata: 'Metadados',
+    notes: 'Notas',
     close: 'Fechar',
     name: 'Nome',
     namePlaceholder: 'Nome do elemento…',

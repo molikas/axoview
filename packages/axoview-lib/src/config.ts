@@ -119,7 +119,10 @@ export const CONNECTOR_DEFAULTS: Required<
 export const CONNECTOR_SEARCH_OFFSET = { x: 1, y: 1 };
 
 export const TEXTBOX_DEFAULTS: Required<
-  Omit<TextBox, 'id' | 'tile' | 'layerId' | 'name' | 'offset' | 'snap' | 'collides'>
+  Omit<
+    TextBox,
+    'id' | 'tile' | 'layerId' | 'name' | 'notes' | 'offset' | 'snap' | 'collides'
+  >
 > = {
   orientation: 'X',
   fontSize: 0.6,
@@ -153,6 +156,7 @@ export const LABEL_DEFAULTS: Required<
     | 'isStrikethrough'
     | 'zIndex'
     | 'headerLink'
+    | 'notes'
   >
 > = {
   text: 'Label'
@@ -190,6 +194,7 @@ export const RECTANGLE_DEFAULTS: Required<
     | 'color'
     | 'layerId'
     | 'name'
+    | 'notes'
     | 'zIndex'
     | 'offset'
     | 'snap'
