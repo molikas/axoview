@@ -479,4 +479,39 @@ describe('usePanHandlers.handleMouseUp', () => {
       expect.objectContaining({ type: 'LASSO', selection: null })
     );
   });
+
+  // F2 — placement-cancel parity (commit e11aad1). Arming a placement tool from
+  // the Elements panel then right-TAPPING (no drag) must CANCEL the tool and
+  // return to the pointer, dropping nothing — parity with CONNECTOR/LASSO above.
+  // restoreModeAfterRightClick routes TEXTBOX / LABEL / PLACE_ICON / RECTANGLE.DRAW
+  // all to CURSOR; the older code only reset TEXTBOX/connector/lasso, so a
+  // right-tap used to leave rectangle / node / label armed. No context menu opens
+  // (menus are a CURSOR-mode affordance — the tool abort takes precedence).
+  test.each(['TEXTBOX', 'LABEL', 'PLACE_ICON', 'RECTANGLE.DRAW'])(
+    'right-tap (no drag) in %s placement mode cancels the tool → CURSOR, no menu',
+    (modeType) => {
+      mockUiState.mode = { type: modeType, selection: null } as any;
+      mockGetItemAtTile.mockReturnValue(null);
+      const { result } = setup();
+      act(() => {
+        result.current.handleMouseDown(makeEvent({ button: 2 }));
+      });
+      mockSetMode.mockClear();
+      mockSetItemControls.mockClear();
+      mockOpenContextMenu.mockClear();
+      let returned = false;
+      act(() => {
+        returned = result.current.handleMouseUp(makeEvent({ button: 2 }));
+      });
+      expect(returned).toBe(true);
+      // Cancelled to the pointer, dropping nothing (no eager placement).
+      expect(mockSetMode).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'CURSOR', mousedownItem: null })
+      );
+      // The details deck is cleared so a stale panel doesn't linger.
+      expect(mockSetItemControls).toHaveBeenCalledWith(null);
+      // The tool abort takes precedence: no item/canvas menu opens.
+      expect(mockOpenContextMenu).not.toHaveBeenCalled();
+    }
+  );
 });

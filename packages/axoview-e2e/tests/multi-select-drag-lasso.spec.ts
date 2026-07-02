@@ -335,28 +335,29 @@ test.describe('Lasso intersection — rectangle middle + mixed (T2 #16)', () => 
     });
     expect(tb).not.toBeNull();
 
-    // Build the marquee from the TILE-SPACE bounding box of both shapes, then
-    // project its FOUR corners and take the screen bbox + margin. A screen
-    // bbox of scattered iso-projected points does NOT invert to a tile-rect
-    // containing them (iso is a rotation); projecting the tile-box corners
-    // does, so the marquee's tile-rect reliably encloses both shapes.
+    // Build the marquee from the TILE-SPACE bounding box of both shapes and drag
+    // between the projections of two OPPOSITE tile corners.
+    //
+    // Lasso works entirely in tile space (Lasso.getItemsInBounds): it takes the
+    // tiles under the drag's start/end screen points and AABB-overlaps each
+    // shape's tile bounds against that tile-rect. So the marquee must be built
+    // from ACTUAL tile corners. The earlier version took the SCREEN bbox of the
+    // four projected corners — which is wrong: iso projection is a rotation, so a
+    // screen-axis-aligned bbox inverts (screenToTile) to a thin DIAGONAL tile
+    // band that only covers the mid-Y row and drops any shape off it (here the
+    // rectangle sat below that band → the known-red failure). Projecting two
+    // opposite tile corners and dragging between them round-trips cleanly through
+    // tileToScreen→screenToTile, so the tile-rect reliably encloses [minX..maxX]
+    // × [minY..maxY] and both shapes overlap it (matches the passing "middle of a
+    // long rectangle" sibling above).
     const allTiles = [rect!.from, rect!.to, tb];
     const minX = Math.min(...allTiles.map((t: any) => t.x));
     const maxX = Math.max(...allTiles.map((t: any) => t.x));
     const minY = Math.min(...allTiles.map((t: any) => t.y));
     const maxY = Math.max(...allTiles.map((t: any) => t.y));
-    const corners = [
-      { x: minX, y: minY },
-      { x: maxX, y: minY },
-      { x: maxX, y: maxY },
-      { x: minX, y: maxY }
-    ];
-    const pts = await Promise.all(corners.map((t) => canvas.tileToScreen(t)));
-    const xs = pts.map((p) => p.x);
-    const ys = pts.map((p) => p.y);
-    const MARGIN = 120;
-    const from = { x: Math.min(...xs) - MARGIN, y: Math.min(...ys) - MARGIN };
-    const to = { x: Math.max(...xs) + MARGIN, y: Math.max(...ys) + MARGIN };
+    const PAD = 1; // one tile of slack so an edge shape can't round out
+    const from = await canvas.tileToScreen({ x: minX - PAD, y: minY - PAD });
+    const to = await canvas.tileToScreen({ x: maxX + PAD, y: maxY + PAD });
 
     await page.keyboard.press('l');
     await expect

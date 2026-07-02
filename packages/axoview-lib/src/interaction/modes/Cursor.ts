@@ -55,7 +55,10 @@ const getAnchorHitTile = (
   return getAnchorTile(anchor, view);
 };
 
-const getAnchorOrdering = (
+// Exported for the off-path-fallback regression test (F2). Ordering a new
+// waypoint by the nearest path tile — rather than throwing on an inexact grab —
+// is the invariant the test pins.
+export const getAnchorOrdering = (
   anchor: ConnectorAnchor,
   connector: SceneConnector,
   view: View

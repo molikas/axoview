@@ -45,13 +45,15 @@ describe('PANEL_EVENT', () => {
       ITEM: 'nodePanel',
       CONNECTOR: 'connectorPanel',
       TEXTBOX: 'textBoxPanel',
-      RECTANGLE: 'rectanglePanel'
+      RECTANGLE: 'rectanglePanel',
+      // LABEL joined the channel with floating-Label "Add note" (commit e11aad1).
+      LABEL: 'labelPanel'
     });
   });
 });
 
 describe('dispatch', () => {
-  const types: ItemType[] = ['ITEM', 'CONNECTOR', 'TEXTBOX', 'RECTANGLE'];
+  const types: ItemType[] = ['ITEM', 'CONNECTOR', 'TEXTBOX', 'RECTANGLE', 'LABEL'];
 
   it.each(types)(
     'fires the %s panel CustomEvent carrying the action in detail',
