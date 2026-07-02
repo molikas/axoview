@@ -64,10 +64,14 @@ export const VIEW_ITEM_DEFAULTS: Required<
     | 'labelBold'
     | 'labelItalic'
     | 'labelStrikethrough'
+    // labelFontSize defaults to ABSENT so a new node renders at the single
+    // source of truth — LABEL_BASE_FONT_PX (18) — instead of baking a stale 14
+    // into every created node (which made the 2026-07-01 default bump a no-op
+    // for new nodes). Explicitly-sized labels still round-trip.
+    | 'labelFontSize'
   >
 > = {
   labelHeight: 80,
-  labelFontSize: 14,
   labelColor: ''
 };
 

@@ -662,6 +662,56 @@ export const TopBarStyleControls = () => {
   // the scale-based text box)?
   const hasLabelSizeTarget = Boolean(node || label || isNameLabel || activeLabel);
 
+  // Cross-type label sizing (owner 2026-07-02): when a MIXED selection is
+  // active (e.g. a node + a connection) the normal homogeneous bulk path is off,
+  // but the ONE thing that means the same across those types — the on-canvas
+  // label font size — should still be adjustable together. Enabled only when
+  // every selected item is a label-bearing type (node / floating label /
+  // connector); a rectangle/text box in the mix keeps the strip disabled.
+  const crossTypeLabelIds = useMemo(() => {
+    if (selectedIds.length < 2) return null;
+    const types = new Set(selectedIds.map((r) => r.type));
+    if (types.size <= 1) return null; // homogeneous → handled by the normal path
+    const allLabelBearing = selectedIds.every(
+      (r) => r.type === 'ITEM' || r.type === 'LABEL' || r.type === 'CONNECTOR'
+    );
+    return allLabelBearing ? selectedIds : null;
+  }, [selectedIds]);
+
+  const nudgeCrossTypeLabelSize = (delta: number) => {
+    if (!crossTypeLabelIds) return;
+    transaction(() => {
+      crossTypeLabelIds.forEach((ref) => {
+        if (ref.type === 'ITEM') {
+          const cur =
+            currentView.items?.find((i) => i.id === ref.id)?.labelFontSize ??
+            LABEL_BASE_FONT_PX;
+          applyViewItem(ref.id, {
+            labelFontSize: clampNum(cur + delta, LABEL_SIZE_MIN, LABEL_SIZE_MAX)
+          });
+        } else if (ref.type === 'LABEL') {
+          const cur =
+            currentView.labels?.find((l) => l.id === ref.id)?.fontSize ??
+            LABEL_BASE_FONT_PX;
+          applyLabel(ref.id, {
+            fontSize: clampNum(cur + delta, LABEL_SIZE_MIN, LABEL_SIZE_MAX)
+          });
+        } else if (ref.type === 'CONNECTOR') {
+          const cur =
+            currentView.connectors?.find((c) => c.id === ref.id)
+              ?.nameLabelFontSize ?? LABEL_BASE_FONT_PX;
+          applyConnector(ref.id, {
+            nameLabelFontSize: clampNum(
+              cur + delta,
+              LABEL_SIZE_MIN,
+              LABEL_SIZE_MAX
+            )
+          });
+        }
+      });
+    });
+  };
+
   const textColorEnabled = Boolean(
     node || textBox || label || activeLabel || isNameLabel
   );
@@ -884,13 +934,50 @@ export const TopBarStyleControls = () => {
         tooltip={
           textSize
             ? 'Text size'
+            : crossTypeLabelIds
+            ? 'Label size (all selected)'
             : 'Select a node, text, or connection label to set text size'
         }
-        disabled={!textSize}
+        disabled={!textSize && !crossTypeLabelIds}
         popoverWidth={220}
         testId="strip-text-size"
         icon={<TextSizeIcon sx={{ fontSize: 18 }} />}
       >
+        {/* Cross-type mixed selection (e.g. node + connection): no shared
+            absolute scale, so offer just the relative +/- label-size stepper
+            that bumps each selected item's own label size together. */}
+        {!textSize && crossTypeLabelIds && (
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 1
+            }}
+          >
+            <Tooltip title="Decrease label size">
+              <IconButton
+                size="small"
+                data-testid="crosstype-font-decrease"
+                onClick={() => nudgeCrossTypeLabelSize(-2)}
+              >
+                <RemoveIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
+            <Typography variant="caption" color="text.secondary">
+              Label size
+            </Typography>
+            <Tooltip title="Increase label size">
+              <IconButton
+                size="small"
+                data-testid="crosstype-font-increase"
+                onClick={() => nudgeCrossTypeLabelSize(2)}
+              >
+                <AddIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        )}
         {textSize && (
           <Box>
             <PercentSizeSlider

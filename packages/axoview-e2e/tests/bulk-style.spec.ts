@@ -22,7 +22,7 @@ const nodeFontSizes = (page: Page) =>
     const ui = (window as any).__axoview__.ui.getState();
     const views = (window as any).__axoview__.model.getState().views;
     const view = views.find((v: any) => v.id === ui.view) ?? views[0];
-    return (view.items ?? []).map((i: any) => i.labelFontSize ?? 14);
+    return (view.items ?? []).map((i: any) => i.labelFontSize ?? 18);
   });
 
 const selectedCount = (page: Page) =>
@@ -45,7 +45,7 @@ test.describe('Bulk styling — Slice S4 (#7 / #11)', () => {
     await page.keyboard.press('Control+a');
     await expect.poll(() => selectedCount(page), { timeout: 3_000 }).toBe(2);
 
-    expect(await nodeFontSizes(page)).toEqual([14, 14]);
+    expect(await nodeFontSizes(page)).toEqual([18, 18]);
     const historyBefore = await getModelHistoryLength(page);
 
     // Open the Text size popover and bump up — fans out to both nodes.
@@ -54,7 +54,7 @@ test.describe('Bulk styling — Slice S4 (#7 / #11)', () => {
 
     await expect
       .poll(() => nodeFontSizes(page), { timeout: 3_000 })
-      .toEqual([16, 16]);
+      .toEqual([20, 20]);
 
     // Single undo entry for the whole fan-out.
     expect(await getModelHistoryLength(page)).toBe(historyBefore + 1);
@@ -64,6 +64,6 @@ test.describe('Bulk styling — Slice S4 (#7 / #11)', () => {
     await page.keyboard.press('Control+z');
     await expect
       .poll(() => nodeFontSizes(page), { timeout: 3_000 })
-      .toEqual([14, 14]);
+      .toEqual([18, 18]);
   });
 });
