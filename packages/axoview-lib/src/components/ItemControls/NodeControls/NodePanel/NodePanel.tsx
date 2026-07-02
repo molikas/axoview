@@ -17,6 +17,7 @@ import { NodeInfoTab } from '../NodeInfoTab/NodeInfoTab';
 import { ControlsContainer } from '../../components/ControlsContainer';
 import { DeckHeader } from '../../components/DeckHeader';
 import { NotesSection } from '../../components/NotesSection';
+import { MetadataSection } from '../../components/MetadataSection';
 import { useTranslation } from 'src/stores/localeStore';
 
 // Unified collapsible-section deck (2026-07-02, ux-principles §5.1): the node
@@ -261,6 +262,9 @@ interface Props {
 
 export const NodePanel = ({ viewItem, readOnly }: Props) => {
   const { t } = useTranslation('nodePanel');
+  // Metadata (identity name) strings live in the nodeInfoTab namespace; NodePanel
+  // renders that section itself (after Notes) to keep the canonical section order.
+  const { t: tInfo } = useTranslation('nodeInfoTab');
   const modelItem = useModelItem(viewItem.id);
   const { updateModelItem, updateViewItem } = useScene();
   const uiStateActions = useUiStateStore((state) => state.actions);
@@ -352,6 +356,13 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
         onChange={(notes) => onModelUpdate({ notes })}
         open={notesOpen}
         onToggle={() => setNotesOpen((v) => !v)}
+      />
+      <MetadataSection
+        title={tInfo('metadata')}
+        fieldLabel={tInfo('name')}
+        name={modelItem.name ?? ''}
+        placeholder={tInfo('namePlaceholder')}
+        onChange={(v) => onModelUpdate({ name: v || undefined })}
       />
     </ControlsContainer>
   );

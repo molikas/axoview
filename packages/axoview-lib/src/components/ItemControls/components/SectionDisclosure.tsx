@@ -12,10 +12,11 @@ interface Props {
 }
 
 // Shared quiet disclosure header for the Properties deck (2026-07-02). A
-// plain-text row (uppercase caption + rotating chevron) on the panel background
-// — deliberately NOT a filled button, which read as the loudest thing in the
-// panel. Used by MetadataSection and the connector's additional-labels section
-// so every collapsible in the deck looks the same.
+// plain-text row (sentence-case caption + rotating chevron) on the panel
+// background — deliberately NOT a filled button, which read as the loudest thing
+// in the panel. Used by MetadataSection and the connector's labels section so
+// every collapsible in the deck looks the same. Sentence case (no ALL CAPS) per
+// ux-principles §1.2 — matches the Section primitive and Figma/Linear/Notion.
 export const SectionDisclosure = ({ title, open, onToggle, trailing }: Props) => (
   <Box
     onClick={onToggle}
@@ -37,10 +38,7 @@ export const SectionDisclosure = ({ title, open, onToggle, trailing }: Props) =>
         transform: open ? 'rotate(90deg)' : 'none'
       }}
     />
-    <Typography
-      variant="caption"
-      sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}
-    >
+    <Typography variant="caption" sx={{ fontWeight: 600 }}>
       {title}
     </Typography>
     {trailing}

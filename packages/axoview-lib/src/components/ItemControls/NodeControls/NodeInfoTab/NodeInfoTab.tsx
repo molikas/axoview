@@ -17,7 +17,6 @@ import { ModelItem, ViewItem } from 'src/types';
 import { useModelItem } from 'src/hooks/useModelItem';
 import { Section } from '../../components/Section';
 import { CollapsibleSection } from '../../components/CollapsibleSection';
-import { MetadataSection } from '../../components/MetadataSection';
 import { useTranslation } from 'src/stores/localeStore';
 
 interface Props {
@@ -148,16 +147,9 @@ export const NodeInfoTab = ({
       {/* Icon picker moved to the top-bar style strip (Change icon). */}
       {/* "Link to diagram" moved to the top-bar Link control (D2) — the strip is
           now the single Link surface (web URL + link-to-diagram). */}
-
-      {/* Identity name (Layers-renamed, hidden from canvas) — available here in a
-          collapsed Metadata section for parity with every other element. */}
-      <MetadataSection
-        title={t('metadata')}
-        fieldLabel={t('name')}
-        name={modelItem.name ?? ''}
-        placeholder={t('namePlaceholder')}
-        onChange={(v) => onModelItemUpdated({ name: v || undefined })}
-      />
+      {/* Identity name (Metadata) is rendered by NodePanel AFTER Notes, so the
+          node deck matches the canonical content → Notes → Metadata order
+          (ux-principles §5.1) shared by every other element type. */}
     </Stack>
   );
 };
