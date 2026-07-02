@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Collapse, TextField, Typography } from '@mui/material';
-import { KeyboardArrowRight as ChevronIcon } from '@mui/icons-material';
+import { SectionDisclosure } from './SectionDisclosure';
 
 interface Props {
   /** Section title (already translated), e.g. "Metadata". */
@@ -34,33 +34,11 @@ export const MetadataSection = ({
 
   return (
     <Box sx={{ pt: 1.5, px: 2 }}>
-      <Box
-        onClick={() => setOpen((v) => !v)}
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 0.25,
-          cursor: 'pointer',
-          color: 'text.secondary',
-          userSelect: 'none',
-          py: 0.25,
-          '&:hover': { color: 'text.primary' }
-        }}
-      >
-        <ChevronIcon
-          sx={{
-            fontSize: 16,
-            transition: 'transform 150ms ease',
-            transform: open ? 'rotate(90deg)' : 'none'
-          }}
-        />
-        <Typography
-          variant="caption"
-          sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}
-        >
-          {title}
-        </Typography>
-      </Box>
+      <SectionDisclosure
+        title={title}
+        open={open}
+        onToggle={() => setOpen((v) => !v)}
+      />
 
       <Collapse in={open} unmountOnExit>
         <Box

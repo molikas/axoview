@@ -25,13 +25,12 @@ import { stripHtmlTags } from 'src/utils/stripHtml';
 import {
   Close as CloseIcon,
   Add as AddIcon,
-  Delete as DeleteIcon,
-  ExpandMore as ExpandMoreIcon
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 import { getConnectorLabels, generateId } from 'src/utils';
 import { ControlsContainer } from '../components/ControlsContainer';
-import { Section } from '../components/Section';
 import { MetadataSection } from '../components/MetadataSection';
+import { SectionDisclosure } from '../components/SectionDisclosure';
 import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
 import { useTranslation } from 'src/stores/localeStore';
 
@@ -240,26 +239,21 @@ export const ConnectorControls = ({ id }: Props) => {
               behind a disclosure (Option A) so the single `name` (the midpoint
               label) is the obvious path. Auto-expanded when labels already
               exist so power-user content isn't hidden. */}
-          <Section title={t('additionalLabels')}>
-            <Button
-              fullWidth
-              size="small"
-              onClick={() => setShowAdvanced((v) => !v)}
-              startIcon={
-                <ExpandMoreIcon
-                  sx={{
-                    transition: 'transform 150ms ease',
-                    transform: showAdvanced ? 'rotate(180deg)' : 'none'
-                  }}
-                />
+          <Box sx={{ pt: 1.5, px: 2 }}>
+            <SectionDisclosure
+              title={t('additionalLabels')}
+              open={showAdvanced}
+              onToggle={() => setShowAdvanced((v) => !v)}
+              trailing={
+                labels.length > 0 ? (
+                  <Chip
+                    size="small"
+                    label={labels.length}
+                    sx={{ ml: 0.75, height: 18 }}
+                  />
+                ) : undefined
               }
-              sx={{ justifyContent: 'flex-start', textTransform: 'none', mb: 1 }}
-            >
-              {showAdvanced ? t('hideLabel') : t('showLabel')}
-              {labels.length > 0 && (
-                <Chip size="small" label={labels.length} sx={{ ml: 1, height: 18 }} />
-              )}
-            </Button>
+            />
 
             <Collapse in={showAdvanced} unmountOnExit>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
@@ -400,7 +394,7 @@ export const ConnectorControls = ({ id }: Props) => {
                 );
               })}
             </Collapse>
-          </Section>
+          </Box>
 
           <MetadataSection
             title={t('metadata')}
