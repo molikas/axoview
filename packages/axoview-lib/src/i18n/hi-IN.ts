@@ -320,6 +320,7 @@ const locale: LocaleProps = {
     noColor: 'कोई रंग नहीं',
     customColor: 'कस्टम रंग',
     textSize: 'पाठ का आकार',
+    lineSpacing: 'पंक्ति रिक्ति',
     iconSize: 'आइकन का आकार',
     textColor: 'पाठ का रंग',
     textColorDisabled:

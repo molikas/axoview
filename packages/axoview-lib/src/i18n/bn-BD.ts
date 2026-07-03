@@ -319,6 +319,7 @@ const locale: LocaleProps = {
     noColor: 'কোনো রং নেই',
     customColor: 'কাস্টম রং',
     textSize: 'পাঠ্যের আকার',
+    lineSpacing: 'লাইনের ব্যবধান',
     iconSize: 'আইকনের আকার',
     textColor: 'পাঠ্যের রং',
     textColorDisabled:

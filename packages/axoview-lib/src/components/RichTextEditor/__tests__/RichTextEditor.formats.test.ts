@@ -49,26 +49,35 @@ describe('RichTextEditor — Quill formats config', () => {
 });
 
 // ---------------------------------------------------------------------------
-// MQA #12 — list autofill must be disabled (file-level structural check)
+// Markdown list autofill — MQA #12 RETIRED (ADR 0034 addendum 2026-07-03)
 // ---------------------------------------------------------------------------
 //
-// Reading the source rather than mounting Quill keeps this test cheap and
-// pins the contract: the `list autofill` binding override must remain in
-// place, and its handler must return true (so the literal space is inserted
-// and the autofill never replaces the line with an empty list block).
-describe('RichTextEditor — list autofill override (MQA #12)', () => {
-  it('overrides Quill list autofill with a noop handler', () => {
+// `- `/`* `/`1. ` → list is back ON, via the ONE shared binding in
+// utils/quillListAutofill.ts (undo restores the literal text; checkbox
+// prefixes excluded — behavior is unit-tested there). This file-level check
+// pins that BOTH rich surfaces wire the shared binding — a hand-rolled inline
+// binding (or a resurrected noop override) would silently drift the two
+// editors apart.
+describe('RichTextEditor — markdown list autofill (MQA #12 retired)', () => {
+  const read = (rel: string) => {
     const fs = require('fs');
     const path = require('path');
-    const src = fs.readFileSync(
-      path.resolve(__dirname, '../RichTextEditor.tsx'),
-      'utf-8',
+    return fs.readFileSync(path.resolve(__dirname, rel), 'utf-8');
+  };
+
+  it('RichTextEditor wires the shared buildListAutofillBinding', () => {
+    const src = read('../RichTextEditor.tsx');
+    expect(src).toMatch(
+      /'list autofill': buildListAutofillBinding\(ReactQuill\.Quill\)/
     );
-    expect(src).toMatch(/'list autofill'\s*:/);
-    // Handler must propagate (return true) — never `return false` which would
-    // also swallow the literal space the user typed.
-    const sliceStart = src.indexOf("'list autofill'");
-    const slice = src.slice(sliceStart, sliceStart + 600);
-    expect(slice).toMatch(/handler\(\)\s*\{\s*return true;\s*\}/);
+    // The old MQA #12 noop must not come back.
+    expect(src).not.toMatch(/handler\(\)\s*\{\s*return true;\s*\}/);
+  });
+
+  it('TextBoxInlineEditor wires the same shared binding', () => {
+    const src = read('../../SceneLayers/TextBoxes/TextBoxInlineEditor.tsx');
+    expect(src).toMatch(
+      /'list autofill': buildListAutofillBinding\(ReactQuill\.Quill\)/
+    );
   });
 });

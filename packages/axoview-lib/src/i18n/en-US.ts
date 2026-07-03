@@ -320,6 +320,7 @@ const locale: LocaleProps = {
     noColor: 'No color',
     customColor: 'Custom color',
     textSize: 'Text size',
+    lineSpacing: 'Line spacing',
     iconSize: 'Icon size',
     textColor: 'Text color',
     textColorDisabled:

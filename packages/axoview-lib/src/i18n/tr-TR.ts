@@ -321,6 +321,7 @@ const locale: LocaleProps = {
     noColor: 'Renk yok',
     customColor: 'Özel renk',
     textSize: 'Metin boyutu',
+    lineSpacing: 'Satır aralığı',
     iconSize: 'Simge boyutu',
     textColor: 'Metin rengi',
     textColorDisabled:

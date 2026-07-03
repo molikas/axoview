@@ -298,6 +298,7 @@ export interface LocaleProps {
     noColor: string;
     customColor: string;
     textSize: string;
+    lineSpacing: string;
     iconSize: string;
     textColor: string;
     textColorDisabled: string;

@@ -298,6 +298,7 @@ const locale: LocaleProps = {
     noColor: '无颜色',
     customColor: '自定义颜色',
     textSize: '文本大小',
+    lineSpacing: '行距',
     iconSize: '图标大小',
     textColor: '文本颜色',
     textColorDisabled: '选择节点、文本框、标签或连接线标签以设置文本颜色',

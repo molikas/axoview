@@ -53,7 +53,7 @@ import { useRectangle } from 'src/hooks/useRectangle';
 import { ProjectionOrientationEnum } from 'src/types';
 import { connectorStyleOptions, connectorLineTypeOptions } from 'src/schemas';
 import { getIsoProjectionCss } from 'src/utils';
-import { TEXTBOX_DEFAULTS } from 'src/config';
+import { TEXTBOX_DEFAULTS, TEXTBOX_LINE_HEIGHT } from 'src/config';
 import { LabelColorPicker } from '../ItemControls/components/LabelColorPicker';
 import { ColorSwatch } from '../ColorSelector/ColorSwatch';
 import { CustomColorInput } from '../ColorSelector/CustomColorInput';
@@ -1218,6 +1218,30 @@ export const TopBarStyleControls = () => {
               step={textSize.step}
               onChange={textSize.onChange}
             />
+            {/* Line spacing (text box only — the multi-line rich surface).
+                Lucid-style multiplier on the box's content line-height
+                (ADR 0034 addendum 2026-07-03); default 1.2, absent when
+                untouched. Lives with Text size like Lucid groups its line
+                spacing inside the text dropdown — no extra bar slot. */}
+            {textBox && (
+              <Box sx={{ mt: 1.5 }} data-testid="strip-line-spacing">
+                <LabeledSlider
+                  label={t('lineSpacing')}
+                  value={textBox.lineHeight ?? TEXTBOX_LINE_HEIGHT}
+                  displayValue={`${(
+                    textBox.lineHeight ?? TEXTBOX_LINE_HEIGHT
+                  ).toFixed(1)}×`}
+                  min={0.8}
+                  max={2.5}
+                  step={0.1}
+                  onChange={(v) =>
+                    updateTextBox(textBox.id, {
+                      lineHeight: Number(v.toFixed(2))
+                    })
+                  }
+                />
+              </Box>
+            )}
             {/* #11: relative +/- stepper for node-label / floating-Label px
                 sizes — bumps each selected target from its own size (preserving
                 relative differences across a multi-selection). */}

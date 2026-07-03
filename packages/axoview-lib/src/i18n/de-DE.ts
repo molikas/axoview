@@ -323,6 +323,7 @@ const locale: LocaleProps = {
     noColor: 'Keine Farbe',
     customColor: 'Benutzerdefinierte Farbe',
     textSize: 'Textgröße',
+    lineSpacing: 'Zeilenabstand',
     iconSize: 'Symbolgröße',
     textColor: 'Textfarbe',
     textColorDisabled:

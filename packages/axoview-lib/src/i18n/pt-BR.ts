@@ -321,6 +321,7 @@ const locale: LocaleProps = {
     noColor: 'Sem cor',
     customColor: 'Cor personalizada',
     textSize: 'Tamanho do texto',
+    lineSpacing: 'Espaçamento entre linhas',
     iconSize: 'Tamanho do ícone',
     textColor: 'Cor do texto',
     textColorDisabled:

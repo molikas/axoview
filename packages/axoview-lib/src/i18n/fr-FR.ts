@@ -324,6 +324,7 @@ const locale: LocaleProps = {
     noColor: 'Aucune couleur',
     customColor: 'Couleur personnalisée',
     textSize: 'Taille du texte',
+    lineSpacing: 'Interligne',
     iconSize: "Taille de l'icône",
     textColor: 'Couleur du texte',
     textColorDisabled:

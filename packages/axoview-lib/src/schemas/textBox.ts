@@ -11,6 +11,11 @@ export const textBoxSchema = z.object({
   tile: coords,
   content: constrainedStrings.description,
   fontSize: z.number().optional(),
+  // Line-spacing multiplier (ADR 0034 addendum 2026-07-03); absent = the
+  // TEXTBOX_LINE_HEIGHT default. Deliberately unbounded like fontSize — a
+  // schema cap tighter than what the strip can write bricks saved diagrams
+  // on reload (the connector-label fontSize S1).
+  lineHeight: z.number().optional(),
   color: z.string().optional(),
   isBold: z.boolean().optional(),
   isItalic: z.boolean().optional(),

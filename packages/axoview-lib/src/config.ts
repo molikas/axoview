@@ -136,6 +136,9 @@ export const TEXTBOX_DEFAULTS: Required<
     | 'isBold'
     | 'isItalic'
     | 'isUnderline'
+    // Line spacing defaults to absent (= TEXTBOX_LINE_HEIGHT); lean-save omits
+    // it on an untouched box.
+    | 'lineHeight'
   >
 > = {
   orientation: 'X',
@@ -177,6 +180,11 @@ export const LABEL_DEFAULTS: Required<
 
 export const TEXTBOX_PADDING = 0.2;
 export const TEXTBOX_FONT_WEIGHT = 'normal';
+// Default line spacing (unitless multiplier) for text-box content — Lucid/
+// Slides-parity 1.2 (ADR 0034 addendum 2026-07-03). Per-box override lives in
+// textBox.lineHeight; p/li carry NO extra vertical margins, so this multiplier
+// is the single knob for line spacing. Mirrored in isoMath height measurement.
+export const TEXTBOX_LINE_HEIGHT = 1.2;
 
 // Canvas rich-text typography scale (MQA #11). Mirrored in:
 //   - useTextBoxProps.ts (visual styles applied to dangerouslySetInnerHTML span)
@@ -197,6 +205,17 @@ export const CANVAS_RICHTEXT_SCALE = {
   blockquote: 1.0,
   pre: 0.9
 } as const;
+
+// Horizontal room (em, at the box's base font size) a list item's text is
+// inset from the box edge — the ONE list-geometry constant (ADR 0034 addendum
+// 2026-07-03). Three consumers must agree or list boxes mis-size (the
+// "one character per line" failure):
+//   - useTextBoxProps.ts   resting render: ul/ol padding-inline-start
+//   - TextBoxInlineEditor  editor: .ql-editor ol padding + marker metrics
+//   - isoMath.ts           width measurement: per-<li> indent allowance
+// 1.5em matches quill.snow.css's own `ol` padding, so the editor override
+// only needs to remove Quill's EXTRA per-li padding (its default totals 3em).
+export const CANVAS_RICHTEXT_LIST_INDENT_EM = 1.5;
 
 export const RECTANGLE_DEFAULTS: Required<
   Omit<

@@ -13,7 +13,9 @@ import {
   DEFAULT_FONT_FAMILY,
   TEXTBOX_DEFAULTS,
   TEXTBOX_FONT_WEIGHT,
-  CANVAS_RICHTEXT_SCALE
+  TEXTBOX_LINE_HEIGHT,
+  CANVAS_RICHTEXT_SCALE,
+  CANVAS_RICHTEXT_LIST_INDENT_EM
 } from 'src/config';
 import {
   Coords,
@@ -457,11 +459,14 @@ const getPlainTextForMeasurement = (content: string): string => {
   return lines.reduce((a, b) => (a.length > b.length ? a : b), '');
 };
 
-// Approximate vertical space (in user-fontSize units) each block contributes
-// once rendered with CANVAS_RICHTEXT_SCALE + the margins declared in
-// useTextBoxProps. Computed as: font-size-em × line-height + margin-top-em
+// Approximate vertical space (in user-fontSize units) each LEGACY block
+// contributes once rendered with CANVAS_RICHTEXT_SCALE + the margins declared
+// in useTextBoxProps. Computed as: font-size-em × line-height + margin-top-em
 // + margin-bottom-em. Keep in sync with richTextStyles in useTextBoxProps.ts
 // — drift here means the auto-grown bounds clip the rendered content.
+// p/li are NOT in this table: they carry zero margins and follow the box's
+// own line-spacing multiplier (ADR 0034 addendum 2026-07-03), passed into
+// countHtmlLines per box.
 const BLOCK_HEIGHT_UNITS: Record<string, number> = {
   h1: 1.875 * 1.2 + 0.8 + 0.3, // 3.35
   h2: 1.5 * 1.25 + 0.7 + 0.25, // 2.825
@@ -469,37 +474,40 @@ const BLOCK_HEIGHT_UNITS: Record<string, number> = {
   h4: 1.1 * 1.4 + 0.4 + 0.2, // 2.14
   h5: 1.0 * 1.4 + 0.3 + 0.2, // 1.9
   h6: 1.0 * 1.4 + 0.3 + 0.2, // 1.9
-  p: 1.0 * 1.3 + 0 + 0.2, // 1.5
-  li: 1.0 * 1.3 + 0 + 0.2, // 1.5
   blockquote: 1.0 * 1.5 + 0.5 + 0.5, // 2.5
   pre: 0.9 * 1.5 + 0.5 + 0.5 // 2.35
 };
 
 /** @internal exported for unit-testing the per-block weighting only. */
-export const countHtmlLines = (content: string): number => {
+export const countHtmlLines = (
+  content: string,
+  lineHeight: number = TEXTBOX_LINE_HEIGHT
+): number => {
   if (!content?.trim().startsWith('<')) return 1;
   const re = /<\/(p|li|h[1-6]|blockquote|pre)>/gi;
   let total = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(content)) !== null) {
     const tag = m[1].toLowerCase();
-    total += BLOCK_HEIGHT_UNITS[tag] ?? 1.0;
+    total += BLOCK_HEIGHT_UNITS[tag] ?? lineHeight;
   }
   return Math.max(1, total);
 };
 
 // Extract per-block plain text + scale so width measurement can account for
-// headers rendering bigger than body. Returns at least one block so callers
-// can always measure something; falls back to the longest-line heuristic for
-// HTML the regex doesn't recognise.
+// headers rendering bigger than body, and per-block indent (em) so a list
+// item's marker gutter is counted — omitting it sized list boxes for the bare
+// text and the indent ate the content width ("one character per line").
+// Returns at least one block so callers can always measure something; falls
+// back to the longest-line heuristic for HTML the regex doesn't recognise.
 /** @internal exported for unit-testing the per-block scaling only. */
 export const splitIntoMeasurableBlocks = (
   content: string
-): Array<{ text: string; scale: number }> => {
+): Array<{ text: string; scale: number; indentEm: number }> => {
   if (!content?.trim().startsWith('<')) {
-    return [{ text: content || '', scale: 1.0 }];
+    return [{ text: content || '', scale: 1.0, indentEm: 0 }];
   }
-  const blocks: Array<{ text: string; scale: number }> = [];
+  const blocks: Array<{ text: string; scale: number; indentEm: number }> = [];
   const re =
     /<(p|li|h([1-6])|blockquote|pre)(?:\s[^>]*)?>([\s\S]*?)<\/\1>/gi;
   let m: RegExpExecArray | null;
@@ -509,10 +517,16 @@ export const splitIntoMeasurableBlocks = (
     if (!text) continue;
     const scale =
       CANVAS_RICHTEXT_SCALE[tag as keyof typeof CANVAS_RICHTEXT_SCALE] ?? 1.0;
-    blocks.push({ text, scale });
+    blocks.push({
+      text,
+      scale,
+      indentEm: tag === 'li' ? CANVAS_RICHTEXT_LIST_INDENT_EM : 0
+    });
   }
   if (blocks.length === 0) {
-    return [{ text: getPlainTextForMeasurement(content), scale: 1.0 }];
+    return [
+      { text: getPlainTextForMeasurement(content), scale: 1.0, indentEm: 0 }
+    ];
   }
   return blocks;
 };
@@ -539,22 +553,28 @@ export const getTextWidth = (
 
 export const getTextBoxDimensions = (textBox: TextBox): Size => {
   const fontSize = textBox.fontSize ?? TEXTBOX_DEFAULTS.fontSize;
+  const lineHeight = textBox.lineHeight ?? TEXTBOX_LINE_HEIGHT;
   // Measure each block at its CANVAS_RICHTEXT_SCALE-scaled size and take the
   // widest. A long <h1> at scale 1.6 needs 60% more horizontal room than a
-  // body paragraph with the same character count.
+  // body paragraph with the same character count. A list item additionally
+  // carries its marker gutter (indentEm at the box's base font size; 1em of
+  // base font = fontSize tile units).
   const blocks = splitIntoMeasurableBlocks(textBox.content);
   let width = 0;
   for (const b of blocks) {
-    const w = getTextWidth(b.text, {
-      fontSize: fontSize * b.scale,
-      fontFamily: DEFAULT_FONT_FAMILY,
-      fontWeight: TEXTBOX_FONT_WEIGHT
-    });
+    const w =
+      getTextWidth(b.text, {
+        fontSize: fontSize * b.scale,
+        fontFamily: DEFAULT_FONT_FAMILY,
+        fontWeight: TEXTBOX_FONT_WEIGHT
+      }) +
+      b.indentEm * fontSize;
     if (w > width) width = w;
   }
-  // countHtmlLines now returns a weighted unit total (headers count for more);
-  // multiplying by fontSize gives the rendered height in tile units.
-  const lineUnits = countHtmlLines(textBox.content);
+  // countHtmlLines returns a weighted unit total (headers count for more,
+  // p/li count the box's line-spacing multiplier); multiplying by fontSize
+  // gives the rendered height in tile units.
+  const lineUnits = countHtmlLines(textBox.content, lineHeight);
   const height = Math.max(1, Math.ceil(lineUnits * fontSize));
   return { width, height };
 };

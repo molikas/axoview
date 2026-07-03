@@ -106,6 +106,50 @@ test.describe('Textbox text-edit + move — Finding #7 / ADR 0034', () => {
     expect((await getFirstTextBox(page))!.content).toBe(before!.content);
   });
 
+  test('textbox TEXT-EDIT: "- " autoformats into a bullet list that commits as <ul> (ADR 0034 addendum)', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const canvas = new CanvasPOM(page);
+
+    const placePixel = await canvas.tileToScreen({ x: 0, y: 0 });
+    await canvas.placeTextBoxAt(placePixel, { keepEditing: true });
+    await expect.poll(() => getViewTextBoxCount(page), { timeout: 5_000 }).toBe(1);
+
+    const editor = canvas.textBoxInlineEditor();
+    await editor.waitFor({ state: 'visible', timeout: 5_000 });
+    await editor.click({ clickCount: 3 });
+
+    // "-" replaces the selected seed text, the following space fires Quill's
+    // list autofill (restored by the ADR 0034 addendum — retired MQA #12),
+    // Enter continues the list with a second item.
+    await page.keyboard.type('- alpha', { delay: 10 });
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('beta', { delay: 10 });
+
+    // The editor already shows a live list (data-list markup pre-commit).
+    await expect(editor.locator('li[data-list="bullet"]')).toHaveCount(2);
+
+    const awayPixel = await canvas.tileToScreen({ x: 6, y: 6 });
+    await canvas.dispatchAt(['mousedown', 'mouseup'], awayPixel);
+    await editor.waitFor({ state: 'detached', timeout: 5_000 });
+
+    const content = await expect
+      .poll(async () => (await getFirstTextBox(page))?.content ?? '', {
+        timeout: 3_000
+      })
+      .toContain('<ul>')
+      .then(async () => (await getFirstTextBox(page))!.content);
+
+    // getSemanticHTML serializes the bullets as a real <ul> with both items,
+    // and the typed "- " marker is consumed by the conversion.
+    expect(content).toContain('alpha');
+    expect(content).toContain('beta');
+    expect(content).not.toContain('- alpha');
+    expect((content.match(/<li/g) ?? []).length).toBe(2);
+  });
+
   test('textbox MOVE: drag from interior to a new tile translates textbox.tile by the same delta', async ({
     page,
     app

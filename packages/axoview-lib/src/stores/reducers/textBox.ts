@@ -34,7 +34,14 @@ export const updateTextBox = (
     const newTextBox = { ...textBox.value, ...updates };
     textBoxes[textBox.index] = newTextBox;
 
-    if (updates.content !== undefined || updates.fontSize !== undefined) {
+    // Re-measure on any write that changes rendered geometry — content,
+    // fontSize, or the line-spacing multiplier (height weights, ADR 0034
+    // addendum 2026-07-03).
+    if (
+      updates.content !== undefined ||
+      updates.fontSize !== undefined ||
+      updates.lineHeight !== undefined
+    ) {
       const stateAfterSync = syncTextBox(newTextBox.id, {
         viewId,
         state: draft

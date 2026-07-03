@@ -5,6 +5,8 @@ import { formats } from 'src/components/RichTextEditor/RichTextEditor';
 import { sanitizeHtml } from 'src/utils/sanitizeHtml';
 import { ensureHtmlContent } from 'src/utils/richTextTransform';
 import { htmlToPlainText } from 'src/utils/htmlToPlainText';
+import { buildListAutofillBinding } from 'src/utils/quillListAutofill';
+import { CANVAS_RICHTEXT_LIST_INDENT_EM } from 'src/config';
 import {
   registerTextBoxEditor,
   setTextBoxEditorRange,
@@ -38,22 +40,13 @@ interface Props {
 // destroy formatting on a zero-keystroke click-away.
 const QUILL_MODULES = {
   toolbar: false,
-  // MQA #12 (mirrors RichTextEditor.tsx): Quill's default `list autofill`
-  // converts "1. "/"- " typed on an empty line into an invisible empty list —
-  // perceived as "input erased". Same-name override → literal space, no
-  // autofill; lists are reachable from the strip.
+  // Markdown list autofill ("- "/"* "/"1. " → list) — the shared binding in
+  // quillListAutofill.ts; retires MQA #12 (rationale + the undo-restores-
+  // literal contract live there). Module scope is safe: this file already
+  // imports ReactQuill (DOM-only) at module scope.
   keyboard: {
     bindings: {
-      'list autofill': {
-        key: ' ',
-        shiftKey: null,
-        collapsed: true,
-        format: { list: false },
-        prefix: /^\s*?(\d+\.|-|\*|\[ ?\]|\[x\])$/,
-        handler() {
-          return true;
-        }
-      }
+      'list autofill': buildListAutofillBinding(ReactQuill.Quill)
     }
   }
 };
@@ -181,7 +174,12 @@ export const TextBoxInlineEditor = ({
       data-axoview-id="textbox-inline-editor"
       sx={{
         ...fontProps,
-        width: '100%',
+        // Grow-as-you-type (Lucid convention): the box extends rightward with
+        // the longest line instead of wrapping at the stale committed width —
+        // which is also what commit will measure (isoMath sizes the box to the
+        // longest line, so resting content never soft-wraps either).
+        width: 'max-content',
+        minWidth: '100%',
         outline: '1px solid rgba(0,0,0,0.3)',
         borderRadius: 1,
         bgcolor: '#fff',
@@ -201,7 +199,25 @@ export const TextBoxInlineEditor = ({
           overflow: 'visible',
           minHeight: '1em',
           whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word'
+          wordBreak: 'break-word',
+          // Beat quill.snow.css's fixed 1.42 — line spacing must match the
+          // resting render (the box's lineHeight, ADR 0034 addendum).
+          lineHeight: 'inherit'
+        },
+        // Editing/resting list-geometry parity: Quill's snow defaults total
+        // 3em of text indent (1.5em on ol + 1.5em on li) while the resting
+        // render indents CANVAS_RICHTEXT_LIST_INDENT_EM. Pin the editor to
+        // the same constant: all indent on the ol, none on the li, marker
+        // metrics re-derived so the glyph sits inside the indent. (Quill puts
+        // every list in an <ol> and marks bullets via data-list/.ql-ui.)
+        '& .ql-editor ol': {
+          paddingLeft: `${CANVAS_RICHTEXT_LIST_INDENT_EM}em`
+        },
+        '& .ql-editor li': { paddingLeft: 0 },
+        '& .ql-editor li > .ql-ui::before': {
+          marginLeft: `-${CANVAS_RICHTEXT_LIST_INDENT_EM}em`,
+          marginRight: '0.3em',
+          width: `${CANVAS_RICHTEXT_LIST_INDENT_EM - 0.3}em`
         },
         // The link tooltip misplaces under the iso matrix transform — links are
         // authored from the strip's Link control instead (ADR 0034 §2).

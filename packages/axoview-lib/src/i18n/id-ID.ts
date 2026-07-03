@@ -319,6 +319,7 @@ const locale: LocaleProps = {
     noColor: 'Tanpa warna',
     customColor: 'Warna kustom',
     textSize: 'Ukuran teks',
+    lineSpacing: 'Spasi baris',
     iconSize: 'Ukuran ikon',
     textColor: 'Warna teks',
     textColorDisabled:
