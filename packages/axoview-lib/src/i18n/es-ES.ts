@@ -327,10 +327,13 @@ const locale: LocaleProps = {
     iconSize: 'Tamaño del icono',
     textColor: 'Color del texto',
     textColorDisabled:
-      'Selecciona un nodo, texto o etiqueta de conexión para definir el color del texto',
+      'Selecciona un nodo, un cuadro de texto, una etiqueta o una etiqueta de conexión para definir el color del texto',
     textSizeDisabled:
-      'Selecciona un nodo, texto o etiqueta de conexión para definir el tamaño del texto',
+      'Selecciona un nodo, un cuadro de texto, una etiqueta o una etiqueta de conexión para definir el tamaño del texto',
     labelSizeAllSelected: 'Tamaño de etiqueta (todas las seleccionadas)',
+    textColorAllSelected: 'Color del texto (todo lo seleccionado)',
+    armedToolPlaceFirst:
+      'El nuevo elemento usa el estilo predeterminado: colócalo primero y luego dale estilo aquí',
     decreaseLabelSize: 'Reducir tamaño de etiqueta',
     increaseLabelSize: 'Aumentar tamaño de etiqueta',
     labelSize: 'Tamaño de etiqueta',
@@ -340,10 +343,15 @@ const locale: LocaleProps = {
     size: 'Tamaño',
     bold: 'Negrita',
     italic: 'Cursiva',
+    underline: 'Subrayado',
     strikethrough: 'Tachado',
-    format: 'Negrita / cursiva / tachado',
+    format: 'Negrita / cursiva / subrayado / tachado',
     formatDisabled:
-      'Selecciona un nodo, etiqueta o etiqueta de conexión (los cuadros de texto se formatean con texto enriquecido)',
+      'Selecciona un nodo, un cuadro de texto, una etiqueta o una etiqueta de conexión para dar formato al texto',
+    lists: 'Listas',
+    listsDisabled: 'Selecciona un cuadro de texto para usar listas',
+    bulletList: 'Lista con viñetas',
+    numberedList: 'Lista numerada',
     background: 'Color de fondo',
     backgroundDisabled: 'Selecciona un rectángulo o etiqueta para definir su color de fondo',
     opacity: 'Opacidad',
@@ -354,6 +362,8 @@ const locale: LocaleProps = {
     borderColor: 'Color del borde',
     link: 'Enlace',
     linkDisabled: 'Selecciona un nodo, conexión o etiqueta para añadir un enlace',
+    linkSelection: 'Enlazar el texto seleccionado',
+    linkDisabledTextBox: 'Selecciona texto mientras editas para añadir un enlace',
     linkToWeb: 'Enlace a la web',
     webLinkPlaceholder: 'https://…',
     linkToDiagram: 'Enlace al diagrama',
@@ -361,11 +371,13 @@ const locale: LocaleProps = {
     openLinkedDiagram: 'Abrir diagrama vinculado',
     showLabel: 'Mostrar etiqueta',
     hideLabel: 'Ocultar etiqueta',
-    showHideLabelDisabled: 'Selecciona un nodo para mostrar u ocultar su etiqueta',
+    showHideLabelDisabled:
+      'Selecciona un nodo o una conexión para mostrar u ocultar su etiqueta',
     changeIconBulk: 'Cambiar icono se aplica a un nodo a la vez',
     changeIcon: 'Cambiar icono',
     changeIconDisabled: 'Selecciona un nodo para cambiar su icono',
-    iconSizeBulk: 'El tamaño del icono se aplica a un nodo a la vez',
+    iconSizeBulk:
+      'El tamaño del icono edita un icono a la vez (cambia el tamaño de todos los nodos que lo usan)',
     iconSizeDisabled: 'Selecciona un nodo para cambiar el tamaño de su icono',
     connectionColorPredraw: 'Color de la próxima conexión que dibujes',
     connectionColor: 'Color de la conexión',
@@ -379,11 +391,7 @@ const locale: LocaleProps = {
     textDirection: 'Dirección del texto',
     textDirectionDisabled: 'Selecciona un cuadro de texto para definir su dirección',
     textDirectionX: 'Dirección del texto X',
-    textDirectionY: 'Dirección del texto Y',
-    richTextBulk: 'El texto enriquecido edita un cuadro de texto a la vez',
-    richText: 'Texto enriquecido',
-    richTextDisabled: 'Selecciona un cuadro de texto para editar el texto enriquecido',
-    text: 'Texto'
+    textDirectionY: 'Dirección del texto Y'
   },
   labelColorPicker: {
     customColor: 'Color personalizado'

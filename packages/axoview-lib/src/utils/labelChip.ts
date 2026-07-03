@@ -123,8 +123,9 @@ export interface ChipColors {
 // transformed) canvas space, using a PRECOMPUTED layout (the caller caches it
 // per (text, fontSize, bold, italic) so pan/zoom redraws skip measureText —
 // mirrors NodesCanvas's label-layout cache). Per-label backgroundColor / color
-// override the theme defaults. Strikethrough is drawn manually (Canvas2D has no
-// text-decoration), per line, from the cached line widths.
+// override the theme defaults. Strikethrough and underline are drawn manually
+// (Canvas2D has no text-decoration), per line, from the cached line widths —
+// both are decoration-only, so neither joins the layout cache key.
 export const drawLabelChip = (
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -159,14 +160,23 @@ export const drawLabelChip = (
   for (let i = 0; i < lines.length; i += 1) {
     const lineTop = y0 + LABEL_CHIP_PAD_Y + i * lineH;
     ctx.fillText(lines[i], textX, lineTop + (lineH - fontSize) / 2);
-    if (label.isStrikethrough) {
-      const strikeY = lineTop + lineH / 2;
+    if (label.isStrikethrough || label.isUnderline) {
       ctx.strokeStyle = textColor;
       ctx.lineWidth = Math.max(1, fontSize / 14);
-      ctx.beginPath();
-      ctx.moveTo(textX, strikeY);
-      ctx.lineTo(textX + lineWidths[i], strikeY);
-      ctx.stroke();
+      if (label.isStrikethrough) {
+        const strikeY = lineTop + lineH / 2;
+        ctx.beginPath();
+        ctx.moveTo(textX, strikeY);
+        ctx.lineTo(textX + lineWidths[i], strikeY);
+        ctx.stroke();
+      }
+      if (label.isUnderline) {
+        const underY = lineTop + (lineH - fontSize) / 2 + fontSize * 0.95;
+        ctx.beginPath();
+        ctx.moveTo(textX, underY);
+        ctx.lineTo(textX + lineWidths[i], underY);
+        ctx.stroke();
+      }
     }
   }
 };

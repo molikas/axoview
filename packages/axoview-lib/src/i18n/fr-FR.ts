@@ -327,10 +327,13 @@ const locale: LocaleProps = {
     iconSize: "Taille de l'icône",
     textColor: 'Couleur du texte',
     textColorDisabled:
-      "Sélectionnez un nœud, un texte ou une étiquette de connexion pour définir la couleur du texte",
+      "Sélectionnez un nœud, une zone de texte, une étiquette ou une étiquette de connexion pour définir la couleur du texte",
     textSizeDisabled:
-      "Sélectionnez un nœud, un texte ou une étiquette de connexion pour définir la taille du texte",
+      "Sélectionnez un nœud, une zone de texte, une étiquette ou une étiquette de connexion pour définir la taille du texte",
     labelSizeAllSelected: 'Taille des étiquettes (tout sélectionné)',
+    textColorAllSelected: 'Couleur du texte (tout sélectionné)',
+    armedToolPlaceFirst:
+      "Le nouvel élément utilise le style par défaut — placez-le d'abord, puis stylisez-le ici",
     decreaseLabelSize: "Réduire la taille de l'étiquette",
     increaseLabelSize: "Augmenter la taille de l'étiquette",
     labelSize: "Taille de l'étiquette",
@@ -340,10 +343,15 @@ const locale: LocaleProps = {
     size: 'Taille',
     bold: 'Gras',
     italic: 'Italique',
+    underline: 'Souligné',
     strikethrough: 'Barré',
-    format: 'Gras / italique / barré',
+    format: 'Gras / italique / souligné / barré',
     formatDisabled:
-      "Sélectionnez un nœud, une étiquette ou une étiquette de connexion (les zones de texte se formatent via le texte enrichi)",
+      "Sélectionnez un nœud, une zone de texte, une étiquette ou une étiquette de connexion pour mettre en forme le texte",
+    lists: 'Listes',
+    listsDisabled: 'Sélectionnez une zone de texte pour utiliser des listes',
+    bulletList: 'Liste à puces',
+    numberedList: 'Liste numérotée',
     background: 'Couleur de fond',
     backgroundDisabled: 'Sélectionnez un rectangle ou une étiquette pour définir sa couleur de fond',
     opacity: 'Opacité',
@@ -354,6 +362,9 @@ const locale: LocaleProps = {
     borderColor: 'Couleur de la bordure',
     link: 'Lien',
     linkDisabled: 'Sélectionnez un nœud, une connexion ou une étiquette pour ajouter un lien',
+    linkSelection: 'Lier le texte sélectionné',
+    linkDisabledTextBox:
+      "Sélectionnez du texte pendant l'édition pour ajouter un lien",
     linkToWeb: 'Lien vers le web',
     webLinkPlaceholder: 'https://…',
     linkToDiagram: 'Lien vers le diagramme',
@@ -361,11 +372,13 @@ const locale: LocaleProps = {
     openLinkedDiagram: 'Ouvrir le diagramme lié',
     showLabel: 'Afficher le libellé',
     hideLabel: 'Masquer le libellé',
-    showHideLabelDisabled: 'Sélectionnez un nœud pour afficher ou masquer son libellé',
+    showHideLabelDisabled:
+      'Sélectionnez un nœud ou une connexion pour afficher ou masquer son libellé',
     changeIconBulk: "Le changement d'icône s'applique à un seul nœud à la fois",
     changeIcon: "Changer l'icône",
     changeIconDisabled: "Sélectionnez un nœud pour changer son icône",
-    iconSizeBulk: "La taille de l'icône s'applique à un seul nœud à la fois",
+    iconSizeBulk:
+      "La taille de l'icône modifie une icône à la fois (redimensionne tous les nœuds qui l'utilisent)",
     iconSizeDisabled: "Sélectionnez un nœud pour changer la taille de son icône",
     connectionColorPredraw: 'Couleur de la prochaine connexion que vous dessinez',
     connectionColor: 'Couleur de la connexion',
@@ -381,11 +394,7 @@ const locale: LocaleProps = {
     textDirection: 'Direction du texte',
     textDirectionDisabled: 'Sélectionnez une zone de texte pour définir sa direction',
     textDirectionX: 'Direction du texte X',
-    textDirectionY: 'Direction du texte Y',
-    richTextBulk: "Le texte enrichi modifie une seule zone de texte à la fois",
-    richText: 'Texte enrichi',
-    richTextDisabled: 'Sélectionnez une zone de texte pour modifier le texte enrichi',
-    text: 'Texte'
+    textDirectionY: 'Direction du texte Y'
   },
   labelColorPicker: {
     customColor: 'Couleur personnalisée'

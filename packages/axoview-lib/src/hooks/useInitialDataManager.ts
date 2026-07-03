@@ -23,6 +23,7 @@ import { sanitizeHtml } from 'src/utils/sanitizeHtml';
 import { foldNodeDescription } from 'src/utils/foldNodeDescription';
 import { seedNodeLabel } from 'src/utils/seedNodeLabel';
 import { seedConnectorLabel } from 'src/utils/seedConnectorLabel';
+import { foldTextBoxStyleFlags } from 'src/utils/foldTextBoxStyleFlags';
 
 // Must match the threshold in IconCollection.tsx so newly-loaded large packs
 // (e.g. Material Icons) are not auto-expanded (which would freeze the browser).
@@ -67,12 +68,18 @@ export const useInitialDataManager = () => {
           // payload into the TextBox dangerouslySetInnerHTML sink. The sink
           // re-sanitizes at render too; cleaning here also keeps the stored and
           // exported model clean.
+          // ADR 0034 §4: first fold the legacy element-level isBold/isItalic/
+          // isUnderline flags into the content HTML (content is the single
+          // formatting layer now — the renderer no longer reads the flags), then
+          // sanitize the result. Idempotent, mirrors seedConnectorLabel.
           if (Array.isArray(normView.textBoxes)) {
-            normView.textBoxes = normView.textBoxes.map((tb) =>
-              isObj(tb) && typeof tb.content === 'string'
-                ? { ...tb, content: sanitizeHtml(tb.content) }
-                : tb
-            );
+            normView.textBoxes = normView.textBoxes.map((tb) => {
+              if (!isObj(tb)) return tb;
+              const folded = foldTextBoxStyleFlags(tb);
+              return typeof folded.content === 'string'
+                ? { ...folded, content: sanitizeHtml(folded.content) }
+                : folded;
+            });
           }
 
           if (!normView.connectors) return normView;

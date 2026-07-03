@@ -26,6 +26,8 @@ Rationale: unification would touch every reader (the strip, `Node`, `NodesCanvas
 
 *(This ADR is deliberately small and may be folded into [ADR 0030](0030-docked-style-controls-strip.md) if the project prefers fewer files. Kept separate here so the "we considered unifying and chose not to" reasoning is discoverable.)*
 
+**2026-07-03 ([ADR 0034](0034-inline-canvas-text-editing-and-dual-scope-strip-formatting.md)):** the **text-box row is retired as a strip write target** — text-box B/I/U/S is now written into the content HTML itself (per-character or whole-range), and the element-level `isBold/isItalic/isUnderline` flags are folded into `content` once at load, no longer rendered, and no longer persisted at creation (they stay schema-parseable for round-trip). The **connector name-label row (`nameLabel*`) is dead** — nothing renders or writes it since the ADR 0032 decouple; it survives only as legacy-parse fields for the one-time seed. The table's remaining live conventions (node `label*`, floating Label `is*`, connector `labels[].*`) are unchanged, and the nearest-sibling rule stands — exercised the same day by ADR 0034 O1, which grew each trio to a quad with **underline** (`labelUnderline` / `isUnderline` / `labels[].underline`).
+
 ## Consequences
 
 **Positive:** no churn, back-compat-neutral, the decision is on record before the migration window closes.

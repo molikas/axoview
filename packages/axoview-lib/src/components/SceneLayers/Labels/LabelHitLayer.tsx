@@ -118,6 +118,7 @@ const LabelInlineEditor = ({
           font: `${label.isItalic ? 'italic ' : ''}${
             label.isBold ? 700 : 400
           } ${fontSize}px Roboto, Arial, sans-serif`,
+          textDecoration: label.isUnderline ? 'underline' : undefined,
           color: label.color || '#222',
           background: label.backgroundColor || '#fff',
           border: '1px solid #90caf9',

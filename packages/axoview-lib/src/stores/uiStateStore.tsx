@@ -30,6 +30,9 @@ const canvasResetForAnnotation = (
   itemControls: null,
   selectedIds: [],
   hoveredItem: null,
+  // An in-flight on-canvas text edit (ADR 0034) must not linger behind the
+  // annotation overlay — the promoted editor would sit above it.
+  editingTextBoxId: null,
   ...(state.rightSidebarAutoOpened
     ? { rightSidebarOpen: false, rightSidebarAutoOpened: false }
     : {})
@@ -85,7 +88,7 @@ const initialState = () => {
       labelMove: null,
       selectedConnectorLabel: null,
       inlineEditLabelId: null,
-      inlineEditTextBoxId: null,
+      editingTextBoxId: null,
       annotation: {
         open: false,
         // Open in the non-disruptive Select mode; the user picks a draw tool.
@@ -118,6 +121,9 @@ const initialState = () => {
             mode: getStartingMode(mode),
             previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
             hideViewControls: false,
+            // An on-canvas text-edit session (ADR 0034) is edit-mode chrome —
+            // never carry it into view/present.
+            editingTextBoxId: null,
             annotation: { ...state.annotation, open: false }
           }));
         },
@@ -358,8 +364,8 @@ const initialState = () => {
         setInlineEditLabelId: (id) => {
           set({ inlineEditLabelId: id });
         },
-        setInlineEditTextBoxId: (id) => {
-          set({ inlineEditTextBoxId: id });
+        setEditingTextBoxId: (id) => {
+          set({ editingTextBoxId: id });
         },
         setSelectedConnectorLabel: (sel) => {
           set({ selectedConnectorLabel: sel });

@@ -192,10 +192,20 @@ export function AppToolbar() {
       {/* CENTER: intentionally empty per ADR 0005 */}
       <Box className="toolbar-center" sx={{ flex: 1 }} />
 
-      {/* RIGHT: four groups separated by dividers */}
+      {/* RIGHT: four groups separated by dividers. F1 (ADR 0005 overflow
+          amendment, 2026-07-03): the cluster may SHRINK — the Group-1 style
+          slot below absorbs the squeeze by scrolling horizontally, while the
+          Save / Export / Share / Present / sidebar-toggle groups keep their
+          natural width, so Groups 2–4 stay reachable at any viewport width. */}
       <Box
         className="toolbar-right"
-        sx={{ display: 'flex', alignItems: 'center', gap: 0.25, flexShrink: 0 }}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.25,
+          flexShrink: 1,
+          minWidth: 0
+        }}
       >
         {isReadonlyUrl ? (
           <Stack direction="row" spacing={1} alignItems="center" sx={{ ml: 1 }}>
@@ -255,10 +265,26 @@ export function AppToolbar() {
             {/* Group 1: View modes / Format (ADR 0005 reserved slot). Style
                 controls strip — portal filled by the lib's UiOverlay (which has
                 the selection store + scene actions in scope). Controls self-gate
-                on the current selection. */}
+                on the current selection. F1: this is the ONE compressible
+                group — below the natural breakpoint it scrolls horizontally
+                (thin scrollbar) instead of clipping the document actions. */}
             <Box
               ref={setStyleControlsRef}
-              sx={{ display: 'inline-flex', alignItems: 'center' }}
+              data-axoview-id="toolbar-style-slot"
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                flexShrink: 1,
+                minWidth: 0,
+                overflowX: 'auto',
+                overflowY: 'hidden',
+                scrollbarWidth: 'thin',
+                '&::-webkit-scrollbar': { height: 4 },
+                '&::-webkit-scrollbar-thumb': {
+                  bgcolor: 'action.disabled',
+                  borderRadius: 2
+                }
+              }}
             />
 
             <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
@@ -330,6 +356,7 @@ export function AppToolbar() {
             {/* Group 4: Sidebar toggle — Properties panel portal */}
             <Box
               ref={setSidebarToggleRef}
+              data-axoview-id="toolbar-sidebar-slot"
               sx={{ display: 'inline-flex', alignItems: 'center' }}
             />
           </>

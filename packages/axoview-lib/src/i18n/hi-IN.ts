@@ -322,9 +322,14 @@ const locale: LocaleProps = {
     textSize: 'पाठ का आकार',
     iconSize: 'आइकन का आकार',
     textColor: 'पाठ का रंग',
-    textColorDisabled: 'पाठ का रंग सेट करने के लिए एक नोड, पाठ या कनेक्शन लेबल चुनें',
-    textSizeDisabled: 'पाठ का आकार सेट करने के लिए एक नोड, पाठ या कनेक्शन लेबल चुनें',
+    textColorDisabled:
+      'पाठ का रंग सेट करने के लिए एक नोड, टेक्स्ट बॉक्स, लेबल या कनेक्शन लेबल चुनें',
+    textSizeDisabled:
+      'पाठ का आकार सेट करने के लिए एक नोड, टेक्स्ट बॉक्स, लेबल या कनेक्शन लेबल चुनें',
     labelSizeAllSelected: 'लेबल का आकार (सभी चयनित)',
+    textColorAllSelected: 'पाठ का रंग (सभी चयनित)',
+    armedToolPlaceFirst:
+      'नया एलिमेंट डिफ़ॉल्ट स्टाइल उपयोग करता है — पहले उसे रखें, फिर यहाँ स्टाइल करें',
     decreaseLabelSize: 'लेबल का आकार घटाएं',
     increaseLabelSize: 'लेबल का आकार बढ़ाएं',
     labelSize: 'लेबल का आकार',
@@ -334,9 +339,15 @@ const locale: LocaleProps = {
     size: 'आकार',
     bold: 'बोल्ड',
     italic: 'इटैलिक',
+    underline: 'रेखांकित',
     strikethrough: 'स्ट्राइकथ्रू',
-    format: 'बोल्ड / इटैलिक / स्ट्राइकथ्रू',
-    formatDisabled: 'एक नोड, लेबल या कनेक्शन लेबल चुनें (टेक्स्ट बॉक्स रिच टेक्स्ट के माध्यम से फ़ॉर्मैट होते हैं)',
+    format: 'बोल्ड / इटैलिक / रेखांकित / स्ट्राइकथ्रू',
+    formatDisabled:
+      'पाठ को फ़ॉर्मैट करने के लिए एक नोड, टेक्स्ट बॉक्स, लेबल या कनेक्शन लेबल चुनें',
+    lists: 'सूचियाँ',
+    listsDisabled: 'सूचियों का उपयोग करने के लिए एक टेक्स्ट बॉक्स चुनें',
+    bulletList: 'बुलेट सूची',
+    numberedList: 'क्रमांकित सूची',
     background: 'पृष्ठभूमि रंग',
     backgroundDisabled: 'पृष्ठभूमि रंग सेट करने के लिए एक आयत या लेबल चुनें',
     opacity: 'अपारदर्शिता',
@@ -347,6 +358,8 @@ const locale: LocaleProps = {
     borderColor: 'सीमा का रंग',
     link: 'लिंक',
     linkDisabled: 'लिंक जोड़ने के लिए एक नोड, कनेक्शन या लेबल चुनें',
+    linkSelection: 'चयनित पाठ को लिंक करें',
+    linkDisabledTextBox: 'लिंक जोड़ने के लिए संपादन करते समय पाठ चुनें',
     linkToWeb: 'वेब से लिंक करें',
     webLinkPlaceholder: 'https://…',
     linkToDiagram: 'आरेख से लिंक करें',
@@ -354,11 +367,12 @@ const locale: LocaleProps = {
     openLinkedDiagram: 'लिंक किया गया आरेख खोलें',
     showLabel: 'लेबल दिखाएं',
     hideLabel: 'लेबल छुपाएं',
-    showHideLabelDisabled: 'लेबल दिखाने या छुपाने के लिए एक नोड चुनें',
+    showHideLabelDisabled: 'लेबल दिखाने या छुपाने के लिए एक नोड या कनेक्शन चुनें',
     changeIconBulk: 'आइकन बदलना एक समय में एक नोड पर लागू होता है',
     changeIcon: 'आइकन बदलें',
     changeIconDisabled: 'आइकन बदलने के लिए एक नोड चुनें',
-    iconSizeBulk: 'आइकन का आकार एक समय में एक नोड पर लागू होता है',
+    iconSizeBulk:
+      'आइकन का आकार एक समय में एक आइकन संपादित करता है (उस आइकन वाले सभी नोड का आकार बदलता है)',
     iconSizeDisabled: 'आइकन का आकार बदलने के लिए एक नोड चुनें',
     connectionColorPredraw: 'आपके द्वारा बनाए जाने वाले अगले कनेक्शन का रंग',
     connectionColor: 'कनेक्शन का रंग',
@@ -372,11 +386,7 @@ const locale: LocaleProps = {
     textDirection: 'पाठ की दिशा',
     textDirectionDisabled: 'दिशा सेट करने के लिए एक टेक्स्ट बॉक्स चुनें',
     textDirectionX: 'पाठ की दिशा X',
-    textDirectionY: 'पाठ की दिशा Y',
-    richTextBulk: 'रिच टेक्स्ट एक समय में एक टेक्स्ट बॉक्स संपादित करता है',
-    richText: 'रिच टेक्स्ट',
-    richTextDisabled: 'रिच टेक्स्ट संपादित करने के लिए एक टेक्स्ट बॉक्स चुनें',
-    text: 'पाठ'
+    textDirectionY: 'पाठ की दिशा Y'
   },
   labelColorPicker: {
     customColor: 'कस्टम रंग'

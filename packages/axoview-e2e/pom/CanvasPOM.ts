@@ -192,11 +192,36 @@ export class CanvasPOM {
    *   2. press `t` hotkey (arms TEXTBOX mode — no box created yet)
    *   3. mouseup at the same tile (the single create site; commits via
    *      isRendererInteraction = true)
+   *
+   * Place-and-type (ADR 0034) drops the new box straight into the on-canvas
+   * Quill edit session, which holds keyboard focus — a subsequent hotkey press
+   * would type INTO the box instead of arming a tool. By default this helper
+   * therefore dismisses the editor (Escape cancels; the default content stays).
+   * Pass `keepEditing: true` when the spec wants the live editor.
    */
-  async placeTextBoxAt(point: CanvasPoint) {
+  async placeTextBoxAt(point: CanvasPoint, opts?: { keepEditing?: boolean }) {
     await this.dispatchAt(['mousemove'], point);
     await this.pressTextBoxHotkey();
     await this.dispatchAt(['mouseup'], point);
+    if (!opts?.keepEditing) await this.dismissTextBoxEditor();
+  }
+
+  /** The on-canvas rich-text editor of the text box being edited (ADR 0034). */
+  textBoxInlineEditor(): Locator {
+    return byAxoviewId(this.page, 'textbox-inline-editor').locator('.ql-editor');
+  }
+
+  /**
+   * Ends an on-canvas text-box edit session via Escape (cancel — content is
+   * left as-is). Clicks the editor first so Escape reliably targets it rather
+   * than the window's own Escape handler.
+   */
+  async dismissTextBoxEditor() {
+    const editor = this.textBoxInlineEditor();
+    await editor.waitFor({ state: 'visible', timeout: 5_000 });
+    await editor.click();
+    await this.page.keyboard.press('Escape');
+    await editor.waitFor({ state: 'detached', timeout: 5_000 });
   }
 
   /**

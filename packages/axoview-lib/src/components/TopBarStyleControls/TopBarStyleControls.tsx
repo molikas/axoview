@@ -26,7 +26,9 @@ import {
   BorderStyle as BorderIcon,
   Timeline as ConnectionColorIcon,
   TextRotationNone as TextRotationNoneIcon,
-  EditNote as RichTextIcon,
+  FormatUnderlined as UnderlineIcon,
+  FormatListBulleted as BulletListIcon,
+  FormatListNumbered as NumberedListIcon,
   PhotoSizeSelectLarge as IconSizeIcon,
   ImageOutlined as ChangeIconIcon,
   ArrowDropDown as CaretIcon,
@@ -51,12 +53,22 @@ import { useRectangle } from 'src/hooks/useRectangle';
 import { ProjectionOrientationEnum } from 'src/types';
 import { connectorStyleOptions, connectorLineTypeOptions } from 'src/schemas';
 import { getIsoProjectionCss } from 'src/utils';
+import { TEXTBOX_DEFAULTS } from 'src/config';
 import { LabelColorPicker } from '../ItemControls/components/LabelColorPicker';
 import { ColorSwatch } from '../ColorSelector/ColorSwatch';
 import { CustomColorInput } from '../ColorSelector/CustomColorInput';
-import { RichTextEditor } from '../RichTextEditor/RichTextEditor';
 import { QuickIconSelector } from '../ItemControls/NodeControls/QuickIconSelector';
 import { resolveHomogeneousBulk } from 'src/utils/bulkStyleTarget';
+import {
+  getWholeContentFormats,
+  applyInlineFormat,
+  applyListFormat,
+  ListType
+} from 'src/utils/richTextTransform';
+import {
+  getTextBoxEditor,
+  subscribeTextBoxEditor
+} from '../SceneLayers/TextBoxes/textBoxEditorBridge';
 
 // Unified on-canvas label size range (px). Node labels, floating Labels, and
 // connector labels all share this range/step so the size control means the same
@@ -74,6 +86,12 @@ const LABEL_SIZE_STEP = 2;
 // provides next to the session badge, so it lives INSIDE the lib's store
 // providers and can read selection + write through useScene like the detail
 // panels.
+//
+// ADR 0034: the strip's text cluster (B/I/U/S + lists + link) is DUAL-SCOPE —
+// element-level booleans for label types; for a text box the format lives in
+// the content HTML itself (whole content when the box is selected, the live
+// caret/range via the textBoxEditorBridge while it is being edited on canvas).
+// The former "Rich text" popup is retired.
 
 type LineStyle = (typeof connectorStyleOptions)[number];
 type LineType = (typeof connectorLineTypeOptions)[number];
@@ -212,6 +230,11 @@ const StripButton = ({
     </>
   );
 };
+
+// Strip buttons must not steal focus from the on-canvas text editor —
+// otherwise the selection collapses before the format lands (the standard
+// editor-toolbar mousedown trick; ADR 0034 §2).
+const keepEditorSelection = (e: React.MouseEvent) => e.preventDefault();
 
 const WHITE = '#ffffff';
 // Sentinel stored in a fill's customColor to mean "transparent" (a no-fill
@@ -596,6 +619,59 @@ export const TopBarStyleControls = () => {
   const rectangle = useRectangle(sel?.type === 'RECTANGLE' ? sel.id : '');
   const label = useLabel(sel?.type === 'LABEL' ? sel.id : '');
 
+  // --- Live on-canvas edit session (ADR 0034). While the selected text box is
+  // being edited, the text cluster drives the mounted Quill instance (via the
+  // textBoxEditorBridge) instead of transforming stored content; pressed states
+  // mirror the format under the caret/selection.
+  const editingTextBoxId = useUiStateStore((s) => s.editingTextBoxId);
+  const liveEditing = Boolean(textBox && editingTextBoxId === textBox.id);
+  const [liveFormats, setLiveFormats] = useState<Record<string, unknown>>({});
+  const [liveRangeLength, setLiveRangeLength] = useState(0);
+  useEffect(() => {
+    if (!liveEditing) {
+      setLiveFormats({});
+      setLiveRangeLength(0);
+      return undefined;
+    }
+    let detach: (() => void) | null = null;
+    const attach = () => {
+      const handle = getTextBoxEditor();
+      if (!handle || handle.id !== editingTextBoxId) return;
+      const { quill } = handle;
+      const sync = () => {
+        const range = quill.getSelection();
+        setLiveRangeLength(range?.length ?? handle.lastRange?.length ?? 0);
+        try {
+          setLiveFormats(range ? { ...quill.getFormat(range) } : {});
+        } catch {
+          setLiveFormats({});
+        }
+      };
+      const onEditorChange = () => sync();
+      quill.on('editor-change', onEditorChange);
+      sync();
+      detach = () => quill.off('editor-change', onEditorChange);
+    };
+    attach();
+    // Registration may land after this effect (the editor mounts in the same
+    // commit that flips editingTextBoxId) — re-attach on bridge changes.
+    const unsubscribe = subscribeTextBoxEditor(() => {
+      detach?.();
+      detach = null;
+      attach();
+    });
+    return () => {
+      unsubscribe();
+      detach?.();
+    };
+  }, [liveEditing, editingTextBoxId]);
+  // Whole-content formats — the pressed state for a SELECTED (not editing)
+  // text box: pressed iff the entire content carries the format.
+  const wholeFormats = useMemo(
+    () => getWholeContentFormats(textBox?.content),
+    [textBox?.content]
+  );
+
   // Icon size lives on the model icon's `scale` (shared by every node using that
   // icon) — same source the NodeStyleTab "Icon size" slider writes to.
   const modelItem = useModelItem(sel?.type === 'ITEM' ? sel.id : '');
@@ -614,20 +690,17 @@ export const TopBarStyleControls = () => {
 
   // --- Text colour / size target the ONE selected connector label (a labels[]
   // entry the user clicked on canvas), so styling is per-label rather than
-  // applied to every label at once. Node / text box are unchanged.
+  // applied to every label at once. Node / text box are unchanged. (The former
+  // '__name__' name-label branch is gone — since the ADR 0032 decouple nothing
+  // renders or selects the nameLabel* fields; ADR 0034 §4 removed the dead path.)
   const connectorLabels = connector?.labels ?? [];
   const activeLabelId =
     connector && selectedConnectorLabel?.connectorId === connector.id
       ? selectedConnectorLabel.labelId
       : null;
-  // The primary name label ('__name__') stores its style on the connector's
-  // nameLabel* fields, not in labels[]; every other selected label is a labels[]
-  // entry.
-  const isNameLabel = !!connector && activeLabelId === '__name__';
-  const activeLabel =
-    activeLabelId && activeLabelId !== '__name__'
-      ? connectorLabels.find((l) => l.id === activeLabelId) ?? null
-      : null;
+  const activeLabel = activeLabelId
+    ? connectorLabels.find((l) => l.id === activeLabelId) ?? null
+    : null;
   const updateActiveLabel = (patch: Partial<(typeof connectorLabels)[number]>) => {
     if (!connector || !activeLabel) return;
     updateConnector(connector.id, {
@@ -638,9 +711,9 @@ export const TopBarStyleControls = () => {
   };
 
   // #11 / size-consistency: relative +/- font nudge for every on-canvas LABEL
-  // type (node label, floating Label, connector name/added label) — each steps
-  // from its OWN size, clamped to the unified px range, so the +/- control means
-  // the same thing everywhere. Text box excluded (its size is a zoom scale).
+  // type (node label, floating Label, connector label) — each steps from its
+  // OWN size, clamped to the unified px range, so the +/- control means the
+  // same thing everywhere. Text box excluded (its size is a zoom scale).
   const nudgeFontSize = (delta: number) => {
     if (node) {
       applyToTargets('ITEM', (id) => {
@@ -660,11 +733,6 @@ export const TopBarStyleControls = () => {
           fontSize: clampNum(cur + delta, LABEL_SIZE_MIN, LABEL_SIZE_MAX)
         });
       });
-    } else if (isNameLabel && connector) {
-      const cur = connector.nameLabelFontSize ?? LABEL_BASE_FONT_PX;
-      updateConnector(connector.id, {
-        nameLabelFontSize: clampNum(cur + delta, LABEL_SIZE_MIN, LABEL_SIZE_MAX)
-      });
     } else if (activeLabel) {
       const cur = activeLabel.fontSize ?? LABEL_BASE_FONT_PX;
       updateActiveLabel({
@@ -674,7 +742,7 @@ export const TopBarStyleControls = () => {
   };
   // Does the current target support the px label-size control (everything except
   // the scale-based text box)?
-  const hasLabelSizeTarget = Boolean(node || label || isNameLabel || activeLabel);
+  const hasLabelSizeTarget = Boolean(node || label || activeLabel);
 
   // Cross-type label sizing (owner 2026-07-02): when a MIXED selection is
   // active (e.g. a node + a connection) the normal homogeneous bulk path is off,
@@ -711,40 +779,65 @@ export const TopBarStyleControls = () => {
             fontSize: clampNum(cur + delta, LABEL_SIZE_MIN, LABEL_SIZE_MAX)
           });
         } else if (ref.type === 'CONNECTOR') {
-          const cur =
-            currentView.connectors?.find((c) => c.id === ref.id)
-              ?.nameLabelFontSize ?? LABEL_BASE_FONT_PX;
+          // Step each on-canvas labels[] entry from its own size. (Formerly
+          // wrote the dead nameLabelFontSize — nothing rendered it since the
+          // ADR 0032 decouple, so the nudge was an invisible no-op; ADR 0034.)
+          const labels =
+            currentView.connectors?.find((c) => c.id === ref.id)?.labels ?? [];
+          if (labels.length === 0) return;
           applyConnector(ref.id, {
-            nameLabelFontSize: clampNum(
-              cur + delta,
-              LABEL_SIZE_MIN,
-              LABEL_SIZE_MAX
-            )
+            labels: labels.map((l) => ({
+              ...l,
+              fontSize: clampNum(
+                (l.fontSize ?? LABEL_BASE_FONT_PX) + delta,
+                LABEL_SIZE_MIN,
+                LABEL_SIZE_MAX
+              )
+            }))
           });
         }
       });
     });
   };
 
-  const textColorEnabled = Boolean(
-    node || textBox || label || activeLabel || isNameLabel
-  );
+  // O3 (ADR 0034, resolved 2026-07-03): text colour also works on a MIXED
+  // label-bearing selection — same targets/transaction as the size stepper
+  // (node labelColor / floating-Label color / each connector labels[] entry).
+  const crossTypeColorOnly = !sel && !!crossTypeLabelIds;
+  const applyCrossTypeTextColor = (color: string | undefined) => {
+    if (!crossTypeLabelIds) return;
+    transaction(() => {
+      crossTypeLabelIds.forEach((ref) => {
+        if (ref.type === 'ITEM') {
+          applyViewItem(ref.id, { labelColor: color });
+        } else if (ref.type === 'LABEL') {
+          applyLabel(ref.id, { color });
+        } else if (ref.type === 'CONNECTOR') {
+          const labels =
+            currentView.connectors?.find((c) => c.id === ref.id)?.labels ?? [];
+          if (labels.length === 0) return;
+          applyConnector(ref.id, {
+            labels: labels.map((l) => ({ ...l, labelColor: color }))
+          });
+        }
+      });
+    });
+  };
+  const textColorEnabled =
+    Boolean(node || textBox || label || activeLabel) || crossTypeColorOnly;
   const textColorValue = node
     ? node.labelColor
     : textBox
     ? textBox.color
     : label
     ? label.color
-    : isNameLabel
-    ? connector?.nameLabelColor
     : activeLabel?.labelColor;
   const onTextColorChange = (color: string | undefined) => {
     if (node) updateViewItem(node.id, { labelColor: color });
     else if (textBox) updateTextBox(textBox.id, { color });
     else if (label) updateLabel(label.id, { color });
-    else if (isNameLabel && connector)
-      updateConnector(connector.id, { nameLabelColor: color });
     else if (activeLabel) updateActiveLabel({ labelColor: color });
+    else if (crossTypeColorOnly) applyCrossTypeTextColor(color);
   };
 
   // --- Text size. Every LABEL type (node / floating / connector) now shares one
@@ -767,10 +860,14 @@ export const TopBarStyleControls = () => {
       }
     : textBox
     ? {
-        value: textBox.fontSize ?? 0.15,
+        // Display default = the CREATION default (0.6), not the range floor —
+        // a box that never had fontSize set renders at 0.6 (catalog I-15/I-x).
+        value: textBox.fontSize ?? TEXTBOX_DEFAULTS.fontSize,
         min: 0.15,
         max: 0.9,
-        step: 0.15,
+        // 0.05 native step ≈ the same effective granularity as the label px
+        // range, so the shared % slider doesn't snap in 20% jumps (I-15).
+        step: 0.05,
         onChange: (v) => updateTextBox(textBox.id, { fontSize: v })
       }
     : label
@@ -780,15 +877,6 @@ export const TopBarStyleControls = () => {
         max: LABEL_SIZE_MAX,
         step: LABEL_SIZE_STEP,
         onChange: (v) => updateLabel(label.id, { fontSize: v })
-      }
-    : isNameLabel && connector
-    ? {
-        value: connector.nameLabelFontSize ?? LABEL_BASE_FONT_PX,
-        min: LABEL_SIZE_MIN,
-        max: LABEL_SIZE_MAX,
-        step: LABEL_SIZE_STEP,
-        onChange: (v) =>
-          updateConnector(connector.id, { nameLabelFontSize: v })
       }
     : activeLabel
     ? {
@@ -800,65 +888,134 @@ export const TopBarStyleControls = () => {
       }
     : null;
 
-  // --- Bold / italic / strikethrough — same target resolution as text colour,
-  // for the things WITHOUT a rich-text editor: a node label, a connector name
-  // label, a selected connector labels[] entry, and a floating Label chip.
-  // A plain text box is EXCLUDED — it formats per-character via its rich-text
-  // editor, so a whole-box B/I/S would fight that (two layers; CSS can't
-  // subtract). Each supported type stores its own boolean trio.
-  const formatEnabled = Boolean(node || label || activeLabel || isNameLabel);
+  // --- Bold / italic / underline / strikethrough — ONE cluster, TWO scopes
+  // (ADR 0034 §2). Label types keep their element-level boolean quads (O1
+  // resolved 2026-07-03: underline fields landed for all three label types); a
+  // text box formats through its content HTML — the whole content when merely
+  // selected (bulk-aware), the live caret/range while being edited on canvas.
+  const formatEnabled = Boolean(node || label || activeLabel || textBox);
   const formatValue = {
     bold: node
-      ? node.labelBold
+      ? !!node.labelBold
       : label
-      ? label.isBold
-      : isNameLabel
-      ? connector?.nameLabelBold
-      : activeLabel?.bold,
+      ? !!label.isBold
+      : activeLabel
+      ? !!activeLabel.bold
+      : textBox
+      ? liveEditing
+        ? liveFormats.bold === true
+        : wholeFormats.bold
+      : false,
     italic: node
-      ? node.labelItalic
+      ? !!node.labelItalic
       : label
-      ? label.isItalic
-      : isNameLabel
-      ? connector?.nameLabelItalic
-      : activeLabel?.italic,
+      ? !!label.isItalic
+      : activeLabel
+      ? !!activeLabel.italic
+      : textBox
+      ? liveEditing
+        ? liveFormats.italic === true
+        : wholeFormats.italic
+      : false,
+    underline: node
+      ? !!node.labelUnderline
+      : label
+      ? !!label.isUnderline
+      : activeLabel
+      ? !!activeLabel.underline
+      : textBox
+      ? liveEditing
+        ? liveFormats.underline === true
+        : wholeFormats.underline
+      : false,
     strike: node
-      ? node.labelStrikethrough
+      ? !!node.labelStrikethrough
       : label
-      ? label.isStrikethrough
-      : isNameLabel
-      ? connector?.nameLabelStrikethrough
-      : activeLabel?.strikethrough
+      ? !!label.isStrikethrough
+      : activeLabel
+      ? !!activeLabel.strikethrough
+      : textBox
+      ? liveEditing
+        ? liveFormats.strike === true
+        : wholeFormats.strike
+      : false
   };
-  const setFormat = (next: {
-    bold: boolean;
-    italic: boolean;
-    strike: boolean;
-  }) => {
+  // Toggle ONE format. Label types write their whole trio (same fields as
+  // before); the text box routes to the live editor (caret/range) or the
+  // whole-content transform (selected — fans out across a homogeneous bulk).
+  const toggleFormat = (name: 'bold' | 'italic' | 'underline' | 'strike') => {
+    if (textBox) {
+      const next = !formatValue[name];
+      if (liveEditing) {
+        const handle = getTextBoxEditor();
+        if (handle?.quill) {
+          handle.quill.format(name, next);
+          handle.markChanged();
+        }
+        return;
+      }
+      applyToTargets('TEXTBOX', (tid) => {
+        const target = currentView.textBoxes?.find((t) => t.id === tid);
+        if (!target) return;
+        applyTextBox(tid, {
+          content: applyInlineFormat(target.content, name, next)
+        });
+      });
+      return;
+    }
+    const next = {
+      bold: name === 'bold' ? !formatValue.bold : !!formatValue.bold,
+      italic: name === 'italic' ? !formatValue.italic : !!formatValue.italic,
+      underline:
+        name === 'underline' ? !formatValue.underline : !!formatValue.underline,
+      strike: name === 'strike' ? !formatValue.strike : !!formatValue.strike
+    };
     if (node)
       updateViewItem(node.id, {
         labelBold: next.bold,
         labelItalic: next.italic,
-        labelStrikethrough: next.strike
+        labelStrikethrough: next.strike,
+        labelUnderline: next.underline
       });
     else if (label)
       updateLabel(label.id, {
         isBold: next.bold,
         isItalic: next.italic,
-        isStrikethrough: next.strike
-      });
-    else if (isNameLabel && connector)
-      updateConnector(connector.id, {
-        nameLabelBold: next.bold,
-        nameLabelItalic: next.italic,
-        nameLabelStrikethrough: next.strike
+        isStrikethrough: next.strike,
+        isUnderline: next.underline
       });
     else if (activeLabel)
       updateActiveLabel({
         bold: next.bold,
         italic: next.italic,
-        strikethrough: next.strike
+        strikethrough: next.strike,
+        underline: next.underline
       });
+  };
+
+  // --- Lists (text box only, ADR 0034 §3): whole content when selected, the
+  // current block(s) while editing. Toggling the active type removes the list.
+  const listValue: ListType | null = textBox
+    ? liveEditing
+      ? ((liveFormats.list as ListType | undefined) ?? null)
+      : wholeFormats.list
+    : null;
+  const toggleList = (type: ListType) => {
+    if (!textBox) return;
+    if (liveEditing) {
+      const handle = getTextBoxEditor();
+      if (handle?.quill) {
+        handle.quill.format('list', listValue === type ? false : type);
+        handle.markChanged();
+      }
+      return;
+    }
+    const on = listValue !== type;
+    applyToTargets('TEXTBOX', (tid) => {
+      const target = currentView.textBoxes?.find((t) => t.id === tid);
+      if (!target) return;
+      applyTextBox(tid, { content: applyListFormat(target.content, type, on) });
+    });
   };
 
   // --- Connector style target. The connection-colour + line-options controls
@@ -866,6 +1023,18 @@ export const TopBarStyleControls = () => {
   // with nothing selected — on the pending defaults the next drawn connector
   // inherits. This is what makes the controls usable BEFORE drawing.
   const connectorToolActive = mode.type === 'CONNECTOR';
+  // O6 (ADR 0034, resolved 2026-07-03): while a NON-connector creation tool is
+  // armed, the style controls are disabled by selection-gating — but "Select a
+  // rectangle…" advice mid-draw reads as a non-sequitur. Every disabled tooltip
+  // swaps to neutral copy naming the actual recipe (place first, then style).
+  // The connector tool keeps its live pre-draw controls + tooltips below.
+  const creationToolArmed =
+    mode.type === 'RECTANGLE.DRAW' ||
+    mode.type === 'TEXTBOX' ||
+    mode.type === 'LABEL' ||
+    mode.type === 'PLACE_ICON';
+  const disabledTip = (key: Parameters<typeof t>[0]) =>
+    creationToolArmed ? t('armedToolPlaceFirst') : t(key);
   // Discoverability (owner 2026-07-01): when the connector tool is armed with
   // nothing selected, the color/line controls already edit the PRE-DRAW
   // defaults — but testers didn't notice. Flag that state to add an accent-ring
@@ -894,15 +1063,23 @@ export const TopBarStyleControls = () => {
       }
     : null;
 
-  // --- Link (owner 2026-07-01): set/clear an external link straight from the
-  // strip so you don't have to open the Details deck. Node → modelItem.headerLink
-  // (also renders the on-canvas label as a link); connector / floating Label →
-  // their headerLink (surfaced in the view-mode info popover).
-  const linkEnabled = Boolean(node || connector || label);
-  // When a specific connector label is selected on canvas, the Link control
-  // targets THAT label's headerLink (#4, parity with node-label links); with the
-  // connector itself selected (no label), it targets the whole-connector link.
-  const linkValue = node
+  // --- Link (owner 2026-07-01 + ADR 0034): set/clear an external link straight
+  // from the strip. Node → modelItem.headerLink (bulk now fans out in one
+  // transaction — previously the raw writer silently hit only the
+  // representative). When a specific connector label is selected on canvas, the
+  // Link targets THAT label's headerLink; with the connector itself selected
+  // (no label), the whole-connector link. Text box: the link is per-character —
+  // while EDITING with a text selection the control wraps that range as an
+  // inline link; a merely-selected box gets a disabled tooltip naming the
+  // recipe.
+  const linkTextRangeActive = liveEditing && liveRangeLength > 0;
+  const linkEnabled =
+    Boolean(node || connector || label) || linkTextRangeActive;
+  const linkValue = linkTextRangeActive
+    ? typeof liveFormats.link === 'string'
+      ? (liveFormats.link as string)
+      : ''
+    : node
     ? modelItem?.headerLink
     : activeLabel
     ? activeLabel.headerLink
@@ -913,21 +1090,53 @@ export const TopBarStyleControls = () => {
     : undefined;
   const onLinkChange = (raw: string) => {
     const next = raw.trim() || undefined;
-    if (node) updateModelItem(node.id, { headerLink: next });
+    if (linkTextRangeActive) {
+      const handle = getTextBoxEditor();
+      const range = handle?.lastRange;
+      if (handle && range && range.length > 0) {
+        handle.quill.formatText(
+          range.index,
+          range.length,
+          'link',
+          next ?? false
+        );
+        handle.markChanged();
+      }
+      return;
+    }
+    if (node)
+      applyToTargets('ITEM', (tid) =>
+        updateModelItem(tid, { headerLink: next })
+      );
     else if (activeLabel) updateActiveLabel({ headerLink: next });
     else if (connector) updateConnector(connector.id, { headerLink: next });
     else if (label) updateLabel(label.id, { headerLink: next });
   };
 
-  // --- Show / hide the on-canvas node label (viewItem.showLabel) — previously
-  // only reachable via Details / Layers. Bulk-aware (updateViewItem fans out).
-  const labelHidden = node?.showLabel === false;
+  // --- Show / hide the on-canvas label(s). Nodes: viewItem.showLabel.
+  // Connectors: connector.showLabel gates ALL of that connector's label chips
+  // (schema'd + rendered + Layers-toggleable, but previously unreachable from
+  // the strip — catalog I-8). Bulk-aware (both writers fan out).
+  const labelHidden = node
+    ? node.showLabel === false
+    : connector
+    ? connector.showLabel === false
+    : false;
+  const showHideEnabled = Boolean(node || connector);
   const onToggleShowLabel = () => {
-    if (node) updateViewItem(node.id, { showLabel: labelHidden ? undefined : false });
+    if (node)
+      updateViewItem(node.id, { showLabel: labelHidden ? undefined : false });
+    else if (connector)
+      updateConnector(connector.id, {
+        showLabel: labelHidden ? undefined : false
+      });
   };
 
   return (
     <Box
+      // The on-canvas editor's click-away contract allowlists the strip (and
+      // its popovers) so formatting doesn't end the edit session (ADR 0034 §1).
+      data-axoview-strip="true"
       sx={{
         display: 'flex',
         alignItems: 'center',
@@ -939,8 +1148,10 @@ export const TopBarStyleControls = () => {
       <StripButton
         tooltip={
           textColorEnabled
-            ? t('textColor')
-            : t('textColorDisabled')
+            ? crossTypeColorOnly
+              ? t('textColorAllSelected')
+              : t('textColor')
+            : disabledTip('textColorDisabled')
         }
         disabled={!textColorEnabled}
         icon={<TextColorIcon sx={{ fontSize: 18 }} />}
@@ -956,7 +1167,7 @@ export const TopBarStyleControls = () => {
             ? t('textSize')
             : crossTypeLabelIds
             ? t('labelSizeAllSelected')
-            : t('textSizeDisabled')
+            : disabledTip('textSizeDisabled')
         }
         disabled={!textSize && !crossTypeLabelIds}
         popoverWidth={220}
@@ -1047,53 +1258,108 @@ export const TopBarStyleControls = () => {
         )}
       </StripButton>
 
-      {/* Bold / italic / strikethrough — applies to the whole text box / label
-          (a label has no rich-text toolbar, so this is its only B/I/S). On a
-          rich text box it layers over inline formatting; clearing here won't
-          undo inline <strong>/<em> set via the rich-text editor. */}
+      {/* Bold / italic / underline / strikethrough — one cluster, two scopes
+          (ADR 0034 §2): element-level booleans for label types; content HTML
+          for a text box (whole content selected / live range while editing).
+          Each button toggles independently; mousedown is swallowed so the
+          on-canvas editor's selection survives the press. */}
       <Tooltip
         title={
           formatEnabled
             ? t('format')
-            : t('formatDisabled')
+            : disabledTip('formatDisabled')
         }
         placement="bottom"
       >
         <span>
           <ToggleButtonGroup
             size="small"
-            disabled={!formatEnabled}
-            value={
-              formatEnabled
-                ? [
-                    formatValue.bold ? 'bold' : '',
-                    formatValue.italic ? 'italic' : '',
-                    formatValue.strike ? 'strike' : ''
-                  ].filter(Boolean)
-                : []
-            }
-            onChange={(_e, vals: string[]) => {
-              if (!formatEnabled) return;
-              setFormat({
-                bold: vals.includes('bold'),
-                italic: vals.includes('italic'),
-                strike: vals.includes('strike')
-              });
-            }}
             sx={{
               '& .MuiSvgIcon-root': { color: 'inherit' },
               '& .MuiToggleButton-root': { color: 'text.primary', px: 0.75 },
               '& .MuiToggleButton-root.Mui-disabled': { color: 'action.disabled' }
             }}
           >
-            <ToggleButton value="bold" aria-label={t('bold')}>
+            <ToggleButton
+              value="bold"
+              disabled={!formatEnabled}
+              selected={formatEnabled && formatValue.bold}
+              onMouseDown={keepEditorSelection}
+              onClick={() => formatEnabled && toggleFormat('bold')}
+              aria-label={t('bold')}
+            >
               <BoldIcon sx={{ fontSize: 18 }} />
             </ToggleButton>
-            <ToggleButton value="italic" aria-label={t('italic')}>
+            <ToggleButton
+              value="italic"
+              disabled={!formatEnabled}
+              selected={formatEnabled && formatValue.italic}
+              onMouseDown={keepEditorSelection}
+              onClick={() => formatEnabled && toggleFormat('italic')}
+              aria-label={t('italic')}
+            >
               <ItalicIcon sx={{ fontSize: 18 }} />
             </ToggleButton>
-            <ToggleButton value="strike" aria-label={t('strikethrough')}>
+            <ToggleButton
+              value="underline"
+              disabled={!formatEnabled}
+              selected={formatEnabled && formatValue.underline}
+              onMouseDown={keepEditorSelection}
+              onClick={() => formatEnabled && toggleFormat('underline')}
+              aria-label={t('underline')}
+            >
+              <UnderlineIcon sx={{ fontSize: 18 }} />
+            </ToggleButton>
+            <ToggleButton
+              value="strike"
+              disabled={!formatEnabled}
+              selected={formatEnabled && formatValue.strike}
+              onMouseDown={keepEditorSelection}
+              onClick={() => formatEnabled && toggleFormat('strike')}
+              aria-label={t('strikethrough')}
+            >
               <StrikethroughIcon sx={{ fontSize: 18 }} />
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </span>
+      </Tooltip>
+
+      {/* Lists (text box only) — bulleted / numbered; whole content when
+          selected, the current block(s) while editing (ADR 0034 §3). */}
+      <Tooltip
+        title={textBox ? t('lists') : disabledTip('listsDisabled')}
+        placement="bottom"
+      >
+        <span>
+          <ToggleButtonGroup
+            size="small"
+            sx={{
+              '& .MuiSvgIcon-root': { color: 'inherit' },
+              '& .MuiToggleButton-root': { color: 'text.primary', px: 0.75 },
+              '& .MuiToggleButton-root.Mui-disabled': { color: 'action.disabled' }
+            }}
+          >
+            <ToggleButton
+              value="bullet"
+              disabled={!textBox}
+              selected={listValue === 'bullet'}
+              onMouseDown={keepEditorSelection}
+              onClick={() => toggleList('bullet')}
+              data-testid="strip-list-bullet"
+              aria-label={t('bulletList')}
+            >
+              <BulletListIcon sx={{ fontSize: 18 }} />
+            </ToggleButton>
+            <ToggleButton
+              value="ordered"
+              disabled={!textBox}
+              selected={listValue === 'ordered'}
+              onMouseDown={keepEditorSelection}
+              onClick={() => toggleList('ordered')}
+              data-testid="strip-list-ordered"
+              aria-label={t('numberedList')}
+            >
+              <NumberedListIcon sx={{ fontSize: 18 }} />
             </ToggleButton>
           </ToggleButtonGroup>
         </span>
@@ -1105,7 +1371,7 @@ export const TopBarStyleControls = () => {
         tooltip={
           rectangle || label
             ? t('background')
-            : t('backgroundDisabled')
+            : disabledTip('backgroundDisabled')
         }
         disabled={!rectangle && !label}
         icon={<FillIcon sx={{ fontSize: 18 }} />}
@@ -1193,7 +1459,7 @@ export const TopBarStyleControls = () => {
       {/* Border (rectangle) — line style + width + colour for the frame. */}
       <StripButton
         tooltip={
-          rectangle ? t('border') : t('borderDisabled')
+          rectangle ? t('border') : disabledTip('borderDisabled')
         }
         disabled={!rectangle}
         popoverWidth={240}
@@ -1297,9 +1563,13 @@ export const TopBarStyleControls = () => {
           the node Details deck so both link kinds live in one place. */}
       <StripButton
         tooltip={
-          linkEnabled
+          linkTextRangeActive
+            ? t('linkSelection')
+            : linkEnabled
             ? t('link')
-            : t('linkDisabled')
+            : textBox
+            ? t('linkDisabledTextBox')
+            : disabledTip('linkDisabled')
         }
         disabled={!linkEnabled}
         popoverWidth={280}
@@ -1326,7 +1596,7 @@ export const TopBarStyleControls = () => {
               data-axoview-id="strip-link-input"
             />
 
-            {node && linkedDiagrams.length > 0 && (
+            {!isBulk && node && linkedDiagrams.length > 0 && (
               <Box sx={{ mt: 1.5 }}>
                 <Typography
                   variant="caption"
@@ -1392,26 +1662,27 @@ export const TopBarStyleControls = () => {
         )}
       </StripButton>
 
-      {/* Show / hide the on-canvas node label — inline toggle (no popover). */}
+      {/* Show / hide the on-canvas label(s) — inline toggle (no popover).
+          Nodes hide their name label; connectors hide all their chips. */}
       <Tooltip
         title={
-          node
+          showHideEnabled
             ? labelHidden
               ? t('showLabel')
               : t('hideLabel')
-            : t('showHideLabelDisabled')
+            : disabledTip('showHideLabelDisabled')
         }
         placement="bottom"
       >
         <span>
           <IconButton
             size="small"
-            disabled={!node}
+            disabled={!showHideEnabled}
             onClick={onToggleShowLabel}
             data-testid="strip-toggle-label"
             sx={{
               borderRadius: 1,
-              color: !node ? 'action.disabled' : 'text.primary',
+              color: !showHideEnabled ? 'action.disabled' : 'text.primary',
               '& .MuiSvgIcon-root': { color: 'inherit' },
               px: 0.5,
               py: 0.25
@@ -1434,7 +1705,7 @@ export const TopBarStyleControls = () => {
             ? t('changeIconBulk')
             : node
             ? t('changeIcon')
-            : t('changeIconDisabled')
+            : disabledTip('changeIconDisabled')
         }
         disabled={!node || isBulk}
         popoverWidth={320}
@@ -1467,7 +1738,7 @@ export const TopBarStyleControls = () => {
             ? t('iconSizeBulk')
             : currentIcon
             ? t('iconSize')
-            : t('iconSizeDisabled')
+            : disabledTip('iconSizeDisabled')
         }
         disabled={!currentIcon || isBulk}
         popoverWidth={220}
@@ -1491,7 +1762,7 @@ export const TopBarStyleControls = () => {
             ? t('connectionColorPredraw')
             : connStyle
             ? t('connectionColor')
-            : t('connectionColorDisabled')
+            : disabledTip('connectionColorDisabled')
         }
         highlight={connectorArmed}
         disabled={!connStyle}
@@ -1516,7 +1787,7 @@ export const TopBarStyleControls = () => {
             ? t('lineOptionsPredraw')
             : connStyle
             ? t('lineOptions')
-            : t('lineOptionsDisabled')
+            : disabledTip('lineOptionsDisabled')
         }
         highlight={connectorArmed}
         disabled={!connStyle}
@@ -1615,7 +1886,7 @@ export const TopBarStyleControls = () => {
 
       {/* Text direction (text node) — inline toggle, no popover */}
       <Tooltip
-        title={textBox ? t('textDirection') : t('textDirectionDisabled')}
+        title={textBox ? t('textDirection') : disabledTip('textDirectionDisabled')}
         placement="bottom"
       >
         <span>
@@ -1653,37 +1924,6 @@ export const TopBarStyleControls = () => {
         </span>
       </Tooltip>
 
-      {/* Rich text (text node) — single only: a per-character editor can't
-          target a multi-selection. */}
-      <StripButton
-        tooltip={
-          isBulk
-            ? t('richTextBulk')
-            : textBox
-            ? t('richText')
-            : t('richTextDisabled')
-        }
-        disabled={!textBox || isBulk}
-        popoverWidth={320}
-        icon={<RichTextIcon sx={{ fontSize: 18 }} />}
-      >
-        {textBox && (
-          <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-              {t('text')}
-            </Typography>
-            <RichTextEditor
-              value={textBox.content}
-              onChange={(html) => updateTextBox(textBox.id, { content: html })}
-              height={120}
-              contentStyle={{
-                fontWeight: textBox.isBold ? 700 : undefined,
-                fontStyle: textBox.isItalic ? 'italic' : undefined
-              }}
-            />
-          </Box>
-        )}
-      </StripButton>
     </Box>
   );
 };

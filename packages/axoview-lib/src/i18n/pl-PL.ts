@@ -328,10 +328,13 @@ const locale: LocaleProps = {
     iconSize: 'Rozmiar ikony',
     textColor: 'Kolor tekstu',
     textColorDisabled:
-      'Zaznacz węzeł, tekst lub etykietę połączenia, aby ustawić kolor tekstu',
+      'Zaznacz węzeł, pole tekstowe, etykietę lub etykietę połączenia, aby ustawić kolor tekstu',
     textSizeDisabled:
-      'Zaznacz węzeł, tekst lub etykietę połączenia, aby ustawić rozmiar tekstu',
+      'Zaznacz węzeł, pole tekstowe, etykietę lub etykietę połączenia, aby ustawić rozmiar tekstu',
     labelSizeAllSelected: 'Rozmiar etykiety (wszystkie zaznaczone)',
+    textColorAllSelected: 'Kolor tekstu (wszystkie zaznaczone)',
+    armedToolPlaceFirst:
+      'Nowy element używa domyślnego stylu — najpierw go umieść, a potem ostyluj tutaj',
     decreaseLabelSize: 'Zmniejsz rozmiar etykiety',
     increaseLabelSize: 'Zwiększ rozmiar etykiety',
     labelSize: 'Rozmiar etykiety',
@@ -341,10 +344,15 @@ const locale: LocaleProps = {
     size: 'Rozmiar',
     bold: 'Pogrubienie',
     italic: 'Kursywa',
+    underline: 'Podkreślenie',
     strikethrough: 'Przekreślenie',
-    format: 'Pogrubienie / kursywa / przekreślenie',
+    format: 'Pogrubienie / kursywa / podkreślenie / przekreślenie',
     formatDisabled:
-      'Zaznacz węzeł, etykietę lub etykietę połączenia (pola tekstowe formatuje się przez tekst sformatowany)',
+      'Zaznacz węzeł, pole tekstowe, etykietę lub etykietę połączenia, aby sformatować tekst',
+    lists: 'Listy',
+    listsDisabled: 'Zaznacz pole tekstowe, aby używać list',
+    bulletList: 'Lista punktowana',
+    numberedList: 'Lista numerowana',
     background: 'Kolor tła',
     backgroundDisabled: 'Zaznacz prostokąt lub etykietę, aby ustawić jej kolor tła',
     opacity: 'Przezroczystość',
@@ -355,6 +363,8 @@ const locale: LocaleProps = {
     borderColor: 'Kolor obramowania',
     link: 'Link',
     linkDisabled: 'Zaznacz węzeł, połączenie lub etykietę, aby dodać link',
+    linkSelection: 'Dodaj link do zaznaczonego tekstu',
+    linkDisabledTextBox: 'Zaznacz tekst podczas edycji, aby dodać link',
     linkToWeb: 'Link do strony',
     webLinkPlaceholder: 'https://…',
     linkToDiagram: 'Link do diagramu',
@@ -362,11 +372,13 @@ const locale: LocaleProps = {
     openLinkedDiagram: 'Otwórz powiązany diagram',
     showLabel: 'Pokaż etykietę',
     hideLabel: 'Ukryj etykietę',
-    showHideLabelDisabled: 'Zaznacz węzeł, aby pokazać lub ukryć jego etykietę',
+    showHideLabelDisabled:
+      'Zaznacz węzeł lub połączenie, aby pokazać lub ukryć jego etykietę',
     changeIconBulk: 'Zmiana ikony dotyczy jednego węzła naraz',
     changeIcon: 'Zmień ikonę',
     changeIconDisabled: 'Zaznacz węzeł, aby zmienić jego ikonę',
-    iconSizeBulk: 'Rozmiar ikony dotyczy jednego węzła naraz',
+    iconSizeBulk:
+      'Rozmiar ikony edytuje jedną ikonę naraz (zmienia rozmiar wszystkich węzłów, które jej używają)',
     iconSizeDisabled: 'Zaznacz węzeł, aby zmienić rozmiar jego ikony',
     connectionColorPredraw: 'Kolor następnego rysowanego połączenia',
     connectionColor: 'Kolor połączenia',
@@ -382,11 +394,7 @@ const locale: LocaleProps = {
     textDirection: 'Kierunek tekstu',
     textDirectionDisabled: 'Zaznacz pole tekstowe, aby ustawić jego kierunek',
     textDirectionX: 'Kierunek tekstu X',
-    textDirectionY: 'Kierunek tekstu Y',
-    richTextBulk: 'Tekst sformatowany edytuje się w jednym polu tekstowym naraz',
-    richText: 'Tekst sformatowany',
-    richTextDisabled: 'Zaznacz pole tekstowe, aby edytować tekst sformatowany',
-    text: 'Tekst'
+    textDirectionY: 'Kierunek tekstu Y'
   },
   labelColorPicker: {
     customColor: 'Niestandardowy kolor'

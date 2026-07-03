@@ -324,10 +324,13 @@ const locale: LocaleProps = {
     iconSize: 'Tamanho do ícone',
     textColor: 'Cor do texto',
     textColorDisabled:
-      'Selecione um nó, texto ou rótulo de conexão para definir a cor do texto',
+      'Selecione um nó, uma caixa de texto, um rótulo ou um rótulo de conexão para definir a cor do texto',
     textSizeDisabled:
-      'Selecione um nó, texto ou rótulo de conexão para definir o tamanho do texto',
+      'Selecione um nó, uma caixa de texto, um rótulo ou um rótulo de conexão para definir o tamanho do texto',
     labelSizeAllSelected: 'Tamanho do rótulo (todos os selecionados)',
+    textColorAllSelected: 'Cor do texto (todos os selecionados)',
+    armedToolPlaceFirst:
+      'O novo elemento usa o estilo padrão — posicione-o primeiro e depois estilize-o aqui',
     decreaseLabelSize: 'Diminuir tamanho do rótulo',
     increaseLabelSize: 'Aumentar tamanho do rótulo',
     labelSize: 'Tamanho do rótulo',
@@ -337,10 +340,15 @@ const locale: LocaleProps = {
     size: 'Tamanho',
     bold: 'Negrito',
     italic: 'Itálico',
+    underline: 'Sublinhado',
     strikethrough: 'Tachado',
-    format: 'Negrito / itálico / tachado',
+    format: 'Negrito / itálico / sublinhado / tachado',
     formatDisabled:
-      'Selecione um nó, rótulo ou rótulo de conexão (caixas de texto são formatadas por texto rico)',
+      'Selecione um nó, uma caixa de texto, um rótulo ou um rótulo de conexão para formatar o texto',
+    lists: 'Listas',
+    listsDisabled: 'Selecione uma caixa de texto para usar listas',
+    bulletList: 'Lista com marcadores',
+    numberedList: 'Lista numerada',
     background: 'Cor de fundo',
     backgroundDisabled: 'Selecione um retângulo ou rótulo para definir sua cor de fundo',
     opacity: 'Opacidade',
@@ -351,6 +359,8 @@ const locale: LocaleProps = {
     borderColor: 'Cor da borda',
     link: 'Link',
     linkDisabled: 'Selecione um nó, conexão ou rótulo para adicionar um link',
+    linkSelection: 'Adicionar link ao texto selecionado',
+    linkDisabledTextBox: 'Selecione texto durante a edição para adicionar um link',
     linkToWeb: 'Link para a web',
     webLinkPlaceholder: 'https://…',
     linkToDiagram: 'Link para o diagrama',
@@ -358,11 +368,13 @@ const locale: LocaleProps = {
     openLinkedDiagram: 'Abrir diagrama vinculado',
     showLabel: 'Mostrar rótulo',
     hideLabel: 'Ocultar rótulo',
-    showHideLabelDisabled: 'Selecione um nó para mostrar ou ocultar seu rótulo',
+    showHideLabelDisabled:
+      'Selecione um nó ou uma conexão para mostrar ou ocultar seu rótulo',
     changeIconBulk: 'Alterar ícone aplica-se a um nó por vez',
     changeIcon: 'Alterar ícone',
     changeIconDisabled: 'Selecione um nó para alterar seu ícone',
-    iconSizeBulk: 'Tamanho do ícone aplica-se a um nó por vez',
+    iconSizeBulk:
+      'Tamanho do ícone edita um ícone por vez (redimensiona todos os nós que o usam)',
     iconSizeDisabled: 'Selecione um nó para alterar o tamanho de seu ícone',
     connectionColorPredraw: 'Cor para a próxima conexão que você desenhar',
     connectionColor: 'Cor da conexão',
@@ -378,11 +390,7 @@ const locale: LocaleProps = {
     textDirection: 'Direção do texto',
     textDirectionDisabled: 'Selecione uma caixa de texto para definir sua direção',
     textDirectionX: 'Direção do texto X',
-    textDirectionY: 'Direção do texto Y',
-    richTextBulk: 'Texto rico edita uma caixa de texto por vez',
-    richText: 'Texto rico',
-    richTextDisabled: 'Selecione uma caixa de texto para editar o texto rico',
-    text: 'Texto'
+    textDirectionY: 'Direção do texto Y'
   },
   labelColorPicker: {
     customColor: 'Cor personalizada'

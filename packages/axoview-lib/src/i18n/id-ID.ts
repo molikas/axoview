@@ -322,10 +322,13 @@ const locale: LocaleProps = {
     iconSize: 'Ukuran ikon',
     textColor: 'Warna teks',
     textColorDisabled:
-      'Pilih node, teks, atau label koneksi untuk mengatur warna teks',
+      'Pilih node, kotak teks, label, atau label koneksi untuk mengatur warna teks',
     textSizeDisabled:
-      'Pilih node, teks, atau label koneksi untuk mengatur ukuran teks',
+      'Pilih node, kotak teks, label, atau label koneksi untuk mengatur ukuran teks',
     labelSizeAllSelected: 'Ukuran label (semua terpilih)',
+    textColorAllSelected: 'Warna teks (semua terpilih)',
+    armedToolPlaceFirst:
+      'Elemen baru memakai gaya bawaan — letakkan dulu, lalu atur gayanya di sini',
     decreaseLabelSize: 'Perkecil ukuran label',
     increaseLabelSize: 'Perbesar ukuran label',
     labelSize: 'Ukuran label',
@@ -335,10 +338,15 @@ const locale: LocaleProps = {
     size: 'Ukuran',
     bold: 'Tebal',
     italic: 'Miring',
+    underline: 'Garis bawah',
     strikethrough: 'Coret',
-    format: 'Tebal / miring / coret',
+    format: 'Tebal / miring / garis bawah / coret',
     formatDisabled:
-      'Pilih node, label, atau label koneksi (kotak teks diformat lewat teks kaya)',
+      'Pilih node, kotak teks, label, atau label koneksi untuk memformat teks',
+    lists: 'Daftar',
+    listsDisabled: 'Pilih kotak teks untuk menggunakan daftar',
+    bulletList: 'Daftar poin',
+    numberedList: 'Daftar bernomor',
     background: 'Warna latar belakang',
     backgroundDisabled: 'Pilih persegi panjang atau label untuk mengatur warna latar belakangnya',
     opacity: 'Opasitas',
@@ -349,6 +357,8 @@ const locale: LocaleProps = {
     borderColor: 'Warna batas',
     link: 'Tautan',
     linkDisabled: 'Pilih node, koneksi, atau label untuk menambahkan tautan',
+    linkSelection: 'Tautkan teks yang dipilih',
+    linkDisabledTextBox: 'Pilih teks saat mengedit untuk menambahkan tautan',
     linkToWeb: 'Tautan ke web',
     webLinkPlaceholder: 'https://…',
     linkToDiagram: 'Tautan ke diagram',
@@ -356,11 +366,13 @@ const locale: LocaleProps = {
     openLinkedDiagram: 'Buka diagram yang ditautkan',
     showLabel: 'Tampilkan label',
     hideLabel: 'Sembunyikan label',
-    showHideLabelDisabled: 'Pilih node untuk menampilkan atau menyembunyikan labelnya',
+    showHideLabelDisabled:
+      'Pilih node atau koneksi untuk menampilkan atau menyembunyikan labelnya',
     changeIconBulk: 'Ubah ikon berlaku untuk satu node dalam satu waktu',
     changeIcon: 'Ubah ikon',
     changeIconDisabled: 'Pilih node untuk mengubah ikonnya',
-    iconSizeBulk: 'Ukuran ikon berlaku untuk satu node dalam satu waktu',
+    iconSizeBulk:
+      'Ukuran ikon mengedit satu ikon dalam satu waktu (mengubah ukuran semua node yang memakainya)',
     iconSizeDisabled: 'Pilih node untuk mengubah ukuran ikonnya',
     connectionColorPredraw: 'Warna untuk koneksi berikutnya yang Anda gambar',
     connectionColor: 'Warna koneksi',
@@ -376,11 +388,7 @@ const locale: LocaleProps = {
     textDirection: 'Arah teks',
     textDirectionDisabled: 'Pilih kotak teks untuk mengatur arahnya',
     textDirectionX: 'Arah teks X',
-    textDirectionY: 'Arah teks Y',
-    richTextBulk: 'Teks kaya diedit satu kotak teks dalam satu waktu',
-    richText: 'Teks kaya',
-    richTextDisabled: 'Pilih kotak teks untuk mengedit teks kaya',
-    text: 'Teks'
+    textDirectionY: 'Arah teks Y'
   },
   labelColorPicker: {
     customColor: 'Warna kustom'

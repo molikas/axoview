@@ -79,20 +79,22 @@ describe('connectorLabelSchema', () => {
     expect(
       connectorLabelSchema.safeParse({ ...baseLabel, fontSize: 8 }).success
     ).toBe(true);
+    // 40 = the strip's unified label-size max (ADR 0030 / ADR 0034 §4). The old
+    // 24 cap rejected sizes the strip itself wrote, bricking saved diagrams.
     expect(
-      connectorLabelSchema.safeParse({ ...baseLabel, fontSize: 24 }).success
+      connectorLabelSchema.safeParse({ ...baseLabel, fontSize: 40 }).success
     ).toBe(true);
     expect(
       connectorLabelSchema.safeParse({ ...baseLabel, fontSize: 14 }).success
     ).toBe(true);
   });
 
-  it('rejects fontSize outside 8–24', () => {
+  it('rejects fontSize outside 8–40', () => {
     expect(
       connectorLabelSchema.safeParse({ ...baseLabel, fontSize: 7 }).success
     ).toBe(false);
     expect(
-      connectorLabelSchema.safeParse({ ...baseLabel, fontSize: 25 }).success
+      connectorLabelSchema.safeParse({ ...baseLabel, fontSize: 41 }).success
     ).toBe(false);
   });
 

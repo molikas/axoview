@@ -324,10 +324,13 @@ const locale: LocaleProps = {
     iconSize: 'Simge boyutu',
     textColor: 'Metin rengi',
     textColorDisabled:
-      'Metin rengini ayarlamak için bir düğüm, metin veya bağlantı etiketi seçin',
+      'Metin rengini ayarlamak için bir düğüm, metin kutusu, etiket veya bağlantı etiketi seçin',
     textSizeDisabled:
-      'Metin boyutunu ayarlamak için bir düğüm, metin veya bağlantı etiketi seçin',
+      'Metin boyutunu ayarlamak için bir düğüm, metin kutusu, etiket veya bağlantı etiketi seçin',
     labelSizeAllSelected: 'Etiket boyutu (tümü seçili)',
+    textColorAllSelected: 'Metin rengi (tümü seçili)',
+    armedToolPlaceFirst:
+      'Yeni öğe varsayılan stili kullanır — önce yerleştirin, sonra burada biçimlendirin',
     decreaseLabelSize: 'Etiket boyutunu küçült',
     increaseLabelSize: 'Etiket boyutunu büyüt',
     labelSize: 'Etiket boyutu',
@@ -337,10 +340,15 @@ const locale: LocaleProps = {
     size: 'Boyut',
     bold: 'Kalın',
     italic: 'İtalik',
+    underline: 'Altı çizili',
     strikethrough: 'Üstü çizili',
-    format: 'Kalın / italik / üstü çizili',
+    format: 'Kalın / italik / altı çizili / üstü çizili',
     formatDisabled:
-      'Bir düğüm, etiket veya bağlantı etiketi seçin (metin kutuları zengin metinle biçimlendirilir)',
+      'Metni biçimlendirmek için bir düğüm, metin kutusu, etiket veya bağlantı etiketi seçin',
+    lists: 'Listeler',
+    listsDisabled: 'Listeleri kullanmak için bir metin kutusu seçin',
+    bulletList: 'Madde işaretli liste',
+    numberedList: 'Numaralı liste',
     background: 'Arka plan rengi',
     backgroundDisabled:
       'Arka plan rengini ayarlamak için bir dikdörtgen veya etiket seçin',
@@ -352,6 +360,8 @@ const locale: LocaleProps = {
     borderColor: 'Kenarlık rengi',
     link: 'Bağlantı',
     linkDisabled: 'Bağlantı eklemek için bir düğüm, bağlantı veya etiket seçin',
+    linkSelection: 'Seçili metne bağlantı ekle',
+    linkDisabledTextBox: 'Bağlantı eklemek için düzenlerken metin seçin',
     linkToWeb: 'Web bağlantısı',
     webLinkPlaceholder: 'https://…',
     linkToDiagram: 'Diyagrama bağlantı',
@@ -359,11 +369,13 @@ const locale: LocaleProps = {
     openLinkedDiagram: 'Bağlantılı diyagramı aç',
     showLabel: 'Etiketi göster',
     hideLabel: 'Etiketi gizle',
-    showHideLabelDisabled: 'Etiketini göstermek veya gizlemek için bir düğüm seçin',
+    showHideLabelDisabled:
+      'Etiketini göstermek veya gizlemek için bir düğüm veya bağlantı seçin',
     changeIconBulk: 'Simge değiştirme aynı anda tek bir düğüme uygulanır',
     changeIcon: 'Simgeyi değiştir',
     changeIconDisabled: 'Simgesini değiştirmek için bir düğüm seçin',
-    iconSizeBulk: 'Simge boyutu aynı anda tek bir düğüme uygulanır',
+    iconSizeBulk:
+      'Simge boyutu aynı anda tek bir simgeyi düzenler (o simgeyi kullanan tüm düğümleri yeniden boyutlandırır)',
     iconSizeDisabled: 'Simge boyutunu değiştirmek için bir düğüm seçin',
     connectionColorPredraw: 'Çizeceğiniz sonraki bağlantının rengi',
     connectionColor: 'Bağlantı rengi',
@@ -379,11 +391,7 @@ const locale: LocaleProps = {
     textDirection: 'Metin yönü',
     textDirectionDisabled: 'Yönünü ayarlamak için bir metin kutusu seçin',
     textDirectionX: 'Metin yönü X',
-    textDirectionY: 'Metin yönü Y',
-    richTextBulk: 'Zengin metin aynı anda tek bir metin kutusunu düzenler',
-    richText: 'Zengin metin',
-    richTextDisabled: 'Zengin metni düzenlemek için bir metin kutusu seçin',
-    text: 'Metin'
+    textDirectionY: 'Metin yönü Y'
   },
   labelColorPicker: {
     customColor: 'Özel renk'

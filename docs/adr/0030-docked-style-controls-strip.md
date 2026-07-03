@@ -59,6 +59,10 @@ The **per-type** font-size ranges in the 2026-06-30 amendment (point #11: "nodes
 
 The pattern to mirror for future label-like text: **one base, one range, one control — derive, don't duplicate per type.**
 
+#### Amendment (2026-07-03) — rich-text popup retired; dual-scope format cluster ([ADR 0034](0034-inline-canvas-text-editing-and-dual-scope-strip-formatting.md))
+
+The **Rich-text editor is removed from the single-target list above — it no longer exists.** Text boxes are edited inline on canvas and formatted from the strip like every other type. The strip's format cluster is **B/I/U/S + lists** with **two scopes**: an element selected → the whole content; a text box being edited → the live caret/range. Homogeneous bulk text boxes fan out whole-content formatting (the former bulk dead-end is closed). Change icon and Icon size remain the only single-target exceptions. Full contract in ADR 0034.
+
 #### Amendment (2026-07-02) — identity name → Metadata section; the strip Link control
 
 Two follow-on reshapes landed after §4's amendments and are recorded for the doc trail:

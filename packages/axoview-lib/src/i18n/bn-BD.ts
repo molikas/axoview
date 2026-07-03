@@ -322,10 +322,13 @@ const locale: LocaleProps = {
     iconSize: 'আইকনের আকার',
     textColor: 'পাঠ্যের রং',
     textColorDisabled:
-      'পাঠ্যের রং সেট করতে একটি নোড, পাঠ্য বা সংযোগ লেবেল নির্বাচন করুন',
+      'পাঠ্যের রং সেট করতে একটি নোড, টেক্সট বক্স, লেবেল বা সংযোগ লেবেল নির্বাচন করুন',
     textSizeDisabled:
-      'পাঠ্যের আকার সেট করতে একটি নোড, পাঠ্য বা সংযোগ লেবেল নির্বাচন করুন',
+      'পাঠ্যের আকার সেট করতে একটি নোড, টেক্সট বক্স, লেবেল বা সংযোগ লেবেল নির্বাচন করুন',
     labelSizeAllSelected: 'লেবেলের আকার (সব নির্বাচিত)',
+    textColorAllSelected: 'পাঠ্যের রং (সব নির্বাচিত)',
+    armedToolPlaceFirst:
+      'নতুন উপাদান ডিফল্ট স্টাইল ব্যবহার করে — আগে এটি বসান, তারপর এখানে স্টাইল করুন',
     decreaseLabelSize: 'লেবেলের আকার হ্রাস করুন',
     increaseLabelSize: 'লেবেলের আকার বৃদ্ধি করুন',
     labelSize: 'লেবেলের আকার',
@@ -335,10 +338,15 @@ const locale: LocaleProps = {
     size: 'আকার',
     bold: 'বোল্ড',
     italic: 'ইটালিক',
+    underline: 'আন্ডারলাইন',
     strikethrough: 'স্ট্রাইকথ্রু',
-    format: 'বোল্ড / ইটালিক / স্ট্রাইকথ্রু',
+    format: 'বোল্ড / ইটালিক / আন্ডারলাইন / স্ট্রাইকথ্রু',
     formatDisabled:
-      'একটি নোড, লেবেল বা সংযোগ লেবেল নির্বাচন করুন (টেক্সট বক্স রিচ টেক্সটের মাধ্যমে ফরম্যাট হয়)',
+      'পাঠ্য ফরম্যাট করতে একটি নোড, টেক্সট বক্স, লেবেল বা সংযোগ লেবেল নির্বাচন করুন',
+    lists: 'তালিকা',
+    listsDisabled: 'তালিকা ব্যবহার করতে একটি টেক্সট বক্স নির্বাচন করুন',
+    bulletList: 'বুলেট তালিকা',
+    numberedList: 'সংখ্যায়িত তালিকা',
     background: 'পটভূমির রং',
     backgroundDisabled: 'পটভূমির রং সেট করতে একটি আয়তক্ষেত্র বা লেবেল নির্বাচন করুন',
     opacity: 'স্বচ্ছতা',
@@ -349,6 +357,8 @@ const locale: LocaleProps = {
     borderColor: 'বর্ডারের রং',
     link: 'লিঙ্ক',
     linkDisabled: 'লিঙ্ক যোগ করতে একটি নোড, সংযোগ বা লেবেল নির্বাচন করুন',
+    linkSelection: 'নির্বাচিত পাঠ্যে লিঙ্ক যোগ করুন',
+    linkDisabledTextBox: 'লিঙ্ক যোগ করতে সম্পাদনার সময় পাঠ্য নির্বাচন করুন',
     linkToWeb: 'ওয়েবে লিঙ্ক করুন',
     webLinkPlaceholder: 'https://…',
     linkToDiagram: 'ডায়াগ্রামে লিঙ্ক করুন',
@@ -356,11 +366,13 @@ const locale: LocaleProps = {
     openLinkedDiagram: 'সংযুক্ত ডায়াগ্রাম খুলুন',
     showLabel: 'লেবেল দেখান',
     hideLabel: 'লেবেল লুকান',
-    showHideLabelDisabled: 'লেবেল দেখাতে বা লুকাতে একটি নোড নির্বাচন করুন',
+    showHideLabelDisabled:
+      'লেবেল দেখাতে বা লুকাতে একটি নোড বা সংযোগ নির্বাচন করুন',
     changeIconBulk: 'আইকন পরিবর্তন একবারে একটি নোডে প্রযোজ্য',
     changeIcon: 'আইকন পরিবর্তন করুন',
     changeIconDisabled: 'আইকন পরিবর্তন করতে একটি নোড নির্বাচন করুন',
-    iconSizeBulk: 'আইকনের আকার একবারে একটি নোডে প্রযোজ্য',
+    iconSizeBulk:
+      'আইকনের আকার একবারে একটি আইকন সম্পাদনা করে (সেই আইকন ব্যবহারকারী সব নোডের আকার বদলায়)',
     iconSizeDisabled: 'আইকনের আকার পরিবর্তন করতে একটি নোড নির্বাচন করুন',
     connectionColorPredraw: 'আপনি যে পরবর্তী সংযোগ আঁকবেন তার রং',
     connectionColor: 'সংযোগের রং',
@@ -376,11 +388,7 @@ const locale: LocaleProps = {
     textDirection: 'পাঠ্যের দিক',
     textDirectionDisabled: 'দিক সেট করতে একটি টেক্সট বক্স নির্বাচন করুন',
     textDirectionX: 'পাঠ্যের দিক X',
-    textDirectionY: 'পাঠ্যের দিক Y',
-    richTextBulk: 'রিচ টেক্সট একবারে একটি টেক্সট বক্স সম্পাদনা করে',
-    richText: 'রিচ টেক্সট',
-    richTextDisabled: 'রিচ টেক্সট সম্পাদনা করতে একটি টেক্সট বক্স নির্বাচন করুন',
-    text: 'পাঠ্য'
+    textDirectionY: 'পাঠ্যের দিক Y'
   },
   labelColorPicker: {
     customColor: 'কাস্টম রং'

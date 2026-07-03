@@ -189,7 +189,13 @@ const ConnectorTextLabel = ({
             sx={{
               fontWeight: label.bold ? 700 : 400,
               fontStyle: label.italic ? 'italic' : 'normal',
-              textDecoration: label.strikethrough ? 'line-through' : 'none',
+              textDecoration:
+                [
+                  label.underline ? 'underline' : null,
+                  label.strikethrough ? 'line-through' : null
+                ]
+                  .filter(Boolean)
+                  .join(' ') || 'none',
               color:
                 label.labelColor ||
                 (linkActive ? 'primary.main' : 'text.primary'),

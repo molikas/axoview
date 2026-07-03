@@ -476,6 +476,7 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
           const labelBold = node.labelBold;
           const labelItalic = node.labelItalic;
           const labelStrike = node.labelStrikethrough;
+          const labelUnder = node.labelUnderline;
 
           // D3-2: measure once per (fontSize, weight, style, name) and reuse
           // across pan/zoom redraws — chip geometry is content-determined. Bold /
@@ -532,16 +533,29 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
           ctx.font = nameFont;
           ctx.fillStyle = node.labelColor || chip.text;
           ctx.fillText(name, textX, textY + (nameLineH - fontSize) / 2);
-          // Strikethrough: Canvas2D has no text-decoration, so draw the rule
-          // manually across the chip's inner width at the line's vertical centre.
-          if (labelStrike) {
-            const strikeY = textY + nameLineH / 2;
+          // Strikethrough / underline: Canvas2D has no text-decoration, so draw
+          // the rules manually across the chip's inner width — strike at the
+          // line's vertical centre, underline just under the baseline (ADR 0034
+          // O1; underline is decoration-only, so the layout cache key is
+          // unaffected).
+          if (labelStrike || labelUnder) {
             ctx.strokeStyle = node.labelColor || chip.text;
             ctx.lineWidth = Math.max(1, fontSize / 14);
-            ctx.beginPath();
-            ctx.moveTo(textX, strikeY);
-            ctx.lineTo(textX + (chipW - chip.padX * 2), strikeY);
-            ctx.stroke();
+            const innerW = chipW - chip.padX * 2;
+            if (labelStrike) {
+              const strikeY = textY + nameLineH / 2;
+              ctx.beginPath();
+              ctx.moveTo(textX, strikeY);
+              ctx.lineTo(textX + innerW, strikeY);
+              ctx.stroke();
+            }
+            if (labelUnder) {
+              const underY = textY + (nameLineH - fontSize) / 2 + fontSize * 0.95;
+              ctx.beginPath();
+              ctx.moveTo(textX, underY);
+              ctx.lineTo(textX + innerW, underY);
+              ctx.stroke();
+            }
           }
           ctx.restore();
         }

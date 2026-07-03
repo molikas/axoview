@@ -1,37 +1,28 @@
 /**
- * textbox-text-edit-move.spec.ts — v1.1 Finding #7 (KR2 helper-consumer).
+ * textbox-text-edit-move.spec.ts — v1.1 Finding #7 (KR2 helper-consumer),
+ * rewritten for ADR 0034 (inline canvas text editing).
  *
- * Closes Finding #7 in docs/tactical/v1.1-test-coverage.md — the
- * textbox text-edit sub-row + the move sub-row that textbox-ops.spec.ts
- * deliberately scoped out (it covers Delete only).
+ * TEXT-EDIT: place-and-type drops the new text box straight into the
+ * ON-CANVAS Quill editor (`[data-axoview-id="textbox-inline-editor"]
+ * .ql-editor` — the deck no longer carries a content editor and the strip's
+ * rich-text popup is retired). Typing edits the live editor only; the model is
+ * written ONCE on commit — left-click-away (ADR 0022 §4 contract; Enter is a
+ * newline in the multi-paragraph editor, so click-away is the commit gesture).
+ * The spec types a probe word and commits with a synthetic canvas mousedown
+ * (the editor's click-away listener binds mousedown as well as pointerdown for
+ * exactly this suite's synthetic-event dispatch).
  *
- * IMPORTANT scope correction to Finding #7's filing: the original
- * deferral row paired "text-edit + resize" and assumed both unblocked
- * with a tile->screen helper. Resize-via-corner-anchor is NOT a feature
- * the lib supports — TextBoxTransformControls.tsx renders
- * TransformControls WITHOUT passing onAnchorMouseDown (compare
- * RectangleTransformControls.tsx:14-28), so the four corner anchors
- * never render and there is no RECTANGLE.TRANSFORM-equivalent mode for
- * textboxes. Textbox visible size is content-driven (the fontSize
- * slider in TextBoxControls.tsx is the only "make it bigger" affordance).
- * This spec therefore covers text-edit + a MOVE sub-row (which textbox
- * data structurally supports through DragItems / Cursor.ts:337-343 but
- * was not in Finding #7's original wording).
+ * MOVE: unchanged in substance from the original filing — drag from a tile
+ * inside the textbox's footprint to a new tile. placeTextBoxAt() now dismisses
+ * the place-and-type editor by default (Escape cancels) so the subsequent
+ * hotkey/drag interactions don't land in the focused editor.
  *
- * TEXT-EDIT: select textbox -> TextBoxControls.tsx mounts the
- * RichTextEditor (react-quill-new); type into the .ql-editor
- * contenteditable; assert model.textBoxes[id].content updated. Quill
- * exposes no observable data attribute on its editor element so the
- * spec uses the .ql-editor CSS class (the conventional react-quill
- * anchor); this is the only DOM-coupling-to-vendor in the spec.
+ * Historical scope note (kept from the original filing): resize-via-corner-
+ * anchor is NOT a lib feature — TextBoxTransformControls renders no anchors;
+ * textbox visible size is content-driven.
  *
- * MOVE: drag from a tile inside the textbox's footprint to a new tile.
- * Cursor.mousedown reads hitDetection.ts:58-73 (textboxes second-place
- * after items) and sets mousedownItem = {type:'TEXTBOX'}; Cursor.mousemove
- * transitions to DRAG_ITEMS with initialTiles seeded; mouseup commits
- * the new textbox.tile = originalTile + cursor delta.
- *
- * Lazy data-axoview-id retrofits — none.
+ * Lazy data-axoview-id retrofits — `textbox-inline-editor` (lib,
+ * TextBoxInlineEditor.tsx, landed with ADR 0034).
  */
 import { canvasReadyTest as test, expect } from '../fixtures/app.fixture';
 import { CanvasPOM } from '../pom/CanvasPOM';
@@ -48,53 +39,71 @@ const getFirstTextBox = (page: import('@playwright/test').Page) =>
     return { id: tb.id, tile: tb.tile, content: tb.content ?? '' };
   });
 
-test.describe('Textbox text-edit + move — Finding #7', () => {
-  test('textbox TEXT-EDIT: typing into the RichTextEditor updates model.textBoxes[].content', async ({
+test.describe('Textbox text-edit + move — Finding #7 / ADR 0034', () => {
+  test('textbox TEXT-EDIT: typing into the on-canvas editor + click-away commits model.textBoxes[].content', async ({
     page,
     app
   }) => {
     void app;
     const canvas = new CanvasPOM(page);
 
-    // 1. Place a textbox at a known tile. placeTextBoxAt() uses the
-    //    't' hotkey + a mousemove at the desired pixel; we use
-    //    tileToScreen({0,0}) so the textbox lands at a known tile and
-    //    the subsequent click for selection is deterministic.
+    // 1. Place a textbox at a known tile, KEEPING the place-and-type edit
+    //    session open (the editor is the surface under test).
     const PLACE_TILE = { x: 0, y: 0 };
     const placePixel = await canvas.tileToScreen(PLACE_TILE);
-    await canvas.placeTextBoxAt(placePixel);
+    await canvas.placeTextBoxAt(placePixel, { keepEditing: true });
     await expect.poll(() => getViewTextBoxCount(page), { timeout: 5_000 }).toBe(1);
 
     const placed = await getFirstTextBox(page);
     expect(placed).not.toBeNull();
 
-    // 2. Selecting a textbox in this lib happens during the place flow
-    //    (TextBox.mouseup -> setItemControls({type:'TEXTBOX', id}))
-    //    so the controls panel is already mounted with the Quill editor.
-    //    Wait for the editor to be ready.
-    const quillEditor = page.locator('.ql-editor').first();
-    await quillEditor.waitFor({ state: 'visible', timeout: 5_000 });
-
-    // 3. Focus the editor + type. Quill captures keystrokes via its
-    //    contenteditable and propagates onChange (string HTML) up to
-    //    TextBoxControls -> useScene().updateTextBox.
-    await quillEditor.click();
-    // Single word, no spaces — Quill replaces literal spaces with &nbsp;
-    // entities in the saved HTML (TextBoxes.content), so substring-matching
-    // a multi-word phrase is brittle without HTML-decoding. The contract
-    // under test is "the editor's keystrokes propagated into the model";
-    // a single contiguous probe word is enough.
+    // 2. The on-canvas Quill editor mounts focused with the content selected
+    //    (type-to-replace). Triple-click re-selects the line deterministically
+    //    in case focus landed late, then type the probe word.
+    const editor = canvas.textBoxInlineEditor();
+    await editor.waitFor({ state: 'visible', timeout: 5_000 });
+    await editor.click({ clickCount: 3 });
+    // Single word, no spaces — Quill stores spaces as &nbsp; entities in the
+    // committed HTML, so substring-matching a multi-word phrase is brittle.
     const TYPED = 'AXOVIEWPROBE';
     await page.keyboard.type(TYPED, { delay: 10 });
 
-    // 4. Assert content propagated. Quill wraps content in <p>...</p> and
-    //    may prepend any default placeholder; substring-match the probe
-    //    word inside the resulting HTML.
+    // 3. The model must NOT change while typing (commit is click-away only).
+    expect((await getFirstTextBox(page))!.content).toBe(placed!.content);
+
+    // 4. Commit via click-away on empty canvas — the capture-phase mousedown
+    //    listener writes the sanitized HTML once, then ends the session.
+    const awayPixel = await canvas.tileToScreen({ x: 6, y: 6 });
+    await canvas.dispatchAt(['mousedown', 'mouseup'], awayPixel);
+    await editor.waitFor({ state: 'detached', timeout: 5_000 });
+
     await expect
       .poll(async () => (await getFirstTextBox(page))?.content ?? '', {
         timeout: 3_000
       })
       .toContain(TYPED);
+  });
+
+  test('textbox TEXT-EDIT: Escape cancels without touching the model', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const canvas = new CanvasPOM(page);
+
+    const placePixel = await canvas.tileToScreen({ x: 0, y: 0 });
+    await canvas.placeTextBoxAt(placePixel, { keepEditing: true });
+    await expect.poll(() => getViewTextBoxCount(page), { timeout: 5_000 }).toBe(1);
+    const before = await getFirstTextBox(page);
+
+    const editor = canvas.textBoxInlineEditor();
+    await editor.waitFor({ state: 'visible', timeout: 5_000 });
+    await editor.click({ clickCount: 3 });
+    await page.keyboard.type('DISCARDED', { delay: 10 });
+    await page.keyboard.press('Escape');
+    await editor.waitFor({ state: 'detached', timeout: 5_000 });
+
+    expect((await getFirstTextBox(page))!.content).toBe(before!.content);
   });
 
   test('textbox MOVE: drag from interior to a new tile translates textbox.tile by the same delta', async ({
@@ -104,7 +113,8 @@ test.describe('Textbox text-edit + move — Finding #7', () => {
     void app;
     const canvas = new CanvasPOM(page);
 
-    // 1. Place a textbox at (0, 0).
+    // 1. Place a textbox at (0, 0). Default placeTextBoxAt dismisses the
+    //    place-and-type editor, so the keyboard/drag below hit the canvas.
     const PLACE_TILE = { x: 0, y: 0 };
     const placePixel = await canvas.tileToScreen(PLACE_TILE);
     await canvas.placeTextBoxAt(placePixel);

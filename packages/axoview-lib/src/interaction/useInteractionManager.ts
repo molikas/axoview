@@ -881,10 +881,13 @@ export const useInteractionManager = () => {
   // Double-click on a canvas item opens its details panel (ADR 0022 §1). Mouse
   // only — touch double-tap is handled by the touch state machine. Scoped to
   // the renderer (window-bound listener, like onContextMenu) so a double-click
-  // in a panel / toolbar never opens a stale item's panel. The node/textbox
-  // label's inline-rename dblclick calls stopPropagation, so it never reaches
-  // here — double-click the body opens the panel, double-click the label
-  // renames. Locked/hidden items are non-interactive (UX §4.3).
+  // in a panel / toolbar never opens a stale item's panel. The node label's
+  // inline-rename dblclick calls stopPropagation, so it never reaches here —
+  // double-click the body opens the panel, double-click the label renames.
+  // TEXTBOX is the exception (ADR 0034): its layer sits BELOW the interactions
+  // box, so this handler is the double-click entry point — and double-clicking
+  // a text box EDITS its text in place (deck stays closed; Details is reachable
+  // via the context menu). Locked/hidden items are non-interactive (UX §4.3).
   const onDoubleClick = useCallback(
     (e: SlimMouseEvent) => {
       if (pointerTypeRef.current !== 'mouse') return;
@@ -909,6 +912,16 @@ export const useInteractionManager = () => {
         !lockedIds.has(item.id) &&
         (visibleIds.size === 0 || visibleIds.has(item.id));
       if (!interactable) return;
+      if (item.type === 'TEXTBOX') {
+        // Select (so the strip targets it) WITHOUT opening the deck, then drop
+        // into the on-canvas edit session (ADR 0034 §1).
+        uiState.actions.setItemControls(
+          { type: 'TEXTBOX', id: item.id },
+          { openPanel: false }
+        );
+        uiState.actions.setEditingTextBoxId(item.id);
+        return;
+      }
       // openPanel defaults true → mounts the Properties dock.
       const controls: ItemControls =
         item.type === 'CONNECTOR'

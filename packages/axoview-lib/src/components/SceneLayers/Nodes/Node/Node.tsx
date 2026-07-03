@@ -153,6 +153,7 @@ export const Node = memo(({ node, order }: Props) => {
           labelBold={node.labelBold}
           labelItalic={node.labelItalic}
           labelStrikethrough={node.labelStrikethrough}
+          labelUnderline={node.labelUnderline}
         />
       </NodeTransform>
     </NodeShell>
@@ -177,6 +178,7 @@ interface NodeContentProps {
   labelBold?: boolean;
   labelItalic?: boolean;
   labelStrikethrough?: boolean;
+  labelUnderline?: boolean;
 }
 
 const NodeContent = memo(
@@ -188,7 +190,8 @@ const NodeContent = memo(
     labelColor,
     labelBold,
     labelItalic,
-    labelStrikethrough
+    labelStrikethrough,
+    labelUnderline
   }: NodeContentProps) => {
     useRenderProbe('NodeContent', id);
     const modelItem = useModelItem(id);
@@ -380,7 +383,13 @@ const NodeContent = memo(
                         maxWidth: '100%',
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-word',
-                        textDecoration: labelStrikethrough ? 'line-through' : 'none'
+                        textDecoration:
+                          [
+                            labelUnderline ? 'underline' : null,
+                            labelStrikethrough ? 'line-through' : null
+                          ]
+                            .filter(Boolean)
+                            .join(' ') || 'none'
                       }}
                     >
                       {labelText ?? ''}
@@ -395,8 +404,15 @@ const NodeContent = memo(
                           ...(labelColor ? { color: labelColor } : null),
                           ...(labelBold ? { fontWeight: 700 } : null),
                           ...(labelItalic ? { fontStyle: 'italic' } : null),
-                          ...(labelStrikethrough
-                            ? { textDecoration: 'line-through' }
+                          ...(labelStrikethrough || labelUnderline
+                            ? {
+                                textDecoration: [
+                                  labelUnderline ? 'underline' : null,
+                                  labelStrikethrough ? 'line-through' : null
+                                ]
+                                  .filter(Boolean)
+                                  .join(' ')
+                              }
                             : null)
                         }}
                       >

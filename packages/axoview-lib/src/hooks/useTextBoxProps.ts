@@ -93,24 +93,19 @@ const richTextStyles = {
 
 export const useTextBoxProps = (textBox: TextBox) => {
   const fontProps = useMemo(() => {
+    // ADR 0034 §4: the legacy element-level isBold/isItalic/isUnderline flags
+    // are no longer applied here — content HTML is the single formatting layer
+    // (legacy true flags are folded into content at load, foldTextBoxStyleFlags).
     return {
       fontSize:
         UNPROJECTED_TILE_SIZE * (textBox.fontSize ?? TEXTBOX_DEFAULTS.fontSize),
       fontFamily: DEFAULT_FONT_FAMILY,
-      fontWeight: textBox.isBold ? 700 : TEXTBOX_FONT_WEIGHT,
-      fontStyle: textBox.isItalic ? 'italic' : 'normal',
-      textDecoration: textBox.isUnderline ? 'underline' : 'none',
+      fontWeight: TEXTBOX_FONT_WEIGHT,
       color: textBox.color || 'inherit',
       lineHeight: 1.3,
       ...richTextStyles
     };
-  }, [
-    textBox.fontSize,
-    textBox.isBold,
-    textBox.isItalic,
-    textBox.isUnderline,
-    textBox.color
-  ]);
+  }, [textBox.fontSize, textBox.color]);
 
   const paddingX = useMemo(() => {
     return UNPROJECTED_TILE_SIZE * TEXTBOX_PADDING;

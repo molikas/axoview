@@ -375,10 +375,13 @@ export interface UiState {
    * isn't drawn twice. UI-only, never persisted.
    */
   inlineEditLabelId: string | null;
-  /** Set on placement so a just-created text box drops into inline edit on
-   *  MOUNT (store-based, not a one-shot event, so it can't race the newly
-   *  created box's mount). Consumed + cleared by the box. UI-only. */
-  inlineEditTextBoxId: string | null;
+  /** The text box currently being edited inline on canvas (ADR 0034), or null.
+   *  Store-based (not a one-shot event) so place-and-type can't race the newly
+   *  created box's mount. While set, the Renderer promotes that box ABOVE the
+   *  interactions box so the editor receives pointer events, and the strip's
+   *  text controls target the live editor. Cleared on commit/cancel. UI-only,
+   *  never persisted. */
+  editingTextBoxId: string | null;
   /** Ephemeral annotation overlay (ADR 0014). Never persisted. */
   annotation: AnnotationState;
 }
@@ -537,8 +540,10 @@ export interface UiStateActions {
   ) => void;
   /** Enter / leave inline-edit for a floating Label (double-click / F2). */
   setInlineEditLabelId: (id: string | null) => void;
-  /** Flag a just-placed text box to enter inline edit on mount (place-and-type). */
-  setInlineEditTextBoxId: (id: string | null) => void;
+  /** Enter (id) / leave (null) the on-canvas rich-text edit session for a text
+   *  box (ADR 0034). Set by place-and-type, double-click, F2 and context-menu
+   *  Rename; cleared by the editor's commit/cancel. */
+  setEditingTextBoxId: (id: string | null) => void;
   // --- Annotation overlay (ADR 0014) ---
   setAnnotationOpen: (open: boolean) => void;
   setAnnotationTool: (tool: AnnotationTool) => void;

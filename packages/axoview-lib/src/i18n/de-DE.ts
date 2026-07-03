@@ -326,10 +326,13 @@ const locale: LocaleProps = {
     iconSize: 'Symbolgröße',
     textColor: 'Textfarbe',
     textColorDisabled:
-      'Wählen Sie einen Knoten, Text oder eine Verbindungsbeschriftung, um die Textfarbe festzulegen',
+      'Wählen Sie einen Knoten, ein Textfeld, eine Beschriftung oder eine Verbindungsbeschriftung, um die Textfarbe festzulegen',
     textSizeDisabled:
-      'Wählen Sie einen Knoten, Text oder eine Verbindungsbeschriftung, um die Textgröße festzulegen',
+      'Wählen Sie einen Knoten, ein Textfeld, eine Beschriftung oder eine Verbindungsbeschriftung, um die Textgröße festzulegen',
     labelSizeAllSelected: 'Beschriftungsgröße (alle ausgewählten)',
+    textColorAllSelected: 'Textfarbe (alle ausgewählten)',
+    armedToolPlaceFirst:
+      'Das neue Element nutzt die Standard-Formatierung — platzieren Sie es zuerst und gestalten Sie es dann hier',
     decreaseLabelSize: 'Beschriftungsgröße verringern',
     increaseLabelSize: 'Beschriftungsgröße erhöhen',
     labelSize: 'Beschriftungsgröße',
@@ -339,10 +342,15 @@ const locale: LocaleProps = {
     size: 'Größe',
     bold: 'Fett',
     italic: 'Kursiv',
+    underline: 'Unterstrichen',
     strikethrough: 'Durchgestrichen',
-    format: 'Fett / kursiv / durchgestrichen',
+    format: 'Fett / kursiv / unterstrichen / durchgestrichen',
     formatDisabled:
-      'Wählen Sie einen Knoten, eine Beschriftung oder eine Verbindungsbeschriftung (Textfelder werden über Rich-Text formatiert)',
+      'Wählen Sie einen Knoten, ein Textfeld, eine Beschriftung oder eine Verbindungsbeschriftung, um Text zu formatieren',
+    lists: 'Listen',
+    listsDisabled: 'Wählen Sie ein Textfeld, um Listen zu verwenden',
+    bulletList: 'Aufzählungsliste',
+    numberedList: 'Nummerierte Liste',
     background: 'Hintergrundfarbe',
     backgroundDisabled:
       'Wählen Sie ein Rechteck oder eine Beschriftung, um die Hintergrundfarbe festzulegen',
@@ -355,6 +363,9 @@ const locale: LocaleProps = {
     link: 'Link',
     linkDisabled:
       'Wählen Sie einen Knoten, eine Verbindung oder eine Beschriftung, um einen Link hinzuzufügen',
+    linkSelection: 'Ausgewählten Text verlinken',
+    linkDisabledTextBox:
+      'Wählen Sie beim Bearbeiten Text aus, um einen Link hinzuzufügen',
     linkToWeb: 'Link zum Web',
     webLinkPlaceholder: 'https://…',
     linkToDiagram: 'Link zum Diagramm',
@@ -363,11 +374,12 @@ const locale: LocaleProps = {
     showLabel: 'Beschriftung anzeigen',
     hideLabel: 'Beschriftung ausblenden',
     showHideLabelDisabled:
-      'Wählen Sie einen Knoten, um seine Beschriftung ein- oder auszublenden',
+      'Wählen Sie einen Knoten oder eine Verbindung, um die Beschriftung ein- oder auszublenden',
     changeIconBulk: 'Symbol ändern gilt jeweils für einen Knoten',
     changeIcon: 'Symbol ändern',
     changeIconDisabled: 'Wählen Sie einen Knoten, um sein Symbol zu ändern',
-    iconSizeBulk: 'Symbolgröße gilt jeweils für einen Knoten',
+    iconSizeBulk:
+      'Symbolgröße bearbeitet jeweils ein Symbol (skaliert alle Knoten mit diesem Symbol)',
     iconSizeDisabled:
       'Wählen Sie einen Knoten, um seine Symbolgröße zu ändern',
     connectionColorPredraw: 'Farbe für die nächste Verbindung, die Sie zeichnen',
@@ -385,11 +397,7 @@ const locale: LocaleProps = {
     textDirectionDisabled:
       'Wählen Sie ein Textfeld, um seine Richtung festzulegen',
     textDirectionX: 'Textrichtung X',
-    textDirectionY: 'Textrichtung Y',
-    richTextBulk: 'Rich-Text bearbeitet jeweils ein Textfeld',
-    richText: 'Rich-Text',
-    richTextDisabled: 'Wählen Sie ein Textfeld, um Rich-Text zu bearbeiten',
-    text: 'Text'
+    textDirectionY: 'Textrichtung Y'
   },
   labelColorPicker: {
     customColor: 'Benutzerdefinierte Farbe'

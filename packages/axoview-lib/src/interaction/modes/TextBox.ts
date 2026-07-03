@@ -65,8 +65,9 @@ export const TextBox: ModeActions = {
       showCursor: true,
       mousedownItem: null
     });
-    // Flag the just-placed box to enter inline edit when it mounts (store-based,
-    // so it can't race the box's mount the way a one-shot event would).
-    uiState.actions.setInlineEditTextBoxId?.(id);
+    // Open the on-canvas edit session for the just-placed box (store-based, so
+    // it can't race the box's mount the way a one-shot event would). The box
+    // renders its inline editor while editingTextBoxId points at it (ADR 0034).
+    uiState.actions.setEditingTextBoxId?.(id);
   }
 };

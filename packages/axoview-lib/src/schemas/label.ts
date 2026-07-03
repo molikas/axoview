@@ -27,10 +27,12 @@ export const labelSchema = z.object({
   // globalAlpha around the chip fill only (text + border stay opaque).
   // Optional → zero-migration addition.
   backgroundOpacity: z.number().min(0).max(1).optional(),
-  // Whole-chip text style (ADR 0033 B/I/S field convention).
+  // Whole-chip text style (ADR 0033 B/I/S field convention; underline added
+  // 2026-07-03 per ADR 0034 O1 — optional, zero-migration).
   isBold: z.boolean().optional(),
   isItalic: z.boolean().optional(),
   isStrikethrough: z.boolean().optional(),
+  isUnderline: z.boolean().optional(),
   // Stacking order WITHIN the Label layer (send-to-front/back). Absent = 0.
   // Cross-layer order vs nodes is structural (the layer mounts above
   // NodesCanvas — ADR 0031 §2), not expressed here.

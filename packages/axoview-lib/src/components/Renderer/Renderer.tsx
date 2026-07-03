@@ -243,6 +243,25 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   // CSS-preview re-render) instead of a per-frame model write redrawing the whole
   // canvas. A primitive id selector → re-renders only on label-drag start/end.
   const labelDragId = useUiStateStore((s) => s.labelDrag?.id ?? null);
+  // ADR 0034: the text box being edited inline is promoted ABOVE the
+  // interactions box (same reasoning as the hybrid nodes / label hit layers —
+  // below it "the box ate every press"), so its Quill editor receives pointer
+  // events. The lower TextBoxes layer skips it so it isn't drawn twice.
+  const editingTextBoxId = useUiStateStore((s) => s.editingTextBoxId);
+  const restingTextBoxes = useMemo(
+    () =>
+      editingTextBoxId
+        ? textBoxes.filter((t) => t.id !== editingTextBoxId)
+        : textBoxes,
+    [textBoxes, editingTextBoxId]
+  );
+  const editingTextBoxes = useMemo(
+    () =>
+      editingTextBoxId
+        ? textBoxes.filter((t) => t.id === editingTextBoxId)
+        : null,
+    [textBoxes, editingTextBoxId]
+  );
 
   const hybridIds = useMemo(() => {
     if (!selectedNodeId && !draggingKey && !labelDragId) return null;
@@ -380,7 +399,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
         <Connectors connectors={visibleConnectors} currentView={currentView} />
       </SceneLayer>
       <SceneLayer>
-        <TextBoxes textBoxes={textBoxes} />
+        <TextBoxes textBoxes={restingTextBoxes} />
       </SceneLayer>
       {enableDebugTools && (
         <SceneLayer>
@@ -422,6 +441,14 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
       {hybridNodes.length > 0 && (
         <SceneLayer>
           <Nodes nodes={hybridNodes} />
+        </SceneLayer>
+      )}
+      {/* The inline-edited text box (ADR 0034) — promoted above the
+          interactions box for the duration of the edit session so the mounted
+          Quill editor owns its pointer events. */}
+      {editingTextBoxes && editingTextBoxes.length > 0 && (
+        <SceneLayer>
+          <TextBoxes textBoxes={editingTextBoxes} />
         </SceneLayer>
       )}
       <SceneLayer>

@@ -1,16 +1,14 @@
-import React, { useMemo, memo, useCallback, useEffect, useState } from 'react';
+import React, { useMemo, memo, useCallback, useEffect } from 'react';
 import { Box, Typography } from '@mui/material';
 import { toPx, CoordsUtils } from 'src/utils';
-import { decodeHtmlEntities } from 'src/utils/htmlToPlainText';
-import { stripHtmlTags } from 'src/utils/stripHtml';
 import { sanitizeHtml } from 'src/utils/sanitizeHtml';
 import { useIsoProjection } from 'src/hooks/useIsoProjection';
 import { useTextBoxProps } from 'src/hooks/useTextBoxProps';
 import { useSceneData } from 'src/hooks/useSceneData';
 import { useSceneActions } from 'src/hooks/useSceneActions';
-import { useInlineRename } from 'src/hooks/useInlineRename';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
+import { TextBoxInlineEditor } from './TextBoxInlineEditor';
 
 const INLINE_EDIT_EVENT = 'inlineEditNodeName';
 
@@ -29,21 +27,6 @@ interface Props {
   textBox: ReturnType<typeof useSceneData>['textBoxes'][0];
 }
 
-// Strip HTML tags so existing rich-text content can be edited as plain text inline.
-// Rich editing remains available via the side panel.
-const htmlToPlain = (s: string | undefined): string => {
-  if (!s) return '';
-  // Block tags → newlines (preserve line breaks), then strip the rest via the
-  // shared FIXPOINT stripper and decode entities (A1 converge — also covers
-  // &#39;/&quot;/numeric). The fixpoint strip (vs a single `/<[^>]*>/g` pass)
-  // can't leave a reassembled tag behind, clearing CodeQL
-  // js/incomplete-multi-character-sanitization on this path.
-  const withBreaks = s
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n');
-  return decodeHtmlEntities(stripHtmlTags(withBreaks)).replace(/\n+$/, '');
-};
-
 export const TextBox = memo(({ textBox }: Props) => {
   const { paddingX, fontProps } = useTextBoxProps(textBox);
   const editorMode = useUiStateStore((s) => s.editorMode);
@@ -51,58 +34,50 @@ export const TextBox = memo(({ textBox }: Props) => {
   // not re-render on every scene mutation just to hold updateTextBox (perf A-1).
   const { updateTextBox } = useSceneActions();
   const isEditable = editorMode === 'EDITABLE';
-  const inlineEditTextBoxId = useUiStateStore((s) => s.inlineEditTextBoxId);
   const uiActions = useUiStateStore((s) => s.actions);
-  const [isEditing, setIsEditing] = useState(false);
+  // The on-canvas edit session is store state (ADR 0034): while set, the
+  // Renderer promotes this box ABOVE the interactions box (so the editor gets
+  // pointer events) and the strip's text cluster targets the live editor. That
+  // promotion re-parents this component mid-session — which is exactly why the
+  // flag must live in the store, not component state.
+  const isEditing = useUiStateStore(
+    (s) => s.editingTextBoxId === textBox.id && isEditable
+  );
 
+  // F2 / context-menu Rename entry point (nodes and connectors share the event).
   useEffect(() => {
-    if (!isEditable) return;
+    if (!isEditable) return undefined;
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ id: string }>).detail;
-      if (detail?.id === textBox.id) setIsEditing(true);
+      if (detail?.id === textBox.id) uiActions.setEditingTextBoxId(textBox.id);
     };
     window.addEventListener(INLINE_EDIT_EVENT, handler);
     return () => window.removeEventListener(INLINE_EDIT_EVENT, handler);
-  }, [textBox.id, isEditable]);
-
-  // Place-and-type: a text box created via placement is flagged in the store
-  // (inlineEditTextBoxId) rather than by a one-shot event, so it reliably drops
-  // into inline edit when it mounts — an event dispatched from the placement
-  // handler would race the newly created box's mount. Consume the flag once.
-  useEffect(() => {
-    if (isEditable && inlineEditTextBoxId === textBox.id) {
-      setIsEditing(true);
-      uiActions.setInlineEditTextBoxId(null);
-    }
-  }, [inlineEditTextBoxId, textBox.id, isEditable, uiActions]);
+  }, [textBox.id, isEditable, uiActions]);
 
   const startInlineEdit = useCallback(
     (e: React.MouseEvent) => {
       if (!isEditable) return;
       e.stopPropagation();
       e.preventDefault();
-      setIsEditing(true);
+      uiActions.setEditingTextBoxId(textBox.id);
     },
-    [isEditable]
+    [isEditable, uiActions, textBox.id]
   );
 
   const commit = useCallback(
-    (raw: string) => {
-      const next = raw.trim();
-      if (next !== (textBox.content ?? '')) {
-        updateTextBox(textBox.id, { content: next });
+    (html: string) => {
+      if (html !== (textBox.content ?? '')) {
+        updateTextBox(textBox.id, { content: html });
       }
-      setIsEditing(false);
+      uiActions.setEditingTextBoxId(null);
     },
-    [updateTextBox, textBox.id, textBox.content]
+    [updateTextBox, textBox.id, textBox.content, uiActions]
   );
 
-  const inlineRename = useInlineRename({
-    active: isEditing,
-    commit,
-    cancel: () => setIsEditing(false),
-    multiline: true
-  });
+  const cancel = useCallback(() => {
+    uiActions.setEditingTextBoxId(null);
+  }, [uiActions]);
 
   const { strategy } = useCanvasMode();
 
@@ -177,32 +152,13 @@ export const TextBox = memo(({ textBox }: Props) => {
         }}
       >
         {isEditing ? (
-          <Typography
-            contentEditable
-            suppressContentEditableWarning
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
-            onDoubleClick={(e) => e.stopPropagation()}
-            onBlur={inlineRename.onBlur}
-            onKeyDown={inlineRename.onKeyDown}
-            ref={inlineRename.setRef}
-            sx={{
-              ...fontProps,
-              outline: '1px solid rgba(0,0,0,0.3)',
-              borderRadius: 1,
-              px: 0.75,
-              bgcolor: '#fff',
-              minWidth: 20,
-              cursor: 'text',
-              display: 'inline-block',
-              width: 'max-content',
-              maxWidth: '100%',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word'
-            }}
-          >
-            {htmlToPlain(textBox.content)}
-          </Typography>
+          <TextBoxInlineEditor
+            textBoxId={textBox.id}
+            content={textBox.content}
+            fontProps={fontProps}
+            onCommit={commit}
+            onCancel={cancel}
+          />
         ) : (
           <Typography
             sx={{

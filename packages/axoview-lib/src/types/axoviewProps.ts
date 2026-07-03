@@ -303,6 +303,8 @@ export interface LocaleProps {
     textColorDisabled: string;
     textSizeDisabled: string;
     labelSizeAllSelected: string;
+    textColorAllSelected: string;
+    armedToolPlaceFirst: string;
     decreaseLabelSize: string;
     increaseLabelSize: string;
     labelSize: string;
@@ -312,9 +314,14 @@ export interface LocaleProps {
     size: string;
     bold: string;
     italic: string;
+    underline: string;
     strikethrough: string;
     format: string;
     formatDisabled: string;
+    lists: string;
+    listsDisabled: string;
+    bulletList: string;
+    numberedList: string;
     background: string;
     backgroundDisabled: string;
     opacity: string;
@@ -325,6 +332,8 @@ export interface LocaleProps {
     borderColor: string;
     link: string;
     linkDisabled: string;
+    linkSelection: string;
+    linkDisabledTextBox: string;
     linkToWeb: string;
     webLinkPlaceholder: string;
     linkToDiagram: string;
@@ -351,10 +360,6 @@ export interface LocaleProps {
     textDirectionDisabled: string;
     textDirectionX: string;
     textDirectionY: string;
-    richTextBulk: string;
-    richText: string;
-    richTextDisabled: string;
-    text: string;
   };
   rectangleControls: {
     close: string;

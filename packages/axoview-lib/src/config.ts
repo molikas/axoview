@@ -60,10 +60,11 @@ export const VIEW_ITEM_DEFAULTS: Required<
     | 'offset'
     | 'snap'
     | 'collides'
-    // Label B/I/S default to absent (unstyled); lean-save omits them.
+    // Label B/I/U/S default to absent (unstyled); lean-save omits them.
     | 'labelBold'
     | 'labelItalic'
     | 'labelStrikethrough'
+    | 'labelUnderline'
     // labelFontSize defaults to ABSENT so a new node renders at the single
     // source of truth — LABEL_BASE_FONT_PX (18) — instead of baking a stale 14
     // into every created node (which made the 2026-07-01 default bump a no-op
@@ -121,7 +122,20 @@ export const CONNECTOR_SEARCH_OFFSET = { x: 1, y: 1 };
 export const TEXTBOX_DEFAULTS: Required<
   Omit<
     TextBox,
-    'id' | 'tile' | 'layerId' | 'name' | 'notes' | 'offset' | 'snap' | 'collides'
+    | 'id'
+    | 'tile'
+    | 'layerId'
+    | 'name'
+    | 'notes'
+    | 'offset'
+    | 'snap'
+    | 'collides'
+    // Legacy element-level style flags (ADR 0034 §4): folded into content at
+    // load, never written at creation — content HTML is the single formatting
+    // layer. Kept in the schema for round-trip only.
+    | 'isBold'
+    | 'isItalic'
+    | 'isUnderline'
   >
 > = {
   orientation: 'X',
@@ -130,10 +144,7 @@ export const TEXTBOX_DEFAULTS: Required<
   // the saved model as user-editable text. Translating it would bake localized
   // text into persisted JSON (i18n L2 rule: translate at render, never persist).
   content: 'Text',
-  color: '',
-  isBold: false,
-  isItalic: false,
-  isUnderline: false
+  color: ''
 };
 
 // "Label" element preset (the Common deck) — a floating billboard chip (ADR
@@ -155,6 +166,7 @@ export const LABEL_DEFAULTS: Required<
     | 'isBold'
     | 'isItalic'
     | 'isStrikethrough'
+    | 'isUnderline'
     | 'zIndex'
     | 'headerLink'
     | 'notes'
