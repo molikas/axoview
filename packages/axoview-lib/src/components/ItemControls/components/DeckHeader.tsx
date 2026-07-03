@@ -1,23 +1,24 @@
 import React from 'react';
 import { Box, IconButton, Tooltip, Typography } from '@mui/material';
+import { Close as CloseIcon } from '@mui/icons-material';
 import {
-  Close as CloseIcon,
-  CropSquareOutlined,
-  TextFieldsOutlined,
-  LabelOutlined,
-  TimelineOutlined
-} from '@mui/icons-material';
+  RectangleSvg,
+  TextSvg,
+  LabelSvg,
+  ConnectorSvg
+} from '../../elementTypeIcons';
 
 type DeckType = 'RECTANGLE' | 'TEXTBOX' | 'LABEL' | 'CONNECTOR';
 
-// One icon per element type, chosen to read at a glance (square = rectangle,
-// "Aa" = text, tag = label, path = connector). A node passes its OWN icon via
-// `iconNode` instead, so the header mirrors what's on the canvas.
+// One icon per element type — the SAME shared thumbnails the Elements panel uses
+// (LeftDock/CommonElements), so a type's icon is identical wherever the type is
+// named. A node passes its OWN icon via `iconNode` instead, so the header mirrors
+// what's on the canvas.
 const TYPE_ICON: Record<DeckType, React.ReactNode> = {
-  RECTANGLE: <CropSquareOutlined />,
-  TEXTBOX: <TextFieldsOutlined />,
-  LABEL: <LabelOutlined />,
-  CONNECTOR: <TimelineOutlined />
+  RECTANGLE: <RectangleSvg size={18} />,
+  TEXTBOX: <TextSvg size={18} />,
+  LABEL: <LabelSvg size={18} />,
+  CONNECTOR: <ConnectorSvg size={18} />
 };
 
 interface Props {
@@ -62,7 +63,7 @@ export const DeckHeader = ({
             display: 'flex',
             alignItems: 'center',
             color: 'text.secondary',
-            '& svg': { fontSize: 18 },
+            '& svg': { display: 'block' },
             '& img': { width: 18, height: 18 }
           }}
         >
