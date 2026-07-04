@@ -8,6 +8,17 @@ import { NodeTransformControls } from './NodeTransformControls';
 export const TransformControlsManager = () => {
   const itemControls = useUiStateStore((state) => state.itemControls);
   const selectedIds = useUiStateStore((state) => state.selectedIds);
+  const modeType = useUiStateStore((state) => state.mode.type);
+
+  // Hide selection chrome while a move is in flight (owner 2026-07-04): the
+  // drag is a CSS-only preview (DragItems, RECT-1) — the model tile doesn't
+  // change until mouseup, so the bounds/anchors would sit frozen at the
+  // ORIGIN tile while the item follows the cursor ("the resize box stays in
+  // the original place"). Lucid/Figma hide handles mid-drag too; they return
+  // wherever the selection lands after the drop.
+  if (modeType === 'DRAG_ITEMS') {
+    return null;
+  }
 
   // Multi-selection: render an outline for each selected item (no anchor
   // handlers — bulk-resize is out of scope per the MQA #8/#9 plan). ADR-0006.
