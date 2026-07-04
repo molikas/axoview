@@ -302,6 +302,10 @@ const locale: LocaleProps = {
     line2: 'Garis 2'
   },
   textBoxControls: {
+    linkCopy: 'Salin tautan',
+    linkCopied: 'Disalin',
+    linkEdit: 'Edit tautan',
+    linkRemove: 'Hapus tautan',
     placeholder: 'Ketik sesuatu',
     metadata: 'Metadata',
     notes: 'Catatan',

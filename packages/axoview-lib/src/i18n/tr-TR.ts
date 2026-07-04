@@ -304,6 +304,10 @@ const locale: LocaleProps = {
     line2: 'Çizgi 2'
   },
   textBoxControls: {
+    linkCopy: 'Bağlantıyı kopyala',
+    linkCopied: 'Kopyalandı',
+    linkEdit: 'Bağlantıyı düzenle',
+    linkRemove: 'Bağlantıyı kaldır',
     placeholder: 'Bir şeyler yazın',
     metadata: 'Meta veriler',
     notes: 'Notlar',

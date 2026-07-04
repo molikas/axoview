@@ -296,6 +296,12 @@ export interface LocaleProps {
     // Inline-editor ghost text for an EMPTY on-canvas text box (ADR 0034
     // addendum 2026-07-03) — display-only, never persisted.
     placeholder: string;
+    // Docs-style link card over linked text in the on-canvas editor
+    // (ADR 0034 addendum 2026-07-04).
+    linkCopy: string;
+    linkCopied: string;
+    linkEdit: string;
+    linkRemove: string;
   };
   topBarStyleControls: {
     noColor: string;

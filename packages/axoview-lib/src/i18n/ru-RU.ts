@@ -303,6 +303,10 @@ const locale: LocaleProps = {
     line2: 'Линия 2'
   },
   textBoxControls: {
+    linkCopy: 'Копировать ссылку',
+    linkCopied: 'Скопировано',
+    linkEdit: 'Изменить ссылку',
+    linkRemove: 'Удалить ссылку',
     placeholder: 'Введите текст',
     metadata: 'Метаданные',
     notes: 'Заметки',

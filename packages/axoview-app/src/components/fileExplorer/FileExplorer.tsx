@@ -139,6 +139,7 @@ export function FileExplorer() {
   const [pendingNew, setPendingNew] = useState<PendingNew | null>(null);
   const [contextMenuAnchor, setContextMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [contextMenuNode, setContextMenuNode] = useState<FileNode | null>(null);
+  const [contextMenuOrigin, setContextMenuOrigin] = useState<'row' | 'empty'>('row');
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirm | null>(null);
   const [collisionDialog, setCollisionDialog] = useState<CollisionDialog | null>(null);
   // ADR 0011 — share-link creation failure from the file-tree context menu (a
@@ -192,13 +193,14 @@ export function FileExplorer() {
     e.stopPropagation();
     setContextMenuAnchor({ x: e.clientX, y: e.clientY });
     setContextMenuNode(node);
+    setContextMenuOrigin('row');
   }, []);
 
-  // Right-click on the tree's EMPTY space targets the selected node — or the
-  // open diagram when nothing is tree-selected — instead of surfacing the
-  // browser menu (owner 2026-07-04: "I have to precisely click on the diagram
-  // name"). Rows stop propagation in handleContextMenu, so this only fires
-  // between/below rows. With nothing to act on, the browser menu stays.
+  // Right-click on the tree's EMPTY space (VS Code convention, owner
+  // 2026-07-04): the menu targets the selected node — or the open diagram
+  // when nothing is tree-selected — plus the create actions (New diagram /
+  // New folder / Refresh), which render even with no target at all. Rows stop
+  // propagation in handleContextMenu, so this only fires between/below rows.
   const handleEmptySpaceContextMenu = useCallback(
     (e: React.MouseEvent) => {
       const findById = (nodes: FileNode[], id: string): FileNode | null => {
@@ -214,12 +216,28 @@ export function FileExplorer() {
         (selectedNode && findById(tree.treeData, selectedNode.id)) ||
         (currentDiagram && findById(tree.treeData, currentDiagram.id)) ||
         null;
-      if (!target) return;
       e.preventDefault();
       setContextMenuAnchor({ x: e.clientX, y: e.clientY });
       setContextMenuNode(target);
+      setContextMenuOrigin('empty');
     },
     [selectedNode, currentDiagram, tree.treeData]
+  );
+
+  // Create from the context menu: a folder row creates INSIDE that folder
+  // (auto-expanded so the inline-rename pending row is visible); the empty
+  // space creates at the ROOT — VS Code semantics, deliberately not the
+  // toolbar buttons' selection-relative folder.
+  const handleNewFromMenu = useCallback(
+    (type: 'diagram' | 'folder') => {
+      const target =
+        contextMenuOrigin === 'row' && contextMenuNode?.type === 'folder'
+          ? contextMenuNode.id
+          : null;
+      if (target) treeRef.current?.open(target);
+      setPendingNew({ type, parentId: target });
+    },
+    [contextMenuOrigin, contextMenuNode]
   );
 
   const closeContextMenu = useCallback(() => {
@@ -641,10 +659,14 @@ export function FileExplorer() {
             : undefined
         }
       >
-        {contextMenuNode && (
+        {contextMenuAnchor && (
           <ContextMenuItems
             node={contextMenuNode}
+            origin={contextMenuOrigin}
             canShare={serverStorageAvailable}
+            onNewDiagram={() => handleNewFromMenu('diagram')}
+            onNewFolder={() => handleNewFromMenu('folder')}
+            onRefresh={() => tree.refresh()}
             onOpen={() => { if (contextMenuNode) handleOpenDiagram(contextMenuNode); }}
             onRename={() => contextMenuNode && handleRenameNode(contextMenuNode)}
             onDuplicate={() => contextMenuNode && handleDuplicate(contextMenuNode)}

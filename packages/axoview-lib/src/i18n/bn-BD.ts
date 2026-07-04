@@ -302,6 +302,10 @@ const locale: LocaleProps = {
     line2: 'লাইন ২'
   },
   textBoxControls: {
+    linkCopy: 'লিঙ্ক কপি করুন',
+    linkCopied: 'কপি হয়েছে',
+    linkEdit: 'লিঙ্ক সম্পাদনা করুন',
+    linkRemove: 'লিঙ্ক সরান',
     placeholder: 'কিছু লিখুন',
     metadata: 'মেটাডেটা',
     notes: 'নোট',

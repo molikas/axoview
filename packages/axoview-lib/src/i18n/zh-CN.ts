@@ -281,6 +281,10 @@ const locale: LocaleProps = {
     line2: '线条 2'
   },
   textBoxControls: {
+    linkCopy: '复制链接',
+    linkCopied: '已复制',
+    linkEdit: '编辑链接',
+    linkRemove: '移除链接',
     placeholder: '输入文字',
     metadata: '元数据',
     notes: '备注',

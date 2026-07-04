@@ -17,8 +17,30 @@
 import {
   OPEN_LINK_POPOVER_EVENT,
   expandToWord,
-  buildLinkShortcutBinding
+  buildLinkShortcutBinding,
+  normalizeWebLinkUrl
 } from 'src/utils/quillLinkShortcut';
+
+describe('normalizeWebLinkUrl', () => {
+  it('prepends https:// to a bare domain (Docs forgiveness)', () => {
+    expect(normalizeWebLinkUrl('google.com')).toBe('https://google.com');
+    expect(normalizeWebLinkUrl('  example.com/docs ')).toBe(
+      'https://example.com/docs'
+    );
+  });
+
+  it.each(['https://x.io', 'http://x.io', 'mailto:a@b.c', 'tel:+123', '#anchor'])(
+    'keeps %j as-is',
+    (url) => {
+      expect(normalizeWebLinkUrl(url)).toBe(url);
+    }
+  );
+
+  it('returns null for blank input (callers remove the link)', () => {
+    expect(normalizeWebLinkUrl('')).toBeNull();
+    expect(normalizeWebLinkUrl('   ')).toBeNull();
+  });
+});
 
 describe('expandToWord', () => {
   it('expands a caret inside a word to the full word', () => {

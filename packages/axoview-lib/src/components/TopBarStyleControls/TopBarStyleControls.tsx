@@ -78,7 +78,11 @@ import {
   getEffectiveEditorRange,
   subscribeTextBoxEditor
 } from '../SceneLayers/TextBoxes/textBoxEditorBridge';
-import { OPEN_LINK_POPOVER_EVENT } from 'src/utils/quillLinkShortcut';
+import {
+  OPEN_LINK_POPOVER_EVENT,
+  CLOSE_LINK_POPOVER_EVENT,
+  normalizeWebLinkUrl
+} from 'src/utils/quillLinkShortcut';
 
 // Shortcut hint for the Link tooltips (Ctrl/Cmd+K, the Docs convention —
 // owner 2026-07-04). Keyboard shortcut names are not translated.
@@ -168,6 +172,9 @@ interface StripButtonProps {
   /** Open programmatically when this window event fires (e.g. Ctrl+K routing
    *  to the Link popover). Anchored at the button, exactly like a click. */
   openEvent?: string;
+  /** Close programmatically on this window event (e.g. the range-link field
+   *  applying on Enter — Docs closes its dialog on apply). */
+  closeEvent?: string;
   children: React.ReactNode;
 }
 
@@ -184,6 +191,7 @@ const StripButton = ({
   testId,
   highlight,
   openEvent,
+  closeEvent,
   children
 }: StripButtonProps) => {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -203,6 +211,13 @@ const StripButton = ({
     window.addEventListener(openEvent, open);
     return () => window.removeEventListener(openEvent, open);
   }, [openEvent]);
+
+  useEffect(() => {
+    if (!closeEvent) return undefined;
+    const close = () => setAnchorEl(null);
+    window.addEventListener(closeEvent, close);
+    return () => window.removeEventListener(closeEvent, close);
+  }, [closeEvent]);
 
   return (
     <>
@@ -482,17 +497,27 @@ type VerticalAlign = 'top' | 'middle' | 'bottom';
 // stale the moment focus moves into this popover (the editor selection is
 // gone) — every keystroke rendered back as '' ("typing doesn't register") and
 // each partial URL was immediately written onto the range. Local draft
-// instead, applied once on Enter / blur.
+// instead: Enter applies AND commits (Docs closes its dialog on apply); blur
+// applies only when the draft actually changed — MUI's popover focus dance
+// can blur the autoFocused field right on mount, and an unconditional
+// blur-apply of the seed value would fire phantom writes (and, with the
+// commit hook, close the popover before the user ever typed).
 const LinkRangeUrlField = ({
   initial,
   placeholder,
-  onApply
+  onApply,
+  onCommit
 }: {
   initial: string;
   placeholder: string;
   onApply: (value: string) => void;
+  /** Enter only — close the popover and hand focus back to the editor. */
+  onCommit: () => void;
 }) => {
   const [draft, setDraft] = useState(initial);
+  // Enter-apply closes the popover, which unmounts this field and fires a
+  // final blur — the flag keeps that from double-applying.
+  const appliedRef = useRef(false);
   return (
     <TextField
       autoFocus
@@ -504,9 +529,21 @@ const LinkRangeUrlField = ({
       onKeyDown={(e) => {
         // Keep keystrokes out of any global hotkey/editor handlers.
         e.stopPropagation();
-        if (e.key === 'Enter') onApply(draft);
+        if (e.key === 'Enter') {
+          // preventDefault + deferred commit: closing the popover
+          // synchronously inside this keydown moves focus mid-keystroke and
+          // the Enter's default action then lands in the refocused canvas
+          // editor — observed as a phantom newline inserted at index 0,
+          // shifting the just-applied link off its range.
+          e.preventDefault();
+          appliedRef.current = true;
+          onApply(draft);
+          setTimeout(onCommit, 0);
+        }
       }}
-      onBlur={() => onApply(draft)}
+      onBlur={() => {
+        if (!appliedRef.current && draft !== initial) onApply(draft);
+      }}
       data-axoview-id="strip-link-input"
     />
   );
@@ -1259,11 +1296,14 @@ export const TopBarStyleControls = () => {
       const handle = getTextBoxEditor();
       const range = handle?.lastRange;
       if (handle && range && range.length > 0) {
+        // Docs-style URL forgiveness for TEXT links ("google.com" works);
+        // element headerLinks below keep their raw semantics.
+        const normalized = next ? normalizeWebLinkUrl(next) : null;
         handle.quill.formatText(
           range.index,
           range.length,
           'link',
-          next ?? false
+          normalized ?? false
         );
         handle.markChanged();
       }
@@ -1958,6 +1998,7 @@ export const TopBarStyleControls = () => {
         popoverWidth={280}
         testId="strip-link-button"
         openEvent={OPEN_LINK_POPOVER_EVENT}
+        closeEvent={CLOSE_LINK_POPOVER_EVENT}
         icon={<LinkStripIcon sx={{ fontSize: 18 }} />}
         colorBar={undefined}
       >
@@ -1978,6 +2019,29 @@ export const TopBarStyleControls = () => {
                 initial={linkValue ?? ''}
                 placeholder={t('webLinkPlaceholder')}
                 onApply={onLinkChange}
+                onCommit={() => {
+                  // Docs closes the dialog on apply; the caret lands back in
+                  // the linked text so the link card appears as confirmation.
+                  const handle = getTextBoxEditor();
+                  const range = handle && getEffectiveEditorRange(handle);
+                  window.dispatchEvent(
+                    new CustomEvent(CLOSE_LINK_POPOVER_EVENT)
+                  );
+                  requestAnimationFrame(() => {
+                    if (!handle) return;
+                    handle.quill.focus();
+                    if (range) {
+                      // One char INSIDE the link: at the exact start boundary
+                      // getLeaf resolves to the preceding text node and the
+                      // card would not recognise the caret as in-link.
+                      handle.quill.setSelection(
+                        range.index + (range.length > 0 ? 1 : 0),
+                        0,
+                        'user'
+                      );
+                    }
+                  });
+                }}
               />
             ) : (
               <TextField

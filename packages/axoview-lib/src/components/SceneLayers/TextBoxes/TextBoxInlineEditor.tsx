@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box } from '@mui/material';
 import ReactQuill from 'react-quill-new';
+import type { Quill } from 'react-quill-new';
 import { formats } from 'src/components/RichTextEditor/RichTextEditor';
 import { sanitizeHtml } from 'src/utils/sanitizeHtml';
 import {
@@ -17,6 +18,7 @@ import {
   setTextBoxEditorRange,
   unregisterTextBoxEditor
 } from './textBoxEditorBridge';
+import { TextBoxLinkCard } from './TextBoxLinkCard';
 
 interface Props {
   textBoxId: string;
@@ -82,6 +84,11 @@ export const TextBoxInlineEditor = ({
   const quillRef = useRef<ReactQuill | null>(null);
   const changedRef = useRef(false);
   const finishedRef = useRef(false);
+  // Live instance for the link card (set once the mount effect runs).
+  const [quillInstance, setQuillInstance] = useState<Quill | null>(null);
+  const markChanged = useCallback(() => {
+    changedRef.current = true;
+  }, []);
 
   // Seed once per session — sanitized write-side (the editor is an HTML
   // source, ADR 0029), plain-text legacy content escaped so a literal leading
@@ -165,6 +172,7 @@ export const TextBoxInlineEditor = ({
     registerTextBoxEditor(textBoxId, quill, () => {
       changedRef.current = true;
     });
+    setQuillInstance(quill);
     quill.focus();
     quill.setSelection(0, quill.getLength(), 'silent');
     const onSelectionChange = (range: { index: number; length: number } | null) => {
@@ -291,6 +299,11 @@ export const TextBoxInlineEditor = ({
         formats={formats}
         modules={QUILL_MODULES}
       />
+      {/* Docs-style link chip (caret in / hover over a link) — portals to the
+          body, so it renders unrotated above the projected editor. */}
+      {quillInstance && (
+        <TextBoxLinkCard quill={quillInstance} onChanged={markChanged} />
+      )}
     </Box>
   );
 };

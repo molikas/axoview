@@ -328,6 +328,52 @@ test.describe('Textbox text-edit + move — Finding #7 / ADR 0034', () => {
     );
   });
 
+  test('textbox LINK-CARD: apply closes the popover, the Docs-style card confirms, unlink removes (ADR 0034 addendum 2026-07-04)', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const canvas = new CanvasPOM(page);
+
+    const placePixel = await canvas.tileToScreen({ x: 0, y: 0 });
+    await canvas.placeTextBoxAt(placePixel, { keepEditing: true });
+    await expect.poll(() => getViewTextBoxCount(page), { timeout: 5_000 }).toBe(1);
+    const editor = canvas.textBoxInlineEditor();
+    await editor.waitFor({ state: 'visible', timeout: 5_000 });
+    await editor.click({ clickCount: 3 });
+    await page.keyboard.type('visit docs today', { delay: 10 });
+
+    // Ctrl+K → popover; a protocol-less URL is forgiven Docs-style.
+    await page.keyboard.press('Control+k');
+    const urlField = page.locator('[data-axoview-id="strip-link-input"] input');
+    await urlField.waitFor({ state: 'visible', timeout: 5_000 });
+    await urlField.fill('example.com/docs');
+    await urlField.press('Enter');
+
+    // Enter APPLIES + CLOSES the popover; the caret lands back in the linked
+    // text, so the link card appears as confirmation with the normalized URL.
+    const card = page.locator('[data-axoview-id="textbox-link-card"]');
+    await card.waitFor({ state: 'visible', timeout: 5_000 });
+    await expect(
+      page.locator('[data-axoview-id="textbox-link-card-url"]')
+    ).toHaveText('https://example.com/docs');
+    await expect(
+      page.locator('[data-axoview-id="strip-link-input"]')
+    ).toBeHidden();
+
+    // Unlink from the card, then commit — the anchor is gone, the text stays.
+    await page.locator('[data-axoview-id="textbox-link-card-remove"]').click();
+    await card.waitFor({ state: 'detached', timeout: 3_000 });
+    await canvas.commitTextBoxEditor();
+    const content = await expect
+      .poll(async () => (await getFirstTextBox(page))?.content ?? '', {
+        timeout: 3_000
+      })
+      .toContain('today')
+      .then(async () => (await getFirstTextBox(page))!.content);
+    expect(content).not.toContain('<a');
+  });
+
   test('textbox RESIZE: run-axis anchors set a manual width; content wraps and height grows (ADR 0034 addendum)', async ({
     page,
     app

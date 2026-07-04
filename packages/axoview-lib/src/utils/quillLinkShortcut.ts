@@ -20,6 +20,20 @@
  *  selected-item Ctrl+K listener. */
 export const OPEN_LINK_POPOVER_EVENT = 'axoview:open-link-popover';
 
+/** Counterpart close signal (StripButton `closeEvent` prop): Docs closes the
+ *  link dialog on Enter-apply, so the range URL field dispatches this. */
+export const CLOSE_LINK_POPOVER_EVENT = 'axoview:close-link-popover';
+
+/** Docs-style URL forgiveness for TEXT links: "google.com" → "https://...".
+ *  Returns null for blank input (callers treat that as "remove the link").
+ *  Element-level headerLinks keep their raw semantics — this is only for
+ *  links authored on text ranges. */
+export const normalizeWebLinkUrl = (raw: string): string | null => {
+  const value = raw.trim();
+  if (!value) return null;
+  return /^(https?:|mailto:|tel:|#)/i.test(value) ? value : `https://${value}`;
+};
+
 /** Expand a collapsed caret to the whitespace-delimited word around it.
  *  Returns a zero-length range when the caret sits in whitespace. */
 export const expandToWord = (
