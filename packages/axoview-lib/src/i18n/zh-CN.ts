@@ -300,6 +300,7 @@ const locale: LocaleProps = {
     namePlaceholder: '元素名称…'
   },
   topBarStyleControls: {
+    rotate90: '旋转90°',
     noColor: '无颜色',
     customColor: '自定义颜色',
     textSize: '文本大小',
@@ -340,7 +341,7 @@ const locale: LocaleProps = {
     backgroundDisabled: '选择矩形、标签或文本框以设置其背景颜色',
     opacity: '不透明度',
     border: '边框',
-    borderDisabled: '选择矩形以设置其边框',
+    borderDisabled: '选择矩形或文本框以设置其边框',
     lineStyle: '线条样式',
     width: '粗细',
     borderColor: '边框颜色',
@@ -370,10 +371,6 @@ const locale: LocaleProps = {
     lineType: '线条类型',
     showArrow: '显示箭头',
     showDottedLine: '显示虚线',
-    textDirection: '文本方向',
-    textDirectionDisabled: '选择文本框以设置其方向',
-    textDirectionX: '文本方向 X',
-    textDirectionY: '文本方向 Y'
   },
   labelColorPicker: {
     customColor: '自定义颜色'

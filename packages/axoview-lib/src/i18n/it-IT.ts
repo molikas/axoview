@@ -324,6 +324,7 @@ const locale: LocaleProps = {
     namePlaceholder: "Nome dell'elemento…"
   },
   topBarStyleControls: {
+    rotate90: 'Ruota di 90°',
     noColor: 'Nessun colore',
     customColor: 'Colore personalizzato',
     textSize: 'Dimensione testo',
@@ -369,7 +370,7 @@ const locale: LocaleProps = {
       "Seleziona un rettangolo, un'etichetta o una casella di testo per impostarne il colore di sfondo",
     opacity: 'Opacità',
     border: 'Bordo',
-    borderDisabled: 'Seleziona un rettangolo per impostarne il bordo',
+    borderDisabled: 'Seleziona un rettangolo o una casella di testo per impostarne il bordo',
     lineStyle: 'Stile linea',
     width: 'Spessore',
     borderColor: 'Colore bordo',
@@ -404,10 +405,6 @@ const locale: LocaleProps = {
     lineType: 'Tipo di linea',
     showArrow: 'Mostra freccia',
     showDottedLine: 'Mostra linea punteggiata',
-    textDirection: 'Direzione testo',
-    textDirectionDisabled: 'Seleziona una casella di testo per impostarne la direzione',
-    textDirectionX: 'Direzione testo X',
-    textDirectionY: 'Direzione testo Y'
   },
   labelColorPicker: {
     customColor: 'Colore personalizzato'

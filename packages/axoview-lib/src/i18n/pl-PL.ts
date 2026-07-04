@@ -327,6 +327,7 @@ const locale: LocaleProps = {
     namePlaceholder: 'Nazwa elementu…'
   },
   topBarStyleControls: {
+    rotate90: 'Obróć o 90°',
     noColor: 'Brak koloru',
     customColor: 'Kolor niestandardowy',
     textSize: 'Rozmiar tekstu',
@@ -371,7 +372,7 @@ const locale: LocaleProps = {
     backgroundDisabled: 'Zaznacz prostokąt, etykietę lub pole tekstowe, aby ustawić kolor tła',
     opacity: 'Przezroczystość',
     border: 'Obramowanie',
-    borderDisabled: 'Zaznacz prostokąt, aby ustawić jego obramowanie',
+    borderDisabled: 'Zaznacz prostokąt lub pole tekstowe, aby ustawić jego obramowanie',
     lineStyle: 'Styl linii',
     width: 'Grubość',
     borderColor: 'Kolor obramowania',
@@ -405,10 +406,6 @@ const locale: LocaleProps = {
     lineType: 'Typ linii',
     showArrow: 'Pokaż strzałkę',
     showDottedLine: 'Pokaż linię kropkowaną',
-    textDirection: 'Kierunek tekstu',
-    textDirectionDisabled: 'Zaznacz pole tekstowe, aby ustawić jego kierunek',
-    textDirectionX: 'Kierunek tekstu X',
-    textDirectionY: 'Kierunek tekstu Y'
   },
   labelColorPicker: {
     customColor: 'Niestandardowy kolor'

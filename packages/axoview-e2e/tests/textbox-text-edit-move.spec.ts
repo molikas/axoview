@@ -288,7 +288,7 @@ test.describe('Textbox text-edit + move — Finding #7 / ADR 0034', () => {
     await canvas.commitTextBoxEditor();
   });
 
-  test('textbox LINK: Ctrl+K links the word under the caret via the strip popover (ADR 0034 addendum 2026-07-04)', async ({
+  test('textbox LINK: Ctrl+K opens the INLINE card at the word under the caret; Enter applies (ADR 0034 addendum 2026-07-04)', async ({
     page,
     app
   }) => {
@@ -304,18 +304,25 @@ test.describe('Textbox text-edit + move — Finding #7 / ADR 0034', () => {
     await page.keyboard.type('visit docs today', { delay: 10 });
 
     // Caret sits collapsed after 'today' — Ctrl+K expands to the word (Docs
-    // convention) and routes to the strip's Link popover (the canvas editor
-    // has no .ql-tooltip; ADR 0034 §2).
+    // convention) and opens the INLINE link card in edit mode at the text —
+    // NOT the strip popover at the top of the screen (owner 2026-07-04).
     await page.keyboard.press('Control+k');
     // data-axoview-id sits on the MUI TextField ROOT; fill targets the input.
-    const urlField = page.locator('[data-axoview-id="strip-link-input"] input');
-    await urlField.waitFor({ state: 'visible', timeout: 5_000 });
-    await urlField.fill('https://example.com/docs');
-    await urlField.press('Enter');
+    const cardInput = page.locator(
+      '[data-axoview-id="textbox-link-card-input"] input'
+    );
+    await cardInput.waitFor({ state: 'visible', timeout: 5_000 });
+    await expect(
+      page.locator('[data-axoview-id="strip-link-input"]')
+    ).toBeHidden();
+    await cardInput.fill('https://example.com/docs');
+    await cardInput.press('Enter');
 
-    // Commit with the popover still up: the body pointerdown targets neither
-    // the editor nor the popover subtree, so the click-away contract commits
-    // the session regardless of the overlay.
+    // Apply flips the card to view mode over the fresh link.
+    await expect(
+      page.locator('[data-axoview-id="textbox-link-card-url"]')
+    ).toHaveText('https://example.com/docs');
+
     await canvas.commitTextBoxEditor();
     const content = await expect
       .poll(async () => (await getFirstTextBox(page))?.content ?? '', {
@@ -328,7 +335,7 @@ test.describe('Textbox text-edit + move — Finding #7 / ADR 0034', () => {
     );
   });
 
-  test('textbox LINK-CARD: apply closes the popover, the Docs-style card confirms, unlink removes (ADR 0034 addendum 2026-07-04)', async ({
+  test('textbox LINK-CARD: protocol-less URLs are forgiven; unlink removes the anchor (ADR 0034 addendum 2026-07-04)', async ({
     page,
     app
   }) => {
@@ -343,23 +350,21 @@ test.describe('Textbox text-edit + move — Finding #7 / ADR 0034', () => {
     await editor.click({ clickCount: 3 });
     await page.keyboard.type('visit docs today', { delay: 10 });
 
-    // Ctrl+K → popover; a protocol-less URL is forgiven Docs-style.
+    // Create via the inline card; a bare domain is normalized Docs-style.
     await page.keyboard.press('Control+k');
-    const urlField = page.locator('[data-axoview-id="strip-link-input"] input');
-    await urlField.waitFor({ state: 'visible', timeout: 5_000 });
-    await urlField.fill('example.com/docs');
-    await urlField.press('Enter');
+    const cardInput = page.locator(
+      '[data-axoview-id="textbox-link-card-input"] input'
+    );
+    await cardInput.waitFor({ state: 'visible', timeout: 5_000 });
+    await cardInput.fill('example.com/docs');
+    await cardInput.press('Enter');
 
-    // Enter APPLIES + CLOSES the popover; the caret lands back in the linked
-    // text, so the link card appears as confirmation with the normalized URL.
+    // Apply flips the card to VIEW mode over the fresh link, URL normalized.
     const card = page.locator('[data-axoview-id="textbox-link-card"]');
     await card.waitFor({ state: 'visible', timeout: 5_000 });
     await expect(
       page.locator('[data-axoview-id="textbox-link-card-url"]')
     ).toHaveText('https://example.com/docs');
-    await expect(
-      page.locator('[data-axoview-id="strip-link-input"]')
-    ).toBeHidden();
 
     // Unlink from the card, then commit — the anchor is gone, the text stays.
     await page.locator('[data-axoview-id="textbox-link-card-remove"]').click();

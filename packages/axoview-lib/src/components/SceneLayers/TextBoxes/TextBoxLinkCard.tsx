@@ -16,7 +16,10 @@ import {
 import ReactQuill from 'react-quill-new';
 import type { Quill } from 'react-quill-new';
 import { useTranslation } from 'src/stores/localeStore';
-import { normalizeWebLinkUrl } from 'src/utils/quillLinkShortcut';
+import {
+  normalizeWebLinkUrl,
+  EDIT_LINK_AT_SELECTION_EVENT
+} from 'src/utils/quillLinkShortcut';
 
 // Docs-style link chip for the on-canvas editor (ADR 0034 addendum
 // 2026-07-04): Quill's own .ql-tooltip is hidden (it misplaces under the iso
@@ -30,7 +33,12 @@ import { normalizeWebLinkUrl } from 'src/utils/quillLinkShortcut';
 // session.
 
 interface LinkTarget {
-  anchorEl: HTMLAnchorElement;
+  /** The link's <a> when it exists; null while CREATING a link over a plain
+   *  selection (Ctrl+K on unlinked text). */
+  anchorEl: HTMLAnchorElement | null;
+  /** Positioning fallback for the create case: a snapshot of the native
+   *  selection rect, taken before the card's field steals focus. */
+  rect: DOMRect | null;
   url: string;
   index: number;
   length: number;
@@ -98,7 +106,7 @@ export const TextBoxLinkCard = ({ quill, onChanged }: Props) => {
         ) {
           return prev;
         }
-        return { anchorEl: a, url, index, length: blot.length() };
+        return { anchorEl: a, rect: null, url, index, length: blot.length() };
       });
     },
     [quill]
@@ -141,6 +149,52 @@ export const TextBoxLinkCard = ({ quill, onChanged }: Props) => {
       quill.off('editor-change', onEditorChange);
     };
   }, [quill]);
+
+  // Ctrl/Cmd+K (quillLinkShortcut binding): open the card in EDIT mode right
+  // at the selection — create a link over plain text, or edit the one under
+  // the caret. This replaced routing the shortcut to the strip's popover at
+  // the top of the screen (owner 2026-07-04).
+  useEffect(() => {
+    const onEditAtSelection = () => {
+      const range = quill.getSelection();
+      if (!range || range.length === 0) return;
+      const formats = quill.getFormat(range.index, range.length) as {
+        link?: unknown;
+      };
+      const url = typeof formats.link === 'string' ? formats.link : '';
+      // Anchor at the existing <a> when there is one; otherwise snapshot the
+      // native selection rect NOW — it collapses once the field takes focus.
+      const [leaf] = quill.getLeaf(range.index + 1);
+      const dom = (leaf as { domNode?: Node } | null)?.domNode ?? null;
+      const el =
+        dom && dom.nodeType === Node.ELEMENT_NODE
+          ? (dom as Element)
+          : dom?.parentElement ?? null;
+      const a = (el?.closest?.('a') as HTMLAnchorElement | null) ?? null;
+      const sel = window.getSelection();
+      const rect =
+        sel && sel.rangeCount > 0
+          ? sel.getRangeAt(0).getBoundingClientRect()
+          : null;
+      clearHideTimer();
+      setTarget({
+        anchorEl: a,
+        rect,
+        url,
+        index: range.index,
+        length: range.length
+      });
+      setDraft(url);
+      setEditMode(true);
+      setCopied(false);
+    };
+    window.addEventListener(EDIT_LINK_AT_SELECTION_EVENT, onEditAtSelection);
+    return () =>
+      window.removeEventListener(
+        EDIT_LINK_AT_SELECTION_EVENT,
+        onEditAtSelection
+      );
+  }, [quill, clearHideTimer]);
 
   // Hover trigger (Docs shows the chip on hover in edit mode too). The grace
   // timer lets the pointer travel from the text into the card.
@@ -185,10 +239,12 @@ export const TextBoxLinkCard = ({ quill, onChanged }: Props) => {
   const virtualAnchor = useMemo(() => {
     if (!target) return null;
     return {
-      getBoundingClientRect: () =>
-        target.anchorEl.isConnected
-          ? target.anchorEl.getBoundingClientRect()
-          : new DOMRect(-9999, -9999, 0, 0)
+      getBoundingClientRect: () => {
+        if (target.anchorEl?.isConnected) {
+          return target.anchorEl.getBoundingClientRect();
+        }
+        return target.rect ?? new DOMRect(-9999, -9999, 0, 0);
+      }
     };
   }, [target]);
 
@@ -220,8 +276,13 @@ export const TextBoxLinkCard = ({ quill, onChanged }: Props) => {
     // Land the caret one char INSIDE the link (at the exact start boundary
     // getLeaf resolves to the preceding text node) so the refreshed card —
     // with the new URL and a fresh DOM anchor — reappears via revalidation.
-    quill.focus();
-    quill.setSelection(target.index + Math.min(1, target.length), 0, 'user');
+    // Deferred one macrotask: refocusing quill INSIDE the Enter keydown lets
+    // the keystroke's default action land in the editor and split the
+    // paragraph mid-link (same trap as the strip URL field).
+    setTimeout(() => {
+      quill.focus();
+      quill.setSelection(target.index + Math.min(1, target.length), 0, 'user');
+    }, 0);
   }, [quill, target, draft, onChanged]);
 
   const removeLink = useCallback(() => {
@@ -282,10 +343,22 @@ export const TextBoxLinkCard = ({ quill, onChanged }: Props) => {
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               e.stopPropagation();
-              if (e.key === 'Enter') applyEdit();
+              if (e.key === 'Enter') {
+                // preventDefault so the keystroke can't act anywhere else
+                // once focus returns to the editor (see applyEdit's deferral).
+                e.preventDefault();
+                applyEdit();
+              }
               if (e.key === 'Escape') {
                 e.preventDefault();
-                setEditMode(false);
+                if (target.url) {
+                  // Editing an existing link: back to the view card.
+                  setEditMode(false);
+                } else {
+                  // Creating: nothing to fall back to — dismiss.
+                  hide();
+                  quill.focus();
+                }
               }
             }}
             data-axoview-id="textbox-link-card-input"

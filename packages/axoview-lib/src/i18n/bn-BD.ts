@@ -321,6 +321,7 @@ const locale: LocaleProps = {
     namePlaceholder: 'উপাদানের নাম…'
   },
   topBarStyleControls: {
+    rotate90: '90° ঘোরান',
     noColor: 'কোনো রং নেই',
     customColor: 'কাস্টম রং',
     textSize: 'পাঠ্যের আকার',
@@ -365,7 +366,7 @@ const locale: LocaleProps = {
     backgroundDisabled: 'পটভূমির রং সেট করতে একটি আয়তক্ষেত্র, লেবেল বা টেক্সট বক্স নির্বাচন করুন',
     opacity: 'স্বচ্ছতা',
     border: 'বর্ডার',
-    borderDisabled: 'বর্ডার সেট করতে একটি আয়তক্ষেত্র নির্বাচন করুন',
+    borderDisabled: 'বর্ডার সেট করতে একটি আয়তক্ষেত্র বা টেক্সট বক্স নির্বাচন করুন',
     lineStyle: 'লাইন স্টাইল',
     width: 'প্রস্থ',
     borderColor: 'বর্ডারের রং',
@@ -399,10 +400,6 @@ const locale: LocaleProps = {
     lineType: 'লাইন প্রকার',
     showArrow: 'তীর দেখান',
     showDottedLine: 'বিন্দুযুক্ত রেখা দেখান',
-    textDirection: 'পাঠ্যের দিক',
-    textDirectionDisabled: 'দিক সেট করতে একটি টেক্সট বক্স নির্বাচন করুন',
-    textDirectionX: 'পাঠ্যের দিক X',
-    textDirectionY: 'পাঠ্যের দিক Y'
   },
   labelColorPicker: {
     customColor: 'কাস্টম রং'

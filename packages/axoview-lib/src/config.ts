@@ -145,6 +145,12 @@ export const TEXTBOX_DEFAULTS: Required<
     | 'height'
     // Background fill defaults to absent (= transparent).
     | 'backgroundColor'
+    // Border defaults to absent (= no border; style/width/opacity only apply
+    // once borderColor is set).
+    | 'borderColor'
+    | 'borderWidth'
+    | 'borderStyle'
+    | 'borderOpacity'
     // Vertical alignment defaults to absent (= top).
     | 'verticalAlign'
   >

@@ -3,11 +3,11 @@
 // installs its own Ctrl+K binding when the toolbar has a .ql-link button, so
 // the toolbar-less canvas editor had nothing on the key — and its .ql-tooltip
 // link UI is hidden anyway (it misplaces under the iso matrix transform,
-// ADR 0034 §2). This binding routes to the strip's Link popover instead: the
-// bridge's lastRange already survives the focus steal, so the popover formats
-// the right range. A collapsed caret first expands to the word under it
-// (exactly what Docs does), because the strip's range-link mode needs a
-// non-empty selection.
+// ADR 0034 §2). This binding opens the INLINE link card in edit mode right at
+// the selection (owner 2026-07-04: routing Ctrl+K to the strip popover at the
+// top of the screen "doesn't really make sense, given the nice inline link
+// edit"). A collapsed caret first expands to the word under it (exactly what
+// Docs does).
 //
 // The deck editors (Notes etc.) keep Quill's native Ctrl+K — their toolbar
 // includes 'link', and their .ql-tooltip is visible and styled.
@@ -16,9 +16,15 @@
 // `document` at import time — crashes jest/node); types are structural.
 
 /** Window event the strip's Link StripButton listens for (see StripButton's
- *  `openEvent` prop). Dispatched by this binding and by the strip's own
- *  selected-item Ctrl+K listener. */
+ *  `openEvent` prop). Dispatched by the strip's selected-item Ctrl+K listener
+ *  and the Label inline editor — element-level headerLinks have no inline
+ *  card, so the popover stays their surface. */
 export const OPEN_LINK_POPOVER_EVENT = 'axoview:open-link-popover';
+
+/** Window event the canvas editor's link card listens for: open the card in
+ *  EDIT mode for the current editor selection (create a new link, or edit
+ *  the one under the caret). Dispatched by the Ctrl+K binding below. */
+export const EDIT_LINK_AT_SELECTION_EVENT = 'axoview:edit-link-at-selection';
 
 /** Counterpart close signal (StripButton `closeEvent` prop): Docs closes the
  *  link dialog on Enter-apply, so the range URL field dispatches this. */
@@ -72,11 +78,8 @@ export const buildLinkShortcutBinding = () => {
         quill.setSelection(word.index, word.length, 'user');
         sel = word;
       }
-      // Let the selection-change → bridge → strip re-render settle before the
-      // popover's open listener checks its disabled state.
-      requestAnimationFrame(() => {
-        window.dispatchEvent(new CustomEvent(OPEN_LINK_POPOVER_EVENT));
-      });
+      // The card reads the fresh selection directly from quill — same tick.
+      window.dispatchEvent(new CustomEvent(EDIT_LINK_AT_SELECTION_EVENT));
       return false;
     }
   };

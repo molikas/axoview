@@ -321,6 +321,7 @@ const locale: LocaleProps = {
     namePlaceholder: 'Nama elemen…'
   },
   topBarStyleControls: {
+    rotate90: 'Putar 90°',
     noColor: 'Tanpa warna',
     customColor: 'Warna kustom',
     textSize: 'Ukuran teks',
@@ -365,7 +366,7 @@ const locale: LocaleProps = {
     backgroundDisabled: 'Pilih persegi panjang, label, atau kotak teks untuk mengatur warna latar belakangnya',
     opacity: 'Opasitas',
     border: 'Batas',
-    borderDisabled: 'Pilih persegi panjang untuk mengatur batasnya',
+    borderDisabled: 'Pilih persegi panjang atau kotak teks untuk mengatur bingkainya',
     lineStyle: 'Gaya garis',
     width: 'Tebal',
     borderColor: 'Warna batas',
@@ -399,10 +400,6 @@ const locale: LocaleProps = {
     lineType: 'Tipe garis',
     showArrow: 'Tampilkan panah',
     showDottedLine: 'Tampilkan garis putus-putus',
-    textDirection: 'Arah teks',
-    textDirectionDisabled: 'Pilih kotak teks untuk mengatur arahnya',
-    textDirectionX: 'Arah teks X',
-    textDirectionY: 'Arah teks Y'
   },
   labelColorPicker: {
     customColor: 'Warna kustom'

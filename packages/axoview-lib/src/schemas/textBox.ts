@@ -26,6 +26,14 @@ export const textBoxSchema = z.object({
   // Box fill behind the text (ADR 0034 addendum 2026-07-04); absent =
   // transparent (today's look). Naming follows the floating-Label sibling.
   backgroundColor: z.string().optional(),
+  // Border around the box footprint (ADR 0034 addendum 2026-07-04) — the
+  // rectangle's field set verbatim, EXCEPT absent borderColor = NO border
+  // (a rectangle derives a stroke from its fill; a text box has nothing to
+  // derive from). Style/width/opacity only matter once a color is set.
+  borderColor: z.string().optional(),
+  borderWidth: z.number().optional(),
+  borderStyle: z.enum(['SOLID', 'DOTTED', 'DASHED']).optional(),
+  borderOpacity: z.number().min(0).max(1).optional(),
   // Vertical alignment of the content inside the box footprint (ADR 0034
   // addendum 2026-07-04) — meaningful once a manual height makes the box
   // taller than its content. Absent = top.

@@ -1,5 +1,6 @@
 import React, { useMemo, memo, useCallback, useEffect, useRef } from 'react';
 import { Box, Typography } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { toPx, CoordsUtils, getTextBoxDimensions } from 'src/utils';
 import { sanitizeHtml } from 'src/utils/sanitizeHtml';
 import { useTranslation } from 'src/stores/localeStore';
@@ -200,6 +201,32 @@ export const TextBox = memo(({ textBox }: Props) => {
     [textBox.content]
   );
 
+  // Border (ADR 0034 addendum 2026-07-04) — the rectangle's option set as a
+  // CSS border on the container (shared by resting render AND edit session).
+  // Absent color = no border; box-sizing keeps the footprint identical to the
+  // borderless box (the few px of content inset are invisible at the default
+  // 2px width and equal in editor and rest, so parity holds).
+  const borderCss = useMemo(() => {
+    if (!textBox.borderColor) return undefined;
+    const opacity = textBox.borderOpacity ?? 1;
+    let color = textBox.borderColor;
+    if (opacity < 1) {
+      try {
+        color = alpha(color, opacity);
+      } catch {
+        /* non-parseable color string — render it opaque */
+      }
+    }
+    return `${textBox.borderWidth ?? 2}px ${(
+      textBox.borderStyle ?? 'SOLID'
+    ).toLowerCase()} ${color}`;
+  }, [
+    textBox.borderColor,
+    textBox.borderWidth,
+    textBox.borderStyle,
+    textBox.borderOpacity
+  ]);
+
   return (
     <div data-drag-id={textBox.id} style={dragStyle}>
       <Box style={css}>
@@ -226,6 +253,9 @@ export const TextBox = memo(({ textBox }: Props) => {
           // footprint incl. manual height; absent = transparent (unchanged).
           ...(textBox.backgroundColor
             ? { bgcolor: textBox.backgroundColor, borderRadius: 1 }
+            : {}),
+          ...(borderCss
+            ? { border: borderCss, boxSizing: 'border-box', borderRadius: 1 }
             : {}),
           pointerEvents: isEditable ? 'auto' : 'inherit'
         }}

@@ -322,6 +322,7 @@ const locale: LocaleProps = {
     namePlaceholder: 'Name (shown in Layers)…'
   },
   topBarStyleControls: {
+    rotate90: 'Rotate 90°',
     noColor: 'No color',
     customColor: 'Custom color',
     textSize: 'Text size',
@@ -366,7 +367,7 @@ const locale: LocaleProps = {
     backgroundDisabled: 'Select a rectangle, label, or text box to set its background color',
     opacity: 'Opacity',
     border: 'Border',
-    borderDisabled: 'Select a rectangle to set its border',
+    borderDisabled: 'Select a rectangle or text box to set its border',
     lineStyle: 'Line style',
     width: 'Width',
     borderColor: 'Border color',
@@ -398,10 +399,6 @@ const locale: LocaleProps = {
     lineType: 'Line type',
     showArrow: 'Show arrow',
     showDottedLine: 'Show dotted line',
-    textDirection: 'Text direction',
-    textDirectionDisabled: 'Select a text box to set its direction',
-    textDirectionX: 'Text direction X',
-    textDirectionY: 'Text direction Y'
   },
   labelColorPicker: {
     customColor: 'Custom color'

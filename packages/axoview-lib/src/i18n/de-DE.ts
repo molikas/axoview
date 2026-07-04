@@ -325,6 +325,7 @@ const locale: LocaleProps = {
     namePlaceholder: 'Elementname…'
   },
   topBarStyleControls: {
+    rotate90: 'Um 90° drehen',
     noColor: 'Keine Farbe',
     customColor: 'Benutzerdefinierte Farbe',
     textSize: 'Textgröße',
@@ -369,7 +370,7 @@ const locale: LocaleProps = {
     backgroundDisabled: 'Wählen Sie ein Rechteck, eine Beschriftung oder ein Textfeld aus, um die Hintergrundfarbe festzulegen',
     opacity: 'Deckkraft',
     border: 'Rahmen',
-    borderDisabled: 'Wählen Sie ein Rechteck, um seinen Rahmen festzulegen',
+    borderDisabled: 'Wählen Sie ein Rechteck oder Textfeld, um dessen Rahmen festzulegen',
     lineStyle: 'Linienstil',
     width: 'Breite',
     borderColor: 'Rahmenfarbe',
@@ -406,11 +407,6 @@ const locale: LocaleProps = {
     lineType: 'Linientyp',
     showArrow: 'Pfeil anzeigen',
     showDottedLine: 'Gepunktete Linie anzeigen',
-    textDirection: 'Textrichtung',
-    textDirectionDisabled:
-      'Wählen Sie ein Textfeld, um seine Richtung festzulegen',
-    textDirectionX: 'Textrichtung X',
-    textDirectionY: 'Textrichtung Y'
   },
   labelColorPicker: {
     customColor: 'Benutzerdefinierte Farbe'

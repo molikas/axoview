@@ -322,6 +322,7 @@ const locale: LocaleProps = {
     namePlaceholder: 'तत्व का नाम…'
   },
   topBarStyleControls: {
+    rotate90: '90° घुमाएं',
     noColor: 'कोई रंग नहीं',
     customColor: 'कस्टम रंग',
     textSize: 'पाठ का आकार',
@@ -366,7 +367,7 @@ const locale: LocaleProps = {
     backgroundDisabled: 'पृष्ठभूमि रंग सेट करने के लिए एक आयत, लेबल या टेक्स्ट बॉक्स चुनें',
     opacity: 'अपारदर्शिता',
     border: 'सीमा',
-    borderDisabled: 'सीमा सेट करने के लिए एक आयत चुनें',
+    borderDisabled: 'बॉर्डर सेट करने के लिए एक आयत या टेक्स्ट बॉक्स चुनें',
     lineStyle: 'रेखा शैली',
     width: 'चौड़ाई',
     borderColor: 'सीमा का रंग',
@@ -397,10 +398,6 @@ const locale: LocaleProps = {
     lineType: 'रेखा प्रकार',
     showArrow: 'तीर दिखाएं',
     showDottedLine: 'बिंदीदार रेखा दिखाएं',
-    textDirection: 'पाठ की दिशा',
-    textDirectionDisabled: 'दिशा सेट करने के लिए एक टेक्स्ट बॉक्स चुनें',
-    textDirectionX: 'पाठ की दिशा X',
-    textDirectionY: 'पाठ की दिशा Y'
   },
   labelColorPicker: {
     customColor: 'कस्टम रंग'

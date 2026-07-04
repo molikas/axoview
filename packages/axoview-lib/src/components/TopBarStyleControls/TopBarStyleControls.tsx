@@ -25,7 +25,6 @@ import {
   FormatColorFill as FillIcon,
   BorderStyle as BorderIcon,
   Timeline as ConnectionColorIcon,
-  TextRotationNone as TextRotationNoneIcon,
   FormatUnderlined as UnderlineIcon,
   FormatListBulleted as BulletListIcon,
   FormatListNumbered as NumberedListIcon,
@@ -56,9 +55,7 @@ import { useTextBox } from 'src/hooks/useTextBox';
 import { useLabel } from 'src/hooks/useLabel';
 import { useConnector } from 'src/hooks/useConnector';
 import { useRectangle } from 'src/hooks/useRectangle';
-import { ProjectionOrientationEnum } from 'src/types';
 import { connectorStyleOptions, connectorLineTypeOptions } from 'src/schemas';
-import { getIsoProjectionCss } from 'src/utils';
 import { TEXTBOX_DEFAULTS, TEXTBOX_LINE_HEIGHT } from 'src/config';
 import { LabelColorPicker } from '../ItemControls/components/LabelColorPicker';
 import { ColorSwatch } from '../ColorSelector/ColorSwatch';
@@ -1703,55 +1700,10 @@ export const TopBarStyleControls = () => {
         </Stack>
       </StripButton>
 
-      {/* Text direction (text box) — inline toggle, no popover. Lives with the
-          text cluster (owner 2026-07-04: it sat stranded past the connector
-          controls). */}
-      <Tooltip
-        title={textBox ? t('textDirection') : disabledTip('textDirectionDisabled')}
-        placement="bottom"
-      >
-        <span>
-          <ToggleButtonGroup
-            value={textBox?.orientation ?? null}
-            exclusive
-            size="small"
-            disabled={!textBox}
-            onChange={(_e, orientation) => {
-              if (!textBox || orientation === null || textBox.orientation === orientation)
-                return;
-              // A plane flip changes which WORLD axis the run/row sizes mean —
-              // carrying a manual size across reads as a random big box with
-              // stranded text (owner 2026-07-04). Reset to auto; the box
-              // re-hugs its content on the new plane.
-              updateTextBox(textBox.id, {
-                orientation,
-                width: undefined,
-                height: undefined
-              });
-            }}
-            sx={{
-              // Match the strip's enabled/disabled contrast (see StripButton).
-              '& .MuiSvgIcon-root': { color: 'inherit' },
-              '& .MuiToggleButton-root': { color: 'text.primary', px: 0.75 },
-              '& .MuiToggleButton-root.Mui-disabled': { color: 'action.disabled' }
-            }}
-          >
-            <ToggleButton value={ProjectionOrientationEnum.X} aria-label={t('textDirectionX')}>
-              <TextRotationNoneIcon
-                sx={{ fontSize: 18, transform: getIsoProjectionCss() }}
-              />
-            </ToggleButton>
-            <ToggleButton value={ProjectionOrientationEnum.Y} aria-label={t('textDirectionY')}>
-              <TextRotationNoneIcon
-                sx={{
-                  fontSize: 18,
-                  transform: `scale(-1, 1) ${getIsoProjectionCss()} scale(-1, 1)`
-                }}
-              />
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </span>
-      </Tooltip>
+      {/* Text direction moved OUT of the strip (owner 2026-07-04, "de-dense
+          the top control"): the on-canvas rotate handle next to the transform
+          controls owns the quarter-turn now (TextBox = iso-plane flip,
+          Rectangle = footprint transpose) — see TransformControls. */}
 
       {/* Background colour — rectangle fill, a floating Label chip (ADR 0031),
           or a text-box fill (ADR 0034 addendum 2026-07-04). Clearing it
@@ -1879,16 +1831,127 @@ export const TopBarStyleControls = () => {
         ) : null}
       </StripButton>
 
-      {/* Border (rectangle) — line style + width + colour for the frame. */}
+      {/* Border — line style + width + colour + opacity for the frame of a
+          rectangle OR a text box (ADR 0034 addendum 2026-07-04; same option
+          set). Rectangle: absent color = the legacy derived stroke. Text box:
+          absent color = NO border, so picking a style/width first seeds a
+          default color to make the change visible. */}
       <StripButton
         tooltip={
-          rectangle ? t('border') : disabledTip('borderDisabled')
+          rectangle || textBox ? t('border') : disabledTip('borderDisabled')
         }
-        disabled={!rectangle}
+        disabled={!(rectangle || textBox)}
         popoverWidth={240}
+        testId="strip-border-button"
         icon={<BorderIcon sx={{ fontSize: 18 }} />}
-        colorBar={rectangle ? rectangle.borderColor || undefined : undefined}
+        colorBar={
+          rectangle
+            ? rectangle.borderColor || undefined
+            : textBox
+            ? textBox.borderColor || undefined
+            : undefined
+        }
       >
+        {textBox && !rectangle && (
+          <Box>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: 'block', mb: 0.5 }}
+            >
+              {t('lineStyle')}
+            </Typography>
+            <ToggleButtonGroup
+              value={textBox.borderStyle || 'SOLID'}
+              exclusive
+              fullWidth
+              size="small"
+              onChange={(_e, style: LineStyle | null) => {
+                if (!style) return;
+                updateTextBox(textBox.id, {
+                  borderStyle: style,
+                  ...(textBox.borderColor ? {} : { borderColor: '#000000' })
+                });
+              }}
+            >
+              {connectorStyleOptions.map((style) => (
+                <ToggleButton
+                  key={style}
+                  value={style}
+                  aria-label={style}
+                  data-testid={`strip-border-style-${style}`}
+                >
+                  <LineStylePreview style={style} />
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+
+            <Box sx={{ mt: 1.5 }}>
+              <LabeledSlider
+                label={t('width')}
+                value={textBox.borderWidth ?? 2}
+                displayValue={String(textBox.borderWidth ?? 2)}
+                min={2}
+                max={30}
+                step={4}
+                onChange={(borderWidth) =>
+                  updateTextBox(textBox.id, {
+                    borderWidth,
+                    ...(textBox.borderColor ? {} : { borderColor: '#000000' })
+                  })
+                }
+              />
+            </Box>
+
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: 'block', mt: 1.5, mb: 0.5 }}
+            >
+              {t('borderColor')}
+            </Typography>
+            <PresetCustomColor
+              presetId={colors.find((c) => c.value === textBox.borderColor)?.id}
+              customColor={
+                textBox.borderColor &&
+                !colors.some((c) => c.value === textBox.borderColor)
+                  ? textBox.borderColor
+                  : undefined
+              }
+              // A text box with no borderColor has NO border — clearing the
+              // color IS the "no border" affordance.
+              absentIsNoColor
+              onSelectPreset={(id) =>
+                updateTextBox(textBox.id, { borderColor: resolveHex(id) })
+              }
+              onCustomChange={(hex) =>
+                updateTextBox(textBox.id, { borderColor: hex })
+              }
+              onDisableCustom={() =>
+                updateTextBox(textBox.id, { borderColor: undefined })
+              }
+              onNoColor={() =>
+                updateTextBox(textBox.id, { borderColor: undefined })
+              }
+            />
+
+            <Box sx={{ mt: 1.5 }}>
+              <LabeledSlider
+                label={t('opacity')}
+                value={textBox.borderOpacity ?? 1}
+                displayValue={`${Math.round((textBox.borderOpacity ?? 1) * 100)}%`}
+                min={0}
+                max={1}
+                step={0.1}
+                onChange={(v) =>
+                  updateTextBox(textBox.id, {
+                    borderOpacity: v >= 1 ? undefined : v
+                  })
+                }
+              />
+            </Box>
+          </Box>
+        )}
         {rectangle && (
           <Box>
             <Typography

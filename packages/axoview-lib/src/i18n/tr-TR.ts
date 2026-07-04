@@ -323,6 +323,7 @@ const locale: LocaleProps = {
     namePlaceholder: 'Eleman adı…'
   },
   topBarStyleControls: {
+    rotate90: '90° döndür',
     noColor: 'Renk yok',
     customColor: 'Özel renk',
     textSize: 'Metin boyutu',
@@ -367,7 +368,7 @@ const locale: LocaleProps = {
     backgroundDisabled: 'Arka plan rengini ayarlamak için bir dikdörtgen, etiket veya metin kutusu seçin',
     opacity: 'Saydamlık',
     border: 'Kenarlık',
-    borderDisabled: 'Kenarlığını ayarlamak için bir dikdörtgen seçin',
+    borderDisabled: 'Kenarlığını ayarlamak için bir dikdörtgen veya metin kutusu seçin',
     lineStyle: 'Çizgi stili',
     width: 'Kalınlık',
     borderColor: 'Kenarlık rengi',
@@ -401,10 +402,6 @@ const locale: LocaleProps = {
     lineType: 'Çizgi türü',
     showArrow: 'Oku göster',
     showDottedLine: 'Noktalı çizgiyi göster',
-    textDirection: 'Metin yönü',
-    textDirectionDisabled: 'Yönünü ayarlamak için bir metin kutusu seçin',
-    textDirectionX: 'Metin yönü X',
-    textDirectionY: 'Metin yönü Y'
   },
   labelColorPicker: {
     customColor: 'Özel renk'

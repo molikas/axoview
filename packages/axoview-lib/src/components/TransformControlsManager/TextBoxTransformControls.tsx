@@ -1,8 +1,10 @@
 import React, { useMemo, useCallback } from 'react';
 import { getTextBoxEndTile } from 'src/utils';
 import { useTextBox } from 'src/hooks/useTextBox';
+import { useSceneActions } from 'src/hooks/useSceneActions';
+import { useTranslation } from 'src/stores/localeStore';
 import { useUiStateStore } from 'src/stores/uiStateStore';
-import { AnchorPosition } from 'src/types';
+import { AnchorPosition, ProjectionOrientationEnum } from 'src/types';
 import { TransformControls } from './TransformControls';
 
 interface Props {
@@ -11,6 +13,8 @@ interface Props {
 
 export const TextBoxTransformControls = ({ id }: Props) => {
   const textBox = useTextBox(id);
+  const { updateTextBox } = useSceneActions();
+  const { t } = useTranslation('topBarStyleControls');
   const uiStateActions = useUiStateStore((state) => state.actions);
   // During an edit session the editor publishes its live-measured footprint
   // (placeholder included while empty) — the dashed bounds track typing
@@ -38,6 +42,23 @@ export const TextBoxTransformControls = ({ id }: Props) => {
     [id, uiStateActions]
   );
 
+  // Quarter-turn = the iso-plane flip (a text box has exactly two
+  // orientations, so ±90° are the same move). Replaces the strip's stranded
+  // text-direction toggle (owner 2026-07-04: "de-dense the top control").
+  // A plane flip changes which WORLD axis the run/row sizes mean — carrying a
+  // manual size across read as a random big box, so it resets to auto.
+  const onRotate = useCallback(() => {
+    if (!textBox) return;
+    updateTextBox(textBox.id, {
+      orientation:
+        textBox.orientation === ProjectionOrientationEnum.Y
+          ? ProjectionOrientationEnum.X
+          : ProjectionOrientationEnum.Y,
+      width: undefined,
+      height: undefined
+    });
+  }, [textBox, updateTextBox]);
+
   // Controls stay up DURING an edit session too (owner 2026-07-04, Lucid
   // parity — hiding them made place-and-type feel resize-less). The dashed
   // bounds show the last committed size; the promoted editor mounts ABOVE
@@ -58,6 +79,8 @@ export const TextBoxTransformControls = ({ id }: Props) => {
       from={textBox.tile}
       to={to}
       onAnchorMouseDown={onAnchorMouseDown}
+      onRotate={onRotate}
+      rotateTooltip={t('rotate90')}
     />
   );
 };

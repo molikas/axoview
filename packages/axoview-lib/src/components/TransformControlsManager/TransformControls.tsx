@@ -1,4 +1,6 @@
 import React, { useMemo } from 'react';
+import { IconButton, Tooltip } from '@mui/material';
+import { Rotate90DegreesCcw as RotateIcon } from '@mui/icons-material';
 import { Coords, AnchorPosition } from 'src/types';
 import { Svg } from 'src/components/Svg/Svg';
 import { TRANSFORM_CONTROLS_COLOR, UNPROJECTED_TILE_SIZE } from 'src/config';
@@ -22,6 +24,13 @@ interface Props {
    */
   anchorPositions?: AnchorPosition[];
   /**
+   * Lucid-style on-canvas rotate handle (owner 2026-07-04): a small round
+   * button floating above the selection. One click = quarter-turn — the text
+   * box flips its iso plane, the rectangle transposes its footprint.
+   */
+  onRotate?: () => void;
+  rotateTooltip?: string;
+  /**
    * A3 hover affordance: render a single faint outline (no dashed ring, no
    * glow, no resize anchors) — visually distinct from, and lighter than, the
    * selection ring. Used by HoverOutline for the hovered-but-unselected item.
@@ -30,12 +39,15 @@ interface Props {
 }
 
 const strokeWidth = 2;
+const ROTATE_HANDLE_OFFSET_PX = 34;
 
 export const TransformControls = ({
   from,
   to,
   onAnchorMouseDown,
   anchorPositions,
+  onRotate,
+  rotateTooltip,
   subtle
 }: Props) => {
   const { css, pxSize } = useIsoProjection({
@@ -44,42 +56,42 @@ export const TransformControls = ({
   });
   const { getTilePosition, strategy } = useCanvasMode();
 
+  // Screen position of each outer corner, keyed by corner name — feeds the
+  // anchor handles (edge midpoints are corner averages) and the rotate handle.
+  const cornerScreen = useMemo(() => {
+    const corners = getBoundingBox([from, to]);
+    const namedCorners = convertBoundsToNamedAnchors(corners);
+    const out = {} as Record<string, Coords>;
+    Object.entries(namedCorners).forEach(([key, value], i) => {
+      if (strategy.projectionName === '2D') {
+        // 2D tiles are squares — outer corners are diagonals from each
+        // corner-tile's center, not single-axis offsets like in iso.
+        const center = getTilePosition({ tile: value });
+        const half = UNPROJECTED_TILE_SIZE / 2;
+        const offsetX = key.endsWith('LEFT') ? -half : half;
+        const offsetY = key.startsWith('BOTTOM') ? half : -half;
+        out[key] = { x: center.x + offsetX, y: center.y + offsetY };
+      } else {
+        out[key] = getTilePosition({
+          tile: value,
+          origin: outermostCornerPositions[i]
+        });
+      }
+    });
+    return out;
+  }, [from, to, getTilePosition, strategy.projectionName]);
+
   const anchors = useMemo(() => {
     if (!onAnchorMouseDown) return [];
 
-    const corners = getBoundingBox([from, to]);
-    const namedCorners = convertBoundsToNamedAnchors(corners);
-
-    // Screen position of each corner handle, keyed by corner name so the
-    // edge midpoints can be derived as averages of the visible corners.
-    const cornerScreen = {} as Record<string, Coords>;
-    const cornerPositions = Object.entries(namedCorners).map(
-      ([key, value], i) => {
-        let position: Coords;
-        if (strategy.projectionName === '2D') {
-          // 2D tiles are squares — outer corners are diagonals from each
-          // corner-tile's center, not single-axis offsets like in iso.
-          const center = getTilePosition({ tile: value });
-          const half = UNPROJECTED_TILE_SIZE / 2;
-          const offsetX = key.endsWith('LEFT') ? -half : half;
-          const offsetY = key.startsWith('BOTTOM') ? half : -half;
-          position = { x: center.x + offsetX, y: center.y + offsetY };
-        } else {
-          position = getTilePosition({
-            tile: value,
-            origin: outermostCornerPositions[i]
-          });
+    const cornerPositions = Object.entries(cornerScreen).map(
+      ([key, position]) => ({
+        key,
+        position,
+        onMouseDown: () => {
+          onAnchorMouseDown(key as AnchorPosition);
         }
-
-        cornerScreen[key] = position;
-        return {
-          key,
-          position,
-          onMouseDown: () => {
-            onAnchorMouseDown(key as AnchorPosition);
-          }
-        };
-      }
+      })
     );
 
     // Edge-midpoint handles (ADR 0026). Averaging the two adjacent corner
@@ -107,14 +119,18 @@ export const TransformControls = ({
     return anchorPositions
       ? all.filter((a) => anchorPositions.includes(a.key as AnchorPosition))
       : all;
-  }, [
-    onAnchorMouseDown,
-    anchorPositions,
-    from,
-    to,
-    getTilePosition,
-    strategy.projectionName
-  ]);
+  }, [onAnchorMouseDown, anchorPositions, cornerScreen]);
+
+  // Rotate handle floats above the selection's TOPMOST screen point — a
+  // stable, unoccluded spot in both projections (iso diamond apex / 2D top
+  // edge), clear of the resize anchors.
+  const rotatePosition = useMemo(() => {
+    if (!onRotate) return null;
+    const points = Object.values(cornerScreen);
+    if (points.length === 0) return null;
+    const topmost = points.reduce((min, p) => (p.y < min.y ? p : min));
+    return { x: topmost.x, y: topmost.y - ROTATE_HANDLE_OFFSET_PX };
+  }, [onRotate, cornerScreen]);
 
   return (
     <>
@@ -175,6 +191,44 @@ export const TransformControls = ({
           />
         );
       })}
+
+      {!subtle && onRotate && rotatePosition && (
+        <Tooltip title={rotateTooltip ?? ''} placement="top">
+          <IconButton
+            size="small"
+            data-axoview-id="canvas-rotate-handle"
+            onPointerDown={(e) => {
+              // Never reach the canvas interaction layer (no drag/deselect).
+              e.stopPropagation();
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRotate();
+            }}
+            sx={{
+              position: 'absolute',
+              width: 26,
+              height: 26,
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider',
+              boxShadow: 1,
+              color: 'text.primary',
+              '&:hover': { bgcolor: 'background.paper' }
+            }}
+            style={{
+              left: rotatePosition.x - 13,
+              top: rotatePosition.y - 13
+            }}
+          >
+            <RotateIcon sx={{ fontSize: 14 }} />
+          </IconButton>
+        </Tooltip>
+      )}
     </>
   );
 };

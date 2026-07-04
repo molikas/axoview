@@ -326,6 +326,7 @@ const locale: LocaleProps = {
     namePlaceholder: 'Nombre del elemento…'
   },
   topBarStyleControls: {
+    rotate90: 'Girar 90°',
     noColor: 'Sin color',
     customColor: 'Color personalizado',
     textSize: 'Tamaño del texto',
@@ -370,7 +371,7 @@ const locale: LocaleProps = {
     backgroundDisabled: 'Selecciona un rectángulo, etiqueta o cuadro de texto para definir su color de fondo',
     opacity: 'Opacidad',
     border: 'Borde',
-    borderDisabled: 'Selecciona un rectángulo para definir su borde',
+    borderDisabled: 'Selecciona un rectángulo o cuadro de texto para definir su borde',
     lineStyle: 'Estilo de línea',
     width: 'Ancho',
     borderColor: 'Color del borde',
@@ -402,10 +403,6 @@ const locale: LocaleProps = {
     lineType: 'Tipo de línea',
     showArrow: 'Mostrar flecha',
     showDottedLine: 'Mostrar línea punteada',
-    textDirection: 'Dirección del texto',
-    textDirectionDisabled: 'Selecciona un cuadro de texto para definir su dirección',
-    textDirectionX: 'Dirección del texto X',
-    textDirectionY: 'Dirección del texto Y'
   },
   labelColorPicker: {
     customColor: 'Color personalizado'

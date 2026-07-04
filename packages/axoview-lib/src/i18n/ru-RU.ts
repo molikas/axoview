@@ -322,6 +322,7 @@ const locale: LocaleProps = {
     namePlaceholder: 'Имя элемента…'
   },
   topBarStyleControls: {
+    rotate90: 'Повернуть на 90°',
     noColor: 'Без цвета',
     customColor: 'Свой цвет',
     textSize: 'Размер текста',
@@ -366,7 +367,7 @@ const locale: LocaleProps = {
     backgroundDisabled: 'Выберите прямоугольник, подпись или текстовое поле, чтобы задать цвет фона',
     opacity: 'Прозрачность',
     border: 'Граница',
-    borderDisabled: 'Выберите прямоугольник, чтобы задать его границу',
+    borderDisabled: 'Выберите прямоугольник или текстовое поле, чтобы задать его рамку',
     lineStyle: 'Стиль линии',
     width: 'Толщина',
     borderColor: 'Цвет границы',
@@ -401,10 +402,6 @@ const locale: LocaleProps = {
     lineType: 'Тип линии',
     showArrow: 'Показать стрелку',
     showDottedLine: 'Показать пунктирную линию',
-    textDirection: 'Направление текста',
-    textDirectionDisabled: 'Выберите текстовое поле, чтобы задать его направление',
-    textDirectionX: 'Направление текста по X',
-    textDirectionY: 'Направление текста по Y'
   },
   labelColorPicker: {
     customColor: 'Пользовательский цвет'

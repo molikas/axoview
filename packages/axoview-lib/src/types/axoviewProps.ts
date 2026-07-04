@@ -376,10 +376,10 @@ export interface LocaleProps {
     lineType: string;
     showArrow: string;
     showDottedLine: string;
-    textDirection: string;
-    textDirectionDisabled: string;
-    textDirectionX: string;
-    textDirectionY: string;
+    // On-canvas rotate handle tooltip (TextBox iso-plane flip / Rectangle
+    // footprint transpose) — replaced the strip's textDirection toggle
+    // (2026-07-04).
+    rotate90: string;
   };
   rectangleControls: {
     close: string;
