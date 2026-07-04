@@ -304,6 +304,7 @@ const locale: LocaleProps = {
     line2: 'Çizgi 2'
   },
   textBoxControls: {
+    placeholder: 'Bir şeyler yazın',
     metadata: 'Meta veriler',
     notes: 'Notlar',
     close: 'Kapat',
@@ -322,6 +323,14 @@ const locale: LocaleProps = {
     customColor: 'Özel renk',
     textSize: 'Metin boyutu',
     lineSpacing: 'Satır aralığı',
+    alignment: 'Hizalama',
+    alignmentDisabled: 'Metni hizalamak için bir metin kutusu seçin',
+    alignLeft: 'Sola hizala',
+    alignCenter: 'Ortala',
+    alignRight: 'Sağa hizala',
+    alignTop: 'Üste hizala',
+    alignMiddle: 'Ortaya hizala',
+    alignBottom: 'Alta hizala',
     iconSize: 'Simge boyutu',
     textColor: 'Metin rengi',
     textColorDisabled:
@@ -351,8 +360,7 @@ const locale: LocaleProps = {
     bulletList: 'Madde işaretli liste',
     numberedList: 'Numaralı liste',
     background: 'Arka plan rengi',
-    backgroundDisabled:
-      'Arka plan rengini ayarlamak için bir dikdörtgen veya etiket seçin',
+    backgroundDisabled: 'Arka plan rengini ayarlamak için bir dikdörtgen, etiket veya metin kutusu seçin',
     opacity: 'Saydamlık',
     border: 'Kenarlık',
     borderDisabled: 'Kenarlığını ayarlamak için bir dikdörtgen seçin',
@@ -542,6 +550,7 @@ const locale: LocaleProps = {
     bringToFront: 'En öne getir',
     sendToBack: 'En arkaya gönder',
     assignToLayer: 'Katmana ata',
+    fitToText: 'Metne sığdır',
     snapToGrid: 'Izgaraya yapıştır',
     unsnapFromGrid: 'Izgaradan ayır',
     disableCollision: 'Çakışmayı devre dışı bırak',

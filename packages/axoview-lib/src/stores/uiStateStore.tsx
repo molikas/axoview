@@ -33,6 +33,7 @@ const canvasResetForAnnotation = (
   // An in-flight on-canvas text edit (ADR 0034) must not linger behind the
   // annotation overlay — the promoted editor would sit above it.
   editingTextBoxId: null,
+  editingTextBoxSize: null,
   ...(state.rightSidebarAutoOpened
     ? { rightSidebarOpen: false, rightSidebarAutoOpened: false }
     : {})
@@ -89,6 +90,7 @@ const initialState = () => {
       selectedConnectorLabel: null,
       inlineEditLabelId: null,
       editingTextBoxId: null,
+      editingTextBoxSize: null,
       annotation: {
         open: false,
         // Open in the non-disruptive Select mode; the user picks a draw tool.
@@ -124,6 +126,7 @@ const initialState = () => {
             // An on-canvas text-edit session (ADR 0034) is edit-mode chrome —
             // never carry it into view/present.
             editingTextBoxId: null,
+            editingTextBoxSize: null,
             annotation: { ...state.annotation, open: false }
           }));
         },
@@ -365,7 +368,23 @@ const initialState = () => {
           set({ inlineEditLabelId: id });
         },
         setEditingTextBoxId: (id) => {
-          set({ editingTextBoxId: id });
+          // A session change invalidates the previous session's live measure —
+          // consumers fall back to the committed model size until the editor's
+          // first draft callback lands.
+          set({ editingTextBoxId: id, editingTextBoxSize: null });
+        },
+        setEditingTextBoxSize: (size) => {
+          // Called per keystroke; sizes are integer tiles so most calls are
+          // no-ops. Keep the stored object's identity when equal so selector
+          // subscribers (the projected box + transform bounds) don't re-render.
+          set((state) =>
+            state.editingTextBoxSize &&
+            size &&
+            state.editingTextBoxSize.width === size.width &&
+            state.editingTextBoxSize.height === size.height
+              ? {}
+              : { editingTextBoxSize: size }
+          );
         },
         setSelectedConnectorLabel: (sel) => {
           set({ selectedConnectorLabel: sel });

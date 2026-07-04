@@ -9,6 +9,12 @@
 
 export type InlineFormat = 'bold' | 'italic' | 'underline' | 'strike';
 export type ListType = 'bullet' | 'ordered';
+// Paragraph alignment (ADR 0034 addendum 2026-07-03). Stored as an inline
+// `text-align` style on leaf blocks — both editors register Quill's STYLE
+// align attributor so the live editor emits the same representation, the
+// sanitizer keeps it (DOMPurify html profile allows style), and the resting
+// render needs no extra CSS. 'left' is the default and is stored as ABSENT.
+export type TextAlign = 'left' | 'center' | 'right';
 
 // Tags that COUNT as carrying a format when reading (renderer/browser
 // synonyms included) vs the single canonical tag written by transforms.
@@ -53,6 +59,19 @@ const escapeHtml = (text: string): string =>
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+
+/**
+ * Quill's `getSemanticHTML()` serializes EVERY space as `&nbsp;`, which turns
+ * a whole paragraph into one unbreakable "word" — the resting render can then
+ * never soft-wrap a manual-width box (and flex refuses to shrink below the
+ * line's min-content). Normalize them back to real spaces on commit and on
+ * load; the canvas preserves runs of spaces anyway (`white-space: pre` /
+ * `pre-wrap` — same as Quill's own editor rendering).
+ */
+// U+00A0 spelled via charCode so no invisible character lives in the source.
+const NBSP = String.fromCharCode(0xa0);
+export const normalizeQuillHtmlSpaces = (html: string): string =>
+  html.replace(/&nbsp;/g, ' ').split(NBSP).join(' ');
 
 /** One `<p>` per line; blank lines keep their height via `<br>`. */
 export const plainTextToHtml = (text: string): string =>
@@ -137,7 +156,14 @@ export interface WholeContentFormats {
   strike: boolean;
   /** The list type when EVERY line is a list item of that one type. */
   list: ListType | null;
+  /** The alignment when EVERY line shares one; null = mixed. */
+  align: TextAlign | null;
 }
+
+const leafAlign = (leaf: Element): TextAlign => {
+  const value = (leaf as HTMLElement).style?.textAlign;
+  return value === 'center' || value === 'right' ? value : 'left';
+};
 
 /**
  * Formats that apply to the ENTIRE content — drives the strip's pressed state
@@ -152,7 +178,8 @@ export const getWholeContentFormats = (
     italic: false,
     underline: false,
     strike: false,
-    list: null
+    list: null,
+    align: 'left'
   };
   if (!content || !content.trim()) return none;
   const body = parse(ensureHtmlContent(content));
@@ -172,12 +199,18 @@ export const getWholeContentFormats = (
     else if (topBlocks.every((b) => b.tagName === 'OL')) list = 'ordered';
   }
 
+  const firstAlign = leafAlign(leaves[0]);
+  const align = leaves.every((leaf) => leafAlign(leaf) === firstAlign)
+    ? firstAlign
+    : null;
+
   return {
     bold: all('bold'),
     italic: all('italic'),
     underline: all('underline'),
     strike: all('strike'),
-    list
+    list,
+    align
   };
 };
 
@@ -222,6 +255,30 @@ export const applyInlineFormat = (
 };
 
 /**
+ * Set one alignment across the whole content — an inline `text-align` style
+ * on every leaf block. 'left' (the default) is stored as ABSENT so an
+ * unaligned box round-trips byte-identical.
+ */
+export const applyAlignFormat = (
+  content: string | undefined,
+  align: TextAlign
+): string => {
+  const html = ensureHtmlContent(content);
+  if (!html) return html;
+  const body = parse(html);
+  collectLeafBlocks(body).forEach((leaf) => {
+    const el = leaf as HTMLElement;
+    if (align === 'left') {
+      el.style.removeProperty('text-align');
+      if (!el.getAttribute('style')) el.removeAttribute('style');
+    } else {
+      el.style.textAlign = align;
+    }
+  });
+  return body.innerHTML;
+};
+
+/**
  * Convert the whole content to one list of `type` (each current line — block
  * or list item — becomes an `<li>`, keeping its inline formatting), or unwrap
  * every list back to paragraphs when `on` is false.
@@ -251,6 +308,9 @@ export const applyListFormat = (
     } else {
       lines.forEach((line) => {
         const li = doc.createElement('li');
+        // Alignment survives the block-type swap (line format, like Quill's).
+        const align = (line as HTMLElement).style?.textAlign;
+        if (align) li.style.textAlign = align;
         while (line.firstChild) li.appendChild(line.firstChild);
         listEl.appendChild(li);
       });
@@ -261,6 +321,8 @@ export const applyListFormat = (
     // Every <li> anywhere becomes a <p>; list containers dissolve in place.
     Array.from(body.querySelectorAll('li')).forEach((li) => {
       const p = doc.createElement('p');
+      const align = (li as HTMLElement).style?.textAlign;
+      if (align) p.style.textAlign = align;
       while (li.firstChild) p.appendChild(li.firstChild);
       li.replaceWith(p);
     });

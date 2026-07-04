@@ -138,6 +138,16 @@ export interface TransformRectangleMode {
   selectedAnchor: AnchorPosition | null;
 }
 
+// Width-only text-box resize (ADR 0034 addendum 2026-07-03): the two anchors
+// on the text-run axis set a manual `textBox.width`; height stays
+// content-driven (text wraps, box grows down).
+export interface TransformTextBoxMode {
+  type: 'TEXTBOX.TRANSFORM';
+  showCursor: boolean;
+  id: string;
+  selectedAnchor: AnchorPosition | null;
+}
+
 export interface TextBoxMode {
   type: 'TEXTBOX';
   showCursor: boolean;
@@ -192,6 +202,7 @@ export type Mode =
   | TransformRectangleMode
   | DragItemsMode
   | TextBoxMode
+  | TransformTextBoxMode
   | LabelMode
   | LassoMode
   | FreehandLassoMode
@@ -382,6 +393,12 @@ export interface UiState {
    *  text controls target the live editor. Cleared on commit/cancel. UI-only,
    *  never persisted. */
   editingTextBoxId: string | null;
+  /** Live tile footprint of the text box being edited (ADR 0034 addendum
+   *  2026-07-04): what commit WOULD measure for the current draft (placeholder
+   *  included while empty), so the projected container and the transform
+   *  bounds track typing instead of showing the stale committed size. null
+   *  outside a session or before the editor's first measure. UI-only. */
+  editingTextBoxSize: Size | null;
   /** Ephemeral annotation overlay (ADR 0014). Never persisted. */
   annotation: AnnotationState;
 }
@@ -544,6 +561,9 @@ export interface UiStateActions {
    *  box (ADR 0034). Set by place-and-type, double-click, F2 and context-menu
    *  Rename; cleared by the editor's commit/cancel. */
   setEditingTextBoxId: (id: string | null) => void;
+  /** Publish the edit session's live measured footprint (see
+   *  `editingTextBoxSize`). Reset to null whenever the session id changes. */
+  setEditingTextBoxSize: (size: Size | null) => void;
   // --- Annotation overlay (ADR 0014) ---
   setAnnotationOpen: (open: boolean) => void;
   setAnnotationTool: (tool: AnnotationTool) => void;

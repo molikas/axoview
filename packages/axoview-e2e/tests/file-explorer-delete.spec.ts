@@ -70,4 +70,30 @@ test.describe('File explorer — delete with confirmation (Finding #8)', () => {
     // Dialog auto-closes when confirmDelete sets deleteConfirm = null.
     await expect(confirmDialog).toBeHidden();
   });
+
+  test('right-click on EMPTY tree space opens the same menu for the open diagram (owner 2026-07-04)', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const explorer = new FileExplorerPOM(page);
+    await explorer.open();
+
+    // No row is tree-selected; the open diagram ("Untitled") is the fallback
+    // target. Right-click far below the single row — previously this surfaced
+    // the browser's native menu and did nothing app-side.
+    const tree = byAxoviewId(page, 'file-explorer-tree');
+    const box = await tree.boundingBox();
+    expect(box).not.toBeNull();
+    await tree.click({
+      button: 'right',
+      position: { x: 40, y: box!.height - 12 }
+    });
+
+    // The row context menu (ContextMenuItems) opens, anchored at the pointer.
+    const deleteMenuItem = byAxoviewId(page, 'file-explorer-context-menu-delete');
+    await deleteMenuItem.waitFor({ state: 'visible', timeout: 3_000 });
+    await page.keyboard.press('Escape');
+    await expect(deleteMenuItem).toBeHidden();
+  });
 });

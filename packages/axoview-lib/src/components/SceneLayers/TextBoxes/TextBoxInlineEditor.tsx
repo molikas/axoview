@@ -3,10 +3,15 @@ import { Box } from '@mui/material';
 import ReactQuill from 'react-quill-new';
 import { formats } from 'src/components/RichTextEditor/RichTextEditor';
 import { sanitizeHtml } from 'src/utils/sanitizeHtml';
-import { ensureHtmlContent } from 'src/utils/richTextTransform';
+import {
+  ensureHtmlContent,
+  normalizeQuillHtmlSpaces
+} from 'src/utils/richTextTransform';
 import { htmlToPlainText } from 'src/utils/htmlToPlainText';
 import { buildListAutofillBinding } from 'src/utils/quillListAutofill';
+import { buildLinkShortcutBinding } from 'src/utils/quillLinkShortcut';
 import { CANVAS_RICHTEXT_LIST_INDENT_EM } from 'src/config';
+import { useTranslation } from 'src/stores/localeStore';
 import {
   registerTextBoxEditor,
   setTextBoxEditorRange,
@@ -19,6 +24,14 @@ interface Props {
   /** Base typography from useTextBoxProps — the editor renders in place with
    *  the exact canvas styles (fontSize/family/color + richTextStyles). */
   fontProps: Record<string, unknown>;
+  /** Manual-width box (ADR 0034 addendum 2026-07-03): the editor wraps at the
+   *  fixed box width instead of growing rightward with the longest line. */
+  fixedWidth?: boolean;
+  /** Fires on mount and every text change with the draft exactly as commit
+   *  would store it ('' when visually empty) — the parent measures it so the
+   *  projected box + transform bounds track typing (ADR 0034 addendum
+   *  2026-07-04). */
+  onDraftChange: (html: string) => void;
   /** Persist the edited HTML ('' when the box was emptied). */
   onCommit: (html: string) => void;
   /** Close without persisting (Escape / right-click-away). */
@@ -46,7 +59,11 @@ const QUILL_MODULES = {
   // imports ReactQuill (DOM-only) at module scope.
   keyboard: {
     bindings: {
-      'list autofill': buildListAutofillBinding(ReactQuill.Quill)
+      'list autofill': buildListAutofillBinding(ReactQuill.Quill),
+      // Ctrl/Cmd+K → strip Link popover (Docs convention). Snow only binds
+      // this key when a toolbar .ql-link button exists — this editor is
+      // toolbar-less, so the shared binding owns the key outright.
+      link: buildLinkShortcutBinding()
     }
   }
 };
@@ -55,9 +72,12 @@ export const TextBoxInlineEditor = ({
   textBoxId,
   content,
   fontProps,
+  fixedWidth,
+  onDraftChange,
   onCommit,
   onCancel
 }: Props) => {
+  const { t } = useTranslation('textBoxControls');
   const rootRef = useRef<HTMLDivElement | null>(null);
   const quillRef = useRef<ReactQuill | null>(null);
   const changedRef = useRef(false);
@@ -81,7 +101,12 @@ export const TextBoxInlineEditor = ({
       finishedRef.current = true;
       if (kind === 'commit' && changedRef.current) {
         const quill = quillRef.current?.getEditor();
-        const html = quill ? sanitizeHtml(quill.getSemanticHTML()) : '';
+        // getSemanticHTML serializes every space as &nbsp; — normalize back to
+        // real spaces (wrap opportunities for manual-width boxes) BEFORE the
+        // ADR 0029 write-side sanitize.
+        const html = quill
+          ? sanitizeHtml(normalizeQuillHtmlSpaces(quill.getSemanticHTML()))
+          : '';
         // An emptied box round-trips as '' (not Quill's empty-paragraph shell).
         onCommit(htmlToPlainText(html).trim() ? html : '');
       } else {
@@ -92,6 +117,18 @@ export const TextBoxInlineEditor = ({
   );
   const finishRef = useRef(finish);
   finishRef.current = finish;
+
+  // Live draft → parent (same normalize+sanitize pipeline as commit, so the
+  // measured preview equals the post-commit size EXACTLY). Ref-bound so the
+  // mount effect below doesn't re-run when the parent recreates the callback.
+  const emitDraft = useCallback(() => {
+    const quill = quillRef.current?.getEditor();
+    if (!quill) return;
+    const html = sanitizeHtml(normalizeQuillHtmlSpaces(quill.getSemanticHTML()));
+    onDraftChange(htmlToPlainText(html).trim() ? html : '');
+  }, [onDraftChange]);
+  const emitDraftRef = useRef(emitDraft);
+  emitDraftRef.current = emitDraft;
 
   // Click-away contract (capture phase, ahead of the canvas's own pointerdown
   // deselect — same trick as useInlineRename). Bound to BOTH pointerdown and
@@ -139,9 +176,15 @@ export const TextBoxInlineEditor = ({
       source: string
     ) => {
       if (source === 'user') changedRef.current = true;
+      // Every source: strip formats route through the bridge as 'api' and can
+      // still change the footprint (header scale, list indent).
+      emitDraftRef.current();
     };
     quill.on('selection-change', onSelectionChange);
     quill.on('text-change', onTextChange);
+    // First measure: a fresh empty box gets its placeholder-sized footprint
+    // immediately, so bounds + anchors hug what's actually visible.
+    emitDraftRef.current();
     return () => {
       quill.off('selection-change', onSelectionChange);
       quill.off('text-change', onTextChange);
@@ -174,16 +217,22 @@ export const TextBoxInlineEditor = ({
       data-axoview-id="textbox-inline-editor"
       sx={{
         ...fontProps,
-        // Grow-as-you-type (Lucid convention): the box extends rightward with
-        // the longest line instead of wrapping at the stale committed width —
-        // which is also what commit will measure (isoMath sizes the box to the
-        // longest line, so resting content never soft-wraps either).
-        width: 'max-content',
-        minWidth: '100%',
-        outline: '1px solid rgba(0,0,0,0.3)',
-        borderRadius: 1,
-        bgcolor: '#fff',
-        px: 0.75,
+        // AUTO box: grow-as-you-type (Lucid convention) — the editor extends
+        // rightward with the longest line instead of wrapping at the stale
+        // committed width, which is also what commit will measure (isoMath
+        // sizes an auto box to its longest line). The 5em floor keeps a
+        // brand-new EMPTY box (content '', zero measured width) a visible
+        // click-target under the placeholder instead of a sliver.
+        // FIXED box (manual resize): the editor stays at the box width and
+        // soft-wraps, exactly like the resting render (ADR 0034 addendum).
+        width: fixedWidth ? '100%' : 'max-content',
+        minWidth: fixedWidth ? undefined : 'max(100%, 5em)',
+        // No sheet of its own (owner 2026-07-04): the editor is transparent —
+        // the container behind it already paints the box's backgroundColor,
+        // and the live-measured transform bounds are the session frame. The
+        // old white fill + outline + extra padding drew a second, offset box
+        // over the dashed bounds and shifted text ~6px versus the resting
+        // render.
         cursor: 'text',
         // Quill chrome off — the box IS the editor (snow theme classes exist
         // for the globally-imported quill.snow.css; borders are ours to kill).
@@ -219,6 +268,16 @@ export const TextBoxInlineEditor = ({
           marginRight: '0.3em',
           width: `${CANVAS_RICHTEXT_LIST_INDENT_EM - 0.3}em`
         },
+        // Empty-box placeholder (Lucid's "Type something"): re-anchor Quill's
+        // .ql-blank::before to our zero-padding editor (snow css pins it at
+        // left/right 15px for its own 15px padding) and quiet it down.
+        '& .ql-editor.ql-blank::before': {
+          left: 0,
+          right: 'auto',
+          whiteSpace: 'nowrap',
+          color: 'rgba(0,0,0,0.35)',
+          fontStyle: 'italic'
+        },
         // The link tooltip misplaces under the iso matrix transform — links are
         // authored from the strip's Link control instead (ADR 0034 §2).
         '& .ql-tooltip': { display: 'none' }
@@ -228,6 +287,7 @@ export const TextBoxInlineEditor = ({
         ref={quillRef}
         theme="snow"
         defaultValue={initialHtml}
+        placeholder={t('placeholder')}
         formats={formats}
         modules={QUILL_MODULES}
       />

@@ -139,14 +139,24 @@ export const TEXTBOX_DEFAULTS: Required<
     // Line spacing defaults to absent (= TEXTBOX_LINE_HEIGHT); lean-save omits
     // it on an untouched box.
     | 'lineHeight'
+    // Manual size defaults to absent (= auto: hug the widest line / content
+    // height).
+    | 'width'
+    | 'height'
+    // Background fill defaults to absent (= transparent).
+    | 'backgroundColor'
+    // Vertical alignment defaults to absent (= top).
+    | 'verticalAlign'
   >
 > = {
   orientation: 'X',
   fontSize: 0.6,
-  // Persisted default content — kept canonical (NOT i18n'd): it is written into
-  // the saved model as user-editable text. Translating it would bake localized
-  // text into persisted JSON (i18n L2 rule: translate at render, never persist).
-  content: 'Text',
+  // A new text box is born EMPTY (ADR 0034 addendum 2026-07-03, Lucid parity):
+  // the inline editor shows a localized placeholder while blank, and a box
+  // whose edit session ends still-empty is deleted rather than committed — so
+  // no literal "Text" ever lands in the persisted model (which also kept this
+  // default canonical/un-i18n'd; '' sidesteps that constraint entirely).
+  content: '',
   color: ''
 };
 

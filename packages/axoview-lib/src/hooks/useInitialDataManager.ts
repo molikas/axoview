@@ -24,6 +24,7 @@ import { foldNodeDescription } from 'src/utils/foldNodeDescription';
 import { seedNodeLabel } from 'src/utils/seedNodeLabel';
 import { seedConnectorLabel } from 'src/utils/seedConnectorLabel';
 import { foldTextBoxStyleFlags } from 'src/utils/foldTextBoxStyleFlags';
+import { normalizeQuillHtmlSpaces } from 'src/utils/richTextTransform';
 
 // Must match the threshold in IconCollection.tsx so newly-loaded large packs
 // (e.g. Material Icons) are not auto-expanded (which would freeze the browser).
@@ -70,14 +71,22 @@ export const useInitialDataManager = () => {
           // exported model clean.
           // ADR 0034 §4: first fold the legacy element-level isBold/isItalic/
           // isUnderline flags into the content HTML (content is the single
-          // formatting layer now — the renderer no longer reads the flags), then
-          // sanitize the result. Idempotent, mirrors seedConnectorLabel.
+          // formatting layer now — the renderer no longer reads the flags),
+          // normalize Quill's &nbsp;-for-space serialization back to real
+          // spaces (legacy content must gain wrap opportunities too — the
+          // manual-width addendum), then sanitize the result. Idempotent,
+          // mirrors seedConnectorLabel.
           if (Array.isArray(normView.textBoxes)) {
             normView.textBoxes = normView.textBoxes.map((tb) => {
               if (!isObj(tb)) return tb;
               const folded = foldTextBoxStyleFlags(tb);
               return typeof folded.content === 'string'
-                ? { ...folded, content: sanitizeHtml(folded.content) }
+                ? {
+                    ...folded,
+                    content: sanitizeHtml(
+                      normalizeQuillHtmlSpaces(folded.content)
+                    )
+                  }
                 : folded;
             });
           }

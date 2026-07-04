@@ -4,6 +4,19 @@ import { Box } from '@mui/material';
 import { buildListAutofillBinding } from 'src/utils/quillListAutofill';
 import RichTextEditorErrorBoundary from './RichTextEditorErrorBoundary';
 
+// Paragraph alignment serializes as an inline `text-align` STYLE (not Quill's
+// default ql-align-* class attributor): one representation flows through
+// getSemanticHTML → sanitizeHtml → the resting canvas render with no
+// ql-align CSS anywhere (ADR 0034 addendum 2026-07-03). Global registration,
+// done once here — the module every Quill surface already imports for
+// `formats`. No legacy class-based align exists (align was never authorable
+// before this).
+ReactQuill.Quill.register(
+  'formats/align',
+  ReactQuill.Quill.import('attributors/style/align'),
+  true
+);
+
 interface Props {
   value?: string;
   onChange?: (value: string) => void;
@@ -35,6 +48,13 @@ export const formats = [
   'link',
   'header',
   'list',
+  // Paragraph alignment (ADR 0034 addendum 2026-07-03) — style attributor
+  // registered above.
+  'align',
+  // Per-range text color (ADR 0034 addendum 2026-07-04): the strip's color
+  // picker formats the live selection while editing; serialized as inline
+  // color styles (Quill's built-in style attributor).
+  'color',
   'blockquote',
   'code-block'
 ];

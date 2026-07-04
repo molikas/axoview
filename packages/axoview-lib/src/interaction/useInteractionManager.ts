@@ -34,6 +34,7 @@ import { Connector } from './modes/Connector';
 import { Pan } from './modes/Pan';
 import { PlaceIcon } from './modes/PlaceIcon';
 import { TextBox } from './modes/TextBox';
+import { TransformTextBox } from './modes/TransformTextBox';
 import { Label } from './modes/Label';
 import { Lasso } from './modes/Lasso';
 import { FreehandLasso } from './modes/FreehandLasso';
@@ -53,6 +54,7 @@ const modes: { [k in string]: ModeActions } = {
   PAN: Pan,
   PLACE_ICON: PlaceIcon,
   TEXTBOX: TextBox,
+  'TEXTBOX.TRANSFORM': TransformTextBox,
   LABEL: Label,
   LASSO: Lasso,
   FREEHAND_LASSO: FreehandLasso,

@@ -194,6 +194,34 @@ export function FileExplorer() {
     setContextMenuNode(node);
   }, []);
 
+  // Right-click on the tree's EMPTY space targets the selected node — or the
+  // open diagram when nothing is tree-selected — instead of surfacing the
+  // browser menu (owner 2026-07-04: "I have to precisely click on the diagram
+  // name"). Rows stop propagation in handleContextMenu, so this only fires
+  // between/below rows. With nothing to act on, the browser menu stays.
+  const handleEmptySpaceContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      const findById = (nodes: FileNode[], id: string): FileNode | null => {
+        for (const n of nodes) {
+          if (n.id === id) return n;
+          const hit = n.children ? findById(n.children, id) : null;
+          if (hit) return hit;
+        }
+        return null;
+      };
+      // Re-resolve by id: the state snapshots can outlive a rename/delete.
+      const target =
+        (selectedNode && findById(tree.treeData, selectedNode.id)) ||
+        (currentDiagram && findById(tree.treeData, currentDiagram.id)) ||
+        null;
+      if (!target) return;
+      e.preventDefault();
+      setContextMenuAnchor({ x: e.clientX, y: e.clientY });
+      setContextMenuNode(target);
+    },
+    [selectedNode, currentDiagram, tree.treeData]
+  );
+
   const closeContextMenu = useCallback(() => {
     setContextMenuAnchor(null);
     setContextMenuNode(null);
@@ -546,7 +574,9 @@ export function FileExplorer() {
       <Box
         ref={treeContainerRef}
         tabIndex={-1}
+        data-axoview-id="file-explorer-tree"
         sx={{ flex: 1, overflow: 'hidden', py: 0.5, outline: 'none' }}
+        onContextMenu={handleEmptySpaceContextMenu}
         onKeyDown={(e) => {
           if (!selectedNode) return;
           if (e.key === 'F2') {

@@ -1,7 +1,8 @@
-import React, { useMemo, memo, useCallback, useEffect } from 'react';
+import React, { useMemo, memo, useCallback, useEffect, useRef } from 'react';
 import { Box, Typography } from '@mui/material';
-import { toPx, CoordsUtils } from 'src/utils';
+import { toPx, CoordsUtils, getTextBoxDimensions } from 'src/utils';
 import { sanitizeHtml } from 'src/utils/sanitizeHtml';
+import { useTranslation } from 'src/stores/localeStore';
 import { useIsoProjection } from 'src/hooks/useIsoProjection';
 import { useTextBoxProps } from 'src/hooks/useTextBoxProps';
 import { useSceneData } from 'src/hooks/useSceneData';
@@ -32,7 +33,7 @@ export const TextBox = memo(({ textBox }: Props) => {
   const editorMode = useUiStateStore((s) => s.editorMode);
   // Actions only (not useScene): this textbox sits in the drag hot path and must
   // not re-render on every scene mutation just to hold updateTextBox (perf A-1).
-  const { updateTextBox } = useSceneActions();
+  const { updateTextBox, deleteTextBox } = useSceneActions();
   const isEditable = editorMode === 'EDITABLE';
   const uiActions = useUiStateStore((s) => s.actions);
   // The on-canvas edit session is store state (ADR 0034): while set, the
@@ -43,6 +44,14 @@ export const TextBox = memo(({ textBox }: Props) => {
   const isEditing = useUiStateStore(
     (s) => s.editingTextBoxId === textBox.id && isEditable
   );
+  // Live footprint of the edit session (ADR 0034 addendum 2026-07-04): the
+  // editor measures its draft (placeholder included while empty) so this
+  // projected container — and the transform bounds reading the same store
+  // field — hug what is actually visible instead of the stale committed size.
+  const previewSize = useUiStateStore((s) =>
+    s.editingTextBoxId === textBox.id ? s.editingTextBoxSize : null
+  );
+  const size = (isEditing && previewSize) || textBox.size;
 
   // F2 / context-menu Rename entry point (nodes and connectors share the event).
   useEffect(() => {
@@ -65,19 +74,60 @@ export const TextBox = memo(({ textBox }: Props) => {
     [isEditable, uiActions, textBox.id]
   );
 
+  // Empty-box lifecycle (ADR 0034 addendum 2026-07-03, Lucid parity): a text
+  // box whose edit session ends with no content is DELETED, not committed —
+  // covers the fresh place-and-type box abandoned via click-away/Escape AND an
+  // existing box the user emptied. Prevents invisible zero-width ghosts.
+  const discardEmpty = useCallback(() => {
+    uiActions.setEditingTextBoxId(null);
+    uiActions.setItemControls(null);
+    deleteTextBox(textBox.id);
+  }, [uiActions, deleteTextBox, textBox.id]);
+
   const commit = useCallback(
     (html: string) => {
+      if (html === '') {
+        discardEmpty();
+        return;
+      }
       if (html !== (textBox.content ?? '')) {
         updateTextBox(textBox.id, { content: html });
       }
       uiActions.setEditingTextBoxId(null);
     },
-    [updateTextBox, textBox.id, textBox.content, uiActions]
+    [updateTextBox, textBox.id, textBox.content, uiActions, discardEmpty]
   );
 
   const cancel = useCallback(() => {
+    if ((textBox.content ?? '') === '') {
+      discardEmpty();
+      return;
+    }
     uiActions.setEditingTextBoxId(null);
-  }, [uiActions]);
+  }, [uiActions, textBox.content, discardEmpty]);
+
+  // Measure the live draft with the exact commit pipeline (getTextBoxDimensions
+  // over the box's own props) and publish it as the session footprint. A blank
+  // draft measures the PLACEHOLDER string instead — the bounds hug the "Type
+  // something" hint the user actually sees, not a 1-tile sliver beside it.
+  const { t } = useTranslation('textBoxControls');
+  const textBoxRef = useRef(textBox);
+  textBoxRef.current = textBox;
+  const onDraftChange = useCallback(
+    (draftHtml: string) => {
+      const content = draftHtml === '' ? `<p>${t('placeholder')}</p>` : draftHtml;
+      try {
+        uiActions.setEditingTextBoxSize(
+          getTextBoxDimensions({ ...textBoxRef.current, content })
+        );
+      } catch {
+        // No canvas 2D context (jsdom / exhausted headless contexts):
+        // getTextWidth throws. Keep the committed size — the session still
+        // works, the bounds just don't track the draft.
+      }
+    },
+    [uiActions, t]
+  );
 
   const { strategy } = useCanvasMode();
 
@@ -94,20 +144,36 @@ export const TextBox = memo(({ textBox }: Props) => {
     if (isTwoDY) return textBox.tile;
     return CoordsUtils.add(textBox.tile, {
       x: 0,
-      y: -(textBox.size.height - 1)
+      y: -(size.height - 1)
     });
-  }, [textBox.tile, textBox.size.height, isTwoDY]);
+  }, [textBox.tile, size.height, isTwoDY]);
 
   const to = useMemo(() => {
     return CoordsUtils.add(textBox.tile, {
-      x: textBox.size.width,
+      x: size.width,
       y: 0
     });
-  }, [textBox.tile, textBox.size.width]);
+  }, [textBox.tile, size.width]);
+
+  // Iso-Y multi-row correction (ADR 0034 addendum 2026-07-04): the Y
+  // projection maps the container's row axis (layout +y) toward world −x, so
+  // a multi-row box pivoted at `tile` painted its rows OUTSIDE the selection
+  // footprint (which extends +x, see getTextBoxEndTile). Anchoring the pivot
+  // at the far row re-lands rows on [tile.x .. tile.x + rows]. Single-row
+  // boxes (the historical common case) are unaffected: the override equals
+  // the default origin.
+  const originOverride = useMemo(() => {
+    if (isTwoDY || textBox.orientation !== 'Y') return undefined;
+    return {
+      x: textBox.tile.x + (size.height - 1),
+      y: textBox.tile.y
+    };
+  }, [isTwoDY, textBox.orientation, textBox.tile, size.height]);
 
   const { css } = useIsoProjection({
     from,
     to,
+    originOverride,
     orientation: textBox.orientation
   });
 
@@ -144,10 +210,23 @@ export const TextBox = memo(({ textBox }: Props) => {
           top: 0,
           left: 0,
           display: 'flex',
-          alignItems: 'flex-start',
+          // Vertical alignment inside the box footprint (ADR 0034 addendum
+          // 2026-07-04) — visible once a manual height leaves headroom; the
+          // inline editor is the same flex child, so it aligns identically.
+          alignItems:
+            textBox.verticalAlign === 'middle'
+              ? 'center'
+              : textBox.verticalAlign === 'bottom'
+              ? 'flex-end'
+              : 'flex-start',
           width: '100%',
           height: '100%',
           px: toPx(paddingX),
+          // Box fill (ADR 0034 addendum 2026-07-04) — covers the whole
+          // footprint incl. manual height; absent = transparent (unchanged).
+          ...(textBox.backgroundColor
+            ? { bgcolor: textBox.backgroundColor, borderRadius: 1 }
+            : {}),
           pointerEvents: isEditable ? 'auto' : 'inherit'
         }}
       >
@@ -156,6 +235,8 @@ export const TextBox = memo(({ textBox }: Props) => {
             textBoxId={textBox.id}
             content={textBox.content}
             fontProps={fontProps}
+            fixedWidth={textBox.width !== undefined}
+            onDraftChange={onDraftChange}
             onCommit={commit}
             onCancel={cancel}
           />

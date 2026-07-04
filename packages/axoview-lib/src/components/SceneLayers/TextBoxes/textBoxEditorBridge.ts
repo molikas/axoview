@@ -38,11 +38,31 @@ export const registerTextBoxEditor = (
   emit();
 };
 
+/** The range strip controls should format: the live selection while the
+ *  editor owns focus, else the sticky lastRange (focus is in a strip
+ *  popover). Never the raw getSelection() when unfocused — see the spurious
+ *  collapsed-selection note in setTextBoxEditorRange. */
+export const getEffectiveEditorRange = (
+  handle: TextBoxEditorHandle
+): TextBoxEditorRange | null => {
+  if (handle.quill.hasFocus()) {
+    return handle.quill.getSelection() ?? handle.lastRange;
+  }
+  return handle.lastRange;
+};
+
 export const setTextBoxEditorRange = (
   id: string,
   range: TextBoxEditorRange | null
 ) => {
-  if (current?.id === id && range) current.lastRange = range;
+  // Record only while the editor owns focus. When focus moves into a strip
+  // popover, the blur emits null (already ignored) — but Chromium can follow
+  // it with a SPURIOUS collapsed {0,0} selection-change as the DOM selection
+  // collapses onto the root, which would clobber the very range the popover
+  // is about to format (observed 2026-07-04 with the Ctrl+K Link flow).
+  if (current?.id === id && range && current.quill.hasFocus()) {
+    current.lastRange = range;
+  }
 };
 
 export const unregisterTextBoxEditor = (id: string, quill: Quill) => {

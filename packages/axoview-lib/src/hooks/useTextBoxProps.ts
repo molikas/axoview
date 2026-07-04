@@ -100,9 +100,27 @@ export const useTextBoxProps = (textBox: TextBox) => {
       fontWeight: TEXTBOX_FONT_WEIGHT,
       color: textBox.color || 'inherit',
       lineHeight: textBox.lineHeight ?? TEXTBOX_LINE_HEIGHT,
+      // White-space contract (ADR 0034 addendum 2026-07-03):
+      //   AUTO box  → 'pre': never soft-wrap (the box hugs the longest line;
+      //               wrapping would reflow every existing diagram) and keep
+      //               space runs, matching the editor's rendering.
+      //   FIXED box → 'pre-wrap' + minWidth 0: soft-wrap at the box edge
+      //               exactly like the editor (.ql-editor is pre-wrap);
+      //               minWidth 0 lets the flex child shrink to the container
+      //               instead of flooring at the text's min-content width.
+      //               break-word matches the editor and the measurement's
+      //               hard-break estimate for over-long words.
+      ...(textBox.width !== undefined
+        ? {
+            whiteSpace: 'pre-wrap' as const,
+            overflowWrap: 'break-word' as const,
+            minWidth: 0,
+            width: '100%'
+          }
+        : { whiteSpace: 'pre' as const }),
       ...richTextStyles
     };
-  }, [textBox.fontSize, textBox.color, textBox.lineHeight]);
+  }, [textBox.fontSize, textBox.color, textBox.lineHeight, textBox.width]);
 
   const paddingX = useMemo(() => {
     return UNPROJECTED_TILE_SIZE * TEXTBOX_PADDING;

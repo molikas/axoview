@@ -19,7 +19,9 @@
 
 import {
   countHtmlLines,
-  splitIntoMeasurableBlocks
+  splitIntoMeasurableBlocks,
+  countGreedyWrappedLines,
+  getTextBoxDimensions
 } from 'src/utils/isoMath';
 import {
   TEXTBOX_LINE_HEIGHT,
@@ -111,7 +113,7 @@ describe('countHtmlLines — weighted line counting', () => {
 describe('splitIntoMeasurableBlocks — per-block scale + indent', () => {
   it('plain text returns one block at scale 1.0, no indent', () => {
     expect(splitIntoMeasurableBlocks('Hello world')).toEqual([
-      { text: 'Hello world', scale: 1.0, indentEm: 0 }
+      { text: 'Hello world', scale: 1.0, indentEm: 0, tag: 'p' }
     ]);
   });
 
@@ -125,8 +127,8 @@ describe('splitIntoMeasurableBlocks — per-block scale + indent', () => {
   it('extracts each <p> as its own block at scale 1.0', () => {
     const blocks = splitIntoMeasurableBlocks('<p>A</p><p>BB</p>');
     expect(blocks).toEqual([
-      { text: 'A', scale: 1.0, indentEm: 0 },
-      { text: 'BB', scale: 1.0, indentEm: 0 }
+      { text: 'A', scale: 1.0, indentEm: 0, tag: 'p' },
+      { text: 'BB', scale: 1.0, indentEm: 0, tag: 'p' }
     ]);
   });
 
@@ -138,11 +140,12 @@ describe('splitIntoMeasurableBlocks — per-block scale + indent', () => {
       '<ul><li>One</li><li>Longer item</li></ul>'
     );
     expect(blocks).toEqual([
-      { text: 'One', scale: 1.0, indentEm: CANVAS_RICHTEXT_LIST_INDENT_EM },
+      { text: 'One', scale: 1.0, indentEm: CANVAS_RICHTEXT_LIST_INDENT_EM, tag: 'li' },
       {
         text: 'Longer item',
         scale: 1.0,
-        indentEm: CANVAS_RICHTEXT_LIST_INDENT_EM
+        indentEm: CANVAS_RICHTEXT_LIST_INDENT_EM,
+        tag: 'li'
       }
     ]);
   });
@@ -157,7 +160,7 @@ describe('splitIntoMeasurableBlocks — per-block scale + indent', () => {
     // horizontal room than a 4-char paragraph. Without the scale the
     // textbox auto-grew too narrow and h1 lines wrapped or clipped.
     const blocks = splitIntoMeasurableBlocks('<h1>Test</h1>');
-    expect(blocks).toEqual([{ text: 'Test', scale: 1.875, indentEm: 0 }]);
+    expect(blocks).toEqual([{ text: 'Test', scale: 1.875, indentEm: 0, tag: 'h1' }]);
   });
 
   it('h2 scale is 1.5, h3 is 1.25', () => {
@@ -173,10 +176,11 @@ describe('splitIntoMeasurableBlocks — per-block scale + indent', () => {
     expect(blocks[0].text).toBe('Hello bold world');
   });
 
-  it('skips empty blocks (Quill emits <p><br></p> for blank lines)', () => {
+  it('keeps blank blocks with empty text (Quill emits <p><br></p> for blank lines)', () => {
+    // Blank lines must survive into the block list so the fixed-width height
+    // path counts them; the auto-width loop measures them as zero.
     const blocks = splitIntoMeasurableBlocks('<p>A</p><p><br></p><p>B</p>');
-    expect(blocks.map((b) => b.text)).toContain('A');
-    expect(blocks.map((b) => b.text)).toContain('B');
+    expect(blocks.map((b) => b.text)).toEqual(['A', '', 'B']);
   });
 
   it('mixed content preserves block order and per-block scale', () => {
@@ -184,9 +188,9 @@ describe('splitIntoMeasurableBlocks — per-block scale + indent', () => {
       '<h1>Big</h1><p>Body</p><h3>Sub</h3>'
     );
     expect(blocks).toEqual([
-      { text: 'Big', scale: 1.875, indentEm: 0 },
-      { text: 'Body', scale: 1.0, indentEm: 0 },
-      { text: 'Sub', scale: 1.25, indentEm: 0 }
+      { text: 'Big', scale: 1.875, indentEm: 0, tag: 'h1' },
+      { text: 'Body', scale: 1.0, indentEm: 0, tag: 'p' },
+      { text: 'Sub', scale: 1.25, indentEm: 0, tag: 'h3' }
     ]);
   });
 
@@ -195,5 +199,114 @@ describe('splitIntoMeasurableBlocks — per-block scale + indent', () => {
     // (caller would divide by zero / produce 0-width textbox).
     const blocks = splitIntoMeasurableBlocks('<custom>foo</custom>');
     expect(blocks.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('countGreedyWrappedLines — pure word-wrap core (manual width, ADR 0034 addendum)', () => {
+  it('empty text is one line', () => {
+    expect(countGreedyWrappedLines([], 5, 100)).toBe(1);
+  });
+
+  it('words that fit stay on one line', () => {
+    expect(countGreedyWrappedLines([30, 30, 20], 5, 100)).toBe(1);
+  });
+
+  it('wraps greedily at the available width (space width counted)', () => {
+    // 40 + 5 + 40 = 85 fits; adding 5 + 40 would need 130 → wraps.
+    expect(countGreedyWrappedLines([40, 40, 40], 5, 100)).toBe(2);
+  });
+
+  it('each word on its own line when only one fits per line', () => {
+    expect(countGreedyWrappedLines([80, 80, 80], 5, 100)).toBe(3);
+  });
+
+  it('an over-long word hard-breaks across lines (break-word)', () => {
+    // 250px word in a 100px line → 3 chunks.
+    expect(countGreedyWrappedLines([250], 5, 100)).toBe(3);
+  });
+
+  it('an over-long word after existing content starts on a fresh line', () => {
+    // 40 on line 1, then the 250px word takes lines 2-4.
+    expect(countGreedyWrappedLines([40, 250], 5, 100)).toBe(4);
+  });
+
+  it('content continues on the over-long word tail line', () => {
+    // 150px word = 2 chunks (tail 50px); a 40px word fits after the tail.
+    expect(countGreedyWrappedLines([150, 40], 5, 100)).toBe(2);
+  });
+
+  it('degenerate available width never divides by zero', () => {
+    expect(countGreedyWrappedLines([40], 5, 0)).toBe(1);
+  });
+});
+
+describe('getTextBoxDimensions — manual width (ADR 0034 addendum)', () => {
+  // jsdom has no canvas 2D context, so the wrap estimate degrades to one line
+  // per block here — these pin the width passthrough/clamp and the per-block
+  // height floor, not the wrap counts (countGreedyWrappedLines above owns
+  // those; the e2e resize test exercises the real browser measurement).
+  // Mock getContext → null explicitly: jsdom's own stub logs a
+  // "Not implemented" jsdomError that fails the suite despite passing tests.
+  beforeAll(() => {
+    jest
+      .spyOn(HTMLCanvasElement.prototype, 'getContext')
+      .mockReturnValue(null);
+  });
+  afterAll(() => {
+    jest.restoreAllMocks();
+  });
+  const box = (overrides: Record<string, unknown>) =>
+    ({
+      id: 'tb',
+      tile: { x: 0, y: 0 },
+      content: '<p>a</p>',
+      ...overrides
+    } as never);
+
+  it('a manual width is returned verbatim (auto measurement bypassed)', () => {
+    const size = getTextBoxDimensions(box({ width: 3 }));
+    expect(size.width).toBe(3);
+    expect(size.height).toBeGreaterThanOrEqual(1);
+  });
+
+  it('manual width clamps to the 1-tile floor', () => {
+    expect(getTextBoxDimensions(box({ width: 0.2 })).width).toBe(1);
+  });
+
+  it('fixed-width height sums per-block line-spacing units', () => {
+    // Four paragraphs at (jsdom-degraded) one line each: 4 × 1.2 × 0.6 = 2.88
+    // → ceil → 3 rows; a single paragraph gives 1 row.
+    const tall = getTextBoxDimensions(
+      box({ width: 3, content: '<p>a</p><p>b</p><p>c</p><p>d</p>' })
+    );
+    const short = getTextBoxDimensions(box({ width: 3 }));
+    expect(tall.height).toBe(3);
+    expect(short.height).toBe(1);
+  });
+
+  it('blank lines count toward fixed-width height', () => {
+    const withBlank = getTextBoxDimensions(
+      box({ width: 3, content: '<p>a</p><p><br></p><p>b</p><p><br></p>' })
+    );
+    expect(withBlank.height).toBe(
+      getTextBoxDimensions(
+        box({ width: 3, content: '<p>a</p><p>b</p><p>c</p><p>d</p>' })
+      ).height
+    );
+  });
+
+  it('manual height is a MINIMUM — content wins when taller (never clips)', () => {
+    // Taller than content: the manual value sticks.
+    expect(getTextBoxDimensions(box({ width: 3, height: 5 })).height).toBe(5);
+    // Shorter than content: the content height wins (4 paragraphs → 3 rows).
+    expect(
+      getTextBoxDimensions(
+        box({
+          width: 3,
+          height: 2,
+          content: '<p>a</p><p>b</p><p>c</p><p>d</p>'
+        })
+      ).height
+    ).toBe(3);
   });
 });

@@ -11,7 +11,9 @@ import {
   isHtmlContent,
   getWholeContentFormats,
   applyInlineFormat,
-  applyListFormat
+  applyListFormat,
+  applyAlignFormat,
+  normalizeQuillHtmlSpaces
 } from '../richTextTransform';
 
 describe('plainTextToHtml / ensureHtmlContent', () => {
@@ -41,14 +43,16 @@ describe('getWholeContentFormats', () => {
       italic: false,
       underline: false,
       strike: false,
-      list: null
+      list: null,
+      align: 'left'
     });
     expect(getWholeContentFormats('')).toEqual({
       bold: false,
       italic: false,
       underline: false,
       strike: false,
-      list: null
+      list: null,
+      align: 'left'
     });
     expect(getWholeContentFormats(undefined).bold).toBe(false);
   });
@@ -145,5 +149,79 @@ describe('applyListFormat', () => {
     expect(
       applyListFormat('<ul><li><em>a</em></li><li>b</li></ul>', 'bullet', false)
     ).toBe('<p><em>a</em></p><p>b</p>');
+  });
+});
+
+describe('applyAlignFormat / getWholeContentFormats.align (ADR 0034 addendum 2026-07-03)', () => {
+  it('applies an inline text-align style to every leaf block', () => {
+    expect(applyAlignFormat('<p>a</p><p>b</p>', 'center')).toBe(
+      '<p style="text-align: center;">a</p><p style="text-align: center;">b</p>'
+    );
+  });
+
+  it('aligns plain-text content by converting it to paragraphs first', () => {
+    expect(applyAlignFormat('hello', 'right')).toBe(
+      '<p style="text-align: right;">hello</p>'
+    );
+  });
+
+  it('aligns list items (the leaf blocks), not the list container', () => {
+    expect(applyAlignFormat('<ul><li>a</li></ul>', 'center')).toBe(
+      '<ul><li style="text-align: center;">a</li></ul>'
+    );
+  });
+
+  it("'left' removes the style entirely (default stored as absent)", () => {
+    const centered = applyAlignFormat('<p>a</p>', 'center');
+    expect(applyAlignFormat(centered, 'left')).toBe('<p>a</p>');
+  });
+
+  it("'left' keeps unrelated inline styles while dropping text-align", () => {
+    expect(
+      applyAlignFormat('<p style="color: red; text-align: center;">a</p>', 'left')
+    ).toBe('<p style="color: red;">a</p>');
+  });
+
+  it('reads a uniform alignment back', () => {
+    const centered = applyAlignFormat('<p>a</p><p>b</p>', 'center');
+    expect(getWholeContentFormats(centered).align).toBe('center');
+  });
+
+  it('unaligned content reads as left', () => {
+    expect(getWholeContentFormats('<p>a</p>').align).toBe('left');
+  });
+
+  it('mixed alignment reads as null', () => {
+    const mixed =
+      '<p style="text-align: center;">a</p><p style="text-align: right;">b</p>';
+    expect(getWholeContentFormats(mixed).align).toBe(null);
+  });
+
+  it('alignment survives the list toggle in both directions', () => {
+    const centered = applyAlignFormat('<p>a</p>', 'center');
+    const asList = applyListFormat(centered, 'bullet', true);
+    expect(getWholeContentFormats(asList).align).toBe('center');
+    const backToParagraphs = applyListFormat(asList, 'bullet', false);
+    expect(getWholeContentFormats(backToParagraphs).align).toBe('center');
+  });
+});
+
+describe('normalizeQuillHtmlSpaces (ADR 0034 addendum 2026-07-04)', () => {
+  const NBSP = String.fromCharCode(0xa0);
+
+  it('converts Quill-serialized &nbsp; entities to real spaces', () => {
+    // getSemanticHTML emits EVERY space as &nbsp;, turning a paragraph into
+    // one unbreakable word — manual-width boxes could never soft-wrap.
+    expect(
+      normalizeQuillHtmlSpaces('<p>Hello&nbsp;world&nbsp;this&nbsp;is</p>')
+    ).toBe('<p>Hello world this is</p>');
+  });
+
+  it('converts literal U+00A0 characters too', () => {
+    expect(normalizeQuillHtmlSpaces(`<p>a${NBSP}b</p>`)).toBe('<p>a b</p>');
+  });
+
+  it('leaves already-normal content untouched', () => {
+    expect(normalizeQuillHtmlSpaces('<p>a b</p>')).toBe('<p>a b</p>');
   });
 });

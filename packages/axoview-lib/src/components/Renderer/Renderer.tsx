@@ -443,14 +443,6 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
           <Nodes nodes={hybridNodes} />
         </SceneLayer>
       )}
-      {/* The inline-edited text box (ADR 0034) — promoted above the
-          interactions box for the duration of the edit session so the mounted
-          Quill editor owns its pointer events. */}
-      {editingTextBoxes && editingTextBoxes.length > 0 && (
-        <SceneLayer>
-          <TextBoxes textBoxes={editingTextBoxes} />
-        </SceneLayer>
-      )}
       <SceneLayer>
         <ConnectorAnchorOverlay />
       </SceneLayer>
@@ -460,6 +452,18 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
       <SceneLayer>
         <TransformControlsManager />
       </SceneLayer>
+      {/* The inline-edited text box (ADR 0034) — promoted above the
+          interactions box for the duration of the edit session so the mounted
+          Quill editor owns its pointer events. Mounted ABOVE the transform
+          controls too (2026-07-04): the resize anchors stay visible during the
+          session, but where one overlaps the (often small) box, the TEXT wins
+          the click — caret placement beats resize; each anchor's outer half
+          sticks out past the box edge and stays grabbable. */}
+      {editingTextBoxes && editingTextBoxes.length > 0 && (
+        <SceneLayer>
+          <TextBoxes textBoxes={editingTextBoxes} />
+        </SceneLayer>
+      )}
     </Box>
   );
 };

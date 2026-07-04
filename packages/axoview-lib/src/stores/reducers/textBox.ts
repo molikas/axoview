@@ -35,12 +35,15 @@ export const updateTextBox = (
     textBoxes[textBox.index] = newTextBox;
 
     // Re-measure on any write that changes rendered geometry — content,
-    // fontSize, or the line-spacing multiplier (height weights, ADR 0034
-    // addendum 2026-07-03).
+    // fontSize, line spacing, or manual size (ADR 0034 addenda 2026-07-03).
+    // `in` (not !== undefined) so an explicit reset write like
+    // `{ width: undefined }` (fit-to-text) also re-measures.
     if (
-      updates.content !== undefined ||
-      updates.fontSize !== undefined ||
-      updates.lineHeight !== undefined
+      'content' in updates ||
+      'fontSize' in updates ||
+      'lineHeight' in updates ||
+      'width' in updates ||
+      'height' in updates
     ) {
       const stateAfterSync = syncTextBox(newTextBox.id, {
         viewId,

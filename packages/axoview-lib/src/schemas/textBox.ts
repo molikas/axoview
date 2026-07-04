@@ -16,6 +16,22 @@ export const textBoxSchema = z.object({
   // schema cap tighter than what the strip can write bricks saved diagrams
   // on reload (the connector-label fontSize S1).
   lineHeight: z.number().optional(),
+  // Manual size in tile units (ADR 0034 addendum 2026-07-03, Lucid parity):
+  // absent = auto. width: box hugs the widest line, never soft-wraps;
+  // present = fixed width set by anchor resize — text wraps, height grows.
+  // height: a MINIMUM box height (content still grows past it — text never
+  // clips). Unbounded for the same reason as fontSize/lineHeight.
+  width: z.number().optional(),
+  height: z.number().optional(),
+  // Box fill behind the text (ADR 0034 addendum 2026-07-04); absent =
+  // transparent (today's look). Naming follows the floating-Label sibling.
+  backgroundColor: z.string().optional(),
+  // Vertical alignment of the content inside the box footprint (ADR 0034
+  // addendum 2026-07-04) — meaningful once a manual height makes the box
+  // taller than its content. Absent = top.
+  verticalAlign: z
+    .union([z.literal('top'), z.literal('middle'), z.literal('bottom')])
+    .optional(),
   color: z.string().optional(),
   isBold: z.boolean().optional(),
   isItalic: z.boolean().optional(),

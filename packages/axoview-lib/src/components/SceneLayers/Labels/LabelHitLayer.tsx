@@ -5,6 +5,7 @@ import { useLayerContext } from 'src/hooks/useLayerContext';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useSceneActions } from 'src/hooks/useSceneActions';
 import { useInlineRename } from 'src/hooks/useInlineRename';
+import { OPEN_LINK_POPOVER_EVENT } from 'src/utils/quillLinkShortcut';
 import {
   measureLabelChip,
   labelFontPx,
@@ -112,7 +113,24 @@ const LabelInlineEditor = ({
         data-testid="label-inline-editor"
         ref={inline.setRef as unknown as React.Ref<HTMLDivElement>}
         onBlur={inline.onBlur}
-        onKeyDown={inline.onKeyDown}
+        onKeyDown={(e) => {
+          // Ctrl/Cmd+K mid-edit → the strip's Link popover for this label
+          // (Docs convention, owner 2026-07-04). Labels are plain text, so
+          // the link is the element-level headerLink; the popover's focus
+          // steal blurs this editor, which commits the text first.
+          if (
+            (e.ctrlKey || e.metaKey) &&
+            !e.altKey &&
+            !e.shiftKey &&
+            e.key.toLowerCase() === 'k'
+          ) {
+            e.preventDefault();
+            e.stopPropagation();
+            window.dispatchEvent(new CustomEvent(OPEN_LINK_POPOVER_EVENT));
+            return;
+          }
+          inline.onKeyDown(e);
+        }}
         onDoubleClick={(e) => e.stopPropagation()}
         style={{
           font: `${label.isItalic ? 'italic ' : ''}${

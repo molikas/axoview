@@ -195,15 +195,26 @@ export class CanvasPOM {
    *
    * Place-and-type (ADR 0034) drops the new box straight into the on-canvas
    * Quill edit session, which holds keyboard focus — a subsequent hotkey press
-   * would type INTO the box instead of arming a tool. By default this helper
-   * therefore dismisses the editor (Escape cancels; the default content stays).
-   * Pass `keepEditing: true` when the spec wants the live editor.
+   * would type INTO the box instead of arming a tool. A new box is EMPTY and a
+   * session that ends empty discards the box (ADR 0034 addendum 2026-07-03),
+   * so by default this helper types probe content (`opts.text`, default
+   * 'Text') and commits — leaving a persisted, still-selected box, like the
+   * old default-content placement did. Pass `keepEditing: true` when the spec
+   * wants the live (empty) editor.
    */
-  async placeTextBoxAt(point: CanvasPoint, opts?: { keepEditing?: boolean }) {
+  async placeTextBoxAt(
+    point: CanvasPoint,
+    opts?: { keepEditing?: boolean; text?: string }
+  ) {
     await this.dispatchAt(['mousemove'], point);
     await this.pressTextBoxHotkey();
     await this.dispatchAt(['mouseup'], point);
-    if (!opts?.keepEditing) await this.dismissTextBoxEditor();
+    if (opts?.keepEditing) return;
+    const editor = this.textBoxInlineEditor();
+    await editor.waitFor({ state: 'visible', timeout: 5_000 });
+    await editor.click();
+    await this.page.keyboard.type(opts?.text ?? 'Text', { delay: 5 });
+    await this.commitTextBoxEditor();
   }
 
   /** The on-canvas rich-text editor of the text box being edited (ADR 0034). */
@@ -212,9 +223,27 @@ export class CanvasPOM {
   }
 
   /**
-   * Ends an on-canvas text-box edit session via Escape (cancel — content is
-   * left as-is). Clicks the editor first so Escape reliably targets it rather
-   * than the window's own Escape handler.
+   * Commits the on-canvas edit session without touching the canvas: a
+   * pointerdown on document.body trips the editor's capture-phase click-away
+   * listener (body is outside editor/strip/portals) but never reaches the
+   * canvas-interactions element — so the box stays selected and no other
+   * element is hit, whatever the spec's layout.
+   */
+  async commitTextBoxEditor() {
+    const editor = this.textBoxInlineEditor();
+    await this.page.evaluate(() => {
+      document.body.dispatchEvent(
+        new PointerEvent('pointerdown', { bubbles: true })
+      );
+    });
+    await editor.waitFor({ state: 'detached', timeout: 5_000 });
+  }
+
+  /**
+   * Ends an on-canvas text-box edit session via Escape (cancel — the STORED
+   * content is left as-is; a box that was never committed is discarded, per
+   * the ADR 0034 empty-box lifecycle). Clicks the editor first so Escape
+   * reliably targets it rather than the window's own Escape handler.
    */
   async dismissTextBoxEditor() {
     const editor = this.textBoxInlineEditor();

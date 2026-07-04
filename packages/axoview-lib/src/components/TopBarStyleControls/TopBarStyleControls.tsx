@@ -29,6 +29,12 @@ import {
   FormatUnderlined as UnderlineIcon,
   FormatListBulleted as BulletListIcon,
   FormatListNumbered as NumberedListIcon,
+  FormatAlignLeft as AlignLeftIcon,
+  FormatAlignCenter as AlignCenterIcon,
+  FormatAlignRight as AlignRightIcon,
+  VerticalAlignTop as AlignTopIcon,
+  VerticalAlignCenter as AlignMiddleIcon,
+  VerticalAlignBottom as AlignBottomIcon,
   PhotoSizeSelectLarge as IconSizeIcon,
   ImageOutlined as ChangeIconIcon,
   ArrowDropDown as CaretIcon,
@@ -63,12 +69,23 @@ import {
   getWholeContentFormats,
   applyInlineFormat,
   applyListFormat,
-  ListType
+  applyAlignFormat,
+  ListType,
+  TextAlign
 } from 'src/utils/richTextTransform';
 import {
   getTextBoxEditor,
+  getEffectiveEditorRange,
   subscribeTextBoxEditor
 } from '../SceneLayers/TextBoxes/textBoxEditorBridge';
+import { OPEN_LINK_POPOVER_EVENT } from 'src/utils/quillLinkShortcut';
+
+// Shortcut hint for the Link tooltips (Ctrl/Cmd+K, the Docs convention —
+// owner 2026-07-04). Keyboard shortcut names are not translated.
+const LINK_SHORTCUT_HINT =
+  typeof navigator !== 'undefined' && /Mac|iP(hone|ad|od)/.test(navigator.platform)
+    ? '⌘K'
+    : 'Ctrl+K';
 
 // Unified on-canvas label size range (px). Node labels, floating Labels, and
 // connector labels all share this range/step so the size control means the same
@@ -148,6 +165,9 @@ interface StripButtonProps {
   testId?: string;
   /** Draw an accent ring to advertise the control is live (arm-time hint). */
   highlight?: boolean;
+  /** Open programmatically when this window event fires (e.g. Ctrl+K routing
+   *  to the Link popover). Anchored at the button, exactly like a click. */
+  openEvent?: string;
   children: React.ReactNode;
 }
 
@@ -163,15 +183,33 @@ const StripButton = ({
   popoverWidth = 240,
   testId,
   highlight,
+  openEvent,
   children
 }: StripButtonProps) => {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+
+  // Read `disabled` through a ref: the Ctrl+K path ENABLES the control (the
+  // editor binding expands the caret to a word) and dispatches one frame
+  // later — an effect keyed on `disabled` re-subscribes too late and a stale
+  // closure would swallow exactly the event that just enabled the button.
+  const disabledRef = useRef(disabled);
+  disabledRef.current = disabled;
+  useEffect(() => {
+    if (!openEvent) return undefined;
+    const open = () => {
+      if (!disabledRef.current) setAnchorEl(buttonRef.current);
+    };
+    window.addEventListener(openEvent, open);
+    return () => window.removeEventListener(openEvent, open);
+  }, [openEvent]);
 
   return (
     <>
       <Tooltip title={tooltip} placement="bottom">
         <span>
           <IconButton
+            ref={buttonRef}
             size="small"
             disabled={disabled}
             data-testid={testId}
@@ -430,6 +468,50 @@ const LabeledSlider = ({
   </Box>
 );
 
+// Alignment control (ADR 0034 addendum, re-cut 2026-07-04): standard MUI
+// glyphs only — the first cut hand-rolled a 3×3 grid of composite
+// vertical×horizontal cells and the owner found the tiny bar clusters
+// unreadable. No standard icon set HAS the nine composites (Lucid hand-draws
+// theirs), so the popover is now two rows of stock icons: horizontal text
+// align (FormatAlign*) over vertical box align (VerticalAlign*) — the same
+// decomposition PowerPoint/Figma use. Still ONE strip control.
+type VerticalAlign = 'top' | 'middle' | 'bottom';
+
+// URL field for the text-range Link mode (ADR 0034 addendum 2026-07-04). The
+// old controlled field derived its value from liveFormats.link, which goes
+// stale the moment focus moves into this popover (the editor selection is
+// gone) — every keystroke rendered back as '' ("typing doesn't register") and
+// each partial URL was immediately written onto the range. Local draft
+// instead, applied once on Enter / blur.
+const LinkRangeUrlField = ({
+  initial,
+  placeholder,
+  onApply
+}: {
+  initial: string;
+  placeholder: string;
+  onApply: (value: string) => void;
+}) => {
+  const [draft, setDraft] = useState(initial);
+  return (
+    <TextField
+      autoFocus
+      fullWidth
+      size="small"
+      placeholder={placeholder}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onKeyDown={(e) => {
+        // Keep keystrokes out of any global hotkey/editor handlers.
+        e.stopPropagation();
+        if (e.key === 'Enter') onApply(draft);
+      }}
+      onBlur={() => onApply(draft)}
+      data-axoview-id="strip-link-input"
+    />
+  );
+};
+
 // "Text size" presented as a uniform 0–100% scale regardless of selection, then
 // mapped to each type's native range (node/connector labels are px, a text box
 // is an iso-space scale factor). The UI reads identically across types; the
@@ -639,10 +721,16 @@ export const TopBarStyleControls = () => {
       if (!handle || handle.id !== editingTextBoxId) return;
       const { quill } = handle;
       const sync = () => {
-        const range = quill.getSelection();
-        setLiveRangeLength(range?.length ?? handle.lastRange?.length ?? 0);
+        // Effective range, not the raw selection: with focus in a strip
+        // popover the live selection is null OR a spurious collapsed {0,0}
+        // (see textBoxEditorBridge) — the sticky lastRange is what the
+        // popover is formatting, so the pressed states / enablement follow it.
+        const range = getEffectiveEditorRange(handle);
+        setLiveRangeLength(range?.length ?? 0);
         try {
-          setLiveFormats(range ? { ...quill.getFormat(range) } : {});
+          setLiveFormats(
+            range ? { ...quill.getFormat(range.index, range.length) } : {}
+          );
         } catch {
           setLiveFormats({});
         }
@@ -828,14 +916,36 @@ export const TopBarStyleControls = () => {
   const textColorValue = node
     ? node.labelColor
     : textBox
-    ? textBox.color
+    ? liveEditing && typeof liveFormats.color === 'string'
+      ? (liveFormats.color as string)
+      : textBox.color
     : label
     ? label.color
     : activeLabel?.labelColor;
   const onTextColorChange = (color: string | undefined) => {
     if (node) updateViewItem(node.id, { labelColor: color });
-    else if (textBox) updateTextBox(textBox.id, { color });
-    else if (label) updateLabel(label.id, { color });
+    else if (textBox) {
+      // Dual-scope (ADR 0034 §2, extended to color 2026-07-04): while editing
+      // with a text range, color that RANGE as an inline style. The picker
+      // lives in a popover, so the editor has lost focus — use the bridge's
+      // lastRange (quill.getSelection() is null), like the Link range mode.
+      if (liveEditing) {
+        const handle = getTextBoxEditor();
+        const range = handle && getEffectiveEditorRange(handle);
+        if (handle && range && range.length > 0) {
+          handle.quill.formatText(
+            range.index,
+            range.length,
+            'color',
+            color ?? false
+          );
+          handle.markChanged();
+          return;
+        }
+      }
+      // No range (or not editing): the element-level base color, as before.
+      updateTextBox(textBox.id, { color });
+    } else if (label) updateLabel(label.id, { color });
     else if (activeLabel) updateActiveLabel({ labelColor: color });
     else if (crossTypeColorOnly) applyCrossTypeTextColor(color);
   };
@@ -1018,6 +1128,61 @@ export const TopBarStyleControls = () => {
     });
   };
 
+  // --- Alignment (text box only, ADR 0034 addenda 2026-07-03/04): ONE
+  // Lucid-style control packing horizontal × vertical into a 3×3 grid.
+  // Horizontal is dual-scope like lists (whole content selected, the current
+  // paragraph(s) while editing); vertical is element-level (`verticalAlign`,
+  // absent = top) — it positions the content inside the box footprint, which
+  // only a manual height makes visible. 'left'/'top' are the defaults and are
+  // stored as absent.
+  const alignValue: TextAlign | null = textBox
+    ? liveEditing
+      ? typeof liveFormats.align === 'string'
+        ? (liveFormats.align as TextAlign)
+        : liveFormats.align == null
+        ? 'left'
+        : null // mixed selection (quill reports an array)
+      : wholeFormats.align
+    : null;
+  const verticalAlignValue: VerticalAlign = textBox?.verticalAlign ?? 'top';
+  // The two axes apply independently (2026-07-04 re-cut): the old 3×3 cell
+  // wrote both on every click, which coupled a paragraph-scope range format
+  // to an element-level field. Horizontal keeps the dual-scope contract.
+  const applyHorizontalAlign = (h: TextAlign) => {
+    if (!textBox) return;
+    if (liveEditing) {
+      // The row lives in a popover, so the editor has lost focus — align the
+      // last selection's line(s) via the bridge range (getSelection is null),
+      // same pattern as the range color/Link writes.
+      const handle = getTextBoxEditor();
+      const range = handle && getEffectiveEditorRange(handle);
+      if (handle && range) {
+        handle.quill.formatLine(
+          range.index,
+          Math.max(range.length, 1),
+          'align',
+          h === 'left' ? false : h
+        );
+        handle.markChanged();
+      }
+      return;
+    }
+    applyToTargets('TEXTBOX', (tid) => {
+      const target = currentView.textBoxes?.find((t) => t.id === tid);
+      if (!target) return;
+      applyTextBox(tid, { content: applyAlignFormat(target.content, h) });
+    });
+  };
+  const applyVerticalAlign = (v: VerticalAlign) => {
+    if (!textBox) return;
+    const patch = { verticalAlign: v === 'top' ? undefined : v } as const;
+    if (liveEditing) {
+      applyTextBox(textBox.id, patch);
+      return;
+    }
+    applyToTargets('TEXTBOX', (tid) => applyTextBox(tid, patch));
+  };
+
   // --- Connector style target. The connection-colour + line-options controls
   // operate on the selected connector, or — when the connector tool is armed
   // with nothing selected — on the pending defaults the next drawn connector
@@ -1112,6 +1277,39 @@ export const TopBarStyleControls = () => {
     else if (connector) updateConnector(connector.id, { headerLink: next });
     else if (label) updateLabel(label.id, { headerLink: next });
   };
+  // Ctrl/Cmd+K for the SELECTED item (node / connector / Label headerLink) —
+  // the editing-session path lives in the canvas editor's own Quill binding
+  // (quillLinkShortcut.ts; its stopPropagation keeps those keys off window),
+  // and the deck editors keep Quill snow's native Ctrl+K. Bubble phase +
+  // typing-surface guard so rename inputs and deck fields always win.
+  const linkShortcutEnabledRef = useRef(false);
+  linkShortcutEnabledRef.current = linkEnabled;
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key.toLowerCase() !== 'k' ||
+        !(e.ctrlKey || e.metaKey) ||
+        e.altKey ||
+        e.shiftKey
+      ) {
+        return;
+      }
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      if (!linkShortcutEnabledRef.current) return;
+      e.preventDefault();
+      window.dispatchEvent(new CustomEvent(OPEN_LINK_POPOVER_EVENT));
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   // --- Show / hide the on-canvas label(s). Nodes: viewItem.showLabel.
   // Connectors: connector.showLabel gates ALL of that connector's label chips
@@ -1389,21 +1587,150 @@ export const TopBarStyleControls = () => {
         </span>
       </Tooltip>
 
-      {/* Background colour — rectangle fill, or a floating Label chip (ADR 0031).
-          Clearing it removes the fill (and resets a label chip to white). */}
+      {/* Alignment (text box only) — ONE control: horizontal (dual-scope
+          content align) over vertical (element-level verticalAlign, visible
+          with a manual height). Standard MUI glyphs (ADR 0034 addendum,
+          re-cut 2026-07-04). Defaults (left/top) are stored as absent. */}
       <StripButton
         tooltip={
-          rectangle || label
+          textBox ? t('alignment') : disabledTip('alignmentDisabled')
+        }
+        disabled={!textBox}
+        popoverWidth={140}
+        testId="strip-alignment"
+        icon={
+          alignValue === 'center' ? (
+            <AlignCenterIcon sx={{ fontSize: 18 }} />
+          ) : alignValue === 'right' ? (
+            <AlignRightIcon sx={{ fontSize: 18 }} />
+          ) : (
+            <AlignLeftIcon sx={{ fontSize: 18 }} />
+          )
+        }
+      >
+        <Stack spacing={0.5}>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={alignValue}
+            sx={{ '& .MuiToggleButton-root': { color: 'text.primary', px: 1 } }}
+          >
+            {(
+              [
+                ['left', AlignLeftIcon, 'alignLeft'],
+                ['center', AlignCenterIcon, 'alignCenter'],
+                ['right', AlignRightIcon, 'alignRight']
+              ] as const
+            ).map(([h, Icon, key]) => (
+              // No per-button Tooltip (matches the lists/direction groups):
+              // inside the tight popover a hover tooltip lingers over the row
+              // below and swallows its clicks. aria-labels carry the names.
+              <ToggleButton
+                key={h}
+                value={h}
+                onClick={() => applyHorizontalAlign(h)}
+                data-testid={`strip-align-h-${h}`}
+                aria-label={t(key)}
+              >
+                <Icon sx={{ fontSize: 18 }} />
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={verticalAlignValue}
+            sx={{ '& .MuiToggleButton-root': { color: 'text.primary', px: 1 } }}
+          >
+            {(
+              [
+                ['top', AlignTopIcon, 'alignTop'],
+                ['middle', AlignMiddleIcon, 'alignMiddle'],
+                ['bottom', AlignBottomIcon, 'alignBottom']
+              ] as const
+            ).map(([v, Icon, key]) => (
+              <ToggleButton
+                key={v}
+                value={v}
+                onClick={() => applyVerticalAlign(v)}
+                data-testid={`strip-align-v-${v}`}
+                aria-label={t(key)}
+              >
+                <Icon sx={{ fontSize: 18 }} />
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        </Stack>
+      </StripButton>
+
+      {/* Text direction (text box) — inline toggle, no popover. Lives with the
+          text cluster (owner 2026-07-04: it sat stranded past the connector
+          controls). */}
+      <Tooltip
+        title={textBox ? t('textDirection') : disabledTip('textDirectionDisabled')}
+        placement="bottom"
+      >
+        <span>
+          <ToggleButtonGroup
+            value={textBox?.orientation ?? null}
+            exclusive
+            size="small"
+            disabled={!textBox}
+            onChange={(_e, orientation) => {
+              if (!textBox || orientation === null || textBox.orientation === orientation)
+                return;
+              // A plane flip changes which WORLD axis the run/row sizes mean —
+              // carrying a manual size across reads as a random big box with
+              // stranded text (owner 2026-07-04). Reset to auto; the box
+              // re-hugs its content on the new plane.
+              updateTextBox(textBox.id, {
+                orientation,
+                width: undefined,
+                height: undefined
+              });
+            }}
+            sx={{
+              // Match the strip's enabled/disabled contrast (see StripButton).
+              '& .MuiSvgIcon-root': { color: 'inherit' },
+              '& .MuiToggleButton-root': { color: 'text.primary', px: 0.75 },
+              '& .MuiToggleButton-root.Mui-disabled': { color: 'action.disabled' }
+            }}
+          >
+            <ToggleButton value={ProjectionOrientationEnum.X} aria-label={t('textDirectionX')}>
+              <TextRotationNoneIcon
+                sx={{ fontSize: 18, transform: getIsoProjectionCss() }}
+              />
+            </ToggleButton>
+            <ToggleButton value={ProjectionOrientationEnum.Y} aria-label={t('textDirectionY')}>
+              <TextRotationNoneIcon
+                sx={{
+                  fontSize: 18,
+                  transform: `scale(-1, 1) ${getIsoProjectionCss()} scale(-1, 1)`
+                }}
+              />
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </span>
+      </Tooltip>
+
+      {/* Background colour — rectangle fill, a floating Label chip (ADR 0031),
+          or a text-box fill (ADR 0034 addendum 2026-07-04). Clearing it
+          removes the fill (and resets a label chip to white). */}
+      <StripButton
+        tooltip={
+          rectangle || label || textBox
             ? t('background')
             : disabledTip('backgroundDisabled')
         }
-        disabled={!rectangle && !label}
+        disabled={!rectangle && !label && !textBox}
         icon={<FillIcon sx={{ fontSize: 18 }} />}
         colorBar={
           rectangle
             ? resolveHex(rectangle.color, rectangle.customColor)
             : label
             ? label.backgroundColor || '#ffffff'
+            : textBox
+            ? textBox.backgroundColor || '#ffffff'
             : undefined
         }
       >
@@ -1442,6 +1769,38 @@ export const TopBarStyleControls = () => {
             }
             onNoColor={() =>
               updateLabel(label.id, { backgroundColor: undefined })
+            }
+          />
+        ) : textBox ? (
+          <PresetCustomColor
+            presetId={
+              colors.find((c) => c.value === textBox.backgroundColor)?.id
+            }
+            customColor={
+              textBox.backgroundColor &&
+              !colors.some((c) => c.value === textBox.backgroundColor)
+                ? textBox.backgroundColor
+                : undefined
+            }
+            onSelectPreset={(id) =>
+              applyToTargets('TEXTBOX', (tid) =>
+                applyTextBox(tid, { backgroundColor: resolveHex(id) })
+              )
+            }
+            onCustomChange={(hex) =>
+              applyToTargets('TEXTBOX', (tid) =>
+                applyTextBox(tid, { backgroundColor: hex })
+              )
+            }
+            onDisableCustom={() =>
+              applyToTargets('TEXTBOX', (tid) =>
+                applyTextBox(tid, { backgroundColor: undefined })
+              )
+            }
+            onNoColor={() =>
+              applyToTargets('TEXTBOX', (tid) =>
+                applyTextBox(tid, { backgroundColor: undefined })
+              )
             }
           />
         ) : null}
@@ -1588,9 +1947,9 @@ export const TopBarStyleControls = () => {
       <StripButton
         tooltip={
           linkTextRangeActive
-            ? t('linkSelection')
+            ? `${t('linkSelection')} (${LINK_SHORTCUT_HINT})`
             : linkEnabled
-            ? t('link')
+            ? `${t('link')} (${LINK_SHORTCUT_HINT})`
             : textBox
             ? t('linkDisabledTextBox')
             : disabledTip('linkDisabled')
@@ -1598,6 +1957,7 @@ export const TopBarStyleControls = () => {
         disabled={!linkEnabled}
         popoverWidth={280}
         testId="strip-link-button"
+        openEvent={OPEN_LINK_POPOVER_EVENT}
         icon={<LinkStripIcon sx={{ fontSize: 18 }} />}
         colorBar={undefined}
       >
@@ -1610,15 +1970,26 @@ export const TopBarStyleControls = () => {
             >
               {t('linkToWeb')}
             </Typography>
-            <TextField
-              autoFocus
-              fullWidth
-              size="small"
-              placeholder={t('webLinkPlaceholder')}
-              value={linkValue ?? ''}
-              onChange={(e) => onLinkChange(e.target.value)}
-              data-axoview-id="strip-link-input"
-            />
+            {linkTextRangeActive ? (
+              // Range mode: local draft, applied on Enter/blur (see
+              // LinkRangeUrlField). Mounts fresh on each popover open, seeded
+              // from the format under the last editor selection.
+              <LinkRangeUrlField
+                initial={linkValue ?? ''}
+                placeholder={t('webLinkPlaceholder')}
+                onApply={onLinkChange}
+              />
+            ) : (
+              <TextField
+                autoFocus
+                fullWidth
+                size="small"
+                placeholder={t('webLinkPlaceholder')}
+                value={linkValue ?? ''}
+                onChange={(e) => onLinkChange(e.target.value)}
+                data-axoview-id="strip-link-input"
+              />
+            )}
 
             {!isBulk && node && linkedDiagrams.length > 0 && (
               <Box sx={{ mt: 1.5 }}>
@@ -1905,48 +2276,6 @@ export const TopBarStyleControls = () => {
           </Box>
         )}
       </StripButton>
-
-      <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-
-      {/* Text direction (text node) — inline toggle, no popover */}
-      <Tooltip
-        title={textBox ? t('textDirection') : disabledTip('textDirectionDisabled')}
-        placement="bottom"
-      >
-        <span>
-          <ToggleButtonGroup
-            value={textBox?.orientation ?? null}
-            exclusive
-            size="small"
-            disabled={!textBox}
-            onChange={(_e, orientation) => {
-              if (!textBox || orientation === null || textBox.orientation === orientation)
-                return;
-              updateTextBox(textBox.id, { orientation });
-            }}
-            sx={{
-              // Match the strip's enabled/disabled contrast (see StripButton).
-              '& .MuiSvgIcon-root': { color: 'inherit' },
-              '& .MuiToggleButton-root': { color: 'text.primary', px: 0.75 },
-              '& .MuiToggleButton-root.Mui-disabled': { color: 'action.disabled' }
-            }}
-          >
-            <ToggleButton value={ProjectionOrientationEnum.X} aria-label={t('textDirectionX')}>
-              <TextRotationNoneIcon
-                sx={{ fontSize: 18, transform: getIsoProjectionCss() }}
-              />
-            </ToggleButton>
-            <ToggleButton value={ProjectionOrientationEnum.Y} aria-label={t('textDirectionY')}>
-              <TextRotationNoneIcon
-                sx={{
-                  fontSize: 18,
-                  transform: `scale(-1, 1) ${getIsoProjectionCss()} scale(-1, 1)`
-                }}
-              />
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </span>
-      </Tooltip>
 
     </Box>
   );

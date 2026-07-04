@@ -25,7 +25,8 @@ import {
   ChevronRight as ChevronRightIcon,
   Check as CheckIcon,
   StickyNote2Outlined as AddNoteIcon,
-  NewLabelOutlined as AddLabelIcon
+  NewLabelOutlined as AddLabelIcon,
+  AspectRatioOutlined as FitWidthIcon
 } from '@mui/icons-material';
 import {
   dispatch as dispatchPanelEvent,
@@ -336,6 +337,21 @@ export const CanvasContextMenu = () => {
     applyOffGrid(target, { collides: !itemCollides(offGridTarget) });
   }, [target, offGridTarget, applyOffGrid]);
 
+  // Manually-sized text box (ADR 0034 addenda 2026-07-03/04): offer the way
+  // back to auto size (hug the widest line / content height). Shown only
+  // while a manual width or height is set — the resize anchors are the way
+  // IN, this entry is the way OUT.
+  const canFitToText = useMemo(() => {
+    if (target?.type !== 'TEXTBOX') return false;
+    const tb = scene.currentView.textBoxes?.find((t) => t.id === target.id);
+    return tb?.width !== undefined || tb?.height !== undefined;
+  }, [scene, target]);
+
+  const handleFitToText = useCallback(() => {
+    if (target?.type !== 'TEXTBOX') return;
+    scene.updateTextBox(target.id, { width: undefined, height: undefined });
+  }, [scene, target]);
+
   // Bulk: unsnap / disable collision over every user-facing ref in the
   // selection (waypoints stripped; connectors skipped), one undo entry.
   const handleBulkUnsnap = useCallback(() => {
@@ -551,6 +567,14 @@ export const CanvasContextMenu = () => {
                   <ListItemText>
                     {collidesNow ? t('disableCollision') : t('enableCollision')}
                   </ListItemText>
+                </MenuItem>
+              ),
+              canFitToText && (
+                <MenuItem key="fittext" onClick={run(handleFitToText)}>
+                  <ListItemIcon>
+                    <FitWidthIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{t('fitToText')}</ListItemText>
                 </MenuItem>
               ),
               <Divider key="d4" />,

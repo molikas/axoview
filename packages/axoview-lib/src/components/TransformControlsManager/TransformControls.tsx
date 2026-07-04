@@ -16,6 +16,12 @@ interface Props {
   to: Coords;
   onAnchorMouseDown?: (anchorPosition: AnchorPosition) => void;
   /**
+   * Restrict which anchors render (e.g. a text box resizes width only, so it
+   * offers just the two run-axis edge anchors — ADR 0034 addendum
+   * 2026-07-03). Omitted = all eight (rectangle behavior).
+   */
+  anchorPositions?: AnchorPosition[];
+  /**
    * A3 hover affordance: render a single faint outline (no dashed ring, no
    * glow, no resize anchors) — visually distinct from, and lighter than, the
    * selection ring. Used by HoverOutline for the hovered-but-unselected item.
@@ -29,6 +35,7 @@ export const TransformControls = ({
   from,
   to,
   onAnchorMouseDown,
+  anchorPositions,
   subtle
 }: Props) => {
   const { css, pxSize } = useIsoProjection({
@@ -96,8 +103,18 @@ export const TransformControls = ({
       }
     }));
 
-    return [...cornerPositions, ...edgePositions];
-  }, [onAnchorMouseDown, from, to, getTilePosition, strategy.projectionName]);
+    const all = [...cornerPositions, ...edgePositions];
+    return anchorPositions
+      ? all.filter((a) => anchorPositions.includes(a.key as AnchorPosition))
+      : all;
+  }, [
+    onAnchorMouseDown,
+    anchorPositions,
+    from,
+    to,
+    getTilePosition,
+    strategy.projectionName
+  ]);
 
   return (
     <>

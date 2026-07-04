@@ -293,12 +293,25 @@ export interface LocaleProps {
     notes: string;
     name: string;
     namePlaceholder: string;
+    // Inline-editor ghost text for an EMPTY on-canvas text box (ADR 0034
+    // addendum 2026-07-03) — display-only, never persisted.
+    placeholder: string;
   };
   topBarStyleControls: {
     noColor: string;
     customColor: string;
     textSize: string;
     lineSpacing: string;
+    // Alignment (text box only — ADR 0034 addenda 2026-07-03/04): one
+    // Lucid-style control; horizontal (content) × vertical (element) grid.
+    alignment: string;
+    alignmentDisabled: string;
+    alignLeft: string;
+    alignCenter: string;
+    alignRight: string;
+    alignTop: string;
+    alignMiddle: string;
+    alignBottom: string;
     iconSize: string;
     textColor: string;
     textColorDisabled: string;
@@ -524,6 +537,9 @@ export interface LocaleProps {
     bringToFront: string;
     sendToBack: string;
     assignToLayer: string;
+    // Manually-sized text box → back to auto size (ADR 0034 addenda
+    // 2026-07-03/04); shown only while a manual width/height is set.
+    fitToText: string;
     snapToGrid: string;
     unsnapFromGrid: string;
     disableCollision: string;

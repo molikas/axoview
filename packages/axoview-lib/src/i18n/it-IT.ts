@@ -305,6 +305,7 @@ const locale: LocaleProps = {
     line2: 'Linea 2'
   },
   textBoxControls: {
+    placeholder: 'Scrivi qualcosa',
     metadata: 'Metadati',
     notes: 'Note',
     close: 'Chiudi',
@@ -323,6 +324,14 @@ const locale: LocaleProps = {
     customColor: 'Colore personalizzato',
     textSize: 'Dimensione testo',
     lineSpacing: 'Interlinea',
+    alignment: 'Allineamento',
+    alignmentDisabled: 'Seleziona una casella di testo per allineare il testo',
+    alignLeft: 'Allinea a sinistra',
+    alignCenter: 'Centra',
+    alignRight: 'Allinea a destra',
+    alignTop: 'Allinea in alto',
+    alignMiddle: 'Allinea al centro verticale',
+    alignBottom: 'Allinea in basso',
     iconSize: 'Dimensione icona',
     textColor: 'Colore testo',
     textColorDisabled:
@@ -353,7 +362,7 @@ const locale: LocaleProps = {
     numberedList: 'Elenco numerato',
     background: 'Colore di sfondo',
     backgroundDisabled:
-      "Seleziona un rettangolo o un'etichetta per impostarne il colore di sfondo",
+      "Seleziona un rettangolo, un'etichetta o una casella di testo per impostarne il colore di sfondo",
     opacity: 'Opacità',
     border: 'Bordo',
     borderDisabled: 'Seleziona un rettangolo per impostarne il bordo',
@@ -544,6 +553,7 @@ const locale: LocaleProps = {
     bringToFront: 'Porta in primo piano',
     sendToBack: 'Porta in secondo piano',
     assignToLayer: 'Assegna al livello',
+    fitToText: 'Adatta al testo',
     snapToGrid: 'Aggancia alla griglia',
     unsnapFromGrid: 'Sgancia dalla griglia',
     disableCollision: 'Disattiva collisione',

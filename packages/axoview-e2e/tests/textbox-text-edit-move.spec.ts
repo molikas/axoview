@@ -84,17 +84,19 @@ test.describe('Textbox text-edit + move — Finding #7 / ADR 0034', () => {
       .toContain(TYPED);
   });
 
-  test('textbox TEXT-EDIT: Escape cancels without touching the model', async ({
+  test('textbox TEXT-EDIT: Escape on a never-committed box discards it (empty-box lifecycle)', async ({
     page,
     app
   }) => {
     void app;
     const canvas = new CanvasPOM(page);
 
+    // A new box is born EMPTY; a session that ends with no committed content
+    // deletes the box (ADR 0034 addendum 2026-07-03) — placement-cancel
+    // semantics, no invisible ghost element left behind.
     const placePixel = await canvas.tileToScreen({ x: 0, y: 0 });
     await canvas.placeTextBoxAt(placePixel, { keepEditing: true });
     await expect.poll(() => getViewTextBoxCount(page), { timeout: 5_000 }).toBe(1);
-    const before = await getFirstTextBox(page);
 
     const editor = canvas.textBoxInlineEditor();
     await editor.waitFor({ state: 'visible', timeout: 5_000 });
@@ -103,7 +105,40 @@ test.describe('Textbox text-edit + move — Finding #7 / ADR 0034', () => {
     await page.keyboard.press('Escape');
     await editor.waitFor({ state: 'detached', timeout: 5_000 });
 
-    expect((await getFirstTextBox(page))!.content).toBe(before!.content);
+    await expect.poll(() => getViewTextBoxCount(page), { timeout: 5_000 }).toBe(0);
+  });
+
+  test('textbox TEXT-EDIT: Escape on a re-edit of a committed box reverts without touching the model', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const canvas = new CanvasPOM(page);
+
+    // Default placement commits probe content ('Text').
+    const placePixel = await canvas.tileToScreen({ x: 0, y: 0 });
+    await canvas.placeTextBoxAt(placePixel);
+    await expect.poll(() => getViewTextBoxCount(page), { timeout: 5_000 }).toBe(1);
+    const before = await getFirstTextBox(page);
+    expect(before).not.toBeNull();
+
+    // Re-enter the edit session via the F2/Rename entry point (the
+    // inlineEditNodeName event TextBox.tsx listens for).
+    await page.evaluate((id) => {
+      window.dispatchEvent(
+        new CustomEvent('inlineEditNodeName', { detail: { id } })
+      );
+    }, before!.id);
+    const editor = canvas.textBoxInlineEditor();
+    await editor.waitFor({ state: 'visible', timeout: 5_000 });
+    await editor.click({ clickCount: 3 });
+    await page.keyboard.type('DISCARDED', { delay: 10 });
+    await page.keyboard.press('Escape');
+    await editor.waitFor({ state: 'detached', timeout: 5_000 });
+
+    const after = await getFirstTextBox(page);
+    expect(after).not.toBeNull();
+    expect(after!.content).toBe(before!.content);
   });
 
   test('textbox TEXT-EDIT: "- " autoformats into a bullet list that commits as <ul> (ADR 0034 addendum)', async ({
@@ -148,6 +183,346 @@ test.describe('Textbox text-edit + move — Finding #7 / ADR 0034', () => {
     expect(content).toContain('beta');
     expect(content).not.toContain('- alpha');
     expect((content.match(/<li/g) ?? []).length).toBe(2);
+  });
+
+  test('textbox STYLE: the alignment control writes text-align + verticalAlign (ADR 0034 addenda)', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const canvas = new CanvasPOM(page);
+
+    // Default placement commits 'Text' and leaves the box selected — the
+    // strip's alignment control targets it in whole-content scope.
+    const placePixel = await canvas.tileToScreen({ x: 0, y: 0 });
+    await canvas.placeTextBoxAt(placePixel);
+    await expect.poll(() => getViewTextBoxCount(page), { timeout: 5_000 }).toBe(1);
+
+    const getBox = () =>
+      page.evaluate(() => {
+        const viewId = (window as any).__axoview__.ui.getState().view;
+        const views = (window as any).__axoview__.model.getState().views;
+        const view =
+          (viewId && views.find((v: any) => v.id === viewId)) ?? views[0];
+        const tb = (view?.textBoxes ?? [])[0];
+        return { content: tb?.content ?? '', verticalAlign: tb?.verticalAlign ?? null };
+      });
+
+    // ONE strip control, two standard-icon rows (2026-07-04 re-cut of the 3×3
+    // grid): horizontal writes the content, vertical the element field —
+    // independently.
+    await page.getByTestId('strip-alignment').click();
+    await page.getByTestId('strip-align-h-center').click();
+    await expect
+      .poll(async () => (await getBox()).content, { timeout: 3_000 })
+      .toContain('text-align: center');
+    expect((await getBox()).verticalAlign).toBe(null);
+
+    await page.getByTestId('strip-align-v-middle').click();
+    await expect
+      .poll(async () => (await getBox()).verticalAlign, { timeout: 3_000 })
+      .toBe('middle');
+    // Vertical write leaves the horizontal content format alone.
+    expect((await getBox()).content).toContain('text-align: center');
+
+    // Left/top are the defaults = both stored as ABSENT.
+    await page.getByTestId('strip-align-h-left').click();
+    await expect
+      .poll(async () => (await getBox()).content, { timeout: 3_000 })
+      .not.toContain('text-align');
+    await page.getByTestId('strip-align-v-top').click();
+    await expect
+      .poll(async () => (await getBox()).verticalAlign, { timeout: 3_000 })
+      .toBe(null);
+  });
+
+  test('textbox EDIT-BOUNDS: the transform bounds hug the placeholder, then track the draft live (ADR 0034 addendum 2026-07-04)', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const canvas = new CanvasPOM(page);
+
+    // Fresh place-and-type session: empty box, "Type something" placeholder.
+    const placePixel = await canvas.tileToScreen({ x: 0, y: 0 });
+    await canvas.placeTextBoxAt(placePixel, { keepEditing: true });
+    await expect.poll(() => getViewTextBoxCount(page), { timeout: 5_000 }).toBe(1);
+    const editor = canvas.textBoxInlineEditor();
+    await editor.waitFor({ state: 'visible', timeout: 5_000 });
+
+    // Transform controls stay up during the session (owner 2026-07-04); their
+    // anchors are the observable projection of the live-measured bounds.
+    const anchors = page.locator('[data-axoview-id="canvas-transform-anchor"]');
+    await expect(anchors).toHaveCount(8);
+    const anchorSpread = async () => {
+      const rects = await anchors.evaluateAll((els) =>
+        els.map((el) => {
+          const r = el.getBoundingClientRect();
+          return { left: r.left, right: r.right };
+        })
+      );
+      return (
+        Math.max(...rects.map((r) => r.right)) -
+        Math.min(...rects.map((r) => r.left))
+      );
+    };
+
+    // The empty box measures its PLACEHOLDER, not a 1-tile sliver: the bounds
+    // must already span more than a single projected tile (~100px pre-zoom).
+    const placeholderSpread = await anchorSpread();
+    expect(placeholderSpread).toBeGreaterThan(80);
+
+    // Type well past the placeholder width — the bounds follow the draft
+    // BEFORE any commit (the editor publishes editingTextBoxSize per change).
+    await editor.click({ clickCount: 3 });
+    await page.keyboard.type(
+      'alpha beta gamma delta epsilon zeta eta theta iota kappa',
+      { delay: 5 }
+    );
+    await expect
+      .poll(anchorSpread, { timeout: 5_000 })
+      .toBeGreaterThan(placeholderSpread + 40);
+
+    // Model still untouched mid-session (commit is click-away only).
+    expect((await getFirstTextBox(page))!.content).toBe('');
+    await canvas.commitTextBoxEditor();
+  });
+
+  test('textbox LINK: Ctrl+K links the word under the caret via the strip popover (ADR 0034 addendum 2026-07-04)', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const canvas = new CanvasPOM(page);
+
+    const placePixel = await canvas.tileToScreen({ x: 0, y: 0 });
+    await canvas.placeTextBoxAt(placePixel, { keepEditing: true });
+    await expect.poll(() => getViewTextBoxCount(page), { timeout: 5_000 }).toBe(1);
+    const editor = canvas.textBoxInlineEditor();
+    await editor.waitFor({ state: 'visible', timeout: 5_000 });
+    await editor.click({ clickCount: 3 });
+    await page.keyboard.type('visit docs today', { delay: 10 });
+
+    // Caret sits collapsed after 'today' — Ctrl+K expands to the word (Docs
+    // convention) and routes to the strip's Link popover (the canvas editor
+    // has no .ql-tooltip; ADR 0034 §2).
+    await page.keyboard.press('Control+k');
+    // data-axoview-id sits on the MUI TextField ROOT; fill targets the input.
+    const urlField = page.locator('[data-axoview-id="strip-link-input"] input');
+    await urlField.waitFor({ state: 'visible', timeout: 5_000 });
+    await urlField.fill('https://example.com/docs');
+    await urlField.press('Enter');
+
+    // Commit with the popover still up: the body pointerdown targets neither
+    // the editor nor the popover subtree, so the click-away contract commits
+    // the session regardless of the overlay.
+    await canvas.commitTextBoxEditor();
+    const content = await expect
+      .poll(async () => (await getFirstTextBox(page))?.content ?? '', {
+        timeout: 3_000
+      })
+      .toContain('<a')
+      .then(async () => (await getFirstTextBox(page))!.content);
+    expect(content).toMatch(
+      /<a[^>]*href="https:\/\/example\.com\/docs"[^>]*>today<\/a>/
+    );
+  });
+
+  test('textbox RESIZE: run-axis anchors set a manual width; content wraps and height grows (ADR 0034 addendum)', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const canvas = new CanvasPOM(page);
+
+    // Multi-word content so a narrowed box has something to wrap.
+    const placePixel = await canvas.tileToScreen({ x: 0, y: 0 });
+    await canvas.placeTextBoxAt(placePixel, {
+      text: 'alpha beta gamma delta epsilon zeta'
+    });
+    await expect.poll(() => getViewTextBoxCount(page), { timeout: 5_000 }).toBe(1);
+    const before = await getFirstTextBox(page);
+    expect(before).not.toBeNull();
+
+    // The selected text box offers the full rectangle-style anchor set
+    // (4 corners + 4 edges): run-axis = wrap width, row-axis = min height.
+    await expect(
+      page.locator('[data-axoview-id="canvas-transform-anchor"]')
+    ).toHaveCount(8);
+
+    // Drive the resize mode the way the RIGHT anchor's pointerdown does
+    // (store-armed, like placeLabelAt), then drag on the canvas: the width
+    // follows the mouse tile and lands in the model live (inside the drag
+    // transaction). Mousemove routing is RAF-throttled, so walk through
+    // intermediate points (dragFromTo cadence) and poll for the write BEFORE
+    // releasing — a same-tick mouseup can beat the throttled move.
+    await page.evaluate((id) => {
+      (window as any).__axoview__.ui.getState().actions.setMode({
+        type: 'TEXTBOX.TRANSFORM',
+        id,
+        selectedAnchor: 'RIGHT',
+        showCursor: true
+      });
+    }, before!.id);
+    const getWidth = () =>
+      page.evaluate(() => {
+        const viewId = (window as any).__axoview__.ui.getState().view;
+        const views = (window as any).__axoview__.model.getState().views;
+        const view =
+          (viewId && views.find((v: any) => v.id === viewId)) ?? views[0];
+        return (view?.textBoxes ?? [])[0]?.width ?? null;
+      });
+    // Synthetic-event cadence notes (same family as the MOVE test's quirk):
+    //   - drag targets derive from the box's ACTUAL tile (placement itself
+    //     rides the RAF-throttled mouse, so the landing tile isn't given),
+    //   - the mode handler sees the mouse position of the PREVIOUS event
+    //     (one-event lag — self-correcting under a real pointer stream), so
+    //     each target is dispatched until the model catches up, with polls
+    //     between dispatches to defeat the leading-edge RAF throttle.
+    const base = before!.tile;
+    const dragTo = await canvas.tileToScreen({ x: base.x + 3, y: base.y });
+    await canvas.dispatchAt(['mousemove'], dragTo);
+    await expect.poll(getWidth, { timeout: 5_000 }).not.toBeNull();
+    await canvas.dispatchAt(['mousemove'], dragTo);
+    await expect
+      .poll(
+        async () => {
+          const w = await getWidth();
+          if (w !== 3) await canvas.dispatchAt(['mousemove'], dragTo);
+          return w;
+        },
+        { timeout: 5_000 }
+      )
+      .toBe(3);
+    await canvas.dispatchAt(['mouseup'], dragTo);
+
+    // The commit (mouseup) closes the transaction without clobbering the width.
+    await expect.poll(getWidth, { timeout: 3_000 }).toBe(3);
+
+    // The RESTING render honors the fixed width: the content paragraph is
+    // container-wide with no horizontal overflow — i.e., it actually wrapped
+    // (the &nbsp;-serialization bug used to leave one unbreakable 800px line).
+    const wrap = await page.evaluate((id) => {
+      const wrapper = document.querySelector(`[data-drag-id="${id}"]`);
+      const container = wrapper?.querySelector(
+        '.MuiBox-root .MuiBox-root'
+      ) as HTMLElement | null;
+      const paragraph = container?.querySelector('p p, p') as HTMLElement | null;
+      if (!container || !paragraph) return null;
+      return {
+        containerWidth: container.clientWidth,
+        paragraphWidth: paragraph.clientWidth,
+        paragraphScrollWidth: paragraph.scrollWidth
+      };
+    }, before!.id);
+    expect(wrap).not.toBeNull();
+    expect(wrap!.paragraphWidth).toBeLessThanOrEqual(wrap!.containerWidth + 1);
+    expect(wrap!.paragraphScrollWidth).toBeLessThanOrEqual(
+      wrap!.paragraphWidth + 1
+    );
+
+    // Row-axis anchor: TOP sets a manual (minimum) height the same way.
+    const getHeight = () =>
+      page.evaluate(() => {
+        const viewId = (window as any).__axoview__.ui.getState().view;
+        const views = (window as any).__axoview__.model.getState().views;
+        const view =
+          (viewId && views.find((v: any) => v.id === viewId)) ?? views[0];
+        return (view?.textBoxes ?? [])[0]?.height ?? null;
+      });
+    const tileNow = await page.evaluate(() => {
+      const viewId = (window as any).__axoview__.ui.getState().view;
+      const views = (window as any).__axoview__.model.getState().views;
+      const view =
+        (viewId && views.find((v: any) => v.id === viewId)) ?? views[0];
+      return (view?.textBoxes ?? [])[0]?.tile;
+    });
+    await page.evaluate((id) => {
+      (window as any).__axoview__.ui.getState().actions.setMode({
+        type: 'TEXTBOX.TRANSFORM',
+        id,
+        selectedAnchor: 'TOP',
+        showCursor: true
+      });
+    }, before!.id);
+    const heightTo = await canvas.tileToScreen({
+      x: tileNow.x,
+      y: tileNow.y + 5
+    });
+    await canvas.dispatchAt(['mousemove'], heightTo);
+    await expect
+      .poll(
+        async () => {
+          const h = await getHeight();
+          if (h === null) await canvas.dispatchAt(['mousemove'], heightTo);
+          return h;
+        },
+        { timeout: 5_000 }
+      )
+      .not.toBeNull();
+    await canvas.dispatchAt(['mouseup'], heightTo);
+    expect(await getHeight()).toBeGreaterThan(1);
+  });
+
+  test('textbox PASTE: external rich HTML is normalized (scripts/handlers stripped, formatting kept)', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const canvas = new CanvasPOM(page);
+
+    const placePixel = await canvas.tileToScreen({ x: 0, y: 0 });
+    await canvas.placeTextBoxAt(placePixel, { keepEditing: true });
+    await expect.poll(() => getViewTextBoxCount(page), { timeout: 5_000 }).toBe(1);
+
+    const editor = canvas.textBoxInlineEditor();
+    await editor.waitFor({ state: 'visible', timeout: 5_000 });
+    await editor.click();
+
+    // Word/Docs-style dirty payload via a synthetic ClipboardEvent on Quill's
+    // root — the same path a real Ctrl+V takes through Quill's clipboard
+    // matchers, then the ADR 0029 write-side sanitize on commit.
+    await page.evaluate(() => {
+      const root = document.querySelector(
+        '[data-axoview-id="textbox-inline-editor"] .ql-editor'
+      );
+      if (!root) throw new Error('editor root not found');
+      const dt = new DataTransfer();
+      dt.setData(
+        'text/html',
+        '<script>window.__pwned = 1;</script>' +
+          '<h1 style="color: red; mso-style-name: Heading">Title</h1>' +
+          '<p><b>bold</b> and <span style="mso-fareast-language: EN">plain</span></p>' +
+          '<img src="x" onerror="window.__pwned = 2;">'
+      );
+      dt.setData('text/plain', 'Title bold and plain');
+      root.dispatchEvent(
+        new ClipboardEvent('paste', {
+          clipboardData: dt,
+          bubbles: true,
+          cancelable: true
+        })
+      );
+    });
+
+    await canvas.commitTextBoxEditor();
+
+    const content = await expect
+      .poll(async () => (await getFirstTextBox(page))?.content ?? '', {
+        timeout: 3_000
+      })
+      .toContain('Title')
+      .then(async () => (await getFirstTextBox(page))!.content);
+
+    // Formatting Quill recognizes survives, normalized (b → strong);
+    // everything dangerous or foreign is gone.
+    expect(content).toContain('bold');
+    expect(content).toMatch(/<(strong|b)>bold<\/(strong|b)>/);
+    expect(content).not.toContain('<script');
+    expect(content).not.toContain('onerror');
+    expect(content).not.toContain('mso-');
+    const pwned = await page.evaluate(() => (window as any).__pwned);
+    expect(pwned).toBeUndefined();
   });
 
   test('textbox MOVE: drag from interior to a new tile translates textbox.tile by the same delta', async ({

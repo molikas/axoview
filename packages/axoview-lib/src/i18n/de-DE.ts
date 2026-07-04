@@ -306,6 +306,7 @@ const locale: LocaleProps = {
     line2: 'Linie 2'
   },
   textBoxControls: {
+    placeholder: 'Text eingeben',
     metadata: 'Metadaten',
     notes: 'Notizen',
     close: 'Schließen',
@@ -324,6 +325,14 @@ const locale: LocaleProps = {
     customColor: 'Benutzerdefinierte Farbe',
     textSize: 'Textgröße',
     lineSpacing: 'Zeilenabstand',
+    alignment: 'Ausrichtung',
+    alignmentDisabled: 'Wählen Sie ein Textfeld aus, um Text auszurichten',
+    alignLeft: 'Linksbündig',
+    alignCenter: 'Zentriert',
+    alignRight: 'Rechtsbündig',
+    alignTop: 'Oben ausrichten',
+    alignMiddle: 'Mittig ausrichten',
+    alignBottom: 'Unten ausrichten',
     iconSize: 'Symbolgröße',
     textColor: 'Textfarbe',
     textColorDisabled:
@@ -353,8 +362,7 @@ const locale: LocaleProps = {
     bulletList: 'Aufzählungsliste',
     numberedList: 'Nummerierte Liste',
     background: 'Hintergrundfarbe',
-    backgroundDisabled:
-      'Wählen Sie ein Rechteck oder eine Beschriftung, um die Hintergrundfarbe festzulegen',
+    backgroundDisabled: 'Wählen Sie ein Rechteck, eine Beschriftung oder ein Textfeld aus, um die Hintergrundfarbe festzulegen',
     opacity: 'Deckkraft',
     border: 'Rahmen',
     borderDisabled: 'Wählen Sie ein Rechteck, um seinen Rahmen festzulegen',
@@ -549,6 +557,7 @@ const locale: LocaleProps = {
     bringToFront: 'In den Vordergrund',
     sendToBack: 'In den Hintergrund',
     assignToLayer: 'Ebene zuweisen',
+    fitToText: 'An Text anpassen',
     snapToGrid: 'Am Raster ausrichten',
     unsnapFromGrid: 'Vom Raster lösen',
     disableCollision: 'Kollision deaktivieren',
