@@ -304,6 +304,7 @@ const locale: LocaleProps = {
     line2: 'Çizgi 2'
   },
   textBoxControls: {
+    linkSearchPlaceholder: 'Ara veya bağlantı yapıştır',
     linkCopy: 'Bağlantıyı kopyala',
     linkCopied: 'Kopyalandı',
     linkEdit: 'Bağlantıyı düzenle',

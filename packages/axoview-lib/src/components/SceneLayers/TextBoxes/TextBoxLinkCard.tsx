@@ -1,23 +1,32 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Box,
   IconButton,
   Link as MuiLink,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
   Paper,
   Popper,
   TextField,
-  Tooltip
+  Tooltip,
+  Typography
 } from '@mui/material';
 import {
   ContentCopyOutlined as CopyIcon,
   CheckOutlined as CopiedIcon,
   EditOutlined as EditIcon,
-  LinkOffOutlined as UnlinkIcon
+  LinkOffOutlined as UnlinkIcon,
+  ArticleOutlined as DiagramIcon
 } from '@mui/icons-material';
 import ReactQuill from 'react-quill-new';
 import type { Quill } from 'react-quill-new';
 import { useTranslation } from 'src/stores/localeStore';
+import { useUiStateStore } from 'src/stores/uiStateStore';
 import {
   normalizeWebLinkUrl,
+  DIAGRAM_LINK_PREFIX,
   EDIT_LINK_AT_SELECTION_EVENT
 } from 'src/utils/quillLinkShortcut';
 
@@ -55,6 +64,9 @@ const HOVER_HIDE_GRACE_MS = 250;
 
 export const TextBoxLinkCard = ({ quill, onChanged }: Props) => {
   const { t } = useTranslation('textBoxControls');
+  // Docs-style suggestions: the same diagram list the strip's link-to-diagram
+  // picker uses (the app feeds it; empty in a single-diagram project).
+  const linkedDiagrams = useUiStateStore((s) => s.linkedDiagrams);
   const [target, setTarget] = useState<LinkTarget | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [draft, setDraft] = useState('');
@@ -294,6 +306,48 @@ export const TextBoxLinkCard = ({ quill, onChanged }: Props) => {
     quill.setSelection(target.index + target.length, 0, 'user');
   }, [quill, target, onChanged, hide]);
 
+  // Link the selection to another DIAGRAM (Docs' file suggestions): a
+  // fragment-scheme href the resting render intercepts and navigates.
+  const applyDiagramLink = useCallback(
+    (diagramId: string) => {
+      if (!target) return;
+      quill.formatText(
+        target.index,
+        target.length,
+        'link',
+        `${DIAGRAM_LINK_PREFIX}${diagramId}`,
+        'user'
+      );
+      onChanged();
+      setEditMode(false);
+      setTimeout(() => {
+        quill.focus();
+        quill.setSelection(target.index + Math.min(1, target.length), 0, 'user');
+      }, 0);
+    },
+    [quill, target, onChanged]
+  );
+
+  // Suggestions while typing (edit mode): filter by name; hidden once the
+  // draft clearly IS a URL. Empty draft lists the first few.
+  const suggestions = useMemo(() => {
+    if (!editMode || linkedDiagrams.length === 0) return [];
+    const q = draft.trim().toLowerCase();
+    if (q.includes('://') || q.startsWith('www.')) return [];
+    const matches = q
+      ? linkedDiagrams.filter((d) => d.name.toLowerCase().includes(q))
+      : linkedDiagrams;
+    return matches.slice(0, 5);
+  }, [editMode, linkedDiagrams, draft]);
+
+  // An internal link renders as the target diagram's name (not the sentinel
+  // href); a deleted target degrades to the raw id.
+  const diagramTarget = useMemo(() => {
+    if (!target || !target.url.startsWith(DIAGRAM_LINK_PREFIX)) return null;
+    const id = target.url.slice(DIAGRAM_LINK_PREFIX.length);
+    return { id, name: linkedDiagrams.find((d) => d.id === id)?.name ?? id };
+  }, [target, linkedDiagrams]);
+
   if (!target || !virtualAnchor) return null;
 
   return (
@@ -325,7 +379,8 @@ export const TextBoxLinkCard = ({ quill, onChanged }: Props) => {
         }}
         sx={{
           display: 'flex',
-          alignItems: 'center',
+          flexDirection: editMode ? 'column' : 'row',
+          alignItems: editMode ? 'stretch' : 'center',
           gap: 0.25,
           px: 1,
           py: 0.5,
@@ -335,67 +390,118 @@ export const TextBoxLinkCard = ({ quill, onChanged }: Props) => {
         }}
       >
         {editMode ? (
-          <TextField
-            autoFocus
-            size="small"
-            fullWidth
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              e.stopPropagation();
-              if (e.key === 'Enter') {
-                // preventDefault so the keystroke can't act anywhere else
-                // once focus returns to the editor (see applyEdit's deferral).
-                e.preventDefault();
-                applyEdit();
-              }
-              if (e.key === 'Escape') {
-                e.preventDefault();
-                if (target.url) {
-                  // Editing an existing link: back to the view card.
-                  setEditMode(false);
-                } else {
-                  // Creating: nothing to fall back to — dismiss.
-                  hide();
-                  quill.focus();
+          <Box sx={{ minWidth: 260 }}>
+            <TextField
+              autoFocus
+              size="small"
+              fullWidth
+              placeholder={t('linkSearchPlaceholder')}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === 'Enter') {
+                  // preventDefault so the keystroke can't act anywhere else
+                  // once focus returns to the editor (see applyEdit's
+                  // deferral).
+                  e.preventDefault();
+                  applyEdit();
                 }
-              }
-            }}
-            data-axoview-id="textbox-link-card-input"
-            sx={{ minWidth: 220 }}
-          />
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  if (target.url) {
+                    // Editing an existing link: back to the view card.
+                    setEditMode(false);
+                  } else {
+                    // Creating: nothing to fall back to — dismiss.
+                    hide();
+                    quill.focus();
+                  }
+                }
+              }}
+              data-axoview-id="textbox-link-card-input"
+            />
+            {suggestions.length > 0 && (
+              <List
+                dense
+                disablePadding
+                sx={{ mt: 0.5, maxHeight: 168, overflowY: 'auto' }}
+              >
+                {suggestions.map((d) => (
+                  <ListItemButton
+                    key={d.id}
+                    dense
+                    onClick={() => applyDiagramLink(d.id)}
+                    data-axoview-id="textbox-link-card-diagram"
+                    sx={{ borderRadius: 1, px: 0.75 }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 26 }}>
+                      <DiagramIcon sx={{ fontSize: 16 }} />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={d.name}
+                      primaryTypographyProps={{ fontSize: 13, noWrap: true }}
+                    />
+                  </ListItemButton>
+                ))}
+              </List>
+            )}
+          </Box>
         ) : (
           <>
-            <MuiLink
-              href={target.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              underline="hover"
-              data-axoview-id="textbox-link-card-url"
-              sx={{
-                fontSize: 13,
-                maxWidth: 220,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                mr: 0.5
-              }}
-            >
-              {target.url}
-            </MuiLink>
-            <Tooltip title={copied ? t('linkCopied') : t('linkCopy')} placement="top">
-              <IconButton
-                size="small"
-                onClick={copyUrl}
-                data-axoview-id="textbox-link-card-copy"
+            {diagramTarget ? (
+              // Internal link: show the target diagram's NAME (Docs shows the
+              // doc title). Copy is meaningless for the sentinel — hidden.
+              <>
+                <DiagramIcon sx={{ fontSize: 15, mr: 0.5, color: 'text.secondary' }} />
+                <Typography
+                  data-axoview-id="textbox-link-card-url"
+                  sx={{
+                    fontSize: 13,
+                    maxWidth: 220,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    mr: 0.5
+                  }}
+                >
+                  {diagramTarget.name}
+                </Typography>
+              </>
+            ) : (
+              <MuiLink
+                href={target.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                underline="hover"
+                data-axoview-id="textbox-link-card-url"
+                sx={{
+                  fontSize: 13,
+                  maxWidth: 220,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  mr: 0.5
+                }}
               >
-                {copied ? (
-                  <CopiedIcon sx={{ fontSize: 16 }} color="success" />
-                ) : (
-                  <CopyIcon sx={{ fontSize: 16 }} />
-                )}
-              </IconButton>
-            </Tooltip>
+                {target.url}
+              </MuiLink>
+            )}
+            {!diagramTarget && (
+              <Tooltip title={copied ? t('linkCopied') : t('linkCopy')} placement="top">
+                <IconButton
+                  size="small"
+                  onClick={copyUrl}
+                  data-axoview-id="textbox-link-card-copy"
+                >
+                  {copied ? (
+                    <CopiedIcon sx={{ fontSize: 16 }} color="success" />
+                  ) : (
+                    <CopyIcon sx={{ fontSize: 16 }} />
+                  )}
+                </IconButton>
+              </Tooltip>
+            )}
             <Tooltip title={t('linkEdit')} placement="top">
               <IconButton
                 size="small"

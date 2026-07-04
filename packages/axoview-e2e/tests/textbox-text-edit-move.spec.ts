@@ -285,6 +285,24 @@ test.describe('Textbox text-edit + move — Finding #7 / ADR 0034', () => {
 
     // Model still untouched mid-session (commit is click-away only).
     expect((await getFirstTextBox(page))!.content).toBe('');
+
+    // Mid-session GEOMETRY writes re-measure the live draft too (owner
+    // 2026-07-04: cranking the font size mid-edit left the old footprint —
+    // "the old size constraints are applied"). Max the strip's size slider
+    // and the bounds must grow around the SAME uncommitted draft.
+    const typedSpread = await anchorSpread();
+    await page.getByTestId('strip-text-size').click();
+    const popover = page.locator('.MuiPopover-root').last();
+    await popover
+      .locator('input[type="range"]')
+      .first()
+      .focus();
+    await page.keyboard.press('End');
+    await expect
+      .poll(anchorSpread, { timeout: 5_000 })
+      .toBeGreaterThan(typedSpread + 40);
+    await page.keyboard.press('Escape'); // close the popover; session lives
+
     await canvas.commitTextBoxEditor();
   });
 

@@ -303,6 +303,7 @@ const locale: LocaleProps = {
     line2: 'रेखा 2'
   },
   textBoxControls: {
+    linkSearchPlaceholder: 'खोजें या लिंक पेस्ट करें',
     linkCopy: 'लिंक कॉपी करें',
     linkCopied: 'कॉपी हो गया',
     linkEdit: 'लिंक संपादित करें',

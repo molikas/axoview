@@ -4,6 +4,7 @@ import { alpha } from '@mui/material/styles';
 import { toPx, CoordsUtils, getTextBoxDimensions } from 'src/utils';
 import { sanitizeHtml } from 'src/utils/sanitizeHtml';
 import { useTranslation } from 'src/stores/localeStore';
+import { DIAGRAM_LINK_PREFIX } from 'src/utils/quillLinkShortcut';
 import { useIsoProjection } from 'src/hooks/useIsoProjection';
 import { useTextBoxProps } from 'src/hooks/useTextBoxProps';
 import { useSceneData } from 'src/hooks/useSceneData';
@@ -75,6 +76,28 @@ export const TextBox = memo(({ textBox }: Props) => {
     [isEditable, uiActions, textBox.id]
   );
 
+  // Internal diagram links in text content (ADR 0034 addendum 2026-07-04):
+  // the link card writes `#diagram:<id>` hrefs. In view/explore modes a click
+  // navigates (same event the NodePanel's linked-diagram link dispatches); in
+  // EDIT mode plain click stays selection (Docs convention — Ctrl/Cmd+click
+  // navigates), and the useless fragment jump is suppressed either way.
+  const onRestingClick = useCallback(
+    (e: React.MouseEvent) => {
+      const a = (e.target as HTMLElement | null)?.closest?.('a');
+      const href = a?.getAttribute('href') ?? '';
+      if (!href.startsWith(DIAGRAM_LINK_PREFIX)) return;
+      e.preventDefault();
+      if (isEditable && !e.ctrlKey && !e.metaKey) return;
+      e.stopPropagation();
+      window.dispatchEvent(
+        new CustomEvent('axoview-navigate-to-diagram', {
+          detail: { id: href.slice(DIAGRAM_LINK_PREFIX.length) }
+        })
+      );
+    },
+    [isEditable]
+  );
+
   // Empty-box lifecycle (ADR 0034 addendum 2026-07-03, Lucid parity): a text
   // box whose edit session ends with no content is DELETED, not committed —
   // covers the fresh place-and-type box abandoned via click-away/Escape AND an
@@ -114,8 +137,10 @@ export const TextBox = memo(({ textBox }: Props) => {
   const { t } = useTranslation('textBoxControls');
   const textBoxRef = useRef(textBox);
   textBoxRef.current = textBox;
+  const lastDraftRef = useRef<string | null>(null);
   const onDraftChange = useCallback(
     (draftHtml: string) => {
+      lastDraftRef.current = draftHtml;
       const content = draftHtml === '' ? `<p>${t('placeholder')}</p>` : draftHtml;
       try {
         uiActions.setEditingTextBoxSize(
@@ -129,6 +154,32 @@ export const TextBox = memo(({ textBox }: Props) => {
     },
     [uiActions, t]
   );
+
+  // Mid-session strip writes that change TEXT GEOMETRY (font size / line
+  // spacing sliders, a manual-size or orientation write) re-measure the model
+  // against the STALE stored content — the live preview is what sizes the
+  // container, and it only refreshed on typing. Re-measure the LAST DRAFT
+  // whenever a geometry-relevant field changes during the session, so the
+  // fill/bounds grow with the freshly restyled text (owner 2026-07-04: "old
+  // size constraints are applied").
+  useEffect(() => {
+    if (!isEditing) {
+      // A finished session's draft must not leak into the next one — the
+      // editor re-seeds via its mount emit.
+      lastDraftRef.current = null;
+      return;
+    }
+    if (lastDraftRef.current === null) return;
+    onDraftChange(lastDraftRef.current);
+  }, [
+    isEditing,
+    textBox.fontSize,
+    textBox.lineHeight,
+    textBox.width,
+    textBox.height,
+    textBox.orientation,
+    onDraftChange
+  ]);
 
   const { strategy } = useCanvasMode();
 
@@ -272,6 +323,7 @@ export const TextBox = memo(({ textBox }: Props) => {
           />
         ) : (
           <Typography
+            onClick={onRestingClick}
             sx={{
               ...fontProps
             }}

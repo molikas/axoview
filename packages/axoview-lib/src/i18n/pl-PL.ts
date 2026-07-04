@@ -308,6 +308,7 @@ const locale: LocaleProps = {
     line2: 'Linia 2'
   },
   textBoxControls: {
+    linkSearchPlaceholder: 'Wyszukaj lub wklej link',
     linkCopy: 'Kopiuj link',
     linkCopied: 'Skopiowano',
     linkEdit: 'Edytuj link',

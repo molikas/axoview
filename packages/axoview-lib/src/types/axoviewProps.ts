@@ -302,6 +302,9 @@ export interface LocaleProps {
     linkCopied: string;
     linkEdit: string;
     linkRemove: string;
+    // Card URL-field ghost text ("Search or paste a link" — Docs wording;
+    // the field also filters the diagram suggestions).
+    linkSearchPlaceholder: string;
   };
   topBarStyleControls: {
     noColor: string;

@@ -30,6 +30,13 @@ export const EDIT_LINK_AT_SELECTION_EVENT = 'axoview:edit-link-at-selection';
  *  link dialog on Enter-apply, so the range URL field dispatches this. */
 export const CLOSE_LINK_POPOVER_EVENT = 'axoview:close-link-popover';
 
+/** Sentinel href scheme for INTERNAL diagram links authored on text ranges
+ *  (the link card's Docs-style suggestions). A fragment href survives both
+ *  Quill's LinkBlot protocol whitelist and the ADR 0029 sanitizer; clicks are
+ *  intercepted in the resting render and dispatched as the same
+ *  `axoview-navigate-to-diagram` event the NodePanel's linked-diagram uses. */
+export const DIAGRAM_LINK_PREFIX = '#diagram:';
+
 /** Docs-style URL forgiveness for TEXT links: "google.com" → "https://...".
  *  Returns null for blank input (callers treat that as "remove the link").
  *  Element-level headerLinks keep their raw semantics — this is only for

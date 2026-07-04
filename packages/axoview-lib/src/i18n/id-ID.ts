@@ -302,6 +302,7 @@ const locale: LocaleProps = {
     line2: 'Garis 2'
   },
   textBoxControls: {
+    linkSearchPlaceholder: 'Cari atau tempel tautan',
     linkCopy: 'Salin tautan',
     linkCopied: 'Disalin',
     linkEdit: 'Edit tautan',

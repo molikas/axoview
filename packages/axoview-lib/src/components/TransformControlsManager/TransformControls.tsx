@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { IconButton, Tooltip } from '@mui/material';
-import { Rotate90DegreesCcw as RotateIcon } from '@mui/icons-material';
+import { RotateRightOutlined as RotateIcon } from '@mui/icons-material';
 import { Coords, AnchorPosition } from 'src/types';
 import { Svg } from 'src/components/Svg/Svg';
 import { TRANSFORM_CONTROLS_COLOR, UNPROJECTED_TILE_SIZE } from 'src/config';
@@ -39,7 +39,8 @@ interface Props {
 }
 
 const strokeWidth = 2;
-const ROTATE_HANDLE_OFFSET_PX = 34;
+const ROTATE_HANDLE_SIZE = 32;
+const ROTATE_HANDLE_OFFSET_PX = 40;
 
 export const TransformControls = ({
   from,
@@ -211,8 +212,8 @@ export const TransformControls = ({
             }}
             sx={{
               position: 'absolute',
-              width: 26,
-              height: 26,
+              width: ROTATE_HANDLE_SIZE,
+              height: ROTATE_HANDLE_SIZE,
               bgcolor: 'background.paper',
               border: '1px solid',
               borderColor: 'divider',
@@ -221,11 +222,11 @@ export const TransformControls = ({
               '&:hover': { bgcolor: 'background.paper' }
             }}
             style={{
-              left: rotatePosition.x - 13,
-              top: rotatePosition.y - 13
+              left: rotatePosition.x - ROTATE_HANDLE_SIZE / 2,
+              top: rotatePosition.y - ROTATE_HANDLE_SIZE / 2
             }}
           >
-            <RotateIcon sx={{ fontSize: 14 }} />
+            <RotateIcon sx={{ fontSize: 20 }} />
           </IconButton>
         </Tooltip>
       )}
