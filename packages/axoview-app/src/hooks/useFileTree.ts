@@ -98,7 +98,9 @@ export function useFileTree(
   refreshToken: number,
   currentDiagramId?: string | null,
   hasUnsavedChanges?: boolean,
-  dirtyDiagramIds?: Set<string>
+  dirtyDiagramIds?: Set<string>,
+  /** Active provider id — a change drops stale cross-provider nodes immediately. */
+  providerId?: string
 ): UseFileTreeResult {
   const [folders, setFolders] = useState<FolderMeta[]>([]);
   const [diagrams, setDiagrams] = useState<DiagramMeta[]>([]);
@@ -109,9 +111,22 @@ export function useFileTree(
   const storageRef = useRef(storage);
   storageRef.current = storage;
 
+  const providerIdRef = useRef(providerId);
+  providerIdRef.current = providerId;
+  const loadedProviderRef = useRef<string | undefined>(providerId);
+
   const load = useCallback(async () => {
     const s = storageRef.current;
     if (!s) return;
+    // Provider just switched (local ⇄ Drive): clear the previous backend's nodes
+    // NOW so their ids — invalid against the new backend — aren't clickable
+    // during the async reload (else opening one 404s on the wrong provider).
+    if (providerIdRef.current !== loadedProviderRef.current) {
+      setFolders([]);
+      setDiagrams([]);
+      setManifest(null);
+      loadedProviderRef.current = providerIdRef.current;
+    }
     setIsLoading(true);
     setError(null);
     try {

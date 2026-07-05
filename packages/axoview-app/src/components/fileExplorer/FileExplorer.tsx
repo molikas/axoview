@@ -161,10 +161,12 @@ export function FileExplorer() {
     fileTreeRefreshToken,
     currentDiagram?.id,
     undefined,
-    dirtyDiagramIds
+    dirtyDiagramIds,
+    activeProviderId
   );
 
-  const providerLabel = providerIdToLabel(storage?.id ?? 'local', t);
+  // Use the active provider id (the manager's own `id` is a static 'local').
+  const providerLabel = providerIdToLabel(activeProviderId, t);
 
   // Folder id of the currently selected node (or null for root)
   const selectedFolderId = useMemo((): string | null => {
