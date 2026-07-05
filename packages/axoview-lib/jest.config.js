@@ -33,12 +33,24 @@ module.exports = {
     '!src/types/**',
     '!src/index.ts'
   ],
+  // Floors ratcheted 2026-07-05 (technical-review-2026-07 §8b): global floors sit
+  // ~5-7pp under measured reality (37.4% stmts / 25.1% branches) so the tested core
+  // can't silently erode; the two well-covered areas carry their own higher floors
+  // (directory paths aggregate; measured: reducers 89.0/70.7, schemas 99.2/94.1).
   coverageThreshold: {
     global: {
-      branches: 10,
-      functions: 10,
-      lines: 10,
-      statements: 10
+      branches: 20,
+      functions: 25,
+      lines: 30,
+      statements: 30
+    },
+    './src/stores/reducers/': {
+      statements: 85,
+      branches: 65
+    },
+    './src/schemas/': {
+      statements: 95,
+      branches: 90
     }
   },
   coverageReporters: ['json', 'lcov', 'text', 'html']
