@@ -1,6 +1,6 @@
 # /ship — Promote integration → master
 
-End-of-session promotion: take the current working branch (default: integration), verify it's green, and merge into master with a non-fast-forward merge commit. Always returns you to the working branch when done. Companion to `/notes` — run `/notes` first to sync docs and (optionally) cut a release; then `/ship` puts the cut onto master.
+End-of-session promotion: take the current working branch (default: integration), verify it's green, and merge into master with a non-fast-forward merge commit. Always returns you to the working branch when done. Companion to `/notes` — run `/notes` first to sync prose docs; then `/ship` promotes to master. **The release itself is cut automatically by semantic-release** (CI, after the "Run Tests" workflow passes on master) — `/ship` does not bump versions or edit the CHANGELOG, and neither does `/notes` (see `.releaserc.json`). `/ship` just lands the conventional commits on master; the automation turns them into `vX.Y.Z` + CHANGELOG.
 
 > **Refuse if the current branch is master.** Promoting master to master is meaningless; you almost certainly meant something else. Stop and ask which branch you meant.
 
@@ -18,7 +18,7 @@ git rev-parse master                     # → master SHA
 git remote get-url origin                # → for the compare link in Phase 4
 ```
 
-Then **verify version coherence** — `/notes` cuts a release across 5 package.json files; if they drift, ship would publish a mismatched version. Read the `"version"` line in all 5 and assert equality:
+Then **verify version coherence** — semantic-release's `update-version` keeps all 5 `package.json` files in lockstep at the last released version, so on a healthy branch they are all equal. A mismatch means someone hand-edited a version (which the automation forbids) — stop and report it as a bug rather than shipping a split version. Read the `"version"` line in all 5 and assert equality:
 
 - `package.json`
 - `packages/axoview-app/package.json`

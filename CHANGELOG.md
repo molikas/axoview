@@ -709,7 +709,7 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
 All notable changes to this fork are documented here.
 For upstream FossFLOW history (pre-fork), see [docs/upstream-changelog.md](docs/upstream-changelog.md).
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning uses a date-based scheme: `YYYY.M.D` — the version always reflects the date the release was cut from `master`. The live demo at [demo-fce.pages.dev](https://demo-fce.pages.dev/) always runs the latest version.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). **Historical note:** the dated sections below (pre-`v3.0.0`) used a date-based `YYYY.M.D` scheme cut by hand. From `v3.0.0` onward the project uses [Semantic Versioning](https://semver.org/) cut **automatically by semantic-release** on merge to `master` — those releases are at the top of this file. The live demo at [demo-fce.pages.dev](https://demo-fce.pages.dev/) always runs the latest version.
 
 ---
 
