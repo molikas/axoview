@@ -56,6 +56,7 @@ export class GoogleDriveProvider implements StorageProvider {
   readonly requiresAuth = true;
 
   private rootFolderId: string | null = null;
+  private rootProbe: Promise<string | null> | null = null;
   // Overridable in tests to keep backoff fast.
   protected retryDelays = [500, 1000, 2000];
 
@@ -99,10 +100,33 @@ export class GoogleDriveProvider implements StorageProvider {
       throw new DriveError('Google session expired', 401);
     }
 
-    // 429 / 403 (rate) and 5xx are transient — back off and retry.
-    const transient = res.status === 429 || res.status === 403 || res.status >= 500;
+    // Read the error body once (we're erroring out) to classify the failure.
+    // A 403 can be a transient rate limit OR a permanent condition (Drive API
+    // disabled, missing scope, no permission). Only rate limits are retriable —
+    // retrying a permanent 403 spams requests + "busy" toasts (a real bug this
+    // classification fixes).
+    let reason = '';
+    let apiMessage = '';
+    try {
+      const body = (await res.json()) as {
+        error?: {
+          status?: string;
+          message?: string;
+          errors?: Array<{ reason?: string }>;
+        };
+      };
+      reason = body.error?.errors?.[0]?.reason || body.error?.status || '';
+      apiMessage = body.error?.message || '';
+    } catch {
+      /* non-JSON error body — leave reason/message empty */
+    }
+
+    const isRateLimit =
+      res.status === 429 ||
+      (res.status === 403 && /rateLimitExceeded/i.test(reason));
+    const transient = isRateLimit || res.status >= 500;
     if (transient && attempt < this.retryDelays.length) {
-      if (res.status === 429 || res.status === 403) {
+      if (isRateLimit) {
         notificationStore.push({
           severity: 'warning',
           message: 'Google Drive is busy — retrying…'
@@ -112,7 +136,12 @@ export class GoogleDriveProvider implements StorageProvider {
       return this.request(url, init, attempt + 1);
     }
 
-    throw new DriveError(`Google Drive request failed (${res.status})`, res.status);
+    // Surface Google's own message (e.g. "Google Drive API has not been used in
+    // project … or it is disabled") so the file tree shows the real cause.
+    throw new DriveError(
+      apiMessage || `Google Drive request failed (${res.status})`,
+      res.status
+    );
   }
 
   private async listFiles(q: string, fields: string): Promise<DriveFile[]> {
@@ -217,6 +246,18 @@ export class GoogleDriveProvider implements StorageProvider {
    */
   private async resolveRoot(): Promise<string | null> {
     if (this.rootFolderId) return this.rootFolderId;
+    // Dedupe concurrent probes — the file tree fires listFolders + listDiagrams
+    // + getTreeManifest (+ DriveSetupGate's hasConfiguredRoot) at once; without
+    // this each would run its own marker query (and, on a hard error like a
+    // disabled Drive API, each would surface the same failure).
+    if (this.rootProbe) return this.rootProbe;
+    this.rootProbe = this.probeRoot().finally(() => {
+      this.rootProbe = null;
+    });
+    return this.rootProbe;
+  }
+
+  private async probeRoot(): Promise<string | null> {
     const cached = (() => {
       try {
         return localStorage.getItem(ROOT_CACHE_KEY);

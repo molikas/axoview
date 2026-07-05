@@ -123,6 +123,34 @@ describe('GoogleDriveProvider', () => {
     expect(fetchMock).toHaveBeenCalledTimes(4); // initial + 3 retries
   });
 
+  test('a permanent 403 (Drive API disabled) fails fast, surfacing Google\'s message', async () => {
+    fetchMock.mockResolvedValue(
+      mockResponse(
+        {
+          error: {
+            code: 403,
+            status: 'PERMISSION_DENIED',
+            message:
+              'Google Drive API has not been used in project 485371025824 before or it is disabled.'
+          }
+        },
+        403
+      )
+    );
+    await expect(makeProvider().loadDiagram('d1')).rejects.toThrow(/has not been used/);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // no retry storm
+  });
+
+  test('a rate-limit 403 IS retried', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        mockResponse({ error: { errors: [{ reason: 'userRateLimitExceeded' }] } }, 403)
+      )
+      .mockResolvedValueOnce(mockResponse({ ok: true }));
+    await expect(makeProvider().loadDiagram('d1')).resolves.toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   test('root discovery: adopts an existing marker folder', async () => {
     fetchMock.mockResolvedValueOnce(mockResponse({ files: [{ id: 'existing-root' }] }));
     const p = new GoogleDriveProvider();
