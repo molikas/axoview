@@ -124,6 +124,7 @@ describe('handleEscapeKey — returns from a tool mode to Select (F-01)', () => 
     'PLACE_ICON',
     'RECTANGLE.DRAW',
     'TEXTBOX',
+    'LABEL',
     'LASSO',
     'FREEHAND_LASSO',
     'PAN'

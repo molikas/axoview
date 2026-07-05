@@ -4,6 +4,10 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'Este es un texto de ejemplo'
   },
+  rightSidebar: {
+    collapsePanel: 'Contraer panel',
+    emptyState: 'Selecciona un nodo, conector o forma para ver sus propiedades'
+  },
   helpDialog: {
     title: 'Atajos de teclado y ayuda',
     close: 'Cerrar',
@@ -271,89 +275,130 @@ const locale: LocaleProps = {
     addPageDisabled: 'Límite de páginas alcanzado (5)'
   },
   nodePanel: {
-    details: 'Detalles',
-    style: 'Estilo',
     notes: 'Notas',
-    notesModified: 'Notas ●',
     close: 'Cerrar',
-    openLink: 'Abrir enlace',
-    caption: 'Leyenda',
-    noCaption: 'Sin leyenda.',
-    showLabel: 'Mostrar etiqueta',
-    hideLabel: 'Ocultar etiqueta',
-    showName: 'Mostrar nombre',
-    hideName: 'Ocultar nombre'
   },
   nodeInfoTab: {
+    metadata: 'Metadatos',
     name: 'Nombre',
     namePlaceholder: 'Nombre del nodo…',
-    removeLink: 'Eliminar enlace',
-    addLink: 'Añadir enlace al nombre',
-    linkPlaceholder: 'https://…',
-    caption: 'Leyenda',
-    captionHint: 'Se muestra en el lienzo debajo del nombre del nodo',
-    openLink: 'Abrir enlace',
-    diagramLink: 'Enlace al diagrama',
-    diagramLinkPlaceholder: 'Seleccionar un diagrama…',
-    diagramLinkHint: 'Al hacer clic en este nodo en modo de solo lectura se abre el diagrama vinculado',
-    openDiagramLink: 'Abrir diagrama vinculado'
-  },
-  nodeStyleTab: {
-    icon: 'Icono',
-    close: 'Cerrar',
-    change: 'Cambiar…',
-    iconSize: 'Tamaño del icono',
-    labelFontSize: 'Tamaño de fuente de la etiqueta',
-    labelColor: 'Color de la etiqueta',
-    labelHeight: 'Altura de la etiqueta'
+    label: 'Etiqueta',
+    labelPlaceholder: 'Etiqueta mostrada en la forma…',
+    openLink: 'Abrir enlace'
   },
   connectorControls: {
+    metadata: 'Metadatos',
     close: 'Cerrar',
-    labels: 'Etiquetas',
-    details: 'Detalles',
-    style: 'Estilo',
     notes: 'Notas',
-    notesModified: 'Notas ●',
     name: 'Nombre',
     namePlaceholder: 'Etiqueta del enlace…',
-    additionalLabels: 'Etiquetas adicionales',
+    labels: 'Etiquetas',
     addLabel: 'Añadir etiqueta',
     noLabels: 'Aún no hay etiquetas.',
-    addLink: 'Añadir enlace',
-    removeLink: 'Eliminar enlace',
-    linkPlaceholder: 'https://…',
-    showLabel: 'Mostrar etiqueta',
-    hideLabel: 'Ocultar etiqueta',
-    showName: 'Mostrar nombre',
-    hideName: 'Ocultar nombre',
-    color: 'Color',
-    width: 'Ancho',
-    lineStyle: 'Estilo de línea',
-    lineType: 'Tipo de línea',
-    useCustomColor: 'Usar color personalizado',
-    showArrow: 'Mostrar flecha',
-    solid: 'Sólida',
-    dotted: 'Punteada',
-    dashed: 'Discontinua',
-    singleLine: 'Línea simple',
-    doubleLine: 'Línea doble',
-    doubleLineWithCircle: 'Línea doble con círculo'
+    labelN: 'Etiqueta {count}',
+    positionHint: 'Arrastra una etiqueta en el lienzo para colocarla; usa la barra superior para su tamaño de texto y color.',
+    line: 'Línea',
+    line1: 'Línea 1',
+    line2: 'Línea 2'
   },
   textBoxControls: {
+    linkSearchPlaceholder: 'Buscar o pegar un enlace',
+    linkCopy: 'Copiar enlace',
+    linkCopied: 'Copiado',
+    linkEdit: 'Editar enlace',
+    linkRemove: 'Quitar enlace',
+    placeholder: 'Escribe algo',
+    metadata: 'Metadatos',
+    notes: 'Notas',
     close: 'Cerrar',
     name: 'Nombre',
-    namePlaceholder: 'Nombre del elemento…',
-    text: 'Texto',
-    textSize: 'Tamaño del texto',
-    textColor: 'Color del texto',
-    alignment: 'Alineación'
+    namePlaceholder: 'Nombre del elemento…'
   },
   rectangleControls: {
+    metadata: 'Metadatos',
+    notes: 'Notas',
     close: 'Cerrar',
     name: 'Nombre',
-    namePlaceholder: 'Nombre del elemento…',
-    color: 'Color',
-    useCustomColor: 'Usar color personalizado'
+    namePlaceholder: 'Nombre del elemento…'
+  },
+  topBarStyleControls: {
+    rotate90: 'Girar 90°',
+    noColor: 'Sin color',
+    customColor: 'Color personalizado',
+    textSize: 'Tamaño del texto',
+    lineSpacing: 'Interlineado',
+    alignment: 'Alineación',
+    alignmentDisabled: 'Selecciona un cuadro de texto para alinear el texto',
+    alignLeft: 'Alinear a la izquierda',
+    alignCenter: 'Centrar',
+    alignRight: 'Alinear a la derecha',
+    alignTop: 'Alinear arriba',
+    alignMiddle: 'Alinear al medio',
+    alignBottom: 'Alinear abajo',
+    iconSize: 'Tamaño del icono',
+    textColor: 'Color del texto',
+    textColorDisabled:
+      'Selecciona un nodo, un cuadro de texto, una etiqueta o una etiqueta de conexión para definir el color del texto',
+    textSizeDisabled:
+      'Selecciona un nodo, un cuadro de texto, una etiqueta o una etiqueta de conexión para definir el tamaño del texto',
+    labelSizeAllSelected: 'Tamaño de etiqueta (todas las seleccionadas)',
+    textColorAllSelected: 'Color del texto (todo lo seleccionado)',
+    armedToolPlaceFirst:
+      'El nuevo elemento usa el estilo predeterminado: colócalo primero y luego dale estilo aquí',
+    decreaseLabelSize: 'Reducir tamaño de etiqueta',
+    increaseLabelSize: 'Aumentar tamaño de etiqueta',
+    labelSize: 'Tamaño de etiqueta',
+    decreaseSize: 'Reducir tamaño',
+    increaseSize: 'Aumentar tamaño',
+    stepAll: 'Ajustar todo',
+    size: 'Tamaño',
+    bold: 'Negrita',
+    italic: 'Cursiva',
+    underline: 'Subrayado',
+    strikethrough: 'Tachado',
+    format: 'Negrita / cursiva / subrayado / tachado',
+    formatDisabled:
+      'Selecciona un nodo, un cuadro de texto, una etiqueta o una etiqueta de conexión para dar formato al texto',
+    lists: 'Listas',
+    listsDisabled: 'Selecciona un cuadro de texto para usar listas',
+    bulletList: 'Lista con viñetas',
+    numberedList: 'Lista numerada',
+    background: 'Color de fondo',
+    backgroundDisabled: 'Selecciona un rectángulo, etiqueta o cuadro de texto para definir su color de fondo',
+    opacity: 'Opacidad',
+    border: 'Borde',
+    borderDisabled: 'Selecciona un rectángulo o cuadro de texto para definir su borde',
+    lineStyle: 'Estilo de línea',
+    width: 'Ancho',
+    borderColor: 'Color del borde',
+    link: 'Enlace',
+    linkDisabled: 'Selecciona un nodo, conexión o etiqueta para añadir un enlace',
+    linkSelection: 'Enlazar el texto seleccionado',
+    linkDisabledTextBox: 'Selecciona texto mientras editas para añadir un enlace',
+    linkToWeb: 'Enlace a la web',
+    webLinkPlaceholder: 'https://…',
+    linkToDiagram: 'Enlace al diagrama',
+    searchDiagrams: 'Buscar diagramas…',
+    openLinkedDiagram: 'Abrir diagrama vinculado',
+    showLabel: 'Mostrar etiqueta',
+    hideLabel: 'Ocultar etiqueta',
+    showHideLabelDisabled:
+      'Selecciona un nodo o una conexión para mostrar u ocultar su etiqueta',
+    changeIconBulk: 'Cambiar icono se aplica a un nodo a la vez',
+    changeIcon: 'Cambiar icono',
+    changeIconDisabled: 'Selecciona un nodo para cambiar su icono',
+    iconSizeBulk:
+      'El tamaño del icono edita un icono a la vez (cambia el tamaño de todos los nodos que lo usan)',
+    iconSizeDisabled: 'Selecciona un nodo para cambiar el tamaño de su icono',
+    connectionColorPredraw: 'Color de la próxima conexión que dibujes',
+    connectionColor: 'Color de la conexión',
+    connectionColorDisabled: 'Selecciona una conexión (o la herramienta de conector) para definir su color',
+    lineOptionsPredraw: 'Estilo de línea de la próxima conexión que dibujes',
+    lineOptions: 'Opciones de línea',
+    lineOptionsDisabled: 'Selecciona una conexión (o la herramienta de conector) para definir sus opciones de línea',
+    lineType: 'Tipo de línea',
+    showArrow: 'Mostrar flecha',
+    showDottedLine: 'Mostrar línea punteada',
   },
   labelColorPicker: {
     customColor: 'Color personalizado'
@@ -374,7 +419,10 @@ const locale: LocaleProps = {
     selected: '{count} seleccionados'
   },
   modeHints: {
-    connector: 'Arrastra entre elementos para conectar • Esc para cancelar'
+    connector: 'Arrastra entre elementos para conectar • Esc para cancelar',
+    textBox: 'Haz clic para colocar un cuadro de texto • Esc para cancelar',
+    label: 'Haz clic para colocar una etiqueta • Esc para cancelar',
+    rectangle: 'Arrastra para dibujar un rectángulo • Esc para cancelar'
   },
   previewLayerSwitcher: {
     layers: 'Capas',
@@ -433,6 +481,9 @@ const locale: LocaleProps = {
     placeholder: 'Buscar iconos'
   },
   exportImageDialog: {
+    groupAppearance: 'Appearance',
+    groupBackground: 'Background',
+    groupCrop: 'Crop',
     title: 'Exportar como imagen',
     compatibilityTitle: 'Aviso de compatibilidad del navegador',
     compatibilityMessage:
@@ -442,7 +493,6 @@ const locale: LocaleProps = {
     options: 'Opciones',
     showGrid: 'Mostrar cuadrícula',
     showLabels: 'Mostrar etiquetas',
-    expandDescriptions: 'Expandir descripciones',
     screenshotPreset: 'Captura de pantalla (recomendado)',
     scaleClamped: 'Tamaño de exportación reducido para ajustarse al límite de imagen del navegador:',
     cropToContent: 'Recortar al contenido',
@@ -462,6 +512,7 @@ const locale: LocaleProps = {
     error: 'No se pudo exportar la imagen'
   },
   toolMenu: {
+    label: 'Label',
     undo: 'Deshacer',
     redo: 'Rehacer',
     select: 'Seleccionar',
@@ -486,6 +537,7 @@ const locale: LocaleProps = {
   },
   canvasContextMenu: {
     addNote: 'Añadir nota',
+    addLabel: 'Añadir etiqueta',
     details: 'Detalles…',
     rename: 'Renombrar',
     cut: 'Cortar',
@@ -494,7 +546,10 @@ const locale: LocaleProps = {
     duplicate: 'Duplicar',
     bringForward: 'Traer adelante',
     sendBackward: 'Enviar atrás',
+    bringToFront: 'Traer al frente',
+    sendToBack: 'Enviar al fondo',
     assignToLayer: 'Asignar a capa',
+    fitToText: 'Ajustar al texto',
     snapToGrid: 'Ajustar a la cuadrícula',
     unsnapFromGrid: 'Desajustar de la cuadrícula',
     disableCollision: 'Desactivar colisión',
@@ -517,7 +572,8 @@ const locale: LocaleProps = {
     elements: 'Elementos',
     layers: 'Capas',
     settings: 'Configuración',
-    openDiagramFirst: 'abre o crea un diagrama primero'
+    openDiagramFirst: 'abre o crea un diagrama primero',
+    collapsePanel: 'Contraer panel'
   },
   // D8 — LayersPanel
   layersPanel: {

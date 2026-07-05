@@ -3,6 +3,7 @@ import { id, constrainedStrings, coords, ARRAY_MAX } from './common';
 import { rectangleSchema } from './rectangle';
 import { connectorSchema } from './connector';
 import { textBoxSchema } from './textBox';
+import { labelSchema } from './label';
 import { layersSchema } from './layer';
 
 export const viewItemSchema = z.object({
@@ -14,6 +15,13 @@ export const viewItemSchema = z.object({
   labelHeight: z.number().optional(),
   labelFontSize: z.number().optional(),
   labelColor: z.string().optional(),
+  labelBold: z.boolean().optional(),
+  labelItalic: z.boolean().optional(),
+  labelStrikethrough: z.boolean().optional(),
+  // ADR 0034 O1 (2026-07-03): element-level underline joins the trio so the
+  // strip's B/I/U/S cluster means the same thing on every label type. Optional
+  // → zero-migration addition, ADR 0033 nearest-sibling naming.
+  labelUnderline: z.boolean().optional(),
   showLabel: z.boolean().optional(),
   zIndex: z.number().int().optional(),
   layerId: id.optional(),
@@ -37,6 +45,7 @@ export const viewSchema = z.object({
   rectangles: z.array(rectangleSchema).max(ARRAY_MAX.rectangles).optional(),
   connectors: z.array(connectorSchema).max(ARRAY_MAX.connectors).optional(),
   textBoxes: z.array(textBoxSchema).max(ARRAY_MAX.textBoxes).optional(),
+  labels: z.array(labelSchema).max(ARRAY_MAX.labels).optional(),
   layers: layersSchema.optional()
 });
 

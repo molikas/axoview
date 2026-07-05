@@ -4,6 +4,10 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'Dies ist ein Beispieltext'
   },
+  rightSidebar: {
+    collapsePanel: 'Panel einklappen',
+    emptyState: 'Wählen Sie einen Knoten, Verbinder oder eine Form, um die Eigenschaften anzuzeigen'
+  },
   helpDialog: {
     title: 'Tastaturkürzel und Hilfe',
     close: 'Schließen',
@@ -269,89 +273,136 @@ const locale: LocaleProps = {
     addPageDisabled: 'Seitenlimit erreicht (5)'
   },
   nodePanel: {
-    details: 'Details',
-    style: 'Stil',
     notes: 'Notizen',
-    notesModified: 'Notizen ●',
     close: 'Schließen',
-    openLink: 'Link öffnen',
-    caption: 'Beschriftung',
-    noCaption: 'Keine Beschriftung.',
-    showLabel: 'Beschriftung anzeigen',
-    hideLabel: 'Beschriftung ausblenden',
-    showName: 'Name anzeigen',
-    hideName: 'Name ausblenden'
   },
   nodeInfoTab: {
+    metadata: 'Metadaten',
     name: 'Name',
     namePlaceholder: 'Knotenname…',
-    removeLink: 'Link entfernen',
-    addLink: 'Link zum Namen hinzufügen',
-    linkPlaceholder: 'https://…',
-    caption: 'Beschriftung',
-    captionHint: 'Wird auf der Leinwand unterhalb des Knotennamens angezeigt',
-    openLink: 'Link öffnen',
-    diagramLink: 'Link zum Diagramm',
-    diagramLinkPlaceholder: 'Diagramm auswählen…',
-    diagramLinkHint: 'Ein Klick auf diesen Knoten im Nur-Lese-Modus öffnet das verknüpfte Diagramm',
-    openDiagramLink: 'Verknüpftes Diagramm öffnen'
-  },
-  nodeStyleTab: {
-    icon: 'Symbol',
-    close: 'Schließen',
-    change: 'Ändern…',
-    iconSize: 'Symbolgröße',
-    labelFontSize: 'Beschriftungsschriftgröße',
-    labelColor: 'Beschriftungsfarbe',
-    labelHeight: 'Beschriftungshöhe'
+    label: 'Beschriftung',
+    labelPlaceholder: 'Auf dem Element angezeigte Beschriftung…',
+    openLink: 'Link öffnen'
   },
   connectorControls: {
+    metadata: 'Metadaten',
     close: 'Schließen',
-    labels: 'Beschriftungen',
-    details: 'Details',
-    style: 'Stil',
     notes: 'Notizen',
-    notesModified: 'Notizen ●',
     name: 'Name',
     namePlaceholder: 'Kantenbezeichnung…',
-    additionalLabels: 'Zusätzliche Beschriftungen',
+    labels: 'Beschriftungen',
     addLabel: 'Beschriftung hinzufügen',
     noLabels: 'Noch keine Beschriftungen.',
-    addLink: 'Link hinzufügen',
-    removeLink: 'Link entfernen',
-    linkPlaceholder: 'https://…',
-    showLabel: 'Beschriftung anzeigen',
-    hideLabel: 'Beschriftung ausblenden',
-    showName: 'Name anzeigen',
-    hideName: 'Name ausblenden',
-    color: 'Farbe',
-    width: 'Breite',
-    lineStyle: 'Linienstil',
-    lineType: 'Linientyp',
-    useCustomColor: 'Benutzerdefinierte Farbe verwenden',
-    showArrow: 'Pfeil anzeigen',
-    solid: 'Durchgezogen',
-    dotted: 'Gepunktet',
-    dashed: 'Gestrichelt',
-    singleLine: 'Einfache Linie',
-    doubleLine: 'Doppellinie',
-    doubleLineWithCircle: 'Doppellinie mit Kreis'
+    labelN: 'Beschriftung {count}',
+    positionHint:
+      'Ziehen Sie eine Beschriftung auf die Leinwand, um sie zu positionieren; verwenden Sie die obere Leiste für ihre Textgröße und -farbe.',
+    line: 'Linie',
+    line1: 'Linie 1',
+    line2: 'Linie 2'
   },
   textBoxControls: {
+    linkSearchPlaceholder: 'Suchen oder Link einfügen',
+    linkCopy: 'Link kopieren',
+    linkCopied: 'Kopiert',
+    linkEdit: 'Link bearbeiten',
+    linkRemove: 'Link entfernen',
+    placeholder: 'Text eingeben',
+    metadata: 'Metadaten',
+    notes: 'Notizen',
     close: 'Schließen',
     name: 'Name',
-    namePlaceholder: 'Elementname…',
-    text: 'Text',
-    textSize: 'Textgröße',
-    textColor: 'Textfarbe',
-    alignment: 'Ausrichtung'
+    namePlaceholder: 'Elementname…'
   },
   rectangleControls: {
+    metadata: 'Metadaten',
+    notes: 'Notizen',
     close: 'Schließen',
     name: 'Name',
-    namePlaceholder: 'Elementname…',
-    color: 'Farbe',
-    useCustomColor: 'Benutzerdefinierte Farbe verwenden'
+    namePlaceholder: 'Elementname…'
+  },
+  topBarStyleControls: {
+    rotate90: 'Um 90° drehen',
+    noColor: 'Keine Farbe',
+    customColor: 'Benutzerdefinierte Farbe',
+    textSize: 'Textgröße',
+    lineSpacing: 'Zeilenabstand',
+    alignment: 'Ausrichtung',
+    alignmentDisabled: 'Wählen Sie ein Textfeld aus, um Text auszurichten',
+    alignLeft: 'Linksbündig',
+    alignCenter: 'Zentriert',
+    alignRight: 'Rechtsbündig',
+    alignTop: 'Oben ausrichten',
+    alignMiddle: 'Mittig ausrichten',
+    alignBottom: 'Unten ausrichten',
+    iconSize: 'Symbolgröße',
+    textColor: 'Textfarbe',
+    textColorDisabled:
+      'Wählen Sie einen Knoten, ein Textfeld, eine Beschriftung oder eine Verbindungsbeschriftung, um die Textfarbe festzulegen',
+    textSizeDisabled:
+      'Wählen Sie einen Knoten, ein Textfeld, eine Beschriftung oder eine Verbindungsbeschriftung, um die Textgröße festzulegen',
+    labelSizeAllSelected: 'Beschriftungsgröße (alle ausgewählten)',
+    textColorAllSelected: 'Textfarbe (alle ausgewählten)',
+    armedToolPlaceFirst:
+      'Das neue Element nutzt die Standard-Formatierung — platzieren Sie es zuerst und gestalten Sie es dann hier',
+    decreaseLabelSize: 'Beschriftungsgröße verringern',
+    increaseLabelSize: 'Beschriftungsgröße erhöhen',
+    labelSize: 'Beschriftungsgröße',
+    decreaseSize: 'Größe verringern',
+    increaseSize: 'Größe erhöhen',
+    stepAll: 'Alle anpassen',
+    size: 'Größe',
+    bold: 'Fett',
+    italic: 'Kursiv',
+    underline: 'Unterstrichen',
+    strikethrough: 'Durchgestrichen',
+    format: 'Fett / kursiv / unterstrichen / durchgestrichen',
+    formatDisabled:
+      'Wählen Sie einen Knoten, ein Textfeld, eine Beschriftung oder eine Verbindungsbeschriftung, um Text zu formatieren',
+    lists: 'Listen',
+    listsDisabled: 'Wählen Sie ein Textfeld, um Listen zu verwenden',
+    bulletList: 'Aufzählungsliste',
+    numberedList: 'Nummerierte Liste',
+    background: 'Hintergrundfarbe',
+    backgroundDisabled: 'Wählen Sie ein Rechteck, eine Beschriftung oder ein Textfeld aus, um die Hintergrundfarbe festzulegen',
+    opacity: 'Deckkraft',
+    border: 'Rahmen',
+    borderDisabled: 'Wählen Sie ein Rechteck oder Textfeld, um dessen Rahmen festzulegen',
+    lineStyle: 'Linienstil',
+    width: 'Breite',
+    borderColor: 'Rahmenfarbe',
+    link: 'Link',
+    linkDisabled:
+      'Wählen Sie einen Knoten, eine Verbindung oder eine Beschriftung, um einen Link hinzuzufügen',
+    linkSelection: 'Ausgewählten Text verlinken',
+    linkDisabledTextBox:
+      'Wählen Sie beim Bearbeiten Text aus, um einen Link hinzuzufügen',
+    linkToWeb: 'Link zum Web',
+    webLinkPlaceholder: 'https://…',
+    linkToDiagram: 'Link zum Diagramm',
+    searchDiagrams: 'Diagramme suchen…',
+    openLinkedDiagram: 'Verknüpftes Diagramm öffnen',
+    showLabel: 'Beschriftung anzeigen',
+    hideLabel: 'Beschriftung ausblenden',
+    showHideLabelDisabled:
+      'Wählen Sie einen Knoten oder eine Verbindung, um die Beschriftung ein- oder auszublenden',
+    changeIconBulk: 'Symbol ändern gilt jeweils für einen Knoten',
+    changeIcon: 'Symbol ändern',
+    changeIconDisabled: 'Wählen Sie einen Knoten, um sein Symbol zu ändern',
+    iconSizeBulk:
+      'Symbolgröße bearbeitet jeweils ein Symbol (skaliert alle Knoten mit diesem Symbol)',
+    iconSizeDisabled:
+      'Wählen Sie einen Knoten, um seine Symbolgröße zu ändern',
+    connectionColorPredraw: 'Farbe für die nächste Verbindung, die Sie zeichnen',
+    connectionColor: 'Verbindungsfarbe',
+    connectionColorDisabled:
+      'Wählen Sie eine Verbindung (oder das Verbindungswerkzeug), um ihre Farbe festzulegen',
+    lineOptionsPredraw: 'Linienstil für die nächste Verbindung, die Sie zeichnen',
+    lineOptions: 'Linienoptionen',
+    lineOptionsDisabled:
+      'Wählen Sie eine Verbindung (oder das Verbindungswerkzeug), um ihre Linienoptionen festzulegen',
+    lineType: 'Linientyp',
+    showArrow: 'Pfeil anzeigen',
+    showDottedLine: 'Gepunktete Linie anzeigen',
   },
   labelColorPicker: {
     customColor: 'Benutzerdefinierte Farbe'
@@ -372,7 +423,10 @@ const locale: LocaleProps = {
     selected: '{count} ausgewählt'
   },
   modeHints: {
-    connector: 'Zum Verbinden zwischen Elementen ziehen • Esc zum Abbrechen'
+    connector: 'Zum Verbinden zwischen Elementen ziehen • Esc zum Abbrechen',
+    textBox: 'Klicken, um ein Textfeld zu platzieren • Esc zum Abbrechen',
+    label: 'Klicken, um eine Beschriftung zu platzieren • Esc zum Abbrechen',
+    rectangle: 'Ziehen, um ein Rechteck zu zeichnen • Esc zum Abbrechen'
   },
   previewLayerSwitcher: {
     layers: 'Ebenen',
@@ -431,6 +485,9 @@ const locale: LocaleProps = {
     placeholder: 'Symbole suchen'
   },
   exportImageDialog: {
+    groupAppearance: 'Appearance',
+    groupBackground: 'Background',
+    groupCrop: 'Crop',
     title: 'Als Bild exportieren',
     compatibilityTitle: 'Browser-Kompatibilitätshinweis',
     compatibilityMessage:
@@ -440,7 +497,6 @@ const locale: LocaleProps = {
     options: 'Optionen',
     showGrid: 'Raster anzeigen',
     showLabels: 'Beschriftungen anzeigen',
-    expandDescriptions: 'Beschreibungen erweitern',
     screenshotPreset: 'Screenshot (empfohlen)',
     scaleClamped: 'Exportgröße reduziert, um das Bildlimit des Browsers einzuhalten:',
     cropToContent: 'Auf Inhalt zuschneiden',
@@ -460,6 +516,7 @@ const locale: LocaleProps = {
     error: 'Bild konnte nicht exportiert werden'
   },
   toolMenu: {
+    label: 'Label',
     undo: 'Rückgängig',
     redo: 'Wiederholen',
     select: 'Auswählen',
@@ -484,6 +541,7 @@ const locale: LocaleProps = {
   },
   canvasContextMenu: {
     addNote: 'Notiz hinzufügen',
+    addLabel: 'Beschriftung hinzufügen',
     details: 'Details…',
     rename: 'Umbenennen',
     cut: 'Ausschneiden',
@@ -492,7 +550,10 @@ const locale: LocaleProps = {
     duplicate: 'Duplizieren',
     bringForward: 'Nach vorne',
     sendBackward: 'Nach hinten',
+    bringToFront: 'In den Vordergrund',
+    sendToBack: 'In den Hintergrund',
     assignToLayer: 'Ebene zuweisen',
+    fitToText: 'An Text anpassen',
     snapToGrid: 'Am Raster ausrichten',
     unsnapFromGrid: 'Vom Raster lösen',
     disableCollision: 'Kollision deaktivieren',
@@ -515,7 +576,8 @@ const locale: LocaleProps = {
     elements: 'Elemente',
     layers: 'Ebenen',
     settings: 'Einstellungen',
-    openDiagramFirst: 'öffnen oder erstellen Sie zuerst ein Diagramm'
+    openDiagramFirst: 'öffnen oder erstellen Sie zuerst ein Diagramm',
+    collapsePanel: 'Bereich einklappen'
   },
   // D8 — LayersPanel
   layersPanel: {

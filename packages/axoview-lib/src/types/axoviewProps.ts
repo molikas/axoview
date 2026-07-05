@@ -12,6 +12,10 @@ export interface LocaleProps {
   common: {
     exampleText: string;
   };
+  rightSidebar: {
+    collapsePanel: string;
+    emptyState: string;
+  };
   helpDialog: {
     title: string;
     close: string;
@@ -252,89 +256,138 @@ export interface LocaleProps {
     addPageDisabled: string;
   };
   nodePanel: {
-    details: string;
-    style: string;
     notes: string;
-    notesModified: string;
     close: string;
-    openLink: string;
-    caption: string;
-    noCaption: string;
-    showLabel: string;
-    hideLabel: string;
-    showName: string;
-    hideName: string;
   };
+  // addLink/removeLink/linkPlaceholder + nodePanel show/hideName retired
+  // 2026-07-05: the deck's link + hide-name affordances were duplicates of
+  // the strip's Link control and show/hide eye.
   nodeInfoTab: {
     name: string;
     namePlaceholder: string;
-    removeLink: string;
-    addLink: string;
-    linkPlaceholder: string;
-    caption: string;
-    captionHint: string;
+    metadata: string;
+    label: string;
+    labelPlaceholder: string;
     openLink: string;
-    diagramLink: string;
-    diagramLinkPlaceholder: string;
-    diagramLinkHint: string;
-    openDiagramLink: string;
-  };
-  nodeStyleTab: {
-    icon: string;
-    close: string;
-    change: string;
-    iconSize: string;
-    labelFontSize: string;
-    labelColor: string;
-    labelHeight: string;
   };
   connectorControls: {
     close: string;
-    labels: string;
-    details: string;
-    style: string;
+    metadata: string;
     notes: string;
-    notesModified: string;
     name: string;
     namePlaceholder: string;
-    additionalLabels: string;
+    labels: string;
     addLabel: string;
     noLabels: string;
-    addLink: string;
-    removeLink: string;
-    linkPlaceholder: string;
-    showLabel: string;
-    hideLabel: string;
-    showName: string;
-    hideName: string;
-    color: string;
-    width: string;
-    lineStyle: string;
-    lineType: string;
-    useCustomColor: string;
-    showArrow: string;
-    solid: string;
-    dotted: string;
-    dashed: string;
-    singleLine: string;
-    doubleLine: string;
-    doubleLineWithCircle: string;
+    labelN: string;
+    positionHint: string;
+    line: string;
+    line1: string;
+    line2: string;
   };
   textBoxControls: {
     close: string;
+    metadata: string;
+    notes: string;
     name: string;
     namePlaceholder: string;
-    text: string;
+    // Inline-editor ghost text for an EMPTY on-canvas text box (ADR 0034
+    // addendum 2026-07-03) — display-only, never persisted.
+    placeholder: string;
+    // Docs-style link card over linked text in the on-canvas editor
+    // (ADR 0034 addendum 2026-07-04).
+    linkCopy: string;
+    linkCopied: string;
+    linkEdit: string;
+    linkRemove: string;
+    // Card URL-field ghost text ("Search or paste a link" — Docs wording;
+    // the field also filters the diagram suggestions).
+    linkSearchPlaceholder: string;
+  };
+  topBarStyleControls: {
+    noColor: string;
+    customColor: string;
     textSize: string;
-    textColor: string;
+    lineSpacing: string;
+    // Alignment (text box only — ADR 0034 addenda 2026-07-03/04): one
+    // Lucid-style control; horizontal (content) × vertical (element) grid.
     alignment: string;
+    alignmentDisabled: string;
+    alignLeft: string;
+    alignCenter: string;
+    alignRight: string;
+    alignTop: string;
+    alignMiddle: string;
+    alignBottom: string;
+    iconSize: string;
+    textColor: string;
+    textColorDisabled: string;
+    textSizeDisabled: string;
+    labelSizeAllSelected: string;
+    textColorAllSelected: string;
+    armedToolPlaceFirst: string;
+    decreaseLabelSize: string;
+    increaseLabelSize: string;
+    labelSize: string;
+    decreaseSize: string;
+    increaseSize: string;
+    stepAll: string;
+    size: string;
+    bold: string;
+    italic: string;
+    underline: string;
+    strikethrough: string;
+    format: string;
+    formatDisabled: string;
+    lists: string;
+    listsDisabled: string;
+    bulletList: string;
+    numberedList: string;
+    background: string;
+    backgroundDisabled: string;
+    opacity: string;
+    border: string;
+    borderDisabled: string;
+    lineStyle: string;
+    width: string;
+    borderColor: string;
+    link: string;
+    linkDisabled: string;
+    linkSelection: string;
+    linkDisabledTextBox: string;
+    linkToWeb: string;
+    webLinkPlaceholder: string;
+    linkToDiagram: string;
+    searchDiagrams: string;
+    openLinkedDiagram: string;
+    showLabel: string;
+    hideLabel: string;
+    showHideLabelDisabled: string;
+    changeIconBulk: string;
+    changeIcon: string;
+    changeIconDisabled: string;
+    iconSizeBulk: string;
+    iconSizeDisabled: string;
+    connectionColorPredraw: string;
+    connectionColor: string;
+    connectionColorDisabled: string;
+    lineOptionsPredraw: string;
+    lineOptions: string;
+    lineOptionsDisabled: string;
+    lineType: string;
+    showArrow: string;
+    showDottedLine: string;
+    // On-canvas rotate handle tooltip (TextBox iso-plane flip / Rectangle
+    // footprint transpose) — replaced the strip's textDirection toggle
+    // (2026-07-04).
+    rotate90: string;
   };
   rectangleControls: {
     close: string;
+    metadata: string;
+    notes: string;
     name: string;
     namePlaceholder: string;
-    color: string;
-    useCustomColor: string;
   };
   labelColorPicker: {
     customColor: string;
@@ -356,6 +409,9 @@ export interface LocaleProps {
   };
   modeHints: {
     connector: string;
+    textBox: string;
+    label: string;
+    rectangle: string;
   };
   previewLayerSwitcher: {
     layers: string;
@@ -416,9 +472,11 @@ export interface LocaleProps {
     compatibilityMessage: string;
     cropInstruction: string;
     options: string;
+    groupAppearance: string;
+    groupBackground: string;
+    groupCrop: string;
     showGrid: string;
     showLabels: string;
-    expandDescriptions: string;
     screenshotPreset: string;
     scaleClamped: string;
     cropToContent: string;
@@ -447,6 +505,7 @@ export interface LocaleProps {
     rectangle: string;
     connector: string;
     text: string;
+    label: string;
     // D9 — region header for the LeftDock "Common" elements group. The
     // rectangle/text/connector labels reuse the keys above.
     common: string;
@@ -475,13 +534,19 @@ export interface LocaleProps {
     details: string;
     rename: string;
     addNote: string;
+    addLabel: string;
     cut: string;
     copy: string;
     paste: string;
     duplicate: string;
     bringForward: string;
     sendBackward: string;
+    bringToFront: string;
+    sendToBack: string;
     assignToLayer: string;
+    // Manually-sized text box → back to auto size (ADR 0034 addenda
+    // 2026-07-03/04); shown only while a manual width/height is set.
+    fitToText: string;
     snapToGrid: string;
     unsnapFromGrid: string;
     disableCollision: string;
@@ -508,6 +573,7 @@ export interface LocaleProps {
     layers: string;
     settings: string;
     openDiagramFirst: string;
+    collapsePanel: string;
   };
   // D8 — LayersPanel chrome: header, add/delete tooltips, empty-state, the
   // Unassigned group header (with a {count} placeholder) + its drop hint, and
@@ -609,6 +675,8 @@ export interface AxoviewProps {
   toolbarPortalTarget?: HTMLElement | null;
   /** Portal target for the sidebar toggle buttons (right zone). When omitted, toggles render in toolbarPortalTarget. */
   sidebarTogglePortalTarget?: HTMLElement | null;
+  /** Portal target for the top-bar style controls strip (text/fill/connection colour, line style, text direction, rich text). Controls self-gate on the current selection. */
+  styleControlsPortalTarget?: HTMLElement | null;
   /** @deprecated use toolbarPortalTarget */
   menuPortalTarget?: HTMLElement | null;
   /** Extra content rendered at the right end of the BottomDock (after the help icon). */

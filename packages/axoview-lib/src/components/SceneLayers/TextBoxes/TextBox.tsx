@@ -1,16 +1,17 @@
-import React, { useMemo, memo, useCallback, useEffect, useState } from 'react';
+import React, { useMemo, memo, useCallback, useEffect, useRef } from 'react';
 import { Box, Typography } from '@mui/material';
-import { toPx, CoordsUtils } from 'src/utils';
-import { decodeHtmlEntities } from 'src/utils/htmlToPlainText';
-import { stripHtmlTags } from 'src/utils/stripHtml';
+import { alpha } from '@mui/material/styles';
+import { toPx, CoordsUtils, getTextBoxDimensions } from 'src/utils';
 import { sanitizeHtml } from 'src/utils/sanitizeHtml';
+import { useTranslation } from 'src/stores/localeStore';
+import { DIAGRAM_LINK_PREFIX } from 'src/utils/quillLinkShortcut';
 import { useIsoProjection } from 'src/hooks/useIsoProjection';
 import { useTextBoxProps } from 'src/hooks/useTextBoxProps';
 import { useSceneData } from 'src/hooks/useSceneData';
 import { useSceneActions } from 'src/hooks/useSceneActions';
-import { useInlineRename } from 'src/hooks/useInlineRename';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
+import { TextBoxInlineEditor } from './TextBoxInlineEditor';
 
 const INLINE_EDIT_EVENT = 'inlineEditNodeName';
 
@@ -29,69 +30,159 @@ interface Props {
   textBox: ReturnType<typeof useSceneData>['textBoxes'][0];
 }
 
-// Strip HTML tags so existing rich-text content can be edited as plain text inline.
-// Rich editing remains available via the side panel.
-const htmlToPlain = (s: string | undefined): string => {
-  if (!s) return '';
-  // Block tags → newlines (preserve line breaks), then strip the rest via the
-  // shared FIXPOINT stripper and decode entities (A1 converge — also covers
-  // &#39;/&quot;/numeric). The fixpoint strip (vs a single `/<[^>]*>/g` pass)
-  // can't leave a reassembled tag behind, clearing CodeQL
-  // js/incomplete-multi-character-sanitization on this path.
-  const withBreaks = s
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n');
-  return decodeHtmlEntities(stripHtmlTags(withBreaks)).replace(/\n+$/, '');
-};
-
 export const TextBox = memo(({ textBox }: Props) => {
   const { paddingX, fontProps } = useTextBoxProps(textBox);
   const editorMode = useUiStateStore((s) => s.editorMode);
   // Actions only (not useScene): this textbox sits in the drag hot path and must
   // not re-render on every scene mutation just to hold updateTextBox (perf A-1).
-  const { updateTextBox } = useSceneActions();
+  const { updateTextBox, deleteTextBox } = useSceneActions();
   const isEditable = editorMode === 'EDITABLE';
-  const [isEditing, setIsEditing] = useState(false);
+  const uiActions = useUiStateStore((s) => s.actions);
+  // The on-canvas edit session is store state (ADR 0034): while set, the
+  // Renderer promotes this box ABOVE the interactions box (so the editor gets
+  // pointer events) and the strip's text cluster targets the live editor. That
+  // promotion re-parents this component mid-session — which is exactly why the
+  // flag must live in the store, not component state.
+  const isEditing = useUiStateStore(
+    (s) => s.editingTextBoxId === textBox.id && isEditable
+  );
+  // Live footprint of the edit session (ADR 0034 addendum 2026-07-04): the
+  // editor measures its draft (placeholder included while empty) so this
+  // projected container — and the transform bounds reading the same store
+  // field — hug what is actually visible instead of the stale committed size.
+  const previewSize = useUiStateStore((s) =>
+    s.editingTextBoxId === textBox.id ? s.editingTextBoxSize : null
+  );
+  const size = (isEditing && previewSize) || textBox.size;
 
+  // F2 / context-menu Rename entry point (nodes and connectors share the event).
   useEffect(() => {
-    if (!isEditable) return;
+    if (!isEditable) return undefined;
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ id: string }>).detail;
-      if (detail?.id === textBox.id) setIsEditing(true);
+      if (detail?.id === textBox.id) uiActions.setEditingTextBoxId(textBox.id);
     };
     window.addEventListener(INLINE_EDIT_EVENT, handler);
     return () => window.removeEventListener(INLINE_EDIT_EVENT, handler);
-  }, [textBox.id, isEditable]);
+  }, [textBox.id, isEditable, uiActions]);
 
   const startInlineEdit = useCallback(
     (e: React.MouseEvent) => {
       if (!isEditable) return;
       e.stopPropagation();
       e.preventDefault();
-      setIsEditing(true);
+      uiActions.setEditingTextBoxId(textBox.id);
+    },
+    [isEditable, uiActions, textBox.id]
+  );
+
+  // Internal diagram links in text content (ADR 0034 addendum 2026-07-04):
+  // the link card writes `#diagram:<id>` hrefs. In view/explore modes a click
+  // navigates (same event the NodePanel's linked-diagram link dispatches); in
+  // EDIT mode plain click stays selection (Docs convention — Ctrl/Cmd+click
+  // navigates), and the useless fragment jump is suppressed either way.
+  const onRestingClick = useCallback(
+    (e: React.MouseEvent) => {
+      const a = (e.target as HTMLElement | null)?.closest?.('a');
+      const href = a?.getAttribute('href') ?? '';
+      if (!href.startsWith(DIAGRAM_LINK_PREFIX)) return;
+      e.preventDefault();
+      if (isEditable && !e.ctrlKey && !e.metaKey) return;
+      e.stopPropagation();
+      window.dispatchEvent(
+        new CustomEvent('axoview-navigate-to-diagram', {
+          detail: { id: href.slice(DIAGRAM_LINK_PREFIX.length) }
+        })
+      );
     },
     [isEditable]
   );
 
+  // Empty-box lifecycle (ADR 0034 addendum 2026-07-03, Lucid parity): a text
+  // box whose edit session ends with no content is DELETED, not committed —
+  // covers the fresh place-and-type box abandoned via click-away/Escape AND an
+  // existing box the user emptied. Prevents invisible zero-width ghosts.
+  const discardEmpty = useCallback(() => {
+    uiActions.setEditingTextBoxId(null);
+    uiActions.setItemControls(null);
+    deleteTextBox(textBox.id);
+  }, [uiActions, deleteTextBox, textBox.id]);
+
   const commit = useCallback(
-    (raw: string) => {
-      const next = raw.trim();
-      if (next !== (textBox.content ?? '')) {
-        updateTextBox(textBox.id, { content: next });
+    (html: string) => {
+      if (html === '') {
+        discardEmpty();
+        return;
       }
-      setIsEditing(false);
+      if (html !== (textBox.content ?? '')) {
+        updateTextBox(textBox.id, { content: html });
+      }
+      uiActions.setEditingTextBoxId(null);
     },
-    [updateTextBox, textBox.id, textBox.content]
+    [updateTextBox, textBox.id, textBox.content, uiActions, discardEmpty]
   );
 
-  const inlineRename = useInlineRename({
-    active: isEditing,
-    commit,
-    cancel: () => setIsEditing(false),
-    multiline: true
-  });
+  const cancel = useCallback(() => {
+    if ((textBox.content ?? '') === '') {
+      discardEmpty();
+      return;
+    }
+    uiActions.setEditingTextBoxId(null);
+  }, [uiActions, textBox.content, discardEmpty]);
+
+  // Measure the live draft with the exact commit pipeline (getTextBoxDimensions
+  // over the box's own props) and publish it as the session footprint. A blank
+  // draft measures the PLACEHOLDER string instead — the bounds hug the "Type
+  // something" hint the user actually sees, not a 1-tile sliver beside it.
+  const { t } = useTranslation('textBoxControls');
+  const textBoxRef = useRef(textBox);
+  textBoxRef.current = textBox;
+  const lastDraftRef = useRef<string | null>(null);
+  const onDraftChange = useCallback(
+    (draftHtml: string) => {
+      lastDraftRef.current = draftHtml;
+      const content = draftHtml === '' ? `<p>${t('placeholder')}</p>` : draftHtml;
+      try {
+        uiActions.setEditingTextBoxSize(
+          getTextBoxDimensions({ ...textBoxRef.current, content })
+        );
+      } catch {
+        // No canvas 2D context (jsdom / exhausted headless contexts):
+        // getTextWidth throws. Keep the committed size — the session still
+        // works, the bounds just don't track the draft.
+      }
+    },
+    [uiActions, t]
+  );
+
+  // Mid-session strip writes that change TEXT GEOMETRY (font size / line
+  // spacing sliders, a manual-size or orientation write) re-measure the model
+  // against the STALE stored content — the live preview is what sizes the
+  // container, and it only refreshed on typing. Re-measure the LAST DRAFT
+  // whenever a geometry-relevant field changes during the session, so the
+  // fill/bounds grow with the freshly restyled text (owner 2026-07-04: "old
+  // size constraints are applied").
+  useEffect(() => {
+    if (!isEditing) {
+      // A finished session's draft must not leak into the next one — the
+      // editor re-seeds via its mount emit.
+      lastDraftRef.current = null;
+      return;
+    }
+    if (lastDraftRef.current === null) return;
+    onDraftChange(lastDraftRef.current);
+  }, [
+    isEditing,
+    textBox.fontSize,
+    textBox.lineHeight,
+    textBox.width,
+    textBox.height,
+    textBox.orientation,
+    onDraftChange
+  ]);
 
   const { strategy } = useCanvasMode();
+
   // 2D-Y orientation renders as a wide-and-short rectangle that
   // useIsoProjection then rotates 90° (see MQA #11 in useIsoProjection.ts).
   // The wrapper bounds must match the dashed selection box, which for Y
@@ -105,20 +196,36 @@ export const TextBox = memo(({ textBox }: Props) => {
     if (isTwoDY) return textBox.tile;
     return CoordsUtils.add(textBox.tile, {
       x: 0,
-      y: -(textBox.size.height - 1)
+      y: -(size.height - 1)
     });
-  }, [textBox.tile, textBox.size.height, isTwoDY]);
+  }, [textBox.tile, size.height, isTwoDY]);
 
   const to = useMemo(() => {
     return CoordsUtils.add(textBox.tile, {
-      x: textBox.size.width,
+      x: size.width,
       y: 0
     });
-  }, [textBox.tile, textBox.size.width]);
+  }, [textBox.tile, size.width]);
+
+  // Iso-Y multi-row correction (ADR 0034 addendum 2026-07-04): the Y
+  // projection maps the container's row axis (layout +y) toward world −x, so
+  // a multi-row box pivoted at `tile` painted its rows OUTSIDE the selection
+  // footprint (which extends +x, see getTextBoxEndTile). Anchoring the pivot
+  // at the far row re-lands rows on [tile.x .. tile.x + rows]. Single-row
+  // boxes (the historical common case) are unaffected: the override equals
+  // the default origin.
+  const originOverride = useMemo(() => {
+    if (isTwoDY || textBox.orientation !== 'Y') return undefined;
+    return {
+      x: textBox.tile.x + (size.height - 1),
+      y: textBox.tile.y
+    };
+  }, [isTwoDY, textBox.orientation, textBox.tile, size.height]);
 
   const { css } = useIsoProjection({
     from,
     to,
+    originOverride,
     orientation: textBox.orientation
   });
 
@@ -145,6 +252,32 @@ export const TextBox = memo(({ textBox }: Props) => {
     [textBox.content]
   );
 
+  // Border (ADR 0034 addendum 2026-07-04) — the rectangle's option set as a
+  // CSS border on the container (shared by resting render AND edit session).
+  // Absent color = no border; box-sizing keeps the footprint identical to the
+  // borderless box (the few px of content inset are invisible at the default
+  // 2px width and equal in editor and rest, so parity holds).
+  const borderCss = useMemo(() => {
+    if (!textBox.borderColor) return undefined;
+    const opacity = textBox.borderOpacity ?? 1;
+    let color = textBox.borderColor;
+    if (opacity < 1) {
+      try {
+        color = alpha(color, opacity);
+      } catch {
+        /* non-parseable color string — render it opaque */
+      }
+    }
+    return `${textBox.borderWidth ?? 2}px ${(
+      textBox.borderStyle ?? 'SOLID'
+    ).toLowerCase()} ${color}`;
+  }, [
+    textBox.borderColor,
+    textBox.borderWidth,
+    textBox.borderStyle,
+    textBox.borderOpacity
+  ]);
+
   return (
     <div data-drag-id={textBox.id} style={dragStyle}>
       <Box style={css}>
@@ -155,42 +288,42 @@ export const TextBox = memo(({ textBox }: Props) => {
           top: 0,
           left: 0,
           display: 'flex',
-          alignItems: 'flex-start',
+          // Vertical alignment inside the box footprint (ADR 0034 addendum
+          // 2026-07-04) — visible once a manual height leaves headroom; the
+          // inline editor is the same flex child, so it aligns identically.
+          alignItems:
+            textBox.verticalAlign === 'middle'
+              ? 'center'
+              : textBox.verticalAlign === 'bottom'
+              ? 'flex-end'
+              : 'flex-start',
           width: '100%',
           height: '100%',
           px: toPx(paddingX),
+          // Box fill (ADR 0034 addendum 2026-07-04) — covers the whole
+          // footprint incl. manual height; absent = transparent (unchanged).
+          ...(textBox.backgroundColor
+            ? { bgcolor: textBox.backgroundColor, borderRadius: 1 }
+            : {}),
+          ...(borderCss
+            ? { border: borderCss, boxSizing: 'border-box', borderRadius: 1 }
+            : {}),
           pointerEvents: isEditable ? 'auto' : 'inherit'
         }}
       >
         {isEditing ? (
-          <Typography
-            contentEditable
-            suppressContentEditableWarning
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
-            onDoubleClick={(e) => e.stopPropagation()}
-            onBlur={inlineRename.onBlur}
-            onKeyDown={inlineRename.onKeyDown}
-            ref={inlineRename.setRef}
-            sx={{
-              ...fontProps,
-              outline: '1px solid rgba(0,0,0,0.3)',
-              borderRadius: 1,
-              px: 0.75,
-              bgcolor: '#fff',
-              minWidth: 20,
-              cursor: 'text',
-              display: 'inline-block',
-              width: 'max-content',
-              maxWidth: '100%',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word'
-            }}
-          >
-            {htmlToPlain(textBox.content)}
-          </Typography>
+          <TextBoxInlineEditor
+            textBoxId={textBox.id}
+            content={textBox.content}
+            fontProps={fontProps}
+            fixedWidth={textBox.width !== undefined}
+            onDraftChange={onDraftChange}
+            onCommit={commit}
+            onCancel={cancel}
+          />
         ) : (
           <Typography
+            onClick={onRestingClick}
             sx={{
               ...fontProps
             }}

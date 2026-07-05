@@ -55,27 +55,39 @@ const getAnchorHitTile = (
   return getAnchorTile(anchor, view);
 };
 
-const getAnchorOrdering = (
+// Exported for the off-path-fallback regression test (F2). Ordering a new
+// waypoint by the nearest path tile — rather than throwing on an inexact grab —
+// is the invariant the test pins.
+export const getAnchorOrdering = (
   anchor: ConnectorAnchor,
   connector: SceneConnector,
   view: View
 ) => {
   const anchorTile = getAnchorTile(anchor, view);
-  const index = connector.path.tiles.findIndex((pathTile) => {
-    const globalTile = connectorPathTileToGlobal(
-      pathTile,
-      connector.path.rectangle.from
-    );
-    return CoordsUtils.isEqual(globalTile, anchorTile);
+  const { tiles } = connector.path;
+  const from = connector.path.rectangle.from;
+
+  const exact = tiles.findIndex((pathTile) =>
+    CoordsUtils.isEqual(connectorPathTileToGlobal(pathTile, from), anchorTile)
+  );
+  if (exact !== -1) return exact;
+
+  // Off-path grab: the mousedown tile sits on the connector's hit area but not
+  // on an exact path tile (rounding / hit halo). Rather than throw in this hot
+  // mousemove path — which left the mode stuck in CURSOR and re-threw every
+  // frame — order the new waypoint by the NEAREST path tile so it can still be
+  // inserted; it then follows the cursor as the drag continues.
+  let bestIndex = 0;
+  let bestDist = Infinity;
+  tiles.forEach((pathTile, i) => {
+    const g = connectorPathTileToGlobal(pathTile, from);
+    const dist = (g.x - anchorTile.x) ** 2 + (g.y - anchorTile.y) ** 2;
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestIndex = i;
+    }
   });
-
-  if (index === -1) {
-    throw new Error(
-      `Could not calculate ordering index of anchor [anchorId: ${anchor.id}]`
-    );
-  }
-
-  return index;
+  return bestIndex;
 };
 
 const getAnchor = (
@@ -283,9 +295,13 @@ const handleAltClickWaypointRemoval = (state: State): boolean => {
 // transition for empty-canvas drag.
 const selectItemAtTileMousedown = (state: State) => {
   const { uiState, scene, isItemInteractable } = state;
+  // #5: click-SELECTION uses exact connector tiles so an empty tile beside a
+  // connector clears the selection instead of grabbing it. Hover and
+  // reconnect/waypoint paths keep the ±1 halo (default).
   const itemAtTile = getItemAtTile({
     tile: uiState.mouse.position.tile,
-    scene
+    scene,
+    connectorMatch: 'exact'
   });
 
   if (itemAtTile && (!isItemInteractable || isItemInteractable(itemAtTile))) {
@@ -347,6 +363,20 @@ const updateHoverCursor = (state: State) => {
     scene
   });
   setWindowCursor(hoverItem ? 'pointer' : 'default');
+
+  // A3: publish the hovered item for the faint hover outline (HoverOutline),
+  // but only when the ref actually CHANGES — hover fires per tile move, so a
+  // per-move store write would churn every subscriber. Optional-called so the
+  // mode-action unit tests that mock a minimal actions map keep working.
+  const prev = uiState.hoveredItem ?? null;
+  const changed =
+    (prev?.id ?? null) !== (hoverItem?.id ?? null) ||
+    (prev?.type ?? null) !== (hoverItem?.type ?? null);
+  if (changed) {
+    uiState.actions.setHoveredItem?.(
+      hoverItem ? { type: hoverItem.type, id: hoverItem.id } : null
+    );
+  }
 };
 
 // Multi-select drag (ADR-0006): if the pressed item is part of the persistent
@@ -504,13 +534,18 @@ const handleItemClickSelection = (
 // Resolve a no-movement click on a pressed item into a selection update.
 const resolveClickSelection = (state: State, clicked: ItemReference) => {
   const { uiState } = state;
-  const ctrlHeld =
-    uiState.mouse.modifiers?.ctrl || uiState.mouse.modifiers?.meta;
+  // #10: Shift joins Ctrl/Cmd as an additive-selection modifier on canvas
+  // (Shift was unbound here — verified collision-free). ADR 0006 §2 gesture
+  // matrix amended. The handlers treat this as the additive/toggle flag.
+  const additive =
+    uiState.mouse.modifiers?.ctrl ||
+    uiState.mouse.modifiers?.meta ||
+    uiState.mouse.modifiers?.shift;
 
   if (clicked.type === 'CONNECTOR') {
-    handleConnectorClickSelection(state, clicked.id, ctrlHeld);
+    handleConnectorClickSelection(state, clicked.id, additive);
   } else {
-    handleItemClickSelection(state, clicked, ctrlHeld);
+    handleItemClickSelection(state, clicked, additive);
   }
 };
 

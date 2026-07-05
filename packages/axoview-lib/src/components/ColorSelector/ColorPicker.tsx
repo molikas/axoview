@@ -17,6 +17,10 @@ export const ColorPicker = ({ value, onChange }: Props) => {
       size="small"
       variant="standard"
       format="hex"
+      // Colours are stored as opaque hex, so the alpha channel is dropped on
+      // change — the alpha slider can't move (it snaps back to fully opaque) and
+      // reads as broken. Hide it; the picker is hue + saturation only.
+      isAlphaHidden
       value={value}
       onChange={onChange}
       slotProps={{ input: { disableUnderline: true, type: 'hidden' } }}

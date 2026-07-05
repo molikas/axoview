@@ -2,7 +2,7 @@ import { useCallback, startTransition } from 'react';
 import { useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useModelStoreApi } from 'src/stores/modelStore';
 import { useScene } from 'src/hooks/useScene';
-import { Connector, Coords, Rectangle, TextBox, UiState } from 'src/types';
+import { Connector, Coords, Rectangle, TextBox, Label, UiState } from 'src/types';
 import { generateId } from 'src/utils';
 import { resolvePlacement } from 'src/utils/resolvePlacement';
 import { findNearestUnoccupiedTilesForGroup } from 'src/utils/findNearestUnoccupiedTile';
@@ -15,13 +15,15 @@ interface SelectionIds {
   connectorIds: string[];
   rectangleIds: string[];
   textBoxIds: string[];
+  labelIds: string[];
 }
 
 const EMPTY_SELECTION: SelectionIds = {
   itemIds: [],
   connectorIds: [],
   rectangleIds: [],
-  textBoxIds: []
+  textBoxIds: [],
+  labelIds: []
 };
 
 // Resolve the current selection (lasso/freehand multi-select, or the single
@@ -39,7 +41,8 @@ function resolveSelectionIds(uiState: UiState): SelectionIds {
       rectangleIds: refs
         .filter((r) => r.type === 'RECTANGLE')
         .map((r) => r.id),
-      textBoxIds: refs.filter((r) => r.type === 'TEXTBOX').map((r) => r.id)
+      textBoxIds: refs.filter((r) => r.type === 'TEXTBOX').map((r) => r.id),
+      labelIds: refs.filter((r) => r.type === 'LABEL').map((r) => r.id)
     };
   }
 
@@ -53,7 +56,8 @@ function resolveSelectionIds(uiState: UiState): SelectionIds {
       itemIds: refs.filter((r) => r.type === 'ITEM').map((r) => r.id),
       connectorIds: refs.filter((r) => r.type === 'CONNECTOR').map((r) => r.id),
       rectangleIds: refs.filter((r) => r.type === 'RECTANGLE').map((r) => r.id),
-      textBoxIds: refs.filter((r) => r.type === 'TEXTBOX').map((r) => r.id)
+      textBoxIds: refs.filter((r) => r.type === 'TEXTBOX').map((r) => r.id),
+      labelIds: refs.filter((r) => r.type === 'LABEL').map((r) => r.id)
     };
   }
 
@@ -64,6 +68,8 @@ function resolveSelectionIds(uiState: UiState): SelectionIds {
       return { ...EMPTY_SELECTION, itemIds: [ctrl.id] };
     case 'TEXTBOX':
       return { ...EMPTY_SELECTION, textBoxIds: [ctrl.id] };
+    case 'LABEL':
+      return { ...EMPTY_SELECTION, labelIds: [ctrl.id] };
     case 'RECTANGLE':
       return { ...EMPTY_SELECTION, rectangleIds: [ctrl.id] };
     case 'CONNECTOR':
@@ -128,14 +134,15 @@ export const useCopyPaste = () => {
     const uiState = uiStateApi.getState();
     const model = modelStoreApi.getState();
 
-    const { itemIds, connectorIds, rectangleIds, textBoxIds } =
+    const { itemIds, connectorIds, rectangleIds, textBoxIds, labelIds } =
       resolveSelectionIds(uiState);
 
     if (
       itemIds.length === 0 &&
       connectorIds.length === 0 &&
       rectangleIds.length === 0 &&
-      textBoxIds.length === 0
+      textBoxIds.length === 0 &&
+      labelIds.length === 0
     ) {
       return null;
     }
@@ -168,12 +175,17 @@ export const useCopyPaste = () => {
     const clipboardTextBoxes = (currentView.textBoxes ?? []).filter((tb) =>
       selectedTextIdSet.has(tb.id)
     );
+    const selectedLabelIdSet = new Set(labelIds);
+    const clipboardLabels = (currentView.labels ?? []).filter((l) =>
+      selectedLabelIdSet.has(l.id)
+    );
 
     const count =
       clipboardItems.length +
       clipboardConnectors.length +
       clipboardRectangles.length +
-      clipboardTextBoxes.length;
+      clipboardTextBoxes.length +
+      clipboardLabels.length;
 
     if (count === 0) return null;
 
@@ -184,7 +196,8 @@ export const useCopyPaste = () => {
         x: Math.round((r.from.x + r.to.x) / 2),
         y: Math.round((r.from.y + r.to.y) / 2)
       })),
-      ...clipboardTextBoxes.map((tb) => tb.tile)
+      ...clipboardTextBoxes.map((tb) => tb.tile),
+      ...clipboardLabels.map((l) => l.tile)
     ];
     const centroid = computeCentroid(allPoints);
 
@@ -194,6 +207,7 @@ export const useCopyPaste = () => {
         connectors: clipboardConnectors,
         rectangles: clipboardRectangles,
         textBoxes: clipboardTextBoxes,
+        labels: clipboardLabels,
         centroid
       },
       count
@@ -248,6 +262,7 @@ export const useCopyPaste = () => {
       if (ctrl.type === 'ITEM') scene.deleteViewItem(ctrl.id);
       else if (ctrl.type === 'CONNECTOR') scene.deleteConnector(ctrl.id);
       else if (ctrl.type === 'TEXTBOX') scene.deleteTextBox(ctrl.id);
+      else if (ctrl.type === 'LABEL') scene.deleteLabel(ctrl.id);
       else if (ctrl.type === 'RECTANGLE') scene.deleteRectangle(ctrl.id);
       uiState.actions.setItemControls(null);
     }
@@ -302,6 +317,7 @@ export const useCopyPaste = () => {
     clipboardData.connectors.forEach((c) => idMap.set(c.id, generateId()));
     clipboardData.rectangles.forEach((r) => idMap.set(r.id, generateId()));
     clipboardData.textBoxes.forEach((tb) => idMap.set(tb.id, generateId()));
+    (clipboardData.labels ?? []).forEach((l) => idMap.set(l.id, generateId()));
 
     // Build remapped items. Route each through the one placement chokepoint:
     // the `...ci.viewItem` spread preserves a copied item's own snap/collides/
@@ -380,11 +396,19 @@ export const useCopyPaste = () => {
       tile: { x: tb.tile.x + offset.x, y: tb.tile.y + offset.y }
     }));
 
+    // Offset labels
+    const newLabels: Label[] = (clipboardData.labels ?? []).map((l) => ({
+      ...l,
+      id: idMap.get(l.id) ?? generateId(),
+      tile: { x: l.tile.x + offset.x, y: l.tile.y + offset.y }
+    }));
+
     const pastedCount =
       newItems.length +
       newConnectors.length +
       newRectangles.length +
-      newTextBoxes.length;
+      newTextBoxes.length +
+      newLabels.length;
     const LARGE_PASTE_THRESHOLD = 500;
     const isLargePaste = newConnectors.length >= LARGE_PASTE_THRESHOLD;
 
@@ -414,7 +438,8 @@ export const useCopyPaste = () => {
           items: newItems,
           connectors: newConnectors,
           rectangles: newRectangles,
-          textBoxes: newTextBoxes
+          textBoxes: newTextBoxes,
+          labels: newLabels
         },
         onPathProgress
       );

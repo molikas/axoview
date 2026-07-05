@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Box,
@@ -26,11 +26,15 @@ import { LazyLoadingWelcomeNotification } from '../LazyLoadingWelcomeNotificatio
 import { NotificationSnackbar } from '../NotificationSnackbar/NotificationSnackbar';
 import { CanvasContextMenu } from 'src/components/CanvasContextMenu/CanvasContextMenu';
 import { PreviewLayerSwitcher } from 'src/components/PreviewLayerSwitcher/PreviewLayerSwitcher';
-import { PreviewLabelsToggle } from 'src/components/PreviewLabelsToggle/PreviewLabelsToggle';
+// PreviewLabelsToggle moved into the bottom-dock zoom cluster (global hide-labels
+// toggle), so it's no longer rendered here.
 import { ViewModeInfoPopover } from 'src/components/ViewModeInfoPopover/ViewModeInfoPopover';
+import { TopBarStyleControls } from 'src/components/TopBarStyleControls/TopBarStyleControls';
 import { AnnotationLayer } from 'src/components/AnnotationLayer/AnnotationLayer';
 import { AnnotationPalette } from 'src/components/AnnotationPalette/AnnotationPalette';
 import { ConnectorModeHint } from '../ModeHint/ConnectorModeHint';
+import { PlacementModeHint } from '../ModeHint/PlacementModeHint';
+import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 
 type ToolName = 'TOOL_MENU' | 'ITEM_CONTROLS' | 'VIEW_TITLE' | 'VIEW_TABS';
 
@@ -67,9 +71,119 @@ const PlaceIconLayer = () => {
   );
 };
 
+// B1/B2 — a faint ghost of the element a placement tool will drop, anchored to
+// the hover tile (the icon tool already ghosts via PlaceIconLayer; this
+// generalizes the affordance to text / label / rectangle / connector so the
+// armed tool shows WHAT it will place before the first click). Isolated so
+// UiOverlay doesn't re-render on mouse move.
+const PlacementGhostLayer = () => {
+  const modeType = useUiStateStore((s) => s.mode.type);
+  // Connector: only ghost while the tool is armed BEFORE the first anchor — once
+  // connecting, the real rubber-band path takes over.
+  const connectorArmed = useUiStateStore(
+    (s) =>
+      s.mode.type === 'CONNECTOR' &&
+      !(s.mode as { startAnchor?: unknown }).startAnchor &&
+      !(s.mode as { isConnecting?: boolean }).isConnecting
+  );
+  const tile = useUiStateStore(
+    (s) => s.mouse.position.tile,
+    (a, b) => a.x === b.x && a.y === b.y
+  );
+  const { getTilePosition } = useCanvasMode();
+  const theme = useTheme();
+
+  const show =
+    modeType === 'TEXTBOX' ||
+    modeType === 'LABEL' ||
+    modeType === 'RECTANGLE.DRAW' ||
+    (modeType === 'CONNECTOR' && connectorArmed);
+  if (!show) return null;
+
+  const pos = getTilePosition({ tile, origin: 'CENTER' });
+  const accent = theme.palette.primary.main;
+
+  // Chip-style ghost for the text-ish tools (a faint copy of the element).
+  const chip = (labelText: string, radius: number, bg: string) => (
+    <Box
+      data-testid="placement-ghost"
+      style={{
+        position: 'absolute',
+        left: pos.x,
+        top: pos.y,
+        transform: 'translate(-50%, -50%)',
+        pointerEvents: 'none',
+        opacity: 0.55,
+        padding: '4px 10px',
+        borderRadius: radius,
+        border: `2px dashed ${accent}`,
+        background: bg,
+        color: theme.palette.text.secondary,
+        fontSize: 13,
+        fontWeight: 600,
+        whiteSpace: 'nowrap'
+      }}
+    >
+      {labelText}
+    </Box>
+  );
+
+  if (modeType === 'LABEL') return <SceneLayer disableAnimation>{chip('Label', 6, '#ffffff')}</SceneLayer>;
+  if (modeType === 'TEXTBOX') return <SceneLayer disableAnimation>{chip('Text', 4, 'rgba(255,255,255,0.6)')}</SceneLayer>;
+
+  if (modeType === 'RECTANGLE.DRAW') {
+    // A faint shape ghost (no text) hinting the rectangle the drag will draw.
+    return (
+      <SceneLayer disableAnimation>
+        <Box
+          data-testid="placement-ghost"
+          style={{
+            position: 'absolute',
+            left: pos.x,
+            top: pos.y,
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'none',
+            opacity: 0.5,
+            width: 56,
+            height: 36,
+            borderRadius: 4,
+            border: `2px dashed ${accent}`,
+            background: `${accent}22`
+          }}
+        />
+      </SceneLayer>
+    );
+  }
+
+  // CONNECTOR (armed): a faint start-point marker with a short arrow stub, so
+  // it's clear the next click begins a connection here.
+  return (
+    <SceneLayer disableAnimation>
+      <Box
+        data-testid="placement-ghost"
+        style={{
+          position: 'absolute',
+          left: pos.x,
+          top: pos.y,
+          transform: 'translate(-50%, -50%)',
+          pointerEvents: 'none',
+          opacity: 0.6
+        }}
+      >
+        <svg width="52" height="24" viewBox="0 0 52 24" fill="none">
+          <circle cx="8" cy="12" r="5" fill="none" stroke={accent} strokeWidth="2" strokeDasharray="3 2" />
+          <line x1="13" y1="12" x2="40" y2="12" stroke={accent} strokeWidth="2" strokeDasharray="4 3" />
+          <path d="M40 7 L48 12 L40 17 Z" fill={accent} />
+        </svg>
+      </Box>
+    </SceneLayer>
+  );
+};
+
 interface UiOverlayProps {
   toolbarPortalTarget?: HTMLElement | null;
   sidebarTogglePortalTarget?: HTMLElement | null;
+  styleControlsPortalTarget?: HTMLElement | null;
   languageSelector?: React.ReactNode;
   suppressOnboardingHints?: boolean;
   /** @deprecated use toolbarPortalTarget */
@@ -79,6 +193,7 @@ interface UiOverlayProps {
 export const UiOverlay = ({
   toolbarPortalTarget,
   sidebarTogglePortalTarget,
+  styleControlsPortalTarget,
   languageSelector,
   suppressOnboardingHints,
   menuPortalTarget
@@ -114,6 +229,19 @@ export const UiOverlay = ({
   );
 
   const { currentView } = useScene();
+  // View-only "hide all controls" (set by the app toolbar toggle via a window
+  // event) — hides the presentation chrome + annotation palette for a clean
+  // screenshot.
+  const hideViewControls = useUiStateStore((state) => state.hideViewControls);
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ hide: boolean }>).detail;
+      uiStateActions.setHideViewControls(!!detail?.hide);
+    };
+    window.addEventListener('axoview-set-hide-view-controls', handler);
+    return () =>
+      window.removeEventListener('axoview-set-hide-view-controls', handler);
+  }, [uiStateActions]);
   const availableTools = useMemo(() => {
     return getEditorModeMapping(editorMode);
   }, [editorMode]);
@@ -210,29 +338,30 @@ export const UiOverlay = ({
 
         {/* Present-mode chrome — top-left (feels more natural in a presentation
             than bottom-left). View mode only. The layer switcher self-gates on
-            ≥2 layers (ADR 0013); the hide-labels toggle (2026-06-18 addendum)
-            always shows. High zIndex so it stays above any left chrome that
-            lingers in a forced-preview test environment. */}
-        {editorMode === EditorModeEnum.EXPLORABLE_READONLY && (
-          <Stack
-            spacing={1}
-            alignItems="flex-start"
-            sx={{ position: 'absolute', zIndex: 15 }}
-            style={{ left: appPadding.x, top: appPadding.y }}
-          >
-            <PreviewLayerSwitcher />
-            <PreviewLabelsToggle />
-          </Stack>
-        )}
+            ≥2 layers (ADR 0013). Hidden by the view-only "hide all controls"
+            toggle. High zIndex so it stays above any left chrome that lingers in
+            a forced-preview test environment. */}
+        {editorMode === EditorModeEnum.EXPLORABLE_READONLY &&
+          !hideViewControls && (
+            <Stack
+              spacing={1}
+              alignItems="flex-start"
+              sx={{ position: 'absolute', zIndex: 15 }}
+              style={{ left: appPadding.x, top: appPadding.y }}
+            >
+              <PreviewLayerSwitcher />
+            </Stack>
+          )}
       </Box>
 
       {/* Ephemeral annotation overlay (ADR 0014) — available in edit + preview,
           never in export-preview. The layer self-gates on annotation.open; the
-          palette is a draggable floating control. */}
+          palette is a draggable floating control, hidden by the view-only
+          "hide all controls" toggle. */}
       {editorMode !== EditorModeEnum.NON_INTERACTIVE && (
         <>
           <AnnotationLayer />
-          <AnnotationPalette />
+          {!hideViewControls && <AnnotationPalette />}
         </>
       )}
 
@@ -240,6 +369,13 @@ export const UiOverlay = ({
           PropTypes.node check on Box's children rejects ReactPortal (its
           $$typeof is react.portal, not react.element). Portals render into
           their target node regardless of where they sit in the JSX tree. */}
+      {/* Top-bar style controls strip — only in the full editor; the app gates
+          the portal target to the editable toolbar branch, and we additionally
+          gate on EDITABLE so readonly/snapshot surfaces never expose edit affordances. */}
+      {styleControlsPortalTarget &&
+        editorMode === EditorModeEnum.EDITABLE &&
+        createPortal(<TopBarStyleControls />, styleControlsPortalTarget)}
+
       {(sidebarTogglePortalTarget ?? portalTarget) &&
         createPortal(
           <Tooltip title="Toggle Properties panel" placement="bottom">
@@ -261,8 +397,10 @@ export const UiOverlay = ({
         )}
 
       <PlaceIconLayer />
+      <PlacementGhostLayer />
 
       <ConnectorModeHint />
+      <PlacementModeHint />
 
       {dialog === DialogTypeEnum.EXPORT_IMAGE && (
         <ExportImageDialog

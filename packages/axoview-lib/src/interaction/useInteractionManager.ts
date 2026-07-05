@@ -12,7 +12,6 @@ import { DialogTypeEnum, ItemControls } from 'src/types/ui';
 import {
   getMouse,
   getItemAtTile,
-  generateId,
   incrementZoom,
   decrementZoom
 } from 'src/utils';
@@ -24,9 +23,7 @@ import { TOOL_HOTKEYS } from 'src/config/hotkeys';
 import { resolveToolHotkey } from './toolHotkeys';
 import { handleEscapeKey } from './handleEscapeKey';
 import { handleArrowKey } from './handleArrowKey';
-import { viewportCenterTile } from 'src/utils/viewportCenterTile';
 import type { ScreenToTileFn } from 'src/utils/renderer';
-import { TEXTBOX_DEFAULTS } from 'src/config';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { collectSelectableRefs } from 'src/utils/selectableRefs';
 import { Cursor } from './modes/Cursor';
@@ -37,6 +34,8 @@ import { Connector } from './modes/Connector';
 import { Pan } from './modes/Pan';
 import { PlaceIcon } from './modes/PlaceIcon';
 import { TextBox } from './modes/TextBox';
+import { TransformTextBox } from './modes/TransformTextBox';
+import { Label } from './modes/Label';
 import { Lasso } from './modes/Lasso';
 import { FreehandLasso } from './modes/FreehandLasso';
 import { ReconnectAnchor } from './modes/ReconnectAnchor';
@@ -55,6 +54,8 @@ const modes: { [k in string]: ModeActions } = {
   PAN: Pan,
   PLACE_ICON: PlaceIcon,
   TEXTBOX: TextBox,
+  'TEXTBOX.TRANSFORM': TransformTextBox,
+  LABEL: Label,
   LASSO: Lasso,
   FREEHAND_LASSO: FreehandLasso,
   RECONNECT_ANCHOR: ReconnectAnchor
@@ -194,7 +195,6 @@ interface KeydownDeps {
   handleCopy: () => void;
   handleCut: () => void;
   handlePaste: () => void;
-  createTextBox: SceneApi['createTextBox'];
   deleteSelectedItems: SceneApi['deleteSelectedItems'];
   deleteViewItem: SceneApi['deleteViewItem'];
   deleteConnector: SceneApi['deleteConnector'];
@@ -202,8 +202,8 @@ interface KeydownDeps {
   deleteRectangle: SceneApi['deleteRectangle'];
   updateViewItem: SceneApi['updateViewItem'];
   commitDragTransaction: SceneApi['commitDragTransaction'];
-  // B9: mode-aware screen→tile (useCanvasMode) so the text hotkey can fall back
-  // to the viewport-centre tile when the cursor never entered the canvas.
+  // Mode-aware screen→tile (useCanvasMode), used by the keydown helpers' tile
+  // resolution.
   screenToTile: ScreenToTileFn;
 }
 
@@ -388,12 +388,16 @@ const handleFunctionKeys = (
       !focusTarget ||
       focusTarget === document.body ||
       (renderer ? renderer.contains(focusTarget) : false);
-    if (
-      (ctrl?.type === 'ITEM' ||
-        ctrl?.type === 'TEXTBOX' ||
-        ctrl?.type === 'CONNECTOR') &&
-      uiState.editorMode === 'EDITABLE' &&
-      cameFromRenderer
+    if (uiState.editorMode !== 'EDITABLE' || !cameFromRenderer) return;
+    if (ctrl?.type === 'LABEL') {
+      // Floating Label inline-edit is driven by uiState (LabelHitLayer renders
+      // the contentEditable), not the node/connector inlineEditNodeName event.
+      e.preventDefault();
+      uiState.actions.setInlineEditLabelId(ctrl.id);
+    } else if (
+      ctrl?.type === 'ITEM' ||
+      ctrl?.type === 'TEXTBOX' ||
+      ctrl?.type === 'CONNECTOR'
     ) {
       e.preventDefault();
       window.dispatchEvent(
@@ -452,34 +456,17 @@ const handleToolHotkeys = (
         showCursor: true
       });
       break;
-    case 'text': {
-      const textBoxId = generateId();
-      // B9: mouse.position.tile is still the initial {0,0} until the pointer
-      // first enters the canvas, so the text hotkey dropped the box at the
-      // origin. Fall back to the viewport-centre tile in that case (Rectangle /
-      // icon click-place use the live cursor tile and are unaffected).
-      const cursorTile = uiState.mouse.position.tile;
-      const textTile =
-        cursorTile.x === 0 && cursorTile.y === 0
-          ? viewportCenterTile({
-              rendererSize: uiState.rendererSize,
-              scroll: uiState.scroll,
-              zoom: uiState.zoom,
-              screenToTile: deps.screenToTile
-            })
-          : cursorTile;
-      deps.createTextBox({
-        ...TEXTBOX_DEFAULTS,
-        id: textBoxId,
-        tile: textTile
-      });
+    case 'text':
+      // Arm-only (mirrors rectangle / connector / icon): the hotkey enters
+      // TEXTBOX mode with no element created; the next canvas release drops a
+      // single text box (TextBox.mouseup is the sole create site). Eager-create
+      // here used to stack a second box on top of that release.
       uiState.actions.setMode({
         type: 'TEXTBOX',
-        showCursor: false,
-        id: textBoxId
+        showCursor: true,
+        id: null
       });
       break;
-    }
     case 'lasso':
       uiState.actions.setMode({
         type: 'LASSO',
@@ -500,7 +487,9 @@ const handleToolHotkeys = (
   }
 };
 
-// Z-order: Ctrl+] bring forward, Ctrl+[ send backward (Tier-1 layer feature).
+// Z-order (E2): Ctrl+] / Ctrl+[ nudge forward / backward; Ctrl+Shift+] /
+// Ctrl+Shift+[ jump to front / back (absolute). Applies to the controlled
+// ITEM, RECTANGLE, or LABEL — each reorders within its own peer collection.
 const handleZOrderShortcut = (
   e: KeyboardEvent,
   isCtrlOrCmd: boolean,
@@ -509,20 +498,46 @@ const handleZOrderShortcut = (
 ) => {
   if (!isCtrlOrCmd || (e.key !== ']' && e.key !== '[')) return;
   const ctrl = uiState.itemControls;
-  if (ctrl?.type !== 'ITEM') return;
+  if (
+    ctrl?.type !== 'ITEM' &&
+    ctrl?.type !== 'RECTANGLE' &&
+    ctrl?.type !== 'LABEL'
+  )
+    return;
   e.preventDefault();
 
   const modelState = deps.modelStoreApi.getState();
   const currentView = uiState.view
     ? modelState.views.find((v: { id: string }) => v.id === uiState.view)
     : undefined;
-  const viewItem = currentView?.items?.find(
-    (i: { id: string }) => i.id === ctrl.id
-  );
-  if (viewItem) {
-    const currentZ = viewItem.zIndex ?? 0;
-    const delta = e.key === ']' ? 1 : -1;
-    deps.updateViewItem(ctrl.id, { zIndex: currentZ + delta });
+  if (!currentView) return;
+
+  const toFront = e.key === ']';
+  const scene = deps.sceneRef.current;
+
+  const reorder = (
+    peers: { id: string; zIndex?: number }[] | undefined,
+    write: (zIndex: number) => void
+  ) => {
+    const list = peers ?? [];
+    const self = list.find((p) => p.id === ctrl.id);
+    if (!self) return;
+    if (e.shiftKey) {
+      const zs = list.map((p) => p.zIndex ?? 0);
+      write(toFront ? Math.max(0, ...zs) + 1 : Math.min(0, ...zs) - 1);
+    } else {
+      write((self.zIndex ?? 0) + (toFront ? 1 : -1));
+    }
+  };
+
+  if (ctrl.type === 'ITEM') {
+    reorder(currentView.items, (z) => deps.updateViewItem(ctrl.id, { zIndex: z }));
+  } else if (ctrl.type === 'RECTANGLE') {
+    reorder(currentView.rectangles, (z) =>
+      scene.updateRectangle(ctrl.id, { zIndex: z })
+    );
+  } else if (ctrl.type === 'LABEL') {
+    reorder(currentView.labels, (z) => scene.updateLabel(ctrl.id, { zIndex: z }));
   }
 };
 
@@ -582,7 +597,6 @@ export const useInteractionManager = () => {
   const { handleCopy, handleCut, handlePaste } = useCopyPaste();
   const { screenToTile } = useCanvasMode();
   const {
-    createTextBox,
     deleteSelectedItems,
     deleteViewItem,
     deleteConnector,
@@ -621,7 +635,6 @@ export const useInteractionManager = () => {
       handleCopy,
       handleCut,
       handlePaste,
-      createTextBox,
       deleteSelectedItems,
       deleteViewItem,
       deleteConnector,
@@ -681,7 +694,6 @@ export const useInteractionManager = () => {
     canRedo,
     uiStateApi,
     modelStoreApi,
-    createTextBox,
     deleteSelectedItems,
     deleteViewItem,
     deleteConnector,
@@ -871,10 +883,13 @@ export const useInteractionManager = () => {
   // Double-click on a canvas item opens its details panel (ADR 0022 §1). Mouse
   // only — touch double-tap is handled by the touch state machine. Scoped to
   // the renderer (window-bound listener, like onContextMenu) so a double-click
-  // in a panel / toolbar never opens a stale item's panel. The node/textbox
-  // label's inline-rename dblclick calls stopPropagation, so it never reaches
-  // here — double-click the body opens the panel, double-click the label
-  // renames. Locked/hidden items are non-interactive (UX §4.3).
+  // in a panel / toolbar never opens a stale item's panel. The node label's
+  // inline-rename dblclick calls stopPropagation, so it never reaches here —
+  // double-click the body opens the panel, double-click the label renames.
+  // TEXTBOX is the exception (ADR 0034): its layer sits BELOW the interactions
+  // box, so this handler is the double-click entry point — and double-clicking
+  // a text box EDITS its text in place (deck stays closed; Details is reachable
+  // via the context menu). Locked/hidden items are non-interactive (UX §4.3).
   const onDoubleClick = useCallback(
     (e: SlimMouseEvent) => {
       if (pointerTypeRef.current !== 'mouse') return;
@@ -889,13 +904,26 @@ export const useInteractionManager = () => {
       const uiState = uiStateApi.getState();
       if (uiState.editorMode !== 'EDITABLE') return;
       const tile = uiState.mouse.position.tile;
-      const item = getItemAtTile({ tile, scene });
+      // #5: double-click SELECTS (opens Details), so use exact connector tiles —
+      // a double-click on an empty tile beside a connector must not grab it
+      // (matches the left-click fix in Cursor).
+      const item = getItemAtTile({ tile, scene, connectorMatch: 'exact' });
       if (!item) return;
       const { lockedIds, visibleIds } = layerContext;
       const interactable =
         !lockedIds.has(item.id) &&
         (visibleIds.size === 0 || visibleIds.has(item.id));
       if (!interactable) return;
+      if (item.type === 'TEXTBOX') {
+        // Select (so the strip targets it) WITHOUT opening the deck, then drop
+        // into the on-canvas edit session (ADR 0034 §1).
+        uiState.actions.setItemControls(
+          { type: 'TEXTBOX', id: item.id },
+          { openPanel: false }
+        );
+        uiState.actions.setEditingTextBoxId(item.id);
+        return;
+      }
       // openPanel defaults true → mounts the Properties dock.
       const controls: ItemControls =
         item.type === 'CONNECTOR'
@@ -1089,7 +1117,9 @@ export const useInteractionManager = () => {
             uiState.actions.openContextMenu({
               anchor,
               variant: 'item',
-              target: { type: downItem.type, id: downItem.id }
+              target: { type: downItem.type, id: downItem.id },
+              // Where the finger pressed — connector "Add label" drops it here.
+              tile: ts.downTile
             });
           }
           // Keep the menu alive across the finger-lift compat-mouse sequence

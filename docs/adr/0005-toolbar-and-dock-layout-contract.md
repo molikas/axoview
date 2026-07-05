@@ -122,7 +122,11 @@ To absorb redistributed burger items and to surface developer affordances that t
 
 This co-locates all developer/diagnostic gestures under one tab — no need to remember they're scattered across a hidden popover button and a build-time prop.
 
-## Consequences
+### 7. Overflow contract (2026-07-03 amendment — F1, closes the space-budget gap)
+
+This ADR originally specified no width budget or overflow rule; once the Group 1 "Format" slot filled with the style strip ([ADR 0030](0030-docked-style-controls-strip.md) / [ADR 0034](0034-inline-canvas-text-editing-and-dual-scope-strip-formatting.md)), the right cluster clipped Present/Share/sidebar-toggle at viewports ≤ ~1024px (`flexShrink: 0` everywhere).
+
+**Rule:** the **Group 1 style slot is the only compressible group.** The right cluster may shrink (`flexShrink: 1; minWidth: 0`); the slot absorbs the squeeze with internal horizontal scrolling (`overflow-x: auto`, thin scrollbar) so every strip control stays reachable, while Groups 2–4 (Save cluster, Export/Share/Present, sidebar toggle) keep their natural width and **must remain fully on-screen at any viewport width**. Verified by `packages/axoview-e2e/tests/toolbar-overflow.spec.ts`, which walks 1280→800px asserting Group 3+4 reachability and that the squeeze lands on the slot.
 
 **Positive:**
 - Each region has one ownership rule. Future toolbar additions are routed mechanically: text-formatting → View modes group; presentation/annotation → View modes group; new view filter → View modes group; collaboration cursor → status cluster; etc.

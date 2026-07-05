@@ -17,7 +17,7 @@ export interface HitTestScene {
     id: string;
     path?: { tiles: Coords[]; rectangle: { from: Coords } };
   }>;
-  rectangles: Array<{ id: string; from: Coords; to: Coords }>;
+  rectangles: Array<{ id: string; from: Coords; to: Coords; zIndex?: number }>;
 }
 
 // WeakMap-based spatial index: one Map<"x,y", id> per unique scene.items array reference.
@@ -41,10 +41,19 @@ const getItemTileIndex = (
 
 export const getItemAtTile = ({
   tile,
-  scene
+  scene,
+  connectorMatch = 'halo'
 }: {
   tile: Coords;
   scene: HitTestScene;
+  // Connector hit tolerance (#5). 'halo' (default) keeps the ±1 Chebyshev
+  // neighbourhood — needed for hover and reconnect/waypoint grabbing on a thin
+  // line. 'exact' requires the query tile to BE a path tile — used for
+  // click-SELECTION so clicking an empty tile beside a connector clears the
+  // selection instead of grabbing the connector (owner #5). #54 already
+  // dropped the halo around node-anchored endpoints; this narrows the rest of
+  // the segment for the select gesture only.
+  connectorMatch?: 'halo' | 'exact';
 }): ItemReference | null => {
   const tileIndex = getItemTileIndex(scene.items);
   const itemId = tileIndex.get(`${tile.x},${tile.y}`);
@@ -54,6 +63,11 @@ export const getItemAtTile = ({
   // scene.items.find to recover an object whose only field we use is the id.)
   if (itemId !== undefined) return { type: 'ITEM', id: itemId };
 
+  // A text box claims its whole tile footprint and outranks connectors (clicking
+  // inside the box selects it). Floating Labels are NOT tile-hit-tested — they
+  // are a separate entity hit via the pixel-accurate LabelHitLayer DOM proxy
+  // (ADR 0031 §4), so a connector passing UNDER a label chip stays selectable
+  // here everywhere the chip isn't.
   const textBox = scene.textBoxes.find((tb) => {
     const textBoxTo = getTextBoxEndTile(tb, tb.size);
     const textBoxBounds = getBoundingBox([
@@ -110,6 +124,8 @@ export const getItemAtTile = ({
       const dx = Math.abs(globalPathTile.x - tile.x);
       const dy = Math.abs(globalPathTile.y - tile.y);
       if (dx === 0 && dy === 0) return true;
+      // Click-selection (#5): exact path-tile only — empty neighbours don't grab.
+      if (connectorMatch === 'exact') return false;
       if (nearNodeEndpoint) return false;
       return dx <= 1 && dy <= 1;
     });
@@ -117,9 +133,22 @@ export const getItemAtTile = ({
 
   if (connector) return { type: 'CONNECTOR', id: connector.id };
 
-  const rectangle = [...scene.rectangles]
+  // Rectangles paint in the SAME order Rectangles.tsx uses: reversed insertion,
+  // then a stable sort by (zIndex asc) — so the LAST element is the one drawn on
+  // top. A click on overlapping rectangles must select that visually-topmost
+  // one (honouring zIndex and matching what the user sees), not the first match
+  // in insertion order. Scan the paint order from the top down.
+  const rectPaintOrder = [...scene.rectangles]
     .reverse()
-    .find(({ from, to }) => isWithinBounds(tile, [from, to]));
+    .sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
+  let rectangle: (typeof rectPaintOrder)[number] | undefined;
+  for (let i = rectPaintOrder.length - 1; i >= 0; i -= 1) {
+    const r = rectPaintOrder[i];
+    if (isWithinBounds(tile, [r.from, r.to])) {
+      rectangle = r;
+      break;
+    }
+  }
 
   if (rectangle) return { type: 'RECTANGLE', id: rectangle.id };
 

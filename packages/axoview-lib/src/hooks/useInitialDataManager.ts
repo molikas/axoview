@@ -20,6 +20,11 @@ import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { modelSchema } from 'src/schemas/model';
 import { mergeBundledFixtures } from 'src/utils/leanSave';
 import { sanitizeHtml } from 'src/utils/sanitizeHtml';
+import { foldNodeDescription } from 'src/utils/foldNodeDescription';
+import { seedNodeLabel } from 'src/utils/seedNodeLabel';
+import { seedConnectorLabel } from 'src/utils/seedConnectorLabel';
+import { foldTextBoxStyleFlags } from 'src/utils/foldTextBoxStyleFlags';
+import { normalizeQuillHtmlSpaces } from 'src/utils/richTextTransform';
 
 // Must match the threshold in IconCollection.tsx so newly-loaded large packs
 // (e.g. Material Icons) are not auto-expanded (which would freeze the browser).
@@ -64,12 +69,26 @@ export const useInitialDataManager = () => {
           // payload into the TextBox dangerouslySetInnerHTML sink. The sink
           // re-sanitizes at render too; cleaning here also keeps the stored and
           // exported model clean.
+          // ADR 0034 §4: first fold the legacy element-level isBold/isItalic/
+          // isUnderline flags into the content HTML (content is the single
+          // formatting layer now — the renderer no longer reads the flags),
+          // normalize Quill's &nbsp;-for-space serialization back to real
+          // spaces (legacy content must gain wrap opportunities too — the
+          // manual-width addendum), then sanitize the result. Idempotent,
+          // mirrors seedConnectorLabel.
           if (Array.isArray(normView.textBoxes)) {
-            normView.textBoxes = normView.textBoxes.map((tb) =>
-              isObj(tb) && typeof tb.content === 'string'
-                ? { ...tb, content: sanitizeHtml(tb.content) }
-                : tb
-            );
+            normView.textBoxes = normView.textBoxes.map((tb) => {
+              if (!isObj(tb)) return tb;
+              const folded = foldTextBoxStyleFlags(tb);
+              return typeof folded.content === 'string'
+                ? {
+                    ...folded,
+                    content: sanitizeHtml(
+                      normalizeQuillHtmlSpaces(folded.content)
+                    )
+                  }
+                : folded;
+            });
           }
 
           if (!normView.connectors) return normView;
@@ -104,10 +123,31 @@ export const useInitialDataManager = () => {
               }
 
               return hasValidAnchors;
-            });
+            })
+            // ADR 0032 connector amendment (2026-07-02): fold each existing
+            // connector's identity `name` into a labels[] entry (idempotent via
+            // the nameSeeded marker) so the name↔label decouple keeps saved
+            // diagrams' visible text. Mirrors the node seedNodeLabel pass.
+            .map(seedConnectorLabel);
 
           return { ...normView, connectors: validConnectors };
         });
+
+        // Option A migration (name/caption/label model): a node's rich
+        // `description` was the on-canvas "caption" — a second text competing
+        // with the name. It now folds into `notes` (the canvas shows only the
+        // name). Doing it here, on the way in and before save-tracking's load
+        // baseline, means existing diagrams don't lose the content and the
+        // stored/exported model converges on the new shape without dirtying the
+        // doc. See foldNodeDescription (ADR 0032): idempotent, block-separated,
+        // `description` dropped after fold (kept in schema for round-trip).
+        // ADR 0032 amendment (2026-06-30): the on-canvas text is now `label`,
+        // decoupled from the identity `name`. Seed `label = name` for saved
+        // nodes (idempotent) so existing diagrams keep their visible text and a
+        // later Layers rename of `name` doesn't move the canvas label.
+        rawData.items = asArray(rawData.items)
+          .map(foldNodeDescription)
+          .map(seedNodeLabel);
 
         // Re-type after normalisation — Zod will validate the structure next
         const initialData = rawData as unknown as typeof _initialData;

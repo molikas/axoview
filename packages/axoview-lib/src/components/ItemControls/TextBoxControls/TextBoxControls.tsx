@@ -1,129 +1,67 @@
-import React, { useEffect, useRef } from 'react';
-import { ProjectionOrientationEnum } from 'src/types';
-import {
-  Box,
-  ToggleButton,
-  ToggleButtonGroup,
-  Slider,
-  IconButton as MUIIconButton,
-  TextField
-} from '@mui/material';
-import {
-  TextRotationNone as TextRotationNoneIcon,
-  Close as CloseIcon
-} from '@mui/icons-material';
+import React, { useEffect, useState } from 'react';
 import { useTextBox } from 'src/hooks/useTextBox';
 import { useUiStateStore } from 'src/stores/uiStateStore';
-import { getIsoProjectionCss } from 'src/utils';
 import { useScene } from 'src/hooks/useScene';
-import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
 import { ControlsContainer } from '../components/ControlsContainer';
-import { Section } from '../components/Section';
-import { LabelColorPicker } from '../components/LabelColorPicker';
+import { DeckHeader } from '../components/DeckHeader';
+import { NotesSection } from '../components/NotesSection';
+import { MetadataSection } from '../components/MetadataSection';
+import { PANEL_EVENT } from 'src/components/NodeActionBar/NodeActionBar.helpers';
 import { useTranslation } from 'src/stores/localeStore';
-
-const PANEL_EVENT = 'textBoxPanel';
 
 interface Props {
   id: string;
 }
 
+// Text panel (2026-07-02): a text box's on-canvas content is edited INLINE on the
+// canvas (double-click, or place-and-type) and formatted from the top-bar style
+// strip — which already carries the same rich-text popover the deck used to
+// duplicate. So the deck has NO content editor: it leads with Notes (open), with
+// the identity Name in a collapsed Metadata section. Unified collapsible-section
+// deck (ux-principles §5.1); the top strip is the single styling surface (ADR 0030).
 export const TextBoxControls = ({ id }: Props) => {
   const { t } = useTranslation('textBoxControls');
+  const { t: tMenu } = useTranslation('toolMenu');
   const uiStateActions = useUiStateStore((state) => state.actions);
   const textBox = useTextBox(id);
   const { updateTextBox } = useScene();
-  const nameRef = useRef<HTMLInputElement>(null);
+  const [notesOpen, setNotesOpen] = useState(true);
 
   useEffect(() => {
     const handler = (e: Event) => {
-      const action = (e as CustomEvent<string>).detail;
-      if (action === 'focusName') {
-        requestAnimationFrame(() => {
-          nameRef.current?.focus({ preventScroll: true });
-          nameRef.current?.select();
-        });
-      }
+      if ((e as CustomEvent<string>).detail === 'focusNotes') setNotesOpen(true);
     };
-    window.addEventListener(PANEL_EVENT, handler);
-    return () => window.removeEventListener(PANEL_EVENT, handler);
+    window.addEventListener(PANEL_EVENT.TEXTBOX, handler);
+    return () => window.removeEventListener(PANEL_EVENT.TEXTBOX, handler);
   }, []);
 
   if (!textBox) return null;
 
   return (
-    <ControlsContainer>
-      <Box sx={{ position: 'relative' }}>
-        <MUIIconButton
-          aria-label={t('close')}
-          onClick={() => uiStateActions.setItemControls(null)}
-          sx={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
-          size="small"
-        >
-          <CloseIcon />
-        </MUIIconButton>
-        <Section title={t('name')}>
-          <TextField
-            inputRef={nameRef}
-            placeholder={t('namePlaceholder')}
-            value={textBox.name ?? ''}
-            size="small"
-            fullWidth
-            onChange={(e) =>
-              updateTextBox(textBox.id, { name: e.target.value || undefined })
-            }
-          />
-        </Section>
-        <Section title={t('text')}>
-          <RichTextEditor
-            value={textBox.content}
-            onChange={(html) => updateTextBox(textBox.id, { content: html })}
-            height={120}
-          />
-        </Section>
-        <Section title={t('textSize')}>
-          <Box sx={{ px: 1 }}>
-            <Slider
-              marks
-              step={0.15}
-              min={0.15}
-              max={0.9}
-              value={textBox.fontSize}
-              onChange={(e, newSize) =>
-                updateTextBox(textBox.id, { fontSize: newSize as number })
-              }
-            />
-          </Box>
-        </Section>
-        <Section title={t('textColor')}>
-          <LabelColorPicker
-            value={textBox.color}
-            onChange={(color) => updateTextBox(textBox.id, { color })}
-          />
-        </Section>
-        <Section title={t('alignment')}>
-          <ToggleButtonGroup
-            value={textBox.orientation}
-            exclusive
-            onChange={(e, orientation) => {
-              if (textBox.orientation === orientation || orientation === null)
-                return;
-              updateTextBox(textBox.id, { orientation });
-            }}
-          >
-            <ToggleButton value={ProjectionOrientationEnum.X}>
-              <TextRotationNoneIcon sx={{ transform: getIsoProjectionCss() }} />
-            </ToggleButton>
-            <ToggleButton value={ProjectionOrientationEnum.Y}>
-              <TextRotationNoneIcon
-                sx={{
-                  transform: `scale(-1, 1) ${getIsoProjectionCss()} scale(-1, 1)`
-                }}
-              />
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Section>
-      </Box>
+    <ControlsContainer
+      header={
+        <DeckHeader
+          type="TEXTBOX"
+          title={tMenu('text')}
+          closeLabel={t('close')}
+          onClose={() => uiStateActions.setItemControls(null)}
+        />
+      }
+    >
+      <NotesSection
+        title={t('notes')}
+        value={textBox.notes}
+        onChange={(notes) => updateTextBox(textBox.id, { notes })}
+        open={notesOpen}
+        onToggle={() => setNotesOpen((v) => !v)}
+      />
+      <MetadataSection
+        title={t('metadata')}
+        fieldLabel={t('name')}
+        name={textBox.name ?? ''}
+        placeholder={t('namePlaceholder')}
+        onChange={(v) => updateTextBox(textBox.id, { name: v || undefined })}
+      />
     </ControlsContainer>
   );
 };

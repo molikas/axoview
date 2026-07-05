@@ -30,6 +30,7 @@
     "build": "rsbuild build",
     "preview": "rsbuild preview",
     "clean": "rm -rf build",
+    "lint": "tsc --noEmit",
     "test": "npx --no-install jest"
   },
   "browserslist": {

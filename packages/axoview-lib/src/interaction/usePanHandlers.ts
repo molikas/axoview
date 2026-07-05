@@ -229,6 +229,20 @@ export const usePanHandlers = () => {
           showCursor: true,
           mousedownItem: null
         });
+      } else if (
+        currentModeType === 'TEXTBOX' ||
+        currentModeType === 'LABEL' ||
+        currentModeType === 'RECTANGLE.DRAW' ||
+        currentModeType === 'PLACE_ICON'
+      ) {
+        // Armed placement (text / label / rectangle / node icon): right-click
+        // cancels the tool entirely (drop nothing, return to select) rather than
+        // re-arming — parity across every placement tool, matching CONNECTOR.
+        actions.setMode({
+          type: 'CURSOR',
+          showCursor: true,
+          mousedownItem: null
+        });
       }
     },
     [actions, abortInFlightConnector]
@@ -258,7 +272,10 @@ export const usePanHandlers = () => {
       const currentModeType = uiState.mode.type;
       const anchor = { x: e.clientX, y: e.clientY };
       const tile = uiState.mouse.position.tile;
-      const item = getItemAtTile({ tile, scene });
+      // #5: right-click SELECTS the target for its context menu, so use exact
+      // connector tiles — a right-click on an empty tile beside a connector must
+      // open the canvas menu, not grab the connector (matches the left-click fix).
+      const item = getItemAtTile({ tile, scene, connectorMatch: 'exact' });
       const { lockedIds, visibleIds } = layerContext;
       const itemInteractable =
         !!item &&
@@ -323,7 +340,9 @@ export const usePanHandlers = () => {
         uiState.actions.openContextMenu({
           anchor,
           variant: 'item',
-          target: { type: item.type, id: item.id }
+          target: { type: item.type, id: item.id },
+          // Where the user clicked — connector "Add label" drops the label here.
+          tile: uiState.mouse.position.tile
         });
       } else {
         uiState.actions.openContextMenu({ anchor, variant: 'canvas', target: null });

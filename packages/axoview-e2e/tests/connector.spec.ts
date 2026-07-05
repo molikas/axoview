@@ -236,11 +236,13 @@ const getTileEndpointAnchors = (page: import('@playwright/test').Page) =>
     };
   });
 
+// Lasso selection commits to the persistent `uiState.selectedIds` slice on
+// mouseup (2026-07 cycle; `mode.selection` is transient mid-drag state only —
+// the same contract shift 35a027a applied to the shared lasso helpers).
 const getLassoSelectionTypes = (page: import('@playwright/test').Page) =>
   page.evaluate(() => {
-    const m = (window as any).__axoview__.ui.getState().mode;
-    if (m?.type !== 'LASSO') return [];
-    return ((m.selection?.items as any[]) ?? []).map((r) => r.type);
+    const ids = (window as any).__axoview__.ui.getState().selectedIds ?? [];
+    return (ids as any[]).map((r) => r.type);
   });
 
 test.describe('Connector — T2 #2: lasso captures a free-floating endpoint', () => {

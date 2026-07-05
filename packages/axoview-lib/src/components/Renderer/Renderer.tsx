@@ -8,6 +8,8 @@ import { Cursor } from 'src/components/Cursor/Cursor';
 import { Nodes } from 'src/components/SceneLayers/Nodes/Nodes';
 import { NodesCanvas } from 'src/components/SceneLayers/Nodes/NodesCanvas';
 import { NodeLabelHitLayer } from 'src/components/SceneLayers/Nodes/NodeLabelHitLayer';
+import { LabelsCanvas } from 'src/components/SceneLayers/Labels/LabelsCanvas';
+import { LabelHitLayer } from 'src/components/SceneLayers/Labels/LabelHitLayer';
 import { Rectangles } from 'src/components/SceneLayers/Rectangles/Rectangles';
 import { Connectors } from 'src/components/SceneLayers/Connectors/Connectors';
 import { ConnectorLabels } from 'src/components/SceneLayers/ConnectorLabels/ConnectorLabels';
@@ -15,7 +17,9 @@ import { TextBoxes } from 'src/components/SceneLayers/TextBoxes/TextBoxes';
 import { SizeIndicator } from 'src/components/DebugUtils/SizeIndicator';
 import { SceneLayer } from 'src/components/SceneLayer/SceneLayer';
 import { TransformControlsManager } from 'src/components/TransformControlsManager/TransformControlsManager';
+import { HoverOutline } from 'src/components/TransformControlsManager/HoverOutline';
 import { ConnectorAnchorOverlay } from 'src/components/ConnectorAnchorOverlay/ConnectorAnchorOverlay';
+import { ElementLinkCard } from 'src/components/ElementLinkCard/ElementLinkCard';
 import { Lasso } from 'src/components/Lasso/Lasso';
 import { FreehandLasso } from 'src/components/FreehandLasso/FreehandLasso';
 import { useScene } from 'src/hooks/useScene';
@@ -119,6 +123,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
     connectors,
     hitConnectors,
     textBoxes,
+    labels,
     currentView
   } = useScene();
 
@@ -239,6 +244,25 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   // CSS-preview re-render) instead of a per-frame model write redrawing the whole
   // canvas. A primitive id selector → re-renders only on label-drag start/end.
   const labelDragId = useUiStateStore((s) => s.labelDrag?.id ?? null);
+  // ADR 0034: the text box being edited inline is promoted ABOVE the
+  // interactions box (same reasoning as the hybrid nodes / label hit layers —
+  // below it "the box ate every press"), so its Quill editor receives pointer
+  // events. The lower TextBoxes layer skips it so it isn't drawn twice.
+  const editingTextBoxId = useUiStateStore((s) => s.editingTextBoxId);
+  const restingTextBoxes = useMemo(
+    () =>
+      editingTextBoxId
+        ? textBoxes.filter((t) => t.id !== editingTextBoxId)
+        : textBoxes,
+    [textBoxes, editingTextBoxId]
+  );
+  const editingTextBoxes = useMemo(
+    () =>
+      editingTextBoxId
+        ? textBoxes.filter((t) => t.id === editingTextBoxId)
+        : null,
+    [textBoxes, editingTextBoxId]
+  );
 
   const hybridIds = useMemo(() => {
     if (!selectedNodeId && !draggingKey && !labelDragId) return null;
@@ -308,6 +332,21 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   // a bounds shift, so Connectors / ConnectorLabels memo-bail (see useStableList).
   const visibleConnectors = useStableList(visibleConnectorsRaw);
 
+  // Floating Labels (ADR 0031) — viewport-culled like nodes; layer-visibility +
+  // zIndex sort happen inside LabelsCanvas / LabelHitLayer.
+  const visibleLabelsRaw = useMemo(() => {
+    const { minX, maxX, minY, maxY } = coarseBounds;
+    if (minX === -Infinity) return labels;
+    return labels.filter(
+      (label) =>
+        label.tile.x >= minX &&
+        label.tile.x <= maxX &&
+        label.tile.y >= minY &&
+        label.tile.y <= maxY
+    );
+  }, [labels, coarseBounds]);
+  const visibleLabels = useStableList(visibleLabelsRaw);
+
   return (
     <Box
       ref={containerRef}
@@ -361,10 +400,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
         <Connectors connectors={visibleConnectors} currentView={currentView} />
       </SceneLayer>
       <SceneLayer>
-        <TextBoxes textBoxes={textBoxes} />
-      </SceneLayer>
-      <SceneLayer>
-        <ConnectorLabels connectors={visibleConnectors} />
+        <TextBoxes textBoxes={restingTextBoxes} />
       </SceneLayer>
       {enableDebugTools && (
         <SceneLayer>
@@ -384,8 +420,24 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
         }}
       />
       <NodesCanvas nodes={visibleItems} skipNodes={hybridNodes} />
+      {/* Floating Labels (ADR 0031): the Canvas2D layer mounts IMMEDIATELY AFTER
+          NodesCanvas so a label paints ABOVE nodes (the cross-layer z-order fix
+          — TextBoxes are DOM-earlier and so are always occluded), with the
+          pixel-accurate DOM hit-proxy as a SceneLayer right after it. */}
+      <LabelsCanvas labels={visibleLabels} />
+      <SceneLayer>
+        <LabelHitLayer labels={visibleLabels} />
+      </SceneLayer>
       <SceneLayer>
         <NodeLabelHitLayer nodes={canvasLabelNodes} />
+      </SceneLayer>
+      {/* Connector labels render ABOVE the interactions box (like
+          NodeLabelHitLayer) so a press on a label chip targets the label —
+          its onPointerDown + stopPropagation then own the gesture. Below the
+          interactions box the box ate every press, so label drag/select did
+          nothing and the connector got dragged instead. */}
+      <SceneLayer>
+        <ConnectorLabels connectors={visibleConnectors} />
       </SceneLayer>
       {hybridNodes.length > 0 && (
         <SceneLayer>
@@ -396,8 +448,29 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
         <ConnectorAnchorOverlay />
       </SceneLayer>
       <SceneLayer>
+        <HoverOutline />
+      </SceneLayer>
+      <SceneLayer>
         <TransformControlsManager />
       </SceneLayer>
+      {/* The inline-edited text box (ADR 0034) — promoted above the
+          interactions box for the duration of the edit session so the mounted
+          Quill editor owns its pointer events. Mounted ABOVE the transform
+          controls too (2026-07-04): the resize anchors stay visible during the
+          session, but where one overlaps the (often small) box, the TEXT wins
+          the click — caret placement beats resize; each anchor's outer half
+          sticks out past the box edge and stays grabbable. */}
+      {editingTextBoxes && editingTextBoxes.length > 0 && (
+        <SceneLayer>
+          <TextBoxes textBoxes={editingTextBoxes} />
+        </SceneLayer>
+      )}
+      {/* Element-level link card (ADR 0034 addendum 2026-07-05): Ctrl+K while
+          inline-renaming a floating Label / node name / connector label pops
+          the same inline link UI text boxes have — targeting the element's
+          headerLink. Body-portaled Popper; mounted once here for store
+          access. */}
+      <ElementLinkCard />
     </Box>
   );
 };

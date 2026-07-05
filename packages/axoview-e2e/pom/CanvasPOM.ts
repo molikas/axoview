@@ -189,12 +189,82 @@ export class CanvasPOM {
   /**
    * Canonical textbox-placement flow:
    *   1. land mouse at the target tile (sets uiState.mouse.position.tile)
-   *   2. press `t` hotkey (creates textbox + enters TEXTBOX mode)
-   *   3. mouseup at the same tile (commits via isRendererInteraction = true)
+   *   2. press `t` hotkey (arms TEXTBOX mode — no box created yet)
+   *   3. mouseup at the same tile (the single create site; commits via
+   *      isRendererInteraction = true)
+   *
+   * Place-and-type (ADR 0034) drops the new box straight into the on-canvas
+   * Quill edit session, which holds keyboard focus — a subsequent hotkey press
+   * would type INTO the box instead of arming a tool. A new box is EMPTY and a
+   * session that ends empty discards the box (ADR 0034 addendum 2026-07-03),
+   * so by default this helper types probe content (`opts.text`, default
+   * 'Text') and commits — leaving a persisted, still-selected box, like the
+   * old default-content placement did. Pass `keepEditing: true` when the spec
+   * wants the live (empty) editor.
    */
-  async placeTextBoxAt(point: CanvasPoint) {
+  async placeTextBoxAt(
+    point: CanvasPoint,
+    opts?: { keepEditing?: boolean; text?: string }
+  ) {
     await this.dispatchAt(['mousemove'], point);
     await this.pressTextBoxHotkey();
+    await this.dispatchAt(['mouseup'], point);
+    if (opts?.keepEditing) return;
+    const editor = this.textBoxInlineEditor();
+    await editor.waitFor({ state: 'visible', timeout: 5_000 });
+    await editor.click();
+    await this.page.keyboard.type(opts?.text ?? 'Text', { delay: 5 });
+    await this.commitTextBoxEditor();
+  }
+
+  /** The on-canvas rich-text editor of the text box being edited (ADR 0034). */
+  textBoxInlineEditor(): Locator {
+    return byAxoviewId(this.page, 'textbox-inline-editor').locator('.ql-editor');
+  }
+
+  /**
+   * Commits the on-canvas edit session without touching the canvas: a
+   * pointerdown on document.body trips the editor's capture-phase click-away
+   * listener (body is outside editor/strip/portals) but never reaches the
+   * canvas-interactions element — so the box stays selected and no other
+   * element is hit, whatever the spec's layout.
+   */
+  async commitTextBoxEditor() {
+    const editor = this.textBoxInlineEditor();
+    await this.page.evaluate(() => {
+      document.body.dispatchEvent(
+        new PointerEvent('pointerdown', { bubbles: true })
+      );
+    });
+    await editor.waitFor({ state: 'detached', timeout: 5_000 });
+  }
+
+  /**
+   * Ends an on-canvas text-box edit session via Escape (cancel — the STORED
+   * content is left as-is; a box that was never committed is discarded, per
+   * the ADR 0034 empty-box lifecycle). Clicks the editor first so Escape
+   * reliably targets it rather than the window's own Escape handler.
+   */
+  async dismissTextBoxEditor() {
+    const editor = this.textBoxInlineEditor();
+    await editor.waitFor({ state: 'visible', timeout: 5_000 });
+    await editor.click();
+    await this.page.keyboard.press('Escape');
+    await editor.waitFor({ state: 'detached', timeout: 5_000 });
+  }
+
+  /**
+   * Floating-Label placement (ADR 0031). The Label has no hotkey — the Common
+   * deck arms the LABEL mode — so arm it via the store, then drop on mouseup
+   * (mirrors placeTextBoxAt's land → arm → release flow).
+   */
+  async placeLabelAt(point: CanvasPoint) {
+    await this.dispatchAt(['mousemove'], point);
+    await this.page.evaluate(() => {
+      (window as any).__axoview__.ui
+        .getState()
+        .actions.setMode({ type: 'LABEL', showCursor: true, id: null });
+    });
     await this.dispatchAt(['mouseup'], point);
   }
 

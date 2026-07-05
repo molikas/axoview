@@ -4,6 +4,10 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'এটি একটি উদাহরণ পাঠ্য'
   },
+  rightSidebar: {
+    collapsePanel: 'প্যানেল সঙ্কুচিত করুন',
+    emptyState: 'বৈশিষ্ট্য দেখতে একটি নোড, সংযোগকারী বা আকৃতি নির্বাচন করুন'
+  },
   helpDialog: {
     title: 'কীবোর্ড শর্টকাট এবং সহায়তা',
     close: 'বন্ধ করুন',
@@ -265,89 +269,133 @@ const locale: LocaleProps = {
     addPageDisabled: 'পৃষ্ঠার সীমা পৌঁছেছে (৫)'
   },
   nodePanel: {
-    details: 'বিবরণ',
-    style: 'স্টাইল',
     notes: 'নোট',
-    notesModified: 'নোট ●',
     close: 'বন্ধ করুন',
-    openLink: 'লিঙ্ক খুলুন',
-    caption: 'ক্যাপশন',
-    noCaption: 'কোনো ক্যাপশন নেই।',
-    showLabel: 'লেবেল দেখান',
-    hideLabel: 'লেবেল লুকান',
-    showName: 'নাম দেখান',
-    hideName: 'নাম লুকান'
   },
   nodeInfoTab: {
+    metadata: 'মেটাডেটা',
     name: 'নাম',
     namePlaceholder: 'নোডের নাম…',
-    removeLink: 'লিঙ্ক সরান',
-    addLink: 'নামে লিঙ্ক যোগ করুন',
-    linkPlaceholder: 'https://…',
-    caption: 'ক্যাপশন',
-    captionHint: 'ক্যানভাসে নোডের নামের নিচে দেখানো হয়',
-    openLink: 'লিঙ্ক খুলুন',
-    diagramLink: 'ডায়াগ্রামের লিঙ্ক',
-    diagramLinkPlaceholder: 'ডায়াগ্রাম নির্বাচন করুন…',
-    diagramLinkHint: 'শুধু-পড়া মোডে এই নোডে ক্লিক করলে সংযুক্ত ডায়াগ্রাম খুলবে',
-    openDiagramLink: 'সংযুক্ত ডায়াগ্রাম খুলুন'
-  },
-  nodeStyleTab: {
-    icon: 'আইকন',
-    close: 'বন্ধ করুন',
-    change: 'পরিবর্তন করুন…',
-    iconSize: 'আইকনের আকার',
-    labelFontSize: 'লেবেল ফন্ট আকার',
-    labelColor: 'লেবেলের রং',
-    labelHeight: 'লেবেলের উচ্চতা'
+    label: 'লেবেল',
+    labelPlaceholder: 'শেপে দেখানো লেবেল…',
+    openLink: 'লিঙ্ক খুলুন'
   },
   connectorControls: {
+    metadata: 'মেটাডেটা',
     close: 'বন্ধ করুন',
-    labels: 'লেবেল',
-    details: 'বিবরণ',
-    style: 'শৈলী',
     notes: 'নোট',
-    notesModified: 'নোট ●',
     name: 'নাম',
     namePlaceholder: 'প্রান্ত লেবেল…',
-    additionalLabels: 'অতিরিক্ত লেবেল',
+    labels: 'লেবেল',
     addLabel: 'লেবেল যোগ করুন',
     noLabels: 'এখনও কোনো লেবেল নেই।',
-    addLink: 'লিংক যোগ করুন',
-    removeLink: 'লিংক সরান',
-    linkPlaceholder: 'https://…',
-    showLabel: 'লেবেল দেখান',
-    hideLabel: 'লেবেল লুকান',
-    showName: 'নাম দেখান',
-    hideName: 'নাম লুকান',
-    color: 'রঙ',
-    width: 'প্রস্থ',
-    lineStyle: 'লাইন স্টাইল',
-    lineType: 'লাইন প্রকার',
-    useCustomColor: 'কাস্টম রঙ ব্যবহার করুন',
-    showArrow: 'তীর দেখান',
-    solid: 'কঠিন',
-    dotted: 'বিন্দু',
-    dashed: 'ড্যাশ',
-    singleLine: 'একক লাইন',
-    doubleLine: 'দ্বিগুণ লাইন',
-    doubleLineWithCircle: 'বৃত্তসহ দ্বিগুণ লাইন'
+    labelN: 'লেবেল {count}',
+    positionHint:
+      'অবস্থান নির্ধারণ করতে ক্যানভাসে একটি লেবেল টেনে আনুন; এর পাঠ্যের আকার এবং রঙের জন্য উপরের বার ব্যবহার করুন।',
+    line: 'লাইন',
+    line1: 'লাইন ১',
+    line2: 'লাইন ২'
   },
   textBoxControls: {
+    linkSearchPlaceholder: 'অনুসন্ধান করুন বা লিঙ্ক পেস্ট করুন',
+    linkCopy: 'লিঙ্ক কপি করুন',
+    linkCopied: 'কপি হয়েছে',
+    linkEdit: 'লিঙ্ক সম্পাদনা করুন',
+    linkRemove: 'লিঙ্ক সরান',
+    placeholder: 'কিছু লিখুন',
+    metadata: 'মেটাডেটা',
+    notes: 'নোট',
     close: 'বন্ধ করুন',
     name: 'নাম',
-    namePlaceholder: 'উপাদানের নাম…',
-    text: 'পাঠ্য',
-    textSize: 'পাঠ্যের আকার',
-    textColor: 'পাঠ্যের রং',
-    alignment: 'সারিবদ্ধতা'
+    namePlaceholder: 'উপাদানের নাম…'
   },
   rectangleControls: {
+    metadata: 'মেটাডেটা',
+    notes: 'নোট',
     close: 'বন্ধ করুন',
     name: 'নাম',
-    namePlaceholder: 'উপাদানের নাম…',
-    color: 'রং',
-    useCustomColor: 'কাস্টম রং ব্যবহার করুন'
+    namePlaceholder: 'উপাদানের নাম…'
+  },
+  topBarStyleControls: {
+    rotate90: '90° ঘোরান',
+    noColor: 'কোনো রং নেই',
+    customColor: 'কাস্টম রং',
+    textSize: 'পাঠ্যের আকার',
+    lineSpacing: 'লাইনের ব্যবধান',
+    alignment: 'সারিবদ্ধকরণ',
+    alignmentDisabled: 'পাঠ্য সারিবদ্ধ করতে একটি টেক্সট বক্স নির্বাচন করুন',
+    alignLeft: 'বামে সারিবদ্ধ করুন',
+    alignCenter: 'কেন্দ্রে রাখুন',
+    alignRight: 'ডানে সারিবদ্ধ করুন',
+    alignTop: 'উপরে সারিবদ্ধ করুন',
+    alignMiddle: 'মাঝখানে সারিবদ্ধ করুন',
+    alignBottom: 'নিচে সারিবদ্ধ করুন',
+    iconSize: 'আইকনের আকার',
+    textColor: 'পাঠ্যের রং',
+    textColorDisabled:
+      'পাঠ্যের রং সেট করতে একটি নোড, টেক্সট বক্স, লেবেল বা সংযোগ লেবেল নির্বাচন করুন',
+    textSizeDisabled:
+      'পাঠ্যের আকার সেট করতে একটি নোড, টেক্সট বক্স, লেবেল বা সংযোগ লেবেল নির্বাচন করুন',
+    labelSizeAllSelected: 'লেবেলের আকার (সব নির্বাচিত)',
+    textColorAllSelected: 'পাঠ্যের রং (সব নির্বাচিত)',
+    armedToolPlaceFirst:
+      'নতুন উপাদান ডিফল্ট স্টাইল ব্যবহার করে — আগে এটি বসান, তারপর এখানে স্টাইল করুন',
+    decreaseLabelSize: 'লেবেলের আকার হ্রাস করুন',
+    increaseLabelSize: 'লেবেলের আকার বৃদ্ধি করুন',
+    labelSize: 'লেবেলের আকার',
+    decreaseSize: 'আকার হ্রাস করুন',
+    increaseSize: 'আকার বৃদ্ধি করুন',
+    stepAll: 'সব ধাপে পরিবর্তন করুন',
+    size: 'আকার',
+    bold: 'বোল্ড',
+    italic: 'ইটালিক',
+    underline: 'আন্ডারলাইন',
+    strikethrough: 'স্ট্রাইকথ্রু',
+    format: 'বোল্ড / ইটালিক / আন্ডারলাইন / স্ট্রাইকথ্রু',
+    formatDisabled:
+      'পাঠ্য ফরম্যাট করতে একটি নোড, টেক্সট বক্স, লেবেল বা সংযোগ লেবেল নির্বাচন করুন',
+    lists: 'তালিকা',
+    listsDisabled: 'তালিকা ব্যবহার করতে একটি টেক্সট বক্স নির্বাচন করুন',
+    bulletList: 'বুলেট তালিকা',
+    numberedList: 'সংখ্যায়িত তালিকা',
+    background: 'পটভূমির রং',
+    backgroundDisabled: 'পটভূমির রং সেট করতে একটি আয়তক্ষেত্র, লেবেল বা টেক্সট বক্স নির্বাচন করুন',
+    opacity: 'স্বচ্ছতা',
+    border: 'বর্ডার',
+    borderDisabled: 'বর্ডার সেট করতে একটি আয়তক্ষেত্র বা টেক্সট বক্স নির্বাচন করুন',
+    lineStyle: 'লাইন স্টাইল',
+    width: 'প্রস্থ',
+    borderColor: 'বর্ডারের রং',
+    link: 'লিঙ্ক',
+    linkDisabled: 'লিঙ্ক যোগ করতে একটি নোড, সংযোগ বা লেবেল নির্বাচন করুন',
+    linkSelection: 'নির্বাচিত পাঠ্যে লিঙ্ক যোগ করুন',
+    linkDisabledTextBox: 'লিঙ্ক যোগ করতে সম্পাদনার সময় পাঠ্য নির্বাচন করুন',
+    linkToWeb: 'ওয়েবে লিঙ্ক করুন',
+    webLinkPlaceholder: 'https://…',
+    linkToDiagram: 'ডায়াগ্রামে লিঙ্ক করুন',
+    searchDiagrams: 'ডায়াগ্রাম খুঁজুন…',
+    openLinkedDiagram: 'সংযুক্ত ডায়াগ্রাম খুলুন',
+    showLabel: 'লেবেল দেখান',
+    hideLabel: 'লেবেল লুকান',
+    showHideLabelDisabled:
+      'লেবেল দেখাতে বা লুকাতে একটি নোড বা সংযোগ নির্বাচন করুন',
+    changeIconBulk: 'আইকন পরিবর্তন একবারে একটি নোডে প্রযোজ্য',
+    changeIcon: 'আইকন পরিবর্তন করুন',
+    changeIconDisabled: 'আইকন পরিবর্তন করতে একটি নোড নির্বাচন করুন',
+    iconSizeBulk:
+      'আইকনের আকার একবারে একটি আইকন সম্পাদনা করে (সেই আইকন ব্যবহারকারী সব নোডের আকার বদলায়)',
+    iconSizeDisabled: 'আইকনের আকার পরিবর্তন করতে একটি নোড নির্বাচন করুন',
+    connectionColorPredraw: 'আপনি যে পরবর্তী সংযোগ আঁকবেন তার রং',
+    connectionColor: 'সংযোগের রং',
+    connectionColorDisabled:
+      'রং সেট করতে একটি সংযোগ (বা সংযোগকারী টুল) নির্বাচন করুন',
+    lineOptionsPredraw: 'আপনি যে পরবর্তী সংযোগ আঁকবেন তার লাইন স্টাইল',
+    lineOptions: 'লাইন বিকল্প',
+    lineOptionsDisabled:
+      'লাইন বিকল্প সেট করতে একটি সংযোগ (বা সংযোগকারী টুল) নির্বাচন করুন',
+    lineType: 'লাইন প্রকার',
+    showArrow: 'তীর দেখান',
+    showDottedLine: 'বিন্দুযুক্ত রেখা দেখান',
   },
   labelColorPicker: {
     customColor: 'কাস্টম রং'
@@ -368,7 +416,10 @@ const locale: LocaleProps = {
     selected: '{count}টি নির্বাচিত'
   },
   modeHints: {
-    connector: 'সংযোগ করতে আইটেমগুলির মধ্যে টেনে আনুন • বাতিল করতে Esc'
+    connector: 'সংযোগ করতে আইটেমগুলির মধ্যে টেনে আনুন • বাতিল করতে Esc',
+    textBox: 'টেক্সট বক্স রাখতে ক্লিক করুন • বাতিল করতে Esc',
+    label: 'লেবেল রাখতে ক্লিক করুন • বাতিল করতে Esc',
+    rectangle: 'আয়তক্ষেত্র আঁকতে টেনে আনুন • বাতিল করতে Esc'
   },
   previewLayerSwitcher: {
     layers: 'স্তর',
@@ -426,6 +477,9 @@ const locale: LocaleProps = {
     placeholder: 'আইকন খুঁজুন'
   },
   exportImageDialog: {
+    groupAppearance: 'Appearance',
+    groupBackground: 'Background',
+    groupCrop: 'Crop',
     title: 'ছবি হিসেবে রপ্তানি করুন',
     compatibilityTitle: 'ব্রাউজার সামঞ্জস্যতা বিজ্ঞপ্তি',
     compatibilityMessage:
@@ -435,7 +489,6 @@ const locale: LocaleProps = {
     options: 'বিকল্প',
     showGrid: 'গ্রিড দেখান',
     showLabels: 'লেবেল দেখান',
-    expandDescriptions: 'বিবরণ প্রসারিত করুন',
     screenshotPreset: 'স্ক্রিনশট (প্রস্তাবিত)',
     scaleClamped: 'ব্রাউজারের ছবির সীমার সাথে মানানসই করতে রপ্তানির আকার হ্রাস করা হয়েছে:',
     cropToContent: 'বিষয়বস্তুতে ক্রপ করুন',
@@ -455,6 +508,7 @@ const locale: LocaleProps = {
     error: 'ছবি রপ্তানি করা যায়নি'
   },
   toolMenu: {
+    label: 'Label',
     undo: 'পূর্বাবস্থায় ফেরান',
     redo: 'পুনরায় করুন',
     select: 'নির্বাচন করুন',
@@ -479,6 +533,7 @@ const locale: LocaleProps = {
   },
   canvasContextMenu: {
     addNote: 'নোট যোগ করুন',
+    addLabel: 'লেবেল যোগ করুন',
     details: 'বিস্তারিত…',
     rename: 'নাম পরিবর্তন করুন',
     cut: 'কাটুন',
@@ -487,7 +542,10 @@ const locale: LocaleProps = {
     duplicate: 'অনুলিপি করুন',
     bringForward: 'সামনে আনুন',
     sendBackward: 'পিছনে পাঠান',
+    bringToFront: 'সামনে আনুন',
+    sendToBack: 'পিছনে পাঠান',
     assignToLayer: 'স্তরে বরাদ্দ করুন',
+    fitToText: 'পাঠ্যের সাথে মানানসই করুন',
     snapToGrid: 'গ্রিডে স্ন্যাপ করুন',
     unsnapFromGrid: 'গ্রিড থেকে আনস্ন্যাপ করুন',
     disableCollision: 'সংঘর্ষ নিষ্ক্রিয় করুন',
@@ -510,7 +568,8 @@ const locale: LocaleProps = {
     elements: 'উপাদান',
     layers: 'স্তর',
     settings: 'সেটিংস',
-    openDiagramFirst: 'প্রথমে একটি ডায়াগ্রাম খুলুন বা তৈরি করুন'
+    openDiagramFirst: 'প্রথমে একটি ডায়াগ্রাম খুলুন বা তৈরি করুন',
+    collapsePanel: 'প্যানেল সঙ্কুচিত করুন'
   },
   // D8 — LayersPanel
   layersPanel: {

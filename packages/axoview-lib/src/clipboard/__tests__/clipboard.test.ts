@@ -12,6 +12,7 @@ const makePayload = (
   connectors: [],
   rectangles: [],
   textBoxes: [],
+  labels: [],
   centroid: { x: 0, y: 0 },
   ...overrides
 });

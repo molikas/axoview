@@ -34,7 +34,8 @@ Deep snapshots cut on a date and left immutable. Read for the comprehensive narr
 
 | Doc | What it is |
 |---|---|
-| [technical-review-2026-06.md](technical-review-2026-06.md) | **Current** reviewer-grade deep snapshot — architecture narrative, sequence diagrams, deployment topology, security posture, file-by-file inventory, quality KPIs, decisions catalog. The authoritative depth that `architecture.md` points to. |
+| [technical-review-2026-07.md](technical-review-2026-07.md) | **Current** reviewer-grade deep snapshot (post-labels/text-styling wave, v3.1.0 candidate at PR #58). Delta-based on the 2026-06 baseline; adds the full audit report — health scorecard, UX-consistency / perf hot-path / coherence sweeps, risk register, P1–P3 recommendations. |
+| [technical-review-2026-06.md](technical-review-2026-06.md) | Prior snapshot (post-v1.1 wave, v2.0.1). Still the full-depth architecture narrative (system + sequence diagrams, deployment topology, file-by-file inventory) that the 2026-07 review deliberately does not restate. Superseded as "current" by the 2026-07 review. |
 | [technical-review-2026-05.md](technical-review-2026-05.md) | Prior snapshot (post-M10 v1.0.0). Superseded by the 2026-06 review; kept for historical comparison. |
 | [upstream-changelog.md](upstream-changelog.md) | Verbatim pre-fork `stan-smith/FossFLOW` changelog, preserved for lineage. Not maintained going forward. |
 
@@ -42,7 +43,7 @@ Deep snapshots cut on a date and left immutable. Read for the comprehensive narr
 
 ## Decision records (ADRs)
 
-[docs/adr/](adr/) — eleven Accepted ADRs, one decision each. Start any new work by reading the ADR header for the contract you're about to touch.
+[docs/adr/](adr/) — 32 ADRs (28 Accepted, 4 Proposed; 0016/0017 are unused numbers), one durable decision each. Start any new work by reading the ADR header for the contract you're about to touch. *(Table rebuilt 2026-07-05 — it had been stale at 11 rows since 0012 landed; technical-review-2026-07 §8j.)*
 
 | # | Decision |
 |---|---|
@@ -57,6 +58,27 @@ Deep snapshots cut on a date and left immutable. Read for the comprehensive narr
 | [0009](adr/0009-deployment-topology.md) | Deployment topology |
 | [0010](adr/0010-session-backend-contract.md) | Session backend contract |
 | [0011](adr/0011-error-ux-contract.md) | Error-UX contract |
+| [0012](adr/0012-view-mode-node-info-popover.md) | View-mode item info popover |
+| [0013](adr/0013-preview-mode-layer-switcher.md) | Preview-mode layer switcher (presentation chrome) |
+| [0014](adr/0014-ephemeral-annotation-overlay.md) | Ephemeral annotation overlay |
+| [0015](adr/0015-node-label-legibility-scaling.md) | Node label legibility scaling |
+| [0018](adr/0018-touch-pen-gesture-contract.md) | Touch / pen canvas gesture contract |
+| [0019](adr/0019-canvas2d-node-render-layer.md) | Canvas2D node render layer (default substrate) |
+| [0020](adr/0020-engine-perf-harness-and-measurement-protocol.md) | Engine perf harness & measurement protocol |
+| [0021](adr/0021-paste-algorithmic-perf-and-spatial-index.md) | Paste algorithmic perf & the derived tile index |
+| [0022](adr/0022-canvas-pointer-interaction-model.md) | Canvas pointer-interaction model *(Proposed)* |
+| [0023](adr/0023-off-grid-positioning-and-collision.md) | Off-grid positioning & per-item collision *(Proposed)* |
+| [0024](adr/0024-node-label-positioning-and-sizing.md) | Node label positioning & sizing |
+| [0025](adr/0025-image-export-robustness-and-presets.md) | Image export robustness & presets *(Proposed)* |
+| [0026](adr/0026-rectangle-edge-transform-handles.md) | Rectangle edge-midpoint transform handles |
+| [0027](adr/0027-canvas-context-menu.md) | Canvas context menu (per-item command surface) |
+| [0028](adr/0028-ux-journey-testing-protocol.md) | UX journey-testing protocol *(Proposed)* |
+| [0029](adr/0029-sanitize-user-authored-html.md) | Sanitize user-authored HTML |
+| [0030](adr/0030-docked-style-controls-strip.md) | Docked style-controls strip (canonical styling surface) |
+| [0031](adr/0031-floating-label-entity-model.md) | Floating Label as a first-class entity |
+| [0032](adr/0032-node-name-caption-label-model.md) | Node name / caption / label model (Option A) |
+| [0033](adr/0033-element-text-style-field-convention.md) | Element text-style field convention (B/I/S) |
+| [0034](adr/0034-inline-canvas-text-editing-and-dual-scope-strip-formatting.md) | Inline canvas text editing & dual-scope strip formatting |
 
 ---
 

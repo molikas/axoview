@@ -4,6 +4,10 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'Este é um texto de exemplo'
   },
+  rightSidebar: {
+    collapsePanel: 'Recolher painel',
+    emptyState: 'Selecione um nó, conector ou forma para ver suas propriedades'
+  },
   helpDialog: {
     title: 'Atalhos de teclado e ajuda',
     close: 'Fechar',
@@ -267,89 +271,133 @@ const locale: LocaleProps = {
     addPageDisabled: 'Limite de páginas atingido (5)'
   },
   nodePanel: {
-    details: 'Detalhes',
-    style: 'Estilo',
     notes: 'Notas',
-    notesModified: 'Notas ●',
     close: 'Fechar',
-    openLink: 'Abrir link',
-    caption: 'Legenda',
-    noCaption: 'Sem legenda.',
-    showLabel: 'Mostrar rótulo',
-    hideLabel: 'Ocultar rótulo',
-    showName: 'Mostrar nome',
-    hideName: 'Ocultar nome'
   },
   nodeInfoTab: {
+    metadata: 'Metadados',
     name: 'Nome',
     namePlaceholder: 'Nome do nó…',
-    removeLink: 'Remover link',
-    addLink: 'Adicionar link ao nome',
-    linkPlaceholder: 'https://…',
-    caption: 'Legenda',
-    captionHint: 'Exibido na tela abaixo do nome do nó',
-    openLink: 'Abrir link',
-    diagramLink: 'Link para o diagrama',
-    diagramLinkPlaceholder: 'Selecionar um diagrama…',
-    diagramLinkHint: 'Clicar neste nó no modo somente leitura abre o diagrama vinculado',
-    openDiagramLink: 'Abrir diagrama vinculado'
-  },
-  nodeStyleTab: {
-    icon: 'Ícone',
-    close: 'Fechar',
-    change: 'Alterar…',
-    iconSize: 'Tamanho do ícone',
-    labelFontSize: 'Tamanho da fonte do rótulo',
-    labelColor: 'Cor do rótulo',
-    labelHeight: 'Altura do rótulo'
+    label: 'Rótulo',
+    labelPlaceholder: 'Rótulo exibido na forma…',
+    openLink: 'Abrir link'
   },
   connectorControls: {
+    metadata: 'Metadados',
     close: 'Fechar',
-    labels: 'Rótulos',
-    details: 'Detalhes',
-    style: 'Estilo',
     notes: 'Notas',
-    notesModified: 'Notas ●',
     name: 'Nome',
     namePlaceholder: 'Rótulo da aresta…',
-    additionalLabels: 'Rótulos adicionais',
+    labels: 'Rótulos',
     addLabel: 'Adicionar rótulo',
     noLabels: 'Ainda não há rótulos.',
-    addLink: 'Adicionar link',
-    removeLink: 'Remover link',
-    linkPlaceholder: 'https://…',
-    showLabel: 'Mostrar rótulo',
-    hideLabel: 'Ocultar rótulo',
-    showName: 'Mostrar nome',
-    hideName: 'Ocultar nome',
-    color: 'Cor',
-    width: 'Largura',
-    lineStyle: 'Estilo de linha',
-    lineType: 'Tipo de linha',
-    useCustomColor: 'Usar cor personalizada',
-    showArrow: 'Mostrar seta',
-    solid: 'Sólida',
-    dotted: 'Pontilhada',
-    dashed: 'Tracejada',
-    singleLine: 'Linha única',
-    doubleLine: 'Linha dupla',
-    doubleLineWithCircle: 'Linha dupla com círculo'
+    labelN: 'Rótulo {count}',
+    positionHint:
+      'Arraste um rótulo na tela para posicioná-lo; use a barra superior para o tamanho e a cor do texto.',
+    line: 'Linha',
+    line1: 'Linha 1',
+    line2: 'Linha 2'
   },
   textBoxControls: {
+    linkSearchPlaceholder: 'Pesquisar ou colar um link',
+    linkCopy: 'Copiar link',
+    linkCopied: 'Copiado',
+    linkEdit: 'Editar link',
+    linkRemove: 'Remover link',
+    placeholder: 'Digite algo',
+    metadata: 'Metadados',
+    notes: 'Notas',
     close: 'Fechar',
     name: 'Nome',
-    namePlaceholder: 'Nome do elemento…',
-    text: 'Texto',
-    textSize: 'Tamanho do texto',
-    textColor: 'Cor do texto',
-    alignment: 'Alinhamento'
+    namePlaceholder: 'Nome do elemento…'
   },
   rectangleControls: {
+    metadata: 'Metadados',
+    notes: 'Notas',
     close: 'Fechar',
     name: 'Nome',
-    namePlaceholder: 'Nome do elemento…',
-    color: 'Cor',
-    useCustomColor: 'Usar cor personalizada'
+    namePlaceholder: 'Nome do elemento…'
+  },
+  topBarStyleControls: {
+    rotate90: 'Girar 90°',
+    noColor: 'Sem cor',
+    customColor: 'Cor personalizada',
+    textSize: 'Tamanho do texto',
+    lineSpacing: 'Espaçamento entre linhas',
+    alignment: 'Alinhamento',
+    alignmentDisabled: 'Selecione uma caixa de texto para alinhar o texto',
+    alignLeft: 'Alinhar à esquerda',
+    alignCenter: 'Centralizar',
+    alignRight: 'Alinhar à direita',
+    alignTop: 'Alinhar ao topo',
+    alignMiddle: 'Alinhar ao meio',
+    alignBottom: 'Alinhar à base',
+    iconSize: 'Tamanho do ícone',
+    textColor: 'Cor do texto',
+    textColorDisabled:
+      'Selecione um nó, uma caixa de texto, um rótulo ou um rótulo de conexão para definir a cor do texto',
+    textSizeDisabled:
+      'Selecione um nó, uma caixa de texto, um rótulo ou um rótulo de conexão para definir o tamanho do texto',
+    labelSizeAllSelected: 'Tamanho do rótulo (todos os selecionados)',
+    textColorAllSelected: 'Cor do texto (todos os selecionados)',
+    armedToolPlaceFirst:
+      'O novo elemento usa o estilo padrão — posicione-o primeiro e depois estilize-o aqui',
+    decreaseLabelSize: 'Diminuir tamanho do rótulo',
+    increaseLabelSize: 'Aumentar tamanho do rótulo',
+    labelSize: 'Tamanho do rótulo',
+    decreaseSize: 'Diminuir tamanho',
+    increaseSize: 'Aumentar tamanho',
+    stepAll: 'Ajustar todos',
+    size: 'Tamanho',
+    bold: 'Negrito',
+    italic: 'Itálico',
+    underline: 'Sublinhado',
+    strikethrough: 'Tachado',
+    format: 'Negrito / itálico / sublinhado / tachado',
+    formatDisabled:
+      'Selecione um nó, uma caixa de texto, um rótulo ou um rótulo de conexão para formatar o texto',
+    lists: 'Listas',
+    listsDisabled: 'Selecione uma caixa de texto para usar listas',
+    bulletList: 'Lista com marcadores',
+    numberedList: 'Lista numerada',
+    background: 'Cor de fundo',
+    backgroundDisabled: 'Selecione um retângulo, rótulo ou caixa de texto para definir sua cor de fundo',
+    opacity: 'Opacidade',
+    border: 'Borda',
+    borderDisabled: 'Selecione um retângulo ou caixa de texto para definir sua borda',
+    lineStyle: 'Estilo de linha',
+    width: 'Largura',
+    borderColor: 'Cor da borda',
+    link: 'Link',
+    linkDisabled: 'Selecione um nó, conexão ou rótulo para adicionar um link',
+    linkSelection: 'Adicionar link ao texto selecionado',
+    linkDisabledTextBox: 'Selecione texto durante a edição para adicionar um link',
+    linkToWeb: 'Link para a web',
+    webLinkPlaceholder: 'https://…',
+    linkToDiagram: 'Link para o diagrama',
+    searchDiagrams: 'Pesquisar diagramas…',
+    openLinkedDiagram: 'Abrir diagrama vinculado',
+    showLabel: 'Mostrar rótulo',
+    hideLabel: 'Ocultar rótulo',
+    showHideLabelDisabled:
+      'Selecione um nó ou uma conexão para mostrar ou ocultar seu rótulo',
+    changeIconBulk: 'Alterar ícone aplica-se a um nó por vez',
+    changeIcon: 'Alterar ícone',
+    changeIconDisabled: 'Selecione um nó para alterar seu ícone',
+    iconSizeBulk:
+      'Tamanho do ícone edita um ícone por vez (redimensiona todos os nós que o usam)',
+    iconSizeDisabled: 'Selecione um nó para alterar o tamanho de seu ícone',
+    connectionColorPredraw: 'Cor para a próxima conexão que você desenhar',
+    connectionColor: 'Cor da conexão',
+    connectionColorDisabled:
+      'Selecione uma conexão (ou a ferramenta de conector) para definir sua cor',
+    lineOptionsPredraw: 'Estilo de linha para a próxima conexão que você desenhar',
+    lineOptions: 'Opções de linha',
+    lineOptionsDisabled:
+      'Selecione uma conexão (ou a ferramenta de conector) para definir suas opções de linha',
+    lineType: 'Tipo de linha',
+    showArrow: 'Mostrar seta',
+    showDottedLine: 'Mostrar linha pontilhada',
   },
   labelColorPicker: {
     customColor: 'Cor personalizada'
@@ -370,7 +418,10 @@ const locale: LocaleProps = {
     selected: '{count} selecionados'
   },
   modeHints: {
-    connector: 'Arraste entre os itens para conectar • Esc para cancelar'
+    connector: 'Arraste entre os itens para conectar • Esc para cancelar',
+    textBox: 'Clique para inserir uma caixa de texto • Esc para cancelar',
+    label: 'Clique para inserir um rótulo • Esc para cancelar',
+    rectangle: 'Arraste para desenhar um retângulo • Esc para cancelar'
   },
   previewLayerSwitcher: {
     layers: 'Camadas',
@@ -428,6 +479,9 @@ const locale: LocaleProps = {
     placeholder: 'Pesquisar ícones'
   },
   exportImageDialog: {
+    groupAppearance: 'Appearance',
+    groupBackground: 'Background',
+    groupCrop: 'Crop',
     title: 'Exportar como imagem',
     compatibilityTitle: 'Aviso de compatibilidade do navegador',
     compatibilityMessage:
@@ -437,7 +491,6 @@ const locale: LocaleProps = {
     options: 'Opções',
     showGrid: 'Mostrar grade',
     showLabels: 'Mostrar rótulos',
-    expandDescriptions: 'Expandir descrições',
     screenshotPreset: 'Captura de tela (recomendado)',
     scaleClamped: 'Tamanho de exportação reduzido para se ajustar ao limite de imagem do navegador:',
     cropToContent: 'Recortar ao conteúdo',
@@ -457,6 +510,7 @@ const locale: LocaleProps = {
     error: 'Não foi possível exportar a imagem'
   },
   toolMenu: {
+    label: 'Label',
     undo: 'Desfazer',
     redo: 'Refazer',
     select: 'Selecionar',
@@ -481,6 +535,7 @@ const locale: LocaleProps = {
   },
   canvasContextMenu: {
     addNote: 'Adicionar nota',
+    addLabel: 'Adicionar rótulo',
     details: 'Detalhes…',
     rename: 'Renomear',
     cut: 'Recortar',
@@ -489,7 +544,10 @@ const locale: LocaleProps = {
     duplicate: 'Duplicar',
     bringForward: 'Trazer para frente',
     sendBackward: 'Enviar para trás',
+    bringToFront: 'Trazer para a frente',
+    sendToBack: 'Enviar para trás',
     assignToLayer: 'Atribuir à camada',
+    fitToText: 'Ajustar ao texto',
     snapToGrid: 'Ajustar à grade',
     unsnapFromGrid: 'Desafixar da grade',
     disableCollision: 'Desativar colisão',
@@ -512,7 +570,8 @@ const locale: LocaleProps = {
     elements: 'Elementos',
     layers: 'Camadas',
     settings: 'Configurações',
-    openDiagramFirst: 'abra ou crie um diagrama primeiro'
+    openDiagramFirst: 'abra ou crie um diagrama primeiro',
+    collapsePanel: 'Recolher painel'
   },
   // D8 — LayersPanel
   layersPanel: {

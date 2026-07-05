@@ -4,6 +4,7 @@ import {
   Icon,
   Connector,
   TextBox,
+  Label,
   ViewItem,
   View,
   Rectangle,
@@ -42,7 +43,8 @@ export const VIEW_DEFAULTS: Required<
   items: [],
   connectors: [],
   rectangles: [],
-  textBoxes: []
+  textBoxes: [],
+  labels: []
 };
 
 export const VIEW_ITEM_DEFAULTS: Required<
@@ -50,16 +52,53 @@ export const VIEW_ITEM_DEFAULTS: Required<
     ViewItem,
     // ADR 0023 off-grid fields are omitted so they default to absent and
     // lean-save never writes them on a snapped item.
-    'id' | 'tile' | 'zIndex' | 'layerId' | 'showLabel' | 'offset' | 'snap' | 'collides'
+    | 'id'
+    | 'tile'
+    | 'zIndex'
+    | 'layerId'
+    | 'showLabel'
+    | 'offset'
+    | 'snap'
+    | 'collides'
+    // Label B/I/U/S default to absent (unstyled); lean-save omits them.
+    | 'labelBold'
+    | 'labelItalic'
+    | 'labelStrikethrough'
+    | 'labelUnderline'
+    // labelFontSize defaults to ABSENT so a new node renders at the single
+    // source of truth — LABEL_BASE_FONT_PX (18) — instead of baking a stale 14
+    // into every created node (which made the 2026-07-01 default bump a no-op
+    // for new nodes). Explicitly-sized labels still round-trip.
+    | 'labelFontSize'
   >
 > = {
   labelHeight: 80,
-  labelFontSize: 14,
   labelColor: ''
 };
 
 export const CONNECTOR_DEFAULTS: Required<
-  Omit<Connector, 'id' | 'color' | 'layerId' | 'name' | 'notes' | 'headerLink' | 'showLabel'>
+  Omit<
+    Connector,
+    | 'id'
+    | 'color'
+    | 'layerId'
+    | 'name'
+    | 'notes'
+    | 'headerLink'
+    | 'showLabel'
+    // Migration marker — set by seedConnectorLabel on load, never a creation
+    // default.
+    | 'nameSeeded'
+    // Name-label presentation overrides default to absent (midpoint, on-line,
+    // default size/colour) so lean-save never writes them on an unstyled name.
+    | 'nameLabelPosition'
+    | 'nameLabelHeight'
+    | 'nameLabelFontSize'
+    | 'nameLabelColor'
+    | 'nameLabelBold'
+    | 'nameLabelItalic'
+    | 'nameLabelStrikethrough'
+  >
 > = {
   width: 10,
   description: '',
@@ -83,20 +122,85 @@ export const CONNECTOR_SEARCH_OFFSET = { x: 1, y: 1 };
 export const TEXTBOX_DEFAULTS: Required<
   Omit<
     TextBox,
-    'id' | 'tile' | 'layerId' | 'name' | 'offset' | 'snap' | 'collides'
+    | 'id'
+    | 'tile'
+    | 'layerId'
+    | 'name'
+    | 'notes'
+    | 'offset'
+    | 'snap'
+    | 'collides'
+    // Legacy element-level style flags (ADR 0034 §4): folded into content at
+    // load, never written at creation — content HTML is the single formatting
+    // layer. Kept in the schema for round-trip only.
+    | 'isBold'
+    | 'isItalic'
+    | 'isUnderline'
+    // Line spacing defaults to absent (= TEXTBOX_LINE_HEIGHT); lean-save omits
+    // it on an untouched box.
+    | 'lineHeight'
+    // Manual size defaults to absent (= auto: hug the widest line / content
+    // height).
+    | 'width'
+    | 'height'
+    // Background fill defaults to absent (= transparent).
+    | 'backgroundColor'
+    // Border defaults to absent (= no border; style/width/opacity only apply
+    // once borderColor is set).
+    | 'borderColor'
+    | 'borderWidth'
+    | 'borderStyle'
+    | 'borderOpacity'
+    // Vertical alignment defaults to absent (= top).
+    | 'verticalAlign'
   >
 > = {
   orientation: 'X',
   fontSize: 0.6,
-  content: 'Text',
-  color: '',
-  isBold: false,
-  isItalic: false,
-  isUnderline: false
+  // A new text box is born EMPTY (ADR 0034 addendum 2026-07-03, Lucid parity):
+  // the inline editor shows a localized placeholder while blank, and a box
+  // whose edit session ends still-empty is deleted rather than committed — so
+  // no literal "Text" ever lands in the persisted model (which also kept this
+  // default canonical/un-i18n'd; '' sidesteps that constraint entirely).
+  content: '',
+  color: ''
+};
+
+// "Label" element preset (the Common deck) — a floating billboard chip (ADR
+// 0031), a first-class entity (not a text-box variant). Only `text` has a
+// non-absent default; all styling (px font, colour, B/I/S, background, z-order)
+// defaults to absent so an unstyled label round-trips lean.
+export const LABEL_DEFAULTS: Required<
+  Omit<
+    Label,
+    | 'id'
+    | 'tile'
+    | 'layerId'
+    | 'offset'
+    | 'snap'
+    | 'backgroundColor'
+    | 'backgroundOpacity'
+    | 'color'
+    | 'fontSize'
+    | 'isBold'
+    | 'isItalic'
+    | 'isStrikethrough'
+    | 'isUnderline'
+    | 'zIndex'
+    | 'headerLink'
+    | 'notes'
+  >
+> = {
+  text: 'Label'
 };
 
 export const TEXTBOX_PADDING = 0.2;
 export const TEXTBOX_FONT_WEIGHT = 'normal';
+// Default line spacing (unitless multiplier) for text-box content — Lucid/
+// Slides-parity 1.2 (ADR 0034 addendum 2026-07-03). Per-box override lives in
+// textBox.lineHeight; p/li carry NO extra vertical margins, so this multiplier
+// is the single knob for line spacing. Mirrored in isoMath height measurement.
+export const TEXTBOX_LINE_HEIGHT = 1.2;
 
 // Canvas rich-text typography scale (MQA #11). Mirrored in:
 //   - useTextBoxProps.ts (visual styles applied to dangerouslySetInnerHTML span)
@@ -118,6 +222,17 @@ export const CANVAS_RICHTEXT_SCALE = {
   pre: 0.9
 } as const;
 
+// Horizontal room (em, at the box's base font size) a list item's text is
+// inset from the box edge — the ONE list-geometry constant (ADR 0034 addendum
+// 2026-07-03). Three consumers must agree or list boxes mis-size (the
+// "one character per line" failure):
+//   - useTextBoxProps.ts   resting render: ul/ol padding-inline-start
+//   - TextBoxInlineEditor  editor: .ql-editor ol padding + marker metrics
+//   - isoMath.ts           width measurement: per-<li> indent allowance
+// 1.5em matches quill.snow.css's own `ol` padding, so the editor override
+// only needs to remove Quill's EXTRA per-li padding (its default totals 3em).
+export const CANVAS_RICHTEXT_LIST_INDENT_EM = 1.5;
+
 export const RECTANGLE_DEFAULTS: Required<
   Omit<
     Rectangle,
@@ -127,9 +242,19 @@ export const RECTANGLE_DEFAULTS: Required<
     | 'color'
     | 'layerId'
     | 'name'
+    | 'notes'
+    | 'zIndex'
     | 'offset'
     | 'snap'
     | 'collides'
+    // Border overrides default to absent (derived-from-fill look); lean-save
+    // omits them on an unstyled rectangle.
+    | 'borderColor'
+    | 'borderWidth'
+    | 'borderStyle'
+    // Opacity defaults to absent (= 1 = opaque); lean-save omits it.
+    | 'fillOpacity'
+    | 'borderOpacity'
   >
 > = {
   customColor: ''
@@ -141,6 +266,8 @@ export const MAX_ZOOM = 1;
 export const TRANSFORM_ANCHOR_SIZE = 30;
 export const TRANSFORM_CONTROLS_COLOR = '#0392ff';
 export const INITIAL_DATA: InitialData = {
+  // Persisted diagram title — canonical, NOT i18n'd (see the TextBox `content`
+  // note above): it lands in saved JSON. Localize only where it is DISPLAYED.
   title: 'Untitled',
   version: '',
   icons: [],

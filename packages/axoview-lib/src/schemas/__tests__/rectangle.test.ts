@@ -26,6 +26,44 @@ describe('rectangleSchema', () => {
     expect(lean.success).toBe(true);
     if (lean.success) expect(lean.data.offset).toBeUndefined();
   });
+  it('accepts an optional integer zIndex and rejects a non-integer', () => {
+    expect(
+      rectangleSchema.safeParse({
+        id: 'rect1',
+        from: { x: 0, y: 0 },
+        to: { x: 1, y: 1 },
+        zIndex: 3
+      }).success
+    ).toBe(true);
+    expect(
+      rectangleSchema.safeParse({
+        id: 'rect1',
+        from: { x: 0, y: 0 },
+        to: { x: 1, y: 1 },
+        zIndex: 1.5
+      }).success
+    ).toBe(false);
+  });
+  it('accepts fill/border opacity in [0,1], rejects out-of-range, stays optional', () => {
+    const base = { id: 'rect1', from: { x: 0, y: 0 }, to: { x: 1, y: 1 } };
+    expect(
+      rectangleSchema.safeParse({ ...base, fillOpacity: 0.5, borderOpacity: 0 })
+        .success
+    ).toBe(true);
+    expect(rectangleSchema.safeParse({ ...base, fillOpacity: 1.5 }).success).toBe(
+      false
+    );
+    expect(
+      rectangleSchema.safeParse({ ...base, borderOpacity: -0.1 }).success
+    ).toBe(false);
+    // Absent = opaque (zero-migration): omitting validates and leaves undefined.
+    const lean = rectangleSchema.safeParse(base);
+    expect(lean.success).toBe(true);
+    if (lean.success) {
+      expect(lean.data.fillOpacity).toBeUndefined();
+      expect(lean.data.borderOpacity).toBeUndefined();
+    }
+  });
   it('fails if from is missing', () => {
     const invalid = { id: 'rect1', to: { x: 1, y: 1 } };
     const result = rectangleSchema.safeParse(invalid);

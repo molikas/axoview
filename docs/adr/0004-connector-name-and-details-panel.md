@@ -4,7 +4,7 @@
 **Date:** 2026-05-03
 **Accepted on:** 2026-05-05
 **Supersedes:** none
-**Superseded by:** none
+**Superseded by:** [ADR 0030](0030-docked-style-controls-strip.md) in part — the connector **Style tab** is retired (the panel is now **Details / Notes**; visual styling lives in the docked style strip) and **Delete** moved to the [ADR 0027](0027-canvas-context-menu.md) context menu. The connector **name/notes parity** decision (the substance of this ADR) stands; the "Style tab" references below are historical (pre-0030).
 
 ## Context
 

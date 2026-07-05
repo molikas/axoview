@@ -7,6 +7,7 @@ import {
   ViewItem,
   Rectangle,
   TextBox,
+  Label,
   Connector,
   ConnectorAnchor
 } from 'src/types';
@@ -26,6 +27,9 @@ interface LassoScene {
   // The rendered textbox carries a computed `size`; we need it to hit-test the
   // box's full bounds (not just its origin tile).
   textBoxes: (TextBox & { size: Size })[];
+  // Optional so partial scenes (tests / older callers) don't crash; reads guard
+  // with `?? []`. The live useScene scene always provides it. ADR 0031.
+  labels?: Label[];
   connectors: Connector[];
 }
 
@@ -69,6 +73,15 @@ const getItemsInBounds = (
     const endTextTile = getTextBoxEndTile(textBox, textBox.size);
     if (doBoundsOverlap(textBox.tile, endTextTile, startTile, endTile)) {
       items.push({ type: 'TEXTBOX', id: textBox.id });
+    }
+  });
+
+  // Floating Labels (ADR 0031) hit on their anchor tile — a billboard chip has
+  // no iso footprint, so a marquee covering the tile selects the label.
+  (scene.labels ?? []).forEach((label) => {
+    if (!isItemInteractable({ type: 'LABEL', id: label.id })) return;
+    if (isWithinBounds(label.tile, [startTile, endTile])) {
+      items.push({ type: 'LABEL', id: label.id });
     }
   });
 
@@ -178,6 +191,11 @@ export const Lasso: ModeActions = {
               scene.textBoxes,
               item.id
             ).value.tile;
+          } else if (item.type === 'LABEL') {
+            initialTiles[item.id] = getItemByIdOrThrow(
+              scene.labels ?? [],
+              item.id
+            ).value.tile;
           } else if (item.type === 'RECTANGLE') {
             const r = getItemByIdOrThrow(scene.rectangles, item.id).value;
             initialRectangles[item.id] = { from: r.from, to: r.to };
@@ -283,19 +301,24 @@ export const Lasso: ModeActions = {
       return;
     }
 
-    // Keep the selection visible, reset dragging flag
-    uiState.actions.setMode(
-      produce(uiState.mode, (draft) => {
-        if (draft.type === 'LASSO') {
-          draft.isDragging = false;
-        }
-      })
-    );
-
     // Mirror the lasso selection into the persistent multi-selection slice so
     // tools that read selectedIds (delete, Ctrl+A, panel auto-hide, the
     // BottomDock "N selected" badge) see the same set. ADR-0006. Optional-call
     // so mode-action unit tests with a minimal actions mock keep working.
     uiState.actions.setSelectedIds?.(uiState.mode.selection!.items);
+
+    // 2026-07-02: after the marquee completes, drop back to CURSOR (keeping the
+    // selection) instead of lingering in LASSO. This makes post-lasso clicks
+    // behave like every other modelling tool (Figma/draw.io): a plain click on
+    // empty canvas — even INSIDE the former marquee box — clears the selection;
+    // a click on an element selects just it; dragging a selected element moves
+    // the whole group (Cursor multi-select drag); dragging empty space starts a
+    // new marquee. Previously LASSO stayed active and a click inside the box was
+    // swallowed as a group-drag prep, so it never reset (the reported bug).
+    uiState.actions.setMode({
+      type: 'CURSOR',
+      showCursor: true,
+      mousedownItem: null
+    });
   }
 };

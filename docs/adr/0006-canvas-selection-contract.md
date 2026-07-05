@@ -38,6 +38,7 @@ This means the panel-mounting code, the rename helpers, the F2 binding, and ever
 |---|---|
 | Left-click an item | replaces selection with `[item]` |
 | Ctrl/⌘+click an item | toggles `item` in/out of `selectedIds` |
+| **Shift+click an item** (2026-06-30, #10) | toggles `item` in/out of `selectedIds` — Shift is an additive-select modifier alongside Ctrl/⌘ (it was unbound on canvas; verified collision-free). Threaded via `uiState.mouse.modifiers?.shift` (§6). |
 | Left-click empty canvas | clears selection |
 | Ctrl/⌘+A | selects every visible + unlocked item in the active view |
 | Esc (no panel, no in-flight connector) | clears selection |
@@ -77,6 +78,14 @@ Four refinements from the canvas-UX overhaul (`docs/tactical/canvas-ux-overhaul.
 - **Lasso select-through (accepted trade-off).** Intersection semantics mean a marquee dragged *across* a large background rectangle now also selects it. This is intended — the complaint was the inverse (a lasso through a rectangle's middle failing to select). Figma-style **directional** lasso (drag-right = contain, drag-left = intersect) is a deferred refinement, not shipped here.
 
 New acceptance criteria: lasso through the middle of a long rectangle / over a text body selects it; canvas Ctrl-multi-select highlights LayersPanel rows; dragging a multi-selected row assigns every selected item to the layer; single-click does not mount the Properties panel; LayersPanel row double-click opens the panel (single-click only selects).
+
+### 8. 2026-07-04 addendum — selection chrome hidden during `DRAG_ITEMS` (RECT-1)
+
+Refines §5's visual contract. While a move is in flight (`mode === 'DRAG_ITEMS'`), [`TransformControlsManager`](../../packages/axoview-lib/src/components/TransformControlsManager/TransformControlsManager.tsx) renders **nothing** — the selection bounds/anchors disappear for the duration of the drag and reappear where the selection lands (the Lucid/Figma convention). This applies to **every** item type (node / rectangle / text box / floating Label).
+
+**Why:** an item move is a **CSS-only compositor preview** (`--ff-drag-dx/dy`, [ADR 0023](0023-off-grid-positioning-and-collision.md)) — the model tile commits only on mouseup. Model-driven chrome (which reads the committed tile) would otherwise sit **frozen at the origin tile** for the whole drag while the item follows the cursor, so the bounds visibly detach from the item (the RECT-1 report: *"when you drag the text the resize box stays in the original place"*). Returning null for the drag duration is both cheaper and correct. Probe-verified mid-drag (anchor count 0 while `--ff-drag-dx` is applied) with a clean post-drop commit (commit `1bac431`).
+
+New acceptance criterion: during a single- or multi-item drag, no transform bounds/anchors render at the origin tile; they reappear at the drop location on mouseup.
 
 ## Consequences
 

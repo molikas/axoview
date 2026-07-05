@@ -4,6 +4,10 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'This is an example text'
   },
+  rightSidebar: {
+    collapsePanel: 'Collapse panel',
+    emptyState: 'Select a node, connector or shape to view its properties'
+  },
   helpDialog: {
     title: 'Keyboard Shortcuts & Help',
     close: 'Close',
@@ -266,89 +270,131 @@ const locale: LocaleProps = {
     addPageDisabled: 'Page limit reached (5)'
   },
   nodePanel: {
-    details: 'Details',
-    style: 'Style',
     notes: 'Notes',
-    notesModified: 'Notes ●',
     close: 'Close',
-    openLink: 'Open link',
-    caption: 'Caption',
-    noCaption: 'No caption.',
-    showLabel: 'Show label',
-    hideLabel: 'Hide label',
-    showName: 'Show name',
-    hideName: 'Hide name'
   },
   nodeInfoTab: {
+    metadata: 'Metadata',
     name: 'Name',
     namePlaceholder: 'Node name…',
-    removeLink: 'Remove link',
-    addLink: 'Add link to name',
-    linkPlaceholder: 'https://…',
-    caption: 'Caption',
-    captionHint: 'Shown on the canvas below the node name',
-    openLink: 'Open link',
-    diagramLink: 'Link to diagram',
-    diagramLinkPlaceholder: 'Select a diagram…',
-    diagramLinkHint: 'Clicking this node in read-only mode opens the linked diagram',
-    openDiagramLink: 'Open linked diagram'
-  },
-  nodeStyleTab: {
-    icon: 'Icon',
-    close: 'Close',
-    change: 'Change…',
-    iconSize: 'Icon size',
-    labelFontSize: 'Label font size',
-    labelColor: 'Label color',
-    labelHeight: 'Label height'
+    label: 'Label',
+    labelPlaceholder: 'Label shown on the shape…',
+    openLink: 'Open link'
   },
   connectorControls: {
+    metadata: 'Metadata',
     close: 'Close',
-    labels: 'Labels',
-    details: 'Details',
-    style: 'Style',
     notes: 'Notes',
-    notesModified: 'Notes ●',
     name: 'Name',
     namePlaceholder: 'Edge label…',
-    additionalLabels: 'Additional labels',
+    labels: 'Labels',
     addLabel: 'Add label',
     noLabels: 'No labels yet.',
-    addLink: 'Add link',
-    removeLink: 'Remove link',
-    linkPlaceholder: 'https://…',
-    showLabel: 'Show label',
-    hideLabel: 'Hide label',
-    showName: 'Show name',
-    hideName: 'Hide name',
-    color: 'Color',
-    width: 'Width',
-    lineStyle: 'Line style',
-    lineType: 'Line type',
-    useCustomColor: 'Use custom color',
-    showArrow: 'Show arrow',
-    solid: 'Solid',
-    dotted: 'Dotted',
-    dashed: 'Dashed',
-    singleLine: 'Single line',
-    doubleLine: 'Double line',
-    doubleLineWithCircle: 'Double line with circle'
+    labelN: 'Label {count}',
+    positionHint:
+      'Drag a label on the canvas to position it; use the top bar for its text size and colour.',
+    line: 'Line',
+    line1: 'Line 1',
+    line2: 'Line 2'
   },
   textBoxControls: {
+    linkSearchPlaceholder: 'Search or paste a link',
+    linkCopy: 'Copy link',
+    linkCopied: 'Copied',
+    linkEdit: 'Edit link',
+    linkRemove: 'Remove link',
+    placeholder: 'Type something',
+    metadata: 'Metadata',
+    notes: 'Notes',
     close: 'Close',
     name: 'Name',
-    namePlaceholder: 'Element name…',
-    text: 'Text',
-    textSize: 'Text size',
-    textColor: 'Text color',
-    alignment: 'Alignment'
+    namePlaceholder: 'Name (shown in Layers)…'
   },
   rectangleControls: {
+    metadata: 'Metadata',
+    notes: 'Notes',
     close: 'Close',
     name: 'Name',
-    namePlaceholder: 'Element name…',
-    color: 'Color',
-    useCustomColor: 'Use Custom Color'
+    namePlaceholder: 'Name (shown in Layers)…'
+  },
+  topBarStyleControls: {
+    rotate90: 'Rotate 90°',
+    noColor: 'No color',
+    customColor: 'Custom color',
+    textSize: 'Text size',
+    lineSpacing: 'Line spacing',
+    alignment: 'Alignment',
+    alignmentDisabled: 'Select a text box to align text',
+    alignLeft: 'Align left',
+    alignCenter: 'Align center',
+    alignRight: 'Align right',
+    alignTop: 'Align top',
+    alignMiddle: 'Align middle',
+    alignBottom: 'Align bottom',
+    iconSize: 'Icon size',
+    textColor: 'Text color',
+    textColorDisabled:
+      'Select a node, text box, label, or connection label to set text color',
+    textSizeDisabled:
+      'Select a node, text box, label, or connection label to set text size',
+    labelSizeAllSelected: 'Label size (all selected)',
+    textColorAllSelected: 'Text color (all selected)',
+    armedToolPlaceFirst:
+      'The new element uses default styling — place it, then style it here',
+    decreaseLabelSize: 'Decrease label size',
+    increaseLabelSize: 'Increase label size',
+    labelSize: 'Label size',
+    decreaseSize: 'Decrease size',
+    increaseSize: 'Increase size',
+    stepAll: 'Step all',
+    size: 'Size',
+    bold: 'Bold',
+    italic: 'Italic',
+    underline: 'Underline',
+    strikethrough: 'Strikethrough',
+    format: 'Bold / italic / underline / strikethrough',
+    formatDisabled:
+      'Select a node, text box, label, or connection label to format text',
+    lists: 'Lists',
+    listsDisabled: 'Select a text box to use lists',
+    bulletList: 'Bulleted list',
+    numberedList: 'Numbered list',
+    background: 'Background color',
+    backgroundDisabled: 'Select a rectangle, label, or text box to set its background color',
+    opacity: 'Opacity',
+    border: 'Border',
+    borderDisabled: 'Select a rectangle or text box to set its border',
+    lineStyle: 'Line style',
+    width: 'Width',
+    borderColor: 'Border color',
+    link: 'Link',
+    linkDisabled: 'Select a node, connection, or label to add a link',
+    linkSelection: 'Link selected text',
+    linkDisabledTextBox: 'Select text while editing to add a link',
+    linkToWeb: 'Link to web',
+    webLinkPlaceholder: 'https://…',
+    linkToDiagram: 'Link to diagram',
+    searchDiagrams: 'Search diagrams…',
+    openLinkedDiagram: 'Open linked diagram',
+    showLabel: 'Show label',
+    hideLabel: 'Hide label',
+    showHideLabelDisabled: 'Select a node or connection to show or hide its label',
+    changeIconBulk: 'Change icon applies to one node at a time',
+    changeIcon: 'Change icon',
+    changeIconDisabled: 'Select a node to change its icon',
+    iconSizeBulk: 'Icon size edits one icon at a time (it resizes every node using that icon)',
+    iconSizeDisabled: 'Select a node to change its icon size',
+    connectionColorPredraw: 'Color for the next connection you draw',
+    connectionColor: 'Connection color',
+    connectionColorDisabled:
+      'Select a connection (or the connector tool) to set its color',
+    lineOptionsPredraw: 'Line style for the next connection you draw',
+    lineOptions: 'Line options',
+    lineOptionsDisabled:
+      'Select a connection (or the connector tool) to set its line options',
+    lineType: 'Line type',
+    showArrow: 'Show arrow',
+    showDottedLine: 'Show dotted line',
   },
   labelColorPicker: {
     customColor: 'Custom color'
@@ -369,7 +415,10 @@ const locale: LocaleProps = {
     selected: '{count} selected'
   },
   modeHints: {
-    connector: 'Drag between items to connect • Esc to cancel'
+    connector: 'Drag between items to connect • Esc to cancel',
+    textBox: 'Click to place a text box • Esc to cancel',
+    label: 'Click to place a label • Esc to cancel',
+    rectangle: 'Drag to draw a rectangle • Esc to cancel'
   },
   previewLayerSwitcher: {
     layers: 'Layers',
@@ -427,15 +476,17 @@ const locale: LocaleProps = {
     placeholder: 'Search icons'
   },
   exportImageDialog: {
+    groupAppearance: 'Appearance',
+    groupBackground: 'Background',
+    groupCrop: 'Crop',
     title: 'Export as image',
     compatibilityTitle: 'Browser Compatibility Notice',
     compatibilityMessage:
       'For best results, please use Chrome or Edge. Firefox currently has compatibility issues with the export feature.',
-    cropInstruction: 'Click and drag to select the area you want to export',
+    cropInstruction: 'Drag the edges or corners to set the crop area',
     options: 'Options',
     showGrid: 'Show grid',
     showLabels: 'Show labels',
-    expandDescriptions: 'Expand descriptions',
     screenshotPreset: 'Screenshot (recommended)',
     scaleClamped: 'Export size reduced to fit the browser image limit:',
     cropToContent: 'Crop to content',
@@ -446,7 +497,7 @@ const locale: LocaleProps = {
     recrop: 'Recrop',
     cropApplied: 'Crop applied successfully',
     applyCrop: 'Apply Crop',
-    clearSelection: 'Clear Selection',
+    clearSelection: 'Reset',
     cropHint:
       'Select an area to crop, or uncheck "Crop to content" to use full image',
     cancel: 'Cancel',
@@ -455,6 +506,7 @@ const locale: LocaleProps = {
     error: 'Could not export image'
   },
   toolMenu: {
+    label: 'Label',
     undo: 'Undo',
     redo: 'Redo',
     select: 'Select',
@@ -479,7 +531,8 @@ const locale: LocaleProps = {
   },
   // D1 — CanvasContextMenu (ADR 0027). Sentence case per ux §7.2.
   canvasContextMenu: {
-    addNote: 'Add note',
+    addNote: 'Add/edit note',
+    addLabel: 'Add label',
     details: 'Details…',
     rename: 'Rename',
     cut: 'Cut',
@@ -488,7 +541,10 @@ const locale: LocaleProps = {
     duplicate: 'Duplicate',
     bringForward: 'Bring forward',
     sendBackward: 'Send backward',
+    bringToFront: 'Bring to front',
+    sendToBack: 'Send to back',
     assignToLayer: 'Assign to layer',
+    fitToText: 'Fit to text',
     snapToGrid: 'Snap to grid',
     unsnapFromGrid: 'Unsnap from grid',
     disableCollision: 'Disable collision',
@@ -511,7 +567,8 @@ const locale: LocaleProps = {
     elements: 'Elements',
     layers: 'Layers',
     settings: 'Settings',
-    openDiagramFirst: 'open or create a diagram first'
+    openDiagramFirst: 'open or create a diagram first',
+    collapsePanel: 'Collapse panel'
   },
   // D8 — LayersPanel chrome. Sentence case; {count} is interpolated.
   layersPanel: {

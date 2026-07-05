@@ -3,6 +3,7 @@ import { Box, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { OpenInNew as OpenInNewIcon } from '@mui/icons-material';
 import { DEFAULT_LABEL_HEIGHT } from 'src/config';
+import { LABEL_BASE_FONT_PX } from 'src/config/labelSettings';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useIcon } from 'src/hooks/useIcon';
 import { ViewItem } from 'src/types';
@@ -14,8 +15,12 @@ import {
 } from 'src/stores/uiStateStore';
 import { useRenderProbe } from 'src/utils/renderProbe';
 import { ExpandableLabel } from 'src/components/Label/ExpandableLabel';
-import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
 import { useInlineRename } from 'src/hooks/useInlineRename';
+import {
+  EDIT_ELEMENT_LINK_EVENT,
+  HIDE_ELEMENT_LINK_EVENT
+} from 'src/utils/quillLinkShortcut';
+import { LABEL_LINK_COLOR } from 'src/utils/labelChip';
 import { stripHtmlTags } from 'src/utils/stripHtml';
 import { isLabelVisibleInPreview } from 'src/utils/previewLabelVisibility';
 
@@ -111,7 +116,7 @@ const LabelTitle = styled('p')(({ theme }) => ({
   ...theme.typography.body1,
   margin: 0,
   fontWeight: 600,
-  fontSize: 14,
+  fontSize: LABEL_BASE_FONT_PX,
   color: theme.palette.text.primary,
   wordBreak: 'break-word',
   overflowWrap: 'anywhere'
@@ -150,6 +155,10 @@ export const Node = memo(({ node, order }: Props) => {
           labelHeight={node.labelHeight}
           labelFontSize={node.labelFontSize}
           labelColor={node.labelColor}
+          labelBold={node.labelBold}
+          labelItalic={node.labelItalic}
+          labelStrikethrough={node.labelStrikethrough}
+          labelUnderline={node.labelUnderline}
         />
       </NodeTransform>
     </NodeShell>
@@ -171,6 +180,10 @@ interface NodeContentProps {
   labelHeight?: number;
   labelFontSize?: number;
   labelColor?: string;
+  labelBold?: boolean;
+  labelItalic?: boolean;
+  labelStrikethrough?: boolean;
+  labelUnderline?: boolean;
 }
 
 const NodeContent = memo(
@@ -179,7 +192,11 @@ const NodeContent = memo(
     showLabel,
     labelHeight,
     labelFontSize,
-    labelColor
+    labelColor,
+    labelBold,
+    labelItalic,
+    labelStrikethrough,
+    labelUnderline
   }: NodeContentProps) => {
     useRenderProbe('NodeContent', id);
     const modelItem = useModelItem(id);
@@ -259,22 +276,25 @@ const NodeContent = memo(
       [isEditable]
     );
 
-    const commitName = useCallback(
+    // ADR 0032 amendment: canvas inline-rename (F2 / double-click) edits the
+    // on-canvas `label`, not the identity `name` (which is renamed in Layers).
+    // The displayed/base value is the effective label text (`label ?? name`);
+    // clearing to empty writes `label: ''`, which hides the chip.
+    const commitLabel = useCallback(
       (raw: string) => {
         const next = raw.trim();
-        // Always commit whenever the value changed — including clearing to empty,
-        // which is how the user hides the label (matching the details-panel TextField).
-        if (next !== (modelItem?.name ?? '')) {
-          updateModelItem(id, { name: next });
+        const current = modelItem?.label ?? modelItem?.name ?? '';
+        if (next !== current) {
+          updateModelItem(id, { label: next });
         }
         setIsEditingName(false);
       },
-      [updateModelItem, id, modelItem?.name]
+      [updateModelItem, id, modelItem?.label, modelItem?.name]
     );
 
     const inlineRename = useInlineRename({
       active: isEditingName,
-      commit: commitName,
+      commit: commitLabel,
       cancel: () => setIsEditingName(false)
     });
 
@@ -286,18 +306,17 @@ const NodeContent = memo(
     // continues to work). The Node component just renders the visual; it does
     // not own the click handler anymore.
 
-    const description = useMemo(() => {
-      if (!modelItem?.description) return null;
-      const visible = stripHtmlTags(modelItem.description).trim();
-      return visible ? modelItem.description : null;
-    }, [modelItem?.description]);
+    // Option A: the node's rich `description`/caption is no longer a competing
+    // on-canvas text — it folds into Notes (migrated at load). The canvas label
+    // is now the single `name` text only. `description` stays in the schema for
+    // back-compat round-trip but is not rendered here.
 
     // MQA #22 / #25 (final polish): in preview mode, give clickable nodes the
     // pointing-finger cursor so the hover affordance matches Pan.mouseup's
     // panel-opening logic. "Clickable" === any content that would populate
-    // the readOnly NodePanel: linked diagram, external link, notes, or
-    // description. EDITABLE mode is unaffected (cursor stays inherit so the
-    // canvas tooling sets its own cursor).
+    // the readOnly NodePanel: linked diagram, external link, or notes.
+    // EDITABLE mode is unaffected (cursor stays inherit so the canvas tooling
+    // sets its own cursor).
     const visibleNotes = useMemo(() => {
       if (!modelItem?.notes) return null;
       const stripped = stripHtmlTags(modelItem.notes).trim();
@@ -306,21 +325,22 @@ const NodeContent = memo(
 
     const isClickableInReadonly =
       isReadonly &&
-      (!!modelItem?.link ||
-        !!modelItem?.headerLink ||
-        !!description ||
-        !!visibleNotes);
+      (!!modelItem?.link || !!modelItem?.headerLink || !!visibleNotes);
 
     if (!modelItem) {
       return null;
     }
+
+    // ADR 0032 amendment: the on-canvas text is the `label` field, falling back
+    // to the identity `name` when absent. The DOM overlay mirrors NodesCanvas.
+    const labelText = modelItem.label ?? modelItem.name;
 
     return (
       <NodeContentFlex
         style={{ cursor: isClickableInReadonly ? 'pointer' : 'inherit' }}
       >
         {labelVisible &&
-          (modelItem?.name || description || isEditingName) && (
+          (labelText || isEditingName) && (
             <div data-testid="node-label" onDoubleClick={startInlineEdit}>
               <ExpandableLabel
                 maxWidth={isEditingName ? 600 : 250}
@@ -344,8 +364,9 @@ const NodeContent = memo(
                 <LabelStack>
                   {isEditingName ? (
                     <Typography
-                      fontWeight={600}
-                      fontSize={labelFontSize ?? 14}
+                      fontWeight={labelBold ? 700 : 600}
+                      fontStyle={labelItalic ? 'italic' : 'normal'}
+                      fontSize={labelFontSize ?? LABEL_BASE_FONT_PX}
                       color={labelColor || 'text.primary'}
                       contentEditable
                       suppressContentEditableWarning
@@ -353,7 +374,37 @@ const NodeContent = memo(
                       onClick={(e) => e.stopPropagation()}
                       onDoubleClick={(e) => e.stopPropagation()}
                       onBlur={inlineRename.onBlur}
-                      onKeyDown={inlineRename.onKeyDown}
+                      onKeyDown={(e) => {
+                        // Ctrl/Cmd+K mid-rename → the inline link card at
+                        // this label (owner 2026-07-05; the node's
+                        // element-level headerLink). The card's focus steal
+                        // blurs this editor, committing the name first.
+                        if (
+                          (e.ctrlKey || e.metaKey) &&
+                          !e.altKey &&
+                          !e.shiftKey &&
+                          e.key.toLowerCase() === 'k'
+                        ) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const r = e.currentTarget.getBoundingClientRect();
+                          window.dispatchEvent(
+                            new CustomEvent(EDIT_ELEMENT_LINK_EVENT, {
+                              detail: {
+                                target: { kind: 'NODE', id },
+                                rect: {
+                                  left: r.left,
+                                  top: r.top,
+                                  width: r.width,
+                                  height: r.height
+                                }
+                              }
+                            })
+                          );
+                          return;
+                        }
+                        inlineRename.onKeyDown(e);
+                      }}
                       ref={inlineRename.setRef}
                       sx={{
                         outline: '1px solid rgba(0,0,0,0.3)',
@@ -366,32 +417,88 @@ const NodeContent = memo(
                         width: 'max-content',
                         maxWidth: '100%',
                         whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word'
+                        wordBreak: 'break-word',
+                        textDecoration:
+                          [
+                            labelUnderline ? 'underline' : null,
+                            labelStrikethrough ? 'line-through' : null
+                          ]
+                            .filter(Boolean)
+                            .join(' ') || 'none'
                       }}
                     >
-                      {modelItem?.name ?? ''}
+                      {labelText ?? ''}
                     </Typography>
                   ) : (
-                    modelItem?.name && (
+                    labelText && (
                       <LabelTitle
                         style={{
                           ...(labelFontSize
                             ? { fontSize: labelFontSize }
                             : null),
-                          ...(labelColor ? { color: labelColor } : null)
+                          ...(labelColor ? { color: labelColor } : null),
+                          ...(labelBold ? { fontWeight: 700 } : null),
+                          ...(labelItalic ? { fontStyle: 'italic' } : null),
+                          ...(labelStrikethrough || labelUnderline
+                            ? {
+                                textDecoration: [
+                                  labelUnderline ? 'underline' : null,
+                                  labelStrikethrough ? 'line-through' : null
+                                ]
+                                  .filter(Boolean)
+                                  .join(' ')
+                              }
+                            : null)
                         }}
                       >
                         {modelItem.headerLink ? (
+                          // Linked label (ADR 0034 addendum 2026-07-05):
+                          // link-blue unless a custom color is set; in EDIT
+                          // mode hovering shows the element link card and a
+                          // plain click SELECTS (Ctrl/Cmd+click opens — the
+                          // Docs convention shared with text-box links);
+                          // read-only keeps click-to-open.
                           <a
                             href="#"
                             data-testid="node-header-link"
                             title={modelItem.headerLink}
                             style={{
-                              color: 'inherit',
+                              color: labelColor ? 'inherit' : LABEL_LINK_COLOR,
                               textDecoration: 'underline',
                               cursor: 'pointer'
                             }}
                             onMouseDown={(e) => e.stopPropagation()}
+                            onMouseEnter={
+                              !isReadonly
+                                ? (e) => {
+                                    const r =
+                                      e.currentTarget.getBoundingClientRect();
+                                    window.dispatchEvent(
+                                      new CustomEvent(EDIT_ELEMENT_LINK_EVENT, {
+                                        detail: {
+                                          target: { kind: 'NODE', id },
+                                          rect: {
+                                            left: r.left,
+                                            top: r.top,
+                                            width: r.width,
+                                            height: r.height
+                                          },
+                                          mode: 'view',
+                                          hover: true
+                                        }
+                                      })
+                                    );
+                                  }
+                                : undefined
+                            }
+                            onMouseLeave={
+                              !isReadonly
+                                ? () =>
+                                    window.dispatchEvent(
+                                      new CustomEvent(HIDE_ELEMENT_LINK_EVENT)
+                                    )
+                                : undefined
+                            }
                             onClick={(e) => {
                               e.stopPropagation();
                               e.preventDefault();
@@ -400,19 +507,30 @@ const NodeContent = memo(
                               )
                                 ? modelItem.headerLink!
                                 : `https://${modelItem.headerLink}`;
-                              window.open(url, '_blank', 'noopener,noreferrer');
+                              if (isReadonly || e.ctrlKey || e.metaKey) {
+                                window.open(
+                                  url,
+                                  '_blank',
+                                  'noopener,noreferrer'
+                                );
+                                return;
+                              }
+                              // Edit mode plain click: select the node.
+                              uiStoreApi
+                                .getState()
+                                .actions.setItemControls({
+                                  type: 'ITEM',
+                                  id
+                                });
                             }}
                           >
-                            {modelItem.name}
+                            {labelText}
                           </a>
                         ) : (
-                          modelItem.name
+                          labelText
                         )}
                       </LabelTitle>
                     )
-                  )}
-                  {description && (
-                    <RichTextEditor value={description} readOnly />
                   )}
                 </LabelStack>
               </ExpandableLabel>

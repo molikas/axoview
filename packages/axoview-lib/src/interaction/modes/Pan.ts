@@ -23,6 +23,13 @@ const htmlHasVisibleText = (value: string | undefined): boolean => {
   return false;
 };
 
+// M2: in EXPLORABLE_READONLY a left-press is a click (opens the read-only
+// node popover), so a slight wobble during that press must NOT pan — otherwise
+// a click flings the diagram off-screen. Require this much left-button travel
+// (from the press point) before the pan engages. Matches the right-button
+// RIGHT_DRAG_THRESHOLD in usePanHandlers.
+const READONLY_LEFT_DRAG_THRESHOLD_PX = 4;
+
 // MQA #22 / #25 (3rd pass): in EXPLORABLE_READONLY the default cursor is the
 // normal arrow (not grab). Right-click drag is the pan affordance — left-click
 // opens the read-only details panel for the clicked node. EDITABLE mode keeps
@@ -73,6 +80,17 @@ export const Pan: ModeActions = {
     if (uiState.mode.type !== 'PAN') return;
 
     if (uiState.mouse.mousedown !== null) {
+      // M2: in read-only view mode, absorb sub-threshold left-button travel so a
+      // click-wobble pins the popover instead of flinging the diagram. Once the
+      // press has travelled past the slop the pan engages for the rest of the
+      // drag (total travel only grows). EDITABLE pan is unchanged.
+      if (uiState.editorMode === 'EXPLORABLE_READONLY') {
+        const down = uiState.mouse.mousedown.screen;
+        const here = uiState.mouse.position.screen;
+        const travel = Math.hypot(here.x - down.x, here.y - down.y);
+        if (travel < READONLY_LEFT_DRAG_THRESHOLD_PX) return;
+      }
+
       const newScroll = produce(uiState.scroll, (draft) => {
         draft.position = uiState.mouse.delta?.screen
           ? CoordsUtils.add(draft.position, uiState.mouse.delta.screen)

@@ -50,12 +50,17 @@ const previewAnchorTiles = new Map<string, Coords>();
 // the drag shows a CSS translate3d; committed to the model once on mouseup.
 const previewRectangles = new Map<string, { from: Coords; to: Coords }>();
 const previewTextBoxes = new Map<string, Coords>();
+// Label MOVE preview (ADR 0031) — labels are canvas-drawn (no [data-drag-id]),
+// so a group drag has no live CSS preview; target tiles accumulate here and
+// commit once on mouseup (single-label moves stay smooth via LabelHitLayer).
+const previewLabels = new Map<string, Coords>();
 // Off-grid residual (ADR 0023) accumulated per dragged item alongside the tile
 // preview. `undefined` = snapped (offset cleared on commit). Kept in lockstep
 // with the tile maps above and committed together on mouseup.
 const previewNodeOffsets = new Map<string, Coords | undefined>();
 const previewRectOffsets = new Map<string, Coords | undefined>();
 const previewTextBoxOffsets = new Map<string, Coords | undefined>();
+const previewLabelOffsets = new Map<string, Coords | undefined>();
 
 // An item is off-grid (commits a px residual instead of snapping) when the
 // global toggle is off OR the item itself is unsnapped (ADR 0023). Mirrors the
@@ -294,6 +299,7 @@ const dragItems = (
 ) => {
   const itemRefs = items.filter((item) => item.type === 'ITEM');
   const textBoxRefs = items.filter((item) => item.type === 'TEXTBOX');
+  const labelRefs = items.filter((item) => item.type === 'LABEL');
   const rectangleRefs = items.filter((item) => item.type === 'RECTANGLE');
   const anchorRefs = items.filter((item) => item.type === 'CONNECTOR_ANCHOR');
 
@@ -382,6 +388,19 @@ const dragItems = (
     }
   }
 
+  // Labels (ADR 0031): canvas-drawn, so no CSS preview — accumulate the target
+  // tile (whole-tile group delta) and commit on mouseup; the existing off-grid
+  // offset is preserved.
+  if (labelRefs.length > 0) {
+    for (const item of labelRefs) {
+      const init = initialTiles[item.id];
+      if (!init) continue;
+      const label = scene.labels.find((l) => l.id === item.id);
+      previewLabels.set(item.id, CoordsUtils.add(init, mouseOffset));
+      previewLabelOffsets.set(item.id, label?.offset);
+    }
+  }
+
   // Anchor reconnect (rare) keeps the reducer path.
   commitAnchorReconnects(anchorReconnects, tile, scene);
 };
@@ -395,9 +414,11 @@ export const DragItems: ModeActions = {
     previewAnchorTiles.clear();
     previewRectangles.clear();
     previewTextBoxes.clear();
+    previewLabels.clear();
     previewNodeOffsets.clear();
     previewRectOffsets.clear();
     previewTextBoxOffsets.clear();
+    previewLabelOffsets.clear();
     // D4-4: snapshot external (non-dragged) item occupancy once for the whole
     // drag — it's invariant, so the per-frame collision check reads this instead
     // of rebuilding an O(N) Set each frame.
@@ -422,9 +443,11 @@ export const DragItems: ModeActions = {
     previewAnchorTiles.clear();
     previewRectangles.clear();
     previewTextBoxes.clear();
+    previewLabels.clear();
     previewNodeOffsets.clear();
     previewRectOffsets.clear();
     previewTextBoxOffsets.clear();
+    previewLabelOffsets.clear();
     externalOccupiedCache = null;
     scene.commitDragTransaction();
   },
@@ -514,13 +537,24 @@ export const DragItems: ModeActions = {
         }))
       );
     }
+    if (previewLabels.size > 0) {
+      scene.batchUpdateLabelTiles(
+        Array.from(previewLabels, ([id, tile]) => ({
+          id,
+          tile,
+          offset: previewLabelOffsets.get(id)
+        }))
+      );
+    }
     clearAllCssOffsets();
     previewTiles.clear();
     previewRectangles.clear();
     previewTextBoxes.clear();
+    previewLabels.clear();
     previewNodeOffsets.clear();
     previewRectOffsets.clear();
     previewTextBoxOffsets.clear();
+    previewLabelOffsets.clear();
     externalOccupiedCache = null;
 
     // Commit waypoint anchor preview tiles. Group by parent connector so we

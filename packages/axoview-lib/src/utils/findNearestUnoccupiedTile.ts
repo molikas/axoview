@@ -1,5 +1,7 @@
 import { Coords } from 'src/types';
-import { useScene } from 'src/hooks/useScene';
+// Type-only: utils must not carry a runtime edge into hooks/ (layering; the
+// value import wired 30 of the 61 madge cycle chains — technical-review-2026-07 §8d).
+import type { useScene } from 'src/hooks/useScene';
 import { TileIndex, buildTileIndex, itemCollides } from 'src/utils/spatialIndex';
 
 /**

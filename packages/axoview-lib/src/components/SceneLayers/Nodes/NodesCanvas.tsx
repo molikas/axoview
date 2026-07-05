@@ -19,11 +19,9 @@ import { useModelStoreApi } from 'src/stores/modelStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { resolveRenderOrder } from 'src/utils/renderOrder';
-import {
-  htmlToPlainText,
-  decodeHtmlEntities
-} from 'src/utils/htmlToPlainText';
+import { decodeHtmlEntities } from 'src/utils/htmlToPlainText';
 import { isLabelVisibleInPreview } from 'src/utils/previewLabelVisibility';
+import { LABEL_LINK_COLOR } from 'src/utils/labelChip';
 
 // ---------------------------------------------------------------------------
 // NodesCanvas — T2 PoC. Imperative Canvas2D draw of the node layer (icon image
@@ -70,11 +68,9 @@ interface ChipStyle {
   text: string; // palette.text.primary
 }
 // Label chip layout — mirrors ExpandableLabel/Label: maxWidth 250 (inner = 250 −
-// 2·padX), the name→description gap (Node.tsx LabelStack gap: 8), and the
-// collapsed content area STANDARD_LABEL_HEIGHT (80) before truncation.
+// 2·padX). Option A: the on-canvas label is the node's `name` only — the rich
+// caption (description) folds into Notes and is no longer drawn here.
 const LABEL_CHIP_MAX_W = 250;
-const LABEL_STACK_GAP = 8;
-const LABEL_MAX_CONTENT_H = 80;
 const PROJ_W = PROJECTED_TILE_SIZE.width;
 // D3-3: below this zoom, labels are too small to read — draw icons only and skip
 // the whole label block (stalk + measure + chip). The biggest per-frame win when
@@ -85,10 +81,7 @@ const LABEL_LOD_ZOOM = 0.25;
 // D3-2: per-node label layout, measured once and reused across pan/zoom redraws.
 interface LabelLayout {
   nameFont: string;
-  descFont: string;
   nameLineH: number;
-  descLineH: number;
-  descLines: string[];
   chipW: number;
   chipH: number;
 }
@@ -124,37 +117,6 @@ const roundRectPath = (
   ctx.closePath();
 };
 
-// Description (modelItem.description is rich-text HTML) → plain text, mirroring
-// Node.tsx's strip-and-trim visibility test. Strips tags AND decodes entities so
-// Quill's literal `&nbsp;`/`&amp;` don't reach ctx.fillText (the DOM path decodes
-// for free when it renders the HTML; A1). Returns '' when there's no visible text
-// so the canvas matches the DOM's "render the description only if non-empty".
-const getDescriptionText = (html: string | undefined): string =>
-  htmlToPlainText(html).replace(/\s+/g, ' ').trim();
-
-// Greedy word-wrap to a pixel width. `ctx.font` must already be set by the
-// caller. Long single words overflow rather than breaking mid-word (acceptable —
-// matches the DOM chip's word-break default closely enough for the label case).
-const wrapText = (
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  maxWidth: number
-): string[] => {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let cur = '';
-  for (const w of words) {
-    const test = cur ? `${cur} ${w}` : w;
-    if (cur && ctx.measureText(test).width > maxWidth) {
-      lines.push(cur);
-      cur = w;
-    } else {
-      cur = test;
-    }
-  }
-  if (cur) lines.push(cur);
-  return lines;
-};
 // Fixed iso projection matrix (X-orientation) — mirrors getProjectionCss / the
 // NonIsometricIcon transform.
 const ISO: [number, number, number, number, number, number] = [
@@ -401,6 +363,11 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       // renderer (no per-node DOM label exists in canvas mode) — same idea as
       // data-label-scale / data-draw-count.
       let labelsDrawn = 0;
+      // Count of drawn labels that painted the linked (headerLink) style —
+      // published so a test can prove the resting canvas paint applied
+      // link-blue/underline without pixel-sampling the canvas (owner
+      // 2026-07-05: an unselected node's link was previously invisible here).
+      let linkedLabelsDrawn = 0;
       // A2: true only when EVERY node that should paint an icon had a decoded
       // bitmap available this frame. getImage returns null for a non-empty icon
       // URL whose Image hasn't finished decoding yet — that node's icon is
@@ -425,11 +392,12 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
           ? { x: base.x + node.offset.x, y: base.y + node.offset.y }
           : base;
 
-        // Name is plain text rendered verbatim by the DOM overlay, so decode
-        // entities only — never strip tags (a name like `List<T>` must survive
-        // and stay identical to the DOM Node it swaps with). A1 / hybrid parity.
-        const name = decodeHtmlEntities(modelItem.name);
-        const descText = getDescriptionText(modelItem.description);
+        // On-canvas label text (ADR 0032 amendment): the `label` field, falling
+        // back to the identity `name` when absent (pre-seed / brand-new nodes).
+        // Plain text rendered verbatim by the DOM overlay, so decode entities
+        // only — never strip tags (a label like `List<T>` must survive and stay
+        // identical to the DOM Node it swaps with). A1 / hybrid parity.
+        const name = decodeHtmlEntities(modelItem.label ?? modelItem.name);
         const hasLabel =
           isLabelVisibleInPreview(
             node.showLabel !== false,
@@ -437,7 +405,7 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
             previewHideLabels
           ) &&
           !exportHideLabels &&
-          Boolean(name || descText);
+          Boolean(name);
         const labelHeight = node.labelHeight ?? DEFAULT_LABEL_HEIGHT;
 
         // ----- stalk line (D2-1) -----
@@ -504,65 +472,49 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
           ctx.restore();
         }
 
-        // ----- static label (name + description) -----
+        // ----- static label (name only) -----
+        // Option A: the on-canvas label is the node's `name` only. The former
+        // rich-text caption (description) folds into Notes and is not drawn.
         if (hasLabel && drawLabels) {
           labelsDrawn += 1;
           const chip = chipStyleRef.current;
           const fontSize = node.labelFontSize || LABEL_BASE_FONT_PX;
+          const labelBold = node.labelBold;
+          const labelItalic = node.labelItalic;
+          const labelStrike = node.labelStrikethrough;
+          // A linked node name READS as a link at rest, not just once selected
+          // (owner 2026-07-05: the canvas paint had no headerLink awareness at
+          // all, so an unselected node's link was invisible AND unclickable —
+          // mirrors the drawLabelChip treatment for floating Labels).
+          const linked = !!modelItem.headerLink;
+          if (linked) linkedLabelsDrawn += 1;
+          const labelUnder = node.labelUnderline || linked;
+          const textColor =
+            node.labelColor || (linked ? LABEL_LINK_COLOR : chip.text);
 
-          // D3-2: measure once per (fontSize, name, description) and reuse across
-          // pan/zoom redraws — chip geometry is content-determined. The live
-          // counter-scale is applied at draw time below, not baked into the cache.
-          const layoutKey = `${fontSize}:${(name ?? '').length}:${name ?? ''}:${descText}`;
+          // D3-2: measure once per (fontSize, weight, style, name) and reuse
+          // across pan/zoom redraws — chip geometry is content-determined. Bold /
+          // italic change the measured width, so they're part of the key. The
+          // live counter-scale is applied at draw time below, not baked here.
+          const layoutKey = `${fontSize}:${labelBold ? 1 : 0}:${
+            labelItalic ? 1 : 0
+          }:${name}`;
           let layout = labelLayoutCacheRef.current.get(layoutKey);
           if (!layout) {
             const innerMaxW = LABEL_CHIP_MAX_W - chip.padX * 2;
-            const nameFont = `600 ${fontSize}px ${DEFAULT_FONT_FAMILY}`;
-            // Description renders at the base body size (the RichTextEditor is not
-            // affected by the node's labelFontSize), regular weight.
-            const descFont = `400 ${LABEL_BASE_FONT_PX}px ${DEFAULT_FONT_FAMILY}`;
+            const nameFont = `${labelItalic ? 'italic ' : ''}${
+              labelBold ? 700 : 600
+            } ${fontSize}px ${DEFAULT_FONT_FAMILY}`;
             const nameLineH = fontSize * 1.5;
-            const descLineH = LABEL_BASE_FONT_PX * 1.4;
 
             ctx.font = nameFont;
-            const nameW = name ? ctx.measureText(name).width : 0;
+            const nameW = ctx.measureText(name).width;
 
-            // Wrap the description to the chip's inner max width, then clip to the
-            // collapsed content height (the DOM truncates with a gradient at 80px;
-            // the canvas simply drops the overflow lines).
-            let descLines: string[] = [];
-            if (descText) {
-              ctx.font = descFont;
-              descLines = wrapText(ctx, descText, innerMaxW);
-              const budget =
-                LABEL_MAX_CONTENT_H - (name ? nameLineH + LABEL_STACK_GAP : 0);
-              const maxLines = Math.max(1, Math.floor(budget / descLineH));
-              if (descLines.length > maxLines)
-                descLines = descLines.slice(0, maxLines);
-            }
-            let descW = 0;
-            for (const line of descLines) {
-              descW = Math.max(descW, ctx.measureText(line).width);
-            }
-
-            const innerW = Math.min(innerMaxW, Math.max(nameW, descW));
+            const innerW = Math.min(innerMaxW, nameW);
             const chipW = innerW + chip.padX * 2;
-            const contentH =
-              (name ? nameLineH : 0) +
-              (descLines.length
-                ? (name ? LABEL_STACK_GAP : 0) + descLines.length * descLineH
-                : 0);
-            const chipH = contentH + chip.padY * 2;
+            const chipH = nameLineH + chip.padY * 2;
 
-            layout = {
-              nameFont,
-              descFont,
-              nameLineH,
-              descLineH,
-              descLines,
-              chipW,
-              chipH
-            };
+            layout = { nameFont, nameLineH, chipW, chipH };
             const cache = labelLayoutCacheRef.current;
             // Bound memory: pan/zoom adds no entries (same labels hit) — only edits
             // do, so this rarely trips; clear wholesale when it does.
@@ -570,15 +522,7 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
             cache.set(layoutKey, layout);
           }
 
-          const {
-            nameFont,
-            descFont,
-            nameLineH,
-            descLineH,
-            descLines,
-            chipW,
-            chipH
-          } = layout;
+          const { nameFont, nameLineH, chipW, chipH } = layout;
 
           ctx.save();
           // Chip is centered horizontally on the tile and floats `labelHeight`
@@ -595,24 +539,36 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
           ctx.strokeStyle = chip.border;
           ctx.stroke();
 
-          // Text is left-aligned inside the (tile-centered) chip, mirroring the
-          // DOM LabelStack column. Name (bold) then description lines.
+          // Name (bold), left-aligned inside the (tile-centered) chip.
           ctx.textAlign = 'left';
           ctx.textBaseline = 'top';
           const textX = x0 + chip.padX;
-          let textY = y0 + chip.padY;
-          if (name) {
-            ctx.font = nameFont;
-            ctx.fillStyle = node.labelColor || chip.text;
-            ctx.fillText(name, textX, textY + (nameLineH - fontSize) / 2);
-            textY += nameLineH + (descLines.length ? LABEL_STACK_GAP : 0);
-          }
-          if (descLines.length) {
-            ctx.font = descFont;
-            ctx.fillStyle = chip.text;
-            for (const line of descLines) {
-              ctx.fillText(line, textX, textY + (descLineH - LABEL_BASE_FONT_PX) / 2);
-              textY += descLineH;
+          const textY = y0 + chip.padY;
+          ctx.font = nameFont;
+          ctx.fillStyle = textColor;
+          ctx.fillText(name, textX, textY + (nameLineH - fontSize) / 2);
+          // Strikethrough / underline: Canvas2D has no text-decoration, so draw
+          // the rules manually across the chip's inner width — strike at the
+          // line's vertical centre, underline just under the baseline (ADR 0034
+          // O1; underline is decoration-only, so the layout cache key is
+          // unaffected).
+          if (labelStrike || labelUnder) {
+            ctx.strokeStyle = textColor;
+            ctx.lineWidth = Math.max(1, fontSize / 14);
+            const innerW = chipW - chip.padX * 2;
+            if (labelStrike) {
+              const strikeY = textY + nameLineH / 2;
+              ctx.beginPath();
+              ctx.moveTo(textX, strikeY);
+              ctx.lineTo(textX + innerW, strikeY);
+              ctx.stroke();
+            }
+            if (labelUnder) {
+              const underY = textY + (nameLineH - fontSize) / 2 + fontSize * 0.95;
+              ctx.beginPath();
+              ctx.moveTo(textX, underY);
+              ctx.lineTo(textX + innerW, underY);
+              ctx.stroke();
             }
           }
           ctx.restore();
@@ -626,6 +582,7 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       // gone.
       canvas.dataset.drawCount = String(drawn);
       canvas.dataset.labelsDrawn = String(labelsDrawn);
+      canvas.dataset.linkedLabelsDrawn = String(linkedLabelsDrawn);
       // A2: "true" only when no node's icon was skipped this frame for a
       // not-yet-decoded bitmap. The image-export dialog awaits this before its
       // first capture so canvas-drawn icons aren't dropped from the snapshot

@@ -70,4 +70,65 @@ test.describe('File explorer — delete with confirmation (Finding #8)', () => {
     // Dialog auto-closes when confirmDelete sets deleteConfirm = null.
     await expect(confirmDialog).toBeHidden();
   });
+
+  test('right-click on EMPTY tree space opens the same menu for the open diagram (owner 2026-07-04)', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const explorer = new FileExplorerPOM(page);
+    await explorer.open();
+
+    // No row is tree-selected; the open diagram ("Untitled") is the fallback
+    // target. Right-click far below the single row — previously this surfaced
+    // the browser's native menu and did nothing app-side.
+    const tree = byAxoviewId(page, 'file-explorer-tree');
+    const box = await tree.boundingBox();
+    expect(box).not.toBeNull();
+    await tree.click({
+      button: 'right',
+      position: { x: 40, y: box!.height - 12 }
+    });
+
+    // The row context menu (ContextMenuItems) opens, anchored at the pointer —
+    // node actions for the open diagram PLUS the VS Code-style create block.
+    const deleteMenuItem = byAxoviewId(page, 'file-explorer-context-menu-delete');
+    await deleteMenuItem.waitFor({ state: 'visible', timeout: 3_000 });
+    await expect(
+      byAxoviewId(page, 'file-explorer-context-menu-new-diagram')
+    ).toBeVisible();
+    await expect(
+      byAxoviewId(page, 'file-explorer-context-menu-refresh')
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(deleteMenuItem).toBeHidden();
+  });
+
+  test('empty-space menu: New folder creates at the root via the inline name input', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const explorer = new FileExplorerPOM(page);
+    await explorer.open();
+
+    const tree = byAxoviewId(page, 'file-explorer-tree');
+    const box = await tree.boundingBox();
+    expect(box).not.toBeNull();
+    await tree.click({
+      button: 'right',
+      position: { x: 40, y: box!.height - 12 }
+    });
+    await byAxoviewId(page, 'file-explorer-context-menu-new-folder').click();
+
+    // The __pending__ node mounts arborist's inline-rename input.
+    const input = explorer.renameInput();
+    await input.waitFor({ state: 'visible', timeout: 3_000 });
+    await input.fill('E2EFolder');
+    await input.press('Enter');
+
+    await expect(explorer.getRowByName('E2EFolder', 'folder')).toBeVisible({
+      timeout: 5_000
+    });
+  });
 });

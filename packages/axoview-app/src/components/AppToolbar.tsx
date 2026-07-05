@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -18,7 +18,9 @@ import {
   ShareOutlined as ShareIcon,
   Close as CloseIcon,
   SlideshowOutlined as PresentIcon,
-  ArrowBack as ArrowBackIcon
+  ArrowBack as ArrowBackIcon,
+  VisibilityOutlined as ShowControlsIcon,
+  VisibilityOffOutlined as HideControlsIcon
 } from '@mui/icons-material';
 import { useAppStorage } from '../providers/AppStorageContext';
 import { useDiagramLifecycle } from '../providers/DiagramLifecycleProvider';
@@ -36,13 +38,38 @@ export function AppToolbar() {
     isReadonlyUrl,
     currentDiagram,
     setSidebarTogglePortalTarget,
+    setStyleControlsPortalTarget,
     handleSaveClick,
     handlePreviewClick
   } = useDiagramLifecycle();
 
   const shareButtonRef = useRef<HTMLButtonElement>(null);
-  const [sidebarPortalSet, setSidebarPortalSet] = useState(false);
+  // STABLE portal-target refs. The toolbar's editable branch unmounts when you
+  // enter presentation and remounts on return — a *new* DOM node each time. The
+  // old "set once" guard left the portal pointing at the stale (detached) node,
+  // so the top-bar style strip + sidebar toggle vanished after a present→edit
+  // round-trip. A stable callback ref fires on every mount (el) / unmount (null),
+  // so the portal target always tracks the live node. (Stable identity → React
+  // does not re-invoke it on ordinary re-renders, so no thrash.)
+  const setStyleControlsRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      // Re-point on every (re)mount of the toolbar's editable branch. On unmount
+      // (el === null) we keep the old target — harmless, since the portal isn't
+      // rendered in presentation; the next mount supplies the live node.
+      if (el) setStyleControlsPortalTarget(el);
+    },
+    [setStyleControlsPortalTarget]
+  );
+  const setSidebarToggleRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      if (el) setSidebarTogglePortalTarget(el);
+    },
+    [setSidebarTogglePortalTarget]
+  );
   const [showSharePopover, setShowSharePopover] = useState(false);
+  // View-only "hide all controls" — bridged to the lib (separate store) via a
+  // window event the lib's UiOverlay listens for. Local state drives the button.
+  const [hideControls, setHideControls] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [shareLoading, setShareLoading] = useState(false);
@@ -165,10 +192,20 @@ export function AppToolbar() {
       {/* CENTER: intentionally empty per ADR 0005 */}
       <Box className="toolbar-center" sx={{ flex: 1 }} />
 
-      {/* RIGHT: four groups separated by dividers */}
+      {/* RIGHT: four groups separated by dividers. F1 (ADR 0005 overflow
+          amendment, 2026-07-03): the cluster may SHRINK — the Group-1 style
+          slot below absorbs the squeeze by scrolling horizontally, while the
+          Save / Export / Share / Present / sidebar-toggle groups keep their
+          natural width, so Groups 2–4 stay reachable at any viewport width. */}
       <Box
         className="toolbar-right"
-        sx={{ display: 'flex', alignItems: 'center', gap: 0.25, flexShrink: 0 }}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.25,
+          flexShrink: 1,
+          minWidth: 0
+        }}
       >
         {isReadonlyUrl ? (
           <Stack direction="row" spacing={1} alignItems="center" sx={{ ml: 1 }}>
@@ -177,6 +214,38 @@ export function AppToolbar() {
               variant="outlined"
               size="small"
             />
+            <Tooltip
+              title={t(
+                hideControls
+                  ? 'toolbar.showControls'
+                  : 'toolbar.hideControls',
+                hideControls ? 'Show controls' : 'Hide controls'
+              )}
+            >
+              <IconButton
+                size="small"
+                aria-pressed={hideControls}
+                onClick={() => {
+                  const next = !hideControls;
+                  setHideControls(next);
+                  window.dispatchEvent(
+                    new CustomEvent('axoview-set-hide-view-controls', {
+                      detail: { hide: next }
+                    })
+                  );
+                }}
+                data-axoview-id="toolbar-hide-view-controls"
+                sx={{
+                  ...(hideControls && { bgcolor: 'action.selected' })
+                }}
+              >
+                {hideControls ? (
+                  <ShowControlsIcon sx={{ fontSize: 18 }} />
+                ) : (
+                  <HideControlsIcon sx={{ fontSize: 18 }} />
+                )}
+              </IconButton>
+            </Tooltip>
             {(location.state as { fromEditor?: boolean } | null)?.fromEditor && (
               <Tooltip title={t('toolbar.backToEditing', 'Back to editing')}>
                 <Button
@@ -193,7 +262,32 @@ export function AppToolbar() {
           </Stack>
         ) : (
           <>
-            {/* Group 1: View modes — reserved per ADR 0005, future ADRs add controls here */}
+            {/* Group 1: View modes / Format (ADR 0005 reserved slot). Style
+                controls strip — portal filled by the lib's UiOverlay (which has
+                the selection store + scene actions in scope). Controls self-gate
+                on the current selection. F1: this is the ONE compressible
+                group — below the natural breakpoint it scrolls horizontally
+                (thin scrollbar) instead of clipping the document actions. */}
+            <Box
+              ref={setStyleControlsRef}
+              data-axoview-id="toolbar-style-slot"
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                flexShrink: 1,
+                minWidth: 0,
+                overflowX: 'auto',
+                overflowY: 'hidden',
+                scrollbarWidth: 'thin',
+                '&::-webkit-scrollbar': { height: 4 },
+                '&::-webkit-scrollbar-thumb': {
+                  bgcolor: 'action.disabled',
+                  borderRadius: 2
+                }
+              }}
+            />
+
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
             {/* Group 2: Save group — Save action (local mode only) + StatusCluster */}
             {!serverStorageAvailable && (
@@ -261,12 +355,8 @@ export function AppToolbar() {
 
             {/* Group 4: Sidebar toggle — Properties panel portal */}
             <Box
-              ref={(el: HTMLDivElement | null) => {
-                if (el && !sidebarPortalSet) {
-                  setSidebarPortalSet(true);
-                  setSidebarTogglePortalTarget(el);
-                }
-              }}
+              ref={setSidebarToggleRef}
+              data-axoview-id="toolbar-sidebar-slot"
               sx={{ display: 'inline-flex', alignItems: 'center' }}
             />
           </>

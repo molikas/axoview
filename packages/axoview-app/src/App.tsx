@@ -8,7 +8,8 @@ import {
 } from 'react';
 import { BrowserRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Box } from '@mui/material';
+import { Box, IconButton, Tooltip } from '@mui/material';
+import { ChevronLeft as CollapseIcon } from '@mui/icons-material';
 import {
   Axoview,
   allLocales,
@@ -105,7 +106,7 @@ function EditorPage() {
 }
 
 function EditorShell() {
-  const { i18n } = useTranslation('app');
+  const { t, i18n } = useTranslation('app');
   const navigate = useNavigate();
   const { storage, serverStorageAvailable, isInitialized } = useAppStorage();
   const {
@@ -115,6 +116,7 @@ function EditorShell() {
     handleModelUpdated,
     handleCreateBlankDiagram,
     sidebarTogglePortalTarget,
+    styleControlsPortalTarget,
     isReadonlyUrl,
     isPublicShareUrl,
     readonlyLoadFailed,
@@ -330,7 +332,7 @@ function EditorShell() {
         <div className="axoview-container" style={{ position: 'relative' }}>
           <Axoview
             ref={axoviewRef}
-            initialData={frozenInitialDataRef.current}
+            initialData={frozenInitialDataRef.current ?? undefined}
             onModelUpdated={handleModelUpdated}
             exposeStoreBridge={perfMonitoringEnabled}
             editorMode={isReadonlyUrl ? 'EXPLORABLE_READONLY' : 'EDITABLE'}
@@ -339,6 +341,7 @@ function EditorShell() {
             iconUsageScan={iconUsageScan}
             linkedDiagrams={linkedDiagrams}
             sidebarTogglePortalTarget={sidebarTogglePortalTarget}
+            styleControlsPortalTarget={styleControlsPortalTarget}
             languageSelector={<ChangeLanguage />}
             bottomDockEnd={<DiagnosticsToggleButton />}
             suppressOnboardingHints={!!currentDiagram || isReadonlyUrl}
@@ -348,26 +351,76 @@ function EditorShell() {
           />
           {/* File Explorer overlay — sits to the right of the LeftDock strip,
               never pushes the canvas. z=15 places it above the canvas/empty
-              state but below the strip (z=20) and BottomDock (z=20). */}
+              state but below the strip (z=20) and BottomDock (z=20). The Box
+              wrapper is the hover/focus group that reveals the collapse tab
+              (§2.3) — the tab is a DOM child so hovering it (even where it
+              protrudes past the 280px edge) keeps the group hovered. */}
           {!isReadonlyUrl && fileExplorerOpen && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                bottom: 40,
-                left: 40,
-                width: 280,
-                zIndex: 15,
-                display: 'flex',
-                flexDirection: 'column',
-                background: 'var(--mui-palette-background-paper, #fff)',
-                borderRight: '1px solid rgba(0,0,0,0.12)',
-                boxShadow: '0 0 8px rgba(0,0,0,0.08)',
-                overflow: 'hidden'
+            <Box
+              sx={{
+                '&:hover .ax-collapse-tab, &:focus-within .ax-collapse-tab': {
+                  opacity: 1,
+                  pointerEvents: 'all'
+                }
               }}
             >
-              <FileExplorer />
-            </div>
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  bottom: 40,
+                  left: 40,
+                  width: 280,
+                  zIndex: 15,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  background: 'var(--mui-palette-background-paper, #fff)',
+                  borderRight: '1px solid rgba(0,0,0,0.12)',
+                  boxShadow: '0 0 8px rgba(0,0,0,0.08)',
+                  overflow: 'hidden'
+                }}
+              >
+                <FileExplorer />
+              </div>
+              {/* Collapse tab — edge tab on the explorer's right border,
+                  invisible + inert until the explorer is hovered/focused. When a
+                  working panel stacks on top (z=20) it is occluded, which reads
+                  as "collapse the outermost panel first". */}
+              <Tooltip
+                title={t('fileExplorer.collapse', 'Collapse panel')}
+                placement="right"
+              >
+                <IconButton
+                  className="ax-collapse-tab"
+                  size="small"
+                  onClick={() => setFileExplorerOpen(false)}
+                  data-axoview-id="file-explorer-collapse"
+                  sx={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: 40 + 280 - 1,
+                    transform: 'translateY(-50%)',
+                    zIndex: 16,
+                    width: 22,
+                    height: 44,
+                    borderRadius: '0 8px 8px 0',
+                    bgcolor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderLeft: 'none',
+                    color: 'text.secondary',
+                    boxShadow: 2,
+                    opacity: 0,
+                    pointerEvents: 'none',
+                    transition: 'opacity 120ms ease',
+                    '&:hover': { bgcolor: 'action.hover', color: 'text.primary' },
+                    '&:focus-visible': { opacity: 1, pointerEvents: 'all' }
+                  }}
+                >
+                  <CollapseIcon sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Tooltip>
+            </Box>
           )}
           {!currentDiagram && !isReadonlyUrl && (
             // Confined to the canvas area only — leaves left strip (40px) and
@@ -384,7 +437,7 @@ function EditorShell() {
               }}
             >
               <EmptyStateScreen
-                onCreate={() => handleCreateBlankDiagram(null)}
+                onCreate={() => handleCreateBlankDiagram(null, 'elements')}
                 onImport={handleImportClick}
               />
             </div>

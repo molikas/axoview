@@ -4,6 +4,10 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'Ini adalah contoh teks'
   },
+  rightSidebar: {
+    collapsePanel: 'Ciutkan panel',
+    emptyState: 'Pilih node, konektor, atau bentuk untuk melihat propertinya'
+  },
   helpDialog: {
     title: 'Pintasan Keyboard & Bantuan',
     close: 'Tutup',
@@ -266,89 +270,132 @@ const locale: LocaleProps = {
     addPageDisabled: 'Batas halaman tercapai (5)'
   },
   nodePanel: {
-    details: 'Detail',
-    style: 'Gaya',
     notes: 'Catatan',
-    notesModified: 'Catatan ●',
     close: 'Tutup',
-    openLink: 'Buka tautan',
-    caption: 'Keterangan',
-    noCaption: 'Tidak ada keterangan.',
-    showLabel: 'Tampilkan label',
-    hideLabel: 'Sembunyikan label',
-    showName: 'Tampilkan nama',
-    hideName: 'Sembunyikan nama'
   },
   nodeInfoTab: {
+    metadata: 'Metadata',
     name: 'Nama',
     namePlaceholder: 'Nama node…',
-    removeLink: 'Hapus tautan',
-    addLink: 'Tambahkan tautan ke nama',
-    linkPlaceholder: 'https://…',
-    caption: 'Keterangan',
-    captionHint: 'Ditampilkan di kanvas di bawah nama node',
-    openLink: 'Buka tautan',
-    diagramLink: 'Tautan ke diagram',
-    diagramLinkPlaceholder: 'Pilih diagram…',
-    diagramLinkHint: 'Mengklik node ini dalam mode baca-saja membuka diagram yang ditautkan',
-    openDiagramLink: 'Buka diagram yang ditautkan'
-  },
-  nodeStyleTab: {
-    icon: 'Ikon',
-    close: 'Tutup',
-    change: 'Ubah…',
-    iconSize: 'Ukuran ikon',
-    labelFontSize: 'Ukuran font label',
-    labelColor: 'Warna label',
-    labelHeight: 'Tinggi label'
+    label: 'Label',
+    labelPlaceholder: 'Label yang ditampilkan pada bentuk…',
+    openLink: 'Buka tautan'
   },
   connectorControls: {
+    metadata: 'Metadata',
     close: 'Tutup',
-    labels: 'Label',
-    details: 'Detail',
-    style: 'Gaya',
     notes: 'Catatan',
-    notesModified: 'Catatan ●',
     name: 'Nama',
     namePlaceholder: 'Label sisi…',
-    additionalLabels: 'Label tambahan',
+    labels: 'Label',
     addLabel: 'Tambah label',
     noLabels: 'Belum ada label.',
-    addLink: 'Tambah tautan',
-    removeLink: 'Hapus tautan',
-    linkPlaceholder: 'https://…',
-    showLabel: 'Tampilkan label',
-    hideLabel: 'Sembunyikan label',
-    showName: 'Tampilkan nama',
-    hideName: 'Sembunyikan nama',
-    color: 'Warna',
-    width: 'Tebal',
-    lineStyle: 'Gaya garis',
-    lineType: 'Tipe garis',
-    useCustomColor: 'Gunakan warna kustom',
-    showArrow: 'Tampilkan panah',
-    solid: 'Penuh',
-    dotted: 'Titik',
-    dashed: 'Putus-putus',
-    singleLine: 'Garis tunggal',
-    doubleLine: 'Garis ganda',
-    doubleLineWithCircle: 'Garis ganda dengan lingkaran'
+    labelN: 'Label {count}',
+    positionHint: 'Seret label di kanvas untuk memposisikannya; gunakan bilah atas untuk ukuran teks dan warnanya.',
+    line: 'Garis',
+    line1: 'Garis 1',
+    line2: 'Garis 2'
   },
   textBoxControls: {
+    linkSearchPlaceholder: 'Cari atau tempel tautan',
+    linkCopy: 'Salin tautan',
+    linkCopied: 'Disalin',
+    linkEdit: 'Edit tautan',
+    linkRemove: 'Hapus tautan',
+    placeholder: 'Ketik sesuatu',
+    metadata: 'Metadata',
+    notes: 'Catatan',
     close: 'Tutup',
     name: 'Nama',
-    namePlaceholder: 'Nama elemen…',
-    text: 'Teks',
-    textSize: 'Ukuran teks',
-    textColor: 'Warna teks',
-    alignment: 'Perataan'
+    namePlaceholder: 'Nama elemen…'
   },
   rectangleControls: {
+    metadata: 'Metadata',
+    notes: 'Catatan',
     close: 'Tutup',
     name: 'Nama',
-    namePlaceholder: 'Nama elemen…',
-    color: 'Warna',
-    useCustomColor: 'Gunakan Warna Kustom'
+    namePlaceholder: 'Nama elemen…'
+  },
+  topBarStyleControls: {
+    rotate90: 'Putar 90°',
+    noColor: 'Tanpa warna',
+    customColor: 'Warna kustom',
+    textSize: 'Ukuran teks',
+    lineSpacing: 'Spasi baris',
+    alignment: 'Perataan',
+    alignmentDisabled: 'Pilih kotak teks untuk meratakan teks',
+    alignLeft: 'Rata kiri',
+    alignCenter: 'Rata tengah',
+    alignRight: 'Rata kanan',
+    alignTop: 'Rata atas',
+    alignMiddle: 'Rata tengah vertikal',
+    alignBottom: 'Rata bawah',
+    iconSize: 'Ukuran ikon',
+    textColor: 'Warna teks',
+    textColorDisabled:
+      'Pilih node, kotak teks, label, atau label koneksi untuk mengatur warna teks',
+    textSizeDisabled:
+      'Pilih node, kotak teks, label, atau label koneksi untuk mengatur ukuran teks',
+    labelSizeAllSelected: 'Ukuran label (semua terpilih)',
+    textColorAllSelected: 'Warna teks (semua terpilih)',
+    armedToolPlaceFirst:
+      'Elemen baru memakai gaya bawaan — letakkan dulu, lalu atur gayanya di sini',
+    decreaseLabelSize: 'Perkecil ukuran label',
+    increaseLabelSize: 'Perbesar ukuran label',
+    labelSize: 'Ukuran label',
+    decreaseSize: 'Perkecil ukuran',
+    increaseSize: 'Perbesar ukuran',
+    stepAll: 'Ubah semua',
+    size: 'Ukuran',
+    bold: 'Tebal',
+    italic: 'Miring',
+    underline: 'Garis bawah',
+    strikethrough: 'Coret',
+    format: 'Tebal / miring / garis bawah / coret',
+    formatDisabled:
+      'Pilih node, kotak teks, label, atau label koneksi untuk memformat teks',
+    lists: 'Daftar',
+    listsDisabled: 'Pilih kotak teks untuk menggunakan daftar',
+    bulletList: 'Daftar poin',
+    numberedList: 'Daftar bernomor',
+    background: 'Warna latar belakang',
+    backgroundDisabled: 'Pilih persegi panjang, label, atau kotak teks untuk mengatur warna latar belakangnya',
+    opacity: 'Opasitas',
+    border: 'Batas',
+    borderDisabled: 'Pilih persegi panjang atau kotak teks untuk mengatur bingkainya',
+    lineStyle: 'Gaya garis',
+    width: 'Tebal',
+    borderColor: 'Warna batas',
+    link: 'Tautan',
+    linkDisabled: 'Pilih node, koneksi, atau label untuk menambahkan tautan',
+    linkSelection: 'Tautkan teks yang dipilih',
+    linkDisabledTextBox: 'Pilih teks saat mengedit untuk menambahkan tautan',
+    linkToWeb: 'Tautan ke web',
+    webLinkPlaceholder: 'https://…',
+    linkToDiagram: 'Tautan ke diagram',
+    searchDiagrams: 'Cari diagram…',
+    openLinkedDiagram: 'Buka diagram yang ditautkan',
+    showLabel: 'Tampilkan label',
+    hideLabel: 'Sembunyikan label',
+    showHideLabelDisabled:
+      'Pilih node atau koneksi untuk menampilkan atau menyembunyikan labelnya',
+    changeIconBulk: 'Ubah ikon berlaku untuk satu node dalam satu waktu',
+    changeIcon: 'Ubah ikon',
+    changeIconDisabled: 'Pilih node untuk mengubah ikonnya',
+    iconSizeBulk:
+      'Ukuran ikon mengedit satu ikon dalam satu waktu (mengubah ukuran semua node yang memakainya)',
+    iconSizeDisabled: 'Pilih node untuk mengubah ukuran ikonnya',
+    connectionColorPredraw: 'Warna untuk koneksi berikutnya yang Anda gambar',
+    connectionColor: 'Warna koneksi',
+    connectionColorDisabled:
+      'Pilih koneksi (atau alat konektor) untuk mengatur warnanya',
+    lineOptionsPredraw: 'Gaya garis untuk koneksi berikutnya yang Anda gambar',
+    lineOptions: 'Opsi garis',
+    lineOptionsDisabled:
+      'Pilih koneksi (atau alat konektor) untuk mengatur opsi garisnya',
+    lineType: 'Tipe garis',
+    showArrow: 'Tampilkan panah',
+    showDottedLine: 'Tampilkan garis putus-putus',
   },
   labelColorPicker: {
     customColor: 'Warna kustom'
@@ -369,7 +416,10 @@ const locale: LocaleProps = {
     selected: '{count} dipilih'
   },
   modeHints: {
-    connector: 'Seret antar item untuk menghubungkan • Esc untuk membatalkan'
+    connector: 'Seret antar item untuk menghubungkan • Esc untuk membatalkan',
+    textBox: 'Klik untuk menempatkan kotak teks • Esc untuk batal',
+    label: 'Klik untuk menempatkan label • Esc untuk batal',
+    rectangle: 'Seret untuk menggambar persegi panjang • Esc untuk batal'
   },
   previewLayerSwitcher: {
     layers: 'Lapisan',
@@ -428,6 +478,9 @@ const locale: LocaleProps = {
     placeholder: 'Cari ikon'
   },
   exportImageDialog: {
+    groupAppearance: 'Appearance',
+    groupBackground: 'Background',
+    groupCrop: 'Crop',
     title: 'Ekspor sebagai gambar',
     compatibilityTitle: 'Pemberitahuan Kompatibilitas Browser',
     compatibilityMessage:
@@ -436,7 +489,6 @@ const locale: LocaleProps = {
     options: 'Opsi',
     showGrid: 'Tampilkan kisi',
     showLabels: 'Tampilkan label',
-    expandDescriptions: 'Perluas deskripsi',
     screenshotPreset: 'Tangkapan layar (disarankan)',
     scaleClamped: 'Ukuran ekspor dikurangi agar sesuai dengan batas gambar browser:',
     cropToContent: 'Pangkas ke konten',
@@ -456,6 +508,7 @@ const locale: LocaleProps = {
     error: 'Tidak dapat mengekspor gambar'
   },
   toolMenu: {
+    label: 'Label',
     undo: 'Batalkan',
     redo: 'Ulangi',
     select: 'Pilih',
@@ -480,6 +533,7 @@ const locale: LocaleProps = {
   },
   canvasContextMenu: {
     addNote: 'Tambah catatan',
+    addLabel: 'Tambah label',
     details: 'Detail…',
     rename: 'Ganti nama',
     cut: 'Potong',
@@ -488,7 +542,10 @@ const locale: LocaleProps = {
     duplicate: 'Duplikat',
     bringForward: 'Bawa ke depan',
     sendBackward: 'Kirim ke belakang',
+    bringToFront: 'Bawa ke depan',
+    sendToBack: 'Kirim ke belakang',
     assignToLayer: 'Tetapkan ke lapisan',
+    fitToText: 'Sesuaikan dengan teks',
     snapToGrid: 'Jepret ke kisi',
     unsnapFromGrid: 'Lepas dari kisi',
     disableCollision: 'Nonaktifkan tabrakan',
@@ -511,7 +568,8 @@ const locale: LocaleProps = {
     elements: 'Elemen',
     layers: 'Lapisan',
     settings: 'Pengaturan',
-    openDiagramFirst: 'buka atau buat diagram terlebih dahulu'
+    openDiagramFirst: 'buka atau buat diagram terlebih dahulu',
+    collapsePanel: 'Ciutkan panel'
   },
   // D8 — LayersPanel
   layersPanel: {

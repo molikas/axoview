@@ -4,6 +4,10 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'Questo è un testo di esempio'
   },
+  rightSidebar: {
+    collapsePanel: 'Comprimi pannello',
+    emptyState: 'Seleziona un nodo, un connettore o una forma per visualizzarne le proprietà'
+  },
   helpDialog: {
     title: 'Scorciatoie da tastiera e aiuto',
     close: 'Chiudi',
@@ -269,89 +273,134 @@ const locale: LocaleProps = {
     addPageDisabled: 'Limite di pagine raggiunto (5)'
   },
   nodePanel: {
-    details: 'Dettagli',
-    style: 'Stile',
     notes: 'Note',
-    notesModified: 'Note ●',
     close: 'Chiudi',
-    openLink: 'Apri link',
-    caption: 'Didascalia',
-    noCaption: 'Nessuna didascalia.',
-    showLabel: 'Mostra etichetta',
-    hideLabel: 'Nascondi etichetta',
-    showName: 'Mostra nome',
-    hideName: 'Nascondi nome'
   },
   nodeInfoTab: {
+    metadata: 'Metadati',
     name: 'Nome',
     namePlaceholder: 'Nome del nodo…',
-    removeLink: 'Rimuovi link',
-    addLink: 'Aggiungi link al nome',
-    linkPlaceholder: 'https://…',
-    caption: 'Didascalia',
-    captionHint: 'Mostrato sulla tela sotto il nome del nodo',
-    openLink: 'Apri link',
-    diagramLink: 'Collegamento al diagramma',
-    diagramLinkPlaceholder: 'Seleziona un diagramma…',
-    diagramLinkHint: 'Facendo clic su questo nodo in modalità sola lettura si apre il diagramma collegato',
-    openDiagramLink: 'Apri diagramma collegato'
-  },
-  nodeStyleTab: {
-    icon: 'Icona',
-    close: 'Chiudi',
-    change: 'Cambia…',
-    iconSize: 'Dimensione icona',
-    labelFontSize: 'Dimensione font etichetta',
-    labelColor: 'Colore etichetta',
-    labelHeight: 'Altezza etichetta'
+    label: 'Etichetta',
+    labelPlaceholder: 'Etichetta mostrata sulla forma…',
+    openLink: 'Apri link'
   },
   connectorControls: {
+    metadata: 'Metadati',
     close: 'Chiudi',
-    labels: 'Etichette',
-    details: 'Dettagli',
-    style: 'Stile',
     notes: 'Note',
-    notesModified: 'Note ●',
     name: 'Nome',
     namePlaceholder: "Etichetta dell'arco…",
-    additionalLabels: 'Etichette aggiuntive',
+    labels: 'Etichette',
     addLabel: 'Aggiungi etichetta',
     noLabels: 'Nessuna etichetta ancora.',
-    addLink: 'Aggiungi link',
-    removeLink: 'Rimuovi link',
-    linkPlaceholder: 'https://…',
-    showLabel: 'Mostra etichetta',
-    hideLabel: 'Nascondi etichetta',
-    showName: 'Mostra nome',
-    hideName: 'Nascondi nome',
-    color: 'Colore',
-    width: 'Spessore',
-    lineStyle: 'Stile linea',
-    lineType: 'Tipo di linea',
-    useCustomColor: 'Usa colore personalizzato',
-    showArrow: 'Mostra freccia',
-    solid: 'Continua',
-    dotted: 'Punteggiata',
-    dashed: 'Tratteggiata',
-    singleLine: 'Linea singola',
-    doubleLine: 'Linea doppia',
-    doubleLineWithCircle: 'Linea doppia con cerchio'
+    labelN: 'Etichetta {count}',
+    positionHint: "Trascina un'etichetta sulla tela per posizionarla; usa la barra superiore per la dimensione e il colore del testo.",
+    line: 'Linea',
+    line1: 'Linea 1',
+    line2: 'Linea 2'
   },
   textBoxControls: {
+    linkSearchPlaceholder: 'Cerca o incolla un link',
+    linkCopy: 'Copia link',
+    linkCopied: 'Copiato',
+    linkEdit: 'Modifica link',
+    linkRemove: 'Rimuovi link',
+    placeholder: 'Scrivi qualcosa',
+    metadata: 'Metadati',
+    notes: 'Note',
     close: 'Chiudi',
     name: 'Nome',
-    namePlaceholder: "Nome dell'elemento…",
-    text: 'Testo',
-    textSize: 'Dimensione testo',
-    textColor: 'Colore testo',
-    alignment: 'Allineamento'
+    namePlaceholder: "Nome dell'elemento…"
   },
   rectangleControls: {
+    metadata: 'Metadati',
+    notes: 'Note',
     close: 'Chiudi',
     name: 'Nome',
-    namePlaceholder: "Nome dell'elemento…",
-    color: 'Colore',
-    useCustomColor: 'Usa colore personalizzato'
+    namePlaceholder: "Nome dell'elemento…"
+  },
+  topBarStyleControls: {
+    rotate90: 'Ruota di 90°',
+    noColor: 'Nessun colore',
+    customColor: 'Colore personalizzato',
+    textSize: 'Dimensione testo',
+    lineSpacing: 'Interlinea',
+    alignment: 'Allineamento',
+    alignmentDisabled: 'Seleziona una casella di testo per allineare il testo',
+    alignLeft: 'Allinea a sinistra',
+    alignCenter: 'Centra',
+    alignRight: 'Allinea a destra',
+    alignTop: 'Allinea in alto',
+    alignMiddle: 'Allinea al centro verticale',
+    alignBottom: 'Allinea in basso',
+    iconSize: 'Dimensione icona',
+    textColor: 'Colore testo',
+    textColorDisabled:
+      "Seleziona un nodo, una casella di testo, un'etichetta o un'etichetta di connessione per impostare il colore del testo",
+    textSizeDisabled:
+      "Seleziona un nodo, una casella di testo, un'etichetta o un'etichetta di connessione per impostare la dimensione del testo",
+    labelSizeAllSelected: 'Dimensione etichetta (tutti i selezionati)',
+    textColorAllSelected: 'Colore del testo (tutti i selezionati)',
+    armedToolPlaceFirst:
+      'Il nuovo elemento usa lo stile predefinito — posizionalo prima, poi stilizzalo qui',
+    decreaseLabelSize: 'Riduci dimensione etichetta',
+    increaseLabelSize: 'Aumenta dimensione etichetta',
+    labelSize: 'Dimensione etichetta',
+    decreaseSize: 'Riduci dimensione',
+    increaseSize: 'Aumenta dimensione',
+    stepAll: 'Applica a tutti',
+    size: 'Dimensione',
+    bold: 'Grassetto',
+    italic: 'Corsivo',
+    underline: 'Sottolineato',
+    strikethrough: 'Barrato',
+    format: 'Grassetto / corsivo / sottolineato / barrato',
+    formatDisabled:
+      "Seleziona un nodo, una casella di testo, un'etichetta o un'etichetta di connessione per formattare il testo",
+    lists: 'Elenchi',
+    listsDisabled: 'Seleziona una casella di testo per usare gli elenchi',
+    bulletList: 'Elenco puntato',
+    numberedList: 'Elenco numerato',
+    background: 'Colore di sfondo',
+    backgroundDisabled:
+      "Seleziona un rettangolo, un'etichetta o una casella di testo per impostarne il colore di sfondo",
+    opacity: 'Opacità',
+    border: 'Bordo',
+    borderDisabled: 'Seleziona un rettangolo o una casella di testo per impostarne il bordo',
+    lineStyle: 'Stile linea',
+    width: 'Spessore',
+    borderColor: 'Colore bordo',
+    link: 'Link',
+    linkDisabled: "Seleziona un nodo, una connessione o un'etichetta per aggiungere un link",
+    linkSelection: 'Collega il testo selezionato',
+    linkDisabledTextBox:
+      'Seleziona del testo durante la modifica per aggiungere un link',
+    linkToWeb: 'Link al web',
+    webLinkPlaceholder: 'https://…',
+    linkToDiagram: 'Link al diagramma',
+    searchDiagrams: 'Cerca diagrammi…',
+    openLinkedDiagram: 'Apri diagramma collegato',
+    showLabel: 'Mostra etichetta',
+    hideLabel: 'Nascondi etichetta',
+    showHideLabelDisabled:
+      "Seleziona un nodo o una connessione per mostrarne o nasconderne l'etichetta",
+    changeIconBulk: "La modifica dell'icona si applica a un nodo alla volta",
+    changeIcon: 'Cambia icona',
+    changeIconDisabled: "Seleziona un nodo per cambiarne l'icona",
+    iconSizeBulk:
+      "La dimensione dell'icona modifica un'icona alla volta (ridimensiona tutti i nodi che la usano)",
+    iconSizeDisabled: "Seleziona un nodo per cambiarne la dimensione dell'icona",
+    connectionColorPredraw: 'Colore per la prossima connessione che disegni',
+    connectionColor: 'Colore connessione',
+    connectionColorDisabled:
+      'Seleziona una connessione (o lo strumento connettore) per impostarne il colore',
+    lineOptionsPredraw: 'Stile linea per la prossima connessione che disegni',
+    lineOptions: 'Opzioni linea',
+    lineOptionsDisabled:
+      'Seleziona una connessione (o lo strumento connettore) per impostarne le opzioni di linea',
+    lineType: 'Tipo di linea',
+    showArrow: 'Mostra freccia',
+    showDottedLine: 'Mostra linea punteggiata',
   },
   labelColorPicker: {
     customColor: 'Colore personalizzato'
@@ -372,7 +421,10 @@ const locale: LocaleProps = {
     selected: '{count} selezionati'
   },
   modeHints: {
-    connector: 'Trascina tra gli elementi per collegare • Esc per annullare'
+    connector: 'Trascina tra gli elementi per collegare • Esc per annullare',
+    textBox: 'Fai clic per posizionare una casella di testo • Esc per annullare',
+    label: "Fai clic per posizionare un'etichetta • Esc per annullare",
+    rectangle: 'Trascina per disegnare un rettangolo • Esc per annullare'
   },
   previewLayerSwitcher: {
     layers: 'Livelli',
@@ -431,6 +483,9 @@ const locale: LocaleProps = {
     placeholder: 'Cerca icone'
   },
   exportImageDialog: {
+    groupAppearance: 'Appearance',
+    groupBackground: 'Background',
+    groupCrop: 'Crop',
     title: 'Esporta come immagine',
     compatibilityTitle: 'Avviso di compatibilità del browser',
     compatibilityMessage:
@@ -439,7 +494,6 @@ const locale: LocaleProps = {
     options: 'Opzioni',
     showGrid: 'Mostra griglia',
     showLabels: 'Mostra etichette',
-    expandDescriptions: 'Espandi descrizioni',
     screenshotPreset: 'Screenshot (consigliato)',
     scaleClamped: 'Dimensione di esportazione ridotta per rientrare nel limite immagine del browser:',
     cropToContent: 'Ritaglia al contenuto',
@@ -459,6 +513,7 @@ const locale: LocaleProps = {
     error: "Impossibile esportare l'immagine"
   },
   toolMenu: {
+    label: 'Label',
     undo: 'Annulla',
     redo: 'Ripeti',
     select: 'Seleziona',
@@ -483,6 +538,7 @@ const locale: LocaleProps = {
   },
   canvasContextMenu: {
     addNote: 'Aggiungi nota',
+    addLabel: 'Aggiungi etichetta',
     details: 'Dettagli…',
     rename: 'Rinomina',
     cut: 'Taglia',
@@ -491,7 +547,10 @@ const locale: LocaleProps = {
     duplicate: 'Duplica',
     bringForward: 'Porta avanti',
     sendBackward: 'Porta indietro',
+    bringToFront: 'Porta in primo piano',
+    sendToBack: 'Porta in secondo piano',
     assignToLayer: 'Assegna al livello',
+    fitToText: 'Adatta al testo',
     snapToGrid: 'Aggancia alla griglia',
     unsnapFromGrid: 'Sgancia dalla griglia',
     disableCollision: 'Disattiva collisione',
@@ -514,7 +573,8 @@ const locale: LocaleProps = {
     elements: 'Elementi',
     layers: 'Livelli',
     settings: 'Impostazioni',
-    openDiagramFirst: 'apri o crea prima un diagramma'
+    openDiagramFirst: 'apri o crea prima un diagramma',
+    collapsePanel: 'Comprimi pannello'
   },
   // D8 — LayersPanel
   layersPanel: {

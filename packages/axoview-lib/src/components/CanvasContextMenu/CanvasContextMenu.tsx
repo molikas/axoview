@@ -24,7 +24,9 @@ import {
   SelectAllOutlined as SelectAllIcon,
   ChevronRight as ChevronRightIcon,
   Check as CheckIcon,
-  StickyNote2Outlined as AddNoteIcon
+  StickyNote2Outlined as AddNoteIcon,
+  NewLabelOutlined as AddLabelIcon,
+  AspectRatioOutlined as FitWidthIcon
 } from '@mui/icons-material';
 import {
   dispatch as dispatchPanelEvent,
@@ -33,11 +35,17 @@ import {
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useTranslation } from 'src/stores/localeStore';
 import { useScene } from 'src/hooks/useScene';
+import { useSceneData } from 'src/hooks/useSceneData';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { useLayerActions } from 'src/hooks/useLayerActions';
 import { useCopyPaste } from 'src/clipboard/useCopyPaste';
 import { collectSelectableRefs } from 'src/utils/selectableRefs';
-import { itemCollides } from 'src/utils';
+import {
+  itemCollides,
+  getConnectorLabels,
+  connectorPathTileToGlobal,
+  generateId
+} from 'src/utils';
 import {
   countUserFacingRefs,
   filterUserFacingRefs
@@ -81,6 +89,7 @@ export const CanvasContextMenu = () => {
   const snapToGrid = useUiStateStore((s) => s.snapToGrid);
   const actions = useUiStateStore((s) => s.actions);
   const scene = useScene();
+  const sceneData = useSceneData();
   const { layers, lockedIds, visibleIds } = useLayerContext();
   const { assignLayerToItems } = useLayerActions();
   const { handleCopy, handleCut, handlePaste } = useCopyPaste();
@@ -126,11 +135,63 @@ export const CanvasContextMenu = () => {
     );
   }, [actions, target]);
 
+  const handleAddLabel = useCallback(() => {
+    if (target?.type !== 'CONNECTOR') return;
+    const connector = scene.currentView.connectors?.find(
+      (c) => c.id === target.id
+    );
+    if (!connector) return;
+    const baseLabels = getConnectorLabels(connector);
+    // Drop the label where the user clicked: the position % of the path tile
+    // nearest the right-click tile. Falls back to the midpoint if the path or
+    // click tile is unavailable.
+    let position = 50;
+    const path = sceneData.hitConnectors.find((c) => c.id === target.id)?.path;
+    const clickedTile = contextMenu?.tile;
+    if (path?.tiles?.length && clickedTile) {
+      let bestIdx = 0;
+      let bestDist = Infinity;
+      path.tiles.forEach((t, i) => {
+        const g = connectorPathTileToGlobal(t, path.rectangle.from);
+        const d = (g.x - clickedTile.x) ** 2 + (g.y - clickedTile.y) ** 2;
+        if (d < bestDist) {
+          bestDist = d;
+          bestIdx = i;
+        }
+      });
+      position =
+        path.tiles.length > 1
+          ? Math.round((bestIdx / (path.tiles.length - 1)) * 100)
+          : 50;
+    }
+    const labelId = generateId();
+    scene.updateConnector(target.id, {
+      labels: [...baseLabels, { id: labelId, text: '', position, height: 0, line: '1' }],
+      description: undefined,
+      startLabel: undefined,
+      endLabel: undefined,
+      startLabelHeight: undefined,
+      centerLabelHeight: undefined,
+      endLabelHeight: undefined
+    });
+    actions.setSelectedConnectorLabel({ connectorId: target.id, labelId });
+    // Inline-edit the new label on canvas (no details panel). Empty text on
+    // commit discards it, so an accidental "Add label" never leaves a blank one.
+    requestAnimationFrame(() =>
+      window.dispatchEvent(
+        new CustomEvent('inlineEditConnectorLabel', {
+          detail: { connectorId: target.id, labelId }
+        })
+      )
+    );
+  }, [actions, target, scene, sceneData, contextMenu]);
+
   const handleDelete = useCallback(() => {
     if (!target) return;
     if (target.type === 'ITEM') scene.deleteViewItem(target.id);
     else if (target.type === 'CONNECTOR') scene.deleteConnector(target.id);
     else if (target.type === 'TEXTBOX') scene.deleteTextBox(target.id);
+    else if (target.type === 'LABEL') scene.deleteLabel(target.id);
     else if (target.type === 'RECTANGLE') scene.deleteRectangle(target.id);
     actions.setItemControls(null);
   }, [scene, actions, target]);
@@ -142,14 +203,48 @@ export const CanvasContextMenu = () => {
     handlePaste();
   }, [handleCopy, handlePaste]);
 
-  // Z-order: read the current view item's zIndex, nudge it. ITEM only — the
-  // same scope as the action bar / Ctrl+]/Ctrl+[.
+  // Z-order: read the current item's zIndex and nudge it. Nodes (ITEM) reorder
+  // among nodes; floating Labels (LABEL) among the Label layer (ADR 0031).
   const nudgeZOrder = useCallback(
     (delta: number) => {
-      if (target?.type !== 'ITEM') return;
-      const viewItem = scene.currentView.items?.find((i) => i.id === target.id);
-      const currentZ = viewItem?.zIndex ?? 0;
-      scene.updateViewItem(target.id, { zIndex: currentZ + delta });
+      if (target?.type === 'ITEM') {
+        const viewItem = scene.currentView.items?.find(
+          (i) => i.id === target.id
+        );
+        scene.updateViewItem(target.id, {
+          zIndex: (viewItem?.zIndex ?? 0) + delta
+        });
+      } else if (target?.type === 'LABEL') {
+        const l = scene.currentView.labels?.find((x) => x.id === target.id);
+        scene.updateLabel(target.id, { zIndex: (l?.zIndex ?? 0) + delta });
+      } else if (target?.type === 'RECTANGLE') {
+        const r = scene.currentView.rectangles?.find((x) => x.id === target.id);
+        scene.updateRectangle(target.id, { zIndex: (r?.zIndex ?? 0) + delta });
+      }
+    },
+    [scene, target]
+  );
+
+  // E2 absolute z-order: jump the target above (front) or below (back) ALL its
+  // peers in one step, instead of nudging by ±1. Peers are the same-layer
+  // collection (nodes / labels / rectangles). Sets zIndex to max+1 / min-1.
+  const setZOrderExtreme = useCallback(
+    (toFront: boolean) => {
+      const peersFor = (): { zIndex?: number }[] | undefined => {
+        if (target?.type === 'ITEM') return scene.currentView.items;
+        if (target?.type === 'LABEL') return scene.currentView.labels;
+        if (target?.type === 'RECTANGLE') return scene.currentView.rectangles;
+        return undefined;
+      };
+      const peers = peersFor();
+      if (!target || !peers) return;
+      const zs = peers.map((p) => p.zIndex ?? 0);
+      const next = toFront ? Math.max(0, ...zs) + 1 : Math.min(0, ...zs) - 1;
+      if (target.type === 'ITEM') scene.updateViewItem(target.id, { zIndex: next });
+      else if (target.type === 'LABEL')
+        scene.updateLabel(target.id, { zIndex: next });
+      else if (target.type === 'RECTANGLE')
+        scene.updateRectangle(target.id, { zIndex: next });
     },
     [scene, target]
   );
@@ -242,6 +337,21 @@ export const CanvasContextMenu = () => {
     applyOffGrid(target, { collides: !itemCollides(offGridTarget) });
   }, [target, offGridTarget, applyOffGrid]);
 
+  // Manually-sized text box (ADR 0034 addenda 2026-07-03/04): offer the way
+  // back to auto size (hug the widest line / content height). Shown only
+  // while a manual width or height is set — the resize anchors are the way
+  // IN, this entry is the way OUT.
+  const canFitToText = useMemo(() => {
+    if (target?.type !== 'TEXTBOX') return false;
+    const tb = scene.currentView.textBoxes?.find((t) => t.id === target.id);
+    return tb?.width !== undefined || tb?.height !== undefined;
+  }, [scene, target]);
+
+  const handleFitToText = useCallback(() => {
+    if (target?.type !== 'TEXTBOX') return;
+    scene.updateTextBox(target.id, { width: undefined, height: undefined });
+  }, [scene, target]);
+
   // Bulk: unsnap / disable collision over every user-facing ref in the
   // selection (waypoints stripped; connectors skipped), one undo entry.
   const handleBulkUnsnap = useCallback(() => {
@@ -263,14 +373,26 @@ export const CanvasContextMenu = () => {
   if (!contextMenu) return null;
 
   const isItem = target?.type === 'ITEM';
-  // Off-grid commands apply to placeable items, not connectors.
-  const canOffGrid = !!target && target.type !== 'CONNECTOR';
+  // Z-order (bring forward / send backward) applies to nodes, floating labels,
+  // and rectangles — each carries a `zIndex` and a stacked render order within
+  // its layer. (TEXTBOX is excluded; it has no zIndex.)
+  const canZOrder =
+    target?.type === 'ITEM' ||
+    target?.type === 'LABEL' ||
+    target?.type === 'RECTANGLE';
+  // Off-grid commands apply to placeable items, not connectors. Floating Labels
+  // (ADR 0031) reposition by direct drag and aren't in the tile index (no
+  // collision), so the snap/collision toggles don't apply to them either.
+  const canOffGrid =
+    !!target && target.type !== 'CONNECTOR' && target.type !== 'LABEL';
   const isUnsnapped = offGridTarget?.snap === false;
   const collidesNow = offGridTarget ? itemCollides(offGridTarget) : true;
   const canRename = !!target && INLINE_RENAMEABLE.has(target.type);
-  // Only nodes (ITEM) and connectors carry a `notes` field / Notes tab.
-  const canAddNote =
-    !!target && (target.type === 'ITEM' || target.type === 'CONNECTOR');
+  // Every canvas element carries a `notes` field now (2026-07-02) — node,
+  // connector, rectangle, text and label all expose a Notes editor.
+  const canAddNote = !!target;
+  // Labels are a connector-only concept (ADR 0011 connector labels array).
+  const canAddLabel = target?.type === 'CONNECTOR';
   const multiCount = countUserFacingRefs(selectedIds);
 
   // D1 — pluralise the count rows through i18n: pick the singular/plural key by
@@ -319,6 +441,14 @@ export const CanvasContextMenu = () => {
                   <Hint>F2</Hint>
                 </MenuItem>
               ),
+              canAddLabel && (
+                <MenuItem key="addLabel" onClick={run(handleAddLabel)}>
+                  <ListItemIcon>
+                    <AddLabelIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{t('addLabel')}</ListItemText>
+                </MenuItem>
+              ),
               canAddNote && (
                 <MenuItem key="addNote" onClick={run(handleAddNote)}>
                   <ListItemIcon>
@@ -356,7 +486,7 @@ export const CanvasContextMenu = () => {
                 <ListItemText>{t('duplicate')}</ListItemText>
               </MenuItem>,
               <Divider key="d2" />,
-              isItem && (
+              canZOrder && (
                 <MenuItem
                   key="forward"
                   onClick={run(() => nudgeZOrder(1))}
@@ -365,16 +495,40 @@ export const CanvasContextMenu = () => {
                     <BringForwardIcon fontSize="small" />
                   </ListItemIcon>
                   <ListItemText>{t('bringForward')}</ListItemText>
-                  <Hint>Ctrl+]</Hint>
+                  {isItem && <Hint>Ctrl+]</Hint>}
                 </MenuItem>
               ),
-              isItem && (
+              canZOrder && (
                 <MenuItem key="back" onClick={run(() => nudgeZOrder(-1))}>
                   <ListItemIcon>
                     <SendBackIcon fontSize="small" />
                   </ListItemIcon>
                   <ListItemText>{t('sendBackward')}</ListItemText>
-                  <Hint>Ctrl+[</Hint>
+                  {isItem && <Hint>Ctrl+[</Hint>}
+                </MenuItem>
+              ),
+              canZOrder && (
+                <MenuItem
+                  key="tofront"
+                  onClick={run(() => setZOrderExtreme(true))}
+                >
+                  <ListItemIcon>
+                    <BringForwardIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{t('bringToFront')}</ListItemText>
+                  {isItem && <Hint>Ctrl+Shift+]</Hint>}
+                </MenuItem>
+              ),
+              canZOrder && (
+                <MenuItem
+                  key="toback"
+                  onClick={run(() => setZOrderExtreme(false))}
+                >
+                  <ListItemIcon>
+                    <SendBackIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{t('sendToBack')}</ListItemText>
+                  {isItem && <Hint>Ctrl+Shift+[</Hint>}
                 </MenuItem>
               ),
               <MenuItem
@@ -413,6 +567,14 @@ export const CanvasContextMenu = () => {
                   <ListItemText>
                     {collidesNow ? t('disableCollision') : t('enableCollision')}
                   </ListItemText>
+                </MenuItem>
+              ),
+              canFitToText && (
+                <MenuItem key="fittext" onClick={run(handleFitToText)}>
+                  <ListItemIcon>
+                    <FitWidthIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{t('fitToText')}</ListItemText>
                 </MenuItem>
               ),
               <Divider key="d4" />,

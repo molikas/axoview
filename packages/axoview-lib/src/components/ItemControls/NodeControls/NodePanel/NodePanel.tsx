@@ -1,8 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Box,
-  Tabs,
-  Tab,
   IconButton,
   Tooltip,
   Typography,
@@ -16,36 +14,17 @@ import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useIcon } from 'src/hooks/useIcon';
 import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
 import { NodeInfoTab } from '../NodeInfoTab/NodeInfoTab';
-import { NodeStyleTab } from '../NodeStyleTab/NodeStyleTab';
+import { ControlsContainer } from '../../components/ControlsContainer';
+import { DeckHeader } from '../../components/DeckHeader';
+import { NotesSection } from '../../components/NotesSection';
+import { MetadataSection } from '../../components/MetadataSection';
 import { useTranslation } from 'src/stores/localeStore';
 
+// Unified collapsible-section deck (2026-07-02, ux-principles §5.1): the node
+// panel is a vertical stack of collapsible sections — Label (content, open) +
+// Notes + Metadata (in NodeInfoTab) — not tabs. Styling lives in the top-bar
+// style strip; the icon picker + icon/label sizing moved there too.
 const PANEL_EVENT = 'nodePanel';
-
-const TAB_DETAILS = 0;
-const TAB_STYLE = 1;
-const TAB_NOTES = 2;
-
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-const TabPanel = ({ children, index, value }: TabPanelProps) => (
-  <Box
-    role="tabpanel"
-    hidden={value !== index}
-    sx={{
-      flex: 1,
-      overflowY: 'auto',
-      overflowX: 'hidden',
-      display: value === index ? 'flex' : 'none',
-      flexDirection: 'column'
-    }}
-  >
-    {value === index && children}
-  </Box>
-);
 
 // True iff an HTML rich-text string carries visible text — used for the
 // notes/caption presence checks. Scans char-by-char rather than regex-stripping
@@ -182,7 +161,7 @@ interface ReadOnlyNodePanelProps {
   iconUrl: string;
   linkedDiagrams: Array<{ id: string; name: string }>;
   hasNotes: boolean;
-  labels: { close: string; caption: string; notes: string };
+  labels: { close: string; notes: string };
   onClose: () => void;
 }
 
@@ -197,7 +176,8 @@ const ReadOnlyNodePanel = ({
   labels,
   onClose
 }: ReadOnlyNodePanelProps) => {
-  const hasCaption = htmlHasVisibleText(modelItem.description);
+  // Option A: the node caption (description) folds into Notes — it is no longer
+  // a separate read-only section here; legacy content is migrated at load.
   const linkedDiagramId = modelItem.link ?? null;
   const linkedDiagramMeta = linkedDiagramId
     ? linkedDiagrams.find((d) => d.id === linkedDiagramId)
@@ -251,26 +231,13 @@ const ReadOnlyNodePanel = ({
 
       {/* Scrollable body */}
       <Box sx={{ overflowY: 'auto', flex: 1 }}>
-        {hasCaption && (
-          <Box sx={{ px: 2, pt: 2, pb: 1 }}>
-            <Typography
-              variant="overline"
-              color="text.secondary"
-              sx={{ display: 'block', mb: 1 }}
-            >
-              {labels.caption}
-            </Typography>
-            <RichTextEditor value={modelItem.description} readOnly />
-          </Box>
-        )}
-        {hasCaption && hasLinkedDiagram && <Divider sx={{ mx: 2 }} />}
         {linkedDiagramId && (
           <LinkedDiagramSection
             linkedDiagramId={linkedDiagramId}
             linkedDiagramMeta={linkedDiagramMeta}
           />
         )}
-        {(hasCaption || hasLinkedDiagram) && hasNotes && <Divider sx={{ mx: 2 }} />}
+        {hasLinkedDiagram && hasNotes && <Divider sx={{ mx: 2 }} />}
         {hasNotes && (
           <Box sx={{ px: 2, pt: 2, pb: 2 }}>
             <Typography
@@ -295,18 +262,20 @@ interface Props {
 
 export const NodePanel = ({ viewItem, readOnly }: Props) => {
   const { t } = useTranslation('nodePanel');
+  // Metadata (identity name) strings live in the nodeInfoTab namespace; NodePanel
+  // renders that section itself (after Notes) to keep the canonical section order.
+  const { t: tInfo } = useTranslation('nodeInfoTab');
   const modelItem = useModelItem(viewItem.id);
-  const { updateModelItem, updateViewItem } = useScene();
+  const { updateModelItem } = useScene();
   const uiStateActions = useUiStateStore((state) => state.actions);
   const linkedDiagrams = useUiStateStore((state) => state.linkedDiagrams);
   const { icon } = useIcon(modelItem?.icon || '');
 
-  const [activeTab, setActiveTab] = useState(TAB_DETAILS);
-  const [showLink, setShowLink] = useState(!!modelItem?.headerLink);
+  const [notesOpen, setNotesOpen] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
-  const linkRef = useRef<HTMLInputElement>(null);
 
-  // Listen for action-bar commands
+  // Listen for action-bar commands. ('focusLink' retired 2026-07-05 with the
+  // deck's link field — the strip Link control / inline link card own links.)
   useEffect(() => {
     if (readOnly) return;
 
@@ -314,24 +283,13 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
       const action = (e as CustomEvent<string>).detail;
       switch (action) {
         case 'focusName':
-          setActiveTab(TAB_DETAILS);
           requestAnimationFrame(() => {
             nameRef.current?.focus({ preventScroll: true });
             nameRef.current?.select();
           });
           break;
-        case 'focusLink':
-          setActiveTab(TAB_DETAILS);
-          setShowLink(true);
-          requestAnimationFrame(() =>
-            linkRef.current?.focus({ preventScroll: true })
-          );
-          break;
-        case 'scrollToAppearance':
-          setActiveTab(TAB_STYLE);
-          break;
         case 'focusNotes':
-          setActiveTab(TAB_NOTES);
+          setNotesOpen(true);
           break;
       }
     };
@@ -349,10 +307,6 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
     [updateModelItem, viewItem.id]
   );
 
-  const onViewUpdate = useCallback(
-    (updates: Partial<ViewItem>) => updateViewItem(viewItem.id, updates),
-    [updateViewItem, viewItem.id]
-  );
 
   if (!modelItem) return null;
 
@@ -366,105 +320,42 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
         iconUrl={iconUrl}
         linkedDiagrams={linkedDiagrams}
         hasNotes={hasNotes}
-        labels={{ close: t('close'), caption: t('caption'), notes: t('notes') }}
+        labels={{ close: t('close'), notes: t('notes') }}
         onClose={handleClose}
       />
     );
   }
 
   return (
-    <Box
-      onMouseDown={(e) => e.stopPropagation()}
-      onContextMenu={(e) => e.stopPropagation()}
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        bgcolor: 'background.paper'
-      }}
+    <ControlsContainer
+      header={
+        <DeckHeader
+          iconNode={iconUrl ? <Box component="img" src={iconUrl} /> : undefined}
+          title={modelItem.label ?? modelItem.name}
+          closeLabel={t('close')}
+          onClose={handleClose}
+        />
+      }
     >
-      {/* Header: tab bar + close button */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-          flexShrink: 0,
-          pl: 0.5,
-          pr: 0.5
-        }}
-      >
-        <Tabs
-          value={activeTab}
-          onChange={(_, v) => setActiveTab(v)}
-          sx={{
-            flex: 1,
-            minHeight: 36,
-            '& .MuiTab-root': {
-              minHeight: 36,
-              py: 0.5,
-              px: 1.5
-            }
-          }}
-        >
-          <Tab label={t('details')} value={TAB_DETAILS} />
-          <Tab label={t('style')} value={TAB_STYLE} />
-          <Tab
-            label={hasNotes ? t('notesModified') : t('notes')}
-            value={TAB_NOTES}
-            sx={{ color: hasNotes ? 'primary.main' : undefined }}
-          />
-        </Tabs>
-        <Tooltip title={t('close')}>
-          <IconButton
-            size="small"
-            onClick={handleClose}
-            sx={{ p: 0.5, flexShrink: 0 }}
-          >
-            <CloseIcon sx={{ fontSize: 15 }} />
-          </IconButton>
-        </Tooltip>
-      </Box>
-
-      {/* Details tab */}
-      <TabPanel value={activeTab} index={TAB_DETAILS}>
-        <NodeInfoTab
-          node={viewItem}
-          onModelItemUpdated={onModelUpdate}
-          onViewItemUpdated={onViewUpdate}
-          nameRef={nameRef}
-          linkRef={linkRef}
-          showLink={showLink}
-          onShowLinkChange={setShowLink}
-        />
-      </TabPanel>
-
-      {/* Style tab */}
-      <TabPanel value={activeTab} index={TAB_STYLE}>
-        <NodeStyleTab
-          node={viewItem}
-          iconUrl={iconUrl}
-          onModelItemUpdated={onModelUpdate}
-          onViewItemUpdated={onViewUpdate}
-        />
-      </TabPanel>
-
-      {/* Notes tab */}
-      <TabPanel value={activeTab} index={TAB_NOTES}>
-        <Box sx={{ p: 2 }}>
-          <RichTextEditor
-            height={300}
-            value={modelItem.notes}
-            onChange={(text) => {
-              const empty = !htmlHasVisibleText(text);
-              if (empty && !htmlHasVisibleText(modelItem.notes)) return;
-              if (modelItem.notes !== text)
-                onModelUpdate({ notes: empty ? undefined : text });
-            }}
-          />
-        </Box>
-      </TabPanel>
-    </Box>
+      <NodeInfoTab
+        node={viewItem}
+        onModelItemUpdated={onModelUpdate}
+        nameRef={nameRef}
+      />
+      <NotesSection
+        title={t('notes')}
+        value={modelItem.notes}
+        onChange={(notes) => onModelUpdate({ notes })}
+        open={notesOpen}
+        onToggle={() => setNotesOpen((v) => !v)}
+      />
+      <MetadataSection
+        title={tInfo('metadata')}
+        fieldLabel={tInfo('name')}
+        name={modelItem.name ?? ''}
+        placeholder={tInfo('namePlaceholder')}
+        onChange={(v) => onModelUpdate({ name: v || undefined })}
+      />
+    </ControlsContainer>
   );
 };

@@ -9,22 +9,25 @@ import { useAppStorage } from '../providers/AppStorageContext';
 import { useDiagramLifecycle } from '../providers/DiagramLifecycleProvider';
 import { SessionStorageGauge } from './fileExplorer/SessionStorageGauge';
 
-const formatSavedAt = (d: Date, t: TFunction): string => {
+const formatSavedAt = (d: Date, t: TFunction, locale: string): string => {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today.getTime() - 86400000);
   const dDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  // L3: format the clock + month in the UI language (i18n.language is BCP-47:
+  // en-US, de-DE, …), not the OS locale (`[]`), so a French UI shows 24-hour
+  // time + French month abbreviations.
+  const time = d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
   if (dDay.getTime() === today.getTime()) return t('status.savedAt', { time });
   if (dDay.getTime() === yesterday.getTime()) return t('status.savedYesterdayAt', { time });
-  const month = d.toLocaleString([], { month: 'short' });
+  const month = d.toLocaleString(locale, { month: 'short' });
   const day = d.getDate();
   if (d.getFullYear() === now.getFullYear()) return t('status.savedOnDate', { month, day, time });
   return t('status.savedOnDateYear', { month, day, year: d.getFullYear(), time });
 };
 
 export function StatusCluster() {
-  const { t } = useTranslation('app');
+  const { t, i18n } = useTranslation('app');
   const { serverStorageAvailable } = useAppStorage();
   const { hasUnsavedChanges, lastSaved, saveStatus, handleSaveClick } = useDiagramLifecycle();
 
@@ -63,7 +66,7 @@ export function StatusCluster() {
       if (lastSaved) {
         return (
           <Typography variant="caption" sx={{ color: 'text.disabled', userSelect: 'none', whiteSpace: 'nowrap' }}>
-            {formatSavedAt(lastSaved, t)}
+            {formatSavedAt(lastSaved, t, i18n.language)}
           </Typography>
         );
       }
@@ -71,8 +74,19 @@ export function StatusCluster() {
     })();
 
     if (!content) return null;
+    // Reserve a stable width so the toolbar doesn't expand/contract as the
+    // status cycles "Saving…" ↔ "Saved at HH:MM" (the right group is
+    // right-anchored, so any width change here shifts the style strip).
     return (
-      <Box sx={{ display: 'flex', alignItems: 'center', px: 0.5 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          px: 0.5,
+          minWidth: '9.5em'
+        }}
+      >
         {content}
       </Box>
     );
@@ -80,12 +94,9 @@ export function StatusCluster() {
 
   // Session mode: save state text + SESSION chip + storage gauge.
   // The orange SESSION chip already conveys mode; no wrapper background.
-  const saveText = lastSaved
-    ? `${formatSavedAt(lastSaved, t)}${hasUnsavedChanges ? ' •' : ''}`
-    : hasUnsavedChanges
-      ? t('status.unsaved', 'Unsaved')
-      : '';
-
+  // The unsaved-changes bullet is rendered with reserved space (visibility,
+  // not conditional mount) so it appearing/disappearing doesn't change the
+  // text width and jitter the toolbar.
   return (
     <Box
       sx={{
@@ -95,7 +106,7 @@ export function StatusCluster() {
         px: 0.5
       }}
     >
-      {saveText && (
+      {lastSaved ? (
         <Typography
           variant="caption"
           sx={{
@@ -104,9 +115,26 @@ export function StatusCluster() {
             userSelect: 'none'
           }}
         >
-          {saveText}
+          {formatSavedAt(lastSaved, t, i18n.language)}
+          <Box
+            component="span"
+            sx={{ visibility: hasUnsavedChanges ? 'visible' : 'hidden' }}
+          >
+            {' •'}
+          </Box>
         </Typography>
-      )}
+      ) : hasUnsavedChanges ? (
+        <Typography
+          variant="caption"
+          sx={{
+            color: 'text.secondary',
+            whiteSpace: 'nowrap',
+            userSelect: 'none'
+          }}
+        >
+          {t('status.unsaved', 'Unsaved')}
+        </Typography>
+      ) : null}
       <Chip
         label={<Typography variant="micro" component="span">{t('status.session', 'Session')}</Typography>}
         size="small"

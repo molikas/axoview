@@ -1,82 +1,13 @@
 import React, { useCallback } from 'react';
 import { Box, Typography, Tooltip } from '@mui/material';
-import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
+import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useTranslation } from 'src/stores/localeStore';
-import { useScene } from 'src/hooks/useScene';
-import { useCanvasMode } from 'src/contexts/CanvasModeContext';
-import { generateId, viewportCenterTile } from 'src/utils';
-import { TEXTBOX_DEFAULTS } from 'src/config';
-
-// Simple flat SVG thumbnails matching the tool icons
-const RectangleSvg = () => (
-  <svg
-    viewBox="0 0 28 28"
-    width="28"
-    height="28"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <rect
-      x="3"
-      y="3"
-      width="22"
-      height="22"
-      rx="2"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      fill="none"
-    />
-  </svg>
-);
-
-const TextSvg = () => (
-  <svg
-    viewBox="0 0 28 28"
-    width="28"
-    height="28"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <text
-      x="7"
-      y="20"
-      fontFamily="serif"
-      fontSize="18"
-      fill="currentColor"
-      fontWeight="bold"
-    >
-      T
-    </text>
-  </svg>
-);
-
-const ConnectorSvg = () => (
-  <svg
-    viewBox="0 0 28 28"
-    width="28"
-    height="28"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <line
-      x1="5"
-      y1="14"
-      x2="20"
-      y2="14"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-    />
-    <polyline
-      points="16,10 22,14 16,18"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      fill="none"
-      strokeLinejoin="round"
-      strokeLinecap="round"
-    />
-  </svg>
-);
+import {
+  RectangleSvg,
+  TextSvg,
+  LabelSvg,
+  ConnectorSvg
+} from '../elementTypeIcons';
 
 interface ElementCardProps {
   label: string;
@@ -131,10 +62,7 @@ export const CommonElements = () => {
   // Connector reuse the existing toolMenu.* keys; "Common" is a new toolMenu key.
   const { t } = useTranslation('toolMenu');
   const uiStateActions = useUiStateStore((s) => s.actions);
-  const uiStateApi = useUiStateStoreApi();
   const mode = useUiStateStore((s) => s.mode);
-  const { createTextBox } = useScene();
-  const { screenToTile } = useCanvasMode();
 
   const handleRectangleMouseDown = useCallback(() => {
     uiStateActions.setMode({
@@ -144,30 +72,24 @@ export const CommonElements = () => {
     });
   }, [uiStateActions]);
 
+  // Point-and-click placement (like Rectangle / a node icon): arm the mode with
+  // nothing created; the next canvas click drops the element and a right-click
+  // cancels (handled by the TextBox / Label mode + usePanHandlers).
   const handleTextMouseDown = useCallback(() => {
-    const textBoxId = generateId();
-    const ui = uiStateApi.getState();
-    const mouseTile = ui.mouse.position.tile;
-    // B9: mouse.position.tile is still the initial {0,0} until the pointer first
-    // enters the canvas, so clicking the Text card before hovering the canvas
-    // dropped the box at the origin. Fall back to the viewport-centre tile in
-    // that case (the shared helper C2 introduced).
-    const tile =
-      mouseTile.x === 0 && mouseTile.y === 0
-        ? viewportCenterTile({
-            rendererSize: ui.rendererSize,
-            scroll: ui.scroll,
-            zoom: ui.zoom,
-            screenToTile
-          })
-        : mouseTile;
-    createTextBox({ ...TEXTBOX_DEFAULTS, id: textBoxId, tile });
     uiStateActions.setMode({
       type: 'TEXTBOX',
-      showCursor: false,
-      id: textBoxId
+      showCursor: true,
+      id: null
     });
-  }, [uiStateApi, uiStateActions, createTextBox, screenToTile]);
+  }, [uiStateActions]);
+
+  const handleLabelMouseDown = useCallback(() => {
+    uiStateActions.setMode({
+      type: 'LABEL',
+      showCursor: true,
+      id: null
+    });
+  }, [uiStateActions]);
 
   const handleConnectorMouseDown = useCallback(() => {
     uiStateActions.setMode({
@@ -204,6 +126,12 @@ export const CommonElements = () => {
           icon={<TextSvg />}
           isActive={mode.type === 'TEXTBOX'}
           onMouseDown={handleTextMouseDown}
+        />
+        <ElementCard
+          label={t('label')}
+          icon={<LabelSvg />}
+          isActive={mode.type === 'LABEL'}
+          onMouseDown={handleLabelMouseDown}
         />
         <ElementCard
           label={t('connector')}

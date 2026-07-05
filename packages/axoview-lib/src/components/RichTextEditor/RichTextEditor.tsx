@@ -1,7 +1,21 @@
 import React, { useMemo, useRef, useCallback } from 'react';
 import ReactQuill from 'react-quill-new';
 import { Box } from '@mui/material';
+import { buildListAutofillBinding } from 'src/utils/quillListAutofill';
 import RichTextEditorErrorBoundary from './RichTextEditorErrorBoundary';
+
+// Paragraph alignment serializes as an inline `text-align` STYLE (not Quill's
+// default ql-align-* class attributor): one representation flows through
+// getSemanticHTML → sanitizeHtml → the resting canvas render with no
+// ql-align CSS anywhere (ADR 0034 addendum 2026-07-03). Global registration,
+// done once here — the module every Quill surface already imports for
+// `formats`. No legacy class-based align exists (align was never authorable
+// before this).
+ReactQuill.Quill.register(
+  'formats/align',
+  ReactQuill.Quill.import('attributors/style/align'),
+  true
+);
 
 interface Props {
   value?: string;
@@ -34,6 +48,13 @@ export const formats = [
   'link',
   'header',
   'list',
+  // Paragraph alignment (ADR 0034 addendum 2026-07-03) — style attributor
+  // registered above.
+  'align',
+  // Per-range text color (ADR 0034 addendum 2026-07-04): the strip's color
+  // picker formats the live selection while editing; serialized as inline
+  // color styles (Quill's built-in style attributor).
+  'color',
   'blockquote',
   'code-block'
 ];
@@ -51,27 +72,13 @@ export const RichTextEditor = ({
     if (!readOnly)
       return {
         toolbar: tools,
-        // MQA #12: Quill's default `list autofill` keyboard binding converted
-        // `1. ` (or `* `, `- `) typed at the start of an empty line into an
-        // empty list block. Because the line had no content yet, the user only
-        // saw the typed `1. ` disappear with no list marker visible — perceived
-        // as "input erased". Override the binding by name so the same key
-        // triggers a no-op handler that returns true: the literal space is
-        // inserted and the autofill never fires. Lists are still reachable via
-        // the toolbar buttons. Bug only manifested on empty lines — typing the
-        // marker mid-text was unaffected by the original code path either.
+        // Markdown list autofill ("- "/"* "/"1. " → list) — the shared binding
+        // in quillListAutofill.ts, same behavior as the on-canvas text-box
+        // editor. Retires the MQA #12 noop override; rationale + the
+        // undo-restores-literal contract live in the util.
         keyboard: {
           bindings: {
-            'list autofill': {
-              key: ' ',
-              shiftKey: null,
-              collapsed: true,
-              format: { list: false },
-              prefix: /^\s*?(\d+\.|-|\*|\[ ?\]|\[x\])$/,
-              handler() {
-                return true;
-              }
-            }
+            'list autofill': buildListAutofillBinding(ReactQuill.Quill)
           }
         }
       };
@@ -120,8 +127,21 @@ export const RichTextEditor = ({
             padding: '12px 15px',
             ...(readOnly ? { p: 0 } : {})
           },
+          // Quill positions the link editor (.ql-tooltip) at the cursor; in the
+          // narrow Notes panel that pushed it off the left edge, where the panel
+          // clipped it so the "Enter link" input couldn't be seen in full. Pin
+          // it to the editor's left and cap its width so it always fits, and let
+          // a long URL wrap instead of overflowing.
           '.ql-tooltip': {
-            zIndex: 1000
+            zIndex: 1000,
+            left: '4px !important',
+            maxWidth: 'calc(100% - 8px)',
+            boxSizing: 'border-box',
+            whiteSpace: 'normal',
+            overflowWrap: 'anywhere'
+          },
+          '.ql-tooltip input[type=text]': {
+            minWidth: 0
           }
         }}
       >

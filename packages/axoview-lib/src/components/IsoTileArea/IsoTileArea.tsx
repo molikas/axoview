@@ -8,16 +8,20 @@ interface Props {
   to: Coords;
   origin?: Coords;
   fill?: string;
+  /** SVG fill-opacity (0..1). Absent = 1 = opaque. */
+  fillOpacity?: number;
   cornerRadius?: number;
   stroke?: {
     width: number;
     color: string;
     dashArray?: string;
+    /** SVG stroke-opacity (0..1). Absent = 1 = opaque. */
+    opacity?: number;
   };
 }
 
 export const IsoTileArea = memo(
-  ({ from, to, fill = 'none', cornerRadius = 0, stroke }: Props) => {
+  ({ from, to, fill = 'none', fillOpacity, cornerRadius = 0, stroke }: Props) => {
     const { css, pxSize } = useIsoProjection({
       from,
       to
@@ -35,16 +39,33 @@ export const IsoTileArea = memo(
         params.strokeDasharray = stroke.dashArray;
       }
 
+      if (stroke.opacity !== undefined) {
+        params.strokeOpacity = stroke.opacity;
+      }
+
       return params;
     }, [stroke]);
+
+    // SVG strokes are centred on the path, so a rect drawn flush to the viewport
+    // loses strokeWidth/2 to clipping on every edge (a 30px border showed ~15px).
+    // Inset the rect by half the stroke and shrink it by the full stroke so the
+    // whole border stays inside [0,width]×[0,height]. With no stroke, strokeW is
+    // 0 and this collapses to the original full-bleed geometry (fills still cover
+    // the entire tile footprint — no seam gap). Same DOM feeds the image export,
+    // so this fixes the clip on canvas and in PNG/SVG exports at once.
+    const strokeW = stroke?.width ?? 0;
+    const halfStroke = strokeW / 2;
 
     return (
       <Svg viewboxSize={pxSize} style={css}>
         <rect
-          width={pxSize.width}
-          height={pxSize.height}
+          x={halfStroke}
+          y={halfStroke}
+          width={Math.max(0, pxSize.width - strokeW)}
+          height={Math.max(0, pxSize.height - strokeW)}
           fill={fill}
-          rx={cornerRadius}
+          fillOpacity={fillOpacity}
+          rx={Math.max(0, cornerRadius - halfStroke)}
           {...strokeParams}
         />
       </Svg>

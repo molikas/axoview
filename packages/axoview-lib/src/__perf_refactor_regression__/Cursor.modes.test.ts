@@ -60,6 +60,7 @@ function makeUiState(overrides: any = {}) {
       delta: null
     },
     itemControls: overrides.itemControls ?? null,
+    hoveredItem: overrides.hoveredItem ?? null,
     actions: overrides.actions ?? {
       setMode: jest.fn(),
       setItemControls: jest.fn()
@@ -212,6 +213,65 @@ describe('Cursor.mouseup (real module)', () => {
     });
   });
 
+  // #10 (UX sweep 2026-06-30): Shift joins Ctrl/Cmd as an additive-select
+  // modifier on canvas. A Shift-click toggles the item into the selection
+  // (toggleSelected) rather than replacing it.
+  it('#10: Shift-click on an item is additive (toggleSelected), like Ctrl', () => {
+    const toggleSelected = jest.fn();
+    const setSelectedIds = jest.fn();
+    const uiState = makeUiState({
+      mode: {
+        type: 'CURSOR',
+        showCursor: true,
+        mousedownItem: { type: 'ITEM', id: 'node1' },
+        mousedownHandled: true
+      },
+      mouse: {
+        position: { tile: { x: 5, y: 5 }, screen: { x: 50, y: 50 } },
+        mousedown: { tile: { x: 5, y: 5 }, screen: { x: 50, y: 50 } },
+        delta: null,
+        modifiers: { ctrl: false, shift: true, meta: false }
+      },
+      actions: {
+        setMode: jest.fn(),
+        setItemControls: jest.fn(),
+        toggleSelected,
+        setSelectedIds
+      }
+    });
+    callMouseup(uiState);
+    expect(toggleSelected).toHaveBeenCalledWith({ type: 'ITEM', id: 'node1' });
+    expect(setSelectedIds).not.toHaveBeenCalled();
+  });
+
+  it('plain click (no modifier) replaces the selection (setSelectedIds)', () => {
+    const toggleSelected = jest.fn();
+    const setSelectedIds = jest.fn();
+    const uiState = makeUiState({
+      mode: {
+        type: 'CURSOR',
+        showCursor: true,
+        mousedownItem: { type: 'ITEM', id: 'node1' },
+        mousedownHandled: true
+      },
+      mouse: {
+        position: { tile: { x: 5, y: 5 }, screen: { x: 50, y: 50 } },
+        mousedown: { tile: { x: 5, y: 5 }, screen: { x: 50, y: 50 } },
+        delta: null,
+        modifiers: { ctrl: false, shift: false, meta: false }
+      },
+      actions: {
+        setMode: jest.fn(),
+        setItemControls: jest.fn(),
+        toggleSelected,
+        setSelectedIds
+      }
+    });
+    callMouseup(uiState);
+    expect(setSelectedIds).toHaveBeenCalledWith([{ type: 'ITEM', id: 'node1' }]);
+    expect(toggleSelected).not.toHaveBeenCalled();
+  });
+
   it('deselects (setItemControls null) on left-click empty canvas — no context menu, no event', () => {
     const uiState = makeUiState({
       mode: {
@@ -337,6 +397,43 @@ describe('Cursor.mousemove (real module)', () => {
     });
     callMousemove(uiState);
     expect(uiState.actions.setMode).not.toHaveBeenCalled();
+  });
+
+  // A3: hovering a NEW item publishes it as hoveredItem (drives the faint hover
+  // outline); moving off it clears to null. Only fires on ref change.
+  it('A3: hover over an item sets hoveredItem; only on change', () => {
+    mockHasMovedTile.mockReturnValue(true);
+    mockGetItemAtTile.mockReturnValue({ type: 'ITEM', id: 'n1' });
+    const setHoveredItem = jest.fn();
+    const uiState = makeUiState({
+      mode: {
+        type: 'CURSOR',
+        showCursor: true,
+        mousedownItem: null,
+        mousedownHandled: false
+      },
+      mouse: {
+        position: { tile: { x: 5, y: 5 }, screen: { x: 50, y: 50 } },
+        mousedown: null,
+        delta: null
+      },
+      itemControls: null,
+      actions: { setMode: jest.fn(), setItemControls: jest.fn(), setHoveredItem }
+    });
+    // hoveredItem starts undefined → hovering n1 is a change → set n1.
+    callMousemove(uiState);
+    expect(setHoveredItem).toHaveBeenCalledWith({ type: 'ITEM', id: 'n1' });
+
+    // Now already hovering n1 → no redundant write.
+    setHoveredItem.mockClear();
+    uiState.hoveredItem = { type: 'ITEM', id: 'n1' };
+    callMousemove(uiState);
+    expect(setHoveredItem).not.toHaveBeenCalled();
+
+    // Move onto empty tile → clears to null.
+    mockGetItemAtTile.mockReturnValue(null);
+    callMousemove(uiState);
+    expect(setHoveredItem).toHaveBeenCalledWith(null);
   });
 
   it('transitions to DRAG_ITEMS with showCursor:true when item dragged and position != mousedown', () => {

@@ -4,6 +4,10 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'Это пример текста'
   },
+  rightSidebar: {
+    collapsePanel: 'Свернуть панель',
+    emptyState: 'Выберите узел, соединитель или фигуру, чтобы просмотреть свойства'
+  },
   helpDialog: {
     title: 'Горячие клавиши и справка',
     close: 'Закрыть',
@@ -267,89 +271,133 @@ const locale: LocaleProps = {
     addPageDisabled: 'Достигнут лимит страниц (5)'
   },
   nodePanel: {
-    details: 'Подробности',
-    style: 'Стиль',
     notes: 'Заметки',
-    notesModified: 'Заметки ●',
     close: 'Закрыть',
-    openLink: 'Открыть ссылку',
-    caption: 'Подпись',
-    noCaption: 'Нет подписи.',
-    showLabel: 'Показать метку',
-    hideLabel: 'Скрыть метку',
-    showName: 'Показать имя',
-    hideName: 'Скрыть имя'
   },
   nodeInfoTab: {
+    metadata: 'Метаданные',
     name: 'Название',
     namePlaceholder: 'Имя узла…',
-    removeLink: 'Удалить ссылку',
-    addLink: 'Добавить ссылку к названию',
-    linkPlaceholder: 'https://…',
-    caption: 'Подпись',
-    captionHint: 'Отображается на холсте под именем узла',
-    openLink: 'Открыть ссылку',
-    diagramLink: 'Ссылка на диаграмму',
-    diagramLinkPlaceholder: 'Выберите диаграмму…',
-    diagramLinkHint: 'Нажатие на этот узел в режиме только для чтения открывает связанную диаграмму',
-    openDiagramLink: 'Открыть связанную диаграмму'
-  },
-  nodeStyleTab: {
-    icon: 'Иконка',
-    close: 'Закрыть',
-    change: 'Изменить…',
-    iconSize: 'Размер иконки',
-    labelFontSize: 'Размер шрифта метки',
-    labelColor: 'Цвет метки',
-    labelHeight: 'Высота метки'
+    label: 'Подпись',
+    labelPlaceholder: 'Подпись, отображаемая на фигуре…',
+    openLink: 'Открыть ссылку'
   },
   connectorControls: {
+    metadata: 'Метаданные',
     close: 'Закрыть',
-    labels: 'Метки',
-    details: 'Подробности',
-    style: 'Стиль',
     notes: 'Заметки',
-    notesModified: 'Заметки ●',
     name: 'Имя',
     namePlaceholder: 'Метка ребра…',
-    additionalLabels: 'Дополнительные метки',
+    labels: 'Метки',
     addLabel: 'Добавить метку',
     noLabels: 'Меток пока нет.',
-    addLink: 'Добавить ссылку',
-    removeLink: 'Удалить ссылку',
-    linkPlaceholder: 'https://…',
-    showLabel: 'Показать метку',
-    hideLabel: 'Скрыть метку',
-    showName: 'Показать имя',
-    hideName: 'Скрыть имя',
-    color: 'Цвет',
-    width: 'Толщина',
-    lineStyle: 'Стиль линии',
-    lineType: 'Тип линии',
-    useCustomColor: 'Использовать свой цвет',
-    showArrow: 'Показать стрелку',
-    solid: 'Сплошная',
-    dotted: 'Пунктирная',
-    dashed: 'Штриховая',
-    singleLine: 'Одинарная линия',
-    doubleLine: 'Двойная линия',
-    doubleLineWithCircle: 'Двойная линия с кругом'
+    labelN: 'Метка {count}',
+    positionHint: 'Перетащите метку на холсте, чтобы разместить её; размер и цвет её текста задаются на верхней панели.',
+    line: 'Линия',
+    line1: 'Линия 1',
+    line2: 'Линия 2'
   },
   textBoxControls: {
+    linkSearchPlaceholder: 'Найдите или вставьте ссылку',
+    linkCopy: 'Копировать ссылку',
+    linkCopied: 'Скопировано',
+    linkEdit: 'Изменить ссылку',
+    linkRemove: 'Удалить ссылку',
+    placeholder: 'Введите текст',
+    metadata: 'Метаданные',
+    notes: 'Заметки',
     close: 'Закрыть',
     name: 'Название',
-    namePlaceholder: 'Имя элемента…',
-    text: 'Текст',
-    textSize: 'Размер текста',
-    textColor: 'Цвет текста',
-    alignment: 'Выравнивание'
+    namePlaceholder: 'Имя элемента…'
   },
   rectangleControls: {
+    metadata: 'Метаданные',
+    notes: 'Заметки',
     close: 'Закрыть',
     name: 'Название',
-    namePlaceholder: 'Имя элемента…',
-    color: 'Цвет',
-    useCustomColor: 'Использовать пользовательский цвет'
+    namePlaceholder: 'Имя элемента…'
+  },
+  topBarStyleControls: {
+    rotate90: 'Повернуть на 90°',
+    noColor: 'Без цвета',
+    customColor: 'Свой цвет',
+    textSize: 'Размер текста',
+    lineSpacing: 'Межстрочный интервал',
+    alignment: 'Выравнивание',
+    alignmentDisabled: 'Выберите текстовое поле, чтобы выровнять текст',
+    alignLeft: 'По левому краю',
+    alignCenter: 'По центру',
+    alignRight: 'По правому краю',
+    alignTop: 'По верхнему краю',
+    alignMiddle: 'По середине',
+    alignBottom: 'По нижнему краю',
+    iconSize: 'Размер иконки',
+    textColor: 'Цвет текста',
+    textColorDisabled:
+      'Выберите узел, текстовое поле, подпись или подпись соединения, чтобы задать цвет текста',
+    textSizeDisabled:
+      'Выберите узел, текстовое поле, подпись или подпись соединения, чтобы задать размер текста',
+    labelSizeAllSelected: 'Размер подписи (для всех выбранных)',
+    textColorAllSelected: 'Цвет текста (для всех выбранных)',
+    armedToolPlaceFirst:
+      'Новый элемент использует стиль по умолчанию — сначала разместите его, затем оформите здесь',
+    decreaseLabelSize: 'Уменьшить размер подписи',
+    increaseLabelSize: 'Увеличить размер подписи',
+    labelSize: 'Размер подписи',
+    decreaseSize: 'Уменьшить размер',
+    increaseSize: 'Увеличить размер',
+    stepAll: 'Шаг для всех',
+    size: 'Размер',
+    bold: 'Жирный',
+    italic: 'Курсив',
+    underline: 'Подчёркнутый',
+    strikethrough: 'Зачёркнутый',
+    format: 'Жирный / курсив / подчёркнутый / зачёркнутый',
+    formatDisabled:
+      'Выберите узел, текстовое поле, подпись или подпись соединения, чтобы форматировать текст',
+    lists: 'Списки',
+    listsDisabled: 'Выберите текстовое поле, чтобы использовать списки',
+    bulletList: 'Маркированный список',
+    numberedList: 'Нумерованный список',
+    background: 'Цвет фона',
+    backgroundDisabled: 'Выберите прямоугольник, подпись или текстовое поле, чтобы задать цвет фона',
+    opacity: 'Прозрачность',
+    border: 'Граница',
+    borderDisabled: 'Выберите прямоугольник или текстовое поле, чтобы задать его рамку',
+    lineStyle: 'Стиль линии',
+    width: 'Толщина',
+    borderColor: 'Цвет границы',
+    link: 'Ссылка',
+    linkDisabled: 'Выберите узел, соединение или подпись, чтобы добавить ссылку',
+    linkSelection: 'Добавить ссылку на выделенный текст',
+    linkDisabledTextBox:
+      'Выделите текст во время редактирования, чтобы добавить ссылку',
+    linkToWeb: 'Ссылка на веб-страницу',
+    webLinkPlaceholder: 'https://…',
+    linkToDiagram: 'Ссылка на диаграмму',
+    searchDiagrams: 'Поиск диаграмм…',
+    openLinkedDiagram: 'Открыть связанную диаграмму',
+    showLabel: 'Показать подпись',
+    hideLabel: 'Скрыть подпись',
+    showHideLabelDisabled:
+      'Выберите узел или соединение, чтобы показать или скрыть подпись',
+    changeIconBulk: 'Смена иконки применяется к одному узлу за раз',
+    changeIcon: 'Изменить иконку',
+    changeIconDisabled: 'Выберите узел, чтобы изменить его иконку',
+    iconSizeBulk:
+      'Размер иконки редактирует одну иконку за раз (масштабирует все узлы с этой иконкой)',
+    iconSizeDisabled: 'Выберите узел, чтобы изменить размер его иконки',
+    connectionColorPredraw: 'Цвет для следующего создаваемого соединения',
+    connectionColor: 'Цвет соединения',
+    connectionColorDisabled:
+      'Выберите соединение (или инструмент соединителя), чтобы задать его цвет',
+    lineOptionsPredraw: 'Стиль линии для следующего создаваемого соединения',
+    lineOptions: 'Параметры линии',
+    lineOptionsDisabled:
+      'Выберите соединение (или инструмент соединителя), чтобы задать параметры линии',
+    lineType: 'Тип линии',
+    showArrow: 'Показать стрелку',
+    showDottedLine: 'Показать пунктирную линию',
   },
   labelColorPicker: {
     customColor: 'Пользовательский цвет'
@@ -370,7 +418,10 @@ const locale: LocaleProps = {
     selected: 'Выбрано: {count}'
   },
   modeHints: {
-    connector: 'Перетащите между элементами для соединения • Esc для отмены'
+    connector: 'Перетащите между элементами для соединения • Esc для отмены',
+    textBox: 'Нажмите, чтобы добавить текстовое поле • Esc для отмены',
+    label: 'Нажмите, чтобы добавить подпись • Esc для отмены',
+    rectangle: 'Перетащите, чтобы нарисовать прямоугольник • Esc для отмены'
   },
   previewLayerSwitcher: {
     layers: 'Слои',
@@ -428,6 +479,9 @@ const locale: LocaleProps = {
     placeholder: 'Поиск иконок'
   },
   exportImageDialog: {
+    groupAppearance: 'Appearance',
+    groupBackground: 'Background',
+    groupCrop: 'Crop',
     title: 'Экспортировать как изображение',
     compatibilityTitle: 'Уведомление о совместимости браузера',
     compatibilityMessage:
@@ -437,7 +491,6 @@ const locale: LocaleProps = {
     options: 'Параметры',
     showGrid: 'Показать сетку',
     showLabels: 'Показать подписи',
-    expandDescriptions: 'Развернуть описания',
     screenshotPreset: 'Снимок экрана (рекомендуется)',
     scaleClamped: 'Размер экспорта уменьшен для соответствия ограничению изображения браузера:',
     cropToContent: 'Обрезать по содержимому',
@@ -457,6 +510,7 @@ const locale: LocaleProps = {
     error: 'Не удалось экспортировать изображение'
   },
   toolMenu: {
+    label: 'Label',
     undo: 'Отменить',
     redo: 'Повторить',
     select: 'Выделить',
@@ -481,6 +535,7 @@ const locale: LocaleProps = {
   },
   canvasContextMenu: {
     addNote: 'Добавить заметку',
+    addLabel: 'Добавить метку',
     details: 'Подробности…',
     rename: 'Переименовать',
     cut: 'Вырезать',
@@ -489,7 +544,10 @@ const locale: LocaleProps = {
     duplicate: 'Дублировать',
     bringForward: 'На передний план',
     sendBackward: 'На задний план',
+    bringToFront: 'На передний план',
+    sendToBack: 'На задний план',
     assignToLayer: 'Назначить слою',
+    fitToText: 'Подогнать под текст',
     snapToGrid: 'Привязать к сетке',
     unsnapFromGrid: 'Открепить от сетки',
     disableCollision: 'Отключить столкновения',
@@ -512,7 +570,8 @@ const locale: LocaleProps = {
     elements: 'Элементы',
     layers: 'Слои',
     settings: 'Настройки',
-    openDiagramFirst: 'сначала откройте или создайте диаграмму'
+    openDiagramFirst: 'сначала откройте или создайте диаграмму',
+    collapsePanel: 'Свернуть панель'
   },
   // D8 — LayersPanel
   layersPanel: {

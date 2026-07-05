@@ -53,6 +53,7 @@ function makeUiState(overrides: any = {}) {
     mode: overrides.mode ?? { type: 'CONNECTOR', showCursor: true, id: null },
     mouse: overrides.mouse ?? { position: { tile: { x: 5, y: 5 } } },
     connectorInteractionMode: overrides.connectorInteractionMode ?? 'click',
+    connectorDefaults: overrides.connectorDefaults ?? {},
     actions: overrides.actions ?? { setMode: jest.fn() }
   };
 }
@@ -257,6 +258,38 @@ describe('Connector.mousedown click mode — second click', () => {
     );
   });
 
+  // #8 (2026-07-01): committing via the second click resets connectorDefaults
+  // so the next connector draws with the baseline style (one-shot pre-draw).
+  it('resets connectorDefaults after the second click (click mode)', () => {
+    const resetConnectorDefaults = jest.fn();
+    const existingConnector = {
+      id: 'conn-1',
+      color: 'color-1',
+      anchors: [
+        { id: 'a1', ref: { tile: { x: 2, y: 2 } } },
+        { id: 'a2', ref: { tile: { x: 2, y: 2 } } }
+      ]
+    };
+    const uiState = makeUiState({
+      mode: {
+        type: 'CONNECTOR',
+        showCursor: true,
+        id: 'conn-1',
+        startAnchor: { tile: { x: 2, y: 2 } },
+        isConnecting: true
+      },
+      connectorInteractionMode: 'click',
+      connectorDefaults: { style: 'DASHED' },
+      actions: { setMode: jest.fn(), resetConnectorDefaults }
+    });
+    Connector.mousedown!({
+      uiState,
+      scene: makeScene({ connectors: [existingConnector] }),
+      isRendererInteraction: true
+    } as any);
+    expect(resetConnectorDefaults).toHaveBeenCalledTimes(1);
+  });
+
   it('switches to CURSOR mode on second click when returnToCursor is set', () => {
     const connectorId = 'conn-2';
     const existingConnector = {
@@ -391,6 +424,58 @@ describe('Connector.mousedown drag mode', () => {
     const [createdConnector] = scene.createConnector.mock.calls[0];
     expect(createdConnector.anchors[0].ref).toEqual({ item: 'nodeA' });
   });
+
+  it('applies connectorDefaults (pre-draw style) to the new connector', () => {
+    const uiState = makeUiState({
+      mode: { type: 'CONNECTOR', showCursor: true, id: null },
+      connectorInteractionMode: 'drag',
+      connectorDefaults: {
+        color: 'color-9',
+        style: 'DASHED',
+        lineType: 'DOUBLE',
+        width: 25,
+        showArrow: false
+      }
+    });
+    const scene = makeScene();
+    Connector.mousedown!({
+      uiState,
+      scene,
+      isRendererInteraction: true
+    } as any);
+
+    const [created] = scene.createConnector.mock.calls[0];
+    expect(created).toMatchObject({
+      color: 'color-9',
+      style: 'DASHED',
+      lineType: 'DOUBLE',
+      width: 25,
+      showArrow: false
+    });
+  });
+
+  it('preserves returnToCursor across drag-start (palette one-shot tool)', () => {
+    const uiState = makeUiState({
+      mode: {
+        type: 'CONNECTOR',
+        showCursor: true,
+        id: null,
+        returnToCursor: true
+      },
+      connectorInteractionMode: 'drag'
+    });
+    Connector.mousedown!({
+      uiState,
+      scene: makeScene(),
+      isRendererInteraction: true
+    } as any);
+
+    // Without preserving this, the dragged connector would leave the tool armed
+    // instead of resetting to the pointer on release.
+    expect(uiState.actions.setMode).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'CONNECTOR', returnToCursor: true })
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -428,6 +513,41 @@ describe('Connector.mouseup drag mode', () => {
     expect(uiState.actions.setMode).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'CONNECTOR', id: null })
     );
+  });
+
+  it('returns to CURSOR on release in drag mode when returnToCursor is set', () => {
+    const uiState = makeUiState({
+      mode: {
+        type: 'CONNECTOR',
+        showCursor: true,
+        id: 'conn-1',
+        returnToCursor: true
+      },
+      connectorInteractionMode: 'drag'
+    });
+    Connector.mouseup!({ uiState, scene: makeScene() } as any);
+    expect(uiState.actions.setMode).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'CURSOR',
+        showCursor: true,
+        mousedownItem: null
+      })
+    );
+  });
+
+  // #8 (2026-07-01): a pre-draw style is one-shot — committing a connector
+  // resets connectorDefaults so the NEXT draw uses the baseline (no sticky
+  // last-used style). Drag-mode commit path.
+  it('resets connectorDefaults after committing (drag mode)', () => {
+    const resetConnectorDefaults = jest.fn();
+    const uiState = makeUiState({
+      mode: { type: 'CONNECTOR', showCursor: true, id: 'conn-1' },
+      connectorInteractionMode: 'drag',
+      connectorDefaults: { style: 'DASHED' },
+      actions: { setMode: jest.fn(), resetConnectorDefaults }
+    });
+    Connector.mouseup!({ uiState, scene: makeScene() } as any);
+    expect(resetConnectorDefaults).toHaveBeenCalledTimes(1);
   });
 
   it('click mode, press-DRAG-release (travel past slop): completes the connector on mouseup', () => {

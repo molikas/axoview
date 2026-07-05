@@ -4,6 +4,10 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'To jest przykładowy tekst'
   },
+  rightSidebar: {
+    collapsePanel: 'Zwiń panel',
+    emptyState: 'Wybierz węzeł, łącznik lub kształt, aby zobaczyć jego właściwości'
+  },
   helpDialog: {
     title: 'Skróty klawiaturowe i Pomoc',
     close: 'Zamknij',
@@ -272,89 +276,132 @@ const locale: LocaleProps = {
     addPageDisabled: 'Osiągnięto limit stron (5)'
   },
   nodePanel: {
-    details: 'Szczegóły',
-    style: 'Styl',
     notes: 'Notatki',
-    notesModified: 'Notatki ●',
     close: 'Zamknij',
-    openLink: 'Otwórz link',
-    caption: 'Podpis',
-    noCaption: 'Brak podpisu.',
-    showLabel: 'Pokaż etykietę',
-    hideLabel: 'Ukryj etykietę',
-    showName: 'Pokaż nazwę',
-    hideName: 'Ukryj nazwę'
   },
   nodeInfoTab: {
+    metadata: 'Metadane',
     name: 'Nazwa',
     namePlaceholder: 'Nazwa węzła…',
-    removeLink: 'Usuń link',
-    addLink: 'Dodaj link do nazwy',
-    linkPlaceholder: 'https://…',
-    caption: 'Podpis',
-    captionHint: 'Wyświetlany na płótnie poniżej nazwy węzła',
-    openLink: 'Otwórz link',
-    diagramLink: 'Link do diagramu',
-    diagramLinkPlaceholder: 'Wybierz diagram…',
-    diagramLinkHint: 'Kliknięcie tego węzła w trybie tylko do odczytu otwiera powiązany diagram',
-    openDiagramLink: 'Otwórz powiązany diagram'
-  },
-  nodeStyleTab: {
-    icon: 'Ikona',
-    close: 'Zamknij',
-    change: 'Zmień…',
-    iconSize: 'Rozmiar ikony',
-    labelFontSize: 'Rozmiar czcionki etykiety',
-    labelColor: 'Kolor etykiety',
-    labelHeight: 'Wysokość etykiety'
+    label: 'Etykieta',
+    labelPlaceholder: 'Etykieta widoczna na kształcie…',
+    openLink: 'Otwórz link'
   },
   connectorControls: {
+    metadata: 'Metadane',
     close: 'Zamknij',
-    labels: 'Etykiety',
-    details: 'Szczegóły',
-    style: 'Styl',
     notes: 'Notatki',
-    notesModified: 'Notatki ●',
     name: 'Nazwa',
     namePlaceholder: 'Etykieta krawędzi…',
-    additionalLabels: 'Dodatkowe etykiety',
+    labels: 'Etykiety',
     addLabel: 'Dodaj etykietę',
     noLabels: 'Brak etykiet.',
-    addLink: 'Dodaj link',
-    removeLink: 'Usuń link',
-    linkPlaceholder: 'https://…',
-    showLabel: 'Pokaż etykietę',
-    hideLabel: 'Ukryj etykietę',
-    showName: 'Pokaż nazwę',
-    hideName: 'Ukryj nazwę',
-    color: 'Kolor',
-    width: 'Grubość',
-    lineStyle: 'Styl linii',
-    lineType: 'Typ linii',
-    useCustomColor: 'Użyj koloru niestandardowego',
-    showArrow: 'Pokaż strzałkę',
-    solid: 'Ciągła',
-    dotted: 'Kropkowana',
-    dashed: 'Przerywana',
-    singleLine: 'Pojedyncza linia',
-    doubleLine: 'Podwójna linia',
-    doubleLineWithCircle: 'Podwójna linia z kółkiem'
+    labelN: 'Etykieta {count}',
+    positionHint: 'Przeciągnij etykietę na płótnie, aby ustawić jej położenie; użyj górnego paska, aby zmienić rozmiar i kolor tekstu.',
+    line: 'Linia',
+    line1: 'Linia 1',
+    line2: 'Linia 2'
   },
   textBoxControls: {
+    linkSearchPlaceholder: 'Wyszukaj lub wklej link',
+    linkCopy: 'Kopiuj link',
+    linkCopied: 'Skopiowano',
+    linkEdit: 'Edytuj link',
+    linkRemove: 'Usuń link',
+    placeholder: 'Wpisz coś',
+    metadata: 'Metadane',
+    notes: 'Notatki',
     close: 'Zamknij',
     name: 'Nazwa',
-    namePlaceholder: 'Nazwa elementu…',
-    text: 'Tekst',
-    textSize: 'Rozmiar tekstu',
-    textColor: 'Kolor tekstu',
-    alignment: 'Wyrównanie'
+    namePlaceholder: 'Nazwa elementu…'
   },
   rectangleControls: {
+    metadata: 'Metadane',
+    notes: 'Notatki',
     close: 'Zamknij',
     name: 'Nazwa',
-    namePlaceholder: 'Nazwa elementu…',
-    color: 'Kolor',
-    useCustomColor: 'Użyj niestandardowego koloru'
+    namePlaceholder: 'Nazwa elementu…'
+  },
+  topBarStyleControls: {
+    rotate90: 'Obróć o 90°',
+    noColor: 'Brak koloru',
+    customColor: 'Kolor niestandardowy',
+    textSize: 'Rozmiar tekstu',
+    lineSpacing: 'Interlinia',
+    alignment: 'Wyrównanie',
+    alignmentDisabled: 'Zaznacz pole tekstowe, aby wyrównać tekst',
+    alignLeft: 'Wyrównaj do lewej',
+    alignCenter: 'Wyśrodkuj',
+    alignRight: 'Wyrównaj do prawej',
+    alignTop: 'Wyrównaj do góry',
+    alignMiddle: 'Wyrównaj do środka',
+    alignBottom: 'Wyrównaj do dołu',
+    iconSize: 'Rozmiar ikony',
+    textColor: 'Kolor tekstu',
+    textColorDisabled:
+      'Zaznacz węzeł, pole tekstowe, etykietę lub etykietę połączenia, aby ustawić kolor tekstu',
+    textSizeDisabled:
+      'Zaznacz węzeł, pole tekstowe, etykietę lub etykietę połączenia, aby ustawić rozmiar tekstu',
+    labelSizeAllSelected: 'Rozmiar etykiety (wszystkie zaznaczone)',
+    textColorAllSelected: 'Kolor tekstu (wszystkie zaznaczone)',
+    armedToolPlaceFirst:
+      'Nowy element używa domyślnego stylu — najpierw go umieść, a potem ostyluj tutaj',
+    decreaseLabelSize: 'Zmniejsz rozmiar etykiety',
+    increaseLabelSize: 'Zwiększ rozmiar etykiety',
+    labelSize: 'Rozmiar etykiety',
+    decreaseSize: 'Zmniejsz rozmiar',
+    increaseSize: 'Zwiększ rozmiar',
+    stepAll: 'Zmień wszystkie',
+    size: 'Rozmiar',
+    bold: 'Pogrubienie',
+    italic: 'Kursywa',
+    underline: 'Podkreślenie',
+    strikethrough: 'Przekreślenie',
+    format: 'Pogrubienie / kursywa / podkreślenie / przekreślenie',
+    formatDisabled:
+      'Zaznacz węzeł, pole tekstowe, etykietę lub etykietę połączenia, aby sformatować tekst',
+    lists: 'Listy',
+    listsDisabled: 'Zaznacz pole tekstowe, aby używać list',
+    bulletList: 'Lista punktowana',
+    numberedList: 'Lista numerowana',
+    background: 'Kolor tła',
+    backgroundDisabled: 'Zaznacz prostokąt, etykietę lub pole tekstowe, aby ustawić kolor tła',
+    opacity: 'Przezroczystość',
+    border: 'Obramowanie',
+    borderDisabled: 'Zaznacz prostokąt lub pole tekstowe, aby ustawić jego obramowanie',
+    lineStyle: 'Styl linii',
+    width: 'Grubość',
+    borderColor: 'Kolor obramowania',
+    link: 'Link',
+    linkDisabled: 'Zaznacz węzeł, połączenie lub etykietę, aby dodać link',
+    linkSelection: 'Dodaj link do zaznaczonego tekstu',
+    linkDisabledTextBox: 'Zaznacz tekst podczas edycji, aby dodać link',
+    linkToWeb: 'Link do strony',
+    webLinkPlaceholder: 'https://…',
+    linkToDiagram: 'Link do diagramu',
+    searchDiagrams: 'Szukaj diagramów…',
+    openLinkedDiagram: 'Otwórz powiązany diagram',
+    showLabel: 'Pokaż etykietę',
+    hideLabel: 'Ukryj etykietę',
+    showHideLabelDisabled:
+      'Zaznacz węzeł lub połączenie, aby pokazać lub ukryć jego etykietę',
+    changeIconBulk: 'Zmiana ikony dotyczy jednego węzła naraz',
+    changeIcon: 'Zmień ikonę',
+    changeIconDisabled: 'Zaznacz węzeł, aby zmienić jego ikonę',
+    iconSizeBulk:
+      'Rozmiar ikony edytuje jedną ikonę naraz (zmienia rozmiar wszystkich węzłów, które jej używają)',
+    iconSizeDisabled: 'Zaznacz węzeł, aby zmienić rozmiar jego ikony',
+    connectionColorPredraw: 'Kolor następnego rysowanego połączenia',
+    connectionColor: 'Kolor połączenia',
+    connectionColorDisabled:
+      'Zaznacz połączenie (lub narzędzie łącznika), aby ustawić jego kolor',
+    lineOptionsPredraw: 'Styl linii następnego rysowanego połączenia',
+    lineOptions: 'Opcje linii',
+    lineOptionsDisabled:
+      'Zaznacz połączenie (lub narzędzie łącznika), aby ustawić jego opcje linii',
+    lineType: 'Typ linii',
+    showArrow: 'Pokaż strzałkę',
+    showDottedLine: 'Pokaż linię kropkowaną',
   },
   labelColorPicker: {
     customColor: 'Niestandardowy kolor'
@@ -375,7 +422,10 @@ const locale: LocaleProps = {
     selected: 'Zaznaczono: {count}'
   },
   modeHints: {
-    connector: 'Przeciągnij między elementami, aby połączyć • Esc, aby anulować'
+    connector: 'Przeciągnij między elementami, aby połączyć • Esc, aby anulować',
+    textBox: 'Kliknij, aby umieścić pole tekstowe • Esc, aby anulować',
+    label: 'Kliknij, aby umieścić etykietę • Esc, aby anulować',
+    rectangle: 'Przeciągnij, aby narysować prostokąt • Esc, aby anulować'
   },
   previewLayerSwitcher: {
     layers: 'Warstwy',
@@ -433,6 +483,9 @@ const locale: LocaleProps = {
     placeholder: 'Szukaj ikon'
   },
   exportImageDialog: {
+    groupAppearance: 'Appearance',
+    groupBackground: 'Background',
+    groupCrop: 'Crop',
     title: 'Eksportuj jako obraz',
     compatibilityTitle: 'Uwaga dotycząca zgodności przeglądarki',
     compatibilityMessage:
@@ -441,7 +494,6 @@ const locale: LocaleProps = {
     options: 'Opcje',
     showGrid: 'Pokaż siatkę',
     showLabels: 'Pokaż etykiety',
-    expandDescriptions: 'Rozwiń opisy',
     screenshotPreset: 'Zrzut ekranu (zalecane)',
     scaleClamped: 'Rozmiar eksportu zmniejszony, aby zmieścić się w limicie obrazu przeglądarki:',
     cropToContent: 'Przytnij do zawartości',
@@ -461,6 +513,7 @@ const locale: LocaleProps = {
     error: 'Nie można wyeksportować obrazu'
   },
   toolMenu: {
+    label: 'Label',
     undo: 'Cofnij',
     redo: 'Ponów',
     select: 'Wybierz',
@@ -485,6 +538,7 @@ const locale: LocaleProps = {
   },
   canvasContextMenu: {
     addNote: 'Dodaj notatkę',
+    addLabel: 'Dodaj etykietę',
     details: 'Szczegóły…',
     rename: 'Zmień nazwę',
     cut: 'Wytnij',
@@ -493,7 +547,10 @@ const locale: LocaleProps = {
     duplicate: 'Duplikuj',
     bringForward: 'Przesuń do przodu',
     sendBackward: 'Przesuń do tyłu',
+    bringToFront: 'Przesuń na wierzch',
+    sendToBack: 'Przesuń na spód',
     assignToLayer: 'Przypisz do warstwy',
+    fitToText: 'Dopasuj do tekstu',
     snapToGrid: 'Przyciągnij do siatki',
     unsnapFromGrid: 'Odepnij od siatki',
     disableCollision: 'Wyłącz kolizję',
@@ -516,7 +573,8 @@ const locale: LocaleProps = {
     elements: 'Elementy',
     layers: 'Warstwy',
     settings: 'Ustawienia',
-    openDiagramFirst: 'najpierw otwórz lub utwórz diagram'
+    openDiagramFirst: 'najpierw otwórz lub utwórz diagram',
+    collapsePanel: 'Zwiń panel'
   },
   // D8 — LayersPanel
   layersPanel: {

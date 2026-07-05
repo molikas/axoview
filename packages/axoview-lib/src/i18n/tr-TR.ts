@@ -4,6 +4,10 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'Bu bir örnek metindir'
   },
+  rightSidebar: {
+    collapsePanel: 'Paneli daralt',
+    emptyState: 'Özelliklerini görüntülemek için bir düğüm, bağlayıcı veya şekil seçin'
+  },
   helpDialog: {
     title: 'Klavye Kısayolları ve Yardım',
     close: 'Kapat',
@@ -267,89 +271,133 @@ const locale: LocaleProps = {
     addPageDisabled: 'Sayfa sınırına ulaşıldı (5)'
   },
   nodePanel: {
-    details: 'Ayrıntılar',
-    style: 'Stil',
     notes: 'Notlar',
-    notesModified: 'Notlar ●',
     close: 'Kapat',
-    openLink: 'Bağlantıyı aç',
-    caption: 'Altyazı',
-    noCaption: 'Altyazı yok.',
-    showLabel: 'Etiketi göster',
-    hideLabel: 'Etiketi gizle',
-    showName: 'Adı göster',
-    hideName: 'Adı gizle'
   },
   nodeInfoTab: {
+    metadata: 'Meta veriler',
     name: 'Ad',
     namePlaceholder: 'Düğüm adı…',
-    removeLink: 'Bağlantıyı kaldır',
-    addLink: 'Ada bağlantı ekle',
-    linkPlaceholder: 'https://…',
-    caption: 'Altyazı',
-    captionHint: 'Tuvalde düğüm adının altında gösterilir',
-    openLink: 'Bağlantıyı aç',
-    diagramLink: 'Diyagrama bağlantı',
-    diagramLinkPlaceholder: 'Diyagram seçin…',
-    diagramLinkHint: 'Salt okunur modda bu düğüme tıklamak bağlantılı diyagramı açar',
-    openDiagramLink: 'Bağlantılı diyagramı aç'
-  },
-  nodeStyleTab: {
-    icon: 'Simge',
-    close: 'Kapat',
-    change: 'Değiştir…',
-    iconSize: 'Simge boyutu',
-    labelFontSize: 'Etiket yazı tipi boyutu',
-    labelColor: 'Etiket rengi',
-    labelHeight: 'Etiket yüksekliği'
+    label: 'Etiket',
+    labelPlaceholder: 'Şekilde gösterilen etiket…',
+    openLink: 'Bağlantıyı aç'
   },
   connectorControls: {
+    metadata: 'Meta veriler',
     close: 'Kapat',
-    labels: 'Etiketler',
-    details: 'Ayrıntılar',
-    style: 'Stil',
     notes: 'Notlar',
-    notesModified: 'Notlar ●',
     name: 'Ad',
     namePlaceholder: 'Kenar etiketi…',
-    additionalLabels: 'Ek etiketler',
+    labels: 'Etiketler',
     addLabel: 'Etiket ekle',
     noLabels: 'Henüz etiket yok.',
-    addLink: 'Bağlantı ekle',
-    removeLink: 'Bağlantıyı kaldır',
-    linkPlaceholder: 'https://…',
-    showLabel: 'Etiketi göster',
-    hideLabel: 'Etiketi gizle',
-    showName: 'Adı göster',
-    hideName: 'Adı gizle',
-    color: 'Renk',
-    width: 'Kalınlık',
-    lineStyle: 'Çizgi stili',
-    lineType: 'Çizgi türü',
-    useCustomColor: 'Özel renk kullan',
-    showArrow: 'Oku göster',
-    solid: 'Düz',
-    dotted: 'Noktalı',
-    dashed: 'Kesik',
-    singleLine: 'Tek çizgi',
-    doubleLine: 'Çift çizgi',
-    doubleLineWithCircle: 'Daireli çift çizgi'
+    labelN: 'Etiket {count}',
+    positionHint:
+      'Konumlandırmak için tuvalde bir etiketi sürükleyin; metin boyutu ve rengi için üst çubuğu kullanın.',
+    line: 'Çizgi',
+    line1: 'Çizgi 1',
+    line2: 'Çizgi 2'
   },
   textBoxControls: {
+    linkSearchPlaceholder: 'Ara veya bağlantı yapıştır',
+    linkCopy: 'Bağlantıyı kopyala',
+    linkCopied: 'Kopyalandı',
+    linkEdit: 'Bağlantıyı düzenle',
+    linkRemove: 'Bağlantıyı kaldır',
+    placeholder: 'Bir şeyler yazın',
+    metadata: 'Meta veriler',
+    notes: 'Notlar',
     close: 'Kapat',
     name: 'Ad',
-    namePlaceholder: 'Eleman adı…',
-    text: 'Metin',
-    textSize: 'Metin boyutu',
-    textColor: 'Metin rengi',
-    alignment: 'Hizalama'
+    namePlaceholder: 'Eleman adı…'
   },
   rectangleControls: {
+    metadata: 'Meta veriler',
+    notes: 'Notlar',
     close: 'Kapat',
     name: 'Ad',
-    namePlaceholder: 'Eleman adı…',
-    color: 'Renk',
-    useCustomColor: 'Özel Renk Kullan'
+    namePlaceholder: 'Eleman adı…'
+  },
+  topBarStyleControls: {
+    rotate90: '90° döndür',
+    noColor: 'Renk yok',
+    customColor: 'Özel renk',
+    textSize: 'Metin boyutu',
+    lineSpacing: 'Satır aralığı',
+    alignment: 'Hizalama',
+    alignmentDisabled: 'Metni hizalamak için bir metin kutusu seçin',
+    alignLeft: 'Sola hizala',
+    alignCenter: 'Ortala',
+    alignRight: 'Sağa hizala',
+    alignTop: 'Üste hizala',
+    alignMiddle: 'Ortaya hizala',
+    alignBottom: 'Alta hizala',
+    iconSize: 'Simge boyutu',
+    textColor: 'Metin rengi',
+    textColorDisabled:
+      'Metin rengini ayarlamak için bir düğüm, metin kutusu, etiket veya bağlantı etiketi seçin',
+    textSizeDisabled:
+      'Metin boyutunu ayarlamak için bir düğüm, metin kutusu, etiket veya bağlantı etiketi seçin',
+    labelSizeAllSelected: 'Etiket boyutu (tümü seçili)',
+    textColorAllSelected: 'Metin rengi (tümü seçili)',
+    armedToolPlaceFirst:
+      'Yeni öğe varsayılan stili kullanır — önce yerleştirin, sonra burada biçimlendirin',
+    decreaseLabelSize: 'Etiket boyutunu küçült',
+    increaseLabelSize: 'Etiket boyutunu büyüt',
+    labelSize: 'Etiket boyutu',
+    decreaseSize: 'Boyutu küçült',
+    increaseSize: 'Boyutu büyüt',
+    stepAll: 'Tümünü ayarla',
+    size: 'Boyut',
+    bold: 'Kalın',
+    italic: 'İtalik',
+    underline: 'Altı çizili',
+    strikethrough: 'Üstü çizili',
+    format: 'Kalın / italik / altı çizili / üstü çizili',
+    formatDisabled:
+      'Metni biçimlendirmek için bir düğüm, metin kutusu, etiket veya bağlantı etiketi seçin',
+    lists: 'Listeler',
+    listsDisabled: 'Listeleri kullanmak için bir metin kutusu seçin',
+    bulletList: 'Madde işaretli liste',
+    numberedList: 'Numaralı liste',
+    background: 'Arka plan rengi',
+    backgroundDisabled: 'Arka plan rengini ayarlamak için bir dikdörtgen, etiket veya metin kutusu seçin',
+    opacity: 'Saydamlık',
+    border: 'Kenarlık',
+    borderDisabled: 'Kenarlığını ayarlamak için bir dikdörtgen veya metin kutusu seçin',
+    lineStyle: 'Çizgi stili',
+    width: 'Kalınlık',
+    borderColor: 'Kenarlık rengi',
+    link: 'Bağlantı',
+    linkDisabled: 'Bağlantı eklemek için bir düğüm, bağlantı veya etiket seçin',
+    linkSelection: 'Seçili metne bağlantı ekle',
+    linkDisabledTextBox: 'Bağlantı eklemek için düzenlerken metin seçin',
+    linkToWeb: 'Web bağlantısı',
+    webLinkPlaceholder: 'https://…',
+    linkToDiagram: 'Diyagrama bağlantı',
+    searchDiagrams: 'Diyagram ara…',
+    openLinkedDiagram: 'Bağlantılı diyagramı aç',
+    showLabel: 'Etiketi göster',
+    hideLabel: 'Etiketi gizle',
+    showHideLabelDisabled:
+      'Etiketini göstermek veya gizlemek için bir düğüm veya bağlantı seçin',
+    changeIconBulk: 'Simge değiştirme aynı anda tek bir düğüme uygulanır',
+    changeIcon: 'Simgeyi değiştir',
+    changeIconDisabled: 'Simgesini değiştirmek için bir düğüm seçin',
+    iconSizeBulk:
+      'Simge boyutu aynı anda tek bir simgeyi düzenler (o simgeyi kullanan tüm düğümleri yeniden boyutlandırır)',
+    iconSizeDisabled: 'Simge boyutunu değiştirmek için bir düğüm seçin',
+    connectionColorPredraw: 'Çizeceğiniz sonraki bağlantının rengi',
+    connectionColor: 'Bağlantı rengi',
+    connectionColorDisabled:
+      'Rengini ayarlamak için bir bağlantı (veya bağlayıcı aracı) seçin',
+    lineOptionsPredraw: 'Çizeceğiniz sonraki bağlantının çizgi stili',
+    lineOptions: 'Çizgi seçenekleri',
+    lineOptionsDisabled:
+      'Çizgi seçeneklerini ayarlamak için bir bağlantı (veya bağlayıcı aracı) seçin',
+    lineType: 'Çizgi türü',
+    showArrow: 'Oku göster',
+    showDottedLine: 'Noktalı çizgiyi göster',
   },
   labelColorPicker: {
     customColor: 'Özel renk'
@@ -370,7 +418,10 @@ const locale: LocaleProps = {
     selected: '{count} seçildi'
   },
   modeHints: {
-    connector: 'Bağlamak için öğeler arasında sürükleyin • İptal için Esc'
+    connector: 'Bağlamak için öğeler arasında sürükleyin • İptal için Esc',
+    textBox: 'Metin kutusu yerleştirmek için tıklayın • İptal için Esc',
+    label: 'Etiket yerleştirmek için tıklayın • İptal için Esc',
+    rectangle: 'Dikdörtgen çizmek için sürükleyin • İptal için Esc'
   },
   previewLayerSwitcher: {
     layers: 'Katmanlar',
@@ -428,6 +479,9 @@ const locale: LocaleProps = {
     placeholder: 'Simge ara'
   },
   exportImageDialog: {
+    groupAppearance: 'Appearance',
+    groupBackground: 'Background',
+    groupCrop: 'Crop',
     title: 'Resim olarak dışa aktar',
     compatibilityTitle: 'Tarayıcı Uyumluluk Bildirimi',
     compatibilityMessage:
@@ -437,7 +491,6 @@ const locale: LocaleProps = {
     options: 'Seçenekler',
     showGrid: 'Kılavuzu göster',
     showLabels: 'Etiketleri göster',
-    expandDescriptions: 'Açıklamaları genişlet',
     screenshotPreset: 'Ekran görüntüsü (önerilen)',
     scaleClamped: 'Dışa aktarma boyutu, tarayıcı görüntü sınırına uyacak şekilde küçültüldü:',
     cropToContent: 'İçeriğe göre kırp',
@@ -457,6 +510,7 @@ const locale: LocaleProps = {
     error: 'Resim dışa aktarılamadı'
   },
   toolMenu: {
+    label: 'Label',
     undo: 'Geri Al',
     redo: 'Yinele',
     select: 'Seç',
@@ -481,6 +535,7 @@ const locale: LocaleProps = {
   },
   canvasContextMenu: {
     addNote: 'Not ekle',
+    addLabel: 'Etiket ekle',
     details: 'Ayrıntılar…',
     rename: 'Yeniden adlandır',
     cut: 'Kes',
@@ -489,7 +544,10 @@ const locale: LocaleProps = {
     duplicate: 'Çoğalt',
     bringForward: 'Öne getir',
     sendBackward: 'Arkaya gönder',
+    bringToFront: 'En öne getir',
+    sendToBack: 'En arkaya gönder',
     assignToLayer: 'Katmana ata',
+    fitToText: 'Metne sığdır',
     snapToGrid: 'Izgaraya yapıştır',
     unsnapFromGrid: 'Izgaradan ayır',
     disableCollision: 'Çakışmayı devre dışı bırak',
@@ -512,7 +570,8 @@ const locale: LocaleProps = {
     elements: 'Öğeler',
     layers: 'Katmanlar',
     settings: 'Ayarlar',
-    openDiagramFirst: 'önce bir diyagram açın veya oluşturun'
+    openDiagramFirst: 'önce bir diyagram açın veya oluşturun',
+    collapsePanel: 'Paneli daralt'
   },
   // D8 — LayersPanel
   layersPanel: {

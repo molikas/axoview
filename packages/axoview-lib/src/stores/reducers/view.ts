@@ -5,7 +5,8 @@ import {
   ViewItem,
   Connector,
   Rectangle,
-  TextBox
+  TextBox,
+  Label
 } from 'src/types';
 import { getItemByIdOrThrow, generateId } from 'src/utils';
 import { VIEW_DEFAULTS, INITIAL_SCENE_STATE } from 'src/config';
@@ -15,6 +16,7 @@ import { syncTextBox } from './textBox';
 import * as viewItemReducers from './viewItem';
 import * as connectorReducers from './connector';
 import * as textBoxReducers from './textBox';
+import * as labelReducers from './label';
 import * as rectangleReducers from './rectangle';
 
 export const updateViewTimestamp = (ctx: ViewReducerContext): State => {
@@ -127,13 +129,16 @@ export const deleteLayer = (
     view.value.layers = view.value.layers.filter((l) => l.id !== layerId);
 
     // Unassign layerId from all entities that referenced this layer
-    const unassign = (entity: ViewItem | Connector | Rectangle | TextBox) => {
+    const unassign = (
+      entity: ViewItem | Connector | Rectangle | TextBox | Label
+    ) => {
       if (entity.layerId === layerId) delete entity.layerId;
     };
     (view.value.items ?? []).forEach(unassign);
     (view.value.connectors ?? []).forEach(unassign);
     (view.value.rectangles ?? []).forEach(unassign);
     (view.value.textBoxes ?? []).forEach(unassign);
+    (view.value.labels ?? []).forEach(unassign);
   });
 };
 
@@ -159,7 +164,9 @@ export const assignLayerToItems = (
   const idSet = new Set(itemIds);
   return produce(ctx.state, (draft) => {
     const view = getItemByIdOrThrow(draft.model.views, ctx.viewId);
-    const assign = (entity: ViewItem | Connector | Rectangle | TextBox) => {
+    const assign = (
+      entity: ViewItem | Connector | Rectangle | TextBox | Label
+    ) => {
       if (!idSet.has(entity.id)) return;
       if (layerId === undefined) {
         delete entity.layerId;
@@ -171,6 +178,7 @@ export const assignLayerToItems = (
     (view.value.connectors ?? []).forEach(assign);
     (view.value.rectangles ?? []).forEach(assign);
     (view.value.textBoxes ?? []).forEach(assign);
+    (view.value.labels ?? []).forEach(assign);
   });
 };
 
@@ -214,6 +222,9 @@ const TIMESTAMPED_ACTIONS = new Set([
   'CREATE_TEXTBOX',
   'UPDATE_TEXTBOX',
   'DELETE_TEXTBOX',
+  'CREATE_LABEL',
+  'UPDATE_LABEL',
+  'DELETE_LABEL',
   'CREATE_RECTANGLE',
   'UPDATE_RECTANGLE',
   'DELETE_RECTANGLE',
@@ -270,6 +281,15 @@ export const view = ({ action, payload, ctx }: ViewReducerParams) => {
       break;
     case 'DELETE_TEXTBOX':
       newState = textBoxReducers.deleteTextBox(payload, ctx);
+      break;
+    case 'CREATE_LABEL':
+      newState = labelReducers.createLabel(payload, ctx);
+      break;
+    case 'UPDATE_LABEL':
+      newState = labelReducers.updateLabel(payload, ctx);
+      break;
+    case 'DELETE_LABEL':
+      newState = labelReducers.deleteLabel(payload, ctx);
       break;
     case 'CREATE_RECTANGLE':
       newState = rectangleReducers.createRectangle(payload, ctx);

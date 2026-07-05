@@ -41,3 +41,29 @@ describe('sanitizeHtml', () => {
     expect(sanitizeHtml('')).toBe('');
   });
 });
+
+// ADR 0034 addendum 2026-07-03 — paragraph alignment rides on inline
+// `text-align` styles (Quill style attributor). The DOMPurify html profile
+// must keep the style attribute (it CSS-sanitizes the value) or alignment
+// would silently vanish on load/commit.
+describe('sanitizeHtml — alignment styles', () => {
+  const { sanitizeHtml } = require('../sanitizeHtml');
+
+  it('keeps inline text-align styles on paragraphs and list items', () => {
+    expect(sanitizeHtml('<p style="text-align: center;">a</p>')).toContain(
+      'text-align: center'
+    );
+    expect(
+      sanitizeHtml('<ul><li style="text-align: right;">a</li></ul>')
+    ).toContain('text-align: right');
+  });
+
+  it('still strips scripting alongside a style attribute', () => {
+    const out = sanitizeHtml(
+      '<p style="text-align: center;" onclick="alert(1)">a</p><script>x</script>'
+    );
+    expect(out).toContain('text-align: center');
+    expect(out).not.toContain('onclick');
+    expect(out).not.toContain('<script');
+  });
+});

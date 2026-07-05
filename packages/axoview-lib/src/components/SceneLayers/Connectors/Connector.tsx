@@ -1,6 +1,10 @@
 import React, { useMemo, memo } from 'react';
 import { useTheme, Box } from '@mui/material';
-import { UNPROJECTED_TILE_SIZE, CONNECTOR_DEFAULTS } from 'src/config';
+import {
+  UNPROJECTED_TILE_SIZE,
+  CONNECTOR_DEFAULTS,
+  TRANSFORM_CONTROLS_COLOR
+} from 'src/config';
 import { getColorVariant, getConnectorDirectionIcon } from 'src/utils';
 import { connectorEndpointVertexDelta } from 'src/utils/resolvePlacement';
 import { Svg } from 'src/components/Svg/Svg';
@@ -9,6 +13,7 @@ import { useIsoProjection } from 'src/hooks/useIsoProjection';
 import type { useScene } from 'src/hooks/useScene';
 import { useColor } from 'src/hooks/useColor';
 import { useSceneStore } from 'src/stores/sceneStore';
+import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useRenderProbe } from 'src/utils/renderProbe';
 import { Connector as ConnectorType } from 'src/types';
 
@@ -44,6 +49,19 @@ export const Connector = memo(({ connector, currentView }: Props) => {
       end: deltaFor(anchors[anchors.length - 1])
     };
   }, [connector.anchors, currentView?.items, strategy.projectionName]);
+
+  // S3/A2: connectors had NO selected-state — a selected connector was
+  // indistinguishable from the rest in a dense diagram (the only cue was the
+  // end-handle overlay). Subscribe to a primitive boolean: true when this
+  // connector is the single controlled item OR part of a multi-selection. Only
+  // this connector re-renders when its own selected flag flips.
+  const isSelected = useUiStateStore((s) => {
+    if (s.itemControls?.type === 'CONNECTOR' && s.itemControls.id === connector.id)
+      return true;
+    return s.selectedIds.some(
+      (r) => r.type === 'CONNECTOR' && r.id === connector.id
+    );
+  });
 
   // Subscribe only to this connector's scene data — O(1) per path write instead of O(N).
   const sceneConnector = useSceneStore(
@@ -221,9 +239,68 @@ export const Connector = memo(({ connector, currentView }: Props) => {
 
   const lineType = merged.lineType || 'SINGLE';
 
+  // A connector whose two anchors resolve to the SAME tile has a single-point
+  // path — an SVG polyline needs ≥2 points, so it would draw nothing (the
+  // element would be invisible + hard to select/delete). Render it as a dot
+  // marker at the tile so the (degenerate / zero-length) connector is visible
+  // and selectable. Owner 2026-07-02.
+  const dotPoint =
+    hasTiles && connectorPath!.tiles.length === 1
+      ? {
+          x: connectorPath!.tiles[0].x * UNPROJECTED_TILE_SIZE + drawOffset.x,
+          y: connectorPath!.tiles[0].y * UNPROJECTED_TILE_SIZE + drawOffset.y
+        }
+      : null;
+
   return (
     <Box data-testid="connector-path" style={css}>
       <Svg style={{ transform: 'scale(-1, 1)' }} viewboxSize={pxSize}>
+        {/* S3/A2 selection halo — a wide, semi-transparent accent stroke under
+            the connector so a selected connector reads clearly in a dense
+            diagram. Painted first (lowest) along the centerline; covers SINGLE
+            and DOUBLE alike. */}
+        {isSelected && hasTiles && (
+          <polyline
+            data-testid="connector-selection-halo"
+            points={pathString}
+            stroke={TRANSFORM_CONTROLS_COLOR}
+            strokeWidth={connectorWidthPx * 3.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeOpacity={0.35}
+            fill="none"
+          />
+        )}
+        {dotPoint && (
+          <>
+            {isSelected && (
+              <circle
+                data-testid="connector-selection-halo"
+                cx={dotPoint.x}
+                cy={dotPoint.y}
+                r={connectorWidthPx * 3}
+                fill={TRANSFORM_CONTROLS_COLOR}
+                fillOpacity={0.35}
+              />
+            )}
+            {/* White under-halo for contrast (matches the line's 1.4× halo),
+                then the coloured dot. */}
+            <circle
+              cx={dotPoint.x}
+              cy={dotPoint.y}
+              r={connectorWidthPx * 1.9}
+              fill={theme.palette.common.white}
+              fillOpacity={0.7}
+            />
+            <circle
+              data-testid="connector-dot"
+              cx={dotPoint.x}
+              cy={dotPoint.y}
+              r={connectorWidthPx * 1.4}
+              fill={getColorVariant(color.value, 'dark', { grade: 1 })}
+            />
+          </>
+        )}
         {lineType === 'SINGLE' ? (
           <>
             <polyline

@@ -1,74 +1,50 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import {
   Stack,
   TextField,
   IconButton,
   Tooltip,
   Typography,
-  Box,
-  Autocomplete
+  Box
 } from '@mui/material';
-import {
-  InsertLink as InsertLinkIcon,
-  OpenInNew as OpenInNewIcon,
-  VisibilityOutlined as ShowNameIcon,
-  VisibilityOffOutlined as HideNameIcon
-} from '@mui/icons-material';
+import { OpenInNew as OpenInNewIcon } from '@mui/icons-material';
 import { ModelItem, ViewItem } from 'src/types';
-import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
-import { stripHtmlTags } from 'src/utils/stripHtml';
 import { useModelItem } from 'src/hooks/useModelItem';
-import { useUiStateStore } from 'src/stores/uiStateStore';
 import { Section } from '../../components/Section';
+import { CollapsibleSection } from '../../components/CollapsibleSection';
 import { useTranslation } from 'src/stores/localeStore';
 
 interface Props {
   node: ViewItem;
   readOnly?: boolean;
   onModelItemUpdated: (updates: Partial<ModelItem>) => void;
-  onViewItemUpdated?: (updates: Partial<ViewItem>) => void;
   nameRef?: React.RefObject<HTMLInputElement | null>;
-  linkRef?: React.RefObject<HTMLInputElement | null>;
-  showLink: boolean;
-  onShowLinkChange: (show: boolean) => void;
 }
 
 export const NodeInfoTab = ({
   node,
   readOnly,
   onModelItemUpdated,
-  onViewItemUpdated,
-  nameRef,
-  linkRef,
-  showLink,
-  onShowLinkChange
+  nameRef
 }: Props) => {
   const { t } = useTranslation('nodeInfoTab');
-  const { t: tPanel } = useTranslation('nodePanel');
   const modelItem = useModelItem(node.id);
-  const linkedDiagrams = useUiStateStore((s) => s.linkedDiagrams);
-
-  const handleToggleLink = useCallback(() => {
-    if (showLink && modelItem?.headerLink) {
-      onModelItemUpdated({ headerLink: undefined });
-    }
-    onShowLinkChange(!showLink);
-  }, [showLink, modelItem?.headerLink, onModelItemUpdated, onShowLinkChange]);
 
   if (!modelItem) return null;
 
-  const hasCaption =
-    !!modelItem.description &&
-    stripHtmlTags(modelItem.description).trim() !== '';
+  // ADR 0032 amendment (2026-06-30): the Details field edits the on-canvas
+  // `label` (the field you type into is what shows on the shape); the identity
+  // `name` is renamed in Layers. Effective text falls back to `name` pre-seed.
+  const labelText = modelItem.label ?? modelItem.name;
 
   if (readOnly) {
     return (
       <Stack>
-        {/* Name */}
-        <Section title={t('name')}>
+        {/* On-canvas label */}
+        <Section title={t('label')}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Typography variant="body2" fontWeight={600} sx={{ flex: 1 }}>
-              {modelItem.name || '—'}
+              {labelText || '—'}
             </Typography>
             {modelItem.headerLink && (
               <Tooltip title={t('openLink')}>
@@ -90,171 +66,36 @@ export const NodeInfoTab = ({
             )}
           </Box>
         </Section>
-
-        {/* Caption (canvas text) */}
-        {hasCaption ? (
-          <Section title={t('caption')}>
-            <RichTextEditor
-              value={modelItem.description}
-              readOnly
-              height={80}
-            />
-          </Section>
-        ) : (
-          <Section>
-            <Typography
-              variant="body2"
-              color="text.disabled"
-              sx={{ fontStyle: 'italic' }}
-            >
-              {tPanel('noCaption')}
-            </Typography>
-          </Section>
-        )}
       </Stack>
     );
   }
 
   return (
     <Stack>
-      {/* Name */}
-      <Section title={t('name')}>
-        <Stack direction="row" spacing={0.5} alignItems="center">
-          <TextField
-            inputRef={nameRef}
-            value={modelItem.name}
-            fullWidth
-            placeholder={t('namePlaceholder')}
-            size="small"
-            onChange={(e) => {
-              const text = e.target.value;
-              if (modelItem.name !== text) onModelItemUpdated({ name: text });
-            }}
-          />
-          <Tooltip title={showLink ? t('removeLink') : t('addLink')}>
-            <IconButton
-              size="small"
-              color={modelItem.headerLink ? 'primary' : 'default'}
-              onClick={handleToggleLink}
-            >
-              <InsertLinkIcon />
-            </IconButton>
-          </Tooltip>
-          {onViewItemUpdated && (
-            <Tooltip title={node.showLabel === false ? tPanel('showName') : tPanel('hideName')}>
-              <IconButton
-                size="small"
-                onClick={() => onViewItemUpdated({ showLabel: node.showLabel === false ? undefined : false })}
-              >
-                {node.showLabel === false
-                  ? <HideNameIcon sx={{ fontSize: 18 }} />
-                  : <ShowNameIcon sx={{ fontSize: 18 }} />}
-              </IconButton>
-            </Tooltip>
-          )}
-        </Stack>
-        {showLink && (
-          <TextField
-            inputRef={linkRef}
-            value={modelItem.headerLink || ''}
-            placeholder={t('linkPlaceholder')}
-            fullWidth
-            size="small"
-            sx={{ mt: 1 }}
-            onChange={(e) => {
-              onModelItemUpdated({ headerLink: e.target.value || undefined });
-            }}
-          />
-        )}
-      </Section>
-
-      {/* Link to diagram — only shown when diagrams are available */}
-      {linkedDiagrams.length > 0 && (
-        <Section title={t('diagramLink')}>
-          <Typography
-            variant="caption"
-            color="text.disabled"
-            sx={{ display: 'block', mb: 0.5 }}
-          >
-            {t('diagramLinkHint')}
-          </Typography>
-          <Stack direction="row" spacing={0.5} alignItems="center">
-            <Autocomplete
-              size="small"
-              sx={{ flex: 1 }}
-              options={linkedDiagrams}
-              getOptionLabel={(opt) => (typeof opt === 'string' ? opt : opt.name)}
-              isOptionEqualToValue={(opt, val) => opt.id === val.id}
-              value={linkedDiagrams.find((d) => d.id === modelItem.link) ?? null}
-              onChange={(_e, newVal) => {
-                onModelItemUpdated({ link: newVal?.id ?? undefined });
-              }}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  placeholder={t('diagramLinkPlaceholder')}
-                  inputProps={{
-                    ...params.inputProps,
-                    'data-axoview-id': 'node-info-tab-link-picker'
-                  }}
-                />
-              )}
-              slotProps={{
-                listbox: {
-                  'data-axoview-id': 'node-info-tab-link-picker-listbox'
-                } as React.ComponentProps<'ul'>
-              }}
-              clearOnEscape
-              handleHomeEndKeys={false}
-            />
-            {modelItem.link && (
-              <Tooltip title={t('openDiagramLink')}>
-                <IconButton
-                  size="small"
-                  onClick={() => {
-                    // Edit-mode picker → open the linked diagram in the
-                    // editor (not the readonly view), same tab. App.tsx
-                    // listener resolves the name and calls openDiagramById.
-                    window.dispatchEvent(
-                      new CustomEvent('axoview-open-diagram-in-editor', {
-                        detail: { id: modelItem.link }
-                      })
-                    );
-                  }}
-                  data-axoview-id="node-info-tab-open-linked"
-                  data-testid="node-info-tab-open-linked-diagram"
-                >
-                  <OpenInNewIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-            )}
-          </Stack>
-        </Section>
-      )}
-
-      {/* Caption — short text shown on the canvas under the node name */}
-      <Section title={t('caption')}>
-        <Typography
-          variant="caption"
-          color="text.disabled"
-          sx={{ display: 'block', mb: 0.5 }}
-        >
-          {t('captionHint')}
-        </Typography>
-        <RichTextEditor
-          height={80}
-          value={modelItem.description}
-          onChange={(text) => {
-            const hasContent = (val: string | undefined) =>
-              !!val && stripHtmlTags(val).trim() !== '';
-            const isEmpty = !hasContent(text);
-            const storedIsEmpty = !hasContent(modelItem.description);
-            if (isEmpty && storedIsEmpty) return;
-            if (modelItem.description !== text)
-              onModelItemUpdated({ description: isEmpty ? undefined : text });
+      {/* On-canvas label (identity `name` is renamed in Layers). The Add-link
+          / link field / hide-name affordances moved to the top-bar strip
+          (Link control + show/hide eye) — the deck no longer duplicates them
+          (owner 2026-07-05). */}
+      <CollapsibleSection title={t('label')} defaultOpen>
+        <TextField
+          inputRef={nameRef}
+          value={labelText}
+          fullWidth
+          placeholder={t('labelPlaceholder')}
+          size="small"
+          onChange={(e) => {
+            const text = e.target.value;
+            if (labelText !== text) onModelItemUpdated({ label: text });
           }}
         />
-      </Section>
+      </CollapsibleSection>
+
+      {/* Icon picker moved to the top-bar style strip (Change icon). */}
+      {/* "Link to diagram" moved to the top-bar Link control (D2) — the strip is
+          now the single Link surface (web URL + link-to-diagram). */}
+      {/* Identity name (Metadata) is rendered by NodePanel AFTER Notes, so the
+          node deck matches the canonical content → Notes → Metadata order
+          (ux-principles §5.1) shared by every other element type. */}
     </Stack>
   );
 };

@@ -19,6 +19,7 @@ const TOOL_MODES_EXITED_BY_ESCAPE = new Set<State['uiState']['mode']['type']>([
   'CONNECTOR',
   'RECTANGLE.DRAW',
   'TEXTBOX',
+  'LABEL',
   'LASSO',
   'FREEHAND_LASSO'
 ]);

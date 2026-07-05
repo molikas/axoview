@@ -1,5 +1,5 @@
 import { Coords, Size, EditorModeEnum } from './common';
-import { Icon } from './model';
+import { Icon, Connector } from './model';
 import { ItemReference } from './scene';
 import { ZoomSettings, LabelSettings } from './settings';
 import { IconPackManagerProps, IconUsageScan } from './axoviewProps';
@@ -138,8 +138,26 @@ export interface TransformRectangleMode {
   selectedAnchor: AnchorPosition | null;
 }
 
+// Width-only text-box resize (ADR 0034 addendum 2026-07-03): the two anchors
+// on the text-run axis set a manual `textBox.width`; height stays
+// content-driven (text wraps, box grows down).
+export interface TransformTextBoxMode {
+  type: 'TEXTBOX.TRANSFORM';
+  showCursor: boolean;
+  id: string;
+  selectedAnchor: AnchorPosition | null;
+}
+
 export interface TextBoxMode {
   type: 'TEXTBOX';
+  showCursor: boolean;
+  id: string | null;
+}
+
+// Armed floating-Label placement (ADR 0031) — its own mode, not a TextBox
+// variant. The Common deck arms it; the next canvas click drops a Label.
+export interface LabelMode {
+  type: 'LABEL';
   showCursor: boolean;
   id: string | null;
 }
@@ -184,6 +202,8 @@ export type Mode =
   | TransformRectangleMode
   | DragItemsMode
   | TextBoxMode
+  | TransformTextBoxMode
+  | LabelMode
   | LassoMode
   | FreehandLassoMode
   | ReconnectAnchorMode;
@@ -210,6 +230,13 @@ export const DialogTypeEnum = {
 } as const;
 
 export type ConnectorInteractionMode = 'click' | 'drag';
+
+// Pre-draw style applied to the next connector (and edited live on the selected
+// one). A subset of the connector model — only the appearance fields the top-bar
+// controls expose.
+export type ConnectorDefaults = Partial<
+  Pick<Connector, 'color' | 'customColor' | 'style' | 'lineType' | 'width' | 'showArrow'>
+>;
 
 export interface Notification {
   message: string;
@@ -238,6 +265,12 @@ export interface UiState {
    * single selected item; when 0 or > 1, itemControls is null. See ADR-0006.
    */
   selectedIds: ItemReference[];
+  /**
+   * A3 hover affordance: the item under the cursor in CURSOR/EDITABLE mode (or
+   * null). Drives a faint hover outline (HoverOutline). Updated by the Cursor
+   * hover path ONLY when the hovered ref changes, so it doesn't churn per tile.
+   */
+  hoveredItem: ItemReference | null;
   zoom: number;
   scroll: Scroll;
   mouse: Mouse;
@@ -247,6 +280,13 @@ export interface UiState {
   zoomSettings: ZoomSettings;
   labelSettings: LabelSettings;
   connectorInteractionMode: ConnectorInteractionMode;
+  /**
+   * Pending style for the NEXT connector drawn (sticky for the session). The
+   * top-bar connector controls edit this when the connector tool is armed with
+   * nothing selected, so line colour/style/type/width/arrow can be set BEFORE
+   * drawing. createConnectorAt applies it to each new connector.
+   */
+  connectorDefaults: ConnectorDefaults;
   expandLabels: boolean;
   /**
    * Opt-in "keep labels readable" toggle (ADR 0015). When on, node name labels
@@ -289,14 +329,22 @@ export interface UiState {
    */
   previewLayerOverrides: PreviewLayerOverrides;
   /**
-   * Present-mode (EXPLORABLE_READONLY) "hide labels" flag (ADR 0013, 2026-06-18
-   * addendum). A UI-only toggle that hides node + connector *name* labels while
-   * presenting — it never mutates the model's per-item `showLabel`, is never
-   * persisted/saved (so presenting can't dirty the diagram), and is cleared when
-   * leaving present mode or switching view. Ignored entirely in EDITABLE. The
-   * label render sites merge it through `isLabelVisibleInPreview`.
+   * GLOBAL "hide labels" flag (bottom-dock zoom cluster, both editing and
+   * presentation). A UI-only toggle that hides node + connector *name* labels —
+   * it never mutates the model's per-item `showLabel` and is never
+   * persisted/saved (so it can't dirty the diagram). Persists across view/mode
+   * switches (a session-wide view preference). The label render sites merge it
+   * through `isLabelVisibleInPreview`. (Name kept for back-compat; it is no
+   * longer preview-only.)
    */
   previewHideLabels: boolean;
+  /**
+   * View-only (EXPLORABLE_READONLY) "hide all controls" flag. A UI-only toggle
+   * that hides the on-canvas presentation chrome (layer switcher, annotation
+   * palette, bottom dock) for a clean screenshot. Never persisted; cleared on
+   * mode switch.
+   */
+  hideViewControls: boolean;
   /**
    * Image-export "hide labels" flag (ADR 0025 §3). UI-only and scoped to the
    * export dialog's hidden Axoview instance (each Axoview has its own store), so
@@ -315,6 +363,42 @@ export interface UiState {
    * is written ONCE on release. Null when no label drag is in flight.
    */
   labelDrag: { id: string; height: number } | null;
+  /**
+   * Transient floating-Label move preview (ADR 0031). While a Label is dragged
+   * via LabelHitLayer this holds its id + the live tile/offset, so LabelsCanvas
+   * redraws the chip following the pointer WITHOUT a per-frame model write
+   * (which would re-render every hit-proxy div). UI-only, never persisted; the
+   * model position is committed ONCE on release. Null when no move is in flight.
+   */
+  labelMove: { id: string; tile: Coords; offset?: Coords } | null;
+  /**
+   * The currently-selected connector label (a `labels[]` entry), so the top-bar
+   * style strip can target ONE label's text size/colour and the canvas can
+   * highlight it. `connectorId` scopes the selection so a stale id from a
+   * previous connector is ignored. Cleared whenever the selected item changes.
+   * UI-only, never persisted.
+   */
+  selectedConnectorLabel: { connectorId: string; labelId: string } | null;
+  /**
+   * The floating Label (ADR 0031) currently being inline-edited on canvas (via
+   * double-click or F2), or null. While set, LabelsCanvas skips painting that
+   * label (the DOM contentEditable in LabelHitLayer takes over) so the text
+   * isn't drawn twice. UI-only, never persisted.
+   */
+  inlineEditLabelId: string | null;
+  /** The text box currently being edited inline on canvas (ADR 0034), or null.
+   *  Store-based (not a one-shot event) so place-and-type can't race the newly
+   *  created box's mount. While set, the Renderer promotes that box ABOVE the
+   *  interactions box so the editor receives pointer events, and the strip's
+   *  text controls target the live editor. Cleared on commit/cancel. UI-only,
+   *  never persisted. */
+  editingTextBoxId: string | null;
+  /** Live tile footprint of the text box being edited (ADR 0034 addendum
+   *  2026-07-04): what commit WOULD measure for the current draft (placeholder
+   *  included while empty), so the projected container and the transform
+   *  bounds track typing instead of showing the stale committed size. null
+   *  outside a session or before the editor's first measure. UI-only. */
+  editingTextBoxSize: Size | null;
   /** Ephemeral annotation overlay (ADR 0014). Never persisted. */
   annotation: AnnotationState;
 }
@@ -332,6 +416,11 @@ export interface ContextMenuState {
   variant: 'item' | 'multi' | 'canvas';
   /** The item the menu commands act on; set only for the `'item'` variant. */
   target: ItemReference | null;
+  /**
+   * The tile under the cursor when the menu opened. Used by connector "Add
+   * label" so the new label lands where the user clicked, not at the midpoint.
+   */
+  tile?: Coords;
 }
 
 /** UI-only preview layer override (ADR 0013). */
@@ -408,6 +497,8 @@ export interface UiStateActions {
    * target + action bar update, but the dock is NOT mounted. Passing `null`
    * always clears.
    */
+  /** A3: set/clear the hovered item that drives the faint hover outline. */
+  setHoveredItem: (ref: ItemReference | null) => void;
   setItemControls: (
     itemControls: ItemControls | null,
     options?: { openPanel?: boolean }
@@ -430,6 +521,14 @@ export interface UiStateActions {
   setZoomSettings: (settings: ZoomSettings) => void;
   setLabelSettings: (settings: LabelSettings) => void;
   setConnectorInteractionMode: (mode: ConnectorInteractionMode) => void;
+  /** Merge a patch into the pending connector style (next-drawn defaults). */
+  setConnectorDefaults: (patch: ConnectorDefaults) => void;
+  /**
+   * Clear the pending connector style so the NEXT draw uses the baseline (#8,
+   * 2026-07-01). A set style applies to exactly one connector, then resets —
+   * matching rect/text/label (no sticky last-used style).
+   */
+  resetConnectorDefaults: () => void;
   setExpandLabels: (expand: boolean) => void;
   setReadableLabels: (readable: boolean) => void;
   /** Toggle a layer's preview visibility override (no-op on the model). */
@@ -438,14 +537,33 @@ export interface UiStateActions {
   setPreviewSoloLayer: (layerId: string | null) => void;
   /** Reset all preview layer overrides (e.g. on leaving preview / view switch). */
   clearPreviewLayerOverrides: () => void;
-  /** Set the present-mode hide-labels flag (UI-only; never touches the model). */
+  /** Set the global hide-labels flag (UI-only; never touches the model). */
   setPreviewHideLabels: (hide: boolean) => void;
+  /** Set the view-only "hide all controls" flag (UI-only; cleared on mode switch). */
+  setHideViewControls: (hide: boolean) => void;
   /** Set the image-export hide-labels flag (UI-only; export-scoped store). */
   setExportHideLabels: (hide: boolean) => void;
   /** Begin / update the transient on-canvas label-drag preview (ADR 0024 T6 fix). */
   setLabelDrag: (id: string, height: number) => void;
   /** End the label-drag preview (the model labelHeight is committed separately, once). */
   clearLabelDrag: () => void;
+  /** Begin / update the transient floating-Label move preview (ADR 0031). */
+  setLabelMove: (id: string, tile: Coords, offset?: Coords) => void;
+  /** End the label-move preview (the model tile/offset is committed separately, once). */
+  clearLabelMove: () => void;
+  /** Select (or clear) the connector label the top-bar style strip targets. */
+  setSelectedConnectorLabel: (
+    sel: { connectorId: string; labelId: string } | null
+  ) => void;
+  /** Enter / leave inline-edit for a floating Label (double-click / F2). */
+  setInlineEditLabelId: (id: string | null) => void;
+  /** Enter (id) / leave (null) the on-canvas rich-text edit session for a text
+   *  box (ADR 0034). Set by place-and-type, double-click, F2 and context-menu
+   *  Rename; cleared by the editor's commit/cancel. */
+  setEditingTextBoxId: (id: string | null) => void;
+  /** Publish the edit session's live measured footprint (see
+   *  `editingTextBoxSize`). Reset to null whenever the session id changes. */
+  setEditingTextBoxSize: (size: Size | null) => void;
   // --- Annotation overlay (ADR 0014) ---
   setAnnotationOpen: (open: boolean) => void;
   setAnnotationTool: (tool: AnnotationTool) => void;

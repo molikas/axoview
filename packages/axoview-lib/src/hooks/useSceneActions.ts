@@ -11,6 +11,7 @@ import {
   View,
   Connector,
   TextBox,
+  Label,
   Rectangle,
   ItemReference,
   Coords
@@ -275,6 +276,38 @@ export const useSceneActions = () => {
       newViews[viewIndex] = newView;
 
       // A move is model-only — textbox scene size only changes on content edits.
+      setState({
+        model: { ...state.model, views: newViews },
+        scene: state.scene
+      });
+    },
+    [currentViewId, getState, setState]
+  );
+
+  // Labels (ADR 0031) are model-only — no scene size to touch. Mirrors
+  // batchUpdateTextBoxTiles for the DragItems group-move commit.
+  const batchUpdateLabelTiles = useCallback(
+    (updates: { id: string; tile: Coords; offset?: Coords }[]) => {
+      if (!currentViewId || updates.length === 0) return;
+
+      const state = getState();
+      const viewIndex = state.model.views.findIndex(
+        (v) => v.id === currentViewId
+      );
+      if (viewIndex === -1) return;
+      const view = state.model.views[viewIndex];
+      if (!view.labels || view.labels.length === 0) return;
+
+      const updateMap = new Map(updates.map((u) => [u.id, u]));
+      const newLabels = view.labels.map((l) => {
+        const u = updateMap.get(l.id);
+        return u ? { ...l, tile: u.tile, offset: u.offset } : l;
+      });
+
+      const newView: View = { ...view, labels: newLabels };
+      const newViews = state.model.views.slice();
+      newViews[viewIndex] = newView;
+
       setState({
         model: { ...state.model, views: newViews },
         scene: state.scene
@@ -604,6 +637,54 @@ export const useSceneActions = () => {
   );
 
   // -------------------------------------------------------------------------
+  // Label CRUD (ADR 0031) — model-only; no scene sync (the Canvas2D LabelsCanvas
+  // and the DOM LabelHitLayer self-measure the chip, like node labels).
+  // -------------------------------------------------------------------------
+
+  const createLabel = useCallback(
+    (newLabel: Label) => {
+      if (!currentViewId) return;
+      saveToHistoryBeforeChange();
+      const newState = reducers.view({
+        action: 'CREATE_LABEL',
+        payload: newLabel,
+        ctx: { viewId: currentViewId, state: getState() }
+      });
+      setState(newState);
+    },
+    [getState, setState, currentViewId, saveToHistoryBeforeChange]
+  );
+
+  const updateLabel = useCallback(
+    (id: string, updates: Partial<Label>) => {
+      if (!currentViewId) return getState();
+      if (!transactionInProgress.current) saveToHistoryBeforeChange();
+      const newState = reducers.view({
+        action: 'UPDATE_LABEL',
+        payload: { id, ...updates },
+        ctx: { viewId: currentViewId, state: getState() }
+      });
+      setState(newState);
+      return newState;
+    },
+    [getState, setState, currentViewId, saveToHistoryBeforeChange]
+  );
+
+  const deleteLabel = useCallback(
+    (id: string) => {
+      if (!currentViewId) return;
+      saveToHistoryBeforeChange();
+      const newState = reducers.view({
+        action: 'DELETE_LABEL',
+        payload: id,
+        ctx: { viewId: currentViewId, state: getState() }
+      });
+      setState(newState);
+    },
+    [getState, setState, currentViewId, saveToHistoryBeforeChange]
+  );
+
+  // -------------------------------------------------------------------------
   // Rectangle CRUD
   // -------------------------------------------------------------------------
 
@@ -767,6 +848,9 @@ export const useSceneActions = () => {
         const existingRectangles = new Set(
           (liveView?.rectangles ?? []).map((r) => r.id)
         );
+        const existingLabels = new Set(
+          (liveView?.labels ?? []).map((l) => l.id)
+        );
 
         // Track connectors being deleted so we can skip anchor splices on
         // them (the connector is going away — splicing its anchors first is
@@ -779,6 +863,8 @@ export const useSceneActions = () => {
             deleteConnector(ref.id);
           } else if (ref.type === 'TEXTBOX' && existingTextBoxes.has(ref.id)) {
             deleteTextBox(ref.id);
+          } else if (ref.type === 'LABEL' && existingLabels.has(ref.id)) {
+            deleteLabel(ref.id);
           } else if (
             ref.type === 'RECTANGLE' &&
             existingRectangles.has(ref.id)
@@ -836,6 +922,7 @@ export const useSceneActions = () => {
       deleteViewItem,
       deleteConnector,
       deleteTextBox,
+      deleteLabel,
       deleteRectangle,
       updateConnector,
       getState
@@ -992,6 +1079,7 @@ export const useSceneActions = () => {
             // them only on a valid paste so the operation stays all-or-nothing.
             [...payload.rectangles].reverse().forEach((r) => createRectangle(r));
             payload.textBoxes.forEach((tb) => createTextBox(tb));
+            (payload.labels ?? []).forEach((l) => createLabel(l));
             applied = true;
           }
         }
@@ -1012,7 +1100,8 @@ export const useSceneActions = () => {
       setState,
       computePathsAsync,
       createRectangle,
-      createTextBox
+      createTextBox,
+      createLabel
     ]
   );
 
@@ -1029,6 +1118,9 @@ export const useSceneActions = () => {
     createTextBox,
     updateTextBox,
     deleteTextBox,
+    createLabel,
+    updateLabel,
+    deleteLabel,
     createRectangle,
     updateRectangle,
     deleteRectangle,
@@ -1040,6 +1132,7 @@ export const useSceneActions = () => {
     batchUpdateViewItemTiles,
     batchUpdateRectangles,
     batchUpdateTextBoxTiles,
+    batchUpdateLabelTiles,
     previewConnectorPaths,
     placeIcon,
     switchView,

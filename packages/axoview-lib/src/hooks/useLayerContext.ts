@@ -9,12 +9,17 @@ import React, { createContext, useContext, useMemo } from 'react';
 import { shallow } from 'zustand/shallow';
 import { useModelStore } from 'src/stores/modelStore';
 import { useUiStateStore } from 'src/stores/uiStateStore';
-import { Layer, ViewItem, Connector, Rectangle, TextBox } from 'src/types';
+import { Layer, ViewItem, Connector, Rectangle, TextBox, Label } from 'src/types';
 import { getItemByIdOrThrow } from 'src/utils';
 import { isEntityVisibleInPreview } from 'src/utils/previewLayerVisibility';
 import { stripHtmlTags } from 'src/utils/stripHtml';
 
-export type LayerItemType = 'ITEM' | 'CONNECTOR' | 'RECTANGLE' | 'TEXTBOX';
+export type LayerItemType =
+  | 'ITEM'
+  | 'CONNECTOR'
+  | 'RECTANGLE'
+  | 'TEXTBOX'
+  | 'LABEL';
 
 export interface LayerItem {
   id: string;
@@ -134,7 +139,7 @@ export const LayerContextProvider = ({
       }
     };
 
-    type Entity = ViewItem | Connector | Rectangle | TextBox;
+    type Entity = ViewItem | Connector | Rectangle | TextBox | Label;
 
     const inPreview = editorMode === 'EXPLORABLE_READONLY';
 
@@ -174,13 +179,25 @@ export const LayerContextProvider = ({
         name = nameOverride;
       } else if (type === 'CONNECTOR') {
         const c = entity as Connector;
-        name = c.name?.trim() || c.description || 'Connector';
+        // Derive-then-override (Option A): the connector's primary `name` is the
+        // identity, but when it's unset fall back to its FIRST visible label so a
+        // labels[]-only connector still reads meaningfully here. The old
+        // derivation ignored labels[] and surfaced only the legacy `description`,
+        // so a modern labels[]-only connector showed the literal 'Connector'.
+        const firstLabelText = c.labels
+          ?.find((l) => l.text && l.text.trim())
+          ?.text?.trim();
+        name =
+          c.name?.trim() || firstLabelText || c.description?.trim() || 'Connector';
       } else if (type === 'RECTANGLE') {
         const r = entity as Rectangle;
         name = r.name?.trim() || 'Rectangle';
       } else if (type === 'TEXTBOX') {
         const tb = entity as TextBox;
         name = tb.name?.trim() || stripHtml(tb.content || '');
+      } else if (type === 'LABEL') {
+        const l = entity as Label;
+        name = l.text?.trim() || '(empty)';
       } else {
         name = 'Unknown';
       }
@@ -202,6 +219,7 @@ export const LayerContextProvider = ({
       processEntity(r, 'RECTANGLE')
     );
     (currentView.textBoxes ?? []).forEach((t) => processEntity(t, 'TEXTBOX'));
+    (currentView.labels ?? []).forEach((l) => processEntity(l, 'LABEL'));
 
     return {
       visibleIds,

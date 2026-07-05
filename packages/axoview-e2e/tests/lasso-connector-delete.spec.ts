@@ -48,16 +48,15 @@ const getUiModeType = async (page: import('@playwright/test').Page) => {
 };
 
 /**
- * Lasso selection observable. Reads `uiState.mode.selection.items` if the
- * current mode is LASSO; returns the array of refs collected by the lasso
- * box. The lib clears the selection on mode exit, so this must be polled
- * BEFORE pressing Delete (which transitions the mode to CURSOR).
+ * Lasso selection observable. Reads the persistent `uiState.selectedIds` slice,
+ * which a completed marquee mirrors its hits into before dropping back to
+ * CURSOR (Lasso.mouseup, 2026-07-02). Must still be polled BEFORE pressing
+ * Delete, which clears the selection.
  */
 const getLassoSelection = (page: import('@playwright/test').Page) =>
   page.evaluate(() => {
-    const m = (window as any).__axoview__.ui.getState().mode;
-    if (m?.type !== 'LASSO') return null;
-    return m.selection?.items ?? [];
+    const ids = (window as any).__axoview__.ui.getState().selectedIds;
+    return (ids as any[]) ?? [];
   });
 
 /**

@@ -32,5 +32,6 @@ export const ARRAY_MAX = {
   rectangles: 50000,
   connectors: 50000,
   textBoxes: 50000,
+  labels: 50000,
   connectorAnchors: 1000
 } as const;

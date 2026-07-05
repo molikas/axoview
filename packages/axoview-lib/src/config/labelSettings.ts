@@ -15,5 +15,11 @@ export const DEFAULT_LABEL_SETTINGS: LabelSettings = {
 // is on; off by default.
 export const LABEL_MIN_READABLE_PX = 11;
 export const LABEL_MAX_COUNTER_SCALE = 4;
-/** Base (unzoomed) node label font size — matches Node.tsx's default labelFontSize. */
-export const LABEL_BASE_FONT_PX = 14;
+/**
+ * Base (unzoomed) font size for on-canvas labels — node labels, floating
+ * Labels, and connector labels all default to this. Bumped 14 → 18 (2026-07-01)
+ * so labels read well at typical zoom without the user hand-bumping every one;
+ * 18px is the readable sweet spot for on-canvas chrome text. Explicitly-sized
+ * labels are unaffected.
+ */
+export const LABEL_BASE_FONT_PX = 18;

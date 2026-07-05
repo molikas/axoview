@@ -4,6 +4,10 @@ const locale: LocaleProps = {
   common: {
     exampleText: 'यह एक उदाहरण पाठ है'
   },
+  rightSidebar: {
+    collapsePanel: 'पैनल संक्षिप्त करें',
+    emptyState: 'गुण देखने के लिए एक नोड, कनेक्टर या आकृति चुनें'
+  },
   helpDialog: {
     title: 'कीबोर्ड शॉर्टकट और सहायता',
     close: 'बंद करें',
@@ -267,89 +271,129 @@ const locale: LocaleProps = {
     addPageDisabled: 'पृष्ठ सीमा पहुंच गई (5)'
   },
   nodePanel: {
-    details: 'विवरण',
-    style: 'शैली',
     notes: 'नोट्स',
-    notesModified: 'नोट्स ●',
     close: 'बंद करें',
-    openLink: 'लिंक खोलें',
-    caption: 'कैप्शन',
-    noCaption: 'कोई कैप्शन नहीं।',
-    showLabel: 'लेबल दिखाएं',
-    hideLabel: 'लेबल छुपाएं',
-    showName: 'नाम दिखाएं',
-    hideName: 'नाम छुपाएं'
   },
   nodeInfoTab: {
+    metadata: 'मेटाडेटा',
     name: 'नाम',
     namePlaceholder: 'नोड का नाम…',
-    removeLink: 'लिंक हटाएं',
-    addLink: 'नाम में लिंक जोड़ें',
-    linkPlaceholder: 'https://…',
-    caption: 'कैप्शन',
-    captionHint: 'कैनवास पर नोड के नाम के नीचे दिखाया गया',
-    openLink: 'लिंक खोलें',
-    diagramLink: 'आरेख का लिंक',
-    diagramLinkPlaceholder: 'आरेख चुनें…',
-    diagramLinkHint: 'केवल-पढ़ने योग्य मोड में इस नोड पर क्लिक करने से लिंक किया गया आरेख खुलता है',
-    openDiagramLink: 'लिंक किया गया आरेख खोलें'
-  },
-  nodeStyleTab: {
-    icon: 'आइकन',
-    close: 'बंद करें',
-    change: 'बदलें…',
-    iconSize: 'आइकन का आकार',
-    labelFontSize: 'लेबल फ़ॉन्ट आकार',
-    labelColor: 'लेबल का रंग',
-    labelHeight: 'लेबल की ऊँचाई'
+    label: 'लेबल',
+    labelPlaceholder: 'आकृति पर दिखाया गया लेबल…',
+    openLink: 'लिंक खोलें'
   },
   connectorControls: {
+    metadata: 'मेटाडेटा',
     close: 'बंद करें',
-    labels: 'लेबल',
-    details: 'विवरण',
-    style: 'शैली',
     notes: 'नोट्स',
-    notesModified: 'नोट्स ●',
     name: 'नाम',
     namePlaceholder: 'किनारे का लेबल…',
-    additionalLabels: 'अतिरिक्त लेबल',
+    labels: 'लेबल',
     addLabel: 'लेबल जोड़ें',
     noLabels: 'अभी कोई लेबल नहीं।',
-    addLink: 'लिंक जोड़ें',
-    removeLink: 'लिंक हटाएं',
-    linkPlaceholder: 'https://…',
-    showLabel: 'लेबल दिखाएं',
-    hideLabel: 'लेबल छुपाएं',
-    showName: 'नाम दिखाएं',
-    hideName: 'नाम छुपाएं',
-    color: 'रंग',
-    width: 'चौड़ाई',
-    lineStyle: 'रेखा शैली',
-    lineType: 'रेखा प्रकार',
-    useCustomColor: 'कस्टम रंग का उपयोग करें',
-    showArrow: 'तीर दिखाएं',
-    solid: 'ठोस',
-    dotted: 'बिंदुदार',
-    dashed: 'धराशायी',
-    singleLine: 'एकल रेखा',
-    doubleLine: 'दोहरी रेखा',
-    doubleLineWithCircle: 'गोले के साथ दोहरी रेखा'
+    labelN: 'लेबल {count}',
+    positionHint: 'किसी लेबल को स्थिति में रखने के लिए उसे कैनवास पर खींचें; उसके पाठ के आकार और रंग के लिए ऊपरी बार का उपयोग करें।',
+    line: 'रेखा',
+    line1: 'रेखा 1',
+    line2: 'रेखा 2'
   },
   textBoxControls: {
+    linkSearchPlaceholder: 'खोजें या लिंक पेस्ट करें',
+    linkCopy: 'लिंक कॉपी करें',
+    linkCopied: 'कॉपी हो गया',
+    linkEdit: 'लिंक संपादित करें',
+    linkRemove: 'लिंक हटाएं',
+    placeholder: 'कुछ लिखें',
+    metadata: 'मेटाडेटा',
+    notes: 'नोट्स',
     close: 'बंद करें',
     name: 'नाम',
-    namePlaceholder: 'तत्व का नाम…',
-    text: 'पाठ',
-    textSize: 'पाठ का आकार',
-    textColor: 'पाठ का रंग',
-    alignment: 'संरेखण'
+    namePlaceholder: 'तत्व का नाम…'
   },
   rectangleControls: {
+    metadata: 'मेटाडेटा',
+    notes: 'नोट्स',
     close: 'बंद करें',
     name: 'नाम',
-    namePlaceholder: 'तत्व का नाम…',
-    color: 'रंग',
-    useCustomColor: 'कस्टम रंग उपयोग करें'
+    namePlaceholder: 'तत्व का नाम…'
+  },
+  topBarStyleControls: {
+    rotate90: '90° घुमाएं',
+    noColor: 'कोई रंग नहीं',
+    customColor: 'कस्टम रंग',
+    textSize: 'पाठ का आकार',
+    lineSpacing: 'पंक्ति रिक्ति',
+    alignment: 'संरेखण',
+    alignmentDisabled: 'पाठ संरेखित करने के लिए एक टेक्स्ट बॉक्स चुनें',
+    alignLeft: 'बाएँ संरेखित करें',
+    alignCenter: 'केंद्र में रखें',
+    alignRight: 'दाएँ संरेखित करें',
+    alignTop: 'ऊपर संरेखित करें',
+    alignMiddle: 'मध्य में संरेखित करें',
+    alignBottom: 'नीचे संरेखित करें',
+    iconSize: 'आइकन का आकार',
+    textColor: 'पाठ का रंग',
+    textColorDisabled:
+      'पाठ का रंग सेट करने के लिए एक नोड, टेक्स्ट बॉक्स, लेबल या कनेक्शन लेबल चुनें',
+    textSizeDisabled:
+      'पाठ का आकार सेट करने के लिए एक नोड, टेक्स्ट बॉक्स, लेबल या कनेक्शन लेबल चुनें',
+    labelSizeAllSelected: 'लेबल का आकार (सभी चयनित)',
+    textColorAllSelected: 'पाठ का रंग (सभी चयनित)',
+    armedToolPlaceFirst:
+      'नया एलिमेंट डिफ़ॉल्ट स्टाइल उपयोग करता है — पहले उसे रखें, फिर यहाँ स्टाइल करें',
+    decreaseLabelSize: 'लेबल का आकार घटाएं',
+    increaseLabelSize: 'लेबल का आकार बढ़ाएं',
+    labelSize: 'लेबल का आकार',
+    decreaseSize: 'आकार घटाएं',
+    increaseSize: 'आकार बढ़ाएं',
+    stepAll: 'सभी को समायोजित करें',
+    size: 'आकार',
+    bold: 'बोल्ड',
+    italic: 'इटैलिक',
+    underline: 'रेखांकित',
+    strikethrough: 'स्ट्राइकथ्रू',
+    format: 'बोल्ड / इटैलिक / रेखांकित / स्ट्राइकथ्रू',
+    formatDisabled:
+      'पाठ को फ़ॉर्मैट करने के लिए एक नोड, टेक्स्ट बॉक्स, लेबल या कनेक्शन लेबल चुनें',
+    lists: 'सूचियाँ',
+    listsDisabled: 'सूचियों का उपयोग करने के लिए एक टेक्स्ट बॉक्स चुनें',
+    bulletList: 'बुलेट सूची',
+    numberedList: 'क्रमांकित सूची',
+    background: 'पृष्ठभूमि रंग',
+    backgroundDisabled: 'पृष्ठभूमि रंग सेट करने के लिए एक आयत, लेबल या टेक्स्ट बॉक्स चुनें',
+    opacity: 'अपारदर्शिता',
+    border: 'सीमा',
+    borderDisabled: 'बॉर्डर सेट करने के लिए एक आयत या टेक्स्ट बॉक्स चुनें',
+    lineStyle: 'रेखा शैली',
+    width: 'चौड़ाई',
+    borderColor: 'सीमा का रंग',
+    link: 'लिंक',
+    linkDisabled: 'लिंक जोड़ने के लिए एक नोड, कनेक्शन या लेबल चुनें',
+    linkSelection: 'चयनित पाठ को लिंक करें',
+    linkDisabledTextBox: 'लिंक जोड़ने के लिए संपादन करते समय पाठ चुनें',
+    linkToWeb: 'वेब से लिंक करें',
+    webLinkPlaceholder: 'https://…',
+    linkToDiagram: 'आरेख से लिंक करें',
+    searchDiagrams: 'आरेख खोजें…',
+    openLinkedDiagram: 'लिंक किया गया आरेख खोलें',
+    showLabel: 'लेबल दिखाएं',
+    hideLabel: 'लेबल छुपाएं',
+    showHideLabelDisabled: 'लेबल दिखाने या छुपाने के लिए एक नोड या कनेक्शन चुनें',
+    changeIconBulk: 'आइकन बदलना एक समय में एक नोड पर लागू होता है',
+    changeIcon: 'आइकन बदलें',
+    changeIconDisabled: 'आइकन बदलने के लिए एक नोड चुनें',
+    iconSizeBulk:
+      'आइकन का आकार एक समय में एक आइकन संपादित करता है (उस आइकन वाले सभी नोड का आकार बदलता है)',
+    iconSizeDisabled: 'आइकन का आकार बदलने के लिए एक नोड चुनें',
+    connectionColorPredraw: 'आपके द्वारा बनाए जाने वाले अगले कनेक्शन का रंग',
+    connectionColor: 'कनेक्शन का रंग',
+    connectionColorDisabled: 'रंग सेट करने के लिए एक कनेक्शन (या कनेक्टर उपकरण) चुनें',
+    lineOptionsPredraw: 'आपके द्वारा बनाए जाने वाले अगले कनेक्शन की रेखा शैली',
+    lineOptions: 'रेखा विकल्प',
+    lineOptionsDisabled: 'रेखा विकल्प सेट करने के लिए एक कनेक्शन (या कनेक्टर उपकरण) चुनें',
+    lineType: 'रेखा प्रकार',
+    showArrow: 'तीर दिखाएं',
+    showDottedLine: 'बिंदीदार रेखा दिखाएं',
   },
   labelColorPicker: {
     customColor: 'कस्टम रंग'
@@ -370,7 +414,10 @@ const locale: LocaleProps = {
     selected: '{count} चयनित'
   },
   modeHints: {
-    connector: 'कनेक्ट करने के लिए आइटम के बीच ड्रैग करें • रद्द करने के लिए Esc'
+    connector: 'कनेक्ट करने के लिए आइटम के बीच ड्रैग करें • रद्द करने के लिए Esc',
+    textBox: 'टेक्स्ट बॉक्स रखने के लिए क्लिक करें • रद्द करने के लिए Esc',
+    label: 'लेबल रखने के लिए क्लिक करें • रद्द करने के लिए Esc',
+    rectangle: 'आयत बनाने के लिए खींचें • रद्द करने के लिए Esc'
   },
   previewLayerSwitcher: {
     layers: 'परतें',
@@ -428,6 +475,9 @@ const locale: LocaleProps = {
     placeholder: 'आइकन खोजें'
   },
   exportImageDialog: {
+    groupAppearance: 'Appearance',
+    groupBackground: 'Background',
+    groupCrop: 'Crop',
     title: 'छवि के रूप में निर्यात करें',
     compatibilityTitle: 'ब्राउज़र संगतता सूचना',
     compatibilityMessage:
@@ -437,7 +487,6 @@ const locale: LocaleProps = {
     options: 'विकल्प',
     showGrid: 'ग्रिड दिखाएं',
     showLabels: 'लेबल दिखाएं',
-    expandDescriptions: 'विवरण विस्तृत करें',
     screenshotPreset: 'स्क्रीनशॉट (अनुशंसित)',
     scaleClamped: 'ब्राउज़र छवि सीमा में फिट करने के लिए निर्यात आकार घटाया गया:',
     cropToContent: 'सामग्री पर क्रॉप करें',
@@ -457,6 +506,7 @@ const locale: LocaleProps = {
     error: 'छवि निर्यात नहीं हो सकी'
   },
   toolMenu: {
+    label: 'Label',
     undo: 'पूर्ववत करें',
     redo: 'फिर से करें',
     select: 'चयन करें',
@@ -481,6 +531,7 @@ const locale: LocaleProps = {
   },
   canvasContextMenu: {
     addNote: 'नोट जोड़ें',
+    addLabel: 'लेबल जोड़ें',
     details: 'विवरण…',
     rename: 'नाम बदलें',
     cut: 'काटें',
@@ -489,7 +540,10 @@ const locale: LocaleProps = {
     duplicate: 'डुप्लिकेट करें',
     bringForward: 'आगे लाएँ',
     sendBackward: 'पीछे भेजें',
+    bringToFront: 'सबसे आगे लाएँ',
+    sendToBack: 'सबसे पीछे भेजें',
     assignToLayer: 'परत को असाइन करें',
+    fitToText: 'पाठ के अनुसार समायोजित करें',
     snapToGrid: 'ग्रिड पर स्नैप करें',
     unsnapFromGrid: 'ग्रिड से अनस्नैप करें',
     disableCollision: 'टकराव अक्षम करें',
@@ -512,7 +566,8 @@ const locale: LocaleProps = {
     elements: 'तत्व',
     layers: 'परतें',
     settings: 'सेटिंग्स',
-    openDiagramFirst: 'पहले कोई आरेख खोलें या बनाएं'
+    openDiagramFirst: 'पहले कोई आरेख खोलें या बनाएं',
+    collapsePanel: 'पैनल छिपाएँ'
   },
   // D8 — LayersPanel
   layersPanel: {

@@ -1,6 +1,6 @@
 # Workflow — Canonical session cadence
 
-> **Status:** Authoritative · **Last updated:** 2026-06-21 · **Audience:** anyone (human or Claude) opening a session against this repo.
+> **Status:** Authoritative · **Last updated:** 2026-07-05 · **Audience:** anyone (human or Claude) opening a session against this repo.
 >
 > This doc names the canonical sequence of a working session: which skill fires when, where the artifacts land, and what the design principles are. It is the single source of truth for "how we work here." Skill bodies cross-reference this doc; this doc does not duplicate skill bodies.
 
@@ -90,7 +90,7 @@ A session moves left-to-right through the stages below. Most sessions skip stage
 | Modifying an accepted ADR | `/feature extend <NNNN>` | Adds a dated addendum without touching prose. |
 | Replacing an accepted ADR | `/feature supersede <NNNN>` | New ADR with the cross-link; old one marked superseded. |
 | Tactical doc finished | `/feature wrap <topic>` | Adds PLAN.md line, deletes the tactical, retires its memory pointer. |
-| End-of-session doc sync | `/notes` | CHANGELOG · README · architecture.md · testing.md · known_issues.md. Optional release cut. |
+| End-of-session doc sync | `/notes` | README · architecture.md · testing.md · known_issues.md · PLAN.md · ADR statuses · tactical wrap. **CHANGELOG + versions are auto-cut by semantic-release on merge — never hand-edited.** |
 | Heavy multi-dimension review | `/audit` | Static analysis + security + coverage + build + architecture + UX/perf greps. Pre-release or quarterly. |
 | Iterative bug-fix / polish loop on shipped surfaces | `/shake-out` | Per-issue verification loop; one coherent commit per bundle. |
 | Pre-merge code or security review | `/review` / `/security-review` | Built-in skills; fire just before `/ship`. |
@@ -100,7 +100,7 @@ A session moves left-to-right through the stages below. Most sessions skip stage
 **Boundaries that have caused confusion before:**
 
 - `/audit` vs `/shake-out` — both "find and fix." `/audit` is the heavy sweep that produces an executive report; `/shake-out` is the per-issue polish loop. Pick `/audit` when the problem isn't named yet; pick `/shake-out` when the issues are listed.
-- `/notes` vs `/ship` — `/notes` cuts versions (Q4 release cut bumps 5 package.jsons + CHANGELOG); `/ship` promotes. **/notes cuts; /ship promotes; never the other way around.** /ship's version-coherence check still passes when /notes skipped the cut (no bump = all five stay aligned). That asymmetry is intentional.
+- `/notes` vs `/ship` — **neither cuts the release.** semantic-release cuts it in CI on merge to `master` (`.releaserc.json` + `release.yml`): it reads the conventional commits, computes the SemVer bump, bumps all 5 `package.json` versions, regenerates `CHANGELOG.md`, and tags `vX.Y.Z`. `/notes` syncs prose docs (README/architecture/testing/known_issues/PLAN + ADR statuses + tactical wrap); `/ship` promotes `integration`→`master`. `/ship`'s version-coherence check just asserts the 5 package.jsons are equal — they always are, because `update-version` keeps them in lockstep, so a mismatch signals an illegal hand-edit. **The old date-based `YYYY.M.D` manual-cut convention is retired.**
 - `/feature start` (convention-memory write) vs `/notes` Phase 4 (convention-memory edit). `/feature` owns writes during scaffolding; `/notes` Phase 4 only deletes bullets during wrap. Don't run both back-to-back on the same convention-memory entry.
 
 ## Verify — what to run before committing
@@ -254,7 +254,7 @@ The audit identified nine anomalies (A.9.5 S1–S9). The ones with a written res
 - **S6 — `/ship` test gate excludes backend + worker.** Resolution: documented as a scope choice (no tests exist there yet); C.8 git-automation tactical adds backend + worker test scaffolding as a future expansion.
 - **S7 — No skill names the Phase B trace harness path.** Resolution: reserved slot in the cadence; `/trace` (deferred A.9.4 #2) plugs in when ADR 0007 lands.
 - **S8 — Built-in `/review` and `/security-review` integration undocumented.** Resolution: "Review gate" section above names both as the canonical pre-merge step.
-- **S9 — `/notes` opt-in cut vs `/ship` mandatory version-coherence.** Resolution: locked above ("/notes cuts; /ship promotes; never the other way around").
+- **S9 — `/notes` opt-in cut vs `/ship` mandatory version-coherence.** Resolution: **superseded** — releases are auto-cut by semantic-release on merge to `master` (`.releaserc.json`), so neither skill cuts a release. `/ship`'s version-coherence check now just guards against illegal hand-edits (all 5 package.jsons must stay equal).
 
 ## See also
 

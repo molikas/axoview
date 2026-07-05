@@ -45,7 +45,8 @@ function makeUiState(overrides: any = {}) {
   };
   const actions = overrides.actions ?? {
     setMode: jest.fn(),
-    setItemControls: jest.fn()
+    setItemControls: jest.fn(),
+    setSelectedIds: jest.fn()
   };
   return { mode, mouse, actions };
 }
@@ -209,7 +210,11 @@ describe('Lasso.mouseup (real module)', () => {
     );
   });
 
-  it('stays in LASSO (resets isDragging) when selection has items', () => {
+  it('completes to CURSOR (keeping the selection) when the marquee caught items', () => {
+    // 2026-07-02: after a marquee that caught items, drop back to CURSOR so
+    // post-lasso clicks behave like normal cursor (empty-click clears, item
+    // selects, drag-selected moves the group) — Figma/draw.io parity. The
+    // selection is mirrored into selectedIds first.
     const uiState = makeUiState({
       mode: {
         type: 'LASSO',
@@ -226,11 +231,10 @@ describe('Lasso.mouseup (real module)', () => {
       }
     });
     callMouseup(uiState);
+    expect(uiState.actions.setSelectedIds).toHaveBeenCalledWith([
+      { type: 'ITEM', id: 'node1' }
+    ]);
     expect(uiState.actions.setMode).toHaveBeenCalledWith(
-      expect.objectContaining({ isDragging: false })
-    );
-    // Should NOT switch to CURSOR
-    expect(uiState.actions.setMode).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'CURSOR' })
     );
   });

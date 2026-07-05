@@ -30,6 +30,7 @@ import { useViewItem } from 'src/hooks/useViewItem';
 import { useModelItem } from 'src/hooks/useModelItem';
 import { useConnector } from 'src/hooks/useConnector';
 import { useTextBox } from 'src/hooks/useTextBox';
+import { useLabel } from 'src/hooks/useLabel';
 import { useRectangle } from 'src/hooks/useRectangle';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useTranslation } from 'src/stores/localeStore';
@@ -102,6 +103,7 @@ export const ViewModeInfoPopover = () => {
   const modelItem = useModelItem(activeId);
   const connector = useConnector(activeId);
   const textBox = useTextBox(activeId);
+  const label = useLabel(activeId);
   const rectangle = useRectangle(activeId);
 
   const info = useMemo(() => {
@@ -129,6 +131,14 @@ export const ViewModeInfoPopover = () => {
         name = textBox?.name;
         anchorTile = textBox?.tile;
         break;
+      case 'LABEL':
+        name = label?.text;
+        // A floating Label can carry a link (set from the strip). Read it here
+        // so it surfaces once labels become view-interactive (LabelHitLayer is
+        // edit-only today; view-mode label click is a follow-up).
+        headerLink = label?.headerLink;
+        anchorTile = label?.tile;
+        break;
       case 'RECTANGLE':
         name = rectangle?.name;
         if (rectangle) {
@@ -142,19 +152,30 @@ export const ViewModeInfoPopover = () => {
         break;
     }
 
-    if (!anchorTile || !hasInfoPopoverContent(name, notes, headerLink)) {
+    if (!anchorTile) return null;
+
+    const hasNotes = !!notes && hasVisibleText(notes);
+
+    // Owner 2026-07-01: on HOVER, the popover appears ONLY when the item has
+    // notes — no empty name-only preview cluttering the canvas. A PINNED click
+    // is an explicit request for details, so it still shows name / link / notes
+    // via hasInfoPopoverContent.
+    if (isPinned) {
+      if (!hasInfoPopoverContent(name, notes, headerLink)) return null;
+    } else if (!hasNotes) {
       return null;
     }
 
     return {
       name: name?.trim() || '',
       notes,
-      hasNotes: !!notes && hasVisibleText(notes),
+      hasNotes,
       headerLink,
       anchorTile
     };
   }, [
     active,
+    isPinned,
     modelItem,
     viewItem,
     connector,

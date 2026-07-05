@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Box, Divider, IconButton, Tooltip } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material';
 import {
   WidgetsOutlined,
   LayersOutlined,
   FolderOpenOutlined as FileExplorerIcon,
-  SettingsOutlined as SettingsIcon
+  SettingsOutlined as SettingsIcon,
+  ChevronLeft as CollapseIcon
 } from '@mui/icons-material';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { DialogTypeEnum } from 'src/types/ui';
@@ -23,6 +25,31 @@ import { useTranslation } from 'src/stores/localeStore';
 const STRIP_WIDTH = 40;
 const PANEL_WIDTH = 240;
 const FILE_EXPLORER_WIDTH = 280;
+
+// Edge collapse tab — invisible + inert at rest, revealed on panel hover/focus
+// by the wrapper's `.ax-collapse-tab` selector (§2.3). Right-edge variant: the
+// arrow points left (collapse direction); positioned at the panel's right edge,
+// protruding into the canvas. Width-relative to the panel wrapper.
+const COLLAPSE_TAB_SX: SxProps<Theme> = {
+  position: 'absolute',
+  top: '50%',
+  left: PANEL_WIDTH - 1,
+  transform: 'translateY(-50%)',
+  width: 22,
+  height: 44,
+  borderRadius: '0 8px 8px 0',
+  bgcolor: 'background.paper',
+  border: '1px solid',
+  borderColor: 'divider',
+  borderLeft: 'none',
+  color: 'text.secondary',
+  boxShadow: 2,
+  opacity: 0,
+  pointerEvents: 'none',
+  transition: 'opacity 120ms ease',
+  '&:hover': { bgcolor: 'action.hover', color: 'text.primary' },
+  '&:focus-visible': { opacity: 1, pointerEvents: 'all' }
+};
 
 type LeftTabId = 'ELEMENTS' | 'LAYERS';
 
@@ -62,6 +89,15 @@ export const LeftDock = ({
   const setActiveLeftTab = useUiStateStore((s) => s.actions.setActiveLeftTab);
   const setDialog = useUiStateStore((s) => s.actions.setDialog);
   const hotkeys = TOOL_HOTKEYS;
+
+  // App→lib bridge: the empty-state "New diagram" wants to drop the user
+  // straight into the Elements deck (no file explorer). The app dispatches this
+  // after creating + loading the blank diagram.
+  useEffect(() => {
+    const handler = () => setActiveLeftTab('ELEMENTS');
+    window.addEventListener('axoview-open-elements', handler);
+    return () => window.removeEventListener('axoview-open-elements', handler);
+  }, [setActiveLeftTab]);
 
   const tabShortcut: Record<LeftTabId, string | null | undefined> = {
     ELEMENTS: hotkeys.addItem?.toUpperCase(),
@@ -181,7 +217,10 @@ export const LeftDock = ({
       </Box>
 
       {/* Elements / Layers panel — overlay, no animation, sits to the right
-          of the File Explorer when both are open. */}
+          of the File Explorer when both are open. The wrapper is the hover/
+          focus group that reveals the collapse tab (§2.3); the inner Box keeps
+          the panel chrome + overflow clip, while the tab sits outside that clip
+          so it can protrude past the edge. */}
       {panelOpen && (
         <Box
           sx={{
@@ -190,18 +229,43 @@ export const LeftDock = ({
             bottom: 0,
             left: panelLeftOffset,
             width: PANEL_WIDTH,
-            bgcolor: 'background.paper',
-            borderRight: '1px solid',
-            borderColor: 'divider',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            boxShadow: 3,
-            pointerEvents: 'all'
+            pointerEvents: 'all',
+            // Collapse tab is invisible + inert until the panel is hovered or
+            // focus enters it — keeps it out of the way (UX §2.3) and stops the
+            // hidden tab from catching canvas clicks at the panel edge.
+            '&:hover .ax-collapse-tab, &:focus-within .ax-collapse-tab': {
+              opacity: 1,
+              pointerEvents: 'all'
+            }
           }}
         >
-          {activeLeftTab === 'ELEMENTS' && <ElementsPanel />}
-          {activeLeftTab === 'LAYERS' && <LayersPanel />}
+          <Box
+            sx={{
+              height: '100%',
+              bgcolor: 'background.paper',
+              borderRight: '1px solid',
+              borderColor: 'divider',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              boxShadow: 3
+            }}
+          >
+            {activeLeftTab === 'ELEMENTS' && <ElementsPanel />}
+            {activeLeftTab === 'LAYERS' && <LayersPanel />}
+          </Box>
+
+          <Tooltip title={t('collapsePanel')} placement="right">
+            <IconButton
+              className="ax-collapse-tab"
+              size="small"
+              onClick={() => setActiveLeftTab(null)}
+              data-axoview-id="dock-collapse-panel"
+              sx={COLLAPSE_TAB_SX}
+            >
+              <CollapseIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
         </Box>
       )}
     </Box>

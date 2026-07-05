@@ -109,7 +109,7 @@ function buildPastePayload(n: number): PastePayload {
       viewItem: { id, tile: { x: i % width, y: 1000 + Math.floor(i / width) } }
     });
   }
-  return { items, connectors: [], rectangles: [], textBoxes: [] };
+  return { items, connectors: [], rectangles: [], textBoxes: [], labels: [] };
 }
 
 function setup(n: number = N) {

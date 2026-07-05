@@ -119,12 +119,21 @@ test.describe('View-mode info popover — Thread A (ADR 0012)', () => {
     const popover = byAxoviewId(page, 'view-mode-info-popover');
     await expect(popover).toHaveCount(0);
 
-    // Hover over Beta (tile 3,0) — name-only item still has popover content.
+    // Hover previews are notes-gated (owner 2026-06-30: presenter hover popover
+    // shows only when the item has notes; a PINNED click still surfaces
+    // name/link/notes for any item — covered by the pinned test above).
+    // Beta (tile 3,0) is name-only → hovering it shows NO preview.
     const betaPos = await canvas.tileToScreen({ x: 3, y: 0 });
     await canvas.dispatchAt(['mousemove'], betaPos);
+    await page.waitForTimeout(600); // > the 150 ms hover-intent delay
+    await expect(popover).toHaveCount(0);
+
+    // Alpha (tile 0,0) carries notes → hover shows the unpinned preview.
+    const alphaPos = await canvas.tileToScreen({ x: 0, y: 0 });
+    await canvas.dispatchAt(['mousemove'], alphaPos);
     await expect(popover).toBeVisible();
     await expect(popover).toHaveAttribute('data-axoview-pinned', 'false');
-    await expect(popover).toContainText('Beta service');
+    await expect(popover).toContainText('Alpha service');
 
     // Move to an empty tile far away — the preview closes.
     const emptyPos = await canvas.tileToScreen({ x: 12, y: 9 });

@@ -1,6 +1,6 @@
 # ADR 0026 — Rectangle Edge-Midpoint Transform Handles
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06-18
 **Supersedes:** none
 **Superseded by:** none

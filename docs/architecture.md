@@ -1,6 +1,6 @@
 # Axoview — Architecture Reference
 
-**Last updated:** 2026-06-25 (rev 24 — shake-out: removed the floating `NodeActionBar` (right-click context menu is now the sole per-item command surface, + "Add note"); ViewTabs moved into the BottomDock; inline-rename click-away contract via `useInlineRename`)
+**Last updated:** 2026-07-05 (rev 25 — labels & text-styling productization: docked style strip as the sole styling surface (ADR 0030), floating Label entity (ADR 0031), node name↔label decouple (ADR 0032), inline canvas text editing + dual-scope strip formatting + link cards (ADR 0034))
 **Codebase root:** `packages/axoview-lib/src` (library) · `packages/axoview-app/src` (application shell) · `packages/axoview-backend/src` (Express + fs adapter) · `packages/axoview-worker/src` (Hono + Cloudflare Pages Functions)
 
 **Purpose:** This is the **orientation map** — what the codebase contains and where each piece lives, tight enough to read in five minutes before touching a surface. It is deliberately *not* the comprehensive reference: decisions live in ADRs, the deep architectural narrative + file-by-file inventory + KPIs live in the frozen technical review, the test catalogue lives in `testing.md`, and runtime issues live in `known_issues.md`. Each section below points to its deeper source.
@@ -9,7 +9,7 @@
 
 | You want… | Read |
 |---|---|
-| The *decision* behind a contract (why it works this way) | [docs/adr/](adr/) — 11 ADRs |
+| The *decision* behind a contract (why it works this way) | [docs/adr/](adr/) — 34 ADRs |
 | Deep architecture narrative, sequence diagrams, file-by-file inventory, quality KPIs | [docs/technical-review-2026-06.md](technical-review-2026-06.md) (frozen baseline) |
 | The full regression-suite catalogue (every suite, its contract, gaps) | [docs/testing.md](testing.md) |
 | Open runtime issues, deferred fixes, perf cliffs | [known_issues.md](../known_issues.md) + [docs/perf-troubleshooting.md](perf-troubleshooting.md) |
@@ -83,6 +83,18 @@ Model and scene maintain **independent** patch-pair history stacks (max 50 each)
 
 Double-click rename in the file tree does not work (F2 / context-menu workaround) — tracked in [known_issues.md](../known_issues.md).
 
+### Styling, Labels & Canvas Text (ADRs 0030–0034)
+
+The labels & text-styling productization cycle's subsystems. The **docked style strip is the single styling writer** — never re-add styling to a panel (ADR 0030). Text-box `content` HTML is DOMPurify-sanitized at load / seed / commit / render (ADR 0029); link URLs are scheme-forced to `https?:` / `mailto:` / `tel:` / `#` at every write and render sink.
+
+| Feature | Source | Entry Point |
+|---|---|---|
+| **Docked style strip** (canonical styling surface) | `components/TopBarStyleControls/TopBarStyleControls.tsx` | Portaled into the ADR 0005 Group-1 "Format" slot; edits the selected item / homogeneous bulk. [ADR 0030](adr/0030-docked-style-controls-strip.md) |
+| **Floating Label entity** | `schemas/label.ts`, `stores/reducers/label.ts`, `components/SceneLayers/` Label layer | Elements panel / placement mode; renders above the node layer. [ADR 0031](adr/0031-floating-label-entity-model.md) |
+| **Node/connector name↔label decouple** | `utils/seedNodeLabel.ts`, `utils/seedConnectorLabel.ts` | Load-time idempotent seed (`useInitialDataManager`); `label`/`labels[]` = on-canvas text, `name` = Layers identity. [ADR 0032](adr/0032-node-name-caption-label-model.md) |
+| **Inline canvas text editing + dual-scope strip formatting** | `components/SceneLayers/TextBoxes/TextBoxInlineEditor.tsx`, `utils/richTextTransform.ts`, `utils/quillListAutofill.ts`, `utils/foldTextBoxStyleFlags.ts` | Double-click / F2 / place-and-type; strip B/I/U/S applies whole-content (selected) or live range (editing). [ADR 0034](adr/0034-inline-canvas-text-editing-and-dual-scope-strip-formatting.md) |
+| **Inline link cards** | `components/SceneLayers/TextBoxes/TextBoxLinkCard.tsx`, `ElementLinkCard`, `utils/quillLinkShortcut.ts` | Ctrl/Cmd+K or caret-in-link; body-portaled Popper; web URL (`normalizeWebLinkUrl`) or `#diagram:<id>` fragment nav. [ADR 0034](adr/0034-inline-canvas-text-editing-and-dual-scope-strip-formatting.md) |
+
 ### Workspace I/O (ADRs 0001–0003)
 
 | Feature | Source | Notes |
@@ -113,7 +125,7 @@ Persistence flow + canonical type location (`types/settings.ts`) in [§2j](#2j-c
 | Dialogs (Export/Help/Settings) | `ExportImageDialog`, `HelpDialog`, `SettingsDialog` | `uiState.dialog` set |
 | Notification snackbar | `NotificationSnackbar` (lib) · `NotificationStack` (app) | `uiState.notification` / `notificationStore` |
 | Context menu | `CanvasContextMenu` (ADR 0027) | `uiState.contextMenu` set (right-click tap / long-press; the sole per-item command surface — Details/Rename/Add note/cut/copy/layer/z-order/delete) |
-| Item controls panel | `ItemControlsManager` → `NodePanel` | `uiState.itemControls` set; EDITABLE = 3-tab (Details/Style/Notes), READONLY = single-scroll |
+| Item controls panel | `ItemControlsManager` → `NodePanel` | `uiState.itemControls` set; EDITABLE = 2-tab (Details/Notes) — styling moved to the docked strip ([ADR 0030](adr/0030-docked-style-controls-strip.md)), identity name in a collapsed Metadata section ([ADR 0032](adr/0032-node-name-caption-label-model.md)); READONLY = single-scroll |
 | Quick add popover | `QuickAddNodePopover` | EDITABLE; on `canvasEmptyDblClick` |
 | Preview button | toolbar `IconButton` | EDITABLE + server storage + saved diagram |
 | ToolMenu | `ToolMenu` | EDITABLE; Undo/Redo/Select/Lasso/Freehand/Pan/Connector (Rectangle + Text moved to Elements panel) |

@@ -185,10 +185,13 @@ test.describe('Preview layer switcher — Thread B (ADR 0013)', () => {
     const dirtyInPreview = await getIsDirty(page);
 
     // Toggle the first layer's visibility → recorded in the UI override only.
+    // (dispatchEvent, not .click(): the bridge-forced preview keeps the app's
+    // chrome mounted, which can overlay/intercept a real pointer click — the
+    // same rationale as the hide-labels test below.)
     await switcher
       .locator('[data-axoview-id="preview-layer-toggle-visibility"]')
       .first()
-      .click();
+      .dispatchEvent('click');
     await expect
       .poll(() => getOverrides(page).then((o) => o.hiddenLayerIds.length), {
         timeout: 3_000
@@ -200,7 +203,7 @@ test.describe('Preview layer switcher — Thread B (ADR 0013)', () => {
 
     // Solo the second layer → override switches to solo; still UI-only.
     const soloButtons = switcher.locator('[data-axoview-id="preview-layer-solo"]');
-    await soloButtons.nth(1).click();
+    await soloButtons.nth(1).dispatchEvent('click');
     await expect
       .poll(() => getOverrides(page).then((o) => o.soloLayerId), { timeout: 3_000 })
       .not.toBeNull();
@@ -218,7 +221,7 @@ test.describe('Preview layer switcher — Thread B (ADR 0013)', () => {
   });
 });
 
-test.describe('Present-mode hide-labels — Thread B (ADR 0013 addendum)', () => {
+test.describe('Global hide-labels — Thread B (ADR 0013 addendum; moved to the zoom cluster 894cb3b)', () => {
   // No blank-diagram boot here: this test imports the sample fixture via the
   // empty-state file chooser, which only fires when the file tree is empty.
   test.beforeEach(async ({ page, app }) => {
@@ -226,7 +229,7 @@ test.describe('Present-mode hide-labels — Thread B (ADR 0013 addendum)', () =>
     await pinOnboardingDismissed(page);
   });
 
-  test('hide-labels toggle hides name labels live; UI-only, non-dirty, clears on leaving present', async ({
+  test('hide-labels toggle hides name labels live; UI-only, non-dirty, persists across mode switches', async ({
     page
   }) => {
     // Fixture import (reload + file chooser) plus several toggle round-trips runs
@@ -235,18 +238,23 @@ test.describe('Present-mode hide-labels — Thread B (ADR 0013 addendum)', () =>
     // Named nodes (Alpha/Beta) so there are real labels to hide.
     await importSampleDiagram(page);
 
-    const toggle = byAxoviewId(page, 'preview-labels-toggle');
+    // The control moved from the presentation-only chrome into the global
+    // bottom-dock zoom cluster (894cb3b, Option-A view controls): same
+    // `previewHideLabels` UI flag, now available in BOTH edit and present, and
+    // persisting across mode switches as a session-wide view preference
+    // (uiStateStore.setPreviewHideLabels).
+    const toggle = byAxoviewId(page, 'canvas-hide-labels');
 
-    // Edit chrome: the present-mode toggle is not shown in edit mode, and labels
-    // render (showLabel defaults on).
-    await expect(toggle).toHaveCount(0);
+    // Edit chrome: the toggle is available (global) and labels render
+    // (showLabel defaults on); the flag starts off.
+    await expect(toggle).toBeVisible();
+    expect(await getHideLabels(page)).toBe(false);
     const labelCount = await getVisibleLabelCount(page);
     expect(labelCount).toBeGreaterThan(0);
 
     const showLabelsBefore = await getModelShowLabels(page);
 
-    // Enter present — the toggle appears (regardless of layer count) and labels
-    // still render; the override flag starts off.
+    // Enter present — the toggle is still there and labels still render.
     await setEditorMode(page, 'EXPLORABLE_READONLY');
     await expect(toggle).toBeVisible();
     expect(await getHideLabels(page)).toBe(false);
@@ -256,12 +264,10 @@ test.describe('Present-mode hide-labels — Thread B (ADR 0013 addendum)', () =>
 
     const dirtyInPreview = await getIsDirty(page);
 
-    // Forcing EXPLORABLE_READONLY via the debug bridge leaves the app's left
-    // file-explorer chrome mounted (it would be absent in a real present surface),
-    // and its diagram-title row sits over this top-left toggle. A real pointer
-    // click would land on that overlay, so dispatch the click straight on the
-    // toggle element — its real onClick (flag flip → live label hide, no model
-    // write) is what's under test; visibility/affordance is asserted separately.
+    // Dispatch the click straight on the toggle element (chrome overlays in the
+    // bridge-forced preview can intercept a real pointer click) — its onClick
+    // (flag flip → live label hide, no model write) is what's under test;
+    // visibility/affordance is asserted separately.
     const clickToggle = () => toggle.dispatchEvent('click');
 
     // Toggle on → name labels disappear live; recorded in the UI flag only.
@@ -283,13 +289,20 @@ test.describe('Present-mode hide-labels — Thread B (ADR 0013 addendum)', () =>
     expect(await getModelShowLabels(page)).toEqual(showLabelsBefore);
     expect(await getIsDirty(page)).toBe(dirtyInPreview);
 
-    // Hide again, then leave present — the ephemeral flag clears; the toggle is
-    // gone and every label is back (the model was never touched).
+    // Hide again, then leave present — the flag is a session-wide GLOBAL view
+    // preference now: it PERSISTS across the mode switch and the toggle stays
+    // available in edit chrome; the model is never touched. Toggle off again
+    // to restore.
     await clickToggle();
     await expect.poll(() => getHideLabels(page), { timeout: 3_000 }).toBe(true);
     await setEditorMode(page, 'EDITABLE');
-    expect(await getHideLabels(page)).toBe(false);
-    await expect(toggle).toHaveCount(0);
+    expect(await getHideLabels(page)).toBe(true);
+    await expect(toggle).toBeVisible();
+    await expect
+      .poll(() => getVisibleLabelCount(page), { timeout: 3_000 })
+      .toBe(0);
+    await clickToggle();
+    await expect.poll(() => getHideLabels(page), { timeout: 3_000 }).toBe(false);
     await expect
       .poll(() => getVisibleLabelCount(page), { timeout: 3_000 })
       .toBe(labelCount);

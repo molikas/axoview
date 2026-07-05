@@ -1,6 +1,6 @@
 # Axoview UX Principles
 
-**Last updated:** 2026-06-10 (v1.1 close-out)
+**Last updated:** 2026-07-02 (integration reshape — styling→top-bar strip; identity name→Metadata section; name↔label decouple; unified label sizing)
 **Status:** Living reference. Update when principles evolve.
 **Audience:** Anyone (or any agent) building UI surfaces, fixing bugs, or reviewing PRs that touch the canvas, side panels, file explorer, or layers.
 
@@ -188,6 +188,24 @@ This differs from §2.1 because:
 
 Right-click (desktop) or long-press (touch) on a node, connector, text box, or rectangle opens a single context menu — the catch-all home for every per-item command (ADR 0027). There is **no floating quick-action bar**: the old bar/menu/panel three-tier model collapsed to two in the 2026-06-25 shake-out — **menu = per-item commands · details panel = editing**. A single click/tap is **select-only** (it derives the panel target but mounts no surface; §4.4); double-click opens the editing panel. Don't reintroduce a selection-triggered floating toolbar — it duplicates the menu and competes with the move-is-drag model (§9.1). Reference: [`CanvasContextMenu.tsx`](../packages/axoview-lib/src/components/CanvasContextMenu/CanvasContextMenu.tsx).
 
+> **Docked toolbar editing is exempt** (not "floating"). The top-bar style strip ([`TopBarStyleControls.tsx`](../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx), ADR 0005 Group 1 "Format" slot) **is the canonical styling surface** — the single writer of visual styling for every item type ([ADR 0030](adr/0030-docked-style-controls-strip.md)) — in the always-present toolbar chrome, the Google-Docs/Figma persistent-format-toolbar pattern. The item panel is **Details / Notes** only; per-type side-panel styling was retired. The strip is **docked**, **global**, and **selection-gated** (controls enable/disable, they don't float to the cursor), so it does not reintroduce the canvas-anchored quick-action bar this section forbids.
+
+### 2.5 Toolbar controls need a hard enabled/disabled contrast
+
+A selection-gated toolbar (the style strip) shows every control at all times; inapplicable ones disable rather than hide, so the user learns the full command surface. That only works if **disabled reads as clearly inert** — otherwise the toolbar looks broken, not gated. Two rules:
+
+- **Enabled = `text.primary` (≈0.87), disabled = `action.disabled` (≈0.26).** The default `action.active` (0.54) for an enabled icon sits too close to disabled (0.26) to scan at a glance — push enabled darker.
+- **Force icons to inherit the button colour.** The theme pins `MuiSvgIcon` to `color: 'action'` (theme.ts), which overrides the button's disabled colour, so a disabled icon-button keeps full-strength icons and looks enabled. Add `'& .MuiSvgIcon-root': { color: 'inherit' }` on any toolbar control whose enabled/disabled state must read visually.
+
+```tsx
+sx={{
+  color: disabled ? 'action.disabled' : 'text.primary',
+  '& .MuiSvgIcon-root': { color: 'inherit' } // defeat the global color:'action' pin
+}}
+```
+
+Pair the disabled state with a tooltip that says *why* it's disabled and how to enable it (e.g. *"Select a connection to set its line style"*) — same spirit as §8.3.
+
 ---
 
 ## 3. Keyboard
@@ -268,22 +286,27 @@ Full contract, call-site list, and rationale: [ADR 0006](adr/0006-canvas-selecti
 
 Every selectable item type (Node, Connector, TextBox, Rectangle) is a **first-class peer**. New item types (or extensions to existing ones) mirror what node already does.
 
-### 5.1 Item controls panel structure
+### 5.1 Item controls panel structure — a uniform stack of collapsible sections
 
-Every item type's control panel has the same shape:
+Every item type's control panel is the **same shape**: a vertical stack of **collapsible sections** (no tabs), under a header row that carries the element's **type identity** — a type icon + name (a node shows its own icon + name) on the left, a close button on the right ([`DeckHeader`](../packages/axoview-lib/src/components/ItemControls/components/DeckHeader.tsx)). The identity gives the close button a companion (it no longer reads as a lone ✕) and says which element the deck is for. Sections run in one canonical order — **content → Notes → Metadata** — the **first open**, the rest collapsed; the context-menu **Add note** deep-links **Notes** open on every type (via the `focusNotes` panel event).
 
-- **Header**: tabs (Details / Style / Notes) + close button
-- **Details tab**: Name field with inline link button + show/hide name toggle, plus type-specific extras
-- **Style tab**: visual properties + Delete button
-- **Notes tab**: `RichTextEditor` bound to `notes` field, with non-empty marker on the tab
+- **Content** (open, where it exists): the on-canvas field that is *not* edited directly on the canvas — node **Label** (with the inline link button + show/hide-label toggle) and connector **Labels** (the `labels[]` editor). **Text boxes and floating Labels have no deck content editor**: their text is edited **inline on the canvas** (double-click, or drop-and-type on placement — the placement flow drops straight into inline edit) and formatted from the style strip, so their decks lead with **Notes**. A rectangle likewise has no content field and leads with Notes.
+- **Notes**: the shared [`NotesSection`](../packages/axoview-lib/src/components/ItemControls/components/NotesSection.tsx) (`RichTextEditor` bound to `notes`), with a "has content" dot on the header.
+- **Metadata**: the identity `name` in a collapsed [`MetadataSection`](../packages/axoview-lib/src/components/ItemControls/components/MetadataSection.tsx) ([ADR 0032](adr/0032-node-name-caption-label-model.md)) — present for every type whose identity is distinct from its content (node / connector / rectangle / text box), edited primarily in Layers. A floating **Label** has **no** Metadata section: its `text` is both content and identity.
+
+All sections use one shared [`CollapsibleSection`](../packages/axoview-lib/src/components/ItemControls/components/CollapsibleSection.tsx) primitive, so the deck looks and behaves identically for every element. Visual styling is **not** a panel section — it lives in the docked style strip (§2.4 / §2.5, [ADR 0030](adr/0030-docked-style-controls-strip.md)), the single canonical styling surface. The deck is **never a styling or free-text-entry surface**: on-canvas text is typed inline on the canvas and styled from the strip; the deck holds **notes + identity** (plus the connector's `labels[]` list). **Delete** lives in the context menu ([ADR 0027](adr/0027-canvas-context-menu.md)), not the panel.
 
 ### 5.2 Connector mirrors node
 
-Connectors have everything nodes have: `name`, `notes`, `headerLink`, `showLabel`, F2 inline rename, canvas name label, Details/Style/Notes tabs. They are not "lesser" items — they're peers.
+Connectors are first-class peers of nodes: `name` (identity, Layers-only), `notes`, `headerLink`, `showLabel`, and the same collapsible-section deck (§5.1). Post-decouple ([ADR 0032](adr/0032-node-name-caption-label-model.md)) a connector's on-canvas text is its **`labels[]`** — the deck's lead content section (F2 adds a label at the midpoint; each is individually styled + linkable), **not** the identity `name` — the same name↔label decouple nodes have. Consequently the connector deck drops the show/hide-name toggle and the connector-level link: label visibility is the **Layers** eye toggle, and the whole-connector link is the strip's **Link** control. This is a *deliberate* parity divergence — a connector has no single on-canvas name, so a node-style name row would be meaningless.
 
 ### 5.3 No icon overloading across item types
 
 When designing new affordances, check that the icon doesn't already mean something else for a different item type.
+
+### 5.4 On-canvas label-like text shares one sizing model
+
+Item-type parity extends to *sizing*. Node labels, floating Labels, and connector labels all default to one base size (`LABEL_BASE_FONT_PX = 18`, [`labelSettings.ts`](../packages/axoview-lib/src/config/labelSettings.ts)) and are sized through **one** strip control — a single px range (10–40) with a relative **+/−** stepper that also works across a mixed label-bearing selection. Don't add a per-type size range or a second sizing control; derive from the shared base and override per element via the strip ([ADR 0030](adr/0030-docked-style-controls-strip.md) — 2026-07-02 sizing amendment). The text box is the deliberate exception: its size is *tile-space* (scales with the diagram), not screen-px chrome. This is the consistency target for label-like surfaces generally — **one base, one range, one control; derive, don't duplicate per type.**
 
 ---
 
@@ -568,7 +591,8 @@ When building parallel surfaces, **read these first**:
 | Layout primitive | [`Section.tsx`](../packages/axoview-lib/src/components/ItemControls/components/Section.tsx) |
 | Touch / pen gesture machine | [`useInteractionManager.ts`](../packages/axoview-lib/src/interaction/useInteractionManager.ts) (search `onTouchPointerDown`) |
 | Tabbed item panel | [`NodePanel.tsx`](../packages/axoview-lib/src/components/ItemControls/NodeControls/NodePanel/NodePanel.tsx) |
-| Name field + inline action buttons | [`NodeInfoTab.tsx`](../packages/axoview-lib/src/components/ItemControls/NodeControls/NodeInfoTab/NodeInfoTab.tsx) |
+| Label field + inline action buttons | [`NodeInfoTab.tsx`](../packages/axoview-lib/src/components/ItemControls/NodeControls/NodeInfoTab/NodeInfoTab.tsx) |
+| Collapsed identity + notes panel sections | [`MetadataSection.tsx`](../packages/axoview-lib/src/components/ItemControls/components/MetadataSection.tsx) · [`NotesSection.tsx`](../packages/axoview-lib/src/components/ItemControls/components/NotesSection.tsx) — see §5.1 |
 | Connector parity with node | [`ConnectorControls.tsx`](../packages/axoview-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx) |
 | Layer row with rename + action toggle | [`LayerItemRow.tsx`](../packages/axoview-lib/src/components/LayersPanel/LayerItemRow.tsx) |
 | Keyboard-first dialog | [`ConfirmDialog.tsx`](../packages/axoview-app/src/components/ConfirmDialog.tsx) |

@@ -7,6 +7,7 @@ export default [
     ignores: [
       '**/dist/**',
       '**/build/**',
+      '**/.worker-build*/**',
       '**/node_modules/**',
       '**/*.test.ts',
       '**/*.test.tsx',

@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-06-11
 **Supersedes:** none
-**Superseded by:** none
+**Superseded by:** [ADR 0030](0030-docked-style-controls-strip.md) in part — the editing panel is now **Details / Notes** (no Style tab); styling moved to the docked style strip. The "Details / Style / Notes" reference below is historical (pre-0030); it does not affect this ADR's view-mode popover decision.
 
 ## Context
 

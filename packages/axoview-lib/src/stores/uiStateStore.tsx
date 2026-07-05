@@ -29,6 +29,11 @@ const canvasResetForAnnotation = (
   mode: getStartingMode(state.editorMode),
   itemControls: null,
   selectedIds: [],
+  hoveredItem: null,
+  // An in-flight on-canvas text edit (ADR 0034) must not linger behind the
+  // annotation overlay — the promoted editor would sit above it.
+  editingTextBoxId: null,
+  editingTextBoxSize: null,
   ...(state.rightSidebarAutoOpened
     ? { rightSidebarOpen: false, rightSidebarAutoOpened: false }
     : {})
@@ -57,10 +62,12 @@ const initialState = () => {
       },
       itemControls: null,
       selectedIds: [],
+      hoveredItem: null,
       enableDebugTools: false,
       zoomSettings: persisted?.zoomSettings ?? DEFAULT_ZOOM_SETTINGS,
       labelSettings: persisted?.labelSettings ?? DEFAULT_LABEL_SETTINGS,
       connectorInteractionMode: persisted?.connectorInteractionMode ?? 'click',
+      connectorDefaults: {},
       expandLabels: persisted?.expandLabels ?? false,
       readableLabels: persisted?.readableLabels ?? false,
       canvasMode: persisted?.canvasMode ?? 'ISOMETRIC',
@@ -76,8 +83,14 @@ const initialState = () => {
       isDirty: false,
       previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
       previewHideLabels: false,
+      hideViewControls: false,
       exportHideLabels: false,
       labelDrag: null,
+      labelMove: null,
+      selectedConnectorLabel: null,
+      inlineEditLabelId: null,
+      editingTextBoxId: null,
+      editingTextBoxSize: null,
       annotation: {
         open: false,
         // Open in the non-disruptive Select mode; the user picks a draw tool.
@@ -92,22 +105,30 @@ const initialState = () => {
         setView: (view) => {
           // A new view has its own layers — drop any preview override so a
           // solo'd/hidden layer id from the previous view can't leak across.
-          // The hide-labels flag is per-presentation too, so reset it as well.
+          // (hide-labels is now a GLOBAL toggle, not per-view, so it persists.)
           set({
             view,
-            previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
-            previewHideLabels: false
+            previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null }
           });
         },
         setEditorMode: (mode) => {
-          // Leaving (or entering) preview clears the ephemeral overrides so they
-          // never persist across mode switches (ADR 0013 + hide-labels addendum).
-          set({
+          // Leaving (or entering) preview clears the ephemeral preview overrides
+          // and the view-only "hide all controls" flag so they never persist
+          // across mode switches (ADR 0013). hide-labels is global → untouched.
+          // M1: also close the annotation palette so a Present-mode pen overlay
+          // doesn't linger into edit mode — but KEEP strokes (ADR 0014
+          // session-scoped); only the open flag is reset.
+          set((state) => ({
             editorMode: mode,
             mode: getStartingMode(mode),
             previewLayerOverrides: { hiddenLayerIds: [], soloLayerId: null },
-            previewHideLabels: false
-          });
+            hideViewControls: false,
+            // An on-canvas text-edit session (ADR 0034) is edit-mode chrome —
+            // never carry it into view/present.
+            editingTextBoxId: null,
+            editingTextBoxSize: null,
+            annotation: { ...state.annotation, open: false }
+          }));
         },
         setIconCategoriesState: (iconCategoriesState) => {
           set({ iconCategoriesState });
@@ -147,6 +168,9 @@ const initialState = () => {
         setScroll: ({ position, offset }) => {
           set({ scroll: { position, offset: offset ?? get().scroll.offset } });
         },
+        setHoveredItem: (hoveredItem) => {
+          set({ hoveredItem });
+        },
         setItemControls: (itemControls, options) => {
           if (itemControls !== null) {
             const { rightSidebarOpen, rightSidebarAutoOpened } = get();
@@ -171,13 +195,15 @@ const initialState = () => {
             if (!openPanel) {
               set({
                 itemControls,
-                selectedIds: nextSelected
+                selectedIds: nextSelected,
+                selectedConnectorLabel: null
               });
               return;
             }
             set({
               itemControls,
               selectedIds: nextSelected,
+              selectedConnectorLabel: null,
               rightSidebarOpen: inView ? rightSidebarOpen : true,
               ...(!inView && !alreadyPinned && { rightSidebarAutoOpened: true })
             });
@@ -185,6 +211,7 @@ const initialState = () => {
             const autoOpened = get().rightSidebarAutoOpened;
             set({
               itemControls,
+              selectedConnectorLabel: null,
               ...(autoOpened && {
                 rightSidebarOpen: false,
                 rightSidebarAutoOpened: false
@@ -207,13 +234,15 @@ const initialState = () => {
             // closed until an explicit double-click.
             set({
               selectedIds: ids,
-              itemControls: { type: only.type, id: only.id }
+              itemControls: { type: only.type, id: only.id },
+              selectedConnectorLabel: null
             });
           } else {
             const autoOpened = get().rightSidebarAutoOpened;
             set({
               selectedIds: ids,
               itemControls: null,
+              selectedConnectorLabel: null,
               ...(autoOpened && {
                 rightSidebarOpen: false,
                 rightSidebarAutoOpened: false
@@ -256,6 +285,12 @@ const initialState = () => {
         setConnectorInteractionMode: (connectorInteractionMode) => {
           set({ connectorInteractionMode });
         },
+        setConnectorDefaults: (patch) => {
+          set({ connectorDefaults: { ...get().connectorDefaults, ...patch } });
+        },
+        resetConnectorDefaults: () => {
+          set({ connectorDefaults: {} });
+        },
         setExpandLabels: (expandLabels) => {
           set({ expandLabels });
         },
@@ -290,10 +325,17 @@ const initialState = () => {
           });
         },
         setPreviewHideLabels: (previewHideLabels) => {
-          // UI-only present-mode toggle (ADR 0013 addendum): suppresses name
-          // labels live without ever touching the model's `showLabel`, so it
-          // cannot dirty/save the diagram. Cleared on view/mode switch above.
+          // UI-only GLOBAL hide-labels toggle (bottom-dock zoom cluster, both
+          // editing + presentation): suppresses name labels live without ever
+          // touching the model's `showLabel`, so it cannot dirty/save. Persists
+          // across view/mode switches (it is a session-wide view preference).
           set({ previewHideLabels });
+        },
+        setHideViewControls: (hideViewControls) => {
+          // UI-only view-only toggle: hides the on-canvas presentation chrome
+          // (layer switcher, annotation palette, bottom dock) for a clean
+          // screenshot. Cleared on mode switch above.
+          set({ hideViewControls });
         },
         setExportHideLabels: (exportHideLabels) => {
           // UI-only image-export toggle (ADR 0025 §3): suppresses name labels in
@@ -311,6 +353,41 @@ const initialState = () => {
         },
         clearLabelDrag: () => {
           set({ labelDrag: null });
+        },
+        setLabelMove: (id, tile, offset) => {
+          // Transient floating-Label move preview (ADR 0031). LabelsCanvas reads
+          // this to redraw the dragged chip following the pointer with NO model
+          // write, so the LabelHitLayer proxy divs don't re-render each frame.
+          // Committed to the model once, on release.
+          set({ labelMove: { id, tile, offset } });
+        },
+        clearLabelMove: () => {
+          set({ labelMove: null });
+        },
+        setInlineEditLabelId: (id) => {
+          set({ inlineEditLabelId: id });
+        },
+        setEditingTextBoxId: (id) => {
+          // A session change invalidates the previous session's live measure —
+          // consumers fall back to the committed model size until the editor's
+          // first draft callback lands.
+          set({ editingTextBoxId: id, editingTextBoxSize: null });
+        },
+        setEditingTextBoxSize: (size) => {
+          // Called per keystroke; sizes are integer tiles so most calls are
+          // no-ops. Keep the stored object's identity when equal so selector
+          // subscribers (the projected box + transform bounds) don't re-render.
+          set((state) =>
+            state.editingTextBoxSize &&
+            size &&
+            state.editingTextBoxSize.width === size.width &&
+            state.editingTextBoxSize.height === size.height
+              ? {}
+              : { editingTextBoxSize: size }
+          );
+        },
+        setSelectedConnectorLabel: (sel) => {
+          set({ selectedConnectorLabel: sel });
         },
         // --- Annotation overlay (ADR 0014) — ephemeral, never persisted ---
         setAnnotationOpen: (open) => {

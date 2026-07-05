@@ -13,7 +13,9 @@ import {
   DEFAULT_FONT_FAMILY,
   TEXTBOX_DEFAULTS,
   TEXTBOX_FONT_WEIGHT,
-  CANVAS_RICHTEXT_SCALE
+  TEXTBOX_LINE_HEIGHT,
+  CANVAS_RICHTEXT_SCALE,
+  CANVAS_RICHTEXT_LIST_INDENT_EM
 } from 'src/config';
 import {
   Coords,
@@ -437,10 +439,15 @@ export const convertBoundsToNamedAnchors = (
 // ---------------------------------------------------------------------------
 
 export const getTextBoxEndTile = (textBox: TextBox, size: Size) => {
+  // The far corner of the box, including the row count (size.height). The text
+  // grows from the tile by size.width along the run and by size.height-1 across
+  // the rows; omitting the height made multi-line boxes report a 1-row footprint
+  // (selection outline + hit area only covered the first row).
+  const rows = Math.max(0, size.height - 1);
   if (textBox.orientation === ProjectionOrientationEnum.X) {
-    return CoordsUtils.add(textBox.tile, { x: size.width, y: 0 });
+    return CoordsUtils.add(textBox.tile, { x: size.width, y: -rows });
   }
-  return CoordsUtils.add(textBox.tile, { x: 0, y: -size.width });
+  return CoordsUtils.add(textBox.tile, { x: rows, y: -size.width });
 };
 
 const getPlainTextForMeasurement = (content: string): string => {
@@ -452,11 +459,14 @@ const getPlainTextForMeasurement = (content: string): string => {
   return lines.reduce((a, b) => (a.length > b.length ? a : b), '');
 };
 
-// Approximate vertical space (in user-fontSize units) each block contributes
-// once rendered with CANVAS_RICHTEXT_SCALE + the margins declared in
-// useTextBoxProps. Computed as: font-size-em × line-height + margin-top-em
+// Approximate vertical space (in user-fontSize units) each LEGACY block
+// contributes once rendered with CANVAS_RICHTEXT_SCALE + the margins declared
+// in useTextBoxProps. Computed as: font-size-em × line-height + margin-top-em
 // + margin-bottom-em. Keep in sync with richTextStyles in useTextBoxProps.ts
 // — drift here means the auto-grown bounds clip the rendered content.
+// p/li are NOT in this table: they carry zero margins and follow the box's
+// own line-spacing multiplier (ADR 0034 addendum 2026-07-03), passed into
+// countHtmlLines per box.
 const BLOCK_HEIGHT_UNITS: Record<string, number> = {
   h1: 1.875 * 1.2 + 0.8 + 0.3, // 3.35
   h2: 1.5 * 1.25 + 0.7 + 0.25, // 2.825
@@ -464,50 +474,74 @@ const BLOCK_HEIGHT_UNITS: Record<string, number> = {
   h4: 1.1 * 1.4 + 0.4 + 0.2, // 2.14
   h5: 1.0 * 1.4 + 0.3 + 0.2, // 1.9
   h6: 1.0 * 1.4 + 0.3 + 0.2, // 1.9
-  p: 1.0 * 1.5 + 0 + 0.4, // 1.9
-  li: 1.0 * 1.5 + 0 + 0.2, // 1.7
   blockquote: 1.0 * 1.5 + 0.5 + 0.5, // 2.5
   pre: 0.9 * 1.5 + 0.5 + 0.5 // 2.35
 };
 
 /** @internal exported for unit-testing the per-block weighting only. */
-export const countHtmlLines = (content: string): number => {
+export const countHtmlLines = (
+  content: string,
+  lineHeight: number = TEXTBOX_LINE_HEIGHT
+): number => {
   if (!content?.trim().startsWith('<')) return 1;
   const re = /<\/(p|li|h[1-6]|blockquote|pre)>/gi;
   let total = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(content)) !== null) {
     const tag = m[1].toLowerCase();
-    total += BLOCK_HEIGHT_UNITS[tag] ?? 1.0;
+    total += BLOCK_HEIGHT_UNITS[tag] ?? lineHeight;
   }
   return Math.max(1, total);
 };
 
 // Extract per-block plain text + scale so width measurement can account for
-// headers rendering bigger than body. Returns at least one block so callers
-// can always measure something; falls back to the longest-line heuristic for
-// HTML the regex doesn't recognise.
+// headers rendering bigger than body, and per-block indent (em) so a list
+// item's marker gutter is counted — omitting it sized list boxes for the bare
+// text and the indent ate the content width ("one character per line").
+// Blank blocks (Quill's `<p><br></p>` lines) are kept with text '' so the
+// fixed-width height path counts them; the auto-width loop measures them as
+// zero. Returns at least one block so callers can always measure something;
+// falls back to the longest-line heuristic for HTML the regex doesn't
+// recognise.
+export interface MeasurableBlock {
+  text: string;
+  scale: number;
+  indentEm: number;
+  tag: string;
+}
+
 /** @internal exported for unit-testing the per-block scaling only. */
 export const splitIntoMeasurableBlocks = (
   content: string
-): Array<{ text: string; scale: number }> => {
+): MeasurableBlock[] => {
   if (!content?.trim().startsWith('<')) {
-    return [{ text: content || '', scale: 1.0 }];
+    return [{ text: content || '', scale: 1.0, indentEm: 0, tag: 'p' }];
   }
-  const blocks: Array<{ text: string; scale: number }> = [];
+  const blocks: MeasurableBlock[] = [];
   const re =
     /<(p|li|h([1-6])|blockquote|pre)(?:\s[^>]*)?>([\s\S]*?)<\/\1>/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(content)) !== null) {
     const tag = m[1].toLowerCase();
     const text = htmlToPlainText(m[3]).trim();
-    if (!text) continue;
     const scale =
       CANVAS_RICHTEXT_SCALE[tag as keyof typeof CANVAS_RICHTEXT_SCALE] ?? 1.0;
-    blocks.push({ text, scale });
+    blocks.push({
+      text,
+      scale,
+      indentEm: tag === 'li' ? CANVAS_RICHTEXT_LIST_INDENT_EM : 0,
+      tag
+    });
   }
   if (blocks.length === 0) {
-    return [{ text: getPlainTextForMeasurement(content), scale: 1.0 }];
+    return [
+      {
+        text: getPlainTextForMeasurement(content),
+        scale: 1.0,
+        indentEm: 0,
+        tag: 'p'
+      }
+    ];
   }
   return blocks;
 };
@@ -532,24 +566,149 @@ export const getTextWidth = (
   return (metrics.width + paddingX * 2) / UNPROJECTED_TILE_SIZE - 0.8;
 };
 
+/**
+ * @internal exported for unit tests — the pure greedy word-wrap core.
+ * Mirrors the browser's normal wrapping: break at spaces; a single word wider
+ * than the line hard-breaks across lines (overflow-wrap: break-word).
+ */
+export const countGreedyWrappedLines = (
+  wordWidths: number[],
+  spaceWidth: number,
+  availablePx: number
+): number => {
+  if (wordWidths.length === 0 || availablePx <= 0) return 1;
+  let lines = 1;
+  let current = 0;
+  wordWidths.forEach((wordWidth) => {
+    if (wordWidth > availablePx) {
+      if (current > 0) lines += 1;
+      const chunks = Math.max(1, Math.ceil(wordWidth / availablePx));
+      lines += chunks - 1;
+      current = wordWidth - (chunks - 1) * availablePx;
+      return;
+    }
+    if (current === 0) {
+      current = wordWidth;
+    } else if (current + spaceWidth + wordWidth <= availablePx) {
+      current += spaceWidth + wordWidth;
+    } else {
+      lines += 1;
+      current = wordWidth;
+    }
+  });
+  return lines;
+};
+
+// Canvas-measured wrapper around the greedy core (same measurement setup as
+// getTextWidth). Degrades to 1 line where no 2D context exists (jsdom without
+// the canvas package) instead of throwing — jest paths that touch a
+// fixed-width box get a stable, if flat, height.
+const estimateWrappedLineCount = (
+  text: string,
+  availablePx: number,
+  fontProps: {
+    fontWeight: number | string;
+    fontSize: number;
+    fontFamily: string;
+  }
+): number => {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return 1;
+  const fontSizePx = toPx(fontProps.fontSize * UNPROJECTED_TILE_SIZE);
+  const canvas: HTMLCanvasElement = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  if (!context) return 1;
+  context.font = `${fontProps.fontWeight} ${fontSizePx} ${fontProps.fontFamily}`;
+  const spaceWidth = context.measureText(' ').width;
+  const wordWidths = words.map((w) => context.measureText(w).width);
+  canvas.remove();
+  return countGreedyWrappedLines(wordWidths, spaceWidth, availablePx);
+};
+
+// Vertical units one block contributes when it renders as `lines` wrapped
+// lines: p/li follow the box's line-spacing multiplier; legacy blocks keep
+// their fixed first-line weight (incl. margins) and add extra wrapped lines
+// at their own scale.
+const blockHeightUnits = (
+  tag: string,
+  lines: number,
+  lineHeight: number
+): number => {
+  const legacy = BLOCK_HEIGHT_UNITS[tag];
+  if (legacy !== undefined) {
+    const scale =
+      CANVAS_RICHTEXT_SCALE[tag as keyof typeof CANVAS_RICHTEXT_SCALE] ?? 1.0;
+    return legacy + (lines - 1) * scale * 1.3;
+  }
+  return lines * lineHeight;
+};
+
+// Manual height is a MINIMUM: the box never renders shorter than its content
+// (text never clips), but an anchor-dragged height can make it taller.
+const applyManualHeight = (contentHeight: number, textBox: TextBox): number => {
+  if (typeof textBox.height !== 'number') return contentHeight;
+  return Math.max(contentHeight, Math.max(1, Math.round(textBox.height)));
+};
+
 export const getTextBoxDimensions = (textBox: TextBox): Size => {
   const fontSize = textBox.fontSize ?? TEXTBOX_DEFAULTS.fontSize;
-  // Measure each block at its CANVAS_RICHTEXT_SCALE-scaled size and take the
-  // widest. A long <h1> at scale 1.6 needs 60% more horizontal room than a
-  // body paragraph with the same character count.
+  const lineHeight = textBox.lineHeight ?? TEXTBOX_LINE_HEIGHT;
   const blocks = splitIntoMeasurableBlocks(textBox.content);
+
+  // Fixed width (manual edge-anchor resize, ADR 0034 addendum 2026-07-03):
+  // the width IS the stored value; height comes from a greedy word-wrap
+  // estimate per block at the width the renderer will actually give the
+  // content — the inverse of getTextWidth's tile mapping (same padding and
+  // +0.8 projection fudge, so auto and fixed boxes stay consistent).
+  if (typeof textBox.width === 'number') {
+    const width = Math.max(1, textBox.width);
+    const contentPx =
+      (width + 0.8) * UNPROJECTED_TILE_SIZE -
+      2 * TEXTBOX_PADDING * UNPROJECTED_TILE_SIZE;
+    let units = 0;
+    for (const b of blocks) {
+      const blockFontPx = fontSize * b.scale * UNPROJECTED_TILE_SIZE;
+      const availablePx = Math.max(
+        contentPx - b.indentEm * fontSize * UNPROJECTED_TILE_SIZE,
+        // Floor: never let indent/padding drive the estimate to zero width
+        // (degenerate infinite-line counts) — one glyph always fits.
+        blockFontPx * 0.75
+      );
+      const lines = estimateWrappedLineCount(b.text, availablePx, {
+        fontSize: fontSize * b.scale,
+        fontFamily: DEFAULT_FONT_FAMILY,
+        fontWeight: TEXTBOX_FONT_WEIGHT
+      });
+      units += blockHeightUnits(b.tag, lines, lineHeight);
+    }
+    const height = Math.max(1, Math.ceil(units * fontSize));
+    return { width, height: applyManualHeight(height, textBox) };
+  }
+
+  // Auto width: measure each block at its CANVAS_RICHTEXT_SCALE-scaled size
+  // and take the widest. A long <h1> at scale 1.6 needs 60% more horizontal
+  // room than a body paragraph with the same character count. A list item
+  // additionally carries its marker gutter (indentEm at the box's base font
+  // size; 1em of base font = fontSize tile units).
   let width = 0;
   for (const b of blocks) {
-    const w = getTextWidth(b.text, {
-      fontSize: fontSize * b.scale,
-      fontFamily: DEFAULT_FONT_FAMILY,
-      fontWeight: TEXTBOX_FONT_WEIGHT
-    });
+    const w =
+      getTextWidth(b.text, {
+        fontSize: fontSize * b.scale,
+        fontFamily: DEFAULT_FONT_FAMILY,
+        fontWeight: TEXTBOX_FONT_WEIGHT
+      }) +
+      b.indentEm * fontSize;
     if (w > width) width = w;
   }
-  // countHtmlLines now returns a weighted unit total (headers count for more);
-  // multiplying by fontSize gives the rendered height in tile units.
-  const lineUnits = countHtmlLines(textBox.content);
+  // An EMPTY box (the place-and-type session before the first commit) still
+  // needs a graspable footprint — the transform controls stay visible while
+  // editing (2026-07-04) and a zero-width selection box has no anchors to see.
+  if (width <= 0) width = 1;
+  // countHtmlLines returns a weighted unit total (headers count for more,
+  // p/li count the box's line-spacing multiplier); multiplying by fontSize
+  // gives the rendered height in tile units.
+  const lineUnits = countHtmlLines(textBox.content, lineHeight);
   const height = Math.max(1, Math.ceil(lineUnits * fontSize));
-  return { width, height };
+  return { width, height: applyManualHeight(height, textBox) };
 };

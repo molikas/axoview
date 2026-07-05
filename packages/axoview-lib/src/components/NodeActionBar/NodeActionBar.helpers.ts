@@ -4,13 +4,14 @@
 // context menu's "Add note" command, the per-type ItemControls listeners, and
 // ViewModeInfoPopover. Unit-tested without dragging in MUI.
 
-export type ItemType = 'ITEM' | 'CONNECTOR' | 'TEXTBOX' | 'RECTANGLE';
+export type ItemType = 'ITEM' | 'CONNECTOR' | 'TEXTBOX' | 'RECTANGLE' | 'LABEL';
 
 export const PANEL_EVENT: Record<ItemType, string> = {
   ITEM: 'nodePanel',
   CONNECTOR: 'connectorPanel',
   TEXTBOX: 'textBoxPanel',
-  RECTANGLE: 'rectanglePanel'
+  RECTANGLE: 'rectanglePanel',
+  LABEL: 'labelPanel'
 };
 
 export const dispatch = (type: ItemType, action: string) =>
