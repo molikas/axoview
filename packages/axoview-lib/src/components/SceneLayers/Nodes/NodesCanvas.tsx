@@ -21,6 +21,7 @@ import { useLayerContext } from 'src/hooks/useLayerContext';
 import { resolveRenderOrder } from 'src/utils/renderOrder';
 import { decodeHtmlEntities } from 'src/utils/htmlToPlainText';
 import { isLabelVisibleInPreview } from 'src/utils/previewLabelVisibility';
+import { LABEL_LINK_COLOR } from 'src/utils/labelChip';
 
 // ---------------------------------------------------------------------------
 // NodesCanvas — T2 PoC. Imperative Canvas2D draw of the node layer (icon image
@@ -362,6 +363,11 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       // renderer (no per-node DOM label exists in canvas mode) — same idea as
       // data-label-scale / data-draw-count.
       let labelsDrawn = 0;
+      // Count of drawn labels that painted the linked (headerLink) style —
+      // published so a test can prove the resting canvas paint applied
+      // link-blue/underline without pixel-sampling the canvas (owner
+      // 2026-07-05: an unselected node's link was previously invisible here).
+      let linkedLabelsDrawn = 0;
       // A2: true only when EVERY node that should paint an icon had a decoded
       // bitmap available this frame. getImage returns null for a non-empty icon
       // URL whose Image hasn't finished decoding yet — that node's icon is
@@ -476,7 +482,15 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
           const labelBold = node.labelBold;
           const labelItalic = node.labelItalic;
           const labelStrike = node.labelStrikethrough;
-          const labelUnder = node.labelUnderline;
+          // A linked node name READS as a link at rest, not just once selected
+          // (owner 2026-07-05: the canvas paint had no headerLink awareness at
+          // all, so an unselected node's link was invisible AND unclickable —
+          // mirrors the drawLabelChip treatment for floating Labels).
+          const linked = !!modelItem.headerLink;
+          if (linked) linkedLabelsDrawn += 1;
+          const labelUnder = node.labelUnderline || linked;
+          const textColor =
+            node.labelColor || (linked ? LABEL_LINK_COLOR : chip.text);
 
           // D3-2: measure once per (fontSize, weight, style, name) and reuse
           // across pan/zoom redraws — chip geometry is content-determined. Bold /
@@ -531,7 +545,7 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
           const textX = x0 + chip.padX;
           const textY = y0 + chip.padY;
           ctx.font = nameFont;
-          ctx.fillStyle = node.labelColor || chip.text;
+          ctx.fillStyle = textColor;
           ctx.fillText(name, textX, textY + (nameLineH - fontSize) / 2);
           // Strikethrough / underline: Canvas2D has no text-decoration, so draw
           // the rules manually across the chip's inner width — strike at the
@@ -539,7 +553,7 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
           // O1; underline is decoration-only, so the layout cache key is
           // unaffected).
           if (labelStrike || labelUnder) {
-            ctx.strokeStyle = node.labelColor || chip.text;
+            ctx.strokeStyle = textColor;
             ctx.lineWidth = Math.max(1, fontSize / 14);
             const innerW = chipW - chip.padX * 2;
             if (labelStrike) {
@@ -568,6 +582,7 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       // gone.
       canvas.dataset.drawCount = String(drawn);
       canvas.dataset.labelsDrawn = String(labelsDrawn);
+      canvas.dataset.linkedLabelsDrawn = String(linkedLabelsDrawn);
       // A2: "true" only when no node's icon was skipped this frame for a
       // not-yet-decoded bitmap. The image-export dialog awaits this before its
       // first capture so canvas-drawn icons aren't dropped from the snapshot

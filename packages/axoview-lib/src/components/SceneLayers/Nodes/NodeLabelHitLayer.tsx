@@ -7,6 +7,10 @@ import { useModelStore } from 'src/stores/modelStore';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useSceneActions } from 'src/hooks/useSceneActions';
 import { resolveDraggedOffset } from 'src/utils/labelPosition';
+import {
+  EDIT_ELEMENT_LINK_EVENT,
+  HIDE_ELEMENT_LINK_EVENT
+} from 'src/utils/quillLinkShortcut';
 
 // Invisible hit targets over each UNSELECTED node's name label so it can be
 // dragged to reposition (ADR 0024) WITHOUT first selecting the node — the
@@ -93,12 +97,15 @@ export const NodeLabelHitLayer = ({ nodes }: Props) => {
   const modelItems = useModelStore((s) => s.items);
 
   // ADR 0032 amendment: the on-canvas chip shows `label` (fallback `name`), so
-  // size the hit box from that text to match the drawn chip.
-  const namesById = useMemo(() => {
-    const m = new Map<string, string>();
+  // size the hit box from that text to match the drawn chip. Carries headerLink
+  // too (owner 2026-07-05) so this UNSELECTED-node layer can raise the same
+  // hover link card the DOM/selected overlay shows — the canvas paint has no
+  // pointer events of its own to hang it off.
+  const metaById = useMemo(() => {
+    const m = new Map<string, { name: string; headerLink?: string }>();
     for (const it of modelItems) {
       const text = it.label ?? it.name;
-      if (text) m.set(it.id, text);
+      if (text) m.set(it.id, { name: text, headerLink: it.headerLink });
     }
     return m;
   }, [modelItems]);
@@ -207,8 +214,9 @@ export const NodeLabelHitLayer = ({ nodes }: Props) => {
     <>
       {nodes.map((node) => {
         if (node.showLabel === false) return null;
-        const name = namesById.get(node.id);
-        if (!name) return null;
+        const meta = metaById.get(node.id);
+        if (!meta) return null;
+        const { name, headerLink } = meta;
         const fontSize = node.labelFontSize || LABEL_BASE_FONT_PX;
         const chip = measureNameChip(name, fontSize);
         const offset = node.labelHeight ?? DEFAULT_LABEL_HEIGHT;
@@ -223,6 +231,40 @@ export const NodeLabelHitLayer = ({ nodes }: Props) => {
             data-label-hit-id={node.id}
             onPointerDown={(e) => onPointerDown(e, node)}
             onDoubleClick={(e) => onLabelDoubleClick(e, node)}
+            // Hovering a LINKED, unselected node's name raises the element link
+            // card as a view chip (ADR 0034 addendum 2026-07-05) — parity with
+            // the floating Label hit-proxy and the selected node's own DOM
+            // anchor, which already do this.
+            onPointerEnter={
+              headerLink
+                ? (e) => {
+                    const r = e.currentTarget.getBoundingClientRect();
+                    window.dispatchEvent(
+                      new CustomEvent(EDIT_ELEMENT_LINK_EVENT, {
+                        detail: {
+                          target: { kind: 'NODE', id: node.id },
+                          rect: {
+                            left: r.left,
+                            top: r.top,
+                            width: r.width,
+                            height: r.height
+                          },
+                          mode: 'view',
+                          hover: true
+                        }
+                      })
+                    );
+                  }
+                : undefined
+            }
+            onPointerLeave={
+              headerLink
+                ? () =>
+                    window.dispatchEvent(
+                      new CustomEvent(HIDE_ELEMENT_LINK_EVENT)
+                    )
+                : undefined
+            }
             style={{
               position: 'absolute',
               left: pos.x - chip.width / 2,
@@ -230,7 +272,7 @@ export const NodeLabelHitLayer = ({ nodes }: Props) => {
               width: chip.width,
               height: chip.height,
               pointerEvents: 'auto',
-              cursor: 'grab',
+              cursor: headerLink ? 'pointer' : 'grab',
               touchAction: 'none'
             }}
           />

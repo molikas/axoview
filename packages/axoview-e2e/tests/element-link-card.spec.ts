@@ -7,6 +7,9 @@
  *     headerLink with Docs URL-forgiveness.
  *   - The strip's element-mode Link popover confirms + closes on Enter
  *     (owner: users typed a URL and didn't know click-away was the commit).
+ *   - A node's headerLink reads/behaves as a link on the RESTING (Canvas2D,
+ *     unselected) paint too, not only once promoted to the DOM overlay by
+ *     selection (owner follow-up, 2026-07-05).
  *
  * Node-name and connector-label renames share the same dispatch/card path —
  * the Label flow is the representative e2e; the others are manual-verify.
@@ -16,6 +19,8 @@
  */
 import { canvasReadyTest as test, expect } from '../fixtures/app.fixture';
 import { CanvasPOM } from '../pom/CanvasPOM';
+import { placeIconViaMouse } from '../helpers/place';
+import { getModelItemCount } from '../helpers/store';
 
 const getFirstLabel = (page: import('@playwright/test').Page) =>
   page.evaluate(() => {
@@ -117,5 +122,68 @@ test.describe('Element link card + strip Enter-confirm (ADR 0034 addendum)', () 
       page.locator('[data-axoview-id="strip-link-input"]')
     ).toBeHidden({ timeout: 3_000 });
     expect((await getFirstLabel(page))!.headerLink).toBe('www.somelink.com');
+  });
+
+  test('node (unselected, canvas-painted): headerLink renders link-styled and hover raises the card', async ({
+    page,
+    app
+  }) => {
+    void app;
+
+    await placeIconViaMouse(page, { x: 420, y: 300 });
+    await expect
+      .poll(() => getModelItemCount(page), { timeout: 5_000 })
+      .toBe(1);
+    const nodeId = await page.evaluate(
+      () => (window as any).__axoview__.model.getState().items[0].id as string
+    );
+
+    // Write the headerLink directly (same field the card writes) and force a
+    // clean deselect — a node's link must read/behave as a link on the resting
+    // canvas paint, not only once selection promotes it into the DOM overlay.
+    await page.evaluate((id) => {
+      const model = (window as any).__axoview__.model;
+      const items = model.getState().items as any[];
+      model.getState().actions.set({
+        items: items.map((it) =>
+          it.id === id ? { ...it, headerLink: 'https://example.com' } : it
+        )
+      });
+      const ui = (window as any).__axoview__.ui.getState();
+      ui.actions.setMode({
+        type: 'CURSOR',
+        showCursor: true,
+        mousedownItem: null
+      });
+      ui.actions.setItemControls(null);
+    }, nodeId);
+
+    // Visual: the resting Canvas2D paint applied the linked style. Proven via
+    // the anti-cheat dataset counter (mirrors drawCount/labelsDrawn) rather
+    // than pixel-sampling the canvas.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const c = document.querySelector(
+              '[data-testid="axoview-nodes-canvas"]'
+            );
+            return c
+              ? parseInt(
+                  (c as HTMLElement).dataset.linkedLabelsDrawn ?? '0',
+                  10
+                )
+              : 0;
+          }),
+        { timeout: 3_000 }
+      )
+      .toBe(1);
+
+    // Interactive: hovering the unselected node's name hit-proxy raises the
+    // same element link card the selected/DOM path already shows.
+    await page.hover(`[data-label-hit-id="${nodeId}"]`);
+    await expect(
+      page.locator('[data-axoview-id="element-link-card-url"]')
+    ).toHaveText('https://example.com', { timeout: 5_000 });
   });
 });
