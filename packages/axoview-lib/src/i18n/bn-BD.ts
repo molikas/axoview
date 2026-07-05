@@ -271,8 +271,6 @@ const locale: LocaleProps = {
   nodePanel: {
     notes: 'নোট',
     close: 'বন্ধ করুন',
-    showName: 'নাম দেখান',
-    hideName: 'নাম লুকান'
   },
   nodeInfoTab: {
     metadata: 'মেটাডেটা',
@@ -280,9 +278,6 @@ const locale: LocaleProps = {
     namePlaceholder: 'নোডের নাম…',
     label: 'লেবেল',
     labelPlaceholder: 'শেপে দেখানো লেবেল…',
-    removeLink: 'লিঙ্ক সরান',
-    addLink: 'নামে লিঙ্ক যোগ করুন',
-    linkPlaceholder: 'https://…',
     openLink: 'লিঙ্ক খুলুন'
   },
   connectorControls: {

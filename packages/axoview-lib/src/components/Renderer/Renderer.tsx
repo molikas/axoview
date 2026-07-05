@@ -19,6 +19,7 @@ import { SceneLayer } from 'src/components/SceneLayer/SceneLayer';
 import { TransformControlsManager } from 'src/components/TransformControlsManager/TransformControlsManager';
 import { HoverOutline } from 'src/components/TransformControlsManager/HoverOutline';
 import { ConnectorAnchorOverlay } from 'src/components/ConnectorAnchorOverlay/ConnectorAnchorOverlay';
+import { ElementLinkCard } from 'src/components/ElementLinkCard/ElementLinkCard';
 import { Lasso } from 'src/components/Lasso/Lasso';
 import { FreehandLasso } from 'src/components/FreehandLasso/FreehandLasso';
 import { useScene } from 'src/hooks/useScene';
@@ -464,6 +465,12 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
           <TextBoxes textBoxes={editingTextBoxes} />
         </SceneLayer>
       )}
+      {/* Element-level link card (ADR 0034 addendum 2026-07-05): Ctrl+K while
+          inline-renaming a floating Label / node name / connector label pops
+          the same inline link UI text boxes have — targeting the element's
+          headerLink. Body-portaled Popper; mounted once here for store
+          access. */}
+      <ElementLinkCard />
     </Box>
   );
 };

@@ -273,8 +273,6 @@ const locale: LocaleProps = {
   nodePanel: {
     notes: 'Notlar',
     close: 'Kapat',
-    showName: 'Adı göster',
-    hideName: 'Adı gizle'
   },
   nodeInfoTab: {
     metadata: 'Meta veriler',
@@ -282,9 +280,6 @@ const locale: LocaleProps = {
     namePlaceholder: 'Düğüm adı…',
     label: 'Etiket',
     labelPlaceholder: 'Şekilde gösterilen etiket…',
-    removeLink: 'Bağlantıyı kaldır',
-    addLink: 'Ada bağlantı ekle',
-    linkPlaceholder: 'https://…',
     openLink: 'Bağlantıyı aç'
   },
   connectorControls: {

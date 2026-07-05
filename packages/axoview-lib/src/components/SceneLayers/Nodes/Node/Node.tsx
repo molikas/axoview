@@ -16,6 +16,7 @@ import {
 import { useRenderProbe } from 'src/utils/renderProbe';
 import { ExpandableLabel } from 'src/components/Label/ExpandableLabel';
 import { useInlineRename } from 'src/hooks/useInlineRename';
+import { EDIT_ELEMENT_LINK_EVENT } from 'src/utils/quillLinkShortcut';
 import { stripHtmlTags } from 'src/utils/stripHtml';
 import { isLabelVisibleInPreview } from 'src/utils/previewLabelVisibility';
 
@@ -369,7 +370,37 @@ const NodeContent = memo(
                       onClick={(e) => e.stopPropagation()}
                       onDoubleClick={(e) => e.stopPropagation()}
                       onBlur={inlineRename.onBlur}
-                      onKeyDown={inlineRename.onKeyDown}
+                      onKeyDown={(e) => {
+                        // Ctrl/Cmd+K mid-rename → the inline link card at
+                        // this label (owner 2026-07-05; the node's
+                        // element-level headerLink). The card's focus steal
+                        // blurs this editor, committing the name first.
+                        if (
+                          (e.ctrlKey || e.metaKey) &&
+                          !e.altKey &&
+                          !e.shiftKey &&
+                          e.key.toLowerCase() === 'k'
+                        ) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const r = e.currentTarget.getBoundingClientRect();
+                          window.dispatchEvent(
+                            new CustomEvent(EDIT_ELEMENT_LINK_EVENT, {
+                              detail: {
+                                target: { kind: 'NODE', id },
+                                rect: {
+                                  left: r.left,
+                                  top: r.top,
+                                  width: r.width,
+                                  height: r.height
+                                }
+                              }
+                            })
+                          );
+                          return;
+                        }
+                        inlineRename.onKeyDown(e);
+                      }}
                       ref={inlineRename.setRef}
                       sx={{
                         outline: '1px solid rgba(0,0,0,0.3)',

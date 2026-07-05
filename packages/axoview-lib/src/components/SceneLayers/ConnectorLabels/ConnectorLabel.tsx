@@ -15,6 +15,7 @@ import { Label } from 'src/components/Label/Label';
 import { Connector, ConnectorLabel as ConnectorLabelType, Coords } from 'src/types';
 import { useSceneActions } from 'src/hooks/useSceneActions';
 import { useInlineRename } from 'src/hooks/useInlineRename';
+import { EDIT_ELEMENT_LINK_EVENT } from 'src/utils/quillLinkShortcut';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { isLabelVisibleInPreview } from 'src/utils/previewLabelVisibility';
 
@@ -47,13 +48,18 @@ const ConnectorNameEditor = ({
   name,
   labelHeight = 0,
   onCommit,
-  onCancel
+  onCancel,
+  onRequestLink
 }: {
   position: LabelPosition;
   name: string;
   labelHeight?: number;
   onCommit: (raw: string) => void;
   onCancel: () => void;
+  /** Ctrl/Cmd+K mid-rename → the inline element link card (the caller knows
+   *  which labels[] entry this is). The card's focus steal blurs this editor,
+   *  committing the text first. */
+  onRequestLink?: (rect: DOMRect) => void;
 }) => {
   const inlineRename = useInlineRename({
     active: true,
@@ -94,7 +100,21 @@ const ConnectorNameEditor = ({
           onClick={(e) => e.stopPropagation()}
           onDoubleClick={(e) => e.stopPropagation()}
           onBlur={inlineRename.onBlur}
-          onKeyDown={inlineRename.onKeyDown}
+          onKeyDown={(e) => {
+            if (
+              onRequestLink &&
+              (e.ctrlKey || e.metaKey) &&
+              !e.altKey &&
+              !e.shiftKey &&
+              e.key.toLowerCase() === 'k'
+            ) {
+              e.preventDefault();
+              e.stopPropagation();
+              onRequestLink(e.currentTarget.getBoundingClientRect());
+              return;
+            }
+            inlineRename.onKeyDown(e);
+          }}
           ref={inlineRename.setRef}
           sx={{
             outline: 'none',
@@ -612,6 +632,25 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
               labelHeight={label.height || 0}
               onCommit={(raw) => commitLabelText(label.id, raw)}
               onCancel={() => cancelLabelEdit(label.id)}
+              onRequestLink={(r) =>
+                window.dispatchEvent(
+                  new CustomEvent(EDIT_ELEMENT_LINK_EVENT, {
+                    detail: {
+                      target: {
+                        kind: 'CONNECTOR_LABEL',
+                        connectorId: connector.id,
+                        labelId: label.id
+                      },
+                      rect: {
+                        left: r.left,
+                        top: r.top,
+                        width: r.width,
+                        height: r.height
+                      }
+                    }
+                  })
+                )
+              }
             />
           );
         }

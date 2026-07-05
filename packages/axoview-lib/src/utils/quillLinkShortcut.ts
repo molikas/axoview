@@ -26,6 +26,23 @@ export const OPEN_LINK_POPOVER_EVENT = 'axoview:open-link-popover';
  *  the one under the caret). Dispatched by the Ctrl+K binding below. */
 export const EDIT_LINK_AT_SELECTION_EVENT = 'axoview:edit-link-at-selection';
 
+/** Window event the ELEMENT link card listens for (Ctrl+K while inline-
+ *  renaming a floating Label, a node name, or a connector label — plain-text
+ *  surfaces whose link is the element-level headerLink). detail:
+ *  `{ target: ElementLinkTarget, rect: {left, top, width, height} }`. */
+export const EDIT_ELEMENT_LINK_EVENT = 'axoview:edit-element-link';
+
+/** Which element's headerLink the element link card reads/writes. */
+export type ElementLinkTarget =
+  | { kind: 'LABEL'; id: string }
+  | { kind: 'NODE'; id: string }
+  | {
+      kind: 'CONNECTOR_LABEL';
+      connectorId: string;
+      /** A labels[] entry id, or null = the whole-connector headerLink. */
+      labelId: string | null;
+    };
+
 /** Counterpart close signal (StripButton `closeEvent` prop): Docs closes the
  *  link dialog on Enter-apply, so the range URL field dispatches this. */
 export const CLOSE_LINK_POPOVER_EVENT = 'axoview:close-link-popover';

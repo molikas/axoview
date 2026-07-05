@@ -273,8 +273,6 @@ const locale: LocaleProps = {
   nodePanel: {
     notes: 'Заметки',
     close: 'Закрыть',
-    showName: 'Показать имя',
-    hideName: 'Скрыть имя'
   },
   nodeInfoTab: {
     metadata: 'Метаданные',
@@ -282,9 +280,6 @@ const locale: LocaleProps = {
     namePlaceholder: 'Имя узла…',
     label: 'Подпись',
     labelPlaceholder: 'Подпись, отображаемая на фигуре…',
-    removeLink: 'Удалить ссылку',
-    addLink: 'Добавить ссылку к названию',
-    linkPlaceholder: 'https://…',
     openLink: 'Открыть ссылку'
   },
   connectorControls: {

@@ -5,7 +5,7 @@ import { useLayerContext } from 'src/hooks/useLayerContext';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useSceneActions } from 'src/hooks/useSceneActions';
 import { useInlineRename } from 'src/hooks/useInlineRename';
-import { OPEN_LINK_POPOVER_EVENT } from 'src/utils/quillLinkShortcut';
+import { EDIT_ELEMENT_LINK_EVENT } from 'src/utils/quillLinkShortcut';
 import {
   measureLabelChip,
   labelFontPx,
@@ -114,10 +114,11 @@ const LabelInlineEditor = ({
         ref={inline.setRef as unknown as React.Ref<HTMLDivElement>}
         onBlur={inline.onBlur}
         onKeyDown={(e) => {
-          // Ctrl/Cmd+K mid-edit → the strip's Link popover for this label
-          // (Docs convention, owner 2026-07-04). Labels are plain text, so
-          // the link is the element-level headerLink; the popover's focus
-          // steal blurs this editor, which commits the text first.
+          // Ctrl/Cmd+K mid-edit → the INLINE link card at this label
+          // (owner 2026-07-05: same UX as the text box, not the strip popover
+          // at the top). Labels are plain text, so the link is the element
+          // headerLink; the card's focus steal blurs this editor, which
+          // commits the text first.
           if (
             (e.ctrlKey || e.metaKey) &&
             !e.altKey &&
@@ -126,7 +127,15 @@ const LabelInlineEditor = ({
           ) {
             e.preventDefault();
             e.stopPropagation();
-            window.dispatchEvent(new CustomEvent(OPEN_LINK_POPOVER_EVENT));
+            const r = e.currentTarget.getBoundingClientRect();
+            window.dispatchEvent(
+              new CustomEvent(EDIT_ELEMENT_LINK_EVENT, {
+                detail: {
+                  target: { kind: 'LABEL', id: label.id },
+                  rect: { left: r.left, top: r.top, width: r.width, height: r.height }
+                }
+              })
+            );
             return;
           }
           inline.onKeyDown(e);

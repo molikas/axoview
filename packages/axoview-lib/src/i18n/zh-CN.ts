@@ -251,8 +251,6 @@ const locale: LocaleProps = {
   nodePanel: {
     notes: '备注',
     close: '关闭',
-    showName: '显示名称',
-    hideName: '隐藏名称'
   },
   nodeInfoTab: {
     metadata: '元数据',
@@ -260,9 +258,6 @@ const locale: LocaleProps = {
     namePlaceholder: '节点名称…',
     label: '标签',
     labelPlaceholder: '显示在形状上的标签…',
-    removeLink: '移除链接',
-    addLink: '为名称添加链接',
-    linkPlaceholder: 'https://…',
     openLink: '打开链接'
   },
   connectorControls: {

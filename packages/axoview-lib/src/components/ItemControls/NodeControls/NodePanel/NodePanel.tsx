@@ -266,17 +266,16 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
   // renders that section itself (after Notes) to keep the canonical section order.
   const { t: tInfo } = useTranslation('nodeInfoTab');
   const modelItem = useModelItem(viewItem.id);
-  const { updateModelItem, updateViewItem } = useScene();
+  const { updateModelItem } = useScene();
   const uiStateActions = useUiStateStore((state) => state.actions);
   const linkedDiagrams = useUiStateStore((state) => state.linkedDiagrams);
   const { icon } = useIcon(modelItem?.icon || '');
 
   const [notesOpen, setNotesOpen] = useState(false);
-  const [showLink, setShowLink] = useState(!!modelItem?.headerLink);
   const nameRef = useRef<HTMLInputElement>(null);
-  const linkRef = useRef<HTMLInputElement>(null);
 
-  // Listen for action-bar commands
+  // Listen for action-bar commands. ('focusLink' retired 2026-07-05 with the
+  // deck's link field — the strip Link control / inline link card own links.)
   useEffect(() => {
     if (readOnly) return;
 
@@ -288,12 +287,6 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
             nameRef.current?.focus({ preventScroll: true });
             nameRef.current?.select();
           });
-          break;
-        case 'focusLink':
-          setShowLink(true);
-          requestAnimationFrame(() =>
-            linkRef.current?.focus({ preventScroll: true })
-          );
           break;
         case 'focusNotes':
           setNotesOpen(true);
@@ -314,10 +307,6 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
     [updateModelItem, viewItem.id]
   );
 
-  const onViewUpdate = useCallback(
-    (updates: Partial<ViewItem>) => updateViewItem(viewItem.id, updates),
-    [updateViewItem, viewItem.id]
-  );
 
   if (!modelItem) return null;
 
@@ -351,11 +340,7 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
       <NodeInfoTab
         node={viewItem}
         onModelItemUpdated={onModelUpdate}
-        onViewItemUpdated={onViewUpdate}
         nameRef={nameRef}
-        linkRef={linkRef}
-        showLink={showLink}
-        onShowLinkChange={setShowLink}
       />
       <NotesSection
         title={t('notes')}

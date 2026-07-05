@@ -275,8 +275,6 @@ const locale: LocaleProps = {
   nodePanel: {
     notes: 'Note',
     close: 'Chiudi',
-    showName: 'Mostra nome',
-    hideName: 'Nascondi nome'
   },
   nodeInfoTab: {
     metadata: 'Metadati',
@@ -284,9 +282,6 @@ const locale: LocaleProps = {
     namePlaceholder: 'Nome del nodo…',
     label: 'Etichetta',
     labelPlaceholder: 'Etichetta mostrata sulla forma…',
-    removeLink: 'Rimuovi link',
-    addLink: 'Aggiungi link al nome',
-    linkPlaceholder: 'https://…',
     openLink: 'Apri link'
   },
   connectorControls: {

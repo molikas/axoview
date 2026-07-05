@@ -2114,6 +2114,18 @@ export const TopBarStyleControls = () => {
                 placeholder={t('webLinkPlaceholder')}
                 value={linkValue ?? ''}
                 onChange={(e) => onLinkChange(e.target.value)}
+                onKeyDown={(e) => {
+                  // Element mode writes live on change; Enter is the natural
+                  // "confirm" gesture (owner 2026-07-05: users didn't know
+                  // they had to click away) — close the popover on it.
+                  e.stopPropagation();
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    window.dispatchEvent(
+                      new CustomEvent(CLOSE_LINK_POPOVER_EVENT)
+                    );
+                  }
+                }}
                 data-axoview-id="strip-link-input"
               />
             )}

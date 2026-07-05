@@ -258,18 +258,16 @@ export interface LocaleProps {
   nodePanel: {
     notes: string;
     close: string;
-    showName: string;
-    hideName: string;
   };
+  // addLink/removeLink/linkPlaceholder + nodePanel show/hideName retired
+  // 2026-07-05: the deck's link + hide-name affordances were duplicates of
+  // the strip's Link control and show/hide eye.
   nodeInfoTab: {
     name: string;
     namePlaceholder: string;
     metadata: string;
     label: string;
     labelPlaceholder: string;
-    removeLink: string;
-    addLink: string;
-    linkPlaceholder: string;
     openLink: string;
   };
   connectorControls: {

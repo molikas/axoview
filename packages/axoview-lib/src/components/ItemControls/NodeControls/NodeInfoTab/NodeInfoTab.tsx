@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import {
   Stack,
   TextField,
@@ -7,12 +7,7 @@ import {
   Typography,
   Box
 } from '@mui/material';
-import {
-  InsertLink as InsertLinkIcon,
-  OpenInNew as OpenInNewIcon,
-  VisibilityOutlined as ShowNameIcon,
-  VisibilityOffOutlined as HideNameIcon
-} from '@mui/icons-material';
+import { OpenInNew as OpenInNewIcon } from '@mui/icons-material';
 import { ModelItem, ViewItem } from 'src/types';
 import { useModelItem } from 'src/hooks/useModelItem';
 import { Section } from '../../components/Section';
@@ -23,33 +18,17 @@ interface Props {
   node: ViewItem;
   readOnly?: boolean;
   onModelItemUpdated: (updates: Partial<ModelItem>) => void;
-  onViewItemUpdated?: (updates: Partial<ViewItem>) => void;
   nameRef?: React.RefObject<HTMLInputElement | null>;
-  linkRef?: React.RefObject<HTMLInputElement | null>;
-  showLink: boolean;
-  onShowLinkChange: (show: boolean) => void;
 }
 
 export const NodeInfoTab = ({
   node,
   readOnly,
   onModelItemUpdated,
-  onViewItemUpdated,
-  nameRef,
-  linkRef,
-  showLink,
-  onShowLinkChange
+  nameRef
 }: Props) => {
   const { t } = useTranslation('nodeInfoTab');
-  const { t: tPanel } = useTranslation('nodePanel');
   const modelItem = useModelItem(node.id);
-
-  const handleToggleLink = useCallback(() => {
-    if (showLink && modelItem?.headerLink) {
-      onModelItemUpdated({ headerLink: undefined });
-    }
-    onShowLinkChange(!showLink);
-  }, [showLink, modelItem?.headerLink, onModelItemUpdated, onShowLinkChange]);
 
   if (!modelItem) return null;
 
@@ -93,55 +72,22 @@ export const NodeInfoTab = ({
 
   return (
     <Stack>
-      {/* On-canvas label (identity `name` is renamed in Layers) */}
+      {/* On-canvas label (identity `name` is renamed in Layers). The Add-link
+          / link field / hide-name affordances moved to the top-bar strip
+          (Link control + show/hide eye) — the deck no longer duplicates them
+          (owner 2026-07-05). */}
       <CollapsibleSection title={t('label')} defaultOpen>
-        <Stack direction="row" spacing={0.5} alignItems="center">
-          <TextField
-            inputRef={nameRef}
-            value={labelText}
-            fullWidth
-            placeholder={t('labelPlaceholder')}
-            size="small"
-            onChange={(e) => {
-              const text = e.target.value;
-              if (labelText !== text) onModelItemUpdated({ label: text });
-            }}
-          />
-          <Tooltip title={showLink ? t('removeLink') : t('addLink')}>
-            <IconButton
-              size="small"
-              color={modelItem.headerLink ? 'primary' : 'default'}
-              onClick={handleToggleLink}
-            >
-              <InsertLinkIcon />
-            </IconButton>
-          </Tooltip>
-          {onViewItemUpdated && (
-            <Tooltip title={node.showLabel === false ? tPanel('showName') : tPanel('hideName')}>
-              <IconButton
-                size="small"
-                onClick={() => onViewItemUpdated({ showLabel: node.showLabel === false ? undefined : false })}
-              >
-                {node.showLabel === false
-                  ? <HideNameIcon sx={{ fontSize: 18 }} />
-                  : <ShowNameIcon sx={{ fontSize: 18 }} />}
-              </IconButton>
-            </Tooltip>
-          )}
-        </Stack>
-        {showLink && (
-          <TextField
-            inputRef={linkRef}
-            value={modelItem.headerLink || ''}
-            placeholder={t('linkPlaceholder')}
-            fullWidth
-            size="small"
-            sx={{ mt: 1 }}
-            onChange={(e) => {
-              onModelItemUpdated({ headerLink: e.target.value || undefined });
-            }}
-          />
-        )}
+        <TextField
+          inputRef={nameRef}
+          value={labelText}
+          fullWidth
+          placeholder={t('labelPlaceholder')}
+          size="small"
+          onChange={(e) => {
+            const text = e.target.value;
+            if (labelText !== text) onModelItemUpdated({ label: text });
+          }}
+        />
       </CollapsibleSection>
 
       {/* Icon picker moved to the top-bar style strip (Change icon). */}

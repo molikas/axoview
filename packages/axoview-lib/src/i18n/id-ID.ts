@@ -272,8 +272,6 @@ const locale: LocaleProps = {
   nodePanel: {
     notes: 'Catatan',
     close: 'Tutup',
-    showName: 'Tampilkan nama',
-    hideName: 'Sembunyikan nama'
   },
   nodeInfoTab: {
     metadata: 'Metadata',
@@ -281,9 +279,6 @@ const locale: LocaleProps = {
     namePlaceholder: 'Nama node…',
     label: 'Label',
     labelPlaceholder: 'Label yang ditampilkan pada bentuk…',
-    removeLink: 'Hapus tautan',
-    addLink: 'Tambahkan tautan ke nama',
-    linkPlaceholder: 'https://…',
     openLink: 'Buka tautan'
   },
   connectorControls: {
