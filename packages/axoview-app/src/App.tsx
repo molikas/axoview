@@ -332,7 +332,7 @@ function EditorShell() {
         <div className="axoview-container" style={{ position: 'relative' }}>
           <Axoview
             ref={axoviewRef}
-            initialData={frozenInitialDataRef.current}
+            initialData={frozenInitialDataRef.current ?? undefined}
             onModelUpdated={handleModelUpdated}
             exposeStoreBridge={perfMonitoringEnabled}
             editorMode={isReadonlyUrl ? 'EXPLORABLE_READONLY' : 'EDITABLE'}

@@ -1,20 +1,23 @@
 import './ErrorBoundary.css';
 
 interface ErrorBoundaryFallbackUIProps {
-  error: Error;
+  // react-error-boundary v6 types the thrown value as `unknown` (anything can
+  // be thrown); normalised to an Error below so the UI can render it.
+  error: unknown;
 }
 
 export default function ErrorBoundaryFallbackUI({
   error
 }: ErrorBoundaryFallbackUIProps) {
+  const err = error instanceof Error ? error : new Error(String(error));
   const onRefreshButtonPressed = () => {
     window.location.reload();
   };
 
   const onReportButtonPressed = () => {
     const errorDetails = {
-      message: error.message,
-      stack: error.stack,
+      message: err.message,
+      stack: err.stack,
       userAgent: navigator.userAgent,
       url: window.location.href,
       timestamp: new Date().toISOString()
@@ -23,7 +26,7 @@ export default function ErrorBoundaryFallbackUI({
     const githubUrl = new URL(
       'https://github.com/molikas/axoview/issues/new'
     );
-    githubUrl.searchParams.set('title', `Error: ${error.message}`);
+    githubUrl.searchParams.set('title', `Error: ${err.message}`);
     githubUrl.searchParams.set(
       'body',
       `## Error Details\n\n\`\`\`\n${JSON.stringify(errorDetails, null, 2)}\n\`\`\`\n\n## Steps to Reproduce\n1. \n2. \n3. \n\n## Expected Behavior\n\n## Actual Behavior\n\n## Environment\n- Browser: ${navigator.userAgent}\n- URL: ${window.location.href}\n- Timestamp: ${new Date().toISOString()}`
@@ -40,9 +43,9 @@ export default function ErrorBoundaryFallbackUI({
         </div>
         <div className="error-content">
           <p>
-            <strong>Error:</strong> {error.message}
+            <strong>Error:</strong> {err.message}
           </p>
-          {error.stack && (
+          {err.stack && (
             <details style={{ marginTop: '10px' }}>
               <summary
                 style={{ cursor: 'pointer', fontSize: '12px', color: '#666' }}
@@ -60,7 +63,7 @@ export default function ErrorBoundaryFallbackUI({
                   overflow: 'auto'
                 }}
               >
-                {error.stack}
+                {err.stack}
               </pre>
             </details>
           )}
