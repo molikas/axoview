@@ -67,7 +67,11 @@ The **Rich-text editor is removed from the single-target list above — it no lo
 
 Two follow-on reshapes landed after §4's amendments and are recorded for the doc trail:
 - **Identity `name` moved out of the inline Details field into a collapsed "Metadata" disclosure** (`MetadataSection`) shared by node/connector/rectangle/textbox — see the [ADR 0032](0032-node-name-caption-label-model.md) 2026-07-02 amendment. §62 below ("KEEPS the Name field") is refined by that: the field is now **Label** (on-canvas text) with identity name in the collapsed Metadata section.
-- **The strip gained a Link control** editing `headerLink` (web URL) for node / connector / floating Label. Diagram-to-diagram linking (`modelItem.link`) is **not** on the strip — it remains node-only in the Details deck. Unifying the two into one strip Link control (Web URL | Link to diagram) is a productization-plan slice, not this ADR.
+- **The strip gained a Link control** editing `headerLink` (web URL) for node / connector / floating Label.
+
+#### Amendment (2026-07-02) — D2: unified strip Link control (web + diagram)
+
+The **D2** slice (commit `3fa2d1b`) **completed** the unification the bullet above had deferred. The strip Link popover now carries a **Web | Diagram** toggle: **Link-to-diagram** (`modelItem.link`, picked over `linkedDiagrams` with the self-reference filtered) **moved out of `NodeInfoTab` onto the strip**, and the now-dead `diagramLink*` i18n keys were purged (`a219cab`). Node-only for now — extending diagram-links to connectors / floating Labels is deferred (needs a `link` field + view-mode nav on those types). View/present readers (`NodePanel` LinkedDiagramSection, `ViewModeInfoPopover`) are unchanged. This **supersedes** the earlier "not on the strip … node-only in the Details deck" statement.
 
 ### 3. Mode + portal contract
 
@@ -81,6 +85,8 @@ The strip renders **only in `EDITABLE` mode**, via `createPortal` into an app-su
 - **§2.5** — retained as-is (the enabled/disabled contrast standard); this ADR ratifies it.
 
 > **Resolved (2026-06-30):** the Details tab **KEEPS the Name field** — rename is also available via canvas/Layers **F2**, but Details remains the discoverable home and co-hosts the **inline link button** (edits `ModelItem.headerLink`) + the **show/hide-name toggle** (edits `ViewItem.showLabel`). Nothing is re-homed. The panel stays the two-tab **Details / Notes** shape. (Slice 0, [ADR 0032](0032-node-name-caption-label-model.md).)
+>
+> **Superseded (2026-07-05, round-8 deck dedupe):** the node deck no longer co-hosts the inline link button or the show/hide-name eye — **both are strip-only now** (the strip Link control + the strip show/hide eye; commit `af43a08`), and the dead `focusLink` command was dropped. The panels are a **collapsible-section deck** (content section + Notes + Metadata disclosures), **not** a two-tab Details/Notes shape (commit `987eaaf`); identity `name` lives in the collapsed Metadata section.
 
 ## Consequences
 
@@ -103,7 +109,7 @@ The strip renders **only in `EDITABLE` mode**, via `createPortal` into an app-su
 ## Acceptance criteria
 
 - **Doc grep:** `grep -rn "Details / Style / Notes\|Style tab" docs/` returns zero stale hits after the amendment.
-- **Parity test:** a render test pins the **Details / Notes** two-tab shape for node + connector panels (no Style tab).
+- **Parity test:** a render test ([`panelParity.test.tsx`](../../packages/axoview-lib/src/components/ItemControls/__tests__/panelParity.test.tsx)) pins the shared **collapsible-deck** sections (Notes + Metadata) for node + connector panels (no Style tab). *(The original "Details / Notes two-tab" wording was superseded when all five panels were unified into one collapsible-section deck — commit `987eaaf`.)*
 - **Manual:** select one item of each type → the correct strip controls enable; select zero or two → all disabled with "why" tooltips; arm the connector tool with nothing selected → color/line controls edit pre-draw defaults and the next connector inherits them.
 - **Manual:** Delete is reachable for every item type via the context menu (no Style-tab dependency).
 - **Build + lib/app typecheck clean.**

@@ -34,7 +34,7 @@ The strip's format cluster grows to **B / I / U / S** plus a **bulleted / number
 
 | Selection state | B/I/U/S + Lists target |
 |---|---|
-| Label-bearing element selected (node label, floating Label, connector label chip) | element-level boolean fields, as before (U: text-box-only for now — see TODO) |
+| Label-bearing element selected (node label, floating Label, connector label chip) | element-level boolean fields, as before (**B/I/U/S all element-level** — U landed for all three label types, see **O1** below) |
 | Text box **selected** | the **whole content** — the format is applied/removed across the full range **in the content HTML** (single source of truth; no element-level layer to fight) |
 | Text box **being edited** | the **live caret/range** via the mounted Quill instance (`quill.format`) |
 | Homogeneous bulk of text boxes | whole-content per box, fanned out in one transaction (closes the former bulk formatting dead-end) |

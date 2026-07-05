@@ -59,6 +59,13 @@ Connector only. The `__name__` synthetic-render path and the name-edit-on-F2 pat
 - The node Details tab still co-hosts the **inline link button** (`headerLink`) + **show/hide-label toggle** (`showLabel`) on the Label field. The connector Details drops both (a connector has no single on-canvas name — visibility is the Layers eye toggle; the whole-connector link is the strip's Link control). This is a deliberate, documented parity divergence.
 - **Panel shape:** node/connector render Details + Notes as **tabs**; rectangle/textbox/label stack the sections inline. Unifying these behind the shared `NotesSection`/`MetadataSection` layout for all five types is a tracked coherence nit (not a data-model concern).
 
+## Amendment (2026-07-05) — round-8 deck dedupe supersedes the co-host + two-tab claims
+
+Two shipped changes falsify several earlier statements in this ADR (kept above for the historical trail):
+
+- **The node deck no longer co-hosts the link button / show-hide eye.** Round-8 deck dedupe (commit `af43a08`) removed the inline link button and the show/hide-name toggle from the node deck — **both are strip-only now** (the strip Link control + the strip show/hide eye; the dead `focusLink` command was dropped). This supersedes the "the link button + show/hide toggle still co-host this field" line in §Decision point 5 and the "still co-host the inline link button + show/hide-label toggle" line in the 2026-07-02 Metadata amendment, **for the node**.
+- **Panels are one collapsible-section deck, not tabs.** Commit `987eaaf` unified all five item panels into a single vertical stack of collapsible sections (content section + Notes + Metadata). The "render Details + Notes as **tabs** … tracked coherence nit" line above is **resolved**, and the "two-tab **Details / Notes** shape" wording in the 2026-06-30 Name-field resolution below is superseded.
+
 ## Context
 
 The spike (commit `894cb3b2`) shipped the "Option A" (Figma derive-then-override) name/caption model for **nodes**, but with no decision of record. Before it, a node could carry a rich on-canvas **caption/description** in addition to its `name`. Option A collapses identity to a single on-canvas string (the `name`) and relocates the rich text into the node's **Notes**.

@@ -74,7 +74,10 @@ the bar's removal:
 - **Notes** was the only bar affordance with no other home → added as **"Add note"**
   in the `item` menu variant (nodes + connectors only — the two types with a `notes`
   field). It opens the details panel on the Notes tab (reuses the existing
-  `focusNotes` panel-event).
+  `focusNotes` panel-event). **Update (2026-07-02):** `notes` fields were later added
+  to rectangle / text box / floating Label (commit `1560daa`), and "Add note" now opens
+  Notes for **every** element type via the unified collapsible-section deck (commit
+  `987eaaf`) — no longer nodes + connectors only.
 - **Style** and **Edit link** stay reachable via **Details…** → the panel's Style tab
   / link field.
 - **Start connector** stays reachable via the connector tool in the ToolMenu.
