@@ -5,7 +5,10 @@ import { useLayerContext } from 'src/hooks/useLayerContext';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useSceneActions } from 'src/hooks/useSceneActions';
 import { useInlineRename } from 'src/hooks/useInlineRename';
-import { EDIT_ELEMENT_LINK_EVENT } from 'src/utils/quillLinkShortcut';
+import {
+  EDIT_ELEMENT_LINK_EVENT,
+  HIDE_ELEMENT_LINK_EVENT
+} from 'src/utils/quillLinkShortcut';
 import {
   measureLabelChip,
   labelFontPx,
@@ -332,6 +335,39 @@ export const LabelHitLayer = ({ labels }: Props) => {
             data-label-hit-id={label.id}
             onPointerDown={(e) => onPointerDown(e, label)}
             onDoubleClick={(e) => onDoubleClick(e, label)}
+            // Hovering a LINKED chip shows the element link card as a view
+            // chip (url + copy/edit/remove — ADR 0034 addendum 2026-07-05),
+            // exactly like hovering linked text in a text box.
+            onPointerEnter={
+              label.headerLink
+                ? (e) => {
+                    const r = e.currentTarget.getBoundingClientRect();
+                    window.dispatchEvent(
+                      new CustomEvent(EDIT_ELEMENT_LINK_EVENT, {
+                        detail: {
+                          target: { kind: 'LABEL', id: label.id },
+                          rect: {
+                            left: r.left,
+                            top: r.top,
+                            width: r.width,
+                            height: r.height
+                          },
+                          mode: 'view',
+                          hover: true
+                        }
+                      })
+                    );
+                  }
+                : undefined
+            }
+            onPointerLeave={
+              label.headerLink
+                ? () =>
+                    window.dispatchEvent(
+                      new CustomEvent(HIDE_ELEMENT_LINK_EVENT)
+                    )
+                : undefined
+            }
             style={{
               position: 'absolute',
               left,

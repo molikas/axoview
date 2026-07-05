@@ -29,8 +29,14 @@ export const EDIT_LINK_AT_SELECTION_EVENT = 'axoview:edit-link-at-selection';
 /** Window event the ELEMENT link card listens for (Ctrl+K while inline-
  *  renaming a floating Label, a node name, or a connector label — plain-text
  *  surfaces whose link is the element-level headerLink). detail:
- *  `{ target: ElementLinkTarget, rect: {left, top, width, height} }`. */
+ *  `{ target: ElementLinkTarget, rect: {left, top, width, height},
+ *     mode?: 'edit' | 'view', hover?: boolean }` — 'view' + hover=true is the
+ *  hover-a-linked-label chip (auto-dismisses); default is the Ctrl+K edit. */
 export const EDIT_ELEMENT_LINK_EVENT = 'axoview:edit-element-link';
+
+/** Hover sources dispatch this on pointer-leave; the card grace-hides unless
+ *  the pointer moved onto the card itself (or it was pinned by editing). */
+export const HIDE_ELEMENT_LINK_EVENT = 'axoview:hide-element-link';
 
 /** Which element's headerLink the element link card reads/writes. */
 export type ElementLinkTarget =

@@ -16,7 +16,11 @@ import {
 import { useRenderProbe } from 'src/utils/renderProbe';
 import { ExpandableLabel } from 'src/components/Label/ExpandableLabel';
 import { useInlineRename } from 'src/hooks/useInlineRename';
-import { EDIT_ELEMENT_LINK_EVENT } from 'src/utils/quillLinkShortcut';
+import {
+  EDIT_ELEMENT_LINK_EVENT,
+  HIDE_ELEMENT_LINK_EVENT
+} from 'src/utils/quillLinkShortcut';
+import { LABEL_LINK_COLOR } from 'src/utils/labelChip';
 import { stripHtmlTags } from 'src/utils/stripHtml';
 import { isLabelVisibleInPreview } from 'src/utils/previewLabelVisibility';
 
@@ -448,16 +452,53 @@ const NodeContent = memo(
                         }}
                       >
                         {modelItem.headerLink ? (
+                          // Linked label (ADR 0034 addendum 2026-07-05):
+                          // link-blue unless a custom color is set; in EDIT
+                          // mode hovering shows the element link card and a
+                          // plain click SELECTS (Ctrl/Cmd+click opens — the
+                          // Docs convention shared with text-box links);
+                          // read-only keeps click-to-open.
                           <a
                             href="#"
                             data-testid="node-header-link"
                             title={modelItem.headerLink}
                             style={{
-                              color: 'inherit',
+                              color: labelColor ? 'inherit' : LABEL_LINK_COLOR,
                               textDecoration: 'underline',
                               cursor: 'pointer'
                             }}
                             onMouseDown={(e) => e.stopPropagation()}
+                            onMouseEnter={
+                              !isReadonly
+                                ? (e) => {
+                                    const r =
+                                      e.currentTarget.getBoundingClientRect();
+                                    window.dispatchEvent(
+                                      new CustomEvent(EDIT_ELEMENT_LINK_EVENT, {
+                                        detail: {
+                                          target: { kind: 'NODE', id },
+                                          rect: {
+                                            left: r.left,
+                                            top: r.top,
+                                            width: r.width,
+                                            height: r.height
+                                          },
+                                          mode: 'view',
+                                          hover: true
+                                        }
+                                      })
+                                    );
+                                  }
+                                : undefined
+                            }
+                            onMouseLeave={
+                              !isReadonly
+                                ? () =>
+                                    window.dispatchEvent(
+                                      new CustomEvent(HIDE_ELEMENT_LINK_EVENT)
+                                    )
+                                : undefined
+                            }
                             onClick={(e) => {
                               e.stopPropagation();
                               e.preventDefault();
@@ -466,7 +507,21 @@ const NodeContent = memo(
                               )
                                 ? modelItem.headerLink!
                                 : `https://${modelItem.headerLink}`;
-                              window.open(url, '_blank', 'noopener,noreferrer');
+                              if (isReadonly || e.ctrlKey || e.metaKey) {
+                                window.open(
+                                  url,
+                                  '_blank',
+                                  'noopener,noreferrer'
+                                );
+                                return;
+                              }
+                              // Edit mode plain click: select the node.
+                              uiStoreApi
+                                .getState()
+                                .actions.setItemControls({
+                                  type: 'ITEM',
+                                  id
+                                });
                             }}
                           >
                             {labelText}

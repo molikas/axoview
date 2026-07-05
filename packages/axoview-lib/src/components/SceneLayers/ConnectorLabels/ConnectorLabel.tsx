@@ -15,7 +15,10 @@ import { Label } from 'src/components/Label/Label';
 import { Connector, ConnectorLabel as ConnectorLabelType, Coords } from 'src/types';
 import { useSceneActions } from 'src/hooks/useSceneActions';
 import { useInlineRename } from 'src/hooks/useInlineRename';
-import { EDIT_ELEMENT_LINK_EVENT } from 'src/utils/quillLinkShortcut';
+import {
+  EDIT_ELEMENT_LINK_EVENT,
+  HIDE_ELEMENT_LINK_EVENT
+} from 'src/utils/quillLinkShortcut';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { isLabelVisibleInPreview } from 'src/utils/previewLabelVisibility';
 
@@ -142,7 +145,8 @@ const ConnectorTextLabel = ({
   interactive,
   selected,
   onPointerDown,
-  onStartEdit
+  onStartEdit,
+  linkTarget
 }: {
   position: LabelPosition;
   label: ConnectorLabelType;
@@ -150,11 +154,15 @@ const ConnectorTextLabel = ({
   selected: boolean;
   onPointerDown: (e: React.PointerEvent) => void;
   onStartEdit: () => void;
+  /** The element-link-card write target for THIS labels[] entry — hovering a
+   *  linked chip in edit mode shows the card (ADR 0034 addendum 2026-07-05). */
+  linkTarget?: { connectorId: string; labelId: string };
 }) => {
   const url = resolveConnectorUrl(label.headerLink);
-  // The link is a view-mode affordance; while editing, a click selects the
-  // label (and a drag repositions it) instead of navigating away.
-  const linkActive = !!url && !interactive;
+  const linked = !!url;
+  // Click-to-open is a view-mode affordance; while editing, a click selects
+  // the label (and a drag repositions it) — the hover card carries open/edit.
+  const linkActive = linked && !interactive;
   return (
     <Box
       sx={{
@@ -177,6 +185,38 @@ const ConnectorTextLabel = ({
               e.stopPropagation();
               onStartEdit();
             }
+          : undefined
+      }
+      onPointerEnter={
+        linked && interactive && linkTarget
+          ? (e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              window.dispatchEvent(
+                new CustomEvent(EDIT_ELEMENT_LINK_EVENT, {
+                  detail: {
+                    target: {
+                      kind: 'CONNECTOR_LABEL',
+                      connectorId: linkTarget.connectorId,
+                      labelId: linkTarget.labelId
+                    },
+                    rect: {
+                      left: r.left,
+                      top: r.top,
+                      width: r.width,
+                      height: r.height
+                    },
+                    mode: 'view',
+                    hover: true
+                  }
+                })
+              );
+            }
+          : undefined
+      }
+      onPointerLeave={
+        linked && interactive && linkTarget
+          ? () =>
+              window.dispatchEvent(new CustomEvent(HIDE_ELEMENT_LINK_EVENT))
           : undefined
       }
       onClick={
@@ -211,14 +251,14 @@ const ConnectorTextLabel = ({
               fontStyle: label.italic ? 'italic' : 'normal',
               textDecoration:
                 [
-                  label.underline ? 'underline' : null,
+                  label.underline || linked ? 'underline' : null,
                   label.strikethrough ? 'line-through' : null
                 ]
                   .filter(Boolean)
                   .join(' ') || 'none',
               color:
                 label.labelColor ||
-                (linkActive ? 'primary.main' : 'text.primary'),
+                (linked ? 'primary.main' : 'text.primary'),
               // #10: keep long text labels wrapping (not clipped) on the Label
               // chip's overflow:hidden (parity with the node caption, §5.2).
               wordBreak: 'break-word',
@@ -664,6 +704,7 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
             selected={selectedLabelId === label.id}
             onPointerDown={(e) => startLabelDrag(e, label)}
             onStartEdit={() => setEditingLabelId(label.id)}
+            linkTarget={{ connectorId: connector.id, labelId: label.id }}
           />
         );
       })}

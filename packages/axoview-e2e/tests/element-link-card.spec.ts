@@ -74,6 +74,17 @@ test.describe('Element link card + strip Enter-confirm (ADR 0034 addendum)', () 
         timeout: 3_000
       })
       .toBe('https://example.com');
+
+    // Dismiss, then HOVER the chip — a linked label offers the same card
+    // (the "labels don't render/behave as links" follow-up, 2026-07-05).
+    await page.mouse.click(30, 500);
+    await expect(
+      page.locator('[data-axoview-id="element-link-card"]')
+    ).toBeHidden();
+    await page.hover(`[data-label-hit-id="${label.id}"]`);
+    await expect(
+      page.locator('[data-axoview-id="element-link-card-url"]')
+    ).toHaveText('https://example.com', { timeout: 5_000 });
   });
 
   test('strip Link popover (element mode): Enter confirms and closes', async ({

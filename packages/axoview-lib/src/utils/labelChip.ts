@@ -15,6 +15,10 @@ export const LABEL_CHIP_PAD_X = 12;
 export const LABEL_CHIP_PAD_Y = 8;
 export const LABEL_CHIP_MAX_W = 320;
 export const LABEL_CHIP_RADIUS = 8;
+// Material link blue — the default text color of a LINKED chip (a
+// user-picked label.color wins). Hardcoded like the other chip constants so
+// the pure draw path needs no theme context.
+export const LABEL_LINK_COLOR = '#1a73e8';
 const LINE_H_FACTOR = 1.5;
 
 /** Effective px font for a label (absent / non-positive = the base size). */
@@ -151,7 +155,12 @@ export const drawLabelChip = (
   ctx.strokeStyle = colors.border;
   ctx.stroke();
 
-  const textColor = label.color || colors.text;
+  // A linked label READS as a link (ADR 0034 addendum 2026-07-05): link-blue
+  // text (unless the user set an explicit color) + underline. Decoration-only
+  // like strikethrough/underline, so headerLink stays out of the layout cache.
+  const linked = !!label.headerLink;
+  const textColor =
+    label.color || (linked ? LABEL_LINK_COLOR : colors.text);
   ctx.font = labelChipFont(fontSize, label.isBold, label.isItalic);
   ctx.fillStyle = textColor;
   ctx.textAlign = 'left';
@@ -160,7 +169,7 @@ export const drawLabelChip = (
   for (let i = 0; i < lines.length; i += 1) {
     const lineTop = y0 + LABEL_CHIP_PAD_Y + i * lineH;
     ctx.fillText(lines[i], textX, lineTop + (lineH - fontSize) / 2);
-    if (label.isStrikethrough || label.isUnderline) {
+    if (label.isStrikethrough || label.isUnderline || linked) {
       ctx.strokeStyle = textColor;
       ctx.lineWidth = Math.max(1, fontSize / 14);
       if (label.isStrikethrough) {
@@ -170,7 +179,7 @@ export const drawLabelChip = (
         ctx.lineTo(textX + lineWidths[i], strikeY);
         ctx.stroke();
       }
-      if (label.isUnderline) {
+      if (label.isUnderline || linked) {
         const underY = lineTop + (lineH - fontSize) / 2 + fontSize * 0.95;
         ctx.beginPath();
         ctx.moveTo(textX, underY);

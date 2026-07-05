@@ -133,6 +133,12 @@ The deck editors already had the Docs loop natively (snow's tooltip shows target
 - **Node deck dedupe.** The Details deck's Add-link toggle, link field, and hide-name eye were duplicates of the strip's Link control and show/hide eye — deleted (with the dead `focusLink` action-bar command and five retired i18n keys ×13: `nodeInfoTab.addLink/removeLink/linkPlaceholder`, `nodePanel.showName/hideName`). The deck's Label section is now just the text field; the read-only panel keeps its open-link affordance.
 - **Enter confirms the strip's element link field.** Element mode writes live on change, so Enter looked dead — users didn't know click-away was the commit. Enter now closes the popover (the existing `closeEvent` plumbing), making it read as "confirmed".
 
+**2026-07-05 — owner round 8b: linked labels LOOK and BEHAVE like links.** Adding a link via Ctrl+K left the label visually unchanged and inert — nothing like the text box, where linked text is styled and hover raises the card. Now, on all three label surfaces:
+
+- **Visual**: a labeled element with a `headerLink` renders link-blue (a user-picked color wins) + underlined. Floating Labels get it in the Canvas2D paint (`drawLabelChip` — decoration-only, so `headerLink` stays out of the layout cache; `LABEL_LINK_COLOR` joins the chip constants); node captions keep their `<a>` but now colored; connector chips extend their view-mode-only blue to edit mode and always underline when linked.
+- **Hover card (edit mode)**: pointer over a linked label raises the ElementLinkCard as a VIEW chip — URL + open/copy/edit/remove — with the same grace-dismiss the text-box card uses (the event gains `mode`/`hover` fields plus a HIDE counterpart; clicking Edit pins the card). Sources: the floating Label's hit-proxy div, the node caption `<a>`, the connector chip.
+- **Click convention unified**: a node caption's plain click used to OPEN the URL even in edit mode — it now selects the node, with Ctrl/Cmd+click opening (the same convention as text-box internal links); read-only keeps click-to-open, and the connector chip's view-mode click behavior is unchanged.
+
 ## Consequences
 
 **Positive:**
@@ -180,3 +186,5 @@ The deck editors already had the Docs loop natively (snow's tooltip shows target
 - **Manual (2026-07-04 round 7):** with ≥2 diagrams, Ctrl+K shows diagram suggestions filtered by typing; picking one shows the diagram's name in the card; the committed link navigates on click in view mode and on Ctrl+click in edit mode; a filled manual-size box keeps its fill snug when font size / line spacing change mid-edit.
 - **e2e (2026-07-05 round 8):** Ctrl+K while inline-renaming a floating Label opens the element card (strip popover stays closed) and Enter applies the Docs-forgiven headerLink to the model; Enter in the strip's element-mode URL field closes the popover with the link retained.
 - **Manual (2026-07-05 round 8):** Ctrl+K mid-rename works identically on a node name and a connector label (commits the rename, then the card); the node deck's Label section is a bare text field (no link/hide-name buttons); the card's Remove clears the element headerLink.
+- **e2e (2026-07-05 round 8b):** hovering a linked floating Label's chip raises the view card with the resolved URL (extends the element-link spec).
+- **Manual (2026-07-05 round 8b):** a linked floating Label paints blue + underlined on canvas; a linked node caption and connector chip read the same; hover raises the card on all three, Edit pins it, leaving both dismisses; plain click on a linked node caption selects (Ctrl+click opens); a custom label color wins over link blue but keeps the underline.

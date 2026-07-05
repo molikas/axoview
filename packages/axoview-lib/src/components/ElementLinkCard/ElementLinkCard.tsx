@@ -18,6 +18,7 @@ import { useModelStore } from 'src/stores/modelStore';
 import { useTranslation } from 'src/stores/localeStore';
 import {
   EDIT_ELEMENT_LINK_EVENT,
+  HIDE_ELEMENT_LINK_EVENT,
   ElementLinkTarget,
   normalizeWebLinkUrl
 } from 'src/utils/quillLinkShortcut';
@@ -36,7 +37,11 @@ interface OpenState {
   target: ElementLinkTarget;
   rect: { left: number; top: number; width: number; height: number };
   editMode: boolean;
+  /** Hover-opened chips grace-dismiss on pointer-leave; Ctrl+K opens pin. */
+  hover: boolean;
 }
+
+const HOVER_HIDE_GRACE_MS = 250;
 
 const resolveHref = (url: string): string =>
   /^https?:\/\//i.test(url) ? url : `https://${url}`;
@@ -104,20 +109,51 @@ export const ElementLinkCard = () => {
     setCopied(false);
   }, []);
 
-  // Open on the editors' Ctrl+K dispatch.
+  // Open on the editors' Ctrl+K dispatch (edit mode, pinned) or a linked
+  // label's hover dispatch (view chip, grace-dismissing).
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearHideTimer = useCallback(() => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  }, []);
   useEffect(() => {
     const onEdit = (e: Event) => {
       const detail = (e as CustomEvent<{
         target: ElementLinkTarget;
         rect: { left: number; top: number; width: number; height: number };
+        mode?: 'edit' | 'view';
+        hover?: boolean;
       }>).detail;
       if (!detail?.target || !detail.rect) return;
-      setOpen({ target: detail.target, rect: detail.rect, editMode: true });
+      clearHideTimer();
+      setOpen({
+        target: detail.target,
+        rect: detail.rect,
+        editMode: (detail.mode ?? 'edit') === 'edit',
+        hover: !!detail.hover
+      });
       setCopied(false);
     };
+    const onHideRequest = () => {
+      clearHideTimer();
+      hideTimerRef.current = setTimeout(() => {
+        setOpen((prev) => {
+          if (!prev || !prev.hover || prev.editMode) return prev;
+          if (cardRef.current?.matches(':hover')) return prev;
+          return null;
+        });
+      }, HOVER_HIDE_GRACE_MS);
+    };
     window.addEventListener(EDIT_ELEMENT_LINK_EVENT, onEdit);
-    return () => window.removeEventListener(EDIT_ELEMENT_LINK_EVENT, onEdit);
-  }, []);
+    window.addEventListener(HIDE_ELEMENT_LINK_EVENT, onHideRequest);
+    return () => {
+      window.removeEventListener(EDIT_ELEMENT_LINK_EVENT, onEdit);
+      window.removeEventListener(HIDE_ELEMENT_LINK_EVENT, onHideRequest);
+      clearHideTimer();
+    };
+  }, [clearHideTimer]);
 
   // Seed the draft when (re)entering edit mode.
   useEffect(() => {
@@ -193,6 +229,11 @@ export const ElementLinkCard = () => {
         ref={cardRef}
         elevation={4}
         data-axoview-id="element-link-card"
+        onPointerEnter={clearHideTimer}
+        onPointerLeave={() => {
+          if (!open.hover || open.editMode) return;
+          window.dispatchEvent(new CustomEvent(HIDE_ELEMENT_LINK_EVENT));
+        }}
         onKeyDown={(e) => {
           e.stopPropagation();
           if (e.key === 'Escape') {
