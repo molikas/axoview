@@ -30,13 +30,6 @@ jobs:
       - name: Lint
         run: npx eslint .
 
-      # Strict type-check (lib + app tsc --noEmit via workspace lint scripts).
-      # Added 2026-07-05: both the v1.1 perf-fixture drift and the app's four
-      # latent type errors sat ungated because CI ran only eslint — see
-      # technical-review-2026-07 §8c.
-      - name: Type check
-        run: npm run lint
-
       - name: Run tests with coverage
         run: npm test -- --coverage
         env:
@@ -71,6 +64,15 @@ jobs:
         run: |
           test -f packages/axoview-app/build/_routes.json || (echo "::error::_routes.json missing from build output" && exit 1)
           test -f packages/axoview-app/build/_headers || (echo "::error::_headers missing from build output" && exit 1)
+
+      # Strict type-check (lib + app tsc --noEmit via workspace lint scripts).
+      # Added 2026-07-05: both the v1.1 perf-fixture drift and the app's four
+      # latent type errors sat ungated because CI ran only eslint — see
+      # technical-review-2026-07 §8c/§14b. Runs AFTER the build on purpose:
+      # the app's tsc resolves `axoview` from the lib's dist declarations,
+      # which only exist once build:lib has emitted them.
+      - name: Type check
+        run: npm run lint
 
       # Hard-fail since 2026-06-10 (v1.1 close-out): soft-fail ran clean across
       # the v1.1 wave, so per T2 G10 (git-automation-hardening.md) the gate is
