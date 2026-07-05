@@ -127,6 +127,8 @@ interface DiagramLifecycleContextValue {
     focusAfter?: 'fileExplorer' | 'elements'
   ) => Promise<void>;
   checkUnsavedBeforeNavigate: (onProceed: () => void) => void;
+  /** Switch the active storage backend (local ⇄ google-drive) + reset canvas. */
+  switchStorageProvider: (id: string) => void;
   // File explorer
   fileExplorerOpen: boolean;
   setFileExplorerOpen: (open: boolean) => void;
@@ -167,7 +169,14 @@ export function DiagramLifecycleProvider({
   }>();
   const navigate = useNavigate();
   const { t } = useTranslation('app');
-  const { storage, serverStorageAvailable, isInitialized } = useAppStorage();
+  const {
+    storage,
+    storageManager,
+    serverStorageAvailable,
+    remoteStorageActive,
+    setActiveProviderId,
+    isInitialized
+  } = useAppStorage();
   const iconPackManager = useIconPackManager(coreIcons);
 
   const isPublicShareUrl = !!shareUuid;
@@ -242,16 +251,16 @@ export function DiagramLifecycleProvider({
     sessionWorkUnexportedRef.current = sessionWorkUnexported;
   }, [sessionWorkUnexported]);
   useEffect(() => {
-    if (serverStorageAvailable) return; // server mode does not use this flag
+    if (remoteStorageActive) return; // server mode does not use this flag
     const handler = () => setSessionWorkUnexported(true);
     window.addEventListener('axoview-session-changed', handler);
     return () => window.removeEventListener('axoview-session-changed', handler);
-  }, [serverStorageAvailable]);
+  }, [remoteStorageActive]);
 
   // beforeunload — warn before leaving with unsaved/un-exported work.
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      const trigger = serverStorageAvailable
+      const trigger = remoteStorageActive
         ? hasUnsavedChangesRef.current
         : sessionWorkUnexportedRef.current;
       if (!trigger) return;
@@ -260,11 +269,11 @@ export function DiagramLifecycleProvider({
     };
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [serverStorageAvailable]);
+  }, [remoteStorageActive]);
 
   // In server mode the single-diagram hasUnsavedChanges is driven by saveStatus.
   // In session mode it uses dirtyDiagramIds as before.
-  const hasUnsavedChanges = serverStorageAvailable
+  const hasUnsavedChanges = remoteStorageActive
     ? false  // toolbar uses saveStatus directly in server mode
     : dirtyDiagramIds.has(currentDiagram?.id ?? '__unsaved__');
   useEffect(() => {
@@ -281,7 +290,7 @@ export function DiagramLifecycleProvider({
       setLastSaved(savedAt);
       setFileTreeRefreshToken((n) => n + 1);
       // In session mode, clear the dirty bit so the badge + unsaved indicator update.
-      if (!serverStorageAvailable) {
+      if (!remoteStorageActive) {
         setDirtyDiagramIds((prev) => setWithout(prev, id));
         scratchBufferRef.current.delete(id);
       }
@@ -305,7 +314,7 @@ export function DiagramLifecycleProvider({
   useEffect(() => {
     if (!isInitialized || explorerInitializedRef.current) return;
     explorerInitializedRef.current = true;
-    if (!serverStorageAvailable) {
+    if (!remoteStorageActive) {
       setFileExplorerOpen(false);
       return;
     }
@@ -317,13 +326,13 @@ export function DiagramLifecycleProvider({
       const saved = localStorage.getItem('axoview-explorer-open');
       setFileExplorerOpen(saved === 'true');
     }
-  }, [isInitialized, serverStorageAvailable]);
+  }, [isInitialized, remoteStorageActive]);
 
   // Persist fileExplorerOpen to localStorage (server mode only)
   useEffect(() => {
-    if (!isInitialized || !serverStorageAvailable) return;
+    if (!isInitialized || !remoteStorageActive) return;
     localStorage.setItem('axoview-explorer-open', String(fileExplorerOpen));
-  }, [fileExplorerOpen, isInitialized, serverStorageAvailable]);
+  }, [fileExplorerOpen, isInitialized, remoteStorageActive]);
 
   // ---------------------------------------------------------------------------
   // Portal state
@@ -425,6 +434,8 @@ export function DiagramLifecycleProvider({
     // ADR 0009 Decision 3: share routes are session-mode only. In Local mode
     // the LocalModeShareErrorDialog handles the user-visible feedback;
     // suppress the fetch so the generic error toast doesn't also fire.
+    // NOTE: session-backend contract — stays on serverStorageAvailable, NOT
+    // remoteStorageActive (Drive mode cannot serve /api/public/diagrams).
     if (!serverStorageAvailable) return;
     const loadPublicSnapshot = async () => {
       try {
@@ -610,7 +621,7 @@ export function DiagramLifecycleProvider({
   // ---------------------------------------------------------------------------
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      const hasPending = serverStorageAvailable
+      const hasPending = remoteStorageActive
         ? autoSave.saveStatus === 'saving'
         : dirtyDiagramIds.size > 0;
       if (hasPending) {
@@ -622,7 +633,7 @@ export function DiagramLifecycleProvider({
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- listener reads autoSave.saveStatus/dirtyDiagramIds; t only labels the prompt, no need to re-bind on locale change
-  }, [dirtyDiagramIds, autoSave.saveStatus, serverStorageAvailable]);
+  }, [dirtyDiagramIds, autoSave.saveStatus, remoteStorageActive]);
 
   // ---------------------------------------------------------------------------
   // Build save payload (session mode / Ctrl+S in server mode)
@@ -992,7 +1003,7 @@ export function DiagramLifecycleProvider({
   // ---------------------------------------------------------------------------
   const checkUnsavedBeforeNavigate = useCallback(
     (onProceed: () => void) => {
-      if (serverStorageAvailable) {
+      if (remoteStorageActive) {
         onProceed();
         return;
       }
@@ -1006,7 +1017,51 @@ export function DiagramLifecycleProvider({
         onDiscard: onProceed
       });
     },
-    [serverStorageAvailable, hasUnsavedChanges, saveDiagram]
+    [remoteStorageActive, hasUnsavedChanges, saveDiagram]
+  );
+
+  // ---------------------------------------------------------------------------
+  // Switch storage backend (local ⇄ google-drive)
+  // ---------------------------------------------------------------------------
+  const switchStorageProvider = useCallback(
+    (id: string) => {
+      if (!storageManager || storageManager.activeProviderId === id) return;
+      const doSwitch = async () => {
+        // Flush any pending debounced autosave to the CURRENT (old) backend
+        // before switching — otherwise resetStatus() below discards it and the
+        // last edit is lost. Must run before setActiveProviderId so the write
+        // lands on the still-active provider.
+        await autoSave.saveNow();
+        // setActiveProviderId updates the manager AND the context state (which
+        // recomputes remoteStorageActive, flipping every storage-behavior branch).
+        setActiveProviderId(id);
+        // The new backend has a different diagram tree — reset the open diagram
+        // so autosave doesn't write the current scene into the new backend.
+        autoSave.resetStatus();
+        currentDiagramRef.current = null;
+        setCurrentDiagram(null);
+        setDiagramName('');
+        setCurrentModel(null);
+        setLastSaved(null);
+        setDirtyDiagramIds(new Set());
+        scratchBufferRef.current.clear();
+        const blankData: DiagramData = {
+          title: '',
+          icons: iconPackManager.loadedIcons,
+          colors: defaultColors,
+          items: [],
+          views: [],
+          fitToScreen: true
+        };
+        isAfterLoadRef.current = true;
+        axoviewRef.current?.load(blankData as InitialData);
+        setFileExplorerOpen(true);
+        setFileTreeRefreshToken((n) => n + 1);
+      };
+      checkUnsavedBeforeNavigate(doSwitch);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on stable autoSave.resetStatus; whole autoSave churns on every save-status change
+    [storageManager, setActiveProviderId, checkUnsavedBeforeNavigate, iconPackManager.loadedIcons, autoSave.resetStatus]
   );
 
   // ---------------------------------------------------------------------------
@@ -1047,7 +1102,7 @@ export function DiagramLifecycleProvider({
       const diag = currentDiagramRef.current;
       setDiagramName(trimmed);
       setCurrentDiagram({ ...diag, name: trimmed });
-      if (serverStorageAvailable && storageRef.current) {
+      if (remoteStorageActive && storageRef.current) {
         try {
           await storageRef.current.renameDiagram(diag.id, trimmed);
           setFileTreeRefreshToken((n) => n + 1);
@@ -1058,7 +1113,7 @@ export function DiagramLifecycleProvider({
         }
       }
     },
-    [serverStorageAvailable]
+    [remoteStorageActive]
   );
 
   // MQA #18: when the currently-open diagram is deleted from the file tree, the
@@ -1113,7 +1168,7 @@ export function DiagramLifecycleProvider({
   // Toolbar save actions
   // ---------------------------------------------------------------------------
   const handleSaveClick = useCallback(async () => {
-    if (serverStorageAvailable && storage) {
+    if (remoteStorageActive && storage) {
       if (currentDiagram) {
         await autoSave.saveNow();
         if (autoSave.saveStatus === 'idle') {
@@ -1136,7 +1191,7 @@ export function DiagramLifecycleProvider({
         setShowSaveDialog(true);
       }
     }
-  }, [serverStorageAvailable, storage, currentDiagram, autoSave, buildSaveData, saveDiagram]);
+  }, [remoteStorageActive, storage, currentDiagram, autoSave, buildSaveData, saveDiagram]);
 
   // Keep the retry ref pointed at the latest handleSaveClick so SaveErrorDialog's
   // "Try again" re-runs the canonical save entry without re-binding retrySave.
@@ -1145,12 +1200,12 @@ export function DiagramLifecycleProvider({
   }, [handleSaveClick]);
 
   const handleOpenClick = useCallback(() => {
-    if (serverStorageAvailable) {
+    if (remoteStorageActive) {
       setShowDiagramManager(true);
     } else {
       setShowLoadDialog(true);
     }
-  }, [serverStorageAvailable]);
+  }, [remoteStorageActive]);
 
   // ---------------------------------------------------------------------------
   // Keyboard shortcuts
@@ -1179,7 +1234,7 @@ export function DiagramLifecycleProvider({
       try {
         await autoSave.saveNow();
 
-        if (!serverStorageAvailable) {
+        if (!remoteStorageActive) {
           const currentId = currentDiagramRef.current?.id ?? '__unsaved__';
           if (dirtyDiagramIdsRef.current.has(currentId) && currentModelRef.current) {
             scratchBufferRef.current.set(currentId, currentModelRef.current);
@@ -1195,7 +1250,7 @@ export function DiagramLifecycleProvider({
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on stable autoSave.saveNow; whole autoSave churns on every save-status change
-    [storage, serverStorageAvailable, autoSave.saveNow, handleDiagramManagerLoad]
+    [storage, remoteStorageActive, autoSave.saveNow, handleDiagramManagerLoad]
   );
 
   const handlePreviewClick = useCallback(async () => {
@@ -1234,7 +1289,7 @@ export function DiagramLifecycleProvider({
   // Session-mode Save All
   // ---------------------------------------------------------------------------
   const saveAllDirty = useCallback(async () => {
-    if (serverStorageAvailable) return;
+    if (remoteStorageActive) return;
     const allDirtyIds = Array.from(dirtyDiagramIdsRef.current);
     if (allDirtyIds.length === 0) return;
 
@@ -1327,7 +1382,7 @@ export function DiagramLifecycleProvider({
         message: `${savedCount} saved, ${failedIds.length} failed`
       });
     }
-  }, [diagrams, serverStorageAvailable]);
+  }, [diagrams, remoteStorageActive]);
 
   // ---------------------------------------------------------------------------
   // Model update handler
@@ -1367,7 +1422,7 @@ export function DiagramLifecycleProvider({
 
       if (isReadonlyUrl) return;
 
-      if (serverStorageAvailable) {
+      if (remoteStorageActive) {
         // ── Server mode ──────────────────────────────────────────────────────
         const currentId = currentDiagramRef.current?.id ?? null;
         if (currentId) {
@@ -1390,7 +1445,7 @@ export function DiagramLifecycleProvider({
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on stable autoSave.scheduleSave; whole autoSave churns on every save-status change
-    [isReadonlyUrl, serverStorageAvailable, autoSave.scheduleSave]
+    [isReadonlyUrl, remoteStorageActive, autoSave.scheduleSave]
   );
 
   // ---------------------------------------------------------------------------
@@ -1433,7 +1488,7 @@ export function DiagramLifecycleProvider({
     diagramName,
     setDiagramName,
     hasUnsavedChanges,
-    lastSaved: serverStorageAvailable ? autoSave.lastSaved : lastSaved,
+    lastSaved: remoteStorageActive ? autoSave.lastSaved : lastSaved,
     currentDiagram,
     diagrams,
     currentModel,
@@ -1474,6 +1529,7 @@ export function DiagramLifecycleProvider({
     saveAllDirty,
     handleCreateBlankDiagram,
     checkUnsavedBeforeNavigate,
+    switchStorageProvider,
     fileExplorerOpen,
     setFileExplorerOpen,
     openDiagramById,

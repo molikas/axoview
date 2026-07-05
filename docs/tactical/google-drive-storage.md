@@ -7,7 +7,9 @@
 > - [ADR 0010 — Session Backend Contract](../adr/0010-session-backend-contract.md) (share = session-only)
 > - [docs/workflow.md](../workflow.md) — session cadence baseline
 >
-> **Status:** Not started · **Owner:** molikas · **Last updated:** 2026-07-05
+> **Status:** Implemented on `integration` (sections A–D), pending owner live-test · **Owner:** molikas · **Last updated:** 2026-07-05
+>
+> Shipped: authStore + AuthProvider + toolbar AuthControl/StorageProviderPicker; GoogleDriveProvider (full StorageProvider, marker-discovered root, trash delete, lean-save, backoff/401); `remoteStorageActive` sweep; first-connect DriveRootFolderDialog/DriveSetupGate (custom = typed name, Picker deferred); "Save to Drive" context action; share hidden in Drive mode; CSP `img-src` avatar host. 5-dimension adversarial review run + 6 confirmed defects fixed (two sign-out auth races, autosave-flush-on-switch, share-in-drive coherence, REFRESHING avatar, Drive lean-save). Verified: app tsc clean, 174 unit tests, lib+app builds. **Not yet done:** owner live-test on localhost + integration deploy; deferred per locked decisions: offline queue, Google Picker, bulk migration.
 >
 > This is a **short-lived working doc.** Delete it after the work merges; ADRs are the durable record. PLAN.md gets a one-line entry referencing the ADRs once shipped — see "Wrap-up" below.
 

@@ -26,13 +26,17 @@ import { useAppStorage } from '../providers/AppStorageContext';
 import { useDiagramLifecycle } from '../providers/DiagramLifecycleProvider';
 import { StatusCluster } from './StatusCluster';
 import { ExportPopover } from './ExportPopover';
+import { AuthControl } from './AuthControl';
+import { StorageProviderPicker } from './StorageProviderPicker';
 import { shareUrlFromUuid } from '../utils/shareUrl';
 
 export function AppToolbar() {
   const { t } = useTranslation('app');
   const location = useLocation();
   const navigate = useNavigate();
-  const { serverStorageAvailable, storage } = useAppStorage();
+  const { serverStorageAvailable, remoteStorageActive, activeProviderId, storage } =
+    useAppStorage();
+  const driveActive = activeProviderId === 'google-drive';
   const {
     hasUnsavedChanges,
     isReadonlyUrl,
@@ -289,8 +293,9 @@ export function AppToolbar() {
 
             <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
-            {/* Group 2: Save group — Save action (local mode only) + StatusCluster */}
-            {!serverStorageAvailable && (
+            {/* Group 2: Save group — Save action (session mode only; remote
+                storage autosaves) + StatusCluster */}
+            {!remoteStorageActive && (
               <Tooltip
                 title={t('nav.save', 'Save') + ' (Ctrl+S)'}
                 placement="bottom"
@@ -314,22 +319,26 @@ export function AppToolbar() {
 
             {/* Group 3: Document actions — Export + Share + Present. Share is
                 render-disabled (not hidden) without server storage so the
-                affordance still signals the feature exists. */}
+                affordance still signals the feature exists. In Drive mode it is
+                HIDDEN entirely (ADR 0036 §4 — public share links are a
+                session-backend contract Drive cannot fulfil). */}
             <ExportPopover />
-            <Tooltip title={shareTooltip} placement="bottom">
-              <span>
-                <IconButton
-                  ref={shareButtonRef}
-                  size="small"
-                  onClick={handleShareClick}
-                  disabled={!serverStorageAvailable || !currentDiagramId}
-                  data-axoview-id="toolbar-share"
-                  sx={{ borderRadius: 1, color: 'inherit' }}
-                >
-                  <ShareIcon sx={{ fontSize: 18 }} />
-                </IconButton>
-              </span>
-            </Tooltip>
+            {!driveActive && (
+              <Tooltip title={shareTooltip} placement="bottom">
+                <span>
+                  <IconButton
+                    ref={shareButtonRef}
+                    size="small"
+                    onClick={handleShareClick}
+                    disabled={!serverStorageAvailable || !currentDiagramId}
+                    data-axoview-id="toolbar-share"
+                    sx={{ borderRadius: 1, color: 'inherit' }}
+                  >
+                    <ShareIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            )}
             <Tooltip
               title={
                 !currentDiagramId
@@ -350,6 +359,13 @@ export function AppToolbar() {
                 </IconButton>
               </span>
             </Tooltip>
+
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+            {/* Group 3.5: Account & storage — Google Drive picker + sign-in /
+                avatar. Both self-hide when no Google client id is configured. */}
+            <StorageProviderPicker />
+            <AuthControl />
 
             <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 

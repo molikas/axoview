@@ -28,11 +28,11 @@ const formatSavedAt = (d: Date, t: TFunction, locale: string): string => {
 
 export function StatusCluster() {
   const { t, i18n } = useTranslation('app');
-  const { serverStorageAvailable } = useAppStorage();
+  const { remoteStorageActive } = useAppStorage();
   const { hasUnsavedChanges, lastSaved, saveStatus, handleSaveClick } = useDiagramLifecycle();
 
-  if (serverStorageAvailable) {
-    // Server mode: auto-save status only
+  if (remoteStorageActive) {
+    // Remote storage (server or Drive): auto-save status only
     const content = (() => {
       if (saveStatus === 'saving') {
         return (

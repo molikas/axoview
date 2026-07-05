@@ -40,6 +40,16 @@ export class StorageManager implements StorageProvider {
     return this.active;
   }
 
+  /** The id of the currently active provider (defaults to 'local' pre-init). */
+  get activeProviderId(): string {
+    return this.active?.id ?? 'local';
+  }
+
+  /** Look up a registered provider without making it active (e.g. "Save to Drive"). */
+  getProvider(id: string): StorageProvider | undefined {
+    return this.registry.get(id);
+  }
+
   /**
    * Boot-time setter (ADR 0009 D2 — dual-probe collapse). AppStorageContext
    * derives this from `/api/config`'s `serverStorage` flag and pushes it into

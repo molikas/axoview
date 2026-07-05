@@ -19,6 +19,8 @@ import {
 import { Close as CloseIcon } from '@mui/icons-material';
 import { useAppStorage } from '../../providers/AppStorageContext';
 import { useDiagramLifecycle } from '../../providers/DiagramLifecycleProvider';
+import { useAuthStore } from '../../stores/authStore';
+import { GoogleDriveProvider } from '../../services/storage/providers/GoogleDriveProvider';
 import { useFileTree, FileNode } from '../../hooks/useFileTree';
 import { FileTreeNode } from './FileTreeNode';
 import { FileTreeToolbar } from './FileTreeToolbar';
@@ -119,7 +121,9 @@ function injectPendingNode(
 
 export function FileExplorer() {
   const { t } = useTranslation('app');
-  const { storage, serverStorageAvailable } = useAppStorage();
+  const { storage, storageManager, serverStorageAvailable, activeProviderId } =
+    useAppStorage();
+  const authStatus = useAuthStore((s) => s.status);
   const {
     currentDiagram,
     openDiagramById,
@@ -424,8 +428,48 @@ export function FileExplorer() {
   }, [storage]);
 
   // ---------------------------------------------------------------------------
-  // Duplicate diagram
+  // Save to Google Drive (copy a diagram from the current backend into Drive)
   // ---------------------------------------------------------------------------
+
+  // Show "Save to Drive" whenever signed in and not already on the Drive backend.
+  const canSaveToDrive =
+    activeProviderId !== 'google-drive' && authStatus === 'AUTHENTICATED';
+
+  const handleSaveToDrive = useCallback(
+    async (node: FileNode) => {
+      if (node.type !== 'diagram' || !storage || !storageManager) return;
+      const drive = storageManager.getProvider('google-drive') as
+        | GoogleDriveProvider
+        | undefined;
+      if (!drive) return;
+      try {
+        const data = await storage.loadDiagram(node.id);
+        // Non-destructive copy — suffix only on a name collision in Drive root.
+        const existing = await drive.listDiagrams();
+        const names = existing.map((d) => d.name);
+        const targetName = names.includes(node.name)
+          ? copySuffix(node.name, names)
+          : node.name;
+        const blob =
+          data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
+        const { id: _id, ...rest } = blob;
+        await drive.createDiagram(
+          { ...rest, title: targetName, name: targetName },
+          null
+        );
+        notificationStore.push({
+          severity: 'success',
+          message: `"${targetName}" saved to Google Drive`
+        });
+      } catch {
+        notificationStore.push({
+          severity: 'error',
+          message: `Could not save "${node.name}" to Google Drive`
+        });
+      }
+    },
+    [storage, storageManager]
+  );
 
   // ---------------------------------------------------------------------------
   // Export — image (delegates to the lib's ExportImageDialog)
@@ -663,10 +707,12 @@ export function FileExplorer() {
           <ContextMenuItems
             node={contextMenuNode}
             origin={contextMenuOrigin}
-            canShare={serverStorageAvailable}
+            canShare={serverStorageAvailable && activeProviderId !== 'google-drive'}
+            canSaveToDrive={canSaveToDrive}
             onNewDiagram={() => handleNewFromMenu('diagram')}
             onNewFolder={() => handleNewFromMenu('folder')}
             onRefresh={() => tree.refresh()}
+            onSaveToDrive={() => contextMenuNode && handleSaveToDrive(contextMenuNode)}
             onOpen={() => { if (contextMenuNode) handleOpenDiagram(contextMenuNode); }}
             onRename={() => contextMenuNode && handleRenameNode(contextMenuNode)}
             onDuplicate={() => contextMenuNode && handleDuplicate(contextMenuNode)}
@@ -723,9 +769,19 @@ export function FileExplorer() {
         </DialogTitle>
         <DialogContent sx={{ pt: 0 }}>
           <Typography variant="body2" color="text.secondary">
-            {deleteConfirm?.type === 'folder' && deleteConfirm.descendantCount > 0
-              ? `This folder and ${deleteConfirm.descendantCount} item${deleteConfirm.descendantCount !== 1 ? 's' : ''} inside will be permanently deleted and cannot be recovered.`
-              : `This ${deleteConfirm?.type === 'folder' ? 'folder' : 'diagram'} will be permanently deleted and cannot be recovered.`}
+            {(() => {
+              // ADR 0036 §3 — in Drive mode delete = Drive trash (recoverable),
+              // so the copy must not claim permanence.
+              const driveActive = activeProviderId === 'google-drive';
+              const fate = driveActive
+                ? 'moved to your Google Drive trash (recoverable for ~30 days)'
+                : 'permanently deleted and cannot be recovered';
+              if (deleteConfirm?.type === 'folder' && deleteConfirm.descendantCount > 0) {
+                const n = deleteConfirm.descendantCount;
+                return `This folder and ${n} item${n !== 1 ? 's' : ''} inside will be ${fate}.`;
+              }
+              return `This ${deleteConfirm?.type === 'folder' ? 'folder' : 'diagram'} will be ${fate}.`;
+            })()}
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 2.5, pb: 2.5, pt: 1 }}>

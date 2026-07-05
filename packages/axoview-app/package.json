@@ -9,6 +9,7 @@
     "@isoflow/isopacks": "^0.0.10",
     "@mui/icons-material": "^7.3.9",
     "@mui/material": "^7.3.9",
+    "@react-oauth/google": "^0.12.1",
     "axoview": "*",
     "i18next": "^26.0.3",
     "i18next-browser-languagedetector": "^8.2.1",

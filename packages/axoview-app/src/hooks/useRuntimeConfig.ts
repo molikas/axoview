@@ -7,8 +7,16 @@ export interface RuntimeConfig {
   serverStorage: boolean;
 }
 
+// ADR 0035 §4: a pure-local `npm run dev` boot has no backend serving
+// /api/config, so fall back to the build-time PUBLIC_GOOGLE_CLIENT_ID (rsbuild
+// exposes PUBLIC_-prefixed vars to the browser bundle) so localhost:3000 — an
+// authorized origin — can still start Google sign-in. Empty → null (Drive UI
+// stays hidden). On Cloudflare this var is unset and the client id arrives via
+// /api/config instead.
+const BUILD_TIME_CLIENT_ID = process.env.PUBLIC_GOOGLE_CLIENT_ID || null;
+
 const DEFAULT_CONFIG: RuntimeConfig = {
-  googleClientId: null,
+  googleClientId: BUILD_TIME_CLIENT_ID,
   driveScopes: ['https://www.googleapis.com/auth/drive.file'],
   authMode: 'none',
   serverStorage: false
@@ -32,6 +40,9 @@ export async function fetchRuntimeConfig(): Promise<RuntimeConfig> {
       if (!response.ok) throw new Error(String(response.status));
       const data = (await response.json()) as Partial<RuntimeConfig>;
       cached = { ...DEFAULT_CONFIG, ...data };
+      // The build-time id is a true fallback: if the backend omits or nulls
+      // googleClientId, keep whatever was baked in at build (local dev).
+      if (!cached.googleClientId) cached.googleClientId = BUILD_TIME_CLIENT_ID;
     } catch (err) {
       // ADR 0009 D2: explicit Local-mode fallback on /api/config failure.
       // The previous silent swallow hid backend outages on boot.

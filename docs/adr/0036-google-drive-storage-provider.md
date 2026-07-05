@@ -49,7 +49,8 @@ All Axoview content lives under one root folder. Discovery and choice:
 1. **Discovery:** on provider activation, query for a folder with `appProperties has {key='axoviewRoot' and value='true'}` and `trashed=false`. Found → it is the root (choice travels across browsers/devices, because `drive.file` visibility follows the app + account, not the device).
 2. **First connect (no marker found):** a one-time dialog offers:
    - **Default** — create `axoview-diagrams` in My Drive root, stamp the marker.
-   - **Choose a folder…** — open the Google Picker in folder-select mode; picking a folder grants the app access to it under `drive.file` and the marker is stamped onto it.
+   - **Custom folder name** — create a folder with the user-typed name in My Drive root and stamp the marker onto it.
+   - **v1 deviation (2026-07-05):** the custom path is a **typed folder name**, not the Google Picker. The Picker (browse/select an *existing* Drive folder) needs a second gapi script + an API key and is deferred; a typed name satisfies "custom path" without that surface. `configureRoot(name)` implements it. Read operations use a no-create `resolveRoot()` so a tree load can never race the first-connect dialog into auto-creating/duplicating the root; only writes fall back to auto-creating the default.
 3. The resolved folder ID is cached in `localStorage['axoview-drive-root']` as a boot accelerator only; the Drive-side marker is authoritative (cache miss or stale ID → re-run discovery).
 
 If the user later deletes/trashes the root folder in Drive, the provider's next `isAvailable()`/list call detects the 404, clears the cache, and re-runs the first-connect dialog.

@@ -10,7 +10,8 @@ import {
   DeleteOutlined as DeleteIcon,
   NoteAddOutlined as NewDiagramIcon,
   CreateNewFolderOutlined as NewFolderIcon,
-  RefreshOutlined as RefreshIcon
+  RefreshOutlined as RefreshIcon,
+  CloudUploadOutlined as SaveToDriveIcon
 } from '@mui/icons-material';
 import type { FileNode } from '../../hooks/useFileTree';
 
@@ -31,8 +32,11 @@ interface Props {
   onNewDiagram: () => void;
   onNewFolder: () => void;
   onRefresh: () => void;
+  onSaveToDrive: () => void;
   onClose: () => void;
   canShare: boolean;
+  /** True when signed in to Google and not already on the Drive backend. */
+  canSaveToDrive: boolean;
 }
 
 export function ContextMenuItems({
@@ -49,8 +53,10 @@ export function ContextMenuItems({
   onNewDiagram,
   onNewFolder,
   onRefresh,
+  onSaveToDrive,
   onClose,
-  canShare
+  canShare,
+  canSaveToDrive
 }: Props) {
   const isDiagram = node?.type === 'diagram';
 
@@ -112,6 +118,16 @@ export function ContextMenuItems({
         >
           <ListItemIcon><ShareLinkIcon fontSize="small" /></ListItemIcon>
           Copy share link
+        </MenuItem>
+      )}
+      {isDiagram && canSaveToDrive && (
+        <MenuItem
+          dense
+          data-axoview-id="file-explorer-context-menu-save-to-drive"
+          onClick={handle(onSaveToDrive)}
+        >
+          <ListItemIcon><SaveToDriveIcon fontSize="small" /></ListItemIcon>
+          Save to Google Drive
         </MenuItem>
       )}
       {node &&
