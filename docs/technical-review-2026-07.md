@@ -628,7 +628,7 @@ Ranked by Likelihood × Impact at this snapshot.
 | 7 | `preview-layer-switcher` :229 | The hide-labels control **moved** to the global zoom cluster (`canvas-hide-labels`, `894cb3b`) and now persists across mode switches as a session preference; the spec targeted the deleted presentation-chrome id and the retired auto-clear. |
 | 8 | `preview-layer-switcher` :157 | Click timeout from chrome overlay actionability in the bridge-forced preview — fixed with the file's own `dispatchEvent` precedent. |
 
-**Verification:** all six spec files re-run locally against a freshly built lib: **15 / 15 pass** (was 8 failing). Zero production-source changes were needed for any of the eight.
+**Verification:** all six spec files re-run locally against a freshly built lib: **15 / 15 pass** (was 8 failing); the pushed cleanup then went through a full CI round on the PR head — **Playwright green (154 tests), both test-matrix jobs, perf-smoke, CodeQL, title-lint: all pass**. Zero production-source changes were needed for any of the eight.
 
 **The upgraded finding:** §8b framed the components-at-9% coverage inversion as a *risk* mitigated by e2e. §14a converts it to a recorded *incident shape*: product contracts and their e2e specs diverged silently for two weeks — it happened to be the specs that were behind, but nothing guaranteed that direction, and the discovery cost landed at the worst moment (the release gate). **New P1: trigger e2e on `integration` pushes** (~16 min/push buys out the blind window), or consciously accept PR-time-only discovery and say so in workflow.md.
 
@@ -649,7 +649,7 @@ Ranked by Likelihood × Impact at this snapshot.
 - **Scorecard:** Fragility's rule-driven downgrade trigger is removed → **B** stands (marked in [§1a](#1a-health-scorecard)). Other grades unchanged — the e2e episode nets out neutral for Test architecture (specs were wrong, product was right; but the blind window is now its named central risk).
 - **Critical findings:** #1 guarded (title-lint + retitle; settings toggle open for the owner), #2 fixed, #4 fixed. #3 (prettier, 161 files) remains deliberately deferred to immediately post-merge — running it mid-PR would bloat the diff.
 - **Recommendations:** P1-1…P1-4 executed; P2-6 (coverage ratchet) pulled forward and done; P2-8 half-done (runtime edge severed, CI counting step open). **New P1 added: e2e on integration pushes** (§14a).
-- **PR #58 state after cleanup:** retitled, body updated with the audit + cleanup record, all local gates green (unit × 4 packages, tsc × 2, eslint, knip, builds, coverage floors, and the six previously-failing e2e files at 15/15). CI re-verdict pending on push.
+- **PR #58 state after cleanup:** retitled, body updated with the audit + cleanup record, and the full CI round on the cleaned head is **green across every check** — Run Tests (Node 22 + 24, including the new coverage floors and the type-check gate, which needed one ordering fix: it must run *after* the build since the app's tsc resolves the lib's emitted declarations), E2E Playwright (154 tests, was 8-red at PR-open), perf-smoke anti-cheats, CodeQL both languages, Cloudflare Pages deploy, and the new promotion-title-lint. The PR is merge-ready pending the owner's review.
 
 ---
 
