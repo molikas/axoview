@@ -52,6 +52,19 @@ test.describe('Floating Label inline edit (double-click / F2)', () => {
     void app;
     const canvas = new CanvasPOM(page);
     await canvas.placeLabelAt({ x: 400, y: 300 });
+    // Place-and-type (2026-07 cycle): placement opens the inline editor
+    // immediately; Enter commits the seeded text so the chip repaints and the
+    // hit proxy mounts before the double-click-to-edit path under test runs.
+    await page.keyboard.press('Enter');
+    await expect
+      .poll(
+        () =>
+          page.evaluate(
+            () => (window as any).__axoview__.ui.getState().inlineEditLabelId
+          ),
+        { timeout: 3_000 }
+      )
+      .toBeNull();
     const id = await getFirstLabelId(page);
     expect(id).toBeTruthy();
     await clearSelection(page);

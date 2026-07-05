@@ -25,7 +25,10 @@ const view = (page: Page) =>
       nodeId: v.items[0].id,
       nodeSize: v.items[0].labelFontSize ?? 18,
       connId: (v.connectors ?? [])[0].id,
-      connSize: (v.connectors ?? [])[0].nameLabelFontSize ?? 18
+      // Post-decouple (ADR 0032 connector amendment) on-canvas text lives in
+      // labels[]; the nameLabel* fields are inert round-trip legacy and the
+      // stepper writes labels[].fontSize (ADR 0034).
+      connSize: ((v.connectors ?? [])[0].labels ?? [])[0]?.fontSize ?? 18
     };
   });
 
@@ -50,6 +53,53 @@ test.describe('Cross-type label size (mixed selection)', () => {
       .poll(() => getModelConnectorCount(page), { timeout: 5_000 })
       .toBe(1);
     await page.keyboard.press('s');
+
+    // Post-decouple (ADR 0032) a fresh connector has labels: [] and the
+    // cross-type stepper deliberately no-ops on label-less connectors (ADR
+    // 0034 — the legacy nameLabel* fields are inert). Give it an on-canvas
+    // label the user way: F2 on the selected connector adds a midpoint label
+    // and inline-edits it; Enter commits the seeded text.
+    const { connId: freshConnId } = await view(page);
+    await page.evaluate((cid) => {
+      (window as any).__axoview__.ui
+        .getState()
+        .actions.setItemControls({ type: 'CONNECTOR', id: cid });
+    }, freshConnId);
+    // Let ConnectorLabels mount the selected connector's F2 listener, then drop
+    // focus to the body (F2 only inline-edits from the renderer/body — MQA #13;
+    // same choreography as connector-parity.spec).
+    await page.waitForTimeout(300);
+    await page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
+    await page.keyboard.press('F2');
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const ui = (window as any).__axoview__.ui.getState();
+            const views = (window as any).__axoview__.model.getState().views;
+            const v = views.find((x: any) => x.id === ui.view) ?? views[0];
+            return ((v.connectors ?? [])[0]?.labels ?? []).length;
+          }),
+        { timeout: 3_000 }
+      )
+      .toBe(1);
+    // Type real text before committing — an empty just-added label is removed
+    // on commit (empty labels never draw), which would leave the connector
+    // label-less again and turn the stepper back into a no-op.
+    await page.keyboard.type('sized');
+    await page.keyboard.press('Enter');
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const ui = (window as any).__axoview__.ui.getState();
+            const views = (window as any).__axoview__.model.getState().views;
+            const v = views.find((x: any) => x.id === ui.view) ?? views[0];
+            return ((v.connectors ?? [])[0]?.labels ?? []).length;
+          }),
+        { timeout: 3_000 }
+      )
+      .toBe(1);
 
     const before = await view(page);
 

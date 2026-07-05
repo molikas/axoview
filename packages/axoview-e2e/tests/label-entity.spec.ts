@@ -43,6 +43,23 @@ const clearSelection = (page: import('@playwright/test').Page) =>
     (window as any).__axoview__.ui.getState().actions.setItemControls(null)
   );
 
+// Place-and-type (2026-07 cycle): placement opens the Label's inline editor
+// immediately; while editing, LabelsCanvas skips painting it and LabelHitLayer
+// mounts the editor instead of the hit chip. Enter commits the seeded text so
+// the committed-chip assertions below see the at-rest state.
+const commitPlacementEdit = async (page: import('@playwright/test').Page) => {
+  await page.keyboard.press('Enter');
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () => (window as any).__axoview__.ui.getState().inlineEditLabelId
+        ),
+      { timeout: 3_000 }
+    )
+    .toBeNull();
+};
+
 test.describe('Floating Label entity (ADR 0031)', () => {
   test('placement: arming the Label tool + clicking creates exactly one Label', async ({
     page,
@@ -67,6 +84,7 @@ test.describe('Floating Label entity (ADR 0031)', () => {
 
     await canvas.placeLabelAt({ x: 400, y: 300 });
     await expect.poll(() => getViewLabelCount(page), { timeout: 5_000 }).toBe(1);
+    await commitPlacementEdit(page);
 
     // The Label layer is mounted AFTER the node layer in the DOM, so it paints
     // on top (the z-order fix — a label tile placed over a node renders above it).
@@ -107,6 +125,7 @@ test.describe('Floating Label entity (ADR 0031)', () => {
 
     await canvas.placeLabelAt({ x: 400, y: 300 });
     await expect.poll(() => getViewLabelCount(page), { timeout: 5_000 }).toBe(1);
+    await commitPlacementEdit(page);
     const id = await getFirstLabelId(page);
     expect(id).toBeTruthy();
 
