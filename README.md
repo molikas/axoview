@@ -174,7 +174,7 @@ EOF
 docker compose up --build           # first run — takes 3–5 min
 ```
 
-Open **http://localhost** (port 80). No authentication is enabled by default. To require auth, set `AUTH_MODE=shared-token` + `AUTH_SHARED_SECRET` per [docs/deployment.md](docs/deployment.md). Subsequent starts omit `--build`. Diagrams are saved to a `diagrams/` folder in the project directory.
+Open **http://localhost** (port 80). No authentication is enabled by default, which is fine for a single-user machine but means **anyone who can reach the port has full read/write access to your diagrams** — before exposing the instance to any untrusted network, set `AUTH_MODE=shared-token` + `AUTH_SHARED_SECRET` (and, behind a reverse proxy, `PUBLIC_BASE_URL`) per [docs/deployment.md](docs/deployment.md). Subsequent starts omit `--build`. Diagrams are saved to a `diagrams/` folder in the project directory.
 
 To stop: `Ctrl+C`, or `docker compose down` from another terminal.
 

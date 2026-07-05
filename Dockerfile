@@ -29,8 +29,10 @@ RUN npm run build:lib && npm run build:app
 # Use Node with nginx for production
 FROM node:22-alpine
 
-# Install web server packages
-RUN apk add --no-cache nginx openssl
+# Install web server packages. su-exec lets the entrypoint drop the Node backend
+# to the unprivileged `node` user (uid 1000, already present in the base image)
+# after nginx binds :80 as root — see docker-entrypoint.sh (security review 2026-07-05).
+RUN apk add --no-cache nginx openssl su-exec
 
 # Copy backend code + the build-stage node_modules so container boot does NOT need network
 COPY --from=build /app/packages/axoview-backend /app/packages/axoview-backend
