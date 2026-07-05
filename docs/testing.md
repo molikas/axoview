@@ -1,19 +1,19 @@
 # Regression Test Suite Reference
 
-**Last updated:** 2026-06-16 (Pre-T3 hardening — paste O(N), derived spatial index, canvas/drag guards, ADR 0021)
-**Unit / integration totals** (measured 2026-06-14 via per-workspace `npm test`):
+**Last updated:** 2026-07-05 (Labels & text-styling productization — floating Label entity, docked style strip, inline canvas text editing, dual-scope strip formatting, link cards; ADRs 0030–0034)
+**Unit / integration totals** (measured 2026-07-05 via per-workspace `npm test`):
 
 | Workspace | Passing | Suites |
 |---|---|---|
-| `axoview-lib` | 1110 (+1 skipped) | 105 |
+| `axoview-lib` | 1481 (+1 skipped) | 145 |
 | `axoview-app` | 150 | 16 |
 | `axoview-backend` | 101 | 7 |
 | `axoview-worker` | 102 | — |
-| **Total** | **1463 (+1 skipped)** | — |
+| **Total** | **1834 (+1 skipped)** | — |
 
 **Run:** `npm test --workspace=packages/<pkg>` per package, or `npm test --workspaces` for all. The v1.1 wave added the backend (101) + worker (102) server-runtime suites — the only **high**-severity gap the post-v1.0.0 review named — plus the app-side error-UX, startup-timeout, parallelism-contract, file-explorer-delete, share-URL, and backend-routes contract suites. The single skipped test is `leanSave bundledFixtures[0]` (see [known_issues.md](../known_issues.md)).
 
-E2E suite lives at [`packages/axoview-e2e/`](../packages/axoview-e2e/) (Playwright, 62 spec files covering canonical journeys J1–J20 + the v1.1 cross-interaction additions + the Phase 6 presentation/annotation specs + the Phase 6.5 touch/pen specs). Touch specs run under a dedicated `chromium-touch` project (`hasTouch: true`, `testMatch: /touch-.*\.spec\.ts/`) and drive real touch via CDP `Input.dispatchTouchEvent`; the default `chromium` project ignores them. Runs on PRs + master push via [`.github/workflows/e2e-playwright.yml`](../.github/workflows/e2e-playwright.yml). Locally: `npm run test:e2e:ci` from repo root, or `npx playwright test --ui` from the package. The legacy Python/Selenium suite at `e2e-tests/` was deleted 2026-05-23 (audit C.2 I9 + tactical [docs/tactical/e2e-suite-rewrite.md](tactical/e2e-suite-rewrite.md) Session 7).
+E2E suite lives at [`packages/axoview-e2e/`](../packages/axoview-e2e/) (Playwright, 72 spec files covering canonical journeys J1–J20 + the v1.1 cross-interaction additions + the Phase 6 presentation/annotation specs + the Phase 6.5 touch/pen specs + the labels & text-styling productization specs). Touch specs run under a dedicated `chromium-touch` project (`hasTouch: true`, `testMatch: /touch-.*\.spec\.ts/`) and drive real touch via CDP `Input.dispatchTouchEvent`; the default `chromium` project ignores them. Runs on PRs + master push via [`.github/workflows/e2e-playwright.yml`](../.github/workflows/e2e-playwright.yml). Locally: `npm run test:e2e:ci` from repo root, or `npx playwright test --ui` from the package. The legacy Python/Selenium suite at `e2e-tests/` was deleted 2026-05-23 (audit C.2 I9 + tactical [docs/tactical/e2e-suite-rewrite.md](tactical/e2e-suite-rewrite.md) Session 7).
 
 ### v1.1 close-out gates (2026-06-10)
 
@@ -104,9 +104,9 @@ UI bug-fix pass: removed the floating `NodeActionBar` (right-click context menu 
 
 ---
 
-### Integration branch additions (labels/text-styling + UX-sweep, 2026-07-02) — unshipped
+### Labels & text-styling productization (2026-07-05) — ADRs 0030–0034
 
-Shipped on `integration` with [ADRs 0030–0033](adr/) + the 5-persona UX-sweep fixes. Net-new: **9 lib-unit** suites + **12 E2E** specs (plus extensions to schema/reducer/interaction suites). Counts fold into the totals at `/ship`.
+Shipped on `integration` with [ADRs 0030–0034](adr/) + the 5-persona UX-sweep fixes + the RT (rich-text dedupe / inline canvas editing) rounds. The cycle's suites are folded into the totals above. The table below is the durable catalogue; the RT-round rows (inline editing, link cards, rotate/border) land after the initial UX-sweep block.
 
 | Suite | Type | Covers |
 |---|---|---|
@@ -123,9 +123,13 @@ Shipped on `integration` with [ADRs 0030–0033](adr/) + the 5-persona UX-sweep 
 | `connector-selection-clarity.spec.ts` · `canvas-selection-polish.spec.ts` | E2E | connector halo/exact-hit; selection polish (lasso reset, dbl-click label edit) |
 | `rectangle-overlap-select.spec.ts` · `rectangle-zorder-menu.spec.ts` | E2E | overlapping-rectangle top-most select; rectangle z-order via context menu |
 | `presenter-hover-notes.spec.ts` | E2E | view-mode hover popover shows only when the node has notes |
+| `utils/__tests__/foldTextBoxStyleFlags.test.ts` · `richTextTransform.test.ts` · `quillListAutofill.test.ts` · `quillLinkShortcut.test.ts` · `isoMath.richtext.test.ts` | lib unit | inline canvas text editing ([ADR 0034](adr/0034-inline-canvas-text-editing-and-dual-scope-strip-formatting.md)) — legacy `is*` flag fold into content, whole-content/range B-I-U-S + align transforms, markdown list autofill, `normalizeWebLinkUrl`/`expandToWord` link helpers, line-spacing/greedy-wrap geometry |
+| `schemas/__tests__/textBox.test.ts` (extended) | lib unit | **S1-brick guard:** the ADR 0034 text-styling fields (`lineHeight`/`width`/`height`/`border*`/`verticalAlign`/`orientation`) round-trip, and the large unbounded values the strip can write MUST parse — a re-introduced cap fails the test (the connector-label 24→40 brick lesson) |
+| `components/TransformControlsManager/__tests__/TransformControlsManager.dragChrome.test.tsx` | lib unit | **RECT-1:** selection bounds/anchors render nothing while `mode==='DRAG_ITEMS'` (every item type) and reappear at rest |
+| `textbox-text-edit-move.spec.ts` · `element-link-card.spec.ts` · `rotate-border.spec.ts` · `toolbar-overflow.spec.ts` | E2E | inline text edit (commit/cancel/empty-box lifecycle/resize/paste/align/link card), Ctrl+K link cards for all label types, rotate handle + text-box border, toolbar style-slot overflow |
 
-> **Placement-coverage (F2):** `TextBox.ts`/`Label.ts` mode arm-vs-place gating is now unit-covered (`interaction/__tests__/{TextBox,Label}.test.ts`, 2026-07-02). Still open: the placement mode-hint pill + mouse ghost, and right-click-cancel for TEXTBOX/LABEL/PLACE_ICON. See the productization plan's F2 slice.
-> **Known red (2026-07-02):** `multi-select-drag-lasso.spec.ts › one marquee over a rectangle AND a textbox selects both` — see [known_issues.md](../known_issues.md).
+> **Placement-coverage (F2):** `TextBox.ts`/`Label.ts` mode arm-vs-place gating is unit-covered (`interaction/__tests__/{TextBox,Label}.test.ts`), and **right-click-cancel for TEXTBOX/LABEL/PLACE_ICON is now covered** (`usePanHandlers.test.ts`). Still open: the placement mode-hint pill + mouse-ghost render tests (pure-view; best covered by the ADR 0028 UX journey pass).
+> **Resolved (2026-07-02):** the previously-red `multi-select-drag-lasso.spec.ts` mixed-marquee case is now green — the test built its marquee from a screen-space bbox that iso-inverted to a thin diagonal band and dropped the rectangle; rebuilt tile-first (the product Lasso code was sound).
 
 ---
 
@@ -612,6 +616,12 @@ The highest-regression-risk paths still without a real-module regression test:
 | High | `useScene.deleteSelectedItems` | Cascade across mixed item types in one transaction. |
 | High | `useScene.pasteItems` | Requires all 3 Providers + real model data; transaction atomicity. |
 | Medium | `CURSOR → DRAG_ITEMS` / `CURSOR → LASSO` transitions | mousemove-while-mousedown paths — real-module tests missing |
+| Medium | Image-export label legibility (B2) at fit-to-view zoom | Regressed once (`readableLabels` prop dropped); the export "Show labels" checkbox is tested, the low-zoom label *render* is not — the same regression would pass. e2e. |
+| Medium | Connector Details "Add label" — no canvas-editor fall-through | The capture-phase click fall-through (`c98a1be`) deletes the just-added label; no test drives the panel "Add label" path. e2e. |
+| Medium | "Add note" opens Notes for rectangle / textbox / label | `panelParity` covers node+connector; the three types that were actually broken aren't driven via the context menu. e2e. |
+| Low | Text-color dual-scope + no-color border picker (`absentIsNoColor`) | Strip-only integration behaviors: the whole-content vs range color scope, and the No-color-swatch conflation on an absent (derived) rectangle border, are unasserted. e2e. |
+
+> **Productization regression-coverage note (2026-07-05):** a full `master..integration` fix-commit audit confirmed the cycle's regressions are largely covered; the two highest-risk uncovered gaps (RECT-1 drag-chrome, the text-box schema S1-brick class) were closed with the unit suites above. The four rows just added are the remaining **e2e-only** gaps — catalogued (not silently dropped) with the exact spec + assertion so they can be closed as a fast follow.
 
 The full standing-gap register (with risk/complexity) is in [known_issues.md](../known_issues.md) and [technical-review-2026-06.md §11](technical-review-2026-06.md#11-open-known-issues); the architectural framing is in [architecture.md §5](architecture.md#5-tests-gaps--quality).
 
