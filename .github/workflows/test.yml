@@ -30,6 +30,13 @@ jobs:
       - name: Lint
         run: npx eslint .
 
+      # Strict type-check (lib + app tsc --noEmit via workspace lint scripts).
+      # Added 2026-07-05: both the v1.1 perf-fixture drift and the app's four
+      # latent type errors sat ungated because CI ran only eslint — see
+      # technical-review-2026-07 §8c.
+      - name: Type check
+        run: npm run lint
+
       - name: Run tests with coverage
         run: npm test -- --coverage
         env:

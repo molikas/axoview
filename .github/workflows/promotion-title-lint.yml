@@ -1,0 +1,36 @@
+# Promotion-PR title lint — the release trigger's seatbelt.
+#
+# Every integration → master promotion in repo history has been SQUASH-merged,
+# and semantic-release only ever sees the squash title. A non-conventional
+# title silently cuts NO release (the #49/#50 changelog-backfill incident; #57
+# unreleased). The durable rule: a PR from `integration` into `master` must
+# carry a conventional-commit title so the release fires no matter which merge
+# button is pressed. Merge commits remain the preferred method (/ship skill) —
+# a conventional title is harmless there and load-bearing under squash.
+# Context: docs/technical-review-2026-07.md §5b.
+
+name: Promotion title lint
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+    branches: ["master"]
+
+jobs:
+  title-lint:
+    name: Conventional title on integration → master
+    if: github.head_ref == 'integration'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check PR title is a conventional commit
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "PR title: ${PR_TITLE}"
+          if echo "${PR_TITLE}" | grep -qE '^(feat|fix|perf|refactor|revert|docs|test|chore|build|ci|style)(\([^)]+\))?!?: .+'; then
+            echo "OK — conventional title; semantic-release will analyze it correctly even under a squash merge."
+          else
+            echo "::error::Promotion PR title is not a conventional commit. If this PR is squash-merged as-is, semantic-release cuts NO release (see docs/technical-review-2026-07.md §5b). Retitle (e.g. 'feat(scope): …') or merge with a merge commit."
+            exit 1
+          fi
