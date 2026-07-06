@@ -1,6 +1,6 @@
 import { useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Box, Button, Skeleton, Tooltip, Typography } from '@mui/material';
+import { Box, Button, CircularProgress, Skeleton, Tooltip, Typography } from '@mui/material';
 import {
   FolderOutlined as FolderIcon,
   FolderOpenOutlined as FolderOpenIcon,
@@ -29,6 +29,8 @@ interface Props extends NodeRendererProps<FileNode> {
   onMoveAll?: () => void;
   /** True in the self-host server deployment — relabels the local place. */
   serverPlace?: boolean;
+  /** Diagrams mid-move to Drive: row shows a spinner, dims, and goes inert. */
+  movingIds?: Set<string>;
 }
 
 function countDiagrams(nodes: FileNode[] | undefined): number {
@@ -51,12 +53,16 @@ export function FileTreeNode({
   onStateAction,
   moveAllVisible,
   onMoveAll,
-  serverPlace
+  serverPlace,
+  movingIds
 }: Props) {
   const { t } = useTranslation('app');
   const isFolder = node.data.type === 'folder';
   const isSelected = node.data.id === selectedId;
   const isDirty = node.data.isDirty;
+  // Mid-move to Drive: honest indeterminate feedback (§6.4 — no fake percent)
+  // right where the user acted; the row is inert until the move settles.
+  const isMoving = node.data.type === 'diagram' && !!movingIds?.has(node.data.id);
 
   // Distinguish single-click (open) from double-click (rename) with a short timer.
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -278,7 +284,8 @@ export function FileTreeNode({
         '&:hover': { bgcolor: 'action.hover' },
         userSelect: 'none',
         overflow: 'hidden',
-        width: '100%'
+        width: '100%',
+        opacity: isMoving ? 0.55 : 1
       }}
     >
       {/* Expand/collapse chevron for folders */}
@@ -292,11 +299,15 @@ export function FileTreeNode({
         <Box sx={{ width: 16, flexShrink: 0 }} />
       )}
 
-      {/* Icon */}
+      {/* Icon (a spinner while the diagram is mid-move to Drive) */}
       <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0, color: isFolder ? 'primary.main' : 'text.secondary' }}>
-        {isFolder
-          ? <FolderIconComponent sx={{ fontSize: 16 }} />
-          : <DiagramIcon sx={{ fontSize: 16 }} />}
+        {isFolder ? (
+          <FolderIconComponent sx={{ fontSize: 16 }} />
+        ) : isMoving ? (
+          <CircularProgress size={13} thickness={5} sx={{ color: 'text.secondary' }} />
+        ) : (
+          <DiagramIcon sx={{ fontSize: 16 }} />
+        )}
       </Box>
 
       {/* Name or inline rename input — never rendered together to avoid flex gap */}
@@ -380,7 +391,8 @@ export function FileTreeNode({
       style={style}
       onClick={handleClick}
       onContextMenu={(e) => onContextMenu(e, node.data)}
-      sx={{ display: 'flex', alignItems: 'center' }}
+      // Inert while mid-move: no open/rename/drag/menu until the move settles.
+      sx={{ display: 'flex', alignItems: 'center', pointerEvents: isMoving ? 'none' : 'auto' }}
     >
       {isPending ? (
         label

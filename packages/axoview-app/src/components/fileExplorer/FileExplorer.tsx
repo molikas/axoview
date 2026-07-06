@@ -176,6 +176,10 @@ export function FileExplorer() {
     placeId?: PlaceId;
   } | null>(null);
   const [showImport, setShowImport] = useState(false);
+  // Diagrams mid-move to Drive — drives the row spinner + the panel's thin
+  // progress bar (the app's honest-progress vocabulary: indeterminate, since
+  // a single move is sequential network calls with no real percent signal).
+  const [movingIds, setMovingIds] = useState<Set<string>>(new Set());
 
   // ---------------------------------------------------------------------------
   // Places model: one useFileTree instance per place, composed into one tree.
@@ -673,10 +677,12 @@ export function FileExplorer() {
   const handleMoveToDrive = useCallback(
     async (node: FileNode, explicitTargetFolderId?: string | null) => {
       if (node.type !== 'diagram' || !node.diagramMeta) return;
+      if (movingIds.has(node.id)) return; // already in flight
       const drive = providerFor('google-drive');
       const local = providerFor('local');
       if (!drive || !local) return;
       const wasOpen = currentDiagram?.id === node.id;
+      setMovingIds((prev) => new Set(prev).add(node.id));
       try {
         // Flush in-memory session edits so the moved content is current.
         await saveAllDirty();
@@ -713,10 +719,15 @@ export function FileExplorer() {
           });
         }
       } finally {
+        setMovingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(node.id);
+          return next;
+        });
         void refreshAll();
       }
     },
-    [providerFor, currentDiagram, saveAllDirty, sessionTree.folders, notifyDiagramDeletedFromTree, openDiagramById, refreshAll, t]
+    [providerFor, movingIds, currentDiagram, saveAllDirty, sessionTree.folders, notifyDiagramDeletedFromTree, openDiagramById, refreshAll, t]
   );
 
   // ---------------------------------------------------------------------------
@@ -978,9 +989,9 @@ export function FileExplorer() {
         onExportProject={() => setExportTarget({ scope: 'project' })}
       />
       <Divider />
-      {/* Refresh-in-progress: stale rows stay, a thin bar signals the fetch. */}
+      {/* Refresh/move in progress: stale rows stay, a thin bar signals work. */}
       <Box sx={{ height: 2, flexShrink: 0 }}>
-        {anyRefreshing && <LinearProgress sx={{ height: 2 }} />}
+        {(anyRefreshing || movingIds.size > 0) && <LinearProgress sx={{ height: 2 }} />}
       </Box>
 
       {!dualMode && sessionTree.error && (
@@ -1052,6 +1063,7 @@ export function FileExplorer() {
               serverPlace={serverStorageAvailable}
               moveAllVisible={driveReady && sessionDiagramCount > 0}
               onMoveAll={() => window.dispatchEvent(new CustomEvent('axoview-open-migrate'))}
+              movingIds={movingIds}
             />
           )}
         </Tree>
@@ -1080,7 +1092,8 @@ export function FileExplorer() {
             canMoveToDrive={
               driveReady &&
               !!contextMenuNode &&
-              placeOf(contextMenuNode) === 'local'
+              placeOf(contextMenuNode) === 'local' &&
+              !movingIds.has(contextMenuNode.id)
             }
             onNewDiagram={() => handleNewFromMenu('diagram')}
             onNewFolder={() => handleNewFromMenu('folder')}
