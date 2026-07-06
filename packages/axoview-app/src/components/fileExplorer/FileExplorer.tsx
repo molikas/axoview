@@ -141,6 +141,7 @@ export function FileExplorer() {
   const authStatus = useAuthStore((s) => s.status);
   const authUser = useAuthStore((s) => s.user);
   const signIn = useAuthStore((s) => s.signIn);
+  const driveScopeGranted = useAuthStore((s) => s.driveScopeGranted);
   const {
     currentDiagram,
     openDiagramById,
@@ -296,6 +297,11 @@ export function FileExplorer() {
         authStatus === 'RECONNECTING' || authStatus === 'AUTHENTICATING'
           ? skeletons('google-drive')
           : [stateRow('google-drive', authUser ? 'reconnect' : 'signin')];
+    } else if (driveScopeGranted === false) {
+      // Signed in, but the consent screen's Drive checkbox was left unchecked
+      // (granular consent) — every Drive call 403s until re-granted. Trumps
+      // the loading/error rows: the retry that fixes this is a re-consent.
+      driveChildren = [stateRow('google-drive', 'scope')];
     } else if (driveTree.status === 'loading') {
       driveChildren = skeletons('google-drive');
     } else if (driveTree.status === 'error') {
@@ -346,6 +352,7 @@ export function FileExplorer() {
     dualMode,
     driveUsable,
     driveRootMissing,
+    driveScopeGranted,
     authStatus,
     authUser,
     driveTree.status,
@@ -943,10 +950,13 @@ export function FileExplorer() {
       switch (node.stateKind) {
         case 'signin':
         case 'reconnect':
+        // 'scope': a partial grant (Drive checkbox unchecked) — the fix is a
+        // re-consent, and include_granted_scopes keeps the identity grant.
+        case 'scope':
           void signIn();
           break;
         case 'error':
-          void driveTree.refresh();
+          void treeFor(node.placeId ?? 'google-drive').refresh();
           break;
         case 'setup':
           window.dispatchEvent(new CustomEvent('axoview-drive-setup'));
@@ -955,7 +965,7 @@ export function FileExplorer() {
           break;
       }
     },
-    [signIn, driveTree.refresh] // eslint-disable-line react-hooks/exhaustive-deps -- stable per-hook callback
+    [signIn, treeFor]
   );
 
   const sessionDiagramCount = sessionTree.diagrams.filter((d) => !d.deletedAt).length;

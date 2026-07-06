@@ -119,6 +119,8 @@
         "driveSetupRow": "Google-Drive-Einrichtung abschließen…",
         "driveEmpty": "Noch keine Diagramme in Drive.",
         "driveError": "Google Drive konnte nicht geladen werden.",
+        "driveScopeMissing": "Google Drive-Zugriff wurde nicht gewährt.",
+        "grantAccess": "Zugriff gewähren",
         "retry": "Erneut versuchen"
     },
     "migrate": {

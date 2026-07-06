@@ -158,6 +158,8 @@
         "driveSetupRow": "Dokończ konfigurację Google Drive…",
         "driveEmpty": "Brak diagramów w Drive.",
         "driveError": "Nie udało się wczytać Google Drive.",
+        "driveScopeMissing": "Nie przyznano dostępu do Dysku Google.",
+        "grantAccess": "Przyznaj dostęp",
         "retry": "Ponów"
     },
     "migrate": {

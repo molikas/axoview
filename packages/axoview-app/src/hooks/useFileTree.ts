@@ -31,7 +31,7 @@ export interface FileNode {
   /** Which storage place this node belongs to (stamped during composition). */
   placeId?: PlaceId;
   /** placeState rows: which state to render. */
-  stateKind?: 'loading' | 'signin' | 'reconnect' | 'error' | 'empty' | 'setup';
+  stateKind?: 'loading' | 'signin' | 'reconnect' | 'error' | 'empty' | 'setup' | 'scope';
 }
 
 // ---------------------------------------------------------------------------

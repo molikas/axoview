@@ -158,6 +158,8 @@
         "driveSetupRow": "Google Drive kurulumunu tamamla…",
         "driveEmpty": "Drive'da henüz diyagram yok.",
         "driveError": "Google Drive yüklenemedi.",
+        "driveScopeMissing": "Google Drive erişimi verilmedi.",
+        "grantAccess": "Erişim ver",
         "retry": "Yeniden dene"
     },
     "migrate": {

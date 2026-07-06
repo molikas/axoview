@@ -158,6 +158,8 @@
         "driveSetupRow": "完成 Google Drive 设置…",
         "driveEmpty": "Drive 中还没有图表。",
         "driveError": "无法加载 Google Drive。",
+        "driveScopeMissing": "未授予 Google 云端硬盘访问权限。",
+        "grantAccess": "授予权限",
         "retry": "重试"
     },
     "migrate": {

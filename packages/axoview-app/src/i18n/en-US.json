@@ -199,6 +199,8 @@
         "driveSetupRow": "Finish Google Drive setup…",
         "driveEmpty": "No diagrams in Drive yet.",
         "driveError": "Google Drive couldn't be loaded.",
+        "driveScopeMissing": "Google Drive access wasn't granted.",
+        "grantAccess": "Grant access",
         "retry": "Retry"
     },
     "migrate": {

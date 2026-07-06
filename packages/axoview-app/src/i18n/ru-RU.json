@@ -158,6 +158,8 @@
         "driveSetupRow": "Завершить настройку Google Drive…",
         "driveEmpty": "В Drive пока нет диаграмм.",
         "driveError": "Не удалось загрузить Google Drive.",
+        "driveScopeMissing": "Доступ к Google Диску не был предоставлен.",
+        "grantAccess": "Предоставить доступ",
         "retry": "Повторить"
     },
     "migrate": {

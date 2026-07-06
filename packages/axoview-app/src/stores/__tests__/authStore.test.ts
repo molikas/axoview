@@ -7,6 +7,7 @@ function reset() {
     user: null,
     accessToken: null,
     expiresAt: null,
+    driveScopeGranted: null,
     _requestToken: null,
     _revoke: null,
     _waiters: []
@@ -40,6 +41,40 @@ describe('authStore', () => {
     await p;
     expect(useAuthStore.getState().status).toBe('AUTHENTICATED');
     expect(useAuthStore.getState().accessToken).toBe('tok');
+  });
+
+  test('driveScopeGranted tracks the ACTUALLY granted scopes (granular consent)', async () => {
+    useAuthStore.getState()._setBridge({ requestToken: jest.fn(), revoke: jest.fn() });
+    // Granted with the Drive checkbox checked.
+    let p = useAuthStore.getState().signIn();
+    useAuthStore.getState()._onToken({
+      access_token: 'tok',
+      expires_in: 3600,
+      scope: 'openid email profile https://www.googleapis.com/auth/drive.file'
+    });
+    await p;
+    expect(useAuthStore.getState().driveScopeGranted).toBe(true);
+    // signOut clears the flag along with the session.
+    useAuthStore.getState().signOut();
+    expect(useAuthStore.getState().driveScopeGranted).toBeNull();
+    // Granted with the Drive checkbox left UNCHECKED — identity only.
+    p = useAuthStore.getState().signIn();
+    useAuthStore.getState()._onToken({
+      access_token: 'tok2',
+      expires_in: 3600,
+      scope: 'openid email profile'
+    });
+    await p;
+    expect(useAuthStore.getState().status).toBe('AUTHENTICATED');
+    expect(useAuthStore.getState().driveScopeGranted).toBe(false);
+  });
+
+  test('a scope-less token response (older GIS shape) does not false-alarm', async () => {
+    useAuthStore.getState()._setBridge({ requestToken: jest.fn(), revoke: jest.fn() });
+    const p = useAuthStore.getState().signIn();
+    useAuthStore.getState()._onToken({ access_token: 'tok', expires_in: 3600 });
+    await p;
+    expect(useAuthStore.getState().driveScopeGranted).toBe(true);
   });
 
   test('signIn() denial returns to UNAUTHENTICATED and pushes an info notice', async () => {

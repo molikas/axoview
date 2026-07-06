@@ -124,6 +124,15 @@ Owner UX review (2026-07-06) of the shipped Google sign-in + Drive storage surfa
 - [x] gesture-armed reconnect retry (owner pick after console verdict `popup_failed_to_open`):
       boot attempt popup-blocked → one-shot retry on the next gesture (user activation lets
       the popup open/self-close); ADR 0035 §3 amendment 2
+- [x] Drive 403 diagnosability (owner live-test round 3 — Drive lists 403 after a
+      sign-out/sign-in cycle; Retry re-fails identically): error row now shows Google's own
+      failure message inline (was tooltip-only); `_onToken` records the ACTUALLY granted
+      scopes (granular consent lets a user sign in with the Drive checkbox unchecked —
+      identity works, every Drive call 403s) → dedicated "Google Drive access wasn't
+      granted / Grant access" row (stateKind 'scope', re-consent via signIn; 2 keys × 13
+      locales); error-row Retry routed to the errored place's tree (was always Drive's).
+      CSP blocked-eval DevTools issue audited: no functional eval in the bundle → filed
+      in known_issues as benign noise
 - **Catalogued — definitive reconnect fix (pre-master slice):** worker auth-code flow with
   the refresh token in an HttpOnly encrypted cookie (`GOOGLE_CLIENT_SECRET` wrangler secret,
   `/api/google/oauth/callback` + `/api/google/token` routes, Express parity per ADR 0009 §5,

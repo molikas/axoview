@@ -158,6 +158,8 @@
         "driveSetupRow": "Google Drive सेटअप पूरा करें…",
         "driveEmpty": "Drive में अभी कोई डायग्राम नहीं।",
         "driveError": "Google Drive लोड नहीं हो सका।",
+        "driveScopeMissing": "Google Drive की पहुँच नहीं दी गई।",
+        "grantAccess": "पहुँच दें",
         "retry": "फिर से कोशिश करें"
     },
     "migrate": {

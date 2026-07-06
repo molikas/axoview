@@ -158,6 +158,8 @@
         "driveSetupRow": "Terminar la configuración de Google Drive…",
         "driveEmpty": "Aún no hay diagramas en Drive.",
         "driveError": "No se pudo cargar Google Drive.",
+        "driveScopeMissing": "No se concedió acceso a Google Drive.",
+        "grantAccess": "Conceder acceso",
         "retry": "Reintentar"
     },
     "migrate": {

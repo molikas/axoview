@@ -22,7 +22,7 @@ interface Props extends NodeRendererProps<FileNode> {
   selectedId?: string | null;
   onContextMenu: (event: React.MouseEvent, node: FileNode) => void;
   onOpen: (node: FileNode) => void;
-  /** Click handler for actionable placeState rows (signin/reconnect/error/setup). */
+  /** Click handler for actionable placeState rows (signin/reconnect/error/setup/scope). */
   onStateAction: (node: FileNode) => void;
   /** Session place row: show the "Move all to Drive" affordance. */
   moveAllVisible?: boolean;
@@ -233,13 +233,38 @@ export function FileTreeNode({
         </Box>
       );
     }
+    if (kind === 'scope') {
+      // Partial grant: signed in, but the consent screen's Drive checkbox was
+      // left unchecked. Distinct from 'error' — Retry can't fix it; only a
+      // re-consent can.
+      return (
+        <Box style={style} sx={indentSx} data-axoview-id="file-explorer-drive-scope">
+          <ErrorIcon sx={{ fontSize: 14, color: 'warning.main', flexShrink: 0 }} />
+          <Typography variant="caption" sx={{ color: 'text.secondary', flex: 1 }} noWrap>
+            {t('places.driveScopeMissing', "Google Drive access wasn't granted.")}
+          </Typography>
+          <Button
+            size="small"
+            variant="text"
+            onClick={() => onStateAction(node.data)}
+            sx={{ minWidth: 0, px: 0.5, py: 0, textTransform: 'none', lineHeight: 1.5, flexShrink: 0 }}
+          >
+            {t('places.grantAccess', 'Grant access')}
+          </Button>
+        </Box>
+      );
+    }
     if (kind === 'error') {
+      // node.name carries the backend's own failure message (e.g. Google's
+      // "Request had insufficient authentication scopes.") — show it inline
+      // after the generic headline so the cause is visible without hovering.
       return (
         <Box style={style} sx={indentSx} data-axoview-id="file-explorer-drive-error">
           <ErrorIcon sx={{ fontSize: 14, color: 'error.main', flexShrink: 0 }} />
           <Tooltip title={node.data.name || ''} placement="bottom-start">
             <Typography variant="caption" sx={{ color: 'error.main', flex: 1 }} noWrap>
               {t('places.driveError', "Google Drive couldn't be loaded.")}
+              {node.data.name ? ` — ${node.data.name}` : ''}
             </Typography>
           </Tooltip>
           <Button

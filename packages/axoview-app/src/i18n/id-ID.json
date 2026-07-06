@@ -119,6 +119,8 @@
         "driveSetupRow": "Selesaikan penyiapan Google Drive…",
         "driveEmpty": "Belum ada diagram di Drive.",
         "driveError": "Google Drive tidak dapat dimuat.",
+        "driveScopeMissing": "Akses Google Drive tidak diberikan.",
+        "grantAccess": "Berikan akses",
         "retry": "Coba lagi"
     },
     "migrate": {

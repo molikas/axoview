@@ -35,6 +35,8 @@ export interface AuthUser {
 export interface TokenResponse {
   access_token: string;
   expires_in?: number;
+  /** Space-delimited scopes the user ACTUALLY granted (granular consent). */
+  scope?: string;
 }
 
 type TokenRequest = (opts?: { prompt?: string; hint?: string }) => void;
@@ -50,6 +52,12 @@ interface AuthState {
   user: AuthUser | null;
   accessToken: string | null;
   expiresAt: number | null; // epoch ms
+  /**
+   * Whether the CURRENT token carries the drive.file scope. Google's granular
+   * consent lets a user sign in while leaving the Drive checkbox unchecked —
+   * identity works but every Drive call 403s. null = no token yet / unknown.
+   */
+  driveScopeGranted: boolean | null;
 
   // Bridge to the GIS token client, registered by AuthProvider. Null until the
   // provider mounts (or when no client id is configured) — every entry point
@@ -86,6 +94,7 @@ interface AuthState {
 }
 
 const REFRESH_MARGIN_MS = 5 * 60 * 1000;
+const DRIVE_FILE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 
 // Profile hint — identity only, NEVER credentials. Presence means "this
 // browser signed in before"; it drives the boot reconnect + avatar rendering.
@@ -145,6 +154,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: loadProfileHint(),
   accessToken: null,
   expiresAt: null,
+  driveScopeGranted: null,
   _requestToken: null,
   _revoke: null,
   _waiters: [],
@@ -191,6 +201,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       user: null,
       accessToken: null,
       expiresAt: null,
+      driveScopeGranted: null,
       _waiters: []
     });
     // Settle any in-flight signIn/getValidToken promise so its awaiter (e.g. a
@@ -261,11 +272,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (s !== 'AUTHENTICATING' && s !== 'RECONNECTING' && s !== 'REFRESHING') return;
     const freshGrant = s === 'AUTHENTICATING' || s === 'RECONNECTING';
     const expiresAt = Date.now() + (resp.expires_in ?? 3600) * 1000;
+    // Granular consent: the response's scope list is what the user really
+    // granted, which may be less than what we asked for. No scope field
+    // (older GIS shapes, tests) → assume granted rather than false-alarm.
+    const driveScopeGranted = resp.scope ? resp.scope.split(' ').includes(DRIVE_FILE_SCOPE) : true;
+    if (!driveScopeGranted) {
+      console.debug('[auth] token granted WITHOUT drive.file scope:', resp.scope);
+    }
     const waiters = get()._waiters;
     set({
       status: 'AUTHENTICATED',
       accessToken: resp.access_token,
       expiresAt,
+      driveScopeGranted,
       _waiters: []
     });
     waiters.forEach((w) => w.resolve());

@@ -158,6 +158,8 @@
         "driveSetupRow": "Google Drive সেটআপ শেষ করুন…",
         "driveEmpty": "Drive-এ এখনো কোনো ডায়াগ্রাম নেই।",
         "driveError": "Google Drive লোড করা যায়নি।",
+        "driveScopeMissing": "Google Drive-এ অ্যাক্সেস দেওয়া হয়নি।",
+        "grantAccess": "অ্যাক্সেস দিন",
         "retry": "আবার চেষ্টা করুন"
     },
     "migrate": {
