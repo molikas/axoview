@@ -1,19 +1,31 @@
 # Regression Test Suite Reference
 
-**Last updated:** 2026-07-05 (Labels & text-styling productization — floating Label entity, docked style strip, inline canvas text editing, dual-scope strip formatting, link cards; ADRs 0030–0034)
-**Unit / integration totals** (measured 2026-07-05 via per-workspace `npm test`):
+**Last updated:** 2026-07-06 (Google Drive storage + places model — GIS auth, Drive provider, one-tree/two-places explorer, move-to-drive; ADRs 0035–0037)
+**Unit / integration totals** (measured 2026-07-06 via per-workspace `npm test`):
 
 | Workspace | Passing | Suites |
 |---|---|---|
-| `axoview-lib` | 1481 (+1 skipped) | 145 |
-| `axoview-app` | 150 | 16 |
+| `axoview-lib` | 1483 (+1 skipped) | 145 |
+| `axoview-app` | 190 | 19 |
 | `axoview-backend` | 101 | 7 |
-| `axoview-worker` | 102 | — |
-| **Total** | **1834 (+1 skipped)** | — |
+| `axoview-worker` | 105 | — |
+| **Total** | **1879 (+1 skipped)** | — |
 
 **Run:** `npm test --workspace=packages/<pkg>` per package, or `npm test --workspaces` for all. The v1.1 wave added the backend (101) + worker (102) server-runtime suites — the only **high**-severity gap the post-v1.0.0 review named — plus the app-side error-UX, startup-timeout, parallelism-contract, file-explorer-delete, share-URL, and backend-routes contract suites. The single skipped test is `leanSave bundledFixtures[0]` (see [known_issues.md](../known_issues.md)).
 
 E2E suite lives at [`packages/axoview-e2e/`](../packages/axoview-e2e/) (Playwright, 72 spec files covering canonical journeys J1–J20 + the v1.1 cross-interaction additions + the Phase 6 presentation/annotation specs + the Phase 6.5 touch/pen specs + the labels & text-styling productization specs). Touch specs run under a dedicated `chromium-touch` project (`hasTouch: true`, `testMatch: /touch-.*\.spec\.ts/`) and drive real touch via CDP `Input.dispatchTouchEvent`; the default `chromium` project ignores them. Runs on PRs + master push via [`.github/workflows/e2e-playwright.yml`](../.github/workflows/e2e-playwright.yml). Locally: `npm run test:e2e:ci` from repo root, or `npx playwright test --ui` from the package. The legacy Python/Selenium suite at `e2e-tests/` was deleted 2026-05-23 (audit C.2 I9 + tactical [docs/tactical/e2e-suite-rewrite.md](tactical/e2e-suite-rewrite.md) Session 7).
+
+### Phase 3A/3B additions — Google Drive storage & places model (2026-07-05 → 2026-07-06)
+
+New/extended suites shipped with [ADRs 0035–0037](adr/) (app `+40` unit across `+3` suites; worker `+3`; lib `+2`). No Drive E2E — real OAuth can't run headless, so the owner live-test matrix is the UI gate (e2e is PR-only anyway).
+
+| Suite | Type | Covers |
+|---|---|---|
+| `stores/__tests__/authStore.test.ts` | app unit | GIS state machine, `getValidToken()` piggyback, profile-hint persistence, **token-never-persisted `localStorage.setItem` spy**, silent-reconnect quiet failure, `login_hint` on silent requests, granular-consent `driveScopeGranted` tracking |
+| `services/storage/__tests__/GoogleDriveProvider.test.ts` | app unit | Drive API mapping (jest fetch-mock), root discovery/stale-cache recovery, backoff + 403 classification, 401 → SESSION_EXPIRED, trash semantics, lean-save |
+| `services/storage/__tests__/driveTransfer.test.ts` | app unit | move-to-Drive create→verify→delete contract, folder-path recreation with reuse, name-collision `copySuffix`, partial-failure keeps source |
+| `src/__tests__/cfAccessJwt.spec.ts` (extended) | worker unit | RS256 signature-verify happy + invalid-signature paths (catalogued fold-in from PLAN) |
+| `utils/__tests__/sanitizeHtml.test.ts` (extended) | lib unit | hardening round additions (ba0666a) |
 
 ### v1.1 close-out gates (2026-06-10)
 

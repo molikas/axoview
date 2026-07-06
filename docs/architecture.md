@@ -1,6 +1,6 @@
 # Axoview — Architecture Reference
 
-**Last updated:** 2026-07-05 (rev 25 — labels & text-styling productization: docked style strip as the sole styling surface (ADR 0030), floating Label entity (ADR 0031), node name↔label decouple (ADR 0032), inline canvas text editing + dual-scope strip formatting + link cards (ADR 0034))
+**Last updated:** 2026-07-06 (rev 26 — Google identity & Drive storage: GIS token model + remember-me reconnect (ADR 0035), Drive provider (ADR 0036), storage places model — one tree / two places, per-diagram provider routing (ADR 0037); new §2o)
 **Codebase root:** `packages/axoview-lib/src` (library) · `packages/axoview-app/src` (application shell) · `packages/axoview-backend/src` (Express + fs adapter) · `packages/axoview-worker/src` (Hono + Cloudflare Pages Functions)
 
 **Purpose:** This is the **orientation map** — what the codebase contains and where each piece lives, tight enough to read in five minutes before touching a surface. It is deliberately *not* the comprehensive reference: decisions live in ADRs, the deep architectural narrative + file-by-file inventory + KPIs live in the frozen technical review, the test catalogue lives in `testing.md`, and runtime issues live in `known_issues.md`. Each section below points to its deeper source.
@@ -141,8 +141,8 @@ Overlay region/ownership rules are locked in [ADR 0005 — Toolbar & Dock Layout
 
 ### Storage Providers · File Explorer · Cross-Diagram Links
 
-- **Storage**: all ops route through `StorageManager` → active `StorageProvider`. `LocalStorageProvider` (server-backed when `/api/storage/*` reachable, else `sessionStorage`) is the only shipped provider; `GoogleDriveProvider` is a `NotImplementedError` stub (separate branch). Backend folder CRUD + tree-manifest in `axoview-backend/server.js`. Contract: [ADR 0010 — Session Backend Contract](adr/0010-session-backend-contract.md).
-- **File Explorer** (`axoview-app`, not lib): VS Code-style 280 px panel — `FileExplorerLayout`, `FileExplorer` (`react-arborist`), `FileTreeToolbar`, `ContextMenuItems`, `useFileTree`, `EmptyStateScreen`. Inline create/rename via a `__pending__` node; drag-and-drop with name-collision detection.
+- **Storage**: all ops route through `StorageManager` → active `StorageProvider`. Two shipped providers: `LocalStorageProvider` (server-backed when `/api/storage/*` reachable, else `sessionStorage`) and `GoogleDriveProvider` (2026-07-05/06 — see §2o). **Storage is per-diagram ("places model"), not a global mode**: the manager's active provider silently follows the open diagram ([ADR 0037](adr/0037-storage-places-model.md)). Backend folder CRUD + tree-manifest in `axoview-backend/server.js`. Contract: [ADR 0010 — Session Backend Contract](adr/0010-session-backend-contract.md).
+- **File Explorer** (`axoview-app`, not lib): VS Code-style 280 px panel — `FileExplorerLayout`, `FileExplorer` (`react-arborist`), `FileTreeToolbar`, `ContextMenuItems`, `useFileTree`, `EmptyStateScreen`. Inline create/rename via a `__pending__` node; drag-and-drop with name-collision detection. Dual-place mode composes both providers' trees as synthetic place-root sections in ONE arborist tree, with per-section state rows (skeletons / sign-in / reconnect / error / setup / scope / empty) and cross-place DnD (session → Drive).
 - **Cross-diagram links**: a node stores a reference to another workspace diagram (`linkedDiagrams` via `AxoviewProps`). In EXPLORABLE_READONLY, clicking opens the target in a new tab; a blue badge signals the link.
 
 ### Editor Modes
@@ -300,6 +300,15 @@ Three load-bearing ADRs lock the persistence contract — read them when touchin
 | [0003](adr/0003-session-storage-lean-icon-save.md) | Strip default-catalog icons on every write; preserve custom + overrides; `requiredPacks` companion field |
 
 The contract is **symmetric**: 0003 strips at write time, 0002 rehydrates at read time. Either side broken in isolation surfaces as "side dock empties after load" or "every diagram gets fatter on every save"; both directions are pinned by round-trip unit tests. `requiredPacks` is **derived-but-preserved** — re-derived only when every `item.icon` resolves against `model.icons`, otherwise preserved verbatim so a lean round-trip (autosave-before-packs-load, import-then-save) doesn't blow it away.
+
+### 2o. Google Identity & Drive Storage (places model)
+
+Shipped 2026-07-05/06 — three ADRs lock it: [0035](adr/0035-google-identity-and-drive-authorization.md) (GIS implicit-flow token model), [0036](adr/0036-google-drive-storage-provider.md) (Drive provider), [0037](adr/0037-storage-places-model.md) (places model, supersedes 0036 §6). Load-bearing invariants:
+
+- **Token custody**: the access token lives in `authStore` (zustand, never persisted); `getValidToken()` is the sole accessor and piggybacks on any in-flight GIS request. A `localStorage.setItem` spy in the unit suite enforces token-never-persisted. The **profile hint** (`axoview-google-profile`) persists identity ONLY — it pre-renders the avatar and arms the boot silent reconnect (`RECONNECTING` state; popup-blocked boots arm a one-shot gesture retry). `driveScopeGranted` tracks granular consent — a user can grant identity without `drive.file` (every Drive call then 403s; the explorer shows a "Grant access" row, not a dead retry).
+- **Places, not modes**: `activeProviderId` means "the open diagram's place". `openDiagramById`/`handleCreateBlankDiagram` take a `placeId`; every `remoteStorageActive` branch keys off the open diagram with no per-branch routing. Sign-out flushes/closes the Drive-side diagram BEFORE revoking (`handleGoogleSignedOut(afterClose)`).
+- **Drive mapping**: app files carry `appProperties.axoview`; the root folder carries `axoviewRoot` (root travels with the account, localStorage id is only a boot cache). Read ops use `resolveRoot()` (never creates — a tree load can't race the first-connect dialog into duplicate roots); writes use `ensureRoot()`. Delete = Drive trash. Moves between places are create→verify→delete-source (`driveTransfer`).
+- **Coordination is event-driven** across mounts: `'axoview-drive-root-ready'` (setup gate → migration dialog), `'axoview-open-migrate'`, `'axoview-drive-setup'`.
 
 ---
 
