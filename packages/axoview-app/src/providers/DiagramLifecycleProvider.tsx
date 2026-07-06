@@ -23,6 +23,7 @@ import {
   IconPackName
 } from '../services/iconPackManager';
 import { useAppStorage } from './AppStorageContext';
+import { useAuthStore } from '../stores/authStore';
 import { useAutoSave, SaveStatus } from '../hooks/useAutoSave';
 import { DiagramManager } from '../components/DiagramManager';
 import { SaveDialog } from '../components/SaveDialog';
@@ -124,15 +125,26 @@ interface DiagramLifecycleContextValue {
   saveAllDirty: () => Promise<void>;
   handleCreateBlankDiagram: (
     folderId: string | null,
-    focusAfter?: 'fileExplorer' | 'elements'
+    focusAfter?: 'fileExplorer' | 'elements',
+    placeId?: string
   ) => Promise<void>;
   checkUnsavedBeforeNavigate: (onProceed: () => void) => void;
-  /** Switch the active storage backend (local ⇄ google-drive) + reset canvas. */
-  switchStorageProvider: (id: string) => void;
+  /**
+   * Google sign-out follow-up: when the open diagram lives in Drive, flush,
+   * close it and fall back to the local place, then run `afterClose` (the
+   * actual token revoke). No-op pass-through when nothing Drive-side is open.
+   * (Replaces the removed user-facing provider switch — places model 2026-07-06.)
+   */
+  handleGoogleSignedOut: (afterClose?: () => void) => void;
   // File explorer
   fileExplorerOpen: boolean;
   setFileExplorerOpen: (open: boolean) => void;
-  openDiagramById: (id: string, name: string) => Promise<void>;
+  /**
+   * Open a diagram; `placeId` names the storage place it lives in ('local' |
+   * 'google-drive'). The active provider silently follows it so every mode
+   * branch keys off the open diagram. Omitted = current place (legacy callers).
+   */
+  openDiagramById: (id: string, name: string, placeId?: string) => Promise<void>;
   fileTreeRefreshToken: number;
   refreshFileTree: () => void;
   dirtyDiagramIds: Set<string>;
@@ -175,6 +187,7 @@ export function DiagramLifecycleProvider({
     serverStorageAvailable,
     remoteStorageActive,
     setActiveProviderId,
+    defaultPlaceId,
     isInitialized
   } = useAppStorage();
   const iconPackManager = useIconPackManager(coreIcons);
@@ -955,10 +968,21 @@ export function DiagramLifecycleProvider({
   const handleCreateBlankDiagram = useCallback(
     async (
       folderId: string | null,
-      focusAfter: 'fileExplorer' | 'elements' = 'fileExplorer'
+      focusAfter: 'fileExplorer' | 'elements' = 'fileExplorer',
+      placeId?: string
     ) => {
       if (!storageRef.current) return;
       try {
+        // Places model: a new diagram is born into an explicit place, or the
+        // default one (Drive when signed in on the storage-less deploy). The
+        // active provider follows it BEFORE the create so the manager routes
+        // the write — flushing any pending autosave to the old place first.
+        const targetPlace = placeId ?? defaultPlaceId;
+        if (storageManager && storageManager.activeProviderId !== targetPlace) {
+          await autoSave.saveNow();
+          autoSave.resetStatus();
+          setActiveProviderId(targetPlace);
+        }
         const existing = await storageRef.current.listDiagrams();
         const existingNames = existing.map((d) => d.name);
         const name = sequentialName('Untitled', existingNames);
@@ -995,7 +1019,8 @@ export function DiagramLifecycleProvider({
         notificationStore.push({ severity: 'error', message: 'Failed to create diagram' });
       }
     },
-    [iconPackManager.loadedIcons, handleDiagramManagerLoad]
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on stable autoSave.saveNow/resetStatus; whole autoSave churns on every save-status change
+    [iconPackManager.loadedIcons, handleDiagramManagerLoad, storageManager, setActiveProviderId, defaultPlaceId, autoSave.saveNow, autoSave.resetStatus]
   );
 
   // ---------------------------------------------------------------------------
@@ -1021,22 +1046,24 @@ export function DiagramLifecycleProvider({
   );
 
   // ---------------------------------------------------------------------------
-  // Switch storage backend (local ⇄ google-drive)
+  // Places model (2026-07-06): the active provider silently follows the open
+  // diagram. The only surviving whole-canvas "switch" is the Google sign-out
+  // fallback below; the user-facing provider picker was removed.
   // ---------------------------------------------------------------------------
-  const switchStorageProvider = useCallback(
-    (id: string) => {
-      if (!storageManager || storageManager.activeProviderId === id) return;
-      const doSwitch = async () => {
-        // Flush any pending debounced autosave to the CURRENT (old) backend
-        // before switching — otherwise resetStatus() below discards it and the
-        // last edit is lost. Must run before setActiveProviderId so the write
-        // lands on the still-active provider.
+  const handleGoogleSignedOut = useCallback(
+    (afterClose?: () => void) => {
+      if (!storageManager || storageManager.activeProviderId !== 'google-drive') {
+        // Nothing Drive-side open — the session place is untouched by sign-out.
+        afterClose?.();
+        return;
+      }
+      const doClose = async () => {
+        // Flush any pending debounced autosave to Drive while the token is
+        // still valid — this must run BEFORE the caller revokes it.
         await autoSave.saveNow();
-        // setActiveProviderId updates the manager AND the context state (which
-        // recomputes remoteStorageActive, flipping every storage-behavior branch).
-        setActiveProviderId(id);
-        // The new backend has a different diagram tree — reset the open diagram
-        // so autosave doesn't write the current scene into the new backend.
+        setActiveProviderId('local');
+        // The Drive diagram is unreachable without a token — reset the open
+        // diagram so autosave doesn't write the current scene into the session.
         autoSave.resetStatus();
         currentDiagramRef.current = null;
         setCurrentDiagram(null);
@@ -1057,12 +1084,28 @@ export function DiagramLifecycleProvider({
         axoviewRef.current?.load(blankData as InitialData);
         setFileExplorerOpen(true);
         setFileTreeRefreshToken((n) => n + 1);
+        afterClose?.();
       };
-      checkUnsavedBeforeNavigate(doSwitch);
+      checkUnsavedBeforeNavigate(() => void doClose());
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on stable autoSave.resetStatus; whole autoSave churns on every save-status change
-    [storageManager, setActiveProviderId, checkUnsavedBeforeNavigate, iconPackManager.loadedIcons, autoSave.resetStatus]
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on stable autoSave.saveNow/resetStatus; whole autoSave churns on every save-status change
+    [storageManager, setActiveProviderId, checkUnsavedBeforeNavigate, iconPackManager.loadedIcons, autoSave.saveNow, autoSave.resetStatus]
   );
+
+  // With nothing open, the active place follows the default: a successful
+  // sign-in on the storage-less deploy lands the user in Drive behavior
+  // (autosave chrome, Drive-first tree) with no mode flip and no canvas reset.
+  // A restored session diagram keeps the session place active.
+  const authStatus = useAuthStore((s) => s.status);
+  useEffect(() => {
+    if (authStatus !== 'AUTHENTICATED') return;
+    if (serverStorageAvailable) return;
+    if (currentDiagramRef.current) return;
+    if (storageManager && storageManager.activeProviderId !== 'google-drive') {
+      setActiveProviderId('google-drive');
+      setFileTreeRefreshToken((n) => n + 1);
+    }
+  }, [authStatus, serverStorageAvailable, storageManager, setActiveProviderId]);
 
   // ---------------------------------------------------------------------------
   // New Diagram (Axoview-owned — replaces Axoview's ACTION.NEW)
@@ -1229,9 +1272,10 @@ export function DiagramLifecycleProvider({
   // Open diagram by ID (file explorer)
   // ---------------------------------------------------------------------------
   const openDiagramById = useCallback(
-    async (id: string, name: string) => {
+    async (id: string, name: string, placeId?: string) => {
       if (!storage) return;
       try {
+        // Flush pending writes to the CURRENT place before anything moves.
         await autoSave.saveNow();
 
         if (!remoteStorageActive) {
@@ -1239,6 +1283,14 @@ export function DiagramLifecycleProvider({
           if (dirtyDiagramIdsRef.current.has(currentId) && currentModelRef.current) {
             scratchBufferRef.current.set(currentId, currentModelRef.current);
           }
+        }
+
+        // Places model: follow the diagram's place before loading so every
+        // downstream branch (autosave vs session-dirty, status cluster,
+        // guards) keys off the OPEN diagram. Manager switch is synchronous.
+        if (placeId && storageManager && storageManager.activeProviderId !== placeId) {
+          autoSave.resetStatus();
+          setActiveProviderId(placeId);
         }
 
         const buffered = scratchBufferRef.current.get(id);
@@ -1249,8 +1301,8 @@ export function DiagramLifecycleProvider({
         notificationStore.push({ severity: 'error', message: `Failed to open "${name}"` });
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on stable autoSave.saveNow; whole autoSave churns on every save-status change
-    [storage, remoteStorageActive, autoSave.saveNow, handleDiagramManagerLoad]
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on stable autoSave.saveNow/resetStatus; whole autoSave churns on every save-status change
+    [storage, storageManager, setActiveProviderId, remoteStorageActive, autoSave.saveNow, autoSave.resetStatus, handleDiagramManagerLoad]
   );
 
   const handlePreviewClick = useCallback(async () => {
@@ -1529,7 +1581,7 @@ export function DiagramLifecycleProvider({
     saveAllDirty,
     handleCreateBlankDiagram,
     checkUnsavedBeforeNavigate,
-    switchStorageProvider,
+    handleGoogleSignedOut,
     fileExplorerOpen,
     setFileExplorerOpen,
     openDiagramById,

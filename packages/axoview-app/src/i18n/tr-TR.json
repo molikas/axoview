@@ -21,7 +21,9 @@
     },
     "emptyState": {
         "newDiagram": "Yeni diyagram",
-        "import": "İçe Aktar"
+        "import": "İçe Aktar",
+        "signIn": "Oturum aç",
+        "signInCaption": "Diyagramlarını Google Drive'da sakla"
     },
     "fileExplorer": {
         "title": "Diyagramlar",
@@ -30,7 +32,12 @@
         "newDiagram": "Yeni diyagram",
         "newFolder": "Yeni klasör",
         "refresh": "Yenile",
-        "collapseAll": "Tümünü daralt"
+        "collapseAll": "Tümünü daralt",
+        "empty": "Henüz diyagram yok. Başlamak için bir tane oluştur.",
+        "moveToDrive": "Google Drive'a taşı",
+        "movedToDrive": "\"{{name}}\" Google Drive'a taşındı",
+        "moveToDriveFailed": "\"{{name}}\" Google Drive'a taşınamadı — bu oturumda kaldı",
+        "collapse": "Paneli daralt"
     },
     "status": {
         "current": "Mevcut",
@@ -44,7 +51,9 @@
         "savedOnDate": "{{day}} {{month}} {{time}} tarihinde kaydedildi",
         "savedOnDateYear": "{{day}} {{month}} {{year}}, {{time}} tarihinde kaydedildi",
         "sessionBanner": "Çalışmanız yalnızca bu tarayıcı sekmesinde bulunur. Saklamak için Dışa Aktar → Projeyi dışa aktar seçeneğini kullanın.",
-        "dismiss": "Kapat"
+        "dismiss": "Kapat",
+        "sessionBannerSignIn": "Google Drive'a kaydetmek için oturum aç",
+        "sessionBannerMove": "Google Drive'a taşı…"
     },
     "settings": {
         "language": "Dil"
@@ -127,5 +136,39 @@
         "autoSaveFailed": "Depolama dolu! Lütfen alan açmak için Depolama Yöneticisi'ni kullanın.",
         "beforeUnload": "Kaydedilmemiş değişiklikleriniz var. Ayrılmak istediğinizden emin misiniz?",
         "quotaExceeded": "Depolama kotası aşıldı. Lütfen önemli diyagramları dışa aktarın ve biraz alan açın."
+    },
+    "auth": {
+        "signIn": "Google ile oturum aç",
+        "signInHint": "Diyagramlarını Google Drive'da sakla — oturum açtığın her yerde erişilebilir.",
+        "signInAgain": "Yeniden oturum aç",
+        "reconnecting": "Google'a yeniden bağlanılıyor…",
+        "reconnectTooltip": "Google oturumu gerekli — Drive diyagramların tek tıkla geri gelir",
+        "reconnectHint": "Google oturumu kapandı — Drive'ı kullanmak için yeniden oturum aç",
+        "signOut": "Oturumu kapat",
+        "openDriveFolder": "Drive klasörünü aç",
+        "moveSessionToDrive": "Oturum diyagramlarını Drive'a taşı…"
+    },
+    "places": {
+        "session": "Bu oturum",
+        "server": "Bu sunucu",
+        "moveAllToDrive": "Tümünü Drive'a taşı",
+        "driveSignInRow": "Google Drive'ı bağlamak için oturum aç",
+        "driveReconnectRow": "Drive diyagramlarını yüklemek için yeniden bağlan",
+        "driveSetupRow": "Google Drive kurulumunu tamamla…",
+        "driveEmpty": "Drive'da henüz diyagram yok.",
+        "driveError": "Google Drive yüklenemedi.",
+        "retry": "Yeniden dene"
+    },
+    "migrate": {
+        "title": "Oturum diyagramları Google Drive'a taşınsın mı?",
+        "body": "Bu diyagramlar yalnızca bu tarayıcı sekmesinde bulunur ve sekme kapanınca kaybolur:",
+        "destinationNote": "Klasörleri korunarak Drive klasörüne taşınacaklar.",
+        "waitingForSetup": "Google Drive kurulumu tamamlanıyor…",
+        "moving": "{{done}}/{{total}} taşınıyor…",
+        "moveN": "{{n}} diyagramı Drive'a taşı",
+        "notNow": "Şimdi değil",
+        "successToast": "{{n}} diyagram Google Drive'a taşındı",
+        "partialToast": "{{moved}} taşındı, {{failed}} başarısız — başarısız diyagramlar bu oturumda kaldı",
+        "nothingToMove": "Taşınacak oturum diyagramı yok"
     }
 }

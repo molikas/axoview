@@ -27,7 +27,6 @@ import { useDiagramLifecycle } from '../providers/DiagramLifecycleProvider';
 import { StatusCluster } from './StatusCluster';
 import { ExportPopover } from './ExportPopover';
 import { AuthControl } from './AuthControl';
-import { StorageProviderPicker } from './StorageProviderPicker';
 import { shareUrlFromUuid } from '../utils/shareUrl';
 
 export function AppToolbar() {
@@ -362,9 +361,9 @@ export function AppToolbar() {
 
             <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
-            {/* Group 3.5: Account & storage — Google Drive picker + sign-in /
-                avatar. Both self-hide when no Google client id is configured. */}
-            <StorageProviderPicker />
+            {/* Group 3.5: Account — the avatar menu is the single auth home
+                (places model 2026-07-06; the storage picker was removed).
+                Self-hides when no Google client id is configured. */}
             <AuthControl />
 
             <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />

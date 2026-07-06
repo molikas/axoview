@@ -2,6 +2,14 @@
 
 **Last pruned:** 2026-06-10 (v1.1 close-out). Open items below cross-checked against [technical-review-2026-06.md §11](docs/technical-review-2026-06.md); resolved entries removed (durable records live in the relevant ADR / perf-troubleshooting.md / git history).
 
+## Storage/auth surface: pre-existing strings still hardcoded English (i18n debt)
+
+**Symptom:** The 8e08933 Drive integration shipped with its entire UI hardcoded in English. The 2026-07-06 storage-ux-unification push i18n'd every string it **introduced or rewrote** (avatar menu, place sections, migration dialog, empty-state sign-in card, banner actions, Move-to-Drive — 37 keys × 13 locales), but strings it merely inherited remain literal: most `ContextMenuItems` labels (Open/Rename/Duplicate/Delete/…), the delete-confirmation and name-collision dialog bodies, `DriveRootFolderDialog` copy, the FileExplorer/App toast messages, and the `authStore` expired/cancelled toasts (that store can't import the i18n singleton without dragging http-backend init into unit suites — needs a small notification-key indirection).
+
+**Workaround:** None at the locale level; affected strings render in English in all locales.
+
+**Status:** Open, deferred. Sweep them into `i18n/*.json` as those surfaces are next touched; the authStore case needs the notification store to accept keys instead of literals.
+
 ## Partial-coverage i18n locales (de-DE + id-ID)
 
 **Symptom:** German (de-DE) and Indonesian (id-ID) have stub translations covering only the initial pre-rename string set. Newer strings (added since 2026-04) fall through to English. Users selecting these locales see mixed German/English or Indonesian/English UI.

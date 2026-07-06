@@ -4,6 +4,7 @@ import { StorageManager } from '../services/storage/StorageManager';
 import { LocalStorageProvider } from '../services/storage/providers/LocalStorageProvider';
 import { GoogleDriveProvider } from '../services/storage/providers/GoogleDriveProvider';
 import { fetchRuntimeConfig, RuntimeConfig } from '../hooks/useRuntimeConfig';
+import { useAuthStore } from '../stores/authStore';
 
 interface AppStorageContextValue {
   storage: StorageProvider | null;
@@ -12,9 +13,16 @@ interface AppStorageContextValue {
   isInitialized: boolean;
   /** True in the session-backend deployment (Docker/self-host). */
   serverStorageAvailable: boolean;
-  /** Id of the active storage provider ('local' | 'google-drive'). */
+  /**
+   * Id of the active storage provider ('local' | 'google-drive').
+   *
+   * Places model (2026-07-06): this is NO LONGER a user-facing mode — it
+   * silently follows the OPEN diagram's place (set by the lifecycle open/create
+   * paths) so every mode branch (autosave, status cluster, guards) keys off
+   * the open diagram. The user-facing picker was removed.
+   */
   activeProviderId: string;
-  /** Switch the active provider (updates the manager + triggers a re-render). */
+  /** Follow a diagram's place (updates the manager + triggers a re-render). */
   setActiveProviderId: (id: string) => void;
   /**
    * True when storage behaves like a remote backend — either the session
@@ -23,6 +31,14 @@ interface AppStorageContextValue {
    * contracts (public share links, /display/p/*) stay on serverStorageAvailable.
    */
   remoteStorageActive: boolean;
+  /** True when a Google client id is configured (Drive surfaces may render). */
+  googleDriveConfigured: boolean;
+  /**
+   * Where a NEW diagram goes when the caller doesn't say: Drive when signed in
+   * on a storage-less deployment, otherwise the local place (browser session,
+   * or the self-host server backend which is already durable).
+   */
+  defaultPlaceId: 'local' | 'google-drive';
   runtimeConfig: RuntimeConfig | null;
 }
 
@@ -35,6 +51,8 @@ const AppStorageContext = createContext<AppStorageContextValue>({
   activeProviderId: 'local',
   setActiveProviderId: () => {},
   remoteStorageActive: false,
+  googleDriveConfigured: false,
+  defaultPlaceId: 'local',
   runtimeConfig: null
 });
 
@@ -74,9 +92,23 @@ export function AppStorageProvider({ children }: { children: React.ReactNode }) 
     setActiveProviderIdState(id);
   }, []);
 
+  // Auth status feeds defaultPlaceId (signed in ⇒ new diagrams go to Drive on
+  // the storage-less deployment). authStore is a standalone zustand store, so
+  // subscribing here creates no provider-order dependency on AuthProvider.
+  const authStatus = useAuthStore((s) => s.status);
+
   const serverStorageAvailable = isServerStorage && isInitialized;
   const remoteStorageActive =
     serverStorageAvailable || activeProviderId === 'google-drive';
+  const googleDriveConfigured = !!(
+    runtimeConfig?.googleClientId || process.env.PUBLIC_GOOGLE_CLIENT_ID
+  );
+  const defaultPlaceId: 'local' | 'google-drive' =
+    !serverStorageAvailable &&
+    googleDriveConfigured &&
+    (authStatus === 'AUTHENTICATED' || authStatus === 'REFRESHING')
+      ? 'google-drive'
+      : 'local';
 
   return (
     <AppStorageContext.Provider
@@ -89,6 +121,8 @@ export function AppStorageProvider({ children }: { children: React.ReactNode }) 
         activeProviderId,
         setActiveProviderId,
         remoteStorageActive,
+        googleDriveConfigured,
+        defaultPlaceId,
         runtimeConfig
       }}
     >

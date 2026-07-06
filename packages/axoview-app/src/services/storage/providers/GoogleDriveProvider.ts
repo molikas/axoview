@@ -289,6 +289,20 @@ export class GoogleDriveProvider implements StorageProvider {
     return (await this.resolveRoot()) !== null;
   }
 
+  /**
+   * Synchronous root-id read (memory, else the boot cache) — a UI accelerator
+   * for the avatar menu's "Open Drive folder" link and the tree's setup-row
+   * check. Never probes the network; may be null until resolveRoot() has run.
+   */
+  getCachedRootId(): string | null {
+    if (this.rootFolderId) return this.rootFolderId;
+    try {
+      return localStorage.getItem(ROOT_CACHE_KEY);
+    } catch {
+      return null;
+    }
+  }
+
   /** First-connect setup: create the named root folder + stamp the marker. */
   async configureRoot(name: string): Promise<void> {
     const trimmed = name.trim() || DEFAULT_ROOT_NAME;

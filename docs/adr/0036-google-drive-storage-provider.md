@@ -75,11 +75,19 @@ This is the single largest integration surface of the feature; treating it as on
 
 ### 6. Provider switching, persistence of choice, and "Save to Drive"
 
+> **SUPERSEDED (2026-07-06, owner revision — storage-ux-unification / ADR 0037).** This section's decisions were reversed after the owner's UX review of the shipped v1:
+> - The **`StorageProviderPicker` is removed.** Storage is no longer a user-facing mode: the file tree shows both places at once and the active provider silently follows the *open diagram* (ADR 0037 — places model).
+> - **Copy-only "Save to Drive" → "Move to Google Drive"** (create on Drive → verify → delete from session, folder path recreated). The TODO below is answered: move, not copy.
+> - The deferred **bulk migration dialog is IN**: `MigrateSessionDialog` offers to move all session diagrams on every fresh sign-in, and on demand (avatar menu, session section header, banner).
+> - Provider-choice persistence (`axoview-active-provider`) is dropped — never implemented as shipped, and moot under per-diagram routing; the boot reconnect is armed by ADR 0035's profile hint instead.
+>
+> The original text is kept below for history.
+
 - **Picker:** a new `StorageProviderPicker` control (AppToolbar, next to the auth avatar) offers **Local | Google Drive** — the PLAN 3A "Local | Drive | S3" text is stale; S3 was dropped 2026-04-29. Drive is disabled with a "Sign in to use Google Drive" tooltip until authenticated, and absent entirely when `googleClientId` is null.
 - **Persistence:** the active provider id is stored in `localStorage['axoview-active-provider']`. Boot restores Drive only after ADR 0035's reconnect flow yields a token; until then the app runs Local.
 - **"Save to Drive" context action:** in Local mode with an authenticated Google session, the file-tree context menu ([ContextMenuItems.tsx](../../packages/axoview-app/src/components/fileExplorer/ContextMenuItems.tsx)) gains **"Save to Drive"** on diagram nodes — a non-destructive copy of that diagram into the Drive root folder (name-collision handled with the existing `copySuffix` convention). This replaces the PLAN's bulk "Migrate local diagrams?" dialog.
 
-> TODO: is a destructive "Move to Drive" variant (copy + delete local) also wanted, or does copy-only cover the workflow? V1 ships copy-only.
+> TODO: is a destructive "Move to Drive" variant (copy + delete local) also wanted, or does copy-only cover the workflow? V1 ships copy-only. *(Resolved 2026-07-06: move — see supersession note above.)*
 
 ### 7. Errors, retries — online-only v1
 

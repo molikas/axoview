@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Divider, ListItemIcon, MenuItem } from '@mui/material';
 import {
   OpenInNewOutlined as OpenIcon,
@@ -11,7 +12,7 @@ import {
   NoteAddOutlined as NewDiagramIcon,
   CreateNewFolderOutlined as NewFolderIcon,
   RefreshOutlined as RefreshIcon,
-  CloudUploadOutlined as SaveToDriveIcon
+  CloudUploadOutlined as MoveToDriveIcon
 } from '@mui/icons-material';
 import type { FileNode } from '../../hooks/useFileTree';
 
@@ -32,11 +33,15 @@ interface Props {
   onNewDiagram: () => void;
   onNewFolder: () => void;
   onRefresh: () => void;
-  onSaveToDrive: () => void;
+  onMoveToDrive: () => void;
   onClose: () => void;
   canShare: boolean;
-  /** True when signed in to Google and not already on the Drive backend. */
-  canSaveToDrive: boolean;
+  /**
+   * True when signed in to Google and the node lives in the session place —
+   * MOVE semantics (create on Drive → verify → delete here), owner decision
+   * 2026-07-06 superseding the copy-only "Save to Google Drive".
+   */
+  canMoveToDrive: boolean;
 }
 
 export function ContextMenuItems({
@@ -53,11 +58,12 @@ export function ContextMenuItems({
   onNewDiagram,
   onNewFolder,
   onRefresh,
-  onSaveToDrive,
+  onMoveToDrive,
   onClose,
   canShare,
-  canSaveToDrive
+  canMoveToDrive
 }: Props) {
+  const { t } = useTranslation('app');
   const isDiagram = node?.type === 'diagram';
 
   const handle = (fn: () => void) => () => {
@@ -120,14 +126,14 @@ export function ContextMenuItems({
           Copy share link
         </MenuItem>
       )}
-      {isDiagram && canSaveToDrive && (
+      {isDiagram && canMoveToDrive && (
         <MenuItem
           dense
-          data-axoview-id="file-explorer-context-menu-save-to-drive"
-          onClick={handle(onSaveToDrive)}
+          data-axoview-id="file-explorer-context-menu-move-to-drive"
+          onClick={handle(onMoveToDrive)}
         >
-          <ListItemIcon><SaveToDriveIcon fontSize="small" /></ListItemIcon>
-          Save to Google Drive
+          <ListItemIcon><MoveToDriveIcon fontSize="small" /></ListItemIcon>
+          {t('fileExplorer.moveToDrive', 'Move to Google Drive')}
         </MenuItem>
       )}
       {node &&

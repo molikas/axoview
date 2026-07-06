@@ -12,6 +12,7 @@ function reset() {
     _waiters: []
   });
   useNotificationStore.setState({ queue: [] });
+  localStorage.clear(); // profile-hint isolation between tests
 }
 
 beforeEach(() => {
@@ -169,5 +170,87 @@ describe('authStore', () => {
     const before = useNotificationStore.getState().queue.length;
     useAuthStore.getState().markExpired();
     expect(useNotificationStore.getState().queue.length).toBe(before);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Remember-me (storage-ux-unification 2026-07-06): profile hint + silent
+  // boot reconnect. The hint persists IDENTITY only — the token test above
+  // still guards that no credential ever reaches localStorage.
+  // ---------------------------------------------------------------------------
+
+  test('a successful grant persists the profile hint (identity only)', async () => {
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ name: 'Igor', email: 'igor@example.com', picture: 'http://x/a.png' })
+    }));
+    useAuthStore.getState()._setBridge({ requestToken: jest.fn(), revoke: jest.fn() });
+    const p = useAuthStore.getState().signIn();
+    useAuthStore.getState()._onToken({ access_token: 'tok', expires_in: 3600 });
+    await p;
+    // fetchUserInfo is fire-and-forget; flush the microtask queue.
+    await new Promise((r) => setTimeout(r, 0));
+    const raw = localStorage.getItem('axoview-google-profile');
+    expect(raw).toContain('igor@example.com');
+    expect(raw).not.toContain('tok');
+    expect(useAuthStore.getState().user?.email).toBe('igor@example.com');
+  });
+
+  test('signOut() clears the profile hint', async () => {
+    localStorage.setItem(
+      'axoview-google-profile',
+      JSON.stringify({ name: 'Igor', email: 'i@x.y', avatarUrl: '' })
+    );
+    useAuthStore.getState()._setBridge({ requestToken: jest.fn(), revoke: jest.fn() });
+    useAuthStore.setState({ status: 'AUTHENTICATED', accessToken: 'tok', expiresAt: Date.now() + 100000 });
+    useAuthStore.getState().signOut();
+    expect(localStorage.getItem('axoview-google-profile')).toBeNull();
+    expect(useAuthStore.getState().user).toBeNull();
+  });
+
+  test('attemptSilentReconnect() is a no-op without a hint or bridge', async () => {
+    const requestToken = jest.fn();
+    // No user (no hint) → no-op even with a bridge.
+    useAuthStore.getState()._setBridge({ requestToken, revoke: jest.fn() });
+    await useAuthStore.getState().attemptSilentReconnect();
+    expect(requestToken).not.toHaveBeenCalled();
+    expect(useAuthStore.getState().status).toBe('UNAUTHENTICATED');
+  });
+
+  test('attemptSilentReconnect() → RECONNECTING → AUTHENTICATED on silent grant', async () => {
+    const requestToken = jest.fn();
+    useAuthStore.getState()._setBridge({ requestToken, revoke: jest.fn() });
+    useAuthStore.setState({ user: { name: 'Igor', email: 'i@x.y', avatarUrl: '' } });
+    const p = useAuthStore.getState().attemptSilentReconnect();
+    expect(useAuthStore.getState().status).toBe('RECONNECTING');
+    expect(requestToken).toHaveBeenCalledWith({ prompt: '' });
+    useAuthStore.getState()._onToken({ access_token: 'tok', expires_in: 3600 });
+    await p;
+    expect(useAuthStore.getState().status).toBe('AUTHENTICATED');
+  });
+
+  test('a failed silent reconnect degrades QUIETLY (no toast, hint kept)', async () => {
+    useAuthStore.getState()._setBridge({ requestToken: jest.fn(), revoke: jest.fn() });
+    useAuthStore.setState({ user: { name: 'Igor', email: 'i@x.y', avatarUrl: '' } });
+    const p = useAuthStore.getState().attemptSilentReconnect();
+    useAuthStore.getState()._onError(new Error('cookies blocked'));
+    await p;
+    expect(useAuthStore.getState().status).toBe('UNAUTHENTICATED');
+    // Quiet: neither the info "cancelled" toast nor the expired warning fires.
+    expect(useNotificationStore.getState().queue.length).toBe(0);
+    // The identity stays so the avatar can show the reconnect affordance.
+    expect(useAuthStore.getState().user?.name).toBe('Igor');
+  });
+
+  test('getValidToken() piggybacks on an in-flight reconnect instead of double-requesting', async () => {
+    const requestToken = jest.fn();
+    useAuthStore.getState()._setBridge({ requestToken, revoke: jest.fn() });
+    useAuthStore.setState({ user: { name: 'Igor', email: 'i@x.y', avatarUrl: '' } });
+    const reconnect = useAuthStore.getState().attemptSilentReconnect();
+    const tokenP = useAuthStore.getState().getValidToken();
+    expect(requestToken).toHaveBeenCalledTimes(1); // no second GIS request
+    useAuthStore.getState()._onToken({ access_token: 'tok', expires_in: 3600 });
+    await reconnect;
+    await expect(tokenP).resolves.toBe('tok');
   });
 });

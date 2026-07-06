@@ -47,6 +47,8 @@ Hard rules:
 2. `getValidToken()` is the **only** way any module obtains the token (it re-requests when < 5 min to expiry); no direct `accessToken` reads outside the store.
 3. On sign-out: null the token, revoke via `google.accounts.oauth2.revoke`, and switch the active storage provider back to `local` (ADR 0036 §6).
 
+> **Amendment (2026-07-06, storage-ux-unification):** a **profile hint** — `{name, email, avatarUrl}`, *identity only, never a credential* — persists in `localStorage['axoview-google-profile']` (written on userinfo fetch, cleared on sign-out). It pre-populates the avatar on reload and arms the boot reconnect (§3 amendment). Rule 1 is unchanged and still test-enforced: no token-bearing value ever reaches storage. `getValidToken()` additionally **piggybacks** on any in-flight request (AUTHENTICATING / RECONNECTING / REFRESHING) instead of firing a second GIS request.
+
 ### 3. State machine — honest refresh semantics
 
 The GIS token model cannot mint tokens in the background from a refresh token. "Refresh" means **re-invoking the token client with `prompt: ''`**, which succeeds silently only when the browser session and third-party-cookie posture allow it; otherwise Google opens the consent popup, which browsers block without a user gesture.
@@ -64,6 +66,8 @@ AUTHENTICATED    →(signOut)→               UNAUTHENTICATED  + storage → lo
 
 **Boot reconnect:** the token does not survive a reload. If `localStorage['axoview-active-provider'] === 'google-drive'` (ADR 0036 §6), boot attempts one silent `prompt: ''` acquisition; on failure the app stays in Local mode and shows a dismissible "Reconnect to Google Drive" chip in the toolbar — never a blocking dialog, never an unprompted popup.
 
+> **Amendment (2026-07-06, storage-ux-unification):** as shipped, this paragraph's trigger never fired (the provider choice was not persisted). The reconnect is now armed by the **profile hint** (§2 amendment) instead: a new `RECONNECTING` state runs one silent `prompt:''` attempt per page load, once the GIS script reports loaded. Success → `AUTHENTICATED` with no popup and no clicks; failure → **quiet** degradation to `UNAUTHENTICATED` (no toast — the avatar's amber dot is the affordance; the "Reconnect" chip is retired). The "never a blocking dialog, never an unprompted popup" contract stands.
+
 ### 4. Client ID delivery
 
 Primary: `/api/config` (`GOOGLE_CLIENT_ID` env var — wrangler var on Cloudflare, Express env on self-host, per ADR 0009 §4). **Addition for pure-local dev:** `DEFAULT_CONFIG.googleClientId` falls back to the rsbuild build-time constant `PUBLIC_GOOGLE_CLIENT_ID` (else `null`), because a `npm run dev` boot with no backend fails the `/api/config` probe and would otherwise never see a client ID even though `http://localhost:3000` is an authorized origin. `googleClientId === null` keeps every Google surface hidden — unchanged contract.
@@ -75,6 +79,14 @@ Primary: `/api/config` (`GOOGLE_CLIENT_ID` env var — wrangler var on Cloudflar
 - Authenticated: MUI `Avatar` (photo) + name; menu with account email + "Sign out".
 - Session expired: amber chip — click restarts sign-in.
 - Popup blocked: caught in `signIn()`, tooltip near the button explains and asks the user to click again (a direct-gesture invocation is the fallback; no redirect flow in v1).
+
+> **Amendment (2026-07-06, storage-ux-unification — supersedes the list above):** the account home is **one avatar-anchored control** (Lucid/VS Code pattern), `AuthControl`:
+> - signed out (never): person icon → menu with the Google-branded sign-in item + hint caption;
+> - reconnecting (boot): dimmed avatar + spinner ring, non-interactive;
+> - needs reconnect (silent failure) / session expired: avatar + **amber dot** → "Sign in again" (the standalone chip is gone);
+> - signed in: avatar → name/email header · "Move session diagrams to Drive…" (when any exist) · "Open Drive folder" · "Sign out".
+>
+> The standalone toolbar button is retired; the branded button renders inside the menu and on the empty-state sign-in card. Sign-out first closes any Drive-side diagram (flushing while the token is valid), then revokes.
 
 ### 6. CSP addition
 

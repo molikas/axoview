@@ -21,7 +21,9 @@
     },
     "emptyState": {
         "newDiagram": "Новая диаграмма",
-        "import": "Импорт"
+        "import": "Импорт",
+        "signIn": "Войти",
+        "signInCaption": "Храните диаграммы в Google Drive"
     },
     "fileExplorer": {
         "title": "Диаграммы",
@@ -30,7 +32,12 @@
         "newDiagram": "Новая диаграмма",
         "newFolder": "Новая папка",
         "refresh": "Обновить",
-        "collapseAll": "Свернуть все"
+        "collapseAll": "Свернуть все",
+        "empty": "Диаграмм пока нет. Создайте первую, чтобы начать.",
+        "moveToDrive": "Перенести в Google Drive",
+        "movedToDrive": "\"{{name}}\" перенесена в Google Drive",
+        "moveToDriveFailed": "Не удалось перенести \"{{name}}\" в Google Drive — диаграмма осталась в этом сеансе",
+        "collapse": "Свернуть панель"
     },
     "status": {
         "current": "Текущий",
@@ -44,7 +51,9 @@
         "savedOnDate": "Сохранено {{day}} {{month}} в {{time}}",
         "savedOnDateYear": "Сохранено {{day}} {{month}} {{year}} в {{time}}",
         "sessionBanner": "Ваша работа хранится только в этой вкладке браузера. Используйте Экспорт → Экспорт проекта, чтобы сохранить её.",
-        "dismiss": "Закрыть"
+        "dismiss": "Закрыть",
+        "sessionBannerSignIn": "Войдите, чтобы сохранять в Google Drive",
+        "sessionBannerMove": "Перенести в Google Drive…"
     },
     "settings": {
         "language": "Язык"
@@ -127,5 +136,39 @@
         "autoSaveFailed": "Хранилище заполнено! Пожалуйста, используйте менеджер хранилища, чтобы освободить место.",
         "beforeUnload": "У вас есть несохраненные изменения. Вы уверены, что хотите уйти?",
         "quotaExceeded": "Квота хранилища превышена. Пожалуйста, экспортируйте важные диаграммы и освободите место."
+    },
+    "auth": {
+        "signIn": "Войти через Google",
+        "signInHint": "Храните диаграммы в Google Drive — они доступны везде, где вы вошли.",
+        "signInAgain": "Войти снова",
+        "reconnecting": "Повторное подключение к Google…",
+        "reconnectTooltip": "Нужен вход в Google — диаграммы из Drive вернутся в один клик",
+        "reconnectHint": "Выполнен выход из Google — войдите снова, чтобы использовать Drive",
+        "signOut": "Выйти",
+        "openDriveFolder": "Открыть папку Drive",
+        "moveSessionToDrive": "Перенести диаграммы сеанса в Drive…"
+    },
+    "places": {
+        "session": "Этот сеанс",
+        "server": "Этот сервер",
+        "moveAllToDrive": "Перенести всё в Drive",
+        "driveSignInRow": "Войдите, чтобы подключить Google Drive",
+        "driveReconnectRow": "Подключитесь снова, чтобы загрузить диаграммы из Drive",
+        "driveSetupRow": "Завершить настройку Google Drive…",
+        "driveEmpty": "В Drive пока нет диаграмм.",
+        "driveError": "Не удалось загрузить Google Drive.",
+        "retry": "Повторить"
+    },
+    "migrate": {
+        "title": "Перенести диаграммы сеанса в Google Drive?",
+        "body": "Эти диаграммы существуют только в этой вкладке браузера и будут потеряны при её закрытии:",
+        "destinationNote": "Они будут перенесены в вашу папку Drive с сохранением папок.",
+        "waitingForSetup": "Завершение настройки Google Drive…",
+        "moving": "Перенос {{done}} из {{total}}…",
+        "moveN": "Перенести {{n}} в Drive",
+        "notNow": "Не сейчас",
+        "successToast": "Перенесено в Google Drive: {{n}}",
+        "partialToast": "Перенесено: {{moved}}, не удалось: {{failed}} — неудавшиеся диаграммы остались в этом сеансе",
+        "nothingToMove": "Нет диаграмм сеанса для переноса"
     }
 }

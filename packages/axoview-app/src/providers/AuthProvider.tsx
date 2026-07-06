@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 import { useAppStorage } from './AppStorageContext';
 import { useAuthStore } from '../stores/authStore';
@@ -12,8 +12,15 @@ interface RevocableOAuth2 {
   google?: { accounts?: { oauth2?: { revoke?: (token: string, done?: () => void) => void } } };
 }
 
-function AuthBridge({ children }: { children: React.ReactNode }) {
+function AuthBridge({
+  scriptReady,
+  children
+}: {
+  scriptReady: boolean;
+  children: React.ReactNode;
+}) {
   const setBridge = useAuthStore((s) => s._setBridge);
+  const reconnectAttemptedRef = useRef(false);
 
   // GIS token client (implicit flow). The returned `login` triggers the flow;
   // calling it with { prompt: '' } attempts a silent (re)acquisition.
@@ -40,6 +47,16 @@ function AuthBridge({ children }: { children: React.ReactNode }) {
     });
   }, [login, setBridge]);
 
+  // Remember-me boot reconnect: one silent prompt:'' attempt per page load,
+  // fired only once the GIS script has actually loaded (a premature call would
+  // error out and burn the attempt). No-op inside the store when no profile
+  // hint is present.
+  useEffect(() => {
+    if (!scriptReady || reconnectAttemptedRef.current) return;
+    reconnectAttemptedRef.current = true;
+    void useAuthStore.getState().attemptSilentReconnect();
+  }, [scriptReady]);
+
   return <>{children}</>;
 }
 
@@ -55,6 +72,7 @@ function AuthBridge({ children }: { children: React.ReactNode }) {
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { runtimeConfig } = useAppStorage();
+  const [scriptReady, setScriptReady] = useState(false);
   const clientId =
     runtimeConfig?.googleClientId ||
     process.env.PUBLIC_GOOGLE_CLIENT_ID ||
@@ -63,8 +81,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   if (!clientId) return <>{children}</>;
 
   return (
-    <GoogleOAuthProvider clientId={clientId}>
-      <AuthBridge>{children}</AuthBridge>
+    <GoogleOAuthProvider
+      clientId={clientId}
+      onScriptLoadSuccess={() => setScriptReady(true)}
+    >
+      <AuthBridge scriptReady={scriptReady}>{children}</AuthBridge>
     </GoogleOAuthProvider>
   );
 }

@@ -21,7 +21,9 @@
     },
     "emptyState": {
         "newDiagram": "Nuovo diagramma",
-        "import": "Importa"
+        "import": "Importa",
+        "signIn": "Accedi",
+        "signInCaption": "Conserva i tuoi diagrammi in Google Drive"
     },
     "fileExplorer": {
         "title": "Diagrammi",
@@ -30,7 +32,12 @@
         "newDiagram": "Nuovo diagramma",
         "newFolder": "Nuova cartella",
         "refresh": "Aggiorna",
-        "collapseAll": "Comprimi tutto"
+        "collapseAll": "Comprimi tutto",
+        "empty": "Ancora nessun diagramma. Creane uno per iniziare.",
+        "moveToDrive": "Sposta su Google Drive",
+        "movedToDrive": "\"{{name}}\" spostato su Google Drive",
+        "moveToDriveFailed": "Impossibile spostare \"{{name}}\" su Google Drive: resta in questa sessione",
+        "collapse": "Comprimi pannello"
     },
     "status": {
         "current": "Corrente",
@@ -44,7 +51,9 @@
         "savedOnDate": "Salvato il {{day}} {{month}} alle {{time}}",
         "savedOnDateYear": "Salvato il {{day}} {{month}} {{year}} alle {{time}}",
         "sessionBanner": "Il tuo lavoro esiste solo in questa scheda del browser. Usa Esporta → Esporta progetto per conservarlo.",
-        "dismiss": "Ignora"
+        "dismiss": "Ignora",
+        "sessionBannerSignIn": "Accedi per salvare su Google Drive",
+        "sessionBannerMove": "Sposta su Google Drive…"
     },
     "settings": {
         "language": "Lingua"
@@ -127,5 +136,39 @@
         "autoSaveFailed": "Archiviazione piena! Usa il Gestore archiviazione per liberare spazio.",
         "beforeUnload": "Hai modifiche non salvate. Sei sicuro di voler uscire?",
         "quotaExceeded": "Quota di archiviazione superata. Esporta i diagrammi importanti e libera spazio."
+    },
+    "auth": {
+        "signIn": "Accedi con Google",
+        "signInHint": "Conserva i tuoi diagrammi in Google Drive: disponibili ovunque tu acceda.",
+        "signInAgain": "Accedi di nuovo",
+        "reconnecting": "Riconnessione a Google…",
+        "reconnectTooltip": "Accesso Google necessario: i tuoi diagrammi Drive si riconnettono con un clic",
+        "reconnectHint": "Disconnesso da Google: accedi di nuovo per usare Drive",
+        "signOut": "Esci",
+        "openDriveFolder": "Apri cartella Drive",
+        "moveSessionToDrive": "Sposta i diagrammi di sessione su Drive…"
+    },
+    "places": {
+        "session": "Questa sessione",
+        "server": "Questo server",
+        "moveAllToDrive": "Sposta tutto su Drive",
+        "driveSignInRow": "Accedi per collegare Google Drive",
+        "driveReconnectRow": "Riconnettiti per caricare i tuoi diagrammi Drive",
+        "driveSetupRow": "Completa la configurazione di Google Drive…",
+        "driveEmpty": "Ancora nessun diagramma in Drive.",
+        "driveError": "Impossibile caricare Google Drive.",
+        "retry": "Riprova"
+    },
+    "migrate": {
+        "title": "Spostare i diagrammi di sessione su Google Drive?",
+        "body": "Questi diagrammi esistono solo in questa scheda del browser e andranno persi alla sua chiusura:",
+        "destinationNote": "Verranno spostati nella tua cartella Drive mantenendo le loro cartelle.",
+        "waitingForSetup": "Completamento della configurazione di Google Drive…",
+        "moving": "Spostamento {{done}} di {{total}}…",
+        "moveN": "Sposta {{n}} su Drive",
+        "notNow": "Non ora",
+        "successToast": "{{n}} spostati su Google Drive",
+        "partialToast": "{{moved}} spostati, {{failed}} non riusciti: i diagrammi non riusciti restano in questa sessione",
+        "nothingToMove": "Nessun diagramma di sessione da spostare"
     }
 }

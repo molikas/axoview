@@ -21,7 +21,9 @@
     },
     "emptyState": {
         "newDiagram": "新建图表",
-        "import": "导入"
+        "import": "导入",
+        "signIn": "登录",
+        "signInCaption": "将图表保存在 Google Drive 中"
     },
     "fileExplorer": {
         "title": "图表",
@@ -30,7 +32,12 @@
         "newDiagram": "新建图表",
         "newFolder": "新建文件夹",
         "refresh": "刷新",
-        "collapseAll": "全部折叠"
+        "collapseAll": "全部折叠",
+        "empty": "还没有图表。创建一个开始吧。",
+        "moveToDrive": "移动到 Google Drive",
+        "movedToDrive": "“{{name}}”已移动到 Google Drive",
+        "moveToDriveFailed": "无法将“{{name}}”移动到 Google Drive——它仍保留在当前会话中",
+        "collapse": "折叠面板"
     },
     "status": {
         "current": "当前",
@@ -44,7 +51,9 @@
         "savedOnDateYear": "{{year}} 年 {{month}} {{day}} {{time}} 已保存",
         "sessionStorageNote": "仅会话存储 - 导出以永久保存",
         "sessionBanner": "您的工作仅保存在此浏览器标签页中。请使用导出 → 导出项目以保留它。",
-        "dismiss": "关闭"
+        "dismiss": "关闭",
+        "sessionBannerSignIn": "登录以保存到 Google Drive",
+        "sessionBannerMove": "移动到 Google Drive…"
     },
     "settings": {
         "language": "语言"
@@ -127,5 +136,39 @@
         "autoSaveFailed": "存储空间已满！请使用存储管理器释放空间。",
         "beforeUnload": "您有未保存的更改。您确定要离开吗？",
         "quotaExceeded": "存储配额已超出。请导出重要图表并清理一些空间。"
+    },
+    "auth": {
+        "signIn": "使用 Google 登录",
+        "signInHint": "将图表保存在 Google Drive 中——在任何登录的设备上都可使用。",
+        "signInAgain": "重新登录",
+        "reconnecting": "正在重新连接 Google…",
+        "reconnectTooltip": "需要登录 Google——点击一次即可恢复 Drive 图表",
+        "reconnectHint": "已退出 Google——重新登录以使用 Drive",
+        "signOut": "退出登录",
+        "openDriveFolder": "打开 Drive 文件夹",
+        "moveSessionToDrive": "将会话图表移动到 Drive…"
+    },
+    "places": {
+        "session": "当前会话",
+        "server": "此服务器",
+        "moveAllToDrive": "全部移动到 Drive",
+        "driveSignInRow": "登录以连接 Google Drive",
+        "driveReconnectRow": "重新连接以加载 Drive 中的图表",
+        "driveSetupRow": "完成 Google Drive 设置…",
+        "driveEmpty": "Drive 中还没有图表。",
+        "driveError": "无法加载 Google Drive。",
+        "retry": "重试"
+    },
+    "migrate": {
+        "title": "要将会话图表移动到 Google Drive 吗？",
+        "body": "这些图表仅存在于当前浏览器标签页中，关闭后将丢失：",
+        "destinationNote": "它们将移动到你的 Drive 文件夹，并保留原有文件夹结构。",
+        "waitingForSetup": "正在完成 Google Drive 设置…",
+        "moving": "正在移动 {{done}}/{{total}}…",
+        "moveN": "移动 {{n}} 个到 Drive",
+        "notNow": "暂不",
+        "successToast": "已将 {{n}} 个图表移动到 Google Drive",
+        "partialToast": "{{moved}} 个已移动，{{failed}} 个失败——失败的图表仍保留在当前会话中",
+        "nothingToMove": "没有可移动的会话图表"
     }
 }

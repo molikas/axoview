@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import { Box, Button, CardActionArea, Paper } from '@mui/material';
+import { Box, Button, CardActionArea, Paper, Typography } from '@mui/material';
 import { AddCircleOutline as AddIcon, FileUploadOutlined as ImportIcon } from '@mui/icons-material';
+import { GoogleGIcon } from './GoogleGIcon';
 
 const SKY_BLUE = '#0ea5e9';
 
@@ -44,9 +45,15 @@ const labelSx = {
 interface Props {
   onCreate: () => void;
   onImport: () => void;
+  /**
+   * Sign-in nudge card (owner pick 2026-07-06 — nudge instead of a blocking
+   * first-run gate): shown on the storage-less deploy while signed out.
+   */
+  showSignIn?: boolean;
+  onSignIn?: () => void;
 }
 
-export function EmptyStateScreen({ onCreate, onImport }: Props) {
+export function EmptyStateScreen({ onCreate, onImport, showSignIn, onSignIn }: Props) {
   // D11: translate both the visible card labels and their aria-labels.
   const { t } = useTranslation('app');
   return (
@@ -105,6 +112,39 @@ export function EmptyStateScreen({ onCreate, onImport }: Props) {
           </Button>
         </CardActionArea>
       </Paper>
+
+      {showSignIn && onSignIn && (
+        <Paper elevation={3} sx={cardSx}>
+          <CardActionArea
+            onClick={onSignIn}
+            aria-label={t('auth.signIn', 'Sign in with Google')}
+            data-axoview-id="screen-empty-signin"
+            sx={{ ...cardActionSx, gap: 1.5 }}
+          >
+            <Box sx={{ height: 72, display: 'flex', alignItems: 'center' }}>
+              <GoogleGIcon size={56} />
+            </Box>
+            <Button
+              component="span"
+              variant="contained"
+              size="large"
+              disableRipple
+              tabIndex={-1}
+              aria-hidden
+              sx={labelSx}
+            >
+              {t('emptyState.signIn', 'Sign in')}
+            </Button>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ textAlign: 'center', px: 1 }}
+            >
+              {t('emptyState.signInCaption', 'Keep your diagrams in Google Drive')}
+            </Typography>
+          </CardActionArea>
+        </Paper>
+      )}
     </Box>
   );
 }

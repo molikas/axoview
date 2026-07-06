@@ -21,7 +21,9 @@
     },
     "emptyState": {
         "newDiagram": "নতুন ডায়াগ্রাম",
-        "import": "আমদানি"
+        "import": "আমদানি",
+        "signIn": "সাইন ইন",
+        "signInCaption": "আপনার ডায়াগ্রাম Google Drive-এ রাখুন"
     },
     "fileExplorer": {
         "title": "ডায়াগ্রাম",
@@ -30,7 +32,12 @@
         "newDiagram": "নতুন ডায়াগ্রাম",
         "newFolder": "নতুন ফোল্ডার",
         "refresh": "রিফ্রেশ করুন",
-        "collapseAll": "সব সংকুচিত করুন"
+        "collapseAll": "সব সংকুচিত করুন",
+        "empty": "এখনো কোনো ডায়াগ্রাম নেই। শুরু করতে একটি তৈরি করুন।",
+        "moveToDrive": "Google Drive-এ সরান",
+        "movedToDrive": "\"{{name}}\" Google Drive-এ সরানো হয়েছে",
+        "moveToDriveFailed": "\"{{name}}\" Google Drive-এ সরানো যায়নি — এটি এই সেশনেই আছে",
+        "collapse": "প্যানেল গুটান"
     },
     "status": {
         "current": "বর্তমান",
@@ -44,7 +51,9 @@
         "savedOnDate": "Saved {{month}} {{day}} at {{time}}",
         "savedOnDateYear": "Saved {{month}} {{day}}, {{year}} at {{time}}",
         "sessionBanner": "আপনার কাজ শুধুমাত্র এই ব্রাউজার ট্যাবে থাকে। এটি রাখতে রপ্তানি → প্রকল্প রপ্তানি করুন ব্যবহার করুন।",
-        "dismiss": "বাতিল করুন"
+        "dismiss": "বাতিল করুন",
+        "sessionBannerSignIn": "Google Drive-এ সংরক্ষণ করতে সাইন ইন করুন",
+        "sessionBannerMove": "Google Drive-এ সরান…"
     },
     "settings": {
         "language": "ভাষা"
@@ -127,5 +136,39 @@
         "autoSaveFailed": "স্টোরেজ পূর্ণ! অনুগ্রহ করে স্থান খালি করতে স্টোরেজ ম্যানেজার ব্যবহার করুন।",
         "beforeUnload": "আপনার অসংরক্ষিত পরিবর্তন আছে। আপনি কি নিশ্চিত যে আপনি ছেড়ে যেতে চান?",
         "quotaExceeded": "স্টোরেজ কোটা অতিক্রম করেছে। অনুগ্রহ করে গুরুত্বপূর্ণ ডায়াগ্রামগুলি রপ্তানি করুন এবং কিছু স্থান খালি করুন।"
+    },
+    "auth": {
+        "signIn": "Google দিয়ে সাইন ইন করুন",
+        "signInHint": "আপনার ডায়াগ্রাম Google Drive-এ রাখুন — যেখানেই সাইন ইন করুন, সেখানেই পাবেন।",
+        "signInAgain": "আবার সাইন ইন করুন",
+        "reconnecting": "Google-এর সাথে পুনরায় সংযোগ হচ্ছে…",
+        "reconnectTooltip": "Google সাইন-ইন দরকার — এক ক্লিকেই আপনার Drive ডায়াগ্রাম ফিরে আসবে",
+        "reconnectHint": "Google থেকে সাইন আউট হয়েছেন — Drive ব্যবহার করতে আবার সাইন ইন করুন",
+        "signOut": "সাইন আউট",
+        "openDriveFolder": "Drive ফোল্ডার খুলুন",
+        "moveSessionToDrive": "সেশনের ডায়াগ্রাম Drive-এ সরান…"
+    },
+    "places": {
+        "session": "এই সেশন",
+        "server": "এই সার্ভার",
+        "moveAllToDrive": "সব Drive-এ সরান",
+        "driveSignInRow": "Google Drive যুক্ত করতে সাইন ইন করুন",
+        "driveReconnectRow": "আপনার Drive ডায়াগ্রাম লোড করতে পুনরায় সংযোগ করুন",
+        "driveSetupRow": "Google Drive সেটআপ শেষ করুন…",
+        "driveEmpty": "Drive-এ এখনো কোনো ডায়াগ্রাম নেই।",
+        "driveError": "Google Drive লোড করা যায়নি।",
+        "retry": "আবার চেষ্টা করুন"
+    },
+    "migrate": {
+        "title": "সেশনের ডায়াগ্রাম Google Drive-এ সরাবেন?",
+        "body": "এই ডায়াগ্রামগুলো শুধু এই ব্রাউজার ট্যাবে আছে এবং ট্যাব বন্ধ হলে হারিয়ে যাবে:",
+        "destinationNote": "এগুলো ফোল্ডারসহ আপনার Drive ফোল্ডারে সরানো হবে।",
+        "waitingForSetup": "Google Drive সেটআপ শেষ হচ্ছে…",
+        "moving": "{{total}}টির মধ্যে {{done}}টি সরানো হচ্ছে…",
+        "moveN": "{{n}}টি Drive-এ সরান",
+        "notNow": "এখন নয়",
+        "successToast": "{{n}}টি Google Drive-এ সরানো হয়েছে",
+        "partialToast": "{{moved}}টি সরানো হয়েছে, {{failed}}টি ব্যর্থ — ব্যর্থগুলো এই সেশনেই আছে",
+        "nothingToMove": "সরানোর মতো কোনো সেশন ডায়াগ্রাম নেই"
     }
 }
