@@ -1,9 +1,9 @@
 # ADR 0036 — Google Drive Storage Provider
 
-**Status:** Proposed
+**Status:** Accepted (2026-07-06 — shipped on `integration`; §6 superseded, see below)
 **Date:** 2026-07-05
 **Supersedes:** none
-**Superseded by:** none
+**Superseded by:** [ADR 0037](0037-storage-places-model.md) (§6 only — provider picker / copy-only Save-to-Drive / no-bulk-migration; §1–§5 stand)
 
 ## Context
 

@@ -39,10 +39,10 @@ Claude should then:
 | **2B-R** | File Explorer UX Revision | `[x]` | High | Revises 2B — do before 2C |
 | **2C** | Diagram-to-Diagram Links | `[x]` | Low | Depends on 2A, 2B-R |
 | **2D** | Toolbar & Dock Layout Revamp | `[x]` | Medium | Depends on 2B-R |
-| **3A** | Google Auth — authStore (E5) | `[ ]` | Medium | Depends on 0B |
-| **3B** | Google Drive Provider (E4) | `[ ]` | High | Depends on 3A |
+| **3A** | Google Auth — authStore (E5) | `[x]` | Medium | Shipped 2026-07-06 — [ADR 0035](docs/adr/0035-google-identity-and-drive-authorization.md) (GIS token model, remember-me + boot reconnect + gesture retry, avatar AuthControl) |
+| **3B** | Google Drive Provider (E4) | `[x]` | High | Shipped 2026-07-06 — [ADR 0036](docs/adr/0036-google-drive-storage-provider.md) + [ADR 0037](docs/adr/0037-storage-places-model.md) places model (one tree / two places, move + bulk migration). Deferred: offline queue, Picker, reverse move (known_issues) |
 | **3C** | ~~S3 Provider + Backend (E4)~~ | 🚫 DROPPED (2026-04-29) | — | S3 support dropped — see Phase 3C section |
-| **4A** | External Diagram Registry (E6) | `[ ]` | Low | Depends on 3A |
+| **4A** | ~~External Diagram Registry (E6)~~ | 🚫 DROPPED (2026-07-05) | — | Owner drop during Drive design — see Phase 4A section |
 | **5***  | Cloudflare + Docker dual-target deploy | `[x]` | High | See [docs/deployment.md](docs/deployment.md) |
 | **6** | Presentation & Annotation | `[x]` | High | View-mode popover + preview layer switcher + annotation overlay + canvas polish — see [ADRs 0012–0015](docs/adr/) |
 | **ENG-T2** | Engine perf — Canvas2D node render | `[x]` | ⚠️ Very High | Node layer → Canvas2D (default, flag removed): spawn −41% @1000, scales to ~2,000 (SSB). See [ADR 0019](docs/adr/0019-canvas2d-node-render-layer.md) + harness/protocol [ADR 0020](docs/adr/0020-engine-perf-harness-and-measurement-protocol.md). Deferred: canvas badges/connectors (known_issues). |
@@ -927,7 +927,7 @@ Detailed sub-tasks lived in `docs/tactical/layout-revamp.md` (retired — see AD
 ---
 
 ## Phase 3A — Google Authentication (E5)
-**Status:** `[ ]` | **Token load:** Medium | **Depends on:** 0A, 0B
+**Status:** `[x]` | **Token load:** Medium | **Depends on:** 0A, 0B
 
 ### Session startup checklist
 ```
@@ -1034,10 +1034,12 @@ authStore.test.ts (mock @react-oauth/google):
 - [ ] Unit tests pass
 - [ ] `yarn build` clean
 
+- [x] Google identity + Drive authorization shipped (2026-07-06) — see [ADR 0035](docs/adr/0035-google-identity-and-drive-authorization.md) (remember-me profile hint, RECONNECTING boot reconnect + gesture retry, avatar-anchored AuthControl — the spec above predates these amendments) and the retired tactical docs `google-drive-storage.md` / `storage-ux-unification.md` (git history).
+
 ---
 
 ## Phase 3B — Google Drive Provider (E4)
-**Status:** `[ ]` | **Token load:** High | **Depends on:** 2A, 3A
+**Status:** `[x]` | **Token load:** High | **Depends on:** 2A, 3A
 
 ### Token guardrail
 > ⚠️ **Do not attempt Drive integration without first mocking it.**
@@ -1103,6 +1105,8 @@ GoogleDriveProvider.test.ts (MSW mocking googleapis.com):
 - [ ] Manual test: create diagram → save to Drive → reload page → diagram loads from Drive
 - [ ] `yarn build` clean
 
+- [x] Google Drive provider + places-model UX shipped (2026-07-06) — see [ADR 0036](docs/adr/0036-google-drive-storage-provider.md) (provider, root discovery, trash, backoff; jest fetch-mock, NOT the MSW the spec above assumed) + [ADR 0037](docs/adr/0037-storage-places-model.md) (one tree / two places, per-diagram routing, move semantics + bulk migration — supersedes 0036 §6) and the retired tactical docs (git history). Offline write queue deferred (owner 2026-07-05, known_issues catalogue).
+
 ---
 
 ## Phase 3C — ~~S3 Provider + Backend (E4)~~ 🚫 DROPPED (2026-04-29)
@@ -1111,8 +1115,8 @@ GoogleDriveProvider.test.ts (MSW mocking googleapis.com):
 
 ---
 
-## Phase 4A — External Diagram Registry (E6)
-**Status:** `[ ]` | **Token load:** Low | **Depends on:** 3A
+## Phase 4A — External Diagram Registry (E6) 🚫 DROPPED (2026-07-05)
+**Status:** 🚫 DROPPED — owner decision 2026-07-05 during the Drive-storage design session (recorded in the retired `docs/tactical/google-drive-storage.md`, git history). No registry work planned; restore this section's spec from git history if it ever revives.
 
 ### Behavior
 Users can add external diagram URLs (draw.io, Lucidchart, Miro) to the file tree as reference entries. Clicking opens in a new tab. draw.io files in Google Drive can be browsed using the existing auth token.

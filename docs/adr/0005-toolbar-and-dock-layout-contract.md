@@ -27,6 +27,8 @@ The application chrome has four shells, each with a defined ownership rule. Any 
 The diagram name is rendered on the canvas (existing behavior); the toolbar does not duplicate it. With no center anchor, LEFT and CENTER zones are intentionally empty. All controls collapse into the RIGHT zone, organized into four groups separated by dividers, ordered left → right:
 
 > **Amendment 2026-05-19** — LEFT zone now carries a subtle brand mark: 18px favicon SVG + muted `Axoview` wordmark (body2, `text.secondary`). Non-interactive. Reads as a quiet header, does not compete with canvas diagram name. CENTER remains empty.
+>
+> **Amendment 2026-07-06 (owner override, storage-ux-unification)** — the Group 1 "Format" slot (docked style strip, ADR 0030/0034) moved from the RIGHT cluster to the **LEFT zone**, immediately after the brand mark (Lucid pattern: formatting reads left-to-right with the content). CENTER is now a flex spacer; the RIGHT cluster keeps document actions + the account control with `flexShrink: 0`. The strip remains the one compressible F1 group per §7's overflow contract. Same day, the `SESSION` chip + storage gauge moved out of the status cluster into the avatar menu (see ux-principles §8.5 dated note); `StatusCluster` renders save-state text only.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
