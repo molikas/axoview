@@ -37,8 +37,14 @@ function AuthBridge({
   useEffect(() => {
     setBridge({
       requestToken: (opts) => {
-        if (opts?.prompt === '') login({ prompt: '' });
-        else login();
+        // Silent attempts carry the login_hint (persisted account email) so a
+        // multi-account browser doesn't need the chooser — chooser = failure
+        // for a prompt:'' request.
+        if (opts?.prompt === '') {
+          login({ prompt: '', ...(opts.hint ? { hint: opts.hint } : {}) });
+        } else {
+          login();
+        }
       },
       revoke: (token) => {
         const g = (window as unknown as RevocableOAuth2).google;

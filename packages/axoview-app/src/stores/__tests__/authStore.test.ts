@@ -223,7 +223,9 @@ describe('authStore', () => {
     useAuthStore.setState({ user: { name: 'Igor', email: 'i@x.y', avatarUrl: '' } });
     const p = useAuthStore.getState().attemptSilentReconnect();
     expect(useAuthStore.getState().status).toBe('RECONNECTING');
-    expect(requestToken).toHaveBeenCalledWith({ prompt: '' });
+    // Silent requests must carry the login_hint — a multi-account browser
+    // fails a hint-less prompt:'' with "interaction required".
+    expect(requestToken).toHaveBeenCalledWith({ prompt: '', hint: 'i@x.y' });
     useAuthStore.getState()._onToken({ access_token: 'tok', expires_in: 3600 });
     await p;
     expect(useAuthStore.getState().status).toBe('AUTHENTICATED');

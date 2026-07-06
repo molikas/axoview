@@ -37,7 +37,7 @@ export interface TokenResponse {
   expires_in?: number;
 }
 
-type TokenRequest = (opts?: { prompt?: string }) => void;
+type TokenRequest = (opts?: { prompt?: string; hint?: string }) => void;
 type TokenRevoke = (token: string) => void;
 
 interface Waiter {
@@ -170,10 +170,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const s = get();
     if (!s._requestToken || !s.user) return Promise.resolve();
     if (s.status !== 'UNAUTHENTICATED') return Promise.resolve();
+    // login_hint: with several Google accounts in the browser, a hint-less
+    // silent request needs the account chooser ("interaction required") and
+    // fails. The persisted email names the account so Google can stay silent.
+    const hint = s.user.email || undefined;
+    console.debug('[auth] silent reconnect: attempting', hint ? `(hint=${hint})` : '(no hint)');
     set({ status: 'RECONNECTING' });
     return new Promise<void>((resolve) => {
       set((st) => ({ _waiters: [...st._waiters, { resolve, reject: resolve }] }));
-      s._requestToken!({ prompt: '' });
+      s._requestToken!({ prompt: '', ...(hint ? { hint } : {}) });
     });
   },
 
@@ -222,8 +227,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }));
       });
     }
-    // Near expiry (or no token yet) — attempt a silent refresh.
+    // Near expiry (or no token yet) — attempt a silent refresh. Carry the
+    // login_hint for the same multi-account reason as the boot reconnect.
     if (!s._requestToken) return Promise.resolve(s.accessToken ?? null);
+    const hint = s.user?.email || undefined;
     set({ status: 'REFRESHING' });
     return new Promise<string | null>((resolve) => {
       set((st) => ({
@@ -232,7 +239,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           { resolve: () => resolve(get().accessToken ?? null), reject: () => resolve(null) }
         ]
       }));
-      s._requestToken!({ prompt: '' });
+      s._requestToken!({ prompt: '', ...(hint ? { hint } : {}) });
     });
   },
 
@@ -274,13 +281,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const waiters = get()._waiters;
     set({ _waiters: [] });
     if (s === 'REFRESHING') {
+      console.debug('[auth] silent refresh failed:', reason);
       set({ status: 'SESSION_EXPIRED', accessToken: null, expiresAt: null });
       pushExpiredNotice(() => void get().signIn());
       waiters.forEach((w) => w.reject());
     } else if (s === 'RECONNECTING') {
       // Boot reconnect failed (cookie blocking, signed out of Google, popup
       // suppressed without a gesture). Expected — degrade QUIETLY: the avatar
-      // shows the reconnect affordance; no toast, no popup.
+      // shows the reconnect affordance; no toast, no popup. The debug line is
+      // the diagnostic channel: GIS reports popup_failed_to_open (blocker) vs
+      // an OAuth error like interaction_required (account chooser needed).
+      console.debug('[auth] silent reconnect failed:', reason);
       set({ status: 'UNAUTHENTICATED', accessToken: null, expiresAt: null });
       waiters.forEach((w) => w.reject());
     } else {
