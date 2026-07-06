@@ -1,4 +1,4 @@
-import { Box, Button, Chip, Stack, Typography } from '@mui/material';
+import { Box, Button, Stack, Typography } from '@mui/material';
 import {
   SyncOutlined as SavingIcon,
   ErrorOutlineOutlined as SaveErrorIcon
@@ -7,7 +7,6 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useAppStorage } from '../providers/AppStorageContext';
 import { useDiagramLifecycle } from '../providers/DiagramLifecycleProvider';
-import { SessionStorageGauge } from './fileExplorer/SessionStorageGauge';
 
 const formatSavedAt = (d: Date, t: TFunction, locale: string): string => {
   const now = new Date();
@@ -92,11 +91,11 @@ export function StatusCluster() {
     );
   }
 
-  // Session mode: save state text + SESSION chip + storage gauge.
-  // The orange SESSION chip already conveys mode; no wrapper background.
-  // The unsaved-changes bullet is rendered with reserved space (visibility,
-  // not conditional mount) so it appearing/disappearing doesn't change the
-  // text width and jitter the toolbar.
+  // Session place: save-state text only. The orange Session chip + storage
+  // gauge moved into the avatar menu (owner directive 2026-07-06, toolbar
+  // declutter) — the Save button beside this text remains the action+state
+  // pair (§8.6). Render nothing when there is nothing to say.
+  if (!lastSaved && !hasUnsavedChanges) return null;
   return (
     <Box
       sx={{
@@ -123,7 +122,7 @@ export function StatusCluster() {
             {' •'}
           </Box>
         </Typography>
-      ) : hasUnsavedChanges ? (
+      ) : (
         <Typography
           variant="caption"
           sx={{
@@ -134,18 +133,7 @@ export function StatusCluster() {
         >
           {t('status.unsaved', 'Unsaved')}
         </Typography>
-      ) : null}
-      <Chip
-        label={<Typography variant="micro" component="span">{t('status.session', 'Session')}</Typography>}
-        size="small"
-        sx={{
-          height: 16,
-          bgcolor: 'warning.dark',
-          color: 'warning.contrastText',
-          '& .MuiChip-label': { px: 0.5 }
-        }}
-      />
-      <SessionStorageGauge />
+      )}
     </Box>
   );
 }

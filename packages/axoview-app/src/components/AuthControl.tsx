@@ -4,6 +4,7 @@ import {
   Avatar,
   Badge,
   Box,
+  Chip,
   CircularProgress,
   Divider,
   IconButton,
@@ -24,6 +25,36 @@ import { useAppStorage } from '../providers/AppStorageContext';
 import { useDiagramLifecycle } from '../providers/DiagramLifecycleProvider';
 import { GoogleDriveProvider } from '../services/storage/providers/GoogleDriveProvider';
 import { GoogleGIcon } from './GoogleGIcon';
+import { SessionStorageGauge } from './fileExplorer/SessionStorageGauge';
+
+/**
+ * Session-place status (orange chip + storage gauge) — moved from the toolbar
+ * StatusCluster into the account menu (owner directive 2026-07-06, toolbar
+ * declutter). The account menu is now the home of "where am I / what state
+ * is my local place in".
+ */
+function SessionStatusRow({ mt = 0 }: { mt?: number }) {
+  const { t } = useTranslation('app');
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt }}>
+      <Chip
+        label={
+          <Typography variant="micro" component="span">
+            {t('status.session', 'Session')}
+          </Typography>
+        }
+        size="small"
+        sx={{
+          height: 16,
+          bgcolor: 'warning.dark',
+          color: 'warning.contrastText',
+          '& .MuiChip-label': { px: 0.5 }
+        }}
+      />
+      <SessionStorageGauge />
+    </Box>
+  );
+}
 
 /**
  * The single account home in the toolbar (Lucid/VS Code avatar-menu pattern,
@@ -197,6 +228,7 @@ export function AuthControl() {
                 {t('auth.reconnectHint', 'Signed out of Google — sign in again to use Drive')}
               </Typography>
             )}
+            {!serverStorageAvailable && sessionCount > 0 && <SessionStatusRow mt={0.75} />}
           </Box>
           <Divider />
           {needsReconnect && (
@@ -265,6 +297,12 @@ export function AuthControl() {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
+        {!serverStorageAvailable && (
+          <Box sx={{ px: 2, pt: 1, pb: 0.75 }}>
+            <SessionStatusRow />
+          </Box>
+        )}
+        {!serverStorageAvailable && <Divider sx={{ mb: 0.5 }} />}
         <MenuItem onClick={handleSignIn} data-axoview-id="auth-signin" dense>
           <ListItemIcon sx={{ minWidth: 28 }}>
             <GoogleGIcon />
