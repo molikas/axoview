@@ -46,8 +46,10 @@ interface Props {
   onCreate: () => void;
   onImport: () => void;
   /**
-   * Sign-in nudge card (owner pick 2026-07-06 — nudge instead of a blocking
-   * first-run gate): shown on the storage-less deploy while signed out.
+   * Sign-in identity strip (owner picks 2026-07-06: nudge not gate; then
+   * hierarchy-strip not peer-card — the cards are the verbs, identity is one
+   * quiet line beneath; "continue in this session" is copy, the cards ARE
+   * the continue action). Shown on the storage-less deploy while signed out.
    */
   showSignIn?: boolean;
   onSignIn?: () => void;
@@ -64,11 +66,13 @@ export function EmptyStateScreen({ onCreate, onImport, showSignIn, onSignIn }: P
         bgcolor: 'background.default',
         backgroundImage: isoGridBackground.backgroundImage,
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 3
+        gap: 4
       }}
     >
+      <Box sx={{ display: 'flex', gap: 3 }}>
       <Paper elevation={3} sx={cardSx}>
         <CardActionArea
           onClick={onCreate}
@@ -112,38 +116,42 @@ export function EmptyStateScreen({ onCreate, onImport, showSignIn, onSignIn }: P
           </Button>
         </CardActionArea>
       </Paper>
+      </Box>
 
       {showSignIn && onSignIn && (
-        <Paper elevation={3} sx={cardSx}>
-          <CardActionArea
+        <Box
+          data-axoview-id="screen-empty-signin-strip"
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 1,
+            maxWidth: 440,
+            textAlign: 'center',
+            borderTop: 1,
+            borderColor: 'divider',
+            pt: 2.5,
+            px: 2,
+            minWidth: 360
+          }}
+        >
+          <Button
+            variant="outlined"
+            size="small"
             onClick={onSignIn}
-            aria-label={t('auth.signIn', 'Sign in with Google')}
+            startIcon={<GoogleGIcon size={16} />}
             data-axoview-id="screen-empty-signin"
-            sx={{ ...cardActionSx, gap: 1.5 }}
+            sx={{ textTransform: 'none', bgcolor: 'background.paper' }}
           >
-            <Box sx={{ height: 72, display: 'flex', alignItems: 'center' }}>
-              <GoogleGIcon size={56} />
-            </Box>
-            <Button
-              component="span"
-              variant="contained"
-              size="large"
-              disableRipple
-              tabIndex={-1}
-              aria-hidden
-              sx={labelSx}
-            >
-              {t('emptyState.signIn', 'Sign in')}
-            </Button>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ textAlign: 'center', px: 1 }}
-            >
-              {t('emptyState.signInCaption', 'Keep your diagrams in Google Drive')}
-            </Typography>
-          </CardActionArea>
-        </Paper>
+            {t('auth.signIn', 'Sign in with Google')}
+          </Button>
+          <Typography variant="caption" color="text.secondary">
+            {t(
+              'emptyState.signInStripCaption',
+              'Save your diagrams to Google Drive — or continue in this session and move them to Drive anytime.'
+            )}
+          </Typography>
+        </Box>
       )}
     </Box>
   );

@@ -23,7 +23,8 @@
         "newDiagram": "Nuevo diagrama",
         "import": "Importar",
         "signIn": "Iniciar sesión",
-        "signInCaption": "Guarda tus diagramas en Google Drive"
+        "signInCaption": "Guarda tus diagramas en Google Drive",
+        "signInStripCaption": "Guarda tus diagramas en Google Drive, o continúa en esta sesión y muévelos a Drive cuando quieras."
     },
     "fileExplorer": {
         "title": "Diagramas",

@@ -23,7 +23,8 @@
         "newDiagram": "नया आरेख",
         "import": "आयात करें",
         "signIn": "साइन इन करें",
-        "signInCaption": "अपने डायग्राम Google Drive में रखें"
+        "signInCaption": "अपने डायग्राम Google Drive में रखें",
+        "signInStripCaption": "अपने डायग्राम Google Drive में सहेजें — या इसी सत्र में जारी रखें और जब चाहें उन्हें Drive में ले जाएँ।"
     },
     "fileExplorer": {
         "title": "आरेख",

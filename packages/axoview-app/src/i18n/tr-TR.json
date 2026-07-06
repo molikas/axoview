@@ -23,7 +23,8 @@
         "newDiagram": "Yeni diyagram",
         "import": "İçe Aktar",
         "signIn": "Oturum aç",
-        "signInCaption": "Diyagramlarını Google Drive'da sakla"
+        "signInCaption": "Diyagramlarını Google Drive'da sakla",
+        "signInStripCaption": "Diyagramlarını Google Drive'a kaydet — ya da bu oturumda devam et ve istediğin zaman Drive'a taşı."
     },
     "fileExplorer": {
         "title": "Diyagramlar",

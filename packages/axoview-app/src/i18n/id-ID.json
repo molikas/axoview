@@ -19,7 +19,8 @@
         "newDiagram": "Diagram baru",
         "import": "Impor",
         "signIn": "Masuk",
-        "signInCaption": "Simpan diagram Anda di Google Drive"
+        "signInCaption": "Simpan diagram Anda di Google Drive",
+        "signInStripCaption": "Simpan diagram Anda di Google Drive — atau lanjutkan di sesi ini dan pindahkan ke Drive kapan saja."
     },
     "fileExplorer": {
         "title": "Diagram",

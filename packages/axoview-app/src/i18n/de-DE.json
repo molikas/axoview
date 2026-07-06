@@ -19,7 +19,8 @@
         "newDiagram": "Neues Diagramm",
         "import": "Importieren",
         "signIn": "Anmelden",
-        "signInCaption": "Bewahre deine Diagramme in Google Drive auf"
+        "signInCaption": "Bewahre deine Diagramme in Google Drive auf",
+        "signInStripCaption": "Speichere deine Diagramme in Google Drive — oder arbeite in dieser Sitzung weiter und verschiebe sie jederzeit zu Drive."
     },
     "fileExplorer": {
         "title": "Diagramme",

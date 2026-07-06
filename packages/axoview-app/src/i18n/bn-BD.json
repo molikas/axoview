@@ -23,7 +23,8 @@
         "newDiagram": "নতুন ডায়াগ্রাম",
         "import": "আমদানি",
         "signIn": "সাইন ইন",
-        "signInCaption": "আপনার ডায়াগ্রাম Google Drive-এ রাখুন"
+        "signInCaption": "আপনার ডায়াগ্রাম Google Drive-এ রাখুন",
+        "signInStripCaption": "আপনার ডায়াগ্রাম Google Drive-এ সংরক্ষণ করুন — অথবা এই সেশনে চালিয়ে যান এবং যেকোনো সময় সেগুলো Drive-এ সরান।"
     },
     "fileExplorer": {
         "title": "ডায়াগ্রাম",

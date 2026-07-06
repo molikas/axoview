@@ -23,7 +23,8 @@
         "newDiagram": "新建图表",
         "import": "导入",
         "signIn": "登录",
-        "signInCaption": "将图表保存在 Google Drive 中"
+        "signInCaption": "将图表保存在 Google Drive 中",
+        "signInStripCaption": "将图表保存到 Google Drive——或继续使用当前会话，随时可将它们移动到 Drive。"
     },
     "fileExplorer": {
         "title": "图表",

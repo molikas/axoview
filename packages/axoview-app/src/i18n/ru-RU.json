@@ -23,7 +23,8 @@
         "newDiagram": "Новая диаграмма",
         "import": "Импорт",
         "signIn": "Войти",
-        "signInCaption": "Храните диаграммы в Google Drive"
+        "signInCaption": "Храните диаграммы в Google Drive",
+        "signInStripCaption": "Сохраняйте диаграммы в Google Drive — или продолжайте в этом сеансе и перенесите их в Drive в любой момент."
     },
     "fileExplorer": {
         "title": "Диаграммы",

@@ -103,6 +103,22 @@ Owner UX review (2026-07-06) of the shipped Google sign-in + Drive storage surfa
 - [ ] Owner live-test on integration deploy (consent test-user gate): sign in → remember-me
       across reload → migration offer → move/DnD → loading skeletons → sign-out fallback
 
+## Polish on top of scope (owner live-test feedback, 2026-07-06)
+
+- [x] `5acb68d` fix(auth): silent requests now carry **login_hint** (multi-account browsers
+      failed hint-less prompt:'' with "interaction required" → read as "signs me out every
+      reload"); console.debug diagnostics on silent start/failure disambiguate the remaining
+      failure mode (popup_failed_to_open = blocker vs OAuth interaction errors)
+- [x] `86f2480` fix(ux): toolbar declutter — Session chip + storage gauge moved into the
+      avatar menu (both variants); StatusCluster keeps save-state text only (renders nothing
+      when silent); **format strip left-aligned** after the brand (Lucid pattern; amends
+      ADR 0005 empty-center — strip stays the one compressible F1 group)
+- [x] empty-state rework (owner pick: hierarchy strip over two-step choice): the sign-in
+      peer-card is gone; New/Import stay the only cards, with a quiet "[G] Sign in with
+      Google / …or continue in this session" strip beneath (+1 i18n key × 13 locales)
+- Doc follow-up at wrap-up: ux-principles §8.5 (chip-in-cluster example) + ADR 0005 layout
+  contract need dated notes reflecting the two owner overrides above.
+
 ## Known constraints / gotchas
 
 - GIS ceiling: no refresh tokens browser-side; ~1 h silent renewals (already built via
