@@ -116,8 +116,21 @@ Owner UX review (2026-07-06) of the shipped Google sign-in + Drive storage surfa
 - [x] empty-state rework (owner pick: hierarchy strip over two-step choice): the sign-in
       peer-card is gone; New/Import stay the only cards, with a quiet "[G] Sign in with
       Google / …or continue in this session" strip beneath (+1 i18n key × 13 locales)
+- [x] `ad7bc8b` fix(ux): empty-state sign-in card → identity strip (owner pick: hierarchy
+      strip over two-step choice)
+- [x] `3a35327` fix(ux): move-to-drive in-flight feedback — row spinner + dim + inert row,
+      panel thin bar, per-id re-entry guard (indeterminate by design, §6.4; determinate
+      "Moving X of Y" stays in the bulk migration dialog)
+- [x] gesture-armed reconnect retry (owner pick after console verdict `popup_failed_to_open`):
+      boot attempt popup-blocked → one-shot retry on the next gesture (user activation lets
+      the popup open/self-close); ADR 0035 §3 amendment 2
+- **Catalogued — definitive reconnect fix (pre-master slice):** worker auth-code flow with
+  the refresh token in an HttpOnly encrypted cookie (`GOOGLE_CLIENT_SECRET` wrangler secret,
+  `/api/google/oauth/callback` + `/api/google/token` routes, Express parity per ADR 0009 §5,
+  SPA off the implicit flow). Kills the popup entirely; worker stays storage-less.
 - Doc follow-up at wrap-up: ux-principles §8.5 (chip-in-cluster example) + ADR 0005 layout
-  contract need dated notes reflecting the two owner overrides above.
+  contract need dated notes reflecting the two owner overrides above. aria-hidden menu
+  warnings filed in known_issues.
 
 ## Known constraints / gotchas
 

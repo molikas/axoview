@@ -21,6 +21,7 @@ function AuthBridge({
 }) {
   const setBridge = useAuthStore((s) => s._setBridge);
   const reconnectAttemptedRef = useRef(false);
+  const gestureCleanupRef = useRef<(() => void) | null>(null);
 
   // GIS token client (implicit flow). The returned `login` triggers the flow;
   // calling it with { prompt: '' } attempts a silent (re)acquisition.
@@ -57,10 +58,48 @@ function AuthBridge({
   // fired only once the GIS script has actually loaded (a premature call would
   // error out and burn the attempt). No-op inside the store when no profile
   // hint is present.
+  //
+  // Popup-blocker fallback (owner pick 2026-07-06, ADR 0035 §3 amendment):
+  // GIS mints tokens through a self-closing popup, and browsers block popups
+  // that carry no user activation — so the BOOT attempt fails in a default
+  // browser ("Failed to open popup window", confirmed in live test). When it
+  // does, arm ONE retry on the next gesture anywhere: a click carries popup
+  // permission, so the popup opens and self-closes in a blink and the session
+  // restores. One-shot per page load, remembered users only. The definitive
+  // no-popup fix (worker auth-code flow + HttpOnly refresh-token cookie) is
+  // catalogued as a pre-master slice.
   useEffect(() => {
     if (!scriptReady || reconnectAttemptedRef.current) return;
     reconnectAttemptedRef.current = true;
-    void useAuthStore.getState().attemptSilentReconnect();
+    void useAuthStore
+      .getState()
+      .attemptSilentReconnect()
+      .then(() => {
+        const s = useAuthStore.getState();
+        if (s.status !== 'UNAUTHENTICATED' || !s.user) return; // restored, or no hint
+        const retry = () => {
+          gestureCleanupRef.current?.();
+          gestureCleanupRef.current = null;
+          const st = useAuthStore.getState();
+          if (st.status === 'UNAUTHENTICATED' && st.user) {
+            console.debug('[auth] silent reconnect: gesture retry');
+            void st.attemptSilentReconnect();
+          }
+        };
+        const cleanup = () => {
+          window.removeEventListener('pointerdown', retry, true);
+          window.removeEventListener('keydown', retry, true);
+        };
+        gestureCleanupRef.current = cleanup;
+        // Capture phase so a click that stops propagation still arms us.
+        window.addEventListener('pointerdown', retry, true);
+        window.addEventListener('keydown', retry, true);
+        console.debug('[auth] silent reconnect: armed one-shot gesture retry');
+      });
+    return () => {
+      gestureCleanupRef.current?.();
+      gestureCleanupRef.current = null;
+    };
   }, [scriptReady]);
 
   return <>{children}</>;
