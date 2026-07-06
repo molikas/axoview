@@ -5,6 +5,16 @@ All notable changes to Axoview will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0](https://github.com/molikas/axoview/compare/v3.0.3...v3.1.0) (2026-07-05)
+
+### Features
+
+* **canvas:** labels & text-styling productization (integration → master) ([#58](https://github.com/molikas/axoview/issues/58)) ([18ea5af](https://github.com/molikas/axoview/commit/18ea5afe63861fd65ba02ab51d01c634618cd48c)), closes [#54](https://github.com/molikas/axoview/issues/54) [#2](https://github.com/molikas/axoview/issues/2) [#2](https://github.com/molikas/axoview/issues/2) [#4](https://github.com/molikas/axoview/issues/4) [#1](https://github.com/molikas/axoview/issues/1) [A1/A2/#5](https://github.com/A1/A2//issues/5) [1/#9](https://github.com/1/axoview/issues/9) [#5](https://github.com/molikas/axoview/issues/5) [#7](https://github.com/molikas/axoview/issues/7) [#11](https://github.com/molikas/axoview/issues/11) [#7](https://github.com/molikas/axoview/issues/7) [#10](https://github.com/molikas/axoview/issues/10) [#8](https://github.com/molikas/axoview/issues/8) [#8](https://github.com/molikas/axoview/issues/8) [#3](https://github.com/molikas/axoview/issues/3) [retest-after-#5](https://github.com/molikas/retest-after-/issues/5) [#3](https://github.com/molikas/axoview/issues/3) [#4](https://github.com/molikas/axoview/issues/4) [#2](https://github.com/molikas/axoview/issues/2) [#3](https://github.com/molikas/axoview/issues/3) [#4](https://github.com/molikas/axoview/issues/4) [#15](https://github.com/molikas/axoview/issues/15) [#10](https://github.com/molikas/axoview/issues/10) [#12](https://github.com/molikas/axoview/issues/12) [#12](https://github.com/molikas/axoview/issues/12)
+
+### Documentation
+
+* **perf:** reconcile engine-perf plan; defer T3/T4 (no rewrite); scope T2.5 pan floor ([#56](https://github.com/molikas/axoview/issues/56)) ([1f1aca5](https://github.com/molikas/axoview/commit/1f1aca59065f2bb1af4564cca0e856f8ce4c0c06))
+
 ## [3.0.3](https://github.com/molikas/axoview/compare/v3.0.2...v3.0.3) (2026-06-24)
 
 ### Performance
