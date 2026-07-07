@@ -5,6 +5,12 @@ All notable changes to Axoview will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.1](https://github.com/molikas/axoview/compare/v3.4.0...v3.4.1) (2026-07-07)
+
+### Bug Fixes
+
+* **security:** close CodeQL alerts — helmet CSP, format string, CI token perms ([#62](https://github.com/molikas/axoview/issues/62)) ([25d3c63](https://github.com/molikas/axoview/commit/25d3c632354d2e04fd79b3658d6e65f647751c6d)), closes [#54](https://github.com/molikas/axoview/issues/54) [#2](https://github.com/molikas/axoview/issues/2) [#2](https://github.com/molikas/axoview/issues/2) [#4](https://github.com/molikas/axoview/issues/4) [#1](https://github.com/molikas/axoview/issues/1) [A1/A2/#5](https://github.com/A1/A2//issues/5) [1/#9](https://github.com/1/axoview/issues/9) [#5](https://github.com/molikas/axoview/issues/5) [#7](https://github.com/molikas/axoview/issues/7) [#11](https://github.com/molikas/axoview/issues/11) [#7](https://github.com/molikas/axoview/issues/7) [#10](https://github.com/molikas/axoview/issues/10) [#8](https://github.com/molikas/axoview/issues/8) [#8](https://github.com/molikas/axoview/issues/8) [#3](https://github.com/molikas/axoview/issues/3) [retest-after-#5](https://github.com/molikas/retest-after-/issues/5) [#3](https://github.com/molikas/axoview/issues/3) [#4](https://github.com/molikas/axoview/issues/4) [#2](https://github.com/molikas/axoview/issues/2) [#3](https://github.com/molikas/axoview/issues/3) [#4](https://github.com/molikas/axoview/issues/4) [#15](https://github.com/molikas/axoview/issues/15) [#10](https://github.com/molikas/axoview/issues/10) [#12](https://github.com/molikas/axoview/issues/12) [#12](https://github.com/molikas/axoview/issues/12)
+
 ## [3.4.0](https://github.com/molikas/axoview/compare/v3.3.0...v3.4.0) (2026-07-07)
 
 ### Features
