@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { notificationStore } from './notificationStore';
+import { authDebug } from '../utils/authDebug';
 
 // ADR 0035 — Google Identity & Drive Authorization (token model).
 //
@@ -205,7 +206,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // silent request needs the account chooser ("interaction required") and
     // fails. The persisted email names the account so Google can stay silent.
     const hint = s.user.email || undefined;
-    console.debug('[auth] silent reconnect: attempting', hint ? `(hint=${hint})` : '(no hint)');
+    authDebug('[auth] silent reconnect: attempting', hint ? `(hint=${hint})` : '(no hint)');
     set({ status: 'RECONNECTING' });
     return new Promise<void>((resolve) => {
       set((st) => ({ _waiters: [...st._waiters, { resolve, reject: resolve }] }));
@@ -299,7 +300,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // (older GIS shapes, tests) → assume granted rather than false-alarm.
     const driveScopeGranted = resp.scope ? resp.scope.split(' ').includes(DRIVE_FILE_SCOPE) : true;
     if (!driveScopeGranted) {
-      console.debug('[auth] token granted WITHOUT drive.file scope:', resp.scope);
+      authDebug('[auth] token granted WITHOUT drive.file scope:', resp.scope);
     }
     const waiters = get()._waiters;
     set({
@@ -325,13 +326,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // — not the popup's own error. Absorb it once; the interactive attempt
       // stays in flight and its grant will land normally.
       set({ _absorbStaleError: false });
-      console.debug('[auth] absorbed superseded silent-request error:', reason);
+      authDebug('[auth] absorbed superseded silent-request error:', reason);
       return;
     }
     const waiters = get()._waiters;
     set({ _waiters: [] });
     if (s === 'REFRESHING') {
-      console.debug('[auth] silent refresh failed:', reason);
+      authDebug('[auth] silent refresh failed:', reason);
       set({ status: 'SESSION_EXPIRED', accessToken: null, expiresAt: null });
       pushExpiredNotice(() => void get().signIn());
       waiters.forEach((w) => w.reject());
@@ -341,7 +342,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // shows the reconnect affordance; no toast, no popup. The debug line is
       // the diagnostic channel: GIS reports popup_failed_to_open (blocker) vs
       // an OAuth error like interaction_required (account chooser needed).
-      console.debug('[auth] silent reconnect failed:', reason);
+      authDebug('[auth] silent reconnect failed:', reason);
       set({ status: 'UNAUTHENTICATED', accessToken: null, expiresAt: null });
       waiters.forEach((w) => w.reject());
     } else {

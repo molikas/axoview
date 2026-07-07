@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 import { useAppStorage } from './AppStorageContext';
 import { useAuthStore } from '../stores/authStore';
+import { authDebug } from '../utils/authDebug';
 
 // ADR 0035 — scopes requested exactly. drive.file is non-sensitive (no Google
 // security assessment); openid/profile/email populate the avatar + name.
@@ -82,7 +83,7 @@ function AuthBridge({
           gestureCleanupRef.current = null;
           const st = useAuthStore.getState();
           if (st.status === 'UNAUTHENTICATED' && st.user) {
-            console.debug('[auth] silent reconnect: gesture retry');
+            authDebug('[auth] silent reconnect: gesture retry');
             void st.attemptSilentReconnect();
           }
         };
@@ -94,7 +95,7 @@ function AuthBridge({
         // Capture phase so a click that stops propagation still arms us.
         window.addEventListener('pointerdown', retry, true);
         window.addEventListener('keydown', retry, true);
-        console.debug('[auth] silent reconnect: armed one-shot gesture retry');
+        authDebug('[auth] silent reconnect: armed one-shot gesture retry');
       });
     return () => {
       gestureCleanupRef.current?.();
