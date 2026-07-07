@@ -239,5 +239,12 @@
     "legal": {
         "privacy": "Privacy",
         "terms": "Terms"
+    },
+    "driveAccess": {
+        "title": "Google Drive access is required",
+        "body": "Axoview signs you in only to store your diagrams in your own Google Drive. Without the Drive permission there is nothing to sign in for — every save and open would fail.",
+        "instruction": "Please continue and tick the checkbox that lets Axoview \"see, edit, create and delete only the specific files you use with it.\"",
+        "cancel": "Continue without Drive",
+        "grant": "Grant Drive access"
     }
 }

@@ -44,6 +44,12 @@ function AuthBridge({
         // for a prompt:'' request.
         if (opts?.prompt === '') {
           login({ prompt: '', ...(opts.hint ? { hint: opts.hint } : {}) });
+        } else if (opts?.prompt) {
+          // e.g. prompt:'consent' — re-open the consent screen so a user who
+          // skipped the Drive checkbox can grant drive.file (grantDriveAccess).
+          // The store keeps prompt as a plain string (decoupled from GIS types);
+          // narrow it to GIS's PromptType at this boundary.
+          login({ prompt: opts.prompt as '' | 'none' | 'consent' | 'select_account' });
         } else {
           login();
         }

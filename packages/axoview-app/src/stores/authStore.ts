@@ -24,7 +24,11 @@ export type AuthStatus =
   | 'RECONNECTING'
   | 'AUTHENTICATED'
   | 'REFRESHING'
-  | 'SESSION_EXPIRED';
+  | 'SESSION_EXPIRED'
+  // Identity was granted but the drive.file scope was withheld (Drive checkbox
+  // left unchecked). Signing in exists only to reach Drive, so this is NOT a
+  // usable session — a blocking re-consent dialog is the only way forward.
+  | 'DRIVE_ACCESS_REQUIRED';
 
 export interface AuthUser {
   name: string;
@@ -102,6 +106,18 @@ interface AuthState {
   getValidToken: () => Promise<string | null>;
   /** Force SESSION_EXPIRED (e.g. a Drive 401 despite a not-yet-expired token). */
   markExpired: () => void;
+  /**
+   * Re-open Google's consent screen with the Drive checkbox (prompt:'consent'),
+   * so a user who signed in without granting drive.file can grant it. Drives the
+   * DRIVE_ACCESS_REQUIRED dialog's primary action.
+   */
+  grantDriveAccess: () => void;
+  /**
+   * Park the session in DRIVE_ACCESS_REQUIRED after a Drive call 403s for
+   * insufficient scopes despite an AUTHENTICATED status (scope revoked
+   * out-of-band). Routes the same blocking re-consent dialog.
+   */
+  markDriveScopeMissing: () => void;
 
   // Called by AuthProvider's GIS callbacks — not for external use.
   _onToken: (resp: TokenResponse) => void;
@@ -234,7 +250,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   getValidToken: () => {
     const s = get();
-    if (s.status === 'UNAUTHENTICATED' || s.status === 'SESSION_EXPIRED') {
+    if (
+      s.status === 'UNAUTHENTICATED' ||
+      s.status === 'SESSION_EXPIRED' ||
+      s.status === 'DRIVE_ACCESS_REQUIRED'
+    ) {
       return Promise.resolve(null);
     }
     if (
@@ -286,6 +306,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     pushExpiredNotice(() => void get().signIn());
   },
 
+  grantDriveAccess: () => {
+    const { _requestToken } = get();
+    if (!_requestToken) return;
+    // prompt:'consent' forces Google to re-show the consent screen (with the
+    // Drive checkbox) even though identity was already granted — incremental
+    // re-consent, not a fresh account chooser. The grant lands in _onToken.
+    set({ status: 'AUTHENTICATING', _absorbStaleError: false });
+    _requestToken({ prompt: 'consent' });
+  },
+
+  markDriveScopeMissing: () => {
+    if (get().status === 'DRIVE_ACCESS_REQUIRED') return;
+    set({
+      status: 'DRIVE_ACCESS_REQUIRED',
+      accessToken: null,
+      expiresAt: null,
+      driveScopeGranted: false
+    });
+  },
+
   _onToken: (resp) => {
     // Ignore a grant that arrives after the request was abandoned (signOut /
     // markExpired reset the status) — otherwise a late token would resurrect a
@@ -299,10 +339,41 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // granted, which may be less than what we asked for. No scope field
     // (older GIS shapes, tests) → assume granted rather than false-alarm.
     const driveScopeGranted = resp.scope ? resp.scope.split(' ').includes(DRIVE_FILE_SCOPE) : true;
+    const waiters = get()._waiters;
+
+    // Hard stop (ADR 0035 §6): drive.file is the ENTIRE point of signing in —
+    // without it there is no storage to reach, only 403s. So a grant that
+    // skipped the Drive checkbox never becomes a usable AUTHENTICATED session:
+    //  - interactive sign-in → DRIVE_ACCESS_REQUIRED (blocking re-consent dialog)
+    //  - silent reconnect/refresh → fail as if no token arrived (never nag on boot)
     if (!driveScopeGranted) {
       authDebug('[auth] token granted WITHOUT drive.file scope:', resp.scope);
+      if (s === 'AUTHENTICATING') {
+        set({
+          status: 'DRIVE_ACCESS_REQUIRED',
+          accessToken: null,
+          expiresAt: null,
+          driveScopeGranted: false,
+          _waiters: [],
+          _absorbStaleError: false
+        });
+        waiters.forEach((w) => w.resolve());
+        // Use the identity token (still valid for userinfo) to greet the user
+        // by name in the dialog — but never store it.
+        if (!get().user) void fetchUserInfo(resp.access_token);
+        return;
+      }
+      set({ _waiters: [], _absorbStaleError: false });
+      if (s === 'REFRESHING') {
+        set({ status: 'SESSION_EXPIRED', accessToken: null, expiresAt: null });
+        pushExpiredNotice(() => void get().signIn());
+      } else {
+        set({ status: 'UNAUTHENTICATED', accessToken: null, expiresAt: null, driveScopeGranted: null });
+      }
+      waiters.forEach((w) => w.reject());
+      return;
     }
-    const waiters = get()._waiters;
+
     set({
       status: 'AUTHENTICATED',
       accessToken: resp.access_token,
@@ -391,5 +462,6 @@ export const authStore = {
   signIn: () => useAuthStore.getState().signIn(),
   signOut: () => useAuthStore.getState().signOut(),
   getValidToken: () => useAuthStore.getState().getValidToken(),
-  markExpired: () => useAuthStore.getState().markExpired()
+  markExpired: () => useAuthStore.getState().markExpired(),
+  markDriveScopeMissing: () => useAuthStore.getState().markDriveScopeMissing()
 };

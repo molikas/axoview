@@ -58,7 +58,8 @@ describe('authStore', () => {
     // signOut clears the flag along with the session.
     useAuthStore.getState().signOut();
     expect(useAuthStore.getState().driveScopeGranted).toBeNull();
-    // Granted with the Drive checkbox left UNCHECKED — identity only.
+    // Granted with the Drive checkbox left UNCHECKED — identity only. This is a
+    // HARD STOP: no usable session, the re-consent dialog state instead.
     p = useAuthStore.getState().signIn();
     useAuthStore.getState()._onToken({
       access_token: 'tok2',
@@ -66,8 +67,63 @@ describe('authStore', () => {
       scope: 'openid email profile'
     });
     await p;
-    expect(useAuthStore.getState().status).toBe('AUTHENTICATED');
+    expect(useAuthStore.getState().status).toBe('DRIVE_ACCESS_REQUIRED');
     expect(useAuthStore.getState().driveScopeGranted).toBe(false);
+    // The scope-less token is never retained — getValidToken must yield null so
+    // no Drive call can 403 with it.
+    expect(useAuthStore.getState().accessToken).toBeNull();
+    await expect(useAuthStore.getState().getValidToken()).resolves.toBeNull();
+  });
+
+  test('grantDriveAccess re-consents with prompt:consent and completes on a full grant', async () => {
+    const requestToken = jest.fn();
+    useAuthStore.getState()._setBridge({ requestToken, revoke: jest.fn() });
+    // Interactive sign-in without Drive → DRIVE_ACCESS_REQUIRED.
+    const p = useAuthStore.getState().signIn();
+    useAuthStore.getState()._onToken({ access_token: 'id-only', scope: 'openid email' });
+    await p;
+    expect(useAuthStore.getState().status).toBe('DRIVE_ACCESS_REQUIRED');
+    // The dialog's primary action re-opens the consent screen.
+    requestToken.mockClear();
+    useAuthStore.getState().grantDriveAccess();
+    expect(useAuthStore.getState().status).toBe('AUTHENTICATING');
+    expect(requestToken).toHaveBeenCalledWith({ prompt: 'consent' });
+    // This time the Drive box is ticked → a real session.
+    useAuthStore.getState()._onToken({
+      access_token: 'full',
+      scope: 'openid email https://www.googleapis.com/auth/drive.file'
+    });
+    expect(useAuthStore.getState().status).toBe('AUTHENTICATED');
+    expect(useAuthStore.getState().driveScopeGranted).toBe(true);
+  });
+
+  test('markDriveScopeMissing parks an authenticated session for re-consent', async () => {
+    useAuthStore.getState()._setBridge({ requestToken: jest.fn(), revoke: jest.fn() });
+    const p = useAuthStore.getState().signIn();
+    useAuthStore.getState()._onToken({
+      access_token: 'tok',
+      scope: 'openid email https://www.googleapis.com/auth/drive.file'
+    });
+    await p;
+    expect(useAuthStore.getState().status).toBe('AUTHENTICATED');
+    // A Drive 403 for insufficient scopes mid-session.
+    useAuthStore.getState().markDriveScopeMissing();
+    expect(useAuthStore.getState().status).toBe('DRIVE_ACCESS_REQUIRED');
+    expect(useAuthStore.getState().accessToken).toBeNull();
+    // Backing out returns cleanly to signed-out.
+    useAuthStore.getState().signOut();
+    expect(useAuthStore.getState().status).toBe('UNAUTHENTICATED');
+  });
+
+  test('a silent reconnect without drive.file does NOT nag — degrades to signed-out', async () => {
+    useAuthStore.setState({ user: { name: 'A', email: 'a@b.c', avatarUrl: '' } });
+    useAuthStore.getState()._setBridge({ requestToken: jest.fn(), revoke: jest.fn() });
+    const p = useAuthStore.getState().attemptSilentReconnect();
+    expect(useAuthStore.getState().status).toBe('RECONNECTING');
+    useAuthStore.getState()._onToken({ access_token: 'id-only', scope: 'openid email' });
+    await p;
+    // No DRIVE_ACCESS_REQUIRED modal on boot — just quietly unauthenticated.
+    expect(useAuthStore.getState().status).toBe('UNAUTHENTICATED');
   });
 
   test('a scope-less token response (older GIS shape) does not false-alarm', async () => {

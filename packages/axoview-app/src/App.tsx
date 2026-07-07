@@ -25,6 +25,7 @@ import {
 } from './providers/DiagramLifecycleProvider';
 import { DriveSetupGate } from './components/DriveSetupGate';
 import { MigrateSessionDialog } from './components/MigrateSessionDialog';
+import { DriveAccessRequiredDialog } from './components/DriveAccessRequiredDialog';
 import { useAuthStore } from './stores/authStore';
 import { FileExplorer } from './components/fileExplorer/FileExplorer';
 import { AppToolbar } from './components/AppToolbar';
@@ -565,6 +566,9 @@ function EditorShell() {
       {/* Post-sign-in "move session diagrams to Drive?" offer + on-demand entry
           (avatar menu, session section header, banner). */}
       <MigrateSessionDialog />
+
+      {/* Hard stop when sign-in granted identity but not the Drive scope. */}
+      <DriveAccessRequiredDialog />
 
       <DiagnosticsOverlay />
       <NotificationStack />
