@@ -22,27 +22,43 @@ import { resolveRenderOrder } from 'src/utils/renderOrder';
 import { decodeHtmlEntities } from 'src/utils/htmlToPlainText';
 import { isLabelVisibleInPreview } from 'src/utils/previewLabelVisibility';
 import { LABEL_LINK_COLOR } from 'src/utils/labelChip';
+import {
+  createGLCompositor,
+  GLCompositor,
+  Corners
+} from 'src/webgl/glCompositor';
+import {
+  rasterizeNodeChip,
+  makeDotCanvas,
+  CHIP_SUPERSAMPLE
+} from 'src/webgl/itemRaster';
 
 // ---------------------------------------------------------------------------
-// NodesCanvas — T2 PoC. Imperative Canvas2D draw of the node layer (icon image
-// + static label text), replacing the per-node React DOM subtree (~14 elements
-// × N) with one <canvas> + O(visible) draw calls.
+// NodesCanvas — WebGL bulk draw of the node layer (icon sprite + name-chip +
+// stalk), replacing the per-node React DOM subtree (~14 elements × N) with one
+// GPU-composited <canvas> + O(visible) textured quads.
+//
+// WebGL SPIKE (this file): the icon is a textured quad straight from the cached
+// HTMLImageElement; the name-chip (rounded rect + text + underline/strike) is
+// rasterised ONCE by Canvas2D into a content-keyed, mipmapped GL texture (so the
+// glyph pixels are byte-identical to the old Canvas2D path — see itemRaster.ts)
+// and re-blitted every frame by the GPU; the dotted stalk is emitted as tinted
+// dot quads. Pan/zoom re-emit only the O(visible) quad corners (all textures are
+// cache hits), so no glyphs are re-rasterised on navigation.
+//
+// The imperative Canvas2D draw() is kept verbatim below as an automatic FALLBACK
+// (drawCanvas2D) for environments without WebGL2 — the component transparently
+// picks the GL path when a compositor is available and the Canvas2D path when it
+// is not, so nothing regresses where GPU compositing is unavailable.
 //
 // DRAW-ONLY. Hit-testing/selection/drag stay in the stores + the invisible
 // `canvas-interactions` box (unchanged). The hybrid keeps DOM for the
-// selected/editing node's live label (readable-labels counter-scale + F2 inline
-// edit) — deferred from this PoC, whose job is to measure the spawn cost of the
-// canvas node-draw, not to be pixel-complete (mirrors the connector-PoC scope:
-// representative case only — description richtext, notes/link badges, the label
-// stalk line and expand button are deferred to the production pass).
+// selected/editing node's live label — deferred, as before.
 //
-// Transform model (t2-design §3): the canvas owns its transform so 1px text/
-// strokes stay crisp under zoom. Each frame:
-//   setTransform(zoom·dpr, 0, 0, zoom·dpr, (W/2+scroll.x)·dpr, (H/2+scroll.y)·dpr)
-// mirrors the <SceneLayer> CSS (`top/left:50%` + `translate(scroll) scale(zoom)`),
-// so drawing in tile-canvas coords (getTilePosition output) lands identically to
-// the DOM path. Non-isometric icons in ISOMETRIC mode additionally get the fixed
-// iso matrix per icon (mirrors NonIsometricIcon).
+// Transform model (unchanged): the SceneLayer CSS is
+//   translate(scroll) scale(zoom) about the renderer centre.
+// The Canvas2D path mirrors it with setTransform; the GL path maps tile-space
+// point (tx,ty) → device px as ((zoom·tx + W/2 + scroll.x)·dpr, …) per corner.
 // ---------------------------------------------------------------------------
 
 interface Props {
@@ -57,8 +73,7 @@ interface Props {
 // Label chip geometry that the DOM path (Label.tsx) reads from the live MUI
 // theme is derived from the SAME theme here (see `chipStyleRef` in the component)
 // rather than hardcoded — otherwise retuning theme.shape.borderRadius / spacing
-// would silently desync the canvas chip from the DOM chip (and the chip visibly
-// jumps when the hybrid swaps a node between renderers on select/drag).
+// would silently desync the canvas chip from the DOM chip.
 interface ChipStyle {
   radius: number; // theme.shape.borderRadius × 2  (sx borderRadius: 2)
   padX: number; // theme.spacing(1.5)
@@ -68,14 +83,10 @@ interface ChipStyle {
   text: string; // palette.text.primary
 }
 // Label chip layout — mirrors ExpandableLabel/Label: maxWidth 250 (inner = 250 −
-// 2·padX). Option A: the on-canvas label is the node's `name` only — the rich
-// caption (description) folds into Notes and is no longer drawn here.
+// 2·padX). Option A: the on-canvas label is the node's `name` only.
 const LABEL_CHIP_MAX_W = 250;
 const PROJ_W = PROJECTED_TILE_SIZE.width;
-// D3-3: below this zoom, labels are too small to read — draw icons only and skip
-// the whole label block (stalk + measure + chip). The biggest per-frame win when
-// zoomed out over a dense scene. Overridden by the readable-labels toggle, which
-// deliberately keeps labels legible at low zoom.
+// D3-3: below this zoom, labels are too small to read — draw icons only.
 const LABEL_LOD_ZOOM = 0.25;
 
 // D3-2: per-node label layout, measured once and reused across pan/zoom redraws.
@@ -92,9 +103,7 @@ const EMPTY_SKIP: Set<string> = new Set();
 const spacingPx = (v: string | number): number =>
   typeof v === 'number' ? v : parseFloat(v);
 
-// Rounded-rect path with a manual fallback: ctx.roundRect is unsupported on the
-// app's older supported browsers (Safari <16.4, Firefox <112 per browserslist),
-// where calling it throws and would blank the whole node layer.
+// Rounded-rect path with a manual fallback (used by the Canvas2D fallback path).
 const roundRectPath = (
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -131,10 +140,34 @@ const resolveIcon = (
   return iconsById.get(iconId) ?? TOMBSTONE_ICON;
 };
 
-// Sprite height from the source aspect ratio; guards naturalWidth === 0 (a
-// not-yet-decoded / broken image) so we never produce Infinity.
+// Sprite height from the source aspect ratio; guards naturalWidth === 0.
 const iconHeight = (img: HTMLImageElement, w: number): number =>
   img.naturalWidth > 0 ? (img.naturalHeight / img.naturalWidth) * w : w;
+
+// Compute the node-name text/chip layout (shared by both render paths).
+const measureNodeLabel = (
+  ctx: CanvasRenderingContext2D,
+  name: string,
+  fontSize: number,
+  bold: boolean,
+  italic: boolean,
+  chip: ChipStyle
+): LabelLayout => {
+  const innerMaxW = LABEL_CHIP_MAX_W - chip.padX * 2;
+  const nameFont = `${italic ? 'italic ' : ''}${
+    bold ? 700 : 600
+  } ${fontSize}px ${DEFAULT_FONT_FAMILY}`;
+  const nameLineH = fontSize * 1.5;
+  ctx.font = nameFont;
+  const nameW = ctx.measureText(name).width;
+  const innerW = Math.min(innerMaxW, nameW);
+  return {
+    nameFont,
+    nameLineH,
+    chipW: innerW + chip.padX * 2,
+    chipH: nameLineH + chip.padY * 2
+  };
+};
 
 export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -144,17 +177,12 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
   const { getTilePosition, strategy } = useCanvasMode();
   const { layers, visibleIds } = useLayerContext();
 
-  // Latest render inputs, read by the imperative draw (avoids re-subscribing on
-  // every prop change).
   const nodesRef = useRef(nodes);
   const layersRef = useRef(layers);
   const visibleIdsRef = useRef(visibleIds);
   const getTilePositionRef = useRef(getTilePosition);
   const projectionRef = useRef(strategy.projectionName);
   const skipIdsRef = useRef<Set<string>>(new Set());
-  // Chip geometry/colours derived from the SAME live theme the DOM Label reads,
-  // so the two renderers can't drift (Label.tsx: borderRadius ×2, py spacing(1),
-  // px spacing(1.5), grey[400] border, white bg, text.primary).
   const chipStyleRef = useRef<ChipStyle>({
     radius: 0,
     padX: 0,
@@ -181,22 +209,16 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
     text: theme.palette.text.primary
   };
 
-  // Icon-bitmap cache (the key spawn win): one decoded HTMLImageElement per icon
-  // URL, drawn N times — vs N DOM <img> elements. Survives across redraws.
+  // Icon-bitmap cache: one decoded HTMLImageElement per icon URL. In the GL path
+  // it also seeds the per-url GL texture on first draw.
   const iconCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const pendingRef = useRef(false);
   const rafIdRef = useRef(0);
   const destroyedRef = useRef(false);
-  // Exposed by the main effect so the prop-change effects can request a redraw
-  // (rAF-coalesced) or force a synchronous one (the select/deselect path).
   const scheduleDrawRef = useRef<() => void>(() => {});
   const drawNowRef = useRef<() => void>(() => {});
 
-  // ST-4: painter's-order sort cache. draw() runs on every pan/zoom frame, but
-  // the sort depends only on (nodes, layers, visibleIds, skipIds) — none of
-  // which change when the user merely pans or zooms. Reuse the sorted array
-  // until one of those input identities changes (a real change always produces
-  // a fresh array/Set ref from React), so pan/zoom stops re-sorting all nodes.
+  // ST-4: painter's-order sort cache (shared by both paths).
   const sortCacheRef = useRef<{
     nodes: ViewItem[] | null;
     layers: Layer[] | null;
@@ -211,11 +233,7 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
     sorted: []
   });
 
-  // D3-1: id→item / id→icon lookup cache. The bare getItemById(model.items, id)
-  // per visible node was a linear findIndex — O(N²) per draw, re-run on every
-  // pan/zoom frame (same antipattern as the paste freeze, in the render hot
-  // path). Memoised on the model.items / model.icons array identity, so it
-  // rebuilds only when the model changes and is skipped on pure pan/zoom.
+  // D3-1: id→item / id→icon lookup cache.
   const itemMapCacheRef = useRef<{
     items: ModelItem[] | null;
     icons: Icon[] | null;
@@ -223,16 +241,27 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
     iconsById: Map<string, Icon>;
   }>({ items: null, icons: null, itemsById: new Map(), iconsById: new Map() });
 
-  // D3-2: text-layout cache, keyed by the content that determines it
-  // (fontSize, name, description). Pan/zoom redraws reuse it instead of
-  // re-running measureText/wrapText/chip-dims per node per frame.
+  // D3-2: text-layout cache, keyed by the content that determines it.
   const labelLayoutCacheRef = useRef<Map<string, LabelLayout>>(new Map());
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+
+    // Prefer WebGL2; fall back to Canvas2D where it's unavailable. A canvas can
+    // only ever hold one context type, so try GL first and only ask for '2d'
+    // when GL is null (the canvas is still uncommitted at that point).
+    const compositor: GLCompositor | null = createGLCompositor(canvas);
+    const ctx: CanvasRenderingContext2D | null = compositor
+      ? null
+      : canvas.getContext('2d');
+    if (!compositor && !ctx) return;
+
+    // A throwaway 2D context purely for measureText in the GL path (the visible
+    // canvas is owned by WebGL and has no 2D context).
+    const measureCtx: CanvasRenderingContext2D | null = compositor
+      ? document.createElement('canvas').getContext('2d')
+      : ctx;
 
     const getImage = (url: string): HTMLImageElement | null => {
       if (!url) return null;
@@ -248,47 +277,22 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       return img.complete ? img : null;
     };
 
-    const draw = () => {
-      pendingRef.current = false;
+    // ----- shared per-frame scene state (both paths) -----
+    const frameState = () => {
       const ui = uiApi.getState();
       const { scroll, zoom, rendererSize, readableLabels } = ui;
-      // Present-mode hide-labels override (ADR 0013 addendum) — UI-only; merged
-      // through the same single point as the DOM Node path (isLabelVisibleInPreview).
       const inPreview = ui.editorMode === 'EXPLORABLE_READONLY';
       const previewHideLabels = ui.previewHideLabels;
-      // Image-export hide-labels override (ADR 0025 §3) — UI-only, export-scoped.
       const exportHideLabels = ui.exportHideLabels;
       const dpr = window.devicePixelRatio || 1;
       const W = rendererSize.width;
       const H = rendererSize.height;
-
-      // Size the backing store to the renderer × dpr; CSS size stays in px.
       const bw = Math.max(1, Math.round(W * dpr));
       const bh = Math.max(1, Math.round(H * dpr));
-      if (canvas.width !== bw || canvas.height !== bh) {
-        canvas.width = bw;
-        canvas.height = bh;
-        canvas.style.width = `${W}px`;
-        canvas.style.height = `${H}px`;
-      }
-
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, bw, bh);
-      // SceneLayer-equivalent transform (zoom + scroll about the renderer center).
-      ctx.setTransform(
-        zoom * dpr,
-        0,
-        0,
-        zoom * dpr,
-        (W / 2 + scroll.position.x) * dpr,
-        (H / 2 + scroll.position.y) * dpr
-      );
 
       const model = modelApi.getState();
       const items = model.items;
       const icons = model.icons;
-      // O(1) id→item / id→icon lookups (D3-1), rebuilt only when the model's
-      // items/icons arrays change (skipped on pure pan/zoom).
       const mapCache = itemMapCacheRef.current;
       let itemsById = mapCache.itemsById;
       let iconsById = mapCache.iconsById;
@@ -308,20 +312,11 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
         minReadablePx: LABEL_MIN_READABLE_PX,
         maxCounterScale: LABEL_MAX_COUNTER_SCALE
       });
-      // Publish the applied label counter-scale so the readable-labels gate can
-      // observe it on the canvas renderer (no per-node DOM label exists in canvas
-      // mode). This is the exact value fed to ctx.scale below, not a recomputation.
       canvas.dataset.labelScale = String(counterScale);
-
-      // D3-3: skip the label block (stalk + chip) below the LOD zoom unless
-      // readable-labels is on. Computed once per draw, applied per node.
       const drawLabels = readableLabels || zoom >= LABEL_LOD_ZOOM;
-
       const skipIds = skipIdsRef.current;
 
-      // Painter's order: ascending resolved render order (mirrors Nodes sort).
-      // Cached across pan/zoom (ST-4) — only recomputed when the node set,
-      // layers, visibility or skip set actually changes.
+      // Painter's order (ST-4 cache).
       const cache = sortCacheRef.current;
       let sorted: ViewItem[];
       if (
@@ -332,9 +327,6 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       ) {
         sorted = cache.sorted;
       } else {
-        // O(1) layerId→order lookup, built once per recompute (was a linear
-        // findLayer per sort comparison). get(undefined)→undefined→0 preserves
-        // the old findLayer(...)?.order ?? 0 semantics for unassigned layers.
         const layerOrder = new Map(layersNow.map((l) => [l.id, l.order]));
         const orderOf = (n: ViewItem) =>
           resolveRenderOrder(
@@ -357,238 +349,451 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
         };
       }
 
+      return {
+        scroll,
+        zoom,
+        W,
+        H,
+        bw,
+        bh,
+        dpr,
+        inPreview,
+        previewHideLabels,
+        exportHideLabels,
+        itemsById,
+        iconsById,
+        getTilePos,
+        isIso,
+        counterScale,
+        drawLabels,
+        sorted
+      };
+    };
+
+    // ------------------------------------------------------------------
+    // WebGL draw path.
+    // ------------------------------------------------------------------
+    const drawGL = (comp: GLCompositor) => {
+      pendingRef.current = false;
+      const f = frameState();
+      canvas.style.width = `${f.W}px`;
+      canvas.style.height = `${f.H}px`;
+      comp.begin(f.bw, f.bh);
+
+      const { scroll, zoom, W, H, dpr } = f;
+      const originX = W / 2 + scroll.position.x;
+      const originY = H / 2 + scroll.position.y;
+      // tile-space → device px.
+      const dX = (tx: number) => (zoom * tx + originX) * dpr;
+      const dY = (ty: number) => (zoom * ty + originY) * dpr;
+      // Build device Corners from 4 tile-space points (TL,TR,BR,BL).
+      const cn = (
+        ax: number,
+        ay: number,
+        bx: number,
+        by: number,
+        cx: number,
+        cy: number,
+        ex: number,
+        ey: number
+      ): Corners => ({
+        tlx: dX(ax),
+        tly: dY(ay),
+        trx: dX(bx),
+        try_: dY(by),
+        brx: dX(cx),
+        bry: dY(cy),
+        blx: dX(ex),
+        bly: dY(ey)
+      });
+
+      const ss = dpr * CHIP_SUPERSAMPLE;
+      const dotTex = comp.canvasTexture('__stalk_dot__', 0, makeDotCanvas);
+      const mctx = measureCtx;
+
       let drawn = 0;
-      // Count of nodes that actually painted a label chip this frame. Published
-      // below so the present-mode hide-labels gate can be observed on the canvas
-      // renderer (no per-node DOM label exists in canvas mode) — same idea as
-      // data-label-scale / data-draw-count.
       let labelsDrawn = 0;
-      // Count of drawn labels that painted the linked (headerLink) style —
-      // published so a test can prove the resting canvas paint applied
-      // link-blue/underline without pixel-sampling the canvas (owner
-      // 2026-07-05: an unselected node's link was previously invisible here).
       let linkedLabelsDrawn = 0;
-      // A2: true only when EVERY node that should paint an icon had a decoded
-      // bitmap available this frame. getImage returns null for a non-empty icon
-      // URL whose Image hasn't finished decoding yet — that node's icon is
-      // skipped, so the snapshot would miss it. The image-export flow polls this
-      // signal before its first capture (mirrors drawCount/labelsDrawn). Nodes
-      // with no icon (DEFAULT_ICON.url === '') resolve to null immediately but
-      // have nothing to paint, so they must NOT flip this false — the per-node
-      // check below gates on a truthy icon.url first (O(1), no allocation).
       let allIconsDrawn = true;
-      for (const node of sorted) {
-        const modelItem = itemsById.get(node.id);
+
+      for (const node of f.sorted) {
+        const modelItem = f.itemsById.get(node.id);
         if (!modelItem) continue;
         drawn += 1;
-        // ADR 0023: apply the off-grid offset as a final translate AFTER
-        // projection so at-rest canvas nodes match the DOM overlay exactly (no
-        // jump on select/drag). No-op branch when offset is absent (the common
-        // snapped case) — this loop runs every pan/zoom frame, so the snapped
-        // path must add no work and no allocation. stalk/icon/label all derive
-        // from `pos`, so this single shift offsets the whole node.
-        const base = getTilePos({ tile: node.tile, origin: 'CENTER' });
+
+        const base = f.getTilePos({ tile: node.tile, origin: 'CENTER' });
         const pos = node.offset
           ? { x: base.x + node.offset.x, y: base.y + node.offset.y }
           : base;
 
-        // On-canvas label text (ADR 0032 amendment): the `label` field, falling
-        // back to the identity `name` when absent (pre-seed / brand-new nodes).
-        // Plain text rendered verbatim by the DOM overlay, so decode entities
-        // only — never strip tags (a label like `List<T>` must survive and stay
-        // identical to the DOM Node it swaps with). A1 / hybrid parity.
         const name = decodeHtmlEntities(modelItem.label ?? modelItem.name);
         const hasLabel =
           isLabelVisibleInPreview(
             node.showLabel !== false,
-            inPreview,
-            previewHideLabels
+            f.inPreview,
+            f.previewHideLabels
           ) &&
-          !exportHideLabels &&
+          !f.exportHideLabels &&
           Boolean(name);
         const labelHeight = node.labelHeight ?? DEFAULT_LABEL_HEIGHT;
 
-        // ----- stalk line (D2-1) -----
-        // Dotted line from the tile up to the chip's bottom-centre, drawn FIRST
-        // so the icon + chip paint over it (the DOM renders the label before the
-        // icon). Mirrors the DOM Label stalk exactly: strokeDasharray "0,6",
-        // round cap, width 3, black. The canvas drew NO stalk before — at-rest
-        // (canvas) nodes showed none and selecting one popped it in via the DOM
-        // overlay (the reported "stalk invisible until click").
-        // ADR 0024: labelHeight is a SIGNED offset — positive draws the stalk up
-        // (legacy), negative draws it down (below-node). `pos.y - labelHeight`
-        // handles both; only the zero case (no stalk) is skipped.
-        if (hasLabel && labelHeight !== 0 && drawLabels) {
-          ctx.save();
-          ctx.setLineDash([0, 6]);
-          ctx.lineCap = 'round';
-          ctx.lineWidth = 3;
-          ctx.strokeStyle = 'black';
-          ctx.beginPath();
-          ctx.moveTo(pos.x, pos.y);
-          ctx.lineTo(pos.x, pos.y - labelHeight);
-          ctx.stroke();
-          ctx.restore();
+        // ----- stalk (dotted, drawn first) -----
+        if (hasLabel && labelHeight !== 0 && f.drawLabels && dotTex) {
+          const len = Math.abs(labelHeight);
+          const sign = labelHeight >= 0 ? 1 : -1;
+          const rDot = 1.5; // diameter 3 tile px (matches lineWidth 3)
+          for (let d = 0; d <= len; d += 6) {
+            const cx = pos.x;
+            const cy = pos.y - sign * d;
+            comp.drawTexturedQuad(
+              dotTex,
+              cn(
+                cx - rDot,
+                cy - rDot,
+                cx + rDot,
+                cy - rDot,
+                cx + rDot,
+                cy + rDot,
+                cx - rDot,
+                cy + rDot
+              ),
+              0,
+              0,
+              0,
+              1
+            );
+          }
         }
 
         // ----- icon -----
-        const icon = resolveIcon(modelItem.icon, iconsById);
+        const icon = resolveIcon(modelItem.icon, f.iconsById);
         const img = getImage(icon.url);
-        // A2: a node that should paint an icon (non-empty URL) but whose bitmap
-        // isn't decoded yet (img === null) was skipped this frame. Flag it so the
-        // export waits for the icon layer before snapshotting. The icon.url guard
-        // excludes the no-icon/DEFAULT_ICON case (url === '') — nothing to draw,
-        // so it must not flip the signal. O(1), no allocation.
+        if (icon.url && !img) allIconsDrawn = false;
+        if (img) {
+          const tex = comp.imageTexture(icon.url, img);
+          if (tex) {
+            const scale = icon.scale || 1;
+            if (icon.isIsometric) {
+              const w = PROJ_W * 0.8 * scale;
+              const h = iconHeight(img, w);
+              comp.drawTexturedQuad(
+                tex,
+                cn(
+                  pos.x - w / 2,
+                  pos.y - h / 2,
+                  pos.x + w / 2,
+                  pos.y - h / 2,
+                  pos.x + w / 2,
+                  pos.y + h / 2,
+                  pos.x - w / 2,
+                  pos.y + h / 2
+                )
+              );
+            } else if (f.isIso) {
+              const w = PROJ_W * 0.7 * scale;
+              const h = iconHeight(img, w);
+              const ox = pos.x - PROJ_W / 2;
+              const oy = pos.y;
+              // local (lx,ly) → iso: (ISO0·lx+ISO2·ly+ISO4, ISO1·lx+ISO3·ly+ISO5)
+              const px = (lx: number, ly: number) =>
+                ox + ISO[0] * lx + ISO[2] * ly + ISO[4];
+              const py = (lx: number, ly: number) =>
+                oy + ISO[1] * lx + ISO[3] * ly + ISO[5];
+              comp.drawTexturedQuad(
+                tex,
+                cn(
+                  px(0, 0),
+                  py(0, 0),
+                  px(w, 0),
+                  py(w, 0),
+                  px(w, h),
+                  py(w, h),
+                  px(0, h),
+                  py(0, h)
+                )
+              );
+            } else {
+              const w = PROJ_W * 0.7 * scale;
+              const h = iconHeight(img, w);
+              comp.drawTexturedQuad(
+                tex,
+                cn(
+                  pos.x - w / 2,
+                  pos.y - h / 2,
+                  pos.x + w / 2,
+                  pos.y - h / 2,
+                  pos.x + w / 2,
+                  pos.y + h / 2,
+                  pos.x - w / 2,
+                  pos.y + h / 2
+                )
+              );
+            }
+          }
+        }
+
+        // ----- name chip -----
+        if (hasLabel && f.drawLabels && mctx) {
+          labelsDrawn += 1;
+          const chip = chipStyleRef.current;
+          const fontSize = node.labelFontSize || LABEL_BASE_FONT_PX;
+          const labelBold = !!node.labelBold;
+          const labelItalic = !!node.labelItalic;
+          const labelStrike = !!node.labelStrikethrough;
+          const linked = !!modelItem.headerLink;
+          if (linked) linkedLabelsDrawn += 1;
+          const labelUnder = !!node.labelUnderline || linked;
+          const textColor =
+            node.labelColor || (linked ? LABEL_LINK_COLOR : chip.text);
+
+          const layoutKey = `${fontSize}:${labelBold ? 1 : 0}:${
+            labelItalic ? 1 : 0
+          }:${name}`;
+          let layout = labelLayoutCacheRef.current.get(layoutKey);
+          if (!layout) {
+            layout = measureNodeLabel(
+              mctx,
+              name,
+              fontSize,
+              labelBold,
+              labelItalic,
+              chip
+            );
+            const lc = labelLayoutCacheRef.current;
+            if (lc.size > 4096) lc.clear();
+            lc.set(layoutKey, layout);
+          }
+          const { nameFont, nameLineH, chipW, chipH } = layout;
+
+          // Content-keyed chip texture (theme colours are in the key, so a theme
+          // change re-rasterises). Lazy factory: a cache hit (every pan/zoom
+          // frame) skips rasterisation entirely.
+          const texKey = `node|${fontSize}|${labelBold ? 1 : 0}|${
+            labelItalic ? 1 : 0
+          }|${labelStrike ? 1 : 0}|${labelUnder ? 1 : 0}|${textColor}|${
+            chip.bg
+          }|${chip.border}|${chip.radius}|${chip.padX}|${chip.padY}|${name}`;
+          const chipTex = comp.canvasTexture(texKey, 0, () =>
+            rasterizeNodeChip(
+              name,
+              chipW,
+              chipH,
+              {
+                radius: chip.radius,
+                padX: chip.padX,
+                padY: chip.padY,
+                bg: chip.bg,
+                border: chip.border,
+                fontSize,
+                nameFont,
+                nameLineH,
+                textColor,
+                underline: labelUnder,
+                strike: labelStrike
+              },
+              ss
+            )
+          );
+
+          if (chipTex) {
+            const cs = f.counterScale;
+            const anchorX = pos.x;
+            const anchorY = pos.y - labelHeight;
+            const x0 = -chipW / 2;
+            const y0 = labelHeight < 0 ? 0 : -chipH;
+            comp.drawTexturedQuad(
+              chipTex,
+              cn(
+                anchorX + cs * x0,
+                anchorY + cs * y0,
+                anchorX + cs * (x0 + chipW),
+                anchorY + cs * y0,
+                anchorX + cs * (x0 + chipW),
+                anchorY + cs * (y0 + chipH),
+                anchorX + cs * x0,
+                anchorY + cs * (y0 + chipH)
+              )
+            );
+          }
+        }
+      }
+
+      comp.end();
+      canvas.dataset.drawCount = String(drawn);
+      canvas.dataset.labelsDrawn = String(labelsDrawn);
+      canvas.dataset.linkedLabelsDrawn = String(linkedLabelsDrawn);
+      canvas.dataset.allIconsDrawn = String(allIconsDrawn);
+    };
+
+    // ------------------------------------------------------------------
+    // Canvas2D FALLBACK path (verbatim from the pre-WebGL implementation).
+    // ------------------------------------------------------------------
+    const drawCanvas2D = (c2d: CanvasRenderingContext2D) => {
+      pendingRef.current = false;
+      const f = frameState();
+      const { bw, bh, W, H, dpr, scroll, zoom } = f;
+      if (canvas.width !== bw || canvas.height !== bh) {
+        canvas.width = bw;
+        canvas.height = bh;
+        canvas.style.width = `${W}px`;
+        canvas.style.height = `${H}px`;
+      }
+      c2d.setTransform(1, 0, 0, 1, 0, 0);
+      c2d.clearRect(0, 0, bw, bh);
+      c2d.setTransform(
+        zoom * dpr,
+        0,
+        0,
+        zoom * dpr,
+        (W / 2 + scroll.position.x) * dpr,
+        (H / 2 + scroll.position.y) * dpr
+      );
+
+      let drawn = 0;
+      let labelsDrawn = 0;
+      let linkedLabelsDrawn = 0;
+      let allIconsDrawn = true;
+      for (const node of f.sorted) {
+        const modelItem = f.itemsById.get(node.id);
+        if (!modelItem) continue;
+        drawn += 1;
+        const base = f.getTilePos({ tile: node.tile, origin: 'CENTER' });
+        const pos = node.offset
+          ? { x: base.x + node.offset.x, y: base.y + node.offset.y }
+          : base;
+
+        const name = decodeHtmlEntities(modelItem.label ?? modelItem.name);
+        const hasLabel =
+          isLabelVisibleInPreview(
+            node.showLabel !== false,
+            f.inPreview,
+            f.previewHideLabels
+          ) &&
+          !f.exportHideLabels &&
+          Boolean(name);
+        const labelHeight = node.labelHeight ?? DEFAULT_LABEL_HEIGHT;
+
+        if (hasLabel && labelHeight !== 0 && f.drawLabels) {
+          c2d.save();
+          c2d.setLineDash([0, 6]);
+          c2d.lineCap = 'round';
+          c2d.lineWidth = 3;
+          c2d.strokeStyle = 'black';
+          c2d.beginPath();
+          c2d.moveTo(pos.x, pos.y);
+          c2d.lineTo(pos.x, pos.y - labelHeight);
+          c2d.stroke();
+          c2d.restore();
+        }
+
+        const icon = resolveIcon(modelItem.icon, f.iconsById);
+        const img = getImage(icon.url);
         if (icon.url && !img) allIconsDrawn = false;
         if (img) {
           const scale = icon.scale || 1;
-          ctx.save();
-          ctx.translate(pos.x, pos.y);
+          c2d.save();
+          c2d.translate(pos.x, pos.y);
           if (icon.isIsometric) {
-            // IsometricIcon is position:absolute with NO top/left inside a
-            // flex(center,center) IconWrap, so the browser CENTRES the sprite on
-            // the tile — the canvas must draw it centred too (the PoC's top-left
-            // anchor offset every isometric node by ~half a sprite, breaking
-            // click hit-testing / drag / lasso). Width projW·0.8.
             const w = PROJ_W * 0.8 * scale;
             const h = iconHeight(img, w);
-            ctx.drawImage(img, -w / 2, -h / 2, w, h);
-          } else if (isIso) {
-            // NonIsometricIcon ISO path: inner box at an EXPLICIT left:-projW/2,
-            // top:0, iso matrix about its top-left — so this branch keeps the
-            // top-left anchor (it mirrors that explicit offset, not flex-centring).
-            ctx.translate(-PROJ_W / 2, 0);
-            ctx.transform(ISO[0], ISO[1], ISO[2], ISO[3], ISO[4], ISO[5]);
+            c2d.drawImage(img, -w / 2, -h / 2, w, h);
+          } else if (f.isIso) {
+            c2d.translate(-PROJ_W / 2, 0);
+            c2d.transform(ISO[0], ISO[1], ISO[2], ISO[3], ISO[4], ISO[5]);
             const w = PROJ_W * 0.7 * scale;
             const h = iconHeight(img, w);
-            ctx.drawImage(img, 0, 0, w, h);
+            c2d.drawImage(img, 0, 0, w, h);
           } else {
-            // 2D NonIsometricIcon: position:absolute, no top/left, flex-centred —
-            // centre the sprite on the tile (same fix as the isometric branch).
             const w = PROJ_W * 0.7 * scale;
             const h = iconHeight(img, w);
-            ctx.drawImage(img, -w / 2, -h / 2, w, h);
+            c2d.drawImage(img, -w / 2, -h / 2, w, h);
           }
-          ctx.restore();
+          c2d.restore();
         }
 
-        // ----- static label (name only) -----
-        // Option A: the on-canvas label is the node's `name` only. The former
-        // rich-text caption (description) folds into Notes and is not drawn.
-        if (hasLabel && drawLabels) {
+        if (hasLabel && f.drawLabels) {
           labelsDrawn += 1;
           const chip = chipStyleRef.current;
           const fontSize = node.labelFontSize || LABEL_BASE_FONT_PX;
           const labelBold = node.labelBold;
           const labelItalic = node.labelItalic;
           const labelStrike = node.labelStrikethrough;
-          // A linked node name READS as a link at rest, not just once selected
-          // (owner 2026-07-05: the canvas paint had no headerLink awareness at
-          // all, so an unselected node's link was invisible AND unclickable —
-          // mirrors the drawLabelChip treatment for floating Labels).
           const linked = !!modelItem.headerLink;
           if (linked) linkedLabelsDrawn += 1;
           const labelUnder = node.labelUnderline || linked;
           const textColor =
             node.labelColor || (linked ? LABEL_LINK_COLOR : chip.text);
 
-          // D3-2: measure once per (fontSize, weight, style, name) and reuse
-          // across pan/zoom redraws — chip geometry is content-determined. Bold /
-          // italic change the measured width, so they're part of the key. The
-          // live counter-scale is applied at draw time below, not baked here.
           const layoutKey = `${fontSize}:${labelBold ? 1 : 0}:${
             labelItalic ? 1 : 0
           }:${name}`;
           let layout = labelLayoutCacheRef.current.get(layoutKey);
           if (!layout) {
-            const innerMaxW = LABEL_CHIP_MAX_W - chip.padX * 2;
-            const nameFont = `${labelItalic ? 'italic ' : ''}${
-              labelBold ? 700 : 600
-            } ${fontSize}px ${DEFAULT_FONT_FAMILY}`;
-            const nameLineH = fontSize * 1.5;
-
-            ctx.font = nameFont;
-            const nameW = ctx.measureText(name).width;
-
-            const innerW = Math.min(innerMaxW, nameW);
-            const chipW = innerW + chip.padX * 2;
-            const chipH = nameLineH + chip.padY * 2;
-
-            layout = { nameFont, nameLineH, chipW, chipH };
-            const cache = labelLayoutCacheRef.current;
-            // Bound memory: pan/zoom adds no entries (same labels hit) — only edits
-            // do, so this rarely trips; clear wholesale when it does.
-            if (cache.size > 4096) cache.clear();
-            cache.set(layoutKey, layout);
+            layout = measureNodeLabel(
+              c2d,
+              name,
+              fontSize,
+              !!labelBold,
+              !!labelItalic,
+              chip
+            );
+            const lc = labelLayoutCacheRef.current;
+            if (lc.size > 4096) lc.clear();
+            lc.set(layoutKey, layout);
           }
-
           const { nameFont, nameLineH, chipW, chipH } = layout;
 
-          ctx.save();
-          // Chip is centered horizontally on the tile and floats `labelHeight`
-          // from the tile center. ADR 0024: when the offset is negative the chip
-          // sits BELOW (y0 = 0, top-center scale); above keeps bottom-center.
-          ctx.translate(pos.x, pos.y - labelHeight);
-          ctx.scale(counterScale, counterScale);
+          c2d.save();
+          c2d.translate(pos.x, pos.y - labelHeight);
+          c2d.scale(f.counterScale, f.counterScale);
           const x0 = -chipW / 2;
           const y0 = labelHeight < 0 ? 0 : -chipH;
-          roundRectPath(ctx, x0, y0, chipW, chipH, chip.radius);
-          ctx.fillStyle = chip.bg;
-          ctx.fill();
-          ctx.lineWidth = 1;
-          ctx.strokeStyle = chip.border;
-          ctx.stroke();
+          roundRectPath(c2d, x0, y0, chipW, chipH, chip.radius);
+          c2d.fillStyle = chip.bg;
+          c2d.fill();
+          c2d.lineWidth = 1;
+          c2d.strokeStyle = chip.border;
+          c2d.stroke();
 
-          // Name (bold), left-aligned inside the (tile-centered) chip.
-          ctx.textAlign = 'left';
-          ctx.textBaseline = 'top';
+          c2d.textAlign = 'left';
+          c2d.textBaseline = 'top';
           const textX = x0 + chip.padX;
           const textY = y0 + chip.padY;
-          ctx.font = nameFont;
-          ctx.fillStyle = textColor;
-          ctx.fillText(name, textX, textY + (nameLineH - fontSize) / 2);
-          // Strikethrough / underline: Canvas2D has no text-decoration, so draw
-          // the rules manually across the chip's inner width — strike at the
-          // line's vertical centre, underline just under the baseline (ADR 0034
-          // O1; underline is decoration-only, so the layout cache key is
-          // unaffected).
+          c2d.font = nameFont;
+          c2d.fillStyle = textColor;
+          c2d.fillText(name, textX, textY + (nameLineH - fontSize) / 2);
           if (labelStrike || labelUnder) {
-            ctx.strokeStyle = textColor;
-            ctx.lineWidth = Math.max(1, fontSize / 14);
+            c2d.strokeStyle = textColor;
+            c2d.lineWidth = Math.max(1, fontSize / 14);
             const innerW = chipW - chip.padX * 2;
             if (labelStrike) {
               const strikeY = textY + nameLineH / 2;
-              ctx.beginPath();
-              ctx.moveTo(textX, strikeY);
-              ctx.lineTo(textX + innerW, strikeY);
-              ctx.stroke();
+              c2d.beginPath();
+              c2d.moveTo(textX, strikeY);
+              c2d.lineTo(textX + innerW, strikeY);
+              c2d.stroke();
             }
             if (labelUnder) {
-              const underY = textY + (nameLineH - fontSize) / 2 + fontSize * 0.95;
-              ctx.beginPath();
-              ctx.moveTo(textX, underY);
-              ctx.lineTo(textX + innerW, underY);
-              ctx.stroke();
+              const underY =
+                textY + (nameLineH - fontSize) / 2 + fontSize * 0.95;
+              c2d.beginPath();
+              c2d.moveTo(textX, underY);
+              c2d.lineTo(textX + innerW, underY);
+              c2d.stroke();
             }
           }
-          ctx.restore();
+          c2d.restore();
         }
       }
-
-      // Draw-count anti-cheat (ADR 0019): the perf harness asserts drawn == N at
-      // fit-to-view, proving the canvas paints every node the scene committed (no
-      // accidental cull shrinking the benchmark) — the canvas-mode replacement for
-      // the DOM `[data-drag-id]` shell count, which reads ~0 with the bulk DOM path
-      // gone.
       canvas.dataset.drawCount = String(drawn);
       canvas.dataset.labelsDrawn = String(labelsDrawn);
       canvas.dataset.linkedLabelsDrawn = String(linkedLabelsDrawn);
-      // A2: "true" only when no node's icon was skipped this frame for a
-      // not-yet-decoded bitmap. The image-export dialog awaits this before its
-      // first capture so canvas-drawn icons aren't dropped from the snapshot
-      // (connectors are DOM/SVG and survive regardless). Same publish shape as
-      // the drawCount/labelsDrawn anti-cheat datasets above.
       canvas.dataset.allIconsDrawn = String(allIconsDrawn);
+    };
+
+    const draw = () => {
+      if (compositor) drawGL(compositor);
+      else if (ctx) drawCanvas2D(ctx);
     };
 
     const scheduleDraw = () => {
@@ -596,27 +801,17 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       pendingRef.current = true;
       rafIdRef.current = requestAnimationFrame(draw);
     };
-    // Synchronous redraw for the select/deselect path (see the useLayoutEffect
-    // below): the DOM overlay mounts/unmounts synchronously, so the canvas must
-    // repaint the swapped node before paint or it flickers for one frame.
     const drawNow = () => {
       if (destroyedRef.current) return;
       pendingRef.current = false;
       cancelAnimationFrame(rafIdRef.current);
       draw();
     };
-    // Reset both flags on (re)mount — StrictMode double-invokes effects: the
-    // first mount sets pendingRef + schedules a rAF, the cleanup cancels that rAF
-    // (so draw never runs to clear pendingRef), and without this reset the second
-    // mount's scheduleDraw would early-return on the stale pendingRef and the
-    // canvas would never paint.
     destroyedRef.current = false;
     pendingRef.current = false;
     scheduleDrawRef.current = scheduleDraw;
     drawNowRef.current = drawNow;
 
-    // Initial draw + subscriptions (imperative, no React render on pan/zoom or
-    // per-frame scene writes — all redraws are rAF-coalesced).
     scheduleDraw();
     const unsubUi = uiApi.subscribe((s, p) => {
       if (
@@ -630,19 +825,6 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       ) {
         return;
       }
-      // Pan/zoom must repaint the canvas SYNCHRONOUSLY, in the same store tick as
-      // the DOM SceneLayers — Grid.tsx and SceneLayer.tsx apply their CSS
-      // transform inline inside this very subscription (no rAF). The mouse-pan
-      // path runs setScroll INSIDE the useRAFThrottle rAF callback, so a nested
-      // requestAnimationFrame here (scheduleDraw) wouldn't fire until the NEXT
-      // frame — leaving the canvas node layer one frame behind the grid,
-      // connectors and selected-node overlay for the whole drag. That cross-
-      // surface frame skew is the visible "rubber-band" drift on pan. Drawing now
-      // keeps every surface on the same frame. The draw is the same O(visible)
-      // paint that ran a frame later before, so per-frame cost is unchanged (pan
-      // is already throttled to ≤1 scroll write/frame upstream). Non-navigation
-      // changes (label/mode visibility toggles) aren't latency-coupled to the DOM
-      // transform, so they stay rAF-coalesced.
       if (s.scroll !== p.scroll || s.zoom !== p.zoom) {
         drawNow();
       } else {
@@ -659,20 +841,14 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       cancelAnimationFrame(rafIdRef.current);
       unsubUi();
       unsubModel();
+      compositor?.destroy();
     };
   }, [uiApi, modelApi]);
 
-  // Spawn / pan-independent redraw triggers: a bulk model.set re-renders Renderer
-  // → new `nodes` prop → one rAF-coalesced canvas redraw of O(visible) draws.
-  // `strategy.projectionName` is here so an ISO↔2D toggle repaints (the geometry
-  // changes) instead of relying on an incidental pan to trigger it.
   useEffect(() => {
     scheduleDrawRef.current();
   }, [nodes, layers, visibleIds, strategy.projectionName]);
 
-  // Select/deselect (skipNodes) → the lifted node moves between the canvas and
-  // the DOM overlay. Redraw SYNCHRONOUSLY before paint (useLayoutEffect) so the
-  // node is never absent from both surfaces for a frame.
   useLayoutEffect(() => {
     drawNowRef.current();
   }, [skipNodes]);
