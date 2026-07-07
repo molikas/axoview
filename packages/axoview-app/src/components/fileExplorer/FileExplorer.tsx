@@ -141,6 +141,7 @@ export function FileExplorer() {
   const authStatus = useAuthStore((s) => s.status);
   const authUser = useAuthStore((s) => s.user);
   const signIn = useAuthStore((s) => s.signIn);
+  const grantDriveAccess = useAuthStore((s) => s.grantDriveAccess);
   const driveScopeGranted = useAuthStore((s) => s.driveScopeGranted);
   const {
     currentDiagram,
@@ -292,16 +293,18 @@ export function FileExplorer() {
 
     // Google Drive section children by auth/tree state.
     let driveChildren: FileNode[];
-    if (!driveUsable) {
+    if (driveScopeGranted === false) {
+      // Signed in, but the consent screen's Drive checkbox was left unchecked
+      // (granular consent) — every Drive call 403s until re-granted. Checked
+      // FIRST so it wins over the reconnect/loading rows (which would otherwise
+      // mislabel this as "signed out"); this coincides with the blocking
+      // DRIVE_ACCESS_REQUIRED dialog. The fix is a re-consent, not a retry.
+      driveChildren = [stateRow('google-drive', 'scope')];
+    } else if (!driveUsable) {
       driveChildren =
         authStatus === 'RECONNECTING' || authStatus === 'AUTHENTICATING'
           ? skeletons('google-drive')
           : [stateRow('google-drive', authUser ? 'reconnect' : 'signin')];
-    } else if (driveScopeGranted === false) {
-      // Signed in, but the consent screen's Drive checkbox was left unchecked
-      // (granular consent) — every Drive call 403s until re-granted. Trumps
-      // the loading/error rows: the retry that fixes this is a re-consent.
-      driveChildren = [stateRow('google-drive', 'scope')];
     } else if (driveTree.status === 'loading') {
       driveChildren = skeletons('google-drive');
     } else if (driveTree.status === 'error') {
@@ -950,10 +953,13 @@ export function FileExplorer() {
       switch (node.stateKind) {
         case 'signin':
         case 'reconnect':
-        // 'scope': a partial grant (Drive checkbox unchecked) — the fix is a
-        // re-consent, and include_granted_scopes keeps the identity grant.
-        case 'scope':
           void signIn();
+          break;
+        // A partial grant (Drive checkbox unchecked) can't be fixed by a plain
+        // signIn — Google replays the cached identity-only grant. Force the
+        // consent screen back open (prompt:'consent') so the checkbox reappears.
+        case 'scope':
+          grantDriveAccess();
           break;
         case 'error':
           void treeFor(node.placeId ?? 'google-drive').refresh();
@@ -965,7 +971,7 @@ export function FileExplorer() {
           break;
       }
     },
-    [signIn, treeFor]
+    [signIn, grantDriveAccess, treeFor]
   );
 
   const sessionDiagramCount = sessionTree.diagrams.filter((d) => !d.deletedAt).length;

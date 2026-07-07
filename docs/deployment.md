@@ -133,7 +133,7 @@ The first deploy creates the Pages project. Subsequent deploys reuse it.
 ### C5. Smoke test
 
 ```bash
-BASE=https://axoview.pages.dev
+BASE=https://axoview.app
 curl "$BASE/api/config"             # always public, returns serverStorage: false
 curl -i "$BASE/api/diagrams"        # 503 — storage disabled
 ```

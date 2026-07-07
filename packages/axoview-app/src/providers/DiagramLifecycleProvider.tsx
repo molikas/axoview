@@ -1026,6 +1026,14 @@ export function DiagramLifecycleProvider({
           );
         }
       } catch (e) {
+        // A Drive insufficient-scope 403 (scope revoked out-of-band, or a stale
+        // grant) surfaces the blocking re-consent dialog instead of a dead-end
+        // "Failed to create diagram" toast the user can't act on.
+        const err = e as { name?: string; status?: number };
+        if (err?.name === 'DriveError' && err.status === 403) {
+          useAuthStore.getState().markDriveScopeMissing();
+          return;
+        }
         console.error('handleCreateBlankDiagram failed:', e);
         notificationStore.push({ severity: 'error', message: 'Failed to create diagram' });
       }

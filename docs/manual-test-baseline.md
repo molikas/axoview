@@ -67,7 +67,7 @@ Cleanup when done: `docker compose down && rm .env`.
 
 ### Session — Cloudflare deploy
 
-Open `https://axoview.pages.dev/` (or whichever URL the live deploy resolves to).
+Open `https://axoview.app/` (or whichever URL the live deploy resolves to).
 
 ---
 
