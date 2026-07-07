@@ -19,6 +19,10 @@ concurrency:
   group: e2e-playwright-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Least-privilege GITHUB_TOKEN: checkout + run the Playwright suite only.
+permissions:
+  contents: read
+
 jobs:
   playwright:
     name: Playwright (chromium)

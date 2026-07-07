@@ -16,6 +16,10 @@ on:
     types: [opened, edited, reopened, synchronize]
     branches: ["master"]
 
+# Least-privilege GITHUB_TOKEN: reads the PR title from the event payload only.
+permissions:
+  contents: read
+
 jobs:
   title-lint:
     name: Conventional title on integration → master
