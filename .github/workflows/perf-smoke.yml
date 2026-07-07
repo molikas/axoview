@@ -24,6 +24,10 @@ concurrency:
   group: perf-smoke-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Least-privilege GITHUB_TOKEN: checkout + run the perf harness only.
+permissions:
+  contents: read
+
 jobs:
   perf-smoke:
     name: Engine perf smoke (anti-cheats)

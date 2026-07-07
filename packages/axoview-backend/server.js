@@ -34,7 +34,18 @@ const routeEnv = {
 // ---------------------------------------------------------------------------
 app.use(
   helmet({
-    contentSecurityPolicy: false, // CSP is delivered by nginx / _headers
+    // This server returns JSON only (never HTML / the SPA), so rather than
+    // disabling CSP we lock it all the way down: default-src 'none' blocks every
+    // resource class and frame-ancestors 'none' blocks framing. Strictly
+    // additive to the SPA's own CSP, which nginx / _headers still delivers for
+    // the app origin (this server never serves the app).
+    contentSecurityPolicy: {
+      useDefaults: false,
+      directives: {
+        defaultSrc: ["'none'"],
+        frameAncestors: ["'none'"]
+      }
+    },
     crossOriginEmbedderPolicy: false
   })
 );
@@ -164,7 +175,10 @@ function adapt(handler, { requireStorage = true } = {}) {
       if (err && typeof err.status === 'number') {
         return res.status(err.status).json(err.body);
       }
-      console.error(`[${req.method} ${req.path}]`, err);
+      // User-controlled req.method/req.path are passed as %s arguments, NOT
+      // interpolated into the format string, so a path containing %-specifiers
+      // can't be re-interpreted by util.format (CodeQL: tainted-format-string).
+      console.error('[%s %s]', req.method, req.path, err);
       res.status(500).json({ error: 'Internal error' });
     }
   };
