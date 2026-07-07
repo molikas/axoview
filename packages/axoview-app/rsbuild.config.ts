@@ -31,6 +31,12 @@ export default defineConfig({
             'process.env.PUBLIC_URL': JSON.stringify(publicUrl),
             'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
             'process.env.REACT_APP_VERSION': JSON.stringify(appVersion),
+            // ADR 0035 §4 — build-time Google client id for pure-local `npm run
+            // dev` (no backend serving /api/config). Public identifier; empty on
+            // Cloudflare (the id arrives via /api/config there).
+            'process.env.PUBLIC_GOOGLE_CLIENT_ID': JSON.stringify(
+                process.env.PUBLIC_GOOGLE_CLIENT_ID || ''
+            ),
         },
     },
     output: {

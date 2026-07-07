@@ -1,6 +1,5 @@
 import { useRef, useState, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
 import { Tree, TreeApi, NodeApi } from 'react-arborist';
 import { exportAsJSON, mergeBundledFixtures, type Model } from 'axoview';
 import {
@@ -12,6 +11,7 @@ import {
   DialogTitle,
   Divider,
   IconButton,
+  LinearProgress,
   Menu,
   Typography,
   type PaperProps
@@ -19,7 +19,10 @@ import {
 import { Close as CloseIcon } from '@mui/icons-material';
 import { useAppStorage } from '../../providers/AppStorageContext';
 import { useDiagramLifecycle } from '../../providers/DiagramLifecycleProvider';
-import { useFileTree, FileNode } from '../../hooks/useFileTree';
+import { useAuthStore } from '../../stores/authStore';
+import { GoogleDriveProvider } from '../../services/storage/providers/GoogleDriveProvider';
+import { moveDiagramsToDrive } from '../../services/storage/driveTransfer';
+import { useFileTree, FileNode, PlaceId } from '../../hooks/useFileTree';
 import { FileTreeNode } from './FileTreeNode';
 import { FileTreeToolbar } from './FileTreeToolbar';
 import { ContextMenuItems } from './ContextMenuItems';
@@ -31,11 +34,16 @@ import { copySuffix, countDescendants, detectCollision } from '../../utils/fileO
 import { shareUrlFromUuid } from '../../utils/shareUrl';
 import { ExportScope } from '../../services/project/projectZip';
 
+// Section-root ids of the places model (2026-07-06): one tree, two places.
+const PLACE_DRIVE = 'place:google-drive';
+const PLACE_SESSION = 'place:local';
+
 interface DeleteConfirm {
   id: string;
   type: 'diagram' | 'folder';
   name: string;
   descendantCount: number;
+  placeId: PlaceId;
 }
 
 interface CollisionDialog {
@@ -43,11 +51,13 @@ interface CollisionDialog {
   type: 'diagram' | 'folder';
   name: string;
   targetFolderId: string | null;
+  placeId: PlaceId;
 }
 
 interface PendingNew {
   type: 'folder' | 'diagram';
   parentId: string | null;
+  placeId: PlaceId;
 }
 
 // Custom row: arborist's DefaultRow has only onClick — we need onDoubleClick to
@@ -71,7 +81,7 @@ function FileTreeRow({
       onClick={node.handleClick}
       onDoubleClick={(e) => {
         if (node.data.id === '__pending__') return;
-        if (node.data.type === 'folder') return;
+        if (node.data.type !== 'diagram') return;
         e.preventDefault();
         e.stopPropagation();
         node.select();
@@ -81,13 +91,6 @@ function FileTreeRow({
       {children}
     </div>
   );
-}
-
-// D12: the default heading ("Diagrams") is translated; "Google Drive" is a
-// proper noun and stays verbatim across locales.
-function providerIdToLabel(id: string, t: TFunction): string {
-  if (id === 'google-drive') return 'Google Drive';
-  return t('fileExplorer.title');
 }
 
 function injectPendingNode(
@@ -117,9 +120,28 @@ function injectPendingNode(
   });
 }
 
+/** Deep-stamp a place id onto per-provider tree data (places model). */
+function stampPlace(nodes: FileNode[], placeId: PlaceId): FileNode[] {
+  return nodes.map((n) => ({
+    ...n,
+    placeId,
+    children: n.children ? stampPlace(n.children, placeId) : n.children
+  }));
+}
+
 export function FileExplorer() {
   const { t } = useTranslation('app');
-  const { storage, serverStorageAvailable } = useAppStorage();
+  const {
+    storage,
+    storageManager,
+    serverStorageAvailable,
+    googleDriveConfigured,
+    defaultPlaceId
+  } = useAppStorage();
+  const authStatus = useAuthStore((s) => s.status);
+  const authUser = useAuthStore((s) => s.user);
+  const signIn = useAuthStore((s) => s.signIn);
+  const driveScopeGranted = useAuthStore((s) => s.driveScopeGranted);
   const {
     currentDiagram,
     openDiagramById,
@@ -129,6 +151,7 @@ export function FileExplorer() {
     markProjectExported,
     notifyDiagramRenamedFromTree,
     notifyDiagramDeletedFromTree,
+    saveAllDirty,
     axoviewRef
   } = useDiagramLifecycle();
   const treeRef = useRef<TreeApi<FileNode> | undefined>(undefined);
@@ -140,6 +163,8 @@ export function FileExplorer() {
   const [contextMenuAnchor, setContextMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [contextMenuNode, setContextMenuNode] = useState<FileNode | null>(null);
   const [contextMenuOrigin, setContextMenuOrigin] = useState<'row' | 'empty'>('row');
+  // Which place a context-menu create action targets (set from the clicked row).
+  const [contextMenuPlace, setContextMenuPlace] = useState<PlaceId | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirm | null>(null);
   const [collisionDialog, setCollisionDialog] = useState<CollisionDialog | null>(null);
   // ADR 0011 — share-link creation failure from the file-tree context menu (a
@@ -149,31 +174,214 @@ export function FileExplorer() {
     scope: Exclude<ExportScope, 'diagram'>;
     folderId?: string;
     folderName?: string;
+    placeId?: PlaceId;
   } | null>(null);
   const [showImport, setShowImport] = useState(false);
+  // Diagrams mid-move to Drive — drives the row spinner + the panel's thin
+  // progress bar (the app's honest-progress vocabulary: indeterminate, since
+  // a single move is sequential network calls with no real percent signal).
+  const [movingIds, setMovingIds] = useState<Set<string>>(new Set());
 
-  const tree = useFileTree(
-    storage,
+  // ---------------------------------------------------------------------------
+  // Places model: one useFileTree instance per place, composed into one tree.
+  // ---------------------------------------------------------------------------
+  const localProvider = storageManager?.getProvider('local') ?? storage;
+  const driveProvider = storageManager?.getProvider('google-drive') ?? null;
+  const dualMode = googleDriveConfigured;
+  const driveUsable = authStatus === 'AUTHENTICATED' || authStatus === 'REFRESHING';
+
+  const sessionTree = useFileTree(
+    localProvider,
     fileTreeRefreshToken,
     currentDiagram?.id,
     undefined,
-    dirtyDiagramIds
+    dirtyDiagramIds,
+    'local'
+  );
+  const driveTree = useFileTree(
+    dualMode ? driveProvider : null,
+    fileTreeRefreshToken,
+    currentDiagram?.id,
+    undefined,
+    dirtyDiagramIds,
+    'google-drive',
+    dualMode && driveUsable
   );
 
-  const providerLabel = providerIdToLabel(storage?.id ?? 'local', t);
+  const treeFor = useCallback(
+    (placeId: PlaceId) => (placeId === 'google-drive' ? driveTree : sessionTree),
+    [driveTree, sessionTree]
+  );
+  const providerFor = useCallback(
+    (placeId: PlaceId) =>
+      placeId === 'google-drive' ? driveProvider : localProvider,
+    [driveProvider, localProvider]
+  );
 
-  // Folder id of the currently selected node (or null for root)
-  const selectedFolderId = useMemo((): string | null => {
-    if (!selectedNode) return null;
-    if (selectedNode.type === 'folder') return selectedNode.id;
-    return selectedNode.diagramMeta?.folderId ?? null;
-  }, [selectedNode]);
+  // id → place map over the FLAT lists (covers nodes hidden by collapse too).
+  const placeOfId = useMemo(() => {
+    const map = new Map<string, PlaceId>();
+    for (const d of sessionTree.diagrams) map.set(d.id, 'local');
+    for (const f of sessionTree.folders) map.set(f.id, 'local');
+    for (const d of driveTree.diagrams) map.set(d.id, 'google-drive');
+    for (const f of driveTree.folders) map.set(f.id, 'google-drive');
+    return map;
+  }, [sessionTree.diagrams, sessionTree.folders, driveTree.diagrams, driveTree.folders]);
 
-  // Tree data with optional pending __pending__ node injected
-  const treeDataWithPending = useMemo(() => {
-    if (!pendingNew) return tree.treeData;
-    return injectPendingNode(tree.treeData, pendingNew.parentId, pendingNew.type);
-  }, [tree.treeData, pendingNew]);
+  const placeOf = useCallback(
+    (node: FileNode | null | undefined): PlaceId =>
+      node?.placeId ?? (node ? placeOfId.get(node.id) : undefined) ?? 'local',
+    [placeOfId]
+  );
+
+  // Drive root not configured yet (first-connect dialog cancelled/pending):
+  // lists come back empty with no cached root id.
+  const driveRootMissing =
+    dualMode &&
+    driveUsable &&
+    driveTree.status === 'ready' &&
+    !(driveProvider as GoogleDriveProvider | null)?.getCachedRootId?.();
+
+  const driveReady =
+    dualMode && driveUsable && driveTree.status === 'ready' && !driveRootMissing;
+
+  // Where toolbar/empty-space create actions land: the selected row's place,
+  // else the default place — downgraded to the session place while Drive
+  // isn't ready to take writes.
+  const createTargetPlace: PlaceId = useMemo(() => {
+    const candidate = selectedNode ? placeOf(selectedNode) : defaultPlaceId;
+    if (candidate === 'google-drive' && !driveReady) return 'local';
+    return candidate;
+  }, [selectedNode, placeOf, defaultPlaceId, driveReady]);
+
+  const sessionHasContent =
+    sessionTree.treeData.length > 0 || sessionTree.folders.length > 0;
+
+  // ---------------------------------------------------------------------------
+  // Composition: section roots + per-section state rows
+  // ---------------------------------------------------------------------------
+  const composedData = useMemo((): FileNode[] => {
+    const withPending = (data: FileNode[], placeId: PlaceId) =>
+      pendingNew && pendingNew.placeId === placeId
+        ? injectPendingNode(data, pendingNew.parentId, pendingNew.type)
+        : data;
+
+    if (!dualMode) {
+      return withPending(sessionTree.treeData, 'local');
+    }
+
+    const stateRow = (
+      placeId: PlaceId,
+      stateKind: NonNullable<FileNode['stateKind']>,
+      name = ''
+    ): FileNode => ({
+      id: `${placeId}:state:${stateKind}`,
+      name,
+      type: 'placeState',
+      placeId,
+      stateKind
+    });
+    const skeletons = (placeId: PlaceId): FileNode[] =>
+      [0, 1, 2].map((i) => ({
+        id: `${placeId}:state:loading:${i}`,
+        name: '',
+        type: 'placeState' as const,
+        placeId,
+        stateKind: 'loading' as const
+      }));
+
+    // Google Drive section children by auth/tree state.
+    let driveChildren: FileNode[];
+    if (!driveUsable) {
+      driveChildren =
+        authStatus === 'RECONNECTING' || authStatus === 'AUTHENTICATING'
+          ? skeletons('google-drive')
+          : [stateRow('google-drive', authUser ? 'reconnect' : 'signin')];
+    } else if (driveScopeGranted === false) {
+      // Signed in, but the consent screen's Drive checkbox was left unchecked
+      // (granular consent) — every Drive call 403s until re-granted. Trumps
+      // the loading/error rows: the retry that fixes this is a re-consent.
+      driveChildren = [stateRow('google-drive', 'scope')];
+    } else if (driveTree.status === 'loading') {
+      driveChildren = skeletons('google-drive');
+    } else if (driveTree.status === 'error') {
+      driveChildren = [stateRow('google-drive', 'error', driveTree.error ?? '')];
+    } else if (driveRootMissing) {
+      driveChildren = [stateRow('google-drive', 'setup')];
+    } else {
+      const data = withPending(stampPlace(driveTree.treeData, 'google-drive'), 'google-drive');
+      driveChildren = data.length > 0 ? data : [stateRow('google-drive', 'empty')];
+    }
+
+    const sections: FileNode[] = [
+      {
+        id: PLACE_DRIVE,
+        name: 'Google Drive',
+        type: 'place',
+        placeId: 'google-drive',
+        children: driveChildren
+      }
+    ];
+
+    // Session section: shown while it has content, or while it is the only
+    // usable place (signed out) — hidden when signed in and empty, so the
+    // Drive-first experience stays quiet.
+    const showSession = sessionHasContent || !driveUsable || !!(pendingNew && pendingNew.placeId === 'local');
+    if (showSession) {
+      let sessionChildren: FileNode[];
+      if (sessionTree.status === 'loading') {
+        sessionChildren = skeletons('local');
+      } else if (sessionTree.status === 'error') {
+        sessionChildren = [stateRow('local', 'error', sessionTree.error ?? '')];
+      } else {
+        const data = withPending(stampPlace(sessionTree.treeData, 'local'), 'local');
+        sessionChildren = data.length > 0 ? data : [stateRow('local', 'empty')];
+      }
+      sections.push({
+        id: PLACE_SESSION,
+        name: serverStorageAvailable
+          ? t('places.server', 'This server')
+          : t('places.session', 'This session'),
+        type: 'place',
+        placeId: 'local',
+        children: sessionChildren
+      });
+    }
+    return sections;
+  }, [
+    dualMode,
+    driveUsable,
+    driveRootMissing,
+    driveScopeGranted,
+    authStatus,
+    authUser,
+    driveTree.status,
+    driveTree.error,
+    driveTree.treeData,
+    sessionTree.status,
+    sessionTree.error,
+    sessionTree.treeData,
+    sessionHasContent,
+    serverStorageAvailable,
+    pendingNew,
+    t
+  ]);
+
+  // Open section roots the first time they appear (arborist keeps openness
+  // by id afterwards, so a user's deliberate collapse is respected).
+  const openedPlacesRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!dualMode) return;
+    for (const id of [PLACE_DRIVE, PLACE_SESSION]) {
+      if (
+        composedData.some((n) => n.id === id) &&
+        !openedPlacesRef.current.has(id)
+      ) {
+        openedPlacesRef.current.add(id);
+        requestAnimationFrame(() => treeRef.current?.open(id));
+      }
+    }
+  }, [dualMode, composedData]);
 
   // Trigger edit on __pending__ node when it is injected
   useEffect(() => {
@@ -191,9 +399,19 @@ export function FileExplorer() {
   const handleContextMenu = useCallback((e: React.MouseEvent, node: FileNode) => {
     e.preventDefault();
     e.stopPropagation();
+    if (node.type === 'placeState') return;
+    if (node.type === 'place') {
+      // A section header targets its place root with the create actions only.
+      setContextMenuAnchor({ x: e.clientX, y: e.clientY });
+      setContextMenuNode(null);
+      setContextMenuOrigin('empty');
+      setContextMenuPlace(node.placeId ?? 'local');
+      return;
+    }
     setContextMenuAnchor({ x: e.clientX, y: e.clientY });
     setContextMenuNode(node);
     setContextMenuOrigin('row');
+    setContextMenuPlace(node.placeId ?? null);
   }, []);
 
   // Right-click on the tree's EMPTY space (VS Code convention, owner
@@ -213,21 +431,21 @@ export function FileExplorer() {
       };
       // Re-resolve by id: the state snapshots can outlive a rename/delete.
       const target =
-        (selectedNode && findById(tree.treeData, selectedNode.id)) ||
-        (currentDiagram && findById(tree.treeData, currentDiagram.id)) ||
+        (selectedNode && findById(composedData, selectedNode.id)) ||
+        (currentDiagram && findById(composedData, currentDiagram.id)) ||
         null;
       e.preventDefault();
       setContextMenuAnchor({ x: e.clientX, y: e.clientY });
       setContextMenuNode(target);
       setContextMenuOrigin('empty');
+      setContextMenuPlace(target ? placeOf(target) : null);
     },
-    [selectedNode, currentDiagram, tree.treeData]
+    [selectedNode, currentDiagram, composedData, placeOf]
   );
 
   // Create from the context menu: a folder row creates INSIDE that folder
   // (auto-expanded so the inline-rename pending row is visible); the empty
-  // space creates at the ROOT — VS Code semantics, deliberately not the
-  // toolbar buttons' selection-relative folder.
+  // space / a place header creates at that place's ROOT.
   const handleNewFromMenu = useCallback(
     (type: 'diagram' | 'folder') => {
       const target =
@@ -235,14 +453,20 @@ export function FileExplorer() {
           ? contextMenuNode.id
           : null;
       if (target) treeRef.current?.open(target);
-      setPendingNew({ type, parentId: target });
+      const placeId = contextMenuPlace ?? createTargetPlace;
+      setPendingNew({
+        type,
+        parentId: target,
+        placeId: placeId === 'google-drive' && !driveReady ? 'local' : placeId
+      });
     },
-    [contextMenuOrigin, contextMenuNode]
+    [contextMenuOrigin, contextMenuNode, contextMenuPlace, createTargetPlace, driveReady]
   );
 
   const closeContextMenu = useCallback(() => {
     setContextMenuAnchor(null);
     setContextMenuNode(null);
+    setContextMenuPlace(null);
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -254,12 +478,12 @@ export function FileExplorer() {
       if (node.type !== 'diagram' || !node.diagramMeta) return;
       if (currentDiagram?.id === node.id) return;
       try {
-        await openDiagramById(node.diagramMeta.id, node.diagramMeta.name);
+        await openDiagramById(node.diagramMeta.id, node.diagramMeta.name, placeOf(node));
       } catch {
         notificationStore.push({ severity: 'error', message: `Failed to open "${node.name}"` });
       }
     },
-    [openDiagramById, currentDiagram]
+    [openDiagramById, currentDiagram, placeOf]
   );
 
   // ---------------------------------------------------------------------------
@@ -280,13 +504,14 @@ export function FileExplorer() {
         const trimmed = name.trim();
         const type = pendingNew?.type;
         const parentId = pendingNew?.parentId ?? null;
+        const placeId = pendingNew?.placeId ?? 'local';
         setPendingNew(null);
 
         if (!trimmed || !type) return; // empty or Escape → cancel
 
         if (type === 'folder') {
           try {
-            await tree.createFolder(parentId, trimmed);
+            await treeFor(placeId).createFolder(parentId, trimmed);
           } catch {
             notificationStore.push({ severity: 'error', message: 'Failed to create folder' });
           }
@@ -294,13 +519,14 @@ export function FileExplorer() {
           // diagram — check unsaved changes, then create and open
           checkUnsavedBeforeNavigate(async () => {
             try {
-              if (!storage) return;
-              const newId = await storage.createDiagram(
+              const provider = providerFor(placeId);
+              if (!provider) return;
+              const newId = await provider.createDiagram(
                 { title: trimmed, name: trimmed, icons: [], colors: [], items: [], views: [], fitToScreen: true },
                 parentId
               );
-              await tree.refresh();
-              await openDiagramById(newId, trimmed);
+              await treeFor(placeId).refresh();
+              await openDiagramById(newId, trimmed, placeId);
             } catch {
               notificationStore.push({ severity: 'error', message: 'Failed to create diagram' });
             }
@@ -309,9 +535,11 @@ export function FileExplorer() {
         return;
       }
 
-      // Normal rename
+      // Normal rename — route to the node's own place.
       const trimmed = name.trim();
       if (!trimmed) return;
+      const placeId = placeOfId.get(id) ?? 'local';
+      const tree = treeFor(placeId);
       tree.optimisticRename(id, trimmed);
       notifyDiagramRenamedFromTree(id, trimmed);
       try {
@@ -326,32 +554,45 @@ export function FileExplorer() {
         tree.refresh();
       }
     },
-    [tree, pendingNew, checkUnsavedBeforeNavigate, storage, openDiagramById, notifyDiagramRenamedFromTree]
+    [pendingNew, checkUnsavedBeforeNavigate, providerFor, treeFor, placeOfId, openDiagramById, notifyDiagramRenamedFromTree]
   );
 
   // ---------------------------------------------------------------------------
-  // New folder (inline)
+  // New folder / diagram (inline, from the panel toolbar)
   // ---------------------------------------------------------------------------
+
+  // Folder id of the currently selected node (or null for root)
+  const selectedFolderId = useMemo((): string | null => {
+    if (!selectedNode) return null;
+    if (selectedNode.type === 'folder') return selectedNode.id;
+    if (selectedNode.type === 'diagram') return selectedNode.diagramMeta?.folderId ?? null;
+    return null;
+  }, [selectedNode]);
 
   const handleNewFolder = useCallback(() => {
-    setPendingNew({ type: 'folder', parentId: selectedFolderId });
-  }, [selectedFolderId]);
-
-  // ---------------------------------------------------------------------------
-  // New diagram (inline)
-  // ---------------------------------------------------------------------------
+    setPendingNew({ type: 'folder', parentId: selectedFolderId, placeId: createTargetPlace });
+  }, [selectedFolderId, createTargetPlace]);
 
   const handleNewDiagramInline = useCallback(() => {
-    setPendingNew({ type: 'diagram', parentId: selectedFolderId });
-  }, [selectedFolderId]);
+    setPendingNew({ type: 'diagram', parentId: selectedFolderId, placeId: createTargetPlace });
+  }, [selectedFolderId, createTargetPlace]);
 
   // ---------------------------------------------------------------------------
-  // Collapse all
+  // Refresh / collapse
   // ---------------------------------------------------------------------------
+
+  const refreshAll = useCallback(async () => {
+    await Promise.all([sessionTree.refresh(), driveTree.refresh()]);
+  }, [sessionTree.refresh, driveTree.refresh]); // eslint-disable-line react-hooks/exhaustive-deps -- stable per-hook callbacks; whole tree results churn on data changes
 
   const handleCollapseAll = useCallback(() => {
     treeRef.current?.closeAll();
-  }, []);
+    // Sections are wayfinding chrome, not content — keep them open.
+    if (dualMode) {
+      treeRef.current?.open(PLACE_DRIVE);
+      treeRef.current?.open(PLACE_SESSION);
+    }
+  }, [dualMode]);
 
   // Measure container height for react-window virtualization
   useLayoutEffect(() => {
@@ -364,25 +605,37 @@ export function FileExplorer() {
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Delete folder (with confirmation)
+  // Delete (with confirmation)
   // ---------------------------------------------------------------------------
 
   const handleDeleteFolder = useCallback(
     (node: FileNode) => {
+      const placeId = placeOf(node);
+      const tree = treeFor(placeId);
       const count = countDescendants(node.id, { folders: tree.folders }, tree.diagrams);
-      setDeleteConfirm({ id: node.id, type: 'folder', name: node.name, descendantCount: count });
+      setDeleteConfirm({ id: node.id, type: 'folder', name: node.name, descendantCount: count, placeId });
     },
-    [tree.folders, tree.diagrams]
+    [placeOf, treeFor]
   );
 
-  const handleDeleteDiagram = useCallback((node: FileNode) => {
-    setDeleteConfirm({ id: node.id, type: 'diagram', name: node.name, descendantCount: 0 });
-  }, []);
+  const handleDeleteDiagram = useCallback(
+    (node: FileNode) => {
+      setDeleteConfirm({
+        id: node.id,
+        type: 'diagram',
+        name: node.name,
+        descendantCount: 0,
+        placeId: placeOf(node)
+      });
+    },
+    [placeOf]
+  );
 
   const confirmDelete = useCallback(async () => {
     if (!deleteConfirm) return;
     const target = deleteConfirm;
     setDeleteConfirm(null);
+    const tree = treeFor(target.placeId);
     try {
       if (target.type === 'folder') {
         await tree.deleteFolder(target.id, true);
@@ -398,20 +651,20 @@ export function FileExplorer() {
     } catch {
       notificationStore.push({ severity: 'error', message: 'Delete failed' });
     }
-  }, [deleteConfirm, tree, notifyDiagramDeletedFromTree]);
+  }, [deleteConfirm, treeFor, notifyDiagramDeletedFromTree]);
 
   // ---------------------------------------------------------------------------
-  // Copy share link
+  // Copy share link (session-backend contract — local place only)
   // ---------------------------------------------------------------------------
 
   const handleCopyShareLink = useCallback(async (node: FileNode) => {
-    if (node.type !== 'diagram' || !storage) return;
-    if (!storage.shareDiagram) {
+    if (node.type !== 'diagram' || !localProvider) return;
+    if (!localProvider.shareDiagram) {
       notificationStore.push({ severity: 'error', message: 'Sharing is not available' });
       return;
     }
     try {
-      const { uuid } = await storage.shareDiagram(node.id);
+      const { uuid } = await localProvider.shareDiagram(node.id);
       const url = shareUrlFromUuid(uuid);
       await navigator.clipboard.writeText(url);
       notificationStore.push({ severity: 'success', message: 'Share link copied to clipboard' });
@@ -421,11 +674,68 @@ export function FileExplorer() {
       console.error('handleCopyShareLink failed:', err);
       setShareErrorNode(node);
     }
-  }, [storage]);
+  }, [localProvider]);
 
   // ---------------------------------------------------------------------------
-  // Duplicate diagram
+  // Move to Google Drive (MOVE semantics — create → verify → delete source;
+  // owner decision 2026-07-06, supersedes the copy-only "Save to Drive")
   // ---------------------------------------------------------------------------
+
+  const handleMoveToDrive = useCallback(
+    async (node: FileNode, explicitTargetFolderId?: string | null) => {
+      if (node.type !== 'diagram' || !node.diagramMeta) return;
+      if (movingIds.has(node.id)) return; // already in flight
+      const drive = providerFor('google-drive');
+      const local = providerFor('local');
+      if (!drive || !local) return;
+      const wasOpen = currentDiagram?.id === node.id;
+      setMovingIds((prev) => new Set(prev).add(node.id));
+      try {
+        // Flush in-memory session edits so the moved content is current.
+        await saveAllDirty();
+        const [result] = await moveDiagramsToDrive({
+          source: local,
+          drive,
+          diagrams: [node.diagramMeta],
+          sourceFolders: sessionTree.folders,
+          ...(explicitTargetFolderId !== undefined
+            ? { targetFolderId: explicitTargetFolderId }
+            : {})
+        });
+        if (result?.ok) {
+          if (wasOpen) {
+            // The session copy is gone — cancel its autosave/scratch, then
+            // reopen the diagram from its new Drive home.
+            notifyDiagramDeletedFromTree(node.id);
+            await openDiagramById(result.driveId!, result.driveName ?? node.name, 'google-drive');
+          }
+          notificationStore.push({
+            severity: 'success',
+            message: t('fileExplorer.movedToDrive', {
+              defaultValue: '"{{name}}" moved to Google Drive',
+              name: result.driveName ?? node.name
+            })
+          });
+        } else {
+          notificationStore.push({
+            severity: 'error',
+            message: t('fileExplorer.moveToDriveFailed', {
+              defaultValue: 'Could not move "{{name}}" to Google Drive — it stayed in this session',
+              name: node.name
+            })
+          });
+        }
+      } finally {
+        setMovingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(node.id);
+          return next;
+        });
+        void refreshAll();
+      }
+    },
+    [providerFor, movingIds, currentDiagram, saveAllDirty, sessionTree.folders, notifyDiagramDeletedFromTree, openDiagramById, refreshAll, t]
+  );
 
   // ---------------------------------------------------------------------------
   // Export — image (delegates to the lib's ExportImageDialog)
@@ -441,7 +751,7 @@ export function FileExplorer() {
       }
       checkUnsavedBeforeNavigate(async () => {
         try {
-          await openDiagramById(node.diagramMeta!.id, node.diagramMeta!.name);
+          await openDiagramById(node.diagramMeta!.id, node.diagramMeta!.name, placeOf(node));
           // Wait one tick so the model store finishes hydrating before the
           // hidden Axoview inside the dialog reads from it.
           requestAnimationFrame(() => openDialog());
@@ -450,7 +760,7 @@ export function FileExplorer() {
         }
       });
     },
-    [currentDiagram, openDiagramById, checkUnsavedBeforeNavigate, axoviewRef]
+    [currentDiagram, openDiagramById, checkUnsavedBeforeNavigate, axoviewRef, placeOf]
   );
 
   // ---------------------------------------------------------------------------
@@ -459,9 +769,11 @@ export function FileExplorer() {
 
   const handleExportJsonNode = useCallback(
     async (node: FileNode) => {
-      if (node.type !== 'diagram' || !storage) return;
+      if (node.type !== 'diagram') return;
+      const provider = providerFor(placeOf(node));
+      if (!provider) return;
       try {
-        const raw = await storage.loadDiagram(node.id);
+        const raw = await provider.loadDiagram(node.id);
         // Storage returns `unknown`; runtime shape is a persisted diagram blob
         // that matches Model structurally — assert at this single lib boundary.
         const model = mergeBundledFixtures(raw as Model);
@@ -470,21 +782,25 @@ export function FileExplorer() {
         notificationStore.push({ severity: 'error', message: `Failed to export "${node.name}"` });
       }
     },
-    [storage]
+    [providerFor, placeOf]
   );
 
   const handleDuplicate = useCallback(
     async (node: FileNode) => {
-      if (node.type !== 'diagram' || !storage) return;
+      if (node.type !== 'diagram') return;
+      const placeId = placeOf(node);
+      const provider = providerFor(placeId);
+      const tree = treeFor(placeId);
+      if (!provider) return;
       try {
         const siblingsInFolder = tree.diagrams
           .filter((d) => d.folderId === (node.diagramMeta?.folderId ?? null))
           .map((d) => d.name);
         const newName = copySuffix(node.name, siblingsInFolder);
-        const data = await storage.loadDiagram(node.id);
+        const data = await provider.loadDiagram(node.id);
         // Strip the original id so the server assigns a fresh one (prevents 409 Conflict).
         const { id: _id, ...dataWithoutId } = data as Record<string, unknown>;
-        await storage.createDiagram(
+        await provider.createDiagram(
           { ...dataWithoutId, title: newName, name: newName },
           node.diagramMeta?.folderId ?? null
         );
@@ -494,12 +810,27 @@ export function FileExplorer() {
         notificationStore.push({ severity: 'error', message: 'Duplicate failed' });
       }
     },
-    [storage, tree]
+    [placeOf, providerFor, treeFor]
   );
 
   // ---------------------------------------------------------------------------
-  // Drag-and-drop
+  // Drag-and-drop — within-place reorganization + session→Drive move
   // ---------------------------------------------------------------------------
+
+  /** Resolve an arborist drop parent to a (place, folder) pair. */
+  const resolveDropTarget = useCallback(
+    (parentId: string | null): { placeId: PlaceId; folderId: string | null } | null => {
+      if (parentId === null) {
+        // Virtual root: valid only in single-place mode.
+        return dualMode ? null : { placeId: 'local', folderId: null };
+      }
+      if (parentId === PLACE_DRIVE) return { placeId: 'google-drive', folderId: null };
+      if (parentId === PLACE_SESSION) return { placeId: 'local', folderId: null };
+      const placeId = placeOfId.get(parentId);
+      return placeId ? { placeId, folderId: parentId } : null;
+    },
+    [dualMode, placeOfId]
+  );
 
   const handleMove = useCallback(
     async ({
@@ -510,7 +841,26 @@ export function FileExplorer() {
       parentId: string | null;
       index: number;
     }) => {
+      const target = resolveDropTarget(parentId);
+      if (!target) return;
       for (const dragId of dragIds) {
+        const dragPlace = placeOfId.get(dragId) ?? 'local';
+
+        // Cross-place: session diagram dropped onto the Drive section/folder.
+        if (dragPlace !== target.placeId) {
+          if (dragPlace === 'local' && target.placeId === 'google-drive' && driveReady) {
+            const meta = sessionTree.diagrams.find((d) => d.id === dragId);
+            if (meta) {
+              await handleMoveToDrive(
+                { id: meta.id, name: meta.name, type: 'diagram', diagramMeta: meta, placeId: 'local' },
+                target.folderId
+              );
+            }
+          }
+          continue; // any other cross-place drop is blocked by disableDrop
+        }
+
+        const tree = treeFor(dragPlace);
         const isFolder = tree.folders.some((f) => f.id === dragId);
         const type = isFolder ? 'folder' : 'diagram';
 
@@ -519,7 +869,7 @@ export function FileExplorer() {
           ? (tree.folders.find((f) => f.id === dragId)?.parentId ?? null)
           : (tree.diagrams.find((d) => d.id === dragId)?.folderId ?? null);
 
-        if (currentParentId === parentId) return; // same-parent reorder: silently ignore
+        if (currentParentId === target.folderId) return; // same-parent reorder: silently ignore
 
         const node = isFolder
           ? tree.folders.find((f) => f.id === dragId)
@@ -527,37 +877,104 @@ export function FileExplorer() {
         const nodeName = node?.name ?? '';
 
         const siblingNames = isFolder
-          ? tree.folders.filter((f) => f.parentId === parentId && f.id !== dragId).map((f) => f.name)
-          : tree.diagrams.filter((d) => d.folderId === parentId && d.id !== dragId).map((d) => d.name);
+          ? tree.folders.filter((f) => f.parentId === target.folderId && f.id !== dragId).map((f) => f.name)
+          : tree.diagrams.filter((d) => d.folderId === target.folderId && d.id !== dragId).map((d) => d.name);
 
         if (detectCollision(nodeName, siblingNames)) {
-          setCollisionDialog({ dragId, type, name: nodeName, targetFolderId: parentId });
+          setCollisionDialog({ dragId, type, name: nodeName, targetFolderId: target.folderId, placeId: dragPlace });
           return;
         }
 
         try {
-          await tree.moveItem(dragId, type, parentId);
+          await tree.moveItem(dragId, type, target.folderId);
         } catch {
           notificationStore.push({ severity: 'error', message: `Failed to move "${nodeName}"` });
         }
       }
     },
-    [tree]
+    [resolveDropTarget, placeOfId, treeFor, driveReady, sessionTree.diagrams, handleMoveToDrive]
   );
 
   const confirmMove = useCallback(async () => {
     if (!collisionDialog) return;
     setCollisionDialog(null);
     try {
-      await tree.moveItem(collisionDialog.dragId, collisionDialog.type, collisionDialog.targetFolderId);
+      await treeFor(collisionDialog.placeId).moveItem(
+        collisionDialog.dragId,
+        collisionDialog.type,
+        collisionDialog.targetFolderId
+      );
     } catch {
       notificationStore.push({ severity: 'error', message: 'Move failed' });
     }
-  }, [collisionDialog, tree]);
+  }, [collisionDialog, treeFor]);
+
+  const disableDrag = useCallback(
+    (data: FileNode) => data.type === 'place' || data.type === 'placeState',
+    []
+  );
+
+  const disableDrop = useCallback(
+    (args: { parentNode: NodeApi<FileNode> | null; dragNodes: NodeApi<FileNode>[] }) => {
+      const { parentNode, dragNodes } = args;
+      if (!dualMode) return false;
+      const target = parentNode?.data;
+      if (!target) return true; // between-section virtual-root drops
+      if (target.type === 'placeState') return true;
+      const targetPlace = target.placeId;
+      for (const d of dragNodes) {
+        const dragPlace = d.data.placeId ?? placeOfId.get(d.data.id);
+        if (dragPlace === targetPlace) continue;
+        // The one allowed cross-place gesture: session diagram → Drive.
+        if (
+          dragPlace === 'local' &&
+          targetPlace === 'google-drive' &&
+          d.data.type === 'diagram' &&
+          driveReady
+        ) {
+          continue;
+        }
+        return true;
+      }
+      return false;
+    },
+    [dualMode, placeOfId, driveReady]
+  );
+
+  // ---------------------------------------------------------------------------
+  // Place state-row actions (sign-in / reconnect / retry / finish setup)
+  // ---------------------------------------------------------------------------
+
+  const handleStateAction = useCallback(
+    (node: FileNode) => {
+      switch (node.stateKind) {
+        case 'signin':
+        case 'reconnect':
+        // 'scope': a partial grant (Drive checkbox unchecked) — the fix is a
+        // re-consent, and include_granted_scopes keeps the identity grant.
+        case 'scope':
+          void signIn();
+          break;
+        case 'error':
+          void treeFor(node.placeId ?? 'google-drive').refresh();
+          break;
+        case 'setup':
+          window.dispatchEvent(new CustomEvent('axoview-drive-setup'));
+          break;
+        default:
+          break;
+      }
+    },
+    [signIn, treeFor]
+  );
+
+  const sessionDiagramCount = sessionTree.diagrams.filter((d) => !d.deletedAt).length;
 
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
+
+  const anyRefreshing = sessionTree.isRefreshing || driveTree.isRefreshing;
 
   return (
     <Box
@@ -573,19 +990,23 @@ export function FileExplorer() {
       }}
     >
       <FileTreeToolbar
-        providerLabel={providerLabel}
+        providerLabel={t('fileExplorer.title')}
         onNewDiagram={handleNewDiagramInline}
         onNewFolder={handleNewFolder}
-        onRefresh={tree.refresh}
+        onRefresh={refreshAll}
         onCollapseAll={handleCollapseAll}
         onImport={() => setShowImport(true)}
         onExportProject={() => setExportTarget({ scope: 'project' })}
       />
       <Divider />
+      {/* Refresh/move in progress: stale rows stay, a thin bar signals work. */}
+      <Box sx={{ height: 2, flexShrink: 0 }}>
+        {(anyRefreshing || movingIds.size > 0) && <LinearProgress sx={{ height: 2 }} />}
+      </Box>
 
-      {tree.error && (
+      {!dualMode && sessionTree.error && (
         <Box sx={{ px: 1.5, py: 1 }}>
-          <Typography variant="caption" color="error">{tree.error}</Typography>
+          <Typography variant="caption" color="error">{sessionTree.error}</Typography>
         </Box>
       )}
 
@@ -597,6 +1018,7 @@ export function FileExplorer() {
         onContextMenu={handleEmptySpaceContextMenu}
         onKeyDown={(e) => {
           if (!selectedNode) return;
+          if (selectedNode.type === 'place' || selectedNode.type === 'placeState') return;
           if (e.key === 'F2') {
             e.preventDefault();
             treeRef.current?.edit(selectedNode.id);
@@ -613,21 +1035,26 @@ export function FileExplorer() {
           }
         }}
       >
-        {treeDataWithPending.length === 0 && !tree.isLoading && (
+        {composedData.length === 0 && sessionTree.status === 'ready' && !dualMode && (
           <Box sx={{ px: 1.5, py: 2, textAlign: 'center' }}>
             <Typography variant="caption" color="text.secondary">
-              No diagrams yet. Create one to get started.
+              {t('fileExplorer.empty', 'No diagrams yet. Create one to get started.')}
             </Typography>
           </Box>
         )}
 
         <Tree
           ref={treeRef}
-          data={treeDataWithPending}
+          data={composedData}
           openByDefault={false}
           onMove={handleMove}
+          disableDrag={disableDrag}
+          disableDrop={disableDrop}
           onRename={({ id, name }) => handleRenameSubmit(id, name)}
-          onSelect={(nodes) => setSelectedNode(nodes[0]?.data ?? null)}
+          onSelect={(nodes) => {
+            const data = nodes[0]?.data ?? null;
+            setSelectedNode(data && (data.type === 'folder' || data.type === 'diagram') ? data : null);
+          }}
           renderRow={FileTreeRow}
           width="100%"
           height={treeHeight}
@@ -642,6 +1069,11 @@ export function FileExplorer() {
               selectedId={currentDiagram?.id}
               onContextMenu={handleContextMenu}
               onOpen={handleOpenDiagram}
+              onStateAction={handleStateAction}
+              serverPlace={serverStorageAvailable}
+              moveAllVisible={driveReady && sessionDiagramCount > 0}
+              onMoveAll={() => window.dispatchEvent(new CustomEvent('axoview-open-migrate'))}
+              movingIds={movingIds}
             />
           )}
         </Tree>
@@ -663,10 +1095,20 @@ export function FileExplorer() {
           <ContextMenuItems
             node={contextMenuNode}
             origin={contextMenuOrigin}
-            canShare={serverStorageAvailable}
+            canShare={
+              serverStorageAvailable &&
+              (contextMenuNode ? placeOf(contextMenuNode) !== 'google-drive' : true)
+            }
+            canMoveToDrive={
+              driveReady &&
+              !!contextMenuNode &&
+              placeOf(contextMenuNode) === 'local' &&
+              !movingIds.has(contextMenuNode.id)
+            }
             onNewDiagram={() => handleNewFromMenu('diagram')}
             onNewFolder={() => handleNewFromMenu('folder')}
-            onRefresh={() => tree.refresh()}
+            onRefresh={() => void refreshAll()}
+            onMoveToDrive={() => contextMenuNode && void handleMoveToDrive(contextMenuNode)}
             onOpen={() => { if (contextMenuNode) handleOpenDiagram(contextMenuNode); }}
             onRename={() => contextMenuNode && handleRenameNode(contextMenuNode)}
             onDuplicate={() => contextMenuNode && handleDuplicate(contextMenuNode)}
@@ -678,7 +1120,8 @@ export function FileExplorer() {
               setExportTarget({
                 scope: 'folder',
                 folderId: contextMenuNode.id,
-                folderName: contextMenuNode.name
+                folderName: contextMenuNode.name,
+                placeId: placeOf(contextMenuNode)
               });
             }}
             onDelete={() => {
@@ -711,7 +1154,10 @@ export function FileExplorer() {
       >
         <DialogTitle sx={{ pb: 1, pr: 6 }}>
           <Typography variant="h6" component="span">
-            Delete &ldquo;{deleteConfirm?.name}&rdquo;?
+            {t('fileExplorer.deleteTitle', {
+              defaultValue: 'Delete "{{name}}"?',
+              name: deleteConfirm?.name ?? ''
+            })}
           </Typography>
           <IconButton
             size="small"
@@ -723,9 +1169,21 @@ export function FileExplorer() {
         </DialogTitle>
         <DialogContent sx={{ pt: 0 }}>
           <Typography variant="body2" color="text.secondary">
-            {deleteConfirm?.type === 'folder' && deleteConfirm.descendantCount > 0
-              ? `This folder and ${deleteConfirm.descendantCount} item${deleteConfirm.descendantCount !== 1 ? 's' : ''} inside will be permanently deleted and cannot be recovered.`
-              : `This ${deleteConfirm?.type === 'folder' ? 'folder' : 'diagram'} will be permanently deleted and cannot be recovered.`}
+            {(() => {
+              // ADR 0036 §3 — a Drive-place delete = Drive trash (recoverable),
+              // so the copy must not claim permanence. Places model: the fate
+              // follows the ITEM's place, not a global mode. Full sentences per
+              // place/shape so every locale can phrase them naturally.
+              const place = deleteConfirm?.placeId === 'google-drive' ? 'Drive' : 'Session';
+              if (deleteConfirm?.type === 'folder' && deleteConfirm.descendantCount > 0) {
+                const n = deleteConfirm.descendantCount;
+                return n === 1
+                  ? t(`fileExplorer.deleteBodyFolderOneItem${place}`)
+                  : t(`fileExplorer.deleteBodyFolderItems${place}`, { count: n });
+              }
+              const shape = deleteConfirm?.type === 'folder' ? 'Folder' : 'Diagram';
+              return t(`fileExplorer.deleteBody${shape}${place}`);
+            })()}
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 2.5, pb: 2.5, pt: 1 }}>
@@ -734,7 +1192,7 @@ export function FileExplorer() {
             data-axoview-id="file-explorer-delete-cancel"
             onClick={() => setDeleteConfirm(null)}
           >
-            Cancel
+            {t('fileExplorer.deleteCancel', 'Cancel')}
           </Button>
           <Button
             color="error"
@@ -742,42 +1200,56 @@ export function FileExplorer() {
             data-axoview-id="file-explorer-delete-confirm"
             onClick={confirmDelete}
           >
-            Delete
+            {t('fileExplorer.deleteConfirm', 'Delete')}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Export dialog (project / folder zip only) */}
-      {exportTarget && storage && (
+      {exportTarget && (
         <ExportProjectZipDialog
           open
           onClose={() => setExportTarget(null)}
           scope={exportTarget.scope}
           folderId={exportTarget.folderId}
           folderName={exportTarget.folderName}
-          storage={storage}
+          storage={
+            (exportTarget.placeId ? providerFor(exportTarget.placeId) : storage) ?? storage!
+          }
           exporterTag={`axoview-app@${process.env.REACT_APP_VERSION ?? 'dev'}`}
-          onProjectZipExported={() => markProjectExported?.()}
+          onProjectZipExported={() => {
+            // The zip covered ONE place. Clear the session exit guard only
+            // when that place was the session — a Drive-place export leaves
+            // session work unexported.
+            const exportedPlace =
+              exportTarget.placeId ?? storageManager?.activeProviderId ?? 'local';
+            if (exportedPlace === 'local') markProjectExported?.();
+          }}
         />
       )}
 
-      {/* Import dialog */}
-      {showImport && storage && (
+      {/* Import dialog — imports land in the create-target place */}
+      {showImport && (
         <ImportDialog
           open
           onClose={() => setShowImport(false)}
-          storage={storage}
+          storage={providerFor(createTargetPlace) ?? storage!}
           onImported={async () => {
-            await tree.refresh();
+            await refreshAll();
           }}
           onImportSingleJson={async (data, suggestedName) => {
-            const folderId = selectedFolderId;
-            const newId = await storage.createDiagram(
+            const provider = providerFor(createTargetPlace);
+            if (!provider) return;
+            const folderId =
+              selectedNode && placeOf(selectedNode) === createTargetPlace
+                ? selectedFolderId
+                : null;
+            const newId = await provider.createDiagram(
               { ...(data as object), name: suggestedName, title: suggestedName },
               folderId
             );
-            await tree.refresh();
-            await openDiagramById(newId, suggestedName);
+            await refreshAll();
+            await openDiagramById(newId, suggestedName, createTargetPlace);
           }}
         />
       )}

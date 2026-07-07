@@ -159,4 +159,36 @@ describe('verifyCfAccessJwt — signature paths (fixture keypair)', () => {
     });
     expect(result).toEqual({ valid: false });
   });
+
+  test('iss that merely contains the team as a substring → { valid: false } (strict equality)', async () => {
+    const token = await signJwt(
+      basePayload({ iss: `https://${TEAM}.cloudflareaccess.com.evil.example` })
+    );
+    const result = await verifyCfAccessJwt(token, {
+      team: TEAM,
+      expectedAud: AUD,
+      loadKeys: jwksWith(KID, publicKey)
+    });
+    expect(result).toEqual({ valid: false });
+  });
+
+  test('absent iss → { valid: false } (iss is required)', async () => {
+    const token = await signJwt(basePayload({ iss: undefined }));
+    const result = await verifyCfAccessJwt(token, {
+      team: TEAM,
+      expectedAud: AUD,
+      loadKeys: jwksWith(KID, publicKey)
+    });
+    expect(result).toEqual({ valid: false });
+  });
+
+  test('absent exp → { valid: false } (exp is required)', async () => {
+    const token = await signJwt(basePayload({ exp: undefined }));
+    const result = await verifyCfAccessJwt(token, {
+      team: TEAM,
+      expectedAud: AUD,
+      loadKeys: jwksWith(KID, publicKey)
+    });
+    expect(result).toEqual({ valid: false });
+  });
 });

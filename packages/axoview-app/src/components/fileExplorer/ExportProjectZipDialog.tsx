@@ -63,7 +63,9 @@ export function ExportProjectZipDialog({
         { scope, folderId }
       );
       downloadBlob(blob, filename);
-      onProjectZipExported?.();
+      // Only a PROJECT-scope zip covers all session work — a folder export
+      // must not clear the caller's sessionWorkUnexported guard.
+      if (scope === 'project') onProjectZipExported?.();
       onClose();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Export failed';

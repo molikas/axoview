@@ -18,10 +18,14 @@ import {
 import { scanIconUsage } from './services/iconUsage';
 import { isPersistedDiagramBlob } from './services/storage/types';
 import { AppStorageProvider, useAppStorage } from './providers/AppStorageContext';
+import { AuthProvider } from './providers/AuthProvider';
 import {
   DiagramLifecycleProvider,
   useDiagramLifecycle
 } from './providers/DiagramLifecycleProvider';
+import { DriveSetupGate } from './components/DriveSetupGate';
+import { MigrateSessionDialog } from './components/MigrateSessionDialog';
+import { useAuthStore } from './stores/authStore';
 import { FileExplorer } from './components/fileExplorer/FileExplorer';
 import { AppToolbar } from './components/AppToolbar';
 import { EmptyStateScreen } from './components/EmptyStateScreen';
@@ -98,9 +102,11 @@ function App() {
 function EditorPage() {
   return (
     <AppStorageProvider>
-      <DiagramLifecycleProvider>
-        <EditorShell />
-      </DiagramLifecycleProvider>
+      <AuthProvider>
+        <DiagramLifecycleProvider>
+          <EditorShell />
+        </DiagramLifecycleProvider>
+      </AuthProvider>
     </AppStorageProvider>
   );
 }
@@ -108,7 +114,15 @@ function EditorPage() {
 function EditorShell() {
   const { t, i18n } = useTranslation('app');
   const navigate = useNavigate();
-  const { storage, serverStorageAvailable, isInitialized } = useAppStorage();
+  const {
+    storage,
+    serverStorageAvailable,
+    remoteStorageActive,
+    googleDriveConfigured,
+    isInitialized
+  } = useAppStorage();
+  const authStatus = useAuthStore((s) => s.status);
+  const signIn = useAuthStore((s) => s.signIn);
   const {
     axoviewRef,
     frozenInitialDataRef,
@@ -300,8 +314,10 @@ function EditorShell() {
   // briefly appearing before EmptyStateScreen takes over.
   if (!isInitialized) return null;
 
+  // Drive mode is remote storage — the "your work lives in this browser tab"
+  // banner is session-mode-only, so gate it on remoteStorageActive.
   const showLocalModeBanner =
-    !serverStorageAvailable && !isReadonlyUrl && linkedDiagrams.length > 0;
+    !remoteStorageActive && !isReadonlyUrl && linkedDiagrams.length > 0;
 
   // ADR 0009 Decision 3 (addendum 2026-05-22): only the share-UUID form
   // `/display/p/<uuid>` requires a session backend. The owner-readonly form
@@ -439,6 +455,16 @@ function EditorShell() {
               <EmptyStateScreen
                 onCreate={() => handleCreateBlankDiagram(null, 'elements')}
                 onImport={handleImportClick}
+                showSignIn={
+                  // The sign-in nudge (owner pick 2026-07-06 — no blocking
+                  // first-run gate): storage-less deploy, signed out only.
+                  !serverStorageAvailable &&
+                  googleDriveConfigured &&
+                  authStatus !== 'AUTHENTICATED' &&
+                  authStatus !== 'REFRESHING' &&
+                  authStatus !== 'RECONNECTING'
+                }
+                onSignIn={() => void signIn()}
               />
             </div>
           )}
@@ -488,7 +514,12 @@ function EditorShell() {
           scope="project"
           storage={storage}
           exporterTag={EXPORTER_TAG}
-          onProjectZipExported={() => markProjectExported?.()}
+          onProjectZipExported={() => {
+            // `storage` follows the ACTIVE place — with a Drive diagram open
+            // the zip held Drive content only, so the session exit guard
+            // (sessionWorkUnexported) must stay armed.
+            if (!remoteStorageActive) markProjectExported?.();
+          }}
         />
       )}
 
@@ -527,6 +558,13 @@ function EditorShell() {
         open={importError}
         onDismiss={() => setImportError(false)}
       />
+
+      {/* First-connect Google Drive root-folder chooser (default vs custom). */}
+      <DriveSetupGate />
+
+      {/* Post-sign-in "move session diagrams to Drive?" offer + on-demand entry
+          (avatar menu, session section header, banner). */}
+      <MigrateSessionDialog />
 
       <DiagnosticsOverlay />
       <NotificationStack />

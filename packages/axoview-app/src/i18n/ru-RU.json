@@ -21,7 +21,10 @@
     },
     "emptyState": {
         "newDiagram": "Новая диаграмма",
-        "import": "Импорт"
+        "import": "Импорт",
+        "signIn": "Войти",
+        "signInCaption": "Храните диаграммы в Google Drive",
+        "signInStripCaption": "Сохраняйте диаграммы в Google Drive — или продолжайте в этом сеансе и перенесите их в Drive в любой момент."
     },
     "fileExplorer": {
         "title": "Диаграммы",
@@ -30,7 +33,23 @@
         "newDiagram": "Новая диаграмма",
         "newFolder": "Новая папка",
         "refresh": "Обновить",
-        "collapseAll": "Свернуть все"
+        "collapseAll": "Свернуть все",
+        "empty": "Диаграмм пока нет. Создайте первую, чтобы начать.",
+        "moveToDrive": "Перенести в Google Drive",
+        "movedToDrive": "\"{{name}}\" перенесена в Google Drive",
+        "moveToDriveFailed": "Не удалось перенести \"{{name}}\" в Google Drive — диаграмма осталась в этом сеансе",
+        "collapse": "Свернуть панель",
+        "deleteTitle": "Удалить \"{{name}}\"?",
+        "deleteBodyDiagramDrive": "Эта диаграмма будет перемещена в корзину вашего Google Диска (можно восстановить в течение ~30 дней).",
+        "deleteBodyDiagramSession": "Эта диаграмма будет удалена навсегда, и восстановить её будет невозможно.",
+        "deleteBodyFolderDrive": "Эта папка будет перемещена в корзину вашего Google Диска (можно восстановить в течение ~30 дней).",
+        "deleteBodyFolderSession": "Эта папка будет удалена навсегда, и восстановить её будет невозможно.",
+        "deleteBodyFolderItemsDrive": "Эта папка и элементы внутри неё ({{count}} шт.) будут перемещены в корзину вашего Google Диска (можно восстановить в течение ~30 дней).",
+        "deleteBodyFolderItemsSession": "Эта папка и элементы внутри неё ({{count}} шт.) будут удалены навсегда, и восстановить их будет невозможно.",
+        "deleteBodyFolderOneItemDrive": "Эта папка и 1 элемент внутри неё будут перемещены в корзину вашего Google Диска (можно восстановить в течение ~30 дней).",
+        "deleteBodyFolderOneItemSession": "Эта папка и 1 элемент внутри неё будут удалены навсегда, и восстановить их будет невозможно.",
+        "deleteCancel": "Отмена",
+        "deleteConfirm": "Удалить"
     },
     "status": {
         "current": "Текущий",
@@ -44,7 +63,9 @@
         "savedOnDate": "Сохранено {{day}} {{month}} в {{time}}",
         "savedOnDateYear": "Сохранено {{day}} {{month}} {{year}} в {{time}}",
         "sessionBanner": "Ваша работа хранится только в этой вкладке браузера. Используйте Экспорт → Экспорт проекта, чтобы сохранить её.",
-        "dismiss": "Закрыть"
+        "dismiss": "Закрыть",
+        "sessionBannerSignIn": "Войдите, чтобы сохранять в Google Drive",
+        "sessionBannerMove": "Перенести в Google Drive…"
     },
     "settings": {
         "language": "Язык"
@@ -127,5 +148,51 @@
         "autoSaveFailed": "Хранилище заполнено! Пожалуйста, используйте менеджер хранилища, чтобы освободить место.",
         "beforeUnload": "У вас есть несохраненные изменения. Вы уверены, что хотите уйти?",
         "quotaExceeded": "Квота хранилища превышена. Пожалуйста, экспортируйте важные диаграммы и освободите место."
+    },
+    "auth": {
+        "signIn": "Войти через Google",
+        "signInHint": "Храните диаграммы в Google Drive — они доступны везде, где вы вошли.",
+        "signInAgain": "Войти снова",
+        "reconnecting": "Повторное подключение к Google…",
+        "reconnectTooltip": "Нужен вход в Google — диаграммы из Drive вернутся в один клик",
+        "reconnectHint": "Выполнен выход из Google — войдите снова, чтобы использовать Drive",
+        "signOut": "Выйти",
+        "openDriveFolder": "Открыть папку Drive",
+        "moveSessionToDrive": "Перенести диаграммы сеанса в Drive…"
+    },
+    "places": {
+        "session": "Этот сеанс",
+        "server": "Этот сервер",
+        "moveAllToDrive": "Перенести всё в Drive",
+        "driveSignInRow": "Войдите, чтобы подключить Google Drive",
+        "driveReconnectRow": "Подключитесь снова, чтобы загрузить диаграммы из Drive",
+        "driveSetupRow": "Завершить настройку Google Drive…",
+        "driveEmpty": "В Drive пока нет диаграмм.",
+        "driveError": "Не удалось загрузить Google Drive.",
+        "driveScopeMissing": "Доступ к Google Диску не был предоставлен.",
+        "grantAccess": "Предоставить доступ",
+        "retry": "Повторить"
+    },
+    "migrate": {
+        "title": "Перенести диаграммы сеанса в Google Drive?",
+        "body": "Эти диаграммы существуют только в этой вкладке браузера и будут потеряны при её закрытии:",
+        "destinationNote": "Они будут перенесены в вашу папку Drive с сохранением папок.",
+        "waitingForSetup": "Завершение настройки Google Drive…",
+        "moving": "Перенос {{done}} из {{total}}…",
+        "moveN": "Перенести {{n}} в Drive",
+        "notNow": "Не сейчас",
+        "successToast": "Перенесено в Google Drive: {{n}}",
+        "partialToast": "Перенесено: {{moved}}, не удалось: {{failed}} — неудавшиеся диаграммы остались в этом сеансе",
+        "nothingToMove": "Нет диаграмм сеанса для переноса"
+    },
+    "driveRoot": {
+        "title": "Выберите папку Google Диска",
+        "body": "Axoview хранит ваши диаграммы в одной папке вашего Google Диска. Ему видны только файлы, которые он там создаёт, — и ничего больше на вашем Диске.",
+        "defaultOption": "Папка по умолчанию ({{name}})",
+        "customOption": "Своё имя папки",
+        "customPlaceholder": "Мои диаграммы",
+        "cancel": "Отмена",
+        "confirm": "Продолжить",
+        "confirmBusy": "Настройка…"
     }
 }

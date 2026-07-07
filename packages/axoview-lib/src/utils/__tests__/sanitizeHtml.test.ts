@@ -40,6 +40,20 @@ describe('sanitizeHtml', () => {
   it('returns an empty string for empty input', () => {
     expect(sanitizeHtml('')).toBe('');
   });
+
+  it('forces rel="noopener noreferrer" on rendered links', () => {
+    const out = sanitizeHtml('<a href="https://example.com">x</a>');
+    expect(out).toMatch(/rel="[^"]*noopener[^"]*"/);
+    expect(out).toMatch(/rel="[^"]*noreferrer[^"]*"/);
+  });
+
+  it('overrides an attacker-supplied rel on a link', () => {
+    const out = sanitizeHtml(
+      '<a href="https://example.com" rel="opener">x</a>'
+    );
+    expect(out).not.toMatch(/rel="opener"/);
+    expect(out).toMatch(/noopener/);
+  });
 });
 
 // ADR 0034 addendum 2026-07-03 — paragraph alignment rides on inline

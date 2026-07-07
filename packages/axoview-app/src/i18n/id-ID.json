@@ -17,7 +17,10 @@
     },
     "emptyState": {
         "newDiagram": "Diagram baru",
-        "import": "Impor"
+        "import": "Impor",
+        "signIn": "Masuk",
+        "signInCaption": "Simpan diagram Anda di Google Drive",
+        "signInStripCaption": "Simpan diagram Anda di Google Drive — atau lanjutkan di sesi ini dan pindahkan ke Drive kapan saja."
     },
     "fileExplorer": {
         "title": "Diagram",
@@ -26,7 +29,23 @@
         "newDiagram": "Diagram baru",
         "newFolder": "Folder baru",
         "refresh": "Segarkan",
-        "collapseAll": "Ciutkan semua"
+        "collapseAll": "Ciutkan semua",
+        "empty": "Belum ada diagram. Buat satu untuk memulai.",
+        "moveToDrive": "Pindahkan ke Google Drive",
+        "movedToDrive": "\"{{name}}\" dipindahkan ke Google Drive",
+        "moveToDriveFailed": "Tidak dapat memindahkan \"{{name}}\" ke Google Drive — tetap di sesi ini",
+        "collapse": "Ciutkan panel",
+        "deleteTitle": "Hapus \"{{name}}\"?",
+        "deleteBodyDiagramDrive": "Diagram ini akan dipindahkan ke sampah Google Drive Anda (dapat dipulihkan selama ~30 hari).",
+        "deleteBodyDiagramSession": "Diagram ini akan dihapus secara permanen dan tidak dapat dipulihkan.",
+        "deleteBodyFolderDrive": "Folder ini akan dipindahkan ke sampah Google Drive Anda (dapat dipulihkan selama ~30 hari).",
+        "deleteBodyFolderSession": "Folder ini akan dihapus secara permanen dan tidak dapat dipulihkan.",
+        "deleteBodyFolderItemsDrive": "Folder ini dan {{count}} item di dalamnya akan dipindahkan ke sampah Google Drive Anda (dapat dipulihkan selama ~30 hari).",
+        "deleteBodyFolderItemsSession": "Folder ini dan {{count}} item di dalamnya akan dihapus secara permanen dan tidak dapat dipulihkan.",
+        "deleteBodyFolderOneItemDrive": "Folder ini dan 1 item di dalamnya akan dipindahkan ke sampah Google Drive Anda (dapat dipulihkan selama ~30 hari).",
+        "deleteBodyFolderOneItemSession": "Folder ini dan 1 item di dalamnya akan dihapus secara permanen dan tidak dapat dipulihkan.",
+        "deleteCancel": "Batal",
+        "deleteConfirm": "Hapus"
     },
     "status": {
         "current": "Saat Ini",
@@ -39,7 +58,9 @@
         "savedOnDate": "Disimpan {{day}} {{month}} pukul {{time}}",
         "savedOnDateYear": "Disimpan {{day}} {{month}} {{year}} pukul {{time}}",
         "sessionBanner": "Pekerjaan Anda hanya tersimpan di tab browser ini. Gunakan Ekspor → Ekspor proyek untuk menyimpannya.",
-        "dismiss": "Tutup"
+        "dismiss": "Tutup",
+        "sessionBannerSignIn": "Masuk untuk menyimpan ke Google Drive",
+        "sessionBannerMove": "Pindahkan ke Google Drive…"
     },
     "settings": {
         "language": "Bahasa"
@@ -88,6 +109,51 @@
         "autoSaveFailed": "Penyimpanan penuh! Silakan gunakan Manajer Penyimpanan untuk membebaskan ruang.",
         "beforeUnload": "Anda memiliki perubahan yang belum disimpan. Apakah Anda yakin ingin keluar?",
         "quotaExceeded": "Kuota penyimpanan terlampaui. Silakan ekspor diagram penting dan kosongkan beberapa ruang."
+    },
+    "auth": {
+        "signIn": "Masuk dengan Google",
+        "signInHint": "Simpan diagram Anda di Google Drive — tersedia di mana pun Anda masuk.",
+        "signInAgain": "Masuk lagi",
+        "reconnecting": "Menyambung ulang ke Google…",
+        "reconnectTooltip": "Perlu masuk Google — diagram Drive Anda kembali dengan sekali klik",
+        "reconnectHint": "Keluar dari Google — masuk lagi untuk memakai Drive",
+        "signOut": "Keluar",
+        "openDriveFolder": "Buka folder Drive",
+        "moveSessionToDrive": "Pindahkan diagram sesi ke Drive…"
+    },
+    "places": {
+        "session": "Sesi ini",
+        "server": "Server ini",
+        "moveAllToDrive": "Pindahkan semua ke Drive",
+        "driveSignInRow": "Masuk untuk menghubungkan Google Drive",
+        "driveReconnectRow": "Sambungkan ulang untuk memuat diagram Drive Anda",
+        "driveSetupRow": "Selesaikan penyiapan Google Drive…",
+        "driveEmpty": "Belum ada diagram di Drive.",
+        "driveError": "Google Drive tidak dapat dimuat.",
+        "driveScopeMissing": "Akses Google Drive tidak diberikan.",
+        "grantAccess": "Berikan akses",
+        "retry": "Coba lagi"
+    },
+    "migrate": {
+        "title": "Pindahkan diagram sesi ke Google Drive?",
+        "body": "Diagram ini hanya ada di tab browser ini dan hilang saat tab ditutup:",
+        "destinationNote": "Diagram akan dipindahkan ke folder Drive Anda dengan struktur foldernya.",
+        "waitingForSetup": "Menyelesaikan penyiapan Google Drive…",
+        "moving": "Memindahkan {{done}} dari {{total}}…",
+        "moveN": "Pindahkan {{n}} ke Drive",
+        "notNow": "Nanti saja",
+        "successToast": "{{n}} dipindahkan ke Google Drive",
+        "partialToast": "{{moved}} dipindahkan, {{failed}} gagal — diagram yang gagal tetap di sesi ini",
+        "nothingToMove": "Tidak ada diagram sesi untuk dipindahkan"
+    },
+    "driveRoot": {
+        "title": "Pilih folder Google Drive Anda",
+        "body": "Axoview menyimpan diagram Anda dalam satu folder di Google Drive Anda. Ia hanya dapat melihat file yang dibuatnya di sana — tidak ada yang lain di Drive Anda.",
+        "defaultOption": "Folder bawaan ({{name}})",
+        "customOption": "Nama folder kustom",
+        "customPlaceholder": "Diagram Saya",
+        "cancel": "Batal",
+        "confirm": "Lanjutkan",
+        "confirmBusy": "Menyiapkan…"
     }
 }
-

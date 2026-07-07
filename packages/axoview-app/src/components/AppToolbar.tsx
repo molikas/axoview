@@ -26,13 +26,16 @@ import { useAppStorage } from '../providers/AppStorageContext';
 import { useDiagramLifecycle } from '../providers/DiagramLifecycleProvider';
 import { StatusCluster } from './StatusCluster';
 import { ExportPopover } from './ExportPopover';
+import { AuthControl } from './AuthControl';
 import { shareUrlFromUuid } from '../utils/shareUrl';
 
 export function AppToolbar() {
   const { t } = useTranslation('app');
   const location = useLocation();
   const navigate = useNavigate();
-  const { serverStorageAvailable, storage } = useAppStorage();
+  const { serverStorageAvailable, remoteStorageActive, activeProviderId, storage } =
+    useAppStorage();
+  const driveActive = activeProviderId === 'google-drive';
   const {
     hasUnsavedChanges,
     isReadonlyUrl,
@@ -189,22 +192,49 @@ export function AppToolbar() {
         </Typography>
       </Box>
 
-      {/* CENTER: intentionally empty per ADR 0005 */}
+      {/* Format strip — LEFT-aligned after the brand (Lucid pattern; owner
+          directive 2026-07-06, amends ADR 0005's empty-center layout). Still
+          the ONE compressible group (F1): it shrinks and scrolls horizontally
+          under viewport squeeze while the right cluster keeps its natural
+          width. Portal filled by the lib's UiOverlay (selection store + scene
+          actions in scope); controls self-gate on the current selection. */}
+      {!isReadonlyUrl && (
+        <>
+          <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+          <Box
+            ref={setStyleControlsRef}
+            data-axoview-id="toolbar-style-slot"
+            sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              flexShrink: 1,
+              minWidth: 0,
+              overflowX: 'auto',
+              overflowY: 'hidden',
+              scrollbarWidth: 'thin',
+              '&::-webkit-scrollbar': { height: 4 },
+              '&::-webkit-scrollbar-thumb': {
+                bgcolor: 'action.disabled',
+                borderRadius: 2
+              }
+            }}
+          />
+        </>
+      )}
+
+      {/* CENTER: flexible spacer (ADR 0005 empty-center, now sitting between
+          the left-aligned strip and the right action cluster) */}
       <Box className="toolbar-center" sx={{ flex: 1 }} />
 
-      {/* RIGHT: four groups separated by dividers. F1 (ADR 0005 overflow
-          amendment, 2026-07-03): the cluster may SHRINK — the Group-1 style
-          slot below absorbs the squeeze by scrolling horizontally, while the
-          Save / Export / Share / Present / sidebar-toggle groups keep their
-          natural width, so Groups 2–4 stay reachable at any viewport width. */}
+      {/* RIGHT: action groups separated by dividers — natural width; the
+          left strip absorbs viewport squeeze (F1). */}
       <Box
         className="toolbar-right"
         sx={{
           display: 'flex',
           alignItems: 'center',
           gap: 0.25,
-          flexShrink: 1,
-          minWidth: 0
+          flexShrink: 0
         }}
       >
         {isReadonlyUrl ? (
@@ -262,35 +292,9 @@ export function AppToolbar() {
           </Stack>
         ) : (
           <>
-            {/* Group 1: View modes / Format (ADR 0005 reserved slot). Style
-                controls strip — portal filled by the lib's UiOverlay (which has
-                the selection store + scene actions in scope). Controls self-gate
-                on the current selection. F1: this is the ONE compressible
-                group — below the natural breakpoint it scrolls horizontally
-                (thin scrollbar) instead of clipping the document actions. */}
-            <Box
-              ref={setStyleControlsRef}
-              data-axoview-id="toolbar-style-slot"
-              sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                flexShrink: 1,
-                minWidth: 0,
-                overflowX: 'auto',
-                overflowY: 'hidden',
-                scrollbarWidth: 'thin',
-                '&::-webkit-scrollbar': { height: 4 },
-                '&::-webkit-scrollbar-thumb': {
-                  bgcolor: 'action.disabled',
-                  borderRadius: 2
-                }
-              }}
-            />
-
-            <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-
-            {/* Group 2: Save group — Save action (local mode only) + StatusCluster */}
-            {!serverStorageAvailable && (
+            {/* Group 2: Save group — Save action (session mode only; remote
+                storage autosaves) + StatusCluster */}
+            {!remoteStorageActive && (
               <Tooltip
                 title={t('nav.save', 'Save') + ' (Ctrl+S)'}
                 placement="bottom"
@@ -314,22 +318,26 @@ export function AppToolbar() {
 
             {/* Group 3: Document actions — Export + Share + Present. Share is
                 render-disabled (not hidden) without server storage so the
-                affordance still signals the feature exists. */}
+                affordance still signals the feature exists. In Drive mode it is
+                HIDDEN entirely (ADR 0036 §4 — public share links are a
+                session-backend contract Drive cannot fulfil). */}
             <ExportPopover />
-            <Tooltip title={shareTooltip} placement="bottom">
-              <span>
-                <IconButton
-                  ref={shareButtonRef}
-                  size="small"
-                  onClick={handleShareClick}
-                  disabled={!serverStorageAvailable || !currentDiagramId}
-                  data-axoview-id="toolbar-share"
-                  sx={{ borderRadius: 1, color: 'inherit' }}
-                >
-                  <ShareIcon sx={{ fontSize: 18 }} />
-                </IconButton>
-              </span>
-            </Tooltip>
+            {!driveActive && (
+              <Tooltip title={shareTooltip} placement="bottom">
+                <span>
+                  <IconButton
+                    ref={shareButtonRef}
+                    size="small"
+                    onClick={handleShareClick}
+                    disabled={!serverStorageAvailable || !currentDiagramId}
+                    data-axoview-id="toolbar-share"
+                    sx={{ borderRadius: 1, color: 'inherit' }}
+                  >
+                    <ShareIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            )}
             <Tooltip
               title={
                 !currentDiagramId
@@ -350,6 +358,13 @@ export function AppToolbar() {
                 </IconButton>
               </span>
             </Tooltip>
+
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+            {/* Group 3.5: Account — the avatar menu is the single auth home
+                (places model 2026-07-06; the storage picker was removed).
+                Self-hides when no Google client id is configured. */}
+            <AuthControl />
 
             <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 

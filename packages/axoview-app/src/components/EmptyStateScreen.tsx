@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import { Box, Button, CardActionArea, Paper } from '@mui/material';
+import { Box, Button, CardActionArea, Paper, Typography } from '@mui/material';
 import { AddCircleOutline as AddIcon, FileUploadOutlined as ImportIcon } from '@mui/icons-material';
+import { GoogleGIcon } from './GoogleGIcon';
 
 const SKY_BLUE = '#0ea5e9';
 
@@ -44,9 +45,17 @@ const labelSx = {
 interface Props {
   onCreate: () => void;
   onImport: () => void;
+  /**
+   * Sign-in identity strip (owner picks 2026-07-06: nudge not gate; then
+   * hierarchy-strip not peer-card — the cards are the verbs, identity is one
+   * quiet line beneath; "continue in this session" is copy, the cards ARE
+   * the continue action). Shown on the storage-less deploy while signed out.
+   */
+  showSignIn?: boolean;
+  onSignIn?: () => void;
 }
 
-export function EmptyStateScreen({ onCreate, onImport }: Props) {
+export function EmptyStateScreen({ onCreate, onImport, showSignIn, onSignIn }: Props) {
   // D11: translate both the visible card labels and their aria-labels.
   const { t } = useTranslation('app');
   return (
@@ -57,11 +66,13 @@ export function EmptyStateScreen({ onCreate, onImport }: Props) {
         bgcolor: 'background.default',
         backgroundImage: isoGridBackground.backgroundImage,
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 3
+        gap: 4
       }}
     >
+      <Box sx={{ display: 'flex', gap: 3 }}>
       <Paper elevation={3} sx={cardSx}>
         <CardActionArea
           onClick={onCreate}
@@ -105,6 +116,43 @@ export function EmptyStateScreen({ onCreate, onImport }: Props) {
           </Button>
         </CardActionArea>
       </Paper>
+      </Box>
+
+      {showSignIn && onSignIn && (
+        <Box
+          data-axoview-id="screen-empty-signin-strip"
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 1,
+            maxWidth: 440,
+            textAlign: 'center',
+            borderTop: 1,
+            borderColor: 'divider',
+            pt: 2.5,
+            px: 2,
+            minWidth: 360
+          }}
+        >
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={onSignIn}
+            startIcon={<GoogleGIcon size={16} />}
+            data-axoview-id="screen-empty-signin"
+            sx={{ textTransform: 'none', bgcolor: 'background.paper' }}
+          >
+            {t('auth.signIn', 'Sign in with Google')}
+          </Button>
+          <Typography variant="caption" color="text.secondary">
+            {t(
+              'emptyState.signInStripCaption',
+              'Save your diagrams to Google Drive — or continue in this session and move them to Drive anytime.'
+            )}
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 }

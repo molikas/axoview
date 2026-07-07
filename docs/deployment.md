@@ -1,18 +1,18 @@
 # Axoview — Deployment Guide
 
-**Last updated:** 2026-06-10 (v1.1 close-out — verified accurate; added §E.1 observability)
+**Last updated:** 2026-07-07 (Google Drive storage shipped — §C3 rewritten, storage table updated)
 
 Axoview runs on three targets from a single codebase:
 
 | Target | Runtime | Storage | Auth options |
 |---|---|---|---|
-| **Local dev** | `npm run dev` (rsbuild on :3000 + Express on :3001) | Filesystem if `ENABLE_SERVER_STORAGE=true`, else session | `none`, `shared-token` |
+| **Local dev** | `npm run dev` (rsbuild on :3000 + Express on :3001) | Filesystem if `ENABLE_SERVER_STORAGE=true`, else session (+ Google Drive when configured) | `none`, `shared-token` |
 | **Docker** | nginx + Express on Node | Filesystem volume | `none`, `shared-token` |
-| **Cloudflare Pages** | Pages Functions (Hono) | **None — session/localStorage only** | `none`, `shared-token`, `cf-access` |
+| **Cloudflare Pages** | Pages Functions (Hono) | **Session/localStorage + Google Drive** (per-user, client-side) | `none`, `shared-token`, `cf-access` |
 
-The frontend bundle is identical across all three. The Cloudflare deployment is currently storage-less — `/api/config` returns `serverStorage: false` and the client falls back to session storage. A persistent backend on Cloudflare (Drive integration) is tracked on a separate branch.
+The frontend bundle is identical across all three. The Cloudflare deployment has no server-side storage — `/api/config` returns `serverStorage: false` — but ships the **Google Drive place** ([ADR 0036](adr/0036-google-drive-storage-provider.md), [ADR 0037](adr/0037-storage-places-model.md)): a signed-in user's diagrams persist in their own Drive, entirely client-side.
 
-> ⚠️ **Single-tenant per deploy.** Axoview's storage layer assumes **one user per deployment** (see [ADR 0010 §D4](adr/0010-session-backend-contract.md)). Multi-user self-host requires operator-managed isolation — one container per user, a Cloudflare Access policy, or a network ACL. **`AUTH_MODE=shared-token` is not a team password — it is a single bearer token.** A team using one Docker deploy + `shared-token` will share every diagram across every user. If you need per-user isolation, deploy one instance per user (or wait for the Drive provider).
+> ⚠️ **Single-tenant per deploy.** Axoview's storage layer assumes **one user per deployment** (see [ADR 0010 §D4](adr/0010-session-backend-contract.md)). Multi-user self-host requires operator-managed isolation — one container per user, a Cloudflare Access policy, or a network ACL. **`AUTH_MODE=shared-token` is not a team password — it is a single bearer token.** A team using one Docker deploy + `shared-token` will share every diagram across every user. If you need per-user isolation, deploy one instance per user — or use the Drive place, which is per-Google-account by construction.
 
 Both backends share a single `/api/*` HTTP contract. Two routes are public on every target:
 
@@ -106,13 +106,19 @@ CF_ACCESS_AUD         = "<application-aud>"
 
 ### C3. (Optional) Google Drive client ID
 
-The Drive provider is implemented on a separate branch. Once that lands, configure:
+Enables the Google Drive place (sign-in, Drive storage, move-to-Drive). The
+client ID is a **public OAuth identifier, not a secret** — it is committed as a
+`[vars]` entry in [packages/axoview-worker/wrangler.toml](../packages/axoview-worker/wrangler.toml)
+(kept in lockstep with the repo-root `wrangler.toml` per ADR 0009 Decision 5):
 
-```bash
-npx wrangler pages secret put GOOGLE_CLIENT_ID
+```toml
+# packages/axoview-worker/wrangler.toml
+[vars]
+GOOGLE_CLIENT_ID = "<your-client-id>.apps.googleusercontent.com"
 ```
 
-The frontend reads this at runtime via `GET /api/config` — no rebuild needed when it changes.
+The frontend reads it at runtime via `GET /api/config` — no rebuild needed when
+it changes. Without it, the app runs session-only (no sign-in affordances).
 
 ### C4. Deploy
 
@@ -150,14 +156,14 @@ The repo-root [wrangler.toml](wrangler.toml) is set up so the deploy button work
 - Public routes that bypass auth: `GET /api/config`, `GET /api/public/diagrams/:uuid`.
 - Body limit: 10 MB per request.
 - ID validation: `^[a-zA-Z0-9_-]{1,64}$` — anything else is `400 Invalid id` (Docker only; Cloudflare 503s before reaching the validator).
-- Drive OAuth scope is locked to `drive.file` (per-file consent only) once the Drive branch lands.
+- Drive OAuth scope is locked to `drive.file` (per-file consent only) — the app sees only files it created ([ADR 0035](adr/0035-google-identity-and-drive-authorization.md)).
 - Runtime config (`GET /api/config`) replaces build-time env injection — the frontend bundle never embeds secrets.
 
 ## E. What differs
 
 | Concern | Cloudflare | Docker |
 |---|---|---|
-| Storage | None — session/localStorage on the client | `STORAGE_PATH` on disk |
+| Storage | Session/localStorage + Google Drive place (client-side) | `STORAGE_PATH` on disk |
 | `cf-access` auth | Supported (JWKS RS256 verify) | Rejected (500) |
 | Static delivery | CF CDN + `_headers` | nginx (compose stack) |
 | Body limit enforcement | Hono `bodyLimit({ maxSize: 10MB })` | `express.json({ limit: '10mb' })` |
@@ -175,7 +181,7 @@ The Worker registers a Hono `app.onError` handler ([packages/axoview-worker/src/
 
 **`401 Unauthorized` on every API call** — `AUTH_MODE=shared-token` is set but the client isn't sending `Authorization: Bearer …`. The SPA does not currently inject the header itself; front the deployment with a reverse proxy that injects it, or use `AUTH_MODE=cf-access`, or run with `AUTH_MODE=none`.
 
-**Cloudflare deploy returns `503 Server storage is disabled` on `/api/diagrams`** — expected. The current Cloudflare runtime is storage-less. Use the Docker target for persistent storage, or wait for the Drive branch to merge.
+**Cloudflare deploy returns `503 Server storage is disabled` on `/api/diagrams`** — expected. The Cloudflare runtime has no server-side storage; persistence there is the client-side Google Drive place (§C3). Use the Docker target for server-side storage.
 
 **Path-traversal `400 Invalid id`** (Docker) — expected. IDs are strict NanoID-like alphanum; do not relax `assertId`.
 

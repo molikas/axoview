@@ -19,6 +19,14 @@ export const PROJECT_FORMAT_VERSION = '1';
 const SUPPORTED_VERSIONS = new Set([PROJECT_FORMAT_VERSION]);
 const ID_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
 
+// Import guards (security review 2026-07-05). parseProject runs on an untrusted,
+// user-supplied archive; without ceilings a small "zip bomb" (a few KB that
+// inflates to gigabytes, or a manifest listing millions of diagrams) can OOM the
+// tab. These caps are far above any legitimate project.
+const MAX_ARCHIVE_BYTES = 100 * 1024 * 1024; // 100 MB compressed input
+const MAX_ENTRY_BYTES = 50 * 1024 * 1024; // 50 MB per decompressed entry
+const MAX_DIAGRAMS = 5000; // manifest entry-count ceiling
+
 // ----------------------------------------------------------------------------
 // Types
 // ----------------------------------------------------------------------------
@@ -176,12 +184,30 @@ export const exportProject = async (
 // ----------------------------------------------------------------------------
 
 const loadZip = async (file: File | Blob): Promise<JSZip> => {
+  if (typeof file.size === 'number' && file.size > MAX_ARCHIVE_BYTES) {
+    throw new ProjectZipError('Archive is too large', 'TOO_LARGE');
+  }
   try {
     return await JSZip.loadAsync(file);
   } catch {
     // JSZip throws on any malformed/non-zip input → translate to a domain error.
     throw new ProjectZipError('Could not read zip archive', 'BAD_ZIP');
   }
+};
+
+// Read a zip entry as a string, but refuse entries that decompress past the
+// per-entry ceiling — the anti-zip-bomb guard. JSZip exposes the declared
+// uncompressed size on the entry's internal `_data`; check it before inflating.
+const readEntryString = async (
+  entry: JSZip.JSZipObject,
+  label: string
+): Promise<string> => {
+  const declared = (entry as unknown as { _data?: { uncompressedSize?: number } })
+    ._data?.uncompressedSize;
+  if (typeof declared === 'number' && declared > MAX_ENTRY_BYTES) {
+    throw new ProjectZipError(`Entry "${label}" is too large`, 'TOO_LARGE');
+  }
+  return entry.async('string');
 };
 
 const readManifest = async (zip: JSZip): Promise<ProjectManifest> => {
@@ -192,9 +218,17 @@ const readManifest = async (zip: JSZip): Promise<ProjectManifest> => {
 
   let manifest: ProjectManifest;
   try {
-    manifest = JSON.parse(await manifestEntry.async('string'));
-  } catch {
+    manifest = JSON.parse(await readEntryString(manifestEntry, 'manifest.json'));
+  } catch (e) {
+    if (e instanceof ProjectZipError) throw e;
     throw new ProjectZipError('manifest.json is not valid JSON', 'BAD_MANIFEST');
+  }
+
+  if (Array.isArray(manifest.diagrams) && manifest.diagrams.length > MAX_DIAGRAMS) {
+    throw new ProjectZipError(
+      `Project lists too many diagrams (${manifest.diagrams.length})`,
+      'TOO_LARGE'
+    );
   }
 
   if (
@@ -231,8 +265,9 @@ const loadDiagrams = async (
     }
     let model: unknown;
     try {
-      model = JSON.parse(await entry.async('string'));
-    } catch {
+      model = JSON.parse(await readEntryString(entry, path));
+    } catch (e) {
+      if (e instanceof ProjectZipError) throw e;
       throw new ProjectZipError(`Diagram ${meta.id} is not valid JSON`, 'BAD_DIAGRAM');
     }
     diagrams.set(meta.id, model);
@@ -254,9 +289,10 @@ const readTreeManifest = async (
   const tmEntry = zip.file('tree-manifest.json');
   if (!tmEntry) return undefined;
   try {
-    return JSON.parse(await tmEntry.async('string'));
+    return JSON.parse(await readEntryString(tmEntry, 'tree-manifest.json'));
   } catch {
-    // tree manifest is optional — ignore parse failures
+    // tree manifest is optional — ignore parse failures (including a too-large
+    // entry: the import proceeds without the optional tree manifest)
     return undefined;
   }
 };

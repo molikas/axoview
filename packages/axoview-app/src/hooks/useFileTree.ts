@@ -6,10 +6,19 @@ import { propagateDirty } from '../utils/fileOperations';
 // FileNode type — used by react-arborist
 // ---------------------------------------------------------------------------
 
+/** A storage place a node can live in (places model, 2026-07-06). */
+export type PlaceId = 'local' | 'google-drive';
+
 export interface FileNode {
   id: string;
   name: string;
-  type: 'folder' | 'diagram';
+  /**
+   * 'place' = a section root ("Google Drive" / "This session");
+   * 'placeState' = a synthetic status row inside a section (loading skeleton,
+   * sign-in prompt, error, empty hint). Both exist only in the composed
+   * dual-place tree — per-provider data contains folders/diagrams only.
+   */
+  type: 'folder' | 'diagram' | 'place' | 'placeState';
   /** Populated for folders; undefined for leaf diagram nodes */
   children?: FileNode[];
   isDirty?: boolean;
@@ -19,6 +28,10 @@ export interface FileNode {
   diagramMeta?: DiagramMeta;
   /** Original FolderMeta for folder nodes */
   folderMeta?: FolderMeta;
+  /** Which storage place this node belongs to (stamped during composition). */
+  placeId?: PlaceId;
+  /** placeState rows: which state to render. */
+  stateKind?: 'loading' | 'signin' | 'reconnect' | 'error' | 'empty' | 'setup' | 'scope';
 }
 
 // ---------------------------------------------------------------------------
@@ -70,10 +83,21 @@ function buildTree(
 // Hook
 // ---------------------------------------------------------------------------
 
+/**
+ * Lifecycle of one place's tree data. `loading` covers only the FIRST fetch
+ * (skeleton-worthy); later refreshes keep `ready` + `isRefreshing` so stale
+ * rows stay visible instead of blanking (storage-ux-unification 2026-07-06).
+ */
+export type FileTreeStatus = 'disabled' | 'loading' | 'ready' | 'error';
+
 export interface UseFileTreeResult {
   treeData: FileNode[];
   trashData: FileNode[];
   isLoading: boolean;
+  /** First-load / disabled / ready / error — drives per-section state rows. */
+  status: FileTreeStatus;
+  /** A refresh is running while data is already shown (thin progress bar). */
+  isRefreshing: boolean;
   error: string | null;
   manifest: TreeManifest | null;
   diagrams: DiagramMeta[];
@@ -98,20 +122,60 @@ export function useFileTree(
   refreshToken: number,
   currentDiagramId?: string | null,
   hasUnsavedChanges?: boolean,
-  dirtyDiagramIds?: Set<string>
+  dirtyDiagramIds?: Set<string>,
+  /** Active provider id — a change drops stale cross-provider nodes immediately. */
+  providerId?: string,
+  /**
+   * Gate for providers that need preconditions (Drive needs a token): while
+   * false, data is cleared and no fetch fires; flipping to true loads fresh.
+   */
+  enabled: boolean = true
 ): UseFileTreeResult {
   const [folders, setFolders] = useState<FolderMeta[]>([]);
   const [diagrams, setDiagrams] = useState<DiagramMeta[]>([]);
   const [manifest, setManifest] = useState<TreeManifest | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const storageRef = useRef(storage);
   storageRef.current = storage;
 
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
+
+  const providerIdRef = useRef(providerId);
+  providerIdRef.current = providerId;
+  const loadedProviderRef = useRef<string | undefined>(providerId);
+  // Monotonic load sequence: a slow listing that resolves after a newer load
+  // started must not overwrite the newer state (last-writer-wins would let a
+  // stale Drive response resurrect rows the tree already replaced).
+  const loadSeqRef = useRef(0);
+
   const load = useCallback(async () => {
+    const seq = ++loadSeqRef.current;
     const s = storageRef.current;
-    if (!s) return;
+    if (!s || !enabledRef.current) {
+      // Disabled (e.g. Drive while signed out): drop any stale rows so nothing
+      // unreachable stays clickable, and reset to the pre-first-load state.
+      setFolders([]);
+      setDiagrams([]);
+      setManifest(null);
+      setHasLoaded(false);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+    // Provider just switched (local ⇄ Drive): clear the previous backend's nodes
+    // NOW so their ids — invalid against the new backend — aren't clickable
+    // during the async reload (else opening one 404s on the wrong provider).
+    if (providerIdRef.current !== loadedProviderRef.current) {
+      setFolders([]);
+      setDiagrams([]);
+      setManifest(null);
+      setHasLoaded(false);
+      loadedProviderRef.current = providerIdRef.current;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -120,21 +184,24 @@ export function useFileTree(
         s.listDiagrams(),
         s.getTreeManifest()
       ]);
+      if (seq !== loadSeqRef.current) return; // superseded by a newer load
       // Normalize to arrays — server may return non-array on error or corrupt data
       setFolders(Array.isArray(allFolders) ? allFolders : []);
       setDiagrams(Array.isArray(allDiagrams) ? allDiagrams : []);
       setManifest(treeManifest);
+      setHasLoaded(true);
     } catch (e) {
+      if (seq !== loadSeqRef.current) return;
       setError(e instanceof Error ? e.message : 'Failed to load file tree');
     } finally {
-      setIsLoading(false);
+      if (seq === loadSeqRef.current) setIsLoading(false);
     }
   }, []);
 
-  // Reload on mount and when refreshToken changes
+  // Reload on mount, when refreshToken changes, and when the gate opens/closes
   useEffect(() => {
     load();
-  }, [load, refreshToken]);
+  }, [load, refreshToken, enabled]);
 
   // Overlay in-memory dirty state: dirtyDiagramIds covers all buffered diagrams;
   // hasUnsavedChanges covers the currently-open diagram specifically.
@@ -261,10 +328,20 @@ export function useFileTree(
     setFolders((prev) => prev.map((f) => (f.id === id ? { ...f, name } : f)));
   }, []);
 
+  const status: FileTreeStatus = !enabled
+    ? 'disabled'
+    : error
+      ? 'error'
+      : hasLoaded
+        ? 'ready'
+        : 'loading';
+
   return {
     treeData,
     trashData,
     isLoading,
+    status,
+    isRefreshing: isLoading && hasLoaded,
     error,
     manifest,
     diagrams: diagramsWithDirty,

@@ -15,11 +15,16 @@ export default function ErrorBoundaryFallbackUI({
   };
 
   const onReportButtonPressed = () => {
+    // Strip query string and hash before it leaves the app: this URL is opened
+    // in an externally-hosted GitHub issue form, and search/fragment params can
+    // carry sensitive data (e.g. an OAuth token in the fragment once Drive ships).
+    // Origin + pathname is enough to locate the failing view (security review 2026-07-05).
+    const safeUrl = `${window.location.origin}${window.location.pathname}`;
     const errorDetails = {
       message: err.message,
       stack: err.stack,
       userAgent: navigator.userAgent,
-      url: window.location.href,
+      url: safeUrl,
       timestamp: new Date().toISOString()
     };
 
@@ -29,10 +34,10 @@ export default function ErrorBoundaryFallbackUI({
     githubUrl.searchParams.set('title', `Error: ${err.message}`);
     githubUrl.searchParams.set(
       'body',
-      `## Error Details\n\n\`\`\`\n${JSON.stringify(errorDetails, null, 2)}\n\`\`\`\n\n## Steps to Reproduce\n1. \n2. \n3. \n\n## Expected Behavior\n\n## Actual Behavior\n\n## Environment\n- Browser: ${navigator.userAgent}\n- URL: ${window.location.href}\n- Timestamp: ${new Date().toISOString()}`
+      `## Error Details\n\n\`\`\`\n${JSON.stringify(errorDetails, null, 2)}\n\`\`\`\n\n## Steps to Reproduce\n1. \n2. \n3. \n\n## Expected Behavior\n\n## Actual Behavior\n\n## Environment\n- Browser: ${navigator.userAgent}\n- URL: ${safeUrl}\n- Timestamp: ${new Date().toISOString()}`
     );
 
-    window.open(githubUrl.toString(), '_blank');
+    window.open(githubUrl.toString(), '_blank', 'noopener,noreferrer');
   };
 
   return (

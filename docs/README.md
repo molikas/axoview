@@ -43,7 +43,7 @@ Deep snapshots cut on a date and left immutable. Read for the comprehensive narr
 
 ## Decision records (ADRs)
 
-[docs/adr/](adr/) — 32 ADRs (28 Accepted, 4 Proposed; 0016/0017 are unused numbers), one durable decision each. Start any new work by reading the ADR header for the contract you're about to touch. *(Table rebuilt 2026-07-05 — it had been stale at 11 rows since 0012 landed; technical-review-2026-07 §8j.)*
+[docs/adr/](adr/) — 35 ADRs (31 Accepted, 4 Proposed; 0016/0017 are unused numbers), one durable decision each. Start any new work by reading the ADR header for the contract you're about to touch. *(Table rebuilt 2026-07-05 — it had been stale at 11 rows since 0012 landed; technical-review-2026-07 §8j. 0035–0037 added 2026-07-07 with the Drive-storage promotion.)*
 
 | # | Decision |
 |---|---|
@@ -79,6 +79,9 @@ Deep snapshots cut on a date and left immutable. Read for the comprehensive narr
 | [0032](adr/0032-node-name-caption-label-model.md) | Node name / caption / label model (Option A) |
 | [0033](adr/0033-element-text-style-field-convention.md) | Element text-style field convention (B/I/S) |
 | [0034](adr/0034-inline-canvas-text-editing-and-dual-scope-strip-formatting.md) | Inline canvas text editing & dual-scope strip formatting |
+| [0035](adr/0035-google-identity-and-drive-authorization.md) | Google identity & Drive authorization (GIS token model) |
+| [0036](adr/0036-google-drive-storage-provider.md) | Google Drive storage provider |
+| [0037](adr/0037-storage-places-model.md) | Storage places model (one tree, two places) |
 
 ---
 

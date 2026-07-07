@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Divider, ListItemIcon, MenuItem } from '@mui/material';
 import {
   OpenInNewOutlined as OpenIcon,
@@ -10,7 +11,8 @@ import {
   DeleteOutlined as DeleteIcon,
   NoteAddOutlined as NewDiagramIcon,
   CreateNewFolderOutlined as NewFolderIcon,
-  RefreshOutlined as RefreshIcon
+  RefreshOutlined as RefreshIcon,
+  CloudUploadOutlined as MoveToDriveIcon
 } from '@mui/icons-material';
 import type { FileNode } from '../../hooks/useFileTree';
 
@@ -31,8 +33,15 @@ interface Props {
   onNewDiagram: () => void;
   onNewFolder: () => void;
   onRefresh: () => void;
+  onMoveToDrive: () => void;
   onClose: () => void;
   canShare: boolean;
+  /**
+   * True when signed in to Google and the node lives in the session place —
+   * MOVE semantics (create on Drive → verify → delete here), owner decision
+   * 2026-07-06 superseding the copy-only "Save to Google Drive".
+   */
+  canMoveToDrive: boolean;
 }
 
 export function ContextMenuItems({
@@ -49,9 +58,12 @@ export function ContextMenuItems({
   onNewDiagram,
   onNewFolder,
   onRefresh,
+  onMoveToDrive,
   onClose,
-  canShare
+  canShare,
+  canMoveToDrive
 }: Props) {
+  const { t } = useTranslation('app');
   const isDiagram = node?.type === 'diagram';
 
   const handle = (fn: () => void) => () => {
@@ -112,6 +124,16 @@ export function ContextMenuItems({
         >
           <ListItemIcon><ShareLinkIcon fontSize="small" /></ListItemIcon>
           Copy share link
+        </MenuItem>
+      )}
+      {isDiagram && canMoveToDrive && (
+        <MenuItem
+          dense
+          data-axoview-id="file-explorer-context-menu-move-to-drive"
+          onClick={handle(onMoveToDrive)}
+        >
+          <ListItemIcon><MoveToDriveIcon fontSize="small" /></ListItemIcon>
+          {t('fileExplorer.moveToDrive', 'Move to Google Drive')}
         </MenuItem>
       )}
       {node &&

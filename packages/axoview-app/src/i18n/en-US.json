@@ -21,7 +21,10 @@
     },
     "emptyState": {
         "newDiagram": "New diagram",
-        "import": "Import"
+        "import": "Import",
+        "signIn": "Sign in",
+        "signInCaption": "Keep your diagrams in Google Drive",
+        "signInStripCaption": "Save your diagrams to Google Drive — or continue in this session and move them to Drive anytime."
     },
     "fileExplorer": {
         "title": "Diagrams",
@@ -30,7 +33,23 @@
         "newDiagram": "New diagram",
         "newFolder": "New folder",
         "refresh": "Refresh",
-        "collapseAll": "Collapse all"
+        "collapseAll": "Collapse all",
+        "empty": "No diagrams yet. Create one to get started.",
+        "moveToDrive": "Move to Google Drive",
+        "movedToDrive": "\"{{name}}\" moved to Google Drive",
+        "moveToDriveFailed": "Could not move \"{{name}}\" to Google Drive — it stayed in this session",
+        "collapse": "Collapse panel",
+        "deleteTitle": "Delete \"{{name}}\"?",
+        "deleteBodyDiagramDrive": "This diagram will be moved to your Google Drive trash (recoverable for ~30 days).",
+        "deleteBodyDiagramSession": "This diagram will be permanently deleted and cannot be recovered.",
+        "deleteBodyFolderDrive": "This folder will be moved to your Google Drive trash (recoverable for ~30 days).",
+        "deleteBodyFolderSession": "This folder will be permanently deleted and cannot be recovered.",
+        "deleteBodyFolderItemsDrive": "This folder and {{count}} items inside will be moved to your Google Drive trash (recoverable for ~30 days).",
+        "deleteBodyFolderItemsSession": "This folder and {{count}} items inside will be permanently deleted and cannot be recovered.",
+        "deleteBodyFolderOneItemDrive": "This folder and 1 item inside will be moved to your Google Drive trash (recoverable for ~30 days).",
+        "deleteBodyFolderOneItemSession": "This folder and 1 item inside will be permanently deleted and cannot be recovered.",
+        "deleteCancel": "Cancel",
+        "deleteConfirm": "Delete"
     },
     "status": {
         "current": "Current",
@@ -44,7 +63,9 @@
         "savedOnDateYear": "Saved {{month}} {{day}}, {{year}} at {{time}}",
         "sessionStorageNote": "Session storage only - export to save permanently",
         "sessionBanner": "Your work lives in this browser tab only. Use Export → Export project to keep it.",
-        "dismiss": "Dismiss"
+        "dismiss": "Dismiss",
+        "sessionBannerSignIn": "Sign in to save to Google Drive",
+        "sessionBannerMove": "Move to Google Drive…"
     },
     "settings": {
         "language": "Language"
@@ -168,5 +189,51 @@
         "autoSaveFailed": "Storage full! Please use Storage Manager to free up space.",
         "beforeUnload": "You have unsaved changes. Are you sure you want to leave?",
         "quotaExceeded": "Storage quota exceeded. Please export important diagrams and clear some space."
+    },
+    "auth": {
+        "signIn": "Sign in with Google",
+        "signInHint": "Keep your diagrams in Google Drive — available anywhere you sign in.",
+        "signInAgain": "Sign in again",
+        "reconnecting": "Reconnecting to Google…",
+        "reconnectTooltip": "Google sign-in needed — your Drive diagrams reconnect with one click",
+        "reconnectHint": "Signed out of Google — sign in again to use Drive",
+        "signOut": "Sign out",
+        "openDriveFolder": "Open Drive folder",
+        "moveSessionToDrive": "Move session diagrams to Drive…"
+    },
+    "places": {
+        "session": "This session",
+        "server": "This server",
+        "moveAllToDrive": "Move all to Drive",
+        "driveSignInRow": "Sign in to connect Google Drive",
+        "driveReconnectRow": "Reconnect to load your Drive diagrams",
+        "driveSetupRow": "Finish Google Drive setup…",
+        "driveEmpty": "No diagrams in Drive yet.",
+        "driveError": "Google Drive couldn't be loaded.",
+        "driveScopeMissing": "Google Drive access wasn't granted.",
+        "grantAccess": "Grant access",
+        "retry": "Retry"
+    },
+    "migrate": {
+        "title": "Move session diagrams to Google Drive?",
+        "body": "These diagrams live only in this browser tab and are lost when it closes:",
+        "destinationNote": "They will move into your Drive folder, keeping their folders.",
+        "waitingForSetup": "Finishing Google Drive setup…",
+        "moving": "Moving {{done}} of {{total}}…",
+        "moveN": "Move {{n}} to Drive",
+        "notNow": "Not now",
+        "successToast": "Moved {{n}} to Google Drive",
+        "partialToast": "{{moved}} moved, {{failed}} failed — the failed diagrams stayed in this session",
+        "nothingToMove": "No session diagrams to move"
+    },
+    "driveRoot": {
+        "title": "Choose your Google Drive folder",
+        "body": "Axoview keeps your diagrams in one folder in your Google Drive. It can only see the files it creates there — nothing else in your Drive.",
+        "defaultOption": "Default folder ({{name}})",
+        "customOption": "Custom folder name",
+        "customPlaceholder": "My Diagrams",
+        "cancel": "Cancel",
+        "confirm": "Continue",
+        "confirmBusy": "Setting up…"
     }
 }

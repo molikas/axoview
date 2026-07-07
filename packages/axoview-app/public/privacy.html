@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="robots" content="index, follow" />
+    <meta
+      name="description"
+      content="Privacy Policy for Axoview, an open-source isometric diagramming tool."
+    />
+    <title>Privacy Policy — Axoview</title>
+    <style>
+      :root {
+        --ink: #1f2937;
+        --muted: #52606d;
+        --accent: #2563eb;
+        --line: #e5e7eb;
+        --panel: #f8fafc;
+        --bg: #ffffff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          'Helvetica Neue', Arial, sans-serif;
+        line-height: 1.65;
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 56px 24px 96px;
+      }
+      .brand {
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        margin-bottom: 40px;
+        color: var(--ink);
+      }
+      .brand .accent {
+        color: var(--accent);
+      }
+      h1 {
+        font-size: 30px;
+        line-height: 1.25;
+        margin: 0 0 6px;
+      }
+      .meta {
+        color: var(--muted);
+        font-size: 14px;
+        margin: 0 0 32px;
+      }
+      h2 {
+        font-size: 19px;
+        margin: 40px 0 12px;
+        padding-top: 8px;
+      }
+      h3 {
+        font-size: 16px;
+        margin: 24px 0 8px;
+      }
+      p,
+      li {
+        color: var(--ink);
+        font-size: 16px;
+      }
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      ul {
+        padding-left: 22px;
+      }
+      li {
+        margin: 6px 0;
+      }
+      .tldr {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 20px 24px;
+        margin: 8px 0 8px;
+      }
+      .tldr h2 {
+        margin-top: 0;
+      }
+      .tldr ul {
+        margin-bottom: 0;
+      }
+      code {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 1px 6px;
+        font-family: 'SFMono-Regular', ui-monospace, Menlo, Consolas, monospace;
+        font-size: 0.9em;
+      }
+      hr {
+        border: 0;
+        border-top: 1px solid var(--line);
+        margin: 48px 0;
+      }
+      .foot {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ink: #e6e8eb;
+          --muted: #9aa5b1;
+          --accent: #60a5fa;
+          --line: #2a2f3a;
+          --panel: #161a22;
+          --bg: #0f1216;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="brand">Axo<span class="accent">view</span></div>
+
+      <h1>Privacy Policy</h1>
+      <p class="meta">Last updated: 7 July 2026 · Effective: 7 July 2026</p>
+
+      <p>
+        Axoview is an open-source isometric diagramming tool. This policy explains what
+        information the application accesses when you connect a Google account, how that
+        information is used, and the choices you have. It applies to the Axoview web
+        application and, in particular, to its optional Google Drive integration.
+      </p>
+
+      <div class="tldr">
+        <h2>The short version</h2>
+        <ul>
+          <li>
+            Axoview has <strong>no server that stores your diagrams</strong>. In Google Drive
+            mode, your diagrams live in <strong>your own Google Drive</strong>.
+          </li>
+          <li>
+            Axoview requests the <strong>narrowest Drive permission that exists</strong>
+            (<code>drive.file</code>): it can only see the files it creates or that you
+            explicitly open with it — never the rest of your Drive.
+          </li>
+          <li>
+            Your Google sign-in token is kept <strong>in memory only</strong> and is discarded
+            when you sign out or close the tab. It is never written to disk.
+          </li>
+          <li>
+            <strong>No analytics, no advertising, no tracking, no selling or sharing</strong>
+            of your data with third parties.
+          </li>
+        </ul>
+      </div>
+
+      <h2>1. Who is responsible</h2>
+      <p>
+        Axoview is maintained by the Axoview project ("we", "us"). Axoview is free, open-source
+        software (MIT-licensed). You can run it from a hosted deployment or self-host it
+        yourself; either way, the data practices below describe how the application handles
+        your information.
+      </p>
+
+      <h2>2. Information Axoview accesses</h2>
+      <h3>Google account basics</h3>
+      <p>
+        When you sign in with Google, Axoview receives basic profile information — your
+        <strong>name, email address, and profile picture</strong> — so it can show who is
+        signed in and label the diagrams you save. This information is provided by Google's
+        sign-in service.
+      </p>
+      <h3>Google Drive files</h3>
+      <p>
+        If you choose to store diagrams in Google Drive, Axoview requests the
+        <code>https://www.googleapis.com/auth/drive.file</code> scope. This is the
+        <strong>per-file</strong> Drive scope: it grants access only to
+      </p>
+      <ul>
+        <li>files that Axoview itself creates (your Axoview diagrams), and</li>
+        <li>files you specifically open with Axoview.</li>
+      </ul>
+      <p>
+        Axoview <strong>cannot list, read, or modify any other files in your Google Drive</strong>.
+        The contents of Drive diagram files are the diagram data you create in the app.
+      </p>
+
+      <h2>3. How Axoview uses this information</h2>
+      <ul>
+        <li>
+          <strong>To display your identity</strong> — your name, email, and picture appear in
+          the app so you know which account is connected.
+        </li>
+        <li>
+          <strong>To save and load your diagrams</strong> — the app creates, reads, updates,
+          and (on your request) deletes diagram files in your Drive, and maintains a small
+          Axoview folder to organize them.
+        </li>
+        <li>
+          <strong>To reconnect you conveniently</strong> — see "Remember me" below.
+        </li>
+      </ul>
+      <p>Axoview does not use your information for any other purpose.</p>
+
+      <h2>4. Where your data is stored</h2>
+      <ul>
+        <li>
+          <strong>Google Drive mode:</strong> diagram files are stored in
+          <strong>your own Google Drive</strong>. They are subject to Google's own privacy
+          terms and remain under your control.
+        </li>
+        <li>
+          <strong>Session / browser mode:</strong> diagrams are stored locally in your web
+          browser on your device.
+        </li>
+        <li>
+          <strong>Self-hosted mode:</strong> if you or your organization deploys Axoview with
+          its optional backend, diagrams are stored on that server, which you control.
+        </li>
+        <li>
+          <strong>The Axoview project operates no server that receives or stores your diagram
+          content.</strong>
+        </li>
+      </ul>
+
+      <h2>5. Your sign-in token</h2>
+      <p>
+        The OAuth access token Google issues at sign-in is held <strong>in the browser's
+        memory only</strong> for the duration of your session. It is
+        <strong>never persisted</strong> to local storage, cookies, or any server. When you
+        sign out or close the tab, the token is discarded and you are disconnected.
+      </p>
+
+      <h2>6. "Remember me"</h2>
+      <p>
+        If you enable "remember me", Axoview stores a small <strong>profile hint</strong> (your
+        email address and name, as returned by Google) in your browser's local storage. This is
+        used only to streamline signing you back in on your next visit. It stays on your device
+        and is sent only to Google's sign-in service to identify the account. You can clear it
+        at any time by signing out or clearing your browser data.
+      </p>
+
+      <h2>7. What Axoview does not do</h2>
+      <ul>
+        <li>No advertising and no ad networks.</li>
+        <li>No analytics or behavioral tracking.</li>
+        <li>No selling, renting, or sharing of your personal data or Google user data.</li>
+        <li>No transfer of your Google user data to third parties, except as needed to provide
+          the app's features to you (e.g. Google's own APIs), for security, or to comply with
+          applicable law.</li>
+        <li>No use of your Google user data to train generalized or AI/ML models.</li>
+      </ul>
+
+      <h2>8. Google API Services User Data Policy</h2>
+      <p>
+        Axoview's use and transfer of information received from Google APIs to any other app
+        will adhere to the
+        <a
+          href="https://developers.google.com/terms/api-services-user-data-policy"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Google API Services User Data Policy</a
+        >, including the Limited Use requirements.
+      </p>
+
+      <h2>9. Your choices and control</h2>
+      <ul>
+        <li>
+          <strong>Revoke access</strong> at any time from your Google Account permissions page:
+          <a
+            href="https://myaccount.google.com/permissions"
+            target="_blank"
+            rel="noopener noreferrer"
+            >myaccount.google.com/permissions</a
+          >.
+        </li>
+        <li>
+          <strong>Delete your data</strong> by deleting your Axoview diagram files directly in
+          Google Drive, or from within the app.
+        </li>
+        <li>
+          <strong>Disconnect</strong> by signing out, which discards the in-memory token.
+        </li>
+      </ul>
+
+      <h2>10. Data security</h2>
+      <p>
+        Axoview communicates with Google over encrypted HTTPS connections and requests the
+        minimum access it needs to function. Because your diagram data lives in your own Google
+        Drive (or your own browser or server), its security is also governed by those platforms'
+        protections and your own account security. No method of transmission or storage is
+        perfectly secure, and we cannot guarantee absolute security.
+      </p>
+
+      <h2>11. Children's privacy</h2>
+      <p>
+        Axoview is a general-purpose productivity tool and is not directed to children. It does
+        not knowingly collect personal information from children.
+      </p>
+
+      <h2>12. Changes to this policy</h2>
+      <p>
+        We may update this policy from time to time. Material changes will be reflected by
+        updating the "Last updated" date at the top of this page. Continued use of Axoview after
+        a change constitutes acceptance of the updated policy.
+      </p>
+
+      <hr />
+
+      <h2>Disclaimer and No Warranty</h2>
+      <p>
+        Axoview is provided free of charge, "AS IS" and "as available", without warranty of any
+        kind, express or implied, including but not limited to the warranties of merchantability,
+        fitness for a particular purpose, and non-infringement. To the maximum extent permitted
+        by law, the author(s) and copyright holders shall not be liable for any claim, damages,
+        or other liability — including without limitation any loss, corruption, or deletion of
+        your diagrams or data — whether in an action of contract, tort, or otherwise, arising
+        from, out of, or in connection with the software or the use or other dealings in the
+        software. These terms are consistent with the project's
+        <a
+          href="https://opensource.org/license/mit"
+          target="_blank"
+          rel="noopener noreferrer"
+          >MIT License</a
+        >. You are solely responsible for maintaining your own backups of important diagrams.
+      </p>
+      <p>
+        Your use of Axoview is also governed by our
+        <a href="/terms.html">Terms of Service</a>, which set out additional limitations of
+        liability and an "as is" disclaimer.
+      </p>
+
+      <h2>Contact</h2>
+      <p class="foot">
+        Questions about this policy? Contact the maintainer at
+        <a href="mailto:objectives.wb@gmail.com">objectives.wb@gmail.com</a>.
+      </p>
+    </div>
+  </body>
+</html>

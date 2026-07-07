@@ -38,7 +38,29 @@ app.use(
     crossOriginEmbedderPolicy: false
   })
 );
-app.use(cors());
+
+// CORS allowlist (security review 2026-07-05). A bare `cors()` emitted
+// `Access-Control-Allow-Origin: *`, which — combined with the AUTH_MODE=none
+// default — let any website the operator visited read/write their diagrams
+// cross-origin (drive-by). In every real deployment `/api/*` is same-origin
+// (nginx fronts both the app and the API on one origin), so the browser needs
+// no ACAO at all; only `npm run dev` (SPA :3000 → backend :3001) is genuinely
+// cross-origin. Default the allowlist to that dev origin and let operators
+// widen it explicitly via ALLOWED_ORIGINS (comma-separated). Unknown origins
+// get no ACAO header, so cross-origin reads/writes are blocked; same-origin and
+// non-browser (no Origin header) requests are unaffected.
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+app.use(
+  cors({
+    origin(origin, cb) {
+      if (!origin) return cb(null, true); // same-origin / curl / server-to-server
+      return cb(null, ALLOWED_ORIGINS.includes(origin));
+    }
+  })
+);
 app.use(express.json({ limit: '10mb' }));
 
 // ---------------------------------------------------------------------------
@@ -54,11 +76,16 @@ function constantTimeEquals(a, b) {
   return diff === 0;
 }
 
+// Anchored to exactly match the Worker's regex (packages/axoview-worker/src/auth.ts)
+// so both runtimes bypass auth for the identical shape — a bare `startsWith`
+// exempted any path under the prefix, drifting from the Worker.
+const PUBLIC_SNAPSHOT_RE = /^\/api\/public\/diagrams\/[A-Za-z0-9_-]{21,64}$/;
+
 function isPublicRoute(req) {
   // Always-public endpoints. Per ADR 0010 D6, the public namespace is read-only;
   // both endpoints are GET-only to match the Worker (packages/axoview-worker/src/auth.ts).
   if (req.method === 'GET' && req.path === '/api/config') return true;
-  if (req.method === 'GET' && req.path.startsWith('/api/public/diagrams/')) return true;
+  if (req.method === 'GET' && PUBLIC_SNAPSHOT_RE.test(req.path)) return true;
   return false;
 }
 
@@ -103,6 +130,13 @@ if (STORAGE_ENABLED) {
 // ---------------------------------------------------------------------------
 
 function getPublicBaseUrl(req) {
+  // Prefer an operator-configured canonical base so share links cannot be
+  // poisoned via the client-controlled Host / X-Forwarded-Proto headers
+  // (security review 2026-07-05). Falls back to request-derived headers only
+  // when PUBLIC_BASE_URL is unset, preserving the previous default behaviour.
+  if (process.env.PUBLIC_BASE_URL) {
+    return process.env.PUBLIC_BASE_URL.replace(/\/+$/, '');
+  }
   const protoHeader = req.headers['x-forwarded-proto'];
   const proto = (Array.isArray(protoHeader) ? protoHeader[0] : protoHeader) || req.protocol;
   return `${proto}://${req.get('host')}`;
@@ -214,5 +248,18 @@ app.listen(PORT, () => {
   if (STORAGE_ENABLED) {
     console.log(`Storage path: ${STORAGE_PATH}`);
     console.log(`Git backup: ${ENABLE_GIT_BACKUP ? 'ENABLED' : 'DISABLED'}`);
+  }
+  console.log(`CORS allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none — same-origin only)'}`);
+  // Security review 2026-07-05: storage-on + no-auth is a network-reachable,
+  // unauthenticated read/write store. CORS is now locked down (drive-by from a
+  // web page is blocked), but anyone who can reach the port directly still has
+  // full access. Warn loudly so operators set AUTH_MODE before exposing it.
+  if (STORAGE_ENABLED && AUTH_MODE === 'none') {
+    console.warn(
+      '[SECURITY] Server storage is ENABLED with AUTH_MODE=none — the API is ' +
+        'UNAUTHENTICATED. Anyone who can reach this port can read, modify, and ' +
+        'publicly share every diagram. Do NOT expose it beyond loopback/a trusted ' +
+        'LAN. Set AUTH_MODE=shared-token + AUTH_SHARED_SECRET (see docs/deployment.md).'
+    );
   }
 });

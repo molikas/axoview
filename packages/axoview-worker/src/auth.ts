@@ -192,7 +192,9 @@ export async function verifyCfAccessJwt(
 
   if (header.alg !== 'RS256' || !header.kid) return { valid: false };
 
-  if (typeof payload.exp === 'number' && payload.exp < now()) return { valid: false };
+  // Require a valid, unexpired exp — a token with no exp claim would otherwise
+  // never expire (security review 2026-07-05).
+  if (typeof payload.exp !== 'number' || payload.exp < now()) return { valid: false };
 
   const aud = payload.aud;
   const audMatches = Array.isArray(aud)
@@ -200,7 +202,10 @@ export async function verifyCfAccessJwt(
     : aud === opts.expectedAud;
   if (!audMatches) return { valid: false };
 
-  if (payload.iss && !payload.iss.includes(opts.team)) return { valid: false };
+  // Strict issuer match against the canonical CF Access issuer. The previous
+  // non-anchored `iss.includes(team)` (and skip-if-absent) accepted any token
+  // whose iss merely contained the team substring, or omitted iss entirely.
+  if (payload.iss !== `https://${opts.team}.cloudflareaccess.com`) return { valid: false };
 
   const keys = await loadKeys(opts.team);
   const key = keys.get(header.kid);

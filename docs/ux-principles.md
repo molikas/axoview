@@ -474,7 +474,9 @@ A single mode badge (here: the orange `SESSION` chip) is enough to communicate t
 
 Conditional content should render conditionally. Don't reserve space with an empty `<Typography>` — render nothing when there is nothing to say.
 
-The same principle applies to mode banners outside the cluster (e.g. [`SessionModeBanner`](../packages/axoview-app/src/components/SessionModeBanner.tsx)). The badge in the cluster is the load-bearing signal; a banner that reinforces it should be quiet — accent stripe, caption typography, outlined or no button — not a tinted bar that competes with the chip.
+The same principle applies to mode banners outside the cluster (e.g. [`LocalModeBanner`](../packages/axoview-app/src/components/LocalModeBanner.tsx)). The badge in the cluster is the load-bearing signal; a banner that reinforces it should be quiet — accent stripe, caption typography, outlined or no button — not a tinted bar that competes with the chip.
+
+> **2026-07-06 (owner override, storage-ux-unification):** the `SESSION` chip + storage gauge no longer live in the toolbar status cluster at all — they moved into the **avatar menu** (`AuthControl`'s `SessionStatusRow`), and `StatusCluster` renders save-state text only (nothing when silent). The chip-in-cluster code example above is retained for the *principle* (one badge, no tinted wrapper), not as a map of where the chip currently renders. Toolbar layout side of the same override: ADR 0005 §1 amendment 2026-07-06.
 
 ### 8.6 Save action sits flush against StatusCluster — they are one group
 

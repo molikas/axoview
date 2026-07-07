@@ -14,5 +14,12 @@ pages_build_output_dir = "../axoview-app/build"
 
 [vars]
 AUTH_MODE = "shared-token"
-# AUTH_SHARED_SECRET, CF_ACCESS_*, GOOGLE_CLIENT_ID are configured as secrets
-# via `wrangler secret put` — never commit them.
+
+# GOOGLE_CLIENT_ID is a PUBLIC OAuth identifier, NOT a secret — safe to commit.
+# Serves /api/config under local `wrangler pages dev`. Kept in lockstep with the
+# repo-root wrangler.toml per ADR 0009 Decision 5 (drift between the two files is
+# a known operational risk).
+GOOGLE_CLIENT_ID = "485371025824-2ullp84i3nda2dgceirg9q87fvm36kl8.apps.googleusercontent.com"
+
+# Real secrets — configure via `wrangler secret put`, never commit:
+#   AUTH_SHARED_SECRET, CF_ACCESS_TEAM_DOMAIN, CF_ACCESS_AUD

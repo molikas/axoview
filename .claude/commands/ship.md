@@ -115,5 +115,5 @@ If `git remote get-url origin` returned a GitHub URL, append a compare link: `ht
 - **Never auto-resolve merge conflicts.** Always abort + return + report.
 - **Always restore the working branch** at the end, even on partial failure.
 - **Refuse on master.** The skill is meaningless from master.
-- **No tags.** This repo doesn't use git tags as release markers — the CHANGELOG section is authoritative.
+- **No manual tags.** Never create git tags by hand — semantic-release tags `vX.Y.Z` (and regenerates `CHANGELOG.md`) automatically when the merge lands on master; a hand-made tag would desync the automation's version math.
 - **Strict test gate.** Any test failure aborts. Don't propose tolerance lists.
