@@ -5,6 +5,12 @@ All notable changes to Axoview will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0](https://github.com/molikas/axoview/compare/v3.1.0...v3.2.0) (2026-07-07)
+
+### Features
+
+* **storage:** google drive storage — sign-in, places model, move-to-drive ([b69aeeb](https://github.com/molikas/axoview/commit/b69aeeb3b437528bab49d553f5dd54327c269bdf))
+
 ## [3.1.0](https://github.com/molikas/axoview/compare/v3.0.3...v3.1.0) (2026-07-05)
 
 ### Features
