@@ -115,15 +115,36 @@ describe('authStore', () => {
     expect(useAuthStore.getState().status).toBe('UNAUTHENTICATED');
   });
 
-  test('a silent reconnect without drive.file does NOT nag — degrades to signed-out', async () => {
+  test('a reconnect returning identity-only shows the clear dialog (not "signed out") and forgets the account', async () => {
+    localStorage.setItem(
+      'axoview-google-profile',
+      JSON.stringify({ name: 'A', email: 'a@b.c', avatarUrl: '' })
+    );
     useAuthStore.setState({ user: { name: 'A', email: 'a@b.c', avatarUrl: '' } });
     useAuthStore.getState()._setBridge({ requestToken: jest.fn(), revoke: jest.fn() });
     const p = useAuthStore.getState().attemptSilentReconnect();
     expect(useAuthStore.getState().status).toBe('RECONNECTING');
     useAuthStore.getState()._onToken({ access_token: 'id-only', scope: 'openid email' });
     await p;
-    // No DRIVE_ACCESS_REQUIRED modal on boot — just quietly unauthenticated.
-    expect(useAuthStore.getState().status).toBe('UNAUTHENTICATED');
+    // Identity without Drive is the SAME clear state however it arrived — never a
+    // misleading "signed out" avatar.
+    expect(useAuthStore.getState().status).toBe('DRIVE_ACCESS_REQUIRED');
+    // ...and the identity-only account is forgotten so a reload won't loop back.
+    expect(localStorage.getItem('axoview-google-profile')).toBeNull();
+  });
+
+  test('a stuck request times out and recovers instead of spinning forever', () => {
+    jest.useFakeTimers();
+    try {
+      useAuthStore.getState()._setBridge({ requestToken: jest.fn(), revoke: jest.fn() });
+      void useAuthStore.getState().signIn();
+      expect(useAuthStore.getState().status).toBe('AUTHENTICATING');
+      // GIS never calls back (COOP-blocked popup). The safety-net timeout fires.
+      jest.advanceTimersByTime(120_000);
+      expect(useAuthStore.getState().status).toBe('UNAUTHENTICATED');
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test('a scope-less token response (older GIS shape) does not false-alarm', async () => {

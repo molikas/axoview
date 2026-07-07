@@ -293,16 +293,18 @@ export function FileExplorer() {
 
     // Google Drive section children by auth/tree state.
     let driveChildren: FileNode[];
-    if (!driveUsable) {
+    if (driveScopeGranted === false) {
+      // Signed in, but the consent screen's Drive checkbox was left unchecked
+      // (granular consent) — every Drive call 403s until re-granted. Checked
+      // FIRST so it wins over the reconnect/loading rows (which would otherwise
+      // mislabel this as "signed out"); this coincides with the blocking
+      // DRIVE_ACCESS_REQUIRED dialog. The fix is a re-consent, not a retry.
+      driveChildren = [stateRow('google-drive', 'scope')];
+    } else if (!driveUsable) {
       driveChildren =
         authStatus === 'RECONNECTING' || authStatus === 'AUTHENTICATING'
           ? skeletons('google-drive')
           : [stateRow('google-drive', authUser ? 'reconnect' : 'signin')];
-    } else if (driveScopeGranted === false) {
-      // Signed in, but the consent screen's Drive checkbox was left unchecked
-      // (granular consent) — every Drive call 403s until re-granted. Trumps
-      // the loading/error rows: the retry that fixes this is a re-consent.
-      driveChildren = [stateRow('google-drive', 'scope')];
     } else if (driveTree.status === 'loading') {
       driveChildren = skeletons('google-drive');
     } else if (driveTree.status === 'error') {

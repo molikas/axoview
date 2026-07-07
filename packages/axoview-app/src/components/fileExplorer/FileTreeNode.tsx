@@ -200,7 +200,7 @@ export function FileTreeNode({
             }}
           >
             <GoogleGIcon />
-            <Typography variant="body2" sx={{ color: 'primary.main', textAlign: 'left' }} noWrap>
+            <Typography variant="body2" sx={{ color: 'primary.main', textAlign: 'left', whiteSpace: 'normal' }}>
               {kind === 'signin'
                 ? t('places.driveSignInRow', 'Sign in to connect Google Drive')
                 : t('places.driveReconnectRow', 'Reconnect to load your Drive diagrams')}
@@ -239,9 +239,9 @@ export function FileTreeNode({
       // re-consent can.
       return (
         <Box style={style} sx={indentSx} data-axoview-id="file-explorer-drive-scope">
-          <ErrorIcon sx={{ fontSize: 14, color: 'warning.main', flexShrink: 0 }} />
-          <Typography variant="caption" sx={{ color: 'text.secondary', flex: 1 }} noWrap>
-            {t('places.driveScopeMissing', "Google Drive access wasn't granted.")}
+          <ErrorIcon sx={{ fontSize: 14, color: 'warning.main', flexShrink: 0, mt: 0.25 }} />
+          <Typography variant="caption" sx={{ color: 'text.secondary', flex: 1, whiteSpace: 'normal' }}>
+            {t('places.driveScopeMissing', 'Drive access is needed to save here — grant it to continue.')}
           </Typography>
           <Button
             size="small"

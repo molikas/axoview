@@ -210,7 +210,7 @@
         "driveSetupRow": "Finish Google Drive setup…",
         "driveEmpty": "No diagrams in Drive yet.",
         "driveError": "Google Drive couldn't be loaded.",
-        "driveScopeMissing": "Google Drive access wasn't granted.",
+        "driveScopeMissing": "Drive access is needed to save here — grant it to continue.",
         "grantAccess": "Grant access",
         "retry": "Retry"
     },

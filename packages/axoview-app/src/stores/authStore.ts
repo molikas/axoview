@@ -128,6 +128,34 @@ interface AuthState {
 const REFRESH_MARGIN_MS = 5 * 60 * 1000;
 const DRIVE_FILE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 
+// Safety net for a stuck GIS flow. The popup mints the token and self-closes,
+// but COOP can block GIS's window.closed polling so neither onSuccess nor
+// onError ever fires — the status would spin forever (observed live as an
+// endless reconnect spinner needing a page reload). If nothing settles the
+// request in time, we synthesise a failure so the UI recovers. Interactive
+// gets a long budget (the user may be reading the consent screen); silent
+// attempts should be near-instant.
+const AUTH_TIMEOUT_INTERACTIVE_MS = 120_000;
+const AUTH_TIMEOUT_SILENT_MS = 25_000;
+let pendingAuthTimeout: ReturnType<typeof setTimeout> | null = null;
+function clearAuthTimeout(): void {
+  if (pendingAuthTimeout !== null) {
+    clearTimeout(pendingAuthTimeout);
+    pendingAuthTimeout = null;
+  }
+}
+function armAuthTimeout(ms: number): void {
+  clearAuthTimeout();
+  pendingAuthTimeout = setTimeout(() => {
+    pendingAuthTimeout = null;
+    const st = useAuthStore.getState();
+    if (st.status === 'AUTHENTICATING' || st.status === 'RECONNECTING' || st.status === 'REFRESHING') {
+      authDebug('[auth] request timed out — recovering from a stuck popup/handshake');
+      st._onError({ type: 'timeout' });
+    }
+  }, ms);
+}
+
 // Profile hint — identity only, NEVER credentials. Presence means "this
 // browser signed in before"; it drives the boot reconnect + avatar rendering.
 const PROFILE_HINT_KEY = 'axoview-google-profile';
@@ -210,6 +238,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return new Promise<void>((resolve) => {
       // signIn always resolves — both success and denial settle the waiter.
       set((s) => ({ _waiters: [...s._waiters, { resolve, reject: resolve }] }));
+      armAuthTimeout(AUTH_TIMEOUT_INTERACTIVE_MS);
       _requestToken();
     });
   },
@@ -226,12 +255,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ status: 'RECONNECTING' });
     return new Promise<void>((resolve) => {
       set((st) => ({ _waiters: [...st._waiters, { resolve, reject: resolve }] }));
+      armAuthTimeout(AUTH_TIMEOUT_SILENT_MS);
       s._requestToken!({ prompt: '', ...(hint ? { hint } : {}) });
     });
   },
 
   signOut: () => {
     const { accessToken, _revoke, _waiters } = get();
+    clearAuthTimeout();
     if (accessToken && _revoke) _revoke(accessToken);
     clearProfileHint();
     set({
@@ -293,12 +324,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           { resolve: () => resolve(get().accessToken ?? null), reject: () => resolve(null) }
         ]
       }));
+      armAuthTimeout(AUTH_TIMEOUT_SILENT_MS);
       s._requestToken!({ prompt: '', ...(hint ? { hint } : {}) });
     });
   },
 
   markExpired: () => {
     if (get().status === 'SESSION_EXPIRED') return;
+    clearAuthTimeout();
     const waiters = get()._waiters;
     set({ status: 'SESSION_EXPIRED', accessToken: null, expiresAt: null, _waiters: [], _absorbStaleError: false });
     // Settle in-flight waiters (a concurrent refresh) so nothing hangs.
@@ -313,6 +346,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // Drive checkbox) even though identity was already granted — incremental
     // re-consent, not a fresh account chooser. The grant lands in _onToken.
     set({ status: 'AUTHENTICATING', _absorbStaleError: false });
+    armAuthTimeout(AUTH_TIMEOUT_INTERACTIVE_MS);
     _requestToken({ prompt: 'consent' });
   },
 
@@ -333,6 +367,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // initiated is in flight (AUTHENTICATING, RECONNECTING or REFRESHING).
     const s = get().status;
     if (s !== 'AUTHENTICATING' && s !== 'RECONNECTING' && s !== 'REFRESHING') return;
+    clearAuthTimeout();
     const freshGrant = s === 'AUTHENTICATING' || s === 'RECONNECTING';
     const expiresAt = Date.now() + (resp.expires_in ?? 3600) * 1000;
     // Granular consent: the response's scope list is what the user really
@@ -342,35 +377,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const waiters = get()._waiters;
 
     // Hard stop (ADR 0035 §6): drive.file is the ENTIRE point of signing in —
-    // without it there is no storage to reach, only 403s. So a grant that
-    // skipped the Drive checkbox never becomes a usable AUTHENTICATED session:
-    //  - interactive sign-in → DRIVE_ACCESS_REQUIRED (blocking re-consent dialog)
-    //  - silent reconnect/refresh → fail as if no token arrived (never nag on boot)
+    // without it there is no storage to reach, only 403s. Identity without Drive
+    // is never a usable session, however the token was obtained (interactive,
+    // silent reconnect, or refresh): surface the ONE clear blocking re-consent
+    // dialog rather than a confusing "signed out" avatar. Discard the scope-less
+    // token, and stop remembering this account — an identity-only grant isn't
+    // worth a boot reconnect, so a reload lands on a clean signed-out state
+    // instead of looping back into this prompt.
     if (!driveScopeGranted) {
       authDebug('[auth] token granted WITHOUT drive.file scope:', resp.scope);
-      if (s === 'AUTHENTICATING') {
-        set({
-          status: 'DRIVE_ACCESS_REQUIRED',
-          accessToken: null,
-          expiresAt: null,
-          driveScopeGranted: false,
-          _waiters: [],
-          _absorbStaleError: false
-        });
-        waiters.forEach((w) => w.resolve());
-        // Use the identity token (still valid for userinfo) to greet the user
-        // by name in the dialog — but never store it.
-        if (!get().user) void fetchUserInfo(resp.access_token);
-        return;
-      }
-      set({ _waiters: [], _absorbStaleError: false });
-      if (s === 'REFRESHING') {
-        set({ status: 'SESSION_EXPIRED', accessToken: null, expiresAt: null });
-        pushExpiredNotice(() => void get().signIn());
-      } else {
-        set({ status: 'UNAUTHENTICATED', accessToken: null, expiresAt: null, driveScopeGranted: null });
-      }
-      waiters.forEach((w) => w.reject());
+      clearProfileHint();
+      set({
+        status: 'DRIVE_ACCESS_REQUIRED',
+        accessToken: null,
+        expiresAt: null,
+        driveScopeGranted: false,
+        _waiters: [],
+        _absorbStaleError: false
+      });
+      waiters.forEach((w) => w.resolve());
+      // Use the identity token (valid for userinfo) to greet the user by name in
+      // the dialog — but never persist it as a remember-me hint.
+      if (!get().user) void fetchUserInfo(resp.access_token, false);
       return;
     }
 
@@ -400,6 +428,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       authDebug('[auth] absorbed superseded silent-request error:', reason);
       return;
     }
+    clearAuthTimeout();
     const waiters = get()._waiters;
     set({ _waiters: [] });
     if (s === 'REFRESHING') {
@@ -427,8 +456,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   _setUser: (user) => set({ user })
 }));
 
-/** Fetch name/email/avatar once per grant. Non-fatal on failure. */
-async function fetchUserInfo(token: string): Promise<void> {
+/**
+ * Fetch name/email/avatar once per grant. Non-fatal on failure. `persist`
+ * controls the remember-me hint: a full grant saves it; an identity-only grant
+ * (DRIVE_ACCESS_REQUIRED) uses the profile only to greet the user in the dialog
+ * and passes persist=false so a reload doesn't reconnect to a useless account.
+ */
+async function fetchUserInfo(token: string, persist = true): Promise<void> {
   try {
     const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
       headers: { Authorization: `Bearer ${token}` }
@@ -446,8 +480,9 @@ async function fetchUserInfo(token: string): Promise<void> {
     };
     useAuthStore.getState()._setUser(user);
     // Remember-me: persist identity (never the token) so the next reload can
-    // render the avatar immediately and attempt the silent reconnect.
-    saveProfileHint(user);
+    // render the avatar immediately and attempt the silent reconnect. Skipped
+    // for identity-only grants (see persist doc above).
+    if (persist) saveProfileHint(user);
   } catch {
     // Avatar/name just won't populate — the token is still valid.
   }
