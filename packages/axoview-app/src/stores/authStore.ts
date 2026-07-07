@@ -65,11 +65,26 @@ interface AuthState {
   _requestToken: TokenRequest | null;
   _revoke: TokenRevoke | null;
   _waiters: Waiter[];
+  /**
+   * Set when an interactive signIn supersedes an in-flight silent request
+   * (boot reconnect / refresh). GIS gives no request correlation, so the
+   * superseded request's LATE error callback would otherwise be taken for the
+   * popup's own cancellation — resetting AUTHENTICATING and discarding the
+   * grant the user is about to complete. _onError absorbs exactly one error
+   * while this is set.
+   */
+  _absorbStaleError: boolean;
 
   _setBridge: (bridge: { requestToken: TokenRequest; revoke: TokenRevoke }) => void;
 
   /** Interactive sign-in. Always resolves (never throws). */
   signIn: () => Promise<void>;
+  /**
+   * Revokes the token and resets to UNAUTHENTICATED. ADR 0035 rule 3: callers
+   * that may have Drive writes in flight MUST flush them BEFORE calling this
+   * (see AuthControl's sign-out flow) — the store cannot see the storage layer,
+   * so the ordering is enforced at the call site.
+   */
   signOut: () => void;
   /**
    * Boot-time silent reconnect: fires one prompt:'' token request when a
@@ -158,17 +173,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   _requestToken: null,
   _revoke: null,
   _waiters: [],
+  _absorbStaleError: false,
 
   _setBridge: ({ requestToken, revoke }) => {
     set({ _requestToken: requestToken, _revoke: revoke });
   },
 
   signIn: () => {
-    const { _requestToken } = get();
+    const { _requestToken, status } = get();
     if (!_requestToken) return Promise.resolve();
     // A silent boot reconnect may still be in flight — the interactive request
-    // supersedes it; both settle from the same waiter list.
-    set({ status: 'AUTHENTICATING' });
+    // supersedes it; both settle from the same waiter list. The superseded
+    // request can still deliver a late error: flag it for _onError to absorb
+    // so it can't cancel this interactive attempt.
+    set({
+      status: 'AUTHENTICATING',
+      _absorbStaleError: status === 'RECONNECTING' || status === 'REFRESHING'
+    });
     return new Promise<void>((resolve) => {
       // signIn always resolves — both success and denial settle the waiter.
       set((s) => ({ _waiters: [...s._waiters, { resolve, reject: resolve }] }));
@@ -202,7 +223,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       accessToken: null,
       expiresAt: null,
       driveScopeGranted: null,
-      _waiters: []
+      _waiters: [],
+      _absorbStaleError: false
     });
     // Settle any in-flight signIn/getValidToken promise so its awaiter (e.g. a
     // Drive request mid-refresh) doesn't hang forever on the discarded waiter.
@@ -257,7 +279,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   markExpired: () => {
     if (get().status === 'SESSION_EXPIRED') return;
     const waiters = get()._waiters;
-    set({ status: 'SESSION_EXPIRED', accessToken: null, expiresAt: null, _waiters: [] });
+    set({ status: 'SESSION_EXPIRED', accessToken: null, expiresAt: null, _waiters: [], _absorbStaleError: false });
     // Settle in-flight waiters (a concurrent refresh) so nothing hangs.
     waiters.forEach((w) => w.reject());
     pushExpiredNotice(() => void get().signIn());
@@ -285,7 +307,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       accessToken: resp.access_token,
       expiresAt,
       driveScopeGranted,
-      _waiters: []
+      _waiters: [],
+      _absorbStaleError: false
     });
     waiters.forEach((w) => w.resolve());
     // Fresh grants re-fetch the profile (the popup may have picked a different
@@ -297,6 +320,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const s = get().status;
     // Ignore a late error after the request was abandoned (see _onToken).
     if (s !== 'AUTHENTICATING' && s !== 'RECONNECTING' && s !== 'REFRESHING') return;
+    if (s === 'AUTHENTICATING' && get()._absorbStaleError) {
+      // Late failure of the silent request this interactive sign-in superseded
+      // — not the popup's own error. Absorb it once; the interactive attempt
+      // stays in flight and its grant will land normally.
+      set({ _absorbStaleError: false });
+      console.debug('[auth] absorbed superseded silent-request error:', reason);
+      return;
+    }
     const waiters = get()._waiters;
     set({ _waiters: [] });
     if (s === 'REFRESHING') {

@@ -34,7 +34,18 @@
         "moveToDrive": "Pindahkan ke Google Drive",
         "movedToDrive": "\"{{name}}\" dipindahkan ke Google Drive",
         "moveToDriveFailed": "Tidak dapat memindahkan \"{{name}}\" ke Google Drive — tetap di sesi ini",
-        "collapse": "Ciutkan panel"
+        "collapse": "Ciutkan panel",
+        "deleteTitle": "Hapus \"{{name}}\"?",
+        "deleteBodyDiagramDrive": "Diagram ini akan dipindahkan ke sampah Google Drive Anda (dapat dipulihkan selama ~30 hari).",
+        "deleteBodyDiagramSession": "Diagram ini akan dihapus secara permanen dan tidak dapat dipulihkan.",
+        "deleteBodyFolderDrive": "Folder ini akan dipindahkan ke sampah Google Drive Anda (dapat dipulihkan selama ~30 hari).",
+        "deleteBodyFolderSession": "Folder ini akan dihapus secara permanen dan tidak dapat dipulihkan.",
+        "deleteBodyFolderItemsDrive": "Folder ini dan {{count}} item di dalamnya akan dipindahkan ke sampah Google Drive Anda (dapat dipulihkan selama ~30 hari).",
+        "deleteBodyFolderItemsSession": "Folder ini dan {{count}} item di dalamnya akan dihapus secara permanen dan tidak dapat dipulihkan.",
+        "deleteBodyFolderOneItemDrive": "Folder ini dan 1 item di dalamnya akan dipindahkan ke sampah Google Drive Anda (dapat dipulihkan selama ~30 hari).",
+        "deleteBodyFolderOneItemSession": "Folder ini dan 1 item di dalamnya akan dihapus secara permanen dan tidak dapat dipulihkan.",
+        "deleteCancel": "Batal",
+        "deleteConfirm": "Hapus"
     },
     "status": {
         "current": "Saat Ini",
@@ -134,5 +145,15 @@
         "successToast": "{{n}} dipindahkan ke Google Drive",
         "partialToast": "{{moved}} dipindahkan, {{failed}} gagal — diagram yang gagal tetap di sesi ini",
         "nothingToMove": "Tidak ada diagram sesi untuk dipindahkan"
+    },
+    "driveRoot": {
+        "title": "Pilih folder Google Drive Anda",
+        "body": "Axoview menyimpan diagram Anda dalam satu folder di Google Drive Anda. Ia hanya dapat melihat file yang dibuatnya di sana — tidak ada yang lain di Drive Anda.",
+        "defaultOption": "Folder bawaan ({{name}})",
+        "customOption": "Nama folder kustom",
+        "customPlaceholder": "Diagram Saya",
+        "cancel": "Batal",
+        "confirm": "Lanjutkan",
+        "confirmBusy": "Menyiapkan…"
     }
 }

@@ -514,7 +514,12 @@ function EditorShell() {
           scope="project"
           storage={storage}
           exporterTag={EXPORTER_TAG}
-          onProjectZipExported={() => markProjectExported?.()}
+          onProjectZipExported={() => {
+            // `storage` follows the ACTIVE place — with a Drive diagram open
+            // the zip held Drive content only, so the session exit guard
+            // (sessionWorkUnexported) must stay armed.
+            if (!remoteStorageActive) markProjectExported?.();
+          }}
         />
       )}
 

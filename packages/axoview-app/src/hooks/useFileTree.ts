@@ -147,8 +147,13 @@ export function useFileTree(
   const providerIdRef = useRef(providerId);
   providerIdRef.current = providerId;
   const loadedProviderRef = useRef<string | undefined>(providerId);
+  // Monotonic load sequence: a slow listing that resolves after a newer load
+  // started must not overwrite the newer state (last-writer-wins would let a
+  // stale Drive response resurrect rows the tree already replaced).
+  const loadSeqRef = useRef(0);
 
   const load = useCallback(async () => {
+    const seq = ++loadSeqRef.current;
     const s = storageRef.current;
     if (!s || !enabledRef.current) {
       // Disabled (e.g. Drive while signed out): drop any stale rows so nothing
@@ -179,15 +184,17 @@ export function useFileTree(
         s.listDiagrams(),
         s.getTreeManifest()
       ]);
+      if (seq !== loadSeqRef.current) return; // superseded by a newer load
       // Normalize to arrays — server may return non-array on error or corrupt data
       setFolders(Array.isArray(allFolders) ? allFolders : []);
       setDiagrams(Array.isArray(allDiagrams) ? allDiagrams : []);
       setManifest(treeManifest);
       setHasLoaded(true);
     } catch (e) {
+      if (seq !== loadSeqRef.current) return;
       setError(e instanceof Error ? e.message : 'Failed to load file tree');
     } finally {
-      setIsLoading(false);
+      if (seq === loadSeqRef.current) setIsLoading(false);
     }
   }, []);
 

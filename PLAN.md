@@ -914,7 +914,7 @@ Detailed sub-tasks lived in `docs/tactical/layout-revamp.md` (retired — see AD
 - **`cf-access` JWT signature-verify tests** — RS256 happy + invalid-signature paths (structural-validation paths already covered). *Gate: folds into Phase 3A auth work.* Source: 5a Finding #2.
 - **Cloudflare edge hardening** — Bot Fight Mode + WAF + scanner-path block + rate-limit (A.1 onError shipped PR #11). *Gate: if production 5xx persists ≥3 days post-deploy.*
 - **XSS / CSP hardening** — Quill `dangerouslySetInnerHTML` (`TextBox.tsx`) + CSP `'unsafe-inline'` style-src. *Gate: before any shared / multi-user content.* Source: §6d/§11.
-- **Privacy disclosure + policy** — `connect-src googleapis.com`, missing privacy policy / PWA data-handling description. *Gate: before Phase 3B Drive ships.* Source: §8/§11.
+- **Privacy disclosure + policy** — `connect-src googleapis.com`, missing privacy policy / PWA data-handling description. *Gate: before the Drive work reaches **production** — 3B is live on the throwaway integration deploy; the operative gate is the PR #59 master-merge owner checklist (OAuth consent-screen publish + privacy policy), per ADR 0036's acceptance criteria ("Drive does not ship to production without it").* Source: §8/§11.
 
 ---
 
@@ -1111,7 +1111,7 @@ GoogleDriveProvider.test.ts (MSW mocking googleapis.com):
 
 ## Phase 3C — ~~S3 Provider + Backend (E4)~~ 🚫 DROPPED (2026-04-29)
 
-**Status:** 🚫 DROPPED. The S3 provider stub was deleted along with the AWS SDK / MinIO dependencies on 2026-04-29 ([cloudflare_poc] cleanup). The persistent-storage path on Cloudflare is being addressed via Google Drive on a separate branch instead. If S3 support is ever needed again, restore from git history (commit predating the drop).
+**Status:** 🚫 DROPPED. The S3 provider stub was deleted along with the AWS SDK / MinIO dependencies on 2026-04-29 ([cloudflare_poc] cleanup). The persistent-storage path on Cloudflare was delivered by the Google Drive provider instead (shipped 2026-07-06 — [ADR 0036](docs/adr/0036-google-drive-storage-provider.md)). If S3 support is ever needed again, restore from git history (commit predating the drop).
 
 ---
 

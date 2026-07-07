@@ -10,7 +10,8 @@ function reset() {
     driveScopeGranted: null,
     _requestToken: null,
     _revoke: null,
-    _waiters: []
+    _waiters: [],
+    _absorbStaleError: false
   });
   useNotificationStore.setState({ queue: [] });
   localStorage.clear(); // profile-hint isolation between tests
@@ -289,5 +290,41 @@ describe('authStore', () => {
     useAuthStore.getState()._onToken({ access_token: 'tok', expires_in: 3600 });
     await reconnect;
     await expect(tokenP).resolves.toBe('tok');
+  });
+
+  // ---------------------------------------------------------------------------
+  // Superseded-request error absorption: GIS gives no request correlation, so
+  // when an interactive signIn overlaps an in-flight silent request, the
+  // silent request's late error must not cancel the interactive attempt.
+  // ---------------------------------------------------------------------------
+
+  test('a late silent-reconnect error cannot cancel an interactive signIn (grant still lands)', async () => {
+    const requestToken = jest.fn();
+    useAuthStore.getState()._setBridge({ requestToken, revoke: jest.fn() });
+    useAuthStore.setState({ user: { name: 'Igor', email: 'i@x.y', avatarUrl: '' } });
+    const silent = useAuthStore.getState().attemptSilentReconnect();
+    expect(useAuthStore.getState().status).toBe('RECONNECTING');
+    const interactive = useAuthStore.getState().signIn(); // supersedes the silent attempt
+    expect(useAuthStore.getState().status).toBe('AUTHENTICATING');
+    // The superseded silent request fails late — absorbed, not a cancel.
+    useAuthStore.getState()._onError(new Error('popup_failed_to_open'));
+    expect(useAuthStore.getState().status).toBe('AUTHENTICATING');
+    expect(useNotificationStore.getState().queue.length).toBe(0); // no "cancelled" toast
+    // The user's popup grant lands normally.
+    useAuthStore.getState()._onToken({ access_token: 'tok', expires_in: 3600 });
+    await Promise.all([silent, interactive]);
+    expect(useAuthStore.getState().status).toBe('AUTHENTICATED');
+    expect(useAuthStore.getState().accessToken).toBe('tok');
+  });
+
+  test('only ONE error is absorbed — the next error is the popup\'s own cancel', async () => {
+    useAuthStore.getState()._setBridge({ requestToken: jest.fn(), revoke: jest.fn() });
+    useAuthStore.setState({ user: { name: 'Igor', email: 'i@x.y', avatarUrl: '' } });
+    void useAuthStore.getState().attemptSilentReconnect();
+    const interactive = useAuthStore.getState().signIn();
+    useAuthStore.getState()._onError(new Error('late silent failure')); // absorbed
+    useAuthStore.getState()._onError(new Error('popup_closed')); // the real cancel
+    await interactive;
+    expect(useAuthStore.getState().status).toBe('UNAUTHENTICATED');
   });
 });

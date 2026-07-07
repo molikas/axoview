@@ -1154,7 +1154,10 @@ export function FileExplorer() {
       >
         <DialogTitle sx={{ pb: 1, pr: 6 }}>
           <Typography variant="h6" component="span">
-            Delete &ldquo;{deleteConfirm?.name}&rdquo;?
+            {t('fileExplorer.deleteTitle', {
+              defaultValue: 'Delete "{{name}}"?',
+              name: deleteConfirm?.name ?? ''
+            })}
           </Typography>
           <IconButton
             size="small"
@@ -1169,16 +1172,17 @@ export function FileExplorer() {
             {(() => {
               // ADR 0036 §3 — a Drive-place delete = Drive trash (recoverable),
               // so the copy must not claim permanence. Places model: the fate
-              // follows the ITEM's place, not a global mode.
-              const driveItem = deleteConfirm?.placeId === 'google-drive';
-              const fate = driveItem
-                ? 'moved to your Google Drive trash (recoverable for ~30 days)'
-                : 'permanently deleted and cannot be recovered';
+              // follows the ITEM's place, not a global mode. Full sentences per
+              // place/shape so every locale can phrase them naturally.
+              const place = deleteConfirm?.placeId === 'google-drive' ? 'Drive' : 'Session';
               if (deleteConfirm?.type === 'folder' && deleteConfirm.descendantCount > 0) {
                 const n = deleteConfirm.descendantCount;
-                return `This folder and ${n} item${n !== 1 ? 's' : ''} inside will be ${fate}.`;
+                return n === 1
+                  ? t(`fileExplorer.deleteBodyFolderOneItem${place}`)
+                  : t(`fileExplorer.deleteBodyFolderItems${place}`, { count: n });
               }
-              return `This ${deleteConfirm?.type === 'folder' ? 'folder' : 'diagram'} will be ${fate}.`;
+              const shape = deleteConfirm?.type === 'folder' ? 'Folder' : 'Diagram';
+              return t(`fileExplorer.deleteBody${shape}${place}`);
             })()}
           </Typography>
         </DialogContent>
@@ -1188,7 +1192,7 @@ export function FileExplorer() {
             data-axoview-id="file-explorer-delete-cancel"
             onClick={() => setDeleteConfirm(null)}
           >
-            Cancel
+            {t('fileExplorer.deleteCancel', 'Cancel')}
           </Button>
           <Button
             color="error"
@@ -1196,7 +1200,7 @@ export function FileExplorer() {
             data-axoview-id="file-explorer-delete-confirm"
             onClick={confirmDelete}
           >
-            Delete
+            {t('fileExplorer.deleteConfirm', 'Delete')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1213,7 +1217,14 @@ export function FileExplorer() {
             (exportTarget.placeId ? providerFor(exportTarget.placeId) : storage) ?? storage!
           }
           exporterTag={`axoview-app@${process.env.REACT_APP_VERSION ?? 'dev'}`}
-          onProjectZipExported={() => markProjectExported?.()}
+          onProjectZipExported={() => {
+            // The zip covered ONE place. Clear the session exit guard only
+            // when that place was the session — a Drive-place export leaves
+            // session work unexported.
+            const exportedPlace =
+              exportTarget.placeId ?? storageManager?.activeProviderId ?? 'local';
+            if (exportedPlace === 'local') markProjectExported?.();
+          }}
         />
       )}
 

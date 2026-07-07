@@ -264,25 +264,28 @@ export function DiagramLifecycleProvider({
     sessionWorkUnexportedRef.current = sessionWorkUnexported;
   }, [sessionWorkUnexported]);
   useEffect(() => {
-    if (remoteStorageActive) return; // server mode does not use this flag
+    if (serverStorageAvailable) return; // server deploys have no session place
     const handler = () => setSessionWorkUnexported(true);
     window.addEventListener('axoview-session-changed', handler);
     return () => window.removeEventListener('axoview-session-changed', handler);
-  }, [remoteStorageActive]);
+  }, [serverStorageAvailable]);
 
-  // beforeunload — warn before leaving with unsaved/un-exported work.
+  // beforeunload — warn before leaving with unsaved/un-exported work. Places
+  // model: un-exported session work needs the warning even while a Drive
+  // diagram is open (remote autosave covers only the OPEN diagram, never the
+  // session place), so the session flag is keyed on the deploy, not the mode.
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      const trigger = remoteStorageActive
-        ? hasUnsavedChangesRef.current
-        : sessionWorkUnexportedRef.current;
+      const trigger =
+        hasUnsavedChangesRef.current ||
+        (!serverStorageAvailable && sessionWorkUnexportedRef.current);
       if (!trigger) return;
       e.preventDefault();
       e.returnValue = '';
     };
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [remoteStorageActive]);
+  }, [serverStorageAvailable]);
 
   // In server mode the single-diagram hasUnsavedChanges is driven by saveStatus.
   // In session mode it uses dirtyDiagramIds as before.
@@ -296,12 +299,20 @@ export function DiagramLifecycleProvider({
   // ---------------------------------------------------------------------------
   // Auto-save (server mode only)
   // ---------------------------------------------------------------------------
+  const lastAutoSavedIdRef = useRef<string | null>(null);
   const autoSave = useAutoSave({
     storage,
     enabled: !!storage && !isReadonlyUrl,
     onSaved: (id, savedAt) => {
       setLastSaved(savedAt);
-      setFileTreeRefreshToken((n) => n + 1);
+      // Refresh the tree only on the first save of a given id (the save that
+      // can add a row). Steady-state autosaves change no tree structure, and
+      // in Drive mode each refresh costs a full listing (~4 API calls) per
+      // 2-second autosave tick.
+      if (lastAutoSavedIdRef.current !== id) {
+        lastAutoSavedIdRef.current = id;
+        setFileTreeRefreshToken((n) => n + 1);
+      }
       // In session mode, clear the dirty bit so the badge + unsaved indicator update.
       if (!remoteStorageActive) {
         setDirtyDiagramIds((prev) => setWithout(prev, id));
@@ -1065,14 +1076,23 @@ export function DiagramLifecycleProvider({
         // The Drive diagram is unreachable without a token — reset the open
         // diagram so autosave doesn't write the current scene into the session.
         autoSave.resetStatus();
+        const driveDiagId = currentDiagramRef.current?.id;
         currentDiagramRef.current = null;
         setCurrentDiagram(null);
-        setDiagramName('');
-        setCurrentModel(null);
         setLastSaved(null);
-        setDirtyDiagramIds(new Set());
-        scratchBufferRef.current.clear();
-        const blankData: DiagramData = {
+        // Scope buffer cleanup to the Drive diagram: dirty session-place edits
+        // stashed while it was open must survive sign-out (the session place is
+        // untouched by it).
+        if (driveDiagId) {
+          scratchBufferRef.current.delete(driveDiagId);
+          setDirtyDiagramIds((prev) => setWithout(prev, driveDiagId));
+        }
+        // Unsaved session work stashed when the Drive diagram was opened goes
+        // back on the canvas; otherwise load a blank scene.
+        const stashed = scratchBufferRef.current.get('__unsaved__') ?? null;
+        setCurrentModel(stashed);
+        setDiagramName(stashed?.title ?? '');
+        const nextData: DiagramData = stashed ?? {
           title: '',
           icons: iconPackManager.loadedIcons,
           colors: defaultColors,
@@ -1081,7 +1101,7 @@ export function DiagramLifecycleProvider({
           fitToScreen: true
         };
         isAfterLoadRef.current = true;
-        axoviewRef.current?.load(blankData as InitialData);
+        axoviewRef.current?.load(nextData as InitialData);
         setFileExplorerOpen(true);
         setFileTreeRefreshToken((n) => n + 1);
         afterClose?.();
@@ -1338,10 +1358,13 @@ export function DiagramLifecycleProvider({
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Session-mode Save All
+  // Save All — flushes SESSION-place dirty buffers. The dirty set and scratch
+  // buffer only ever hold session ids (Drive diagrams autosave), so this must
+  // run even while a Drive diagram is open: move-to-Drive relies on it to make
+  // the persisted session copy current before the source is deleted.
   // ---------------------------------------------------------------------------
   const saveAllDirty = useCallback(async () => {
-    if (remoteStorageActive) return;
+    if (serverStorageAvailable) return; // server deploys have no session place
     const allDirtyIds = Array.from(dirtyDiagramIdsRef.current);
     if (allDirtyIds.length === 0) return;
 
@@ -1361,7 +1384,9 @@ export function DiagramLifecycleProvider({
     let savedCount = 0;
     const failedIds: string[] = [];
 
-    const s = storageRef.current;
+    // Write to the session place explicitly — storageRef follows the ACTIVE
+    // place, which may be Drive while session buffers still need flushing.
+    const s = storageManager?.getProvider('local') ?? storageRef.current;
 
     // Persist a never-saved (__unsaved__) buffer: allocate a unique name + id
     // and adopt it as the active diagram when nothing else is open.
@@ -1381,7 +1406,9 @@ export function DiagramLifecycleProvider({
         updatedAt: new Date().toISOString()
       };
       sessionUpdates.push(newSessionDiagram);
-      if (!currentDiagramRef.current) {
+      // Adopt as the open diagram only while the session place is active — a
+      // session diagram must not become current under a Drive-active canvas.
+      if (!currentDiagramRef.current && storageManager?.activeProviderId !== 'google-drive') {
         setCurrentDiagram(newSessionDiagram);
         setDiagramName(chosenName);
         setLastSaved(new Date());
@@ -1434,7 +1461,7 @@ export function DiagramLifecycleProvider({
         message: `${savedCount} saved, ${failedIds.length} failed`
       });
     }
-  }, [diagrams, remoteStorageActive]);
+  }, [diagrams, serverStorageAvailable, storageManager]);
 
   // ---------------------------------------------------------------------------
   // Model update handler

@@ -38,7 +38,18 @@
         "moveToDrive": "移动到 Google Drive",
         "movedToDrive": "“{{name}}”已移动到 Google Drive",
         "moveToDriveFailed": "无法将“{{name}}”移动到 Google Drive——它仍保留在当前会话中",
-        "collapse": "折叠面板"
+        "collapse": "折叠面板",
+        "deleteTitle": "删除“{{name}}”？",
+        "deleteBodyDiagramDrive": "此图表将移至您的 Google Drive 回收站（约 30 天内可恢复）。",
+        "deleteBodyDiagramSession": "此图表将被永久删除，无法恢复。",
+        "deleteBodyFolderDrive": "此文件夹将移至您的 Google Drive 回收站（约 30 天内可恢复）。",
+        "deleteBodyFolderSession": "此文件夹将被永久删除，无法恢复。",
+        "deleteBodyFolderItemsDrive": "此文件夹及其中的 {{count}} 个项目将移至您的 Google Drive 回收站（约 30 天内可恢复）。",
+        "deleteBodyFolderItemsSession": "此文件夹及其中的 {{count}} 个项目将被永久删除，无法恢复。",
+        "deleteBodyFolderOneItemDrive": "此文件夹及其中的 1 个项目将移至您的 Google Drive 回收站（约 30 天内可恢复）。",
+        "deleteBodyFolderOneItemSession": "此文件夹及其中的 1 个项目将被永久删除，无法恢复。",
+        "deleteCancel": "取消",
+        "deleteConfirm": "删除"
     },
     "status": {
         "current": "当前",
@@ -173,5 +184,15 @@
         "successToast": "已将 {{n}} 个图表移动到 Google Drive",
         "partialToast": "{{moved}} 个已移动，{{failed}} 个失败——失败的图表仍保留在当前会话中",
         "nothingToMove": "没有可移动的会话图表"
+    },
+    "driveRoot": {
+        "title": "选择您的 Google Drive 文件夹",
+        "body": "Axoview 将您的图表保存在您 Google Drive 中的一个文件夹里。它只能看到自己在其中创建的文件——您 Drive 中的其他内容一概不可见。",
+        "defaultOption": "默认文件夹（{{name}}）",
+        "customOption": "自定义文件夹名称",
+        "customPlaceholder": "我的图表",
+        "cancel": "取消",
+        "confirm": "继续",
+        "confirmBusy": "正在设置…"
     }
 }

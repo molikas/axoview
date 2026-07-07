@@ -38,7 +38,18 @@
         "moveToDrive": "Przenieś do Google Drive",
         "movedToDrive": "\"{{name}}\" przeniesiono do Google Drive",
         "moveToDriveFailed": "Nie udało się przenieść \"{{name}}\" do Google Drive — pozostał w tej sesji",
-        "collapse": "Zwiń panel"
+        "collapse": "Zwiń panel",
+        "deleteTitle": "Usunąć \"{{name}}\"?",
+        "deleteBodyDiagramDrive": "Ten diagram zostanie przeniesiony do kosza Twojego Dysku Google (możliwość odzyskania przez ~30 dni).",
+        "deleteBodyDiagramSession": "Ten diagram zostanie trwale usunięty i nie będzie można go odzyskać.",
+        "deleteBodyFolderDrive": "Ten folder zostanie przeniesiony do kosza Twojego Dysku Google (możliwość odzyskania przez ~30 dni).",
+        "deleteBodyFolderSession": "Ten folder zostanie trwale usunięty i nie będzie można go odzyskać.",
+        "deleteBodyFolderItemsDrive": "Ten folder wraz z {{count}} elementami w środku zostanie przeniesiony do kosza Twojego Dysku Google (możliwość odzyskania przez ~30 dni).",
+        "deleteBodyFolderItemsSession": "Ten folder wraz z {{count}} elementami w środku zostanie trwale usunięty i nie będzie można ich odzyskać.",
+        "deleteBodyFolderOneItemDrive": "Ten folder wraz z 1 elementem w środku zostanie przeniesiony do kosza Twojego Dysku Google (możliwość odzyskania przez ~30 dni).",
+        "deleteBodyFolderOneItemSession": "Ten folder wraz z 1 elementem w środku zostanie trwale usunięty i nie będzie można ich odzyskać.",
+        "deleteCancel": "Anuluj",
+        "deleteConfirm": "Usuń"
     },
     "status": {
         "current": "Obecny",
@@ -173,5 +184,15 @@
         "successToast": "Przeniesiono {{n}} do Google Drive",
         "partialToast": "Przeniesiono {{moved}}, nie udało się {{failed}} — nieudane diagramy pozostały w tej sesji",
         "nothingToMove": "Brak diagramów sesji do przeniesienia"
+    },
+    "driveRoot": {
+        "title": "Wybierz swój folder na Dysku Google",
+        "body": "Axoview przechowuje Twoje diagramy w jednym folderze na Twoim Dysku Google. Widzi tylko pliki, które tam utworzy — nic więcej na Twoim Dysku.",
+        "defaultOption": "Folder domyślny ({{name}})",
+        "customOption": "Własna nazwa folderu",
+        "customPlaceholder": "Moje diagramy",
+        "cancel": "Anuluj",
+        "confirm": "Kontynuuj",
+        "confirmBusy": "Konfigurowanie…"
     }
 }

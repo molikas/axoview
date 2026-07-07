@@ -38,7 +38,18 @@
         "moveToDrive": "Google Drive में ले जाएँ",
         "movedToDrive": "\"{{name}}\" Google Drive में ले जाया गया",
         "moveToDriveFailed": "\"{{name}}\" को Google Drive में नहीं ले जाया जा सका — यह इसी सत्र में है",
-        "collapse": "पैनल समेटें"
+        "collapse": "पैनल समेटें",
+        "deleteTitle": "\"{{name}}\" हटाएँ?",
+        "deleteBodyDiagramDrive": "यह डायग्राम आपके Google Drive के ट्रैश में ले जाया जाएगा (~30 दिनों तक पुनर्प्राप्त किया जा सकता है)।",
+        "deleteBodyDiagramSession": "यह डायग्राम स्थायी रूप से हटा दिया जाएगा और पुनर्प्राप्त नहीं किया जा सकेगा।",
+        "deleteBodyFolderDrive": "यह फ़ोल्डर आपके Google Drive के ट्रैश में ले जाया जाएगा (~30 दिनों तक पुनर्प्राप्त किया जा सकता है)।",
+        "deleteBodyFolderSession": "यह फ़ोल्डर स्थायी रूप से हटा दिया जाएगा और पुनर्प्राप्त नहीं किया जा सकेगा।",
+        "deleteBodyFolderItemsDrive": "यह फ़ोल्डर और इसके अंदर के {{count}} आइटम आपके Google Drive के ट्रैश में ले जाए जाएँगे (~30 दिनों तक पुनर्प्राप्त किए जा सकते हैं)।",
+        "deleteBodyFolderItemsSession": "यह फ़ोल्डर और इसके अंदर के {{count}} आइटम स्थायी रूप से हटा दिए जाएँगे और पुनर्प्राप्त नहीं किए जा सकेंगे।",
+        "deleteBodyFolderOneItemDrive": "यह फ़ोल्डर और इसके अंदर का 1 आइटम आपके Google Drive के ट्रैश में ले जाया जाएगा (~30 दिनों तक पुनर्प्राप्त किया जा सकता है)।",
+        "deleteBodyFolderOneItemSession": "यह फ़ोल्डर और इसके अंदर का 1 आइटम स्थायी रूप से हटा दिया जाएगा और पुनर्प्राप्त नहीं किया जा सकेगा।",
+        "deleteCancel": "रद्द करें",
+        "deleteConfirm": "हटाएँ"
     },
     "status": {
         "current": "वर्तमान",
@@ -173,5 +184,15 @@
         "successToast": "{{n}} Google Drive में ले जाए गए",
         "partialToast": "{{moved}} ले जाए गए, {{failed}} विफल — विफल डायग्राम इसी सत्र में रहे",
         "nothingToMove": "ले जाने के लिए कोई सत्र डायग्राम नहीं"
+    },
+    "driveRoot": {
+        "title": "अपना Google Drive फ़ोल्डर चुनें",
+        "body": "Axoview आपके डायग्राम आपके Google Drive के एक फ़ोल्डर में रखता है। यह केवल वहीं बनाई गई फ़ाइलें देख सकता है — आपके Drive में और कुछ नहीं।",
+        "defaultOption": "डिफ़ॉल्ट फ़ोल्डर ({{name}})",
+        "customOption": "कस्टम फ़ोल्डर नाम",
+        "customPlaceholder": "मेरे डायग्राम",
+        "cancel": "रद्द करें",
+        "confirm": "जारी रखें",
+        "confirmBusy": "सेट किया जा रहा है…"
     }
 }

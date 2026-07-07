@@ -34,7 +34,18 @@
         "moveToDrive": "Zu Google Drive verschieben",
         "movedToDrive": "\"{{name}}\" zu Google Drive verschoben",
         "moveToDriveFailed": "\"{{name}}\" konnte nicht zu Google Drive verschoben werden — es bleibt in dieser Sitzung",
-        "collapse": "Panel einklappen"
+        "collapse": "Panel einklappen",
+        "deleteTitle": "\"{{name}}\" löschen?",
+        "deleteBodyDiagramDrive": "Dieses Diagramm wird in deinen Google Drive-Papierkorb verschoben (ca. 30 Tage wiederherstellbar).",
+        "deleteBodyDiagramSession": "Dieses Diagramm wird endgültig gelöscht und kann nicht wiederhergestellt werden.",
+        "deleteBodyFolderDrive": "Dieser Ordner wird in deinen Google Drive-Papierkorb verschoben (ca. 30 Tage wiederherstellbar).",
+        "deleteBodyFolderSession": "Dieser Ordner wird endgültig gelöscht und kann nicht wiederhergestellt werden.",
+        "deleteBodyFolderItemsDrive": "Dieser Ordner und {{count}} darin enthaltene Elemente werden in deinen Google Drive-Papierkorb verschoben (ca. 30 Tage wiederherstellbar).",
+        "deleteBodyFolderItemsSession": "Dieser Ordner und {{count}} darin enthaltene Elemente werden endgültig gelöscht und können nicht wiederhergestellt werden.",
+        "deleteBodyFolderOneItemDrive": "Dieser Ordner und 1 darin enthaltenes Element werden in deinen Google Drive-Papierkorb verschoben (ca. 30 Tage wiederherstellbar).",
+        "deleteBodyFolderOneItemSession": "Dieser Ordner und 1 darin enthaltenes Element werden endgültig gelöscht und können nicht wiederhergestellt werden.",
+        "deleteCancel": "Abbrechen",
+        "deleteConfirm": "Löschen"
     },
     "status": {
         "current": "Aktuell",
@@ -134,5 +145,15 @@
         "successToast": "{{n}} zu Google Drive verschoben",
         "partialToast": "{{moved}} verschoben, {{failed}} fehlgeschlagen — die fehlgeschlagenen Diagramme bleiben in dieser Sitzung",
         "nothingToMove": "Keine Sitzungsdiagramme zum Verschieben"
+    },
+    "driveRoot": {
+        "title": "Wähle deinen Google Drive-Ordner",
+        "body": "Axoview bewahrt deine Diagramme in einem Ordner in deinem Google Drive auf. Es sieht nur die Dateien, die es dort erstellt — sonst nichts in deinem Drive.",
+        "defaultOption": "Standardordner ({{name}})",
+        "customOption": "Eigener Ordnername",
+        "customPlaceholder": "Meine Diagramme",
+        "cancel": "Abbrechen",
+        "confirm": "Weiter",
+        "confirmBusy": "Wird eingerichtet…"
     }
 }

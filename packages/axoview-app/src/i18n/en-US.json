@@ -38,7 +38,18 @@
         "moveToDrive": "Move to Google Drive",
         "movedToDrive": "\"{{name}}\" moved to Google Drive",
         "moveToDriveFailed": "Could not move \"{{name}}\" to Google Drive — it stayed in this session",
-        "collapse": "Collapse panel"
+        "collapse": "Collapse panel",
+        "deleteTitle": "Delete \"{{name}}\"?",
+        "deleteBodyDiagramDrive": "This diagram will be moved to your Google Drive trash (recoverable for ~30 days).",
+        "deleteBodyDiagramSession": "This diagram will be permanently deleted and cannot be recovered.",
+        "deleteBodyFolderDrive": "This folder will be moved to your Google Drive trash (recoverable for ~30 days).",
+        "deleteBodyFolderSession": "This folder will be permanently deleted and cannot be recovered.",
+        "deleteBodyFolderItemsDrive": "This folder and {{count}} items inside will be moved to your Google Drive trash (recoverable for ~30 days).",
+        "deleteBodyFolderItemsSession": "This folder and {{count}} items inside will be permanently deleted and cannot be recovered.",
+        "deleteBodyFolderOneItemDrive": "This folder and 1 item inside will be moved to your Google Drive trash (recoverable for ~30 days).",
+        "deleteBodyFolderOneItemSession": "This folder and 1 item inside will be permanently deleted and cannot be recovered.",
+        "deleteCancel": "Cancel",
+        "deleteConfirm": "Delete"
     },
     "status": {
         "current": "Current",
@@ -214,5 +225,15 @@
         "successToast": "Moved {{n}} to Google Drive",
         "partialToast": "{{moved}} moved, {{failed}} failed — the failed diagrams stayed in this session",
         "nothingToMove": "No session diagrams to move"
+    },
+    "driveRoot": {
+        "title": "Choose your Google Drive folder",
+        "body": "Axoview keeps your diagrams in one folder in your Google Drive. It can only see the files it creates there — nothing else in your Drive.",
+        "defaultOption": "Default folder ({{name}})",
+        "customOption": "Custom folder name",
+        "customPlaceholder": "My Diagrams",
+        "cancel": "Cancel",
+        "confirm": "Continue",
+        "confirmBusy": "Setting up…"
     }
 }

@@ -38,7 +38,18 @@
         "moveToDrive": "Google Drive-এ সরান",
         "movedToDrive": "\"{{name}}\" Google Drive-এ সরানো হয়েছে",
         "moveToDriveFailed": "\"{{name}}\" Google Drive-এ সরানো যায়নি — এটি এই সেশনেই আছে",
-        "collapse": "প্যানেল গুটান"
+        "collapse": "প্যানেল গুটান",
+        "deleteTitle": "\"{{name}}\" মুছে ফেলবেন?",
+        "deleteBodyDiagramDrive": "এই ডায়াগ্রামটি আপনার Google Drive-এর ট্র্যাশে সরানো হবে (~৩০ দিনের মধ্যে পুনরুদ্ধারযোগ্য)।",
+        "deleteBodyDiagramSession": "এই ডায়াগ্রামটি স্থায়ীভাবে মুছে ফেলা হবে এবং পুনরুদ্ধার করা যাবে না।",
+        "deleteBodyFolderDrive": "এই ফোল্ডারটি আপনার Google Drive-এর ট্র্যাশে সরানো হবে (~৩০ দিনের মধ্যে পুনরুদ্ধারযোগ্য)।",
+        "deleteBodyFolderSession": "এই ফোল্ডারটি স্থায়ীভাবে মুছে ফেলা হবে এবং পুনরুদ্ধার করা যাবে না।",
+        "deleteBodyFolderItemsDrive": "এই ফোল্ডার এবং এর ভিতরের {{count}}টি আইটেম আপনার Google Drive-এর ট্র্যাশে সরানো হবে (~৩০ দিনের মধ্যে পুনরুদ্ধারযোগ্য)।",
+        "deleteBodyFolderItemsSession": "এই ফোল্ডার এবং এর ভিতরের {{count}}টি আইটেম স্থায়ীভাবে মুছে ফেলা হবে এবং পুনরুদ্ধার করা যাবে না।",
+        "deleteBodyFolderOneItemDrive": "এই ফোল্ডার এবং এর ভিতরের ১টি আইটেম আপনার Google Drive-এর ট্র্যাশে সরানো হবে (~৩০ দিনের মধ্যে পুনরুদ্ধারযোগ্য)।",
+        "deleteBodyFolderOneItemSession": "এই ফোল্ডার এবং এর ভিতরের ১টি আইটেম স্থায়ীভাবে মুছে ফেলা হবে এবং পুনরুদ্ধার করা যাবে না।",
+        "deleteCancel": "বাতিল",
+        "deleteConfirm": "মুছুন"
     },
     "status": {
         "current": "বর্তমান",
@@ -173,5 +184,15 @@
         "successToast": "{{n}}টি Google Drive-এ সরানো হয়েছে",
         "partialToast": "{{moved}}টি সরানো হয়েছে, {{failed}}টি ব্যর্থ — ব্যর্থগুলো এই সেশনেই আছে",
         "nothingToMove": "সরানোর মতো কোনো সেশন ডায়াগ্রাম নেই"
+    },
+    "driveRoot": {
+        "title": "আপনার Google Drive ফোল্ডার বেছে নিন",
+        "body": "Axoview আপনার ডায়াগ্রামগুলি আপনার Google Drive-এর একটি ফোল্ডারে রাখে। এটি শুধুমাত্র সেখানে তৈরি করা ফাইলগুলিই দেখতে পারে — আপনার Drive-এর আর কিছুই নয়।",
+        "defaultOption": "ডিফল্ট ফোল্ডার ({{name}})",
+        "customOption": "কাস্টম ফোল্ডারের নাম",
+        "customPlaceholder": "আমার ডায়াগ্রাম",
+        "cancel": "বাতিল",
+        "confirm": "চালিয়ে যান",
+        "confirmBusy": "সেট আপ হচ্ছে…"
     }
 }

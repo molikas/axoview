@@ -245,11 +245,15 @@ export function MigrateSessionDialog() {
       maxWidth="xs"
       fullWidth
       onKeyDown={(e) => {
-        // §3.2 — Enter confirms (Escape is MUI-native).
-        if (e.key === 'Enter' && !moving && checkedCount > 0 && rootReady) {
-          e.preventDefault();
-          void handleMove();
-        }
+        // §3.2 — Enter confirms (Escape is MUI-native), but only from a
+        // non-interactive target: a focused control ("Not now", the close
+        // button, an item row) keeps its own Enter activation — otherwise
+        // Enter on "Not now" would trigger the bulk move it declines.
+        if (e.key !== 'Enter' || moving || checkedCount === 0 || !rootReady) return;
+        const target = e.target as HTMLElement;
+        if (target.closest('button, a, input, textarea, [role="button"], [role="checkbox"]')) return;
+        e.preventDefault();
+        void handleMove();
       }}
       slotProps={{
         paper: {

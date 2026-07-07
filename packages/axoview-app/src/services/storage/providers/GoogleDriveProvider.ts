@@ -145,13 +145,26 @@ export class GoogleDriveProvider implements StorageProvider {
   }
 
   private async listFiles(q: string, fields: string): Promise<DriveFile[]> {
-    const url =
-      `${DRIVE_API}/files?q=${encodeURIComponent(q)}` +
-      `&fields=${encodeURIComponent(fields)}&pageSize=1000` +
-      `&spaces=drive`;
-    const res = await this.request(url);
-    const json = (await res.json()) as { files?: DriveFile[] };
-    return json.files ?? [];
+    // Drive pages results — and documents that a page may hold FEWER than
+    // pageSize entries even when more pages follow, so nextPageToken must be
+    // drained unconditionally or listings silently truncate.
+    const files: DriveFile[] = [];
+    let pageToken: string | undefined;
+    do {
+      const url =
+        `${DRIVE_API}/files?q=${encodeURIComponent(q)}` +
+        `&fields=${encodeURIComponent(`nextPageToken,${fields}`)}&pageSize=1000` +
+        `&spaces=drive` +
+        (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '');
+      const res = await this.request(url);
+      const json = (await res.json()) as {
+        files?: DriveFile[];
+        nextPageToken?: string;
+      };
+      files.push(...(json.files ?? []));
+      pageToken = json.nextPageToken;
+    } while (pageToken);
+    return files;
   }
 
   private async patchJson(id: string, body: unknown): Promise<void> {
@@ -306,6 +319,15 @@ export class GoogleDriveProvider implements StorageProvider {
   /** First-connect setup: create the named root folder + stamp the marker. */
   async configureRoot(name: string): Promise<void> {
     const trimmed = name.trim() || DEFAULT_ROOT_NAME;
+    // A marker root may already exist — created by a concurrent write's
+    // ensureRoot() while this dialog was pending, or by another tab/device.
+    // Adopt it (renamed to the user's choice) instead of minting a duplicate;
+    // two axoviewRoot markers would make findRootByMarker() nondeterministic.
+    const existing = await this.resolveRoot();
+    if (existing) {
+      await this.patchJson(existing, { name: trimmed });
+      return;
+    }
     const id = await this.createRootFolder(trimmed);
     this.setRoot(id);
   }
@@ -329,7 +351,7 @@ export class GoogleDriveProvider implements StorageProvider {
     const q =
       folderId === undefined
         ? `mimeType='${JSON_MIME}' and trashed=false and ${APP_MARKER_Q}`
-        : `'${folderId ?? root}' in parents and mimeType='${JSON_MIME}' and trashed=false`;
+        : `'${folderId ?? root}' in parents and mimeType='${JSON_MIME}' and trashed=false and ${APP_MARKER_Q}`;
     const files = await this.listFiles(q, 'files(id,name,modifiedTime,parents)');
     return files
       .filter((f) => f.name !== MANIFEST_NAME)
@@ -386,7 +408,7 @@ export class GoogleDriveProvider implements StorageProvider {
     const q =
       parentId === undefined
         ? `mimeType='${FOLDER_MIME}' and trashed=false and ${APP_MARKER_Q}`
-        : `'${parentId ?? root}' in parents and mimeType='${FOLDER_MIME}' and trashed=false`;
+        : `'${parentId ?? root}' in parents and mimeType='${FOLDER_MIME}' and trashed=false and ${APP_MARKER_Q}`;
     const files = await this.listFiles(q, 'files(id,name,parents)');
     return files
       .filter((f) => f.id !== root) // the root folder itself is not a listed folder

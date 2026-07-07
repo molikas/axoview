@@ -38,7 +38,18 @@
         "moveToDrive": "Mover a Google Drive",
         "movedToDrive": "\"{{name}}\" movido a Google Drive",
         "moveToDriveFailed": "No se pudo mover \"{{name}}\" a Google Drive: permanece en esta sesión",
-        "collapse": "Contraer panel"
+        "collapse": "Contraer panel",
+        "deleteTitle": "¿Eliminar \"{{name}}\"?",
+        "deleteBodyDiagramDrive": "Este diagrama se moverá a la papelera de tu Google Drive (recuperable durante ~30 días).",
+        "deleteBodyDiagramSession": "Este diagrama se eliminará permanentemente y no se podrá recuperar.",
+        "deleteBodyFolderDrive": "Esta carpeta se moverá a la papelera de tu Google Drive (recuperable durante ~30 días).",
+        "deleteBodyFolderSession": "Esta carpeta se eliminará permanentemente y no se podrá recuperar.",
+        "deleteBodyFolderItemsDrive": "Esta carpeta y los {{count}} elementos que contiene se moverán a la papelera de tu Google Drive (recuperable durante ~30 días).",
+        "deleteBodyFolderItemsSession": "Esta carpeta y los {{count}} elementos que contiene se eliminarán permanentemente y no se podrán recuperar.",
+        "deleteBodyFolderOneItemDrive": "Esta carpeta y el elemento que contiene se moverán a la papelera de tu Google Drive (recuperable durante ~30 días).",
+        "deleteBodyFolderOneItemSession": "Esta carpeta y el elemento que contiene se eliminarán permanentemente y no se podrán recuperar.",
+        "deleteCancel": "Cancelar",
+        "deleteConfirm": "Eliminar"
     },
     "status": {
         "current": "Actual",
@@ -173,5 +184,15 @@
         "successToast": "{{n}} movidos a Google Drive",
         "partialToast": "{{moved}} movidos, {{failed}} fallidos: los diagramas fallidos permanecen en esta sesión",
         "nothingToMove": "No hay diagramas de sesión para mover"
+    },
+    "driveRoot": {
+        "title": "Elige tu carpeta de Google Drive",
+        "body": "Axoview guarda tus diagramas en una carpeta de tu Google Drive. Solo puede ver los archivos que crea allí — nada más de tu Drive.",
+        "defaultOption": "Carpeta predeterminada ({{name}})",
+        "customOption": "Nombre de carpeta personalizado",
+        "customPlaceholder": "Mis diagramas",
+        "cancel": "Cancelar",
+        "confirm": "Continuar",
+        "confirmBusy": "Configurando…"
     }
 }

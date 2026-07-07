@@ -38,7 +38,18 @@
         "moveToDrive": "Sposta su Google Drive",
         "movedToDrive": "\"{{name}}\" spostato su Google Drive",
         "moveToDriveFailed": "Impossibile spostare \"{{name}}\" su Google Drive: resta in questa sessione",
-        "collapse": "Comprimi pannello"
+        "collapse": "Comprimi pannello",
+        "deleteTitle": "Eliminare \"{{name}}\"?",
+        "deleteBodyDiagramDrive": "Questo diagramma verrà spostato nel cestino del tuo Google Drive (recuperabile per ~30 giorni).",
+        "deleteBodyDiagramSession": "Questo diagramma verrà eliminato definitivamente e non potrà essere recuperato.",
+        "deleteBodyFolderDrive": "Questa cartella verrà spostata nel cestino del tuo Google Drive (recuperabile per ~30 giorni).",
+        "deleteBodyFolderSession": "Questa cartella verrà eliminata definitivamente e non potrà essere recuperata.",
+        "deleteBodyFolderItemsDrive": "Questa cartella e i {{count}} elementi al suo interno verranno spostati nel cestino del tuo Google Drive (recuperabile per ~30 giorni).",
+        "deleteBodyFolderItemsSession": "Questa cartella e i {{count}} elementi al suo interno verranno eliminati definitivamente e non potranno essere recuperati.",
+        "deleteBodyFolderOneItemDrive": "Questa cartella e l'elemento al suo interno verranno spostati nel cestino del tuo Google Drive (recuperabile per ~30 giorni).",
+        "deleteBodyFolderOneItemSession": "Questa cartella e l'elemento al suo interno verranno eliminati definitivamente e non potranno essere recuperati.",
+        "deleteCancel": "Annulla",
+        "deleteConfirm": "Elimina"
     },
     "status": {
         "current": "Corrente",
@@ -173,5 +184,15 @@
         "successToast": "{{n}} spostati su Google Drive",
         "partialToast": "{{moved}} spostati, {{failed}} non riusciti: i diagrammi non riusciti restano in questa sessione",
         "nothingToMove": "Nessun diagramma di sessione da spostare"
+    },
+    "driveRoot": {
+        "title": "Scegli la tua cartella Google Drive",
+        "body": "Axoview conserva i tuoi diagrammi in una cartella del tuo Google Drive. Può vedere solo i file che crea lì — nient'altro nel tuo Drive.",
+        "defaultOption": "Cartella predefinita ({{name}})",
+        "customOption": "Nome cartella personalizzato",
+        "customPlaceholder": "I miei diagrammi",
+        "cancel": "Annulla",
+        "confirm": "Continua",
+        "confirmBusy": "Configurazione…"
     }
 }

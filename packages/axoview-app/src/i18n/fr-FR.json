@@ -38,7 +38,18 @@
         "moveToDrive": "Déplacer vers Google Drive",
         "movedToDrive": "\"{{name}}\" déplacé vers Google Drive",
         "moveToDriveFailed": "Impossible de déplacer \"{{name}}\" vers Google Drive — il reste dans cette session",
-        "collapse": "Réduire le panneau"
+        "collapse": "Réduire le panneau",
+        "deleteTitle": "Supprimer \"{{name}}\" ?",
+        "deleteBodyDiagramDrive": "Ce diagramme sera déplacé vers la corbeille de votre Google Drive (récupérable pendant ~30 jours).",
+        "deleteBodyDiagramSession": "Ce diagramme sera définitivement supprimé et ne pourra pas être récupéré.",
+        "deleteBodyFolderDrive": "Ce dossier sera déplacé vers la corbeille de votre Google Drive (récupérable pendant ~30 jours).",
+        "deleteBodyFolderSession": "Ce dossier sera définitivement supprimé et ne pourra pas être récupéré.",
+        "deleteBodyFolderItemsDrive": "Ce dossier et les {{count}} éléments qu'il contient seront déplacés vers la corbeille de votre Google Drive (récupérable pendant ~30 jours).",
+        "deleteBodyFolderItemsSession": "Ce dossier et les {{count}} éléments qu'il contient seront définitivement supprimés et ne pourront pas être récupérés.",
+        "deleteBodyFolderOneItemDrive": "Ce dossier et l'élément qu'il contient seront déplacés vers la corbeille de votre Google Drive (récupérable pendant ~30 jours).",
+        "deleteBodyFolderOneItemSession": "Ce dossier et l'élément qu'il contient seront définitivement supprimés et ne pourront pas être récupérés.",
+        "deleteCancel": "Annuler",
+        "deleteConfirm": "Supprimer"
     },
     "status": {
         "current": "Actuel",
@@ -173,5 +184,15 @@
         "successToast": "{{n}} déplacés vers Google Drive",
         "partialToast": "{{moved}} déplacés, {{failed}} en échec — les diagrammes en échec restent dans cette session",
         "nothingToMove": "Aucun diagramme de session à déplacer"
+    },
+    "driveRoot": {
+        "title": "Choisissez votre dossier Google Drive",
+        "body": "Axoview conserve vos diagrammes dans un dossier de votre Google Drive. Il ne voit que les fichiers qu'il y crée — rien d'autre dans votre Drive.",
+        "defaultOption": "Dossier par défaut ({{name}})",
+        "customOption": "Nom de dossier personnalisé",
+        "customPlaceholder": "Mes diagrammes",
+        "cancel": "Annuler",
+        "confirm": "Continuer",
+        "confirmBusy": "Configuration…"
     }
 }

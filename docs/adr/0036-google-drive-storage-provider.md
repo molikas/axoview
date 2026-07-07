@@ -55,6 +55,10 @@ All Axoview content lives under one root folder. Discovery and choice:
 
 If the user later deletes/trashes the root folder in Drive, the provider's next `isAvailable()`/list call detects the 404, clears the cache, and re-runs the first-connect dialog.
 
+> **Deviation note (2026-07-07, PR-59 review):** the paragraph above is only partially implemented. Boot-time staleness IS handled (`probeRoot()` validates the cached id and falls back to marker discovery), but **mid-session** root deletion is not: the in-memory root id is never revalidated, `isAvailable()` checks only auth, and autosaves keep patching files that Drive has moved to trash with the folder. Catalogued in [known_issues.md](../../known_issues.md) ("Deleting the Drive root folder mid-session is not detected") with the cheap fix direction.
+
+> **Amendment (2026-07-07, PR-59 review hardening):** three provider fixes shipped: (1) `listFiles` now drains `nextPageToken` — Drive documents that pages may be partial even below `pageSize`, so single-shot listings silently truncated; (2) folder-scoped list queries carry the `appProperties` marker filter, matching §1's "all list queries" claim (they had shipped without it); (3) `configureRoot` re-probes for an existing marker root and **adopts + renames** it instead of minting a duplicate — two `axoviewRoot` markers would make discovery nondeterministic (reachable via a concurrent write's `ensureRoot()` while the first-connect dialog was pending, or two tabs/devices configuring at once).
+
 ### 3. Delete = Drive trash
 
 In-app delete keeps the 2B-R contract (confirmation dialog, no in-app trash section) but maps to `trashed: true`: the item disappears from the app and is recoverable for ~30 days via drive.google.com. The Drive-mode confirmation copy says "Move to Google Drive trash". `restoreDiagram` exists on the interface and is implemented (untrash), but no v1 UI calls it.

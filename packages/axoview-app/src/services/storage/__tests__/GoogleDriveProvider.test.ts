@@ -166,6 +166,52 @@ describe('GoogleDriveProvider', () => {
     await expect(p.hasConfiguredRoot()).resolves.toBe(false);
   });
 
+  test('listDiagrams drains nextPageToken (Drive pages can be partial)', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        mockResponse({
+          files: [{ id: 'd1', name: 'Alpha', modifiedTime: 'T1', parents: ['root'] }],
+          nextPageToken: 'page2'
+        })
+      )
+      .mockResolvedValueOnce(
+        mockResponse({
+          files: [{ id: 'd2', name: 'Beta', modifiedTime: 'T2', parents: ['root'] }]
+        })
+      );
+    const list = await makeProvider().listDiagrams();
+    expect(list.map((d) => d.id)).toEqual(['d1', 'd2']);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][0]).toContain('pageToken=page2');
+  });
+
+  test('configureRoot adopts + renames an existing marker root instead of duplicating it', async () => {
+    const p = new GoogleDriveProvider();
+    (p as unknown as { retryDelays: number[] }).retryDelays = [0, 0, 0];
+    fetchMock
+      .mockResolvedValueOnce(mockResponse({ files: [{ id: 'existing-root' }] })) // marker probe
+      .mockResolvedValueOnce(mockResponse({ id: 'existing-root' })); // rename PATCH
+    await p.configureRoot('My Diagrams');
+    expect(fetchMock).toHaveBeenCalledTimes(2); // probe + rename, NO create POST
+    const [renameUrl, renameInit] = fetchMock.mock.calls[1];
+    expect(renameUrl).toContain('/files/existing-root');
+    expect((renameInit as RequestInit).method).toBe('PATCH');
+    expect((renameInit as { body: string }).body).toContain('My Diagrams');
+  });
+
+  test('configureRoot creates the marker root when none exists', async () => {
+    const p = new GoogleDriveProvider();
+    (p as unknown as { retryDelays: number[] }).retryDelays = [0, 0, 0];
+    fetchMock
+      .mockResolvedValueOnce(mockResponse({ files: [] })) // marker probe: nothing
+      .mockResolvedValueOnce(mockResponse({ id: 'new-root' })); // create POST
+    await p.configureRoot('My Diagrams');
+    const [, createInit] = fetchMock.mock.calls[1];
+    expect((createInit as RequestInit).method).toBe('POST');
+    expect((createInit as { body: string }).body).toContain('"axoviewRoot":"true"');
+    expect((createInit as { body: string }).body).toContain('My Diagrams');
+  });
+
   test('reads the token via getValidToken only — unauth throws before any fetch', async () => {
     useAuthStore.setState({ status: 'UNAUTHENTICATED', accessToken: null, expiresAt: null });
     await expect(makeProvider().loadDiagram('d1')).rejects.toThrow(/signed in/i);

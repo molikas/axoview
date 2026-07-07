@@ -4,7 +4,7 @@
 
 ## Storage/auth surface: pre-existing strings still hardcoded English (i18n debt)
 
-**Symptom:** The 8e08933 Drive integration shipped with its entire UI hardcoded in English. The 2026-07-06 storage-ux-unification push i18n'd every string it **introduced or rewrote** (avatar menu, place sections, migration dialog, empty-state sign-in card, banner actions, Move-to-Drive — 37 keys × 13 locales), but strings it merely inherited remain literal: most `ContextMenuItems` labels (Open/Rename/Duplicate/Delete/…), the delete-confirmation and name-collision dialog bodies, `DriveRootFolderDialog` copy, the FileExplorer/App toast messages, and the `authStore` expired/cancelled toasts (that store can't import the i18n singleton without dragging http-backend init into unit suites — needs a small notification-key indirection).
+**Symptom:** The 8e08933 Drive integration shipped with its entire UI hardcoded in English. The 2026-07-06 storage-ux-unification push i18n'd every string it **introduced or rewrote** (avatar menu, place sections, migration dialog, empty-state sign-in card, banner actions, Move-to-Drive — 37 keys × 13 locales), and the 2026-07-07 PR-59 review fixes swept in the delete-confirmation dialog + `DriveRootFolderDialog` (19 more keys × 13 locales). Still literal: most `ContextMenuItems` labels (Open/Rename/Duplicate/Delete/…), the name-collision dialog body, the FileExplorer/App toast messages, `ExportProjectZipDialog`, and the `authStore` expired/cancelled toasts (that store can't import the i18n singleton without dragging http-backend init into unit suites — needs a small notification-key indirection).
 
 **Workaround:** None at the locale level; affected strings render in English in all locales.
 
@@ -33,6 +33,38 @@
 **Workaround:** None needed. Do NOT add `'unsafe-eval'` to `script-src` — the strict CSP is deliberate (2026-07-05 hardening).
 
 **Status:** Open, deferred as console noise. Revisit only if a feature visibly breaks with a matching CSP error in the Console (not Issues) tab.
+
+## Google Drive place is online-only — no offline write queue
+
+**Symptom:** Drive writes (autosave, create, move) require a live connection and a valid token. Offline, a Drive-place save fails after the retry/backoff run (500/1000/2000 ms) and surfaces the ADR 0011 failure dialog; there is no queue that replays the write when connectivity returns.
+
+**Workaround:** Keep working — the in-memory scene is intact; retry the save (or export a zip) once back online. Session-place work is unaffected.
+
+**Status:** Open, deferred (owner 2026-07-05, re-affirmed at the 2026-07-06 Drive wrap). Design sketch lives in ADR 0036's deferred list: an IndexedDB-backed write queue with replay + conflict detection. Referenced from PLAN.md Phase 3B.
+
+## Move-to-Drive is one-way — no reverse move (Drive → session)
+
+**Symptom:** The file tree offers "Move to Google Drive" for session diagrams, but no counterpart that moves a Drive diagram back into the browser session; the context menu on Drive rows has no such action.
+
+**Workaround:** Open the Drive diagram, then Export → JSON and re-import into the session place (loses folder placement).
+
+**Status:** Open, deferred at the 2026-07-06 Drive wrap (owner call: no demonstrated need — the session place is the downgrade path, not a destination). Revisit if users ask for it; the transfer machinery ([driveTransfer.ts](packages/axoview-app/src/services/storage/driveTransfer.ts)) is direction-agnostic in shape.
+
+## No Google Picker integration — Drive files created outside the app's folder are invisible
+
+**Symptom:** With the `drive.file` scope, the app sees only files it created. A diagram JSON placed in Drive by other means (manual upload, another app) never appears in the tree; there is no Picker flow to grant the app access to it.
+
+**Workaround:** Download the file and use Import — the imported copy lands in the app's Drive folder and is visible thereafter.
+
+**Status:** Open, deferred at the 2026-07-06 Drive wrap. The fix is the Google Picker API (its grant extends `drive.file` visibility per-file); revisit with the worker code-flow slice since both touch the OAuth surface.
+
+## Deleting the Drive root folder mid-session is not detected
+
+**Symptom:** The provider caches the discovered root folder id in memory (and localStorage) and never revalidates it during a session. If the user trashes the root folder in Drive's own UI while the app is open, `isAvailable()` still reports true (it only checks auth) and autosaves keep patching files that now sit in the trash; the loss surfaces only on the next full listing or reload (ADR 0036 §2 promises detection that is not yet implemented).
+
+**Workaround:** Restore the folder from Drive's trash — the marker travels with it, and the next reload re-discovers it. Don't delete the root while the app is open.
+
+**Status:** Open, catalogued 2026-07-07 (PR-59 review). Cheap fix direction: on a listing that returns zero files OR any 404 against the cached root, invalidate the cache and re-run marker discovery before concluding the place is empty.
 
 ## Boot silent reconnect needs a popup (gesture-retry stopgap; worker code-flow is the real fix)
 

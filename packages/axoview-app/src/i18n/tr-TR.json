@@ -38,7 +38,18 @@
         "moveToDrive": "Google Drive'a taşı",
         "movedToDrive": "\"{{name}}\" Google Drive'a taşındı",
         "moveToDriveFailed": "\"{{name}}\" Google Drive'a taşınamadı — bu oturumda kaldı",
-        "collapse": "Paneli daralt"
+        "collapse": "Paneli daralt",
+        "deleteTitle": "\"{{name}}\" silinsin mi?",
+        "deleteBodyDiagramDrive": "Bu diyagram Google Drive çöp kutunuza taşınacak (~30 gün içinde geri alınabilir).",
+        "deleteBodyDiagramSession": "Bu diyagram kalıcı olarak silinecek ve geri alınamayacak.",
+        "deleteBodyFolderDrive": "Bu klasör Google Drive çöp kutunuza taşınacak (~30 gün içinde geri alınabilir).",
+        "deleteBodyFolderSession": "Bu klasör kalıcı olarak silinecek ve geri alınamayacak.",
+        "deleteBodyFolderItemsDrive": "Bu klasör ve içindeki {{count}} öğe Google Drive çöp kutunuza taşınacak (~30 gün içinde geri alınabilir).",
+        "deleteBodyFolderItemsSession": "Bu klasör ve içindeki {{count}} öğe kalıcı olarak silinecek ve geri alınamayacak.",
+        "deleteBodyFolderOneItemDrive": "Bu klasör ve içindeki 1 öğe Google Drive çöp kutunuza taşınacak (~30 gün içinde geri alınabilir).",
+        "deleteBodyFolderOneItemSession": "Bu klasör ve içindeki 1 öğe kalıcı olarak silinecek ve geri alınamayacak.",
+        "deleteCancel": "İptal",
+        "deleteConfirm": "Sil"
     },
     "status": {
         "current": "Mevcut",
@@ -173,5 +184,15 @@
         "successToast": "{{n}} diyagram Google Drive'a taşındı",
         "partialToast": "{{moved}} taşındı, {{failed}} başarısız — başarısız diyagramlar bu oturumda kaldı",
         "nothingToMove": "Taşınacak oturum diyagramı yok"
+    },
+    "driveRoot": {
+        "title": "Google Drive klasörünüzü seçin",
+        "body": "Axoview diyagramlarınızı Google Drive'ınızdaki tek bir klasörde tutar. Yalnızca orada oluşturduğu dosyaları görebilir — Drive'ınızdaki başka hiçbir şeyi göremez.",
+        "defaultOption": "Varsayılan klasör ({{name}})",
+        "customOption": "Özel klasör adı",
+        "customPlaceholder": "Diyagramlarım",
+        "cancel": "İptal",
+        "confirm": "Devam",
+        "confirmBusy": "Ayarlanıyor…"
     }
 }

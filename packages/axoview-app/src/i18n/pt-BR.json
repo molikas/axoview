@@ -38,7 +38,18 @@
         "moveToDrive": "Mover para o Google Drive",
         "movedToDrive": "\"{{name}}\" movido para o Google Drive",
         "moveToDriveFailed": "Não foi possível mover \"{{name}}\" para o Google Drive — ele permanece nesta sessão",
-        "collapse": "Recolher painel"
+        "collapse": "Recolher painel",
+        "deleteTitle": "Excluir \"{{name}}\"?",
+        "deleteBodyDiagramDrive": "Este diagrama será movido para a lixeira do seu Google Drive (recuperável por ~30 dias).",
+        "deleteBodyDiagramSession": "Este diagrama será excluído permanentemente e não poderá ser recuperado.",
+        "deleteBodyFolderDrive": "Esta pasta será movida para a lixeira do seu Google Drive (recuperável por ~30 dias).",
+        "deleteBodyFolderSession": "Esta pasta será excluída permanentemente e não poderá ser recuperada.",
+        "deleteBodyFolderItemsDrive": "Esta pasta e os {{count}} itens dentro dela serão movidos para a lixeira do seu Google Drive (recuperável por ~30 dias).",
+        "deleteBodyFolderItemsSession": "Esta pasta e os {{count}} itens dentro dela serão excluídos permanentemente e não poderão ser recuperados.",
+        "deleteBodyFolderOneItemDrive": "Esta pasta e o item dentro dela serão movidos para a lixeira do seu Google Drive (recuperável por ~30 dias).",
+        "deleteBodyFolderOneItemSession": "Esta pasta e o item dentro dela serão excluídos permanentemente e não poderão ser recuperados.",
+        "deleteCancel": "Cancelar",
+        "deleteConfirm": "Excluir"
     },
     "status": {
         "current": "Atual",
@@ -173,5 +184,15 @@
         "successToast": "{{n}} movidos para o Google Drive",
         "partialToast": "{{moved}} movidos, {{failed}} falharam — os diagramas com falha permanecem nesta sessão",
         "nothingToMove": "Nenhum diagrama de sessão para mover"
+    },
+    "driveRoot": {
+        "title": "Escolha sua pasta do Google Drive",
+        "body": "O Axoview mantém seus diagramas em uma pasta do seu Google Drive. Ele só vê os arquivos que cria lá — nada mais no seu Drive.",
+        "defaultOption": "Pasta padrão ({{name}})",
+        "customOption": "Nome de pasta personalizado",
+        "customPlaceholder": "Meus diagramas",
+        "cancel": "Cancelar",
+        "confirm": "Continuar",
+        "confirmBusy": "Configurando…"
     }
 }
