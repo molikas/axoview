@@ -194,5 +194,9 @@
         "cancel": "Cancelar",
         "confirm": "Continuar",
         "confirmBusy": "Configurando…"
+    },
+    "legal": {
+        "privacy": "Privacidad",
+        "terms": "Términos"
     }
 }

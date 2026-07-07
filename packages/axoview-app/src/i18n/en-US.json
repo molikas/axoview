@@ -235,5 +235,9 @@
         "cancel": "Cancel",
         "confirm": "Continue",
         "confirmBusy": "Setting up…"
+    },
+    "legal": {
+        "privacy": "Privacy",
+        "terms": "Terms"
     }
 }

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Box, Button, CardActionArea, Paper, Typography } from '@mui/material';
+import { Box, Button, CardActionArea, Link, Paper, Typography } from '@mui/material';
 import { AddCircleOutline as AddIcon, FileUploadOutlined as ImportIcon } from '@mui/icons-material';
 import { GoogleGIcon } from './GoogleGIcon';
 
@@ -63,6 +63,7 @@ export function EmptyStateScreen({ onCreate, onImport, showSignIn, onSignIn }: P
       sx={{
         width: '100%',
         height: '100%',
+        position: 'relative',
         bgcolor: 'background.default',
         backgroundImage: isoGridBackground.backgroundImage,
         display: 'flex',
@@ -153,6 +154,52 @@ export function EmptyStateScreen({ onCreate, onImport, showSignIn, onSignIn }: P
           </Typography>
         </Box>
       )}
+
+      {/* Legal footer: keeps the privacy/terms pages discoverable from the app
+          itself (Google OAuth verification wants the policy reachable from the
+          home page, not only linked on the consent screen). Links, not buttons,
+          so the "exactly two interactive cards" contract above still holds. */}
+      <Box
+        component="footer"
+        data-axoview-id="screen-empty-footer"
+        sx={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 1.5,
+          py: 2
+        }}
+      >
+        <Link
+          href="/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+          variant="caption"
+          underline="hover"
+          color="text.secondary"
+          data-axoview-id="screen-empty-privacy-link"
+        >
+          {t('legal.privacy', 'Privacy')}
+        </Link>
+        <Typography variant="caption" color="text.disabled" aria-hidden>
+          ·
+        </Typography>
+        <Link
+          href="/terms"
+          target="_blank"
+          rel="noopener noreferrer"
+          variant="caption"
+          underline="hover"
+          color="text.secondary"
+          data-axoview-id="screen-empty-terms-link"
+        >
+          {t('legal.terms', 'Terms')}
+        </Link>
+      </Box>
     </Box>
   );
 }

@@ -194,5 +194,9 @@
         "cancel": "取消",
         "confirm": "继续",
         "confirmBusy": "正在设置…"
+    },
+    "legal": {
+        "privacy": "隐私",
+        "terms": "条款"
     }
 }

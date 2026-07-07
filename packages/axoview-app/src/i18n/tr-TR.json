@@ -194,5 +194,9 @@
         "cancel": "İptal",
         "confirm": "Devam",
         "confirmBusy": "Ayarlanıyor…"
+    },
+    "legal": {
+        "privacy": "Gizlilik",
+        "terms": "Koşullar"
     }
 }

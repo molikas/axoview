@@ -78,4 +78,20 @@ describe('EmptyStateScreen', () => {
     await user.click(icon as Element);
     expect(onCreate).toHaveBeenCalledTimes(1);
   });
+
+  test('footer links point at the static /privacy and /terms pages', () => {
+    render(<EmptyStateScreen onCreate={jest.fn()} onImport={jest.fn()} />);
+    const privacy = document.querySelector(
+      '[data-axoview-id="screen-empty-privacy-link"]'
+    );
+    const terms = document.querySelector(
+      '[data-axoview-id="screen-empty-terms-link"]'
+    );
+    // Assert on href (not text) — the mocked `t` echoes the key, not the copy.
+    expect(privacy).toHaveAttribute('href', '/privacy');
+    expect(terms).toHaveAttribute('href', '/terms');
+    // Legal links open in a new tab so canvas work is never lost.
+    expect(privacy).toHaveAttribute('target', '_blank');
+    expect(terms).toHaveAttribute('rel', expect.stringContaining('noopener'));
+  });
 });

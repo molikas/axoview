@@ -155,5 +155,9 @@
         "cancel": "Batal",
         "confirm": "Lanjutkan",
         "confirmBusy": "Menyiapkan…"
+    },
+    "legal": {
+        "privacy": "Privasi",
+        "terms": "Ketentuan"
     }
 }

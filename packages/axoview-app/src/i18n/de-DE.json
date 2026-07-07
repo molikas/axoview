@@ -155,5 +155,9 @@
         "cancel": "Abbrechen",
         "confirm": "Weiter",
         "confirmBusy": "Wird eingerichtet…"
+    },
+    "legal": {
+        "privacy": "Datenschutz",
+        "terms": "Nutzungsbedingungen"
     }
 }
