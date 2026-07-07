@@ -239,13 +239,16 @@
         sign out or close the tab, the token is discarded and you are disconnected.
       </p>
 
-      <h2>6. "Remember me"</h2>
+      <h2>6. Staying signed in</h2>
       <p>
-        If you enable "remember me", Axoview stores a small <strong>profile hint</strong> (your
-        email address and name, as returned by Google) in your browser's local storage. This is
-        used only to streamline signing you back in on your next visit. It stays on your device
-        and is sent only to Google's sign-in service to identify the account. You can clear it
-        at any time by signing out or clearing your browser data.
+        When you sign in, Axoview stores a small <strong>profile hint</strong> (your name, email
+        address, and profile-picture URL, as returned by Google) in your browser's local
+        storage. This lets the app show your identity immediately on your next visit and attempt
+        to sign you back in silently, so you don't have to re-authenticate every time. This
+        happens automatically as part of signing in — there is no separate setting to turn on or
+        off. The hint stays on your device and is sent only to Google's sign-in service to
+        identify the account; your access token is never stored (see section 5). You can remove
+        the hint at any time by signing out, which clears it, or by clearing your browser data.
       </p>
 
       <h2>7. What Axoview does not do</h2>
