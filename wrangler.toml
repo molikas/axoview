@@ -19,7 +19,7 @@ AUTH_MODE = "shared-token"
 # browser to Google on every sign-in and is guarded by the Authorized JavaScript
 # origins allowlist (Google Cloud console), not by secrecy — so it is safe to
 # commit. Surfaced by /api/config to the frontend. One value serves both the
-# production deploy (axoview.pages.dev) and the integration preview
+# production deploy (axoview.app + axoview.pages.dev) and the integration preview
 # (integration.axoview.pages.dev); an empty/absent value makes the frontend hide
 # all Google Drive UI.
 GOOGLE_CLIENT_ID = "485371025824-2ullp84i3nda2dgceirg9q87fvm36kl8.apps.googleusercontent.com"
