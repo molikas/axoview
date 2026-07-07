@@ -141,6 +141,7 @@ export function FileExplorer() {
   const authStatus = useAuthStore((s) => s.status);
   const authUser = useAuthStore((s) => s.user);
   const signIn = useAuthStore((s) => s.signIn);
+  const grantDriveAccess = useAuthStore((s) => s.grantDriveAccess);
   const driveScopeGranted = useAuthStore((s) => s.driveScopeGranted);
   const {
     currentDiagram,
@@ -950,10 +951,13 @@ export function FileExplorer() {
       switch (node.stateKind) {
         case 'signin':
         case 'reconnect':
-        // 'scope': a partial grant (Drive checkbox unchecked) — the fix is a
-        // re-consent, and include_granted_scopes keeps the identity grant.
-        case 'scope':
           void signIn();
+          break;
+        // A partial grant (Drive checkbox unchecked) can't be fixed by a plain
+        // signIn — Google replays the cached identity-only grant. Force the
+        // consent screen back open (prompt:'consent') so the checkbox reappears.
+        case 'scope':
+          grantDriveAccess();
           break;
         case 'error':
           void treeFor(node.placeId ?? 'google-drive').refresh();
@@ -965,7 +969,7 @@ export function FileExplorer() {
           break;
       }
     },
-    [signIn, treeFor]
+    [signIn, grantDriveAccess, treeFor]
   );
 
   const sessionDiagramCount = sessionTree.diagrams.filter((d) => !d.deletedAt).length;
