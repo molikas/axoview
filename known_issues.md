@@ -325,3 +325,38 @@ serialized SVG) to determine:
 **Status:** Open, deferred. Diagnosed to the iso `matrix()` + nested `<svg>` interaction
 in `dom-to-image-more`; the remaining fork (serialization vs rasterization) needs one
 console capture before a fix is chosen. Filed from the 2026-06-25 shake-out (item #5).
+
+---
+
+## WebGL render substrate — deferred productization follow-ups (2026-07-08)
+
+From the WebGL-fold productization (PR #63, ADR 0038). Each is scoped and
+recorded in ADR 0038 §Deferred; none blocks the WebGL2-only substrate.
+
+- **WebGL context-loss recovery** — no `webglcontextlost`/`webglcontextrestored`
+  handling; a GPU reset (tab reclaim, driver crash) blanks the GL layers until
+  remount. Needs `createSpriteBatch` init refactored into a rebuildable closure
+  (rebuild atlas/program/VAO/VBO on restore, `preventDefault` on loss). *Highest-
+  value follow-up.*
+- **GPU dashed/dotted/double-line connectors** — `style` (DASHED/DOTTED) and
+  `lineType` (DOUBLE/DOUBLE_WITH_CIRCLE) are not yet emitted by `ConnectorsCanvas`;
+  an *unselected* styled connector draws solid (selecting it promotes it to the
+  correct DOM `<Connector>`). Owner decision: implement on the GPU, mirror
+  `<Connector>`'s strokeDashArray + offset-path geometry. Needs visual verification.
+- **Premultiplied-alpha mip fringing** — straight-alpha atlas can pull a faint
+  dark halo into minified edges. Fix (premultiply on upload / edge-dilate) risks a
+  broader color regression → needs a pixel-diff harness first.
+- **Backing-store viewport clamp** — `bw/bh = W·dpr` not yet clamped vs
+  `MAX_VIEWPORT_DIMS` / max canvas area (clamp helper exists in `renderTarget.ts`,
+  wired only to export).
+- **Test follow-ups** — unit tests for `glSpriteBatch` (`isWebGL2Supported`
+  memoization) + `itemRaster` chip rasterisation; an e2e lasso multi-select
+  connector-halo regression (the seam regressed once, caught only manually); a GPU
+  pixel/visual smoke (draw-count proves count, not pixels); a `WebGLUnsupportedScreen`
+  gate test; and expecting the perf harness's computed KR1 `worstLoadBearing < 10`
+  (currently written to markdown but never asserted). NOTE: a `glSpriteBatch` unit
+  test was drafted but ts-jest would not transform a new `src/webgl/__tests__/`
+  file (byte-clean, path in tsconfig `include`) — an environment quirk to resolve
+  before adding webgl unit tests.
+
+**Status:** Open, deferred with owner sign-off. Recorded in ADR 0038.
