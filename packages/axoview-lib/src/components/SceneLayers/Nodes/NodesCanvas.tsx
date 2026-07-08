@@ -240,7 +240,15 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
     // createSpriteBatch is expected to succeed here.
     // 8192² atlas: chips + icons for the whole node layer (verified to hold the
     // fit-to-view harness's ~1000 simultaneous readable chips).
-    const batch: SpriteBatch | null = createSpriteBatch(canvas, 8192);
+    // Cap the atlas at 4096 on high-DPR/mobile (dpr>=2): an 8192² RGBA atlas is
+    // ~268MB up front — too heavy for integrated/mobile GPUs. 4096² is ~67MB and
+    // still holds a viewport-culled scene's readable chips. glSpriteBatch clamps
+    // to MAX_TEXTURE_SIZE on top of this.
+    const atlasSize =
+      typeof window !== 'undefined' && window.devicePixelRatio >= 2
+        ? 4096
+        : 8192;
+    const batch: SpriteBatch | null = createSpriteBatch(canvas, atlasSize);
     if (!batch) return;
 
     // A throwaway 2D context purely for measureText (the visible canvas is owned
@@ -393,7 +401,10 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
     // beginInstances(), so this single pass never packs onto stale UVs.
     const buildInstances = (b: SpriteBatch) => {
       const f = frameState();
-      const ss = f.dpr * CHIP_SUPERSAMPLE;
+      // Clamp effective dpr at 2 for chip rasterisation: on a 3x screen
+      // dpr*CHIP_SUPERSAMPLE would be 6x (36x chip area), overflowing the atlas
+      // and thrashing memory for no visible gain (2x keeps text crisp to 2x zoom).
+      const ss = Math.min(f.dpr, 2) * CHIP_SUPERSAMPLE;
       const mctx = measureCtx;
       const chip = chipStyleRef.current;
 

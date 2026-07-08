@@ -27,8 +27,15 @@ import {
 // Geometry: each path tile → scene point via getTilePosition(
 // connectorPathTileToGlobal(...)) — the SAME space ConnectorLabel resolves, so
 // bodies and labels line up. Each segment is a tinted quad (white texel); round
-// joins/caps are dots at each vertex; the arrow is a packed sprite. Dashed/dotted
-// + double-line styles fall back to the DOM hybrid for now (documented).
+// joins/caps are dots at each vertex; the arrow is a packed sprite.
+//
+// KNOWN LIMITATION (ADR 0038, deferred): the styled variants — style
+// dashed/dotted and lineType DOUBLE / DOUBLE_WITH_CIRCLE — are NOT yet emitted
+// here; a styled connector currently draws as a solid single line on the GPU.
+// Selecting it promotes it into the DOM <Connector> (connectorHybridIds), which
+// renders the style correctly, so the degradation only affects the unselected
+// bulk. Owner decision: implement these on the GPU (a follow-up), not route them
+// back to the DOM.
 // ---------------------------------------------------------------------------
 
 interface Props {

@@ -170,7 +170,9 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
     let buildCount = 0; // data-build-count — must stay flat during pan (no CPU/frame)
     const buildInstances = (b: SpriteBatch) => {
       const f = frameState();
-      const ss = f.dpr * CHIP_SUPERSAMPLE;
+      // Clamp effective dpr at 2 for chip rasterisation (see NodesCanvas) so a
+      // 3x device doesn't rasterise chips at 6x.
+      const ss = Math.min(f.dpr, 2) * CHIP_SUPERSAMPLE;
       const mctx = measureCtx;
       let drawn = 0;
       if (mctx) {
