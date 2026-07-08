@@ -94,3 +94,79 @@ export const walkDashes = (
     s = segEnd;
   }
 };
+
+// ---------------------------------------------------------------------------
+// PROTOTYPE — analytic edge-AA line geometry (crisp iso lines follow-up).
+//
+// Today a line/dash body is a SOLID `white`-texel parallelogram and a dot/cap is
+// a SAMPLED sprite. In isometric the parallelogram's long edges alias (the GL
+// context is antialias:false) and the sheared sprites soften under filtering —
+// neither is crisp (finding #6). The industry fix (deck.gl / Mapbox) is analytic
+// edge-AA: expand the stroke quad by a small feather, carry the perpendicular
+// distance-from-centreline as a varying, and smoothstep the alpha against the
+// true half-width in the fragment shader — a controlled ~1px feather at ANY
+// zoom/shear, no texture sampling involved.
+//
+// This helper is the CPU/geometry half: it fattens `segment()`'s parallelogram
+// (anchor p0, perpendicular width basis `v`, centred via localOrigin = -v/2) by
+// `feather` on each perpendicular side so the fragment ramp isn't clipped by the
+// quad boundary. It is NOT yet wired into a batch — the companion vertex varying
+// (`vDist = (q.y - 0.5) * |v|`) and fragment smoothstep, plus the recommendation
+// vs SDF textures and MSAA, are documented in
+// docs/canvas-rendering-guidelines.md → "Crisp iso line rendering". Wiring the
+// shader branch needs a real-browser screenshot check (CI is pixel-blind).
+// ---------------------------------------------------------------------------
+
+/** An analytic-AA stroke quad, ready to feed glSpriteBatch.addSprite (+ SDF shader). */
+export interface AaLineQuad {
+  /** Quad anchor in tile space (= p0). */
+  anchorX: number;
+  anchorY: number;
+  /** Local origin = -v/2, so the centreline (q.y = 0.5) lies on p0→p1. */
+  localOriginX: number;
+  localOriginY: number;
+  /** Along-segment basis `u` (length = segment length). */
+  ux: number;
+  uy: number;
+  /** Perpendicular basis `v` (length = width + 2·feather — the FAT quad). */
+  vx: number;
+  vy: number;
+  /** True stroke half-width in scene units; the fragment thresholds |vDist| here. */
+  halfWidth: number;
+  /** Feather half-width in scene units (the quad's over-extent on each side). */
+  feather: number;
+}
+
+/**
+ * Expand a segment p0→p1 of stroke `width` into an analytic-AA-ready quad,
+ * fattened by `feather` (scene units) on each perpendicular side. Degenerate
+ * (zero-length) segments return a collapsed quad rather than NaN.
+ */
+export const buildAaLineQuad = (
+  p0: Coords,
+  p1: Coords,
+  width: number,
+  feather: number
+): AaLineQuad => {
+  const ax = p1.x - p0.x;
+  const ay = p1.y - p0.y;
+  const len = Math.hypot(ax, ay) || 1;
+  const halfWidth = width / 2;
+  const fatHalf = halfWidth + feather;
+  const nx = -ay / len; // perpendicular unit
+  const ny = ax / len;
+  const vx = nx * fatHalf * 2; // |v| = width + 2·feather
+  const vy = ny * fatHalf * 2;
+  return {
+    anchorX: p0.x,
+    anchorY: p0.y,
+    localOriginX: -vx / 2,
+    localOriginY: -vy / 2,
+    ux: ax,
+    uy: ay,
+    vx,
+    vy,
+    halfWidth,
+    feather
+  };
+};
