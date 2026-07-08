@@ -48,7 +48,30 @@ export default defineConfig({
     // before each capture — removes GC-pause variance. (Tried disabling vsync
     // for continuous sub-frame timing: headless Chromium keeps a 60 Hz virtual
     // display regardless, and the throttling-disable flags only added variance.)
-    launchOptions: { args: ['--js-flags=--expose-gc'] }
+    //
+    // GPU FIDELITY (load-bearing for the WebGL renderer, added 2026-07-07): by
+    // default headless Chromium renders WebGL2 through **SwiftShader** (a CPU
+    // software rasteriser), NOT the machine GPU — verified via
+    // UNMASKED_RENDERER_WEBGL ("SwiftShader Device"). Every real user has a GPU,
+    // so software-GL frame numbers are unrepresentative: they are fill-rate/
+    // viewport-area bound (flat in N) instead of exposing the real CPU/draw-call
+    // wall the WebGL substrate is built to beat. These ANGLE/D3D11 flags force
+    // the real GPU headless (verified: "ANGLE (Intel, Intel(R) UHD Graphics …,
+    // D3D11)"). Set PERF_SWIFTSHADER=1 to deliberately measure the software path
+    // (e.g. to size the no-GPU fallback). The bootApp logs the live renderer
+    // string each run so this can never silently regress again.
+    launchOptions: {
+      args: [
+        '--js-flags=--expose-gc',
+        ...(process.env.PERF_SWIFTSHADER
+          ? []
+          : [
+              '--ignore-gpu-blocklist',
+              '--enable-gpu-rasterization',
+              '--use-angle=d3d11'
+            ])
+      ]
+    }
   },
 
   // The Desktop Chrome device + the deterministic viewport override both live in

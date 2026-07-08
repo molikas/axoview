@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Box } from '@mui/material';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useInteractionManager } from 'src/interaction/useInteractionManager';
-import { useCanvasMode, CanvasModeContextValue } from 'src/contexts/CanvasModeContext';
+import {
+  useCanvasMode,
+  CanvasModeContextValue
+} from 'src/contexts/CanvasModeContext';
 import { Grid } from 'src/components/Grid/Grid';
 import { Cursor } from 'src/components/Cursor/Cursor';
 import { Nodes } from 'src/components/SceneLayers/Nodes/Nodes';
@@ -11,7 +14,10 @@ import { NodeLabelHitLayer } from 'src/components/SceneLayers/Nodes/NodeLabelHit
 import { LabelsCanvas } from 'src/components/SceneLayers/Labels/LabelsCanvas';
 import { LabelHitLayer } from 'src/components/SceneLayers/Labels/LabelHitLayer';
 import { Rectangles } from 'src/components/SceneLayers/Rectangles/Rectangles';
+import { RectanglesCanvas } from 'src/components/SceneLayers/Rectangles/RectanglesCanvas';
+import { isWebGL2Supported } from 'src/webgl/glSpriteBatch';
 import { Connectors } from 'src/components/SceneLayers/Connectors/Connectors';
+import { ConnectorsCanvas } from 'src/components/SceneLayers/Connectors/ConnectorsCanvas';
 import { ConnectorLabels } from 'src/components/SceneLayers/ConnectorLabels/ConnectorLabels';
 import { TextBoxes } from 'src/components/SceneLayers/TextBoxes/TextBoxes';
 import { SizeIndicator } from 'src/components/DebugUtils/SizeIndicator';
@@ -244,6 +250,18 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   // CSS-preview re-render) instead of a per-frame model write redrawing the whole
   // canvas. A primitive id selector → re-renders only on label-drag start/end.
   const labelDragId = useUiStateStore((s) => s.labelDrag?.id ?? null);
+  // Rectangle GPU-fold (2026-07-08): the DRAGGED rectangles keep their DOM
+  // [data-drag-id] element (DragItems mutates --ff-drag on it for the live
+  // move preview); everything else draws on the WebGL RectanglesCanvas. Picking
+  // + resize handles are geometric / separate overlays, so the bulk needs no DOM.
+  const draggingRectKey = useUiStateStore((s) =>
+    s.mode.type === 'DRAG_ITEMS'
+      ? s.mode.items
+          .filter((i) => i.type === 'RECTANGLE')
+          .map((i) => i.id)
+          .join(',')
+      : ''
+  );
   // ADR 0034: the text box being edited inline is promoted ABOVE the
   // interactions box (same reasoning as the hybrid nodes / label hit layers —
   // below it "the box ate every press"), so its Quill editor receives pointer
@@ -332,6 +350,64 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   // a bounds shift, so Connectors / ConnectorLabels memo-bail (see useStableList).
   const visibleConnectors = useStableList(visibleConnectorsRaw);
 
+  // Connector GPU-fold (2026-07-08): the bulk connector BODIES draw on the
+  // WebGL ConnectorsCanvas; only a sparse set keeps the DOM/SVG <Connector>:
+  // any SELECTED connector — the single `itemControls` pick AND every connector
+  // in the multi-selection `selectedIds` (a LASSO selects into selectedIds, not
+  // itemControls; without this its selection halo — DOM-only in <Connector> —
+  // would never render, so a lasso'd connector looked unselected) — plus any
+  // DEGENERATE 1-tile connector (the dot cue) and any UNROUTABLE one (the error
+  // badge). Picking is geometric (getItemAtTile over hitConnectors), so the bulk
+  // needs no DOM at all.
+  const selectedConnectorId = useUiStateStore((s) =>
+    s.itemControls?.type === 'CONNECTOR' ? s.itemControls.id : null
+  );
+  // Comma-joined ids of every CONNECTOR in the multi-selection — a primitive, so
+  // this re-renders only when the selected-connector set changes, not per frame.
+  const selectedConnectorKey = useUiStateStore((s) =>
+    s.selectedIds
+      .filter((r) => r.type === 'CONNECTOR')
+      .map((r) => r.id)
+      .join(',')
+  );
+  // No WebGL2 → the connector/rectangle GPU layers can't draw (they have no
+  // Canvas2D fallback), so keep ALL of them in DOM (the bulk must never vanish).
+  // `__axoviewNoGpuFold` (perf harness only, PERF_NO_GPU_FOLD) forces the DOM
+  // path for the connector/rect A/B (before=DOM vs after=GPU on one build).
+  const gpuLayers =
+    isWebGL2Supported() &&
+    !(
+      typeof window !== 'undefined' &&
+      (window as { __axoviewNoGpuFold?: boolean }).__axoviewNoGpuFold
+    );
+  const connectorHybridIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (selectedConnectorId) ids.add(selectedConnectorId);
+    if (selectedConnectorKey)
+      for (const id of selectedConnectorKey.split(',')) ids.add(id);
+    for (const hc of hitConnectors) {
+      if (hc.unroutable || (hc.path?.tiles && hc.path.tiles.length < 2))
+        ids.add(hc.id);
+    }
+    return ids;
+  }, [selectedConnectorId, selectedConnectorKey, hitConnectors]);
+  const domConnectors = useMemo(
+    () =>
+      !gpuLayers
+        ? visibleConnectors
+        : visibleConnectors.filter((c) => connectorHybridIds.has(c.id)),
+    [gpuLayers, visibleConnectors, connectorHybridIds]
+  );
+  const canvasConnectors = useMemo(
+    () =>
+      !gpuLayers
+        ? ([] as typeof visibleConnectors)
+        : connectorHybridIds.size === 0
+          ? visibleConnectors
+          : visibleConnectors.filter((c) => !connectorHybridIds.has(c.id)),
+    [gpuLayers, visibleConnectors, connectorHybridIds]
+  );
+
   // Floating Labels (ADR 0031) — viewport-culled like nodes; layer-visibility +
   // zIndex sort happen inside LabelsCanvas / LabelHitLayer.
   const visibleLabelsRaw = useMemo(() => {
@@ -346,6 +422,29 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
     );
   }, [labels, coarseBounds]);
   const visibleLabels = useStableList(visibleLabelsRaw);
+
+  const rectHybridIds = useMemo(
+    () => (draggingRectKey ? new Set(draggingRectKey.split(',')) : null),
+    [draggingRectKey]
+  );
+  const domRectangles = useMemo(
+    () =>
+      !gpuLayers
+        ? rectangles
+        : rectHybridIds
+          ? rectangles.filter((r) => rectHybridIds.has(r.id))
+          : ([] as typeof rectangles),
+    [gpuLayers, rectHybridIds, rectangles]
+  );
+  const canvasRectangles = useMemo(
+    () =>
+      !gpuLayers
+        ? ([] as typeof rectangles)
+        : rectHybridIds
+          ? rectangles.filter((r) => !rectHybridIds.has(r.id))
+          : rectangles,
+    [gpuLayers, rectHybridIds, rectangles]
+  );
 
   return (
     <Box
@@ -373,8 +472,11 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
             : (backgroundColor ?? theme.customVars.customPalette.diagramBg)
       }}
     >
+      {/* Rectangle FILLS + BORDERS on the GPU (bulk); the DOM <Rectangles> keeps
+          only the dragged rect (its [data-drag-id] drives the move preview). */}
+      <RectanglesCanvas rectangles={canvasRectangles} />
       <SceneLayer>
-        <Rectangles rectangles={rectangles} />
+        <Rectangles rectangles={domRectangles} />
       </SceneLayer>
       <SceneLayer>
         <Lasso />
@@ -396,8 +498,11 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
           <Cursor />
         </SceneLayer>
       )}
+      {/* Connector BODIES on the GPU (bulk); the DOM <Connectors> keeps only the
+          sparse hybrid (selected halo / degenerate dot / unroutable badge). */}
+      <ConnectorsCanvas connectors={canvasConnectors} />
       <SceneLayer>
-        <Connectors connectors={visibleConnectors} currentView={currentView} />
+        <Connectors connectors={domConnectors} currentView={currentView} />
       </SceneLayer>
       <SceneLayer>
         <TextBoxes textBoxes={restingTextBoxes} />

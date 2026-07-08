@@ -11,22 +11,19 @@ import {
   ChipColors,
   LabelChipLayout
 } from 'src/utils/labelChip';
-import {
-  createGLCompositor,
-  GLCompositor,
-  Corners
-} from 'src/webgl/glCompositor';
+import { createSpriteBatch, SpriteBatch } from 'src/webgl/glSpriteBatch';
 import { rasterizeLabelChip, CHIP_SUPERSAMPLE } from 'src/webgl/itemRaster';
 
 // ---------------------------------------------------------------------------
-// LabelsCanvas (ADR 0031) — WebGL draw of the floating Label layer (this spike).
+// LabelsCanvas (ADR 0031) — WebGL2 INSTANCED draw of the floating Label layer.
 // Each chip (rounded rect + text + decorations, via the shared drawLabelChip) is
-// rasterised ONCE into a content-keyed, mipmapped GL texture and re-blitted every
-// frame as a textured quad — glyph pixels identical to the old Canvas2D path.
+// rasterised ONCE into a content-keyed atlas entry and drawn as one instanced
+// quad — glyph pixels identical to the old Canvas2D path. Geometry is rebuilt
+// only on a scene / move / edit change; pan & zoom just update the view uniform
+// and issue one draw call (see glSpriteBatch / NodesCanvas for the model).
 //
 // Mounted ABOVE NodesCanvas in the Renderer, so a label can sit OVER a node.
-// DRAW-ONLY — selection + move are the DOM LabelHitLayer's job. The transform
-// mirrors the <SceneLayer> CSS exactly (see NodesCanvas). The imperative
+// DRAW-ONLY — selection + move are the DOM LabelHitLayer's job. The imperative
 // Canvas2D draw is kept below as an automatic FALLBACK where WebGL2 is absent.
 // ---------------------------------------------------------------------------
 
@@ -59,6 +56,7 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
   const pendingRef = useRef(false);
   const rafIdRef = useRef(0);
   const destroyedRef = useRef(false);
+  const geomDirtyRef = useRef(true);
   const scheduleDrawRef = useRef<() => void>(() => {});
 
   // Painter's-order sort cache (shared by both paths).
@@ -75,14 +73,14 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const compositor: GLCompositor | null = createGLCompositor(canvas);
-    const ctx: CanvasRenderingContext2D | null = compositor
+    const batch: SpriteBatch | null = createSpriteBatch(canvas);
+    const ctx: CanvasRenderingContext2D | null = batch
       ? null
       : canvas.getContext('2d');
-    if (!compositor && !ctx) return;
+    if (!batch && !ctx) return;
 
     // Throwaway 2D context for measureText in the GL path.
-    const measureCtx: CanvasRenderingContext2D | null = compositor
+    const measureCtx: CanvasRenderingContext2D | null = batch
       ? document.createElement('canvas').getContext('2d')
       : ctx;
 
@@ -112,7 +110,11 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
         sorted = [...filtered]
           .reverse()
           .sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
-        sortCacheRef.current = { labels: allLabels, visibleIds: visible, sorted };
+        sortCacheRef.current = {
+          labels: allLabels,
+          visibleIds: visible,
+          sorted
+        };
       }
 
       return {
@@ -168,40 +170,15 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
       return { cx, cy, layout };
     };
 
-    // ----- WebGL path -----
-    const drawGL = (comp: GLCompositor) => {
-      pendingRef.current = false;
+    // ----- WebGL instanced path -----
+    let buildCount = 0; // data-build-count — must stay flat during pan (no CPU/frame)
+    const buildInstances = (b: SpriteBatch) => {
       const f = frameState();
-      canvas.style.width = `${f.W}px`;
-      canvas.style.height = `${f.H}px`;
-      comp.begin(f.bw, f.bh);
-
-      const { scroll, zoom, W, H, dpr } = f;
-      const originX = W / 2 + scroll.position.x;
-      const originY = H / 2 + scroll.position.y;
-      const dX = (tx: number) => (zoom * tx + originX) * dpr;
-      const dY = (ty: number) => (zoom * ty + originY) * dpr;
-      const cornersOf = (cx: number, cy: number, w: number, h: number): Corners => {
-        const x0 = cx - w / 2;
-        const y0 = cy - h / 2;
-        const x1 = cx + w / 2;
-        const y1 = cy + h / 2;
-        return {
-          tlx: dX(x0),
-          tly: dY(y0),
-          trx: dX(x1),
-          try_: dY(y0),
-          brx: dX(x1),
-          bry: dY(y1),
-          blx: dX(x0),
-          bly: dY(y1)
-        };
-      };
-
-      const ss = dpr * CHIP_SUPERSAMPLE;
+      const ss = f.dpr * CHIP_SUPERSAMPLE;
       const mctx = measureCtx;
       let drawn = 0;
       if (mctx) {
+        b.beginInstances();
         for (const label of f.sorted) {
           if (label.id === f.editingId) continue;
           const { cx, cy, layout } = resolveLabel(
@@ -211,27 +188,50 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
             mctx
           );
           const linked = !!label.headerLink;
-          const texKey = `label|${labelFontPx(label)}|${label.isBold ? 1 : 0}|${
-            label.isItalic ? 1 : 0
-          }|${label.isStrikethrough ? 1 : 0}|${label.isUnderline ? 1 : 0}|${
-            linked ? 1 : 0
-          }|${label.color || ''}|${label.backgroundColor || ''}|${
-            label.backgroundOpacity ?? 1
-          }|${f.colors.bg}|${f.colors.border}|${f.colors.text}|${label.text}`;
-          const tex = comp.canvasTexture(texKey, 0, () =>
+          const texKey = `label|${labelFontPx(label)}|${
+            label.isBold ? 1 : 0
+          }|${label.isItalic ? 1 : 0}|${label.isStrikethrough ? 1 : 0}|${
+            label.isUnderline ? 1 : 0
+          }|${linked ? 1 : 0}|${label.color || ''}|${
+            label.backgroundColor || ''
+          }|${label.backgroundOpacity ?? 1}|${f.colors.bg}|${f.colors.border}|${
+            f.colors.text
+          }|${label.text}`;
+          const uv = b.putCanvas(texKey, 0, () =>
             rasterizeLabelChip(label, layout, f.colors, ss)
           );
-          if (tex) {
-            comp.drawTexturedQuad(
-              tex,
-              cornersOf(cx, cy, layout.chipW, layout.chipH)
-            );
+          if (uv) {
+            const w = layout.chipW;
+            const h = layout.chipH;
+            b.addSprite(cx, cy, -w / 2, -h / 2, w, 0, 0, h, uv, 1, 1, 1, 1, 0);
             drawn += 1;
           }
         }
+        b.commitInstances();
       }
-      comp.end();
       canvas.dataset.drawCount = String(drawn);
+      canvas.dataset.buildCount = String(++buildCount);
+    };
+
+    const drawGLBatch = (b: SpriteBatch) => {
+      pendingRef.current = false;
+      const ui = uiApi.getState();
+      const { scroll, zoom, rendererSize } = ui;
+      const dpr = window.devicePixelRatio || 1;
+      const W = rendererSize.width;
+      const H = rendererSize.height;
+      const bw = Math.max(1, Math.round(W * dpr));
+      const bh = Math.max(1, Math.round(H * dpr));
+
+      if (geomDirtyRef.current) {
+        buildInstances(b);
+        geomDirtyRef.current = false;
+      }
+      canvas.style.width = `${W}px`;
+      canvas.style.height = `${H}px`;
+      const originXDev = (W / 2 + scroll.position.x) * dpr;
+      const originYDev = (H / 2 + scroll.position.y) * dpr;
+      b.render(bw, bh, zoom * dpr, originXDev, originYDev, 1);
     };
 
     // ----- Canvas2D FALLBACK path (verbatim from the pre-WebGL implementation) -----
@@ -259,7 +259,12 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
       let drawn = 0;
       for (const label of f.sorted) {
         if (label.id === f.editingId) continue;
-        const { cx, cy, layout } = resolveLabel(label, f.move, f.getTilePos, c2d);
+        const { cx, cy, layout } = resolveLabel(
+          label,
+          f.move,
+          f.getTilePos,
+          c2d
+        );
         c2d.save();
         drawLabelChip(c2d, cx, cy, label, layout, f.colors);
         c2d.restore();
@@ -269,7 +274,7 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
     };
 
     const draw = () => {
-      if (compositor) drawGL(compositor);
+      if (batch) drawGLBatch(batch);
       else if (ctx) drawCanvas2D(ctx);
     };
 
@@ -299,6 +304,14 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
       ) {
         return;
       }
+      // A live move-preview or an edit-skip change what's drawn → rebuild;
+      // scroll/zoom alone just re-render the cached instances.
+      if (
+        s.labelMove !== p.labelMove ||
+        s.inlineEditLabelId !== p.inlineEditLabelId
+      ) {
+        geomDirtyRef.current = true;
+      }
       if (s.scroll !== p.scroll || s.zoom !== p.zoom) {
         drawNow();
       } else {
@@ -310,13 +323,14 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
       destroyedRef.current = true;
       cancelAnimationFrame(rafIdRef.current);
       unsubUi();
-      compositor?.destroy();
+      batch?.destroy();
     };
   }, [uiApi]);
 
   useEffect(() => {
+    geomDirtyRef.current = true;
     scheduleDrawRef.current();
-  }, [labels, visibleIds]);
+  }, [labels, visibleIds, theme]);
 
   return (
     <canvas

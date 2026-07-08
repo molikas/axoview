@@ -13,7 +13,12 @@
 // ---------------------------------------------------------------------------
 
 import { Label } from 'src/types';
-import { drawLabelChip, roundRectPath, ChipColors, LabelChipLayout } from 'src/utils/labelChip';
+import {
+  drawLabelChip,
+  roundRectPath,
+  ChipColors,
+  LabelChipLayout
+} from 'src/utils/labelChip';
 
 // 2× keeps text crisp to 2× zoom-in; beyond that it softens (acceptable — the
 // old Canvas2D path re-rendered per frame and stayed crisp at any zoom, the one
@@ -23,7 +28,11 @@ export const CHIP_SUPERSAMPLE = 2;
 // One reusable scratch canvas — a rasterised chip is uploaded to its GL texture
 // synchronously (inside canvasTexture), so a single scratch is safe to recycle.
 let scratch: HTMLCanvasElement | null = null;
-const getScratch = (wCss: number, hCss: number, ss: number): HTMLCanvasElement => {
+const getScratch = (
+  wCss: number,
+  hCss: number,
+  ss: number
+): HTMLCanvasElement => {
   if (!scratch) scratch = document.createElement('canvas');
   scratch.width = Math.max(1, Math.ceil(wCss * ss));
   scratch.height = Math.max(1, Math.ceil(hCss * ss));
@@ -111,22 +120,5 @@ export const rasterizeLabelChip = (
   ctx.setTransform(ss, 0, 0, ss, 0, 0);
   ctx.clearRect(0, 0, layout.chipW, layout.chipH);
   drawLabelChip(ctx, layout.chipW / 2, layout.chipH / 2, label, layout, colors);
-  return cnv;
-};
-
-// A white filled circle (alpha mask) for the dotted stalk — drawn as a tinted
-// textured quad so a round cap is faithful (mirrors the DOM stalk's round cap /
-// NodesCanvas' setLineDash([0,6]) round dots). Built once, cached by a stable key.
-export const makeDotCanvas = (): HTMLCanvasElement => {
-  const size = 32;
-  const cnv = document.createElement('canvas');
-  cnv.width = size;
-  cnv.height = size;
-  const ctx = cnv.getContext('2d')!;
-  ctx.clearRect(0, 0, size, size);
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.arc(size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
-  ctx.fill();
   return cnv;
 };

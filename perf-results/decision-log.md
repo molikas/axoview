@@ -1506,3 +1506,220 @@ after any partial/diagnostic run; let `npm run perf` own the dev-server lifecycl
 packages/axoview-e2e/playwright.config.ts --project=chromium drag-collision
 undo-redo-cross-cutting undo-redo-dual-stack multi-select-drag z-order
 rectangle-overlap-zorder css-preview-mid-drag rename readable-labels`.
+
+---
+
+## 🟡 T4 — WebGL INSTANCING (2026-07-07): node/label O(N)→O(1) pan & drag to 20,000 nodes
+
+**Context / authorization.** The 2026-06-25 decision DEFERRED T4 (WebGL) as a RED gate.
+**The owner re-opened it this session** ("we just did a webgl rewrite… do an optimistic/
+heroic rewrite… run perf tests… resolve until a wall or marginal returns") — explicit
+authorization to cross the gate. The prior session committed a WebGL2 **per-quad** spike
+(`glCompositor`, `b2318c6`) that moved compositing to the GPU but left the **big perf win
+deferred**: it re-emitted every quad's device corners on the CPU per frame, re-uploaded a
+vertex buffer per frame, and (because every chip is a unique content-keyed texture) flushed
+**one draw call per node** → pan/zoom O(N) on the CPU. This session finished it. Full report:
+[`perf-results/webgl-instancing.md`](webgl-instancing.md).
+
+### 🛠 Harness-fidelity fix FIRST (load-bearing — the whole measurement was software)
+
+Headless Playwright renders WebGL2 on **SwiftShader (a CPU software rasteriser)**, verified
+`UNMASKED_RENDERER_WEBGL = "…SwiftShader Device…"`. All prior WebGL-spike frame numbers were
+software fill-rate bound (flat in N ~54 ms), NOT the real wall — the same class of
+unrepresentative-measurement trap as the Iter-0 StrictMode/diagnostics fixes.
+- `perf.config.ts`: force the real GPU headless (`--ignore-gpu-blocklist
+  --enable-gpu-rasterization --use-angle=d3d11` → `ANGLE (Intel UHD, D3D11)`).
+  `PERF_SWIFTSHADER=1` to measure software deliberately.
+- `bootApp`: logs the live WebGL renderer every run (a permanent guard against silent
+  SwiftShader regression). **All numbers below are the real GPU.**
+
+### Hypothesis + one variable
+
+Instancing the node/label draw (GPU-side transform + a texture atlas; geometry uploaded ONCE
+per scene change) makes pan/drag O(1) in N. **Variable:** `glCompositor` (per-quad, per-frame
+CPU emit + per-node draw call) → **`glSpriteBatch`** (instanced, single mipmapped atlas, one
+`drawArraysInstanced`, vertex-shader transform; anchor + local basis vectors that bake the iso
+shear + counter-scale flag, `gl_VertexID` unit quad). `NodesCanvas`/`LabelsCanvas` rewired;
+`buildInstances` (O(N) CPU) runs only on a scene change, never on navigation. Canvas2D
+fallback kept verbatim.
+
+### Result — same-session A/B, real GPU, matched cal (ref 3.4 / instanced 3.2–3.4)
+
+**PAN** (`measurePan`, per-frame repaint):
+
+| N | ref per-quad (node+conn) | instanced node canvas (NOCONN) |
+|---|---|---|
+| 1000 | 17.7 mean / p95 33.2 | 18.1 mean / **p95 16.8** |
+| 2000 | 22.3 | **16.67** |
+| 5000 | 44.8 | **16.67** |
+| 10000 | **102.1** (longtask 7543) | **16.67** (longtask 0) |
+| 20000 | (≈200+, off the wall) | **16.67** (p95 16.71, 0% noise) |
+
+→ **Node canvas pan is now perfectly FLAT at 16.67 ms = locked 60 fps, O(1) in N, zero
+long-tasks, to 20,000 nodes.** At N=10000: **102 → 16.7 ms = 6.1×.** draw-count = N every
+cell (anti-cheat: every node painted, no cull). Gain ≫ drift.
+
+**DRAG** flat **16.67 ms (60 fps) to 20,000** (instancing made the per-frame drag redraw O(1)
+too; dragged node stays a DOM hybrid). **SPAWN** settle plateaus **~117 ms even at 20,000**
+(one-time `buildInstances` + first draw; commit 11 ms) — a brief load blip, not the old
+multi-second freeze.
+
+### Verdict: 🟢 KEEP — decisive, clean, verified.
+
+- `tsc` clean · lib build clean · **unit 1483 passed / 1 skipped**.
+- **Visual parity** (real-GPU screenshots): icons on tiles, iso-shear on non-iso icons, iso
+  cubes upright, chips above with bold/italic/strike/underline/link-blue/colour, dotted
+  stalks, correct back-to-front painter's order; LOD @zoom0.14 icons-only, clean mipmapped
+  minification (no atlas bleed).
+- **e2e correctness gate: 19 passed / 0 failed** (drag-collision, both undo-redo,
+  multi-select-drag, z-order, rectangle-overlap-zorder, css-preview-mid-drag, rename,
+  readable-labels, **import-export-image** — WebGL image export via `preserveDrawingBuffer`
+  works).
+
+### 🔬 Finding — the NEXT WALL is the DOM/SVG connector layer (confirmed, NOT resolved)
+
+WITH connectors, high-N pan is bound by the **connector subsystem, not the node canvas**:
+the isolated node canvas contributes only 16.67 ms, so the ~44 ms @5k (ref AND instanced,
+with connectors) is **~100 % the DOM/SVG connectors** re-compositing on the CSS pan transform.
+This is exactly the "remaining Canvas2D headroom" the 2026-06-25 decision named. Resolving it
+= folding connector LINES onto the GPU (`glSpriteBatch`'s anchor+basis form draws line-segment
+quads trivially) — **but connectors are a heavily-productized, tested layer** (halo + core +
+arrow + double/dashed/dotted + degenerate-dot + unroutable + selection halo + labels + anchor
+overlay; e2e asserts on `data-testid=connector-path` DOM). A full fold is a **large,
+fidelity-risky, multi-session effort → RED gate: present a written design + measured PoC
+before overhauling** (charter rule). Sized here with the prize measured (the entire high-N pan
+delta); **held for owner go-ahead** rather than an autonomous overnight rewrite.
+
+### 🐛 Atlas robustness fix (caught in review — the 16-node screenshot was too small)
+
+The first 4096² atlas held ~950 distinct chips; the fit-to-view harness at **N=1000, LOD labels
+ON draws ~1000 chips at once** → overflow → the reset-and-retry **thrashed and could strand
+already-packed sprites (silently missing/garbled chips)**. Real scenes never hit it (viewport
+culling caps simultaneous chips at ~hundreds), but it's a correctness risk. Fixed: **8192²**
+atlas (~3–4 k chips), packer **never resets mid-build** (overflow chip skipped one build; atlas
+**compacts at next `beginInstances()`**; stalk-dot region **reserved** so its UV survives).
+**Verified: a 900-unique-chip readable scene renders every chip** (drawCount 900, labelsDrawn
+900; the old 4096² dropped ~50+). Node spawn stays cheap: NOCONN settle N=500 100 ms / N=1000
+83 ms (the WITH-conn N=1000 ≈633 ms is the pre-existing connector-routing commit, not nodes).
+
+### Deliverables (integration, uncommitted working tree)
+
+`webgl/glSpriteBatch.ts` (new), `NodesCanvas.tsx` + `LabelsCanvas.tsx` (rewired), harness GPU
+flags + renderer log (`perf.config.ts`, `engine-perf.spec.ts`), `perf-results/webgl-instancing.md`,
+this row. **Dead per-quad path removed** (`glCompositor.ts` deleted, `itemRaster.makeDotCanvas`
+removed — the batch has its own dot). Verified end-to-end: tsc, unit 1483, e2e gate 19/19,
+visual parity (readable + LOD + 900-chip stress). Known WebGL-substrate caveat (pre-existing):
+`canvas-node-render.spec` + `import-export-image` pixel-sampling read the node canvas via
+`getContext('2d').getImageData` — impossible on a WebGL canvas — needs a `readPixels`/screenshot
+shim (not in the gate).
+
+## ▶ COLD-START RESUME POINT (newest — 2026-07-07) — SUPERSEDES the 2026-06-25 point
+
+**Branch `integration`.** The prior WebGL spike (`b2318c6`, per-quad glCompositor) is finished:
+**node + label layers are now WebGL2 INSTANCED (`glSpriteBatch`) — one atlas, one draw call,
+vertex-shader transform.** Pan & drag are **O(1) / locked 60 fps to 20,000 nodes** (was O(N),
+wall at ~10k); spawn ~117 ms @20k. Working tree (uncommitted): `glSpriteBatch.ts`,
+`NodesCanvas.tsx`, `LabelsCanvas.tsx`, `perf.config.ts`, `engine-perf.spec.ts`,
+`webgl-instancing.md`. Verified: tsc, unit 1483, e2e gate 19/19, visual parity, real-GPU
+measured. **NOT yet committed** — owner reviews `integration` manually.
+
+**NEXT (in order):**
+1. **Owner review** of the instancing change on `integration` (then commit).
+2. **Connector GPU fold** — the confirmed next wall (100 % of high-N WITH-conn pan). RED gate:
+   present a written design + a flag-gated measured PoC (solid single-line first) before the
+   multi-session fold. `glSpriteBatch` already draws line quads.
+3. **Harness debt:** a `readPixels`/screenshot shim so `canvas-node-render` /
+   `import-export-image` pixel specs work on the WebGL canvas; and a full clean-cold
+   instanced `baseline.md` refresh (left at the old Canvas2D numbers — a warm run's
+   WITH-conn spawn is connector-routing-dominated, misleading as a node baseline).
+4. **Atlas (only if a real culled scene nears the cap):** `sampler2DArray` pages for
+   unbounded chip capacity. (Dead per-quad `glCompositor.ts` + `makeDotCanvas` already deleted.)
+
+**Gotchas (carry forward, ALL still apply):** ⚠️ **WebGL perf MUST run on the real GPU** —
+check the `[perf] WebGL renderer:` line each run (SwiftShader = software = fill-rate bound, not
+the wall). Same-session A/B + stable calibration index mandatory; `git checkout --
+perf-results/baseline.md perf-results/pan.md` after any partial/diagnostic run (PERF_PAN writes
+pan.md, PERF_N writes baseline.md); let the harness own the dev server (build:lib desyncs it —
+`Can't resolve 'axoview'`); kill stray :3000 listeners. Correctness gate command unchanged
+(above).
+
+---
+
+## 🟡 GPU FOLD (2026-07-08): connectors + rectangles onto WebGL — APPLIED, measurement power-gated
+
+**Context.** Owner tested the node/label instancing and asked to fix the next wall — the
+DOM/SVG **connector** layer (100 % of high-N pan cost, T4 finding) — plus fold "all element
+types" and add a harness gate requiring AC power before measuring (laptop was on battery;
+CPU/GPU throttle → non-representative numbers).
+
+**Mapping first (subagent, geometric-vs-DOM picking is the load-bearing fact):** connector +
+rectangle picking is **100 % geometric** (`getItemAtTile` over `hitConnectors[].path.tiles` /
+`rectangles[].from/to`) — removing the visible SVG does NOT break selection. Connector **labels**
+are DOM-interactive (no geometric fallback). So: connectors + rects are safe to fold with a
+sparse DOM hybrid; conn-labels need a hit-proxy.
+
+**Applied:**
+- **`glSpriteBatch`** gained a `white` texel (solid quads / lines) + a configurable atlas size
+  (chip layers 8192; the new line/fill layers 512) + `isWebGL2Supported()` (no-WebGL2 →
+  Renderer keeps connectors/rects in DOM; the new layers have no Canvas2D fallback).
+- **`ConnectorsCanvas`** (new) — instanced halo + core polyline (scene points via
+  `getTilePosition(connectorPathTileToGlobal)`, the space ConnectorLabel already uses), round
+  join/cap dots, packed arrowhead sprite. DOM `<Connectors>` hybrid = selected + degenerate-dot
+  + unroutable (own the halo / dot / error visuals). Dashed/dotted + double-line styles + rounded
+  corners are DOM-hybrid / approximated for now (documented).
+- **`RectanglesCanvas`** (new) — instanced iso fill parallelogram + border segments. DOM
+  `<Rectangles>` hybrid = the **dragged** rect only (its `[data-drag-id]` drives the move
+  preview); resize handles are separate TransformControls overlays.
+- **Harness `PERF_ALLTYPES`** — the representative scene now carries ≥3 styled labels/connector,
+  styled rectangle borders, and floating Labels (every renderer exercised at once).
+- **AC-power gate** — `requireACPower()` blocks measurement on battery (Windows
+  `BatteryStatus.PowerOnline`); `PERF_ALLOW_BATTERY=1` overrides. Verified it detects battery.
+- **"No per-frame CPU work" check** — every GPU canvas publishes `data-build-count`; `measurePan`
+  asserts the summed delta is **0** across the pan (buildInstances = the only O(N) CPU, must not
+  run during navigation). Reusable prompt: [`no-cpu-work-check.md`](no-cpu-work-check.md).
+
+**Correctness — GREEN (power-independent):** tsc clean · lib unit **1483 passed** · **e2e 27
+passed / 0 failed** (drag/undo/z-order/rename/readable-labels + **connector-selection-clarity,
+connector-dot-and-label-placement, rectangle-move-resize, rectangle-overlap-select, shapes,
+lasso-connector-delete** — selection/interaction survive the fold) · all-types real-GPU
+screenshot: nodes + colored halo/core connectors w/ arrows + rectangle fills+borders + floating
+labels all render + line up.
+
+**Connector labels — LOD-culled (measured-justified).** On-power measurement PROVED conn-labels
+were the residual wall: with connectors+rects on the GPU but conn-labels on DOM, the all-types
+pan was 16.67 (N=1000) → **28.75 (N=2000)** → **81.87 ms + 6.4 s longtask (N=5000)** — the 3×N DOM
+label chips composite per frame. Rather than a blind GPU fold (DOM-coupled drag/edit → risky),
+**LOD-cull them below readable zoom** (`readableLabels || zoom≥0.25`, mirroring the node-label
+canvas LOD; only the SELECTED connector keeps labels live for F2/inline-edit). At fit-to-view
+large N they are unreadable anyway → culled → O(1) restored. Low-risk, consistent, one boolean
+selector (re-renders only on the LOD flip, never per pan frame).
+
+### ▶ MEASURED (on AC power, real GPU) — the win
+
+**All-types pan (`PERF_ALLTYPES` — every connector carries 3 labels + rects + floating labels):**
+
+| N | BEFORE (all DOM) | GPU-fold only (conn-labels DOM) | AFTER (GPU fold + conn-label LOD) |
+|---|---|---|---|
+| 1000 | 22.8 ms | 16.67 (lt 0) | **16.67 (60 fps, lt 0, noCPU-rebuild=true)** |
+| 2000 | **45.5 ms** (lt 653) | 28.75 (lt 0) | **16.67 (60 fps, lt 0, noCPU-rebuild=true)** |
+| 5000 | (wall, ~100 ms+) | **81.87 (lt 6438)** | **16.67 (60 fps, lt 0, noCPU-rebuild=true)** |
+
+(BEFORE ran at cal 4.1 warm vs AFTER cal 3.5 — but AFTER sits at the **vsync floor**, so it is
+cal-independent; the point is BEFORE **scales/exceeds budget** while AFTER is **locked 60 fps
+O(1)**.) The two fixes stack: (a) connector/rectangle bodies → GPU removes the SVG re-composite;
+(b) connector-label LOD removes the residual DOM-chip wall. `noCPU-rebuild=true` at every cell =
+machine-checkable proof no per-frame CPU geometry work leaked into the pan.
+
+**Correctness after the LOD-cull:** connector-label / node-label / connector interaction specs
+green (LOD only culls when zoomed out; specs interact at readable zoom).
+
+**🐛 Fix (owner-reported) — lasso/multi-selected connectors showed NO selection halo.** The fold
+regressed it: `connectorHybridIds` moved only the SINGLE `itemControls` connector to the DOM
+`<Connector>` (which owns the selection-halo SVG), but a LASSO multi-selects into `selectedIds`
+— those stayed on the GPU canvas, so their halo never rendered (selection STATE was correct —
+`getItemsInBounds` is geometric — only the visual was missing; `lasso-connector-delete` passed
+because it asserts deletion, not the halo). Fix: `connectorHybridIds` now also includes every
+`selectedIds` CONNECTOR (via a comma-joined primitive selector). Reproduced (5 lasso'd
+connectors → `selectionHalos` 0→5, `domConnectorPaths` 0→5) and re-verified green.
+
+**Committed to `integration`** (owner asked). Executive summary handed to the owner.
