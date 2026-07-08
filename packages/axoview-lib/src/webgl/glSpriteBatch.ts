@@ -72,19 +72,26 @@ void main() {
 const FLOATS_PER_INSTANCE = 20;
 const ATTR_STRIDE = FLOATS_PER_INSTANCE * 4;
 
-// Cheap one-time WebGL2 capability probe. The connector/rectangle GPU layers
-// have NO Canvas2D fallback (unlike NodesCanvas/LabelsCanvas), so the Renderer
-// uses this to keep those bulk layers in DOM when WebGL2 is unavailable — the
-// bulk must never silently vanish. Memoised; safe to call every render.
+// Cheap one-time WebGL2 capability probe. WebGL2 is the SOLE render substrate
+// (ADR 0038): the Renderer calls this once and shows the WebGLUnsupportedScreen
+// gate when it is false — there is no Canvas2D/DOM bulk fallback in any layer.
+// Memoised (and the probe context is released below); safe to call every render.
+// NOTE: this is strictly WEAKER than what createSpriteBatch needs (it does not
+// compile the shaders or allocate the atlas), so a browser that advertises
+// WebGL2 but fails those can still slip past the gate — the layers surface that
+// with a console.warn and a blank layer rather than a crash.
 let _webgl2Supported: boolean | null = null;
 export const isWebGL2Supported = (): boolean => {
   if (_webgl2Supported !== null) return _webgl2Supported;
   try {
     const c = document.createElement('canvas');
-    _webgl2Supported =
-      !!c.getContext('webgl2') &&
-      typeof (c.getContext('webgl2') as WebGL2RenderingContext)
-        ?.createVertexArray === 'function';
+    const gl = c.getContext('webgl2') as WebGL2RenderingContext | null;
+    _webgl2Supported = !!gl && typeof gl.createVertexArray === 'function';
+    // Release the probe's context immediately — otherwise it holds one of the
+    // browser's ~16 live WebGL-context slots for the tab's life (each Renderer
+    // opens 4, and image-export mounts a second Renderer), pushing a busy
+    // session toward the cap where the oldest context gets force-lost.
+    gl?.getExtension('WEBGL_lose_context')?.loseContext();
   } catch {
     _webgl2Supported = false;
   }
@@ -163,7 +170,6 @@ const compileShader = (
   gl.shaderSource(sh, src);
   gl.compileShader(sh);
   if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
-    // eslint-disable-next-line no-console
     console.warn(
       '[glSpriteBatch] shader compile failed:',
       gl.getShaderInfoLog(sh)
@@ -213,7 +219,6 @@ export const createSpriteBatch = (
   gl.attachShader(prog, fs);
   gl.linkProgram(prog);
   if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-    // eslint-disable-next-line no-console
     console.warn('[glSpriteBatch] link failed:', gl.getProgramInfoLog(prog));
     return null;
   }

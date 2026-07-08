@@ -12,6 +12,7 @@ import {
   SpriteBatch,
   UVRect
 } from 'src/webgl/glSpriteBatch';
+import { attachContextLossRecovery } from 'src/webgl/contextLoss';
 
 // ---------------------------------------------------------------------------
 // RectanglesCanvas — WebGL2 INSTANCED draw of grouping-rectangle FILLS + BORDERS
@@ -72,8 +73,18 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const batch: SpriteBatch | null = createSpriteBatch(canvas, 512);
-    if (!batch) return;
+    let batch: SpriteBatch | null = createSpriteBatch(canvas, 512);
+    if (!batch) {
+      // WebGL2 passed the gate probe but the batch failed here (shader/link or
+      // context exhaustion). Surface it — the bulk rectangle fills have no fallback.
+      console.warn(
+        '[RectanglesCanvas] WebGL2 sprite batch unavailable — rectangle fills will not render'
+      );
+      return;
+    }
+    // Context-loss recovery: rebuild the batch on restore so a lost GPU context
+    // doesn't blank the grouping-rectangle fills permanently.
+    let contextLost = false;
     let buildCount = 0; // data-build-count — must stay flat during pan (no CPU/frame)
 
     const view = () => {
@@ -240,6 +251,7 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
 
     const drawGLBatch = (b: SpriteBatch) => {
       pendingRef.current = false;
+      if (contextLost) return;
       const v = view();
       if (geomDirtyRef.current) {
         buildInstances(b);
@@ -255,13 +267,15 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
     const scheduleDraw = () => {
       if (pendingRef.current || destroyedRef.current) return;
       pendingRef.current = true;
-      rafIdRef.current = requestAnimationFrame(() => drawGLBatch(batch));
+      rafIdRef.current = requestAnimationFrame(() => {
+        if (batch) drawGLBatch(batch);
+      });
     };
     const drawNow = () => {
       if (destroyedRef.current) return;
       pendingRef.current = false;
       cancelAnimationFrame(rafIdRef.current);
-      drawGLBatch(batch);
+      if (batch) drawGLBatch(batch);
     };
     destroyedRef.current = false;
     pendingRef.current = false;
@@ -284,12 +298,27 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
       scheduleDraw();
     });
 
+    const detachLoss = attachContextLossRecovery(canvas, {
+      onLost: () => {
+        contextLost = true;
+      },
+      onRestored: () => {
+        const rebuilt = createSpriteBatch(canvas, 512);
+        if (!rebuilt) return;
+        batch = rebuilt;
+        contextLost = false;
+        geomDirtyRef.current = true;
+        drawNow();
+      }
+    });
+
     return () => {
       destroyedRef.current = true;
       cancelAnimationFrame(rafIdRef.current);
       unsubUi();
       unsubModel();
-      batch.destroy();
+      detachLoss();
+      batch?.destroy();
     };
   }, [uiApi, modelApi]);
 

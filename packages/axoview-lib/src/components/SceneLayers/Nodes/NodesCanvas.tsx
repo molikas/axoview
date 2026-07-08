@@ -23,6 +23,7 @@ import { decodeHtmlEntities } from 'src/utils/htmlToPlainText';
 import { isLabelVisibleInPreview } from 'src/utils/previewLabelVisibility';
 import { LABEL_LINK_COLOR } from 'src/utils/labelChip';
 import { createSpriteBatch, SpriteBatch } from 'src/webgl/glSpriteBatch';
+import { attachContextLossRecovery } from 'src/webgl/contextLoss';
 import { rasterizeNodeChip, CHIP_SUPERSAMPLE } from 'src/webgl/itemRaster';
 
 // ---------------------------------------------------------------------------
@@ -248,8 +249,20 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       typeof window !== 'undefined' && window.devicePixelRatio >= 2
         ? 4096
         : 8192;
-    const batch: SpriteBatch | null = createSpriteBatch(canvas, atlasSize);
-    if (!batch) return;
+    let batch: SpriteBatch | null = createSpriteBatch(canvas, atlasSize);
+    if (!batch) {
+      // WebGL2 passed the gate probe but a real batch couldn't be built here
+      // (shader/link/atlas-alloc failure, or context exhaustion). Surface it
+      // rather than silently drawing nothing into a blank canvas.
+      console.warn(
+        '[NodesCanvas] WebGL2 sprite batch unavailable — node layer will not render'
+      );
+      return;
+    }
+    // Context-loss recovery: a lost GPU context (tab reclaim, driver reset,
+    // context-cap eviction) would otherwise blank the node layer PERMANENTLY —
+    // WebGL2 is the sole substrate, no fallback. Rebuilt on restore below.
+    let contextLost = false;
 
     // A throwaway 2D context purely for measureText (the visible canvas is owned
     // by WebGL and has no 2D context).
@@ -634,6 +647,7 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
 
     const drawGLBatch = (b: SpriteBatch) => {
       pendingRef.current = false;
+      if (contextLost) return;
       const ui = uiApi.getState();
       const { scroll, zoom, rendererSize, readableLabels } = ui;
       const dpr = window.devicePixelRatio || 1;
@@ -664,7 +678,7 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
     };
 
     const draw = () => {
-      drawGLBatch(batch);
+      if (batch) drawGLBatch(batch);
     };
 
     const scheduleDraw = () => {
@@ -719,11 +733,26 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       scheduleDraw();
     });
 
+    const detachLoss = attachContextLossRecovery(canvas, {
+      onLost: () => {
+        contextLost = true;
+      },
+      onRestored: () => {
+        const rebuilt = createSpriteBatch(canvas, atlasSize);
+        if (!rebuilt) return;
+        batch = rebuilt;
+        contextLost = false;
+        geomDirtyRef.current = true;
+        drawNow();
+      }
+    });
+
     return () => {
       destroyedRef.current = true;
       cancelAnimationFrame(rafIdRef.current);
       unsubUi();
       unsubModel();
+      detachLoss();
       batch?.destroy();
     };
   }, [uiApi, modelApi]);

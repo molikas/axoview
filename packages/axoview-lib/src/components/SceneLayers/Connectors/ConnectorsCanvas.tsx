@@ -14,6 +14,7 @@ import {
   SpriteBatch,
   UVRect
 } from 'src/webgl/glSpriteBatch';
+import { attachContextLossRecovery } from 'src/webgl/contextLoss';
 
 // ---------------------------------------------------------------------------
 // ConnectorsCanvas — WebGL2 INSTANCED draw of the connector BODIES (halo + core
@@ -106,10 +107,22 @@ export const ConnectorsCanvas = memo(({ connectors }: Props) => {
     if (!canvas) return;
 
     // Bodies need only the white + dot + arrow texels → a tiny atlas.
-    const batch: SpriteBatch | null = createSpriteBatch(canvas, 512);
-    if (!batch) return; // no WebGL2 → the DOM <Connectors> layer stays the renderer
-    const arrowUV: UVRect =
+    let batch: SpriteBatch | null = createSpriteBatch(canvas, 512);
+    if (!batch) {
+      // WebGL2 passed the gate probe but the batch failed here (shader/link or
+      // context exhaustion). Surface it — the bulk connector bodies have no DOM
+      // fallback; only the sparse selected/degenerate/unroutable hybrid is DOM.
+      console.warn(
+        '[ConnectorsCanvas] WebGL2 sprite batch unavailable — connector bodies will not render'
+      );
+      return;
+    }
+    let arrowUV: UVRect =
       batch.putCanvas('__arrow__', 0, makeArrowCanvas) ?? batch.white;
+    // Context-loss recovery: rebuild the batch (+ re-pack the arrow sprite, whose
+    // UV is captured outside buildInstances) on restore, so a lost GPU context
+    // doesn't blank the connector bodies permanently.
+    let contextLost = false;
     let buildCount = 0; // data-build-count — must stay flat during pan (no CPU/frame)
 
     const view = () => {
@@ -275,6 +288,7 @@ export const ConnectorsCanvas = memo(({ connectors }: Props) => {
 
     const drawGLBatch = (b: SpriteBatch) => {
       pendingRef.current = false;
+      if (contextLost) return;
       const v = view();
       if (geomDirtyRef.current) {
         buildInstances(b);
@@ -290,13 +304,15 @@ export const ConnectorsCanvas = memo(({ connectors }: Props) => {
     const scheduleDraw = () => {
       if (pendingRef.current || destroyedRef.current) return;
       pendingRef.current = true;
-      rafIdRef.current = requestAnimationFrame(() => drawGLBatch(batch));
+      rafIdRef.current = requestAnimationFrame(() => {
+        if (batch) drawGLBatch(batch);
+      });
     };
     const drawNow = () => {
       if (destroyedRef.current) return;
       pendingRef.current = false;
       cancelAnimationFrame(rafIdRef.current);
-      drawGLBatch(batch);
+      if (batch) drawGLBatch(batch);
     };
     destroyedRef.current = false;
     pendingRef.current = false;
@@ -325,13 +341,30 @@ export const ConnectorsCanvas = memo(({ connectors }: Props) => {
       scheduleDraw();
     });
 
+    const detachLoss = attachContextLossRecovery(canvas, {
+      onLost: () => {
+        contextLost = true;
+      },
+      onRestored: () => {
+        const rebuilt = createSpriteBatch(canvas, 512);
+        if (!rebuilt) return;
+        batch = rebuilt;
+        arrowUV =
+          rebuilt.putCanvas('__arrow__', 0, makeArrowCanvas) ?? rebuilt.white;
+        contextLost = false;
+        geomDirtyRef.current = true;
+        drawNow();
+      }
+    });
+
     return () => {
       destroyedRef.current = true;
       cancelAnimationFrame(rafIdRef.current);
       unsubUi();
       unsubScene();
       unsubModel();
-      batch.destroy();
+      detachLoss();
+      batch?.destroy();
     };
   }, [uiApi, modelApi, sceneApi]);
 

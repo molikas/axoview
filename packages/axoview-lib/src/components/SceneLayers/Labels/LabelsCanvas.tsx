@@ -11,6 +11,7 @@ import {
   LabelChipLayout
 } from 'src/utils/labelChip';
 import { createSpriteBatch, SpriteBatch } from 'src/webgl/glSpriteBatch';
+import { attachContextLossRecovery } from 'src/webgl/contextLoss';
 import { rasterizeLabelChip, CHIP_SUPERSAMPLE } from 'src/webgl/itemRaster';
 
 // ---------------------------------------------------------------------------
@@ -73,8 +74,18 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const batch: SpriteBatch | null = createSpriteBatch(canvas);
-    if (!batch) return;
+    let batch: SpriteBatch | null = createSpriteBatch(canvas);
+    if (!batch) {
+      // WebGL2 passed the gate probe but the batch failed here (shader/link or
+      // context exhaustion). Surface it — the floating-label layer has no fallback.
+      console.warn(
+        '[LabelsCanvas] WebGL2 sprite batch unavailable — floating labels will not render'
+      );
+      return;
+    }
+    // Context-loss recovery: rebuild the batch on restore so a lost GPU context
+    // doesn't blank the floating-label layer permanently.
+    let contextLost = false;
 
     // Throwaway 2D context for measureText (the visible canvas is owned by WebGL).
     const measureCtx: CanvasRenderingContext2D | null =
@@ -213,6 +224,7 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
 
     const drawGLBatch = (b: SpriteBatch) => {
       pendingRef.current = false;
+      if (contextLost) return;
       const ui = uiApi.getState();
       const { scroll, zoom, rendererSize } = ui;
       const dpr = window.devicePixelRatio || 1;
@@ -233,7 +245,7 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
     };
 
     const draw = () => {
-      drawGLBatch(batch);
+      if (batch) drawGLBatch(batch);
     };
 
     const scheduleDraw = () => {
@@ -277,10 +289,25 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
       }
     });
 
+    const detachLoss = attachContextLossRecovery(canvas, {
+      onLost: () => {
+        contextLost = true;
+      },
+      onRestored: () => {
+        const rebuilt = createSpriteBatch(canvas);
+        if (!rebuilt) return;
+        batch = rebuilt;
+        contextLost = false;
+        geomDirtyRef.current = true;
+        drawNow();
+      }
+    });
+
     return () => {
       destroyedRef.current = true;
       cancelAnimationFrame(rafIdRef.current);
       unsubUi();
+      detachLoss();
       batch?.destroy();
     };
   }, [uiApi]);

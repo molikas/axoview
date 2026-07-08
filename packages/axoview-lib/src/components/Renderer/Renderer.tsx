@@ -221,7 +221,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   );
 
   // The node layer is drawn on the GPU (NodesCanvas) — WebGL2 is the sole render
-  // substrate (ADR 0019); a browser without it never reaches this code path (the
+  // substrate (ADR 0038); a browser without it never reaches this code path (the
   // WebGLUnsupportedScreen gate below). The actively-manipulated nodes —
   // the single SELECTED node and any node currently being DRAGGED — are instead
   // rendered by the DOM <Node> overlay (and skipped by the canvas) so they keep
