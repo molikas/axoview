@@ -113,11 +113,22 @@ a follow-up, not a silent gap:
   rectangles. The connector arrow now draws with a `(1,1,1,1)` tint so its baked
   white outline survives (a black tint had blacked it out, hiding it on dark
   lines). Rounded rectangle corners remain approximated (sharp) on the bulk.
-- **Premultiplied-alpha mip fringing.** The atlas stores straight alpha; mip
-  minification can pull a faint dark halo into anti-aliased edges when zoomed out.
-  Fix (premultiply on upload + `blendFunc(ONE, ONE_MINUS_SRC_ALPHA)`, or edge-
-  dilate the chip gutter) risks a broader color regression and needs pixel-diff
-  verification before shipping.
+- **Premultiplied-alpha mip fringing — IMPLEMENTED 2026-07-08 (this PR).** The atlas
+  previously stored straight alpha on a black-transparent gutter, so mip minification
+  pulled a dark grey ring into small sprites — read as a grey border around dotted-
+  connector dots and "two circles + a black-bordered rectangle" on dashed connectors.
+  Fixed with a full premultiplied pipeline: `premultipliedAlpha:true` context,
+  `UNPACK_PREMULTIPLY_ALPHA_WEBGL`, `blendFunc(ONE, ONE_MINUS_SRC_ALPHA)`, and a shader
+  outputting `tex * vec4(v_tint.rgb*v_tint.a, v_tint.a)`. Owner-verified on dashed/
+  dotted connectors; **still pending a broad real-browser confirmation** that chips,
+  translucent rectangle fills, icons and image-export show no colour/transparency
+  regression (CI is pixel-blind — jsdom/SwiftShader don't render).
+- **Crisp iso line rendering (new, deferred).** Lines/dots/borders are rasterised
+  sprites; sheared in iso they soften even with anisotropic filtering — a *selected*
+  connector is crisp only because it's the DOM `<Connector>` SVG (true vector). The
+  standard GPU-vector fix (analytic edge-AA on expanded-polyline triangle strips, or
+  SDF line textures — deck.gl / Mapbox / Valve) is a substrate-level follow-up scoped
+  in [`docs/tactical/webgl-rendering-followups-coldstart.md`](../tactical/webgl-rendering-followups-coldstart.md).
 - **Backing-store viewport clamp.** `bw/bh = W·dpr` is not yet clamped against
   `MAX_VIEWPORT_DIMS` / max canvas area; a very-high-DPI large viewport could
   exceed the cap. A clamp helper exists (`renderTarget.ts`) but is wired only to

@@ -152,9 +152,13 @@ const LabelInlineEditor = ({
         style={{
           // Match the rendered chip's box exactly: same inner text width, padding
           // and corner radius, so the edit box == the committed chip (the size
-          // mismatch the user hit). Content-box width = chip inner width; padding
-          // + 1px border reproduce the chip's outer box. Blue border is the edit
-          // cue (same 1px width as the chip's grey border).
+          // mismatch the user hit). MUST pin box-sizing to content-box: the lib's
+          // GlobalStyles sets `div { box-sizing: border-box }`, under which this
+          // minWidth (the chip INNER width) would be eaten by the 24px padding +
+          // 2px border and collapse the content area to ~one char — the text
+          // wraps a letter per line. content-box makes minWidth the content width,
+          // so padding + border sit OUTSIDE it and reproduce the chip's outer box.
+          boxSizing: 'content-box',
           minWidth: width - LABEL_CHIP_PAD_X * 2,
           font: `${label.isItalic ? 'italic ' : ''}${
             label.isBold ? 700 : 400
