@@ -333,11 +333,15 @@ console capture before a fix is chosen. Filed from the 2026-06-25 shake-out (ite
 From the WebGL-fold productization (PR #63, ADR 0038). Each is scoped and
 recorded in ADR 0038 §Deferred; none blocks the WebGL2-only substrate.
 
-- **WebGL context-loss recovery** — no `webglcontextlost`/`webglcontextrestored`
-  handling; a GPU reset (tab reclaim, driver crash) blanks the GL layers until
-  remount. Needs `createSpriteBatch` init refactored into a rebuildable closure
-  (rebuild atlas/program/VAO/VBO on restore, `preventDefault` on loss). *Highest-
-  value follow-up.*
+- **WebGL context-loss recovery — RESOLVED 2026-07-08 (pending manual verification).**
+  All four GPU layers now `preventDefault` on `webglcontextlost` and rebuild the
+  `SpriteBatch` on `webglcontextrestored` (shared [`webgl/contextLoss.ts`](packages/axoview-lib/src/webgl/contextLoss.ts);
+  ConnectorsCanvas re-packs its arrow sprite). Draw-only, so no scene state is lost
+  across a loss/restore cycle. **Cannot be exercised in CI** (jsdom has no WebGL2;
+  perf/e2e can't force a loss) — confirm with a manual `WEBGL_lose_context` smoke,
+  and add a unit test once the `webgl/` ts-jest transform blocker clears. Residual:
+  a browser that advertises WebGL2 but fails shader/link/atlas-alloc still shows a
+  *first-paint* blank layer — now logged (`console.warn` per layer), not silent.
 - **GPU dashed/dotted/double-line connectors** — `style` (DASHED/DOTTED) and
   `lineType` (DOUBLE/DOUBLE_WITH_CIRCLE) are not yet emitted by `ConnectorsCanvas`;
   an *unselected* styled connector draws solid (selecting it promotes it to the

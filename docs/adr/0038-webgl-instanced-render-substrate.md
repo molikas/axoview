@@ -43,14 +43,15 @@ removed as dead code in the same change.)
 **2. DOM/GPU hybrid boundary.** The GPU draws the bulk; the DOM keeps only a
 **sparse hybrid** — this is an interaction/editing layer, NOT a fallback, and it
 coexists with the GPU permanently:
-- selected node + drag set (`hybridNodes` → DOM `<Nodes>`), for F2 inline-rename
-  and the drag preview;
+- selected node + drag set **+ the name-label-drag node** (`hybridNodes` → DOM
+  `<Nodes>`), for F2 inline-rename, the drag preview, and the label-as-handle drag;
 - selected connector (single `itemControls` **and** every multi-selected
   `selectedIds` connector — a lasso selects into `selectedIds`), degenerate
   1-tile connectors (dot cue), and unroutable connectors (error badge)
   (`connectorHybridIds` → DOM `<Connectors>`);
 - the dragged rectangle (`rectHybridIds` → DOM `<Rectangles>`);
-- the selected connector's labels (F2/inline-edit) and the inline-edited text box.
+- **all** connector labels (`<ConnectorLabels>` over the full visible set — there
+  is no GPU connector-label layer), and the inline-edited text box.
 
 **3. Picking stays geometric.** All hit-testing is `getItemAtTile` over scene
 data (`hitConnectors`/rectangles/nodes), never GPU readback. Removing a visible
@@ -84,10 +85,20 @@ clamped to `MAX_TEXTURE_SIZE`. Backing-store dimensions are the caller's concern
 These were scoped in the productization audit and deliberately deferred; each is
 a follow-up, not a silent gap:
 
-- **WebGL context-loss recovery.** No `webglcontextlost`/`webglcontextrestored`
-  handling yet. On a GPU reset (tab reclaim, driver crash) the GL layers go blank
-  until remount. Fix: `preventDefault` on loss + rebuild atlas/program/VAO/VBO on
-  restore (needs refactoring `createSpriteBatch` init into a rebuildable closure).
+- **WebGL context-loss recovery — IMPLEMENTED 2026-07-08 (this PR).** All four GPU
+  layers now `preventDefault` on `webglcontextlost` (so the browser is allowed to
+  restore) and rebuild their `SpriteBatch` on `webglcontextrestored` — fresh
+  atlas/program/VAO/VBO via a new `createSpriteBatch`, with `ConnectorsCanvas` also
+  re-packing its captured arrow-sprite UV — through the shared
+  [`webgl/contextLoss.ts`](../../packages/axoview-lib/src/webgl/contextLoss.ts)
+  helper. Draw-only: scene/model state is untouched (picking is geometric per §3),
+  so no user work is lost across a loss/restore cycle. **Not exercisable in CI**
+  (jsdom has no WebGL2; the perf/e2e suites can't force a loss) — verify with a
+  manual `WEBGL_lose_context` smoke, and add a unit test once the `webgl/` ts-jest
+  transform blocker (Test follow-ups) is resolved. The probe-vs-`createSpriteBatch`
+  capability gap (below) still yields a *first-paint* blank on a browser that
+  advertises WebGL2 but fails shader/link/atlas-alloc; that path now emits a
+  `console.warn` per layer rather than being fully silent.
 - **GPU dashed/dotted/double-line connectors.** `style` (DASHED/DOTTED) and
   `lineType` (DOUBLE/DOUBLE_WITH_CIRCLE) are not yet emitted by
   `ConnectorsCanvas`; an unselected styled connector draws as a solid single line
@@ -117,6 +128,14 @@ a follow-up, not a silent gap:
   export gate) are retained — `NodesCanvas` still publishes them.
 - The perf-harness anti-cheat now reads GPU draw-counts (`dataset.drawCount`), not
   DOM element counts (ADR 0020, amended).
+- **GL context budget.** Each mounted `Renderer` opens four WebGL2 contexts (one
+  per bulk layer); image-export mounts a *second* hidden `Renderer` (ADR 0025), so
+  a session can hold ~8 live contexts against the browser's ~16 cap. The capability
+  probe (`isWebGL2Supported`) now releases its own context immediately
+  (`WEBGL_lose_context`, 2026-07-08) so it no longer leaks a persistent extra;
+  tearing down the export Renderer's contexts on dialog close remains a follow-up.
+  Reaching the cap force-loses the oldest context — now recovered by the
+  context-loss handling above rather than blanking permanently.
 
 ## §7 — Relationship to ADR 0019
 
