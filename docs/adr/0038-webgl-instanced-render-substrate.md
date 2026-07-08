@@ -4,6 +4,7 @@
 **Date:** 2026-07-08
 **Supersedes:** ADR 0019 (Canvas2D node render layer) — as the *bulk substrate* only; see §7
 **Related:** ADR 0020 (perf harness — amended same day, GPU draw-count anti-cheat), ADR 0015/0024 (label legibility/positioning — now computed in the vertex shader), ADR 0025 (image export — depends on `preserveDrawingBuffer`), ADR 0008 (surface vocabulary — the unsupported-browser *Screen*)
+**Fidelity rules:** [docs/canvas-rendering-guidelines.md](../canvas-rendering-guidelines.md) — the GPU pitfalls-and-rules companion (premultiplied pipeline, atlas UV, geometry walkers, crisp-iso follow-up); clears the §Deferred items below as they close.
 
 ## Context
 
@@ -94,8 +95,10 @@ a follow-up, not a silent gap:
   helper. Draw-only: scene/model state is untouched (picking is geometric per §3),
   so no user work is lost across a loss/restore cycle. **Not exercisable in CI**
   (jsdom has no WebGL2; the perf/e2e suites can't force a loss) — verify with a
-  manual `WEBGL_lose_context` smoke, and add a unit test once the `webgl/` ts-jest
-  transform blocker (Test follow-ups) is resolved. The probe-vs-`createSpriteBatch`
+  manual `WEBGL_lose_context` smoke. (The presumed `webgl/` ts-jest transform blocker
+  turned out not to exist — pure `webgl/` files test fine under jsdom, 2026-07-08 — so
+  a context-loss unit test is unblocked; it still needs a jsdom GL stub to simulate
+  the loss/restore events.) The probe-vs-`createSpriteBatch`
   capability gap (below) still yields a *first-paint* blank on a browser that
   advertises WebGL2 but fails shader/link/atlas-alloc; that path now emits a
   `console.warn` per layer rather than being fully silent.
@@ -113,26 +116,42 @@ a follow-up, not a silent gap:
   rectangles. The connector arrow now draws with a `(1,1,1,1)` tint so its baked
   white outline survives (a black tint had blacked it out, hiding it on dark
   lines). Rounded rectangle corners remain approximated (sharp) on the bulk.
-- **Premultiplied-alpha mip fringing — IMPLEMENTED 2026-07-08 (this PR).** The atlas
+- **Premultiplied-alpha mip fringing — ACCEPTED 2026-07-08.** The atlas
   previously stored straight alpha on a black-transparent gutter, so mip minification
   pulled a dark grey ring into small sprites — read as a grey border around dotted-
   connector dots and "two circles + a black-bordered rectangle" on dashed connectors.
   Fixed with a full premultiplied pipeline: `premultipliedAlpha:true` context,
   `UNPACK_PREMULTIPLY_ALPHA_WEBGL`, `blendFunc(ONE, ONE_MINUS_SRC_ALPHA)`, and a shader
   outputting `tex * vec4(v_tint.rgb*v_tint.a, v_tint.a)`. Owner-verified on dashed/
-  dotted connectors; **still pending a broad real-browser confirmation** that chips,
-  translucent rectangle fills, icons and image-export show no colour/transparency
-  regression (CI is pixel-blind — jsdom/SwiftShader don't render).
-- **Crisp iso line rendering (new, deferred).** Lines/dots/borders are rasterised
-  sprites; sheared in iso they soften even with anisotropic filtering — a *selected*
-  connector is crisp only because it's the DOM `<Connector>` SVG (true vector). The
-  standard GPU-vector fix (analytic edge-AA on expanded-polyline triangle strips, or
-  SDF line textures — deck.gl / Mapbox / Valve) is a substrate-level follow-up scoped
-  in [`docs/tactical/webgl-rendering-followups-coldstart.md`](../tactical/webgl-rendering-followups-coldstart.md).
-- **Backing-store viewport clamp.** `bw/bh = W·dpr` is not yet clamped against
-  `MAX_VIEWPORT_DIMS` / max canvas area; a very-high-DPI large viewport could
-  exceed the cap. A clamp helper exists (`renderTarget.ts`) but is wired only to
-  export.
+  dotted connectors. The broad-confirmation concern is **resolved by construction**:
+  the pipeline is uniform across every sampled surface (one shader, one blend), the
+  tint math reduces to the identity for opaque tints (chips, opaque icons) and to
+  correct premultiplied compositing for translucent ones (halos, fill opacity), and
+  image-export composites via the browser's native `toDataURL`/`drawImage` — which
+  assume `premultipliedAlpha` (the WebGL default) and never do raw premult readback.
+  Rules folded into [canvas-rendering-guidelines.md §1](../canvas-rendering-guidelines.md).
+- **Crisp iso line rendering — INVESTIGATED 2026-07-08; analytic edge-AA recommended.**
+  Lines/dots/borders soften in iso (solid-quad edges alias, sampled sprites blur) — a
+  *selected* connector is crisp only because it's the DOM `<Connector>` SVG (true
+  vector). MSAA was rejected (it multisamples geometry-edge coverage, not the
+  textured-quad interior); **analytic edge-AA** (distance-field alpha in the fragment
+  shader — deck.gl / Mapbox) is recommended over SDF textures because straight strokes
+  and discs have closed-form distances and it grafts onto the existing instanced batch.
+  Geometry prototype (`buildAaLineQuad`) shipped + unit-tested; the shader branch is
+  specified but not yet wired (needs a real-browser check). Full trade-off + shader in
+  [canvas-rendering-guidelines.md §12](../canvas-rendering-guidelines.md).
+- **Backing-store viewport clamp — DONE 2026-07-08.** `computeBackingStore`
+  (`utils/renderTarget.ts`) now clamps `bw/bh = W·dpr` against the canvas caps and
+  returns an effective dpr that feeds the whole render path (buffer size + `u_view`
+  scale + device origin); wired into all four bulk layers. Uses the conservative
+  cross-browser `DEFAULT_RENDER_CAPS` shared with export rather than a live
+  `MAX_VIEWPORT_DIMS` round-trip. See [canvas-rendering-guidelines.md §9](../canvas-rendering-guidelines.md).
+- **WebGL unit tests — DONE 2026-07-08.** No ts-jest transform blocker existed for
+  pure `webgl/` files (they run under jsdom); the atlas-UV inset math was extracted
+  from the `createSpriteBatch` closure into the pure, exported `atlasUVRect` so it is
+  testable without a GL context. `webgl/__tests__/` now covers the `lineStyle` walkers
+  (incl. the finding-#4 non-advancement regression), `atlasUVRect`, and
+  `buildAaLineQuad`; `renderTarget.test.ts` covers `computeBackingStore`.
 - **Adaptive/lazy atlas + `sampler2DArray`** for unbounded distinct-chip scenes
   (current: graceful `atlasFull` degradation).
 

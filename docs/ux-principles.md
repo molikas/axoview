@@ -547,6 +547,10 @@ The [annotation overlay](../packages/axoview-lib/src/components/AnnotationLayer/
 - **Scratch is not content.** Annotation state lives **only** in `uiState`, never in the Model, so no persistence path (session save, server save, export JSON, project zip) can reach it — the single most important invariant of the feature, asserted by a dedicated exclusion test. A scratch overlay that could accidentally save would be a data-integrity trap.
 - **Capture only when armed.** The overlay intercepts pointer input **only while a draw tool is active**; with the palette open but idle, normal canvas selection/pan still work. Collapse *hides* the drawing without discarding it (collapse ≠ delete); a single explicit Clear is the only wipe — destructive actions are never a side effect of a view toggle.
 
+### 8.12 The canvas region's pixels have their own fidelity contract
+
+This section governs where surfaces sit; the *pixels rendered inside* the canvas region (the WebGL2 bulk substrate — atlas, blending, line geometry, export) are governed by [canvas-rendering-guidelines.md](canvas-rendering-guidelines.md) ([ADR 0038](adr/0038-webgl-instanced-render-substrate.md)). Touch that layer → read it first.
+
 ---
 
 ## 9. Touch & pointer interaction

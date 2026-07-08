@@ -1,8 +1,13 @@
 # WebGL rendering — guidelines + deferred follow-ups (cold-start prompt)
 
 **Created:** 2026-07-08 (WebGL-fold shake-out, PR #63 / branch `integration`)
-**Status:** Work brief. The three tasks below are unstarted; the findings in Task 1
-are the durable record of what this session troubleshot.
+**Status:** ✅ DONE / superseded 2026-07-08. All three tasks completed: the findings
+became [docs/canvas-rendering-guidelines.md](../canvas-rendering-guidelines.md) (the
+durable home — read that, not this); the deferred ADR 0038 items were cleared
+(premultiplied-alpha → Accepted, backing-store clamp wired into all four layers,
+`webgl/` unit tests added — no ts-jest blocker existed); and crisp-iso-line rendering
+was investigated (MSAA rejected, analytic edge-AA recommended + geometry prototype
+shipped). Kept as the historical brief; the guidelines doc is canonical.
 **Audience:** the next agent/session that picks up canvas rendering work.
 
 This doc has two jobs: (1) preserve the WebGL rendering findings from the fold so
