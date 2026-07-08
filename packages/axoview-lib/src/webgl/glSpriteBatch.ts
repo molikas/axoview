@@ -65,7 +65,13 @@ in vec4 v_tint;
 uniform sampler2D u_atlas;
 out vec4 outColor;
 void main() {
-  outColor = texture(u_atlas, v_uv) * v_tint;
+  // Premultiplied pipeline (atlas uploaded premultiplied): premultiply the tint's
+  // alpha into its RGB so a translucent tint (halo, fillOpacity) blends correctly
+  // AND a mip-minified edge doesn't pull the atlas's black transparent surround
+  // into a dark/grey fringe — the "grey border around the dots / bubbly dash
+  // caps" artifact. Un-fringed edges match the DOM's vector strokes.
+  vec4 tex = texture(u_atlas, v_uv);
+  outColor = tex * vec4(v_tint.rgb * v_tint.a, v_tint.a);
 }`;
 
 // 20 floats / instance = 5 vec4 attributes (80-byte stride, 16-byte aligned).
@@ -188,7 +194,10 @@ export const createSpriteBatch = (
   try {
     gl = canvas.getContext('webgl2', {
       alpha: true,
-      premultipliedAlpha: false,
+      // Premultiplied pipeline (see FRAG_SRC + the premultiplied blend): the
+      // atlas is uploaded premultiplied and the shader outputs premultiplied
+      // color, so the context must composite it as premultiplied too.
+      premultipliedAlpha: true,
       antialias: false,
       depth: false,
       stencil: false,
@@ -276,7 +285,7 @@ export const createSpriteBatch = (
       Math.min(16, maxAniso || 1)
     );
   }
-  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
 
   // Shelf packer state. The stalk-dot is packed FIRST and its region is RESERVED —
@@ -467,12 +476,9 @@ export const createSpriteBatch = (
 
   gl.disable(gl.DEPTH_TEST);
   gl.enable(gl.BLEND);
-  gl.blendFuncSeparate(
-    gl.SRC_ALPHA,
-    gl.ONE_MINUS_SRC_ALPHA,
-    gl.ONE,
-    gl.ONE_MINUS_SRC_ALPHA
-  );
+  // Premultiplied-alpha blend: textures are uploaded premultiplied and the shader
+  // premultiplies the tint, so src is already ·α → ONE / ONE_MINUS_SRC_ALPHA.
+  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
   return {
     dot: dotUV,
