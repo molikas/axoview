@@ -38,7 +38,7 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const uiApi = useUiStateStoreApi();
   const theme = useTheme();
-  const { getTilePosition } = useCanvasMode();
+  const { getTilePosition, strategy } = useCanvasMode();
   const { visibleIds } = useLayerContext();
 
   const labelsRef = useRef(labels);
@@ -315,7 +315,12 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
   useEffect(() => {
     geomDirtyRef.current = true;
     scheduleDrawRef.current();
-  }, [labels, visibleIds, theme]);
+    // strategy.projectionName MUST be a dep: on a 2D<->iso switch the tile->scene
+    // positions change, so the GPU chips must rebuild or they stay at the old
+    // projection while the DOM hit-proxy (LabelHitLayer) moves to the new one —
+    // the chip and its clickable div separate and the label becomes unselectable
+    // until some other change dirties geometry. NodesCanvas already does this.
+  }, [labels, visibleIds, strategy.projectionName, theme]);
 
   return (
     <canvas

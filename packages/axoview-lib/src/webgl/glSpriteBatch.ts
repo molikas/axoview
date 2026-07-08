@@ -259,6 +259,23 @@ export const createSpriteBatch = (
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  // Anisotropic filtering: in ISOMETRIC view every chip/dot is sampled on a
+  // SHEARED parallelogram quad, which isotropic mip/linear filtering blurs (the
+  // "fuzzy in iso only" report). Aniso samples along the projected axis and keeps
+  // sheared text/dots crisp; a no-op in 2D (axis-aligned) and where unsupported.
+  const aniso =
+    gl.getExtension('EXT_texture_filter_anisotropic') ||
+    gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic');
+  if (aniso) {
+    const maxAniso = gl.getParameter(
+      aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT
+    ) as number;
+    gl.texParameterf(
+      gl.TEXTURE_2D,
+      aniso.TEXTURE_MAX_ANISOTROPY_EXT,
+      Math.min(16, maxAniso || 1)
+    );
+  }
   gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
 

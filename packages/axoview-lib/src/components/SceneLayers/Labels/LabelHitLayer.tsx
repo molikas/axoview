@@ -12,7 +12,10 @@ import {
 import {
   measureLabelChip,
   labelFontPx,
-  LabelChipLayout
+  LabelChipLayout,
+  LABEL_CHIP_PAD_X,
+  LABEL_CHIP_PAD_Y,
+  LABEL_CHIP_RADIUS
 } from 'src/utils/labelChip';
 
 // ---------------------------------------------------------------------------
@@ -102,9 +105,11 @@ const LabelInlineEditor = ({
     <div
       style={{
         position: 'absolute',
-        left: left - 8,
-        top: top - 4,
-        minWidth: width + 16,
+        // Center the editor's border-box (its 1px border adds ~2px over the
+        // border-less chip measurement) on the chip's rect so the edit box fills
+        // the same space the committed chip will — no size/position jump on commit.
+        left: left - 1,
+        top: top - 1,
         zIndex: 20,
         pointerEvents: 'auto'
       }}
@@ -145,6 +150,12 @@ const LabelInlineEditor = ({
         }}
         onDoubleClick={(e) => e.stopPropagation()}
         style={{
+          // Match the rendered chip's box exactly: same inner text width, padding
+          // and corner radius, so the edit box == the committed chip (the size
+          // mismatch the user hit). Content-box width = chip inner width; padding
+          // + 1px border reproduce the chip's outer box. Blue border is the edit
+          // cue (same 1px width as the chip's grey border).
+          minWidth: width - LABEL_CHIP_PAD_X * 2,
           font: `${label.isItalic ? 'italic ' : ''}${
             label.isBold ? 700 : 400
           } ${fontSize}px Roboto, Arial, sans-serif`,
@@ -152,8 +163,8 @@ const LabelInlineEditor = ({
           color: label.color || '#222',
           background: label.backgroundColor || '#fff',
           border: '1px solid #90caf9',
-          borderRadius: 4,
-          padding: '4px 8px',
+          borderRadius: LABEL_CHIP_RADIUS,
+          padding: `${LABEL_CHIP_PAD_Y}px ${LABEL_CHIP_PAD_X}px`,
           textAlign: 'center',
           outline: 'none',
           whiteSpace: 'pre-wrap',

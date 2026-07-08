@@ -69,7 +69,10 @@ export const rasterizeNodeChip = (
   ctx.setTransform(ss, 0, 0, ss, 0, 0);
   ctx.clearRect(0, 0, chipW, chipH);
 
-  roundRectPath(ctx, 0, 0, chipW, chipH, s.radius);
+  // Inset the border 1px so it isn't clipped at the texture edge / trimmed by the
+  // atlas's half-texel UV inset (would drop the border on the right/bottom).
+  const m = 1;
+  roundRectPath(ctx, m, m, chipW - 2 * m, chipH - 2 * m, s.radius);
   ctx.fillStyle = s.bg;
   ctx.fill();
   ctx.lineWidth = 1;

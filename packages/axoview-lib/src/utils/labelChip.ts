@@ -143,7 +143,19 @@ export const drawLabelChip = (
   const x0 = cx - chipW / 2;
   const y0 = cy - chipH / 2;
 
-  roundRectPath(ctx, x0, y0, chipW, chipH, LABEL_CHIP_RADIUS);
+  // Inset the chip by 1px: the 1px border sat exactly at the texture edge, where
+  // it was clipped by the canvas bounds AND trimmed by the atlas's half-texel UV
+  // inset — the "partial grey border" (right/corner) artifact. 1px keeps the full
+  // border inside both.
+  const CHIP_INSET = 1;
+  roundRectPath(
+    ctx,
+    x0 + CHIP_INSET,
+    y0 + CHIP_INSET,
+    chipW - 2 * CHIP_INSET,
+    chipH - 2 * CHIP_INSET,
+    LABEL_CHIP_RADIUS
+  );
   // The chip background can be translucent (backgroundOpacity); scope the alpha
   // to the fill only so the border + text stay fully opaque.
   const bgAlpha = label.backgroundOpacity ?? 1;
