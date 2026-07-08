@@ -15,6 +15,7 @@ import {
   UVRect
 } from 'src/webgl/glSpriteBatch';
 import { attachContextLossRecovery } from 'src/webgl/contextLoss';
+import { walkDots, walkDashes } from 'src/webgl/lineStyle';
 
 // ---------------------------------------------------------------------------
 // ConnectorsCanvas — WebGL2 INSTANCED draw of the connector BODIES (halo + core
@@ -30,13 +31,13 @@ import { attachContextLossRecovery } from 'src/webgl/contextLoss';
 // bodies and labels line up. Each segment is a tinted quad (white texel); round
 // joins/caps are dots at each vertex; the arrow is a packed sprite.
 //
-// KNOWN LIMITATION (ADR 0038, deferred): the styled variants — style
-// dashed/dotted and lineType DOUBLE / DOUBLE_WITH_CIRCLE — are NOT yet emitted
-// here; a styled connector currently draws as a solid single line on the GPU.
-// Selecting it promotes it into the DOM <Connector> (connectorHybridIds), which
-// renders the style correctly, so the degradation only affects the unselected
-// bulk. Owner decision: implement these on the GPU (a follow-up), not route them
-// back to the DOM.
+// Styles (2026-07-08): the full DOM matrix is emitted here — `style`
+// DASHED/DOTTED (dash-walked over the polyline) and `lineType`
+// DOUBLE / DOUBLE_WITH_CIRCLE (two offset polylines + a mid-path ellipse ring),
+// mirroring the DOM <Connector> geometry so the unselected bulk matches the
+// selected DOM promotion. Widths are authored in UNPROJECTED tile-px and scaled
+// to scene space by `widthScale` (the projection's linear factor) so GPU strokes
+// are the same thickness as the DOM's projected strokes, not ~1.22× too thick.
 // ---------------------------------------------------------------------------
 
 interface Props {
@@ -80,6 +81,53 @@ const glRGB = (css: string): [number, number, number] => {
   }
 };
 
+// An ellipse-outline sprite (white, tintable) for the DOUBLE_WITH_CIRCLE marker.
+const makeRingCanvas = (): HTMLCanvasElement => {
+  const S = 64;
+  const cnv = document.createElement('canvas');
+  cnv.width = S;
+  cnv.height = S;
+  const ctx = cnv.getContext('2d')!;
+  ctx.clearRect(0, 0, S, S);
+  ctx.strokeStyle = '#ffffff';
+  const lw = S * 0.1;
+  ctx.lineWidth = lw;
+  ctx.beginPath();
+  ctx.ellipse(S / 2, S / 2, S / 2 - lw, S / 2 - lw, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  return cnv;
+};
+
+// A parallel copy of `poly` offset by `sign * off` along each vertex's normal —
+// mirrors the DOM <Connector> offsetPaths (averaged interior normals, endpoint
+// direction at the ends) for DOUBLE / DOUBLE_WITH_CIRCLE, computed in scene space.
+const offsetPolyline = (poly: Coords[], off: number, sign: number): Coords[] => {
+  const n = poly.length;
+  const out: Coords[] = [];
+  for (let i = 0; i < n; i++) {
+    let nx = 0;
+    let ny = 0;
+    if (i > 0 && i < n - 1) {
+      const avgDx = (poly[i + 1].x - poly[i - 1].x) / 2;
+      const avgDy = (poly[i + 1].y - poly[i - 1].y) / 2;
+      const len = Math.hypot(avgDx, avgDy) || 1;
+      nx = -avgDy / len;
+      ny = avgDx / len;
+    } else if (i === 0 && n > 1) {
+      const len = Math.hypot(poly[1].x - poly[0].x, poly[1].y - poly[0].y) || 1;
+      nx = -(poly[1].y - poly[0].y) / len;
+      ny = (poly[1].x - poly[0].x) / len;
+    } else if (i === n - 1 && n > 1) {
+      const len =
+        Math.hypot(poly[i].x - poly[i - 1].x, poly[i].y - poly[i - 1].y) || 1;
+      nx = -(poly[i].y - poly[i - 1].y) / len;
+      ny = (poly[i].x - poly[i - 1].x) / len;
+    }
+    out.push({ x: poly[i].x + sign * nx * off, y: poly[i].y + sign * ny * off });
+  }
+  return out;
+};
+
 export const ConnectorsCanvas = memo(({ connectors }: Props) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const uiApi = useUiStateStoreApi();
@@ -119,9 +167,11 @@ export const ConnectorsCanvas = memo(({ connectors }: Props) => {
     }
     let arrowUV: UVRect =
       batch.putCanvas('__arrow__', 0, makeArrowCanvas) ?? batch.white;
-    // Context-loss recovery: rebuild the batch (+ re-pack the arrow sprite, whose
-    // UV is captured outside buildInstances) on restore, so a lost GPU context
-    // doesn't blank the connector bodies permanently.
+    let ringUV: UVRect =
+      batch.putCanvas('__ring__', 0, makeRingCanvas) ?? batch.white;
+    // Context-loss recovery: rebuild the batch (+ re-pack the arrow/ring sprites,
+    // whose UVs are captured outside buildInstances) on restore, so a lost GPU
+    // context doesn't blank the connector bodies permanently.
     let contextLost = false;
     let buildCount = 0; // data-build-count — must stay flat during pan (no CPU/frame)
 
@@ -214,6 +264,47 @@ export const ConnectorsCanvas = memo(({ connectors }: Props) => {
         );
       };
 
+      // Authored widths are UNPROJECTED tile-px; the scene points getTilePos
+      // returns are PROJECTED, so a raw width draws ~1/scale too thick. Measure
+      // the projection's linear factor from one tile step (== the DOM's
+      // getProjectionCss scale; correct for iso AND 2D).
+      const o0 = getTilePos({ tile: { x: 0, y: 0 } });
+      const o1 = getTilePos({ tile: { x: 1, y: 0 } });
+      const widthScale =
+        Math.hypot(o1.x - o0.x, o1.y - o0.y) / UNPROJECTED_TILE_SIZE || 1;
+      // DOM arrow is a fixed ~35px triangle (not width-scaled); project it.
+      const arrowSize = 40 * widthScale;
+
+      // Draw one polyline (halo or core pass) honouring the connector `style`.
+      // Dash metrics use `unit` (the core width) so halo + core dashes align,
+      // matching the DOM's shared strokeDasharray.
+      const drawStyledLine = (
+        poly: Coords[],
+        lineW: number,
+        style: string,
+        unit: number,
+        r: number,
+        g: number,
+        bl: number,
+        a: number
+      ) => {
+        const rad = lineW / 2;
+        if (style === 'DOTTED') {
+          walkDots(poly, unit * 1.8, (p) => cap(p, rad, r, g, bl, a));
+        } else if (style === 'DASHED') {
+          walkDashes(poly, unit * 2, unit * 2, (p0, p1) => {
+            segment(p0, p1, lineW, white, r, g, bl, a);
+            cap(p0, rad, r, g, bl, a);
+            cap(p1, rad, r, g, bl, a);
+          });
+        } else {
+          for (let i = 0; i < poly.length - 1; i++)
+            segment(poly[i], poly[i + 1], lineW, white, r, g, bl, a);
+          for (let i = 0; i < poly.length; i++)
+            cap(poly[i], rad, r, g, bl, a);
+        }
+      };
+
       for (const connector of connectorsRef.current) {
         if (visible.size !== 0 && !visible.has(connector.id)) continue;
         const scene = scenePaths[connector.id];
@@ -234,23 +325,75 @@ export const ConnectorsCanvas = memo(({ connectors }: Props) => {
         const [cr, cg, cb] = glRGB(
           chroma(colorValue).darken(1).saturate(1).css()
         );
+        const style = connector.style ?? 'SOLID';
+        const lineType = connector.lineType ?? 'SINGLE';
         const w =
-          (UNPROJECTED_TILE_SIZE / 100) *
-          (connector.width ?? CONNECTOR_DEFAULTS.width ?? 15);
+          widthScale * (connector.width ?? CONNECTOR_DEFAULTS.width ?? 15);
         const haloW = w * 1.4;
 
-        // Halo (white, translucent) UNDER the core: segments then round caps.
-        for (let i = 0; i < pts.length - 1; i++)
-          segment(pts[i], pts[i + 1], haloW, white, 1, 1, 1, 0.7);
-        for (let i = 0; i < pts.length; i++)
-          cap(pts[i], haloW / 2, 1, 1, 1, 0.7);
-        // Core (dark colour), on top.
-        for (let i = 0; i < pts.length - 1; i++)
-          segment(pts[i], pts[i + 1], w, white, cr, cg, cb, 1);
-        for (let i = 0; i < pts.length; i++) cap(pts[i], w / 2, cr, cg, cb, 1);
+        // SINGLE → the centreline; DOUBLE(_WITH_CIRCLE) → two parallel offset
+        // polylines (±3w), mirroring the DOM offsetPaths.
+        const polylines =
+          lineType === 'SINGLE'
+            ? [pts]
+            : [offsetPolyline(pts, w * 3, 1), offsetPolyline(pts, w * 3, -1)];
+        for (const poly of polylines) {
+          // White halo UNDER the coloured core; both honour the dash style.
+          drawStyledLine(poly, haloW, style, w, 1, 1, 1, 0.7);
+          drawStyledLine(poly, w, style, w, cr, cg, cb, 1);
+        }
+
+        // DOUBLE_WITH_CIRCLE: an ellipse ring at the mid-path tile, rotated to
+        // the local direction (rx=5w, ry=4w — the DOM radii, projected).
+        if (lineType === 'DOUBLE_WITH_CIRCLE' && pts.length >= 2) {
+          const midIndex = Math.floor(pts.length / 2);
+          const mid = pts[midIndex];
+          let dirx = 1;
+          let diry = 0;
+          if (midIndex > 0 && midIndex < pts.length - 1) {
+            const pr = pts[midIndex - 1];
+            const nx = pts[midIndex + 1];
+            const l = Math.hypot(nx.x - pr.x, nx.y - pr.y) || 1;
+            dirx = (nx.x - pr.x) / l;
+            diry = (nx.y - pr.y) / l;
+          }
+          const ring = (
+            rx: number,
+            ry: number,
+            r: number,
+            g: number,
+            bl: number,
+            a: number
+          ) => {
+            const ux2 = dirx * rx * 2;
+            const uy2 = diry * rx * 2;
+            const vx2 = -diry * ry * 2;
+            const vy2 = dirx * ry * 2;
+            b.addSprite(
+              mid.x,
+              mid.y,
+              -(ux2 + vx2) / 2,
+              -(uy2 + vy2) / 2,
+              ux2,
+              uy2,
+              vx2,
+              vy2,
+              ringUV,
+              r,
+              g,
+              bl,
+              a,
+              0
+            );
+          };
+          ring(w * 5 * 1.12, w * 4 * 1.12, 1, 1, 1, 0.7); // white halo behind
+          ring(w * 5, w * 4, cr, cg, cb, 1); // dark ring
+        }
 
         // Arrowhead at the second-to-last point, aimed along the last segment
-        // (mirrors getConnectorDirectionIcon's tiles[length-2] convention).
+        // (mirrors getConnectorDirectionIcon's tiles[length-2] convention). White
+        // tint (1,1,1,1) preserves the sprite's baked black fill + white outline,
+        // so the arrow stays visible on a dark line (a black tint blacked it out).
         if (connector.showArrow !== false && pts.length >= 2) {
           const tip = pts[pts.length - 2];
           const nxt = pts[pts.length - 1];
@@ -259,21 +402,19 @@ export const ConnectorsCanvas = memo(({ connectors }: Props) => {
           const len = Math.hypot(dx, dy) || 1;
           const ux = dx / len;
           const uy = dy / len;
-          const size = Math.max(20, w * 2.2); // ≈ the DOM arrow footprint
-          // Rotated quad: u = dir·size, v = perp·size, centred on `tip`.
           b.addSprite(
             tip.x,
             tip.y,
-            (-ux - -uy) * (size / 2),
-            (-uy - ux) * (size / 2),
-            ux * size,
-            uy * size,
-            -uy * size,
-            ux * size,
+            (-ux - -uy) * (arrowSize / 2),
+            (-uy - ux) * (arrowSize / 2),
+            ux * arrowSize,
+            uy * arrowSize,
+            -uy * arrowSize,
+            ux * arrowSize,
             arrowUV,
-            0,
-            0,
-            0,
+            1,
+            1,
+            1,
             1,
             0
           );
@@ -351,6 +492,8 @@ export const ConnectorsCanvas = memo(({ connectors }: Props) => {
         batch = rebuilt;
         arrowUV =
           rebuilt.putCanvas('__arrow__', 0, makeArrowCanvas) ?? rebuilt.white;
+        ringUV =
+          rebuilt.putCanvas('__ring__', 0, makeRingCanvas) ?? rebuilt.white;
         contextLost = false;
         geomDirtyRef.current = true;
         drawNow();

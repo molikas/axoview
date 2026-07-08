@@ -13,6 +13,7 @@ import {
   UVRect
 } from 'src/webgl/glSpriteBatch';
 import { attachContextLossRecovery } from 'src/webgl/contextLoss';
+import { walkDashes } from 'src/webgl/lineStyle';
 
 // ---------------------------------------------------------------------------
 // RectanglesCanvas — WebGL2 INSTANCED draw of grouping-rectangle FILLS + BORDERS
@@ -25,9 +26,9 @@ import { attachContextLossRecovery } from 'src/webgl/contextLoss';
 //
 // Geometry: the tile rect [from..to] projects to a scene-space parallelogram —
 // the same linear iso map getTilePosition uses, so fills line up with nodes and
-// connectors. Corner radius (rounded rects) + dashed/dotted borders fall back to
-// approximation (sharp corners / solid) for now — documented; the shipping
-// grouping rects read fine, and a selected/edited rect can still show DOM chrome.
+// connectors. Border widths are scaled to scene space (widthScale) and dashed/
+// dotted styles are emitted (shared lineStyle walker), matching the DOM. Only
+// corner radius (rounded rects) is still approximated (sharp corners) on the bulk.
 // ---------------------------------------------------------------------------
 
 interface Props {
@@ -147,6 +148,14 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
       const dot = b.dot;
       let drawn = 0;
 
+      // Authored widths are UNPROJECTED tile-px; getTilePos returns PROJECTED
+      // scene points, so scale border widths by the projection's linear factor
+      // (== the DOM's getProjectionCss scale) or they draw ~1/scale too thick.
+      const g0 = getTilePos({ tile: { x: 0, y: 0 } });
+      const g1 = getTilePos({ tile: { x: 1, y: 0 } });
+      const widthScale =
+        Math.hypot(g1.x - g0.x, g1.y - g0.y) / UNPROJECTED_TILE_SIZE || 1;
+
       b.beginInstances();
 
       const segment = (
@@ -208,25 +217,24 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
           );
         }
 
-        // Border.
+        // Border. Scale the authored width to scene space (widthScale), then
+        // honour the border style — SOLID (four edges + round join dots) or
+        // DASHED (3w,2w) / DOTTED (w,2w) dash-walked around the closed loop,
+        // mirroring the DOM Rectangle strokeDasharray.
         const strokeColor =
           rect.borderColor ||
           (isTransparent
             ? '#9e9e9e'
             : getColorVariant(fillValue, 'dark', { grade: 2 }));
-        const strokeW = rect.borderWidth ?? (isTransparent ? 2 : 1);
+        const strokeW =
+          (rect.borderWidth ?? (isTransparent ? 2 : 1)) * widthScale;
         const [sr, sg, sb] = glRGB(strokeColor);
         const sa = rect.borderOpacity ?? 1;
-        segment(c0, c1, strokeW, sr, sg, sb, sa);
-        segment(c1, c2, strokeW, sr, sg, sb, sa);
-        segment(c2, c3, strokeW, sr, sg, sb, sa);
-        segment(c3, c0, strokeW, sr, sg, sb, sa);
-        // Round join dots so corners meet cleanly.
         const jr = strokeW / 2;
-        for (const c of [c0, c1, c2, c3])
+        const capDot = (p: Coords) =>
           b.addSprite(
-            c.x,
-            c.y,
+            p.x,
+            p.y,
             -jr,
             -jr,
             2 * jr,
@@ -240,6 +248,22 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
             sa,
             0
           );
+        const borderStyle = rect.borderStyle ?? 'SOLID';
+        if (borderStyle === 'DASHED' || borderStyle === 'DOTTED') {
+          const loop = [c0, c1, c2, c3, c0];
+          const dashLen = borderStyle === 'DASHED' ? strokeW * 3 : strokeW;
+          walkDashes(loop, dashLen, strokeW * 2, (p0, p1) => {
+            segment(p0, p1, strokeW, sr, sg, sb, sa);
+            capDot(p0);
+            capDot(p1);
+          });
+        } else {
+          segment(c0, c1, strokeW, sr, sg, sb, sa);
+          segment(c1, c2, strokeW, sr, sg, sb, sa);
+          segment(c2, c3, strokeW, sr, sg, sb, sa);
+          segment(c3, c0, strokeW, sr, sg, sb, sa);
+          for (const c of [c0, c1, c2, c3]) capDot(c);
+        }
 
         drawn += 1;
       }
