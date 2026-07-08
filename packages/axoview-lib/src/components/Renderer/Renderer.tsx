@@ -16,6 +16,7 @@ import { LabelHitLayer } from 'src/components/SceneLayers/Labels/LabelHitLayer';
 import { Rectangles } from 'src/components/SceneLayers/Rectangles/Rectangles';
 import { RectanglesCanvas } from 'src/components/SceneLayers/Rectangles/RectanglesCanvas';
 import { isWebGL2Supported } from 'src/webgl/glSpriteBatch';
+import { WebGLUnsupportedScreen } from 'src/components/Renderer/WebGLUnsupportedScreen';
 import { Connectors } from 'src/components/SceneLayers/Connectors/Connectors';
 import { ConnectorsCanvas } from 'src/components/SceneLayers/Connectors/ConnectorsCanvas';
 import { ConnectorLabels } from 'src/components/SceneLayers/ConnectorLabels/ConnectorLabels';
@@ -219,8 +220,9 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
     [showGrid]
   );
 
-  // The node layer is drawn by the imperative Canvas2D path (NodesCanvas) — the
-  // default and sole bulk renderer (ADR 0019). The actively-manipulated nodes —
+  // The node layer is drawn on the GPU (NodesCanvas) — WebGL2 is the sole render
+  // substrate (ADR 0019); a browser without it never reaches this code path (the
+  // WebGLUnsupportedScreen gate below). The actively-manipulated nodes —
   // the single SELECTED node and any node currently being DRAGGED — are instead
   // rendered by the DOM <Node> overlay (and skipped by the canvas) so they keep
   // the DOM affordances the canvas can't cheaply replicate: the F2 inline-rename
@@ -370,16 +372,6 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
       .map((r) => r.id)
       .join(',')
   );
-  // No WebGL2 → the connector/rectangle GPU layers can't draw (they have no
-  // Canvas2D fallback), so keep ALL of them in DOM (the bulk must never vanish).
-  // `__axoviewNoGpuFold` (perf harness only, PERF_NO_GPU_FOLD) forces the DOM
-  // path for the connector/rect A/B (before=DOM vs after=GPU on one build).
-  const gpuLayers =
-    isWebGL2Supported() &&
-    !(
-      typeof window !== 'undefined' &&
-      (window as { __axoviewNoGpuFold?: boolean }).__axoviewNoGpuFold
-    );
   const connectorHybridIds = useMemo(() => {
     const ids = new Set<string>();
     if (selectedConnectorId) ids.add(selectedConnectorId);
@@ -392,20 +384,15 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
     return ids;
   }, [selectedConnectorId, selectedConnectorKey, hitConnectors]);
   const domConnectors = useMemo(
-    () =>
-      !gpuLayers
-        ? visibleConnectors
-        : visibleConnectors.filter((c) => connectorHybridIds.has(c.id)),
-    [gpuLayers, visibleConnectors, connectorHybridIds]
+    () => visibleConnectors.filter((c) => connectorHybridIds.has(c.id)),
+    [visibleConnectors, connectorHybridIds]
   );
   const canvasConnectors = useMemo(
     () =>
-      !gpuLayers
-        ? ([] as typeof visibleConnectors)
-        : connectorHybridIds.size === 0
-          ? visibleConnectors
-          : visibleConnectors.filter((c) => !connectorHybridIds.has(c.id)),
-    [gpuLayers, visibleConnectors, connectorHybridIds]
+      connectorHybridIds.size === 0
+        ? visibleConnectors
+        : visibleConnectors.filter((c) => !connectorHybridIds.has(c.id)),
+    [visibleConnectors, connectorHybridIds]
   );
 
   // Floating Labels (ADR 0031) — viewport-culled like nodes; layer-visibility +
@@ -429,22 +416,24 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   );
   const domRectangles = useMemo(
     () =>
-      !gpuLayers
-        ? rectangles
-        : rectHybridIds
-          ? rectangles.filter((r) => rectHybridIds.has(r.id))
-          : ([] as typeof rectangles),
-    [gpuLayers, rectHybridIds, rectangles]
+      rectHybridIds
+        ? rectangles.filter((r) => rectHybridIds.has(r.id))
+        : ([] as typeof rectangles),
+    [rectHybridIds, rectangles]
   );
   const canvasRectangles = useMemo(
     () =>
-      !gpuLayers
-        ? ([] as typeof rectangles)
-        : rectHybridIds
-          ? rectangles.filter((r) => !rectHybridIds.has(r.id))
-          : rectangles,
-    [gpuLayers, rectHybridIds, rectangles]
+      rectHybridIds
+        ? rectangles.filter((r) => !rectHybridIds.has(r.id))
+        : rectangles,
+    [rectHybridIds, rectangles]
   );
+
+  // WebGL2 is the sole render substrate (Phase C): a browser without it can't
+  // draw the bulk layers at all, so gate the whole canvas area behind the
+  // unsupported-browser Screen instead of rendering an empty canvas. Placed
+  // AFTER every hook above so React's hook order stays stable across the gate.
+  if (!isWebGL2Supported()) return <WebGLUnsupportedScreen />;
 
   return (
     <Box

@@ -5,7 +5,6 @@ import { useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import {
-  drawLabelChip,
   measureLabelChip,
   labelFontPx,
   ChipColors,
@@ -23,8 +22,9 @@ import { rasterizeLabelChip, CHIP_SUPERSAMPLE } from 'src/webgl/itemRaster';
 // and issue one draw call (see glSpriteBatch / NodesCanvas for the model).
 //
 // Mounted ABOVE NodesCanvas in the Renderer, so a label can sit OVER a node.
-// DRAW-ONLY — selection + move are the DOM LabelHitLayer's job. The imperative
-// Canvas2D draw is kept below as an automatic FALLBACK where WebGL2 is absent.
+// DRAW-ONLY — selection + move are the DOM LabelHitLayer's job. WebGL2 is the
+// sole render substrate (Phase C); a browser without it is gated upstream by the
+// Renderer's WebGLUnsupportedScreen and never mounts this component.
 // ---------------------------------------------------------------------------
 
 interface Props {
@@ -59,7 +59,7 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
   const geomDirtyRef = useRef(true);
   const scheduleDrawRef = useRef<() => void>(() => {});
 
-  // Painter's-order sort cache (shared by both paths).
+  // Painter's-order sort cache.
   const sortCacheRef = useRef<{
     labels: Label[] | null;
     visibleIds: ReadonlySet<string> | null;
@@ -74,15 +74,11 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
     if (!canvas) return;
 
     const batch: SpriteBatch | null = createSpriteBatch(canvas);
-    const ctx: CanvasRenderingContext2D | null = batch
-      ? null
-      : canvas.getContext('2d');
-    if (!batch && !ctx) return;
+    if (!batch) return;
 
-    // Throwaway 2D context for measureText in the GL path.
-    const measureCtx: CanvasRenderingContext2D | null = batch
-      ? document.createElement('canvas').getContext('2d')
-      : ctx;
+    // Throwaway 2D context for measureText (the visible canvas is owned by WebGL).
+    const measureCtx: CanvasRenderingContext2D | null =
+      document.createElement('canvas').getContext('2d');
 
     // Shared per-frame state (sizes, transform inputs, sorted labels).
     const frameState = () => {
@@ -133,8 +129,8 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
       };
     };
 
-    // Per-label geometry shared by both paths: resolves the live move-preview and
-    // the layout cache, returns the chip centre (cx,cy) in tile space + layout.
+    // Per-label geometry: resolves the live move-preview and the layout cache,
+    // returns the chip centre (cx,cy) in tile space + layout.
     const resolveLabel = (
       label: Label,
       move: { id: string; tile: Coords; offset?: Coords } | null | undefined,
@@ -234,48 +230,8 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
       b.render(bw, bh, zoom * dpr, originXDev, originYDev, 1);
     };
 
-    // ----- Canvas2D FALLBACK path (verbatim from the pre-WebGL implementation) -----
-    const drawCanvas2D = (c2d: CanvasRenderingContext2D) => {
-      pendingRef.current = false;
-      const f = frameState();
-      const { bw, bh, W, H, dpr, scroll, zoom } = f;
-      if (canvas.width !== bw || canvas.height !== bh) {
-        canvas.width = bw;
-        canvas.height = bh;
-        canvas.style.width = `${W}px`;
-        canvas.style.height = `${H}px`;
-      }
-      c2d.setTransform(1, 0, 0, 1, 0, 0);
-      c2d.clearRect(0, 0, bw, bh);
-      c2d.setTransform(
-        zoom * dpr,
-        0,
-        0,
-        zoom * dpr,
-        (W / 2 + scroll.position.x) * dpr,
-        (H / 2 + scroll.position.y) * dpr
-      );
-
-      let drawn = 0;
-      for (const label of f.sorted) {
-        if (label.id === f.editingId) continue;
-        const { cx, cy, layout } = resolveLabel(
-          label,
-          f.move,
-          f.getTilePos,
-          c2d
-        );
-        c2d.save();
-        drawLabelChip(c2d, cx, cy, label, layout, f.colors);
-        c2d.restore();
-        drawn += 1;
-      }
-      canvas.dataset.drawCount = String(drawn);
-    };
-
     const draw = () => {
-      if (batch) drawGLBatch(batch);
-      else if (ctx) drawCanvas2D(ctx);
+      drawGLBatch(batch);
     };
 
     const scheduleDraw = () => {

@@ -789,8 +789,7 @@ function installHarness() {
     // (axoview-connectors-canvas → dataset.drawCount), while the sparse DOM
     // hybrid (selected / degenerate / unroutable) still emits its testids. The
     // two sets are disjoint (Renderer partitions by connectorHybridIds), so
-    // GPU-drawn + DOM-painted == committed — robust whether connectors are
-    // GPU-folded (normal) or forced to DOM (__axoviewNoGpuFold A/B).
+    // GPU-drawn + DOM-painted == committed.
     const connCanvas = document.querySelector(
       '[data-testid="axoview-connectors-canvas"]'
     ) as HTMLElement | null;
@@ -1698,11 +1697,6 @@ async function bootApp(page: Page) {
       /* pre-navigation */
     }
   }, ONBOARDING);
-  // PERF_NO_GPU_FOLD: force connectors + rectangles onto the DOM/SVG path (the
-  // "before" side of the GPU-fold A/B). addInitScript → live before Renderer mount.
-  await page.addInitScript((v: boolean) => {
-    (window as { __axoviewNoGpuFold?: boolean }).__axoviewNoGpuFold = v;
-  }, !!process.env.PERF_NO_GPU_FOLD);
   // ?perfprobe=1 enables useRenderProbe (window.__axoviewRenderProbe) so the drag
   // can report render fan-out. Off by default — the probe's per-render side-effect
   // would otherwise perturb the timing the baseline measures.

@@ -28,12 +28,7 @@ export const ConnectorLabels = memo(({ connectors }: Props) => {
   const zoomReadable = useUiStateStore(
     (s) => s.readableLabels || s.zoom >= CONNECTOR_LABEL_LOD_ZOOM
   );
-  // `__axoviewNoGpuFold` (perf A/B only) reproduces the pre-fold DOM state — no
-  // LOD, connectors/rects on DOM — so before/after isolates the whole change.
-  const labelsReadable =
-    zoomReadable ||
-    (typeof window !== 'undefined' &&
-      !!(window as { __axoviewNoGpuFold?: boolean }).__axoviewNoGpuFold);
+  const labelsReadable = zoomReadable;
 
   const labelledConnectors = useMemo(() => {
     const base = connectors.filter((connector) =>

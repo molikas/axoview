@@ -12,6 +12,11 @@ export interface LocaleProps {
   common: {
     exampleText: string;
   };
+  webglUnsupported: {
+    title: string;
+    body: string;
+    hint: string;
+  };
   rightSidebar: {
     collapsePanel: string;
     emptyState: string;

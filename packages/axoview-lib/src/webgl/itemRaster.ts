@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // itemRaster — Canvas2D rasterisation of node/label chips into offscreen canvases
-// for upload as GL textures (glCompositor.canvasTexture). The chip PIXELS are
+// for upload as GL textures (glSpriteBatch's putCanvas → texImage2D atlas). The chip PIXELS are
 // produced by the exact same roundRect/fillText/decoration code the Canvas2D bulk
 // path used (ports of NodesCanvas' inline chip block and labelChip.drawLabelChip),
 // so the GL scene is visually identical to the old one — only compositing moved
@@ -26,7 +26,7 @@ import {
 export const CHIP_SUPERSAMPLE = 2;
 
 // One reusable scratch canvas — a rasterised chip is uploaded to its GL texture
-// synchronously (inside canvasTexture), so a single scratch is safe to recycle.
+// synchronously (inside glSpriteBatch's putCanvas), so a single scratch is safe to recycle.
 let scratch: HTMLCanvasElement | null = null;
 const getScratch = (
   wCss: number,

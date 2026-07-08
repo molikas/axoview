@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // glSpriteBatch — instanced, single-atlas textured-quad renderer on WebGL2.
 //
-// The "heroic" GPU substrate: where glCompositor.ts re-emitted every quad's
+// The "heroic" GPU substrate: where the previous per-quad spike re-emitted every quad's
 // device-space corners on the CPU and re-uploaded a vertex buffer every frame
 // (and, because each chip is a unique content-keyed texture, flushed a draw
 // call PER node), this batch:
@@ -18,15 +18,16 @@
 // WHOLE layer, at any N. No per-node CPU work, no per-frame upload, one draw
 // call — the property that lets the layer scale to tens of thousands of nodes.
 //
-// Coordinate model (identical to glCompositor / the Canvas2D fallback):
+// Coordinate model (identical to the previous per-quad spike):
 //   device_px = (zoom · tilePoint + origin_css) · dpr
 // so u_view = (zoom·dpr, origin_css_x·dpr, origin_css_y·dpr). tilePoint is the
 // getTilePosition() output (independent of zoom/scroll — the whole point: only
 // the uniform changes on navigation). The label counter-scale multiplies the
 // LOCAL geometry (not the anchor), matching NodesCanvas exactly.
 //
-// Fallback: createSpriteBatch returns null when WebGL2 is unavailable, and the
-// canvas components keep their Canvas2D draw path.
+// WebGL2 is required (Phase C): createSpriteBatch returns null when it is
+// unavailable, and the Renderer gates the whole canvas behind the
+// WebGLUnsupportedScreen rather than any per-component Canvas2D fallback.
 // ---------------------------------------------------------------------------
 
 const VERT_SRC = `#version 300 es
@@ -186,7 +187,7 @@ export const createSpriteBatch = (
       depth: false,
       stencil: false,
       // So async image-export (dom-to-image / toDataURL) reads the drawn layer
-      // rather than a cleared buffer (mirrors glCompositor).
+      // rather than a cleared buffer (mirrors the previous per-quad spike).
       preserveDrawingBuffer: true
     }) as WebGL2RenderingContext | null;
   } catch {

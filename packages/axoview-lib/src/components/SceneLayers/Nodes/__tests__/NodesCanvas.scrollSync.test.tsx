@@ -7,7 +7,18 @@ import {
 import { ModelProvider } from 'src/stores/modelStore';
 import { CanvasModeProvider } from 'src/contexts/CanvasModeContext';
 import type { ViewItem } from 'src/types';
+import { createSpriteBatch, type SpriteBatch } from 'src/webgl/glSpriteBatch';
 import { NodesCanvas } from '../NodesCanvas';
+
+// The node layer is WebGL2-only (the Canvas2D fallback was removed with the
+// GPU fold). jsdom has no WebGL2, so createSpriteBatch would return null and the
+// layer would draw nothing — swap in a stub batch whose `render` we can observe.
+// render(bw, bh, zoom·dpr, originXDev, originYDev, counterScale) is the WebGL
+// analogue of the old Canvas2D setTransform: same transform, one draw call.
+jest.mock('src/webgl/glSpriteBatch', () => ({
+  ...jest.requireActual('src/webgl/glSpriteBatch'),
+  createSpriteBatch: jest.fn()
+}));
 
 // ---------------------------------------------------------------------------
 // Regression guard — canvas-pan "rubber-band" (shake-out 2026-06-23).
@@ -25,47 +36,51 @@ import { NodesCanvas } from '../NodesCanvas';
 //
 // Why this test is a true falsifier (not a green-test trap): it reproduces the
 // live failure window by stubbing requestAnimationFrame so it NEVER auto-runs.
-// The only way a draw can be observed after a store change is the synchronous
-// path. On the pre-fix code the draw was deferred to that never-flushed rAF, so
-// no synchronous `setTransform` carrying the new scroll lands and the assertions
-// below fail. They pass only because the canvas now paints in lockstep.
+// The only way a `batch.render` can be observed after a store change is the
+// synchronous path. On the pre-fix code the draw was deferred to that
+// never-flushed rAF, so no synchronous render carrying the new scroll lands and
+// the assertions below fail. They pass only because the canvas now paints in
+// lockstep.
 // ---------------------------------------------------------------------------
 
-// Minimal CanvasRenderingContext2D stub: jsdom doesn't implement getContext, and
-// the only thing this test inspects is the scroll/zoom transform NodesCanvas
-// applies before its node loop (`setTransform`) plus the per-draw `clearRect`.
+const UV = { u0: 0, v0: 0, uS: 1, vS: 1 };
+
+// Stub SpriteBatch — its `render` is the observation point; the atlas/instance
+// methods are inert (empty scene). putCanvas/putImage return a valid UV so
+// buildInstances never crashes on a non-empty scene either.
+const makeStubBatch = () =>
+  ({
+    putCanvas: jest.fn(() => UV),
+    putImage: jest.fn(() => UV),
+    dot: UV,
+    white: UV,
+    beginInstances: jest.fn(),
+    addSprite: jest.fn(),
+    commitInstances: jest.fn(),
+    instanceCount: jest.fn(() => 0),
+    render: jest.fn(),
+    destroy: jest.fn()
+  }) as unknown as jest.Mocked<SpriteBatch>;
+
+// A throwaway 2D context is still created for measureText in the GL path; jsdom
+// returns null for getContext, so hand back a minimal stub.
 const createMockCtx = () =>
   ({
-    setTransform: jest.fn(),
-    clearRect: jest.fn(),
+    measureText: jest.fn(() => ({ width: 0 })),
     save: jest.fn(),
     restore: jest.fn(),
-    translate: jest.fn(),
-    scale: jest.fn(),
-    transform: jest.fn(),
-    beginPath: jest.fn(),
-    moveTo: jest.fn(),
-    lineTo: jest.fn(),
-    arcTo: jest.fn(),
-    closePath: jest.fn(),
-    stroke: jest.fn(),
-    fill: jest.fn(),
+    setTransform: jest.fn(),
+    clearRect: jest.fn(),
     fillText: jest.fn(),
-    drawImage: jest.fn(),
-    roundRect: jest.fn(),
-    setLineDash: jest.fn(),
-    measureText: jest.fn(() => ({ width: 0 })),
     font: '',
     fillStyle: '',
     strokeStyle: '',
-    lineWidth: 1,
-    lineCap: 'butt',
     textAlign: 'left',
     textBaseline: 'alphabetic'
   });
 
 describe('NodesCanvas — pan/zoom repaints synchronously (rubber-band regression)', () => {
-  let mockCtx: ReturnType<typeof createMockCtx>;
+  let stubBatch: ReturnType<typeof makeStubBatch>;
   let getContextSpy: jest.SpyInstance;
   let origRaf: typeof window.requestAnimationFrame;
   let origCancelRaf: typeof window.cancelAnimationFrame;
@@ -92,14 +107,16 @@ describe('NodesCanvas — pan/zoom repaints synchronously (rubber-band regressio
     );
 
   beforeEach(() => {
-    mockCtx = createMockCtx();
+    stubBatch = makeStubBatch();
+    (createSpriteBatch as jest.Mock).mockReturnValue(stubBatch);
+
     getContextSpy = jest
       .spyOn(HTMLCanvasElement.prototype, 'getContext')
-      .mockReturnValue(mockCtx as unknown as CanvasRenderingContext2D);
+      .mockReturnValue(createMockCtx() as unknown as CanvasRenderingContext2D);
 
     // Stub rAF to record-but-never-invoke: this is the crux. A returned-but-never
     // -run callback models "the next frame hasn't happened yet" — the exact window
-    // in which the canvas used to lag the DOM. So any draw we observe MUST be
+    // in which the canvas used to lag the DOM. So any render we observe MUST be
     // synchronous. Direct assignment (not spyOn) so it works whether or not the
     // jsdom build defines rAF.
     origRaf = window.requestAnimationFrame;
@@ -118,6 +135,7 @@ describe('NodesCanvas — pan/zoom repaints synchronously (rubber-band regressio
 
   afterEach(() => {
     getContextSpy.mockRestore();
+    (createSpriteBatch as jest.Mock).mockReset();
     window.requestAnimationFrame = origRaf;
     window.cancelAnimationFrame = origCancelRaf;
     (window as unknown as { devicePixelRatio: number }).devicePixelRatio =
@@ -136,8 +154,7 @@ describe('NodesCanvas — pan/zoom repaints synchronously (rubber-band regressio
     });
 
     // Drop any mount-time bookkeeping; measure only what setScroll triggers.
-    mockCtx.setTransform.mockClear();
-    mockCtx.clearRect.mockClear();
+    stubBatch.render.mockClear();
 
     act(() => {
       uiApi!.getState().actions.setScroll({
@@ -147,11 +164,19 @@ describe('NodesCanvas — pan/zoom repaints synchronously (rubber-band regressio
     });
 
     // A repaint happened synchronously — requestAnimationFrame was never flushed.
-    expect(mockCtx.clearRect).toHaveBeenCalled();
-    // ...and it used the NEW scroll. The canvas applies
-    //   setTransform(zoom·dpr, 0, 0, zoom·dpr, (W/2 + scroll.x)·dpr, (H/2 + scroll.y)·dpr)
-    // with zoom 0.65, dpr 1, W 800, H 600 → e = 400 + 123 = 523, f = 300 + 456 = 756.
-    expect(mockCtx.setTransform).toHaveBeenCalledWith(0.65, 0, 0, 0.65, 523, 756);
+    // The canvas issued one instanced draw with the NEW scroll:
+    //   render(bw, bh, zoom·dpr, (W/2 + scroll.x)·dpr, (H/2 + scroll.y)·dpr, …)
+    // with zoom 0.65, dpr 1, W 800, H 600 → originX = 400 + 123 = 523,
+    // originY = 300 + 456 = 756.
+    expect(stubBatch.render).toHaveBeenCalled();
+    expect(stubBatch.render).toHaveBeenCalledWith(
+      800,
+      600,
+      0.65,
+      523,
+      756,
+      expect.anything()
+    );
   });
 
   it('repaints with the new zoom in the same tick as setZoom', () => {
@@ -159,13 +184,20 @@ describe('NodesCanvas — pan/zoom repaints synchronously (rubber-band regressio
     act(() => {
       uiApi!.getState().actions.setRendererSize({ width: 800, height: 600 });
     });
-    mockCtx.setTransform.mockClear();
+    stubBatch.render.mockClear();
 
     act(() => {
       uiApi!.getState().actions.setZoom(2);
     });
 
-    // zoom 2, dpr 1, scroll {0,0} → setTransform(2, 0, 0, 2, 400, 300).
-    expect(mockCtx.setTransform).toHaveBeenCalledWith(2, 0, 0, 2, 400, 300);
+    // zoom 2, dpr 1, scroll {0,0} → render(800, 600, 2, 400, 300, …).
+    expect(stubBatch.render).toHaveBeenCalledWith(
+      800,
+      600,
+      2,
+      400,
+      300,
+      expect.anything()
+    );
   });
 });

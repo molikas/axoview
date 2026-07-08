@@ -31,7 +31,7 @@ import { rasterizeNodeChip, CHIP_SUPERSAMPLE } from 'src/webgl/itemRaster';
 // N) with one GPU-composited <canvas> and — the heroic step — ONE instanced
 // draw call for the whole layer.
 //
-// The previous WebGL spike (glCompositor) re-emitted every quad's device-space
+// The previous per-quad spike re-emitted every quad's device-space
 // corners on the CPU every frame and re-uploaded a vertex buffer; because each
 // chip is a unique content-keyed texture, painter's-order batching flushed a
 // draw call PER node. That made pan/zoom O(N) on the CPU — the wall at scale.
@@ -49,17 +49,17 @@ import { rasterizeNodeChip, CHIP_SUPERSAMPLE } from 'src/webgl/itemRaster';
 // nodes. buildInstances runs only when the SCENE changes (nodes / model / theme
 // / projection / the label LOD band); navigation never rebuilds.
 //
-// The imperative Canvas2D draw() is kept verbatim below as an automatic FALLBACK
-// (drawCanvas2D) for environments without WebGL2 — the component transparently
-// picks the GL path when a batch is available and Canvas2D when it is not.
+// WebGL2 is required — it is the sole render substrate (Phase C). A browser
+// without it is gated upstream by the Renderer's WebGLUnsupportedScreen and
+// never mounts this component, so a SpriteBatch is always available here.
 //
 // DRAW-ONLY. Hit-testing/selection/drag stay in the stores + the invisible
 // `canvas-interactions` box. The hybrid keeps DOM for the selected/editing
 // node's live label (skipNodes), unchanged.
 //
 // Transform model (unchanged): the SceneLayer CSS is translate(scroll)
-// scale(zoom) about the renderer centre. Canvas2D mirrors it with setTransform;
-// the GL path maps tile-space point (tx,ty) → device px as
+// scale(zoom) about the renderer centre. The GL path mirrors it, mapping
+// tile-space point (tx,ty) → device px as
 //   ((zoom·tx + W/2 + scroll.x)·dpr, (zoom·ty + H/2 + scroll.y)·dpr)
 // entirely in the shader (u_view = (zoom·dpr, origin_x·dpr, origin_y·dpr)).
 // ---------------------------------------------------------------------------
@@ -110,29 +110,6 @@ const EMPTY_SKIP: Set<string> = new Set();
 const spacingPx = (v: string | number): number =>
   typeof v === 'number' ? v : parseFloat(v);
 
-// Rounded-rect path with a manual fallback (used by the Canvas2D fallback path).
-const roundRectPath = (
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number
-): void => {
-  ctx.beginPath();
-  if (typeof ctx.roundRect === 'function') {
-    ctx.roundRect(x, y, w, h, r);
-    return;
-  }
-  const rr = Math.min(r, w / 2, h / 2);
-  ctx.moveTo(x + rr, y);
-  ctx.arcTo(x + w, y, x + w, y + h, rr);
-  ctx.arcTo(x + w, y + h, x, y + h, rr);
-  ctx.arcTo(x, y + h, x, y, rr);
-  ctx.arcTo(x, y, x + w, y, rr);
-  ctx.closePath();
-};
-
 // Fixed iso projection matrix (X-orientation) — mirrors getProjectionCss / the
 // NonIsometricIcon transform.
 const ISO: [number, number, number, number, number, number] = [
@@ -151,7 +128,7 @@ const resolveIcon = (
 const iconHeight = (img: HTMLImageElement, w: number): number =>
   img.naturalWidth > 0 ? (img.naturalHeight / img.naturalWidth) * w : w;
 
-// Compute the node-name text/chip layout (shared by both render paths).
+// Compute the node-name text/chip layout.
 const measureNodeLabel = (
   ctx: CanvasRenderingContext2D,
   name: string,
@@ -228,7 +205,7 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
   const scheduleDrawRef = useRef<() => void>(() => {});
   const drawNowRef = useRef<() => void>(() => {});
 
-  // ST-4: painter's-order sort cache (shared by both paths).
+  // ST-4: painter's-order sort cache.
   const sortCacheRef = useRef<{
     nodes: ViewItem[] | null;
     layers: Layer[] | null;
@@ -258,24 +235,20 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Prefer WebGL2 (instanced batch); fall back to Canvas2D where it's
-    // unavailable. A canvas can only ever hold one context type, so try GL first
-    // and only ask for '2d' when the batch is null.
+    // WebGL2 is required (Phase C): a browser without it is gated upstream by the
+    // Renderer's WebGLUnsupportedScreen and never mounts this component, so
+    // createSpriteBatch is expected to succeed here.
     // 8192² atlas: chips + icons for the whole node layer (verified to hold the
     // fit-to-view harness's ~1000 simultaneous readable chips).
     const batch: SpriteBatch | null = createSpriteBatch(canvas, 8192);
-    const ctx: CanvasRenderingContext2D | null = batch
-      ? null
-      : canvas.getContext('2d');
-    if (!batch && !ctx) return;
+    if (!batch) return;
 
-    // A throwaway 2D context purely for measureText in the GL path (the visible
-    // canvas is owned by WebGL and has no 2D context).
-    const measureCtx: CanvasRenderingContext2D | null = batch
-      ? document.createElement('canvas').getContext('2d')
-      : ctx;
+    // A throwaway 2D context purely for measureText (the visible canvas is owned
+    // by WebGL and has no 2D context).
+    const measureCtx: CanvasRenderingContext2D | null =
+      document.createElement('canvas').getContext('2d');
     // Shared scratch for downscaling large icons into the atlas.
-    const iconScratch = batch ? document.createElement('canvas') : null;
+    const iconScratch = document.createElement('canvas');
 
     const getImage = (url: string): HTMLImageElement | null => {
       if (!url) return null;
@@ -294,7 +267,7 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       return img.complete ? img : null;
     };
 
-    // ----- shared per-frame scene state (both paths) -----
+    // ----- shared per-frame scene state -----
     const frameState = () => {
       const ui = uiApi.getState();
       const { scroll, zoom, rendererSize, readableLabels } = ui;
@@ -679,175 +652,8 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       canvas.dataset.labelScale = String(counterScale);
     };
 
-    // ------------------------------------------------------------------
-    // Canvas2D FALLBACK path (verbatim from the pre-WebGL implementation).
-    // ------------------------------------------------------------------
-    const drawCanvas2D = (c2d: CanvasRenderingContext2D) => {
-      pendingRef.current = false;
-      const f = frameState();
-      const { bw, bh, W, H, dpr, scroll, zoom } = f;
-      if (canvas.width !== bw || canvas.height !== bh) {
-        canvas.width = bw;
-        canvas.height = bh;
-        canvas.style.width = `${W}px`;
-        canvas.style.height = `${H}px`;
-      }
-      c2d.setTransform(1, 0, 0, 1, 0, 0);
-      c2d.clearRect(0, 0, bw, bh);
-      c2d.setTransform(
-        zoom * dpr,
-        0,
-        0,
-        zoom * dpr,
-        (W / 2 + scroll.position.x) * dpr,
-        (H / 2 + scroll.position.y) * dpr
-      );
-
-      let drawn = 0;
-      let labelsDrawn = 0;
-      let linkedLabelsDrawn = 0;
-      let allIconsDrawn = true;
-      for (const node of f.sorted) {
-        const modelItem = f.itemsById.get(node.id);
-        if (!modelItem) continue;
-        drawn += 1;
-        const base = f.getTilePos({ tile: node.tile, origin: 'CENTER' });
-        const pos = node.offset
-          ? { x: base.x + node.offset.x, y: base.y + node.offset.y }
-          : base;
-
-        const name = decodeHtmlEntities(modelItem.label ?? modelItem.name);
-        const hasLabel =
-          isLabelVisibleInPreview(
-            node.showLabel !== false,
-            f.inPreview,
-            f.previewHideLabels
-          ) &&
-          !f.exportHideLabels &&
-          Boolean(name);
-        const labelHeight = node.labelHeight ?? DEFAULT_LABEL_HEIGHT;
-
-        if (hasLabel && labelHeight !== 0 && f.drawLabels) {
-          c2d.save();
-          c2d.setLineDash([0, 6]);
-          c2d.lineCap = 'round';
-          c2d.lineWidth = 3;
-          c2d.strokeStyle = 'black';
-          c2d.beginPath();
-          c2d.moveTo(pos.x, pos.y);
-          c2d.lineTo(pos.x, pos.y - labelHeight);
-          c2d.stroke();
-          c2d.restore();
-        }
-
-        const icon = resolveIcon(modelItem.icon, f.iconsById);
-        const img = getImage(icon.url);
-        if (icon.url && !img) allIconsDrawn = false;
-        if (img) {
-          const scale = icon.scale || 1;
-          c2d.save();
-          c2d.translate(pos.x, pos.y);
-          if (icon.isIsometric) {
-            const w = PROJ_W * 0.8 * scale;
-            const h = iconHeight(img, w);
-            c2d.drawImage(img, -w / 2, -h / 2, w, h);
-          } else if (f.isIso) {
-            c2d.translate(-PROJ_W / 2, 0);
-            c2d.transform(ISO[0], ISO[1], ISO[2], ISO[3], ISO[4], ISO[5]);
-            const w = PROJ_W * 0.7 * scale;
-            const h = iconHeight(img, w);
-            c2d.drawImage(img, 0, 0, w, h);
-          } else {
-            const w = PROJ_W * 0.7 * scale;
-            const h = iconHeight(img, w);
-            c2d.drawImage(img, -w / 2, -h / 2, w, h);
-          }
-          c2d.restore();
-        }
-
-        if (hasLabel && f.drawLabels) {
-          labelsDrawn += 1;
-          const chip = chipStyleRef.current;
-          const fontSize = node.labelFontSize || LABEL_BASE_FONT_PX;
-          const labelBold = node.labelBold;
-          const labelItalic = node.labelItalic;
-          const labelStrike = node.labelStrikethrough;
-          const linked = !!modelItem.headerLink;
-          if (linked) linkedLabelsDrawn += 1;
-          const labelUnder = node.labelUnderline || linked;
-          const textColor =
-            node.labelColor || (linked ? LABEL_LINK_COLOR : chip.text);
-
-          const layoutKey = `${fontSize}:${labelBold ? 1 : 0}:${
-            labelItalic ? 1 : 0
-          }:${name}`;
-          let layout = labelLayoutCacheRef.current.get(layoutKey);
-          if (!layout) {
-            layout = measureNodeLabel(
-              c2d,
-              name,
-              fontSize,
-              !!labelBold,
-              !!labelItalic,
-              chip
-            );
-            const lc = labelLayoutCacheRef.current;
-            if (lc.size > 4096) lc.clear();
-            lc.set(layoutKey, layout);
-          }
-          const { nameFont, nameLineH, chipW, chipH } = layout;
-
-          c2d.save();
-          c2d.translate(pos.x, pos.y - labelHeight);
-          c2d.scale(f.counterScale, f.counterScale);
-          const x0 = -chipW / 2;
-          const y0 = labelHeight < 0 ? 0 : -chipH;
-          roundRectPath(c2d, x0, y0, chipW, chipH, chip.radius);
-          c2d.fillStyle = chip.bg;
-          c2d.fill();
-          c2d.lineWidth = 1;
-          c2d.strokeStyle = chip.border;
-          c2d.stroke();
-
-          c2d.textAlign = 'left';
-          c2d.textBaseline = 'top';
-          const textX = x0 + chip.padX;
-          const textY = y0 + chip.padY;
-          c2d.font = nameFont;
-          c2d.fillStyle = textColor;
-          c2d.fillText(name, textX, textY + (nameLineH - fontSize) / 2);
-          if (labelStrike || labelUnder) {
-            c2d.strokeStyle = textColor;
-            c2d.lineWidth = Math.max(1, fontSize / 14);
-            const innerW = chipW - chip.padX * 2;
-            if (labelStrike) {
-              const strikeY = textY + nameLineH / 2;
-              c2d.beginPath();
-              c2d.moveTo(textX, strikeY);
-              c2d.lineTo(textX + innerW, strikeY);
-              c2d.stroke();
-            }
-            if (labelUnder) {
-              const underY =
-                textY + (nameLineH - fontSize) / 2 + fontSize * 0.95;
-              c2d.beginPath();
-              c2d.moveTo(textX, underY);
-              c2d.lineTo(textX + innerW, underY);
-              c2d.stroke();
-            }
-          }
-          c2d.restore();
-        }
-      }
-      canvas.dataset.drawCount = String(drawn);
-      canvas.dataset.labelsDrawn = String(labelsDrawn);
-      canvas.dataset.linkedLabelsDrawn = String(linkedLabelsDrawn);
-      canvas.dataset.allIconsDrawn = String(allIconsDrawn);
-    };
-
     const draw = () => {
-      if (batch) drawGLBatch(batch);
-      else if (ctx) drawCanvas2D(ctx);
+      drawGLBatch(batch);
     };
 
     const scheduleDraw = () => {

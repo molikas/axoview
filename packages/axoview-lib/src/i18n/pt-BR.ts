@@ -1,6 +1,11 @@
 import { LocaleProps } from '../types/axoviewProps';
 
 const locale: LocaleProps = {
+  webglUnsupported: {
+    title: "This browser can't display diagrams",
+    body: 'Axoview renders diagrams on your GPU using WebGL2, which this browser does not support.',
+    hint: 'Update to a recent version of Chrome, Edge, Firefox, or Safari — or turn on hardware acceleration — then reload.'
+  },
   common: {
     exampleText: 'Este é um texto de exemplo'
   },
