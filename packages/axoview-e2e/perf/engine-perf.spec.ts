@@ -785,11 +785,22 @@ function installHarness() {
       ? parseInt(canvasEl.dataset.drawCount ?? '0', 10) || 0
       : document.querySelectorAll('[data-drag-id]').length;
     // Connector-paint anti-cheat (D4-1, mirrors the node draw-count): every
-    // committed connector must paint — a routable path or an unroutable marker,
-    // not nothing. Counts both DOM testids.
-    const paintedConnectors = document.querySelectorAll(
+    // committed connector must paint. Bulk connector bodies fold onto the GPU
+    // (axoview-connectors-canvas → dataset.drawCount), while the sparse DOM
+    // hybrid (selected / degenerate / unroutable) still emits its testids. The
+    // two sets are disjoint (Renderer partitions by connectorHybridIds), so
+    // GPU-drawn + DOM-painted == committed — robust whether connectors are
+    // GPU-folded (normal) or forced to DOM (__axoviewNoGpuFold A/B).
+    const connCanvas = document.querySelector(
+      '[data-testid="axoview-connectors-canvas"]'
+    ) as HTMLElement | null;
+    const gpuPaintedConn = connCanvas
+      ? parseInt(connCanvas.dataset.drawCount ?? '0', 10) || 0
+      : 0;
+    const domPaintedConn = document.querySelectorAll(
       '[data-testid="connector-path"], [data-testid="connector-unroutable"]'
     ).length;
+    const paintedConnectors = gpuPaintedConn + domPaintedConn;
     return {
       frames,
       longTasks,

@@ -87,7 +87,15 @@ const canvasCentroid = (page: Page, pt: Pt, half: number) =>
       const w = Math.min(cv.width - x0, Math.round(half * 2 * sx));
       const h = Math.min(cv.height - y0, Math.round(half * 2 * sy));
       if (w <= 0 || h <= 0) return null;
-      const data = cv.getContext('2d')!.getImageData(x0, y0, w, h).data;
+      // The node canvas is WebGL2 (preserveDrawingBuffer:true), so getContext('2d')
+      // returns null. Read its pixels via drawImage onto a scratch 2D canvas —
+      // substrate-agnostic (works for a Canvas2D layer too).
+      const scratch = document.createElement('canvas');
+      scratch.width = w;
+      scratch.height = h;
+      const s2d = scratch.getContext('2d')!;
+      s2d.drawImage(cv, x0, y0, w, h, 0, 0, w, h);
+      const data = s2d.getImageData(0, 0, w, h).data;
       let sX = 0;
       let sY = 0;
       let n = 0;
@@ -227,7 +235,14 @@ test.describe('Canvas node render — render == DOM/hit-test (ADR 0019)', () => 
           const w = Math.min(cv.width - x0, Math.round(halfW * 2 * sx));
           const h = Math.min(cv.height - y0, Math.round(halfH * 2 * sy));
           if (w <= 0 || h <= 0) return 0;
-          const data = cv.getContext('2d')!.getImageData(x0, y0, w, h).data;
+          // WebGL2 node canvas → read via a scratch 2D canvas (drawImage relies
+          // on preserveDrawingBuffer:true); substrate-agnostic.
+          const scratch = document.createElement('canvas');
+          scratch.width = w;
+          scratch.height = h;
+          const s2d = scratch.getContext('2d')!;
+          s2d.drawImage(cv, x0, y0, w, h, 0, 0, w, h);
+          const data = s2d.getImageData(0, 0, w, h).data;
           let n = 0;
           for (let i = 0; i < data.length; i += 4) {
             if (
