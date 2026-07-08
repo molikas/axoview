@@ -99,12 +99,20 @@ a follow-up, not a silent gap:
   capability gap (below) still yields a *first-paint* blank on a browser that
   advertises WebGL2 but fails shader/link/atlas-alloc; that path now emits a
   `console.warn` per layer rather than being fully silent.
-- **GPU dashed/dotted/double-line connectors.** `style` (DASHED/DOTTED) and
-  `lineType` (DOUBLE/DOUBLE_WITH_CIRCLE) are not yet emitted by
-  `ConnectorsCanvas`; an unselected styled connector draws as a solid single line
-  (selecting it promotes it to the correctly-rendered DOM `<Connector>`). Owner
-  decision: implement on the GPU (mirror `<Connector>`'s strokeDashArray +
-  offset-path geometry), not route back to the DOM. Needs visual verification.
+- **GPU connector/rectangle line-styles — IMPLEMENTED 2026-07-08 (this PR;
+  pending visual verification).** `ConnectorsCanvas` now emits the full DOM
+  matrix: `style` DASHED/DOTTED (dash-walked via the shared
+  [`webgl/lineStyle.ts`](../../packages/axoview-lib/src/webgl/lineStyle.ts)) and
+  `lineType` DOUBLE / DOUBLE_WITH_CIRCLE (two offset polylines + a mid-path ellipse
+  ring), mirroring `<Connector>`'s strokeDashArray + offsetPaths geometry.
+  `RectanglesCanvas` gained dashed/dotted borders the same way. **Width fidelity
+  fix (same change):** all bulk stroke widths are now scaled to scene space by the
+  projection's linear factor (measured from `getTilePosition`; the DOM's authored
+  widths are unprojected tile-px scaled by `getProjectionCss`), so GPU strokes are
+  no longer ~1.22× too thick in iso, and are consistent across connectors and
+  rectangles. The connector arrow now draws with a `(1,1,1,1)` tint so its baked
+  white outline survives (a black tint had blacked it out, hiding it on dark
+  lines). Rounded rectangle corners remain approximated (sharp) on the bulk.
 - **Premultiplied-alpha mip fringing.** The atlas stores straight alpha; mip
   minification can pull a faint dark halo into anti-aliased edges when zoomed out.
   Fix (premultiply on upload + `blendFunc(ONE, ONE_MINUS_SRC_ALPHA)`, or edge-

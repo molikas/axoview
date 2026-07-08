@@ -28,7 +28,7 @@ The fold makes **WebGL2 the sole bulk render substrate** — `glSpriteBatch` dra
 |---|---|---|---|
 | Performance (the goal) | **A** | **A** | O(1)/60fps pan verified; `buildDelta===0` machine-checked ([engine-perf.spec.ts:1547](../packages/axoview-e2e/perf/engine-perf.spec.ts#L1547)) |
 | Anti-cheat integrity | **A** | **A** | Re-point PRESERVED/STRENGTHENED exact-equality (`painted == committed`, [engine-perf.spec.ts:2641](../packages/axoview-e2e/perf/engine-perf.spec.ts#L2641)); no test deleted/skipped/loosened |
-| Rendering correctness | **B−** | **B−** | Chips pixel-identical; but 8/9 connector style×lineType combos still render solid until selected (GPU fix = P2) |
+| Rendering correctness | **B−** | **B+** | Chips pixel-identical; GPU line-styles (dashed/dotted/double/circle), stroke-width fidelity, and arrow outline now match the DOM ([§7](#7-followup-line-styles--width-fidelity--arrows-same-session)) |
 | Robustness / failure handling | **C+** | **B+** | Context-loss recovery + probe-leak fix + null-surface `console.warn` close the silent-blank cluster's root cause |
 | Test coverage | **B−** | **B−** | Anti-cheat strong + e2e green, but `webgl/` still has no unit tests and the gate is untested (ts-jest transform blocker) |
 | Docs / ADR discipline | **B+** | **A−** | 4 stale fallback comments + wrong ADR cite swept; ADR 0038 §Decision 2 / §Deferred corrected |
@@ -115,4 +115,23 @@ Re-run locally against the fix commit:
 
 ---
 
-*Measured 2026-07-08, `integration` @ `2cfb10c` (pre-fix) + this session's fix commit. Companion to [2026-07](technical-review-2026-07.md) (v3.0.3 snapshot). Fold ADR: [0038](adr/0038-webgl-instanced-render-substrate.md).*
+---
+
+## 7. Follow-up: line-styles + width fidelity + arrows (same session)
+
+Finding #2 was framed as a *release-noted deferral* (ship the solid-line bulk, fix the GPU styles as P2). Owner call reversed it — styling connectors is core, so it must be in this PR. Landed on top of the fix commit:
+
+| Issue (owner-reported) | Before | After |
+|---|---|---|
+| Connector styles not applied until selected | `ConnectorsCanvas` drew every connector as a solid single line | Full DOM matrix on the GPU: `style` DASHED/DOTTED (dash-walked) + `lineType` DOUBLE / DOUBLE_WITH_CIRCLE (two offset polylines + a mid-path ellipse ring), mirroring `<Connector>` |
+| Rectangle border not applied + too thick | `borderStyle` ignored (solid); raw width | Dashed/dotted borders (dash-walked around the edge loop), matching `<Rectangle>`'s `3w 2w` / `w 2w` |
+| **Strokes too thick / inconsistent across elements** | Authored widths (unprojected tile-px) applied raw in projected scene space → ~1.22× too thick in iso; connectors and rectangles diverged | A single `widthScale`, measured from `getTilePosition` (== the DOM's `getProjectionCss` factor; 0.817 iso / 1.0 2D), scales **all** bulk stroke widths — connectors and rectangles now consistent and DOM-matched |
+| Arrows hard to see | Arrow drawn with a `(0,0,0,1)` black tint that zeroed its baked white outline | White `(1,1,1,1)` tint preserves the black fill + white outline → visible on dark lines |
+
+New shared module [`webgl/lineStyle.ts`](../packages/axoview-lib/src/webgl/lineStyle.ts) (`walkDots` / `walkDashes`) keeps the two layers' dash geometry identical. Gates after: tsc clean, jest **145 / 1483 + 1 skip**, eslint 0/6, build clean.
+
+**Verification caveat (unchanged):** WebGL can't render under jsdom/SwiftShader in CI, so these are matched to the DOM's exact formulas and need a real-browser visual confirmation. The perf anti-cheat still holds — `dataset.drawCount` is one increment per connector regardless of style, and SOLID/SINGLE (the perf-harness default) emits the same instances as before.
+
+---
+
+*Measured 2026-07-08, `integration` @ `2cfb10c` (pre-fix) + this session's fix commits. Companion to [2026-07](technical-review-2026-07.md) (v3.0.3 snapshot). Fold ADR: [0038](adr/0038-webgl-instanced-render-substrate.md).*

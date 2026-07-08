@@ -342,11 +342,17 @@ recorded in ADR 0038 §Deferred; none blocks the WebGL2-only substrate.
   and add a unit test once the `webgl/` ts-jest transform blocker clears. Residual:
   a browser that advertises WebGL2 but fails shader/link/atlas-alloc still shows a
   *first-paint* blank layer — now logged (`console.warn` per layer), not silent.
-- **GPU dashed/dotted/double-line connectors** — `style` (DASHED/DOTTED) and
-  `lineType` (DOUBLE/DOUBLE_WITH_CIRCLE) are not yet emitted by `ConnectorsCanvas`;
-  an *unselected* styled connector draws solid (selecting it promotes it to the
-  correct DOM `<Connector>`). Owner decision: implement on the GPU, mirror
-  `<Connector>`'s strokeDashArray + offset-path geometry. Needs visual verification.
+- **GPU connector/rectangle line-styles — RESOLVED 2026-07-08 (pending visual
+  verification).** `ConnectorsCanvas` now emits `style` DASHED/DOTTED + `lineType`
+  DOUBLE/DOUBLE_WITH_CIRCLE (offset polylines + mid-path ellipse ring), and
+  `RectanglesCanvas` emits dashed/dotted borders, via the shared
+  [`webgl/lineStyle.ts`](packages/axoview-lib/src/webgl/lineStyle.ts) walker —
+  mirroring the DOM. Same change fixed **stroke-width fidelity** (all bulk widths
+  are scaled to scene space by the projection factor, so they are no longer
+  ~1.22× too thick in iso and are consistent across connectors + rectangles) and
+  **arrow visibility** (white-tinted so the baked outline survives). Only rounded
+  rectangle corners remain approximated (sharp) on the bulk. Confirm in a real
+  browser (WebGL can't render under jsdom/SwiftShader in CI).
 - **Premultiplied-alpha mip fringing** — straight-alpha atlas can pull a faint
   dark halo into minified edges. Fix (premultiply on upload / edge-dilate) risks a
   broader color regression → needs a pixel-diff harness first.
