@@ -13,6 +13,7 @@ import {
   UVRect
 } from 'src/webgl/glSpriteBatch';
 import { attachContextLossRecovery } from 'src/webgl/contextLoss';
+import { computeBackingStore } from 'src/utils/renderTarget';
 import { walkDashes } from 'src/webgl/lineStyle';
 
 // ---------------------------------------------------------------------------
@@ -91,17 +92,19 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
     const view = () => {
       const ui = uiApi.getState();
       const { scroll, zoom, rendererSize } = ui;
-      const dpr = window.devicePixelRatio || 1;
       const W = rendererSize.width;
       const H = rendererSize.height;
+      // Clamp the backing store to the canvas caps; the effective dpr feeds both
+      // the buffer size and the u_view scale/origin at render (ADR 0038).
+      const backing = computeBackingStore(W, H, window.devicePixelRatio || 1);
       return {
         scroll,
         zoom,
         W,
         H,
-        dpr,
-        bw: Math.max(1, Math.round(W * dpr)),
-        bh: Math.max(1, Math.round(H * dpr))
+        dpr: backing.dpr,
+        bw: backing.width,
+        bh: backing.height
       };
     };
 

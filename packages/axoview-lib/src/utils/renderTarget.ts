@@ -74,3 +74,48 @@ export function computeRenderTarget(
     maxScale
   };
 }
+
+export interface BackingStore {
+  /** Backing-store width in device px (clamped, rounded, ≥ 1). */
+  width: number;
+  /** Backing-store height in device px (clamped, rounded, ≥ 1). */
+  height: number;
+  /** Effective device-pixel-ratio after clamping (≤ the requested dpr). */
+  dpr: number;
+  /** True when dpr had to be reduced to fit the caps. */
+  wasClamped: boolean;
+}
+
+/**
+ * Clamp a bulk GPU layer's backing store (`cssW·dpr × cssH·dpr`) against the
+ * browser's canvas caps (ADR 0038 §Deferred — backing-store viewport clamp).
+ *
+ * A very-high-DPI large viewport can push `W·dpr` past a canvas's max dimension
+ * / total-area limit, at which point the browser hands back a blank or failed GL
+ * surface (the same failure `computeRenderTarget` guards for export). This treats
+ * `dpr` as the export path treats its scale multiplier: it returns the largest
+ * effective dpr that still fits, degrading *resolution* rather than blanking.
+ *
+ * The caller MUST feed the returned `dpr` into the ENTIRE render path — the
+ * `zoom·dpr` view scale AND the device origin (`(W/2 + scroll)·dpr`) — not just
+ * the backing-store size, or the scene and its buffer desync (the CSS canvas size
+ * stays `W×H`, so the browser upscales the smaller buffer to fill).
+ *
+ * Uses the conservative cross-browser `DEFAULT_RENDER_CAPS` rather than querying
+ * live `MAX_VIEWPORT_DIMS` / `MAX_TEXTURE_SIZE`: one shared ceiling with export,
+ * already the safe common floor, and no GL round-trip on the per-frame path.
+ */
+export function computeBackingStore(
+  cssW: number,
+  cssH: number,
+  dpr: number,
+  caps: RenderTargetCaps = DEFAULT_RENDER_CAPS
+): BackingStore {
+  const t = computeRenderTarget({ width: cssW, height: cssH }, dpr, caps);
+  return {
+    width: t.width,
+    height: t.height,
+    dpr: t.effectiveScale,
+    wasClamped: t.wasClamped
+  };
+}

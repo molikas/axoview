@@ -13,6 +13,7 @@ import {
 import { createSpriteBatch, SpriteBatch } from 'src/webgl/glSpriteBatch';
 import { attachContextLossRecovery } from 'src/webgl/contextLoss';
 import { rasterizeLabelChip, CHIP_SUPERSAMPLE } from 'src/webgl/itemRaster';
+import { computeBackingStore } from 'src/utils/renderTarget';
 
 // ---------------------------------------------------------------------------
 // LabelsCanvas (ADR 0031) — WebGL2 INSTANCED draw of the floating Label layer.
@@ -97,11 +98,11 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
       const { scroll, zoom, rendererSize } = ui;
       const move = ui.labelMove;
       const editingId = ui.inlineEditLabelId;
+      // dpr here is only for chip supersampling (f.dpr, capped at 2 below) — the
+      // render-path backing store is computed + clamped in drawGLBatch.
       const dpr = window.devicePixelRatio || 1;
       const W = rendererSize.width;
       const H = rendererSize.height;
-      const bw = Math.max(1, Math.round(W * dpr));
-      const bh = Math.max(1, Math.round(H * dpr));
 
       const allLabels = labelsRef.current;
       const visible = visibleIdsRef.current;
@@ -129,8 +130,6 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
         zoom,
         W,
         H,
-        bw,
-        bh,
         dpr,
         move,
         editingId,
@@ -227,11 +226,15 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
       if (contextLost) return;
       const ui = uiApi.getState();
       const { scroll, zoom, rendererSize } = ui;
-      const dpr = window.devicePixelRatio || 1;
       const W = rendererSize.width;
       const H = rendererSize.height;
-      const bw = Math.max(1, Math.round(W * dpr));
-      const bh = Math.max(1, Math.round(H * dpr));
+      // Clamp the backing store to the canvas caps; the effective dpr feeds both
+      // the buffer size and the u_view scale/origin below (ADR 0038).
+      const {
+        width: bw,
+        height: bh,
+        dpr
+      } = computeBackingStore(W, H, window.devicePixelRatio || 1);
 
       if (geomDirtyRef.current) {
         buildInstances(b);

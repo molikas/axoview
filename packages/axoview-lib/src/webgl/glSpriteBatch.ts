@@ -112,6 +112,27 @@ export interface UVRect {
   vS: number;
 }
 
+// Half-texel UV inset for a packed (x,y,w,h) device-px slot in an `atlasSize`²
+// atlas. LINEAR sampling at a sub-rect edge reaches HALF a texel past it; without
+// the inset it pulls the neighbour's gutter in (the classic atlas seam), and at
+// the atlas boundary it trims a chip's border asymmetrically (finding #2 — the
+// partial grey chip border). Origin is nudged +½ texel and the span shrunk by a
+// full texel, so both edges sample strictly INSIDE the slot. Sub-pixel at the
+// supersampled chip resolution → visually lossless. Extracted (pure, no GL) so
+// the inset math is unit-testable without a live context.
+export const atlasUVRect = (
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  atlasSize: number
+): UVRect => ({
+  u0: (x + 0.5) / atlasSize,
+  v0: (y + 0.5) / atlasSize,
+  uS: (w - 1) / atlasSize,
+  vS: (h - 1) / atlasSize
+});
+
 export interface SpriteBatch {
   // --- atlas insertion (content-keyed; all pixels rasterised by Canvas2D) ---
   /** Pack an offscreen-canvas chip. `make` is lazy — only called on a miss. */
@@ -337,15 +358,9 @@ export const createSpriteBatch = (
     return { x, y };
   };
 
-  // Half-texel UV inset so LINEAR sampling at a sub-rect edge never reaches into
-  // the neighbour's gutter (the classic atlas seam fix). Sub-pixel at the
-  // supersampled chip resolution → visually lossless.
-  const uvOf = (x: number, y: number, w: number, h: number): UVRect => ({
-    u0: (x + 0.5) / ATLAS,
-    v0: (y + 0.5) / ATLAS,
-    uS: (w - 1) / ATLAS,
-    vS: (h - 1) / ATLAS
-  });
+  // Half-texel UV inset (pure math in atlasUVRect) bound to this atlas's size.
+  const uvOf = (x: number, y: number, w: number, h: number): UVRect =>
+    atlasUVRect(x, y, w, h, ATLAS);
 
   const putCanvas = (
     key: string,

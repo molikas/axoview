@@ -25,6 +25,7 @@ import { LABEL_LINK_COLOR } from 'src/utils/labelChip';
 import { createSpriteBatch, SpriteBatch } from 'src/webgl/glSpriteBatch';
 import { attachContextLossRecovery } from 'src/webgl/contextLoss';
 import { rasterizeNodeChip, CHIP_SUPERSAMPLE } from 'src/webgl/itemRaster';
+import { computeBackingStore } from 'src/utils/renderTarget';
 
 // ---------------------------------------------------------------------------
 // NodesCanvas — WebGL2 INSTANCED bulk draw of the node layer (icon sprite +
@@ -295,11 +296,11 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       const inPreview = ui.editorMode === 'EXPLORABLE_READONLY';
       const previewHideLabels = ui.previewHideLabels;
       const exportHideLabels = ui.exportHideLabels;
+      // dpr here is only for chip supersampling (f.dpr, capped at 2 below) — the
+      // render-path backing store is computed + clamped in drawGLBatch.
       const dpr = window.devicePixelRatio || 1;
       const W = rendererSize.width;
       const H = rendererSize.height;
-      const bw = Math.max(1, Math.round(W * dpr));
-      const bh = Math.max(1, Math.round(H * dpr));
 
       const model = modelApi.getState();
       const items = model.items;
@@ -364,8 +365,6 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
         zoom,
         W,
         H,
-        bw,
-        bh,
         dpr,
         inPreview,
         previewHideLabels,
@@ -650,11 +649,15 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
       if (contextLost) return;
       const ui = uiApi.getState();
       const { scroll, zoom, rendererSize, readableLabels } = ui;
-      const dpr = window.devicePixelRatio || 1;
       const W = rendererSize.width;
       const H = rendererSize.height;
-      const bw = Math.max(1, Math.round(W * dpr));
-      const bh = Math.max(1, Math.round(H * dpr));
+      // Clamp the backing store to the canvas caps; the effective dpr then feeds
+      // BOTH the buffer size AND the u_view scale/origin below (ADR 0038).
+      const {
+        width: bw,
+        height: bh,
+        dpr
+      } = computeBackingStore(W, H, window.devicePixelRatio || 1);
       const counterScale = computeLabelCounterScale(zoom, {
         enabled: readableLabels,
         baseFontPx: LABEL_BASE_FONT_PX,
