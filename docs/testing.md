@@ -5,11 +5,11 @@
 
 | Workspace | Passing | Suites |
 |---|---|---|
-| `axoview-lib` | 1483 (+1 skipped) | 145 |
+| `axoview-lib` | 1502 (+1 skipped) | 147 |
 | `axoview-app` | 190 | 19 |
 | `axoview-backend` | 101 | 7 |
 | `axoview-worker` | 105 | — |
-| **Total** | **1879 (+1 skipped)** | — |
+| **Total** | **1898 (+1 skipped)** | — |
 
 **Run:** `npm test --workspace=packages/<pkg>` per package, or `npm test --workspaces` for all. The v1.1 wave added the backend (101) + worker (102) server-runtime suites — the only **high**-severity gap the post-v1.0.0 review named — plus the app-side error-UX, startup-timeout, parallelism-contract, file-explorer-delete, share-URL, and backend-routes contract suites. The single skipped test is `leanSave bundledFixtures[0]` (see [known_issues.md](../known_issues.md)).
 
@@ -127,6 +127,7 @@ Shipped on `integration` with [ADRs 0030–0034](adr/) + the 5-persona UX-sweep 
 | `utils/__tests__/foldNodeDescription.test.ts` | lib unit | Option-A `description`→`notes` fold ([ADR 0032](adr/0032-node-name-caption-label-model.md)) — idempotent, block-separator, empty-skip |
 | `utils/__tests__/seedNodeLabel.test.ts` · `seedConnectorLabel.test.ts` | lib unit | `label = name` / `name`→`labels[]` load seeds — idempotent via marker (the zero-migration seed pattern) |
 | `utils/__tests__/bulkStyleTarget.test.ts` | lib unit | homogeneous bulk-target derivation for the strip ([ADR 0030](adr/0030-docked-style-controls-strip.md) §2 amendment) |
+| `ColorSelector/__tests__/ColorPickerBody.test.tsx` | lib unit | unified colour picker ([ADR 0039](adr/0039-unified-color-picker-and-standard-palette.md)) — standard-grid render, hex-on-click, active-swatch (case-insensitive) match, grid-first custom reveal, contextual Transparent (fill/border/background only; absent for text). Replaces the removed dead-`ColorSelector` suite. |
 | `IsoTileArea/__tests__/IsoTileArea.borderInset.test.tsx` | lib unit | rectangle border inset by `strokeWidth/2` (no clip on canvas/export) |
 | `interaction/__tests__/TextBox.test.ts` · `Label.test.ts` | lib unit | placement mode contract — arm-vs-place gating (arming tap creates nothing → no double-placement), exactly-one-create on a canvas release, drag-from-panel places, wrong-mode guard (added 2026-07-02) |
 | `label-entity.spec.ts` · `label-edit-and-placement-cancel.spec.ts` | E2E | Label placement, inline-edit, placement cancel (right-click/Escape) |
