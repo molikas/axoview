@@ -32,6 +32,7 @@ import { ViewModeInfoPopover } from 'src/components/ViewModeInfoPopover/ViewMode
 import { TopBarStyleControls } from 'src/components/TopBarStyleControls/TopBarStyleControls';
 import { AnnotationLayer } from 'src/components/AnnotationLayer/AnnotationLayer';
 import { AnnotationPalette } from 'src/components/AnnotationPalette/AnnotationPalette';
+import { CanvasCompositorOverlay } from 'src/components/CanvasCompositorOverlay/CanvasCompositorOverlay';
 import { ConnectorModeHint } from '../ModeHint/ConnectorModeHint';
 import { PlacementModeHint } from '../ModeHint/PlacementModeHint';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
@@ -360,6 +361,9 @@ export const UiOverlay = ({
           "hide all controls" toggle. */}
       {editorMode !== EditorModeEnum.NON_INTERACTIVE && (
         <>
+          {/* Permanent full-area overlay that keeps Chrome compositing the WebGL
+              canvases when a sibling overlay toggles — see the component doc. */}
+          <CanvasCompositorOverlay />
           <AnnotationLayer />
           {!hideViewControls && <AnnotationPalette />}
         </>

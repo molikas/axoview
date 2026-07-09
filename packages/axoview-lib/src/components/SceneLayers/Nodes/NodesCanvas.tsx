@@ -803,15 +803,7 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
         top: 0,
         left: 0,
         pointerEvents: 'none',
-        zIndex: 0,
-        // Force an OWN compositor layer. Without it Chrome paints this WebGL
-        // canvas into a shared layer, and a sibling DOM overlay toggling above
-        // it (annotation panel, session banner, a dock) only invalidates the
-        // overlay's rect — leaving the canvas UN-repainted there, a stale blank
-        // strip exactly the overlay's size until something forces a recomposite
-        // (pan/resize). Promoting the canvas makes it an independent GPU texture
-        // immune to sibling invalidation. See docs/canvas-rendering-guidelines.
-        transform: 'translateZ(0)'
+        zIndex: 0
       }}
     />
   );
