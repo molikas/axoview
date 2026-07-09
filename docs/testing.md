@@ -6,10 +6,10 @@
 | Workspace | Passing | Suites |
 |---|---|---|
 | `axoview-lib` | 1502 (+1 skipped) | 147 |
-| `axoview-app` | 190 | 19 |
+| `axoview-app` | 202 | 20 |
 | `axoview-backend` | 101 | 7 |
 | `axoview-worker` | 105 | — |
-| **Total** | **1898 (+1 skipped)** | — |
+| **Total** | **1910 (+1 skipped)** | — |
 
 **Run:** `npm test --workspace=packages/<pkg>` per package, or `npm test --workspaces` for all. The v1.1 wave added the backend (101) + worker (102) server-runtime suites — the only **high**-severity gap the post-v1.0.0 review named — plus the app-side error-UX, startup-timeout, parallelism-contract, file-explorer-delete, share-URL, and backend-routes contract suites. The single skipped test is `leanSave bundledFixtures[0]` (see [known_issues.md](../known_issues.md)).
 
