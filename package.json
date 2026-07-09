@@ -1,6 +1,6 @@
 {
   "name": "axoview-monorepo",
-  "version": "3.4.1",
+  "version": "3.5.0",
   "private": true,
   "description": "Monorepo for Axoview diagram editor and library",
   "packageManager": "npm@10.9.2",
