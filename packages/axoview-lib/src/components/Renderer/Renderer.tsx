@@ -246,6 +246,55 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
     uiStateActions
   ]);
 
+  // TEMP DIAGNOSTIC (?rdebug) — trace the top-strip render/cull desync on the
+  // machines that reproduce it. Selector-independent (reads the renderer
+  // container + its first <canvas> child) so it survives the minified prod
+  // build, which strips data-testid. REVERT before merging the fit-to-view PR.
+  const rdebug =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).has('rdebug');
+  useEffect(() => {
+    if (!rdebug) return;
+    const dump = (tag: string) => {
+      const s = uiStateApi.getState();
+      const cont = containerRef.current;
+      const canvas = cont?.querySelector('canvas') as HTMLCanvasElement | null;
+      const cr = canvas?.getBoundingClientRect();
+      const kr = cont?.getBoundingClientRect();
+      // eslint-disable-next-line no-console
+      console.log(`[rdebug ${tag}] +${Math.round(performance.now())}ms`, {
+        dpr: window.devicePixelRatio,
+        storeW: s.rendererSize.width,
+        storeH: s.rendererSize.height,
+        contClientH: cont?.clientHeight,
+        contRectH: kr ? Math.round(kr.height) : null,
+        canvasStyleH: canvas?.style.height,
+        canvasBufH: canvas?.height,
+        canvasRectH: cr ? Math.round(cr.height) : null,
+        canvasTopVsCont: cr && kr ? Math.round(cr.top - kr.top) : null,
+        scrollY: Math.round(s.scroll.position.y),
+        zoom: Number(s.zoom.toFixed(3))
+      });
+    };
+    dump('mount');
+    const unsub = uiStateApi.subscribe((st, pr) => {
+      if (st.rendererSize !== pr.rendererSize) dump('resize');
+      else if (st.scroll !== pr.scroll) dump('scroll');
+      else if (st.zoom !== pr.zoom) dump('zoom');
+    });
+    return unsub;
+  }, [rdebug, uiStateApi]);
+  useEffect(() => {
+    if (!rdebug) return;
+    // eslint-disable-next-line no-console
+    console.log('[rdebug cull] coarseBounds', {
+      minY: coarseBounds.minY,
+      maxY: coarseBounds.maxY,
+      minX: coarseBounds.minX,
+      maxX: coarseBounds.maxX
+    });
+  }, [rdebug, coarseBounds]);
+
   const isShowGrid = useMemo(
     () => showGrid === undefined || showGrid,
     [showGrid]
