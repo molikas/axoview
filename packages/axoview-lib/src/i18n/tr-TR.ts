@@ -326,6 +326,7 @@ const locale: LocaleProps = {
   topBarStyleControls: {
     rotate90: '90° döndür',
     noColor: 'Renk yok',
+    pickColorFromScreen: 'Ekrandan renk seç',
     customColor: 'Özel renk',
     textSize: 'Metin boyutu',
     lineSpacing: 'Satır aralığı',

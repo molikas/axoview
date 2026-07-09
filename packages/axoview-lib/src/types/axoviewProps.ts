@@ -311,6 +311,7 @@ export interface LocaleProps {
   };
   topBarStyleControls: {
     noColor: string;
+    pickColorFromScreen: string;
     customColor: string;
     textSize: string;
     lineSpacing: string;

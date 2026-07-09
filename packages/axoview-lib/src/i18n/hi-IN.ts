@@ -325,6 +325,7 @@ const locale: LocaleProps = {
   topBarStyleControls: {
     rotate90: '90° घुमाएं',
     noColor: 'कोई रंग नहीं',
+    pickColorFromScreen: 'स्क्रीन से रंग चुनें',
     customColor: 'कस्टम रंग',
     textSize: 'पाठ का आकार',
     lineSpacing: 'पंक्ति रिक्ति',

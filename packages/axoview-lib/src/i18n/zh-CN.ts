@@ -303,6 +303,7 @@ const locale: LocaleProps = {
   topBarStyleControls: {
     rotate90: '旋转90°',
     noColor: '无颜色',
+    pickColorFromScreen: '从屏幕拾取颜色',
     customColor: '自定义颜色',
     textSize: '文本大小',
     lineSpacing: '行距',

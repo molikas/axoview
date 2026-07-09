@@ -324,6 +324,7 @@ const locale: LocaleProps = {
   topBarStyleControls: {
     rotate90: 'Putar 90°',
     noColor: 'Tanpa warna',
+    pickColorFromScreen: 'Ambil warna dari layar',
     customColor: 'Warna kustom',
     textSize: 'Ukuran teks',
     lineSpacing: 'Spasi baris',

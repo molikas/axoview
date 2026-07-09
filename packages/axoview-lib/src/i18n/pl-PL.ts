@@ -330,6 +330,7 @@ const locale: LocaleProps = {
   topBarStyleControls: {
     rotate90: 'Obróć o 90°',
     noColor: 'Brak koloru',
+    pickColorFromScreen: 'Pobierz kolor z ekranu',
     customColor: 'Kolor niestandardowy',
     textSize: 'Rozmiar tekstu',
     lineSpacing: 'Interlinia',

@@ -326,6 +326,7 @@ const locale: LocaleProps = {
   topBarStyleControls: {
     rotate90: 'Girar 90°',
     noColor: 'Sem cor',
+    pickColorFromScreen: 'Selecionar cor da tela',
     customColor: 'Cor personalizada',
     textSize: 'Tamanho do texto',
     lineSpacing: 'Espaçamento entre linhas',
