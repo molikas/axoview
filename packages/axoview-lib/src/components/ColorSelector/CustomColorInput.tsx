@@ -2,22 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Box, TextField, IconButton, Tooltip } from '@mui/material';
 import { Colorize as ColorizeIcon } from '@mui/icons-material';
 import { ColorPicker } from './ColorPicker';
-
-interface EyeDropper {
-  open: (options?: { signal?: AbortSignal }) => Promise<{ sRGBHex: string }>;
-}
-
-declare global {
-  interface Window {
-    EyeDropper?: {
-      new (): EyeDropper;
-    };
-  }
-}
+import { hasEyeDropper, openEyeDropper } from './useEyeDropper';
 
 interface Props {
   value: string;
   onChange: (color: string) => void;
+  // The unified picker (ADR 0039) hosts a single eyedropper at the top level and
+  // embeds this input for the hue/sat + hex fields, so it suppresses this copy.
+  hideEyeDropper?: boolean;
 }
 
 const HEX_RE = /^#[0-9A-F]{6}$/i;
@@ -29,7 +21,11 @@ const normalizeHex = (v: string): string => {
   return /^[0-9A-F]{6}$/i.test(t) ? `#${t}` : t;
 };
 
-export const CustomColorInput = ({ value, onChange }: Props) => {
+export const CustomColorInput = ({
+  value,
+  onChange,
+  hideEyeDropper
+}: Props) => {
   const [localValue, setLocalValue] = useState(value);
 
   useEffect(() => {
@@ -37,15 +33,8 @@ export const CustomColorInput = ({ value, onChange }: Props) => {
   }, [value]);
 
   const handleEyeDropper = async () => {
-    if (!window.EyeDropper) return;
-    const eyeDropper = new window.EyeDropper();
-    try {
-      const result = await eyeDropper.open();
-      onChange(result.sRGBHex);
-    } catch {
-      // EyeDropper.open() rejects when the user cancels (Esc) — not a
-      // failure-of-intent per ADR 0011; silently abort the pick.
-    }
+    const picked = await openEyeDropper();
+    if (picked) onChange(picked);
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -91,7 +80,7 @@ export const CustomColorInput = ({ value, onChange }: Props) => {
     }
   };
 
-  const hasEyeDropper = typeof window !== 'undefined' && !!window.EyeDropper;
+  const showEyeDropper = !hideEyeDropper && hasEyeDropper();
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -113,7 +102,7 @@ export const CustomColorInput = ({ value, onChange }: Props) => {
           }
         }}
       />
-      {hasEyeDropper && (
+      {showEyeDropper && (
         <Tooltip title="Pick color from screen">
           <IconButton onClick={handleEyeDropper} size="small">
             <ColorizeIcon fontSize="small" />

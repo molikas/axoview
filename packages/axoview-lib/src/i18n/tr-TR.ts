@@ -1,6 +1,11 @@
 import { LocaleProps } from '../types/axoviewProps';
 
 const locale: LocaleProps = {
+  webglUnsupported: {
+    title: "This browser can't display diagrams",
+    body: 'Axoview renders diagrams on your GPU using WebGL2, which this browser does not support.',
+    hint: 'Update to a recent version of Chrome, Edge, Firefox, or Safari — or turn on hardware acceleration — then reload.'
+  },
   common: {
     exampleText: 'Bu bir örnek metindir'
   },
@@ -321,6 +326,7 @@ const locale: LocaleProps = {
   topBarStyleControls: {
     rotate90: '90° döndür',
     noColor: 'Renk yok',
+    pickColorFromScreen: 'Ekrandan renk seç',
     customColor: 'Özel renk',
     textSize: 'Metin boyutu',
     lineSpacing: 'Satır aralığı',
@@ -398,9 +404,6 @@ const locale: LocaleProps = {
     lineType: 'Çizgi türü',
     showArrow: 'Oku göster',
     showDottedLine: 'Noktalı çizgiyi göster',
-  },
-  labelColorPicker: {
-    customColor: 'Özel renk'
   },
   deleteButton: {
     delete: 'Sil'

@@ -34,6 +34,22 @@
 
 **Status:** Open, deferred as console noise. Revisit only if a feature visibly breaks with a matching CSP error in the Console (not Issues) tab.
 
+## SVG export "could not export image" under the strict CSP — FIXED
+
+**Symptom:** On the deployed site, "Download as SVG" did nothing and logged "could not export image" + a `connect-src` CSP violation. `downloadSvgFile` did `fetch(svgData)` on a `data:image/svg+xml;base64,…` URL to turn it into a Blob, but a `data:` URL is a *connect* source and is not in the deployed `connect-src` allowlist (`'self'` + Google/Cloudflare, the 2026-07-05 hardening). Worked locally only because the dev server has no strict CSP.
+
+**Workaround:** None needed — fixed. (Do NOT loosen the CSP to fix this.)
+
+**Status:** Fixed in 04cdd1d (2026-07-09) — `downloadSvgFile` decodes the base64 with `base64ToBlob` (`atob`), the same util the PNG path uses, so there is no network request. Verified under the exact deployed `connect-src` CSP. Cross-ref the deliberate-CSP note above: client code must never `fetch()` a `data:`/`blob:` URL under this CSP — decode locally.
+
+## Node icons render as black boxes on import (WebGL) until selected — FIXED
+
+**Symptom:** After importing a diagram, node icons rendered as solid black squares until the node was clicked (selecting routes the node through the DOM interaction layer, sidestepping the WebGL atlas); name chips were unaffected. GPU/timing-dependent — reproduced on some machines, self-healed on others. Regression from the WebGL substrate ([ADR 0038](docs/adr/0038-webgl-instanced-render-substrate.md) / #63).
+
+**Workaround:** Click/select the affected node (unnecessary now — fixed).
+
+**Status:** Fixed in da9301b (2026-07-09) — icons were uploaded to the GL atlas as soon as `img.complete` was true, but `complete`/`onload` don't guarantee the bitmap is decoded and ready for `texSubImage2D`; an undecoded upload bakes a black tile that `putImage` then caches by url for the batch's life. `getImage` now gates on `img.decode()` (with a load/complete fallback), and every icon uploads through a Canvas2D intermediary — the same reliable source type the chips use.
+
 ## Google Drive place is online-only — no offline write queue
 
 **Symptom:** Drive writes (autosave, create, move) require a live connection and a valid token. Offline, a Drive-place save fails after the retry/backoff run (500/1000/2000 ms) and surfaces the ADR 0011 failure dialog; there is no queue that replays the write when connectivity returns.
@@ -325,3 +341,48 @@ serialized SVG) to determine:
 **Status:** Open, deferred. Diagnosed to the iso `matrix()` + nested `<svg>` interaction
 in `dom-to-image-more`; the remaining fork (serialization vs rasterization) needs one
 console capture before a fix is chosen. Filed from the 2026-06-25 shake-out (item #5).
+
+---
+
+## WebGL render substrate — deferred productization follow-ups (2026-07-08)
+
+From the WebGL-fold productization (PR #63, ADR 0038). Each is scoped and
+recorded in ADR 0038 §Deferred; none blocks the WebGL2-only substrate.
+
+- **WebGL context-loss recovery — RESOLVED 2026-07-08 (pending manual verification).**
+  All four GPU layers now `preventDefault` on `webglcontextlost` and rebuild the
+  `SpriteBatch` on `webglcontextrestored` (shared [`webgl/contextLoss.ts`](packages/axoview-lib/src/webgl/contextLoss.ts);
+  ConnectorsCanvas re-packs its arrow sprite). Draw-only, so no scene state is lost
+  across a loss/restore cycle. **Cannot be exercised in CI** (jsdom has no WebGL2;
+  perf/e2e can't force a loss) — confirm with a manual `WEBGL_lose_context` smoke,
+  and add a unit test once the `webgl/` ts-jest transform blocker clears. Residual:
+  a browser that advertises WebGL2 but fails shader/link/atlas-alloc still shows a
+  *first-paint* blank layer — now logged (`console.warn` per layer), not silent.
+- **GPU connector/rectangle line-styles — RESOLVED 2026-07-08 (pending visual
+  verification).** `ConnectorsCanvas` now emits `style` DASHED/DOTTED + `lineType`
+  DOUBLE/DOUBLE_WITH_CIRCLE (offset polylines + mid-path ellipse ring), and
+  `RectanglesCanvas` emits dashed/dotted borders, via the shared
+  [`webgl/lineStyle.ts`](packages/axoview-lib/src/webgl/lineStyle.ts) walker —
+  mirroring the DOM. Same change fixed **stroke-width fidelity** (all bulk widths
+  are scaled to scene space by the projection factor, so they are no longer
+  ~1.22× too thick in iso and are consistent across connectors + rectangles) and
+  **arrow visibility** (white-tinted so the baked outline survives). Only rounded
+  rectangle corners remain approximated (sharp) on the bulk. Confirm in a real
+  browser (WebGL can't render under jsdom/SwiftShader in CI).
+- **Premultiplied-alpha mip fringing** — straight-alpha atlas can pull a faint
+  dark halo into minified edges. Fix (premultiply on upload / edge-dilate) risks a
+  broader color regression → needs a pixel-diff harness first.
+- **Backing-store viewport clamp** — `bw/bh = W·dpr` not yet clamped vs
+  `MAX_VIEWPORT_DIMS` / max canvas area (clamp helper exists in `renderTarget.ts`,
+  wired only to export).
+- **Test follow-ups** — unit tests for `glSpriteBatch` (`isWebGL2Supported`
+  memoization) + `itemRaster` chip rasterisation; an e2e lasso multi-select
+  connector-halo regression (the seam regressed once, caught only manually); a GPU
+  pixel/visual smoke (draw-count proves count, not pixels); a `WebGLUnsupportedScreen`
+  gate test; and expecting the perf harness's computed KR1 `worstLoadBearing < 10`
+  (currently written to markdown but never asserted). NOTE: a `glSpriteBatch` unit
+  test was drafted but ts-jest would not transform a new `src/webgl/__tests__/`
+  file (byte-clean, path in tsconfig `include`) — an environment quirk to resolve
+  before adding webgl unit tests.
+
+**Status:** Open, deferred with owner sign-off. Recorded in ADR 0038.

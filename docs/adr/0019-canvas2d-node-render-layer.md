@@ -1,9 +1,13 @@
 # ADR 0019 — Canvas2D Node Render Layer (default substrate)
 
-**Status:** Accepted
+**Status:** Superseded in part (bulk substrate) — 2026-07-08
 **Date:** 2026-06-15
 **Supersedes:** none
-**Superseded by:** none
+**Superseded by:** ADR 0038 (WebGL2 instanced substrate), *bulk substrate
+decision only*. The Canvas2D bulk renderer this ADR chose was removed on
+2026-07-08 when WebGL2 became the sole substrate — there is no longer a Canvas2D
+fallback. The still-valid rules below (the DOM-hybrid rationale, the HTML-entity
+decode, and the `data-all-icons-drawn` export gate) are retained and unchanged.
 
 ## Context
 

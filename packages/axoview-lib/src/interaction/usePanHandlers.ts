@@ -173,7 +173,7 @@ export const usePanHandlers = () => {
 
       return false;
     },
-    [modeType, startPan, endPan]
+    [modeType, startPan, endPan, rendererEl]
   );
 
   // Called on every mousemove. Returns true to suppress processMouseUpdate while right

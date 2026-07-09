@@ -413,7 +413,7 @@ const handleToolHotkeys = (
   isCtrlOrCmd: boolean,
   uiState: State['uiState'],
   key: string,
-  deps: KeydownDeps
+  _deps: KeydownDeps
 ) => {
   const action = resolveToolHotkey(isCtrlOrCmd, key, TOOL_HOTKEYS);
   if (!action) return;
@@ -703,7 +703,8 @@ export const useInteractionManager = () => {
     handleCut,
     handlePaste,
     updateViewItem,
-    commitDragTransaction
+    commitDragTransaction,
+    screenToTile
   ]);
 
   const processMouseUpdate = useCallback(

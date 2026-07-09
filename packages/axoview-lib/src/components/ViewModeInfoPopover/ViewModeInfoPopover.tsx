@@ -182,7 +182,10 @@ export const ViewModeInfoPopover = () => {
     textBox,
     rectangle,
     pinnedTile,
-    hoverTile
+    hoverTile,
+    label?.text,
+    label?.headerLink,
+    label?.tile
   ]);
 
   const closePinned = useCallback(() => {

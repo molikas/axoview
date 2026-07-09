@@ -5,27 +5,28 @@ import { useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import {
-  drawLabelChip,
   measureLabelChip,
   labelFontPx,
   ChipColors,
   LabelChipLayout
 } from 'src/utils/labelChip';
+import { createSpriteBatch, SpriteBatch } from 'src/webgl/glSpriteBatch';
+import { attachContextLossRecovery } from 'src/webgl/contextLoss';
+import { rasterizeLabelChip, CHIP_SUPERSAMPLE } from 'src/webgl/itemRaster';
+import { computeBackingStore } from 'src/utils/renderTarget';
 
 // ---------------------------------------------------------------------------
-// LabelsCanvas (ADR 0031) — imperative Canvas2D draw of the floating Label
-// layer. This is the substrate the E-slice perf gate chose (ADR 0031 addendum /
-// E3): a DOM chip layer reintroduced the scaling cliff ADR 0019 moved nodes off
-// of, while every Canvas2D surface added ≈0 to spawn p95 even at N=1000.
+// LabelsCanvas (ADR 0031) — WebGL2 INSTANCED draw of the floating Label layer.
+// Each chip (rounded rect + text + decorations, via the shared drawLabelChip) is
+// rasterised ONCE into a content-keyed atlas entry and drawn as one instanced
+// quad — glyph pixels identical to the old Canvas2D path. Geometry is rebuilt
+// only on a scene / move / edit change; pan & zoom just update the view uniform
+// and issue one draw call (see glSpriteBatch / NodesCanvas for the model).
 //
-// Mounted ABOVE NodesCanvas in the Renderer, so a label can sit OVER a node (the
-// cross-layer z-order fix); an explicit `zIndex` orders labels within this layer.
-// Billboards: drawn at a px font that scales with zoom via the canvas transform
-// (no readable-labels counter-scale — labels carry their own first-class size).
-//
-// DRAW-ONLY — selection + move are the DOM LabelHitLayer's job (mirrors the
-// NodesCanvas / NodeLabelHitLayer split). The transform mirrors the <SceneLayer>
-// CSS exactly (see NodesCanvas §3) so getTilePosition output lands identically.
+// Mounted ABOVE NodesCanvas in the Renderer, so a label can sit OVER a node.
+// DRAW-ONLY — selection + move are the DOM LabelHitLayer's job. WebGL2 is the
+// sole render substrate (Phase C); a browser without it is gated upstream by the
+// Renderer's WebGLUnsupportedScreen and never mounts this component.
 // ---------------------------------------------------------------------------
 
 interface Props {
@@ -38,7 +39,7 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const uiApi = useUiStateStoreApi();
   const theme = useTheme();
-  const { getTilePosition } = useCanvasMode();
+  const { getTilePosition, strategy } = useCanvasMode();
   const { visibleIds } = useLayerContext();
 
   const labelsRef = useRef(labels);
@@ -48,8 +49,6 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
   labelsRef.current = labels;
   getTilePositionRef.current = getTilePosition;
   visibleIdsRef.current = visibleIds;
-  // Chip colours from the live theme (the per-label backgroundColor / color
-  // override these at draw time).
   chipColorsRef.current = {
     bg: theme.palette.common.white,
     border: theme.palette.grey[400],
@@ -59,59 +58,51 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
   const pendingRef = useRef(false);
   const rafIdRef = useRef(0);
   const destroyedRef = useRef(false);
+  const geomDirtyRef = useRef(true);
   const scheduleDrawRef = useRef<() => void>(() => {});
 
-  // Painter's-order sort cache — re-sort only when the labels array identity or
-  // the visible-id set changes (a real edit / layer toggle), not per pan frame.
+  // Painter's-order sort cache.
   const sortCacheRef = useRef<{
     labels: Label[] | null;
     visibleIds: ReadonlySet<string> | null;
     sorted: Label[];
   }>({ labels: null, visibleIds: null, sorted: [] });
 
-  // Per-(text, fontSize, bold, italic) chip-layout cache (mirrors NodesCanvas
-  // D3-2) — pan/zoom redraws reuse the measured geometry instead of re-running
-  // measureText for every visible label every frame.
+  // Per-(text, fontSize, bold, italic) chip-layout cache.
   const layoutCacheRef = useRef<Map<string, LabelChipLayout>>(new Map());
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
 
-    const draw = () => {
-      pendingRef.current = false;
+    let batch: SpriteBatch | null = createSpriteBatch(canvas);
+    if (!batch) {
+      // WebGL2 passed the gate probe but the batch failed here (shader/link or
+      // context exhaustion). Surface it — the floating-label layer has no fallback.
+      console.warn(
+        '[LabelsCanvas] WebGL2 sprite batch unavailable — floating labels will not render'
+      );
+      return;
+    }
+    // Context-loss recovery: rebuild the batch on restore so a lost GPU context
+    // doesn't blank the floating-label layer permanently.
+    let contextLost = false;
+
+    // Throwaway 2D context for measureText (the visible canvas is owned by WebGL).
+    const measureCtx: CanvasRenderingContext2D | null =
+      document.createElement('canvas').getContext('2d');
+
+    // Shared per-frame state (sizes, transform inputs, sorted labels).
+    const frameState = () => {
       const ui = uiApi.getState();
       const { scroll, zoom, rendererSize } = ui;
       const move = ui.labelMove;
-      // The label being inline-edited is drawn by the DOM contentEditable in
-      // LabelHitLayer — skip it here so the text isn't painted twice.
       const editingId = ui.inlineEditLabelId;
+      // dpr here is only for chip supersampling (f.dpr, capped at 2 below) — the
+      // render-path backing store is computed + clamped in drawGLBatch.
       const dpr = window.devicePixelRatio || 1;
       const W = rendererSize.width;
       const H = rendererSize.height;
-
-      const bw = Math.max(1, Math.round(W * dpr));
-      const bh = Math.max(1, Math.round(H * dpr));
-      if (canvas.width !== bw || canvas.height !== bh) {
-        canvas.width = bw;
-        canvas.height = bh;
-        canvas.style.width = `${W}px`;
-        canvas.style.height = `${H}px`;
-      }
-
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, bw, bh);
-      // SceneLayer-equivalent transform (zoom + scroll about the renderer centre).
-      ctx.setTransform(
-        zoom * dpr,
-        0,
-        0,
-        zoom * dpr,
-        (W / 2 + scroll.position.x) * dpr,
-        (H / 2 + scroll.position.y) * dpr
-      );
 
       const allLabels = labelsRef.current;
       const visible = visibleIdsRef.current;
@@ -124,8 +115,6 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
         const filtered = allLabels.filter(
           (l) => visible.size === 0 || visible.has(l.id)
         );
-        // Higher zIndex paints later (on top); stable sort keeps the prior order
-        // for equal (default 0) zIndex — only explicit send-to-front/back moves.
         sorted = [...filtered]
           .reverse()
           .sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
@@ -136,45 +125,130 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
         };
       }
 
-      let drawn = 0;
-      const layoutCache = layoutCacheRef.current;
-      for (const label of sorted) {
-        if (label.id === editingId) continue;
-        // Live move-preview (LabelHitLayer) overrides the model position for the
-        // one dragged label, WITHOUT a per-frame model write.
-        const moved = move && move.id === label.id ? move : null;
-        const tile: Coords = moved ? moved.tile : label.tile;
-        const offset: Coords | undefined = moved ? moved.offset : label.offset;
-        const pos = getTilePos({ tile, origin: 'CENTER' });
-        const cx = pos.x + (offset?.x ?? 0);
-        const cy = pos.y + (offset?.y ?? 0);
-        // Measure once per content/style; pan/zoom redraws reuse the layout.
-        const fontSize = labelFontPx(label);
-        const key = `${fontSize}:${label.isBold ? 1 : 0}:${
-          label.isItalic ? 1 : 0
-        }:${label.text}`;
-        let layout = layoutCache.get(key);
-        if (!layout) {
-          layout = measureLabelChip(
-            ctx,
-            label.text,
-            fontSize,
-            label.isBold,
-            label.isItalic
-          );
-          // Bound memory: pan/zoom adds no entries (same labels hit); only edits
-          // do, so this rarely trips — clear wholesale when it does.
-          if (layoutCache.size > 4096) layoutCache.clear();
-          layoutCache.set(key, layout);
-        }
-        ctx.save();
-        drawLabelChip(ctx, cx, cy, label, layout, colors);
-        ctx.restore();
-        drawn += 1;
+      return {
+        scroll,
+        zoom,
+        W,
+        H,
+        dpr,
+        move,
+        editingId,
+        getTilePos,
+        colors,
+        sorted
+      };
+    };
+
+    // Per-label geometry: resolves the live move-preview and the layout cache,
+    // returns the chip centre (cx,cy) in tile space + layout.
+    const resolveLabel = (
+      label: Label,
+      move: { id: string; tile: Coords; offset?: Coords } | null | undefined,
+      getTilePos: (a: { tile: Coords; origin: 'CENTER' }) => {
+        x: number;
+        y: number;
+      },
+      mctx: CanvasRenderingContext2D
+    ) => {
+      const moved = move && move.id === label.id ? move : null;
+      const tile: Coords = moved ? moved.tile : label.tile;
+      const offset: Coords | undefined = moved ? moved.offset : label.offset;
+      const pos = getTilePos({ tile, origin: 'CENTER' });
+      const cx = pos.x + (offset?.x ?? 0);
+      const cy = pos.y + (offset?.y ?? 0);
+      const fontSize = labelFontPx(label);
+      const key = `${fontSize}:${label.isBold ? 1 : 0}:${
+        label.isItalic ? 1 : 0
+      }:${label.text}`;
+      let layout = layoutCacheRef.current.get(key);
+      if (!layout) {
+        layout = measureLabelChip(
+          mctx,
+          label.text,
+          fontSize,
+          label.isBold,
+          label.isItalic
+        );
+        const lc = layoutCacheRef.current;
+        if (lc.size > 4096) lc.clear();
+        lc.set(key, layout);
       }
-      // Draw-count anti-cheat (mirrors NodesCanvas): the perf harness asserts
-      // drawn == N at fit-to-view, proving every committed label paints.
+      return { cx, cy, layout };
+    };
+
+    // ----- WebGL instanced path -----
+    let buildCount = 0; // data-build-count — must stay flat during pan (no CPU/frame)
+    const buildInstances = (b: SpriteBatch) => {
+      const f = frameState();
+      // Clamp effective dpr at 2 for chip rasterisation (see NodesCanvas) so a
+      // 3x device doesn't rasterise chips at 6x.
+      const ss = Math.min(f.dpr, 2) * CHIP_SUPERSAMPLE;
+      const mctx = measureCtx;
+      let drawn = 0;
+      if (mctx) {
+        b.beginInstances();
+        for (const label of f.sorted) {
+          if (label.id === f.editingId) continue;
+          const { cx, cy, layout } = resolveLabel(
+            label,
+            f.move,
+            f.getTilePos,
+            mctx
+          );
+          const linked = !!label.headerLink;
+          const texKey = `label|${labelFontPx(label)}|${
+            label.isBold ? 1 : 0
+          }|${label.isItalic ? 1 : 0}|${label.isStrikethrough ? 1 : 0}|${
+            label.isUnderline ? 1 : 0
+          }|${linked ? 1 : 0}|${label.color || ''}|${
+            label.backgroundColor || ''
+          }|${label.backgroundOpacity ?? 1}|${f.colors.bg}|${f.colors.border}|${
+            f.colors.text
+          }|${label.text}`;
+          const uv = b.putCanvas(texKey, 0, () =>
+            rasterizeLabelChip(label, layout, f.colors, ss)
+          );
+          if (uv) {
+            const w = layout.chipW;
+            const h = layout.chipH;
+            b.addSprite(cx, cy, -w / 2, -h / 2, w, 0, 0, h, uv, 1, 1, 1, 1, 0);
+            drawn += 1;
+          }
+        }
+        b.commitInstances();
+      }
       canvas.dataset.drawCount = String(drawn);
+      canvas.dataset.buildCount = String(++buildCount);
+    };
+
+    const drawGLBatch = (b: SpriteBatch) => {
+      pendingRef.current = false;
+      if (contextLost) return;
+      const ui = uiApi.getState();
+      const { scroll, zoom, rendererSize } = ui;
+      const W = rendererSize.width;
+      const H = rendererSize.height;
+      // Clamp the backing store to the canvas caps; the effective dpr feeds both
+      // the buffer size and the u_view scale/origin below (ADR 0038).
+      const {
+        width: bw,
+        height: bh,
+        dpr
+      } = computeBackingStore(W, H, window.devicePixelRatio || 1);
+
+      if (geomDirtyRef.current) {
+        buildInstances(b);
+        geomDirtyRef.current = false;
+      }
+      canvas.style.width = `${W}px`;
+      canvas.style.height = `${H}px`;
+      const originXDev = (W / 2 + scroll.position.x) * dpr;
+      const originYDev = (H / 2 + scroll.position.y) * dpr;
+      b.render(bw, bh, zoom * dpr, originXDev, originYDev, 1);
+    };
+
+    const draw = () => {
+      if (batch) drawGLBatch(batch);
     };
 
     const scheduleDraw = () => {
@@ -203,9 +277,14 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
       ) {
         return;
       }
-      // Pan/zoom must repaint synchronously to stay on the same frame as the DOM
-      // SceneLayers (see NodesCanvas). The move-preview isn't transform-coupled,
-      // so it stays rAF-coalesced.
+      // A live move-preview or an edit-skip change what's drawn → rebuild;
+      // scroll/zoom alone just re-render the cached instances.
+      if (
+        s.labelMove !== p.labelMove ||
+        s.inlineEditLabelId !== p.inlineEditLabelId
+      ) {
+        geomDirtyRef.current = true;
+      }
       if (s.scroll !== p.scroll || s.zoom !== p.zoom) {
         drawNow();
       } else {
@@ -213,18 +292,38 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
       }
     });
 
+    const detachLoss = attachContextLossRecovery(canvas, {
+      onLost: () => {
+        contextLost = true;
+      },
+      onRestored: () => {
+        const rebuilt = createSpriteBatch(canvas);
+        if (!rebuilt) return;
+        batch = rebuilt;
+        contextLost = false;
+        geomDirtyRef.current = true;
+        drawNow();
+      }
+    });
+
     return () => {
       destroyedRef.current = true;
       cancelAnimationFrame(rafIdRef.current);
       unsubUi();
+      detachLoss();
+      batch?.destroy();
     };
   }, [uiApi]);
 
-  // Bulk model.set / label edit / layer-visibility toggle → one rAF-coalesced
-  // redraw of O(visible) chips.
   useEffect(() => {
+    geomDirtyRef.current = true;
     scheduleDrawRef.current();
-  }, [labels, visibleIds]);
+    // strategy.projectionName MUST be a dep: on a 2D<->iso switch the tile->scene
+    // positions change, so the GPU chips must rebuild or they stay at the old
+    // projection while the DOM hit-proxy (LabelHitLayer) moves to the new one —
+    // the chip and its clickable div separate and the label becomes unselectable
+    // until some other change dirties geometry. NodesCanvas already does this.
+  }, [labels, visibleIds, strategy.projectionName, theme]);
 
   return (
     <canvas

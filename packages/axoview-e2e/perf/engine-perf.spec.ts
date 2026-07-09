@@ -32,6 +32,54 @@
 import { test, expect, Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
+import { execSync } from 'child_process';
+
+// ---------------------------------------------------------------------------
+// AC-power gate (2026-07-08). On a laptop running on BATTERY, Windows throttles
+// the CPU/GPU (and ANGLE/D3D11 clocks down), so frame numbers are NOT
+// representative and A/B comparisons are meaningless. Block measurement until AC
+// power is connected. `PERF_ALLOW_BATTERY=1` overrides (e.g. to characterise the
+// throttled floor deliberately). Returns true = AC, false = battery, null =
+// unknown / no battery (desktop) → not blocked.
+function acPowerStatus(): boolean | null {
+  if (process.platform !== 'win32') return null;
+  try {
+    const out = execSync(
+      'powershell -NoProfile -Command "(Get-CimInstance -Namespace root/wmi -ClassName BatteryStatus -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty PowerOnline)"',
+      { timeout: 8000, stdio: ['ignore', 'pipe', 'ignore'] }
+    )
+      .toString()
+      .trim();
+    if (out === 'True') return true;
+    if (out === 'False') return false;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function requireACPower() {
+  if (process.env.PERF_ALLOW_BATTERY) {
+    console.log(
+      '[perf] ⚠️ PERF_ALLOW_BATTERY=1 — measuring on battery (throttled, non-representative).'
+    );
+    return;
+  }
+  const ac = acPowerStatus();
+  if (ac === false) {
+    throw new Error(
+      '\n[perf] ⛔ ON BATTERY POWER — CPU/GPU are throttled, so frame numbers are not representative.\n' +
+        '       Plug in AC power and re-run, or set PERF_ALLOW_BATTERY=1 to measure the throttled floor anyway.\n'
+    );
+  }
+  console.log(
+    `[perf] power: ${
+      ac === true
+        ? 'AC (plugged in) ✓'
+        : 'unknown (no battery / desktop) — not gated'
+    }`
+  );
+}
 
 // N set and repeats are env-tunable for fast smoke validation; defaults are the
 // charter's committed baseline grid (KR2) and median-of-≥7.
@@ -299,22 +347,28 @@ function installHarness() {
 
   function resetState() {
     const { view } = activeView();
-    ax().model.getState().actions.set(
-      {
-        items: [],
-        icons: PERF_ICONS,
-        colors: PERF_COLORS,
-        views: viewsWith(view.id, [])
-      },
-      true
-    );
+    ax()
+      .model.getState()
+      .actions.set(
+        {
+          items: [],
+          icons: PERF_ICONS,
+          colors: PERF_COLORS,
+          views: viewsWith(view.id, [])
+        },
+        true
+      );
     ax().model.getState().actions.clearHistory();
     // Deterministic viewport so frame cost is comparable run-to-run.
     const uiActions = ax().ui.getState().actions;
     try {
       uiActions.setZoom(0.65);
       uiActions.setScroll({ position: { x: 0, y: 0 }, offset: { x: 0, y: 0 } });
-      uiActions.setMode({ type: 'CURSOR', showCursor: true, mousedownItem: null });
+      uiActions.setMode({
+        type: 'CURSOR',
+        showCursor: true,
+        mousedownItem: null
+      });
       uiActions.setItemControls(null);
     } catch {
       /* action shape drift — non-fatal for measurement */
@@ -354,6 +408,12 @@ function installHarness() {
     const labelHeavy = !!w.__perfLabelHeavy; // every node label: B/I/S + colour + varied px
     const connLabelHeavy = !!w.__perfConnLabelHeavy; // every connector labelled + styled
     const bgHeavy = !!w.__perfBgHeavy; // dense grouping rects with fills + ≤30px borders
+    // ALL-TYPES stress (2026-07-08): the representative "everything at once" scene
+    // for the GPU-fold work — every connector carries ≥3 styled labels, styled
+    // rectangle borders, AND floating Labels are added (see the return). Exercises
+    // EVERY element renderer simultaneously so the pan/spawn cost reflects the
+    // whole scene, not just nodes.
+    const allTypes = !!w.__perfAllTypes;
     const items: any[] = [];
     const vitems: any[] = [];
     const connectors: any[] = [];
@@ -411,7 +471,20 @@ function installHarness() {
             { id: 'a' + i + 'e', ref: { item: 'perf-' + (i + 1) } }
           ]
         };
-        if (connLabelHeavy) {
+        if (allTypes) {
+          // ≥3 styled labels per connector at 25/50/75% along the path (the
+          // user's all-types requirement) — the heaviest ConnectorLabel load.
+          c.labels = [25, 50, 75].map((position, j) => ({
+            id: `cl${i}-${j}`,
+            text: `edge ${i}.${j}`,
+            position,
+            fontSize: 10 + ((i + j) % 6) * 2,
+            labelColor: LABEL_COLORS[1 + ((i + j) % (LABEL_COLORS.length - 1))],
+            bold: (i + j) % 2 === 0,
+            italic: (i + j) % 3 === 0,
+            strikethrough: (i + j) % 4 === 0
+          }));
+        } else if (connLabelHeavy) {
           // Every connector carries a styled additional label (the DOM
           // ConnectorLabel path: B/I/S + colour + varied px), not just ~⅓.
           c.labels = [
@@ -450,7 +523,7 @@ function installHarness() {
             y: Math.min(by + BLOCK - 1, side - 1)
           }
         };
-        if (bgHeavy) {
+        if (bgHeavy || allTypes) {
           rect.borderColor = PERF_COLORS[(k + 1) % PERF_COLORS.length].value;
           rect.borderWidth = 8 + (k % 4) * 6; // 8..26px (≤30)
           rect.borderStyle = (['SOLID', 'DOTTED', 'DASHED'] as const)[k % 3];
@@ -459,12 +532,32 @@ function installHarness() {
         k++;
       }
     }
+    // All-types: floating Labels (ADR 0031) sprinkled ~1 per 4 nodes, styled +
+    // varied, so the LabelsCanvas layer is also exercised in the same scene.
+    const labels: any[] = [];
+    if (allTypes) {
+      for (let i = 0; i < N; i += 4) {
+        const col = i % side;
+        const row = Math.floor(i / side);
+        labels.push({
+          id: 'flabel-' + i,
+          tile: { x: xBase + col, y: row },
+          text: 'Label ' + i,
+          fontSize: 14 + (i % 4) * 2,
+          color: LABEL_COLORS[1 + (i % (LABEL_COLORS.length - 1))],
+          backgroundColor: PERF_COLORS[i % PERF_COLORS.length].value,
+          isBold: i % 2 === 0,
+          isItalic: i % 3 === 0,
+          isStrikethrough: i % 5 === 0
+        });
+      }
+    }
     // Text boxes are intentionally excluded: their `size` is derived scene-side
     // by the createTextBox reducer (getTextBoxDimensions), which a bulk
     // model.set bypasses → the renderer crashes on undefined `size.height`. They
     // are a tiny annotation element (negligible bulk-render weight); the
     // representative load is nodes + connectors + rectangles + labels.
-    return { items, vitems, connectors, rectangles, textBoxes: [] };
+    return { items, vitems, connectors, rectangles, textBoxes: [], labels };
   }
 
   // Fit the viewport (zoom + scroll) so the whole grid is on-screen, so the
@@ -495,12 +588,16 @@ function installHarness() {
     const W = ui.rendererSize.width;
     const H = ui.rendererSize.height;
     const pad = UN * 2; // room for node/label footprint beyond tile centers
-    const zoom = Math.min(W / (maxX - minX + pad), H / (maxY - minY + pad)) * 0.95;
+    const zoom =
+      Math.min(W / (maxX - minX + pad), H / (maxY - minY + pad)) * 0.95;
     const cxc = (minX + maxX) / 2;
     const cyc = (minY + maxY) / 2;
     const acts = ax().ui.getState().actions;
     acts.setZoom(zoom);
-    acts.setScroll({ position: { x: -cxc * zoom, y: -cyc * zoom }, offset: { x: 0, y: 0 } });
+    acts.setScroll({
+      position: { x: -cxc * zoom, y: -cyc * zoom },
+      offset: { x: 0, y: 0 }
+    });
   }
 
   // Mirrors CanvasPOM.tileToScreen + adds the interactions-box client offset.
@@ -515,8 +612,10 @@ function installHarness() {
     const zoom = ui.zoom;
     const scroll = ui.scroll;
     const UNPROJECTED = 100;
-    const halfW = canvasMode === 'ISOMETRIC' ? (UNPROJECTED * 1.415) / 2 : UNPROJECTED / 2;
-    const halfH = canvasMode === 'ISOMETRIC' ? (UNPROJECTED * 0.819) / 2 : UNPROJECTED / 2;
+    const halfW =
+      canvasMode === 'ISOMETRIC' ? (UNPROJECTED * 1.415) / 2 : UNPROJECTED / 2;
+    const halfH =
+      canvasMode === 'ISOMETRIC' ? (UNPROJECTED * 0.819) / 2 : UNPROJECTED / 2;
     let cx: number;
     let cy: number;
     if (canvasMode === 'ISOMETRIC') {
@@ -649,7 +748,8 @@ function installHarness() {
       scene.vitems,
       scene.connectors,
       scene.rectangles,
-      scene.textBoxes
+      scene.textBoxes,
+      scene.labels
     );
     const frames: number[] = [];
     const longTasks: Array<{ start: number; duration: number }> = [];
@@ -685,11 +785,21 @@ function installHarness() {
       ? parseInt(canvasEl.dataset.drawCount ?? '0', 10) || 0
       : document.querySelectorAll('[data-drag-id]').length;
     // Connector-paint anti-cheat (D4-1, mirrors the node draw-count): every
-    // committed connector must paint — a routable path or an unroutable marker,
-    // not nothing. Counts both DOM testids.
-    const paintedConnectors = document.querySelectorAll(
+    // committed connector must paint. Bulk connector bodies fold onto the GPU
+    // (axoview-connectors-canvas → dataset.drawCount), while the sparse DOM
+    // hybrid (selected / degenerate / unroutable) still emits its testids. The
+    // two sets are disjoint (Renderer partitions by connectorHybridIds), so
+    // GPU-drawn + DOM-painted == committed.
+    const connCanvas = document.querySelector(
+      '[data-testid="axoview-connectors-canvas"]'
+    ) as HTMLElement | null;
+    const gpuPaintedConn = connCanvas
+      ? parseInt(connCanvas.dataset.drawCount ?? '0', 10) || 0
+      : 0;
+    const domPaintedConn = document.querySelectorAll(
       '[data-testid="connector-path"], [data-testid="connector-unroutable"]'
     ).length;
+    const paintedConnectors = gpuPaintedConn + domPaintedConn;
     return {
       frames,
       longTasks,
@@ -886,16 +996,18 @@ function installHarness() {
     // resolveSelectionIds reads LASSO mode.selection.items). Deterministic — we
     // don't depend on Ctrl+A's select-all heuristic.
     const itemRefs = scene.vitems.map((v: any) => ({ type: 'ITEM', id: v.id }));
-    ax().ui.getState().actions.setMode({
-      type: 'LASSO',
-      showCursor: true,
-      isDragging: false,
-      selection: {
-        startTile: { x: -100000, y: -100000 },
-        endTile: { x: 100000, y: 100000 },
-        items: itemRefs
-      }
-    });
+    ax()
+      .ui.getState()
+      .actions.setMode({
+        type: 'LASSO',
+        showCursor: true,
+        isDragging: false,
+        selection: {
+          startTile: { x: -100000, y: -100000 },
+          endTile: { x: 100000, y: 100000 },
+          items: itemRefs
+        }
+      });
     await raf();
 
     // Copy into the in-app clipboard.
@@ -1025,7 +1137,13 @@ function installHarness() {
       .actions.set(
         {
           items: scene.items,
-          views: viewsWith(view.id, scene.vitems, scene.connectors, scene.rectangles, [])
+          views: viewsWith(
+            view.id,
+            scene.vitems,
+            scene.connectors,
+            scene.rectangles,
+            []
+          )
         },
         true
       );
@@ -1047,7 +1165,10 @@ function installHarness() {
     for (const el of hits) {
       const r = el.getBoundingClientRect();
       if (r.width < 1) continue;
-      const d = Math.hypot(r.left + r.width / 2 - cx, r.top + r.height / 2 - cy);
+      const d = Math.hypot(
+        r.left + r.width / 2 - cx,
+        r.top + r.height / 2 - cy
+      );
       if (d < bestD) {
         bestD = d;
         best = el;
@@ -1075,7 +1196,7 @@ function installHarness() {
         .model.getState()
         .views.find((vv: any) => vv.id === view.id);
       const it = v && v.items.find((x: any) => x.id === hitId);
-      return it ? it.labelHeight ?? 0 : 0;
+      return it ? (it.labelHeight ?? 0) : 0;
     };
     const r0 = best.getBoundingClientRect();
     const sx = r0.left + r0.width / 2;
@@ -1194,7 +1315,8 @@ function installHarness() {
         id,
         name: NODE_NAMES[i % NODE_NAMES.length] + ' ' + i,
         description: rich(i),
-        notes: 'Runbook ' + i + ': restart, then page on-call. ' + 'x'.repeat(40),
+        notes:
+          'Runbook ' + i + ': restart, then page on-call. ' + 'x'.repeat(40),
         headerLink: 'https://example.com/docs/service-' + i,
         link: 'svc-' + i,
         icon: bloatIcons[i % bloatIcons.length].id
@@ -1215,7 +1337,9 @@ function installHarness() {
             { id: 'ba' + i + 's', ref: { item: id } },
             { id: 'ba' + i + 'e', ref: { item: 'bloat-' + (i + 1) } }
           ],
-          labels: [{ id: 'bcl' + i, text: 'link ' + i, position: 50, fontSize: 12 }]
+          labels: [
+            { id: 'bcl' + i, text: 'link ' + i, position: 50, fontSize: 12 }
+          ]
         });
       }
     }
@@ -1227,7 +1351,10 @@ function installHarness() {
           id: 'br-' + rk,
           color: PERF_COLORS[rk % PERF_COLORS.length].id,
           from: { x: 1 + bx, y: by },
-          to: { x: 1 + Math.min(bx + 4, side - 1), y: Math.min(by + 4, side - 1) }
+          to: {
+            x: 1 + Math.min(bx + 4, side - 1),
+            y: Math.min(by + 4, side - 1)
+          }
         });
         rk++;
       }
@@ -1242,7 +1369,14 @@ function installHarness() {
       .model.getState()
       .views.map((v: any) =>
         v.id === view.id
-          ? { ...v, items: vitems, connectors, rectangles, textBoxes: [], layers }
+          ? {
+              ...v,
+              items: vitems,
+              connectors,
+              rectangles,
+              textBoxes: [],
+              layers
+            }
           : v
       );
     const frames: number[] = [];
@@ -1261,8 +1395,9 @@ function installHarness() {
     stop();
     const q = (sel: string) => document.querySelectorAll(sel).length;
     const renderer =
-      (document.querySelector('[data-testid="axoview-canvas"]') as HTMLElement) ||
-      document.body;
+      (document.querySelector(
+        '[data-testid="axoview-canvas"]'
+      ) as HTMLElement) || document.body;
     const canvasEl = document.querySelector(
       '[data-testid="axoview-nodes-canvas"]'
     ) as HTMLElement | null;
@@ -1333,7 +1468,8 @@ function installHarness() {
             scene.vitems,
             scene.connectors,
             scene.rectangles,
-            scene.textBoxes
+            scene.textBoxes,
+            scene.labels
           )
         },
         true
@@ -1351,6 +1487,27 @@ function installHarness() {
     const drawCountNow = () =>
       canvasEl ? parseInt(canvasEl.dataset.drawCount ?? '0', 10) || 0 : 0;
     const drawAtStart = drawCountNow();
+    // "No per-frame CPU work" invariant: buildInstances (the only O(N) CPU on the
+    // GPU layers) must NOT run during a pan (scene unchanged) — so the summed
+    // build-count across all GPU canvases must stay FLAT. A non-zero delta means
+    // a layer is rebuilding geometry per frame (CPU work leaked into navigation).
+    const buildSum = () => {
+      const ids = [
+        'axoview-nodes-canvas',
+        'axoview-connectors-canvas',
+        'axoview-rectangles-canvas',
+        'axoview-labels-canvas'
+      ];
+      let n = 0;
+      for (const id of ids) {
+        const el = document.querySelector(
+          `[data-testid="${id}"]`
+        ) as HTMLElement | null;
+        if (el) n += parseInt(el.dataset.buildCount ?? '0', 10) || 0;
+      }
+      return n;
+    };
+    const buildStart = buildSum();
     const frames: number[] = [];
     const longTasks: Array<{ start: number; duration: number }> = [];
     const stop = observeLongTasks(longTasks);
@@ -1369,7 +1526,8 @@ function installHarness() {
       frames.push(now - prev);
       prev = now;
       const sc = ax().ui.getState().scroll;
-      if (sc.position.x !== baseX || sc.position.y !== baseY) scrollMoved = true;
+      if (sc.position.x !== baseX || sc.position.y !== baseY)
+        scrollMoved = true;
       const dc = drawCountNow();
       if (dc < drawMin) drawMin = dc;
       if (dc > drawMax) drawMax = dc;
@@ -1385,7 +1543,8 @@ function installHarness() {
       panEngaged: scrollMoved,
       drawAtStart,
       drawMin: drawMin === Infinity ? 0 : drawMin,
-      drawMax
+      drawMax,
+      buildDelta: buildSum() - buildStart // 0 = no per-frame CPU rebuild
     };
   }
 
@@ -1473,7 +1632,10 @@ function installHarness() {
   // Thin spawn-class wrappers: toggle a buildScene styling flag, then reuse the
   // measureSpawn path (commit + settle + the draw-count == N anti-cheat) so the
   // styled scene is measured identically to the bare-node baseline.
-  async function withSceneFlag<T>(flag: string, fn: () => Promise<T>): Promise<T> {
+  async function withSceneFlag<T>(
+    flag: string,
+    fn: () => Promise<T>
+  ): Promise<T> {
     w[flag] = true;
     try {
       return await fn();
@@ -1568,12 +1730,49 @@ async function bootApp(page: Page) {
   await page.evaluate((v: boolean) => {
     (window as any).__perfOffset = v;
   }, !!process.env.PERF_OFFSET);
+  // ALL-TYPES stress (2026-07-08): every connector gets ≥3 styled labels, styled
+  // rectangle borders, plus floating Labels — the "everything at once" scene for
+  // the GPU-fold work. Off by default → existing scenarios stay byte-identical.
+  await page.evaluate((v: boolean) => {
+    (window as any).__perfAllTypes = v;
+  }, !!process.env.PERF_ALLTYPES);
+
+  // GPU-fidelity guard (2026-07-07): report the LIVE WebGL renderer so a silent
+  // SwiftShader (software) fallback can never masquerade as a GPU measurement
+  // again. Headless Chromium defaults to SwiftShader for WebGL2; perf.config.ts
+  // forces ANGLE/D3D11 (real GPU) unless PERF_SWIFTSHADER=1. A software renderer
+  // here means the WebGL frame numbers are fill-rate bound, not the real wall.
+  const glRenderer = await page.evaluate(() => {
+    try {
+      const c = document.createElement('canvas');
+      const gl = (c.getContext('webgl2') ||
+        c.getContext('webgl')) as WebGLRenderingContext | null;
+      if (!gl) return 'no-webgl';
+      const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+      return String(
+        dbg
+          ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)
+          : gl.getParameter(gl.RENDERER)
+      );
+    } catch {
+      return 'probe-failed';
+    }
+  });
+  const software = /swiftshader|software|llvmpipe/i.test(glRenderer);
+  console.log(
+    `[perf] WebGL renderer: ${glRenderer} — ${
+      software
+        ? '⚠️ SOFTWARE (fill-rate bound, NOT representative)'
+        : 'hardware GPU ✓'
+    }`
+  );
 }
 
 // ---------------------------------------------------------------------------
 // The harness test.
 // ---------------------------------------------------------------------------
 test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => {
+  requireACPower(); // ⛔ block measurement on battery (throttled → non-representative)
   await bootApp(page);
   const env = await page.evaluate(() => ({
     gc: typeof (window as any).gc === 'function',
@@ -1584,7 +1783,10 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
       `no diagnostics loop): ${env.harness === '1'}`
   );
 
-  const runOnce = (scenario: 'spawn' | 'drag', N: number): Promise<RunResult> =>
+  const runOnce = (
+    scenario: 'spawn' | 'drag',
+    N: number
+  ): Promise<RunResult> =>
     scenario === 'spawn'
       ? page.evaluate(
           ([n, cap]) => (window as any).__perfH.measureSpawn(n, cap),
@@ -1636,8 +1838,11 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
 
     const { rows, total } = attributeTrace(events);
     const top = rows.slice(0, 20);
-    console.log(`[profile] spawn N=${N} — main-thread self-time by event (ms):`);
-    for (const r of top) console.log(`    ${r.ms.toFixed(1).padStart(8)}  ${r.name}`);
+    console.log(
+      `[profile] spawn N=${N} — main-thread self-time by event (ms):`
+    );
+    for (const r of top)
+      console.log(`    ${r.ms.toFixed(1).padStart(8)}  ${r.name}`);
     console.log(`    total accounted: ${total.toFixed(0)} ms`);
 
     fs.mkdirSync(RESULTS_DIR, { recursive: true });
@@ -1653,7 +1858,10 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
       `Total accounted: **${total.toFixed(0)} ms**.`,
       ''
     ];
-    fs.writeFileSync(path.join(RESULTS_DIR, `profile-spawn-${N}.md`), lines.join('\n'));
+    fs.writeFileSync(
+      path.join(RESULTS_DIR, `profile-spawn-${N}.md`),
+      lines.join('\n')
+    );
     expect(events.length).toBeGreaterThan(0);
     return;
   }
@@ -1704,7 +1912,10 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
         '',
         '| self-time (ms) | function |',
         '|---|---|',
-        ...rows.map((r) => `| ${r.ms.toFixed(1)} | ${r.key.replace(/\\/g, '\\\\').replace(/\|/g, '\\|')} |`),
+        ...rows.map(
+          (r) =>
+            `| ${r.ms.toFixed(1)} | ${r.key.replace(/\\/g, '\\\\').replace(/\|/g, '\\|')} |`
+        ),
         ''
       ].join('\n')
     );
@@ -1753,7 +1964,9 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
 
     const { rows: tlRows, total: tlTotal } = attributeTrace(events);
     const tlTop = tlRows.slice(0, 18);
-    console.log(`[dragprofile] drag N=${N} — main-thread self-time by event (ms):`);
+    console.log(
+      `[dragprofile] drag N=${N} — main-thread self-time by event (ms):`
+    );
     for (const r of tlTop)
       console.log(`    ${r.ms.toFixed(1).padStart(8)}  ${r.name}`);
     console.log(`    timeline total accounted: ${tlTotal.toFixed(0)} ms`);
@@ -1763,7 +1976,10 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
     const selfUsById = new Map<number, number>();
     for (let i = 0; i < profile.samples.length; i++) {
       const id = profile.samples[i];
-      selfUsById.set(id, (selfUsById.get(id) ?? 0) + (profile.timeDeltas[i] ?? 0));
+      selfUsById.set(
+        id,
+        (selfUsById.get(id) ?? 0) + (profile.timeDeltas[i] ?? 0)
+      );
     }
     const byFn = new Map<string, number>();
     for (const [id, us] of selfUsById) {
@@ -1802,7 +2018,10 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
         '',
         '| self-time (ms) | function |',
         '|---|---|',
-        ...jsRows.map((r) => `| ${r.ms.toFixed(1)} | ${r.key.replace(/\\/g, '\\\\').replace(/\|/g, '\\|')} |`),
+        ...jsRows.map(
+          (r) =>
+            `| ${r.ms.toFixed(1)} | ${r.key.replace(/\\/g, '\\\\').replace(/\|/g, '\\|')} |`
+        ),
         ''
       ].join('\n')
     );
@@ -1833,7 +2052,9 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
     if (Object.keys(counts).length === 0) {
       console.log('    (no counts — probe not enabled? expected ?perfprobe=1)');
     }
-    const rows = [...byComponent.entries()].sort((a, b) => b[1].total - a[1].total);
+    const rows = [...byComponent.entries()].sort(
+      (a, b) => b[1].total - a[1].total
+    );
     for (const [comp, agg] of rows) {
       console.log(
         `    ${comp.padEnd(18)} total renders=${agg.total}  distinct instances=${agg.instances}  ` +
@@ -1886,7 +2107,9 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
       `[labeldrag] mean frame=${round(median(meanFrames))}ms p95=${round(median(p95s))}ms ` +
         `max=${round(median(maxs))}ms noise(CoV mean)=${covPct(meanFrames)}%`
     );
-    console.log(`        meanFrames[]=${meanFrames.map((x) => round(x, 1)).join(',')}`);
+    console.log(
+      `        meanFrames[]=${meanFrames.map((x) => round(x, 1)).join(',')}`
+    );
     expect(
       reps.every((r) => r.engaged && r.moved),
       'label drag engaged + actually moved the label every run'
@@ -1901,10 +2124,10 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
   if (process.env.PERF_BLOAT) {
     const N = parseInt(process.env.PERF_BLOAT, 10);
     const runBloat = (): Promise<any> =>
-      page.evaluate(
-        ([n, c]) => (window as any).__perfH.measureBloat(n, c),
-        [N, SPAWN_CAP_MS] as const
-      );
+      page.evaluate(([n, c]) => (window as any).__perfH.measureBloat(n, c), [
+        N,
+        SPAWN_CAP_MS
+      ] as const);
     for (let i = 0; i < WARMUP_RUNS; i++) await runBloat();
     const reps: any[] = [];
     for (let r = 0; r < REPEATS; r++) reps.push(await runBloat());
@@ -1971,7 +2194,10 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
         ''
       ].join('\n')
     );
-    expect(last.drawCount, 'bloat: canvas drew every node (draw-count == N)').toBe(N);
+    expect(
+      last.drawCount,
+      'bloat: canvas drew every node (draw-count == N)'
+    ).toBe(N);
     return;
   }
 
@@ -1982,7 +2208,10 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
   // discipline), exactly like the PERF_BLOAT / PERF_LABELDRAG diagnostics above.
   // ---------------------------------------------------------------------------
   const parseNs = (v: string) =>
-    v.split(',').map((s) => parseInt(s.trim(), 10)).filter((n) => n > 0);
+    v
+      .split(',')
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => n > 0);
 
   // Spawn-class styled scenario: commit a styled scene, report settle/longest/
   // p95 + the draw-count==N anti-cheat. Mirrors the spawn baseline cells so the
@@ -2009,11 +2238,15 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
       const settles = m.map((x) => x.settle);
       const p95s = m.map((x) => x.p95);
       const maxs = m.map((x) => x.max);
-      const commits = reps.map((r) => r.commitMs).filter((x: number) => x != null);
+      const commits = reps
+        .map((r) => r.commitMs)
+        .filter((x: number) => x != null);
       const last = reps[reps.length - 1];
       const drawn = last.renderedNodes ?? 0;
       const labelInfo =
-        last.renderedLabels != null ? ` labels=${last.renderedLabels}/${N}` : '';
+        last.renderedLabels != null
+          ? ` labels=${last.renderedLabels}/${N}`
+          : '';
       console.log(
         `[${fileTag}] N=${N} cal=${round(calibrationMs, 1)} drawn=${drawn}/${N}${labelInfo} ` +
           `commit=${round(median(commits.length ? commits : [0]), 1)}ms ` +
@@ -2122,10 +2355,10 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
     const rows: string[] = [];
     for (const N of Ns) {
       const runPan = (): Promise<any> =>
-        page.evaluate(
-          ([n, s]) => (window as any).__perfH.measurePan(n, s),
-          [N, DRAG_STEPS] as const
-        );
+        page.evaluate(([n, s]) => (window as any).__perfH.measurePan(n, s), [
+          N,
+          DRAG_STEPS
+        ] as const);
       for (let i = 0; i < WARMUP_RUNS; i++) await runPan();
       const reps: any[] = [];
       for (let r = 0; r < REPEATS; r++) reps.push(await runPan());
@@ -2136,9 +2369,12 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
       const lts = m.map((x) => x.longTaskTotal);
       const last = reps[reps.length - 1];
       const engaged = reps.every((r) => r.panEngaged);
+      // "No per-frame CPU work" gate: every GPU layer's build-count stayed flat
+      // across the pan (no geometry rebuild = no O(N) CPU leaked into navigation).
+      const noCpuRebuild = reps.every((r) => (r.buildDelta ?? 0) === 0);
       console.log(
         `[pan] N=${N}${throttle ? ` throttle=${throttle}x` : ''} cal=${round(calibrationMs, 1)} ` +
-          `engaged=${engaged} draw≈[${last.drawMin}..${last.drawMax}]/${N} ` +
+          `engaged=${engaged} draw≈[${last.drawMin}..${last.drawMax}]/${N} noCPU-rebuild=${noCpuRebuild} ` +
           `mean=${round(median(means))}ms p95=${round(median(p95s))}ms ` +
           `longest=${round(median(maxs))}ms longtask=${round(median(lts))}ms ` +
           `noise(CoV mean)=${covPct(means)}%`
@@ -2147,17 +2383,25 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
         `| ${N} | ${last.drawMin}..${last.drawMax}/${N} | ${round(median(means))} | ` +
           `${round(median(p95s))} | ${round(median(maxs))} | ${round(median(lts))} | ${covPct(means)}% |`
       );
-      expect(engaged, `pan: scroll changed each frame (engaged) at N=${N}`).toBe(
-        true
-      );
+      expect(
+        engaged,
+        `pan: scroll changed each frame (engaged) at N=${N}`
+      ).toBe(true);
       expect(
         last.drawMin,
         `pan: canvas repainted ≈ all nodes (no cull) at N=${N}`
       ).toBeGreaterThanOrEqual(Math.floor(N * 0.9));
+      expect(
+        noCpuRebuild,
+        `pan: NO per-frame CPU rebuild — GPU layers' build-count must stay flat at N=${N} (a non-zero delta = a layer rebuilding geometry per frame)`
+      ).toBe(true);
     }
     if (cdp) await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
     fs.writeFileSync(
-      path.join(RESULTS_DIR, `pan${throttle ? `-throttle${throttle}x` : ''}.md`),
+      path.join(
+        RESULTS_DIR,
+        `pan${throttle ? `-throttle${throttle}x` : ''}.md`
+      ),
       [
         `# Sustained-pan repaint floor${throttle ? ` (CPU throttle ${throttle}×)` : ''} — measurePan`,
         '',
@@ -2250,10 +2494,10 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
   // collision resolution) and pasteItems does the full batched store write +
   // canvas redraw. Headline = settle time (the user-perceived freeze).
   const runPasteOnce = (N: number): Promise<RunResult> =>
-    page.evaluate(
-      ([n, cap]) => (window as any).__perfH.measurePaste(n, cap),
-      [N, SPAWN_CAP_MS] as const
-    );
+    page.evaluate(([n, cap]) => (window as any).__perfH.measurePaste(n, cap), [
+      N,
+      SPAWN_CAP_MS
+    ] as const);
 
   const pasteTable: any[] = [];
   for (const N of PASTE_N_SET) {
@@ -2313,7 +2557,10 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
     leakPct,
     longTaskCount: idle.longTasks.length,
     p95FrameMs: round(percentile(idleSorted, 95), 1),
-    maxFrameMs: round(idleSorted.length ? idleSorted[idleSorted.length - 1] : 0, 1),
+    maxFrameMs: round(
+      idleSorted.length ? idleSorted[idleSorted.length - 1] : 0,
+      1
+    ),
     // KR3 passes: heap flat (±5% retained after GC) AND zero long tasks at idle.
     pass: Math.abs(leakPct) <= 5 && idle.longTasks.length === 0
   };
@@ -2430,7 +2677,9 @@ function renderMarkdown(
   const lines: string[] = [];
   lines.push('# Engine perf baseline');
   lines.push('');
-  lines.push(`_Generated ${stamp} by packages/axoview-e2e/perf/engine-perf.spec.ts_`);
+  lines.push(
+    `_Generated ${stamp} by packages/axoview-e2e/perf/engine-perf.spec.ts_`
+  );
   lines.push('');
   const certified = worstLoadBearing < 10;
   lines.push(
@@ -2475,7 +2724,9 @@ function renderMarkdown(
   for (const scenario of ['spawn', 'drag']) {
     lines.push(`## ${scenario}`);
     lines.push('');
-    lines.push('| N | p50 (ms) | p95 (ms) | mean frame (ms) | longest frame (ms) | settle (ms) | long-task total (ms) | kept runs | noise band (CoV) |');
+    lines.push(
+      '| N | p50 (ms) | p95 (ms) | mean frame (ms) | longest frame (ms) | settle (ms) | long-task total (ms) | kept runs | noise band (CoV) |'
+    );
     lines.push('|---|---|---|---|---|---|---|---|---|');
     for (const r of table.filter((x) => x.scenario === scenario)) {
       lines.push(
@@ -2522,9 +2773,13 @@ function renderMarkdown(
   lines.push(`| heap start | ${idleGuard.heapStartMB} MB |`);
   lines.push(`| heap peak | ${idleGuard.heapPeakMB} MB |`);
   lines.push(`| heap after final GC | ${idleGuard.heapAfterGcMB} MB |`);
-  lines.push(`| retained growth (leak) | ${idleGuard.leakMB} MB (${idleGuard.leakPct}%) |`);
+  lines.push(
+    `| retained growth (leak) | ${idleGuard.leakMB} MB (${idleGuard.leakPct}%) |`
+  );
   lines.push(`| long tasks at idle | ${idleGuard.longTaskCount} |`);
-  lines.push(`| idle frame p95 / max | ${idleGuard.p95FrameMs} / ${idleGuard.maxFrameMs} ms |`);
+  lines.push(
+    `| idle frame p95 / max | ${idleGuard.p95FrameMs} / ${idleGuard.maxFrameMs} ms |`
+  );
   lines.push('');
   return lines.join('\n');
 }

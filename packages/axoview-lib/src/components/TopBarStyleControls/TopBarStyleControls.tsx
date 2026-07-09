@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
-  Button,
   IconButton,
   Popover,
   Tooltip,
@@ -57,9 +56,7 @@ import { useConnector } from 'src/hooks/useConnector';
 import { useRectangle } from 'src/hooks/useRectangle';
 import { connectorStyleOptions, connectorLineTypeOptions } from 'src/schemas';
 import { TEXTBOX_DEFAULTS, TEXTBOX_LINE_HEIGHT } from 'src/config';
-import { LabelColorPicker } from '../ItemControls/components/LabelColorPicker';
-import { ColorSwatch } from '../ColorSelector/ColorSwatch';
-import { CustomColorInput } from '../ColorSelector/CustomColorInput';
+import { ColorPickerBody } from '../ColorSelector/ColorPickerBody';
 import { QuickIconSelector } from '../ItemControls/NodeControls/QuickIconSelector';
 import { resolveHomogeneousBulk } from 'src/utils/bulkStyleTarget';
 import {
@@ -286,144 +283,12 @@ const StripButton = ({
 // editor-toolbar mousedown trick; ADR 0034 §2).
 const keepEditorSelection = (e: React.MouseEvent) => e.preventDefault();
 
-const WHITE = '#ffffff';
-// Sentinel stored in a fill's customColor to mean "transparent" (a no-fill
-// rectangle keeps a visible outline and stays hittable — see Rectangle.tsx).
+// Sentinel stored in a fill/border's customColor to mean "transparent" (a
+// no-fill rectangle keeps a visible outline and stays hittable — see
+// Rectangle.tsx). Colour picking itself now lives in the shared ColorPickerBody
+// (ADR 0039); the six former PresetCustomColor call sites resolve to a hex and
+// commit it through that component.
 const TRANSPARENT = 'transparent';
-const isQuickColor = (c?: string) => {
-  const v = (c || '').toLowerCase();
-  return v === WHITE || v === TRANSPARENT;
-};
-
-// "No color" swatch (white circle + red slash), matching ColorSwatch's footprint
-// so it sits inline with the colour swatches.
-const NoColorSwatch = ({
-  isActive,
-  onClick
-}: {
-  isActive?: boolean;
-  onClick: () => void;
-}) => {
-  const { t } = useTranslation('topBarStyleControls');
-  return (
-  <Button
-    onClick={onClick}
-    variant="text"
-    size="small"
-    aria-label={t('noColor')}
-    sx={{ width: 40, height: 40, minWidth: 'auto' }}
-  >
-    <Box
-      sx={{
-        position: 'relative',
-        width: 28,
-        height: 28,
-        borderRadius: '100%',
-        border: '1px solid',
-        borderColor: 'grey.600',
-        bgcolor: 'background.paper',
-        overflow: 'hidden',
-        transform: `scale(${isActive ? 1.25 : 1})`
-      }}
-    >
-      <Box
-        sx={{
-          position: 'absolute',
-          top: '50%',
-          left: '-10%',
-          width: '120%',
-          height: '2px',
-          bgcolor: 'error.main',
-          transform: 'translateY(-50%) rotate(-45deg)'
-        }}
-      />
-    </Box>
-  </Button>
-  );
-};
-
-interface PresetCustomColorProps {
-  presetId?: string;
-  customColor?: string;
-  onSelectPreset: (id: string) => void;
-  onCustomChange: (hex: string) => void;
-  onDisableCustom: () => void;
-  // When provided, a "no color" swatch clears the fill (transparent) — used for
-  // a text box / label background and the rectangle fill.
-  onNoColor?: () => void;
-  // Whether an ABSENT value (no preset + no custom) should read as "no color".
-  // True for fill/background, where absent renders nothing. False for the
-  // rectangle border, where an absent borderColor renders a DERIVED stroke — so
-  // the No-color swatch must NOT show active just because the colour is unset.
-  // Default true.
-  absentIsNoColor?: boolean;
-}
-
-// The preset-or-custom colour body shared by the rectangle-fill, text/label
-// background and connector-colour controls. White trails the scene presets
-// (lightest-last convention); "no color" trails white where clearing is
-// meaningful (onNoColor supplied). All swatches flow inline in one grid.
-const PresetCustomColor = ({
-  presetId,
-  customColor,
-  onSelectPreset,
-  onCustomChange,
-  onDisableCustom,
-  onNoColor,
-  absentIsNoColor = true
-}: PresetCustomColorProps) => {
-  const { t } = useTranslation('topBarStyleControls');
-  const { colors } = useScene();
-  // White / transparent are fixed swatches, not "custom" — keep them in the grid
-  // view so reopening the popover doesn't land on the custom input.
-  const [useCustom, setUseCustom] = useState(
-    Boolean(customColor) && !isQuickColor(customColor)
-  );
-  const whiteActive = (customColor || '').toLowerCase() === WHITE;
-  const noColorActive =
-    (customColor || '').toLowerCase() === TRANSPARENT ||
-    (absentIsNoColor && !presetId && !customColor);
-
-  return (
-    <Box>
-      <FormControlLabel
-        sx={{ mb: 1 }}
-        control={
-          <Switch
-            checked={useCustom}
-            onChange={(e) => {
-              setUseCustom(e.target.checked);
-              if (!e.target.checked) onDisableCustom();
-            }}
-          />
-        }
-        label={t('customColor')}
-      />
-      {useCustom ? (
-        <CustomColorInput value={customColor || '#000000'} onChange={onCustomChange} />
-      ) : (
-        <Box sx={{ display: 'flex', flexWrap: 'wrap' }}>
-          {colors.map((color) => (
-            <ColorSwatch
-              key={color.id}
-              hex={color.value}
-              isActive={!whiteActive && !noColorActive && presetId === color.id}
-              onClick={() => onSelectPreset(color.id)}
-            />
-          ))}
-          <ColorSwatch
-            hex={WHITE}
-            isActive={whiteActive}
-            onClick={() => onCustomChange(WHITE)}
-          />
-          {onNoColor && (
-            <NoColorSwatch isActive={noColorActive} onClick={onNoColor} />
-          )}
-        </Box>
-      )}
-    </Box>
-  );
-};
 
 // Clean slider with a persistent value readout in the header (always visible —
 // no hover/click needed) + plain tick marks + the drag bubble. Shared by the
@@ -1392,7 +1257,17 @@ export const TopBarStyleControls = () => {
         icon={<TextColorIcon sx={{ fontSize: 18 }} />}
         colorBar={textColorValue || '#000000'}
       >
-        <LabelColorPicker value={textColorValue} onChange={onTextColorChange} />
+        {/* Text colour has no Transparent option (text must have a colour).
+            Black is the default, stored as absent — so map #000000 → undefined
+            to keep storage clean while the grid's black cell stays active. */}
+        <ColorPickerBody
+          value={textColorValue || '#000000'}
+          onChange={(hex) =>
+            onTextColorChange(
+              hex.toLowerCase() === '#000000' ? undefined : hex
+            )
+          }
+        />
       </StripButton>
 
       {/* Text size */}
@@ -1727,72 +1602,36 @@ export const TopBarStyleControls = () => {
         }
       >
         {rectangle ? (
-          <PresetCustomColor
-            presetId={rectangle.color}
-            customColor={rectangle.customColor}
-            onSelectPreset={(color) =>
-              updateRectangle(rectangle.id, { color, customColor: '' })
+          <ColorPickerBody
+            value={resolveHex(rectangle.color, rectangle.customColor)}
+            onChange={(hex) =>
+              updateRectangle(rectangle.id, { customColor: hex })
             }
-            onCustomChange={(customColor) =>
-              updateRectangle(rectangle.id, { customColor })
-            }
-            onDisableCustom={() => updateRectangle(rectangle.id, { customColor: '' })}
+            allowNoColor
             onNoColor={() =>
               updateRectangle(rectangle.id, { customColor: TRANSPARENT })
             }
           />
         ) : label ? (
-          <PresetCustomColor
-            presetId={colors.find((c) => c.value === label.backgroundColor)?.id}
-            customColor={
-              label.backgroundColor &&
-              !colors.some((c) => c.value === label.backgroundColor)
-                ? label.backgroundColor
-                : undefined
-            }
-            onSelectPreset={(id) =>
-              updateLabel(label.id, { backgroundColor: resolveHex(id) })
-            }
-            onCustomChange={(hex) =>
+          <ColorPickerBody
+            value={label.backgroundColor}
+            onChange={(hex) =>
               updateLabel(label.id, { backgroundColor: hex })
             }
-            onDisableCustom={() =>
-              updateLabel(label.id, { backgroundColor: undefined })
-            }
+            allowNoColor
             onNoColor={() =>
               updateLabel(label.id, { backgroundColor: undefined })
             }
           />
         ) : textBox ? (
-          <PresetCustomColor
-            presetId={
-              colors.find((c) => c.value === textBox.backgroundColor)?.id
+          <ColorPickerBody
+            value={textBox.backgroundColor}
+            onChange={(hex) =>
+              updateTextBox(textBox.id, { backgroundColor: hex })
             }
-            customColor={
-              textBox.backgroundColor &&
-              !colors.some((c) => c.value === textBox.backgroundColor)
-                ? textBox.backgroundColor
-                : undefined
-            }
-            onSelectPreset={(id) =>
-              applyToTargets('TEXTBOX', (tid) =>
-                applyTextBox(tid, { backgroundColor: resolveHex(id) })
-              )
-            }
-            onCustomChange={(hex) =>
-              applyToTargets('TEXTBOX', (tid) =>
-                applyTextBox(tid, { backgroundColor: hex })
-              )
-            }
-            onDisableCustom={() =>
-              applyToTargets('TEXTBOX', (tid) =>
-                applyTextBox(tid, { backgroundColor: undefined })
-              )
-            }
+            allowNoColor
             onNoColor={() =>
-              applyToTargets('TEXTBOX', (tid) =>
-                applyTextBox(tid, { backgroundColor: undefined })
-              )
+              updateTextBox(textBox.id, { backgroundColor: undefined })
             }
           />
         ) : null}
@@ -1910,26 +1749,15 @@ export const TopBarStyleControls = () => {
             >
               {t('borderColor')}
             </Typography>
-            <PresetCustomColor
-              presetId={colors.find((c) => c.value === textBox.borderColor)?.id}
-              customColor={
-                textBox.borderColor &&
-                !colors.some((c) => c.value === textBox.borderColor)
-                  ? textBox.borderColor
-                  : undefined
+            <ColorPickerBody
+              value={textBox.borderColor}
+              onChange={(hex) =>
+                updateTextBox(textBox.id, { borderColor: hex })
               }
               // A text box with no borderColor has NO border — clearing the
               // color IS the "no border" affordance.
+              allowNoColor
               absentIsNoColor
-              onSelectPreset={(id) =>
-                updateTextBox(textBox.id, { borderColor: resolveHex(id) })
-              }
-              onCustomChange={(hex) =>
-                updateTextBox(textBox.id, { borderColor: hex })
-              }
-              onDisableCustom={() =>
-                updateTextBox(textBox.id, { borderColor: undefined })
-              }
               onNoColor={() =>
                 updateTextBox(textBox.id, { borderColor: undefined })
               }
@@ -1999,26 +1827,15 @@ export const TopBarStyleControls = () => {
             >
               {t('borderColor')}
             </Typography>
-            <PresetCustomColor
-              presetId={colors.find((c) => c.value === rectangle.borderColor)?.id}
-              customColor={
-                rectangle.borderColor &&
-                !colors.some((c) => c.value === rectangle.borderColor)
-                  ? rectangle.borderColor
-                  : undefined
+            <ColorPickerBody
+              value={rectangle.borderColor}
+              onChange={(hex) =>
+                updateRectangle(rectangle.id, { borderColor: hex })
               }
+              allowNoColor
               // Absent borderColor renders a DERIVED stroke, not nothing — so an
               // unset border must not light up the No-color swatch.
               absentIsNoColor={false}
-              onSelectPreset={(id) =>
-                updateRectangle(rectangle.id, { borderColor: resolveHex(id) })
-              }
-              onCustomChange={(hex) =>
-                updateRectangle(rectangle.id, { borderColor: hex })
-              }
-              onDisableCustom={() =>
-                updateRectangle(rectangle.id, { borderColor: undefined })
-              }
               onNoColor={() =>
                 updateRectangle(rectangle.id, { borderColor: TRANSPARENT })
               }
@@ -2304,12 +2121,9 @@ export const TopBarStyleControls = () => {
         colorBar={connStyle ? resolveHex(connStyle.color, connStyle.customColor) : undefined}
       >
         {connStyle && (
-          <PresetCustomColor
-            presetId={connStyle.color}
-            customColor={connStyle.customColor}
-            onSelectPreset={(color) => connStyle.apply({ color, customColor: '' })}
-            onCustomChange={(customColor) => connStyle.apply({ customColor })}
-            onDisableCustom={() => connStyle.apply({ customColor: '' })}
+          <ColorPickerBody
+            value={resolveHex(connStyle.color, connStyle.customColor)}
+            onChange={(hex) => connStyle.apply({ customColor: hex })}
           />
         )}
       </StripButton>

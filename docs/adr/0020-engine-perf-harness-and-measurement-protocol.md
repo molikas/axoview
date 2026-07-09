@@ -65,7 +65,7 @@ requires:
 | T1 | 300 / ~50 | fix idle churn, memoize; no rewrite |
 | T2 | 2,000 / ~200 | **Canvas2D** layer decoupled from React + cull (ADR 0019) |
 | T3 ⭐ | 2,000 / **1,000** | **ECS + fixed-timestep tick loop + spatial-hash collision**; tick decoupled from render |
-| T4 | 10,000 / **5,000+** | **WebGL instanced** sprites; batched per-tick rule eval |
+| T4 ✅ | 10,000 / **5,000+** | **WebGL instanced** sprites (SHIPPED 2026-07-08, ADR 0038); batched per-tick rule eval |
 
 The **north-star is LEB60** — Live Entity Budget @60fps: concurrently simulated,
 collision-checked, *moving* entities holding p95 frame ≤ 16.6 ms. **SSB** (static
@@ -80,7 +80,10 @@ of 1,000 with no fps < 30; memory per entity < 5 KB.
 
 **6. Anti-cheat.** The committed correctness suite is the anti-cheat: a perf change may
 not remove work the real app does. Each renderer carries a draw/work counter the harness
-asserts against N (DOM: `[data-drag-id]` shell count; Canvas: draw count per ADR 0019).
+asserts against N (DOM: `[data-drag-id]` shell count; Canvas/**GPU**: `dataset.drawCount`
+per layer canvas — see the 2026-07-08 addendum). The GPU-fold added a third substrate: the
+node/label/connector/rectangle canvases each publish `dataset.drawCount` (drawn instances)
+and `dataset.buildCount` (geometry rebuilds — must stay flat during pan, ADR 0038 §5).
 
 **7. Escalation (RED gate).** An architectural rewrite (Canvas2D/WebGL render, ECS
 simulation) is authorized but RED: a written design + a measured proof-of-concept
@@ -164,4 +167,23 @@ must beat (KR-P3), not a regression comparison.
   `PERF_CONNLABELHEAVY`, `PERF_BGHEAVY`, `PERF_FLOATLABELS`, `PERF_PAN`) run under the §1–§6
   protocol, each emitting its own `perf-results/*.md` without rewriting `baseline.md`, and
   extend the §6 anti-cheat with a draw-count == N assertion (`renderedNodes` /
-  `renderedLabels`). Gate outcome recorded in `perf-results/e-slice-gate.md`.
+  `renderedLabels`). Gate outcome recorded in git history (the E-slice gate shipped).
+
+**Addendum (2026-07-08) — T4 WebGL fold shipped (ADR 0038).**
+- T4 (WebGL instanced substrate) shipped; the tier ladder is marked ✅. Nodes,
+  labels, connector bodies and rectangle bodies render via `glSpriteBatch`.
+- §6 anti-cheat extended to the GPU substrate: the connector anti-cheat now reads
+  `axoview-connectors-canvas` `dataset.drawCount` (+ the sparse DOM hybrid) instead
+  of a DOM `connector-path` count that the fold emptied; nodes/labels already read
+  their canvases' `dataset.drawCount`. The "no per-frame CPU work" invariant is
+  enforced by `measurePan`'s `buildDelta === 0` (ADR 0038 §5).
+- **Perf-results retention policy (fills the prior gap).** DURABLE (never delete):
+  `perf-results/decision-log.md` (running memory, resume point) and
+  `perf-results/baseline.md` (self-regenerating certified numbers). FOLD-THEN-DELETE:
+  a tier's design/PoC docs are captured in that tier's ADR at `/feature` wrap, then
+  removed (the T4 spike docs `webgl-instancing.md` + `no-cpu-work-check.md` folded
+  into ADR 0038). REGENERABLE (prune when the tier/gate closes; git history is the
+  archive): per-scenario `*.md` reports (`PERF_*HEAVY`, `PERF_PAN`, `PERF_BLOAT`) and
+  `*profile*.md` dumps. GITIGNORED: `perf-results/raw/` frame dumps. Applying this,
+  18 pre-T4 POC/scratch files (incl. `e-slice-gate.md`, the T2 cold-start/design docs,
+  and the profiling dumps) were retired 2026-07-08.

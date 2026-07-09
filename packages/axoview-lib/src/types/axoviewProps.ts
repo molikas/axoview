@@ -12,6 +12,11 @@ export interface LocaleProps {
   common: {
     exampleText: string;
   };
+  webglUnsupported: {
+    title: string;
+    body: string;
+    hint: string;
+  };
   rightSidebar: {
     collapsePanel: string;
     emptyState: string;
@@ -306,6 +311,7 @@ export interface LocaleProps {
   };
   topBarStyleControls: {
     noColor: string;
+    pickColorFromScreen: string;
     customColor: string;
     textSize: string;
     lineSpacing: string;
@@ -388,9 +394,6 @@ export interface LocaleProps {
     notes: string;
     name: string;
     namePlaceholder: string;
-  };
-  labelColorPicker: {
-    customColor: string;
   };
   deleteButton: {
     delete: string;

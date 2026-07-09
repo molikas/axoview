@@ -1,6 +1,11 @@
 import { LocaleProps } from '../types/axoviewProps';
 
 const locale: LocaleProps = {
+  webglUnsupported: {
+    title: "This browser can't display diagrams",
+    body: 'Axoview renders diagrams on your GPU using WebGL2, which this browser does not support.',
+    hint: 'Update to a recent version of Chrome, Edge, Firefox, or Safari — or turn on hardware acceleration — then reload.'
+  },
   common: {
     exampleText: 'Ini adalah contoh teks'
   },
@@ -319,6 +324,7 @@ const locale: LocaleProps = {
   topBarStyleControls: {
     rotate90: 'Putar 90°',
     noColor: 'Tanpa warna',
+    pickColorFromScreen: 'Ambil warna dari layar',
     customColor: 'Warna kustom',
     textSize: 'Ukuran teks',
     lineSpacing: 'Spasi baris',
@@ -396,9 +402,6 @@ const locale: LocaleProps = {
     lineType: 'Tipe garis',
     showArrow: 'Tampilkan panah',
     showDottedLine: 'Tampilkan garis putus-putus',
-  },
-  labelColorPicker: {
-    customColor: 'Warna kustom'
   },
   deleteButton: {
     delete: 'Hapus'

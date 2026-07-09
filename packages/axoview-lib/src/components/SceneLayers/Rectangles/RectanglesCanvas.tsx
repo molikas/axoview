@@ -1,0 +1,378 @@
+import React, { memo, useEffect, useRef } from 'react';
+import { useTheme } from '@mui/material/styles';
+import chroma from 'chroma-js';
+import { Coords, Rectangle as RectangleType } from 'src/types';
+import { UNPROJECTED_TILE_SIZE } from 'src/config';
+import { getColorVariant } from 'src/utils';
+import { useUiStateStoreApi } from 'src/stores/uiStateStore';
+import { useModelStoreApi } from 'src/stores/modelStore';
+import { useCanvasMode } from 'src/contexts/CanvasModeContext';
+import {
+  createSpriteBatch,
+  SpriteBatch,
+  UVRect
+} from 'src/webgl/glSpriteBatch';
+import { attachContextLossRecovery } from 'src/webgl/contextLoss';
+import { computeBackingStore } from 'src/utils/renderTarget';
+import { walkDashes, buildAaLineQuad, AA_FEATHER } from 'src/webgl/lineStyle';
+
+// ---------------------------------------------------------------------------
+// RectanglesCanvas — WebGL2 INSTANCED draw of grouping-rectangle FILLS + BORDERS
+// (the bulk), replacing the per-rectangle DOM/SVG <Rectangle> for everything not
+// currently being DRAGGED. Picking is geometric (getItemAtTile over
+// rectangles[].from/to — mapping 2026-07-08), so the bulk needs no DOM; the DOM
+// <Rectangles> layer keeps only the dragged rect (its [data-drag-id] element is
+// what DragItems mutates for the live move preview) + resize handles are separate
+// TransformControls overlays (unaffected). Pan/zoom = one instanced draw (O(1)).
+//
+// Geometry: the tile rect [from..to] projects to a scene-space parallelogram —
+// the same linear iso map getTilePosition uses, so fills line up with nodes and
+// connectors. Border widths are scaled to scene space (widthScale) and dashed/
+// dotted styles are emitted (shared lineStyle walker), matching the DOM. Only
+// corner radius (rounded rects) is still approximated (sharp corners) on the bulk.
+// ---------------------------------------------------------------------------
+
+interface Props {
+  // Rectangles to draw on the GPU (Renderer excludes the dragged ones).
+  rectangles: RectangleType[];
+}
+
+// X-orientation iso matrix (a,b,c,d); e,f translation is sub-pixel, ignored.
+const ISO_A = 0.707;
+const ISO_B = -0.409;
+const ISO_C = 0.707;
+const ISO_D = 0.409;
+
+const glRGB = (css: string): [number, number, number] => {
+  try {
+    const [r, g, b] = chroma(css).gl();
+    return [r, g, b];
+  } catch {
+    return [0.5, 0.5, 0.5];
+  }
+};
+
+export const RectanglesCanvas = memo(({ rectangles }: Props) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const uiApi = useUiStateStoreApi();
+  const modelApi = useModelStoreApi();
+  const theme = useTheme();
+  const { getTilePosition, strategy } = useCanvasMode();
+
+  const rectsRef = useRef(rectangles);
+  const getTilePosRef = useRef(getTilePosition);
+  const isIsoRef = useRef(strategy.projectionName === 'ISOMETRIC');
+  rectsRef.current = rectangles;
+  getTilePosRef.current = getTilePosition;
+  isIsoRef.current = strategy.projectionName === 'ISOMETRIC';
+
+  const pendingRef = useRef(false);
+  const rafIdRef = useRef(0);
+  const destroyedRef = useRef(false);
+  const geomDirtyRef = useRef(true);
+  const scheduleDrawRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let batch: SpriteBatch | null = createSpriteBatch(canvas, 512);
+    if (!batch) {
+      // WebGL2 passed the gate probe but the batch failed here (shader/link or
+      // context exhaustion). Surface it — the bulk rectangle fills have no fallback.
+      console.warn(
+        '[RectanglesCanvas] WebGL2 sprite batch unavailable — rectangle fills will not render'
+      );
+      return;
+    }
+    // Context-loss recovery: rebuild the batch on restore so a lost GPU context
+    // doesn't blank the grouping-rectangle fills permanently.
+    let contextLost = false;
+    let buildCount = 0; // data-build-count — must stay flat during pan (no CPU/frame)
+
+    const view = () => {
+      const ui = uiApi.getState();
+      const { scroll, zoom, rendererSize } = ui;
+      const W = rendererSize.width;
+      const H = rendererSize.height;
+      // Clamp the backing store to the canvas caps; the effective dpr feeds both
+      // the buffer size and the u_view scale/origin at render (ADR 0038).
+      const backing = computeBackingStore(W, H, window.devicePixelRatio || 1);
+      return {
+        scroll,
+        zoom,
+        W,
+        H,
+        dpr: backing.dpr,
+        bw: backing.width,
+        bh: backing.height
+      };
+    };
+
+    const corners = (
+      from: Coords,
+      to: Coords,
+      getTilePos: (a: { tile: Coords; origin?: 'LEFT' | 'CENTER' }) => Coords,
+      isIso: boolean
+    ): [Coords, Coords, Coords, Coords] => {
+      const lowX = Math.min(from.x, to.x);
+      const highX = Math.max(from.x, to.x);
+      const lowY = Math.min(from.y, to.y);
+      const highY = Math.max(from.y, to.y);
+      const W = (highX - lowX + 1) * UNPROJECTED_TILE_SIZE;
+      const H = (highY - lowY + 1) * UNPROJECTED_TILE_SIZE;
+      if (isIso) {
+        const p = getTilePos({ tile: { x: lowX, y: highY }, origin: 'LEFT' });
+        return [
+          p,
+          { x: p.x + ISO_A * W, y: p.y + ISO_B * W },
+          { x: p.x + ISO_A * W + ISO_C * H, y: p.y + ISO_B * W + ISO_D * H },
+          { x: p.x + ISO_C * H, y: p.y + ISO_D * H }
+        ];
+      }
+      const c = getTilePos({ tile: { x: lowX, y: highY }, origin: 'CENTER' });
+      const p = {
+        x: c.x - UNPROJECTED_TILE_SIZE / 2,
+        y: c.y - UNPROJECTED_TILE_SIZE / 2
+      };
+      return [
+        p,
+        { x: p.x + W, y: p.y },
+        { x: p.x + W, y: p.y + H },
+        { x: p.x, y: p.y + H }
+      ];
+    };
+
+    const buildInstances = (b: SpriteBatch) => {
+      const model = modelApi.getState();
+      const colorsById = new Map(model.colors.map((c) => [c.id, c.value]));
+      const getTilePos = getTilePosRef.current;
+      const isIso = isIsoRef.current;
+      const white = b.white;
+      const dot = b.dot;
+      let drawn = 0;
+
+      // Authored widths are UNPROJECTED tile-px; getTilePos returns PROJECTED
+      // scene points, so scale border widths by the projection's linear factor
+      // (== the DOM's getProjectionCss scale) or they draw ~1/scale too thick.
+      const g0 = getTilePos({ tile: { x: 0, y: 0 } });
+      const g1 = getTilePos({ tile: { x: 1, y: 0 } });
+      const widthScale =
+        Math.hypot(g1.x - g0.x, g1.y - g0.y) / UNPROJECTED_TILE_SIZE || 1;
+
+      b.beginInstances();
+
+      // Border edge as an ANALYTIC-AA line quad (shapeMode 1) — crisp at every iso
+      // angle/zoom via the shader's fwidth() coverage ramp (§12); buildAaLineQuad
+      // fattens by AA_FEATHER for ramp room and reports the true halfWidth.
+      const segment = (
+        p0: Coords,
+        p1: Coords,
+        w: number,
+        r: number,
+        g: number,
+        bl: number,
+        a: number
+      ) => {
+        const q = buildAaLineQuad(p0, p1, w, AA_FEATHER);
+        b.addSprite(
+          q.anchorX,
+          q.anchorY,
+          q.localOriginX,
+          q.localOriginY,
+          q.ux,
+          q.uy,
+          q.vx,
+          q.vy,
+          white,
+          r,
+          g,
+          bl,
+          a,
+          0,
+          1, // shapeMode: analytic line
+          q.halfWidth
+        );
+      };
+
+      for (const rect of rectsRef.current) {
+        const fillValue = rect.customColor || colorsById.get(rect.color ?? '');
+        if (!fillValue) continue;
+        const isTransparent = fillValue === 'transparent';
+        const [c0, c1, c2, c3] = corners(rect.from, rect.to, getTilePos, isIso);
+
+        // Fill (skip for an explicit transparent choice — outline only).
+        if (!isTransparent) {
+          const [fr, fg, fb] = glRGB(fillValue);
+          b.addSprite(
+            c0.x,
+            c0.y,
+            0,
+            0,
+            c1.x - c0.x,
+            c1.y - c0.y,
+            c3.x - c0.x,
+            c3.y - c0.y,
+            white as UVRect,
+            fr,
+            fg,
+            fb,
+            rect.fillOpacity ?? 1,
+            0
+          );
+        }
+
+        // Border. Scale the authored width to scene space (widthScale), then
+        // honour the border style — SOLID (four edges + round join dots) or
+        // DASHED (3w,2w) / DOTTED (w,2w) dash-walked around the closed loop,
+        // mirroring the DOM Rectangle strokeDasharray.
+        const strokeColor =
+          rect.borderColor ||
+          (isTransparent
+            ? '#9e9e9e'
+            : getColorVariant(fillValue, 'dark', { grade: 2 }));
+        const strokeW =
+          (rect.borderWidth ?? (isTransparent ? 2 : 1)) * widthScale;
+        const [sr, sg, sb] = glRGB(strokeColor);
+        const sa = rect.borderOpacity ?? 1;
+        const jr = strokeW / 2;
+        // Border corner/join as an ANALYTIC-AA disc (shapeMode 2) — crisp round
+        // join instead of a mip-softened sampled dot; grown by AA_FEATHER for the
+        // radial ramp, thresholded at the true radius jr.
+        const capDot = (p: Coords) => {
+          const R = jr + AA_FEATHER;
+          b.addSprite(
+            p.x,
+            p.y,
+            -R,
+            -R,
+            2 * R,
+            0,
+            0,
+            2 * R,
+            dot,
+            sr,
+            sg,
+            sb,
+            sa,
+            0,
+            2, // shapeMode: analytic disc
+            jr
+          );
+        };
+        const borderStyle = rect.borderStyle ?? 'SOLID';
+        if (borderStyle === 'DASHED' || borderStyle === 'DOTTED') {
+          const loop = [c0, c1, c2, c3, c0];
+          const dashLen = borderStyle === 'DASHED' ? strokeW * 3 : strokeW;
+          walkDashes(loop, dashLen, strokeW * 2, (p0, p1) => {
+            segment(p0, p1, strokeW, sr, sg, sb, sa);
+            capDot(p0);
+            capDot(p1);
+          });
+        } else {
+          segment(c0, c1, strokeW, sr, sg, sb, sa);
+          segment(c1, c2, strokeW, sr, sg, sb, sa);
+          segment(c2, c3, strokeW, sr, sg, sb, sa);
+          segment(c3, c0, strokeW, sr, sg, sb, sa);
+          for (const c of [c0, c1, c2, c3]) capDot(c);
+        }
+
+        drawn += 1;
+      }
+
+      b.commitInstances();
+      canvas.dataset.drawCount = String(drawn);
+      canvas.dataset.buildCount = String(++buildCount);
+    };
+
+    const drawGLBatch = (b: SpriteBatch) => {
+      pendingRef.current = false;
+      if (contextLost) return;
+      const v = view();
+      if (geomDirtyRef.current) {
+        buildInstances(b);
+        geomDirtyRef.current = false;
+      }
+      canvas.style.width = `${v.W}px`;
+      canvas.style.height = `${v.H}px`;
+      const originXDev = (v.W / 2 + v.scroll.position.x) * v.dpr;
+      const originYDev = (v.H / 2 + v.scroll.position.y) * v.dpr;
+      b.render(v.bw, v.bh, v.zoom * v.dpr, originXDev, originYDev, 1);
+    };
+
+    const scheduleDraw = () => {
+      if (pendingRef.current || destroyedRef.current) return;
+      pendingRef.current = true;
+      rafIdRef.current = requestAnimationFrame(() => {
+        if (batch) drawGLBatch(batch);
+      });
+    };
+    const drawNow = () => {
+      if (destroyedRef.current) return;
+      pendingRef.current = false;
+      cancelAnimationFrame(rafIdRef.current);
+      if (batch) drawGLBatch(batch);
+    };
+    destroyedRef.current = false;
+    pendingRef.current = false;
+    scheduleDrawRef.current = scheduleDraw;
+
+    scheduleDraw();
+    const unsubUi = uiApi.subscribe((s, p) => {
+      if (
+        s.scroll === p.scroll &&
+        s.zoom === p.zoom &&
+        s.rendererSize === p.rendererSize
+      )
+        return;
+      if (s.scroll !== p.scroll || s.zoom !== p.zoom) drawNow();
+      else scheduleDraw();
+    });
+    const unsubModel = modelApi.subscribe((s, p) => {
+      if (s.colors === p.colors) return;
+      geomDirtyRef.current = true;
+      scheduleDraw();
+    });
+
+    const detachLoss = attachContextLossRecovery(canvas, {
+      onLost: () => {
+        contextLost = true;
+      },
+      onRestored: () => {
+        const rebuilt = createSpriteBatch(canvas, 512);
+        if (!rebuilt) return;
+        batch = rebuilt;
+        contextLost = false;
+        geomDirtyRef.current = true;
+        drawNow();
+      }
+    });
+
+    return () => {
+      destroyedRef.current = true;
+      cancelAnimationFrame(rafIdRef.current);
+      unsubUi();
+      unsubModel();
+      detachLoss();
+      batch?.destroy();
+    };
+  }, [uiApi, modelApi]);
+
+  useEffect(() => {
+    geomDirtyRef.current = true;
+    scheduleDrawRef.current();
+  }, [rectangles, getTilePosition, strategy.projectionName, theme]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      data-testid="axoview-rectangles-canvas"
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        pointerEvents: 'none',
+        zIndex: 0
+      }}
+    />
+  );
+});

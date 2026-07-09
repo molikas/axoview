@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Box } from '@mui/material';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useInteractionManager } from 'src/interaction/useInteractionManager';
-import { useCanvasMode, CanvasModeContextValue } from 'src/contexts/CanvasModeContext';
+import {
+  useCanvasMode,
+  CanvasModeContextValue
+} from 'src/contexts/CanvasModeContext';
 import { Grid } from 'src/components/Grid/Grid';
 import { Cursor } from 'src/components/Cursor/Cursor';
 import { Nodes } from 'src/components/SceneLayers/Nodes/Nodes';
@@ -11,7 +14,11 @@ import { NodeLabelHitLayer } from 'src/components/SceneLayers/Nodes/NodeLabelHit
 import { LabelsCanvas } from 'src/components/SceneLayers/Labels/LabelsCanvas';
 import { LabelHitLayer } from 'src/components/SceneLayers/Labels/LabelHitLayer';
 import { Rectangles } from 'src/components/SceneLayers/Rectangles/Rectangles';
+import { RectanglesCanvas } from 'src/components/SceneLayers/Rectangles/RectanglesCanvas';
+import { isWebGL2Supported } from 'src/webgl/glSpriteBatch';
+import { WebGLUnsupportedScreen } from 'src/components/Renderer/WebGLUnsupportedScreen';
 import { Connectors } from 'src/components/SceneLayers/Connectors/Connectors';
+import { ConnectorsCanvas } from 'src/components/SceneLayers/Connectors/ConnectorsCanvas';
 import { ConnectorLabels } from 'src/components/SceneLayers/ConnectorLabels/ConnectorLabels';
 import { TextBoxes } from 'src/components/SceneLayers/TextBoxes/TextBoxes';
 import { SizeIndicator } from 'src/components/DebugUtils/SizeIndicator';
@@ -213,8 +220,9 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
     [showGrid]
   );
 
-  // The node layer is drawn by the imperative Canvas2D path (NodesCanvas) — the
-  // default and sole bulk renderer (ADR 0019). The actively-manipulated nodes —
+  // The node layer is drawn on the GPU (NodesCanvas) — WebGL2 is the sole render
+  // substrate (ADR 0038); a browser without it never reaches this code path (the
+  // WebGLUnsupportedScreen gate below). The actively-manipulated nodes —
   // the single SELECTED node and any node currently being DRAGGED — are instead
   // rendered by the DOM <Node> overlay (and skipped by the canvas) so they keep
   // the DOM affordances the canvas can't cheaply replicate: the F2 inline-rename
@@ -244,6 +252,18 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   // CSS-preview re-render) instead of a per-frame model write redrawing the whole
   // canvas. A primitive id selector → re-renders only on label-drag start/end.
   const labelDragId = useUiStateStore((s) => s.labelDrag?.id ?? null);
+  // Rectangle GPU-fold (2026-07-08): the DRAGGED rectangles keep their DOM
+  // [data-drag-id] element (DragItems mutates --ff-drag on it for the live
+  // move preview); everything else draws on the WebGL RectanglesCanvas. Picking
+  // + resize handles are geometric / separate overlays, so the bulk needs no DOM.
+  const draggingRectKey = useUiStateStore((s) =>
+    s.mode.type === 'DRAG_ITEMS'
+      ? s.mode.items
+          .filter((i) => i.type === 'RECTANGLE')
+          .map((i) => i.id)
+          .join(',')
+      : ''
+  );
   // ADR 0034: the text box being edited inline is promoted ABOVE the
   // interactions box (same reasoning as the hybrid nodes / label hit layers —
   // below it "the box ate every press"), so its Quill editor receives pointer
@@ -332,6 +352,49 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   // a bounds shift, so Connectors / ConnectorLabels memo-bail (see useStableList).
   const visibleConnectors = useStableList(visibleConnectorsRaw);
 
+  // Connector GPU-fold (2026-07-08): the bulk connector BODIES draw on the
+  // WebGL ConnectorsCanvas; only a sparse set keeps the DOM/SVG <Connector>:
+  // any SELECTED connector — the single `itemControls` pick AND every connector
+  // in the multi-selection `selectedIds` (a LASSO selects into selectedIds, not
+  // itemControls; without this its selection halo — DOM-only in <Connector> —
+  // would never render, so a lasso'd connector looked unselected) — plus any
+  // DEGENERATE 1-tile connector (the dot cue) and any UNROUTABLE one (the error
+  // badge). Picking is geometric (getItemAtTile over hitConnectors), so the bulk
+  // needs no DOM at all.
+  const selectedConnectorId = useUiStateStore((s) =>
+    s.itemControls?.type === 'CONNECTOR' ? s.itemControls.id : null
+  );
+  // Comma-joined ids of every CONNECTOR in the multi-selection — a primitive, so
+  // this re-renders only when the selected-connector set changes, not per frame.
+  const selectedConnectorKey = useUiStateStore((s) =>
+    s.selectedIds
+      .filter((r) => r.type === 'CONNECTOR')
+      .map((r) => r.id)
+      .join(',')
+  );
+  const connectorHybridIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (selectedConnectorId) ids.add(selectedConnectorId);
+    if (selectedConnectorKey)
+      for (const id of selectedConnectorKey.split(',')) ids.add(id);
+    for (const hc of hitConnectors) {
+      if (hc.unroutable || (hc.path?.tiles && hc.path.tiles.length < 2))
+        ids.add(hc.id);
+    }
+    return ids;
+  }, [selectedConnectorId, selectedConnectorKey, hitConnectors]);
+  const domConnectors = useMemo(
+    () => visibleConnectors.filter((c) => connectorHybridIds.has(c.id)),
+    [visibleConnectors, connectorHybridIds]
+  );
+  const canvasConnectors = useMemo(
+    () =>
+      connectorHybridIds.size === 0
+        ? visibleConnectors
+        : visibleConnectors.filter((c) => !connectorHybridIds.has(c.id)),
+    [visibleConnectors, connectorHybridIds]
+  );
+
   // Floating Labels (ADR 0031) — viewport-culled like nodes; layer-visibility +
   // zIndex sort happen inside LabelsCanvas / LabelHitLayer.
   const visibleLabelsRaw = useMemo(() => {
@@ -346,6 +409,31 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
     );
   }, [labels, coarseBounds]);
   const visibleLabels = useStableList(visibleLabelsRaw);
+
+  const rectHybridIds = useMemo(
+    () => (draggingRectKey ? new Set(draggingRectKey.split(',')) : null),
+    [draggingRectKey]
+  );
+  const domRectangles = useMemo(
+    () =>
+      rectHybridIds
+        ? rectangles.filter((r) => rectHybridIds.has(r.id))
+        : ([] as typeof rectangles),
+    [rectHybridIds, rectangles]
+  );
+  const canvasRectangles = useMemo(
+    () =>
+      rectHybridIds
+        ? rectangles.filter((r) => !rectHybridIds.has(r.id))
+        : rectangles,
+    [rectHybridIds, rectangles]
+  );
+
+  // WebGL2 is the sole render substrate (Phase C): a browser without it can't
+  // draw the bulk layers at all, so gate the whole canvas area behind the
+  // unsupported-browser Screen instead of rendering an empty canvas. Placed
+  // AFTER every hook above so React's hook order stays stable across the gate.
+  if (!isWebGL2Supported()) return <WebGLUnsupportedScreen />;
 
   return (
     <Box
@@ -373,8 +461,11 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
             : (backgroundColor ?? theme.customVars.customPalette.diagramBg)
       }}
     >
+      {/* Rectangle FILLS + BORDERS on the GPU (bulk); the DOM <Rectangles> keeps
+          only the dragged rect (its [data-drag-id] drives the move preview). */}
+      <RectanglesCanvas rectangles={canvasRectangles} />
       <SceneLayer>
-        <Rectangles rectangles={rectangles} />
+        <Rectangles rectangles={domRectangles} />
       </SceneLayer>
       <SceneLayer>
         <Lasso />
@@ -396,8 +487,11 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
           <Cursor />
         </SceneLayer>
       )}
+      {/* Connector BODIES on the GPU (bulk); the DOM <Connectors> keeps only the
+          sparse hybrid (selected halo / degenerate dot / unroutable badge). */}
+      <ConnectorsCanvas connectors={canvasConnectors} />
       <SceneLayer>
-        <Connectors connectors={visibleConnectors} currentView={currentView} />
+        <Connectors connectors={domConnectors} currentView={currentView} />
       </SceneLayer>
       <SceneLayer>
         <TextBoxes textBoxes={restingTextBoxes} />

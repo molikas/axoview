@@ -1,6 +1,11 @@
 import { LocaleProps } from '../types/axoviewProps';
 
 const locale: LocaleProps = {
+  webglUnsupported: {
+    title: "This browser can't display diagrams",
+    body: 'Axoview renders diagrams on your GPU using WebGL2, which this browser does not support.',
+    hint: 'Update to a recent version of Chrome, Edge, Firefox, or Safari — or turn on hardware acceleration — then reload.'
+  },
   common: {
     exampleText: 'यह एक उदाहरण पाठ है'
   },
@@ -320,6 +325,7 @@ const locale: LocaleProps = {
   topBarStyleControls: {
     rotate90: '90° घुमाएं',
     noColor: 'कोई रंग नहीं',
+    pickColorFromScreen: 'स्क्रीन से रंग चुनें',
     customColor: 'कस्टम रंग',
     textSize: 'पाठ का आकार',
     lineSpacing: 'पंक्ति रिक्ति',
@@ -394,9 +400,6 @@ const locale: LocaleProps = {
     lineType: 'रेखा प्रकार',
     showArrow: 'तीर दिखाएं',
     showDottedLine: 'बिंदीदार रेखा दिखाएं',
-  },
-  labelColorPicker: {
-    customColor: 'कस्टम रंग'
   },
   deleteButton: {
     delete: 'हटाएं'

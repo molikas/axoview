@@ -1,6 +1,11 @@
 import { LocaleProps } from '../types/axoviewProps';
 
 const locale: LocaleProps = {
+  webglUnsupported: {
+    title: "This browser can't display diagrams",
+    body: 'Axoview renders diagrams on your GPU using WebGL2, which this browser does not support.',
+    hint: 'Update to a recent version of Chrome, Edge, Firefox, or Safari — or turn on hardware acceleration — then reload.'
+  },
   common: {
     exampleText: 'Este es un texto de ejemplo'
   },
@@ -324,6 +329,7 @@ const locale: LocaleProps = {
   topBarStyleControls: {
     rotate90: 'Girar 90°',
     noColor: 'Sin color',
+    pickColorFromScreen: 'Seleccionar color de la pantalla',
     customColor: 'Color personalizado',
     textSize: 'Tamaño del texto',
     lineSpacing: 'Interlineado',
@@ -399,9 +405,6 @@ const locale: LocaleProps = {
     lineType: 'Tipo de línea',
     showArrow: 'Mostrar flecha',
     showDottedLine: 'Mostrar línea punteada',
-  },
-  labelColorPicker: {
-    customColor: 'Color personalizado'
   },
   deleteButton: {
     delete: 'Eliminar'
