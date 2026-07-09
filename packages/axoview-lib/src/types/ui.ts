@@ -276,6 +276,14 @@ export interface UiState {
   mouse: Mouse;
   rendererEl: HTMLDivElement | null;
   rendererSize: Size;
+  /**
+   * Set by the loader when a diagram open requested fit-to-view but the renderer
+   * wasn't measured yet (first mount — Axoview renders null until isReady, so
+   * rendererEl is 0-sized and a fit computed there yields zoom 0). A deferred
+   * effect in Renderer applies the fit once rendererSize is known, then clears
+   * this. See useInitialDataManager.
+   */
+  pendingFitToView: boolean;
   enableDebugTools: boolean;
   zoomSettings: ZoomSettings;
   labelSettings: LabelSettings;
@@ -517,6 +525,8 @@ export interface UiStateActions {
   setMouse: (mouse: Mouse) => void;
   setRendererEl: (el: HTMLDivElement) => void;
   setRendererSize: (size: Size) => void;
+  /** Flag/clear a deferred fit-to-view (applied once the renderer is measured). */
+  setPendingFitToView: (pending: boolean) => void;
   setEnableDebugTools: (enabled: boolean) => void;
   setZoomSettings: (settings: ZoomSettings) => void;
   setLabelSettings: (settings: LabelSettings) => void;

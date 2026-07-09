@@ -7,7 +7,6 @@ import {
   INITIAL_UI_STATE
 } from 'src/config';
 import {
-  getFitToViewParams,
   CoordsUtils,
   categoriseIcons,
   generateId,
@@ -228,22 +227,19 @@ export const useInitialDataManager = () => {
 
         changeView(view.value.id, merged);
 
-        if (merged.fitToView) {
-          const rendererEl = uiStateStoreApi.getState().rendererEl;
-          const rendererSize = rendererEl?.getBoundingClientRect();
-
-          const { zoom, scroll } = getFitToViewParams(view.value, {
-            width: rendererSize?.width ?? 0,
-            height: rendererSize?.height ?? 0
-          });
-
-          uiStateActions.setScroll({
-            position: scroll,
-            offset: CoordsUtils.zero()
-          });
-
-          uiStateActions.setZoom(zoom);
-        }
+        // Fit-to-view on open — routed through a deferred flag rather than
+        // applied here. On FIRST mount the Renderer isn't in the tree yet
+        // (Axoview renders null until isReady, which `load` only sets at its
+        // end), so rendererEl is null/0-sized and a fit computed now yields
+        // zoom 0. The effect in Renderer applies it once rendererSize is known,
+        // using the mode-aware getTilePosition (correct 2D centring — the util's
+        // default is isometric-only). `fitToScreen` is the app-facing alias.
+        // Skipped on preserveViewport reloads (icon-pack swaps) so they don't
+        // re-centre; cleared otherwise so a stale request can't fire later.
+        const wantsFit =
+          Boolean(merged.fitToView || merged.fitToScreen) &&
+          !options?.preserveViewport;
+        uiStateActions.setPendingFitToView(wantsFit);
 
         // Build the new categories list from the incoming icons.
         // Two regimes:

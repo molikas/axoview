@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import { Box } from '@mui/material';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useInteractionManager } from 'src/interaction/useInteractionManager';
@@ -30,6 +36,7 @@ import { ElementLinkCard } from 'src/components/ElementLinkCard/ElementLinkCard'
 import { Lasso } from 'src/components/Lasso/Lasso';
 import { FreehandLasso } from 'src/components/FreehandLasso/FreehandLasso';
 import { useScene } from 'src/hooks/useScene';
+import { useDiagramUtils } from 'src/hooks/useDiagramUtils';
 import { RendererProps } from 'src/types/rendererProps';
 import { Scroll, Size, ViewItem } from 'src/types';
 
@@ -214,6 +221,30 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
     setInteractionsElement(interactionsRef.current);
     uiStateActions.setRendererEl(containerRef.current);
   }, [setInteractionsElement, uiStateActions]);
+
+  // Fit-to-view on open (deferred). The loader sets pendingFitToView when a
+  // diagram open requested fit but the renderer wasn't measured yet; apply it
+  // here once rendererSize is known. useLayoutEffect so a diagram SWITCH (where
+  // the renderer is already sized) fits BEFORE paint — no flash of the new
+  // diagram at the old viewport. fitToView uses the mode-aware getTilePosition,
+  // so 2D centres correctly (the loader path could not reach it). The fit's
+  // setScroll/setZoom also re-cull + repaint at the final viewport, which is what
+  // populates the top rows a big diagram opens on.
+  const pendingFitToView = useUiStateStore((state) => state.pendingFitToView);
+  const rendererSizeForFit = useUiStateStore((state) => state.rendererSize);
+  const { fitToView } = useDiagramUtils();
+  useLayoutEffect(() => {
+    if (!pendingFitToView || !currentView) return;
+    if (rendererSizeForFit.width <= 0 || rendererSizeForFit.height <= 0) return;
+    void fitToView();
+    uiStateActions.setPendingFitToView(false);
+  }, [
+    pendingFitToView,
+    currentView,
+    rendererSizeForFit,
+    fitToView,
+    uiStateActions
+  ]);
 
   const isShowGrid = useMemo(
     () => showGrid === undefined || showGrid,

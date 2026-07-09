@@ -55,6 +55,7 @@ const initialState = () => {
       dialog: null,
       rendererEl: null,
       rendererSize: { width: 0, height: 0 },
+      pendingFitToView: false,
       mouse: {
         position: { screen: CoordsUtils.zero(), tile: CoordsUtils.zero() },
         mousedown: null,
@@ -275,6 +276,9 @@ const initialState = () => {
         },
         setRendererSize: (size) => {
           set({ rendererSize: size });
+        },
+        setPendingFitToView: (pendingFitToView) => {
+          set({ pendingFitToView });
         },
         setZoomSettings: (zoomSettings) => {
           set({ zoomSettings });
