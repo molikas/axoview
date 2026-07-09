@@ -238,7 +238,6 @@ export const getFitToViewParams = (
 ) => {
   const projectBounds = getProjectBounds(view);
   const sortedCornerPositions = sortByPosition(projectBounds);
-  const boundingBoxSize = getBoundingBoxSize(projectBounds);
   const unprojectedBounds = getUnprojectedBounds(view, getTilePositionFn);
   const zoom = clamp(
     Math.min(
@@ -254,9 +253,14 @@ export const getFitToViewParams = (
   // into the ISO-hardcoded getTileScrollPosition, which worked for ISO (where
   // a single node at {0,0} cancels the x-term) but produced a wrong offset for
   // 2D when the diagram centre is not at {0,0}.
+  // Bounding-box MIDPOINT in tile space via (low + high) / 2 — NOT low + size/2:
+  // getBoundingBoxSize adds +1 (inclusive tile COUNT), which biases the centre
+  // by half a tile and mis-centres the fit. Dormant while fit-to-view was a
+  // no-op; once fit actually moves the view the diagram lands half a tile off,
+  // and a centre-anchored click then misses the node it should land on.
   const centerTile: Coords = {
-    x: sortedCornerPositions.lowX + boundingBoxSize.width / 2,
-    y: sortedCornerPositions.lowY + boundingBoxSize.height / 2
+    x: (sortedCornerPositions.lowX + sortedCornerPositions.highX) / 2,
+    y: (sortedCornerPositions.lowY + sortedCornerPositions.highY) / 2
   };
   const centerScreenPos = getTilePositionFn({ tile: centerTile });
   // `+ 0` normalises a negative zero (when a centre component is exactly 0) to
