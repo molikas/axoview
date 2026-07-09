@@ -1,6 +1,6 @@
 # Axoview Canvas Rendering Guidelines
 
-**Last updated:** 2026-07-09 (analytic edge-AA line rendering + arrow ground-plane parity shipped — §12/§13; PR #63)
+**Last updated:** 2026-07-09 (compositor overlay for stacked-canvas repaint — §14, PR #64; analytic edge-AA + arrow ground-plane parity — §12/§13, PR #63)
 **Status:** Living reference. Update when the render substrate evolves.
 **Audience:** Anyone (or any agent) touching the GPU bulk layers, the sprite atlas, line-style geometry, or image export.
 
@@ -279,6 +279,18 @@ const vx = -uy * size, vy = ux * size;
 ```
 
 Reference: arrow emission in [`ConnectorsCanvas`](../packages/axoview-lib/src/components/SceneLayers/Connectors/ConnectorsCanvas.tsx) (the `La/Lb/Lc/Ld` basis).
+
+---
+
+## 14. Stacked WebGL canvases need a full-area overlay so Chrome recomposites them
+
+**Symptom:** on some GPUs/drivers a strip of the diagram rendered blank until a pan, and toggling an overlapping DOM element (the "session not saved" banner, the annotation panel, a dock) briefly repainted it, then a strip *exactly that element's size* went blank again. Image export was always correct, and opening the annotation panel made the strip vanish. Reproduced on one machine, not another.
+
+**Root cause:** the four scene-layer WebGL canvases are painted into a shared compositor layer. When a sibling DOM overlay *above* a canvas toggled, Chrome invalidated only the overlay's rectangle and left the canvas **un-repainted** there — a stale blank strip the overlay's size — until a pan/resize forced a full recomposite. The drawing buffers were correct the whole time (hence export worked, and a forced repaint revealed the content), so this is a **paint/composite bug, not a render or cull bug** — which is why it was GPU/driver-dependent. A per-canvas `transform: translateZ(0)` layer promotion did **not** fix it.
+
+**Rule:** keep a permanent, empty, pointer-transparent **full-area SVG overlay** mounted above the canvases ([`CanvasCompositorOverlay`](../packages/axoview-lib/src/components/CanvasCompositorOverlay/CanvasCompositorOverlay.tsx), next to `AnnotationLayer`). Its presence forces Chrome to composite the whole canvas region as a unit, so a sibling's partial invalidation can no longer leave a stale strip. (This is why the bug vanished whenever `AnnotationLayer` — itself a full-area SVG at the same z-index — happened to be open.) The overlay must stay inert: `pointerEvents: none`, `aria-hidden`, draws nothing. A §11 case — CI can't see it; owner-confirmed in a real browser (Chrome, 1080p, dpr 1).
+
+Reference: [`CanvasCompositorOverlay.tsx`](../packages/axoview-lib/src/components/CanvasCompositorOverlay/CanvasCompositorOverlay.tsx); mounted in [`UiOverlay`](../packages/axoview-lib/src/components/UiOverlay/UiOverlay.tsx).
 
 ---
 
