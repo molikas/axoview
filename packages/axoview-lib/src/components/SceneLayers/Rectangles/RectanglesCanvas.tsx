@@ -14,7 +14,7 @@ import {
 } from 'src/webgl/glSpriteBatch';
 import { attachContextLossRecovery } from 'src/webgl/contextLoss';
 import { computeBackingStore } from 'src/utils/renderTarget';
-import { walkDashes } from 'src/webgl/lineStyle';
+import { walkDashes, buildAaLineQuad, AA_FEATHER } from 'src/webgl/lineStyle';
 
 // ---------------------------------------------------------------------------
 // RectanglesCanvas — WebGL2 INSTANCED draw of grouping-rectangle FILLS + BORDERS
@@ -161,6 +161,9 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
 
       b.beginInstances();
 
+      // Border edge as an ANALYTIC-AA line quad (shapeMode 1) — crisp at every iso
+      // angle/zoom via the shader's fwidth() coverage ramp (§12); buildAaLineQuad
+      // fattens by AA_FEATHER for ramp room and reports the true halfWidth.
       const segment = (
         p0: Coords,
         p1: Coords,
@@ -170,26 +173,24 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
         bl: number,
         a: number
       ) => {
-        const ax = p1.x - p0.x;
-        const ay = p1.y - p0.y;
-        const len = Math.hypot(ax, ay) || 1;
-        const px = (-ay / len) * w;
-        const py = (ax / len) * w;
+        const q = buildAaLineQuad(p0, p1, w, AA_FEATHER);
         b.addSprite(
-          p0.x,
-          p0.y,
-          -px / 2,
-          -py / 2,
-          ax,
-          ay,
-          px,
-          py,
+          q.anchorX,
+          q.anchorY,
+          q.localOriginX,
+          q.localOriginY,
+          q.ux,
+          q.uy,
+          q.vx,
+          q.vy,
           white,
           r,
           g,
           bl,
           a,
-          0
+          0,
+          1, // shapeMode: analytic line
+          q.halfWidth
         );
       };
 
@@ -234,23 +235,30 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
         const [sr, sg, sb] = glRGB(strokeColor);
         const sa = rect.borderOpacity ?? 1;
         const jr = strokeW / 2;
-        const capDot = (p: Coords) =>
+        // Border corner/join as an ANALYTIC-AA disc (shapeMode 2) — crisp round
+        // join instead of a mip-softened sampled dot; grown by AA_FEATHER for the
+        // radial ramp, thresholded at the true radius jr.
+        const capDot = (p: Coords) => {
+          const R = jr + AA_FEATHER;
           b.addSprite(
             p.x,
             p.y,
-            -jr,
-            -jr,
-            2 * jr,
+            -R,
+            -R,
+            2 * R,
             0,
             0,
-            2 * jr,
+            2 * R,
             dot,
             sr,
             sg,
             sb,
             sa,
-            0
+            0,
+            2, // shapeMode: analytic disc
+            jr
           );
+        };
         const borderStyle = rect.borderStyle ?? 'SOLID';
         if (borderStyle === 'DASHED' || borderStyle === 'DOTTED') {
           const loop = [c0, c1, c2, c3, c0];

@@ -16,7 +16,7 @@ import {
 } from 'src/webgl/glSpriteBatch';
 import { attachContextLossRecovery } from 'src/webgl/contextLoss';
 import { computeBackingStore } from 'src/utils/renderTarget';
-import { walkDots, walkDashes } from 'src/webgl/lineStyle';
+import { walkDots, walkDashes, buildAaLineQuad, AA_FEATHER } from 'src/webgl/lineStyle';
 
 // ---------------------------------------------------------------------------
 // ConnectorsCanvas — WebGL2 INSTANCED draw of the connector BODIES (halo + core
@@ -207,7 +207,11 @@ export const ConnectorsCanvas = memo(({ connectors }: Props) => {
 
       b.beginInstances();
 
-      // A thick segment quad from p0→p1 of width w, tinted (r,g,b,a).
+      // A thick segment from p0→p1 of width w, tinted (r,g,b,a). Emitted as an
+      // ANALYTIC-AA line quad (shapeMode 1): buildAaLineQuad fattens the stroke by
+      // AA_FEATHER on each side so the shader's fwidth() coverage ramp has room,
+      // and reports the true halfWidth the fragment thresholds against — a crisp
+      // ~1px edge at every iso angle/zoom (the `uv` arg is ignored in line mode).
       const segment = (
         p0: Coords,
         p1: Coords,
@@ -218,29 +222,30 @@ export const ConnectorsCanvas = memo(({ connectors }: Props) => {
         bl: number,
         a: number
       ) => {
-        const ax = p1.x - p0.x;
-        const ay = p1.y - p0.y;
-        const len = Math.hypot(ax, ay) || 1;
-        const px = (-ay / len) * w; // perpendicular × width
-        const py = (ax / len) * w;
+        const q = buildAaLineQuad(p0, p1, w, AA_FEATHER);
         b.addSprite(
-          p0.x,
-          p0.y,
-          -px / 2,
-          -py / 2,
-          ax,
-          ay,
-          px,
-          py,
+          q.anchorX,
+          q.anchorY,
+          q.localOriginX,
+          q.localOriginY,
+          q.ux,
+          q.uy,
+          q.vx,
+          q.vy,
           uv,
           r,
           g,
           bl,
           a,
-          0
+          0,
+          1, // shapeMode: analytic line
+          q.halfWidth
         );
       };
-      // A round cap/join dot of radius rad at p.
+      // A round cap/join disc of radius rad at p. ANALYTIC-AA (shapeMode 2): the
+      // quad is grown by AA_FEATHER so the radial coverage ramp isn't clipped; the
+      // fragment thresholds at the true `rad` (the `dot` sprite is now unused here,
+      // so the round joins are crisp instead of a mip-softened sampled circle).
       const cap = (
         p: Coords,
         rad: number,
@@ -249,21 +254,24 @@ export const ConnectorsCanvas = memo(({ connectors }: Props) => {
         bl: number,
         a: number
       ) => {
+        const R = rad + AA_FEATHER;
         b.addSprite(
           p.x,
           p.y,
-          -rad,
-          -rad,
-          2 * rad,
+          -R,
+          -R,
+          2 * R,
           0,
           0,
-          2 * rad,
+          2 * R,
           dot,
           r,
           g,
           bl,
           a,
-          0
+          0,
+          2, // shapeMode: analytic disc
+          rad
         );
       };
 
@@ -273,10 +281,21 @@ export const ConnectorsCanvas = memo(({ connectors }: Props) => {
       // getProjectionCss scale; correct for iso AND 2D).
       const o0 = getTilePos({ tile: { x: 0, y: 0 } });
       const o1 = getTilePos({ tile: { x: 1, y: 0 } });
+      const oY = getTilePos({ tile: { x: 0, y: 1 } });
       const widthScale =
         Math.hypot(o1.x - o0.x, o1.y - o0.y) / UNPROJECTED_TILE_SIZE || 1;
-      // DOM arrow is a fixed ~35px triangle (not width-scaled); project it.
-      const arrowSize = 40 * widthScale;
+      // The projection's 2×2 linear map L (tile→scene), probed from unit tile
+      // steps: L·(1,0) = (La,Lb), L·(0,1) = (Lc,Ld). Used to iso-shear the arrow
+      // onto the ground plane below; in 2D L is a scaled identity, so the arrow
+      // stays an un-sheared square there automatically.
+      const La = o1.x - o0.x;
+      const Lb = o1.y - o0.y;
+      const Lc = oY.x - o0.x;
+      const Ld = oY.y - o0.y;
+      // Arrow size in TILE units — 40 unprojected px, projected through L per
+      // connector so it foreshortens with direction like the DOM ground-plane
+      // arrow (matches the current on-screen size for axis-aligned segments).
+      const arrowTileSize = 40 / UNPROJECTED_TILE_SIZE;
 
       // Draw one polyline (halo or core pass) honouring the connector `style`.
       // Dash metrics use `unit` (the core width) so halo + core dashes align,
@@ -397,23 +416,45 @@ export const ConnectorsCanvas = memo(({ connectors }: Props) => {
         // (mirrors getConnectorDirectionIcon's tiles[length-2] convention). White
         // tint (1,1,1,1) preserves the sprite's baked black fill + white outline,
         // so the arrow stays visible on a dark line (a black tint blacked it out).
+        //
+        // The basis is the iso-projection of the last segment's GROUND-PLANE frame:
+        // the pointing direction g and its perpendicular h are taken in UNPROJECTED
+        // tile space, then BOTH mapped through L. This shears the arrow onto the iso
+        // ground plane exactly like the DOM <Connector> arrow (authored unprojected,
+        // then run through the iso CSS matrix). The previous code built an
+        // orthonormal SCENE-space basis — a screen-facing billboard that did not
+        // foreshorten with the rest of the scene, which read as "deformed".
         if (connector.showArrow !== false && pts.length >= 2) {
+          const nTiles = path.tiles.length;
+          const gA = connectorPathTileToGlobal(
+            path.tiles[nTiles - 2],
+            path.rectangle.from
+          );
+          const gB = connectorPathTileToGlobal(
+            path.tiles[nTiles - 1],
+            path.rectangle.from
+          );
+          let gx = gB.x - gA.x;
+          let gy = gB.y - gA.y;
+          const gLen = Math.hypot(gx, gy) || 1;
+          gx /= gLen; // ground-plane pointing unit
+          gy /= gLen;
+          const hx = -gy; // ground-plane perpendicular unit
+          const hy = gx;
+          const aux = (La * gx + Lc * gy) * arrowTileSize; // L·g·size (sheared u)
+          const auy = (Lb * gx + Ld * gy) * arrowTileSize;
+          const avx = (La * hx + Lc * hy) * arrowTileSize; // L·h·size (sheared v)
+          const avy = (Lb * hx + Ld * hy) * arrowTileSize;
           const tip = pts[pts.length - 2];
-          const nxt = pts[pts.length - 1];
-          const dx = nxt.x - tip.x;
-          const dy = nxt.y - tip.y;
-          const len = Math.hypot(dx, dy) || 1;
-          const ux = dx / len;
-          const uy = dy / len;
           b.addSprite(
             tip.x,
             tip.y,
-            (-ux - -uy) * (arrowSize / 2),
-            (-uy - ux) * (arrowSize / 2),
-            ux * arrowSize,
-            uy * arrowSize,
-            -uy * arrowSize,
-            ux * arrowSize,
+            -(aux + avx) / 2,
+            -(auy + avy) / 2,
+            aux,
+            auy,
+            avx,
+            avy,
             arrowUV,
             1,
             1,

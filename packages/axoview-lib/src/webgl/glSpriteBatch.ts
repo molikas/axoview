@@ -35,12 +35,17 @@ layout(location=0) in vec4 i_anchorLocal; // (anchorX, anchorY, localOriginX, lo
 layout(location=1) in vec4 i_basis;       // (ux, uy, vx, vy)  local edge vectors, tile space
 layout(location=2) in vec4 i_uvRect;      // (u0, v0, uSize, vSize)  atlas coords
 layout(location=3) in vec4 i_tint;        // (r, g, b, a)  colour multiply
-layout(location=4) in vec4 i_misc;        // (counterScaleFlag, _, _, _)
+layout(location=4) in vec4 i_misc;        // (counterScaleFlag, shapeMode, halfWidth, _)
 uniform vec2 u_resolution;   // device px
 uniform vec3 u_view;         // (zoom*dpr, originX_dev, originY_dev)
 uniform float u_counterScale;
 out vec2 v_uv;
 out vec4 v_tint;
+// Analytic edge-AA carriers (§12). Only read when shapeMode>0 (line/disc); a
+// textured sprite (mode 0) ignores them, so its output is unchanged.
+out vec2 v_p;      // scene-space offset from the quad centre: (along, perpendicular)
+out float v_hw;    // true stroke half-width (line) / disc radius, SCENE units
+out float v_mode;  // 0 textured | 1 analytic line | 2 analytic disc
 // Two triangles of a unit quad (TL,TR,BR / TL,BR,BL) — indexed by gl_VertexID.
 const vec2 QUAD[6] = vec2[6](
   vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, 1.0),
@@ -56,12 +61,24 @@ void main() {
   gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
   v_uv = i_uvRect.xy + q * i_uvRect.zw;
   v_tint = i_tint;
+  v_mode = i_misc.y;
+  v_hw = i_misc.z;
+  // Scene-space distance-field coordinate. A DISC (mode 2) needs both axes; a LINE
+  // (mode 1) needs only the perpendicular (.y), so the along-axis is zeroed to keep
+  // a long segment's length out of mediump. Scaled by s (the counter-scale mix) so
+  // a counter-scaled instance's field tracks its drawn size (line/disc pass s==1).
+  float along = (i_misc.y > 1.5) ? (q.x - 0.5) * length(i_basis.xy) : 0.0;
+  float perp = (q.y - 0.5) * length(i_basis.zw);
+  v_p = vec2(along, perp) * s;
 }`;
 
 const FRAG_SRC = `#version 300 es
 precision mediump float;
 in vec2 v_uv;
 in vec4 v_tint;
+in vec2 v_p;
+in float v_hw;
+in float v_mode;
 uniform sampler2D u_atlas;
 out vec4 outColor;
 void main() {
@@ -70,8 +87,20 @@ void main() {
   // AND a mip-minified edge doesn't pull the atlas's black transparent surround
   // into a dark/grey fringe — the "grey border around the dots / bubbly dash
   // caps" artifact. Un-fringed edges match the DOM's vector strokes.
-  vec4 tex = texture(u_atlas, v_uv);
-  outColor = tex * vec4(v_tint.rgb * v_tint.a, v_tint.a);
+  vec4 premTint = vec4(v_tint.rgb * v_tint.a, v_tint.a);
+  // Textured-sprite path (chips, icons, arrow, ring) — UNCHANGED for mode 0.
+  // Sampled UNCONDITIONALLY so texture derivatives stay valid at 2x2 quads that
+  // straddle instances of different modes (the "texture in a branch" hazard).
+  vec4 sprite = texture(u_atlas, v_uv) * premTint;
+  // Analytic edge-AA (§12): distance-field coverage with a controlled ~1px SCREEN
+  // feather via fwidth() — crisp at ANY zoom/shear, no texture, no MSAA needed.
+  // Line = perpendicular distance |v_p.y|; disc = radial distance length(v_p).
+  float d = (v_mode > 1.5) ? length(v_p) : abs(v_p.y);
+  float aa = fwidth(d);
+  float cov = clamp((v_hw - d) / max(aa, 1e-6) + 0.5, 0.0, 1.0);
+  vec4 shape = premTint * cov; // premultiplied → blends under ONE / ONE_MINUS_SRC_ALPHA
+  // Data select (not control flow) keeps the derivative ops above unconditional.
+  outColor = (v_mode > 0.5) ? shape : sprite;
 }`;
 
 // 20 floats / instance = 5 vec4 attributes (80-byte stride, 16-byte aligned).
@@ -169,7 +198,13 @@ export interface SpriteBatch {
     g: number,
     b: number,
     a: number,
-    counterScaleFlag: number
+    counterScaleFlag: number,
+    // Analytic edge-AA (§12): 0 = textured sprite (default; every existing caller),
+    // 1 = analytic line, 2 = analytic disc. `halfWidth` is the true stroke
+    // half-width / disc radius in SCENE units. Packed into the spare i_misc.y/.z —
+    // no instance-stride growth.
+    shapeMode?: number,
+    halfWidth?: number
   ): void;
   commitInstances(): void;
   instanceCount(): number;
@@ -219,6 +254,13 @@ export const createSpriteBatch = (
       // atlas is uploaded premultiplied and the shader outputs premultiplied
       // color, so the context must composite it as premultiplied too.
       premultipliedAlpha: true,
+      // No MSAA. Line/border/cap edges are feathered analytically in the fragment
+      // shader (§12: fwidth() distance-field coverage — a uniform ~1px feather at
+      // every angle/zoom), and every other surface is a textured sprite whose
+      // silhouette AA comes from the atlas alpha — neither of which MSAA touches.
+      // MSAA was owner-verified as only a partial band-aid (it feathered iso
+      // diagonals but not the axis-aligned or sampled cases), so enabling it is
+      // pure fill-rate cost across four contexts for no benefit. Guidelines §12.
       antialias: false,
       depth: false,
       stencil: false,
@@ -519,7 +561,9 @@ export const createSpriteBatch = (
       g,
       b,
       a,
-      counterScaleFlag
+      counterScaleFlag,
+      shapeMode = 0,
+      halfWidth = 0
     ) {
       ensureCapacity(FLOATS_PER_INSTANCE);
       const v = staging;
@@ -540,10 +584,10 @@ export const createSpriteBatch = (
       v[i++] = g;
       v[i++] = b;
       v[i++] = a;
-      v[i++] = counterScaleFlag;
-      v[i++] = 0;
-      v[i++] = 0;
-      v[i++] = 0;
+      v[i++] = counterScaleFlag; // i_misc.x
+      v[i++] = shapeMode; // i_misc.y (0 textured / 1 line / 2 disc)
+      v[i++] = halfWidth; // i_misc.z (scene units)
+      v[i++] = 0; // i_misc.w (spare)
       floatCount = i;
     },
     commitInstances() {

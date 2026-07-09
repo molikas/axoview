@@ -1,6 +1,6 @@
 # Axoview Canvas Rendering Guidelines
 
-**Last updated:** 2026-07-08 (WebGL-fold productization, PR #63 — findings folded into rules)
+**Last updated:** 2026-07-09 (analytic edge-AA line rendering + arrow ground-plane parity shipped — §12/§13; PR #63)
 **Status:** Living reference. Update when the render substrate evolves.
 **Audience:** Anyone (or any agent) touching the GPU bulk layers, the sprite atlas, line-style geometry, or image export.
 
@@ -225,35 +225,60 @@ export const atlasUVRect = (x, y, w, h, atlasSize) => ({ /* … */ });
 
 ---
 
-## 12. Crisp iso line rendering — the open frontier
+## 12. Crisp iso lines/borders/caps — analytic edge-AA, not MSAA
 
-Lines/dots/borders are the least crisp thing in iso. A line/dash *body* is a solid `white`-texel parallelogram whose long edges **alias** (the context is `antialias:false`); a dot/round-cap/chip-border is a **sampled sprite** that softens under filtering (§6). A *selected* connector looks crisp only because it is drawn by the DOM `<Connector>` SVG overlay (true vector) — the GPU bulk is not there yet.
+**Symptom:** connector line bodies, rectangle borders and round caps were the least crisp thing in iso — solid-quad long edges stair-stepped and sampled dots softened, while a *selected* connector stayed crisp (it is the DOM `<Connector>` SVG). Enabling MSAA improved iso *diagonals* but left *axis-aligned* ("north-south") segments looking hard-and-inconsistent, and did nothing for the sampled caps.
 
-Evaluated fixes:
+**Root cause:** the context was `antialias:false` and a line body was a solid `white`-texel parallelogram whose long edges are real geometry edges — they alias once the iso shear turns every segment diagonal. MSAA multisamples only *geometry-edge coverage*: it feathers the diagonal quad edges but is a no-op on axis-aligned edges (already crisp — a screen-vertical iso segment has Δx=0, so it never stair-stepped) and on the *interior* of a sampled sprite (caps/dots are a texture fetch, not an edge). So MSAA is an uneven partial fix at a real fill-rate cost — the wrong tool (both confirmed by owner screenshots, 2026-07-09).
 
-- **MSAA (`antialias:true`)** — **rejected.** MSAA multisamples *geometry-edge coverage*. It does nothing for the sampled-sprite case (the feature is inside the quad, produced by texture fetch), and gives only an uncontrolled partial improvement on the solid-quad edges — at a real fill-rate cost. Wrong tool.
-- **Analytic edge-AA on real geometry** — **recommended.** Expand each stroke quad by a small feather, carry the perpendicular distance-from-centreline as a varying, and `smoothstep` the alpha against the true half-width in the fragment shader. `fwidth()` makes the feather ≈1 screen px at **any** zoom/shear. This is the deck.gl / Mapbox line technique. It reuses the existing single-atlas instanced batch — one shader branch + a couple of spare per-instance floats — so it is incremental, not a rewrite.
-- **SDF (signed distance field) textures** — crisp at arbitrary scale/shear too, but needs offline SDF generation per shape and is a bigger upfront lift. Better only if we later need arbitrary vector *glyphs/shapes*; overkill for straight strokes + discs.
+**Rule:** feather strokes/discs **analytically in the fragment shader** (the deck.gl / Mapbox technique), never with MSAA. Carry a distance-from-centre in scene units as a varying and threshold it against the true half-width with an `fwidth()`-based coverage ramp — a controlled ~1px feather at **any** zoom/shear, no texture, no multisampling. This is `antialias:false` + one data-driven shader branch, reusing the single instanced batch and its spare per-instance floats (no stride growth).
 
-**Recommendation: analytic edge-AA**, because straight strokes and circular caps have closed-form distance functions (no texture needed at all), and it grafts onto the current batch with minimal surface area. SDF is the escalation path if shape complexity grows.
+The **shipped** wiring:
 
-**Prototype (geometry half, shipped + unit-tested; shader half specified, not yet wired):**
-[`buildAaLineQuad`](../packages/axoview-lib/src/webgl/lineStyle.ts) fattens `segment()`'s parallelogram by `feather` on each perpendicular side and reports the true `halfWidth`, so a distance-field fragment ramp has room to feather. The companion shader:
+- Geometry: [`buildAaLineQuad`](../packages/axoview-lib/src/webgl/lineStyle.ts) fattens `segment()`'s parallelogram by `AA_FEATHER` scene units on each perpendicular side (so the ramp isn't clipped by the quad) and reports the true `halfWidth`; a disc grows its quad by the same feather.
+- Per-instance carrier: `addSprite`'s `shapeMode` (0 textured / 1 line / 2 disc) and `halfWidth` pack into `i_misc.y/.z` — previously zero, so no stride growth and the textured path is byte-identical.
+- Shader ([`glSpriteBatch`](../packages/axoview-lib/src/webgl/glSpriteBatch.ts) VERT/FRAG):
 
 ```glsl
-// vertex — pass the signed perpendicular distance in SCENE units.
-//   i_misc = (counterScaleFlag, shapeMode, halfWidth, halfExtent)
-//   q.y ∈ [0,1] across the fat quad; centre is 0.5.
-v_sd = (q.y - 0.5) * (i_misc.w * 2.0);   // scene-space distance from centreline
+// vertex — scene-space distance-field coordinate from the quad centre.
+//   i_misc = (counterScaleFlag, shapeMode, halfWidth, _)
+//   disc needs both axes; line needs only the perpendicular (.y), so .x is zeroed.
+float along = (i_misc.y > 1.5) ? (q.x - 0.5) * length(i_basis.xy) : 0.0;
+float perp  =                    (q.y - 0.5) * length(i_basis.zw);
+v_p = vec2(along, perp) * s;   v_hw = i_misc.z;   v_mode = i_misc.y;
 
-// fragment — controlled ~1px feather at any zoom/shear; no texture sampling.
-float d  = abs(v_sd);
-float aa = fwidth(d);                                  // scene units per screen px
-float cov = 1.0 - smoothstep(u_halfWidth - aa, u_halfWidth + aa, d);
-outColor = vec4(v_tint.rgb * v_tint.a, v_tint.a) * cov;
+// fragment — line = perpendicular distance, disc = radial; ~1px ramp via fwidth.
+float d   = (v_mode > 1.5) ? length(v_p) : abs(v_p.y);
+float aa  = fwidth(d);                                     // scene units per screen px
+float cov = clamp((v_hw - d) / max(aa, 1e-6) + 0.5, 0.0, 1.0);
+vec4 shape = vec4(v_tint.rgb * v_tint.a, v_tint.a) * cov;   // premultiplied (§1)
+outColor = (v_mode > 0.5) ? shape : sprite;                // DATA select — texture()/fwidth() stay unconditional
 ```
 
-A disc (dots/round caps) is the same idea with a radial distance (`length(q - 0.5)` thresholded at `0.5`), replacing the `dot` sprite entirely. **Wiring the shader branch is a real-browser-verified follow-up** (§11) — the geometry and the recommendation are here; the pixels are the owner's to confirm.
+Two load-bearing details: keep `texture()` and `fwidth()` **unconditional** (data-select the result, don't branch around them) so derivatives stay valid at 2×2 quads straddling mixed-mode instances; and keep `cov = 0.5` at `d = halfWidth` so the fat quad never changes the drawn thickness (width fidelity, §5). `AA_FEATHER` is a build-time scene constant — **not** zoom-scaled (that would rebuild geometry per frame, §10); a sub-pixel stroke at extreme zoom-out simply fades rather than clipping visibly.
+
+**SDF textures** stay the escalation path only if we later need arbitrary vector *glyphs/shapes* — straight strokes and circular caps have closed-form distances, so they need no texture at all. **MSAA is rejected** as the line-AA mechanism; the context stays `antialias:false`.
+
+---
+
+## 13. Connector arrows live on the ground plane, not facing the screen
+
+**Symptom:** the GPU (unselected) connector arrowhead looked "deformed" in iso — subtly wrong beside a selected connector's arrow.
+
+**Root cause:** the GPU arrow built an **orthonormal scene-space basis** from the projected segment direction (`u = size·(ux,uy)`, `v = size·(-uy,ux)`) — a rigid *screen-facing billboard*. But the DOM `<Connector>` arrow is authored in **unprojected tile space** and run through the iso CSS `matrix()`, so it is *sheared onto the ground plane* and foreshortens with the rest of the scene. A rigid billboard among ground-plane shapes reads as deformed. (The report "as if iso projection applied" was polarity-inverted: the GPU arrow was the one *missing* the shear.)
+
+**Rule:** a GPU sprite that must sit *in* the isometric scene (not overlay it) has to carry the projection's shear — build its quad basis by mapping the shape's **unprojected ground-plane frame** through the projection's linear map `L`, not from an orthonormal scene-space direction. Probe `L` once from unit tile steps (`L·(1,0)`, `L·(0,1)` off `getTilePosition`); in 2D `L` is a scaled identity, so the shape stays un-sheared there automatically. Upright billboards (chips/labels) are the deliberate exception — those *should* face the screen. The test: does the thing conceptually lie on the grid (connector arrow → yes, shear it) or float above it (label → no, billboard it)?
+
+```ts
+// ✅ Correct — ground-plane frame through L (arrow foreshortens like the DOM arrow)
+const ux = (La * gx + Lc * gy) * size, uy = (Lb * gx + Ld * gy) * size; // L·g
+const vx = (La * hx + Lc * hy) * size, vy = (Lb * hx + Ld * hy) * size; // L·h (h ⟂ g in TILE space)
+
+// ❌ Wrong — orthonormal scene-space basis = a screen-facing billboard, no iso shear
+const vx = -uy * size, vy = ux * size;
+```
+
+Reference: arrow emission in [`ConnectorsCanvas`](../packages/axoview-lib/src/components/SceneLayers/Connectors/ConnectorsCanvas.tsx) (the `La/Lb/Lc/Ld` basis).
 
 ---
 
@@ -266,8 +291,10 @@ Live status of the follow-ups scoped in [ADR 0038 §Deferred](adr/0038-webgl-ins
 | Premultiplied-alpha mip fringing (§1) | **Accepted.** Owner-verified on dashed/dotted; the pipeline is uniform across all sampled surfaces (one shader, one blend), the tint math reduces to identity for opaque tints, and export composites via native `toDataURL` (no raw premult readback). No colour/export regression by construction. |
 | Backing-store viewport clamp (§9) | **Done.** `computeBackingStore` wired into all four bulk layers; the effective dpr feeds the whole render path. |
 | WebGL unit tests (line walkers + atlas UV) | **Done.** No ts-jest blocker existed for pure `webgl/` files; the atlas-UV math was extracted (`atlasUVRect`) out of the GL closure so it is testable. See `webgl/__tests__`. |
+| Crisp iso lines/borders/caps — analytic edge-AA (§12) | **Done 2026-07-09.** Wired into the shared shader (shapeMode 1 line / 2 disc) via the spare `i_misc` floats; MSAA experiment reverted (`antialias:false`). Owner-verified. |
+| Connector arrow ground-plane parity (§13) | **Done 2026-07-09.** Arrow basis rebuilt from the iso-projected ground-plane frame so GPU (unselected) and DOM (selected) arrows share one silhouette. Owner-verified. |
 | Export Renderer context teardown on dialog close | **Deferred.** Still ~8 live GL contexts vs a ~16 cap; tearing down the hidden export Renderer's contexts on close is unchanged. Out of scope here (touches the export lifecycle, needs its own verification). |
-| Rounded-rectangle corners on the bulk | **Deferred (out of scope).** Still approximated (sharp). A natural fit for the §12 analytic-AA/SDF work once that lands. |
+| Rounded-rectangle corners on the bulk | **Deferred (out of scope).** Still approximated (sharp). Now that §12 analytic-AA has landed, an analytic rounded-rect border SDF is the tractable path — still out of scope here. |
 | Adaptive/lazy atlas + `sampler2DArray` | **Deferred (out of scope).** Today's graceful `atlasFull` degradation stands; only unbounded distinct-chip scenes need this. |
 | Context-loss recovery | **Done (prior PR).** `webgl/contextLoss.ts`; manual `WEBGL_lose_context` smoke still recommended. |
 

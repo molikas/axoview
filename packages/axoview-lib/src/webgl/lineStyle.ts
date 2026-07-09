@@ -27,6 +27,15 @@ const EPS = 1e-3;
 // means the period is pathologically small — stop rather than exhaust memory.
 const MAX_SPANS_PER_SEGMENT = 20000;
 
+// Analytic edge-AA feather, in SCENE units, added on EACH perpendicular side of a
+// stroke/disc quad so the fragment's fwidth() coverage ramp (§12) has room and is
+// not clipped by the quad boundary. Build-time constant (NOT zoom-scaled — that
+// would rebuild geometry per frame, violating the no-per-frame-CPU invariant): the
+// fragment ramp is ~1 SCREEN px at any zoom via fwidth, and a sub-pixel stroke at
+// extreme zoom-out simply fades (cov peaks <1) rather than clipping visibly.
+// Shared by ConnectorsCanvas + RectanglesCanvas so their strokes feather identically.
+export const AA_FEATHER = 1.5;
+
 /** Place a dot at arc-length 0, spacing, 2·spacing, … along a polyline. */
 export const walkDots = (
   poly: Coords[],
@@ -96,25 +105,25 @@ export const walkDashes = (
 };
 
 // ---------------------------------------------------------------------------
-// PROTOTYPE — analytic edge-AA line geometry (crisp iso lines follow-up).
+// Analytic edge-AA line geometry (crisp iso lines) — SHIPPED, owner-verified.
 //
-// Today a line/dash body is a SOLID `white`-texel parallelogram and a dot/cap is
-// a SAMPLED sprite. In isometric the parallelogram's long edges alias (the GL
-// context is antialias:false) and the sheared sprites soften under filtering —
-// neither is crisp (finding #6). The industry fix (deck.gl / Mapbox) is analytic
-// edge-AA: expand the stroke quad by a small feather, carry the perpendicular
-// distance-from-centreline as a varying, and smoothstep the alpha against the
-// true half-width in the fragment shader — a controlled ~1px feather at ANY
-// zoom/shear, no texture sampling involved.
+// A connector/rectangle stroke body used to be a SOLID `white`-texel
+// parallelogram whose long edges aliased in iso (the shear turns every segment
+// diagonal), and MSAA only half-fixed it (diagonals but not axis-aligned/sampled
+// cases). The fix (deck.gl / Mapbox) is analytic edge-AA: expand the stroke quad
+// by a small feather, carry the perpendicular distance-from-centreline as a
+// varying, and threshold the alpha against the true half-width in the fragment
+// shader via fwidth() — a controlled ~1px feather at ANY zoom/shear, no texture.
 //
 // This helper is the CPU/geometry half: it fattens `segment()`'s parallelogram
 // (anchor p0, perpendicular width basis `v`, centred via localOrigin = -v/2) by
-// `feather` on each perpendicular side so the fragment ramp isn't clipped by the
-// quad boundary. It is NOT yet wired into a batch — the companion vertex varying
-// (`vDist = (q.y - 0.5) * |v|`) and fragment smoothstep, plus the recommendation
-// vs SDF textures and MSAA, are documented in
-// docs/canvas-rendering-guidelines.md → "Crisp iso line rendering". Wiring the
-// shader branch needs a real-browser screenshot check (CI is pixel-blind).
+// `feather` (AA_FEATHER above) on each perpendicular side so the fragment ramp
+// isn't clipped by the quad boundary, and reports the true `halfWidth` the shader
+// thresholds. It is wired into ConnectorsCanvas + RectanglesCanvas `segment()`
+// (shapeMode 1); round caps/joins use the sibling analytic disc (shapeMode 2).
+// The companion vertex varying + fragment coverage live in glSpriteBatch's
+// VERT_SRC/FRAG_SRC; the design + trade-offs vs SDF/MSAA are in
+// docs/canvas-rendering-guidelines.md §12. All pixel-blind to CI — owner verifies.
 // ---------------------------------------------------------------------------
 
 /** An analytic-AA stroke quad, ready to feed glSpriteBatch.addSprite (+ SDF shader). */

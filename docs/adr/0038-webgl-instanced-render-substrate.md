@@ -130,16 +130,27 @@ a follow-up, not a silent gap:
   image-export composites via the browser's native `toDataURL`/`drawImage` — which
   assume `premultipliedAlpha` (the WebGL default) and never do raw premult readback.
   Rules folded into [canvas-rendering-guidelines.md §1](../canvas-rendering-guidelines.md).
-- **Crisp iso line rendering — INVESTIGATED 2026-07-08; analytic edge-AA recommended.**
-  Lines/dots/borders soften in iso (solid-quad edges alias, sampled sprites blur) — a
-  *selected* connector is crisp only because it's the DOM `<Connector>` SVG (true
-  vector). MSAA was rejected (it multisamples geometry-edge coverage, not the
-  textured-quad interior); **analytic edge-AA** (distance-field alpha in the fragment
-  shader — deck.gl / Mapbox) is recommended over SDF textures because straight strokes
-  and discs have closed-form distances and it grafts onto the existing instanced batch.
-  Geometry prototype (`buildAaLineQuad`) shipped + unit-tested; the shader branch is
-  specified but not yet wired (needs a real-browser check). Full trade-off + shader in
-  [canvas-rendering-guidelines.md §12](../canvas-rendering-guidelines.md).
+- **Crisp iso line rendering — SHIPPED 2026-07-09; MSAA reverted.** Analytic
+  edge-AA is now wired into the shared instanced shader: connector line bodies +
+  rectangle borders emit `buildAaLineQuad` fat quads (shapeMode 1) and round
+  caps/joins emit analytic discs (shapeMode 2), with the fragment computing an
+  `fwidth()`-based ~1px coverage ramp on the true edge — crisp at every iso
+  angle/zoom, no texture sampling, no MSAA. Packed into the previously-spare
+  `i_misc.y/.z` per-instance floats (no instance-stride growth); the textured-sprite
+  path (chips/icons/arrow/ring) is byte-identical. A brief `antialias:true` (MSAA)
+  experiment was owner-verified as only a partial band-aid — it feathered iso
+  *diagonals* but not the *axis-aligned* segments (already crisp) or the *sampled*
+  cases (caps/dots) — and was reverted. Owner-verified. Full design + trade-offs vs
+  SDF/MSAA in [canvas-rendering-guidelines.md §12](../canvas-rendering-guidelines.md).
+- **Connector arrow ground-plane parity — FIXED 2026-07-09.** The GPU bulk arrow
+  built an orthonormal SCENE-space basis — a screen-facing *billboard* that did not
+  carry the iso shear, so it failed to foreshorten like the DOM `<Connector>` arrow
+  (authored in unprojected tile space, then run through the iso CSS matrix) and read
+  as "deformed" beside it. Its quad basis is now the iso-projection of the last
+  segment's *ground-plane* frame (pointing dir + perpendicular mapped through the
+  projection's linear map `L`), so the GPU (unselected) and DOM (selected) arrows
+  share one silhouette — a hybrid-boundary parity fix (§2). See
+  [canvas-rendering-guidelines.md §13](../canvas-rendering-guidelines.md).
 - **Backing-store viewport clamp — DONE 2026-07-08.** `computeBackingStore`
   (`utils/renderTarget.ts`) now clamps `bw/bh = W·dpr` against the canvas caps and
   returns an effective dpr that feeds the whole render path (buffer size + `u_view`
