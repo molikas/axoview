@@ -36,14 +36,14 @@ export const Connector = memo(({ connector, currentView }: Props) => {
   // anchors[0], tiles[last] ↔ anchors[last]. Non-item endpoints get no shift.
   const endpointDeltas = useMemo(() => {
     const items = currentView?.items ?? [];
-    const deltaFor = (anchor: (typeof connector.anchors)[number] | undefined) => {
+    const anchors = connector.anchors;
+    const deltaFor = (anchor: (typeof anchors)[number] | undefined) => {
       const itemId = anchor?.ref?.item;
       if (!itemId) return ZERO_DELTA;
       const viewItem = items.find((it) => it.id === itemId);
       if (!viewItem?.offset) return ZERO_DELTA;
       return connectorEndpointVertexDelta(strategy.projectionName, viewItem.offset);
     };
-    const anchors = connector.anchors;
     return {
       start: deltaFor(anchors[0]),
       end: deltaFor(anchors[anchors.length - 1])
