@@ -334,7 +334,12 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
         top: 0,
         left: 0,
         pointerEvents: 'none',
-        zIndex: 0
+        zIndex: 0,
+        // Own compositor layer — a sibling DOM overlay toggling above this WebGL
+        // canvas (annotation panel, banner, dock) otherwise leaves a stale blank
+        // strip its size until a pan/resize forces a recomposite. See NodesCanvas
+        // + docs/canvas-rendering-guidelines.
+        transform: 'translateZ(0)'
       }}
     />
   );
