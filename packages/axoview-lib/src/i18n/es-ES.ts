@@ -406,9 +406,6 @@ const locale: LocaleProps = {
     showArrow: 'Mostrar flecha',
     showDottedLine: 'Mostrar línea punteada',
   },
-  labelColorPicker: {
-    customColor: 'Color personalizado'
-  },
   deleteButton: {
     delete: 'Eliminar'
   },

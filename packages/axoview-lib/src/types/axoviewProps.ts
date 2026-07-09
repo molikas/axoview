@@ -395,9 +395,6 @@ export interface LocaleProps {
     name: string;
     namePlaceholder: string;
   };
-  labelColorPicker: {
-    customColor: string;
-  };
   deleteButton: {
     delete: string;
   };

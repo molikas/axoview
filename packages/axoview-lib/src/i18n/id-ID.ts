@@ -403,9 +403,6 @@ const locale: LocaleProps = {
     showArrow: 'Tampilkan panah',
     showDottedLine: 'Tampilkan garis putus-putus',
   },
-  labelColorPicker: {
-    customColor: 'Warna kustom'
-  },
   deleteButton: {
     delete: 'Hapus'
   },

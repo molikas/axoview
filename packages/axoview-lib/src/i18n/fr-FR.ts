@@ -409,9 +409,6 @@ const locale: LocaleProps = {
     showArrow: 'Afficher la flèche',
     showDottedLine: 'Afficher la ligne pointillée',
   },
-  labelColorPicker: {
-    customColor: 'Couleur personnalisée'
-  },
   deleteButton: {
     delete: 'Supprimer'
   },

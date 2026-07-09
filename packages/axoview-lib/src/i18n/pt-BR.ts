@@ -405,9 +405,6 @@ const locale: LocaleProps = {
     showArrow: 'Mostrar seta',
     showDottedLine: 'Mostrar linha pontilhada',
   },
-  labelColorPicker: {
-    customColor: 'Cor personalizada'
-  },
   deleteButton: {
     delete: 'Excluir'
   },

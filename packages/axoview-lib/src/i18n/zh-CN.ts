@@ -374,9 +374,6 @@ const locale: LocaleProps = {
     showArrow: '显示箭头',
     showDottedLine: '显示虚线',
   },
-  labelColorPicker: {
-    customColor: '自定义颜色'
-  },
   deleteButton: {
     delete: '删除'
   },

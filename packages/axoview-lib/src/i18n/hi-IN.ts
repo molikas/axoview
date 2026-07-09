@@ -401,9 +401,6 @@ const locale: LocaleProps = {
     showArrow: 'तीर दिखाएं',
     showDottedLine: 'बिंदीदार रेखा दिखाएं',
   },
-  labelColorPicker: {
-    customColor: 'कस्टम रंग'
-  },
   deleteButton: {
     delete: 'हटाएं'
   },

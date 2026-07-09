@@ -403,9 +403,6 @@ const locale: LocaleProps = {
     showArrow: 'তীর দেখান',
     showDottedLine: 'বিন্দুযুক্ত রেখা দেখান',
   },
-  labelColorPicker: {
-    customColor: 'কাস্টম রং'
-  },
   deleteButton: {
     delete: 'মুছুন'
   },

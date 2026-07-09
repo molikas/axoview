@@ -405,9 +405,6 @@ const locale: LocaleProps = {
     showArrow: 'Показать стрелку',
     showDottedLine: 'Показать пунктирную линию',
   },
-  labelColorPicker: {
-    customColor: 'Пользовательский цвет'
-  },
   deleteButton: {
     delete: 'Удалить'
   },

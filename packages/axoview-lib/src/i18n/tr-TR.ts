@@ -405,9 +405,6 @@ const locale: LocaleProps = {
     showArrow: 'Oku göster',
     showDottedLine: 'Noktalı çizgiyi göster',
   },
-  labelColorPicker: {
-    customColor: 'Özel renk'
-  },
   deleteButton: {
     delete: 'Sil'
   },

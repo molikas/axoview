@@ -409,9 +409,6 @@ const locale: LocaleProps = {
     showArrow: 'Pokaż strzałkę',
     showDottedLine: 'Pokaż linię kropkowaną',
   },
-  labelColorPicker: {
-    customColor: 'Niestandardowy kolor'
-  },
   deleteButton: {
     delete: 'Usuń'
   },

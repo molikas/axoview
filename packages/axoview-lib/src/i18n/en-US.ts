@@ -402,9 +402,6 @@ const locale: LocaleProps = {
     showArrow: 'Show arrow',
     showDottedLine: 'Show dotted line',
   },
-  labelColorPicker: {
-    customColor: 'Custom color'
-  },
   deleteButton: {
     delete: 'Delete'
   },

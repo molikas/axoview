@@ -410,9 +410,6 @@ const locale: LocaleProps = {
     showArrow: 'Pfeil anzeigen',
     showDottedLine: 'Gepunktete Linie anzeigen',
   },
-  labelColorPicker: {
-    customColor: 'Benutzerdefinierte Farbe'
-  },
   deleteButton: {
     delete: 'Löschen'
   },
