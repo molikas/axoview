@@ -195,9 +195,14 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
     text: theme.palette.text.primary
   };
 
-  // Icon-bitmap cache: one decoded HTMLImageElement per icon URL. In the GL path
-  // it seeds the per-url atlas entry on first build.
+  // Icon-bitmap cache: one HTMLImageElement per icon URL. In the GL path it seeds
+  // the per-url atlas entry on first build. An icon is only used once it is in
+  // `decodedRef` — `complete`/`onload` do NOT guarantee the bitmap is ready for a
+  // GPU texSubImage2D upload, and uploading a not-yet-decoded image bakes a BLACK
+  // atlas tile on some drivers (icons render black until a later redraw). The
+  // black tile is then cached by url forever, so the gate must be `decode()`.
   const iconCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const decodedRef = useRef<Set<string>>(new Set());
   const pendingRef = useRef(false);
   const rafIdRef = useRef(0);
   const destroyedRef = useRef(false);
@@ -275,18 +280,34 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
     const getImage = (url: string): HTMLImageElement | null => {
       if (!url) return null;
       const cache = iconCacheRef.current;
+      const decoded = decodedRef.current;
       const existing = cache.get(url);
-      if (existing) return existing.complete ? existing : null;
+      // Only hand back an image whose bitmap is fully DECODED — see decodedRef.
+      if (existing) return decoded.has(url) ? existing : null;
       const img = new Image();
-      img.onload = () => {
+      cache.set(url, img);
+      // A newly decoded icon changes geometry → rebuild + redraw. Route through
+      // the ref so the CURRENT effect's scheduler is used even if this decode
+      // resolves after an effect re-run (stale closures would draw a dead batch).
+      const markReady = () => {
+        decoded.add(url);
         if (!destroyedRef.current) {
-          geomDirtyRef.current = true; // a newly decoded icon changes geometry
-          scheduleDraw();
+          geomDirtyRef.current = true;
+          scheduleDrawRef.current();
         }
       };
       img.src = url;
-      cache.set(url, img);
-      return img.complete ? img : null;
+      // decode() resolves only when the bitmap is ready for texSubImage2D — the
+      // gate that prevents a black atlas upload. It can reject (some SVG data
+      // URIs on older engines, or a detached image); fall back to load/complete.
+      img
+        .decode()
+        .then(markReady)
+        .catch(() => {
+          if (img.complete && img.naturalWidth > 0) markReady();
+          else img.onload = markReady;
+        });
+      return decoded.has(url) ? img : null;
     };
 
     // ----- shared per-frame scene state -----
@@ -389,19 +410,22 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
     // CPU, must run on scene change only). The perf harness asserts it.
     let buildCount = 0;
 
-    // Decode + downscale an icon into the atlas (cached by url inside the batch).
+    // Rasterise an icon into the atlas via a Canvas2D intermediary (cached by url
+    // inside the batch, so this runs once per unique icon). Uploading through a
+    // canvas — the same source type the name chips use, which render reliably —
+    // rather than a raw HTMLImageElement avoids the driver-specific black-tile
+    // upload that raw-image texSubImage2D can produce, and folds the
+    // large-icon downscale into the same path.
     const putIcon = (b: SpriteBatch, url: string, img: HTMLImageElement) => {
       const nw = img.naturalWidth || 64;
       const nh = img.naturalHeight || 64;
       const scale = Math.min(1, ICON_ATLAS_CAP / Math.max(nw, nh));
-      if (scale >= 1) return b.putImage(url, img, nw, nh);
       const w = Math.max(1, Math.round(nw * scale));
       const h = Math.max(1, Math.round(nh * scale));
-      if (!iconScratch) return b.putImage(url, img, nw, nh);
+      const ictx = iconScratch ? iconScratch.getContext('2d') : null;
+      if (!iconScratch || !ictx) return b.putImage(url, img, nw, nh); // fallback
       iconScratch.width = w;
       iconScratch.height = h;
-      const ictx = iconScratch.getContext('2d');
-      if (!ictx) return b.putImage(url, img, nw, nh);
       ictx.clearRect(0, 0, w, h);
       ictx.drawImage(img, 0, 0, w, h);
       return b.putImage(url, iconScratch, w, h);
