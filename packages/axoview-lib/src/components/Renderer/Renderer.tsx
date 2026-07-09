@@ -36,7 +36,7 @@ import { ElementLinkCard } from 'src/components/ElementLinkCard/ElementLinkCard'
 import { Lasso } from 'src/components/Lasso/Lasso';
 import { FreehandLasso } from 'src/components/FreehandLasso/FreehandLasso';
 import { useScene } from 'src/hooks/useScene';
-import { useDiagramUtils } from 'src/hooks/useDiagramUtils';
+import { getFitToViewParams, CoordsUtils } from 'src/utils';
 import { RendererProps } from 'src/types/rendererProps';
 import { Scroll, Size, ViewItem } from 'src/types';
 
@@ -121,7 +121,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const interactionsRef = useRef<HTMLDivElement>(null);
   const uiStateApi = useUiStateStoreApi();
-  const { screenToTile } = useCanvasMode();
+  const { screenToTile, getTilePosition } = useCanvasMode();
   const enableDebugTools = useUiStateStore((state) => state.enableDebugTools);
   const showCursor = useUiStateStore((state) => state.mode.showCursor);
   // While an annotation draw/eraser tool is active, the canvas cursor tile
@@ -223,26 +223,35 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   }, [setInteractionsElement, uiStateActions]);
 
   // Fit-to-view on open (deferred). The loader sets pendingFitToView when a
-  // diagram open requested fit but the renderer wasn't measured yet; apply it
-  // here once rendererSize is known. useLayoutEffect so a diagram SWITCH (where
-  // the renderer is already sized) fits BEFORE paint — no flash of the new
-  // diagram at the old viewport. fitToView uses the mode-aware getTilePosition,
-  // so 2D centres correctly (the loader path could not reach it). The fit's
-  // setScroll/setZoom also re-cull + repaint at the final viewport, which is what
-  // populates the top rows a big diagram opens on.
+  // diagram open requested fit but the renderer wasn't in the tree yet. Apply it
+  // here in a useLayoutEffect, measuring the container SYNCHRONOUSLY via
+  // getBoundingClientRect so the fit lands BEFORE the first paint even on the
+  // very first mount — deterministic, no flash, and no race with a user/test
+  // interacting right after load (the store rendererSize is set a frame later by
+  // the async ResizeObserver, which is used only as a fallback trigger). Uses the
+  // mode-aware getTilePosition so 2D centres correctly. The setScroll/setZoom also
+  // re-cull + repaint at the final viewport.
   const pendingFitToView = useUiStateStore((state) => state.pendingFitToView);
   const rendererSizeForFit = useUiStateStore((state) => state.rendererSize);
-  const { fitToView } = useDiagramUtils();
   useLayoutEffect(() => {
     if (!pendingFitToView || !currentView) return;
-    if (rendererSizeForFit.width <= 0 || rendererSizeForFit.height <= 0) return;
-    void fitToView();
+    const rect = containerRef.current?.getBoundingClientRect();
+    const w = rect?.width || rendererSizeForFit.width;
+    const h = rect?.height || rendererSizeForFit.height;
+    if (w <= 0 || h <= 0) return; // not laid out yet — re-runs on rendererSize
+    const { zoom, scroll } = getFitToViewParams(
+      currentView,
+      { width: w, height: h },
+      getTilePosition
+    );
+    uiStateActions.setScroll({ position: scroll, offset: CoordsUtils.zero() });
+    uiStateActions.setZoom(zoom);
     uiStateActions.setPendingFitToView(false);
   }, [
     pendingFitToView,
     currentView,
     rendererSizeForFit,
-    fitToView,
+    getTilePosition,
     uiStateActions
   ]);
 

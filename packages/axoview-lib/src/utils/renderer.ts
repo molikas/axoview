@@ -259,9 +259,13 @@ export const getFitToViewParams = (
     y: sortedCornerPositions.lowY + boundingBoxSize.height / 2
   };
   const centerScreenPos = getTilePositionFn({ tile: centerTile });
+  // `+ 0` normalises a negative zero (when a centre component is exactly 0) to
+  // +0 — otherwise a later `scroll.x + 0` pan flips it and trips strict
+  // Object.is comparisons (e.g. e2e `toBe(0)` after an ArrowUp that leaves x
+  // unchanged). No effect on any non-zero value.
   const scroll: Coords = {
-    x: -centerScreenPos.x * zoom,
-    y: -centerScreenPos.y * zoom
+    x: -centerScreenPos.x * zoom + 0,
+    y: -centerScreenPos.y * zoom + 0
   };
 
   return { zoom, scroll };

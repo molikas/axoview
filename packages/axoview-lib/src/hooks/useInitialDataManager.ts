@@ -236,9 +236,20 @@ export const useInitialDataManager = () => {
         // default is isometric-only). `fitToScreen` is the app-facing alias.
         // Skipped on preserveViewport reloads (icon-pack swaps) so they don't
         // re-centre; cleared otherwise so a stale request can't fire later.
+        // Only fit when there is CONTENT to frame. Fitting an empty diagram to
+        // its padding-only bounds just maxes the zoom (jarring on a blank canvas,
+        // and it disables the zoom-in control). Mirror getProjectBounds' content
+        // set (items / connectors / rectangles / text boxes).
+        const v = view.value;
+        const hasContent =
+          (v.items?.length ?? 0) > 0 ||
+          (v.connectors?.length ?? 0) > 0 ||
+          (v.rectangles?.length ?? 0) > 0 ||
+          (v.textBoxes?.length ?? 0) > 0;
         const wantsFit =
           Boolean(merged.fitToView || merged.fitToScreen) &&
-          !options?.preserveViewport;
+          !options?.preserveViewport &&
+          hasContent;
         uiStateActions.setPendingFitToView(wantsFit);
 
         // Build the new categories list from the incoming icons.
