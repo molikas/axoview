@@ -717,13 +717,19 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
     downloadFileUtil(data, generateGenericFilename('png'));
   }, [imageData, croppedImageData]);
 
-  const downloadSvgFile = useCallback(async () => {
+  const downloadSvgFile = useCallback(() => {
     if (!svgData) return;
 
     try {
-      // Fetch the data URL as a blob to handle encoding properly
-      const response = await fetch(svgData);
-      const blob = await response.blob();
+      // Decode the base64 data URL to a Blob directly (atob) — mirrors the PNG
+      // path. The old `fetch(svgData)` is blocked by the deployed connect-src
+      // CSP (a data: URL is not an allowed connect source), and a local decode
+      // avoids the network round-trip entirely. exportAsSVG always returns the
+      // `data:image/svg+xml;base64,…` form.
+      const blob = base64ToBlob(
+        svgData.replace('data:image/svg+xml;base64,', ''),
+        'image/svg+xml;charset=utf-8'
+      );
       downloadFileUtil(blob, generateGenericFilename('svg'));
     } catch (error) {
       console.error('SVG download failed:', error);
