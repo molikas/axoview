@@ -5,6 +5,14 @@
 #
 # Locked decision #4 + audit C.2 row I9 + tactical
 # docs/tactical/e2e-suite-rewrite.md Session 7.
+#
+# Speed: the suite (72 spec files / ~149 tests) runs at workers=1 because the
+# shared rsbuild dev server can't take parallel HMR clients. To parallelise
+# without that risk we SHARD across runners — each shard is a full, independent
+# runner that runs its slice at workers=1, so within a runner the execution is
+# byte-for-byte the proven sequential flow. N shards ≈ N× wall-clock reduction
+# (trade: N× runner-minutes). Blob reports from each shard are merged into one
+# HTML report on failure. Keep SHARD_TOTAL and the matrix list in sync.
 
 name: E2E (Playwright)
 
@@ -23,12 +31,20 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  SHARD_TOTAL: 4
+
 jobs:
   playwright:
-    name: Playwright (chromium)
+    name: Playwright (chromium) [shard ${{ matrix.shard }}/4]
     if: github.event.pull_request.draft != true
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
+    strategy:
+      # One shard failing must not cancel the others — we want the full picture.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
 
     steps:
       - name: Checkout code
@@ -49,23 +65,77 @@ jobs:
       - name: Build axoview-lib
         run: npm run build:lib
 
+      # Cache the Playwright browser binaries keyed on the installed Playwright
+      # version, so only the very first run per version pays the download.
+      - name: Resolve Playwright version
+        id: pw
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
+      # `--with-deps` still apt-installs the OS libs on a cache hit (cheap); the
+      # browser binary itself is skipped when already cached.
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
       # Config's `webServer` block handles `npm run dev` lifecycle; no
-      # explicit serve / wait-on needed.
-      - name: Run Playwright suite
-        run: npm run test:e2e:ci
+      # explicit serve / wait-on needed. `--shard=i/N` runs this runner's slice.
+      - name: Run Playwright suite (shard ${{ matrix.shard }}/${{ env.SHARD_TOTAL }})
+        run: npm run test:e2e:ci -- --shard=${{ matrix.shard }}/${{ env.SHARD_TOTAL }}
         env:
           CI: true
 
-      - name: Upload Playwright report
-        if: failure()
+      # Every shard uploads its blob so the merge job (which fires only on a
+      # failure, in a different shard or this one) can assemble the whole report.
+      - name: Upload blob report
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-report
-          path: |
-            packages/axoview-e2e/playwright-report
-            packages/axoview-e2e/test-results
+          name: blob-report-${{ matrix.shard }}
+          path: packages/axoview-e2e/blob-report
+          if-no-files-found: ignore
+          retention-days: 3
+
+  # Merge the per-shard blob reports into one HTML report — only when a shard
+  # failed, so green runs stay at the wall-clock of the slowest shard.
+  merge-reports:
+    name: Merge Playwright reports
+    if: ${{ failure() && github.event.pull_request.draft != true }}
+    needs: [playwright]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download blob reports
+        uses: actions/download-artifact@v7
+        with:
+          path: all-blob-reports
+          pattern: blob-report-*
+          merge-multiple: true
+
+      - name: Merge into a single HTML report
+        run: npx playwright merge-reports --reporter html ./all-blob-reports
+
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-html-report
+          path: playwright-report
           if-no-files-found: ignore
           retention-days: 7

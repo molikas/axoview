@@ -11,8 +11,13 @@ import { defineConfig, devices } from '@playwright/test';
  *     existing server when the dev port is already bound.
  *   - workers=1: shared dev server, sequential rsbuild HMR clients. Parallel
  *     contexts overwhelm the dev pipeline (Loading-Axoview stall observed
- *     Session 3 with 2 parallel workers); revisit in Session 8 if/when the
- *     CI build serves a precompiled bundle instead.
+ *     Session 3 with 2 parallel workers). CI parallelism is achieved instead by
+ *     SHARDING across runners (`--shard=i/N`, see e2e-playwright.yml): each
+ *     shard keeps workers=1, so within a runner the execution is identical to
+ *     the proven local flow — the fan-out is machine-level, not context-level.
+ *
+ * Reporters: CI emits `blob` so the sharded runs can be merged into one HTML
+ * report (playwright merge-reports); `github` adds inline PR annotations.
  */
 export default defineConfig({
   testDir: './tests',
@@ -20,7 +25,7 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   reporter: process.env.CI
-    ? [['github'], ['html', { open: 'never' }]]
+    ? [['github'], ['blob']]
     : [['list'], ['html', { open: 'never' }]],
 
   use: {
@@ -51,7 +56,9 @@ export default defineConfig({
   webServer: {
     command: 'npm run dev',
     url: 'http://localhost:3000',
-    reuseExistingServer: true,
+    // Reuse a locally-running dev server, but never in CI (each sharded runner
+    // starts its own clean server).
+    reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     cwd: '../..'
   },
