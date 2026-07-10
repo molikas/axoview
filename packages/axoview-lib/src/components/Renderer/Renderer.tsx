@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import { Box } from '@mui/material';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useInteractionManager } from 'src/interaction/useInteractionManager';
@@ -30,6 +36,7 @@ import { ElementLinkCard } from 'src/components/ElementLinkCard/ElementLinkCard'
 import { Lasso } from 'src/components/Lasso/Lasso';
 import { FreehandLasso } from 'src/components/FreehandLasso/FreehandLasso';
 import { useScene } from 'src/hooks/useScene';
+import { getFitToViewParams, CoordsUtils } from 'src/utils';
 import { RendererProps } from 'src/types/rendererProps';
 import { Scroll, Size, ViewItem } from 'src/types';
 
@@ -114,7 +121,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const interactionsRef = useRef<HTMLDivElement>(null);
   const uiStateApi = useUiStateStoreApi();
-  const { screenToTile } = useCanvasMode();
+  const { screenToTile, getTilePosition } = useCanvasMode();
   const enableDebugTools = useUiStateStore((state) => state.enableDebugTools);
   const showCursor = useUiStateStore((state) => state.mode.showCursor);
   // While an annotation draw/eraser tool is active, the canvas cursor tile
@@ -214,6 +221,39 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
     setInteractionsElement(interactionsRef.current);
     uiStateActions.setRendererEl(containerRef.current);
   }, [setInteractionsElement, uiStateActions]);
+
+  // Fit-to-view on open (deferred). The loader sets pendingFitToView when a
+  // diagram open requested fit but the renderer wasn't in the tree yet. Apply it
+  // here in a useLayoutEffect, measuring the container SYNCHRONOUSLY via
+  // getBoundingClientRect so the fit lands BEFORE the first paint even on the
+  // very first mount — deterministic, no flash, and no race with a user/test
+  // interacting right after load (the store rendererSize is set a frame later by
+  // the async ResizeObserver, which is used only as a fallback trigger). Uses the
+  // mode-aware getTilePosition so 2D centres correctly. The setScroll/setZoom also
+  // re-cull + repaint at the final viewport.
+  const pendingFitToView = useUiStateStore((state) => state.pendingFitToView);
+  const rendererSizeForFit = useUiStateStore((state) => state.rendererSize);
+  useLayoutEffect(() => {
+    if (!pendingFitToView || !currentView) return;
+    const rect = containerRef.current?.getBoundingClientRect();
+    const w = rect?.width || rendererSizeForFit.width;
+    const h = rect?.height || rendererSizeForFit.height;
+    if (w <= 0 || h <= 0) return; // not laid out yet — re-runs on rendererSize
+    const { zoom, scroll } = getFitToViewParams(
+      currentView,
+      { width: w, height: h },
+      getTilePosition
+    );
+    uiStateActions.setScroll({ position: scroll, offset: CoordsUtils.zero() });
+    uiStateActions.setZoom(zoom);
+    uiStateActions.setPendingFitToView(false);
+  }, [
+    pendingFitToView,
+    currentView,
+    rendererSizeForFit,
+    getTilePosition,
+    uiStateActions
+  ]);
 
   const isShowGrid = useMemo(
     () => showGrid === undefined || showGrid,

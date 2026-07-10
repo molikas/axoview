@@ -5,6 +5,13 @@ import type { RendererProps } from './rendererProps';
 
 export type InitialData = Model & {
   fitToView?: boolean;
+  /**
+   * App-facing alias for `fitToView`. The ZoomControls button and the saved
+   * per-diagram preference are labelled "Fit to screen", and the app persists
+   * the flag under this name — so the loader honours either as a request to fit
+   * the diagram to the viewport on open.
+   */
+  fitToScreen?: boolean;
   view?: string;
 };
 
