@@ -145,4 +145,82 @@ test.describe('Floating Label entity (ADR 0031)', () => {
       .poll(() => getItemControlsType(page), { timeout: 5_000 })
       .toBe('LABEL');
   });
+
+  // UX sweep 2026-07-10 (Maya/Devin) — floating-Label interaction wiring.
+
+  test('delete (L-1): selecting a Label and pressing Delete removes it', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const canvas = new CanvasPOM(page);
+
+    await canvas.placeLabelAt({ x: 400, y: 300 });
+    await expect.poll(() => getViewLabelCount(page), { timeout: 5_000 }).toBe(1);
+    await commitPlacementEdit(page);
+    const id = await getFirstLabelId(page);
+    await clearSelection(page);
+
+    await page.locator(`[data-label-hit-id="${id}"]`).click();
+    await expect
+      .poll(() => getItemControlsType(page), { timeout: 5_000 })
+      .toBe('LABEL');
+
+    // The single-item delete dispatcher previously had no LABEL branch, so this
+    // was a silent no-op — the label merely deselected.
+    await page.keyboard.press('Delete');
+    await expect.poll(() => getViewLabelCount(page), { timeout: 5_000 }).toBe(0);
+  });
+
+  test('select (L-3): clicking a Label does NOT auto-open the Properties dock', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const canvas = new CanvasPOM(page);
+
+    await canvas.placeLabelAt({ x: 400, y: 300 });
+    await expect.poll(() => getViewLabelCount(page), { timeout: 5_000 }).toBe(1);
+    await commitPlacementEdit(page);
+    const id = await getFirstLabelId(page);
+    await clearSelection(page);
+
+    const dockOpen = () =>
+      page.evaluate(
+        () =>
+          (window as any).__axoview__.ui.getState().rightSidebarOpen === true
+      );
+    expect(await dockOpen()).toBe(false);
+
+    await page.locator(`[data-label-hit-id="${id}"]`).click();
+    await expect
+      .poll(() => getItemControlsType(page), { timeout: 5_000 })
+      .toBe('LABEL');
+    // ADR 0022 §3 select-only: a Label is inline-edited on canvas, so selecting
+    // it must not mount the Notes-only deck (which read as "the text editor").
+    expect(await dockOpen()).toBe(false);
+  });
+
+  test('context menu (L-2): right-clicking a Label opens its item menu', async ({
+    page,
+    app
+  }) => {
+    void app;
+    const canvas = new CanvasPOM(page);
+
+    await canvas.placeLabelAt({ x: 400, y: 300 });
+    await expect.poll(() => getViewLabelCount(page), { timeout: 5_000 }).toBe(1);
+    await commitPlacementEdit(page);
+    const id = await getFirstLabelId(page);
+    await clearSelection(page);
+
+    // The hit-proxy used to swallow the right button (opening the Notes deck and
+    // stopping propagation), so labels had no context menu at all.
+    await page.locator(`[data-label-hit-id="${id}"]`).click({ button: 'right' });
+    const menu = await page.evaluate(() => {
+      const cm = (window as any).__axoview__.ui.getState().contextMenu;
+      return cm ? { variant: cm.variant, targetType: cm.target?.type } : null;
+    });
+    expect(menu).toEqual({ variant: 'item', targetType: 'LABEL' });
+  });
 });

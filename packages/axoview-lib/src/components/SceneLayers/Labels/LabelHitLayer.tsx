@@ -207,6 +207,11 @@ export const LabelHitLayer = ({ labels }: Props) => {
   const active = useUiStateStore(
     (s) => s.editorMode === 'EDITABLE' && s.zoom >= HIT_MIN_ZOOM
   );
+  // The inline editor must mount even below HIT_MIN_ZOOM — place-and-type, F2
+  // and double-click all set inlineEditLabelId, but the whole layer used to
+  // return null at low zoom, so those silently no-op'd. Gate the editor on edit
+  // mode only; the hit proxies still gate on `active` (zoom) to bound div count.
+  const editable = useUiStateStore((s) => s.editorMode === 'EDITABLE');
   const inlineEditLabelId = useUiStateStore((s) => s.inlineEditLabelId);
 
   const dragRef = useRef<DragState | null>(null);
@@ -227,6 +232,30 @@ export const LabelHitLayer = ({ labels }: Props) => {
   const endInlineEdit = useCallback(() => {
     uiStoreApi.getState().actions.setInlineEditLabelId(null);
   }, [uiStoreApi]);
+
+  // Right-click a label chip → its item context menu (Details / Rename / Add
+  // note / z-order / Delete). The hit-proxy sits above the canvas box and stops
+  // pointer propagation, and labels are deliberately out of the tile hit-test,
+  // so the window-level right-tap handler (usePanHandlers) never resolves a
+  // label — it would open the empty-canvas menu instead. Open the item menu
+  // here, mirroring usePanHandlers' CURSOR-mode item-menu path.
+  const onContextMenu = useCallback(
+    (e: React.MouseEvent, label: Label) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const actions = uiStoreApi.getState().actions;
+      actions.setItemControls(
+        { type: 'LABEL', id: label.id },
+        { openPanel: false }
+      );
+      actions.openContextMenu({
+        anchor: { x: e.clientX, y: e.clientY },
+        variant: 'item',
+        target: { type: 'LABEL', id: label.id }
+      });
+    },
+    [uiStoreApi]
+  );
 
   const onWindowMove = useCallback(
     (e: PointerEvent) => {
@@ -274,10 +303,21 @@ export const LabelHitLayer = ({ labels }: Props) => {
       // Don't fall through to the canvas-interactions box (which would clear the
       // selection / start a pan).
       e.stopPropagation();
-      // Full-chip select (ADR 0031 §4): the press selects the label.
+      // Right/middle button: onContextMenu owns it (select + open the item
+      // menu). Only the primary button selects-and-drags.
+      if (e.button !== 0) return;
+      // Full-chip select (ADR 0031 §4): the press selects the label WITHOUT
+      // mounting the Properties deck. A Label is inline-edited on canvas and
+      // styled from the strip (see Label.ts / TextBox.ts) — its only deck
+      // content is Notes, and auto-opening that on select read as "the text
+      // editor" and misled users. ADR 0022 §3 select-only contract: an explicit
+      // open (double-click / context-menu "Add note") still mounts the deck.
       uiStoreApi
         .getState()
-        .actions.setItemControls({ type: 'LABEL', id: label.id });
+        .actions.setItemControls(
+          { type: 'LABEL', id: label.id },
+          { openPanel: false }
+        );
       dragRef.current = {
         id: label.id,
         startTile: label.tile,
@@ -307,13 +347,21 @@ export const LabelHitLayer = ({ labels }: Props) => {
     };
   }, [onWindowMove, onWindowUp, uiStoreApi]);
 
-  if (!active) return null;
+  if (!editable) return null;
+  // Low zoom with nothing being edited → render nothing (proxies are zoom-gated).
+  if (!active && inlineEditLabelId == null) return null;
 
   return (
     <>
       {labels.map((label) => {
-        if (visibleIds.size > 0 && !visibleIds.has(label.id)) return null;
-        if (lockedIds.has(label.id)) return null;
+        const editing = label.id === inlineEditLabelId;
+        // Below HIT_MIN_ZOOM only the label being edited mounts (its inline
+        // editor); the pixel-accurate hit proxies stay gated on zoom.
+        if (!active && !editing) return null;
+        if (!editing) {
+          if (visibleIds.size > 0 && !visibleIds.has(label.id)) return null;
+          if (lockedIds.has(label.id)) return null;
+        }
         const fontSize = labelFontPx(label);
         const ctx = getMeasureCtx();
         const chip = ctx
@@ -330,7 +378,7 @@ export const LabelHitLayer = ({ labels }: Props) => {
         const cy = pos.y + (label.offset?.y ?? 0);
         const left = cx - chip.chipW / 2;
         const top = cy - chip.chipH / 2;
-        if (label.id === inlineEditLabelId) {
+        if (editing) {
           return (
             <LabelInlineEditor
               key={`${label.id}-edit`}
@@ -350,6 +398,7 @@ export const LabelHitLayer = ({ labels }: Props) => {
             data-label-hit-id={label.id}
             onPointerDown={(e) => onPointerDown(e, label)}
             onDoubleClick={(e) => onDoubleClick(e, label)}
+            onContextMenu={(e) => onContextMenu(e, label)}
             // Hovering a LINKED chip shows the element link card as a view
             // chip (url + copy/edit/remove — ADR 0034 addendum 2026-07-05),
             // exactly like hovering linked text in a text box.
