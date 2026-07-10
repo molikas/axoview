@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 /**
  * Playwright config for the T1 rewrite suite.
  *
- * Scope (see docs/tactical/e2e-suite-rewrite.md):
+ * Scope (see docs/testing.md — "CI execution model — sharding"):
  *   - Chromium only for the initial green; Firefox/WebKit may land post-M9.
  *   - One project, one testDir; per-journey spec files live under ./tests.
  *   - Retries=0 locally and in CI for now — flake hunting comes in Session 8.

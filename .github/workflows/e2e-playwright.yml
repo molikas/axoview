@@ -3,10 +3,12 @@
 # itself via the `webServer` block in
 # packages/axoview-e2e/playwright.config.ts — no separate `serve` step needed.
 #
-# Locked decision #4 + audit C.2 row I9 + tactical
-# docs/tactical/e2e-suite-rewrite.md Session 7.
+# Locked decision #4 + audit C.2 row I9. The T1-rewrite tactical that first
+# scoped this suite is retired; the live reference is docs/testing.md
+# ("CI execution model — sharding"), which also records the two invariants
+# that keep sharding safe (keep fullyParallel:false; don't serve a prod bundle).
 #
-# Speed: the suite (72 spec files / ~149 tests) runs at workers=1 because the
+# Speed: the suite (72 spec files / ~157 tests) runs at workers=1 because the
 # shared rsbuild dev server can't take parallel HMR clients. To parallelise
 # without that risk we SHARD across runners — each shard is a full, independent
 # runner that runs its slice at workers=1, so within a runner the execution is
