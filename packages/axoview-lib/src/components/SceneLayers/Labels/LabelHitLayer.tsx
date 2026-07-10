@@ -17,6 +17,12 @@ import {
   LABEL_CHIP_PAD_Y,
   LABEL_CHIP_RADIUS
 } from 'src/utils/labelChip';
+import { computeLabelCounterScale } from 'src/utils/labelScale';
+import {
+  LABEL_BASE_FONT_PX,
+  LABEL_MIN_READABLE_PX,
+  LABEL_MAX_COUNTER_SCALE
+} from 'src/config/labelSettings';
 
 // ---------------------------------------------------------------------------
 // LabelHitLayer (ADR 0031 §4) — the pixel-accurate DOM hit-proxy over the
@@ -111,7 +117,12 @@ const LabelInlineEditor = ({
         left: left - 1,
         top: top - 1,
         zIndex: 20,
-        pointerEvents: 'auto'
+        pointerEvents: 'auto',
+        // Track the readable-labels counter-scale (inherited var) about the chip
+        // centre, so the edit box matches the enlarged drawn chip (no shrink on
+        // entering edit at low zoom with the Aa toggle on).
+        transform: 'scale(var(--axoview-label-scale, 1))',
+        transformOrigin: 'center'
       }}
       onPointerDown={(e) => e.stopPropagation()}
     >
@@ -207,9 +218,51 @@ export const LabelHitLayer = ({ labels }: Props) => {
   const active = useUiStateStore(
     (s) => s.editorMode === 'EDITABLE' && s.zoom >= HIT_MIN_ZOOM
   );
+  // The inline editor must mount even below HIT_MIN_ZOOM — place-and-type, F2
+  // and double-click all set inlineEditLabelId, but the whole layer used to
+  // return null at low zoom, so those silently no-op'd. Gate the editor on edit
+  // mode only; the hit proxies still gate on `active` (zoom) to bound div count.
+  const editable = useUiStateStore((s) => s.editorMode === 'EDITABLE');
   const inlineEditLabelId = useUiStateStore((s) => s.inlineEditLabelId);
 
   const dragRef = useRef<DragState | null>(null);
+
+  // "Keep labels readable" (ADR 0015): the WebGL chip in LabelsCanvas counter-
+  // scales about its centre when zoomed out, so the DOM hit proxy (and inline
+  // editor) must scale by the SAME factor about the same centre or the enlarged
+  // chip's outer margin goes dead to pointer events. Mirror ExpandableLabel — a
+  // direct DOM subscription (no per-zoom React re-render) publishes
+  // --axoview-label-scale on a display:contents wrapper; each proxy / editor
+  // composes it into `transform: scale(...)`. No-op (1) when the toggle is off.
+  const counterScaleRef = useRef<HTMLDivElement>(null);
+  const applyCounterScale = useCallback(() => {
+    if (!counterScaleRef.current) return;
+    const { zoom, readableLabels } = uiStoreApi.getState();
+    counterScaleRef.current.style.setProperty(
+      '--axoview-label-scale',
+      String(
+        computeLabelCounterScale(zoom, {
+          enabled: readableLabels,
+          baseFontPx: LABEL_BASE_FONT_PX,
+          minReadablePx: LABEL_MIN_READABLE_PX,
+          maxCounterScale: LABEL_MAX_COUNTER_SCALE
+        })
+      )
+    );
+  }, [uiStoreApi]);
+  useEffect(() => {
+    applyCounterScale();
+    return uiStoreApi.subscribe((s, p) => {
+      if (s.zoom === p.zoom && s.readableLabels === p.readableLabels) return;
+      applyCounterScale();
+    });
+  }, [uiStoreApi, applyCounterScale]);
+  // Re-apply after every commit so a wrapper that just mounted (this layer is
+  // null below HIT_MIN_ZOOM, so crossing that gate remounts it) carries the
+  // current scale immediately, not one zoom tick late.
+  useEffect(() => {
+    applyCounterScale();
+  });
 
   // Double-click a label chip → inline-edit it (parity with node / connector
   // labels; owner 2026-07-02). F2 on a selected label routes here too (via
@@ -227,6 +280,30 @@ export const LabelHitLayer = ({ labels }: Props) => {
   const endInlineEdit = useCallback(() => {
     uiStoreApi.getState().actions.setInlineEditLabelId(null);
   }, [uiStoreApi]);
+
+  // Right-click a label chip → its item context menu (Details / Rename / Add
+  // note / z-order / Delete). The hit-proxy sits above the canvas box and stops
+  // pointer propagation, and labels are deliberately out of the tile hit-test,
+  // so the window-level right-tap handler (usePanHandlers) never resolves a
+  // label — it would open the empty-canvas menu instead. Open the item menu
+  // here, mirroring usePanHandlers' CURSOR-mode item-menu path.
+  const onContextMenu = useCallback(
+    (e: React.MouseEvent, label: Label) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const actions = uiStoreApi.getState().actions;
+      actions.setItemControls(
+        { type: 'LABEL', id: label.id },
+        { openPanel: false }
+      );
+      actions.openContextMenu({
+        anchor: { x: e.clientX, y: e.clientY },
+        variant: 'item',
+        target: { type: 'LABEL', id: label.id }
+      });
+    },
+    [uiStoreApi]
+  );
 
   const onWindowMove = useCallback(
     (e: PointerEvent) => {
@@ -274,10 +351,21 @@ export const LabelHitLayer = ({ labels }: Props) => {
       // Don't fall through to the canvas-interactions box (which would clear the
       // selection / start a pan).
       e.stopPropagation();
-      // Full-chip select (ADR 0031 §4): the press selects the label.
+      // Right/middle button: onContextMenu owns it (select + open the item
+      // menu). Only the primary button selects-and-drags.
+      if (e.button !== 0) return;
+      // Full-chip select (ADR 0031 §4): the press selects the label WITHOUT
+      // mounting the Properties deck. A Label is inline-edited on canvas and
+      // styled from the strip (see Label.ts / TextBox.ts) — its only deck
+      // content is Notes, and auto-opening that on select read as "the text
+      // editor" and misled users. ADR 0022 §3 select-only contract: an explicit
+      // open (double-click / context-menu "Add note") still mounts the deck.
       uiStoreApi
         .getState()
-        .actions.setItemControls({ type: 'LABEL', id: label.id });
+        .actions.setItemControls(
+          { type: 'LABEL', id: label.id },
+          { openPanel: false }
+        );
       dragRef.current = {
         id: label.id,
         startTile: label.tile,
@@ -307,13 +395,21 @@ export const LabelHitLayer = ({ labels }: Props) => {
     };
   }, [onWindowMove, onWindowUp, uiStoreApi]);
 
-  if (!active) return null;
+  if (!editable) return null;
+  // Low zoom with nothing being edited → render nothing (proxies are zoom-gated).
+  if (!active && inlineEditLabelId == null) return null;
 
   return (
-    <>
+    <div ref={counterScaleRef} style={{ display: 'contents' }}>
       {labels.map((label) => {
-        if (visibleIds.size > 0 && !visibleIds.has(label.id)) return null;
-        if (lockedIds.has(label.id)) return null;
+        const editing = label.id === inlineEditLabelId;
+        // Below HIT_MIN_ZOOM only the label being edited mounts (its inline
+        // editor); the pixel-accurate hit proxies stay gated on zoom.
+        if (!active && !editing) return null;
+        if (!editing) {
+          if (visibleIds.size > 0 && !visibleIds.has(label.id)) return null;
+          if (lockedIds.has(label.id)) return null;
+        }
         const fontSize = labelFontPx(label);
         const ctx = getMeasureCtx();
         const chip = ctx
@@ -330,7 +426,7 @@ export const LabelHitLayer = ({ labels }: Props) => {
         const cy = pos.y + (label.offset?.y ?? 0);
         const left = cx - chip.chipW / 2;
         const top = cy - chip.chipH / 2;
-        if (label.id === inlineEditLabelId) {
+        if (editing) {
           return (
             <LabelInlineEditor
               key={`${label.id}-edit`}
@@ -350,6 +446,7 @@ export const LabelHitLayer = ({ labels }: Props) => {
             data-label-hit-id={label.id}
             onPointerDown={(e) => onPointerDown(e, label)}
             onDoubleClick={(e) => onDoubleClick(e, label)}
+            onContextMenu={(e) => onContextMenu(e, label)}
             // Hovering a LINKED chip shows the element link card as a view
             // chip (url + copy/edit/remove — ADR 0034 addendum 2026-07-05),
             // exactly like hovering linked text in a text box.
@@ -391,11 +488,16 @@ export const LabelHitLayer = ({ labels }: Props) => {
               height: chip.chipH,
               pointerEvents: 'auto',
               cursor: 'move',
-              touchAction: 'none'
+              touchAction: 'none',
+              // Congruent with the counter-scaled WebGL chip: the proxy is centred
+              // on (cx,cy), so scaling about its centre keeps the full drawn chip
+              // grabbable when readable-labels enlarges it. 1× (no-op) when off.
+              transform: 'scale(var(--axoview-label-scale, 1))',
+              transformOrigin: 'center'
             }}
           />
         );
       })}
-    </>
+    </div>
   );
 };

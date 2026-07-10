@@ -122,9 +122,7 @@ are not yet painted on the canvas for nodes at rest:
   dragged** (it renders via the DOM `<Node>` overlay), so the affordance is not lost on
   interaction — only on at-a-glance scanning of unselected nodes. (Compounds the existing
   "Preview-mode passive badge does not cover all clickable nodes" entry above.)
-- **Connectors** still render on the existing DOM/SVG layer, not the canvas. This is
-  correct and intentional (Iter-7 proved connectors carry no spawn-cost prize and are
-  rAF-batched on paste); listed here only so the canvas-vs-DOM split is documented.
+- **Connectors** — this bullet is **superseded by [ADR 0038](docs/adr/0038-webgl-instanced-render-substrate.md)** (WebGL fold, PR #63) and no longer describes the code. Connectors now render on a **hybrid split**, decided in `Renderer.tsx`: the bulk of connector bodies paint on the WebGL2 `ConnectorsCanvas`, and the sparse set (selected ∪ degenerate-1-tile ∪ unroutable) renders on the DOM/SVG `<Connector>` layer so it can carry the selection halo. The waypoint diamonds are a separate DOM overlay (`ConnectorAnchorOverlay`), independent of the body layer — which is why a stale WebGL composite can leave "diamonds but no line" (see the WebGL composite-blanking note under [canvas-rendering-guidelines.md §14](docs/canvas-rendering-guidelines.md)).
 
 **Workaround:** None needed for connectors. For badges: select/hover the node to see them.
 

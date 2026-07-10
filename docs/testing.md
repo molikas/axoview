@@ -15,6 +15,15 @@
 
 E2E suite lives at [`packages/axoview-e2e/`](../packages/axoview-e2e/) (Playwright, 72 spec files covering canonical journeys J1–J20 + the v1.1 cross-interaction additions + the Phase 6 presentation/annotation specs + the Phase 6.5 touch/pen specs + the labels & text-styling productization specs). Touch specs run under a dedicated `chromium-touch` project (`hasTouch: true`, `testMatch: /touch-.*\.spec\.ts/`) and drive real touch via CDP `Input.dispatchTouchEvent`; the default `chromium` project ignores them. Runs on PRs + master push via [`.github/workflows/e2e-playwright.yml`](../.github/workflows/e2e-playwright.yml). Locally: `npm run test:e2e:ci` from repo root, or `npx playwright test --ui` from the package. The legacy Python/Selenium suite at `e2e-tests/` was deleted 2026-05-23 (audit C.2 I9 + tactical [docs/tactical/e2e-suite-rewrite.md](tactical/e2e-suite-rewrite.md) Session 7).
 
+### UX-sweep fixes — floating-Label interaction wiring (2026-07-10)
+
+Shipped with the ADR 0028 persona-sweep triage ([docs/tactical/ux-sweep-triage-2026-07-10.md](tactical/ux-sweep-triage-2026-07-10.md)). Closes the verifier-flagged gap "no test exercises single-label Delete."
+
+| Suite | Type | Covers |
+|---|---|---|
+| `interaction/__tests__/handleDeleteKey.test.ts` | lib unit | **L-1** — the Delete/Backspace dispatch extracted to [`handleDeleteKey.ts`](../packages/axoview-lib/src/interaction/handleDeleteKey.ts): per-type dispatch (ITEM/CONNECTOR/TEXTBOX/RECTANGLE/**LABEL**) routes to its delete action; single-Label Delete calls `deleteLabel` + clears the panel; the contentEditable-focus guard blocks delete mid inline-edit; `isEditableTarget` truth table |
+| `label-entity.spec.ts` (extended) | E2E | **L-1** select + Delete removes the Label; **L-3** clicking a Label does not auto-open the Properties dock (`rightSidebarOpen` stays false); **L-2** right-click opens the item context menu (`variant:'item'`, `target.type:'LABEL'`) |
+
 ### Phase 3A/3B additions — Google Drive storage & places model (2026-07-05 → 2026-07-06)
 
 New/extended suites shipped with [ADRs 0035–0037](adr/) (app `+40` unit across `+3` suites; worker `+3`; lib `+2`). No Drive E2E — real OAuth can't run headless, so the owner live-test matrix is the UI gate (e2e is PR-only anyway).

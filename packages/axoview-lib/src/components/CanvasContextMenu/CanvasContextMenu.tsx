@@ -65,7 +65,9 @@ const Hint = ({ children }: { children: React.ReactNode }) => (
 );
 
 // Item types that support canvas inline-rename (F2 / 'inlineEditNodeName').
-const INLINE_RENAMEABLE = new Set(['ITEM', 'TEXTBOX', 'CONNECTOR']);
+// LABEL renames inline too, but via uiState (setInlineEditLabelId), not the
+// inlineEditNodeName event — handleRename branches on it.
+const INLINE_RENAMEABLE = new Set(['ITEM', 'TEXTBOX', 'CONNECTOR', 'LABEL']);
 
 /**
  * Canvas context menu (ADR 0027) — the per-item / empty-canvas command surface.
@@ -120,10 +122,16 @@ export const CanvasContextMenu = () => {
 
   const handleRename = useCallback(() => {
     if (!target) return;
+    // Floating Label inline-edit is driven by uiState (LabelHitLayer renders the
+    // contentEditable), not the node/connector inlineEditNodeName event.
+    if (target.type === 'LABEL') {
+      actions.setInlineEditLabelId(target.id);
+      return;
+    }
     window.dispatchEvent(
       new CustomEvent('inlineEditNodeName', { detail: { id: target.id } })
     );
-  }, [target]);
+  }, [actions, target]);
 
   const handleAddNote = useCallback(() => {
     if (!target) return;

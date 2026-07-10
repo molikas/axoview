@@ -14,6 +14,12 @@ import { createSpriteBatch, SpriteBatch } from 'src/webgl/glSpriteBatch';
 import { attachContextLossRecovery } from 'src/webgl/contextLoss';
 import { rasterizeLabelChip, CHIP_SUPERSAMPLE } from 'src/webgl/itemRaster';
 import { computeBackingStore } from 'src/utils/renderTarget';
+import { computeLabelCounterScale } from 'src/utils/labelScale';
+import {
+  LABEL_BASE_FONT_PX,
+  LABEL_MIN_READABLE_PX,
+  LABEL_MAX_COUNTER_SCALE
+} from 'src/config/labelSettings';
 
 // ---------------------------------------------------------------------------
 // LabelsCanvas (ADR 0031) — WebGL2 INSTANCED draw of the floating Label layer.
@@ -211,7 +217,10 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
           if (uv) {
             const w = layout.chipW;
             const h = layout.chipH;
-            b.addSprite(cx, cy, -w / 2, -h / 2, w, 0, 0, h, uv, 1, 1, 1, 1, 0);
+            // counterScaleFlag = 1: the "keep labels readable" uniform grows the
+            // chip about its centre (cx,cy) when zoomed out (ADR 0015). No-op when
+            // the toggle is off (uniform = 1) — parity with the node name chips.
+            b.addSprite(cx, cy, -w / 2, -h / 2, w, 0, 0, h, uv, 1, 1, 1, 1, 1);
             drawn += 1;
           }
         }
@@ -225,7 +234,7 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
       pendingRef.current = false;
       if (contextLost) return;
       const ui = uiApi.getState();
-      const { scroll, zoom, rendererSize } = ui;
+      const { scroll, zoom, rendererSize, readableLabels } = ui;
       const W = rendererSize.width;
       const H = rendererSize.height;
       // Clamp the backing store to the canvas caps; the effective dpr feeds both
@@ -235,6 +244,15 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
         height: bh,
         dpr
       } = computeBackingStore(W, H, window.devicePixelRatio || 1);
+      // "Keep labels readable" (ADR 0015): the shader counter-scales flagged chips
+      // up to a legible floor when zoomed out. 1 (no-op) when the toggle is off or
+      // above the threshold — parity with the node name chips in NodesCanvas.
+      const counterScale = computeLabelCounterScale(zoom, {
+        enabled: readableLabels,
+        baseFontPx: LABEL_BASE_FONT_PX,
+        minReadablePx: LABEL_MIN_READABLE_PX,
+        maxCounterScale: LABEL_MAX_COUNTER_SCALE
+      });
 
       if (geomDirtyRef.current) {
         buildInstances(b);
@@ -244,7 +262,8 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
       canvas.style.height = `${H}px`;
       const originXDev = (W / 2 + scroll.position.x) * dpr;
       const originYDev = (H / 2 + scroll.position.y) * dpr;
-      b.render(bw, bh, zoom * dpr, originXDev, originYDev, 1);
+      b.render(bw, bh, zoom * dpr, originXDev, originYDev, counterScale);
+      canvas.dataset.labelScale = String(counterScale);
     };
 
     const draw = () => {
@@ -273,12 +292,14 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
         s.zoom === p.zoom &&
         s.rendererSize === p.rendererSize &&
         s.labelMove === p.labelMove &&
-        s.inlineEditLabelId === p.inlineEditLabelId
+        s.inlineEditLabelId === p.inlineEditLabelId &&
+        s.readableLabels === p.readableLabels
       ) {
         return;
       }
       // A live move-preview or an edit-skip change what's drawn → rebuild;
-      // scroll/zoom alone just re-render the cached instances.
+      // scroll/zoom (and the readable-labels uniform, whose flag is already baked
+      // into every chip) alone just re-render the cached instances.
       if (
         s.labelMove !== p.labelMove ||
         s.inlineEditLabelId !== p.inlineEditLabelId

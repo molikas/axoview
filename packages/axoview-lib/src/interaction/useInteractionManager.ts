@@ -22,6 +22,7 @@ import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { TOOL_HOTKEYS } from 'src/config/hotkeys';
 import { resolveToolHotkey } from './toolHotkeys';
 import { handleEscapeKey } from './handleEscapeKey';
+import { handleDeleteOrBackspace, isEditableTarget } from './handleDeleteKey';
 import { handleArrowKey } from './handleArrowKey';
 import type { ScreenToTileFn } from 'src/utils/renderer';
 import { useLayerContext } from 'src/hooks/useLayerContext';
@@ -200,6 +201,7 @@ interface KeydownDeps {
   deleteConnector: SceneApi['deleteConnector'];
   deleteTextBox: SceneApi['deleteTextBox'];
   deleteRectangle: SceneApi['deleteRectangle'];
+  deleteLabel: SceneApi['deleteLabel'];
   updateViewItem: SceneApi['updateViewItem'];
   commitDragTransaction: SceneApi['commitDragTransaction'];
   // Mode-aware screen→tile (useCanvasMode), used by the keydown helpers' tile
@@ -207,89 +209,10 @@ interface KeydownDeps {
   screenToTile: ScreenToTileFn;
 }
 
-// True when the keystroke target is a text-editing surface — typing there must
-// not be hijacked by canvas shortcuts.
-const isEditableTarget = (target: HTMLElement): boolean =>
-  target.tagName === 'INPUT' ||
-  target.tagName === 'TEXTAREA' ||
-  target.contentEditable === 'true' ||
-  !!target.closest('.ql-editor');
-
 // Esc handling (handleConnectorEscape + handleEscapeKey) is extracted to
-// ./handleEscapeKey so the connector-abort-first priority (B2 / Decision #3) is
+// ./handleEscapeKey, and Delete/Backspace (handleDeleteOrBackspace +
+// deleteItemControlsTarget + isEditableTarget) to ./handleDeleteKey, so both are
 // unit-testable in isolation — the full hook needs a provider stack to mount.
-
-// Delete the single item currently in itemControls, dispatched by its type.
-const deleteItemControlsTarget = (
-  uiState: State['uiState'],
-  deps: KeydownDeps
-) => {
-  const ctrl = uiState.itemControls;
-  if (!ctrl) return;
-  if (ctrl.type === 'ITEM') {
-    deps.deleteViewItem(ctrl.id);
-  } else if (ctrl.type === 'CONNECTOR') {
-    deps.deleteConnector(ctrl.id);
-  } else if (ctrl.type === 'TEXTBOX') {
-    deps.deleteTextBox(ctrl.id);
-  } else if (ctrl.type === 'RECTANGLE') {
-    deps.deleteRectangle(ctrl.id);
-  }
-};
-
-// Delete/Backspace: lasso selection → multi-selection → single itemControls.
-// Handled before the text-field guard so it always fires when a canvas
-// selection exists (matches how diagram tools like Figma behave), but the
-// multi-selection and single-item branches still respect text-field focus so
-// editing input/panel text isn't hijacked. Returns true when consumed.
-const handleDeleteOrBackspace = (
-  e: KeyboardEvent,
-  uiState: State['uiState'],
-  deps: KeydownDeps
-): boolean => {
-  if (e.key !== 'Delete' && e.key !== 'Backspace') return false;
-  const mode = uiState.mode;
-
-  if (
-    (mode.type === 'LASSO' || mode.type === 'FREEHAND_LASSO') &&
-    mode.selection?.items?.length
-  ) {
-    e.preventDefault();
-    deps.deleteSelectedItems(mode.selection.items);
-    uiState.actions.setMode({
-      type: 'CURSOR',
-      showCursor: true,
-      mousedownItem: null
-    });
-    uiState.actions.clearSelection();
-    return true;
-  }
-
-  // Multi-selection (CURSOR mode): delete every selected item.
-  if (
-    uiState.selectedIds.length > 1 &&
-    !isEditableTarget(e.target as HTMLElement)
-  ) {
-    e.preventDefault();
-    deps.deleteSelectedItems(uiState.selectedIds);
-    uiState.actions.clearSelection();
-    return true;
-  }
-
-  // Single-item (properties panel) delete.
-  if (
-    uiState.itemControls &&
-    uiState.itemControls.type !== 'ADD_ITEM' &&
-    !isEditableTarget(e.target as HTMLElement)
-  ) {
-    e.preventDefault();
-    deleteItemControlsTarget(uiState, deps);
-    uiState.actions.setItemControls(null);
-    return true;
-  }
-
-  return false;
-};
 
 // Ctrl+A: select all interactable items, switching to CURSOR mode so the
 // multi-selection visual + drag work. Reads scene/layer state via refs so the
@@ -602,6 +525,7 @@ export const useInteractionManager = () => {
     deleteConnector,
     deleteTextBox,
     deleteRectangle,
+    deleteLabel,
     updateViewItem,
     commitDragTransaction
   } = scene;
@@ -640,6 +564,7 @@ export const useInteractionManager = () => {
       deleteConnector,
       deleteTextBox,
       deleteRectangle,
+      deleteLabel,
       updateViewItem,
       commitDragTransaction,
       screenToTile
@@ -699,6 +624,7 @@ export const useInteractionManager = () => {
     deleteConnector,
     deleteTextBox,
     deleteRectangle,
+    deleteLabel,
     handleCopy,
     handleCut,
     handlePaste,
