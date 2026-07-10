@@ -17,6 +17,12 @@ import {
   LABEL_CHIP_PAD_Y,
   LABEL_CHIP_RADIUS
 } from 'src/utils/labelChip';
+import { computeLabelCounterScale } from 'src/utils/labelScale';
+import {
+  LABEL_BASE_FONT_PX,
+  LABEL_MIN_READABLE_PX,
+  LABEL_MAX_COUNTER_SCALE
+} from 'src/config/labelSettings';
 
 // ---------------------------------------------------------------------------
 // LabelHitLayer (ADR 0031 §4) — the pixel-accurate DOM hit-proxy over the
@@ -111,7 +117,12 @@ const LabelInlineEditor = ({
         left: left - 1,
         top: top - 1,
         zIndex: 20,
-        pointerEvents: 'auto'
+        pointerEvents: 'auto',
+        // Track the readable-labels counter-scale (inherited var) about the chip
+        // centre, so the edit box matches the enlarged drawn chip (no shrink on
+        // entering edit at low zoom with the Aa toggle on).
+        transform: 'scale(var(--axoview-label-scale, 1))',
+        transformOrigin: 'center'
       }}
       onPointerDown={(e) => e.stopPropagation()}
     >
@@ -215,6 +226,43 @@ export const LabelHitLayer = ({ labels }: Props) => {
   const inlineEditLabelId = useUiStateStore((s) => s.inlineEditLabelId);
 
   const dragRef = useRef<DragState | null>(null);
+
+  // "Keep labels readable" (ADR 0015): the WebGL chip in LabelsCanvas counter-
+  // scales about its centre when zoomed out, so the DOM hit proxy (and inline
+  // editor) must scale by the SAME factor about the same centre or the enlarged
+  // chip's outer margin goes dead to pointer events. Mirror ExpandableLabel — a
+  // direct DOM subscription (no per-zoom React re-render) publishes
+  // --axoview-label-scale on a display:contents wrapper; each proxy / editor
+  // composes it into `transform: scale(...)`. No-op (1) when the toggle is off.
+  const counterScaleRef = useRef<HTMLDivElement>(null);
+  const applyCounterScale = useCallback(() => {
+    if (!counterScaleRef.current) return;
+    const { zoom, readableLabels } = uiStoreApi.getState();
+    counterScaleRef.current.style.setProperty(
+      '--axoview-label-scale',
+      String(
+        computeLabelCounterScale(zoom, {
+          enabled: readableLabels,
+          baseFontPx: LABEL_BASE_FONT_PX,
+          minReadablePx: LABEL_MIN_READABLE_PX,
+          maxCounterScale: LABEL_MAX_COUNTER_SCALE
+        })
+      )
+    );
+  }, [uiStoreApi]);
+  useEffect(() => {
+    applyCounterScale();
+    return uiStoreApi.subscribe((s, p) => {
+      if (s.zoom === p.zoom && s.readableLabels === p.readableLabels) return;
+      applyCounterScale();
+    });
+  }, [uiStoreApi, applyCounterScale]);
+  // Re-apply after every commit so a wrapper that just mounted (this layer is
+  // null below HIT_MIN_ZOOM, so crossing that gate remounts it) carries the
+  // current scale immediately, not one zoom tick late.
+  useEffect(() => {
+    applyCounterScale();
+  });
 
   // Double-click a label chip → inline-edit it (parity with node / connector
   // labels; owner 2026-07-02). F2 on a selected label routes here too (via
@@ -352,7 +400,7 @@ export const LabelHitLayer = ({ labels }: Props) => {
   if (!active && inlineEditLabelId == null) return null;
 
   return (
-    <>
+    <div ref={counterScaleRef} style={{ display: 'contents' }}>
       {labels.map((label) => {
         const editing = label.id === inlineEditLabelId;
         // Below HIT_MIN_ZOOM only the label being edited mounts (its inline
@@ -440,11 +488,16 @@ export const LabelHitLayer = ({ labels }: Props) => {
               height: chip.chipH,
               pointerEvents: 'auto',
               cursor: 'move',
-              touchAction: 'none'
+              touchAction: 'none',
+              // Congruent with the counter-scaled WebGL chip: the proxy is centred
+              // on (cx,cy), so scaling about its centre keeps the full drawn chip
+              // grabbable when readable-labels enlarges it. 1× (no-op) when off.
+              transform: 'scale(var(--axoview-label-scale, 1))',
+              transformOrigin: 'center'
             }}
           />
         );
       })}
-    </>
+    </div>
   );
 };

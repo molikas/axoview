@@ -10,7 +10,12 @@ import {
 } from 'src/utils';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { PROJECTED_TILE_SIZE, UNPROJECTED_TILE_SIZE } from 'src/config';
-import { LABEL_BASE_FONT_PX } from 'src/config/labelSettings';
+import {
+  LABEL_BASE_FONT_PX,
+  LABEL_MIN_READABLE_PX,
+  LABEL_MAX_COUNTER_SCALE
+} from 'src/config/labelSettings';
+import { computeLabelCounterScale } from 'src/utils/labelScale';
 import { Label } from 'src/components/Label/Label';
 import { Connector, ConnectorLabel as ConnectorLabelType, Coords } from 'src/types';
 import { useSceneActions } from 'src/hooks/useSceneActions';
@@ -660,8 +665,38 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
     getTilePosition
   ]);
 
+  // "Keep labels readable" (ADR 0015): counter-scale this connector's label chips
+  // up to a legible floor when zoomed out. Mirrors ExpandableLabel — a direct DOM
+  // subscription (no React re-render on pan/zoom) publishes --axoview-label-scale,
+  // which Label composes into its chip transform (about the attachment origin, so
+  // the stalk stays pinned). Set on a display:contents wrapper so every label and
+  // the inline editor inherit it. No-op (1) when the toggle is off.
+  const counterScaleRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const apply = () => {
+      if (!counterScaleRef.current) return;
+      const { zoom, readableLabels } = uiStoreApi.getState();
+      counterScaleRef.current.style.setProperty(
+        '--axoview-label-scale',
+        String(
+          computeLabelCounterScale(zoom, {
+            enabled: readableLabels,
+            baseFontPx: LABEL_BASE_FONT_PX,
+            minReadablePx: LABEL_MIN_READABLE_PX,
+            maxCounterScale: LABEL_MAX_COUNTER_SCALE
+          })
+        )
+      );
+    };
+    apply();
+    return uiStoreApi.subscribe((s, p) => {
+      if (s.zoom === p.zoom && s.readableLabels === p.readableLabels) return;
+      apply();
+    });
+  }, [uiStoreApi]);
+
   return (
-    <>
+    <div ref={counterScaleRef} style={{ display: 'contents' }}>
       {labelPositions.map(({ label, position }) => {
         if (label.id === editingLabelId) {
           return (
@@ -708,6 +743,6 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
           />
         );
       })}
-    </>
+    </div>
   );
 });
