@@ -76,6 +76,16 @@ Superseding the 2026-07-10 interim below. All uncommitted; owner tests locally.
 
 **Needs a Pages preview deploy to confirm** (can't be reproduced by `npm run dev`): Cloudflare clean-URL + `_redirects` precedence, OAuth sign-in from `/app` (host-level origin — expected fine), and the real 404 status on Cloudflare (`not_found_handling` interaction).
 
+## Update — 2026-07-13b (Pages-preview verification DONE; promoted via PR #68)
+
+The deferred Pages-preview checks ran on the real deploy and found **one bug**, now fixed:
+
+- **`/app` redirect loop (`ERR_TOO_MANY_REDIRECTS`) — FIXED.** Cloudflare Pages' always-on clean URLs 308-redirect `/app.html → /app`; the `_redirects` rule `/app → /app.html 200` rewrote back into it → infinite loop (confirmed via `curl -I`). Fixed by never targeting `*.html`: Pages serves `app.html` at `/app` natively, and the SPA fallback now targets the clean `/app` (`/app/* → /app 200`). See the ADR 0040 *Pages-preview verification* callout. nginx (Docker) unaffected.
+- **Verified on the live previews** (feat + integration): `/app`→200, `/app/display/p/*`→200, `/`→200, `/privacy`→200, legacy `/display/*`→301. **Owner confirmed redirect fixed + Google OAuth from `/app` works.**
+- **Promotion:** the work was moved onto `integration` (Google OAuth is configured for `integration.axoview.pages.dev`) and PR #67 was closed in favour of **PR #68 (`integration → master`)**, which bundles this with the other staged integration work.
+
+Still owner-manual (not blockers): Lighthouse SEO ≥95, social-card + Rich-Results validators, and the ADR 0009 routing-map addendum.
+
 ## Implementation log — 2026-07-10 (first pass, superseded by the 2026-07-13 update above)
 
 **Shipped (safe subset — no routing surgery, zero e2e/build/share-link impact):**
