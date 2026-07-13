@@ -165,7 +165,7 @@ baseTest.describe('Share error — ADR 0011 failure-of-intent (Share)', () => {
     await seedSessionDiagram(page);
     await installMocks(page);
 
-    await page.goto('/');
+    await page.goto('/app');
     await byLibTestId(page, 'axoview-canvas').waitFor({ state: 'visible', timeout: 15_000 });
 
     // The explorer is pinned open via seeded localStorage; wait for the tree
@@ -201,7 +201,7 @@ baseTest.describe('Share error — ADR 0011 failure-of-intent (Share)', () => {
     await seedSessionDiagram(page);
     await installMocks(page);
 
-    await page.goto('/');
+    await page.goto('/app');
     await byLibTestId(page, 'axoview-canvas').waitFor({ state: 'visible', timeout: 15_000 });
 
     // The explorer is pinned open via seeded localStorage; wait for the tree

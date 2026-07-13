@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { Box, Button, IconButton, Tooltip } from '@mui/material';
-import { Add as AddIcon, Colorize as ColorizeIcon } from '@mui/icons-material';
+import {
+  Add as AddIcon,
+  Colorize as ColorizeIcon,
+  Check as CheckIcon
+} from '@mui/icons-material';
 import { useTranslation } from 'src/stores/localeStore';
 import { STANDARD_COLOR_PALETTE } from 'src/config/colorPalette';
 import { CustomColorInput } from './CustomColorInput';
@@ -87,16 +91,32 @@ export const ColorPickerBody = ({
                 cursor: 'pointer',
                 width: '100%',
                 aspectRatio: '1 / 1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 borderRadius: '3px',
                 bgcolor: hex,
                 border: '1px solid',
                 borderColor: active ? 'primary.main' : 'divider',
-                boxShadow: active
-                  ? (th) => `0 0 0 2px ${th.palette.primary.main}`
-                  : 'none',
                 boxSizing: 'border-box'
               }}
-            />
+            >
+              {/* Selection marker (ADR 0039, Google-Slides parity): a checkmark
+                  inside the chosen swatch — the border ring alone was hard to
+                  read on similarly-coloured swatches. The tick colour flips to
+                  the swatch's contrast colour (white on dark, black on light);
+                  a faint drop-shadow keeps it legible on mid-tones. */}
+              {active && (
+                <CheckIcon
+                  aria-hidden
+                  sx={{
+                    fontSize: 18,
+                    color: (th) => th.palette.getContrastText(hex),
+                    filter: 'drop-shadow(0 0 1px rgba(0,0,0,0.4))'
+                  }}
+                />
+              )}
+            </Box>
           );
         })}
       </Box>

@@ -10,125 +10,34 @@
       content="Privacy Policy for Axoview, an open-source isometric diagramming tool."
     />
     <title>Privacy Policy — Axoview</title>
-    <style>
-      :root {
-        --ink: #1f2937;
-        --muted: #52606d;
-        --accent: #2563eb;
-        --line: #e5e7eb;
-        --panel: #f8fafc;
-        --bg: #ffffff;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--ink);
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-          'Helvetica Neue', Arial, sans-serif;
-        line-height: 1.65;
-        -webkit-font-smoothing: antialiased;
-      }
-      .wrap {
-        max-width: 760px;
-        margin: 0 auto;
-        padding: 56px 24px 96px;
-      }
-      .brand {
-        font-size: 22px;
-        font-weight: 600;
-        letter-spacing: 0.02em;
-        margin-bottom: 40px;
-        color: var(--ink);
-      }
-      .brand .accent {
-        color: var(--accent);
-      }
-      h1 {
-        font-size: 30px;
-        line-height: 1.25;
-        margin: 0 0 6px;
-      }
-      .meta {
-        color: var(--muted);
-        font-size: 14px;
-        margin: 0 0 32px;
-      }
-      h2 {
-        font-size: 19px;
-        margin: 40px 0 12px;
-        padding-top: 8px;
-      }
-      h3 {
-        font-size: 16px;
-        margin: 24px 0 8px;
-      }
-      p,
-      li {
-        color: var(--ink);
-        font-size: 16px;
-      }
-      a {
-        color: var(--accent);
-        text-decoration: none;
-      }
-      a:hover {
-        text-decoration: underline;
-      }
-      ul {
-        padding-left: 22px;
-      }
-      li {
-        margin: 6px 0;
-      }
-      .tldr {
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 20px 24px;
-        margin: 8px 0 8px;
-      }
-      .tldr h2 {
-        margin-top: 0;
-      }
-      .tldr ul {
-        margin-bottom: 0;
-      }
-      code {
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: 5px;
-        padding: 1px 6px;
-        font-family: 'SFMono-Regular', ui-monospace, Menlo, Consolas, monospace;
-        font-size: 0.9em;
-      }
-      hr {
-        border: 0;
-        border-top: 1px solid var(--line);
-        margin: 48px 0;
-      }
-      .foot {
-        color: var(--muted);
-        font-size: 14px;
-      }
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --ink: #e6e8eb;
-          --muted: #9aa5b1;
-          --accent: #60a5fa;
-          --line: #2a2f3a;
-          --panel: #161a22;
-          --bg: #0f1216;
-        }
-      }
-    </style>
+    <link rel="canonical" href="https://axoview.app/privacy" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Axoview" />
+    <meta property="og:title" content="Privacy Policy — Axoview" />
+    <meta property="og:description" content="Privacy Policy for Axoview, an open-source isometric diagramming tool." />
+    <meta property="og:url" content="https://axoview.app/privacy" />
+    <meta property="og:image" content="https://axoview.app/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://axoview.app/og-image.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
+    <link rel="stylesheet" href="/site.css" />
   </head>
   <body>
-    <div class="wrap">
-      <div class="brand">Axo<span class="accent">view</span></div>
+    <header class="site-header">
+      <div class="wrap">
+        <a class="brand" href="/" aria-label="Axoview home">Axo<span class="accent">view</span></a>
+        <nav class="nav-links">
+          <a class="nav-secondary" href="https://github.com/molikas/axoview" target="_blank" rel="noopener">GitHub</a>
+          <a class="btn btn-primary" href="/app">Open Axoview</a>
+        </nav>
+      </div>
+    </header>
 
+    <main class="prose">
+      <a class="back-link" data-legal-back href="/">
+        <span class="arrow" aria-hidden="true">&larr;</span>
+        <span data-legal-back-label>Back</span>
+      </a>
       <h1>Privacy Policy</h1>
       <p class="meta">Last updated: 7 July 2026 · Effective: 7 July 2026</p>
 
@@ -337,7 +246,7 @@
       </p>
       <p>
         Your use of Axoview is also governed by our
-        <a href="/terms.html">Terms of Service</a>, which set out additional limitations of
+        <a href="/terms">Terms of Service</a>, which set out additional limitations of
         liability and an "as is" disclaimer.
       </p>
 
@@ -346,6 +255,18 @@
         Questions about this policy? Contact the maintainer at
         <a href="mailto:objectives.wb@gmail.com">objectives.wb@gmail.com</a>.
       </p>
-    </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <div>© Axoview — open-source isometric &amp; 2D diagramming.</div>
+        <div class="foot-links">
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a href="https://github.com/molikas/axoview" target="_blank" rel="noopener">GitHub</a>
+        </div>
+      </div>
+    </footer>
+    <script src="/legal-nav.js" defer></script>
   </body>
 </html>

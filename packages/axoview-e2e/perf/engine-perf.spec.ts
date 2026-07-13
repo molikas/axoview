@@ -1700,7 +1700,7 @@ async function bootApp(page: Page) {
   // ?perfprobe=1 enables useRenderProbe (window.__axoviewRenderProbe) so the drag
   // can report render fan-out. Off by default — the probe's per-render side-effect
   // would otherwise perturb the timing the baseline measures.
-  await page.goto(process.env.PERF_RENDERPROBE ? '/?perfprobe=1' : '/');
+  await page.goto(process.env.PERF_RENDERPROBE ? '/app?perfprobe=1' : '/app');
   await page.evaluate((keys: string[]) => {
     for (const k of keys) localStorage.removeItem(k);
   }, CLEAR_KEYS);
