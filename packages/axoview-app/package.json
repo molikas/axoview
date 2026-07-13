@@ -1,6 +1,6 @@
 {
   "name": "axoview-app",
-  "version": "3.5.1",
+  "version": "3.5.2",
   "private": true,
   "description": "Progressive Web App for creating isometric diagrams",
   "dependencies": {
@@ -30,6 +30,8 @@
     "start": "rsbuild dev",
     "build": "rsbuild build",
     "preview": "rsbuild preview",
+    "preview:r1": "node scripts/preview-r1.mjs",
+    "og:image": "node scripts/generate-og-image.mjs",
     "clean": "rm -rf build",
     "lint": "tsc --noEmit",
     "test": "npx --no-install jest"

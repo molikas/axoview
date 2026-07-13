@@ -1,168 +1,34 @@
-**Axoview** is an isometric diagramming tool — a community fork of [FossFLOW](https://github.com/stan-smith/FossFLOW) (which is itself a fork of [Isoflow](https://github.com/markmanx/isoflow)) — with expanded editing features, file management, full internationalisation, project-zip workspace bundles, multi-target deployment (Docker / Cloudflare Pages), and large performance improvements.
+# Axoview
 
-Icons bundled under `@isoflow/isopacks` (the AWS / GCP / Azure / Kubernetes / core packs) remain attributed to the Isoflow project; see the in-app **Settings → About** tab and [LICENSE](LICENSE) for the full lineage.
+**Beautiful isometric & 2D diagrams, right in your browser.**
 
-**[Try the live demo →](https://axoview.app/)** — deployed from `master`, always reflects the latest shipped version.
+## ▶ [Open Axoview → axoview.app](https://axoview.app)
 
-Source and issue tracker: [github.com/molikas/axoview](https://github.com/molikas/axoview).
+Free and open-source. No install, no sign-up. The hosted app at **[axoview.app](https://axoview.app)** is the production deployment — built from `master`, always running the latest release.
 
-**Performance highlight:** On a real 85-node / 54-connector diagram, idle FPS improved from 5–18 to a consistent 60 fps after fixing two root-cause render bugs. See the [Performance section](#performance) below.
+Axoview is a diagramming tool for cloud architecture, network topologies and infrastructure maps, with built-in AWS, GCP, Azure, Kubernetes and Material icon packs. It began as a community fork of [FossFLOW](https://github.com/stan-smith/FossFLOW) (itself a fork of [Isoflow](https://github.com/markmanx/isoflow)) and has grown into a full product: a WebGL2-accelerated canvas, file management, Google Drive storage, share links, presentation mode, and 13 languages.
 
----
+## Highlights
 
-## What this fork adds vs upstream
+- **Isometric & 2D** — toggle between crisp isometric and flat 2D views of the same diagram; zoom and center are preserved.
+- **Cloud icon packs** — AWS, GCP, Azure, Kubernetes, plus ~2,200 Material icons, loaded on demand.
+- **Rich editing** — multi-select, cut/copy/paste, undo/redo, connectors with labels and waypoints, floating labels, inline rich text, and one docked style strip for every element.
+- **Multi-view diagrams** — multiple named views per file, layers, and cross-diagram links.
+- **Fast at scale** — a WebGL2 canvas holds 60 fps while panning diagrams with thousands of nodes.
+- **Present & export** — distraction-free present mode, ephemeral annotation overlay, robust PNG export.
+- **File management** — VS Code-style file explorer, project-zip import/export, compact LLM-friendly diagram format.
+- **Your storage, your data** — browser session, your own Google Drive (per-file `drive.file` scope), or your own server. No tracking, no analytics.
+- **Share links** — read-only share URLs for any diagram (server-storage deployments).
+- **Touch & pen** — full direct-manipulation touchscreen and stylus support.
+- **13 languages** — complete internationalisation of the UI.
 
-### Editing
+The complete feature inventory (with ADR links) lives in [docs/features.md](docs/features.md).
 
-- **Cut, copy and paste** — `Ctrl+C` copies, `Ctrl+X` cuts, `Ctrl+V` pastes at cursor. Works on any combination of nodes, connectors, rectangles, and text boxes. Connectors between pasted nodes are included automatically. Full undo/redo support.
-- **Freehand lasso selection** — Draw a freehand polygon to select items, in addition to the standard rectangular lasso.
-- **Multi-element selection — Ctrl+click and Ctrl+A** — `Ctrl/⌘+click` toggles items in or out of the selection (Figma / Sketch / VS Code convention). `Ctrl/⌘+A` selects every visible, unlocked item in the active view (locked / hidden layers are skipped). `Esc` clears it; `Delete` removes the whole selection. Lasso and freehand-lasso both persist their selection into the same store slice so multi-select survives switching tools. Dragging any selected item moves the whole group. When more than one item is selected the right Properties panel auto-hides (it's per-item; bulk editing is deferred) and a `"N selected"` chip appears in the bottom-left dock. Full contract in [ADR 0006](docs/adr/0006-canvas-selection-contract.md).
-- **Drag precision** — Dragging responds instantly, tracks the grab point, and stops cleanly at the last valid position when blocked.
-- **Delete key** — `Delete` or `Backspace` removes selected items.
-- **Undo/redo** — Full multi-step history for all canvas changes.
-- **Multi-view diagrams** — Multiple named views (tabs) within a single file, each an independent canvas.
-- **Inline rename on canvas** — `F2` with a node or text-box selected, or double-click on its label, enters inline-edit on the canvas itself (not the side-panel input). Auto-grows rightward and wraps at maxWidth. Enter or clicking away (left-click) commits; Escape or right-click-away cancels.
+## Run it locally
 
-### Nodes and text
+The hosted app needs nothing — just open [axoview.app](https://axoview.app). To run your own:
 
-- **Node panel — collapsible-section deck (Details · Notes · Metadata)** — Selecting a node opens the right Properties panel as a vertical stack of collapsible sections (no tabs). The content section carries the on-canvas **Label** text; **Notes** is a full-height rich-text editor for private documentation (never drawn on the canvas); **Metadata** (collapsed) holds the identity `name`. **All visual styling moved to the docked style strip** in the toolbar (below) — the per-type Style tab was retired. See [ADR 0030](docs/adr/0030-docked-style-controls-strip.md).
-- **On-canvas Label vs Notes** — A node's **Label** is its single on-canvas text; the identity `name` is Layers-only and hidden from the canvas ([ADR 0032](docs/adr/0032-node-name-caption-label-model.md)). The old rich on-canvas *caption* was retired — any legacy caption content folds into **Notes** at load. Need extra text near a node? Drop a floating **Label** (below). Notes stays hidden documentation, rich-text (Quill), never drawn on the canvas.
-- **Right-click / long-press context menu** — Right-clicking a node, connector, text box, or rectangle in edit mode (or long-pressing on touch) opens a context menu — the single per-item command surface. Items include Details, Rename (F2-able types), **Add note**, Cut, Copy, Paste, Duplicate, Assign to layer (flyout), Bring forward / Send back, and Delete. (Replaces the earlier floating action bar, removed in the 2026-06-25 shake-out; see [ADR 0027](docs/adr/0027-canvas-context-menu.md).)
-- **Connector parity with nodes** — Connectors are first-class peers: `name`, `notes`, optional `headerLink`, and their own on-canvas **labels** (`labels[]`). The identity `name` is decoupled from the canvas ([ADR 0032](docs/adr/0032-node-name-caption-label-model.md)) — it's Layers-only; **F2 on a connector adds a label** at the midpoint and inline-edits it (a 1-tile connector shows a dot marker). Each label carries its own link and font size and becomes a clickable chip in view mode. The connector controls panel mirrors the node deck (Details · Notes · Metadata), with styling on the docked strip.
-- **Name field for text boxes and rectangles** — Both gain an optional name shown in the layers panel and rename-able via F2 in the layers tree.
-- **Note indicator dot** — Nodes with non-empty Notes show a small blue dot at the top-right of their icon on the canvas.
-- **View-mode item info popover** — In `EXPLORABLE_READONLY` mode, item details surface as a **canvas-anchored popover** instead of the right dock (which no longer auto-opens there). Hovering an item with content shows a lightweight preview (name + notes excerpt); clicking pins it (Esc / click-away / X to close). Notes render read-only with clickable links, and the item's `headerLink` is offered as a primary affordance. Parity across node, connector, rectangle, and text box; items with no name/notes/link show nothing. The popover side-anchors to the right of the item and flips left near the viewport edge so it never covers the item or its caption. See [ADR 0012](docs/adr/0012-view-mode-node-info-popover.md).
-- **Double-click to place node or rectangle** — Double-clicking empty canvas opens a compact "Add" popover at the cursor. A **Rectangle** button at the top creates a background rectangle for visually grouping nodes. Below it, an icon picker lets you place a node — selecting an icon places it and immediately opens its Details tab for naming. Single left-click on empty canvas just deselects; no context menu.
-- **Clickable node links** — Attach a URL to any node; its label becomes a clickable link in the diagram.
-- **Cross-diagram links** — A node can link to another diagram in this workspace. In `EXPLORABLE_READONLY`, clicking the node navigates to the target diagram in the same window (React Router SPA navigation); a blue badge on the icon indicates the link, and the tooltip reads *"Opens "X""* using the linked diagram's name. Ctrl/Cmd/Shift/middle-click still triggers browser-native open-in-new-tab. Header URL and diagram link coexist without showing two tooltips.
-- **Node label font size and color** — Adjust from the **docked style strip** (the canonical styling surface), not a panel tab.
-- **Text boxes — inline canvas rich-text editing (Lucid-parity)** — Text boxes edit **inline on the canvas** (double-click / F2 / place-and-type; click-away commits, Escape cancels, Enter = newline). Formatting — bold, italic, underline, strike, bulleted/numbered lists, links, text + background color, horizontal + vertical alignment, line-spacing — comes from the **docked style strip**, applied to the whole box when it's selected or to the live selection while editing. Markdown list autofill (`- ` / `1. `), manual resize with soft-wrap ("Fit to text"), a border option set, and an on-canvas rotate handle are supported; a box left empty is discarded. Headers / blockquote / code-block are retired from authoring but stay render-compatible forever. See [ADR 0034](docs/adr/0034-inline-canvas-text-editing-and-dual-scope-strip-formatting.md).
-- **Connector label styling** — Per-label font size (8–40 px), text color, and position, all from the docked style strip.
-- **Docked style strip — one styling surface for every element** — A Google-Docs / Figma-style strip in the toolbar is the **single** place to style any selected item (or a homogeneous multi-selection): fill, border (style / width / color / opacity), text B/I/U/S + lists + alignment, font size + color, opacity, show/hide, and a unified **Link** control (web URL *or* link-to-diagram). Retires the per-type Style tab; the strip is compressible so the Save/Export/Present controls stay reachable at any width. See [ADR 0030](docs/adr/0030-docked-style-controls-strip.md).
-- **Floating Labels** — A first-class floating **Label** entity ([ADR 0031](docs/adr/0031-floating-label-entity-model.md)): drop free-standing text anywhere on the canvas, styled from the strip (font, color, background chip, B/I/S), z-ordered above nodes, with a full-chip hit target and inline edit (double-click / F2). Independent of any node — the successor to the retired node caption for near-node annotation.
-- **Link cards (Ctrl/Cmd+K)** — Docs-style inline link cards: press `Ctrl/Cmd+K` (or click into a link) to add / edit / open / copy / remove a link on text, a node caption, a connector label, or a floating Label. Web URLs get protocol forgiveness; linked text can also point at another diagram in the workspace and navigate to it. Linked labels render link-blue + underlined. See [ADR 0034](docs/adr/0034-inline-canvas-text-editing-and-dual-scope-strip-formatting.md).
-- **Connector anchor handles** — Selecting a connector shows glass-morphism anchor circles at each endpoint and waypoint (source = filled dot, target = hollow ring, waypoint = accent diamond). Click an endpoint handle to enter reconnect mode; move the mouse to live-preview the new route, then click to finalize. Click + drag a waypoint to reposition it, or **Alt+click a waypoint to remove it** (a delayed *"Alt+click to remove"* tooltip surfaces on hover; cursor changes to pointing-finger). The hit ring around each waypoint is wider than the visual so clicks within it still register at any zoom. Endpoint handles are always visible above node icons.
-
-### Canvas and navigation
-
-- **Right-click to pan** — Right-click drag pans the canvas; release to resume the active tool.
-- **Default zoom 65%** — Opens with breathing room. (Reduced from 75%.)
-- **2D canvas mode** — Toggle between isometric and flat 2D from the ToolMenu. Each mode uses the same node/connector model; switching **preserves your zoom and keeps the viewport centered on the same tile** (no force-fit "pop"). Backed by a `CoordinateTransformStrategy` pattern (ISO and Cartesian2D strategies, each implementing `toScreen` / `fromScreen` / `gridTileUrl`) so the rest of the renderer is mode-agnostic.
-  - **2D fidelity fixes** — In 2D mode, rectangle resize handles align to the actual square corners, transform anchors render upright, and flat (non-isometric) icons render upright at the tile center instead of being projected through the iso CSS matrix. AWS / GCP / Azure / K8s / MUI artwork now reads correctly in 2D.
-- **Layers** — Each view has an independent layer stack. Layers control visibility and lock state for all element types (nodes, connectors, rectangles, text boxes). Elements can be assigned to layers; unassigned elements are always visible and interactive. Layer order is draggable.
-- **Preview-mode layer switcher** — In view-only mode with ≥2 layers, a compact top-left overlay toggles each layer's visibility and "solos" a single layer for presenting. The toggles are an **ephemeral UI-only override** — they never mutate or save the diagram's layer state. See [ADR 0013](docs/adr/0013-preview-mode-layer-switcher.md).
-- **Keep labels readable** — An opt-in "Aa" toggle in the zoom controls counter-scales node name labels up to a legible floor when you zoom out, so overviews stay readable. Off by default (counter-scaled labels can overlap on dense diagrams); persists across reload. See [ADR 0015](docs/adr/0015-node-label-legibility-scaling.md).
-- **Annotation overlay** — A "paint on top" scratch layer — pencil, highlighter, line, arrow, rectangle, ellipse, eraser — from a floating palette (grouped tools behind hover fly-outs), available in both edit and preview. Strokes are **ephemeral**: never saved, exported, or written to the project zip; close the pen to hide them, Clear to wipe, reload to reset. Includes undo/redo and per-tool cursors. See [ADR 0014](docs/adr/0014-ephemeral-annotation-overlay.md).
-
-### Touch & pen
-
-- **Direct-manipulation touch & pen** — Full touchscreen / stylus support built on Pointer Events (no mouse emulation). Disambiguated by what's under the finger at touch-down (Figma / Miro model): tap a node selects it, tap empty clears; one-finger drag on a node moves it (drag a connector endpoint to reconnect); one-finger drag on empty canvas pans; two-finger pinch zooms and pans together. The mouse/desktop path is unchanged. See [ADR 0018](docs/adr/0018-touch-pen-gesture-contract.md).
-- **Long-press gestures** — Hold on a node to open its **context menu** — it appears **during** the hold, before you lift. Hold on empty canvas then drag to start a marquee lasso without first switching to the lasso tool.
-- **Drag from the Elements panel** — Press an icon in the Elements panel and drag it onto the canvas to place a node where you lift. A preview ghost follows your finger during the drag (it stays hidden until the drag actually starts, so nothing appears prematurely on tap).
-- **Tool modes own the touch drag** — In lasso, freehand-lasso, rectangle, connector, or text-box modes a one-finger drag drives the tool (marquee, freehand path, draw, connect) instead of panning. Transform handles resize on touch.
-
-### File management
-
-- **File explorer** — VS Code-style collapsible left panel (280 px, `react-arborist`) listing all diagrams and folders. Inline create and rename via a `__pending__` node, drag-and-drop with collision detection, duplicate, hard delete with a confirmation dialog. Auto-sorted (folders alphabetically, then diagrams alphabetically) at every depth. Dirty indicators on individual nodes and on ancestor folders. Right-click for context actions including **Copy share link** (server mode only) and per-diagram **Export as image / Export as JSON / Export as compact JSON**. Opens by default on first server-mode session. Overlays the canvas (does not resize it) so toggling panels never jolts the diagram. See [ADR 0005](docs/adr/0005-toolbar-and-dock-layout-contract.md).
-- **Empty state screen** — Full canvas replacement (ISO grid background + welcome card) shown when server storage is available and no diagram is open. Drives users to create or open from the file explorer instead of dropping them on a blank canvas.
-- **Pluggable storage** — All diagram and folder operations go through a `StorageManager` that delegates to the active `StorageProvider`. The shipped local provider uses the backend when reachable and falls back to `sessionStorage`; a full Google Drive provider ships alongside it (below). Storage is a property of each diagram — its *place* — not a global mode: the active provider silently follows the open diagram. See [ADR 0037](docs/adr/0037-storage-places-model.md).
-- **Google Drive storage** — Sign in with Google (avatar control, top-right) and diagrams live in your own Drive under an app-scoped folder (`drive.file` scope — the app sees only files it created). The file explorer shows **one tree with two places** ("Google Drive" / "This session") with per-section loading skeletons and error rows; move any session diagram to Drive from its context menu (or drag it across), and a migration dialog offers to move everything after sign-in. Remember-me: identity (never the token) persists across reloads and the session reconnects silently. Works on the storage-less Cloudflare deployment. See [ADR 0035](docs/adr/0035-google-identity-and-drive-authorization.md) / [0036](docs/adr/0036-google-drive-storage-provider.md) / [0037](docs/adr/0037-storage-places-model.md).
-- **Save / Save As** — Save directly to a named file. Save As always prompts for a new name and creates a new file.
-- **Diagrams panel** — Browse, load, and delete all saved diagrams from a single panel. Share any diagram as a read-only link (server mode).
-- **Save status indicator** — Shows when the diagram was last saved and whether there are unsaved changes. Displayed in the toolbar right section as `Saved at HH:MM`, `Saved yesterday at HH:MM`, or `Saved Mon DD at HH:MM` for older diagrams. A `•` dot appears when there are pending changes. No auto-save in server mode — only explicit Save updates the timestamp.
-- **Save confirmation toast** — A brief `✓ [Name] saved` notification slides up from the bottom on every explicit save.
-- **Share link** — Generates a read-only URL for the current diagram (requires server storage). The toolbar Share button stays visible in local mode but is render-disabled, with a reason-guarded popover explaining why.
-- **New diagram with unsaved-changes guard** — File explorer "New diagram" clears the canvas. Pending edits trigger a three-button dialog: *Save & continue* (autosaves to `localStorage`, falls back to a JSON download), *Discard changes*, or *Cancel*. Tab-close also shows a native browser warning when there are unsaved edits (in session mode, the prompt is gated by `sessionWorkUnexported`).
-- **Diagram name always in sync** — The toolbar name tracks the active diagram correctly across all flows: Save, Save As, Load (session and server), New Diagram, and file Open via the library's own menu.
-- **Compact diagram format** — Diagrams exported in ultra-compact LLM-friendly format (`{"t":…,"i":…,"v":…,"_":{"f":"compact","v":"1.0"}}`) are fully supported when loading via the Diagrams panel or file Open. The format is auto-detected and expanded before rendering; names come from the storage listing or the embedded `t` field — never lost on round-trip.
-
-### Workspace bundles & session storage
-
-- **Project zip — Import / Export** — Export the entire workspace (or a single folder, or a single diagram) as a `.zip` containing a manifest, one JSON per diagram, and the tree-manifest. Re-import anywhere — the importer rewrites all IDs, updates cross-diagram link refs, and offers three destinations: *At the top — keep the original folder layout*, *Inside a new folder*, or *Replace all existing folders and diagrams* (typed-confirm gated). Format is human-inspectable: unzip and read. See [ADR 0001](docs/adr/0001-project-zip-format.md).
-- **Lean icon save** — Default-catalog icons are stripped from every save (session, server, exports) and rehydrated on load. Custom icons and overrides are preserved verbatim. Diagrams are now materially smaller — the bundled icon catalog can be larger than a small diagram itself. See [ADR 0003](docs/adr/0003-session-storage-lean-icon-save.md).
-- **Delete imported icons with workspace-aware warning** — Hover any imported icon tile in the Elements panel for a red × badge top-right. Confirming opens a dialog that scans every diagram in the workspace and lists each one referencing the icon (with per-diagram counts) before deletion. Items whose icon id no longer resolves render a faded dashed-square **tombstone** so canvas layout stays stable; re-importing under the same id resurrects them. Built-in pack icons stay non-deletable — pack management is in Settings → Icon Packs. `Ctrl+Z` restores. Imports are still scoped per-diagram (project-level imports tracked in [known_issues.md](known_issues.md)). See [ADR-0002 Lifecycle](docs/adr/0002-icon-catalog-merge-on-load.md).
-- **`requiredPacks` field** — Lean saves persist the list of icon packs (AWS / GCP / Azure / K8s / Material) the diagram references. Importers auto-load the right packs before merging the catalog, so AWS icons render on first paint after a re-import.
-- **Session storage gauge** — File-explorer header shows a chip leading with `%` (e.g. `<1% · 3.6 KB`); click for a per-diagram size table. Color thresholds at 60 / 90 %. Tooltip carries the full `X% used (size of ~limit)`.
-- **Local-mode banner** — Persistent dismissable warning when storage resolves to local (browser-only) and the workspace has content, reminding the user that work lives in `localStorage` only.
-- **Local-mode autosave** — Local-mode work is auto-saved to `localStorage` within the tab and survives reloads; the toolbar Save button is a manual flush for peace of mind. The browser-native dirty prompt fires only when there's local work that has not been exported to a file. (Server mode has no autosave — only explicit Save persists.)
-
-### Performance
-
-**Idle / editing (85-node / 54-connector diagram):**
-
-| Metric | Before | After |
-|--------|--------|-------|
-| Idle FPS | 5–18 fps | 60 fps |
-| FPS during editing | 5–18 fps | 48–60 fps |
-| Long tasks at session start | ~195 | ~6 |
-| Long task rate (idle) | 6.4 / sec | ~0 / sec |
-| Long task rate (editing) | 6–10 / sec | ~1.6 / sec |
-| Diagram load recovery | Permanently degraded | Recovers to 60 fps within 1 s |
-
-**Paste performance (measured with DiagnosticsOverlay):**
-
-| Scenario | Before (sync paste) | After (async paste) |
-|----------|--------------------|--------------------|
-| ~113 nodes / 441 connectors | FPS drops to 5, hard freeze | 60 fps maintained, no freeze |
-| ~280 nodes / 1132 connectors | Short hard freeze, instant 60 fps recovery | Negligible initial delay, 9 s background routing |
-| ~560 nodes / 2264 connectors | 30+ s main-thread block ("page unresponsive") | rAF yields prevent tab kill; routing completes in ~90 batches |
-
-*How it works:* The async path dequeues A* pathfinding out of the paste transaction into `requestAnimationFrame` batches of 25 connectors each. Each connector appears routed as its batch completes. The browser stays responsive between batches, eliminating the main-thread block that triggered Chrome's "page is unresponsive" dialog. A* results are cached (LRU, 2 000 entries) so repeated paste of the same topology is instant. For the "1k node" edge case the routing window is still noticeable (~9 s), but the tab stays alive and a progress toast counts completion percentage.
-
-**Multi-element drag (6+ nodes lasso-selected, measured with DiagnosticsOverlay):**
-
-| Metric | Before | After |
-|--------|--------|-------|
-| Worst FPS during drag | 9–13 fps | 24–44 fps |
-| Sustained sub-13 fps cliff | 12–19 s per drag | none |
-| Major GCs during a 5 s drag | ~5 | 1 |
-| Connector wires following dragged endpoints | one-frame visible lag, occasional flicker | locked in step, no flicker |
-| Undo after a multi-element drag | one undo per intermediate frame | single undo rewinds the whole drag |
-
-*How it works:* During a multi-element drag the model is no longer mutated per frame. Items move via CSS variables on `data-drag-id` DOM elements (compositor-only — no React reconciliation, no immer, no layout). Free-floating waypoint anchors accumulate in a separate preview map; both maps are passed to a single `previewConnectorPaths(items, anchors)` call that recomputes affected connector geometry against a synthetic view and writes directly to `scene.connectors[].path`. `flushSync` keeps Connector React subscribers in lockstep with the CSS mutations. Final tile values commit to the model on mouseup; one history entry covers the entire drag. Full architectural invariant in [docs/architecture.md §1 Drag Items](docs/architecture.md#1-feature-inventory); investigation playbook + diagnostic harness (`?perfprobe=1`) in [docs/perf-troubleshooting.md](docs/perf-troubleshooting.md).
-
-### Internationalisation (i18n)
-
-- **13 languages** — English (default), Chinese Simplified, German, French, Spanish, Italian, Portuguese (Brazil), Polish, Turkish, Russian, Hindi, Indonesian, Bengali.
-- Language selector in the toolbar shows the active language name and switches instantly without reload.
-- All UI text localised: toolbar buttons, save-status timestamps, Save As dialog, Share popover, Diagrams Manager, tool tooltips, icon selector search, QuickIconSelector help text, node panel tabs, zoom controls, export image dialog, settings panels, connector/lasso hint tooltips, and all alert/confirmation strings.
-
-### Panels
-
-- **Left strip + panels (File Explorer / Elements / Layers / Settings)** — 40 px icon strip on the left edge with three regions: Navigation (📁 File Explorer), Working (⊞ Elements / ≣ Layers — mutex pair), and a System anchor at the bottom (⚙ Settings). Clicking 📁 opens the 280 px File Explorer to its right; clicking ⊞ opens the 240 px Elements panel (icon search and drag-to-canvas, Rectangle shape, Connector tool, "More icons" loaders, Import Icons); clicking ≣ opens Layers. All left-side panels overlay the canvas (do not resize it) and snap in/out without animation. File Explorer + one working panel can be open simultaneously. Click the active icon again to close. See [ADR 0005](docs/adr/0005-toolbar-and-dock-layout-contract.md).
-- **Right panel (Properties)** — 300 px panel on the right edge, toggled by a button in the top-right corner. Shows the Details / Style / Notes tabs for the selected item. Slides in/out without resizing the canvas.
-- **Icon drag-to-canvas** — Dragging an icon from the Elements panel shows a ghost icon following the cursor across the isometric grid until you drop it at the target tile.
-
-### Quality-of-life
-
-- **Notification system** — Native `alert()` calls replaced with a stack of dismissible MUI snackbars (max 3 visible, FIFO queue). A `ConfirmDialog` returns a promise from a destructive-action confirmation.
-- **Material Icons pack** — ~2,179 Material Design icons available as a loadable pack alongside AWS, GCP, Azure, and Kubernetes. Generated at prebuild time. Large packs (>100 icons) render a 60-icon preview to keep section expansion fast; the full set is searchable.
-- **On-demand icon packs** — AWS, GCP, Azure, Kubernetes, and Material packs are not loaded at startup. The Elements panel shows a "More icons" section listing each unloaded pack; clicking one loads it on the spot. Opening a diagram that references a pack triggers auto-loading silently via `requiredPacks`.
-- **Help dialog (`F1` / `?`)** documents all keyboard shortcuts.
-- **Burger menu removed** from the app chrome. Open / Export / Clear actions live in the file explorer; **Settings** moved to the left strip ⚙; GitHub link + version moved into Settings → **About** tab. The floating DiagnosticsOverlay (toggled by a dedicated button) carries debug instrumentation when `enableDebugTools` is on. See [ADR 0005](docs/adr/0005-toolbar-and-dock-layout-contract.md).
-- **Default new-view name** — `"Page 1"` (was `"Untitled view"`).
-- **Sentence case across all property panels** — Section primitive enforces caption + semibold + secondary-color titles; ALL CAPS legacy retired. See [docs/ux-principles.md](docs/ux-principles.md) for the design language driving this and other panel-consistency rules.
-- **Enter-to-confirm on dialogs** — `ConfirmDialog` returns on Enter, cancels on Escape, in every destructive-action prompt.
-
----
-
-## Deployment targets
-
-Axoview runs from a single codebase on three targets, sharing one `/api/*` HTTP contract:
-
-| Target | Runtime | Storage | Auth options |
-|---|---|---|---|
-| **Local dev** | `npm run dev` (rsbuild on :3000 + Express on :3001) | Filesystem if `ENABLE_SERVER_STORAGE=true`, else session | `none`, `shared-token` |
-| **Docker** | nginx + Express on Node | Filesystem volume | `none`, `shared-token` |
-| **Cloudflare Pages** | Pages Functions (Hono) | **Session + user-owned Google Drive** (worker stays storage-less) | `none`, `shared-token`, `cf-access` |
-
-The frontend bundle is identical across all three. Runtime config (`GET /api/config`) replaces build-time env injection. The Cloudflare worker itself remains storage-less; persistent storage there is the user's own Google Drive via the client-side provider (set `GOOGLE_CLIENT_ID` — see [ADR 0035](docs/adr/0035-google-identity-and-drive-authorization.md)).
-
-For the from-scratch deploy walkthrough, see [docs/deployment.md](docs/deployment.md). 
-
----
-
-## Quick start (Docker)
+### Docker (self-host)
 
 Requires [Docker Desktop](https://www.docker.com/get-started/) and [Git](https://git-scm.com/downloads). No Node.js needed.
 
@@ -175,44 +41,59 @@ EOF
 docker compose up --build           # first run — takes 3–5 min
 ```
 
-Open **http://localhost** (port 80). No authentication is enabled by default, which is fine for a single-user machine but means **anyone who can reach the port has full read/write access to your diagrams** — before exposing the instance to any untrusted network, set `AUTH_MODE=shared-token` + `AUTH_SHARED_SECRET` (and, behind a reverse proxy, `PUBLIC_BASE_URL`) per [docs/deployment.md](docs/deployment.md). Subsequent starts omit `--build`. Diagrams are saved to a `diagrams/` folder in the project directory.
+Open **http://localhost** for the landing page — the editor lives at **http://localhost/app**. Diagrams are saved to a `diagrams/` folder in the project directory. Subsequent starts omit `--build`; stop with `Ctrl+C` or `docker compose down`.
 
-To stop: `Ctrl+C`, or `docker compose down` from another terminal.
+> **Security note:** no authentication is enabled by default, which is fine for a single-user machine but means anyone who can reach the port has full read/write access to your diagrams. Before exposing the instance to any untrusted network, set `AUTH_MODE=shared-token` + `AUTH_SHARED_SECRET` (and, behind a reverse proxy, `PUBLIC_BASE_URL`) per [docs/deployment.md](docs/deployment.md).
 
-For local development without Docker, or for Cloudflare deploys, see [docs/deployment.md](docs/deployment.md).
-
----
-
-## Architecture & docs
-
-- [docs/architecture.md](docs/architecture.md) — feature inventory, store/reducer/mode architecture, test audit, gap analysis.
-- [docs/deployment.md](docs/deployment.md) — local / Docker / Cloudflare deploy walkthroughs.
-- [docs/testing.md](docs/testing.md) — regression suite reference (~1009 tests across 93 jest suites; Playwright E2E in `packages/axoview-e2e/`).
-- [docs/adr/](docs/adr/) — architectural decision records (ADRs 0001–0029: project/storage formats, canvas selection & pointer-interaction model, the context-menu per-item surface, touch/pen gesture contract, rendering & perf harness, deployment & session backend, error & UX contracts, and more).
-- [PLAN.md](PLAN.md) — strategic phased roadmap (Phases 0A → 4A).
-- [CHANGELOG.md](CHANGELOG.md) — fork-only changelog (Keep a Changelog format).
-- [docs/upstream-changelog.md](docs/upstream-changelog.md) — pre-fork upstream history (preserved for traceability).
-
----
-
-## Code coverage
+### From source (Node ≥ 22)
 
 ```bash
-npm test --workspace=packages/axoview-lib -- --coverage
+git clone https://github.com/molikas/axoview.git
+cd axoview
+npm install
+npm run dev            # frontend on http://localhost:3000 — editor at /app
+npm run dev:backend    # optional, second terminal — server storage + share links on :3001
 ```
 
-HTML report: `packages/axoview-lib/coverage/lcov-report/index.html`. Current global statement coverage ~32%. Thresholds set at 10% global minimum — intentionally low while the suite grows. Additional static analysis tools (ESLint, Knip, `npm audit`) output to `reports/`.
+## Deployment targets
 
----
+Axoview runs from a single codebase on three targets, sharing one `/api/*` HTTP contract:
+
+| Target | Runtime | Storage | Auth options |
+|---|---|---|---|
+| **Local dev** | `npm run dev` (rsbuild on :3000 + Express on :3001) | Filesystem if `ENABLE_SERVER_STORAGE=true`, else session | `none`, `shared-token` |
+| **Docker** | nginx + Express on Node | Filesystem volume | `none`, `shared-token` |
+| **Cloudflare Pages** | Pages Functions (Hono) | **Session + user-owned Google Drive** (worker stays storage-less) | `none`, `shared-token`, `cf-access` |
+
+The frontend bundle is identical across all three: a static marketing landing at `/`, the editor at `/app`, legal pages, and the API. Runtime config (`GET /api/config`) replaces build-time env injection. The Cloudflare worker itself remains storage-less; persistent storage there is the user's own Google Drive via the client-side provider (set `GOOGLE_CLIENT_ID` — see [ADR 0035](docs/adr/0035-google-identity-and-drive-authorization.md)).
+
+For the from-scratch deploy walkthrough, see [docs/deployment.md](docs/deployment.md).
+
+## Documentation
+
+- [docs/features.md](docs/features.md) — the full feature inventory (what this fork adds vs upstream, with ADR links).
+- [docs/architecture.md](docs/architecture.md) — feature inventory, store/reducer/mode architecture, test audit, gap analysis.
+- [docs/deployment.md](docs/deployment.md) — local / Docker / Cloudflare deploy walkthroughs.
+- [docs/testing.md](docs/testing.md) — regression suite reference (Playwright E2E in `packages/axoview-e2e/`).
+- [docs/adr/](docs/adr/) — architectural decision records (project/storage formats, canvas interaction model, rendering & perf, deployment & session backend, error & UX contracts, and more).
+- [PLAN.md](PLAN.md) — strategic phased roadmap.
+- [CHANGELOG.md](CHANGELOG.md) — release changelog (generated by semantic-release).
+
+## Development
+
+```bash
+npm run test:unit      # jest suite (packages/axoview-lib)
+npm run test:e2e       # Playwright E2E (needs a build; see docs/testing.md)
+npm run lint           # tsc + eslint across workspaces
+npm test --workspace=packages/axoview-lib -- --coverage   # HTML report in coverage/lcov-report/
+```
 
 ## Issues and feedback
 
-Bug reports and feature requests are welcome at [github.com/molikas/axoview/issues](https://github.com/molikas/axoview/issues). Use the **Bug report** or **Feature request** templates.
+Bug reports and feature requests are welcome at [github.com/molikas/axoview/issues](https://github.com/molikas/axoview/issues) — use the **Bug report** or **Feature request** templates.
 
 **Code pull requests are not accepted** — this is a personal fork. If you want to build on top, fork it.
 
----
-
 ## License
 
-See [LICENSE](LICENSE).
+See [LICENSE](LICENSE). Icons bundled under `@isoflow/isopacks` (the AWS / GCP / Azure / Kubernetes / core packs) remain attributed to the Isoflow project; see the in-app **Settings → About** tab for the full lineage.

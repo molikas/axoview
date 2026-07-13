@@ -2,92 +2,287 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" type="image/png" sizes="96x96" href="<%= assetPrefix %>favicon-96x96.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#2563eb" />
+
+    <!-- The marketing landing = the canonical, indexed root (ADR 0040 R1). The
+         editor SPA lives at /app (app-shell.html). -->
+    <meta name="robots" content="index, follow" />
+    <title>Axoview — Free Isometric &amp; 2D Diagramming Tool</title>
     <meta
       name="description"
-      content="Create beautiful isometric diagrams with Axoview - A powerful open-source diagramming tool for creating stunning isometric illustrations"
+      content="Create beautiful isometric and 2D diagrams in your browser — cloud, network and infrastructure architecture with AWS, GCP, Azure and Kubernetes icons. Free."
     />
-    <link rel="apple-touch-icon" sizes="180x180" href="<%= assetPrefix %>apple-touch-icon.png" />
-    <!--
-      manifest.json provides metadata used when your web app is installed on a
-      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
-    -->
-    <link rel="manifest" href="<%= assetPrefix %>manifest.json" />
-    <!--
-      The `<%= assetPrefix %>` placeholder is replaced at build time with the
-      configured public URL prefix, so asset links work under any base path.
-      Only files inside the `public` folder can be referenced from the HTML.
-    -->
-    <title>Axoview - Isometric Diagramming Tool</title>
+    <link rel="canonical" href="https://axoview.app/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Axoview" />
+    <meta property="og:title" content="Axoview — Free Isometric &amp; 2D Diagramming Tool" />
+    <meta property="og:description" content="Create beautiful isometric and 2D diagrams in your browser. Free and open-source." />
+    <meta property="og:url" content="https://axoview.app/" />
+    <meta property="og:image" content="https://axoview.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Axoview — beautiful isometric and 2D diagrams, right in your browser." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Axoview — Free Isometric &amp; 2D Diagramming Tool" />
+    <meta name="twitter:description" content="Create beautiful isometric and 2D diagrams in your browser. Free and open-source." />
+    <meta name="twitter:image" content="https://axoview.app/og-image.png" />
+    <meta name="twitter:image:alt" content="Axoview — beautiful isometric and 2D diagrams, right in your browser." />
+
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/site.css" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Axoview",
+        "url": "https://axoview.app/",
+        "description": "A free, open-source tool for creating beautiful isometric and 2D diagrams in the browser — cloud architecture, network and infrastructure diagrams with AWS, GCP, Azure and Kubernetes icon packs.",
+        "applicationCategory": "DesignApplication",
+        "operatingSystem": "Any (modern web browser)",
+        "browserRequirements": "Requires a WebGL2-capable browser",
+        "image": "https://axoview.app/og-image.png",
+        "screenshot": "https://axoview.app/og-image.png",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "featureList": [
+          "Isometric and 2D diagramming",
+          "Cloud architecture and infrastructure diagrams",
+          "AWS, GCP, Azure and Kubernetes icon packs",
+          "Multi-view diagrams, connectors, labels and rich text",
+          "Presentation mode and image export",
+          "Save locally or to Google Drive"
+        ]
+      }
+    </script>
+
     <style>
-      /* Splash screen — visible from first paint until React commits the editor
-         shell, then faded by App.tsx on `editor:first-paint-after-mount`. */
-      #ax-splash {
-        position: fixed;
-        inset: 0;
-        z-index: 9999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #ffffff;
-        font-family:
-          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-        transition: opacity 200ms ease;
+      /* Landing-specific only — shared tokens/header/footer/buttons live in site.css. */
+      .hero {
+        padding: 64px 0 56px;
+        background:
+          radial-gradient(900px 460px at 82% -8%, rgba(37,99,235,0.08), transparent 60%),
+          repeating-linear-gradient(30deg,  rgba(100,116,139,0.07) 0, rgba(100,116,139,0.07) 1px, transparent 1px, transparent 32px),
+          repeating-linear-gradient(150deg, rgba(100,116,139,0.07) 0, rgba(100,116,139,0.07) 1px, transparent 1px, transparent 32px),
+          #fff;
       }
-      #ax-splash.ax-splash-hidden {
-        opacity: 0;
-        pointer-events: none;
+      .hero .wrap { display: flex; align-items: center; gap: 44px; }
+      .hero-copy { flex: 1 1 480px; min-width: 0; }
+      .hero-visual { flex: 0 1 420px; min-width: 0; }
+      .hero-visual svg { width: 100%; height: auto; display: block; }
+      .hero h1 {
+        font-size: clamp(34px, 5.4vw, 56px); line-height: 1.06; letter-spacing: -0.02em;
+        color: var(--ink); max-width: 16ch; margin-bottom: 20px;
       }
-      .ax-splash-inner {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 22px;
+      .hero h1 .accent { color: var(--accent); }
+      .hero p.lede {
+        font-size: clamp(18px, 2.4vw, 22px); color: var(--body); max-width: 56ch; margin-bottom: 30px;
       }
-      .ax-splash-logo {
-        font-size: 30px;
-        font-weight: 600;
-        letter-spacing: 0.02em;
-        color: #1f2937;
+      .hero-cta { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+      .hero-note { margin-top: 18px; font-size: 14px; color: var(--muted); }
+
+      section.block { padding: 64px 0; }
+      section.block.alt { background: var(--panel); border-block: 1px solid var(--line); }
+      .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 13px; font-weight: 700; color: var(--accent); margin-bottom: 12px; }
+      h2.section-title { font-size: clamp(26px, 4vw, 34px); color: var(--ink); letter-spacing: -0.01em; margin-bottom: 12px; }
+      p.section-sub { font-size: 17px; color: var(--muted); max-width: 62ch; margin-bottom: 40px; }
+
+      .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+      .card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 26px; }
+      section.block.alt .card { background: #fff; }
+      .card a { color: var(--accent); }
+      .card .ico {
+        width: 44px; height: 44px; border-radius: 11px; margin-bottom: 16px;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(37,99,235,0.10); color: var(--accent);
       }
-      .ax-splash-logo .ax-splash-logo-accent {
-        color: #2563eb;
+      .card .ico svg { width: 23px; height: 23px; }
+      .card h3 { font-size: 18px; color: var(--ink); margin-bottom: 8px; }
+      .card p { font-size: 15px; color: var(--body); }
+
+      .cta-strip {
+        margin: 0 auto; text-align: center; padding: 64px 24px;
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%);
+        border-radius: 20px; color: #fff;
       }
-      .ax-splash-spinner {
-        width: 32px;
-        height: 32px;
-        border: 3px solid #e5e7eb;
-        border-top-color: #2563eb;
-        border-radius: 50%;
-        animation: ax-splash-spin 800ms linear infinite;
-      }
-      @keyframes ax-splash-spin {
-        to {
-          transform: rotate(360deg);
-        }
+      .cta-strip h2 { font-size: clamp(26px, 4vw, 36px); margin-bottom: 12px; letter-spacing: -0.01em; }
+      .cta-strip p { color: rgba(255,255,255,0.92); font-size: 18px; margin-bottom: 28px; }
+      .cta-strip .btn-primary { background: #fff; color: var(--accent-deep); }
+      .cta-strip .btn-primary:hover { background: #eef2ff; color: var(--accent-deep); }
+
+      @media (max-width: 860px) {
+        .grid { grid-template-columns: 1fr; }
+        .hero .wrap { flex-direction: column; align-items: flex-start; gap: 36px; }
+        .hero-copy { flex-basis: auto; }
+        .hero-visual { order: 2; align-self: center; max-width: 360px; width: 100%; }
+        .hero h1 { max-width: none; }
       }
     </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="ax-splash">
-      <div class="ax-splash-inner">
-        <div class="ax-splash-logo">Axo<span class="ax-splash-logo-accent">view</span></div>
-        <div class="ax-splash-spinner" role="progressbar" aria-label="Loading Axoview"></div>
+    <header class="site-header">
+      <div class="wrap">
+        <a class="brand" href="/" aria-label="Axoview home">Axo<span class="accent">view</span></a>
+        <nav class="nav-links">
+          <a class="nav-secondary" href="#features">Features</a>
+          <a class="nav-secondary" href="https://github.com/molikas/axoview" target="_blank" rel="noopener">GitHub</a>
+          <a class="btn btn-primary" href="/app">Open Axoview</a>
+        </nav>
       </div>
-    </div>
-    <div id="root"></div>
-    <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
+    </header>
 
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
+    <section class="hero">
+      <div class="wrap">
+        <div class="hero-copy">
+          <h1>Beautiful <span class="accent">isometric &amp; 2D diagrams</span>, right in your browser</h1>
+          <p class="lede">
+            Axoview is a free, open-source diagramming tool for cloud architecture,
+            network topologies and infrastructure maps — with built-in AWS, GCP,
+            Azure and Kubernetes icon packs. No install, no sign-up.
+          </p>
+          <div class="hero-cta">
+            <a class="btn btn-primary" href="/app">Open Axoview →</a>
+            <a class="btn btn-ghost" href="https://github.com/molikas/axoview" target="_blank" rel="noopener">View source on GitHub</a>
+          </div>
+          <p class="hero-note">Runs entirely in your browser. Save locally or to your own Google Drive.</p>
+        </div>
 
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
-    -->
+        <div class="hero-visual">
+          <!-- Illustrative isometric diagram (three connected nodes). Vector art,
+               consistent across platforms; a real editor screenshot is the ideal
+               follow-up once a curated sample diagram exists. -->
+          <svg viewBox="0 0 440 380" role="img" aria-label="Illustration of an isometric diagram with three connected nodes" xmlns="http://www.w3.org/2000/svg">
+            <g stroke="#2563eb" stroke-width="2.5" fill="none" opacity="0.5" stroke-linecap="round">
+              <line x1="62" y1="82" x2="292" y2="132" />
+              <line x1="292" y1="132" x2="165" y2="245" />
+              <line x1="62" y1="82" x2="165" y2="245" />
+            </g>
+            <g transform="translate(20,30) scale(0.7)">
+              <path d="M60 0 L120 34 L60 68 L0 34 Z" fill="#3b82f6" />
+              <path d="M0 34 L60 68 L60 136 L0 102 Z" fill="#1d4ed8" />
+              <path d="M120 34 L60 68 L60 136 L120 102 Z" fill="#2563eb" />
+            </g>
+            <g transform="translate(250,84) scale(0.7)">
+              <path d="M60 0 L120 34 L60 68 L0 34 Z" fill="#38bdf8" />
+              <path d="M0 34 L60 68 L60 136 L0 102 Z" fill="#0284c7" />
+              <path d="M120 34 L60 68 L60 136 L120 102 Z" fill="#0ea5e9" />
+            </g>
+            <g transform="translate(120,192) scale(0.75)">
+              <path d="M60 0 L120 34 L60 68 L0 34 Z" fill="#818cf8" />
+              <path d="M0 34 L60 68 L60 136 L0 102 Z" fill="#4f46e5" />
+              <path d="M120 34 L60 68 L60 136 L120 102 Z" fill="#6366f1" />
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="features">
+      <div class="wrap">
+        <div class="eyebrow">What you can build</div>
+        <h2 class="section-title">A diagramming canvas built for infrastructure</h2>
+        <p class="section-sub">
+          From a single service sketch to a full multi-view architecture, Axoview
+          keeps it fast, editable and presentable.
+        </p>
+        <div class="grid">
+          <div class="card">
+            <div class="ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 2 21 7 12 12 3 7Z"/><path d="M3 7v10l9 5V12"/><path d="M21 7v10l-9 5"/></svg>
+            </div>
+            <h3>Isometric &amp; 2D</h3>
+            <p>Toggle between crisp isometric and flat 2D views of the same diagram — your zoom and centre are preserved.</p>
+          </div>
+          <div class="card">
+            <div class="ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M17.5 18a3.5 3.5 0 0 0 .3-7 5.5 5.5 0 0 0-10.6-1.4A4 4 0 0 0 7 18z"/></svg>
+            </div>
+            <h3>Cloud icon packs</h3>
+            <p>AWS, GCP, Azure, Kubernetes and core packs are built in, so infrastructure diagrams come together in minutes.</p>
+          </div>
+          <div class="card">
+            <div class="ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            </div>
+            <h3>Rich editing</h3>
+            <p>Multi-select, copy/paste, undo/redo, connectors, floating labels, inline rich text and a docked style strip.</p>
+          </div>
+          <div class="card">
+            <div class="ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 2 22 8 12 14 2 8Z"/><path d="M2 12l10 6 10-6"/><path d="M2 16l10 6 10-6"/></svg>
+            </div>
+            <h3>Multi-view diagrams</h3>
+            <p>Multiple named views per file, cross-diagram links, and layers — organise complex systems without clutter.</p>
+          </div>
+          <div class="card">
+            <div class="ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><rect x="2.5" y="4" width="19" height="13" rx="1.5"/><path d="M8 21h8M12 17v4"/></svg>
+            </div>
+            <h3>Present &amp; export</h3>
+            <p>A distraction-free present mode with an item-info popover, plus robust PNG/image export with presets.</p>
+          </div>
+          <div class="card">
+            <div class="ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>
+            </div>
+            <h3>Fast at scale</h3>
+            <p>A WebGL2 canvas holds 60&nbsp;fps while panning diagrams with thousands of nodes.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block alt">
+      <div class="wrap">
+        <div class="eyebrow">Why Axoview</div>
+        <h2 class="section-title">Open, private, and yours to host</h2>
+        <div class="grid">
+          <div class="card">
+            <div class="ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M8 6 2 12l6 6"/><path d="M16 6l6 6-6 6"/></svg>
+            </div>
+            <h3>Free &amp; open-source</h3>
+            <p>A community fork of <a href="https://github.com/stan-smith/FossFLOW" target="_blank" rel="noopener">FossFLOW</a> and <a href="https://github.com/markmanx/isoflow" target="_blank" rel="noopener">Isoflow</a>, with expanded editing, file management and full internationalisation.</p>
+          </div>
+          <div class="card">
+            <div class="ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><rect x="4" y="10.5" width="16" height="10.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>
+            </div>
+            <h3>Your data stays yours</h3>
+            <p>Work saves to your browser or your own Google Drive — never to our servers. No tracking, no analytics.</p>
+          </div>
+          <div class="card">
+            <div class="ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>
+            </div>
+            <h3>Self-hostable</h3>
+            <p>Run it yourself with Docker, or use the hosted app. Same build, deploy it your way.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="wrap">
+        <div class="cta-strip">
+          <h2>Start diagramming in seconds</h2>
+          <p>Free and open-source. Just open the canvas.</p>
+          <a class="btn btn-primary" href="/app">Open Axoview →</a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <div>© Axoview — open-source isometric &amp; 2D diagramming.</div>
+        <div class="foot-links">
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a href="https://github.com/molikas/axoview" target="_blank" rel="noopener">GitHub</a>
+        </div>
+      </div>
+    </footer>
   </body>
 </html>

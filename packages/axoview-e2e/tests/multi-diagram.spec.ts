@@ -263,7 +263,7 @@ test.describe('Multi-diagram link — J5 (B-1 + B-2 regression coverage)', () =>
   test.beforeEach(async ({ page, app }) => {
     void app;
     await seedTwoDiagrams(page, { idA: ID_A, idB: ID_B, itemId: ITEM_ID });
-    await page.goto('/');
+    await page.goto('/app');
     await byLibTestId(page, 'axoview-canvas').waitFor({ state: 'visible', timeout: 10_000 });
     await waitForDebugBridge(page);
     // Confirm boot landed on DiagramA — guards every sub-test from a stale
@@ -286,15 +286,15 @@ test.describe('Multi-diagram link — J5 (B-1 + B-2 regression coverage)', () =>
     const info = new NodeInfoTabPOM(page);
     await info.expectVisible();
 
-    // Pre-state: editor is on DiagramA, URL is /.
-    expect(page.url()).toMatch(/\/$/);
+    // Pre-state: editor is on DiagramA, URL is /app (R1, ADR 0040).
+    expect(page.url()).toMatch(/\/app\/?$/);
     await expect.poll(() => getModelTitle(page), { timeout: 5_000 }).toBe('DiagramA');
 
     await info.clickOpenLinkedDiagram();
 
     // Post-state: editor is on DiagramB; URL is unchanged (same-tab swap).
     await expect.poll(() => getModelTitle(page), { timeout: 5_000 }).toBe('DiagramB');
-    expect(page.url()).toMatch(/\/$/);
+    expect(page.url()).toMatch(/\/app\/?$/);
   });
 
   test('J5.3: NodePanel link in readonly preview navigates to /display/<linkedDiagramId>', async ({ page }) => {
@@ -370,8 +370,8 @@ test.describe('Multi-diagram link — J5 (B-1 + B-2 regression coverage)', () =>
     await expect(toolbar.backToEditingButton()).toBeVisible({ timeout: 3_000 });
 
     await toolbar.clickBackToEditing();
-    // navigate(-1) returns to the editor route '/'.
-    await page.waitForURL(/\/$/, { timeout: 5_000 });
+    // navigate(-1) returns to the editor route '/app' (R1, ADR 0040).
+    await page.waitForURL(/\/app\/?$/, { timeout: 5_000 });
     await byLibTestId(page, 'axoview-canvas').waitFor({ state: 'visible', timeout: 10_000 });
     await waitForDebugBridge(page);
     await expect.poll(() => getModelTitle(page), { timeout: 5_000 }).toBe('DiagramA');

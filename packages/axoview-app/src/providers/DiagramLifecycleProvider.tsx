@@ -193,9 +193,15 @@ export function DiagramLifecycleProvider({
   const iconPackManager = useIconPackManager(coreIcons);
 
   const isPublicShareUrl = !!shareUuid;
+  // `readonlyDiagramId` is the basename-stripped route param (react-router), so
+  // it is authoritative. The pathname guard is a belt-and-suspenders check that
+  // must tolerate the R1 `/app` basename (ADR 0040): the raw browser path is
+  // `/app/display/<id>`, not `/display/<id>` — hence `includes`, not
+  // `startsWith`, so readonly mode still resolves under the /app prefix (and at
+  // the bare `/display/*` used by other deploys / pre-R1 links).
   const isReadonlyUrl =
     isPublicShareUrl ||
-    (window.location.pathname.startsWith('/display/') && !!readonlyDiagramId);
+    (window.location.pathname.includes('/display/') && !!readonlyDiagramId);
 
   const axoviewRef = useRef<AxoviewRef>(null);
 

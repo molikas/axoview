@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/png" sizes="96x96" href="<%= assetPrefix %>favicon-96x96.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#2563eb" />
+    <!-- The editor SPA (served under /app). The indexable, crawlable surface is
+         the marketing landing at `/` (see public/index.html + ADR 0040/0041), so
+         this shell is intentionally noindex — it carries no SEO/social metadata. -->
+    <meta name="robots" content="noindex" />
+    <meta
+      name="description"
+      content="Axoview — the isometric &amp; 2D diagram editor."
+    />
+    <link rel="apple-touch-icon" sizes="180x180" href="<%= assetPrefix %>apple-touch-icon.png" />
+    <link rel="manifest" href="<%= assetPrefix %>manifest.json" />
+    <title>Axoview</title>
+    <style>
+      /* Boot splash — visible from first paint until React commits the editor
+         shell, then faded by App.tsx (dismissBootScreens). */
+      #ax-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #ffffff;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        transition: opacity 200ms ease;
+      }
+      #ax-splash.ax-splash-hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .ax-splash-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 22px;
+      }
+      .ax-splash-logo {
+        font-size: 30px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: #1f2937;
+      }
+      .ax-splash-logo .ax-splash-logo-accent {
+        color: #2563eb;
+      }
+      .ax-splash-spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid #e5e7eb;
+        border-top-color: #2563eb;
+        border-radius: 50%;
+        animation: ax-splash-spin 800ms linear infinite;
+      }
+      @keyframes ax-splash-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run the Axoview editor.</noscript>
+    <div id="ax-splash">
+      <div class="ax-splash-inner">
+        <div class="ax-splash-logo">Axo<span class="ax-splash-logo-accent">view</span></div>
+        <div class="ax-splash-spinner" role="progressbar" aria-label="Loading Axoview"></div>
+      </div>
+    </div>
+    <div id="root"></div>
+  </body>
+</html>

@@ -1,7 +1,7 @@
 {
   "short_name": "Axoview",
-  "name": "Axoview - Isometric Diagramming Tool",
-  "description": "Create beautiful isometric diagrams with Axoview",
+  "name": "Axoview — Isometric & 2D Diagramming Tool",
+  "description": "Create beautiful isometric and 2D diagrams in your browser.",
   "icons": [
     {
       "src": "favicon-96x96.png",
@@ -33,11 +33,11 @@
       "purpose": "maskable"
     }
   ],
-  "start_url": ".",
+  "start_url": "/app",
   "display": "standalone",
   "theme_color": "#2563eb",
   "background_color": "#ffffff",
   "orientation": "portrait-primary",
-  "scope": "/",
+  "scope": "/app",
   "categories": ["productivity", "utilities", "graphics"]
 }

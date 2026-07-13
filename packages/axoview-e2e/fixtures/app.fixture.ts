@@ -1,5 +1,6 @@
 /**
- * Base app fixture. Loads `/`, waits for either the EmptyStateScreen or the
+ * Base app fixture. Loads `/app` (the editor SPA — R1/ADR 0040), waits for
+ * either the EmptyStateScreen or the
  * canvas to mount (covers both first-run and resumed-diagram boots), and
  * dismisses any onboarding/import tooltip overlays.
  *
@@ -53,7 +54,7 @@ async function waitForAppReady(page: Page) {
 
 export const appTest = base.extend<{ app: AppPage }>({
   app: async ({ page }, use) => {
-    await page.goto('/');
+    await page.goto('/app');
     await waitForAppReady(page);
     await waitForDebugBridge(page);
     const app = new AppPage(page);
@@ -69,7 +70,7 @@ export const appTest = base.extend<{ app: AppPage }>({
  * across runs because `LOCAL_STORAGE_KEYS` is cleared post-navigation and
  * the empty-state Create button is clicked unconditionally.
  *
- * The two-step navigate(`/`) → clearStorage → reload sequence is necessary
+ * The two-step navigate(`/app`) → clearStorage → reload sequence is necessary
  * because clearing localStorage requires a navigation to the origin first
  * (Playwright cannot evaluate against `about:blank`).
  */
@@ -82,7 +83,7 @@ export const canvasReadyTest = base.extend<{ app: AppPage }>({
         /* localStorage may not be available pre-navigation */
       }
     }, ONBOARDING_DISMISS_FLAGS);
-    await page.goto('/');
+    await page.goto('/app');
     await page.evaluate((keys: string[]) => {
       for (const k of keys) localStorage.removeItem(k);
     }, LOCAL_STORAGE_KEYS);

@@ -88,13 +88,12 @@ baseTest.describe('Share — J13 (Local-mode share-uuid error)', () => {
 
   baseTest('J13: navigating to /display/p/<fake-uuid> in Local mode shows the share-error dialog; dismissing strips the URL', async ({ page }) => {
     // Boot once to land the StorageManager in Local mode, then navigate
-    // directly to a public-share URL. Going straight to `/display/p/<uuid>`
-    // also works (the dialog renders the same way) but a fresh init from
-    // `/` exercises the same /api/config + lifecycle boot a real user
-    // would have taken.
-    await page.goto('/');
+    // directly to a public-share URL. A fresh init from `/app` (R1: the editor
+    // lives under /app, ADR 0040) exercises the same /api/config + lifecycle
+    // boot a real user would have taken.
+    await page.goto('/app');
     await clearDiagramStorage(page);
-    await page.goto('/display/p/fake-uuid-J13');
+    await page.goto('/app/display/p/fake-uuid-J13');
 
     const dialogs = new DialogsPOM(page);
     await dialogs.localModeShareError().waitFor({ state: 'visible', timeout: 10_000 });
@@ -106,9 +105,9 @@ baseTest.describe('Share — J13 (Local-mode share-uuid error)', () => {
 
     await dialogs.dismissLocalModeShareError();
 
-    // Post-dismiss: URL is back at the editor root (replace navigation, no
+    // Post-dismiss: URL is back at the editor root /app (replace navigation, no
     // history entry for the stripped /display/p/<uuid>).
-    await page.waitForURL(/\/$/, { timeout: 5_000 });
+    await page.waitForURL(/\/app\/?$/, { timeout: 5_000 });
     await expect(dialogs.localModeShareError()).toHaveCount(0);
   });
 });
@@ -231,7 +230,7 @@ baseTest.describe('Share — J14 (Session share link round-trip via mocked backe
     const pageA = await ctxA.newPage();
     await seedSessionDiagram(pageA);
 
-    await pageA.goto('/');
+    await pageA.goto('/app');
     await byLibTestId(pageA, 'axoview-canvas').waitFor({ state: 'visible', timeout: 15_000 });
     await waitForDebugBridge(pageA);
 

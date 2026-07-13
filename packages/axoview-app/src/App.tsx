@@ -30,6 +30,9 @@ import { useAuthStore } from './stores/authStore';
 import { FileExplorer } from './components/fileExplorer/FileExplorer';
 import { AppToolbar } from './components/AppToolbar';
 import { EmptyStateScreen } from './components/EmptyStateScreen';
+import { NotFound } from './components/NotFound';
+import { dismissBootScreens } from './utils/bootScreen';
+import { APP_BASENAME } from './appBase';
 import { DiagnosticsOverlay } from './components/DiagnosticsOverlay';
 import { DiagnosticsToggleButton } from './components/DiagnosticsToggleButton';
 import { NotificationStack } from './components/NotificationStack';
@@ -47,12 +50,9 @@ import { diagnosticsStore } from './stores/diagnosticsStore';
 import ChangeLanguage from './components/ChangeLanguage';
 import './App.css';
 
-const publicUrl = process.env.PUBLIC_URL || '';
-const basename = publicUrl
-  ? publicUrl.endsWith('/')
-    ? publicUrl.slice(0, -1)
-    : publicUrl
-  : '/';
+// R1 (ADR 0040): the editor SPA mounts under /app (the marketing landing owns
+// the site root). APP_BASENAME = `${PUBLIC_URL}/app`.
+const basename = APP_BASENAME;
 
 const EXPORTER_TAG = `axoview-app@${process.env.REACT_APP_VERSION ?? 'dev'}`;
 
@@ -95,6 +95,10 @@ function App() {
         <Route path="/" element={<EditorPage />} />
         <Route path="/display/p/:shareUuid" element={<EditorPage />} />
         <Route path="/display/:readonlyDiagramId" element={<EditorPage />} />
+        {/* Any unknown path (e.g. a mistyped /whatever.html served to the SPA by
+            the nginx/Pages fallback) renders a graceful 404 that clears the boot
+            splash — previously such paths matched no route and spun forever. */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
   );
@@ -232,17 +236,9 @@ function EditorShell() {
   useEffect(() => {
     if (!isInitialized || splashFadedRef.current) return;
     splashFadedRef.current = true;
-    // Two RAFs ≈ first paint has flushed → fade out the inline splash from
-    // public/index.html, then remove it from the DOM after the CSS transition.
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const splash = document.getElementById('ax-splash');
-        if (splash) {
-          splash.classList.add('ax-splash-hidden');
-          setTimeout(() => splash.remove(), 250);
-        }
-      });
-    });
+    // Fade out the boot splash now that the editor is live. Shared with the 404
+    // route (NotFound) so every render path clears it identically.
+    dismissBootScreens();
   }, [isInitialized]);
 
   useEffect(() => {

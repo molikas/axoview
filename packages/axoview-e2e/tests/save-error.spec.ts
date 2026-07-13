@@ -79,7 +79,7 @@ async function bootBlankDiagram(page: import('@playwright/test').Page) {
       /* localStorage may not be available pre-navigation */
     }
   }, ONBOARDING_DISMISS_FLAGS);
-  await page.goto('/');
+  await page.goto('/app');
   await page.evaluate((keys: string[]) => {
     for (const k of keys) localStorage.removeItem(k);
   }, LOCAL_STORAGE_KEYS);
@@ -137,8 +137,10 @@ baseTest.describe('Save error — ADR 0011 failure-of-intent (Save)', () => {
     await dialogs.dismissSaveError();
     await expect(dialogs.saveError()).toHaveCount(0);
 
-    // Editor intact — no navigation, canvas still mounted.
-    await expect(page).toHaveURL(/\/$/);
+    // Editor intact — no navigation, canvas still mounted. R1 (ADR 0040): the
+    // editor lives at /app, so "no navigation" means we're still on /app (not
+    // the marketing landing at /).
+    await expect(page).toHaveURL(/\/app\/?$/);
     await expect(byLibTestId(page, 'axoview-canvas')).toBeVisible();
   });
 
