@@ -1,16 +1,20 @@
 # Cloudflare Pages routing — R1 (ADR 0040): marketing landing at /, editor SPA at /app.
 #
-# Real files (/, /privacy, /terms, /site.css, /og-image.png, /static/*, …) are
-# served directly and take precedence over these rules, so only non-file paths
-# fall through here. `/app` resolves to app.html via Pages' clean-URL handling;
-# the explicit rules below cover client-side deep routes and legacy links.
+# Cloudflare Pages "clean URLs" are always on: it serves app.html at /app and
+# 308-redirects /app.html -> /app. So we must NOT rewrite to a *.html destination
+# here — a `/app -> /app.html 200` rewrite collides with that clean-URL redirect
+# and loops forever (ERR_TOO_MANY_REDIRECTS). Real files (/, /privacy, /site.css,
+# /static/*, …) are served directly and take precedence over these rules.
 
-# Preserve legacy share links minted before R1: /display/… → /app/display/…
+# Preserve legacy share links minted before R1: /display/… -> /app/display/…
 /display/*   /app/display/:splat   301
 
-# Editor SPA shell for /app and any client-side route beneath it (hard refresh).
-/app         /app.html             200
-/app/*       /app.html             200
+# SPA deep-route fallback (hard refresh on /app/<client-route>, e.g. share links).
+# Rewrite to the CLEAN /app (Pages serves app.html there natively) — never
+# /app.html, which would clean-URL-redirect back to /app and loop. 200 = rewrite,
+# so the deep path stays in the address bar for React Router to read. The bare
+# /app needs no rule: Pages serves app.html at /app via clean URLs.
+/app/*       /app                  200
 
 # Anything else that is not a real file is a genuine 404 (not the landing).
 /*           /404.html             404
