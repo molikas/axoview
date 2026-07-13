@@ -31,6 +31,7 @@
     "build": "rsbuild build",
     "preview": "rsbuild preview",
     "preview:r1": "node scripts/preview-r1.mjs",
+    "og:image": "node scripts/generate-og-image.mjs",
     "clean": "rm -rf build",
     "lint": "tsc --noEmit",
     "test": "npx --no-install jest"

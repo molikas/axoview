@@ -13,7 +13,8 @@
     "@testing-library/user-event",
     "conventional-changelog-conventionalcommits",
     "hono",
-    "@jest/globals"
+    "@jest/globals",
+    "playwright"
   ],
   "rules": {
     "duplicates": "off"
