@@ -137,8 +137,10 @@ baseTest.describe('Save error — ADR 0011 failure-of-intent (Save)', () => {
     await dialogs.dismissSaveError();
     await expect(dialogs.saveError()).toHaveCount(0);
 
-    // Editor intact — no navigation, canvas still mounted.
-    await expect(page).toHaveURL(/\/$/);
+    // Editor intact — no navigation, canvas still mounted. R1 (ADR 0040): the
+    // editor lives at /app, so "no navigation" means we're still on /app (not
+    // the marketing landing at /).
+    await expect(page).toHaveURL(/\/app\/?$/);
     await expect(byLibTestId(page, 'axoview-canvas')).toBeVisible();
   });
 

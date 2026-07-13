@@ -1,5 +1,6 @@
 /**
- * Base app fixture. Loads `/`, waits for either the EmptyStateScreen or the
+ * Base app fixture. Loads `/app` (the editor SPA — R1/ADR 0040), waits for
+ * either the EmptyStateScreen or the
  * canvas to mount (covers both first-run and resumed-diagram boots), and
  * dismisses any onboarding/import tooltip overlays.
  *
@@ -69,7 +70,7 @@ export const appTest = base.extend<{ app: AppPage }>({
  * across runs because `LOCAL_STORAGE_KEYS` is cleared post-navigation and
  * the empty-state Create button is clicked unconditionally.
  *
- * The two-step navigate(`/`) → clearStorage → reload sequence is necessary
+ * The two-step navigate(`/app`) → clearStorage → reload sequence is necessary
  * because clearing localStorage requires a navigation to the origin first
  * (Playwright cannot evaluate against `about:blank`).
  */
