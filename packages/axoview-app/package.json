@@ -30,6 +30,7 @@
     "start": "rsbuild dev",
     "build": "rsbuild build",
     "preview": "rsbuild preview",
+    "preview:r1": "node scripts/preview-r1.mjs",
     "clean": "rm -rf build",
     "lint": "tsc --noEmit",
     "test": "npx --no-install jest"

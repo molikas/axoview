@@ -53,7 +53,7 @@ async function waitForAppReady(page: Page) {
 
 export const appTest = base.extend<{ app: AppPage }>({
   app: async ({ page }, use) => {
-    await page.goto('/');
+    await page.goto('/app');
     await waitForAppReady(page);
     await waitForDebugBridge(page);
     const app = new AppPage(page);
@@ -82,7 +82,7 @@ export const canvasReadyTest = base.extend<{ app: AppPage }>({
         /* localStorage may not be available pre-navigation */
       }
     }, ONBOARDING_DISMISS_FLAGS);
-    await page.goto('/');
+    await page.goto('/app');
     await page.evaluate((keys: string[]) => {
       for (const k of keys) localStorage.removeItem(k);
     }, LOCAL_STORAGE_KEYS);

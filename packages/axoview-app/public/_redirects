@@ -1,0 +1,16 @@
+# Cloudflare Pages routing — R1 (ADR 0040): marketing landing at /, editor SPA at /app.
+#
+# Real files (/, /privacy, /terms, /site.css, /og-image.png, /static/*, …) are
+# served directly and take precedence over these rules, so only non-file paths
+# fall through here. `/app` resolves to app.html via Pages' clean-URL handling;
+# the explicit rules below cover client-side deep routes and legacy links.
+
+# Preserve legacy share links minted before R1: /display/… → /app/display/…
+/display/*   /app/display/:splat   301
+
+# Editor SPA shell for /app and any client-side route beneath it (hard refresh).
+/app         /app.html             200
+/app/*       /app.html             200
+
+# Anything else that is not a real file is a genuine 404 (not the landing).
+/*           /404.html             404

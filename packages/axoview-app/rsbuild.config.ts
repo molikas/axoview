@@ -12,6 +12,17 @@ const rootNodeModules = path.resolve(__dirname, '../../node_modules');
 
 export default defineConfig({
     plugins: [pluginReact()],
+    server: {
+        // R1 (ADR 0040): in `npm run dev`, serve the editor shell (app.html) for
+        // /app and any client-side route beneath it, mirroring the Cloudflare
+        // _redirects / nginx rules. The root `/` serves public/index.html (the
+        // landing). The canonical R1 routing test is still the production build
+        // + scripts/preview-r1.mjs (clean URLs + _redirects can't be fully
+        // reproduced by the dev server).
+        historyApiFallback: {
+            rewrites: [{ from: /^\/app(?:\/.*)?$/, to: '/app.html' }],
+        },
+    },
     resolve: {
         alias: {
             // Force React to resolve from root node_modules
@@ -20,12 +31,22 @@ export default defineConfig({
         },
     },
     html: {
-        template: './public/index.html',
+        // R1 (ADR 0040): the editor SPA lives under /app, so its shell is emitted
+        // as `app.html` (via the `app` entry below) and served at /app. The root
+        // `index.html` is the static marketing landing (public/index.html), NOT
+        // this template. Assets stay at ${assetPrefix}static — see basename note
+        // in App.tsx (router basename is /app, decoupled from assetPrefix).
+        template: './app-shell.html',
         templateParameters: {
             assetPrefix: assetPrefix,
         },
     },
     source: {
+        // Name the entry `app` so the generated HTML is `app.html` (served at
+        // /app) rather than colliding with the landing at build/index.html.
+        entry: {
+            app: './src/index.tsx',
+        },
         // Define global constants that will be replaced at build time
         define: {
             'process.env.PUBLIC_URL': JSON.stringify(publicUrl),

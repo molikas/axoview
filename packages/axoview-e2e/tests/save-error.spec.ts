@@ -79,7 +79,7 @@ async function bootBlankDiagram(page: import('@playwright/test').Page) {
       /* localStorage may not be available pre-navigation */
     }
   }, ONBOARDING_DISMISS_FLAGS);
-  await page.goto('/');
+  await page.goto('/app');
   await page.evaluate((keys: string[]) => {
     for (const k of keys) localStorage.removeItem(k);
   }, LOCAL_STORAGE_KEYS);

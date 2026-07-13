@@ -159,17 +159,28 @@ export function AppToolbar() {
         gap: 0
       }}
     >
-      {/* LEFT: subtle brand mark (ADR 0005 amendment 2026-05-19 — logo + muted wordmark only) */}
+      {/* LEFT: subtle brand mark (ADR 0005 amendment 2026-05-19 — logo + muted
+          wordmark only). R1 (ADR 0040): links to the marketing landing at the
+          site root (`${PUBLIC_URL}/`), the "home" affordance. Full navigation
+          (not router), so it leaves the editor — the beforeunload guard still
+          warns on unsaved work. */}
       <Box
+        component="a"
+        href={`${(process.env.PUBLIC_URL || '').replace(/\/$/, '')}/`}
         className="toolbar-left"
-        aria-label="Axoview"
+        aria-label="Axoview — home"
+        title="Axoview home"
         sx={{
           display: 'flex',
           alignItems: 'center',
           gap: 0.75,
           flexShrink: 0,
           userSelect: 'none',
-          pr: 1
+          pr: 1,
+          textDecoration: 'none',
+          color: 'inherit',
+          cursor: 'pointer',
+          '&:hover': { opacity: 0.82 }
         }}
       >
         <Box
