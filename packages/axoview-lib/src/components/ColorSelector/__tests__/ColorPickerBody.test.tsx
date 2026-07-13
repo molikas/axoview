@@ -67,6 +67,13 @@ describe('ColorPickerBody', () => {
     );
   });
 
+  it('renders a checkmark inside the active swatch only (ADR 0039 Slides parity)', () => {
+    renderBody({ value: '#4a86e8' });
+    // The selected swatch carries the check icon; others do not.
+    expect(screen.getByLabelText('#4a86e8').querySelector('svg')).toBeInTheDocument();
+    expect(screen.getByLabelText('#ff0000').querySelector('svg')).toBeNull();
+  });
+
   it('is grid-first: the custom input is hidden until "Custom" is clicked', () => {
     // Even a bespoke (non-palette) value lands on the grid, not the custom input.
     renderBody({ value: '#123abc' });
