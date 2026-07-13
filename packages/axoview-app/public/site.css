@@ -78,6 +78,17 @@ a.brand .accent { color: var(--accent); }
 
 /* ---- Prose (legal / long-form pages) ------------------------------------- */
 .prose { max-width: 780px; margin: 0 auto; padding: 56px 24px 88px; }
+
+/* Context-aware back link at the top of the legal pages. Its destination +
+   label are set by /legal-nav.js from the referrer (editor / landing / home);
+   the markup default (href="/", "Back") is the no-JS fallback. */
+.back-link {
+  display: inline-flex; align-items: center; gap: 7px;
+  color: var(--muted); font-size: 14px; font-weight: 600;
+  margin-bottom: 24px;
+}
+.back-link:hover { color: var(--accent); text-decoration: none; }
+.back-link .arrow { font-size: 17px; line-height: 1; }
 .prose h1 {
   font-size: clamp(30px, 4vw, 38px); line-height: 1.2; letter-spacing: -0.01em;
   color: var(--ink); margin-bottom: 6px;
@@ -109,7 +120,9 @@ a.brand .accent { color: var(--accent); }
 
 /* ---- Responsive ----------------------------------------------------------- */
 @media (max-width: 560px) {
-  /* Static pages carry no JS → collapse secondary nav rather than a hamburger.
-     GitHub stays reachable from the footer; on the landing, Features is a scroll away. */
+  /* No hamburger — collapse the secondary nav rather than script a menu (the
+     landing/404 carry no JS; the legal pages carry only the tiny back-link
+     helper). GitHub stays reachable from the footer; on the landing, Features
+     is a scroll away. */
   .nav-links a.nav-secondary { display: none; }
 }

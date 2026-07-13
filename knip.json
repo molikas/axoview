@@ -29,7 +29,8 @@
         "**/*.test.{ts,tsx}",
         "jest.setup.js",
         "jest.*.js",
-        "scripts/*.js"
+        "scripts/*.js",
+        "public/*.js"
       ]
     },
     "packages/axoview-lib": {
