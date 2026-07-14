@@ -100,10 +100,10 @@
             "manage": {
                 "title": "Manage access",
                 "titleNamed": "Share \"{{name}}\"",
-                "previewLink": "Preview link",
                 "copyLink": "Copy link",
-                "linkCopied": "Copied",
+                "copiedToast": "Preview link copied to clipboard",
                 "emailInvite": "View this diagram in Axoview: {{url}}",
+                "done": "Done",
                 "generalAccess": "General access",
                 "restricted": "Restricted — only people with access",
                 "anyone": "Anyone with the link can view",

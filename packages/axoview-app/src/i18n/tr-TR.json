@@ -95,10 +95,10 @@
             "manage": {
                 "title": "Erişimi yönet",
                 "titleNamed": "\"{{name}}\" paylaş",
-                "previewLink": "Bağlantıyı önizle",
                 "copyLink": "Bağlantıyı kopyala",
-                "linkCopied": "Kopyalandı",
+                "copiedToast": "Önizleme bağlantısı panoya kopyalandı",
                 "emailInvite": "Bu diyagramı Axoview'de görüntüle: {{url}}",
+                "done": "Tamam",
                 "generalAccess": "Genel erişim",
                 "restricted": "Kısıtlı — yalnızca erişimi olan kişiler",
                 "anyone": "Bağlantıya sahip herkes görüntüleyebilir",

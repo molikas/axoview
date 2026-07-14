@@ -95,10 +95,10 @@
             "manage": {
                 "title": "管理访问权限",
                 "titleNamed": "分享“{{name}}”",
-                "previewLink": "预览链接",
                 "copyLink": "复制链接",
-                "linkCopied": "已复制",
+                "copiedToast": "预览链接已复制到剪贴板",
                 "emailInvite": "在 Axoview 中查看此图表：{{url}}",
+                "done": "完成",
                 "generalAccess": "常规访问权限",
                 "restricted": "受限——仅限拥有访问权限的人",
                 "anyone": "拥有链接的任何人都可以查看",

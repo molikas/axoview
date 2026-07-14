@@ -46,13 +46,16 @@ function renderOpen() {
   );
 }
 
-test('lists other people after loading; the owner (you) is not shown as a removable row', async () => {
+test('shows the owner (you) as a non-removable row and grantees as removable rows', async () => {
   listMock.mockResolvedValueOnce([OWNER, JANE]);
   renderOpen();
 
   expect(await screen.findByText('Jane')).toBeInTheDocument();
-  // The owner is "you" — excluded from the removable list.
-  expect(screen.queryByText('Me')).toBeNull();
+  // The owner "you" row IS shown now (populated collaborative space), labelled
+  // "Owner" and without a remove control.
+  expect(screen.getByText('Me')).toBeInTheDocument();
+  expect(screen.getByText('Owner')).toBeInTheDocument();
+  // Only the non-owner grantee is removable.
   expect(screen.queryAllByLabelText('Remove access')).toHaveLength(1);
 });
 
@@ -76,7 +79,10 @@ test('adding a person calls addPersonPermission with the email, viewer role, and
   renderOpen();
   const user = userEvent.setup();
 
-  await screen.findByText('Only you have access so far.');
+  await screen.findByText('Add people');
+  // The role picker + Add button are hidden until an email is typed
+  // (progressive disclosure).
+  expect(screen.queryByRole('button', { name: 'Add' })).toBeNull();
   await user.type(screen.getByPlaceholderText('name@example.com'), 'jane@x.com');
   await user.click(screen.getByRole('button', { name: 'Add' }));
 
@@ -92,15 +98,17 @@ test('adding a person calls addPersonPermission with the email, viewer role, and
   );
 });
 
-test('copying the preview link flips the button to a copied state', async () => {
+test('Copy link writes the viewer preview URL to the clipboard', async () => {
   listMock.mockResolvedValueOnce([OWNER]);
   renderOpen();
   const user = userEvent.setup();
 
-  await screen.findByText('Only you have access so far.');
-  await user.click(screen.getByRole('button', { name: 'Copy link' }));
+  await screen.findByText('Add people');
+  await user.click(screen.getByRole('button', { name: /Copy link/ }));
 
-  expect(await screen.findByRole('button', { name: 'Copied' })).toBeInTheDocument();
+  await waitFor(async () =>
+    expect(await navigator.clipboard.readText()).toContain('display/drive/f1')
+  );
 });
 
 test('surfaces a load error inline', async () => {

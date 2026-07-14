@@ -95,10 +95,10 @@
             "manage": {
                 "title": "Gestisci accesso",
                 "titleNamed": "Condividi «{{name}}»",
-                "previewLink": "Anteprima link",
                 "copyLink": "Copia link",
-                "linkCopied": "Copiato",
+                "copiedToast": "Link di anteprima copiato negli appunti",
                 "emailInvite": "Visualizza questo diagramma in Axoview: {{url}}",
+                "done": "Fatto",
                 "generalAccess": "Accesso generale",
                 "restricted": "Limitato — solo le persone con accesso",
                 "anyone": "Chiunque abbia il link può visualizzare",

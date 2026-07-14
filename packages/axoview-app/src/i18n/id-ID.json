@@ -83,10 +83,10 @@
             "manage": {
                 "title": "Kelola akses",
                 "titleNamed": "Bagikan \"{{name}}\"",
-                "previewLink": "Pratinjau tautan",
                 "copyLink": "Salin tautan",
-                "linkCopied": "Tersalin",
+                "copiedToast": "Tautan pratinjau disalin ke papan klip",
                 "emailInvite": "Lihat diagram ini di Axoview: {{url}}",
+                "done": "Selesai",
                 "generalAccess": "Akses umum",
                 "restricted": "Terbatas — hanya orang dengan akses",
                 "anyone": "Siapa pun yang memiliki tautan dapat melihat",
