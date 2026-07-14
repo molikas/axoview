@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import { Coords } from 'src/types';
 import { useTheme, Box } from '@mui/material';
-import { getIsoProjectionCss } from 'src/utils';
 import { Svg } from 'src/components/Svg/Svg';
 import { TRANSFORM_ANCHOR_SIZE, TRANSFORM_CONTROLS_COLOR } from 'src/config';
-import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 
 interface Props {
   position: Coords;
@@ -41,18 +39,16 @@ export const TransformAnchor = ({
 }: Props) => {
   const [isHovered, setIsHovered] = useState(false);
   const theme = useTheme();
-  const { strategy } = useCanvasMode();
 
   const w = isEdge ? EDGE_LENGTH : TRANSFORM_ANCHOR_SIZE;
   const h = isEdge ? EDGE_THICKNESS : TRANSFORM_ANCHOR_SIZE;
 
-  // Edge bars are screen-rotated to sit exactly along the (possibly sheared)
-  // edge; corner squares keep the existing iso-plane shear.
-  const boxTransform = isEdge
-    ? `rotate(${barAngleDeg ?? 0}deg)`
-    : strategy.projectionName === '2D'
-      ? undefined
-      : getIsoProjectionCss();
+  // ALL handles are screen-aligned for a consistent look (the Google/Figma
+  // convention — resize handles don't distort with the diagram's perspective):
+  // corners are upright squares; edge bars rotate only to lie along the on-screen
+  // edge. Previously corners kept the iso-plane shear (getIsoProjectionCss) while
+  // edges were screen-rotated, so in iso some handles skewed and read as "off".
+  const boxTransform = isEdge ? `rotate(${barAngleDeg ?? 0}deg)` : undefined;
 
   return (
     <Box
