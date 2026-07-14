@@ -52,6 +52,18 @@ const RING_RADIUS = 5;
 const ROTATE_HANDLE_SIZE = 32;
 const ROTATE_HANDLE_OFFSET_PX = 40;
 
+// Standard bidirectional resize cursor nearest to a screen-space angle (radians,
+// y-down). Bucketed mod 180° into the four resize cursors. Reads actual on-screen
+// geometry, so it is correct in BOTH iso and 2D: pass the edge NORMAL for edge
+// handles and the centre→corner diagonal for corner handles.
+const resizeCursorForAngle = (radians: number): string => {
+  const deg = ((((radians * 180) / Math.PI) % 180) + 180) % 180;
+  if (deg < 22.5 || deg >= 157.5) return 'ew-resize';
+  if (deg < 67.5) return 'nwse-resize';
+  if (deg < 112.5) return 'ns-resize';
+  return 'nesw-resize';
+};
+
 export const TransformControls = ({
   from,
   to,
@@ -95,10 +107,24 @@ export const TransformControls = ({
   const anchors = useMemo(() => {
     if (!onAnchorMouseDown) return [];
 
+    // Screen-space centre of the selection — the reference direction for each
+    // corner handle's resize cursor.
+    const pts = Object.values(cornerScreen);
+    const center = pts.reduce(
+      (acc, p) => ({ x: acc.x + p.x / pts.length, y: acc.y + p.y / pts.length }),
+      { x: 0, y: 0 }
+    );
+
     const cornerPositions = Object.entries(cornerScreen).map(
       ([key, position]) => ({
         key,
         position,
+        isEdge: false,
+        barAngleDeg: undefined as number | undefined,
+        // Corner drag resizes along the diagonal from the centre outward.
+        cursor: resizeCursorForAngle(
+          Math.atan2(position.y - center.y, position.x - center.x)
+        ),
         onMouseDown: () => {
           onAnchorMouseDown(key as AnchorPosition);
         }
@@ -118,13 +144,23 @@ export const TransformControls = ({
       ['BOTTOM', 'BOTTOM_LEFT', 'BOTTOM_RIGHT'],
       ['LEFT', 'TOP_LEFT', 'BOTTOM_LEFT']
     ];
-    const edgePositions = edgeCornerPairs.map(([key, a, b]) => ({
-      key,
-      position: midpoint(cornerScreen[a], cornerScreen[b]),
-      onMouseDown: () => {
-        onAnchorMouseDown(key);
-      }
-    }));
+    const edgePositions = edgeCornerPairs.map(([key, a, b]) => {
+      const ca = cornerScreen[a];
+      const cb = cornerScreen[b];
+      // Angle of the visible edge from its two corners — tracks the sheared iso
+      // edge exactly. The bar lies along it; the cursor points across it.
+      const edgeAngle = Math.atan2(cb.y - ca.y, cb.x - ca.x);
+      return {
+        key,
+        position: midpoint(ca, cb),
+        isEdge: true,
+        barAngleDeg: (edgeAngle * 180) / Math.PI,
+        cursor: resizeCursorForAngle(edgeAngle + Math.PI / 2),
+        onMouseDown: () => {
+          onAnchorMouseDown(key);
+        }
+      };
+    });
 
     const all = [...cornerPositions, ...edgePositions];
     return anchorPositions
@@ -233,15 +269,19 @@ export const TransformControls = ({
         )}
       </Svg>
 
-      {!subtle && anchors.map(({ key, position, onMouseDown }) => {
-        return (
-          <TransformAnchor
-            key={key}
-            position={position}
-            onActivate={onMouseDown}
-          />
-        );
-      })}
+      {!subtle &&
+        anchors.map(({ key, position, onMouseDown, cursor, isEdge, barAngleDeg }) => {
+          return (
+            <TransformAnchor
+              key={key}
+              position={position}
+              onActivate={onMouseDown}
+              cursor={cursor}
+              isEdge={isEdge}
+              barAngleDeg={barAngleDeg}
+            />
+          );
+        })}
 
       {!subtle && onRotate && rotatePosition && (
         <Tooltip title={rotateTooltip ?? ''} placement="top">
