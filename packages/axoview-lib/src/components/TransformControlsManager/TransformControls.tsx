@@ -31,14 +31,24 @@ interface Props {
   onRotate?: () => void;
   rotateTooltip?: string;
   /**
-   * A3 hover affordance: render a single faint outline (no dashed ring, no
-   * glow, no resize anchors) — visually distinct from, and lighter than, the
-   * selection ring. Used by HoverOutline for the hovered-but-unselected item.
+   * A3 hover affordance: render a single light accent outline with a faint
+   * white contrast under-stroke (no glow, no resize anchors) — visually
+   * distinct from, and lighter than, the selection ring. Used by HoverOutline
+   * for the hovered-but-unselected item.
    */
   subtle?: boolean;
 }
 
-const strokeWidth = 2;
+// Selection / hover chrome geometry (screen px, pre-shear). The ring frames the
+// element from just OUTSIDE its own border so it never hides behind the
+// element's own stroke, and stacks a white under-ring so the accent stays
+// legible on any fill (e.g. a blue rectangle) — the fix for the owner's #1
+// complaint, "I can't tell what's selected" (cluster A).
+const SELECT_RING_WIDTH = 2.5;
+const SELECT_OUTSET = 3;
+const HOVER_RING_WIDTH = 1.75;
+const HOVER_OUTSET = 2;
+const RING_RADIUS = 5;
 const ROTATE_HANDLE_SIZE = 32;
 const ROTATE_HANDLE_OFFSET_PX = 40;
 
@@ -138,48 +148,88 @@ export const TransformControls = ({
       <Svg
         style={{
           ...css,
-          pointerEvents: 'none'
+          pointerEvents: 'none',
+          // Selection/hover chrome frames the element from just OUTSIDE its own
+          // border; the default svg viewport (== element footprint) would clip
+          // the outset ring + glow, so let them escape.
+          overflow: 'visible'
         }}
       >
         {subtle ? (
-          // A3 hover: one faint solid rounded outline — lighter than the
-          // selection ring, no glow/dash/anchors.
-          <g transform={`translate(${strokeWidth}, ${strokeWidth})`}>
+          // A3 hover: a light accent outline sitting just outside the element
+          // edge, over a faint white under-stroke so it stays legible on a
+          // coloured fill. Thinner/dimmer than the selection ring (no glow, no
+          // anchors) — reads as "a click will grab this".
+          <>
             <rect
-              width={pxSize.width - strokeWidth * 2}
-              height={pxSize.height - strokeWidth * 2}
-              rx={strokeWidth * 2}
+              x={-HOVER_OUTSET}
+              y={-HOVER_OUTSET}
+              width={pxSize.width + HOVER_OUTSET * 2}
+              height={pxSize.height + HOVER_OUTSET * 2}
+              rx={RING_RADIUS}
               fill="none"
-              stroke={TRANSFORM_CONTROLS_COLOR}
-              strokeWidth={strokeWidth}
-              strokeOpacity={0.45}
+              stroke="#ffffff"
+              strokeWidth={HOVER_RING_WIDTH + 2}
+              strokeOpacity={0.6}
               strokeLinejoin="round"
             />
-          </g>
+            <rect
+              x={-HOVER_OUTSET}
+              y={-HOVER_OUTSET}
+              width={pxSize.width + HOVER_OUTSET * 2}
+              height={pxSize.height + HOVER_OUTSET * 2}
+              rx={RING_RADIUS}
+              fill="none"
+              stroke={TRANSFORM_CONTROLS_COLOR}
+              strokeWidth={HOVER_RING_WIDTH}
+              strokeOpacity={0.7}
+              strokeLinejoin="round"
+            />
+          </>
         ) : (
-          <g transform={`translate(${strokeWidth}, ${strokeWidth})`}>
-            {/* S3/A1: soft accent glow under the ring so node selection reads
-                clearly (the bare 2px dashed box was too faint — owner #1/#9). */}
+          // Selection ring (owner cluster A — "I can't tell what's selected").
+          // Three stacked strokes just OUTSIDE the element edge: a soft accent
+          // glow, a white contrast under-ring (so the accent survives on any
+          // fill/border — e.g. a blue rectangle with a red border), and a bold
+          // SOLID accent ring. Solid (was a faint dashed box) + outset + white
+          // halo = unmistakable on every element type.
+          <>
             <rect
-              width={pxSize.width - strokeWidth * 2}
-              height={pxSize.height - strokeWidth * 2}
-              rx={strokeWidth * 2}
+              x={-SELECT_OUTSET}
+              y={-SELECT_OUTSET}
+              width={pxSize.width + SELECT_OUTSET * 2}
+              height={pxSize.height + SELECT_OUTSET * 2}
+              rx={RING_RADIUS}
               fill="none"
               stroke={TRANSFORM_CONTROLS_COLOR}
-              strokeWidth={strokeWidth * 3}
-              strokeOpacity={0.25}
+              strokeWidth={SELECT_RING_WIDTH * 3}
+              strokeOpacity={0.22}
               strokeLinejoin="round"
             />
             <rect
-              width={pxSize.width - strokeWidth * 2}
-              height={pxSize.height - strokeWidth * 2}
+              x={-SELECT_OUTSET}
+              y={-SELECT_OUTSET}
+              width={pxSize.width + SELECT_OUTSET * 2}
+              height={pxSize.height + SELECT_OUTSET * 2}
+              rx={RING_RADIUS}
+              fill="none"
+              stroke="#ffffff"
+              strokeWidth={SELECT_RING_WIDTH + 2}
+              strokeOpacity={0.9}
+              strokeLinejoin="round"
+            />
+            <rect
+              x={-SELECT_OUTSET}
+              y={-SELECT_OUTSET}
+              width={pxSize.width + SELECT_OUTSET * 2}
+              height={pxSize.height + SELECT_OUTSET * 2}
+              rx={RING_RADIUS}
               fill="none"
               stroke={TRANSFORM_CONTROLS_COLOR}
-              strokeDasharray={`${strokeWidth * 2} ${strokeWidth * 2}`}
-              strokeWidth={strokeWidth}
-              strokeLinecap="round"
+              strokeWidth={SELECT_RING_WIDTH}
+              strokeLinejoin="round"
             />
-          </g>
+          </>
         )}
       </Svg>
 

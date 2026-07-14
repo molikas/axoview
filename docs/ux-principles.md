@@ -257,6 +257,8 @@ The file tree's selection has different semantics — it's "which diagram is ope
 - Canvas/layer selection: `bgcolor: 'primary.main'` (saturated blue)
 - File tree selection: `bgcolor: 'action.selected'` (subtle grey)
 
+**On-canvas selection/hover chrome** (the outline drawn *on the diagram*, not a list row) is a separate, ranked language — rest < hover < selected must be visibly distinct. The rule (ADR 0006 §9): draw the chrome *just outside* the element's own border (never coincident with it), in the accent `TRANSFORM_CONTROLS_COLOR`, over a **white contrast under-stroke** so it survives on any fill — a selected element gets a bold solid ring + glow, a hovered one a lighter outset outline. Every item type (node / rectangle / text box / connector / label) speaks this one language (§5 parity); don't reintroduce a bare same-colour outline at the element footprint (it disappears on coloured shapes).
+
 ### 4.3 Locked / hidden layer items are non-interactive — across every selection path
 
 When a layer is locked or hidden, its items must be **non-selectable, non-draggable, non-context-menu-able** from the canvas — regardless of which gesture the user employs. Locked = visible-but-protected; hidden = invisible. Both states are absolute from the canvas perspective. The Layers panel rows remain the user's escape hatch — they always let the user select an item back so they can un-lock or un-hide.
