@@ -1,32 +1,33 @@
 /**
- * drive-display.spec.ts — ADR 0042 §2 (Drive-file read-only display route).
+ * drive-display.spec.ts — ADR 0042 §2 + §8 (Drive-file read-only display route).
  *
  * Mirrors the readonly-share coverage in share.spec.ts (J13/J14) +
- * share-error.spec.ts for the new `/app/display/drive/:driveFileId` route:
+ * share-error.spec.ts for the `/app/display/drive/:driveFileId` route:
  *
- *   1. Key-read rung renders read-only — /api/config carries googleApiKey,
- *      the mocked googleapis media read returns a diagram blob, the lib
- *      renders in EXPLORABLE_READONLY (View-Only chip, no editor chrome —
- *      the J14 assertion set).
- *   2. Gate screen, not LocalModeShareError — with NO googleApiKey the
- *      key rung is skipped (ADR 0042 §5 graceful degradation) and a
+ *   1. Public-proxy rung renders read-only — /api/config carries
+ *      `drivePublicPreview:true`, our server proxy `GET /api/public/drive/:id`
+ *      returns a diagram blob, and the lib renders in EXPLORABLE_READONLY
+ *      (View-Only chip, no editor chrome — the J14 assertion set). Since the
+ *      read-proxy (ADR 0042 §8 / ADR 0043 #3) the API key lives server-side, so
+ *      rung 1 hits OUR origin, never googleapis, and carries no key/auth.
+ *   2. Gate screen, not LocalModeShareError — with `drivePublicPreview:false`
+ *      the proxy rung is skipped (ADR 0042 §5 graceful degradation) and a
  *      signed-out visitor lands on DriveDisplayGate's needs-signin state.
  *      The route must never trip the share-uuid-scoped
  *      LocalModeShareErrorDialog (ADR 0042 locked decision 7).
- *   3. resourceKey propagation — `?resourceKey=<rk>` on OUR preview URL
- *      rides the googleapis read as `X-Goog-Drive-Resource-Keys:
- *      <fileId>/<rk>` (ADR 0042 §2 rung 1).
+ *   3. resourceKey propagation — `?resourceKey=<rk>` on OUR preview URL rides
+ *      the PROXY request as a `?resourceKey=` query param (ADR 0042 §8; the
+ *      worker forwards it to Drive as the resource-key header server-side).
  *
  * Network mocks (page.route, same pattern as the sister specs):
- *   - GET /api/config                              → googleApiKey per spec.
- *     Trap: fetchRuntimeConfig backfills a NULL key from the build-time
- *     PUBLIC_GOOGLE_API_KEY, so a dev server started with that var set can
- *     fire the key rung even when the config mock says null — spec 2 pins
- *     the gate outcome, which is identical either way.
- *   - GET https://www.googleapis.com/drive/v3/files/** → 200 diagram blob
- *     or 404. Cross-origin, so the fulfill carries CORS headers and the
- *     handler answers the OPTIONS preflight the custom resource-key
- *     header triggers.
+ *   - GET /api/config              → `drivePublicPreview` per spec. Only the
+ *     boolean gates rung 1 now (the raw key is never sent to the browser), so
+ *     the old build-time-PUBLIC_GOOGLE_API_KEY backfill caveat no longer
+ *     applies — the config mock alone is authoritative.
+ *   - GET /api/public/drive/**     → 200 diagram blob or 404 (same-origin, no
+ *     CORS dance).
+ *   - GET https://www.googleapis.com/drive/v3/files/** → the token rung (rung
+ *     2), only reached by a signed-in owner; mocked 404 as a safety net.
  *
  * Anchors consumed (stamped by the ADR 0042 core change):
  *   - drive-display-gate            (DriveDisplayGate overlay Box)
@@ -98,7 +99,7 @@ async function installConfigMock(
         serverStorage: false,
         authMode: 'none',
         googleClientId: null,
-        googleApiKey: null,
+        drivePublicPreview: false,
         googleProjectNumber: null,
         ...overrides
       })
@@ -106,42 +107,56 @@ async function installConfigMock(
   });
 }
 
-/** CORS headers for the cross-origin googleapis fulfill. The resource-key
- *  header is non-simple, so Chromium preflights — the handler answers the
- *  OPTIONS itself (route.fulfill does not add CORS headers for us). */
+interface RequestLog {
+  /** Full request URLs, in order. */
+  urls: string[];
+  /** Per request: whether an Authorization header rode it. */
+  hadAuthorization: boolean[];
+}
+
+/**
+ * Mocks OUR server read-proxy (`GET /api/public/drive/:id`) — rung 1 since the
+ * read-proxy change. Records each request so specs can assert the shape after
+ * the render settles (an expect() inside the handler would pass vacuously when
+ * the route never fires).
+ */
+async function installDriveProxyMock(
+  page: import('@playwright/test').Page,
+  response: { status: number; body: unknown }
+): Promise<RequestLog> {
+  const log: RequestLog = { urls: [], hadAuthorization: [] };
+  await page.route('**/api/public/drive/**', async (route) => {
+    const req = route.request();
+    log.urls.push(req.url());
+    log.hadAuthorization.push('authorization' in req.headers());
+    await route.fulfill({
+      status: response.status,
+      contentType: 'application/json',
+      body: JSON.stringify(response.body)
+    });
+  });
+  return log;
+}
+
+/** CORS headers for the cross-origin googleapis fulfill (rung 2, token read). */
 const GOOGLEAPIS_CORS_HEADERS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET, OPTIONS',
   'access-control-allow-headers': 'authorization, x-goog-drive-resource-keys'
 };
 
-interface DriveFilesMockLog {
-  /** One entry per media GET: the X-Goog-Drive-Resource-Keys value ('' if absent) */
-  resourceKeyHeaders: string[];
-  /** Full request URLs of the media GETs (key= rides the query string). */
-  urls: string[];
-  /** Per media GET: whether an Authorization header rode it (token rung). */
-  hadAuthorization: boolean[];
-}
-
-/**
- * Mocks the Drive v3 media read (`files/{id}?alt=media…`) and records what
- * each GET carried, so specs can assert the request shape after the render
- * settles — an expect() inside the handler would pass vacuously when the
- * route never fires.
- */
+/** Mocks the Drive v3 media read (rung 2 / token read) as a safety net. */
 async function installDriveFilesMock(
   page: import('@playwright/test').Page,
   response: { status: number; body: unknown }
-): Promise<DriveFilesMockLog> {
-  const log: DriveFilesMockLog = { resourceKeyHeaders: [], urls: [], hadAuthorization: [] };
+): Promise<RequestLog> {
+  const log: RequestLog = { urls: [], hadAuthorization: [] };
   await page.route('https://www.googleapis.com/drive/v3/files/**', async (route) => {
     const req = route.request();
     if (req.method() === 'OPTIONS') {
       await route.fulfill({ status: 204, headers: GOOGLEAPIS_CORS_HEADERS });
       return;
     }
-    log.resourceKeyHeaders.push(req.headers()['x-goog-drive-resource-keys'] ?? '');
     log.urls.push(req.url());
     log.hadAuthorization.push('authorization' in req.headers());
     await route.fulfill({
@@ -154,14 +169,14 @@ async function installDriveFilesMock(
   return log;
 }
 
-baseTest.describe('Drive display route — ADR 0042 §2 (/app/display/drive/:driveFileId)', () => {
+baseTest.describe('Drive display route — ADR 0042 §2/§8 (/app/display/drive/:driveFileId)', () => {
   baseTest.beforeEach(async ({ page }) => {
     await pinOnboardingDismissed(page);
   });
 
-  baseTest('key-read rung renders the diagram read-only (canvas + View-Only chip, no editor chrome)', async ({ page }) => {
-    await installConfigMock(page, { googleApiKey: 'test-key', googleProjectNumber: '123' });
-    const log = await installDriveFilesMock(page, { status: 200, body: buildDriveBlob() });
+  baseTest('public-proxy rung renders the diagram read-only (canvas + View-Only chip, no editor chrome)', async ({ page }) => {
+    await installConfigMock(page, { drivePublicPreview: true });
+    const log = await installDriveProxyMock(page, { status: 200, body: buildDriveBlob() });
 
     await page.goto(`/app/display/drive/${DRIVE_FILE_ID}`);
 
@@ -189,22 +204,24 @@ baseTest.describe('Drive display route — ADR 0042 §2 (/app/display/drive/:dri
     // Loaded state: the gate renders null, not an overlay.
     await expect(byAxoviewId(page, 'drive-display-gate')).toHaveCount(0);
 
-    // The read was the anonymous KEY rung (no sign-in in this context) —
-    // the configured key rides the query string per drivePublicRead.
+    // The read went through OUR server proxy — no key in the browser, no auth.
     expect(log.urls.length).toBeGreaterThan(0);
-    expect(log.urls[0]).toContain('alt=media');
-    expect(log.urls[0]).toContain('key=test-key');
+    expect(log.urls[0]).toContain(`/api/public/drive/${DRIVE_FILE_ID}`);
+    expect(log.urls[0]).not.toContain('key=');
+    expect(log.hadAuthorization.every((had) => !had)).toBe(true);
   });
 
-  baseTest('no API key + unreadable file lands the sign-in gate, never LocalModeShareError', async ({ page }) => {
-    // googleApiKey stays null in the config ⇒ rung 1 is normally skipped
-    // (ADR 0042 §5) and, signed out, rung 2 short-circuits on the null
-    // token. Caveat: fetchRuntimeConfig backfills a null key from the
-    // build-time PUBLIC_GOOGLE_API_KEY, so a dev server started with that
-    // var set legitimately fires rung 1 — the mocked 404 then fails it and
-    // the ladder still lands on the same needs-signin gate either way.
+  baseTest('drivePublicPreview:false + unreadable file lands the sign-in gate, never LocalModeShareError', async ({ page }) => {
+    // drivePublicPreview stays false ⇒ the proxy rung is skipped (ADR 0042 §5)
+    // and, signed out, rung 2 short-circuits on the null token → needs-signin.
+    // The boolean is the sole gate now, so the mock config is authoritative
+    // (no build-time-key backfill can fire rung 1).
     await installConfigMock(page);
-    const log = await installDriveFilesMock(page, {
+    await installDriveProxyMock(page, {
+      status: 404,
+      body: { error: 'not-public' }
+    });
+    const tokenLog = await installDriveFilesMock(page, {
       status: 404,
       body: { error: { code: 404, message: 'File not found', errors: [] } }
     });
@@ -223,16 +240,13 @@ baseTest.describe('Drive display route — ADR 0042 §2 (/app/display/drive/:dri
     const dialogs = new DialogsPOM(page);
     await expect(dialogs.localModeShareError()).toHaveCount(0);
 
-    // Signed out, the token rung can never fire: any media GET that did
-    // happen (build-time-key rung, see the caveat above) must have been
-    // anonymous. (The exact null-key skip ordering is unit-tested in
-    // drivePublicRead; e2e pins the user-visible gate contract.)
-    expect(log.hadAuthorization.every((had) => !had)).toBe(true);
+    // Signed out, the token rung can never fire — no authenticated read happened.
+    expect(tokenLog.hadAuthorization.every((had) => !had)).toBe(true);
   });
 
-  baseTest('?resourceKey=<rk> rides the media read as X-Goog-Drive-Resource-Keys', async ({ page }) => {
-    await installConfigMock(page, { googleApiKey: 'test-key', googleProjectNumber: '123' });
-    const log = await installDriveFilesMock(page, { status: 200, body: buildDriveBlob() });
+  baseTest('?resourceKey=<rk> rides the proxy request as a query param', async ({ page }) => {
+    await installConfigMock(page, { drivePublicPreview: true });
+    const log = await installDriveProxyMock(page, { status: 200, body: buildDriveBlob() });
 
     await page.goto(`/app/display/drive/${DRIVE_FILE_ID}?resourceKey=${RESOURCE_KEY}`);
 
@@ -249,9 +263,9 @@ baseTest.describe('Drive display route — ADR 0042 §2 (/app/display/drive/:dri
       )
       .toBe(DIAGRAM_TITLE);
 
-    // drivePublicRead formats the header as `<fileId>/<resourceKey>` and
-    // sends it ONLY when the link carried a resourceKey (ADR 0042 §2).
-    expect(log.resourceKeyHeaders.length).toBeGreaterThan(0);
-    expect(log.resourceKeyHeaders[0]).toBe(`${DRIVE_FILE_ID}/${RESOURCE_KEY}`);
+    // drivePublicRead forwards the resourceKey on the proxy URL; the worker
+    // turns it into the Drive resource-key header server-side (ADR 0042 §8).
+    expect(log.urls.length).toBeGreaterThan(0);
+    expect(log.urls[0]).toContain(`resourceKey=${RESOURCE_KEY}`);
   });
 });
