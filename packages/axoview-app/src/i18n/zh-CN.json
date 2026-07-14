@@ -91,7 +91,25 @@
             "accessRestricted": "只有拥有访问权限的人才能查看",
             "accessUnknown": "正在检查谁有访问权限…",
             "manageAccess": "管理访问权限",
-            "accessError": "无法检查谁有访问权限。"
+            "accessError": "无法检查谁有访问权限。",
+            "manage": {
+                "title": "管理访问权限",
+                "titleNamed": "分享“{{name}}”",
+                "generalAccess": "常规访问权限",
+                "restricted": "受限——仅限拥有访问权限的人",
+                "anyone": "拥有链接的任何人都可以查看",
+                "peopleWithAccess": "拥有访问权限的人",
+                "onlyYou": "目前只有你拥有访问权限。",
+                "roleOwner": "所有者",
+                "roleViewer": "查看者",
+                "roleEditor": "编辑者",
+                "remove": "移除访问权限",
+                "addPeople": "添加人员",
+                "emailPlaceholder": "name@example.com",
+                "add": "添加",
+                "loadError": "无法加载谁有访问权限。",
+                "actionError": "无法保存该更改。"
+            }
         }
     },
     "dialog": {

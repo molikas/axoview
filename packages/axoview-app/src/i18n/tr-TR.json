@@ -91,7 +91,25 @@
             "accessRestricted": "Yalnızca erişimi olan kişiler görüntüleyebilir",
             "accessUnknown": "Kimlerin erişimi olduğu kontrol ediliyor…",
             "manageAccess": "Erişimi yönet",
-            "accessError": "Kimlerin erişimi olduğu kontrol edilemedi."
+            "accessError": "Kimlerin erişimi olduğu kontrol edilemedi.",
+            "manage": {
+                "title": "Erişimi yönet",
+                "titleNamed": "\"{{name}}\" paylaş",
+                "generalAccess": "Genel erişim",
+                "restricted": "Kısıtlı — yalnızca erişimi olan kişiler",
+                "anyone": "Bağlantıya sahip herkes görüntüleyebilir",
+                "peopleWithAccess": "Erişimi olan kişiler",
+                "onlyYou": "Şimdilik yalnızca sizin erişiminiz var.",
+                "roleOwner": "Sahip",
+                "roleViewer": "Görüntüleyen",
+                "roleEditor": "Düzenleyen",
+                "remove": "Erişimi kaldır",
+                "addPeople": "Kişi ekle",
+                "emailPlaceholder": "ad@ornek.com",
+                "add": "Ekle",
+                "loadError": "Kimlerin erişimi olduğu yüklenemedi.",
+                "actionError": "Bu değişiklik kaydedilemedi."
+            }
         }
     },
     "dialog": {

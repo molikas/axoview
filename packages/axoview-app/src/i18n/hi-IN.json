@@ -91,7 +91,25 @@
             "accessRestricted": "केवल पहुँच वाले लोग ही देख सकते हैं",
             "accessUnknown": "जाँचा जा रहा है कि किसके पास पहुँच है…",
             "manageAccess": "पहुँच प्रबंधित करें",
-            "accessError": "किसके पास पहुँच है, यह जाँचा नहीं जा सका।"
+            "accessError": "किसके पास पहुँच है, यह जाँचा नहीं जा सका।",
+            "manage": {
+                "title": "पहुँच प्रबंधित करें",
+                "titleNamed": "“{{name}}” साझा करें",
+                "generalAccess": "सामान्य पहुँच",
+                "restricted": "प्रतिबंधित — केवल पहुँच वाले लोग",
+                "anyone": "लिंक वाला कोई भी व्यक्ति देख सकता है",
+                "peopleWithAccess": "पहुँच वाले लोग",
+                "onlyYou": "अभी तक केवल आपके पास पहुँच है।",
+                "roleOwner": "स्वामी",
+                "roleViewer": "व्यूअर",
+                "roleEditor": "एडिटर",
+                "remove": "पहुँच हटाएँ",
+                "addPeople": "लोग जोड़ें",
+                "emailPlaceholder": "name@example.com",
+                "add": "जोड़ें",
+                "loadError": "किसके पास पहुँच है, यह लोड नहीं हो सका।",
+                "actionError": "वह बदलाव सहेजा नहीं जा सका।"
+            }
         }
     },
     "dialog": {

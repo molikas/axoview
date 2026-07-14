@@ -79,7 +79,25 @@
             "accessRestricted": "Hanya orang dengan akses yang dapat melihat",
             "accessUnknown": "Memeriksa siapa yang memiliki akses…",
             "manageAccess": "Kelola akses",
-            "accessError": "Tidak dapat memeriksa siapa yang memiliki akses."
+            "accessError": "Tidak dapat memeriksa siapa yang memiliki akses.",
+            "manage": {
+                "title": "Kelola akses",
+                "titleNamed": "Bagikan \"{{name}}\"",
+                "generalAccess": "Akses umum",
+                "restricted": "Terbatas — hanya orang dengan akses",
+                "anyone": "Siapa pun yang memiliki tautan dapat melihat",
+                "peopleWithAccess": "Orang dengan akses",
+                "onlyYou": "Sejauh ini hanya Anda yang memiliki akses.",
+                "roleOwner": "Pemilik",
+                "roleViewer": "Pelihat",
+                "roleEditor": "Editor",
+                "remove": "Hapus akses",
+                "addPeople": "Tambahkan orang",
+                "emailPlaceholder": "nama@contoh.com",
+                "add": "Tambahkan",
+                "loadError": "Tidak dapat memuat siapa yang memiliki akses.",
+                "actionError": "Perubahan itu tidak dapat disimpan."
+            }
         }
     },
     "dialog": {

@@ -2,15 +2,13 @@ import {
   drivePreviewUrl,
   getFileShareMeta,
   getAccessSummary,
-  openNativeShareDialog
+  listPermissions,
+  setAnyoneWithLink,
+  addPersonPermission,
+  removePermission,
+  DriveShareError
 } from '../driveSharing';
-import { loadGapiModule } from '../gapiLoader';
 import { useAuthStore } from '../../../stores/authStore';
-
-jest.mock('../gapiLoader', () => ({
-  loadGapiModule: jest.fn()
-}));
-const loadGapiModuleMock = loadGapiModule as jest.Mock;
 
 function mockResponse(body: unknown, status = 200): Response {
   return {
@@ -21,7 +19,11 @@ function mockResponse(body: unknown, status = 200): Response {
 }
 
 let fetchMock: jest.Mock;
-let windowOpenMock: jest.Mock;
+
+function bodyOf(call: unknown[]): Record<string, unknown> {
+  const init = call[1] as RequestInit | undefined;
+  return init?.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : {};
+}
 
 beforeEach(() => {
   useAuthStore.setState({
@@ -35,26 +37,19 @@ beforeEach(() => {
   });
   fetchMock = jest.fn();
   (global as unknown as { fetch: unknown }).fetch = fetchMock;
-  windowOpenMock = jest.fn();
-  window.open = windowOpenMock as unknown as typeof window.open;
-  loadGapiModuleMock.mockReset();
 });
 
 describe('drivePreviewUrl', () => {
   // jsdom origin is http://localhost; APP_BASENAME is '/app' (PUBLIC_URL unset).
   test('builds origin + APP_BASENAME + /display/drive/<fileId>', () => {
-    expect(drivePreviewUrl('file-1')).toBe(
-      'http://localhost/app/display/drive/file-1'
-    );
+    expect(drivePreviewUrl('file-1')).toBe('http://localhost/app/display/drive/file-1');
   });
 
   test('appends ?resourceKey= only when non-null', () => {
     expect(drivePreviewUrl('file-1', 'rk-9')).toBe(
       'http://localhost/app/display/drive/file-1?resourceKey=rk-9'
     );
-    expect(drivePreviewUrl('file-1', null)).toBe(
-      'http://localhost/app/display/drive/file-1'
-    );
+    expect(drivePreviewUrl('file-1', null)).toBe('http://localhost/app/display/drive/file-1');
   });
 
   test('URL-encodes the resourceKey', () => {
@@ -80,9 +75,32 @@ describe('getFileShareMeta', () => {
     );
   });
 
-  test('throws on a non-OK response', async () => {
-    fetchMock.mockResolvedValueOnce(mockResponse({ error: {} }, 404));
-    await expect(getFileShareMeta('f1')).rejects.toThrow('404');
+  test('throws a DriveShareError surfacing the API message on a non-OK response', async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({ error: { message: 'File not found' } }, 404));
+    await expect(getFileShareMeta('f1')).rejects.toMatchObject({
+      name: 'DriveShareError',
+      status: 404,
+      message: 'File not found'
+    });
+  });
+});
+
+describe('listPermissions', () => {
+  test('drains nextPageToken and returns the full mapped list', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        mockResponse({
+          permissions: [{ id: 'owner', type: 'user', role: 'owner', emailAddress: 'me@x.com' }],
+          nextPageToken: 'p2'
+        })
+      )
+      .mockResolvedValueOnce(
+        mockResponse({ permissions: [{ id: 'a1', type: 'anyone', role: 'reader' }] })
+      );
+    const perms = await listPermissions('f1');
+    expect(perms.map((p) => p.id)).toEqual(['owner', 'a1']);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][0]).toContain('pageToken=p2');
   });
 });
 
@@ -91,8 +109,8 @@ describe('getAccessSummary', () => {
     fetchMock.mockResolvedValueOnce(
       mockResponse({
         permissions: [
-          { type: 'user', role: 'owner' },
-          { type: 'anyone', role: 'reader' }
+          { id: 'o', type: 'user', role: 'owner' },
+          { id: 'a', type: 'anyone', role: 'reader' }
         ]
       })
     );
@@ -102,103 +120,112 @@ describe('getAccessSummary', () => {
 
   test('maps user-only permissions → restricted', async () => {
     fetchMock.mockResolvedValueOnce(
-      mockResponse({ permissions: [{ type: 'user', role: 'owner' }] })
+      mockResponse({ permissions: [{ id: 'o', type: 'user', role: 'owner' }] })
     );
     await expect(getAccessSummary('f1')).resolves.toBe('restricted');
   });
 
-  test('maps a missing permissions array → restricted', async () => {
-    fetchMock.mockResolvedValueOnce(mockResponse({}));
-    await expect(getAccessSummary('f1')).resolves.toBe('restricted');
-  });
-
-  test("drains nextPageToken — an 'anyone' grant on page 2 → anyone-with-link", async () => {
+  test("drains pages — an 'anyone' grant on page 2 → anyone-with-link", async () => {
     fetchMock
       .mockResolvedValueOnce(
-        mockResponse({
-          permissions: [{ type: 'user', role: 'owner' }],
-          nextPageToken: 'page-2'
-        })
+        mockResponse({ permissions: [{ id: 'o', type: 'user', role: 'owner' }], nextPageToken: 'p2' })
       )
-      .mockResolvedValueOnce(
-        mockResponse({ permissions: [{ type: 'anyone', role: 'reader' }] })
-      );
+      .mockResolvedValueOnce(mockResponse({ permissions: [{ id: 'a', type: 'anyone', role: 'reader' }] }));
     await expect(getAccessSummary('f1')).resolves.toBe('anyone-with-link');
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    // The second request carried the drained page token.
-    expect(fetchMock.mock.calls[1][0]).toContain('pageToken=page-2');
-  });
-
-  test('restricted only after ALL pages are drained (no early short-circuit)', async () => {
-    fetchMock
-      .mockResolvedValueOnce(
-        mockResponse({
-          permissions: [{ type: 'user', role: 'owner' }],
-          nextPageToken: 'page-2'
-        })
-      )
-      .mockResolvedValueOnce(
-        mockResponse({ permissions: [{ type: 'user', role: 'writer' }] })
-      );
-    await expect(getAccessSummary('f1')).resolves.toBe('restricted');
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
 
-describe('openNativeShareDialog', () => {
-  test('drives the ShareClient with token + itemIds on success', async () => {
-    const client = {
-      setOAuthToken: jest.fn(),
-      setItemIds: jest.fn(),
-      showSettingsDialog: jest.fn()
-    };
-    const ctor = jest.fn(() => client);
-    loadGapiModuleMock.mockResolvedValueOnce({
-      load: jest.fn(),
-      drive: { share: { ShareClient: ctor } }
+describe('setAnyoneWithLink', () => {
+  test('enable → POST {type:anyone, role:reader}', async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({ id: 'anyoneWithLink' }));
+    await setAnyoneWithLink('f1', true);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain('/files/f1/permissions');
+    expect((init as RequestInit).method).toBe('POST');
+    expect(bodyOf(fetchMock.mock.calls[0])).toEqual({ role: 'reader', type: 'anyone' });
+  });
+
+  test('disable → lists then DELETEs every anyone permission', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        mockResponse({
+          permissions: [
+            { id: 'o', type: 'user', role: 'owner' },
+            { id: 'anyoneWithLink', type: 'anyone', role: 'reader' }
+          ]
+        })
+      )
+      .mockResolvedValueOnce(mockResponse(null, 204));
+    await setAnyoneWithLink('f1', false);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [delUrl, delInit] = fetchMock.mock.calls[1];
+    expect(delUrl).toContain('/permissions/anyoneWithLink');
+    expect((delInit as RequestInit).method).toBe('DELETE');
+  });
+});
+
+describe('addPersonPermission', () => {
+  test('POSTs {type:user, role, emailAddress} with sendNotificationEmail', async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({ id: 'p1' }));
+    await addPersonPermission('f1', 'jane@example.com', 'reader');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain('/files/f1/permissions?sendNotificationEmail=true');
+    expect((init as RequestInit).method).toBe('POST');
+    expect(bodyOf(fetchMock.mock.calls[0])).toEqual({
+      role: 'reader',
+      type: 'user',
+      emailAddress: 'jane@example.com'
     });
-    await openNativeShareDialog('f1', '123456789012');
-    expect(ctor).toHaveBeenCalledWith('123456789012');
-    expect(client.setOAuthToken).toHaveBeenCalledWith('test-token');
-    expect(client.setItemIds).toHaveBeenCalledWith(['f1']);
-    expect(client.showSettingsDialog).toHaveBeenCalled();
-    expect(windowOpenMock).not.toHaveBeenCalled();
   });
 
-  test('falls back to the API-returned webViewLink when gapi load rejects', async () => {
-    loadGapiModuleMock.mockRejectedValueOnce(new Error('cookies blocked'));
+  test('surfaces the Google error message via DriveShareError', async () => {
     fetchMock.mockResolvedValueOnce(
-      mockResponse({ webViewLink: 'https://drive.google.com/file/d/f1/view' })
+      mockResponse({ error: { message: 'The user nope@x.com could not be found.' } }, 400)
     );
-    await openNativeShareDialog('f1', null);
-    expect(windowOpenMock).toHaveBeenCalledWith(
-      'https://drive.google.com/file/d/f1/view',
-      '_blank',
-      'noopener'
-    );
+    await expect(addPersonPermission('f1', 'nope@x.com', 'writer')).rejects.toMatchObject({
+      name: 'DriveShareError',
+      status: 400,
+      message: 'The user nope@x.com could not be found.'
+    });
+  });
+});
+
+describe('removePermission', () => {
+  test('DELETEs the permission id', async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse(null, 204));
+    await removePermission('f1', 'p1');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain('/files/f1/permissions/p1');
+    expect((init as RequestInit).method).toBe('DELETE');
   });
 
-  test('falls back to open?id= when the webViewLink fetch also fails', async () => {
-    loadGapiModuleMock.mockRejectedValueOnce(new Error('network'));
-    fetchMock.mockResolvedValueOnce(mockResponse({ error: {} }, 403));
-    await openNativeShareDialog('f1', null);
-    expect(windowOpenMock).toHaveBeenCalledWith(
-      'https://drive.google.com/open?id=f1',
-      '_blank',
-      'noopener'
-    );
+  test('treats a 404 (already gone) as success', async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({ error: { message: 'not found' } }, 404));
+    await expect(removePermission('f1', 'p1')).resolves.toBeUndefined();
   });
 
-  test('falls back when the module loads without a ShareClient constructor', async () => {
-    loadGapiModuleMock.mockResolvedValueOnce({ load: jest.fn() });
-    fetchMock.mockResolvedValueOnce(
-      mockResponse({ webViewLink: 'https://drive.google.com/file/d/f1/view' })
+  test('throws on a real failure', async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({ error: { message: 'insufficient' } }, 403));
+    await expect(removePermission('f1', 'p1')).rejects.toMatchObject({ status: 403 });
+  });
+});
+
+describe('signed out', () => {
+  test('every call rejects before touching the network', async () => {
+    useAuthStore.setState({
+      status: 'UNAUTHENTICATED',
+      accessToken: null,
+      expiresAt: null,
+      user: null,
+      _requestToken: null,
+      _revoke: null,
+      _waiters: []
+    });
+    await expect(listPermissions('f1')).rejects.toBeInstanceOf(DriveShareError);
+    await expect(addPersonPermission('f1', 'a@b.com', 'reader')).rejects.toBeInstanceOf(
+      DriveShareError
     );
-    await openNativeShareDialog('f1', null);
-    expect(windowOpenMock).toHaveBeenCalledWith(
-      'https://drive.google.com/file/d/f1/view',
-      '_blank',
-      'noopener'
-    );
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

@@ -79,7 +79,25 @@
             "accessRestricted": "Nur Personen mit Zugriff können es ansehen",
             "accessUnknown": "Wird geprüft, wer Zugriff hat…",
             "manageAccess": "Zugriff verwalten",
-            "accessError": "Es konnte nicht geprüft werden, wer Zugriff hat."
+            "accessError": "Es konnte nicht geprüft werden, wer Zugriff hat.",
+            "manage": {
+                "title": "Zugriff verwalten",
+                "titleNamed": "„{{name}}“ teilen",
+                "generalAccess": "Allgemeiner Zugriff",
+                "restricted": "Eingeschränkt – nur Personen mit Zugriff",
+                "anyone": "Jeder mit dem Link kann es ansehen",
+                "peopleWithAccess": "Personen mit Zugriff",
+                "onlyYou": "Bisher hast nur du Zugriff.",
+                "roleOwner": "Eigentümer",
+                "roleViewer": "Betrachter",
+                "roleEditor": "Bearbeiter",
+                "remove": "Zugriff entfernen",
+                "addPeople": "Personen hinzufügen",
+                "emailPlaceholder": "name@beispiel.de",
+                "add": "Hinzufügen",
+                "loadError": "Es konnte nicht geladen werden, wer Zugriff hat.",
+                "actionError": "Diese Änderung konnte nicht gespeichert werden."
+            }
         }
     },
     "dialog": {

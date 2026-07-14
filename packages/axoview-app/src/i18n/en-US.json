@@ -96,7 +96,25 @@
             "accessRestricted": "Only people with access can view",
             "accessUnknown": "Checking who has access…",
             "manageAccess": "Manage access",
-            "accessError": "Couldn't check who has access."
+            "accessError": "Couldn't check who has access.",
+            "manage": {
+                "title": "Manage access",
+                "titleNamed": "Share \"{{name}}\"",
+                "generalAccess": "General access",
+                "restricted": "Restricted — only people with access",
+                "anyone": "Anyone with the link can view",
+                "peopleWithAccess": "People with access",
+                "onlyYou": "Only you have access so far.",
+                "roleOwner": "Owner",
+                "roleViewer": "Viewer",
+                "roleEditor": "Editor",
+                "remove": "Remove access",
+                "addPeople": "Add people",
+                "emailPlaceholder": "name@example.com",
+                "add": "Add",
+                "loadError": "Couldn't load who has access.",
+                "actionError": "That change could not be saved."
+            }
         }
     },
     "dialog": {

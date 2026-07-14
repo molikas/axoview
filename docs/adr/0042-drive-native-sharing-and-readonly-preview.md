@@ -80,6 +80,29 @@ without server storage; `/display/p/<uuid>` snapshot links).
 > summary already reads the ACL, so the write affordance is an incremental
 > addition.
 
+**2026-07-14 — decision 3 REVISED (ShareClient dropped; custom in-app UI adopted).**
+Live testing on `integration.axoview.pages.dev` showed the legacy
+`gapi.drive.share.ShareClient` is a dead end: Google is deprecating the
+client-side share widget (observed as a `fedcm_migration_mod` flow that timed
+out with `Cannot read properties of undefined (reading 'contentDocument')`), it
+demands a broad CSP surface (`img-src ssl.gstatic.com`, `connect-src
+drive.google.com` + `play.google.com`), and it breaks whenever third-party
+cookies are blocked — exactly the fragility this ADR anticipated, but worse (the
+`showSettingsDialog()` call is fire-and-forget, so the mandated fallback could
+not even fire on the async timeout). **"Manage access" is now a custom in-app
+dialog over the Drive REST v3 `permissions` collection** —
+`permissions.list` / `create` / `delete`, all authorized under `drive.file` for
+app-created files and all hitting `www.googleapis.com` (already allowed by
+`connect-src`). This resolves the TODO above: v1 now **includes** the
+anyone-with-link toggle (`permissions.create {type:'anyone', role:'reader'}`)
+*and* add/remove people by email (`{type:'user', role:'reader'|'writer'}`), in
+our own UI — no Google widget, no `drive.google.com` redirect. The `drive-share`
+gapi module is removed; the **Picker is unaffected** (rung 3 of §2 still loads
+`gapi.load('picker')` from `docs.google.com`, and the CSP gains `img-src
+ssl.gstatic.com` + `connect-src content.googleapis.com` for it). See
+[`driveSharing.ts`](../../packages/axoview-app/src/services/drive/driveSharing.ts)
+and [`DriveShareManageDialog.tsx`](../../packages/axoview-app/src/components/DriveShareManageDialog.tsx).
+
 ### 2. New read-only display route `/display/drive/:driveFileId`
 
 Added beside the existing forms in [App.tsx:95-101](../../packages/axoview-app/src/App.tsx#L95-L101)

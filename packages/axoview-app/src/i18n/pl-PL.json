@@ -91,7 +91,25 @@
             "accessRestricted": "Tylko osoby z dostępem mogą wyświetlać",
             "accessUnknown": "Sprawdzanie, kto ma dostęp…",
             "manageAccess": "Zarządzaj dostępem",
-            "accessError": "Nie udało się sprawdzić, kto ma dostęp."
+            "accessError": "Nie udało się sprawdzić, kto ma dostęp.",
+            "manage": {
+                "title": "Zarządzaj dostępem",
+                "titleNamed": "Udostępnij „{{name}}”",
+                "generalAccess": "Dostęp ogólny",
+                "restricted": "Ograniczony — tylko osoby z dostępem",
+                "anyone": "Każda osoba z linkiem może wyświetlać",
+                "peopleWithAccess": "Osoby z dostępem",
+                "onlyYou": "Na razie tylko ty masz dostęp.",
+                "roleOwner": "Właściciel",
+                "roleViewer": "Przeglądający",
+                "roleEditor": "Edytujący",
+                "remove": "Usuń dostęp",
+                "addPeople": "Dodaj osoby",
+                "emailPlaceholder": "imie@przyklad.pl",
+                "add": "Dodaj",
+                "loadError": "Nie udało się wczytać, kto ma dostęp.",
+                "actionError": "Nie udało się zapisać tej zmiany."
+            }
         }
     },
     "dialog": {

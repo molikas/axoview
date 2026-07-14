@@ -32,9 +32,9 @@ import {
   drivePreviewUrl,
   getFileShareMeta,
   getAccessSummary,
-  openNativeShareDialog,
   AccessSummary
 } from '../services/drive/driveSharing';
+import { DriveShareManageDialog } from './DriveShareManageDialog';
 
 export function AppToolbar() {
   const { t } = useTranslation('app');
@@ -44,8 +44,7 @@ export function AppToolbar() {
     serverStorageAvailable,
     remoteStorageActive,
     activeProviderId,
-    storage,
-    runtimeConfig
+    storage
   } = useAppStorage();
   const driveActive = activeProviderId === 'google-drive';
   const {
@@ -214,16 +213,27 @@ export function AppToolbar() {
     (e.target as HTMLInputElement).select();
   };
 
-  // "Manage access" = Google's native sharing dialog; openNativeShareDialog
-  // owns the mandatory drive.google.com fallback internally (ADR 0042 §1), so
-  // this handler never surfaces an error.
-  const handleManageAccessClick = async () => {
+  // "Manage access" opens the custom in-app share dialog (ADR 0042 §1, rev.
+  // 2026-07-14 — the deprecated ShareClient widget was replaced by a Drive REST
+  // v3 permissions UI). Re-read the ACL summary when it closes so the popover's
+  // "Anyone with the link" / "Restricted" indicator stays truthful.
+  const [showManageDialog, setShowManageDialog] = useState(false);
+  const handleManageAccessClick = () => {
     if (!currentDiagramId) return;
-    await openNativeShareDialog(
-      currentDiagramId,
-      runtimeConfig?.googleProjectNumber ?? null
-    );
+    setShowManageDialog(true);
   };
+  const refreshAccessSummary = useCallback(() => {
+    if (!driveActive || !currentDiagramId) return;
+    const reqId = ++shareReqRef.current;
+    setDriveAccessError(false);
+    void getAccessSummary(currentDiagramId)
+      .then((s) => {
+        if (shareReqRef.current === reqId) setDriveAccessSummary(s);
+      })
+      .catch(() => {
+        if (shareReqRef.current === reqId) setDriveAccessError(true);
+      });
+  }, [driveActive, currentDiagramId]);
 
   // User-facing copy never says "session mode" — see workflow + ADR 0008 D1:
   // end users read "session" as something different from the audit's mode name.
@@ -573,7 +583,8 @@ export function AppToolbar() {
                 spacing={1}
               >
                 {/* ACL summary: does the copied link work anonymously? Fetched
-                    on every popover open (the native dialog can change it). */}
+                    on popover open + refreshed when the Manage-access dialog
+                    changes it. */}
                 <Typography
                   variant="caption"
                   color={driveAccessError ? 'error' : 'text.secondary'}
@@ -600,6 +611,18 @@ export function AppToolbar() {
             )}
           </Stack>
         </Popover>
+      )}
+
+      {/* Custom in-app "Manage access" (ADR 0042 §1 rev. 2026-07-14) — Drive
+          REST v3 permissions UI, replacing the deprecated ShareClient widget. */}
+      {driveActive && currentDiagramId && (
+        <DriveShareManageDialog
+          open={showManageDialog}
+          fileId={currentDiagramId}
+          diagramName={currentDiagram?.name}
+          onClose={() => setShowManageDialog(false)}
+          onAccessChanged={refreshAccessSummary}
+        />
       )}
     </Box>
   );

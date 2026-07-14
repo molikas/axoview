@@ -35,9 +35,9 @@ test('passes the module name and a config object (not a bare callback) to gapi.l
   const load = jest.fn((_name: string, config: GapiLoadConfig) => config.callback());
   installFakeGapi(load as unknown as LoadImpl);
   const { loadGapiModule } = await import('../gapiLoader');
-  await loadGapiModule('drive-share');
+  await loadGapiModule('picker');
   expect(load).toHaveBeenCalledTimes(1);
-  expect(load.mock.calls[0][0]).toBe('drive-share');
+  expect(load.mock.calls[0][0]).toBe('picker');
   const config = load.mock.calls[0][1];
   expect(typeof config.callback).toBe('function');
   expect(typeof config.onerror).toBe('function');

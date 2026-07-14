@@ -1,9 +1,11 @@
 /**
- * On-demand loader for the Google API platform script (gapi) and its named
- * modules ('picker' for the Google Picker, 'drive-share' for the native
- * sharing dialog — ADR 0042). The script is injected once per page; each
+ * On-demand loader for the Google API platform script (gapi) and the Google
+ * Picker module ('picker'), used by the read-only display route's per-file
+ * access grant (ADR 0042 §2 rung 3). The script is injected once per page; the
  * module loads once. CSP already allows `script-src https://apis.google.com`
  * (ADR 0035), so no header change is needed for the script itself.
+ * (The 'drive-share' ShareClient module was dropped 2026-07-14 — access
+ * management moved to the Drive REST v3 permissions API; see driveSharing.ts.)
  */
 const GAPI_SRC = 'https://apis.google.com/js/api.js';
 
@@ -60,7 +62,7 @@ function loadScript(): Promise<Gapi> {
   return scriptPromise;
 }
 
-export function loadGapiModule(name: 'picker' | 'drive-share'): Promise<Gapi> {
+export function loadGapiModule(name: 'picker'): Promise<Gapi> {
   let promise = modulePromises.get(name);
   if (!promise) {
     promise = loadScript().then(

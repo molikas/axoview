@@ -91,7 +91,25 @@
             "accessRestricted": "Seules les personnes ayant accès peuvent le voir",
             "accessUnknown": "Vérification des accès…",
             "manageAccess": "Gérer l'accès",
-            "accessError": "Impossible de vérifier qui a accès."
+            "accessError": "Impossible de vérifier qui a accès.",
+            "manage": {
+                "title": "Gérer l'accès",
+                "titleNamed": "Partager « {{name}} »",
+                "generalAccess": "Accès général",
+                "restricted": "Restreint — uniquement les personnes ayant accès",
+                "anyone": "Toute personne disposant du lien peut le voir",
+                "peopleWithAccess": "Personnes ayant accès",
+                "onlyYou": "Pour l'instant, vous seul avez accès.",
+                "roleOwner": "Propriétaire",
+                "roleViewer": "Lecteur",
+                "roleEditor": "Éditeur",
+                "remove": "Retirer l'accès",
+                "addPeople": "Ajouter des personnes",
+                "emailPlaceholder": "nom@exemple.com",
+                "add": "Ajouter",
+                "loadError": "Impossible de charger qui a accès.",
+                "actionError": "Cette modification n'a pas pu être enregistrée."
+            }
         }
     },
     "dialog": {
