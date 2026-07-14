@@ -58,9 +58,14 @@ app.get('/api/config', (c) =>
 // Anonymous read proxy for "anyone with the link" Drive diagrams — ADR 0042 §2
 // rung 1, moved server-side per ADR 0043 #3. The API key stays server-only and
 // can ONLY ever read PUBLICLY-shared files (an API key can't touch a private
-// one), so this exposes no private data and needs no auth (isPublicRoute). It
-// is edge-cached to stay within Drive quota — the quota/abuse protection that
-// ADR 0043 trigger #3 was about.
+// one), so this exposes no private data and needs no auth (isPublicRoute).
+//
+// Reads metadata first (fields=trashed,size) so it can HONOR Drive's trashed
+// flag: a "deleted" diagram in Axoview is a Drive trash (ADR 0036 §3), and a
+// trashed file must stop resolving here — matching Drive's own web-share
+// semantics (restoring from Trash revives the link). `Cache-Control: 60s` only
+// lets a viewer's browser dedupe repeat opens — Cloudflare does not edge-cache
+// Function responses without a Cache Rule, so this is browser-side only.
 app.get('/api/public/drive/:fileId', async (c) => {
   const key = c.env.GOOGLE_API_KEY;
   if (!key) return c.json({ error: 'preview-disabled' }, 503);
@@ -70,39 +75,52 @@ app.get('/api/public/drive/:fileId', async (c) => {
     return c.json({ error: 'bad-file-id' }, 400);
   }
 
+  const base = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}`;
+  const keyQ = `key=${encodeURIComponent(key)}`;
   // Our preview URLs may carry a ?resourceKey= (ADR 0042 §1); forward it as the
-  // header Drive expects.
+  // header Drive expects, on BOTH the metadata and content reads.
   const resourceKey = c.req.query('resourceKey');
-  let upstream: Response;
+  const init: RequestInit = resourceKey
+    ? { headers: { 'X-Goog-Drive-Resource-Keys': `${fileId}/${resourceKey}` } }
+    : {};
+
+  // 1) Metadata — the trashed gate + size cap without pulling the body.
+  let metaRes: Response;
   try {
-    upstream = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media&key=${encodeURIComponent(key)}`,
-      resourceKey
-        ? { headers: { 'X-Goog-Drive-Resource-Keys': `${fileId}/${resourceKey}` } }
-        : {}
-    );
+    metaRes = await fetch(`${base}?fields=trashed,size&${keyQ}`, init);
   } catch {
     return c.json({ error: 'upstream-unreachable' }, 502);
   }
-
-  if (!upstream.ok) {
-    // 404/403 ⇒ the file isn't public (or doesn't exist). Collapse both to 404
-    // so the browser never sees Drive's raw error body; the client's read
-    // ladder then falls through to the authenticated rung.
+  if (!metaRes.ok) {
+    // Private, or permanently deleted — Drive hides both as 404. Collapse to
+    // 404 so the client's read ladder falls to the authenticated rung.
     return c.json({ error: 'not-public' }, 404);
   }
+  const meta = (await metaRes.json()) as { trashed?: boolean; size?: string };
+  if (meta.trashed) {
+    // Deleted-but-recoverable: the link is dead (410 Gone) until the owner
+    // restores it — the client renders "no longer available", not the sign-in
+    // ladder.
+    return c.json({ error: 'gone' }, 410);
+  }
+  if (Number(meta.size ?? '0') > 10 * 1024 * 1024) {
+    return c.json({ error: 'too-large' }, 413);
+  }
 
-  // Diagrams are small JSON (the upload cap is 10 MB). Reject anything larger so
-  // this can't be abused as a general-purpose proxy for big public files.
-  const len = Number(upstream.headers.get('content-length') ?? '0');
-  if (len > 10 * 1024 * 1024) return c.json({ error: 'too-large' }, 413);
+  // 2) Content.
+  let contentRes: Response;
+  try {
+    contentRes = await fetch(`${base}?alt=media&${keyQ}`, init);
+  } catch {
+    return c.json({ error: 'upstream-unreachable' }, 502);
+  }
+  if (!contentRes.ok) return c.json({ error: 'not-public' }, 404);
 
-  const body = await upstream.text();
+  const body = await contentRes.text();
   return new Response(body, {
     status: 200,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
-      // Short TTL: an owner edit shows within a minute; repeat views are free.
       'Cache-Control': 'public, max-age=60'
     }
   });

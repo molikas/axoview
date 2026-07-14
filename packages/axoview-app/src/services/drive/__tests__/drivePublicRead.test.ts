@@ -112,6 +112,20 @@ describe('readDriveDisplayFile — ladder ordering', () => {
     expect(headersOf(fetchMock.mock.calls[0]).Authorization).toBe('Bearer test-token');
   });
 
+  test('proxy 410 (trashed/deleted) → not-found terminal, never falls to the token rung', async () => {
+    signedIn();
+    fetchMock.mockResolvedValueOnce(mockResponse({ error: 'gone' }, 410));
+    const result = await readDriveDisplayFile({
+      fileId: 'fid',
+      resourceKey: null,
+      publicPreview: true
+    });
+    expect(result).toEqual({ ok: false, reason: 'not-found' });
+    // Signed in, so a fall-through would make a 2nd (token) call — assert it didn't.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toContain('/api/public/drive/fid');
+  });
+
   test('publicPreview false + signed out → needs-signin with zero network calls', async () => {
     const result = await readDriveDisplayFile({
       fileId: 'fid',

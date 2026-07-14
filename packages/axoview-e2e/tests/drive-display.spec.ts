@@ -244,6 +244,21 @@ baseTest.describe('Drive display route — ADR 0042 §2/§8 (/app/display/drive/
     expect(tokenLog.hadAuthorization.every((had) => !had)).toBe(true);
   });
 
+  baseTest('a deleted (trashed) file → proxy 410 → "could not open", NOT the sign-in gate', async ({ page }) => {
+    await installConfigMock(page, { drivePublicPreview: true });
+    // The proxy honors Drive's trashed flag and returns 410 Gone (ADR 0042 §8);
+    // the client treats it as terminal, so no misleading "sign in to check".
+    await installDriveProxyMock(page, { status: 410, body: { error: 'gone' } });
+
+    await page.goto(`/app/display/drive/${DRIVE_FILE_ID}`);
+
+    // The terminal "could not open" dialog (copy already covers "may have been
+    // deleted") — and crucially NOT the misleading sign-in gate. (The empty
+    // editor mounts behind the dialog overlay; the diagram content never loads.)
+    await expect(page.locator('text=Could not open this diagram.')).toBeVisible({ timeout: 10_000 });
+    await expect(byAxoviewId(page, 'drive-display-gate-signin')).toHaveCount(0);
+  });
+
   baseTest('?resourceKey=<rk> rides the proxy request as a query param', async ({ page }) => {
     await installConfigMock(page, { drivePublicPreview: true });
     const log = await installDriveProxyMock(page, { status: 200, body: buildDriveBlob() });

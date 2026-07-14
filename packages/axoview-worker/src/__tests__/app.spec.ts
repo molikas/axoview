@@ -56,6 +56,17 @@ describe('GET /api/public/drive/:fileId — anonymous read proxy (ADR 0043 #3)',
     global.fetch = realFetch;
   });
 
+  // The proxy makes TWO Drive calls: metadata (fields=trashed,size) THEN content.
+  function driveMock(opts: { trashed?: boolean; size?: string; doc?: unknown } = {}) {
+    const meta = { trashed: opts.trashed ?? false, size: opts.size ?? '64' };
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(meta), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(opts.doc ?? {}), { status: 200 }));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    return fetchMock;
+  }
+
   test('503 when no server key is configured', async () => {
     const res = await request(`/api/public/drive/${FID}`);
     expect(res.status).toBe(503);
@@ -67,25 +78,30 @@ describe('GET /api/public/drive/:fileId — anonymous read proxy (ADR 0043 #3)',
     expect(res.status).toBe(400);
   });
 
-  test('200 proxies the body, sets a short cache TTL, and uses the SERVER key (never in the response)', async () => {
-    const doc = JSON.stringify({ title: 'Public', items: [] });
-    const fetchMock = jest.fn().mockResolvedValue(
-      new Response(doc, {
-        status: 200,
-        headers: { 'content-length': String(doc.length) }
-      })
-    );
-    global.fetch = fetchMock as unknown as typeof fetch;
+  test('200 proxies the body via metadata-then-content, using the SERVER key', async () => {
+    const fetchMock = driveMock({ doc: { title: 'Public', items: [] } });
     const res = await app.request(`http://test/api/public/drive/${FID}`, {}, KEY_ENV);
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toContain('max-age=60');
     expect(await res.json()).toEqual({ title: 'Public', items: [] });
-    const calledUrl = fetchMock.mock.calls[0][0] as string;
-    expect(calledUrl).toContain('alt=media');
-    expect(calledUrl).toContain('key=AIza-server-key');
+    // call[0] = metadata (trashed gate), call[1] = content — both key-authed.
+    expect(fetchMock.mock.calls[0][0]).toContain('fields=trashed');
+    expect(fetchMock.mock.calls[1][0]).toContain('alt=media');
+    expect(fetchMock.mock.calls[1][0]).toContain('key=AIza-server-key');
   });
 
-  test('404 when the file is not public (upstream 404), hiding Drive\'s raw error', async () => {
+  test('410 when the file is trashed (deleted-but-recoverable) — never reads the body', async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ trashed: true }), { status: 200 }));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const res = await request(`/api/public/drive/${FID}`, {}, KEY_ENV);
+    expect(res.status).toBe(410);
+    expect(res.body).toEqual({ error: 'gone' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test('404 when the metadata read says not public (private / permanently deleted)', async () => {
     global.fetch = jest
       .fn()
       .mockResolvedValue(new Response('{"error":"notFound"}', { status: 404 })) as unknown as typeof fetch;
@@ -94,22 +110,27 @@ describe('GET /api/public/drive/:fileId — anonymous read proxy (ADR 0043 #3)',
     expect(res.body).toEqual({ error: 'not-public' });
   });
 
-  test('forwards ?resourceKey= as the Drive resource-key header', async () => {
-    const fetchMock = jest.fn().mockResolvedValue(
-      new Response('{}', { status: 200, headers: { 'content-length': '2' } })
+  test('413 when the metadata size exceeds the cap — never reads the body', async () => {
+    const fetchMock = jest.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({ trashed: false, size: String(11 * 1024 * 1024) }), { status: 200 })
     );
     global.fetch = fetchMock as unknown as typeof fetch;
+    const res = await request(`/api/public/drive/${FID}`, {}, KEY_ENV);
+    expect(res.status).toBe(413);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test('forwards ?resourceKey= as the Drive resource-key header on both reads', async () => {
+    const fetchMock = driveMock({ doc: {} });
     await app.request(`http://test/api/public/drive/${FID}?resourceKey=rk-9`, {}, KEY_ENV);
-    const init = fetchMock.mock.calls[0][1] as RequestInit;
-    expect((init.headers as Record<string, string>)['X-Goog-Drive-Resource-Keys']).toBe(
-      `${FID}/rk-9`
-    );
+    const h0 = (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
+    const h1 = (fetchMock.mock.calls[1][1] as RequestInit).headers as Record<string, string>;
+    expect(h0['X-Goog-Drive-Resource-Keys']).toBe(`${FID}/rk-9`);
+    expect(h1['X-Goog-Drive-Resource-Keys']).toBe(`${FID}/rk-9`);
   });
 
   test('bypasses auth in shared-token mode (it is a public route)', async () => {
-    global.fetch = jest.fn().mockResolvedValue(
-      new Response('{}', { status: 200, headers: { 'content-length': '2' } })
-    ) as unknown as typeof fetch;
+    driveMock({ doc: {} });
     const res = await request(`/api/public/drive/${FID}`, {}, {
       ...KEY_ENV,
       AUTH_MODE: 'shared-token',

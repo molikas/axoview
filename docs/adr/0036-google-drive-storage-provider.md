@@ -63,6 +63,8 @@ If the user later deletes/trashes the root folder in Drive, the provider's next 
 
 In-app delete keeps the 2B-R contract (confirmation dialog, no in-app trash section) but maps to `trashed: true`: the item disappears from the app and is recoverable for ~30 days via drive.google.com. The Drive-mode confirmation copy says "Move to Google Drive trash". `restoreDiagram` exists on the interface and is implemented (untrash), but no v1 UI calls it.
 
+**2026-07-14:** this soft-delete now also governs **shared preview links**. The [ADR 0042 §8](0042-drive-native-sharing-and-readonly-preview.md) read-proxy honors the `trashed` flag, so trashing a shared diagram makes its `/display/drive/:id` link stop resolving (`410 Gone` → "could not open"), and un-trashing revives it — matching Drive's own web-share behavior, so "delete" means the link dies without a separate unshare step.
+
 ### 4. Sharing is hidden in Drive mode
 
 > **SUPERSEDED (2026-07-13, owner direction — Drive-native sharing / [ADR 0042](0042-drive-native-sharing-and-readonly-preview.md)).**

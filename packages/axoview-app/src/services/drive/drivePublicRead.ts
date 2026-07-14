@@ -104,6 +104,10 @@ export async function readDriveDisplayFile(
         `${apiBaseUrl()}/api/public/drive/${encodeURIComponent(req.fileId)}${qs}`
       );
       if (res.ok) return { ok: true, data: await res.json() };
+      // 410 = the file was deleted (Drive-trashed) — terminal. Don't prompt
+      // sign-in for a diagram that is gone; the proxy honors Drive's trashed
+      // flag (restore from Trash revives it).
+      if (res.status === 410) return { ok: false, reason: 'not-found' };
     } catch {
       /* fall through to the token rung */
     }
