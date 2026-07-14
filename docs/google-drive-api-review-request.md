@@ -236,3 +236,42 @@ current (2026) Google API guidance:
 
 For each, a short **recommendation** with the single biggest risk called out
 would be ideal.
+
+---
+
+## 10. Review outcome (2026-07-14) + prioritized roadmap
+
+An external review (Gemini) returned. Verdict: the V1 choices are "smart,
+pragmatic" for a client-side SPA, and dropping `ShareClient` for a custom REST UI
+was the right call. Its four recommendations, each with the single biggest risk
+it flags, plus our disposition:
+
+| # | Reviewer recommendation | Biggest risk called out | Cost | Disposition |
+|---|---|---|---|---|
+| 1 | **Migrate auth → auth-code + PKCE with a minimal token broker** (serverless fn) | Relying on the implicit grant (`response_type=token`) that OAuth 2.1 deprecates; no refresh → no offline/background sync | High (adds a backend; reverses ADR 0035's "no server holds credentials") | **Roadmap — owner decision.** Biggest strategic item. See nuance below. |
+| 2 | **Keep `drive.file` + Picker now; roadmap a first-party publish-snapshot store** | Jarring recipient UX — Google notification emails link to the raw JSON file, not our viewer | High (DB + storage backend) | **Roadmap.** Validate product on current setup; build snapshot publisher when the raw-JSON email UX becomes a blocker. |
+| 3 | **Replace the public anonymous-read key with a signed short-lived proxy** | The 2026 Drive API quota-overage billing — a viral diagram could exhaust quota / bill the Cloud account | Medium (a small proxy backend + cache/rate-limit) | **Roadmap** — but the cheapest backend win; pairs naturally with #1's serverless fn. Interim: keep the key referrer+API-restricted and watch quota. |
+| 4 | **Keep the Picker; build aggressive failure fallbacks + clear cookie/popup instructions** | 3rd-party-cookie phase-out silently breaking the Picker for many users | Low (copy + gate states) | **Partly done** (the display gate already has needs-grant / transient-retry / picker-error / grant-unavailable states). Finalize the cookie/popup copy when the **P2** prototype gate actually exercises the Picker with two real accounts. |
+
+**Accuracy nuance on #1:** we use Google Identity Services' **token client**
+(`initTokenClient`), Google's *currently-supported* browser library — not a raw
+deprecated endpoint. But it *is* the implicit grant under the hood
+(`response_type=token`), which is why sessions are ~1h with no refresh token.
+Gemini's direction (auth-code + PKCE + a broker for refresh/offline) is correct;
+the "dead flow" framing overstates a mechanism Google still ships for exactly
+this in-browser short-lived-token use case.
+
+**Recommended sequencing (all backend-gated, hence owner's call on whether/when
+Axoview grows a lightweight backend):**
+1. If/when a backend is introduced, do **#1 (PKCE broker)** and **#3 (read proxy)**
+   together in the same small serverless surface — they share infrastructure and
+   between them close the two "biggest risk" items (deprecated auth + quota abuse).
+2. **#2 (snapshot store)** is a larger, product-driven follow-up; defer until the
+   raw-JSON-email recipient friction is validated as a real blocker.
+3. **#4** is the only non-backend item; fold the cookie/popup copy into the P2
+   Picker verification pass.
+
+The through-line the reviewer names — "architectural gravity will pull you toward
+a lightweight backend" — is the honest summary: the current serverless posture is
+a deliberate, correct V1 trade-off, and the next maturity step is a *small* backend
+for auth + quota protection, not a return to a full first-party stack.
