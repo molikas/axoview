@@ -263,7 +263,7 @@ const locale: LocaleProps = {
   lazyLoadingWelcome: {
     title: "Axoview'a Hoş Geldiniz",
     message:
-      "Merhaba! Popüler talep üzerine, simgelerin Tembel Yüklenmesini uyguladık, bu yüzden artık standart olmayan simge paketlerini etkinleştirmek isterseniz bunları 'Yapılandırma' bölümünde etkinleştirebilirsiniz.",
+      "Axoview, güzel izometrik ve 2D diyagramlar için ücretsiz, açık kaynaklı bir araçtır — bulut, ağ ve altyapı mimarisi; AWS, GCP, Azure ve Kubernetes simgeleri dahili olarak gelir. Tamamı tarayıcınızda çalışır, yerel olarak ya da kendi Google Drive hesabınıza kaydeder. Açık kaynaklı FossFLOW ve Isoflow projeleri üzerine inşa edilmiştir ve etkin biçimde geliştirilmektedir — kaynak koduna ulaşmak, hata bildirmek veya özellik istemek için: github.com/molikas/axoview.",
     configPath: 'Yapılandırmaya erişmek için',
     configPath2: 'sol üstteki Hamburger simgesine tıklayın.',
     canDisable: 'İsterseniz bu davranışı devre dışı bırakabilirsiniz.',

@@ -262,7 +262,7 @@ const locale: LocaleProps = {
   lazyLoadingWelcome: {
     title: 'Selamat Datang di Axoview',
     message:
-      "Hai! Setelah banyak permintaan, kami telah mengimplementasikan Lazy Loading ikon, jadi sekarang jika Anda ingin mengaktifkan paket ikon non-standar, Anda dapat mengaktifkannya di bagian 'Konfigurasi'.",
+      'Axoview adalah alat gratis dan open-source untuk membuat diagram isometrik dan 2D yang indah — arsitektur cloud, jaringan, dan infrastruktur, lengkap dengan ikon AWS, GCP, Azure, dan Kubernetes yang sudah tersedia. Semuanya berjalan di peramban Anda, tersimpan secara lokal atau di Google Drive Anda sendiri. Dibangun di atas proyek open-source FossFLOW dan Isoflow serta terus dikembangkan — temukan kode sumber, laporkan bug, atau ajukan permintaan fitur di github.com/molikas/axoview.',
     configPath: 'Klik pada ikon Hamburger',
     configPath2: 'di kiri atas untuk mengakses Konfigurasi.',
     canDisable: 'Anda dapat menonaktifkan perilaku ini jika diinginkan.',

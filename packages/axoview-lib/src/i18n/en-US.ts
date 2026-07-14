@@ -262,7 +262,7 @@ const locale: LocaleProps = {
   lazyLoadingWelcome: {
     title: 'Welcome to Axoview',
     message:
-      "Axoview is a community-modified fork of FossFLOW (itself forked from Isoflow) with additional features and improvements. Learn more about what's changed and find the source at https://github.com/molikas/axoview — found a bug or have a feature request? Open an issue on GitHub!",
+      'Axoview is a free, open-source tool for beautiful isometric and 2D diagrams — cloud, network and infrastructure architecture, with AWS, GCP, Azure and Kubernetes icons built in. It all runs in your browser, saving locally or to your own Google Drive. Built on the open-source FossFLOW and Isoflow projects and actively expanded — find the source, report a bug or request a feature at github.com/molikas/axoview.',
     configPath: 'Click on the Hamburger icon',
     configPath2: 'in the top left to access Configuration.',
     canDisable: 'Happy diagramming!',
