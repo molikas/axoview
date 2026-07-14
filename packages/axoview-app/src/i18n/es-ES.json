@@ -73,13 +73,26 @@
     "toolbar": {
         "presentSaveFirst": "Guarda primero para presentar",
         "saveAndPresent": "Guardar y presentar",
-        "present": "Presentar"
+        "present": "Presentar",
+        "share": {
+            "disabled": {
+                "sessionPlaceNeedsServerStorage": "Los enlaces para compartir este diagrama necesitan almacenamiento en servidor (autoalojado con Docker o en Cloudflare). Los diagramas guardados en Google Drive se pueden compartir desde cualquier despliegue."
+            }
+        }
     },
     "share": {
         "title": "Compartir diagrama",
         "hint": "Cualquier persona con este enlace puede ver el diagrama en modo de solo lectura.",
         "copy": "Copiar",
-        "copied": "✓ ¡Copiado!"
+        "copied": "✓ ¡Copiado!",
+        "drive": {
+            "liveHint": "Cualquier persona con quien se comparta el archivo ve la versión más reciente — el enlace abre el diagrama en vivo, no una instantánea.",
+            "accessAnyone": "Cualquier persona con el enlace puede verlo",
+            "accessRestricted": "Solo las personas con acceso pueden verlo",
+            "accessUnknown": "Comprobando quién tiene acceso…",
+            "manageAccess": "Gestionar acceso",
+            "accessError": "No se pudo comprobar quién tiene acceso."
+        }
     },
     "dialog": {
         "save": {
@@ -198,5 +211,15 @@
     "legal": {
         "privacy": "Privacidad",
         "terms": "Términos"
+    },
+    "driveDisplay": {
+        "headline": "Este diagrama vive en el Google Drive de su propietario",
+        "signInBody": "Inicia sesión con Google para que Axoview pueda comprobar si este diagrama se ha compartido contigo.",
+        "grantBody": "Has iniciado sesión, pero Axoview necesita tu permiso para abrir este archivo concreto desde Google Drive.",
+        "grantButton": "Abrir con acceso a Google Drive",
+        "grantUnavailable": "Tu cuenta de Google no tiene acceso a este diagrama a través de Axoview, y este despliegue no puede solicitarlo. Pide al propietario que comparta el archivo contigo en Google Drive y luego recarga esta página.",
+        "pickerError": "No se pudo abrir el diálogo de acceso a Google Drive. Inténtalo de nuevo.",
+        "transientBody": "No pudimos conectar con Google Drive para cargar este diagrama. Comprueba tu conexión e inténtalo de nuevo.",
+        "retryButton": "Reintentar"
     }
 }

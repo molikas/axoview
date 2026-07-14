@@ -77,7 +77,7 @@
         "backToEditing": "Back to editing",
         "share": {
             "disabled": {
-                "needsServerStorage": "Share requires server storage. Run Axoview self-hosted (Docker) or on Cloudflare to enable shareable links.",
+                "sessionPlaceNeedsServerStorage": "Shareable links for this diagram need server storage (self-hosted Docker or Cloudflare). Diagrams saved to Google Drive can be shared from any deployment.",
                 "needsDiagram": "Open or create a diagram first to share it."
             }
         }
@@ -89,7 +89,15 @@
         "copied": "✓ Copied!",
         "creating": "Creating link…",
         "unavailable": "Sharing is not available",
-        "failed": "Failed to create share link"
+        "failed": "Failed to create share link",
+        "drive": {
+            "liveHint": "Anyone the file is shared with sees the latest version — the link opens the live diagram, not a snapshot.",
+            "accessAnyone": "Anyone with the link can view",
+            "accessRestricted": "Only people with access can view",
+            "accessUnknown": "Checking who has access…",
+            "manageAccess": "Manage access",
+            "accessError": "Couldn't check who has access."
+        }
     },
     "dialog": {
         "save": {
@@ -246,5 +254,15 @@
         "instruction": "Please continue and tick the checkbox that lets Axoview \"see, edit, create and delete only the specific files you use with it.\"",
         "cancel": "Continue without Drive",
         "grant": "Grant Drive access"
+    },
+    "driveDisplay": {
+        "headline": "This diagram lives in its owner's Google Drive",
+        "signInBody": "Sign in with Google so Axoview can check whether this diagram has been shared with you.",
+        "grantBody": "You are signed in, but Axoview needs your permission to open this specific file from Google Drive.",
+        "grantButton": "Open with Google Drive access",
+        "grantUnavailable": "Your Google account does not have access to this diagram through Axoview, and this deployment cannot request it. Ask the owner to share the file with you in Google Drive, then reload this page.",
+        "pickerError": "Could not open the Google Drive access dialog. Please try again.",
+        "transientBody": "We couldn't reach Google Drive to load this diagram. Check your connection and try again.",
+        "retryButton": "Try again"
     }
 }

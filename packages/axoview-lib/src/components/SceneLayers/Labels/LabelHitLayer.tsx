@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Label, Coords } from 'src/types';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useLayerContext } from 'src/hooks/useLayerContext';
@@ -38,6 +38,12 @@ import {
 // position ONCE on release (one undo). The divs live in a <SceneLayer>, so they
 // are positioned in canvas-px — the same space getTilePosition + the canvas draw
 // use — and the SceneLayer CSS transform tracks pan/zoom for free.
+//
+// In VIEW mode (EXPLORABLE_READONLY) the layer mounts HOVER-ONLY proxies: they
+// publish the hovered chip through uiState.viewModeHoveredLabelId so the
+// ViewModeInfoPopover can hover-show a label's notes (notes parity — labels
+// being outside the tile hit-test would otherwise make chips hover-inert).
+// No press handlers and no stopPropagation there, so pan-over-chip still works.
 // ---------------------------------------------------------------------------
 
 // Below this zoom chips are too small to grab precisely; skip the layer (also
@@ -213,16 +219,22 @@ export const LabelHitLayer = ({ labels }: Props) => {
   const { visibleIds, lockedIds } = useLayerContext();
   const uiStoreApi = useUiStateStoreApi();
   const { updateLabel } = useSceneActions();
-  // Coarse zoom + mode gate — boolean selector so this only re-renders when the
-  // gate flips, not on every zoom tick.
-  const active = useUiStateStore(
-    (s) => s.editorMode === 'EDITABLE' && s.zoom >= HIT_MIN_ZOOM
-  );
+  // Coarse zoom gate — boolean selector so this only re-renders when the gate
+  // flips, not on every zoom tick. editorMode is a rarely-changing string, so
+  // subscribing to it directly keeps the same re-render profile.
+  const zoomActive = useUiStateStore((s) => s.zoom >= HIT_MIN_ZOOM);
+  const editorMode = useUiStateStore((s) => s.editorMode);
   // The inline editor must mount even below HIT_MIN_ZOOM — place-and-type, F2
   // and double-click all set inlineEditLabelId, but the whole layer used to
   // return null at low zoom, so those silently no-op'd. Gate the editor on edit
   // mode only; the hit proxies still gate on `active` (zoom) to bound div count.
-  const editable = useUiStateStore((s) => s.editorMode === 'EDITABLE');
+  const editable = editorMode === 'EDITABLE';
+  // View mode (EXPLORABLE_READONLY) mounts HOVER-ONLY proxies: labels are
+  // deliberately out of the tile hit-test (ADR 0031 §4), so without a proxy a
+  // chip with notes could never hover-show the info popover (notes parity,
+  // 2026-07-13). Select / drag / inline-edit / context-menu stay edit-only.
+  const viewMode = editorMode === 'EXPLORABLE_READONLY';
+  const active = (editable || viewMode) && zoomActive;
   const inlineEditLabelId = useUiStateStore((s) => s.inlineEditLabelId);
 
   const dragRef = useRef<DragState | null>(null);
@@ -280,6 +292,46 @@ export const LabelHitLayer = ({ labels }: Props) => {
   const endInlineEdit = useCallback(() => {
     uiStoreApi.getState().actions.setInlineEditLabelId(null);
   }, [uiStoreApi]);
+
+  // View-mode chip hover → the info popover (notes parity). Published through
+  // uiState because the popover's hover path is tile-based and labels are not
+  // tile-hit-tested — this store slice is its only window onto chip hovers.
+  const setViewHover = useCallback(
+    (id: string | null) => {
+      uiStoreApi.getState().actions.setViewModeHoveredLabelId(id);
+    },
+    [uiStoreApi]
+  );
+  // If the proxies stop rendering while a chip is hovered (zoom crosses
+  // HIT_MIN_ZOOM under the cursor, editor-mode switch), no pointerleave fires —
+  // clear the published hover so the popover can't stick to a vanished chip.
+  const viewProxiesLive = viewMode && active;
+  useEffect(() => {
+    if (viewProxiesLive) return;
+    const { viewModeHoveredLabelId, actions } = uiStoreApi.getState();
+    if (viewModeHoveredLabelId !== null) actions.setViewModeHoveredLabelId(null);
+  }, [viewProxiesLive, uiStoreApi]);
+  // A single chip can stop rendering while the LAYER stays live — its label
+  // left `visibleIds` or was removed from `labels`. No pointerleave fires on an
+  // unmount, so its id would stay published; and in the info popover a set
+  // viewModeHoveredLabelId unconditionally WINS over the tile hit-test, so a
+  // stale id blackholes hover for EVERY other element. Clear a published hover
+  // whose chip is no longer in the renderable set.
+  const renderableLabelIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const l of labels) {
+      if (visibleIds.size > 0 && !visibleIds.has(l.id)) continue;
+      ids.add(l.id);
+    }
+    return ids;
+  }, [labels, visibleIds]);
+  useEffect(() => {
+    if (!viewProxiesLive) return;
+    const { viewModeHoveredLabelId, actions } = uiStoreApi.getState();
+    if (viewModeHoveredLabelId && !renderableLabelIds.has(viewModeHoveredLabelId)) {
+      actions.setViewModeHoveredLabelId(null);
+    }
+  }, [renderableLabelIds, viewProxiesLive, uiStoreApi]);
 
   // Right-click a label chip → its item context menu (Details / Rename / Add
   // note / z-order / Delete). The hit-proxy sits above the canvas box and stops
@@ -395,20 +447,28 @@ export const LabelHitLayer = ({ labels }: Props) => {
     };
   }, [onWindowMove, onWindowUp, uiStoreApi]);
 
-  if (!editable) return null;
+  // EDITABLE gets the full gesture surface; EXPLORABLE_READONLY gets hover-only
+  // proxies (see `viewMode` above). NON_INTERACTIVE renders nothing.
+  if (!editable && !viewMode) return null;
   // Low zoom with nothing being edited → render nothing (proxies are zoom-gated).
   if (!active && inlineEditLabelId == null) return null;
 
   return (
     <div ref={counterScaleRef} style={{ display: 'contents' }}>
       {labels.map((label) => {
-        const editing = label.id === inlineEditLabelId;
+        // The inline editor is edit-mode chrome: a stale inlineEditLabelId
+        // (mode switched mid-edit) must never mount a contentEditable in view.
+        const editing = editable && label.id === inlineEditLabelId;
         // Below HIT_MIN_ZOOM only the label being edited mounts (its inline
         // editor); the pixel-accurate hit proxies stay gated on zoom.
         if (!active && !editing) return null;
         if (!editing) {
           if (visibleIds.size > 0 && !visibleIds.has(label.id)) return null;
-          if (lockedIds.has(label.id)) return null;
+          // Locked layers gate EDIT gestures only — the view-mode proxy is a
+          // pure hover surface, and the tile hit-test the other element types
+          // hover through never consults lockedIds, so parity keeps a locked
+          // label's notes hover-readable while presenting.
+          if (editable && lockedIds.has(label.id)) return null;
         }
         const fontSize = labelFontPx(label);
         const ctx = getMeasureCtx();
@@ -444,41 +504,51 @@ export const LabelHitLayer = ({ labels }: Props) => {
             key={label.id}
             data-axoview-id="canvas-label-hit"
             data-label-hit-id={label.id}
-            onPointerDown={(e) => onPointerDown(e, label)}
-            onDoubleClick={(e) => onDoubleClick(e, label)}
-            onContextMenu={(e) => onContextMenu(e, label)}
-            // Hovering a LINKED chip shows the element link card as a view
+            // View mode is HOVER-ONLY: no press/double-click/context handlers
+            // and no stopPropagation, so presses bubble to the window-level pan
+            // handlers (usePanHandlers) — panning keeps working over a chip.
+            // Inline edit / drag / the item menu remain edit-mode gestures.
+            onPointerDown={editable ? (e) => onPointerDown(e, label) : undefined}
+            onDoubleClick={editable ? (e) => onDoubleClick(e, label) : undefined}
+            onContextMenu={editable ? (e) => onContextMenu(e, label) : undefined}
+            // EDIT: hovering a LINKED chip shows the element link card as a view
             // chip (url + copy/edit/remove — ADR 0034 addendum 2026-07-05),
             // exactly like hovering linked text in a text box.
+            // VIEW: publish the hover for the info popover instead — it renders
+            // headerLink itself, so the link-card events are NOT dispatched.
             onPointerEnter={
-              label.headerLink
-                ? (e) => {
-                    const r = e.currentTarget.getBoundingClientRect();
-                    window.dispatchEvent(
-                      new CustomEvent(EDIT_ELEMENT_LINK_EVENT, {
-                        detail: {
-                          target: { kind: 'LABEL', id: label.id },
-                          rect: {
-                            left: r.left,
-                            top: r.top,
-                            width: r.width,
-                            height: r.height
-                          },
-                          mode: 'view',
-                          hover: true
-                        }
-                      })
-                    );
-                  }
-                : undefined
+              viewMode
+                ? () => setViewHover(label.id)
+                : label.headerLink
+                  ? (e) => {
+                      const r = e.currentTarget.getBoundingClientRect();
+                      window.dispatchEvent(
+                        new CustomEvent(EDIT_ELEMENT_LINK_EVENT, {
+                          detail: {
+                            target: { kind: 'LABEL', id: label.id },
+                            rect: {
+                              left: r.left,
+                              top: r.top,
+                              width: r.width,
+                              height: r.height
+                            },
+                            mode: 'view',
+                            hover: true
+                          }
+                        })
+                      );
+                    }
+                  : undefined
             }
             onPointerLeave={
-              label.headerLink
-                ? () =>
-                    window.dispatchEvent(
-                      new CustomEvent(HIDE_ELEMENT_LINK_EVENT)
-                    )
-                : undefined
+              viewMode
+                ? () => setViewHover(null)
+                : label.headerLink
+                  ? () =>
+                      window.dispatchEvent(
+                        new CustomEvent(HIDE_ELEMENT_LINK_EVENT)
+                      )
+                  : undefined
             }
             style={{
               position: 'absolute',
@@ -487,7 +557,9 @@ export const LabelHitLayer = ({ labels }: Props) => {
               width: chip.chipW,
               height: chip.chipH,
               pointerEvents: 'auto',
-              cursor: 'move',
+              // 'move' advertises the edit-mode drag; a view-mode chip is not
+              // grabbable, so it keeps the canvas default.
+              cursor: editable ? 'move' : 'default',
               touchAction: 'none',
               // Congruent with the counter-scaled WebGL chip: the proxy is centred
               // on (cx,cy), so scaling about its centre keeps the full drawn chip

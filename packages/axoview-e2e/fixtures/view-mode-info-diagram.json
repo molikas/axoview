@@ -1,6 +1,6 @@
 {
   "title": "View-mode info popover fixture",
-  "description": "Item A carries a name, notes, and a headerLink so the view-mode info popover (ADR 0012) has content to render.",
+  "description": "Item A carries a name, notes, and a headerLink so the view-mode info popover (ADR 0012) has content to render. The rectangle / text box / floating labels carry notes so the hover popover's notes parity across every element type is coverable; info-label-b has a nonzero offset so chip-anchored placement is coverable. PLACEMENT CONSTRAINT: keep the wedge to the screen-RIGHT of item A's tile (0,0) — roughly tiles with x-y in [1..5] and |x+y| <= 3 — free of notes-bearing elements: the pinned popover (and its X button) renders there, and the real mouse rests on the X after closing, so anything with notes underneath would hover-reopen the popover and break the close assertions.",
   "version": "",
   "items": [
     {
@@ -21,8 +21,39 @@
         { "id": "info-item-b", "tile": { "x": 3, "y": 0 } }
       ],
       "connectors": [],
-      "rectangles": [],
-      "textBoxes": []
+      "rectangles": [
+        {
+          "id": "info-rect-a",
+          "name": "Zone A",
+          "notes": "<p>Rectangle runbook: keep the write path inside this zone.</p>",
+          "from": { "x": -2, "y": 2 },
+          "to": { "x": 0, "y": 4 }
+        }
+      ],
+      "textBoxes": [
+        {
+          "id": "info-text-a",
+          "notes": "<p>Text box brief: standalone caption notes.</p>",
+          "tile": { "x": -3, "y": 1 },
+          "content": "Standalone note"
+        }
+      ],
+      "labels": [
+        {
+          "id": "info-label-a",
+          "text": "Floating label",
+          "notes": "<p>Label notes: the chip itself carries these.</p>",
+          "tile": { "x": 0, "y": -4 }
+        },
+        {
+          "id": "info-label-b",
+          "text": "Offset label",
+          "notes": "<p>Offset label notes: anchored at the chip.</p>",
+          "tile": { "x": -4, "y": -2 },
+          "offset": { "x": 120, "y": 0 },
+          "snap": false
+        }
+      ]
     }
   ],
   "icons": [

@@ -65,6 +65,23 @@
     "settings": {
         "language": "Bahasa"
     },
+    "toolbar": {
+        "share": {
+            "disabled": {
+                "sessionPlaceNeedsServerStorage": "Tautan berbagi untuk diagram ini memerlukan penyimpanan server (self-hosted dengan Docker atau di Cloudflare). Diagram yang disimpan di Google Drive dapat dibagikan dari deployment mana pun."
+            }
+        }
+    },
+    "share": {
+        "drive": {
+            "liveHint": "Siapa pun yang menerima berbagi file melihat versi terbaru — tautan membuka diagram langsung, bukan snapshot.",
+            "accessAnyone": "Siapa pun yang memiliki tautan dapat melihat",
+            "accessRestricted": "Hanya orang dengan akses yang dapat melihat",
+            "accessUnknown": "Memeriksa siapa yang memiliki akses…",
+            "manageAccess": "Kelola akses",
+            "accessError": "Tidak dapat memeriksa siapa yang memiliki akses."
+        }
+    },
     "dialog": {
         "save": {
             "title": "Simpan Diagram (Hanya Sesi Saat Ini)",
@@ -159,5 +176,15 @@
     "legal": {
         "privacy": "Privasi",
         "terms": "Ketentuan"
+    },
+    "driveDisplay": {
+        "headline": "Diagram ini tersimpan di Google Drive pemiliknya",
+        "signInBody": "Masuk dengan Google agar Axoview dapat memeriksa apakah diagram ini telah dibagikan kepada Anda.",
+        "grantBody": "Anda sudah masuk, tetapi Axoview memerlukan izin Anda untuk membuka file khusus ini dari Google Drive.",
+        "grantButton": "Buka dengan akses Google Drive",
+        "grantUnavailable": "Akun Google Anda tidak memiliki akses ke diagram ini melalui Axoview, dan deployment ini tidak dapat memintanya. Minta pemilik untuk membagikan file kepada Anda di Google Drive, lalu muat ulang halaman ini.",
+        "pickerError": "Tidak dapat membuka dialog akses Google Drive. Silakan coba lagi.",
+        "transientBody": "Tidak dapat menjangkau Google Drive untuk memuat diagram ini. Periksa koneksi Anda dan coba lagi.",
+        "retryButton": "Coba lagi"
     }
 }

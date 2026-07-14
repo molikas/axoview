@@ -73,6 +73,12 @@ without server storage; `/display/p/<uuid>` snapshot links).
 > authorized under `drive.file`), or keep all permission *changes* in Google's
 > dialog for v1? Native-dialog-only is less code and the cleaner trust story;
 > the toggle is one API call and makes anonymous publishing one click.
+>
+> **2026-07-13:** v1 shipped **native-dialog-only** (the owner's
+> implement-the-plan directive did not opt into the toggle; the ADR's stated
+> lean applied). The toggle remains a v1.1 option — the popover's access
+> summary already reads the ACL, so the write affordance is an incremental
+> addition.
 
 ### 2. New read-only display route `/display/drive/:driveFileId`
 

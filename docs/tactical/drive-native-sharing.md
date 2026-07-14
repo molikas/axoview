@@ -8,7 +8,7 @@
 > - [docs/drive-native-sharing-investigation.md](../drive-native-sharing-investigation.md) (evidence record + full citation trail; delete together with this file at wrap)
 > - [docs/workflow.md](../workflow.md) (session cadence baseline)
 >
-> **Status:** Not started · **Owner:** molikas · **Last updated:** 2026-07-13
+> **Status:** Implemented on `integration` + adversarial code-review-fix pass landed (401→markExpired, 403 rate-limit taxonomy, permissions pagination drain, gapi.load timeout/onerror, picked-file identity check, DriveSetupGate auth-loss/readonly ordering, share-popover async-race + ACL staleness guards, view-mode label-hover blackhole fix) — pending owner prototype gates (A) + two-account manual verification · **Owner:** molikas · **Last updated:** 2026-07-14
 >
 > This is a **short-lived working doc.** Delete it after the work merges; ADRs are the durable record. PLAN.md gets a one-line entry referencing the ADRs once shipped — see "Wrap-up" below.
 
@@ -67,31 +67,31 @@ snapshot semantics for Drive links, Drive→session transfer.
 - [ ] Record results here; if P1 or P2 fails, STOP and re-open ADR 0042 (status stays Proposed).
 
 ### B. Config rail + CSP
-- [ ] Worker `/api/config`: `googleApiKey` from `GOOGLE_API_KEY` + `googleProjectNumber` from `GOOGLE_PROJECT_NUMBER` (+ app.spec tests). The project number is its own config value — do NOT derive it from the client-id prefix (ADR 0042 §5; wrong value = silent Picker-grant no-op).
-- [ ] Express `/api/config` parity (+ routes.config.spec test).
-- [ ] `useRuntimeConfig` parsing + `DEFAULT_CONFIG` `PUBLIC_GOOGLE_API_KEY` / `PUBLIC_GOOGLE_PROJECT_NUMBER` fallbacks (ADR 0035 §4 pattern).
-- [ ] CSP: `frame-src` += docs.google.com + drive.google.com in `_headers` and both `nginx.conf` blocks; verify at P2 whether Picker needs extra `connect-src`.
-- [ ] Wrangler var + deployment.md / README env-var tables.
+- [x] Worker `/api/config`: `googleApiKey` from `GOOGLE_API_KEY` + `googleProjectNumber` from `GOOGLE_PROJECT_NUMBER` (+ app.spec tests). The project number is its own config value — do NOT derive it from the client-id prefix (ADR 0042 §5; wrong value = silent Picker-grant no-op).
+- [x] Express `/api/config` parity (+ routes.config.spec test).
+- [x] `useRuntimeConfig` parsing + `DEFAULT_CONFIG` `PUBLIC_GOOGLE_API_KEY` / `PUBLIC_GOOGLE_PROJECT_NUMBER` fallbacks (ADR 0035 §4 pattern). ⚠️ Gotcha found live: every `PUBLIC_*` read needs a matching `define` entry in `rsbuild.config.ts` — an unlisted var ships a literal `process` to the browser and breaks boot with a ReferenceError.
+- [x] CSP: `frame-src` += docs.google.com + drive.google.com in `_headers` and both `nginx.conf` blocks; verify at P2 whether Picker needs extra `connect-src`.
+- [x] Wrangler var + deployment.md / README env-var tables.
 
 ### C. Display route + load ladder
-- [ ] Route `/display/drive/:driveFileId` in App.tsx; extend `isReadonlyUrl` OR in DiagramLifecycleProvider; **in the same change, guard the existing owner-readonly loader effect (`:518-575`) with a `driveFileId` early-return** (mirroring its `if (isPublicShareUrl) return`) — without it that effect co-fires on the Drive route, calls `loadDiagram(undefined)`, and races ReadonlyLoadErrorDialog over the gate screen (ADR 0042 §2). Confirm LocalModeShareError untriggered.
-- [ ] `services/drive/drivePublicRead.ts`: key read (+ optional `X-Goog-Drive-Resource-Keys`), token read, typed failure reasons.
-- [ ] Loader effect (template = public-snapshot effect): validate → `loadPacksForDiagram` → readonly `SavedDiagram`; cancel-on-navigate guard like the readonly loader.
-- [ ] `DriveDisplayGate` screen: signed-out (sign-in card reuse) / grant-needed (Picker launch) / terminal-failure states.
-- [ ] Picker wiring: `gapi.load('picker')`, `setAppId(<project number>)`, `setOAuthToken`, `setDeveloperKey`, `DocsView.setFileIds`; retry read after pick.
+- [x] Route `/display/drive/:driveFileId` in App.tsx; extend `isReadonlyUrl` OR in DiagramLifecycleProvider; the owner-readonly loader effect was made **self-keyed** (`if (!readonlyDiagramId || !storage) return`) — a structurally deeper form of the ADR 0042 §2 co-fire guard (each loader keys on its own route param; a fourth route needs zero new guards). LocalModeShareError confirmed untriggered (e2e).
+- [x] `services/drive/drivePublicRead.ts`: key read (+ optional `X-Goog-Drive-Resource-Keys`), token read, typed failure reasons (+ 403 body classification: rate-limit → transient, scope-missing routed to re-consent; 401 arms the auth-store expiry).
+- [x] Loader effect (template = public-snapshot effect): validate → `loadPacksForDiagram` → readonly `SavedDiagram`; cancel-on-navigate guard; hydration tail extracted into ONE shared helper used by all three readonly loaders.
+- [x] `DriveDisplayGate` screen: signed-out (sign-in card reuse) / grant-needed (Picker launch) / terminal-failure states; transient failures get an inline Retry; auto-retry is one-shot guarded.
+- [x] Picker wiring: `gapi.load('picker')` (config-object form with onerror/timeout), `setAppId(<project number>)`, `setOAuthToken`, `setDeveloperKey`, `DocsView.setFileIds` (comma-separated string signature); retry read after pick, picked-doc identity checked.
 
 ### D. Share popover — Drive branch
-- [ ] Remove the `{!driveActive && …}` hide + rewrite the ADR-0036-§4 comment block (AppToolbar).
-- [ ] `services/drive/driveSharing.ts`: preview-URL builder (basename + optional resourceKey), `permissions.list` access summary, ShareClient launcher + fallback (`webViewLink` from `files.get fields=webViewLink,resourceKey`).
-- [ ] Popover UI: copy-link (live-semantics copy text) · manage-access · access summary. A null `googleApiKey` hides ONLY the anonymous-link hint and the gate screen's Picker rung (ADR 0042 §5) — the popover, copy-link, ShareClient, and access summary need no API key and always render for Drive diagrams.
-- [ ] Resolve the ADR §1 TODO with the owner (in-app anyone-toggle: yes/no) before polishing this section.
+- [x] Remove the `{!driveActive && …}` hide + rewrite the ADR-0036-§4 comment block (AppToolbar).
+- [x] `services/drive/driveSharing.ts`: preview-URL builder (shared with shareUrl.ts), `permissions.list` access summary (**pages drained** — a `type:'anyone'` entry can sit past page 1), ShareClient launcher + fallback (`webViewLink` prefetched once per popover open).
+- [x] Popover UI: copy-link (live-semantics copy text) · manage-access · access summary (staleness-guarded; failure shows an inline error, not eternal "Checking…"). A null `googleApiKey` hides ONLY the anonymous-link hint and the gate screen's Picker rung (ADR 0042 §5).
+- [x] ADR §1 TODO resolved 2026-07-13: v1 = native-dialog-only (dated note in the ADR); the anyone-toggle stays a v1.1 option.
 
 ### E. Tests, i18n, docs
-- [ ] Unit: ladder order + null-key skip; resourceKey propagation; config parsing ×2; URL builder; permissions-summary mapping.
-- [ ] e2e: `drive-display.spec.ts` mirroring the readonly-share coverage in `share.spec.ts` (J13/J14) + `share-error.spec.ts`, with mocked `www.googleapis.com` fetches (public-file render; gate screen on 404).
-- [ ] i18n keys ×13 locales (popover, gate screen, errors).
-- [ ] Stale share copy sweep: `docs/features.md` + README "sharing requires server storage / self-host" claims, and the session-branch share-button tooltip copy — all now wrong or misleading once Drive diagrams share serverlessly.
-- [ ] `/notes` sync: known_issues (Picker entry gains "infra landed via ADR 0042; 'Add from Drive' now cheap" note or a fix), architecture.md, testing.md.
+- [x] Unit: ladder order + null-key skip; resourceKey propagation; config parsing ×2; URL builder; permissions-summary mapping (incl. multi-page).
+- [x] e2e: `drive-display.spec.ts` mirroring the readonly-share coverage in `share.spec.ts` (J13/J14) + `share-error.spec.ts`, with mocked `www.googleapis.com` fetches (public-file render; gate screen; resource-key header assertion). 3/3 green on a clean no-`PUBLIC_*` env.
+- [x] i18n keys ×13 locales (popover, gate screen, errors); retired key `toolbar.share.disabled.needsServerStorage` removed.
+- [x] Stale share copy sweep: `docs/features.md` + README + session-branch share tooltip.
+- [x] `/notes` sync: known_issues (Picker entry narrowed to "file-tree browsing" — ADR 0042 lands the Picker for the display-route grant) + testing.md (drive-display.spec.ts row). architecture.md N/A — it has no routing/display-route section (delegates the route list to technical-review).
 
 ## Wrap-up
 

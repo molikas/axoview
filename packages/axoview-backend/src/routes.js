@@ -66,6 +66,8 @@ export function getConfig(_adapter, ctx) {
     status: 200,
     body: {
       googleClientId: env.GOOGLE_CLIENT_ID || null,
+      googleApiKey: env.GOOGLE_API_KEY || null,
+      googleProjectNumber: env.GOOGLE_PROJECT_NUMBER || null,
       driveScopes: ['https://www.googleapis.com/auth/drive.file'],
       authMode: env.AUTH_MODE || 'none',
       serverStorage: env.STORAGE_ENABLED !== false

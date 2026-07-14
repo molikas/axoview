@@ -5,7 +5,13 @@
  * popover instead of the right editing dock. This spec covers:
  *   - hover (with intent) → lightweight preview popover (not pinned);
  *   - pinned popover content: name, clickable headerLink (target=_blank),
- *     read-only notes; closes via the X button and via Esc.
+ *     read-only notes; closes via the X button and via Esc;
+ *   - notes parity (2026-07-13): a rectangle / text box / floating label with
+ *     notes hover-shows the popover exactly like a node does. Label hover
+ *     goes through the LabelHitLayer DOM proxy (labels are not tile-hit-tested
+ *     — ADR 0031 §4), so those legs drive the REAL mouse instead of synthetic
+ *     dispatch on the interactions box; an offset chip verifies the popover
+ *     anchors at the CHIP, not the label's home tile.
  *
  * editorMode is forced to EXPLORABLE_READONLY via the debug bridge (the app
  * drives it from a prop and only re-syncs on prop change, so the override
@@ -139,6 +145,86 @@ test.describe('View-mode info popover — Thread A (ADR 0012)', () => {
     const emptyPos = await canvas.tileToScreen({ x: 12, y: 9 });
     await canvas.dispatchAt(['mousemove'], emptyPos);
     await expect(popover).toHaveCount(0);
+  });
+
+  test('hovering a rectangle or a text box with notes shows the popover (notes parity)', async ({
+    page
+  }) => {
+    const canvas = new CanvasPOM(page);
+    const popover = byAxoviewId(page, 'view-mode-info-popover');
+    const notes = byAxoviewId(page, 'view-mode-info-popover-notes');
+
+    // Rectangle (from (-2,2) to (0,4)) — hover a tile inside its footprint.
+    await canvas.dispatchAt(
+      ['mousemove'],
+      await canvas.tileToScreen({ x: -1, y: 3 })
+    );
+    await expect(popover).toBeVisible();
+    await expect(popover).toHaveAttribute('data-axoview-pinned', 'false');
+    await expect(popover).toContainText('Zone A');
+    await expect(notes).toContainText('Rectangle runbook');
+
+    // Move to an empty tile — the preview closes.
+    await canvas.dispatchAt(
+      ['mousemove'],
+      await canvas.tileToScreen({ x: 12, y: 9 })
+    );
+    await expect(popover).toHaveCount(0);
+
+    // Text box (tile (-3,1)) — the footprint's home tile hits it.
+    await canvas.dispatchAt(
+      ['mousemove'],
+      await canvas.tileToScreen({ x: -3, y: 1 })
+    );
+    await expect(popover).toBeVisible();
+    await expect(popover).toHaveAttribute('data-axoview-pinned', 'false');
+    await expect(notes).toContainText('Text box brief');
+  });
+
+  test('hovering a floating-label chip shows its notes; an offset chip anchors at the chip', async ({
+    page
+  }) => {
+    const canvas = new CanvasPOM(page);
+    const popover = byAxoviewId(page, 'view-mode-info-popover');
+    const notes = byAxoviewId(page, 'view-mode-info-popover-notes');
+
+    // Chip hover goes through the DOM hit proxy — drive the REAL mouse so the
+    // chip's pointerenter fires (synthetic dispatch targets the interactions
+    // box and would never reach the proxy div).
+    const chipA = page.locator('[data-label-hit-id="info-label-a"]');
+    await chipA.hover();
+    await expect(popover).toBeVisible();
+    await expect(popover).toHaveAttribute('data-axoview-pinned', 'false');
+    await expect(popover).toContainText('Floating label');
+    await expect(notes).toContainText('Label notes');
+
+    // Off the chip onto an empty tile — the preview closes (pointerleave
+    // clears the published hover; the tile hit is empty). Tile (2,2) is clear
+    // of every fixture element (the rectangle spans (-2,2)..(0,4)).
+    const emptyPos = await canvas.tileToScreen({ x: 2, y: 2 });
+    await page.mouse.move(emptyPos.x, emptyPos.y);
+    await expect(popover).toHaveCount(0);
+
+    // Offset chip: dragged 120 canvas-px off its home tile (-4,-2). The
+    // popover must anchor at the CHIP, not the home tile — assert its box is
+    // closer to the chip centre than to the home-tile centre.
+    const chipB = page.locator('[data-label-hit-id="info-label-b"]');
+    const chipBox = await chipB.boundingBox();
+    expect(chipBox).not.toBeNull();
+    await chipB.hover();
+    await expect(popover).toBeVisible();
+    await expect(notes).toContainText('Offset label notes');
+
+    const homeTile = await canvas.tileToScreen({ x: -4, y: -2 });
+    const pop = await popover.boundingBox();
+    expect(pop).not.toBeNull();
+    const popCx = pop!.x + pop!.width / 2;
+    const popCy = pop!.y + pop!.height / 2;
+    const chipCx = chipBox!.x + chipBox!.width / 2;
+    const chipCy = chipBox!.y + chipBox!.height / 2;
+    const dChip = Math.hypot(popCx - chipCx, popCy - chipCy);
+    const dHome = Math.hypot(popCx - homeTile.x, popCy - homeTile.y);
+    expect(dChip).toBeLessThan(dHome);
   });
 
   test('popover side-anchors to the RIGHT of the item, and flips LEFT near the right edge', async ({

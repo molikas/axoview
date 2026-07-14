@@ -394,6 +394,16 @@ export interface UiState {
    * isn't drawn twice. UI-only, never persisted.
    */
   inlineEditLabelId: string | null;
+  /**
+   * The floating-Label chip hovered in VIEW mode (EXPLORABLE_READONLY), or
+   * null. Labels are deliberately absent from the tile hit-test
+   * (hitDetection.ts — ADR 0031 §4: the DOM proxy layer owns label hits), so
+   * the ViewModeInfoPopover's tile-based hover path can never see a chip;
+   * LabelHitLayer's view-mode hover proxies publish the hovered chip here
+   * instead, and a hovered chip WINS over the tile hit (chips paint above the
+   * canvas layers). UI-only, never persisted; always null in EDITABLE.
+   */
+  viewModeHoveredLabelId: string | null;
   /** The text box currently being edited inline on canvas (ADR 0034), or null.
    *  Store-based (not a one-shot event) so place-and-type can't race the newly
    *  created box's mount. While set, the Renderer promotes that box ABOVE the
@@ -567,6 +577,9 @@ export interface UiStateActions {
   ) => void;
   /** Enter / leave inline-edit for a floating Label (double-click / F2). */
   setInlineEditLabelId: (id: string | null) => void;
+  /** Publish / clear the view-mode hovered Label chip (LabelHitLayer →
+   *  ViewModeInfoPopover; see `viewModeHoveredLabelId`). */
+  setViewModeHoveredLabelId: (id: string | null) => void;
   /** Enter (id) / leave (null) the on-canvas rich-text edit session for a text
    *  box (ADR 0034). Set by place-and-type, double-click, F2 and context-menu
    *  Rename; cleared by the editor's commit/cancel. */

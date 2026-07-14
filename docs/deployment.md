@@ -60,7 +60,16 @@ environment:
   ENABLE_SERVER_STORAGE: "true"
   STORAGE_PATH: /data/diagrams
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}        # optional, surfaced via /api/config
+  GOOGLE_API_KEY: ${GOOGLE_API_KEY}            # optional, surfaced via /api/config
+  GOOGLE_PROJECT_NUMBER: ${GOOGLE_PROJECT_NUMBER}  # optional, surfaced via /api/config
 ```
+
+`GOOGLE_API_KEY` / `GOOGLE_PROJECT_NUMBER` enable Drive-native sharing extras
+(anonymous preview of "anyone with the link" Drive diagrams and the Google
+Picker grant flow — [ADR 0042](adr/0042-drive-native-sharing-and-readonly-preview.md));
+see [C3](#c3-optional-google-drive-client-id--sharing-key) for what they are
+and how to restrict the key. Without them, Drive sharing still works but
+anonymous preview and the Picker gate are unavailable.
 
 `AUTH_MODE=cf-access` is rejected by Express at request time — that mode only makes sense behind Cloudflare Access.
 
@@ -104,7 +113,7 @@ CF_ACCESS_TEAM_DOMAIN = "your-team"     # the subdomain in <team>.cloudflareacce
 CF_ACCESS_AUD         = "<application-aud>"
 ```
 
-### C3. (Optional) Google Drive client ID
+### C3. (Optional) Google Drive client ID & sharing key
 
 Enables the Google Drive place (sign-in, Drive storage, move-to-Drive). The
 client ID is a **public OAuth identifier, not a secret** — it is committed as a
@@ -119,6 +128,33 @@ GOOGLE_CLIENT_ID = "<your-client-id>.apps.googleusercontent.com"
 
 The frontend reads it at runtime via `GET /api/config` — no rebuild needed when
 it changes. Without it, the app runs session-only (no sign-in affordances).
+
+Two further optional values ride the same rail
+([ADR 0042](adr/0042-drive-native-sharing-and-readonly-preview.md)); both are
+public identifiers, not secrets:
+
+```toml
+# packages/axoview-worker/wrangler.toml
+[vars]
+GOOGLE_API_KEY       = "<referrer-restricted API key>"
+GOOGLE_PROJECT_NUMBER = "<Cloud project NUMBER, not the project id>"
+```
+
+- `GOOGLE_API_KEY` (`/api/config` → `googleApiKey`) enables **anonymous
+  read-only preview** of "anyone with the link" Drive diagrams at
+  `/app/display/drive/<fileId>` — no sign-in needed. Create it in the same
+  Cloud project as the OAuth client, **restricted**:
+  - *HTTP referrers*: `axoview.app`, `axoview.pages.dev` (the apex — Google's
+    `*.` wildcard does NOT match it) **and** `*.axoview.pages.dev`, plus
+    `localhost:3000` for dev.
+  - *API restriction*: Google Drive API + Google Picker API only.
+- `GOOGLE_PROJECT_NUMBER` (`/api/config` → `googleProjectNumber`) is required
+  by the Google Picker's `setAppId` for the per-file grant flow. It is its own
+  value — do NOT derive it from the client-id prefix; a wrong value makes the
+  grant fail silently.
+
+If unset, Drive sharing still works (share dialog, copy-link, owner preview)
+but anonymous preview and the Picker grant gate degrade to the sign-in path.
 
 ### C4. Deploy
 

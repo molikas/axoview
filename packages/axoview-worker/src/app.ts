@@ -9,6 +9,8 @@ interface Env {
   CF_ACCESS_TEAM_DOMAIN?: string;
   CF_ACCESS_AUD?: string;
   GOOGLE_CLIENT_ID?: string;
+  GOOGLE_API_KEY?: string;
+  GOOGLE_PROJECT_NUMBER?: string;
 }
 
 type AppEnv = { Bindings: Env };
@@ -39,6 +41,8 @@ app.get('/api/config', (c) =>
   c.json(
     {
       googleClientId: c.env.GOOGLE_CLIENT_ID || null,
+      googleApiKey: c.env.GOOGLE_API_KEY || null,
+      googleProjectNumber: c.env.GOOGLE_PROJECT_NUMBER || null,
       driveScopes: ['https://www.googleapis.com/auth/drive.file'],
       authMode: c.env.AUTH_MODE || 'none',
       serverStorage: false

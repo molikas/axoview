@@ -8,3 +8,18 @@
 const publicUrl = (process.env.PUBLIC_URL || '').replace(/\/$/, '');
 
 export const APP_BASENAME = `${publicUrl}/app`;
+
+/**
+ * The `${origin}${APP_BASENAME}/display` prefix shared by every read-only link
+ * builder (public-snapshot `shareUrl.ts`, Drive `driveSharing.ts`). Anchored to
+ * the page origin — never a backend-derived host — so the link is openable as
+ * copied (see shareUrl.ts). Empty origin (SSR/test with no window) degrades to
+ * a relative path.
+ */
+export function appDisplayBase(): string {
+  const origin =
+    typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : '';
+  return `${origin}${APP_BASENAME}/display`;
+}

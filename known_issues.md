@@ -66,13 +66,13 @@
 
 **Status:** Open, deferred at the 2026-07-06 Drive wrap (owner call: no demonstrated need — the session place is the downgrade path, not a destination). Revisit if users ask for it; the transfer machinery ([driveTransfer.ts](packages/axoview-app/src/services/storage/driveTransfer.ts)) is direction-agnostic in shape.
 
-## No Google Picker integration — Drive files created outside the app's folder are invisible
+## No Google Picker integration in the file tree — Drive files created outside the app's folder are invisible
 
-**Symptom:** With the `drive.file` scope, the app sees only files it created. A diagram JSON placed in Drive by other means (manual upload, another app) never appears in the tree; there is no Picker flow to grant the app access to it.
+**Symptom:** With the `drive.file` scope, the file tree sees only files the app created. A diagram JSON placed in Drive by other means (manual upload, another app) never appears in the tree; there is no Picker "browse/import an existing Drive file into the tree" flow to grant the app access to it from the explorer. (Note: [ADR 0042](docs/adr/0042-drive-native-sharing-and-readonly-preview.md) *did* introduce a Google Picker — but **only** as the per-file access *grant* on the read-only `/display/drive/:fileId` route, so a recipient can view one specifically-shared file. That is not a general browse-and-add-to-tree flow; the file-tree browsing gap described here is still open.)
 
 **Workaround:** Download the file and use Import — the imported copy lands in the app's Drive folder and is visible thereafter.
 
-**Status:** Open, deferred at the 2026-07-06 Drive wrap. The fix is the Google Picker API (its grant extends `drive.file` visibility per-file); revisit with the worker code-flow slice since both touch the OAuth surface.
+**Status:** Open, deferred at the 2026-07-06 Drive wrap; narrowed 2026-07-14 by [ADR 0042](docs/adr/0042-drive-native-sharing-and-readonly-preview.md), which lands the Picker (with `DocsView.setFileIds`) for the display-route grant. The remaining work is extending that same Picker into a file-tree "add existing Drive file" flow; revisit with the worker code-flow slice since both touch the OAuth surface.
 
 ## Deleting the Drive root folder mid-session is not detected
 

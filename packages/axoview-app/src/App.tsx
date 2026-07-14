@@ -24,6 +24,7 @@ import {
   useDiagramLifecycle
 } from './providers/DiagramLifecycleProvider';
 import { DriveSetupGate } from './components/DriveSetupGate';
+import { DriveDisplayGate } from './components/DriveDisplayGate';
 import { MigrateSessionDialog } from './components/MigrateSessionDialog';
 import { DriveAccessRequiredDialog } from './components/DriveAccessRequiredDialog';
 import { useAuthStore } from './stores/authStore';
@@ -94,6 +95,9 @@ function App() {
       <Routes>
         <Route path="/" element={<EditorPage />} />
         <Route path="/display/p/:shareUuid" element={<EditorPage />} />
+        {/* ADR 0042 §2 — live Drive-file preview. The static `drive` segment
+            ranks above :readonlyDiagramId, so the routes cannot collide. */}
+        <Route path="/display/drive/:driveFileId" element={<EditorPage />} />
         <Route path="/display/:readonlyDiagramId" element={<EditorPage />} />
         {/* Any unknown path (e.g. a mistyped /whatever.html served to the SPA by
             the nginx/Pages fallback) renders a graceful 404 that clears the boot
@@ -524,6 +528,10 @@ function EditorShell() {
         open={showLocalModeShareError}
         onDismiss={() => navigate('/', { replace: true })}
       />
+
+      {/* ADR 0042 §2 rungs 3–4 — sign-in / Picker-grant / terminal-failure
+          gate for the Drive display route. Renders nothing off that route. */}
+      <DriveDisplayGate />
 
       <ReadonlyLoadErrorDialog
         open={readonlyLoadFailed}

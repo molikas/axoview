@@ -73,13 +73,26 @@
     "toolbar": {
         "presentSaveFirst": "Save first to present",
         "saveAndPresent": "Save & Present",
-        "present": "Present"
+        "present": "Present",
+        "share": {
+            "disabled": {
+                "sessionPlaceNeedsServerStorage": "এই ডায়াগ্রামের শেয়ার লিঙ্কের জন্য সার্ভার স্টোরেজ প্রয়োজন (Docker-এ সেলফ-হোস্টেড বা Cloudflare)। Google Drive-এ সংরক্ষিত ডায়াগ্রাম যেকোনো ডিপ্লয়মেন্ট থেকে শেয়ার করা যায়।"
+            }
+        }
     },
     "share": {
         "title": "Share Diagram",
         "hint": "Anyone with this link can view the diagram in read-only mode.",
         "copy": "Copy",
-        "copied": "✓ Copied!"
+        "copied": "✓ Copied!",
+        "drive": {
+            "liveHint": "ফাইলটি যাদের সাথে শেয়ার করা হয়েছে, তারা সর্বশেষ সংস্করণ দেখতে পান — লিঙ্কটি লাইভ ডায়াগ্রাম খোলে, কোনো স্ন্যাপশট নয়।",
+            "accessAnyone": "লিঙ্ক থাকা যে কেউ দেখতে পারেন",
+            "accessRestricted": "শুধুমাত্র অ্যাক্সেস থাকা ব্যক্তিরাই দেখতে পারেন",
+            "accessUnknown": "কার অ্যাক্সেস আছে তা যাচাই করা হচ্ছে…",
+            "manageAccess": "অ্যাক্সেস পরিচালনা করুন",
+            "accessError": "কার অ্যাক্সেস আছে তা যাচাই করা যায়নি।"
+        }
     },
     "dialog": {
         "save": {
@@ -198,5 +211,15 @@
     "legal": {
         "privacy": "গোপনীয়তা",
         "terms": "শর্তাবলী"
+    },
+    "driveDisplay": {
+        "headline": "এই ডায়াগ্রামটি এর মালিকের Google Drive-এ রয়েছে",
+        "signInBody": "Google দিয়ে সাইন ইন করুন যাতে Axoview যাচাই করতে পারে যে এই ডায়াগ্রামটি আপনার সাথে শেয়ার করা হয়েছে কি না।",
+        "grantBody": "আপনি সাইন ইন করেছেন, কিন্তু এই নির্দিষ্ট ফাইলটি Google Drive থেকে খুলতে Axoview-এর আপনার অনুমতি প্রয়োজন।",
+        "grantButton": "Google Drive অ্যাক্সেস সহ খুলুন",
+        "grantUnavailable": "আপনার Google অ্যাকাউন্টের Axoview-এর মাধ্যমে এই ডায়াগ্রামে অ্যাক্সেস নেই, এবং এই ডিপ্লয়মেন্ট তা অনুরোধ করতে পারে না। মালিককে Google Drive-এ ফাইলটি আপনার সাথে শেয়ার করতে বলুন, তারপর এই পৃষ্ঠাটি পুনরায় লোড করুন।",
+        "pickerError": "Google Drive অ্যাক্সেস ডায়ালগ খোলা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।",
+        "transientBody": "এই ডায়াগ্রামটি লোড করতে Google Drive-এ পৌঁছানো যায়নি। আপনার সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।",
+        "retryButton": "আবার চেষ্টা করুন"
     }
 }

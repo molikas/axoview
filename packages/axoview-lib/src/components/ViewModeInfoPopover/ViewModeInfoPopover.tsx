@@ -4,8 +4,8 @@
 // item's name / notes / link surface here, anchored to the item on the canvas:
 //   - hover (with intent delay) → lightweight preview
 //   - click → pinned (selection); closes on X / Esc / click-away (deselect)
-// Parity across node / connector / rectangle / textbox; renders nothing for
-// items with no name, notes, or headerLink.
+// Parity across node / connector / rectangle / textbox / floating label;
+// renders nothing for items with no name, notes, or headerLink.
 //
 // Anchoring mirrors NodeActionBar: rendered inside a SceneLayer at the item's
 // tile and counter-scaled by 1/zoom (UX §8.8) so it stays pixel-stable.
@@ -37,6 +37,7 @@ import { useTranslation } from 'src/stores/localeStore';
 import { getItemAtTile } from 'src/utils/hitDetection';
 import { hasVisibleText } from 'src/components/NodeActionBar/NodeActionBar.helpers';
 import {
+  deriveItemInfo,
   hasInfoPopoverContent,
   toHref
 } from 'src/components/ViewModeInfoPopover/ViewModeInfoPopover.helpers';
@@ -74,14 +75,26 @@ export const ViewModeInfoPopover = () => {
   const pinnedTile = pinnedControls?.tile;
 
   // --- Hovered target (hover-intent) ------------------------------------------
+  // Floating-label chip hover, published by LabelHitLayer's view-mode proxies.
+  // Labels are deliberately absent from the tile hit-test (ADR 0031 §4 — the
+  // DOM proxy layer owns label hits), so this is the popover's ONLY way to see
+  // a chip hover.
+  const viewModeHoveredLabelId = useUiStateStore(
+    (s) => s.viewModeHoveredLabelId
+  );
   const [hoveredRef, setHoveredRef] = useState<ItemReference | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const hit = getItemAtTile({
-      tile: hoverTile,
-      scene: { items, textBoxes, hitConnectors, rectangles }
-    });
+    // A hovered chip WINS over the tile hit: chips paint ABOVE the canvas
+    // layers (LabelsCanvas mounts after NodesCanvas), so what the pointer is
+    // visually on top of is the chip. Both paths feed the same intent timers.
+    const hit: ItemReference | null = viewModeHoveredLabelId
+      ? { type: 'LABEL', id: viewModeHoveredLabelId }
+      : getItemAtTile({
+          tile: hoverTile,
+          scene: { items, textBoxes, hitConnectors, rectangles }
+        });
     if (timerRef.current) clearTimeout(timerRef.current);
     if (hit) {
       timerRef.current = setTimeout(() => setHoveredRef(hit), HOVER_OPEN_MS);
@@ -91,7 +104,14 @@ export const ViewModeInfoPopover = () => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [hoverTile, items, textBoxes, hitConnectors, rectangles]);
+  }, [
+    hoverTile,
+    items,
+    textBoxes,
+    hitConnectors,
+    rectangles,
+    viewModeHoveredLabelId
+  ]);
 
   // Pinned wins over hover (ADR 0012).
   const active = pinnedRef ?? hoveredRef;
@@ -108,49 +128,21 @@ export const ViewModeInfoPopover = () => {
 
   const info = useMemo(() => {
     if (!active) return null;
-    let name: string | undefined;
-    let notes: string | undefined;
-    let headerLink: string | undefined;
-    let anchorTile: Coords | undefined;
-
-    switch (active.type) {
-      case 'ITEM':
-        name = modelItem?.name;
-        notes = modelItem?.notes;
-        headerLink = modelItem?.headerLink;
-        anchorTile = viewItem?.tile;
-        break;
-      case 'CONNECTOR':
-        name = connector?.name || connector?.description;
-        notes = connector?.notes;
-        headerLink = connector?.headerLink;
+    // Per-type derivation lives in deriveItemInfo (pure, unit-tested) — notes
+    // parity across all five element types is enforced there. LABEL hover
+    // arrives via viewModeHoveredLabelId (labels aren't tile-hit-tested; a
+    // pinned label stays a follow-up — INFO_TYPES gates the pinned path).
+    const { name, notes, headerLink, anchorTile, anchorOffset } =
+      deriveItemInfo(active.type, {
+        modelItem,
+        viewItem,
+        connector,
+        textBox,
+        label,
+        rectangle,
         // Connectors have no single tile — anchor at the pin tile or cursor.
-        anchorTile = pinnedTile ?? hoverTile;
-        break;
-      case 'TEXTBOX':
-        name = textBox?.name;
-        anchorTile = textBox?.tile;
-        break;
-      case 'LABEL':
-        name = label?.text;
-        // A floating Label can carry a link (set from the strip). Read it here
-        // so it surfaces once labels become view-interactive (LabelHitLayer is
-        // edit-only today; view-mode label click is a follow-up).
-        headerLink = label?.headerLink;
-        anchorTile = label?.tile;
-        break;
-      case 'RECTANGLE':
-        name = rectangle?.name;
-        if (rectangle) {
-          anchorTile = {
-            x: (rectangle.from.x + rectangle.to.x) / 2,
-            y: Math.min(rectangle.from.y, rectangle.to.y)
-          };
-        }
-        break;
-      default:
-        break;
-    }
+        fallbackTile: pinnedTile ?? hoverTile
+      });
 
     if (!anchorTile) return null;
 
@@ -171,7 +163,8 @@ export const ViewModeInfoPopover = () => {
       notes,
       hasNotes,
       headerLink,
-      anchorTile
+      anchorTile,
+      anchorOffset
     };
   }, [
     active,
@@ -180,12 +173,10 @@ export const ViewModeInfoPopover = () => {
     viewItem,
     connector,
     textBox,
+    label,
     rectangle,
     pinnedTile,
-    hoverTile,
-    label?.text,
-    label?.headerLink,
-    label?.tile
+    hoverTile
   ]);
 
   const closePinned = useCallback(() => {
@@ -215,6 +206,12 @@ export const ViewModeInfoPopover = () => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const anchorTileRef = useRef<Coords | undefined>(undefined);
   anchorTileRef.current = info?.anchorTile;
+  // Canvas-px residual on top of the tile anchor (ADR 0023): a floating-Label
+  // chip can be dragged off its home tile (`label.offset`), so the popover
+  // must anchor at the CHIP, not the tile. Applied after getTilePosition, in
+  // the same canvas space LabelHitLayer's cx/cy math uses.
+  const anchorOffsetRef = useRef<Coords | undefined>(undefined);
+  anchorOffsetRef.current = info?.anchorOffset;
 
   const applyPlacement = useCallback(() => {
     const el = wrapperRef.current;
@@ -223,9 +220,12 @@ export const ViewModeInfoPopover = () => {
     const { scroll, zoom, rendererSize } = uiStoreApi.getState();
     if (!rendererSize.width || !rendererSize.height) return;
 
+    // Canvas px scale with zoom (the SceneLayer transform), so the offset is
+    // folded in BEFORE the zoom multiply.
+    const off = anchorOffsetRef.current;
     const toScreen = (p: Coords) => ({
-      x: rendererSize.width / 2 + scroll.position.x + zoom * p.x,
-      y: rendererSize.height / 2 + scroll.position.y + zoom * p.y
+      x: rendererSize.width / 2 + scroll.position.x + zoom * (p.x + (off?.x ?? 0)),
+      y: rendererSize.height / 2 + scroll.position.y + zoom * (p.y + (off?.y ?? 0))
     });
     const center = toScreen(getTilePosition({ tile, origin: 'CENTER' }));
     const rightEdge = toScreen(getTilePosition({ tile, origin: 'RIGHT' }));

@@ -14,6 +14,8 @@ describe('GET /api/config', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       googleClientId: null,
+      googleApiKey: null,
+      googleProjectNumber: null,
       driveScopes: ['https://www.googleapis.com/auth/drive.file'],
       authMode: 'none',
       serverStorage: false
@@ -27,6 +29,15 @@ describe('GET /api/config', () => {
     });
     expect(res.body.googleClientId).toBe('client-1');
     expect(res.body.authMode).toBe('shared-token');
+  });
+
+  test('reflects GOOGLE_API_KEY + GOOGLE_PROJECT_NUMBER from env (ADR 0042 §5)', async () => {
+    const res = await request('/api/config', {}, {
+      GOOGLE_API_KEY: 'AIza-test-key',
+      GOOGLE_PROJECT_NUMBER: '123456789012'
+    });
+    expect(res.body.googleApiKey).toBe('AIza-test-key');
+    expect(res.body.googleProjectNumber).toBe('123456789012');
   });
 
   test('serverStorage is hardcoded false (§12 B2: Worker is storage-less)', async () => {
