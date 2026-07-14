@@ -92,6 +92,9 @@
             "accessUnknown": "Vérification des accès…",
             "manageAccess": "Gérer l'accès",
             "accessError": "Impossible de vérifier qui a accès.",
+            "sharedWithCount_one": "Partagé avec {{count}} personne",
+            "sharedWithCount_many": "Partagé avec {{count}} personnes",
+            "sharedWithCount_other": "Partagé avec {{count}} personnes",
             "manage": {
                 "title": "Gérer l'accès",
                 "titleNamed": "Partager « {{name}} »",

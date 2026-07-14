@@ -9,6 +9,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
+  Autocomplete,
   Avatar,
   Box,
   Button,
@@ -26,7 +27,9 @@ import {
   Select,
   Stack,
   TextField,
-  Typography
+  ThemeProvider,
+  Typography,
+  createTheme
 } from '@mui/material';
 import {
   CloseOutlined as CloseIcon,
@@ -45,6 +48,27 @@ import {
   removePermission
 } from '../services/drive/driveSharing';
 import { useNotificationStore } from '../stores/notificationStore';
+import {
+  getRecentShareEmails,
+  addRecentShareEmail
+} from '../services/drive/recentShareEmails';
+
+// The app renders on MUI's DEFAULT theme (16px body, 20px h6, UPPERCASE overline),
+// which makes this dialog feel oversized next to the lib's compact Export dialog.
+// Opt into a compact scale for the dialog only — typography + input/menu font
+// sizes; the app palette is inherited unchanged. Matches the Export dialog's feel.
+const compactShareTheme = createTheme({
+  typography: {
+    h6: { fontSize: '1.1rem', fontWeight: 600 },
+    body1: { fontSize: '0.875rem' },
+    body2: { fontSize: '0.875rem' },
+    caption: { fontSize: '0.75rem' }
+  },
+  components: {
+    MuiInputBase: { styleOverrides: { root: { fontSize: '0.875rem' } } },
+    MuiMenuItem: { styleOverrides: { root: { fontSize: '0.875rem' } } }
+  }
+});
 
 // ADR 0042 §1 (rev. 2026-07-14) — custom in-app "Manage access" over the Drive
 // REST v3 permissions API (replaces the deprecated ShareClient widget). Grants
@@ -140,6 +164,10 @@ export function DriveShareManageDialog({
   const [busy, setBusy] = useState(false);
   const [addEmail, setAddEmail] = useState('');
   const [addRole, setAddRole] = useState<ShareRole>('reader');
+  // Previously shared-with emails, for the Add-people autocomplete. Local history
+  // only — NOT Google Contacts (that needs a new sensitive scope). See
+  // recentShareEmails.ts.
+  const [recentEmails, setRecentEmails] = useState<string[]>([]);
 
   // The viewer link to hand people — NOT the raw Drive file Google's notification
   // email points at. App-created files carry no resourceKey, so fileId suffices.
@@ -165,6 +193,7 @@ export function DriveShareManageDialog({
     setActionError(null);
     setAddEmail('');
     setAddRole('reader');
+    setRecentEmails(getRecentShareEmails());
     void refresh();
   }, [open, refresh]);
 
@@ -229,10 +258,14 @@ export function DriveShareManageDialog({
       defaultValue: `View this diagram in Axoview: ${previewUrl}`
     });
     await runAction(() => addPersonPermission(fileId, email, addRole, true, emailMessage));
+    // Remember for next time's autocomplete (local history, no new Google scope).
+    addRecentShareEmail(email);
+    setRecentEmails(getRecentShareEmails());
     setAddEmail('');
   };
 
   return (
+    <ThemeProvider theme={compactShareTheme}>
     <Dialog
       open={open}
       onClose={busy ? undefined : onClose}
@@ -281,25 +314,39 @@ export function DriveShareManageDialog({
 
             {/* Add people — the primary action, at the top (Drive mental model). */}
             <Box>
-              <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+              <Typography
+                variant="caption"
+                sx={{ display: 'block', fontWeight: 600, color: 'text.secondary', mb: 0.75 }}
+              >
                 {t('share.drive.manage.addPeople', 'Add people')}
               </Typography>
               <Stack direction="row" spacing={1}>
-                <TextField
-                  size="small"
+                <Autocomplete
+                  freeSolo
                   fullWidth
-                  type="email"
-                  placeholder={t('share.drive.manage.emailPlaceholder', 'name@example.com')}
-                  value={addEmail}
+                  size="small"
                   disabled={busy}
-                  data-axoview-id="drive-share-manage-add-email"
-                  onChange={(e) => setAddEmail(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      void handleAdd();
-                    }
-                  }}
+                  options={recentEmails}
+                  inputValue={addEmail}
+                  onInputChange={(_, val) => setAddEmail(val)}
+                  forcePopupIcon={false}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      type="email"
+                      placeholder={t('share.drive.manage.emailPlaceholder', 'name@example.com')}
+                      inputProps={{
+                        ...params.inputProps,
+                        'data-axoview-id': 'drive-share-manage-add-email'
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void handleAdd();
+                        }
+                      }}
+                    />
+                  )}
                 />
                 {showAddControls && (
                   <>
@@ -335,7 +382,10 @@ export function DriveShareManageDialog({
 
             {/* People with access — owner "you" row first, then grantees. */}
             <Box>
-              <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+              <Typography
+                variant="caption"
+                sx={{ display: 'block', fontWeight: 600, color: 'text.secondary', mb: 0.75 }}
+              >
                 {t('share.drive.manage.peopleWithAccess', 'People with access')}
               </Typography>
               {!owner && others.length === 0 ? (
@@ -383,7 +433,10 @@ export function DriveShareManageDialog({
 
             {/* General access — the link fallback, with a lock/globe state icon. */}
             <Box>
-              <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+              <Typography
+                variant="caption"
+                sx={{ display: 'block', fontWeight: 600, color: 'text.secondary', mb: 0.75 }}
+              >
                 {t('share.drive.manage.generalAccess', 'General access')}
               </Typography>
               <Stack direction="row" spacing={1.5} alignItems="center">
@@ -441,5 +494,6 @@ export function DriveShareManageDialog({
         </Button>
       </DialogActions>
     </Dialog>
+    </ThemeProvider>
   );
 }

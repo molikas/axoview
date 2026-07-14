@@ -80,6 +80,8 @@
             "accessUnknown": "Wird geprüft, wer Zugriff hat…",
             "manageAccess": "Zugriff verwalten",
             "accessError": "Es konnte nicht geprüft werden, wer Zugriff hat.",
+            "sharedWithCount_one": "Geteilt mit {{count}} Person",
+            "sharedWithCount_other": "Geteilt mit {{count}} Personen",
             "manage": {
                 "title": "Zugriff verwalten",
                 "titleNamed": "„{{name}}“ teilen",

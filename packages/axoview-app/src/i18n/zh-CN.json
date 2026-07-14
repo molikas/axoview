@@ -92,6 +92,7 @@
             "accessUnknown": "正在检查谁有访问权限…",
             "manageAccess": "管理访问权限",
             "accessError": "无法检查谁有访问权限。",
+            "sharedWithCount_other": "已与 {{count}} 人共享",
             "manage": {
                 "title": "管理访问权限",
                 "titleNamed": "分享“{{name}}”",

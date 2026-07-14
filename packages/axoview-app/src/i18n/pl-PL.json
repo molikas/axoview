@@ -92,6 +92,10 @@
             "accessUnknown": "Sprawdzanie, kto ma dostęp…",
             "manageAccess": "Zarządzaj dostępem",
             "accessError": "Nie udało się sprawdzić, kto ma dostęp.",
+            "sharedWithCount_one": "Udostępniono {{count}} osobie",
+            "sharedWithCount_few": "Udostępniono {{count}} osobom",
+            "sharedWithCount_many": "Udostępniono {{count}} osobom",
+            "sharedWithCount_other": "Udostępniono {{count}} osoby",
             "manage": {
                 "title": "Zarządzaj dostępem",
                 "titleNamed": "Udostępnij „{{name}}”",

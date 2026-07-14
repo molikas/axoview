@@ -23,6 +23,13 @@ export interface FileShareMeta {
 
 export type AccessSummary = 'anyone-with-link' | 'restricted';
 
+export interface AccessOverview {
+  summary: AccessSummary;
+  /** Named people with access — excludes the owner ("you") and the anyone-link
+   *  entry, so it matches the count a user reads as "shared with N people". */
+  peopleCount: number;
+}
+
 /** The roles the custom share UI can grant. Drive supports more; a read-only
  *  preview product only meaningfully offers viewer / editor. */
 export type ShareRole = 'reader' | 'writer';
@@ -128,9 +135,22 @@ export async function listPermissions(fileId: string): Promise<DrivePermission[]
  * link work anonymously? A `type:'anyone'` entry ⇒ link-readable.
  */
 export async function getAccessSummary(fileId: string): Promise<AccessSummary> {
-  return (await listPermissions(fileId)).some((p) => p.type === 'anyone')
-    ? 'anyone-with-link'
-    : 'restricted';
+  return (await getAccessOverview(fileId)).summary;
+}
+
+/**
+ * Access summary + the count of named people with access — one `permissions.list`
+ * drain drives both the anonymous-link indicator and the "shared with N people"
+ * status. The owner and the `type:'anyone'` entry are excluded from the count.
+ */
+export async function getAccessOverview(fileId: string): Promise<AccessOverview> {
+  const perms = await listPermissions(fileId);
+  return {
+    summary: perms.some((p) => p.type === 'anyone') ? 'anyone-with-link' : 'restricted',
+    peopleCount: perms.filter(
+      (p) => (p.type === 'user' || p.type === 'group') && p.role !== 'owner'
+    ).length
+  };
 }
 
 /**

@@ -2,6 +2,7 @@ import {
   drivePreviewUrl,
   getFileShareMeta,
   getAccessSummary,
+  getAccessOverview,
   listPermissions,
   setAnyoneWithLink,
   addPersonPermission,
@@ -133,6 +134,35 @@ describe('getAccessSummary', () => {
       .mockResolvedValueOnce(mockResponse({ permissions: [{ id: 'a', type: 'anyone', role: 'reader' }] }));
     await expect(getAccessSummary('f1')).resolves.toBe('anyone-with-link');
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('getAccessOverview', () => {
+  test('returns the summary and the count of named non-owner people', async () => {
+    fetchMock.mockResolvedValueOnce(
+      mockResponse({
+        permissions: [
+          { id: 'o', type: 'user', role: 'owner' },
+          { id: 'a', type: 'anyone', role: 'reader' },
+          { id: 'p1', type: 'user', role: 'reader', emailAddress: 'a@x.com' },
+          { id: 'p2', type: 'group', role: 'writer', emailAddress: 'g@x.com' }
+        ]
+      })
+    );
+    await expect(getAccessOverview('f1')).resolves.toEqual({
+      summary: 'anyone-with-link',
+      peopleCount: 2
+    });
+  });
+
+  test('restricted with no extra people → peopleCount 0', async () => {
+    fetchMock.mockResolvedValueOnce(
+      mockResponse({ permissions: [{ id: 'o', type: 'user', role: 'owner' }] })
+    );
+    await expect(getAccessOverview('f1')).resolves.toEqual({
+      summary: 'restricted',
+      peopleCount: 0
+    });
   });
 });
 

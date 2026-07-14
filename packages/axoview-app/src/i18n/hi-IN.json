@@ -92,6 +92,8 @@
             "accessUnknown": "जाँचा जा रहा है कि किसके पास पहुँच है…",
             "manageAccess": "पहुँच प्रबंधित करें",
             "accessError": "किसके पास पहुँच है, यह जाँचा नहीं जा सका।",
+            "sharedWithCount_one": "{{count}} व्यक्ति के साथ साझा किया गया",
+            "sharedWithCount_other": "{{count}} लोगों के साथ साझा किया गया",
             "manage": {
                 "title": "पहुँच प्रबंधित करें",
                 "titleNamed": "“{{name}}” साझा करें",

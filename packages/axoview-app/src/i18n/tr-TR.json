@@ -92,6 +92,8 @@
             "accessUnknown": "Kimlerin erişimi olduğu kontrol ediliyor…",
             "manageAccess": "Erişimi yönet",
             "accessError": "Kimlerin erişimi olduğu kontrol edilemedi.",
+            "sharedWithCount_one": "{{count}} kişiyle paylaşıldı",
+            "sharedWithCount_other": "{{count}} kişiyle paylaşıldı",
             "manage": {
                 "title": "Erişimi yönet",
                 "titleNamed": "\"{{name}}\" paylaş",

@@ -92,6 +92,10 @@
             "accessUnknown": "Проверяем, у кого есть доступ…",
             "manageAccess": "Управлять доступом",
             "accessError": "Не удалось проверить, у кого есть доступ.",
+            "sharedWithCount_one": "Поделились с {{count}} пользователем",
+            "sharedWithCount_few": "Поделились с {{count}} пользователями",
+            "sharedWithCount_many": "Поделились с {{count}} пользователями",
+            "sharedWithCount_other": "Поделились с {{count}} пользователями",
             "manage": {
                 "title": "Управлять доступом",
                 "titleNamed": "Поделиться «{{name}}»",

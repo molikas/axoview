@@ -2,6 +2,7 @@ import '@testing-library/jest-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DriveShareManageDialog } from '../DriveShareManageDialog';
+import { getRecentShareEmails } from '../../services/drive/recentShareEmails';
 import {
   listPermissions,
   setAnyoneWithLink,
@@ -38,6 +39,7 @@ const JANE = { id: 'p-jane', type: 'user', role: 'reader', emailAddress: 'jane@x
 
 beforeEach(() => {
   jest.clearAllMocks();
+  localStorage.clear();
 });
 
 function renderOpen() {
@@ -96,6 +98,19 @@ test('adding a person calls addPersonPermission with the email, viewer role, and
       expect.stringContaining('http://localhost/app/display/drive/f1')
     )
   );
+});
+
+test('remembers the added email for future autocomplete (local history)', async () => {
+  listMock.mockResolvedValueOnce([OWNER]).mockResolvedValueOnce([OWNER, JANE]);
+  addMock.mockResolvedValueOnce(undefined);
+  renderOpen();
+  const user = userEvent.setup();
+
+  await screen.findByText('Add people');
+  await user.type(screen.getByPlaceholderText('name@example.com'), 'jane@x.com');
+  await user.click(screen.getByRole('button', { name: 'Add' }));
+
+  await waitFor(() => expect(getRecentShareEmails()).toContain('jane@x.com'));
 });
 
 test('Copy link writes the viewer preview URL to the clipboard', async () => {

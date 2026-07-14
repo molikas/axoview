@@ -92,6 +92,8 @@
             "accessUnknown": "কার অ্যাক্সেস আছে তা যাচাই করা হচ্ছে…",
             "manageAccess": "অ্যাক্সেস পরিচালনা করুন",
             "accessError": "কার অ্যাক্সেস আছে তা যাচাই করা যায়নি।",
+            "sharedWithCount_one": "{{count}} জনের সাথে শেয়ার করা হয়েছে",
+            "sharedWithCount_other": "{{count}} জনের সাথে শেয়ার করা হয়েছে",
             "manage": {
                 "title": "অ্যাক্সেস পরিচালনা করুন",
                 "titleNamed": "“{{name}}” শেয়ার করুন",

@@ -98,6 +98,8 @@
             "accessUnknown": "Checking who has access…",
             "manageAccess": "Manage access",
             "accessError": "Couldn't check who has access.",
+            "sharedWithCount_one": "Shared with {{count}} person",
+            "sharedWithCount_other": "Shared with {{count}} people",
             "manage": {
                 "title": "Manage access",
                 "titleNamed": "Share \"{{name}}\"",

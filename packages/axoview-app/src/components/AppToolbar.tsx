@@ -37,8 +37,8 @@ import { AuthControl } from './AuthControl';
 import { shareUrlFromUuid } from '../utils/shareUrl';
 import {
   drivePreviewUrl,
-  getAccessSummary,
-  AccessSummary
+  getAccessOverview,
+  AccessOverview
 } from '../services/drive/driveSharing';
 import { DriveShareManageDialog } from './DriveShareManageDialog';
 import { useNotificationStore } from '../stores/notificationStore';
@@ -98,9 +98,9 @@ export function AppToolbar() {
   const [shareUrl, setShareUrl] = useState('');
   const [shareLoading, setShareLoading] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
-  // Drive branch only (ADR 0042 §1): current ACL state so the owner can see
-  // whether the copied link works anonymously. null = still checking.
-  const [driveAccessSummary, setDriveAccessSummary] = useState<AccessSummary | null>(null);
+  // Drive branch only (ADR 0042 §1): current ACL state (summary + people count)
+  // for the caret menu's status line. null = still checking.
+  const [driveOverview, setDriveOverview] = useState<AccessOverview | null>(null);
   // ACL check FAILED (distinct from still-loading) — an inline error beats an
   // eternal "Checking…". Reset per popover open / diagram change.
   const [driveAccessError, setDriveAccessError] = useState(false);
@@ -117,7 +117,7 @@ export function AppToolbar() {
     setShareCopied(false);
     setShareError(null);
     setShareLoading(false);
-    setDriveAccessSummary(null);
+    setDriveOverview(null);
     setDriveAccessError(false);
     setShowSharePopover(false);
     setShareMenuAnchor(null);
@@ -181,10 +181,10 @@ export function AppToolbar() {
     setShareMenuAnchor(e.currentTarget);
     const reqId = ++shareReqRef.current;
     setDriveAccessError(false);
-    setDriveAccessSummary(null);
-    void getAccessSummary(currentDiagramId)
-      .then((s) => {
-        if (shareReqRef.current === reqId) setDriveAccessSummary(s);
+    setDriveOverview(null);
+    void getAccessOverview(currentDiagramId)
+      .then((o) => {
+        if (shareReqRef.current === reqId) setDriveOverview(o);
       })
       .catch(() => {
         if (shareReqRef.current === reqId) setDriveAccessError(true);
@@ -225,9 +225,9 @@ export function AppToolbar() {
     if (!driveActive || !currentDiagramId) return;
     const reqId = ++shareReqRef.current;
     setDriveAccessError(false);
-    void getAccessSummary(currentDiagramId)
-      .then((s) => {
-        if (shareReqRef.current === reqId) setDriveAccessSummary(s);
+    void getAccessOverview(currentDiagramId)
+      .then((o) => {
+        if (shareReqRef.current === reqId) setDriveOverview(o);
       })
       .catch(() => {
         if (shareReqRef.current === reqId) setDriveAccessError(true);
@@ -634,11 +634,16 @@ export function AppToolbar() {
             >
               {driveAccessError
                 ? t('share.drive.accessError', "Couldn't check who has access.")
-                : driveAccessSummary === 'anyone-with-link'
-                  ? t('share.drive.accessAnyone', 'Anyone with the link can view')
-                  : driveAccessSummary === 'restricted'
-                    ? t('share.drive.accessRestricted', 'Only people with access can view')
-                    : t('share.drive.accessUnknown', 'Checking who has access…')}
+                : !driveOverview
+                  ? t('share.drive.accessUnknown', 'Checking who has access…')
+                  : driveOverview.summary === 'anyone-with-link'
+                    ? t('share.drive.accessAnyone', 'Anyone with the link can view')
+                    : driveOverview.peopleCount > 0
+                      ? t('share.drive.sharedWithCount', {
+                          count: driveOverview.peopleCount,
+                          defaultValue: `Shared with ${driveOverview.peopleCount} people`
+                        })
+                      : t('share.drive.accessRestricted', 'Only people with access can view')}
             </Typography>
           </Box>
         </Menu>

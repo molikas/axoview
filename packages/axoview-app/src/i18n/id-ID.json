@@ -80,6 +80,7 @@
             "accessUnknown": "Memeriksa siapa yang memiliki akses…",
             "manageAccess": "Kelola akses",
             "accessError": "Tidak dapat memeriksa siapa yang memiliki akses.",
+            "sharedWithCount_other": "Dibagikan dengan {{count}} orang",
             "manage": {
                 "title": "Kelola akses",
                 "titleNamed": "Bagikan \"{{name}}\"",
