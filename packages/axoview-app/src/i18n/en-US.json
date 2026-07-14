@@ -105,6 +105,7 @@
                 "titleNamed": "Share \"{{name}}\"",
                 "copyLink": "Copy link",
                 "copiedToast": "Preview link copied to clipboard",
+                "copiedRestricted": "Link copied — but only people with access can open it. Set General access to \"Anyone with the link\" to let anyone view.",
                 "emailInvite": "View this diagram in Axoview: {{url}}",
                 "done": "Done",
                 "generalAccess": "General access",

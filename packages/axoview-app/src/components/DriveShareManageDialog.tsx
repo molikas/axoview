@@ -202,13 +202,30 @@ export function DriveShareManageDialog({
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(previewUrl);
-      notify({
-        severity: 'success',
-        message: tRef.current(
-          'share.drive.manage.copiedToast',
-          'Preview link copied to clipboard'
-        )
-      });
+      // A copied link is only useful if the file is actually shared. If access is
+      // still restricted (no "anyone with the link" grant and no people added),
+      // warn rather than imply the link will work for anyone.
+      const isPublic = permissions?.some((p) => p.type === 'anyone') ?? false;
+      const hasPeople = permissions?.some(
+        (p) => (p.type === 'user' || p.type === 'group') && p.role !== 'owner'
+      );
+      if (isPublic || hasPeople) {
+        notify({
+          severity: 'success',
+          message: tRef.current(
+            'share.drive.manage.copiedToast',
+            'Preview link copied to clipboard'
+          )
+        });
+      } else {
+        notify({
+          severity: 'warning',
+          message: tRef.current(
+            'share.drive.manage.copiedRestricted',
+            'Link copied — but only people with access can open it. Set General access to "Anyone with the link" to let anyone view.'
+          )
+        });
+      }
     } catch {
       // Clipboard unavailable (blocked / insecure context) — nothing was copied,
       // so we deliberately do not claim success.

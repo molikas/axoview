@@ -199,10 +199,27 @@ export function AppToolbar() {
     if (!fileId) return;
     try {
       await navigator.clipboard.writeText(drivePreviewUrl(fileId));
-      notify({
-        severity: 'success',
-        message: t('share.drive.manage.copiedToast', 'Preview link copied to clipboard')
-      });
+      // Only worth "success" if the link will actually open for a recipient.
+      // With access restricted (no anyone-link, nobody added), warn instead —
+      // unless the ACL couldn't be read (driveOverview null), where we don't
+      // cry wolf.
+      const shared =
+        driveOverview?.summary === 'anyone-with-link' ||
+        (driveOverview?.peopleCount ?? 0) > 0;
+      notify(
+        shared || !driveOverview
+          ? {
+              severity: 'success',
+              message: t('share.drive.manage.copiedToast', 'Preview link copied to clipboard')
+            }
+          : {
+              severity: 'warning',
+              message: t(
+                'share.drive.manage.copiedRestricted',
+                'Link copied — but only people with access can open it. Set General access to "Anyone with the link" to let anyone view.'
+              )
+            }
+      );
     } catch {
       // Clipboard blocked (insecure context) — nothing copied; stay silent.
     }
