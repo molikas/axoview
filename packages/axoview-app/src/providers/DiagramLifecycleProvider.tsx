@@ -662,7 +662,7 @@ export function DiagramLifecycleProvider({
         const result = await readDriveDisplayFile({
           fileId: driveFileId,
           resourceKey,
-          googleApiKey: config.googleApiKey,
+          publicPreview: config.drivePublicPreview,
           afterGrant: driveAfterGrantRef.current
         });
         if (cancelled) return;

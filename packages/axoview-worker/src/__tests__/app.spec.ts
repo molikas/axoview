@@ -14,7 +14,7 @@ describe('GET /api/config', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       googleClientId: null,
-      googleApiKey: null,
+      drivePublicPreview: false,
       googleProjectNumber: null,
       driveScopes: ['https://www.googleapis.com/auth/drive.file'],
       authMode: 'none',
@@ -31,18 +31,91 @@ describe('GET /api/config', () => {
     expect(res.body.authMode).toBe('shared-token');
   });
 
-  test('reflects GOOGLE_API_KEY + GOOGLE_PROJECT_NUMBER from env (ADR 0042 §5)', async () => {
+  test('drivePublicPreview reflects GOOGLE_API_KEY presence — key never exposed (ADR 0043 #3)', async () => {
     const res = await request('/api/config', {}, {
       GOOGLE_API_KEY: 'AIza-test-key',
       GOOGLE_PROJECT_NUMBER: '123456789012'
     });
-    expect(res.body.googleApiKey).toBe('AIza-test-key');
+    expect(res.body.drivePublicPreview).toBe(true);
     expect(res.body.googleProjectNumber).toBe('123456789012');
+    // The raw key must NEVER reach the browser — only the boolean does.
+    expect(res.body.googleApiKey).toBeUndefined();
   });
 
   test('serverStorage is hardcoded false (§12 B2: Worker is storage-less)', async () => {
     const res = await request('/api/config');
     expect(res.body.serverStorage).toBe(false);
+  });
+});
+
+describe('GET /api/public/drive/:fileId — anonymous read proxy (ADR 0043 #3)', () => {
+  const realFetch = global.fetch;
+  const KEY_ENV = { GOOGLE_API_KEY: 'AIza-server-key' };
+  const FID = 'a'.repeat(20);
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  test('503 when no server key is configured', async () => {
+    const res = await request(`/api/public/drive/${FID}`);
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({ error: 'preview-disabled' });
+  });
+
+  test('400 on a malformed file id', async () => {
+    const res = await request('/api/public/drive/bad*id', {}, KEY_ENV);
+    expect(res.status).toBe(400);
+  });
+
+  test('200 proxies the body, sets a short cache TTL, and uses the SERVER key (never in the response)', async () => {
+    const doc = JSON.stringify({ title: 'Public', items: [] });
+    const fetchMock = jest.fn().mockResolvedValue(
+      new Response(doc, {
+        status: 200,
+        headers: { 'content-length': String(doc.length) }
+      })
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const res = await app.request(`http://test/api/public/drive/${FID}`, {}, KEY_ENV);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toContain('max-age=60');
+    expect(await res.json()).toEqual({ title: 'Public', items: [] });
+    const calledUrl = fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toContain('alt=media');
+    expect(calledUrl).toContain('key=AIza-server-key');
+  });
+
+  test('404 when the file is not public (upstream 404), hiding Drive\'s raw error', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(new Response('{"error":"notFound"}', { status: 404 })) as unknown as typeof fetch;
+    const res = await request(`/api/public/drive/${FID}`, {}, KEY_ENV);
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'not-public' });
+  });
+
+  test('forwards ?resourceKey= as the Drive resource-key header', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(
+      new Response('{}', { status: 200, headers: { 'content-length': '2' } })
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+    await app.request(`http://test/api/public/drive/${FID}?resourceKey=rk-9`, {}, KEY_ENV);
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect((init.headers as Record<string, string>)['X-Goog-Drive-Resource-Keys']).toBe(
+      `${FID}/rk-9`
+    );
+  });
+
+  test('bypasses auth in shared-token mode (it is a public route)', async () => {
+    global.fetch = jest.fn().mockResolvedValue(
+      new Response('{}', { status: 200, headers: { 'content-length': '2' } })
+    ) as unknown as typeof fetch;
+    const res = await request(`/api/public/drive/${FID}`, {}, {
+      ...KEY_ENV,
+      AUTH_MODE: 'shared-token',
+      AUTH_SHARED_SECRET: 'sekret'
+    });
+    expect(res.status).toBe(200);
   });
 });
 

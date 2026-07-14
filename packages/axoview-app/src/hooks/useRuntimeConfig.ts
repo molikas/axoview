@@ -2,7 +2,18 @@ import { apiBaseUrl } from '../utils/apiBaseUrl';
 
 export interface RuntimeConfig {
   googleClientId: string | null;
+  /**
+   * Build-time-only fallback for the Google Picker's developer key (Option B /
+   * private-share grant). On Cloudflare it is NOT delivered by /api/config —
+   * the key stays server-side for the read proxy (ADR 0043 #3) — so it is null
+   * there and the Picker rung stays dormant until a browser Picker key is added.
+   */
   googleApiKey: string | null;
+  /**
+   * Whether the backend has a server-side key for the anonymous read proxy
+   * (`GET /api/public/drive/:fileId`). Gates the client's public-read rung.
+   */
+  drivePublicPreview: boolean;
   googleProjectNumber: string | null;
   driveScopes: string[];
   authMode: 'none' | 'shared-token' | 'cf-access';
@@ -26,6 +37,7 @@ const BUILD_TIME_PROJECT_NUMBER = process.env.PUBLIC_GOOGLE_PROJECT_NUMBER || nu
 const DEFAULT_CONFIG: RuntimeConfig = {
   googleClientId: BUILD_TIME_CLIENT_ID,
   googleApiKey: BUILD_TIME_API_KEY,
+  drivePublicPreview: false,
   googleProjectNumber: BUILD_TIME_PROJECT_NUMBER,
   driveScopes: ['https://www.googleapis.com/auth/drive.file'],
   authMode: 'none',

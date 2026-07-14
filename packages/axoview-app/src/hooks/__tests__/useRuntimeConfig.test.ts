@@ -23,24 +23,27 @@ describe('fetchRuntimeConfig', () => {
     expect(cfg.serverStorage).toBe(false);
     expect(cfg.googleClientId).toBeNull();
     expect(cfg.googleApiKey).toBeNull();
+    expect(cfg.drivePublicPreview).toBe(false);
     expect(cfg.googleProjectNumber).toBeNull();
   });
 
-  test('reflects backend-supplied googleApiKey + googleProjectNumber (ADR 0042 §5)', async () => {
+  test('reflects backend-supplied drivePublicPreview + googleProjectNumber; the raw key is never sent (ADR 0043 #3)', async () => {
     (global as any).fetch = async () =>
       ({
         ok: true,
         status: 200,
         json: async () => ({
-          googleApiKey: 'AIza-from-backend',
+          drivePublicPreview: true,
           googleProjectNumber: '123456789012'
         })
       }) as Response;
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { fetchRuntimeConfig } = require('../useRuntimeConfig');
     const cfg = await fetchRuntimeConfig();
-    expect(cfg.googleApiKey).toBe('AIza-from-backend');
+    expect(cfg.drivePublicPreview).toBe(true);
     expect(cfg.googleProjectNumber).toBe('123456789012');
+    // The API key is no longer part of the server contract (server-side only).
+    expect(cfg.googleApiKey).toBeNull();
   });
 
   test('re-applies PUBLIC_ build-time fallbacks when the backend nulls the fields', async () => {

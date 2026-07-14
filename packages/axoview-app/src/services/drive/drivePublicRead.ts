@@ -1,11 +1,14 @@
 import { authStore } from '../../stores/authStore';
+import { apiBaseUrl } from '../../utils/apiBaseUrl';
 
 // ADR 0042 §2 — load resolution ladder for the Drive-file display route
 // (`/display/drive/:driveFileId`):
 //
-//   1. Key read (anonymous): succeeds for "anyone with the link" files with
-//      just the public API key — no sign-in. Skipped when no key is configured
-//      (graceful degradation, ADR 0042 §5).
+//   1. Public read (anonymous): our own server proxy `/api/public/drive/:id`
+//      reads "anyone with the link" files with a SERVER-side key — no sign-in,
+//      no API key in the browser (ADR 0043 #3). Skipped when the backend has no
+//      key (`drivePublicPreview` false) or after a Picker grant (that file is
+//      private by definition).
 //   2. Token read: the owner and recipients who already hold the per-file
 //      Picker grant read with their drive.file token (ADR 0035 rule 2 —
 //      the token comes ONLY from authStore.getValidToken()).
@@ -44,8 +47,8 @@ export interface DriveDisplayReadRequest {
    * the link carried one.
    */
   resourceKey: string | null;
-  /** null ⇒ the anonymous key-read rung is unavailable and gets skipped. */
-  googleApiKey: string | null;
+  /** false ⇒ the backend has no public-read key; the anonymous rung is skipped. */
+  publicPreview: boolean;
   /** True on the gate's post-Picker retry — see 'not-found' above. */
   afterGrant?: boolean;
 }
@@ -87,14 +90,18 @@ function resourceKeyHeader(
 export async function readDriveDisplayFile(
   req: DriveDisplayReadRequest
 ): Promise<DriveDisplayReadResult> {
-  // Rung 1 — anonymous key read. Any failure (non-public file, restricted
-  // key, network) falls through: the token rung produces the user-visible
-  // discrimination, so the key rung never needs to.
-  if (req.googleApiKey) {
+  // Rung 1 — anonymous public read via our server proxy (the key lives
+  // server-side; ADR 0043 #3). Only "anyone with the link" files return 200;
+  // any failure (non-public, network) falls through to the token rung, which
+  // produces the user-visible discrimination. Skipped after a Picker grant —
+  // that file is private, so the proxy would only 404.
+  if (req.publicPreview && !req.afterGrant) {
     try {
+      const qs = req.resourceKey
+        ? `?resourceKey=${encodeURIComponent(req.resourceKey)}`
+        : '';
       const res = await fetch(
-        `${mediaUrl(req.fileId)}&key=${encodeURIComponent(req.googleApiKey)}`,
-        { headers: resourceKeyHeader(req.fileId, req.resourceKey) }
+        `${apiBaseUrl()}/api/public/drive/${encodeURIComponent(req.fileId)}${qs}`
       );
       if (res.ok) return { ok: true, data: await res.json() };
     } catch {

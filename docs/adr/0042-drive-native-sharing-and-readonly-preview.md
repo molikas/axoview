@@ -214,6 +214,17 @@ drive/docs origins) in [`_headers`](../../packages/axoview-app/public/_headers)
 allowed (ADR 0035); verify at prototype time whether the Picker needs any
 additional `connect-src` googleapis subdomain.
 
+### 8. 2026-07-14 — read rung 1 moved server-side (read proxy; activates [ADR 0043](0043-deferred-backend-for-google-api-hardening.md) #3)
+
+Refines §2 rung 1 and §5. The two-account P1/P2 gate showed the anonymous read as designed (client-side `key=` fetch) carries an ongoing tax: the API key must be shipped to the browser and guarded by a fragile HTTP-referrer allowlist (apex + `*.pages.dev` + every preview host), and every viewer hits Drive directly (no cache → the exact quota/abuse surface ADR 0042 §5 and ADR 0043 #3 flagged). Since configuring the key was required for the gate *anyway*, the deferral of ADR 0043 #3 stopped paying off — the incremental cost of doing it right was one route on the worker that already serves `/api/config`. So rung 1 is now a **server-side read proxy**:
+
+- **`GET /api/public/drive/:fileId`** ([app.ts](../../packages/axoview-worker/src/app.ts)) reads `files/{id}?alt=media` with a **server-held** `env.GOOGLE_API_KEY`, forwards `?resourceKey=` as the Drive header, and returns the JSON with `Cache-Control: public, max-age=60`. An API key can only ever read **publicly-shared** files, so this exposes no private data; it is a public route (`isPublicRoute` in [auth.ts](../../packages/axoview-worker/src/auth.ts)), needs no viewer auth, and a `fileId`-format check + 10 MB cap keep it from being a general-purpose proxy.
+- **The key is never shipped to the browser.** `/api/config` no longer returns `googleApiKey`; it returns **`drivePublicPreview: boolean`** (`!!GOOGLE_API_KEY`) so the client's read ladder knows whether to try the proxy rung. [`drivePublicRead.ts`](../../packages/axoview-app/src/services/drive/drivePublicRead.ts) rung 1 now fetches the proxy (gated on `drivePublicPreview`, skipped `afterGrant`); rung 2 (token read, direct to Google) is unchanged.
+- **Benefits:** edge-cached (quota/abuse hedge — the substance of ADR 0043 #3), no referrer allowlist, viewer never authenticates for a public link, resilient to client-side Google/COOP changes.
+- **Config consequence (supersedes §5's "public referrer-restricted key"):** `GOOGLE_API_KEY` is now a **server secret** (`wrangler pages secret put`), API-restricted to the Drive API — no referrer restriction needed. `GOOGLE_PROJECT_NUMBER` stays on `/api/config` (Picker `setAppId`). The **Picker still needs a key client-side** (§2 rung 3, `setDeveloperKey`), so the Option-B private-grant path is **dormant** until a *separate* browser Picker key is added; under Option A (public "anyone with the link" sharing) it isn't needed. This is a clean deferral, not a regression — the Picker was already dormant (project number unset).
+
+Revised acceptance criteria: P1 is now "anonymous read of an anyone-with-link file succeeds through `/api/public/drive/:id` with **no key in the browser**"; the unit tests assert the ladder hits the proxy (not Google) on rung 1, `drivePublicPreview` gating, and that `/api/config` never emits the raw key. Design record for the proxy lives here (it is rung 1 of this ladder); ADR 0043's addendum records the trigger activation.
+
 ## Consequences
 
 **Positive:**

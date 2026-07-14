@@ -101,6 +101,16 @@ mostly **external** (browser / Google / abuse), so these are watch items.
   before implementation. This ADR is the deferral + trigger record, not the build
   spec.
 
+### 4. 2026-07-14 addendum — trigger #3 (read proxy) activated early
+
+**#3 is now built** (in its lightweight form), ahead of any external trigger, and the deferral of §2 stands only for **#1 and #2**. Rationale: the P1/P2 prototype gate required creating and configuring `GOOGLE_API_KEY` on the deploy regardless. Shipping the *client-side* key (§1's ops mitigation) meant paying an ongoing tax — the key exposed in the browser, a fragile HTTP-referrer allowlist to maintain, and every viewer hitting Drive uncached (the quota/abuse surface #3 is about). The incremental cost of doing #3 properly was **one route on the existing worker** that already serves `/api/config`. At that point the deferral was net-negative, so we activated it. It stays serverless-topology-preserving (a route, not a new deployment), exactly as §3 anticipated.
+
+- **What shipped:** an unauthenticated, **edge-cached API-key read proxy** — `GET /api/public/drive/:fileId` — holding `GOOGLE_API_KEY` server-side and streaming public-file reads back to the browser (`Cache-Control: 60s`). This is the *lightweight* variant of #3: the server key + cache close the quota/abuse surface without the review's heavier "signed short-lived URL" mechanism, which remains a future hardening if real abuse appears.
+- **Design record:** [ADR 0042 §8](0042-drive-native-sharing-and-readonly-preview.md) (2026-07-14 addendum) — the proxy *is* rung 1 of that ADR's read ladder, not a separable concern, so it lives there rather than in a standalone design ADR (a deliberate exception to §3's "own design ADR" rule, justified by that coupling).
+- **Supersedes §1's #3 ops mitigation:** `GOOGLE_API_KEY` is no longer a *public referrer-restricted* key but a **server secret** (`wrangler pages secret put`), API-restricted to the Drive API — no referrer allowlist. `/api/config` exposes only a `drivePublicPreview` boolean, never the key.
+- **Still deferred:** **#1 (auth broker)** and **#2 (snapshot store)** — triggers unchanged; they remain the "when it fires, its own design ADR" items. The Google **Picker** (Option B private-grant) still needs a *client-side* key, so it stays dormant until a separate browser Picker key is added — orthogonal to this proxy.
+- **Open follow-up (not blocking):** the public proxy is currently protected by edge caching + `fileId`-format + a 10 MB cap, but has **no per-caller rate limit**; if the Cloud console shows abuse, add a Cloudflare rate-limit rule or a KV counter (cheap, no new ADR).
+
 ## Consequences
 
 **Positive:**

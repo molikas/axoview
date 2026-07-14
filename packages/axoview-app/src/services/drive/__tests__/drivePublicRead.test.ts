@@ -46,90 +46,109 @@ beforeEach(() => {
 });
 
 describe('readDriveDisplayFile — ladder ordering', () => {
-  test('key read succeeds → returns data without touching the token rung', async () => {
+  test('public proxy read succeeds → returns data without touching the token rung', async () => {
     const doc = { title: 'Public', items: [] };
     fetchMock.mockResolvedValueOnce(mockResponse(doc));
     const result = await readDriveDisplayFile({
       fileId: 'fid',
       resourceKey: null,
-      googleApiKey: 'AIza-key'
+      publicPreview: true
     });
     expect(result).toEqual({ ok: true, data: doc });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const url = fetchMock.mock.calls[0][0] as string;
-    expect(url).toContain('/files/fid?alt=media');
-    expect(url).toContain('key=AIza-key');
+    // Rung 1 goes to OUR server proxy — the API key never appears client-side.
+    expect(url).toContain('/api/public/drive/fid');
+    expect(url).not.toContain('key=');
+    expect(url).not.toContain('googleapis.com');
     expect(headersOf(fetchMock.mock.calls[0]).Authorization).toBeUndefined();
   });
 
-  test('failed key read falls through to the token read (key first, Bearer second)', async () => {
+  test('failed proxy read falls through to the token read (proxy first, Bearer second)', async () => {
     signedIn();
     const doc = { title: 'Granted' };
     fetchMock
-      .mockResolvedValueOnce(mockResponse({ error: 'notFound' }, 404))
+      .mockResolvedValueOnce(mockResponse({ error: 'not-public' }, 404))
       .mockResolvedValueOnce(mockResponse(doc));
     const result = await readDriveDisplayFile({
       fileId: 'fid',
       resourceKey: null,
-      googleApiKey: 'AIza-key'
+      publicPreview: true
     });
     expect(result).toEqual({ ok: true, data: doc });
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[0][0]).toContain('key=AIza-key');
-    expect(fetchMock.mock.calls[1][0]).not.toContain('key=');
+    expect(fetchMock.mock.calls[0][0]).toContain('/api/public/drive/fid');
+    expect(fetchMock.mock.calls[1][0]).toContain('googleapis.com');
+    expect(fetchMock.mock.calls[1][0]).not.toContain('/api/public/');
     expect(headersOf(fetchMock.mock.calls[1]).Authorization).toBe('Bearer test-token');
   });
 
-  test('null key skips rung 1 entirely — token read is the first fetch', async () => {
+  test('publicPreview false skips rung 1 — token read is the first fetch', async () => {
     signedIn();
     fetchMock.mockResolvedValueOnce(mockResponse({ title: 'Own' }));
     const result = await readDriveDisplayFile({
       fileId: 'fid',
       resourceKey: null,
-      googleApiKey: null
+      publicPreview: false
     });
     expect(result.ok).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toContain('googleapis.com');
     expect(headersOf(fetchMock.mock.calls[0]).Authorization).toBe('Bearer test-token');
   });
 
-  test('null key + signed out → needs-signin with zero network calls', async () => {
+  test('afterGrant skips the public proxy rung (a just-granted file is private)', async () => {
+    signedIn();
+    fetchMock.mockResolvedValueOnce(mockResponse({ title: 'Granted' }));
     const result = await readDriveDisplayFile({
       fileId: 'fid',
       resourceKey: null,
-      googleApiKey: null
+      publicPreview: true,
+      afterGrant: true
+    });
+    expect(result.ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toContain('googleapis.com');
+    expect(headersOf(fetchMock.mock.calls[0]).Authorization).toBe('Bearer test-token');
+  });
+
+  test('publicPreview false + signed out → needs-signin with zero network calls', async () => {
+    const result = await readDriveDisplayFile({
+      fileId: 'fid',
+      resourceKey: null,
+      publicPreview: false
     });
     expect(result).toEqual({ ok: false, reason: 'needs-signin' });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 
-describe('readDriveDisplayFile — resourceKey header', () => {
-  test('sent on both rungs when the link carried a resourceKey', async () => {
+describe('readDriveDisplayFile — resourceKey', () => {
+  test('rides the proxy URL on rung 1 and the header on the token rung', async () => {
     signedIn();
     fetchMock
-      .mockResolvedValueOnce(mockResponse({ error: 'notFound' }, 404))
+      .mockResolvedValueOnce(mockResponse({ error: 'not-public' }, 404))
       .mockResolvedValueOnce(mockResponse({ title: 'X' }));
     await readDriveDisplayFile({
       fileId: 'fid',
       resourceKey: 'rk-1',
-      googleApiKey: 'AIza-key'
+      publicPreview: true
     });
-    expect(headersOf(fetchMock.mock.calls[0])['X-Goog-Drive-Resource-Keys']).toBe('fid/rk-1');
+    expect(fetchMock.mock.calls[0][0]).toContain('resourceKey=rk-1');
     expect(headersOf(fetchMock.mock.calls[1])['X-Goog-Drive-Resource-Keys']).toBe('fid/rk-1');
   });
 
-  test('absent when no resourceKey was carried', async () => {
+  test('absent → no resourceKey on the proxy URL nor the token header', async () => {
     signedIn();
     fetchMock
-      .mockResolvedValueOnce(mockResponse({ error: 'notFound' }, 404))
+      .mockResolvedValueOnce(mockResponse({ error: 'not-public' }, 404))
       .mockResolvedValueOnce(mockResponse({ title: 'X' }));
     await readDriveDisplayFile({
       fileId: 'fid',
       resourceKey: null,
-      googleApiKey: 'AIza-key'
+      publicPreview: true
     });
-    expect(headersOf(fetchMock.mock.calls[0])['X-Goog-Drive-Resource-Keys']).toBeUndefined();
+    expect(fetchMock.mock.calls[0][0]).not.toContain('resourceKey=');
     expect(headersOf(fetchMock.mock.calls[1])['X-Goog-Drive-Resource-Keys']).toBeUndefined();
   });
 });
@@ -141,7 +160,7 @@ describe('readDriveDisplayFile — failure mapping', () => {
     const result = await readDriveDisplayFile({
       fileId: 'fid',
       resourceKey: null,
-      googleApiKey: null
+      publicPreview: false
     });
     expect(result).toEqual({ ok: false, reason: 'needs-grant' });
   });
@@ -152,7 +171,7 @@ describe('readDriveDisplayFile — failure mapping', () => {
     const result = await readDriveDisplayFile({
       fileId: 'fid',
       resourceKey: null,
-      googleApiKey: null
+      publicPreview: false
     });
     expect(result).toEqual({ ok: false, reason: 'needs-grant' });
   });
@@ -163,7 +182,7 @@ describe('readDriveDisplayFile — failure mapping', () => {
     const result = await readDriveDisplayFile({
       fileId: 'fid',
       resourceKey: null,
-      googleApiKey: null,
+      publicPreview: false,
       afterGrant: true
     });
     expect(result).toEqual({ ok: false, reason: 'not-found' });
@@ -175,7 +194,7 @@ describe('readDriveDisplayFile — failure mapping', () => {
     const result = await readDriveDisplayFile({
       fileId: 'fid',
       resourceKey: null,
-      googleApiKey: null
+      publicPreview: false
     });
     expect(result).toEqual({ ok: false, reason: 'needs-signin' });
     // markExpired() nulls the token + flips to SESSION_EXPIRED so getValidToken
@@ -195,7 +214,7 @@ describe('readDriveDisplayFile — failure mapping', () => {
     const result = await readDriveDisplayFile({
       fileId: 'fid',
       resourceKey: null,
-      googleApiKey: null
+      publicPreview: false
     });
     expect(result).toEqual({ ok: false, reason: 'transient' });
   });
@@ -206,7 +225,7 @@ describe('readDriveDisplayFile — failure mapping', () => {
     const result = await readDriveDisplayFile({
       fileId: 'fid',
       resourceKey: null,
-      googleApiKey: null
+      publicPreview: false
     });
     expect(result).toEqual({ ok: false, reason: 'transient' });
   });
@@ -217,7 +236,7 @@ describe('readDriveDisplayFile — failure mapping', () => {
     const result = await readDriveDisplayFile({
       fileId: 'fid',
       resourceKey: null,
-      googleApiKey: 'AIza-key'
+      publicPreview: true
     });
     expect(result).toEqual({ ok: false, reason: 'transient' });
     expect(fetchMock).toHaveBeenCalledTimes(2);

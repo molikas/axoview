@@ -129,32 +129,37 @@ GOOGLE_CLIENT_ID = "<your-client-id>.apps.googleusercontent.com"
 The frontend reads it at runtime via `GET /api/config` — no rebuild needed when
 it changes. Without it, the app runs session-only (no sign-in affordances).
 
-Two further optional values ride the same rail
-([ADR 0042](adr/0042-drive-native-sharing-and-readonly-preview.md)); both are
-public identifiers, not secrets:
+Two further optional values ([ADR 0042 §8](adr/0042-drive-native-sharing-and-readonly-preview.md) /
+[ADR 0043 #3](adr/0043-deferred-backend-for-google-api-hardening.md)):
 
-```toml
-# packages/axoview-worker/wrangler.toml
-[vars]
-GOOGLE_API_KEY       = "<referrer-restricted API key>"
-GOOGLE_PROJECT_NUMBER = "<Cloud project NUMBER, not the project id>"
-```
+- `GOOGLE_API_KEY` powers the **anonymous read proxy** `GET /api/public/drive/<fileId>`,
+  which serves "anyone with the link" Drive diagrams at `/app/display/drive/<fileId>`
+  with **no sign-in**. Since 2026-07-14 the key stays **server-side and is never
+  shipped to the browser**, so set it as a **secret**, not a `[vars]` entry:
 
-- `GOOGLE_API_KEY` (`/api/config` → `googleApiKey`) enables **anonymous
-  read-only preview** of "anyone with the link" Drive diagrams at
-  `/app/display/drive/<fileId>` — no sign-in needed. Create it in the same
-  Cloud project as the OAuth client, **restricted**:
-  - *HTTP referrers*: `axoview.app`, `axoview.pages.dev` (the apex — Google's
-    `*.` wildcard does NOT match it) **and** `*.axoview.pages.dev`, plus
-    `localhost:3000` for dev.
-  - *API restriction*: Google Drive API + Google Picker API only.
-- `GOOGLE_PROJECT_NUMBER` (`/api/config` → `googleProjectNumber`) is required
-  by the Google Picker's `setAppId` for the per-file grant flow. It is its own
-  value — do NOT derive it from the client-id prefix; a wrong value makes the
-  grant fail silently.
+  ```bash
+  npx wrangler pages secret put GOOGLE_API_KEY --project-name axoview
+  # or: Cloudflare dashboard → Pages → axoview → Settings → Variables and Secrets,
+  #     set it under BOTH the Production and Preview environments.
+  ```
 
-If unset, Drive sharing still works (share dialog, copy-link, owner preview)
-but anonymous preview and the Picker grant gate degrade to the sign-in path.
+  Create it in the same Cloud project as the OAuth client, **API-restricted to
+  the Google Drive API**. Because it is only ever called server-side (from the
+  Worker), it needs **no HTTP-referrer restriction** — that whole allowlist goes
+  away. `/api/config` exposes only a `drivePublicPreview` boolean (`!!GOOGLE_API_KEY`),
+  never the key. With it set, the owner flips **"Anyone with the link → can view"**
+  in the share dialog and the recipient's link renders with no login.
+- `GOOGLE_PROJECT_NUMBER` (`/api/config` → `googleProjectNumber`; a plain `[vars]`
+  entry — not secret) is the Cloud project **NUMBER** the Google Picker's
+  `setAppId` needs for the **private-file grant flow (Option B)**. Its own value —
+  do NOT derive it from the client-id prefix; a wrong value makes the grant fail
+  silently. The Picker also needs a *browser* API key (`setDeveloperKey`), which
+  is **not** wired now (the server key is server-only), so Option B stays dormant
+  until a separate referrer-restricted browser key is added. Option A (public
+  links) needs none of this.
+
+If `GOOGLE_API_KEY` is unset, Drive sharing still works (share dialog, copy-link,
+owner preview) but anonymous preview degrades to the sign-in path.
 
 ### C4. Deploy
 

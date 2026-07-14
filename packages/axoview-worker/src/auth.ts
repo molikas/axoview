@@ -35,6 +35,12 @@ export function isPublicRoute(method: string, pathname: string): boolean {
   if (method === 'GET' && pathname === '/api/config') {
     return true;
   }
+  // Anonymous read-proxy for "anyone with the link" Drive diagrams (ADR 0042 /
+  // ADR 0043 #3). Read-only, and the server-side API key it uses can only ever
+  // fetch PUBLIC files, so no authenticated surface is exposed.
+  if (method === 'GET' && /^\/api\/public\/drive\/[A-Za-z0-9_-]{10,120}$/.test(pathname)) {
+    return true;
+  }
   return method === 'GET' && /^\/api\/public\/diagrams\/[A-Za-z0-9_-]{21,64}$/.test(pathname);
 }
 
