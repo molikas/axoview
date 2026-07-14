@@ -89,7 +89,7 @@ New acceptance criterion: during a single- or multi-item drag, no transform boun
 
 ### 9. 2026-07-14 addendum — stronger, consistent selected / hover treatment (cluster A)
 
-Supersedes §5's "dashed outline." The dashed 2px ring drawn **at** the element footprint was the owner's most-repeated complaint — *"I can't tell what's selected"* (owner #1/#9; [ux-sweep-triage-2026-06-30.md](../tactical/ux-sweep-triage-2026-06-30.md) cluster A, proposals A1/A3, previously unshipped). It coincided with the element's own border and, in the same accent blue, vanished on a coloured fill (e.g. a blue rectangle with a red border).
+Supersedes §5's "dashed outline." The dashed 2px ring drawn **at** the element footprint was the owner's most-repeated complaint — *"I can't tell what's selected"* (owner #1/#9; the 2026-06-30 persona-sweep cluster A, proposals A1/A3, previously unshipped — sweep doc retired 2026-07-14, in git history). It coincided with the element's own border and, in the same accent blue, vanished on a coloured fill (e.g. a blue rectangle with a red border).
 
 New visual contract for the shared [`TransformControls`](../../packages/axoview-lib/src/components/TransformControlsManager/TransformControls.tsx) primitive (node / rectangle / text box, single **and** multi-select):
 

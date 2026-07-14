@@ -404,4 +404,34 @@ recorded in ADR 0038 §Deferred; none blocks the WebGL2-only substrate.
   file (byte-clean, path in tsconfig `include`) — an environment quirk to resolve
   before adding webgl unit tests.
 
+## UX-sweep residual open items (2026-06-30 / 2026-07-10 persona sweeps)
+
+Migrated here 2026-07-14 when the three UX-sweep tactical docs were retired — the
+shipped findings landed in ADRs 0006/0030–0034 + git history; these are the items
+that were still open with no other home. Small / decision-scoped; not blockers.
+
+- **Session-badge copy/color + no "where my work lives" indicator (N2 / M-1 — owner call).**
+  The session badge is warning-orange with no "Auto-saved" wording *by design*; a
+  clearer persistent place indicator for non-technical users (Maya S2→S3) is a
+  design decision, not a bug. Both sweeps flagged the same thread — deferred pending
+  an owner design call.
+- **Connector-colour discoverability (Priya-P3-2, S3).** The style-strip
+  connector-colour control exists but is greyed until a connector is selected, so
+  expert users miss it. Strip productization gave it strong disabled-contrast + a
+  tooltip; the "add a label / pulse / right-click bridge, or leave it" call was
+  never closed. Control lives in `TopBarStyleControls.tsx` (self-gated disabled tip).
+- **K1 — style strip is keyboard-unreachable (S2, a11y).** Root cause: canvas items
+  aren't keyboard-selectable, so the strip has no keyboard entry (the Layers panel
+  is the current one). Fix = roving tabindex + canvas keyboard selection — a bigger
+  a11y track, not a quick patch.
+- **B3 — rectangle has no min/max size clamp (S4, polish).** A rectangle can be
+  resized to a degenerate or oversized footprint; no bound is enforced.
+- **#3 — "click connection offset" (NEEDS_REPRO, S4).** Either the cosmetic
+  arrowhead-one-tile-short render offset or a duplicate of the now-fixed #5 hit-halo.
+  Needs a one-line browser repro to classify; no fix until then.
+- **#6 — long right-drag surfaces the OS context menu (NEEDS_REPRO).** e2e +
+  pointer-capture indicate it's handled (no hold-gate on the swallow); a real-browser
+  repro is needed before the optional belt-and-suspenders (`preventDefault` while
+  panning) is worth adding.
+
 **Status:** Open, deferred with owner sign-off. Recorded in ADR 0038.

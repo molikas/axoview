@@ -32,7 +32,7 @@ E2E for the [ADR 0042](adr/0042-drive-native-sharing-and-readonly-preview.md) Dr
 
 ### UX-sweep fixes — floating-Label interaction wiring (2026-07-10)
 
-Shipped with the ADR 0028 persona-sweep triage ([docs/tactical/ux-sweep-triage-2026-07-10.md](tactical/ux-sweep-triage-2026-07-10.md)). Closes the verifier-flagged gap "no test exercises single-label Delete."
+Shipped with the 2026-07-10 ADR 0028 persona-sweep triage (sweep doc retired 2026-07-14; see git history). Closes the verifier-flagged gap "no test exercises single-label Delete."
 
 | Suite | Type | Covers |
 |---|---|---|
