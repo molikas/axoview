@@ -8,7 +8,7 @@
 > - [docs/drive-native-sharing-investigation.md](../drive-native-sharing-investigation.md) (evidence record + full citation trail; delete together with this file at wrap)
 > - [docs/workflow.md](../workflow.md) (session cadence baseline)
 >
-> **Status:** Implemented on `integration` + adversarial code-review-fix pass landed (401→markExpired, 403 rate-limit taxonomy, permissions pagination drain, gapi.load timeout/onerror, picked-file identity check, DriveSetupGate auth-loss/readonly ordering, share-popover async-race + ACL staleness guards, view-mode label-hover blackhole fix) — pending owner prototype gates (A) + two-account manual verification · **Owner:** molikas · **Last updated:** 2026-07-14
+> **Status:** Implemented on `integration` + adversarial code-review-fix pass landed (401→markExpired, 403 rate-limit taxonomy, permissions pagination drain, gapi.load timeout/onerror, picked-file identity check, DriveSetupGate auth-loss/readonly ordering, share-popover async-race + ACL staleness guards, view-mode label-hover blackhole fix); **2026-07-14 PIVOTS: (1) ShareClient DROPPED → custom in-app Drive-REST permissions UI (commit `0475798`); (2) anonymous read moved SERVER-SIDE to a `/api/public/drive/:id` read proxy — the API key is now a SECRET, `/api/config` exposes only a `drivePublicPreview` boolean (ADR 0042 §8 / ADR 0043 #3, commit `12c1b77`)** — pending owner prototype gates (A) + two-account manual verification · **Owner:** molikas · **Last updated:** 2026-07-14
 >
 > This is a **short-lived working doc.** Delete it after the work merges; ADRs are the durable record. PLAN.md gets a one-line entry referencing the ADRs once shipped — see "Wrap-up" below.
 
@@ -50,8 +50,8 @@ snapshot semantics for Drive links, Drive→session transfer.
 | # | Decision |
 |---|---|
 | 1 | Grant mechanism = Google Picker with `setFileIds([fileId])`; Open-with deferred. |
-| 2 | Anonymous preview = API-key read of public files; key referrer- + API-restricted; `googleApiKey: null` degrades gracefully. |
-| 3 | Specific-user granting = native ShareClient dialog with mandatory drive.google.com (`webViewLink`) fallback. |
+| 2 | Anonymous preview = API-key read of public files. **SUPERSEDED 2026-07-14 (ADR 0042 §8): the read is a SERVER proxy `GET /api/public/drive/:id` — the key is a secret, `/api/config` exposes only `drivePublicPreview`, no referrer restriction; `drivePublicPreview:false` degrades gracefully.** |
+| 3 | ~~Specific-user granting = native ShareClient dialog + drive.google.com fallback.~~ **SUPERSEDED 2026-07-14 (ADR 0042 decision-3 addendum, commit `0475798`): custom in-app UI over Drive REST v3 `permissions` (anyone-with-link toggle + add/remove people); ShareClient dropped.** |
 | 4 | Drive sharing stays OUTSIDE `StorageProvider.shareDiagram` (publish-snapshot contract doesn't fit). |
 | 5 | Drive links are LIVE (render-at-open); `/display/p/<uuid>` snapshot links coexist unchanged for session/server places. |
 | 6 | Scope stays `drive.file` only — do NOT add `drive.readonly`/`drive.install` in this slice. |
@@ -59,15 +59,15 @@ snapshot semantics for Drive links, Drive→session transfer.
 
 ## Sub-tasks
 
-### A. Prototype gates (do FIRST — cheap kill-switches; ADR acceptance criteria P1/P2)
-- [ ] Create the API key in project `axoview` (referrers: axoview.app, axoview.pages.dev **apex** AND *.axoview.pages.dev — Google's `*.` wildcard does NOT match the apex, and the apex is a kept live fallback origin; localhost:3000; APIs: Drive + Picker; enable Google Picker API). Note the Cloud project NUMBER for `GOOGLE_PROJECT_NUMBER` (B).
-- [ ] P1: browser `fetch` of a real "anyone with link" file via `files.get?alt=media&key=` from localhost — confirm 200 + JSON body + CORS.
-- [ ] P2: two-account Picker run — account B (viewer) picks the shared file via `setFileIds`, then `alt=media` with B's `drive.file` token succeeds; confirm the grant survives a token refresh + reload.
-- [ ] ShareClient smoke: dialog opens for an app-created file in Chrome; observe the failure mode with third-party cookies blocked (fallback trigger).
-- [ ] Record results here; if P1 or P2 fails, STOP and re-open ADR 0042 (status stays Proposed).
+### A. Prototype gates + deploy config (owner-only; ADR acceptance P1/P2) — read-proxy form (ADR 0042 §8)
+- [ ] Create the API key in project `axoview`: **API-restricted to the Google Drive API**, **Application restrictions = None** (it is called SERVER-SIDE by the read proxy → no HTTP-referrer allowlist). Do NOT bind a service account.
+- [ ] Set it as a **secret**, never `[vars]`: `wrangler pages secret put GOOGLE_API_KEY` (or CF dashboard → Pages → axoview → Variables and Secrets → Secret, under **BOTH** Production and Preview). **Redeploy** — Pages binds secrets only on a NEW deployment.
+- [ ] P1: `curl <deploy>/api/config` shows `drivePublicPreview: true`; then an "anyone with the link" file opens at `/app/display/drive/<id>` in incognito → 200, no sign-in (the read now goes through `/api/public/drive/:id`, not a browser `key=` fetch).
+- [ ] P2 (Option B, dormant): needs `GOOGLE_PROJECT_NUMBER` (plain `[vars]`, project NUMBER not the client-id prefix) **and a SEPARATE referrer-restricted browser Picker key** (the server key is server-only). Two-account Picker run — B picks a PRIVATE shared file via `setFileIds`, then `alt=media` with B's `drive.file` token succeeds + survives a token refresh + reload.
+- [ ] Record results here; if P1 or P2 fails, STOP and re-open ADR 0042 (status stays Proposed). (ShareClient smoke retired — ShareClient was dropped, decision #3.)
 
 ### B. Config rail + CSP
-- [x] Worker `/api/config`: `googleApiKey` from `GOOGLE_API_KEY` + `googleProjectNumber` from `GOOGLE_PROJECT_NUMBER` (+ app.spec tests). The project number is its own config value — do NOT derive it from the client-id prefix (ADR 0042 §5; wrong value = silent Picker-grant no-op).
+- [x] Worker `/api/config`: exposes `drivePublicPreview` (`!!GOOGLE_API_KEY` — the raw key stays SERVER-SIDE for the read proxy, ADR 0042 §8) + `googleProjectNumber` from `GOOGLE_PROJECT_NUMBER` (+ app.spec tests). The project number is its own config value — do NOT derive it from the client-id prefix (ADR 0042 §5; wrong value = silent Picker-grant no-op).
 - [x] Express `/api/config` parity (+ routes.config.spec test).
 - [x] `useRuntimeConfig` parsing + `DEFAULT_CONFIG` `PUBLIC_GOOGLE_API_KEY` / `PUBLIC_GOOGLE_PROJECT_NUMBER` fallbacks (ADR 0035 §4 pattern). ⚠️ Gotcha found live: every `PUBLIC_*` read needs a matching `define` entry in `rsbuild.config.ts` — an unlisted var ships a literal `process` to the browser and breaks boot with a ReferenceError.
 - [x] CSP: `frame-src` += docs.google.com + drive.google.com in `_headers` and both `nginx.conf` blocks; verify at P2 whether Picker needs extra `connect-src`.
@@ -88,7 +88,7 @@ snapshot semantics for Drive links, Drive→session transfer.
 
 ### E. Tests, i18n, docs
 - [x] Unit: ladder order + null-key skip; resourceKey propagation; config parsing ×2; URL builder; permissions-summary mapping (incl. multi-page).
-- [x] e2e: `drive-display.spec.ts` mirroring the readonly-share coverage in `share.spec.ts` (J13/J14) + `share-error.spec.ts`, with mocked `www.googleapis.com` fetches (public-file render; gate screen; resource-key header assertion). 3/3 green on a clean no-`PUBLIC_*` env.
+- [x] e2e: `drive-display.spec.ts` mirroring the readonly-share coverage in `share.spec.ts` (J13/J14) + `share-error.spec.ts`, with mocked `/api/public/drive` proxy (rung 1) + `www.googleapis.com` (token rung) fetches (public-file render; gate screen; resourceKey-on-proxy-URL assertion). 3/3 green (realigned for the read proxy, verified locally 2026-07-14).
 - [x] i18n keys ×13 locales (popover, gate screen, errors); retired key `toolbar.share.disabled.needsServerStorage` removed.
 - [x] Stale share copy sweep: `docs/features.md` + README + session-branch share tooltip.
 - [x] `/notes` sync: known_issues (Picker entry narrowed to "file-tree browsing" — ADR 0042 lands the Picker for the display-route grant) + testing.md (drive-display.spec.ts row). architecture.md N/A — it has no routing/display-route section (delegates the route list to technical-review).
