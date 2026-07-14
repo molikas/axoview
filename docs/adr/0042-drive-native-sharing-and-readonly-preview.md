@@ -1,6 +1,6 @@
 # ADR 0042 — Drive-Native Diagram Sharing & Read-Only Preview
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-07-13
 **Supersedes:** [ADR 0036 §4](0036-google-drive-storage-provider.md) (sharing hidden in Drive mode)
 **Superseded by:** none
@@ -15,9 +15,10 @@ exactly that: share a Drive-stored diagram with another Google user for
 read-only preview, **without Axoview running a storage server** — the way
 draw.io does it. A server-snapshot variant (Option A) was explicitly rejected.
 
-The full evidence record is
-[docs/drive-native-sharing-investigation.md](../drive-native-sharing-investigation.md)
-(2026-07-13; four research passes + code verification). The load-bearing facts:
+The full evidence record was `docs/drive-native-sharing-investigation.md`
+(2026-07-13; four research passes + code verification), retired at this ADR's
+acceptance — it lives in git history through commit `5a72335` (this change's
+parent). The load-bearing facts:
 
 - `drive.file` (the app's only Drive scope, [ADR 0035](0035-google-identity-and-drive-authorization.md))
   hides files from an app until a Google-sanctioned per-file grant. The
@@ -273,6 +274,8 @@ Revised acceptance criteria: P1 is now "anonymous read of an anyone-with-link fi
   with mocked googleapis fetches.
 
 ## Acceptance criteria
+
+**Accepted 2026-07-14.** P1 (anonymous "anyone with the link" read) is verified end-to-end on the integration deploy: after the read moved server-side (§8), the owner set `GOOGLE_API_KEY` as a Preview secret + toggled anyone-with-link, and a two-account test rendered the shared `/app/display/drive/:id` link with **no sign-in** (`/api/config drivePublicPreview:true` + proxy `200`; the trash-honoring `410` path was live-verified too). Unit + e2e criteria are green (worker/backend/app + drive-display e2e). **P2 (the Picker per-file grant, Option B) is DEFERRED/dormant** — moving the key server-side means the Picker needs its own browser key, a v1.1 path (§8); it is not a blocker for the shipped Option-A public-link sharing. Original gates, for the record:
 
 - **Prototype gates (before any productization):**
   - **P1:** browser `fetch` of a real "anyone with link" Drive file via

@@ -62,7 +62,7 @@
 
 ## Google API architecture — hardening roadmap (from 2026-07-14 external review)
 
-**Symptom:** the Google integration is a deliberate serverless V1. An external review (Gemini) validated the choices but flagged four forward-looking gaps, each backend-gated. Full brief + pros/cons + disposition table: [docs/google-drive-api-review-request.md](docs/google-drive-api-review-request.md) §10.
+**Symptom:** the Google integration is a deliberate serverless V1. An external review (Gemini) validated the choices but flagged four forward-looking gaps, each backend-gated. Full brief + pros/cons + disposition table: `docs/google-drive-api-review-request.md` §10 (retired 2026-07-14; in git history through commit `5a72335`) — durable record is [ADR 0043](docs/adr/0043-deferred-backend-for-google-api-hardening.md).
 
 1. **Auth is the implicit grant** (GIS token client, `response_type=token`) — ~1h sessions, no refresh token, no offline/background sync. Recommended: auth-code + PKCE with a minimal token broker. *Biggest risk: the deprecated flow + no refresh.*
 2. **`drive.file` + Picker recipient UX** — Google's notification email links to the raw JSON file, not our `/display/drive` viewer. Recommended (later): a first-party publish-snapshot store.

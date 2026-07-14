@@ -15,9 +15,9 @@ made the user's own Drive the storage backend, and
 sharing + anonymous read-only preview — all with no first-party backend.
 
 On **2026-07-14** an external review (Gemini) of that integration returned. The
-full brief and the review outcome live in
-[docs/google-drive-api-review-request.md](../google-drive-api-review-request.md)
-(§10). Verdict: the V1 choices are "smart, pragmatic" for a client-side app, and
+full brief and the review outcome were in `docs/google-drive-api-review-request.md`
+§10 (retired at the drive-native-sharing wrap 2026-07-14; in git history through
+commit `5a72335`). Verdict: the V1 choices are "smart, pragmatic" for a client-side app, and
 dropping the deprecated `ShareClient` widget for a custom Drive-REST permissions
 UI was the right call. Its four recommendations, however, **all require a server
 component** the current architecture deliberately lacks:
