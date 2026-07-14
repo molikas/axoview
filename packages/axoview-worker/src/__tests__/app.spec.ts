@@ -110,6 +110,15 @@ describe('GET /api/public/drive/:fileId — anonymous read proxy (ADR 0043 #3)',
     expect(res.body).toEqual({ error: 'not-public' });
   });
 
+  test('503 (not 404) when the upstream read is transient (5xx/429) — so the client can Retry', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(new Response('{}', { status: 503 })) as unknown as typeof fetch;
+    const res = await request(`/api/public/drive/${FID}`, {}, KEY_ENV);
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({ error: 'upstream-error' });
+  });
+
   test('413 when the metadata size exceeds the cap — never reads the body', async () => {
     const fetchMock = jest.fn().mockResolvedValueOnce(
       new Response(JSON.stringify({ trashed: false, size: String(11 * 1024 * 1024) }), { status: 200 })

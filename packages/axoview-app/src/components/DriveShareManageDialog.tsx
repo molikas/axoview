@@ -56,8 +56,10 @@ import {
 // The app renders on MUI's DEFAULT theme (16px body, 20px h6, UPPERCASE overline),
 // which makes this dialog feel oversized next to the lib's compact Export dialog.
 // Opt into a compact scale for the dialog only — typography + input/menu font
-// sizes; the app palette is inherited unchanged. Matches the Export dialog's feel.
-const compactShareTheme = createTheme({
+// sizes. These are MERGED onto the outer theme (see the ThemeProvider below via
+// `createTheme(outer, …)`), so the app palette is preserved even once a custom
+// app-root theme lands. Matches the Export dialog's feel.
+const compactShareOverrides = {
   typography: {
     h6: { fontSize: '1.1rem', fontWeight: 600 },
     body1: { fontSize: '0.875rem' },
@@ -68,7 +70,7 @@ const compactShareTheme = createTheme({
     MuiInputBase: { styleOverrides: { root: { fontSize: '0.875rem' } } },
     MuiMenuItem: { styleOverrides: { root: { fontSize: '0.875rem' } } }
   }
-});
+};
 
 // ADR 0042 §1 (rev. 2026-07-14) — custom in-app "Manage access" over the Drive
 // REST v3 permissions API (replaces the deprecated ShareClient widget). Grants
@@ -265,7 +267,7 @@ export function DriveShareManageDialog({
   };
 
   return (
-    <ThemeProvider theme={compactShareTheme}>
+    <ThemeProvider theme={(outer) => createTheme(outer, compactShareOverrides)}>
     <Dialog
       open={open}
       onClose={busy ? undefined : onClose}

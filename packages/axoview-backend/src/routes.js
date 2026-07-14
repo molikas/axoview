@@ -66,7 +66,10 @@ export function getConfig(_adapter, ctx) {
     status: 200,
     body: {
       googleClientId: env.GOOGLE_CLIENT_ID || null,
-      googleApiKey: env.GOOGLE_API_KEY || null,
+      // The Express/Docker target has NO anonymous read proxy (that lives only in
+      // the Cloudflare worker — ADR 0042 §8), so anonymous Drive preview is off
+      // here and the raw key is never surfaced.
+      drivePublicPreview: false,
       googleProjectNumber: env.GOOGLE_PROJECT_NUMBER || null,
       driveScopes: ['https://www.googleapis.com/auth/drive.file'],
       authMode: env.AUTH_MODE || 'none',

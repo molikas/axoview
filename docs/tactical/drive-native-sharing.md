@@ -68,7 +68,7 @@ snapshot semantics for Drive links, Drive→session transfer.
 
 ### B. Config rail + CSP
 - [x] Worker `/api/config`: exposes `drivePublicPreview` (`!!GOOGLE_API_KEY` — the raw key stays SERVER-SIDE for the read proxy, ADR 0042 §8) + `googleProjectNumber` from `GOOGLE_PROJECT_NUMBER` (+ app.spec tests). The project number is its own config value — do NOT derive it from the client-id prefix (ADR 0042 §5; wrong value = silent Picker-grant no-op).
-- [x] Express `/api/config` parity (+ routes.config.spec test).
+- [x] Express `/api/config`: emits `drivePublicPreview: false` — Docker/Express has NO read proxy (ADR 0042 §8; anonymous preview is Cloudflare-only) — plus `googleProjectNumber`; drops the raw `googleApiKey` (+ routes.config.spec test).
 - [x] `useRuntimeConfig` parsing + `DEFAULT_CONFIG` `PUBLIC_GOOGLE_API_KEY` / `PUBLIC_GOOGLE_PROJECT_NUMBER` fallbacks (ADR 0035 §4 pattern). ⚠️ Gotcha found live: every `PUBLIC_*` read needs a matching `define` entry in `rsbuild.config.ts` — an unlisted var ships a literal `process` to the browser and breaks boot with a ReferenceError.
 - [x] CSP: `frame-src` += docs.google.com + drive.google.com in `_headers` and both `nginx.conf` blocks; verify at P2 whether Picker needs extra `connect-src`.
 - [x] Wrangler var + deployment.md / README env-var tables.

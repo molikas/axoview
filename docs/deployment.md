@@ -60,16 +60,14 @@ environment:
   ENABLE_SERVER_STORAGE: "true"
   STORAGE_PATH: /data/diagrams
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}        # optional, surfaced via /api/config
-  GOOGLE_API_KEY: ${GOOGLE_API_KEY}            # optional, surfaced via /api/config
-  GOOGLE_PROJECT_NUMBER: ${GOOGLE_PROJECT_NUMBER}  # optional, surfaced via /api/config
 ```
 
-`GOOGLE_API_KEY` / `GOOGLE_PROJECT_NUMBER` enable Drive-native sharing extras
-(anonymous preview of "anyone with the link" Drive diagrams and the Google
-Picker grant flow — [ADR 0042](adr/0042-drive-native-sharing-and-readonly-preview.md));
-see [C3](#c3-optional-google-drive-client-id--sharing-key) for what they are
-and how to restrict the key. Without them, Drive sharing still works but
-anonymous preview and the Picker gate are unavailable.
+`GOOGLE_CLIENT_ID` (public identifier) enables Google sign-in + the user's own
+Drive as storage. **Anonymous read-only preview is NOT available on Docker** —
+the read proxy (`/api/public/drive/:id`) lives only in the Cloudflare worker
+([ADR 0042 §8](adr/0042-drive-native-sharing-and-readonly-preview.md)), so the
+Express backend emits `drivePublicPreview: false` and does not use `GOOGLE_API_KEY`.
+Drive sharing itself (share dialog, copy-link, owner preview) still works.
 
 `AUTH_MODE=cf-access` is rejected by Express at request time — that mode only makes sense behind Cloudflare Access.
 

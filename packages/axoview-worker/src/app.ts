@@ -92,8 +92,13 @@ app.get('/api/public/drive/:fileId', async (c) => {
     return c.json({ error: 'upstream-unreachable' }, 502);
   }
   if (!metaRes.ok) {
-    // Private, or permanently deleted — Drive hides both as 404. Collapse to
-    // 404 so the client's read ladder falls to the authenticated rung.
+    // A transient upstream failure (rate limit / 5xx) must stay distinguishable
+    // so the client can offer Retry instead of the sign-in ladder.
+    if (metaRes.status === 429 || metaRes.status >= 500) {
+      return c.json({ error: 'upstream-error' }, 503);
+    }
+    // Private, or permanently deleted — Drive hides both as 404. The client's
+    // read ladder falls through to the authenticated rung.
     return c.json({ error: 'not-public' }, 404);
   }
   const meta = (await metaRes.json()) as { trashed?: boolean; size?: string };
@@ -114,7 +119,12 @@ app.get('/api/public/drive/:fileId', async (c) => {
   } catch {
     return c.json({ error: 'upstream-unreachable' }, 502);
   }
-  if (!contentRes.ok) return c.json({ error: 'not-public' }, 404);
+  if (!contentRes.ok) {
+    if (contentRes.status === 429 || contentRes.status >= 500) {
+      return c.json({ error: 'upstream-error' }, 503);
+    }
+    return c.json({ error: 'not-public' }, 404);
+  }
 
   const body = await contentRes.text();
   return new Response(body, {

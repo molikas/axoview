@@ -104,10 +104,19 @@ export async function readDriveDisplayFile(
         `${apiBaseUrl()}/api/public/drive/${encodeURIComponent(req.fileId)}${qs}`
       );
       if (res.ok) return { ok: true, data: await res.json() };
-      // 410 = the file was deleted (Drive-trashed) — terminal. Don't prompt
-      // sign-in for a diagram that is gone; the proxy honors Drive's trashed
-      // flag (restore from Trash revives it).
-      if (res.status === 410) return { ok: false, reason: 'not-found' };
+      // The proxy already gave the authoritative answer for a PUBLIC read, so
+      // classify it here rather than falling through to the sign-in ladder
+      // (sign-in can't help a public file):
+      //   410 gone (trashed) / 413 too-large → terminal "could not open";
+      //   429 / 5xx → transient → offer Retry.
+      // Only a 404 (genuinely not public) falls through to the token rung, where
+      // a signed-in recipient's per-file grant might read it.
+      if (res.status === 410 || res.status === 413) {
+        return { ok: false, reason: 'not-found' };
+      }
+      if (res.status === 429 || res.status >= 500) {
+        return { ok: false, reason: 'transient' };
+      }
     } catch {
       /* fall through to the token rung */
     }

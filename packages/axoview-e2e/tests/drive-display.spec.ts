@@ -259,6 +259,18 @@ baseTest.describe('Drive display route — ADR 0042 §2/§8 (/app/display/drive/
     await expect(byAxoviewId(page, 'drive-display-gate-signin')).toHaveCount(0);
   });
 
+  baseTest('a transient upstream failure → proxy 503 → Retry, NOT the sign-in gate (anonymous)', async ({ page }) => {
+    await installConfigMock(page, { drivePublicPreview: true });
+    // The worker keeps 429/5xx distinguishable (503) so a public-file outage
+    // offers Retry instead of demanding sign-in (which can't help).
+    await installDriveProxyMock(page, { status: 503, body: { error: 'upstream-error' } });
+
+    await page.goto(`/app/display/drive/${DRIVE_FILE_ID}`);
+
+    await expect(byAxoviewId(page, 'drive-display-gate-retry')).toBeVisible({ timeout: 10_000 });
+    await expect(byAxoviewId(page, 'drive-display-gate-signin')).toHaveCount(0);
+  });
+
   baseTest('?resourceKey=<rk> rides the proxy request as a query param', async ({ page }) => {
     await installConfigMock(page, { drivePublicPreview: true });
     const log = await installDriveProxyMock(page, { status: 200, body: buildDriveBlob() });

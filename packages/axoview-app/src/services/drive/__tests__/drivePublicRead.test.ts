@@ -126,6 +126,31 @@ describe('readDriveDisplayFile — ladder ordering', () => {
     expect(fetchMock.mock.calls[0][0]).toContain('/api/public/drive/fid');
   });
 
+  test('proxy 413 (too-large public file) → not-found terminal, no token rung', async () => {
+    signedIn();
+    fetchMock.mockResolvedValueOnce(mockResponse({ error: 'too-large' }, 413));
+    const result = await readDriveDisplayFile({
+      fileId: 'fid',
+      resourceKey: null,
+      publicPreview: true
+    });
+    expect(result).toEqual({ ok: false, reason: 'not-found' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test('proxy 503 (transient) → transient/Retry for an ANONYMOUS viewer, never the sign-in gate', async () => {
+    // Signed out: pre-fix, a transient outage on a public file wrongly demanded
+    // sign-in (which cannot help). Now it maps to Retry without a token rung.
+    fetchMock.mockResolvedValueOnce(mockResponse({ error: 'upstream-error' }, 503));
+    const result = await readDriveDisplayFile({
+      fileId: 'fid',
+      resourceKey: null,
+      publicPreview: true
+    });
+    expect(result).toEqual({ ok: false, reason: 'transient' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   test('publicPreview false + signed out → needs-signin with zero network calls', async () => {
     const result = await readDriveDisplayFile({
       fileId: 'fid',
