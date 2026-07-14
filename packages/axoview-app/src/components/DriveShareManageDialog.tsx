@@ -281,7 +281,7 @@ export function DriveShareManageDialog({
 
             {/* Add people — the primary action, at the top (Drive mental model). */}
             <Box>
-              <Typography variant="subtitle2" gutterBottom>
+              <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
                 {t('share.drive.manage.addPeople', 'Add people')}
               </Typography>
               <Stack direction="row" spacing={1}>
@@ -335,7 +335,7 @@ export function DriveShareManageDialog({
 
             {/* People with access — owner "you" row first, then grantees. */}
             <Box>
-              <Typography variant="subtitle2" gutterBottom>
+              <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
                 {t('share.drive.manage.peopleWithAccess', 'People with access')}
               </Typography>
               {!owner && others.length === 0 ? (
@@ -348,7 +348,7 @@ export function DriveShareManageDialog({
                     <PersonRow
                       p={owner}
                       right={
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="caption" color="text.secondary">
                           {t('share.drive.manage.roleOwner', 'Owner')}
                         </Typography>
                       }
@@ -360,7 +360,7 @@ export function DriveShareManageDialog({
                       p={p}
                       right={
                         <Stack direction="row" alignItems="center" spacing={0.5}>
-                          <Typography variant="body2" color="text.secondary">
+                          <Typography variant="caption" color="text.secondary">
                             {t(roleLabelKey(p.role), p.role)}
                           </Typography>
                           <IconButton
@@ -383,7 +383,7 @@ export function DriveShareManageDialog({
 
             {/* General access — the link fallback, with a lock/globe state icon. */}
             <Box>
-              <Typography variant="subtitle2" gutterBottom>
+              <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
                 {t('share.drive.manage.generalAccess', 'General access')}
               </Typography>
               <Stack direction="row" spacing={1.5} alignItems="center">
