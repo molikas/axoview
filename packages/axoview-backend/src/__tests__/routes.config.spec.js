@@ -7,6 +7,8 @@ describe('getConfig', () => {
     expect(result.status).toBe(200);
     expect(result.body).toEqual({
       googleClientId: null,
+      drivePublicPreview: false,
+      googleProjectNumber: null,
       driveScopes: ['https://www.googleapis.com/auth/drive.file'],
       authMode: 'none',
       serverStorage: true
@@ -22,6 +24,18 @@ describe('getConfig', () => {
     );
     expect(result.body.googleClientId).toBe('client-123');
     expect(result.body.authMode).toBe('shared-token');
+  });
+
+  test('drivePublicPreview is always false (no proxy on Docker/Express) + no raw key surfaced (ADR 0042 §8)', () => {
+    const result = getConfig(
+      null,
+      makeCtx({
+        env: { GOOGLE_API_KEY: 'AIza-test-key', GOOGLE_PROJECT_NUMBER: '123456789012' }
+      })
+    );
+    expect(result.body.drivePublicPreview).toBe(false);
+    expect(result.body.googleApiKey).toBeUndefined();
+    expect(result.body.googleProjectNumber).toBe('123456789012');
   });
 
   test('serverStorage is true unless STORAGE_ENABLED is explicitly false', () => {

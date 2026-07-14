@@ -2,15 +2,9 @@ import { useTranslation } from 'react-i18next';
 import { Box, Button, CardActionArea, Link, Paper, Typography } from '@mui/material';
 import { AddCircleOutline as AddIcon, FileUploadOutlined as ImportIcon } from '@mui/icons-material';
 import { GoogleGIcon } from './GoogleGIcon';
+import { isoGridBackground } from '../utils/isoGridBackground';
 
 const SKY_BLUE = '#0ea5e9';
-
-const isoGridBackground = {
-  backgroundImage: [
-    'repeating-linear-gradient(30deg,  rgba(128,128,128,0.13) 0, rgba(128,128,128,0.13) 1px, transparent 0, transparent 28px)',
-    'repeating-linear-gradient(150deg, rgba(128,128,128,0.13) 0, rgba(128,128,128,0.13) 1px, transparent 0, transparent 28px)'
-  ].join(', ')
-} as const;
 
 const cardSx = {
   width: 220,

@@ -65,6 +65,47 @@
     "settings": {
         "language": "Sprache"
     },
+    "toolbar": {
+        "share": {
+            "disabled": {
+                "sessionPlaceNeedsServerStorage": "Teilbare Links für dieses Diagramm brauchen Server-Speicher (selbst gehostet per Docker oder auf Cloudflare). In Google Drive gespeicherte Diagramme lassen sich aus jeder Installation teilen."
+            }
+        }
+    },
+    "share": {
+        "drive": {
+            "liveHint": "Alle, für die die Datei freigegeben ist, sehen die neueste Version — der Link öffnet das Live-Diagramm, keine Momentaufnahme.",
+            "accessAnyone": "Jeder mit dem Link kann es ansehen",
+            "accessRestricted": "Nur Personen mit Zugriff können es ansehen",
+            "accessUnknown": "Wird geprüft, wer Zugriff hat…",
+            "manageAccess": "Zugriff verwalten",
+            "accessError": "Es konnte nicht geprüft werden, wer Zugriff hat.",
+            "sharedWithCount_one": "Geteilt mit {{count}} Person",
+            "sharedWithCount_other": "Geteilt mit {{count}} Personen",
+            "manage": {
+                "title": "Zugriff verwalten",
+                "titleNamed": "„{{name}}“ teilen",
+                "copyLink": "Link kopieren",
+                "copiedToast": "Vorschaulink in die Zwischenablage kopiert",
+                "emailInvite": "Sieh dir dieses Diagramm in Axoview an: {{url}}",
+                "done": "Fertig",
+                "generalAccess": "Allgemeiner Zugriff",
+                "restricted": "Eingeschränkt – nur Personen mit Zugriff",
+                "anyone": "Jeder mit dem Link kann es ansehen",
+                "peopleWithAccess": "Personen mit Zugriff",
+                "onlyYou": "Bisher hast nur du Zugriff.",
+                "roleOwner": "Eigentümer",
+                "roleViewer": "Betrachter",
+                "roleEditor": "Bearbeiter",
+                "remove": "Zugriff entfernen",
+                "addPeople": "Personen hinzufügen",
+                "emailPlaceholder": "name@beispiel.de",
+                "add": "Hinzufügen",
+                "loadError": "Es konnte nicht geladen werden, wer Zugriff hat.",
+                "actionError": "Diese Änderung konnte nicht gespeichert werden."
+            }
+        }
+    },
     "dialog": {
         "save": {
             "title": "Diagramm speichern (nur aktuelle Browser-Sitzung)",
@@ -159,5 +200,15 @@
     "legal": {
         "privacy": "Datenschutz",
         "terms": "Nutzungsbedingungen"
+    },
+    "driveDisplay": {
+        "headline": "Dieses Diagramm liegt im Google Drive seines Besitzers",
+        "signInBody": "Melde dich mit Google an, damit Axoview prüfen kann, ob dieses Diagramm für dich freigegeben wurde.",
+        "grantBody": "Du bist angemeldet, aber Axoview braucht deine Erlaubnis, um genau diese Datei aus Google Drive zu öffnen.",
+        "grantButton": "Mit Google Drive-Zugriff öffnen",
+        "grantUnavailable": "Dein Google-Konto hat über Axoview keinen Zugriff auf dieses Diagramm, und diese Installation kann ihn nicht anfordern. Bitte den Besitzer, die Datei in Google Drive für dich freizugeben, und lade die Seite dann neu.",
+        "pickerError": "Der Google Drive-Zugriffsdialog konnte nicht geöffnet werden. Das kann passieren, wenn Cookies von Drittanbietern oder Pop-ups blockiert sind — erlaube sie für diese Seite und versuche es dann erneut.",
+        "transientBody": "Google Drive konnte nicht erreicht werden, um dieses Diagramm zu laden. Überprüfe deine Verbindung und versuche es erneut.",
+        "retryButton": "Erneut versuchen"
     }
 }

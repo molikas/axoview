@@ -73,13 +73,50 @@
     "toolbar": {
         "presentSaveFirst": "Save first to present",
         "saveAndPresent": "Save & Present",
-        "present": "Present"
+        "present": "Present",
+        "share": {
+            "disabled": {
+                "sessionPlaceNeedsServerStorage": "इस डायग्राम के शेयर लिंक के लिए सर्वर स्टोरेज चाहिए (Docker से सेल्फ़-होस्टेड या Cloudflare)। Google Drive में सहेजे गए डायग्राम किसी भी डिप्लॉयमेंट से साझा किए जा सकते हैं।"
+            }
+        }
     },
     "share": {
         "title": "Share Diagram",
         "hint": "Anyone with this link can view the diagram in read-only mode.",
         "copy": "Copy",
-        "copied": "✓ Copied!"
+        "copied": "✓ Copied!",
+        "drive": {
+            "liveHint": "जिनके साथ फ़ाइल साझा की गई है, वे सबसे नया संस्करण देखते हैं — लिंक लाइव डायग्राम खोलता है, स्नैपशॉट नहीं।",
+            "accessAnyone": "लिंक वाला कोई भी व्यक्ति देख सकता है",
+            "accessRestricted": "केवल पहुँच वाले लोग ही देख सकते हैं",
+            "accessUnknown": "जाँचा जा रहा है कि किसके पास पहुँच है…",
+            "manageAccess": "पहुँच प्रबंधित करें",
+            "accessError": "किसके पास पहुँच है, यह जाँचा नहीं जा सका।",
+            "sharedWithCount_one": "{{count}} व्यक्ति के साथ साझा किया गया",
+            "sharedWithCount_other": "{{count}} लोगों के साथ साझा किया गया",
+            "manage": {
+                "title": "पहुँच प्रबंधित करें",
+                "titleNamed": "“{{name}}” साझा करें",
+                "copyLink": "लिंक कॉपी करें",
+                "copiedToast": "पूर्वावलोकन लिंक क्लिपबोर्ड पर कॉपी किया गया",
+                "emailInvite": "इस डायग्राम को Axoview में देखें: {{url}}",
+                "done": "हो गया",
+                "generalAccess": "सामान्य पहुँच",
+                "restricted": "प्रतिबंधित — केवल पहुँच वाले लोग",
+                "anyone": "लिंक वाला कोई भी व्यक्ति देख सकता है",
+                "peopleWithAccess": "पहुँच वाले लोग",
+                "onlyYou": "अभी तक केवल आपके पास पहुँच है।",
+                "roleOwner": "स्वामी",
+                "roleViewer": "व्यूअर",
+                "roleEditor": "एडिटर",
+                "remove": "पहुँच हटाएँ",
+                "addPeople": "लोग जोड़ें",
+                "emailPlaceholder": "name@example.com",
+                "add": "जोड़ें",
+                "loadError": "किसके पास पहुँच है, यह लोड नहीं हो सका।",
+                "actionError": "वह बदलाव सहेजा नहीं जा सका।"
+            }
+        }
     },
     "dialog": {
         "save": {
@@ -198,5 +235,15 @@
     "legal": {
         "privacy": "गोपनीयता",
         "terms": "शर्तें"
+    },
+    "driveDisplay": {
+        "headline": "यह डायग्राम अपने स्वामी के Google Drive में है",
+        "signInBody": "Google से साइन इन करें ताकि Axoview जाँच सके कि यह डायग्राम आपके साथ साझा किया गया है या नहीं।",
+        "grantBody": "आपने साइन इन कर लिया है, लेकिन इस खास फ़ाइल को Google Drive से खोलने के लिए Axoview को आपकी अनुमति चाहिए।",
+        "grantButton": "Google Drive पहुँच के साथ खोलें",
+        "grantUnavailable": "आपके Google खाते के पास Axoview के माध्यम से इस डायग्राम की पहुँच नहीं है, और यह डिप्लॉयमेंट इसे माँग नहीं सकता। स्वामी से कहें कि वे Google Drive में फ़ाइल आपके साथ साझा करें, फिर यह पेज फिर से लोड करें।",
+        "pickerError": "Google Drive पहुँच संवाद नहीं खोला जा सका। ऐसा तब हो सकता है जब थर्ड-पार्टी कुकीज़ या पॉप-अप ब्लॉक हों — इस साइट के लिए उन्हें अनुमति दें, फिर से प्रयास करें।",
+        "transientBody": "इस डायग्राम को लोड करने के लिए Google Drive तक नहीं पहुँचा जा सका। अपना कनेक्शन जाँचें और फिर से प्रयास करें।",
+        "retryButton": "फिर से प्रयास करें"
     }
 }

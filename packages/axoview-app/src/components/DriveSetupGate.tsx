@@ -16,7 +16,7 @@ import { notificationStore } from '../stores/notificationStore';
  */
 export function DriveSetupGate() {
   const { storageManager, googleDriveConfigured } = useAppStorage();
-  const { refreshFileTree } = useDiagramLifecycle();
+  const { refreshFileTree, isReadonlyUrl } = useDiagramLifecycle();
   const authStatus = useAuthStore((s) => s.status);
   const [needsSetup, setNeedsSetup] = useState(false);
   const checkedThisGrantRef = useRef(false);
@@ -27,12 +27,26 @@ export function DriveSetupGate() {
 
   useEffect(() => {
     if (!googleDriveConfigured || !drive) return;
+    // Reset the one-per-grant probe on auth loss FIRST — before the readonly
+    // guard — so a token expiry that happens WHILE on a /display/* route still
+    // re-arms the probe (mirrors MigrateSessionDialog's ordering: reset inside
+    // the UNAUTH/EXPIRED branch, gate on isReadonlyUrl only afterward). If the
+    // readonly guard ran first, a SESSION_EXPIRED transition on a shared link
+    // would be swallowed and the create-root onboarding would never re-open
+    // after returning to the editor.
     if (authStatus === 'UNAUTHENTICATED' || authStatus === 'SESSION_EXPIRED') {
       checkedThisGrantRef.current = false;
       setNeedsSetup(false);
       return;
     }
     if (authStatus !== 'AUTHENTICATED') return;
+    // A recipient viewing a shared diagram at /display/* may sign in only to
+    // READ it — never route them into first-run "create your Drive root folder"
+    // onboarding.
+    if (isReadonlyUrl) {
+      setNeedsSetup(false);
+      return;
+    }
     if (checkedThisGrantRef.current) return;
     checkedThisGrantRef.current = true;
     let cancelled = false;
@@ -53,7 +67,7 @@ export function DriveSetupGate() {
     return () => {
       cancelled = true;
     };
-  }, [authStatus, drive, googleDriveConfigured]);
+  }, [authStatus, drive, googleDriveConfigured, isReadonlyUrl]);
 
   // The Drive section's "Finish Google Drive setup…" row re-opens the chooser.
   useEffect(() => {

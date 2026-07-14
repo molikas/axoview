@@ -267,7 +267,7 @@ const locale: LocaleProps = {
   lazyLoadingWelcome: {
     title: 'Bienvenue dans Axoview',
     message:
-      "Salut ! Suite à une forte demande, nous avons implémenté le Chargement Paresseux des icônes, donc maintenant si vous voulez activer des packs d'icônes non standard, vous pouvez les activer dans la section 'Configuration'.",
+      "Axoview est un outil gratuit et open source pour créer de superbes diagrammes isométriques et 2D — architecture cloud, réseau et infrastructure, avec les icônes AWS, GCP, Azure et Kubernetes intégrées. Tout fonctionne dans votre navigateur, avec un enregistrement en local ou sur votre propre Google Drive. Construit sur les projets open source FossFLOW et Isoflow et activement enrichi — retrouvez le code source, signalez un bug ou proposez une fonctionnalité sur github.com/molikas/axoview.",
     configPath: "Cliquez sur l'icône Hamburger",
     configPath2: 'en haut à gauche pour accéder à la Configuration.',
     canDisable: 'Vous pouvez désactiver ce comportement si vous le souhaitez.',

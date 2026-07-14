@@ -73,13 +73,50 @@
     "toolbar": {
         "presentSaveFirst": "Salva prima di presentare",
         "saveAndPresent": "Salva e presenta",
-        "present": "Presenta"
+        "present": "Presenta",
+        "share": {
+            "disabled": {
+                "sessionPlaceNeedsServerStorage": "I link di condivisione per questo diagramma richiedono l'archiviazione su server (self-hosted con Docker o su Cloudflare). I diagrammi salvati in Google Drive possono essere condivisi da qualsiasi installazione."
+            }
+        }
     },
     "share": {
         "title": "Condividi diagramma",
         "hint": "Chiunque abbia questo link può visualizzare il diagramma in modalità sola lettura.",
         "copy": "Copia",
-        "copied": "✓ Copiato!"
+        "copied": "✓ Copiato!",
+        "drive": {
+            "liveHint": "Chiunque abbia accesso al file vede l'ultima versione — il link apre il diagramma live, non un'istantanea.",
+            "accessAnyone": "Chiunque abbia il link può visualizzare",
+            "accessRestricted": "Solo chi ha accesso può visualizzare",
+            "accessUnknown": "Verifica di chi ha accesso…",
+            "manageAccess": "Gestisci accesso",
+            "accessError": "Impossibile verificare chi ha accesso.",
+            "sharedWithCount_one": "Condiviso con {{count}} persona",
+            "sharedWithCount_other": "Condiviso con {{count}} persone",
+            "manage": {
+                "title": "Gestisci accesso",
+                "titleNamed": "Condividi «{{name}}»",
+                "copyLink": "Copia link",
+                "copiedToast": "Link di anteprima copiato negli appunti",
+                "emailInvite": "Visualizza questo diagramma in Axoview: {{url}}",
+                "done": "Fatto",
+                "generalAccess": "Accesso generale",
+                "restricted": "Limitato — solo le persone con accesso",
+                "anyone": "Chiunque abbia il link può visualizzare",
+                "peopleWithAccess": "Persone con accesso",
+                "onlyYou": "Per ora hai accesso solo tu.",
+                "roleOwner": "Proprietario",
+                "roleViewer": "Visualizzatore",
+                "roleEditor": "Editor",
+                "remove": "Rimuovi accesso",
+                "addPeople": "Aggiungi persone",
+                "emailPlaceholder": "nome@esempio.com",
+                "add": "Aggiungi",
+                "loadError": "Impossibile caricare chi ha accesso.",
+                "actionError": "Impossibile salvare questa modifica."
+            }
+        }
     },
     "dialog": {
         "save": {
@@ -198,5 +235,15 @@
     "legal": {
         "privacy": "Privacy",
         "terms": "Termini"
+    },
+    "driveDisplay": {
+        "headline": "Questo diagramma risiede nel Google Drive del suo proprietario",
+        "signInBody": "Accedi con Google così Axoview può verificare se questo diagramma è stato condiviso con te.",
+        "grantBody": "Hai effettuato l'accesso, ma Axoview ha bisogno del tuo permesso per aprire questo specifico file da Google Drive.",
+        "grantButton": "Apri con accesso a Google Drive",
+        "grantUnavailable": "Il tuo account Google non ha accesso a questo diagramma tramite Axoview e questa installazione non può richiederlo. Chiedi al proprietario di condividere il file con te in Google Drive, poi ricarica questa pagina.",
+        "pickerError": "Impossibile aprire la finestra di accesso a Google Drive. Può succedere quando i cookie di terze parti o i pop-up sono bloccati — consentili per questo sito, poi riprova.",
+        "transientBody": "Impossibile raggiungere Google Drive per caricare questo diagramma. Controlla la connessione e riprova.",
+        "retryButton": "Riprova"
     }
 }

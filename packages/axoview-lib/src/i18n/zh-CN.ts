@@ -241,7 +241,7 @@ const locale: LocaleProps = {
   lazyLoadingWelcome: {
     title: '欢迎使用 Axoview',
     message:
-      '嘿！应大家的要求，我们实现了图标的延迟加载功能，现在如果您想启用非标准图标包，可以在「配置」部分中启用它们。',
+      'Axoview 是一款免费、开源的工具，用于制作精美的等距（isometric）和 2D 图表 —— 涵盖云、网络与基础设施架构，并内置 AWS、GCP、Azure 和 Kubernetes 图标。一切都在您的浏览器中运行，可保存到本地或您自己的 Google Drive。它基于开源项目 FossFLOW 和 Isoflow 构建，并在持续扩展中 —— 欢迎在 github.com/molikas/axoview 查看源代码、报告问题或提出功能建议。',
     configPath: '点击左上角的汉堡菜单图标',
     configPath2: '以访问配置。',
     canDisable: '如果您愿意，可以禁用此行为。',

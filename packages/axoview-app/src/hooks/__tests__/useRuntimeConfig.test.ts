@@ -8,6 +8,8 @@ describe('fetchRuntimeConfig', () => {
     // module-level `cached` / `inflight` singletons start from null.
     jest.resetModules();
     (global as any).fetch = undefined;
+    delete process.env.PUBLIC_GOOGLE_API_KEY;
+    delete process.env.PUBLIC_GOOGLE_PROJECT_NUMBER;
   });
 
   test('returns default config when fetch rejects', async () => {
@@ -20,6 +22,46 @@ describe('fetchRuntimeConfig', () => {
     expect(cfg.authMode).toBe('none');
     expect(cfg.serverStorage).toBe(false);
     expect(cfg.googleClientId).toBeNull();
+    expect(cfg.googleApiKey).toBeNull();
+    expect(cfg.drivePublicPreview).toBe(false);
+    expect(cfg.googleProjectNumber).toBeNull();
+  });
+
+  test('reflects backend-supplied drivePublicPreview + googleProjectNumber; the raw key is never sent (ADR 0043 #3)', async () => {
+    (global as any).fetch = async () =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          drivePublicPreview: true,
+          googleProjectNumber: '123456789012'
+        })
+      }) as Response;
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { fetchRuntimeConfig } = require('../useRuntimeConfig');
+    const cfg = await fetchRuntimeConfig();
+    expect(cfg.drivePublicPreview).toBe(true);
+    expect(cfg.googleProjectNumber).toBe('123456789012');
+    // The API key is no longer part of the server contract (server-side only).
+    expect(cfg.googleApiKey).toBeNull();
+  });
+
+  test('re-applies PUBLIC_ build-time fallbacks when the backend nulls the fields', async () => {
+    process.env.PUBLIC_GOOGLE_API_KEY = 'AIza-build-time';
+    process.env.PUBLIC_GOOGLE_PROJECT_NUMBER = '999888777666';
+    (global as any).fetch = async () =>
+      ({
+        ok: true,
+        status: 200,
+        // Worker/Express send explicit nulls when the env vars are unset —
+        // the spread would clobber DEFAULT_CONFIG without the re-fallback.
+        json: async () => ({ googleApiKey: null, googleProjectNumber: null })
+      }) as Response;
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { fetchRuntimeConfig } = require('../useRuntimeConfig');
+    const cfg = await fetchRuntimeConfig();
+    expect(cfg.googleApiKey).toBe('AIza-build-time');
+    expect(cfg.googleProjectNumber).toBe('999888777666');
   });
 
   test('aborts a hanging fetch via AbortSignal and falls back to defaults within ~1s', async () => {

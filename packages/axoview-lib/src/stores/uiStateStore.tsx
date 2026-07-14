@@ -90,6 +90,7 @@ const initialState = () => {
       labelMove: null,
       selectedConnectorLabel: null,
       inlineEditLabelId: null,
+      viewModeHoveredLabelId: null,
       editingTextBoxId: null,
       editingTextBoxSize: null,
       annotation: {
@@ -370,6 +371,12 @@ const initialState = () => {
         },
         setInlineEditLabelId: (id) => {
           set({ inlineEditLabelId: id });
+        },
+        setViewModeHoveredLabelId: (id) => {
+          // View-mode chip hover for the info popover (notes parity). Written
+          // only by LabelHitLayer's hover-only view-mode proxies on
+          // pointerenter/leave — rare, so no identity guard is needed.
+          set({ viewModeHoveredLabelId: id });
         },
         setEditingTextBoxId: (id) => {
           // A session change invalidates the previous session's live measure —

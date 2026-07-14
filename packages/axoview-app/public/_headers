@@ -3,7 +3,7 @@
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://accounts.google.com https://apis.google.com; connect-src 'self' https://www.googleapis.com https://oauth2.googleapis.com https://*.cloudflareaccess.com; img-src 'self' data: blob: https://*.googleusercontent.com; style-src 'self' 'unsafe-inline'; frame-src https://accounts.google.com; object-src 'none'; base-uri 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://accounts.google.com https://apis.google.com; connect-src 'self' https://www.googleapis.com https://content.googleapis.com https://oauth2.googleapis.com https://*.cloudflareaccess.com; img-src 'self' data: blob: https://*.googleusercontent.com https://ssl.gstatic.com; style-src 'self' 'unsafe-inline'; frame-src https://accounts.google.com https://docs.google.com https://drive.google.com; object-src 'none'; base-uri 'self'
 
 /api/*
   Cache-Control: no-store

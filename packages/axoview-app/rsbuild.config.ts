@@ -58,6 +58,17 @@ export default defineConfig({
             'process.env.PUBLIC_GOOGLE_CLIENT_ID': JSON.stringify(
                 process.env.PUBLIC_GOOGLE_CLIENT_ID || ''
             ),
+            // ADR 0042 §5 — same dev-fallback rail for the Drive sharing key +
+            // Picker project number. MUST be defined even when unset: rsbuild
+            // replaces only the exact defined expressions, so an unlisted
+            // `process.env.PUBLIC_*` read ships a literal `process` to the
+            // browser and breaks boot with a ReferenceError.
+            'process.env.PUBLIC_GOOGLE_API_KEY': JSON.stringify(
+                process.env.PUBLIC_GOOGLE_API_KEY || ''
+            ),
+            'process.env.PUBLIC_GOOGLE_PROJECT_NUMBER': JSON.stringify(
+                process.env.PUBLIC_GOOGLE_PROJECT_NUMBER || ''
+            ),
         },
     },
     output: {

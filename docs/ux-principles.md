@@ -108,6 +108,7 @@ The theme owns every font size and weight. Components pick a `<Typography varian
 2. **Never pass `fontSize` to `<Typography>`.** Same for `fontWeight`. Both belong to the variant.
 3. **Component-level overrides live in `theme.ts`.** `MuiTab`, `MuiChip`, `MuiButton` — set there once. Don't sprinkle `'& .MuiTab-root': { fontSize: ... }` inside random components.
 4. **Need a size that doesn't fit a tier?** Propose a new variant in `theme.ts`. Don't inline it. Drift starts with one inline override.
+5. **The table only holds where a `ThemeProvider` provides the theme.** Every size above is the theme's 14px-base scale — it is *not* what MUI renders by default. The lib provides the theme inside `<Axoview>`; the **app root must provide it too** (`<ThemeProvider>` + `<CssBaseline/>`). Where it doesn't — **today `axoview-app` has no root provider** — app-level surfaces (dialogs, the toolbar, popovers, menus) fall back to **MUI defaults**: 16px body, 20px `h6`, 16px inputs, and the tell-tale **`overline` rendered UPPERCASE**. New app UI then looks correct in the code (right variants) yet ships oversized. So on an app-level surface: **never rely on MUI defaults, and never use `overline` for a section header** (un-themed it uppercases — use the recipe below). Tracked in [known_issues.md](../known_issues.md) ("App-level MUI components render un-themed").
 
 **Permitted exceptions (documented):**
 
@@ -132,6 +133,18 @@ The theme owns every font size and weight. Components pick a `<Typography varian
 ```
 
 `overline` intentionally renders **sentence case** here (against MUI's default) — the "region header" signal comes from weight 600 + tracking + smaller size, not uppercase (satisfies §1.2/§7.2). The custom `micro` variant is registered via TS module augmentation in [`theme.ts`](../packages/axoview-lib/src/styles/theme.ts).
+
+**Dialog / app-surface typography recipe.** Because app-level surfaces may render un-themed (rule 5), build them with the explicit recipe below — it matches the lib's `ExportImageDialog` and looks right with *or* without the theme:
+
+| Element | Variant / style |
+|---|---|
+| Dialog title | `h6`; on an un-themed surface, cap it via a scoped compact theme (`h6` → `1.1rem` / 600), never the default 20px |
+| Section header | `caption` + `fontWeight: 600` + `color: 'text.secondary'`, sentence case — **not** `overline` |
+| Row primary text | `body2` |
+| Email / role / helper | `caption`, `color: 'text.secondary'` |
+| Inputs · Select · MenuItem | `body2` (14px); on an un-themed surface a scoped compact `ThemeProvider` pins `MuiInputBase` / `MuiMenuItem` to `0.875rem` |
+
+References: [`ExportImageDialog`](../packages/axoview-lib/src/components/ExportImageDialog/ExportImageDialog.tsx) (renders under the lib theme) and [`DriveShareManageDialog`](../packages/axoview-app/src/components/DriveShareManageDialog.tsx) (scoped compact `ThemeProvider` — the interim pattern for app surfaces until the app-root theme lands).
 
 ---
 
@@ -243,6 +256,8 @@ The file tree's selection has different semantics — it's "which diagram is ope
 
 - Canvas/layer selection: `bgcolor: 'primary.main'` (saturated blue)
 - File tree selection: `bgcolor: 'action.selected'` (subtle grey)
+
+**On-canvas selection/hover chrome** (the outline drawn *on the diagram*, not a list row) is a separate, ranked language — rest < hover < selected must be visibly distinct. The rule (ADR 0006 §9): draw the chrome *just outside* the element's own border (never coincident with it), in the accent `TRANSFORM_CONTROLS_COLOR`, over a **white contrast under-stroke** so it survives on any fill — a selected element gets a bold solid ring + glow, a hovered one a lighter outset outline. Every item type (node / rectangle / text box / connector / label) speaks this one language (§5 parity); don't reintroduce a bare same-colour outline at the element footprint (it disappears on coloured shapes).
 
 ### 4.3 Locked / hidden layer items are non-interactive — across every selection path
 

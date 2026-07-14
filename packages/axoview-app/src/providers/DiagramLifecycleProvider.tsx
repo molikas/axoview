@@ -24,6 +24,8 @@ import {
 } from '../services/iconPackManager';
 import { useAppStorage } from './AppStorageContext';
 import { useAuthStore } from '../stores/authStore';
+import { fetchRuntimeConfig } from '../hooks/useRuntimeConfig';
+import { readDriveDisplayFile } from '../services/drive/drivePublicRead';
 import { useAutoSave, SaveStatus } from '../hooks/useAutoSave';
 import { DiagramManager } from '../components/DiagramManager';
 import { SaveDialog } from '../components/SaveDialog';
@@ -66,6 +68,23 @@ function setWithout(prev: Set<string>, ...items: string[]): Set<string> {
 
 export type { SavedDiagram };
 
+/**
+ * Drive display route gate state (ADR 0042 §2). 'needs-signin' and
+ * 'needs-grant' render the DriveDisplayGate rungs; 'failed' is terminal
+ * (deleted file, declined pick, transient error) and gets the existing
+ * readonly-load-failed treatment.
+ */
+export type DriveDisplayState =
+  | 'idle'
+  | 'loading'
+  | 'needs-signin'
+  | 'needs-grant'
+  // Network / rate-limit / 5xx — recoverable; the gate offers a Retry rather
+  // than the terminal 'failed' treatment.
+  | 'transient'
+  | 'failed'
+  | 'loaded';
+
 interface PendingConfirm {
   message: string;
   onConfirm: () => void;
@@ -87,6 +106,17 @@ interface DiagramLifecycleContextValue {
   clearReadonlyLoadFailed: () => void;
   publicShareLoadFailed: boolean;
   clearPublicShareLoadFailed: () => void;
+  // ADR 0042 §2 — Drive-file display route (`/display/drive/:driveFileId`).
+  // Gate state consumed by DriveDisplayGate; mirrors the readonly/public
+  // failure-flag pattern above. (`driveDisplayFileId != null` already means
+  // "on the Drive display route" — no separate boolean is exposed.)
+  driveDisplayFileId: string | null;
+  driveDisplayState: DriveDisplayState;
+  /**
+   * Re-run the load ladder. `afterGrant` marks the post-Picker retry so a
+   * still-unreadable file maps to terminal failure instead of another gate.
+   */
+  retryDriveDisplayRead: (afterGrant: boolean) => void;
   // ADR 0011 — failure-of-intent dialog state for a user-initiated save that
   // could not be persisted. `retrySave` re-runs the save action.
   saveError: boolean;
@@ -175,9 +205,10 @@ export function DiagramLifecycleProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { readonlyDiagramId, shareUuid } = useParams<{
+  const { readonlyDiagramId, shareUuid, driveFileId } = useParams<{
     readonlyDiagramId: string;
     shareUuid: string;
+    driveFileId: string;
   }>();
   const navigate = useNavigate();
   const { t } = useTranslation('app');
@@ -199,8 +230,13 @@ export function DiagramLifecycleProvider({
   // `/app/display/<id>`, not `/display/<id>` — hence `includes`, not
   // `startsWith`, so readonly mode still resolves under the /app prefix (and at
   // the bare `/display/*` used by other deploys / pre-R1 links).
+  // ADR 0042 §2: the Drive-file display route is readonly too. It must NOT
+  // fold into isPublicShareUrl — LocalModeShareError stays keyed on the
+  // share-uuid form only.
+  const isDriveDisplayUrl = !!driveFileId;
   const isReadonlyUrl =
     isPublicShareUrl ||
+    isDriveDisplayUrl ||
     (window.location.pathname.includes('/display/') && !!readonlyDiagramId);
 
   const axoviewRef = useRef<AxoviewRef>(null);
@@ -216,6 +252,17 @@ export function DiagramLifecycleProvider({
   const clearReadonlyLoadFailed = useCallback(() => setReadonlyLoadFailed(false), []);
   const [publicShareLoadFailed, setPublicShareLoadFailed] = useState(false);
   const clearPublicShareLoadFailed = useCallback(() => setPublicShareLoadFailed(false), []);
+
+  // Drive display gate (ADR 0042 §2). driveRetryToken re-fires the loader
+  // effect after sign-in / a Picker grant; the afterGrant flag rides a ref so
+  // the retry doesn't need an effect dep of its own.
+  const [driveDisplayState, setDriveDisplayState] = useState<DriveDisplayState>('idle');
+  const [driveRetryToken, setDriveRetryToken] = useState(0);
+  const driveAfterGrantRef = useRef(false);
+  const retryDriveDisplayRead = useCallback((afterGrant: boolean) => {
+    driveAfterGrantRef.current = afterGrant;
+    setDriveRetryToken((n) => n + 1);
+  }, []);
 
   // ADR 0011 — save failure-of-intent. `retrySave` re-runs the canonical
   // user-save entry (handleSaveClick) via a ref so the callback identity stays
@@ -237,6 +284,15 @@ export function DiagramLifecycleProvider({
       setPublicShareLoadFailed(false);
     }
   }, [isReadonlyUrl]);
+
+  // Same stale-state guard for the Drive display gate: leaving the route
+  // resets the gate so it can't linger over the editor.
+  useEffect(() => {
+    if (!driveFileId) {
+      setDriveDisplayState('idle');
+      driveAfterGrantRef.current = false;
+    }
+  }, [driveFileId]);
 
   // ---------------------------------------------------------------------------
   // UI state
@@ -456,6 +512,25 @@ export function DiagramLifecycleProvider({
     };
   }
 
+  // Shared hydration tail for the three read-only URL loaders (public snapshot,
+  // owner-readonly, Drive display). Each builds its own SavedDiagram (id / name
+  // / timestamps legitimately differ), then hands it here to commit to canvas +
+  // state identically — one place to keep the load contract from drifting. Only
+  // stable setters / refs are captured, so its identity never changes.
+  const applyLoadedDiagram = useCallback((diagram: SavedDiagram) => {
+    setCurrentDiagram(diagram);
+    setDiagramName(diagram.name);
+    setCurrentModel(diagram.data);
+    setLastSaved(new Date(diagram.updatedAt));
+    isAfterLoadRef.current = true;
+    // Axoview may not be mounted yet (EmptyStateScreen showing) — seed the
+    // frozen initialData so it mounts with the right diagram, not stale data.
+    if (!axoviewRef.current) {
+      frozenInitialDataRef.current = diagram.data;
+    }
+    axoviewRef.current?.load(diagram.data as InitialData);
+  }, []);
+
   // ---------------------------------------------------------------------------
   // Load public-share snapshot from URL (no auth, no diagram-list fetch)
   // ---------------------------------------------------------------------------
@@ -495,15 +570,7 @@ export function DiagramLifecycleProvider({
           createdAt: data.sharedAt || new Date().toISOString(),
           updatedAt: data.sharedAt || new Date().toISOString()
         };
-        setCurrentDiagram(sharedDiagram);
-        setDiagramName(name);
-        setCurrentModel(dataWithIcons);
-        setLastSaved(new Date(sharedDiagram.updatedAt));
-        isAfterLoadRef.current = true;
-        if (!axoviewRef.current) {
-          frozenInitialDataRef.current = dataWithIcons;
-        }
-        axoviewRef.current?.load(dataWithIcons as InitialData);
+        applyLoadedDiagram(sharedDiagram);
       } catch (_error) {
         setPublicShareLoadFailed(true);
       }
@@ -516,8 +583,14 @@ export function DiagramLifecycleProvider({
   // Load readonly diagram from URL (owner-only, requires auth)
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    if (isPublicShareUrl) return; // public-share path uses the effect above
-    if (!isReadonlyUrl || !storage) return;
+    // Self-keyed on the owner-readonly route param: react-router populates
+    // `readonlyDiagramId` ONLY on `/display/:readonlyDiagramId`, so it is falsy
+    // on the public-share (`/display/p/:shareUuid`) and Drive
+    // (`/display/drive/:driveFileId`) routes. This single guard replaces the
+    // per-sibling co-fire exclusions (ADR 0042 §2 mutual exclusion — a fourth
+    // readonly route needs zero new guards here) and still leaves
+    // listDiagrams()/loadDiagram(undefined) unreachable off this route.
+    if (!readonlyDiagramId || !storage) return;
     // Cancel the in-flight load if the user navigates away (Back to editing)
     // before the async chain settles — otherwise a late-resolving catch
     // surfaces ReadonlyLoadErrorDialog on the editor route after the readonly
@@ -553,15 +626,7 @@ export function DiagramLifecycleProvider({
           createdAt: new Date().toISOString(),
           updatedAt: diagramInfo?.lastModified || new Date().toISOString()
         };
-        setCurrentDiagram(readonlyDiagram);
-        setDiagramName(readonlyDiagram.name);
-        setCurrentModel(dataWithIcons);
-        setLastSaved(new Date(readonlyDiagram.updatedAt));
-        isAfterLoadRef.current = true;
-        if (!axoviewRef.current) {
-          frozenInitialDataRef.current = dataWithIcons;
-        }
-        axoviewRef.current?.load(dataWithIcons as InitialData);
+        applyLoadedDiagram(readonlyDiagram);
       } catch (_error) {
         if (cancelled) return;
         setReadonlyLoadFailed(true);
@@ -573,6 +638,84 @@ export function DiagramLifecycleProvider({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on readonlyDiagramId/storage; the URL-guard booleans recompute each render and iconPackManager is a stable singleton
   }, [readonlyDiagramId, storage]);
+
+  // ---------------------------------------------------------------------------
+  // Load Drive-file diagram from URL (ADR 0042 §2: key read → token read →
+  // grant gate). Provider-less by design — the recipient may have no Drive
+  // root/manifest/place, so this never touches `storage` (no listDiagrams).
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!driveFileId) return;
+    // Cancel-on-navigate guard, same reason as the owner-readonly loader: a
+    // late-settling load must not paint gate/error state over another route.
+    let cancelled = false;
+    const loadDriveDiagram = async () => {
+      setDriveDisplayState('loading');
+      try {
+        // Config comes straight from the cached runtime-config fetch rather
+        // than provider state, so the effect doesn't refire on init timing.
+        const config = await fetchRuntimeConfig();
+        if (cancelled) return;
+        // resourceKey rides OUR preview URL as a search param (expected
+        // absent on app-created files — ADR 0042 §1).
+        const resourceKey = new URLSearchParams(window.location.search).get('resourceKey');
+        const result = await readDriveDisplayFile({
+          fileId: driveFileId,
+          resourceKey,
+          publicPreview: config.drivePublicPreview,
+          afterGrant: driveAfterGrantRef.current
+        });
+        if (cancelled) return;
+        if (!result.ok) {
+          // needs-signin / needs-grant / transient render actionable gate rungs;
+          // only 'not-found' (terminal) falls through to 'failed'.
+          setDriveDisplayState(
+            result.reason === 'needs-signin' ||
+              result.reason === 'needs-grant' ||
+              result.reason === 'transient'
+              ? result.reason
+              : 'failed'
+          );
+          return;
+        }
+        const raw: unknown = result.data;
+        if (!isPersistedDiagramBlob(raw)) throw new Error('drive file is not a diagram blob');
+        const data: PersistedDiagramBlob = raw;
+        const name = data.title || data.name || 'Shared Diagram';
+        await iconPackManager.loadPacksForDiagram(data);
+        if (cancelled) return;
+        const importedIcons: Icon[] = (data.icons || []).filter(
+          (icon) => icon.collection === 'imported'
+        );
+        const dataWithIcons: DiagramData = {
+          ...data,
+          title: name,
+          icons: [...iconPackManager.loadedIcons, ...importedIcons],
+          colors: data.colors?.length ? data.colors : defaultColors,
+          items: Array.isArray(data.items) ? data.items : [],
+          views: Array.isArray(data.views) ? data.views : [],
+          fitToScreen: data.fitToScreen !== false
+        };
+        const driveDiagram: SavedDiagram = {
+          id: driveFileId,
+          name,
+          data: dataWithIcons,
+          createdAt: data.created || new Date().toISOString(),
+          updatedAt: data.lastModified || new Date().toISOString()
+        };
+        applyLoadedDiagram(driveDiagram);
+        setDriveDisplayState('loaded');
+      } catch (_error) {
+        if (cancelled) return;
+        setDriveDisplayState('failed');
+      }
+    };
+    loadDriveDiagram();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on driveFileId + retry token; iconPackManager is a stable singleton
+  }, [driveFileId, driveRetryToken]);
 
   // ---------------------------------------------------------------------------
   // Reload icon packs when they change
@@ -1591,6 +1734,9 @@ export function DiagramLifecycleProvider({
     clearReadonlyLoadFailed,
     publicShareLoadFailed,
     clearPublicShareLoadFailed,
+    driveDisplayFileId: driveFileId ?? null,
+    driveDisplayState,
+    retryDriveDisplayRead,
     saveError,
     clearSaveError,
     retrySave,

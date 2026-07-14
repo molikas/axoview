@@ -73,13 +73,50 @@
     "toolbar": {
         "presentSaveFirst": "Sunmadan önce kaydedin",
         "saveAndPresent": "Kaydet ve Sun",
-        "present": "Sun"
+        "present": "Sun",
+        "share": {
+            "disabled": {
+                "sessionPlaceNeedsServerStorage": "Bu diyagram için paylaşılabilir bağlantılar sunucu depolaması gerektirir (Docker ile kendi sunucunuzda veya Cloudflare'de). Google Drive'a kaydedilen diyagramlar her dağıtımdan paylaşılabilir."
+            }
+        }
     },
     "share": {
         "title": "Diyagramı Paylaş",
         "hint": "Bu bağlantıya sahip herkes diyagramı salt okunur modda görüntüleyebilir.",
         "copy": "Kopyala",
-        "copied": "✓ Kopyalandı!"
+        "copied": "✓ Kopyalandı!",
+        "drive": {
+            "liveHint": "Dosyanın paylaşıldığı herkes en güncel sürümü görür — bağlantı anlık görüntüyü değil, canlı diyagramı açar.",
+            "accessAnyone": "Bağlantıya sahip herkes görüntüleyebilir",
+            "accessRestricted": "Yalnızca erişimi olan kişiler görüntüleyebilir",
+            "accessUnknown": "Kimlerin erişimi olduğu kontrol ediliyor…",
+            "manageAccess": "Erişimi yönet",
+            "accessError": "Kimlerin erişimi olduğu kontrol edilemedi.",
+            "sharedWithCount_one": "{{count}} kişiyle paylaşıldı",
+            "sharedWithCount_other": "{{count}} kişiyle paylaşıldı",
+            "manage": {
+                "title": "Erişimi yönet",
+                "titleNamed": "\"{{name}}\" paylaş",
+                "copyLink": "Bağlantıyı kopyala",
+                "copiedToast": "Önizleme bağlantısı panoya kopyalandı",
+                "emailInvite": "Bu diyagramı Axoview'de görüntüle: {{url}}",
+                "done": "Tamam",
+                "generalAccess": "Genel erişim",
+                "restricted": "Kısıtlı — yalnızca erişimi olan kişiler",
+                "anyone": "Bağlantıya sahip herkes görüntüleyebilir",
+                "peopleWithAccess": "Erişimi olan kişiler",
+                "onlyYou": "Şimdilik yalnızca sizin erişiminiz var.",
+                "roleOwner": "Sahip",
+                "roleViewer": "Görüntüleyen",
+                "roleEditor": "Düzenleyen",
+                "remove": "Erişimi kaldır",
+                "addPeople": "Kişi ekle",
+                "emailPlaceholder": "ad@ornek.com",
+                "add": "Ekle",
+                "loadError": "Kimlerin erişimi olduğu yüklenemedi.",
+                "actionError": "Bu değişiklik kaydedilemedi."
+            }
+        }
     },
     "dialog": {
         "save": {
@@ -198,5 +235,15 @@
     "legal": {
         "privacy": "Gizlilik",
         "terms": "Koşullar"
+    },
+    "driveDisplay": {
+        "headline": "Bu diyagram sahibinin Google Drive'ında bulunuyor",
+        "signInBody": "Bu diyagramın sizinle paylaşılıp paylaşılmadığını Axoview'in kontrol edebilmesi için Google ile oturum açın.",
+        "grantBody": "Oturum açtınız, ancak Axoview'in bu dosyayı Google Drive'dan açabilmesi için izninize ihtiyacı var.",
+        "grantButton": "Google Drive erişimiyle aç",
+        "grantUnavailable": "Google hesabınızın Axoview üzerinden bu diyagrama erişimi yok ve bu dağıtım erişim isteyemiyor. Sahibinden dosyayı Google Drive'da sizinle paylaşmasını isteyin, ardından bu sayfayı yeniden yükleyin.",
+        "pickerError": "Google Drive erişim penceresi açılamadı. Bu durum, üçüncü taraf çerezleri veya açılır pencereler engellendiğinde ortaya çıkabilir — bu site için bunlara izin verip tekrar deneyin.",
+        "transientBody": "Bu diyagramı yüklemek için Google Drive'a ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.",
+        "retryButton": "Tekrar dene"
     }
 }

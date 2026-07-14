@@ -22,9 +22,17 @@ E2E suite lives at [`packages/axoview-e2e/`](../packages/axoview-e2e/) (Playwrig
 
 To scale further, raise the shard count (`SHARD_TOTAL` + the matrix list in the workflow, kept in sync) — diminishing past ~6 shards because a fixed ~3 min setup (npm ci + build:lib + Playwright install + dev-server boot) is paid per shard.
 
+### ADR 0042 additions — Drive-native sharing & read-only preview (2026-07-14)
+
+E2E for the [ADR 0042](adr/0042-drive-native-sharing-and-readonly-preview.md) Drive display route, driven with **mocked** googleapis fetches (so it runs headless — unlike the real-OAuth Drive provider suites below).
+
+| Suite | Type | Covers |
+|---|---|---|
+| `drive-display.spec.ts` | E2E | `/display/drive/:driveFileId` route (ADR 0042): anonymous **key-read** render in **View-Only** mode; the **needs-sign-in gate** (never the `LocalModeShareError` dialog); `resourceKey` header propagation (`X-Goog-Drive-Resource-Keys`) from a `?resourceKey=` link |
+
 ### UX-sweep fixes — floating-Label interaction wiring (2026-07-10)
 
-Shipped with the ADR 0028 persona-sweep triage ([docs/tactical/ux-sweep-triage-2026-07-10.md](tactical/ux-sweep-triage-2026-07-10.md)). Closes the verifier-flagged gap "no test exercises single-label Delete."
+Shipped with the 2026-07-10 ADR 0028 persona-sweep triage (sweep doc retired 2026-07-14; see git history). Closes the verifier-flagged gap "no test exercises single-label Delete."
 
 | Suite | Type | Covers |
 |---|---|---|

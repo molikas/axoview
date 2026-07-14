@@ -18,7 +18,7 @@ Axoview is a diagramming tool for cloud architecture, network topologies and inf
 - **Present & export** — distraction-free present mode, ephemeral annotation overlay, robust PNG export.
 - **File management** — VS Code-style file explorer, project-zip import/export, compact LLM-friendly diagram format.
 - **Your storage, your data** — browser session, your own Google Drive (per-file `drive.file` scope), or your own server. No tracking, no analytics.
-- **Share links** — read-only share URLs for any diagram (server-storage deployments).
+- **Share links** — read-only share URLs: Drive diagrams share serverlessly via Google Drive's own access control (live links, optional anonymous "anyone with the link" preview); session diagrams get snapshot links on server-storage deployments.
 - **Touch & pen** — full direct-manipulation touchscreen and stylus support.
 - **13 languages** — complete internationalisation of the UI.
 
@@ -52,7 +52,7 @@ git clone https://github.com/molikas/axoview.git
 cd axoview
 npm install
 npm run dev            # frontend on http://localhost:3000 — editor at /app
-npm run dev:backend    # optional, second terminal — server storage + share links on :3001
+npm run dev:backend    # optional, second terminal — server storage + session-diagram share links on :3001
 ```
 
 ## Deployment targets
@@ -65,7 +65,7 @@ Axoview runs from a single codebase on three targets, sharing one `/api/*` HTTP 
 | **Docker** | nginx + Express on Node | Filesystem volume | `none`, `shared-token` |
 | **Cloudflare Pages** | Pages Functions (Hono) | **Session + user-owned Google Drive** (worker stays storage-less) | `none`, `shared-token`, `cf-access` |
 
-The frontend bundle is identical across all three: a static marketing landing at `/`, the editor at `/app`, legal pages, and the API. Runtime config (`GET /api/config`) replaces build-time env injection. The Cloudflare worker itself remains storage-less; persistent storage there is the user's own Google Drive via the client-side provider (set `GOOGLE_CLIENT_ID` — see [ADR 0035](docs/adr/0035-google-identity-and-drive-authorization.md)).
+The frontend bundle is identical across all three: a static marketing landing at `/`, the editor at `/app`, legal pages, and the API. Runtime config (`GET /api/config`) replaces build-time env injection. The Cloudflare worker itself remains storage-less; persistent storage there is the user's own Google Drive via the client-side provider (set `GOOGLE_CLIENT_ID` — see [ADR 0035](docs/adr/0035-google-identity-and-drive-authorization.md); optionally `GOOGLE_API_KEY` + `GOOGLE_PROJECT_NUMBER` to enable anonymous Drive-share preview and the Picker grant flow — see [ADR 0042](docs/adr/0042-drive-native-sharing-and-readonly-preview.md) and [docs/deployment.md](docs/deployment.md)).
 
 For the from-scratch deploy walkthrough, see [docs/deployment.md](docs/deployment.md).
 

@@ -2,6 +2,19 @@ import { apiBaseUrl } from '../utils/apiBaseUrl';
 
 export interface RuntimeConfig {
   googleClientId: string | null;
+  /**
+   * Build-time-only fallback for the Google Picker's developer key (Option B /
+   * private-share grant). On Cloudflare it is NOT delivered by /api/config —
+   * the key stays server-side for the read proxy (ADR 0043 #3) — so it is null
+   * there and the Picker rung stays dormant until a browser Picker key is added.
+   */
+  googleApiKey: string | null;
+  /**
+   * Whether the backend has a server-side key for the anonymous read proxy
+   * (`GET /api/public/drive/:fileId`). Gates the client's public-read rung.
+   */
+  drivePublicPreview: boolean;
+  googleProjectNumber: string | null;
   driveScopes: string[];
   authMode: 'none' | 'shared-token' | 'cf-access';
   serverStorage: boolean;
@@ -15,8 +28,17 @@ export interface RuntimeConfig {
 // /api/config instead.
 const BUILD_TIME_CLIENT_ID = process.env.PUBLIC_GOOGLE_CLIENT_ID || null;
 
+// ADR 0042 §5: same build-time fallback pattern for the Drive preview values —
+// null means the key-read rung and the Picker are unavailable (graceful
+// degradation, not an error).
+const BUILD_TIME_API_KEY = process.env.PUBLIC_GOOGLE_API_KEY || null;
+const BUILD_TIME_PROJECT_NUMBER = process.env.PUBLIC_GOOGLE_PROJECT_NUMBER || null;
+
 const DEFAULT_CONFIG: RuntimeConfig = {
   googleClientId: BUILD_TIME_CLIENT_ID,
+  googleApiKey: BUILD_TIME_API_KEY,
+  drivePublicPreview: false,
+  googleProjectNumber: BUILD_TIME_PROJECT_NUMBER,
   driveScopes: ['https://www.googleapis.com/auth/drive.file'],
   authMode: 'none',
   serverStorage: false
@@ -43,6 +65,8 @@ export async function fetchRuntimeConfig(): Promise<RuntimeConfig> {
       // The build-time id is a true fallback: if the backend omits or nulls
       // googleClientId, keep whatever was baked in at build (local dev).
       if (!cached.googleClientId) cached.googleClientId = BUILD_TIME_CLIENT_ID;
+      if (!cached.googleApiKey) cached.googleApiKey = BUILD_TIME_API_KEY;
+      if (!cached.googleProjectNumber) cached.googleProjectNumber = BUILD_TIME_PROJECT_NUMBER;
     } catch (err) {
       // ADR 0009 D2: explicit Local-mode fallback on /api/config failure.
       // The previous silent swallow hid backend outages on boot.

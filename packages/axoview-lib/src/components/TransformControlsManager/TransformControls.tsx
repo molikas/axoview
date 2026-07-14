@@ -31,16 +31,38 @@ interface Props {
   onRotate?: () => void;
   rotateTooltip?: string;
   /**
-   * A3 hover affordance: render a single faint outline (no dashed ring, no
-   * glow, no resize anchors) — visually distinct from, and lighter than, the
-   * selection ring. Used by HoverOutline for the hovered-but-unselected item.
+   * A3 hover affordance: render a single light accent outline with a faint
+   * white contrast under-stroke (no glow, no resize anchors) — visually
+   * distinct from, and lighter than, the selection ring. Used by HoverOutline
+   * for the hovered-but-unselected item.
    */
   subtle?: boolean;
 }
 
-const strokeWidth = 2;
+// Selection / hover chrome geometry (screen px, pre-shear). The ring frames the
+// element from just OUTSIDE its own border so it never hides behind the
+// element's own stroke, and stacks a white under-ring so the accent stays
+// legible on any fill (e.g. a blue rectangle) — the fix for the owner's #1
+// complaint, "I can't tell what's selected" (cluster A).
+const SELECT_RING_WIDTH = 2.5;
+const SELECT_OUTSET = 3;
+const HOVER_RING_WIDTH = 1.75;
+const HOVER_OUTSET = 2;
+const RING_RADIUS = 5;
 const ROTATE_HANDLE_SIZE = 32;
 const ROTATE_HANDLE_OFFSET_PX = 40;
+
+// Standard bidirectional resize cursor nearest to a screen-space angle (radians,
+// y-down). Bucketed mod 180° into the four resize cursors. Reads actual on-screen
+// geometry, so it is correct in BOTH iso and 2D: pass the edge NORMAL for edge
+// handles and the centre→corner diagonal for corner handles.
+const resizeCursorForAngle = (radians: number): string => {
+  const deg = ((((radians * 180) / Math.PI) % 180) + 180) % 180;
+  if (deg < 22.5 || deg >= 157.5) return 'ew-resize';
+  if (deg < 67.5) return 'nwse-resize';
+  if (deg < 112.5) return 'ns-resize';
+  return 'nesw-resize';
+};
 
 export const TransformControls = ({
   from,
@@ -85,10 +107,24 @@ export const TransformControls = ({
   const anchors = useMemo(() => {
     if (!onAnchorMouseDown) return [];
 
+    // Screen-space centre of the selection — the reference direction for each
+    // corner handle's resize cursor.
+    const pts = Object.values(cornerScreen);
+    const center = pts.reduce(
+      (acc, p) => ({ x: acc.x + p.x / pts.length, y: acc.y + p.y / pts.length }),
+      { x: 0, y: 0 }
+    );
+
     const cornerPositions = Object.entries(cornerScreen).map(
       ([key, position]) => ({
         key,
         position,
+        isEdge: false,
+        barAngleDeg: undefined as number | undefined,
+        // Corner drag resizes along the diagonal from the centre outward.
+        cursor: resizeCursorForAngle(
+          Math.atan2(position.y - center.y, position.x - center.x)
+        ),
         onMouseDown: () => {
           onAnchorMouseDown(key as AnchorPosition);
         }
@@ -108,13 +144,23 @@ export const TransformControls = ({
       ['BOTTOM', 'BOTTOM_LEFT', 'BOTTOM_RIGHT'],
       ['LEFT', 'TOP_LEFT', 'BOTTOM_LEFT']
     ];
-    const edgePositions = edgeCornerPairs.map(([key, a, b]) => ({
-      key,
-      position: midpoint(cornerScreen[a], cornerScreen[b]),
-      onMouseDown: () => {
-        onAnchorMouseDown(key);
-      }
-    }));
+    const edgePositions = edgeCornerPairs.map(([key, a, b]) => {
+      const ca = cornerScreen[a];
+      const cb = cornerScreen[b];
+      // Angle of the visible edge from its two corners — tracks the sheared iso
+      // edge exactly. The bar lies along it; the cursor points across it.
+      const edgeAngle = Math.atan2(cb.y - ca.y, cb.x - ca.x);
+      return {
+        key,
+        position: midpoint(ca, cb),
+        isEdge: true,
+        barAngleDeg: (edgeAngle * 180) / Math.PI,
+        cursor: resizeCursorForAngle(edgeAngle + Math.PI / 2),
+        onMouseDown: () => {
+          onAnchorMouseDown(key);
+        }
+      };
+    });
 
     const all = [...cornerPositions, ...edgePositions];
     return anchorPositions
@@ -138,60 +184,104 @@ export const TransformControls = ({
       <Svg
         style={{
           ...css,
-          pointerEvents: 'none'
+          pointerEvents: 'none',
+          // Selection/hover chrome frames the element from just OUTSIDE its own
+          // border; the default svg viewport (== element footprint) would clip
+          // the outset ring + glow, so let them escape.
+          overflow: 'visible'
         }}
       >
         {subtle ? (
-          // A3 hover: one faint solid rounded outline — lighter than the
-          // selection ring, no glow/dash/anchors.
-          <g transform={`translate(${strokeWidth}, ${strokeWidth})`}>
+          // A3 hover: a light accent outline sitting just outside the element
+          // edge, over a faint white under-stroke so it stays legible on a
+          // coloured fill. Thinner/dimmer than the selection ring (no glow, no
+          // anchors) — reads as "a click will grab this".
+          <>
             <rect
-              width={pxSize.width - strokeWidth * 2}
-              height={pxSize.height - strokeWidth * 2}
-              rx={strokeWidth * 2}
+              x={-HOVER_OUTSET}
+              y={-HOVER_OUTSET}
+              width={pxSize.width + HOVER_OUTSET * 2}
+              height={pxSize.height + HOVER_OUTSET * 2}
+              rx={RING_RADIUS}
               fill="none"
-              stroke={TRANSFORM_CONTROLS_COLOR}
-              strokeWidth={strokeWidth}
-              strokeOpacity={0.45}
+              stroke="#ffffff"
+              strokeWidth={HOVER_RING_WIDTH + 2}
+              strokeOpacity={0.6}
               strokeLinejoin="round"
             />
-          </g>
+            <rect
+              x={-HOVER_OUTSET}
+              y={-HOVER_OUTSET}
+              width={pxSize.width + HOVER_OUTSET * 2}
+              height={pxSize.height + HOVER_OUTSET * 2}
+              rx={RING_RADIUS}
+              fill="none"
+              stroke={TRANSFORM_CONTROLS_COLOR}
+              strokeWidth={HOVER_RING_WIDTH}
+              strokeOpacity={0.7}
+              strokeLinejoin="round"
+            />
+          </>
         ) : (
-          <g transform={`translate(${strokeWidth}, ${strokeWidth})`}>
-            {/* S3/A1: soft accent glow under the ring so node selection reads
-                clearly (the bare 2px dashed box was too faint — owner #1/#9). */}
+          // Selection ring (owner cluster A — "I can't tell what's selected").
+          // Three stacked strokes just OUTSIDE the element edge: a soft accent
+          // glow, a white contrast under-ring (so the accent survives on any
+          // fill/border — e.g. a blue rectangle with a red border), and a bold
+          // SOLID accent ring. Solid (was a faint dashed box) + outset + white
+          // halo = unmistakable on every element type.
+          <>
             <rect
-              width={pxSize.width - strokeWidth * 2}
-              height={pxSize.height - strokeWidth * 2}
-              rx={strokeWidth * 2}
+              x={-SELECT_OUTSET}
+              y={-SELECT_OUTSET}
+              width={pxSize.width + SELECT_OUTSET * 2}
+              height={pxSize.height + SELECT_OUTSET * 2}
+              rx={RING_RADIUS}
               fill="none"
               stroke={TRANSFORM_CONTROLS_COLOR}
-              strokeWidth={strokeWidth * 3}
-              strokeOpacity={0.25}
+              strokeWidth={SELECT_RING_WIDTH * 3}
+              strokeOpacity={0.22}
               strokeLinejoin="round"
             />
             <rect
-              width={pxSize.width - strokeWidth * 2}
-              height={pxSize.height - strokeWidth * 2}
+              x={-SELECT_OUTSET}
+              y={-SELECT_OUTSET}
+              width={pxSize.width + SELECT_OUTSET * 2}
+              height={pxSize.height + SELECT_OUTSET * 2}
+              rx={RING_RADIUS}
+              fill="none"
+              stroke="#ffffff"
+              strokeWidth={SELECT_RING_WIDTH + 2}
+              strokeOpacity={0.9}
+              strokeLinejoin="round"
+            />
+            <rect
+              x={-SELECT_OUTSET}
+              y={-SELECT_OUTSET}
+              width={pxSize.width + SELECT_OUTSET * 2}
+              height={pxSize.height + SELECT_OUTSET * 2}
+              rx={RING_RADIUS}
               fill="none"
               stroke={TRANSFORM_CONTROLS_COLOR}
-              strokeDasharray={`${strokeWidth * 2} ${strokeWidth * 2}`}
-              strokeWidth={strokeWidth}
-              strokeLinecap="round"
+              strokeWidth={SELECT_RING_WIDTH}
+              strokeLinejoin="round"
             />
-          </g>
+          </>
         )}
       </Svg>
 
-      {!subtle && anchors.map(({ key, position, onMouseDown }) => {
-        return (
-          <TransformAnchor
-            key={key}
-            position={position}
-            onActivate={onMouseDown}
-          />
-        );
-      })}
+      {!subtle &&
+        anchors.map(({ key, position, onMouseDown, cursor, isEdge, barAngleDeg }) => {
+          return (
+            <TransformAnchor
+              key={key}
+              position={position}
+              onActivate={onMouseDown}
+              cursor={cursor}
+              isEdge={isEdge}
+              barAngleDeg={barAngleDeg}
+            />
+          );
+        })}
 
       {!subtle && onRotate && rotatePosition && (
         <Tooltip title={rotateTooltip ?? ''} placement="top">

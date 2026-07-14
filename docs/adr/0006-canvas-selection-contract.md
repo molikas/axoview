@@ -87,6 +87,20 @@ Refines §5's visual contract. While a move is in flight (`mode === 'DRAG_ITEMS'
 
 New acceptance criterion: during a single- or multi-item drag, no transform bounds/anchors render at the origin tile; they reappear at the drop location on mouseup.
 
+### 9. 2026-07-14 addendum — stronger, consistent selected / hover treatment (cluster A)
+
+Supersedes §5's "dashed outline." The dashed 2px ring drawn **at** the element footprint was the owner's most-repeated complaint — *"I can't tell what's selected"* (owner #1/#9; the 2026-06-30 persona-sweep cluster A, proposals A1/A3, previously unshipped — sweep doc retired 2026-07-14, in git history). It coincided with the element's own border and, in the same accent blue, vanished on a coloured fill (e.g. a blue rectangle with a red border).
+
+New visual contract for the shared [`TransformControls`](../../packages/axoview-lib/src/components/TransformControlsManager/TransformControls.tsx) primitive (node / rectangle / text box, single **and** multi-select):
+
+- **Selected** = three stacked strokes drawn **just outside** the element edge (`SELECT_OUTSET`), so the ring *frames* the element instead of hiding behind its border: a soft accent **glow**, a **white contrast under-ring** (so the accent reads on any fill/border), and a **bold solid** accent ring (was a faint dashed box). `overflow: visible` on the chrome `<svg>` lets the outset ring escape the footprint-sized viewport.
+- **Hover** ([`HoverOutline`](../../packages/axoview-lib/src/components/TransformControlsManager/HoverOutline.tsx), `subtle`) = a single lighter accent outline over a faint white under-stroke, also outset — a clear but distinctly lighter "a click will grab this" affordance. Rest < hover < selected now read as three ranked states. Hover stays scoped to ITEM + RECTANGLE (a bounding box reads oddly on a thin connector / small chip — unchanged).
+- **Connector** selection keeps its existing on-element accent halo ([`Connector.tsx`](../../packages/axoview-lib/src/components/SceneLayers/Connectors/Connector.tsx), the already-shipped A2); **floating Label** ([`LabelTransformControls`](../../packages/axoview-lib/src/components/TransformControlsManager/LabelTransformControls.tsx)) gains the same white-contrast edge + accent glow so every item type speaks one selection language ([ux-principles §5](../ux-principles.md#5-item-type-parity) parity).
+
+Single accent constant unchanged (`TRANSFORM_CONTROLS_COLOR = #0392ff`); the drag-hide rule (§8) and the pointer/panel gestures (§2, §7) are untouched. This is a DOM/SVG-overlay change (not the GPU substrate, ADR 0038), so it is legible in jsdom but its *look* still needs a real-browser screenshot check.
+
+New acceptance criterion: a selected element shows a solid, high-contrast accent ring offset outside its own border (visible on a coloured fill); a hovered-but-unselected node/rectangle shows a lighter outset outline; both hide during `DRAG_ITEMS`.
+
 ## Consequences
 
 ### Positive

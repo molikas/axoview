@@ -77,7 +77,7 @@
         "backToEditing": "Back to editing",
         "share": {
             "disabled": {
-                "needsServerStorage": "Share requires server storage. Run Axoview self-hosted (Docker) or on Cloudflare to enable shareable links.",
+                "sessionPlaceNeedsServerStorage": "Shareable links for this diagram need server storage (self-hosted Docker or Cloudflare). Diagrams saved to Google Drive can be shared from any deployment.",
                 "needsDiagram": "Open or create a diagram first to share it."
             }
         }
@@ -89,7 +89,41 @@
         "copied": "✓ Copied!",
         "creating": "Creating link…",
         "unavailable": "Sharing is not available",
-        "failed": "Failed to create share link"
+        "failed": "Failed to create share link",
+        "moreOptions": "More share options",
+        "drive": {
+            "liveHint": "Anyone the file is shared with sees the latest version — the link opens the live diagram, not a snapshot.",
+            "accessAnyone": "Anyone with the link can view",
+            "accessRestricted": "Only people with access can view",
+            "accessUnknown": "Checking who has access…",
+            "manageAccess": "Manage access",
+            "accessError": "Couldn't check who has access.",
+            "sharedWithCount_one": "Shared with {{count}} person",
+            "sharedWithCount_other": "Shared with {{count}} people",
+            "manage": {
+                "title": "Manage access",
+                "titleNamed": "Share \"{{name}}\"",
+                "copyLink": "Copy link",
+                "copiedToast": "Preview link copied to clipboard",
+                "copiedRestricted": "Link copied — but only people with access can open it. Set General access to \"Anyone with the link\" to let anyone view.",
+                "emailInvite": "View this diagram in Axoview: {{url}}",
+                "done": "Done",
+                "generalAccess": "General access",
+                "restricted": "Restricted — only people with access",
+                "anyone": "Anyone with the link can view",
+                "peopleWithAccess": "People with access",
+                "onlyYou": "Only you have access so far.",
+                "roleOwner": "Owner",
+                "roleViewer": "Viewer",
+                "roleEditor": "Editor",
+                "remove": "Remove access",
+                "addPeople": "Add people",
+                "emailPlaceholder": "name@example.com",
+                "add": "Add",
+                "loadError": "Couldn't load who has access.",
+                "actionError": "That change could not be saved."
+            }
+        }
     },
     "dialog": {
         "save": {
@@ -246,5 +280,15 @@
         "instruction": "Please continue and tick the checkbox that lets Axoview \"see, edit, create and delete only the specific files you use with it.\"",
         "cancel": "Continue without Drive",
         "grant": "Grant Drive access"
+    },
+    "driveDisplay": {
+        "headline": "This diagram lives in its owner's Google Drive",
+        "signInBody": "Sign in with Google so Axoview can check whether this diagram has been shared with you.",
+        "grantBody": "You are signed in, but Axoview needs your permission to open this specific file from Google Drive.",
+        "grantButton": "Open with Google Drive access",
+        "grantUnavailable": "Your Google account does not have access to this diagram through Axoview, and this deployment cannot request it. Ask the owner to share the file with you in Google Drive, then reload this page.",
+        "pickerError": "Could not open the Google Drive access dialog. This can happen when third-party cookies or pop-ups are blocked — allow them for this site, then try again.",
+        "transientBody": "We couldn't reach Google Drive to load this diagram. Check your connection and try again.",
+        "retryButton": "Try again"
     }
 }

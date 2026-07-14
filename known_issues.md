@@ -2,6 +2,16 @@
 
 **Last pruned:** 2026-06-10 (v1.1 close-out). Open items below cross-checked against [technical-review-2026-06.md §11](docs/technical-review-2026-06.md); resolved entries removed (durable records live in the relevant ADR / perf-troubleshooting.md / git history).
 
+## App-level MUI components render un-themed ("default-MUI bloat")
+
+**Symptom:** New UI built in `axoview-app` (dialogs, the toolbar, popovers, menus) renders on MUI's **default** theme — 16px body, 20px `h6`, 16px inputs, and `overline` in **UPPERCASE** — so it looks oversized and inconsistent next to lib UI, which renders under `axoview-lib`'s compact `theme.ts` inside `<Axoview>`. It recurs on **every** new app surface; the Share dialog (PR #69) was the latest and was fixed per-component (scoped compact `ThemeProvider` + `caption`/600 section headers).
+
+**Root cause:** `axoview-app` has **no root `<ThemeProvider>`**, and the design-system theme lives only in the lib (and isn't exported), so app-level surfaces get MUI defaults. This silently violates [ux-principles §1.5](docs/ux-principles.md) rule 5 — the §1.5 size table is the *theme's* scale and only holds where a `ThemeProvider` provides it.
+
+**Workaround (per surface):** section headers use `caption` + 600 + `text.secondary` (sentence case; **not** `overline`, which uppercases un-themed); wrap the surface in a scoped compact `ThemeProvider` for title/input/menu sizing (see [`DriveShareManageDialog.tsx`](packages/axoview-app/src/components/DriveShareManageDialog.tsx)) and follow the "Dialog / app-surface typography recipe" in ux-principles §1.5.
+
+**Status:** Open. Durable fix = export the lib theme (or lift a shared token module both packages consume) + wrap the app root in `<ThemeProvider>` + `<CssBaseline/>`, so the whole app is themed by default and the per-surface hacks disappear. App-wide visual blast radius → needs a visual pass + e2e run; ADR pending (owner decision).
+
 ## Storage/auth surface: pre-existing strings still hardcoded English (i18n debt)
 
 **Symptom:** The 8e08933 Drive integration shipped with its entire UI hardcoded in English. The 2026-07-06 storage-ux-unification push i18n'd every string it **introduced or rewrote** (avatar menu, place sections, migration dialog, empty-state sign-in card, banner actions, Move-to-Drive — 37 keys × 13 locales), and the 2026-07-07 PR-59 review fixes swept in the delete-confirmation dialog + `DriveRootFolderDialog` (19 more keys × 13 locales). Still literal: most `ContextMenuItems` labels (Open/Rename/Duplicate/Delete/…), the name-collision dialog body, the FileExplorer/App toast messages, `ExportProjectZipDialog`, and the `authStore` expired/cancelled toasts (that store can't import the i18n singleton without dragging http-backend init into unit suites — needs a small notification-key indirection).
@@ -50,6 +60,17 @@
 
 **Status:** Fixed in da9301b (2026-07-09) — icons were uploaded to the GL atlas as soon as `img.complete` was true, but `complete`/`onload` don't guarantee the bitmap is decoded and ready for `texSubImage2D`; an undecoded upload bakes a black tile that `putImage` then caches by url for the batch's life. `getImage` now gates on `img.decode()` (with a load/complete fallback), and every icon uploads through a Canvas2D intermediary — the same reliable source type the chips use.
 
+## Google API architecture — hardening roadmap (from 2026-07-14 external review)
+
+**Symptom:** the Google integration is a deliberate serverless V1. An external review (Gemini) validated the choices but flagged four forward-looking gaps, each backend-gated. Full brief + pros/cons + disposition table: `docs/google-drive-api-review-request.md` §10 (retired 2026-07-14; in git history through commit `5a72335`) — durable record is [ADR 0043](docs/adr/0043-deferred-backend-for-google-api-hardening.md).
+
+1. **Auth is the implicit grant** (GIS token client, `response_type=token`) — ~1h sessions, no refresh token, no offline/background sync. Recommended: auth-code + PKCE with a minimal token broker. *Biggest risk: the deprecated flow + no refresh.*
+2. **`drive.file` + Picker recipient UX** — Google's notification email links to the raw JSON file, not our `/display/drive` viewer. Recommended (later): a first-party publish-snapshot store.
+3. **Public anonymous-read API key** — a scrape/abuse + 2026 quota-billing surface. Recommended: a signed short-lived read proxy (pairs with #1's serverless fn).
+4. **Picker 3P-cookie fragility** — the display-route grant Picker can break silently when third-party cookies are blocked. The gate already has needs-grant / transient / picker-error / grant-unavailable states; finalize the cookie/popup copy at the P2 prototype gate.
+
+**Status:** Open, roadmap — **durable decision record + per-item activation triggers now in [ADR 0043](docs/adr/0043-deferred-backend-for-google-api-hardening.md) (Accepted, 2026-07-14).** #1 + #3 want the same small backend (new routes on the existing `axoview-worker`, not a new service) and close the two biggest risks together — an owner decision on whether/when to activate, gated on the ADR 0043 triggers (Chrome 3P-cookie phase-out / API-key abuse signals / 2026 quota-overage billing). **Two no-backend mitigations shipped 2026-07-14:** (a) `addPersonPermission` emailMessage → viewer link + copyable preview link in the Manage-access dialog (softens #2's raw-JSON email); (b) `pickerError` copy now names the cookie/pop-up cause (the code half of #4). #4's remaining copy folds into P2. None block the ADR 0042 PR (#69).
+
 ## Google Drive place is online-only — no offline write queue
 
 **Symptom:** Drive writes (autosave, create, move) require a live connection and a valid token. Offline, a Drive-place save fails after the retry/backoff run (500/1000/2000 ms) and surfaces the ADR 0011 failure dialog; there is no queue that replays the write when connectivity returns.
@@ -66,13 +87,15 @@
 
 **Status:** Open, deferred at the 2026-07-06 Drive wrap (owner call: no demonstrated need — the session place is the downgrade path, not a destination). Revisit if users ask for it; the transfer machinery ([driveTransfer.ts](packages/axoview-app/src/services/storage/driveTransfer.ts)) is direction-agnostic in shape.
 
-## No Google Picker integration — Drive files created outside the app's folder are invisible
+## No Picker "browse & add" in the file tree — files created outside the app AND "shared with me" diagrams are invisible
 
-**Symptom:** With the `drive.file` scope, the app sees only files it created. A diagram JSON placed in Drive by other means (manual upload, another app) never appears in the tree; there is no Picker flow to grant the app access to it.
+**Symptom:** With the `drive.file` scope, the file tree sees only files the app created. A diagram JSON placed in Drive by other means (manual upload, another app) never appears in the tree; there is no Picker "browse/import an existing Drive file into the tree" flow to grant the app access to it from the explorer. (Note: [ADR 0042](docs/adr/0042-drive-native-sharing-and-readonly-preview.md) *did* introduce a Google Picker — but **only** as the per-file access *grant* on the read-only `/display/drive/:fileId` route, so a recipient can view one specifically-shared file. That is not a general browse-and-add-to-tree flow; the file-tree browsing gap described here is still open.)
 
-**Workaround:** Download the file and use Import — the imported copy lands in the app's Drive folder and is visible thereafter.
+**"Shared with me" diagrams (called out 2026-07-14):** the same gap covers diagrams another user shares with you (via the share dialog or "anyone with the link"). Under `drive.file` you cannot *list* shared-with-me files, so they never surface in the tree; today the only way in is the read-only `/display/drive/:fileId` preview link — you can *view* a shared diagram but not add it to your own workspace or edit it. The reliable, scope-preserving fix is the **Picker's "Shared with me" view**: Google (not the app) shows the user their shared files; a pick records a **durable `drive.file` grant** and returns the fileId, which the app persists in its Drive manifest so it becomes a first-class tree entry (a "Shared with me" section — you don't *query* shared files, you *remember* the ones the user grants). Two flavors, both reuse the existing [`drivePicker.ts`](packages/axoview-app/src/services/drive/drivePicker.ts): **(1) add-from-link** — when you already hold a share link/fileId, a one-tap `setFileIds` grant → persist → tree (cheap; reuses the display-gate flow); **(2) browse** — a shared-with-me `DocsView` filtered to Axoview JSON. The only alternative (auto-listing shared-with-me) needs the *sensitive* `drive.readonly`/`drive` scope + Google verification — ruled out by [ADR 0035](docs/adr/0035-google-identity-and-drive-authorization.md).
 
-**Status:** Open, deferred at the 2026-07-06 Drive wrap. The fix is the Google Picker API (its grant extends `drive.file` visibility per-file); revisit with the worker code-flow slice since both touch the OAuth surface.
+**Workaround:** Download the file and use Import — the imported copy lands in the app's Drive folder and is visible thereafter. (For a shared diagram: open its `/display/drive/:id` link → Export → Import into your own workspace.)
+
+**Status:** Open, deferred. Browse-existing, **shared-with-me**, and recipient-*editing* are one coherent **v1.1 Picker slice** — the same dormant Picker / Option-B path noted in [ADR 0042 §8](docs/adr/0042-drive-native-sharing-and-readonly-preview.md). It is gated on standing up the Picker on the deploy: a **browser** Picker key (`setDeveloperKey`) + `GOOGLE_PROJECT_NUMBER` (`setAppId`) — note the read-proxy's server key is server-only and does **not** feed the Picker, so a *separate* browser key is required. Sequence when picked up: an ADR for "Picker-granted Drive files in the tree" (durable-grant + manifest-persistence model), then flavor 1 (add-from-link) first, flavor 2 (browse) behind the Picker key. Revisit alongside the worker code-flow slice — all of these touch the OAuth surface.
 
 ## Deleting the Drive root folder mid-session is not detected
 
@@ -382,5 +405,35 @@ recorded in ADR 0038 §Deferred; none blocks the WebGL2-only substrate.
   test was drafted but ts-jest would not transform a new `src/webgl/__tests__/`
   file (byte-clean, path in tsconfig `include`) — an environment quirk to resolve
   before adding webgl unit tests.
+
+## UX-sweep residual open items (2026-06-30 / 2026-07-10 persona sweeps)
+
+Migrated here 2026-07-14 when the three UX-sweep tactical docs were retired — the
+shipped findings landed in ADRs 0006/0030–0034 + git history; these are the items
+that were still open with no other home. Small / decision-scoped; not blockers.
+
+- **Session-badge copy/color + no "where my work lives" indicator (N2 / M-1 — owner call).**
+  The session badge is warning-orange with no "Auto-saved" wording *by design*; a
+  clearer persistent place indicator for non-technical users (Maya S2→S3) is a
+  design decision, not a bug. Both sweeps flagged the same thread — deferred pending
+  an owner design call.
+- **Connector-colour discoverability (Priya-P3-2, S3).** The style-strip
+  connector-colour control exists but is greyed until a connector is selected, so
+  expert users miss it. Strip productization gave it strong disabled-contrast + a
+  tooltip; the "add a label / pulse / right-click bridge, or leave it" call was
+  never closed. Control lives in `TopBarStyleControls.tsx` (self-gated disabled tip).
+- **K1 — style strip is keyboard-unreachable (S2, a11y).** Root cause: canvas items
+  aren't keyboard-selectable, so the strip has no keyboard entry (the Layers panel
+  is the current one). Fix = roving tabindex + canvas keyboard selection — a bigger
+  a11y track, not a quick patch.
+- **B3 — rectangle has no min/max size clamp (S4, polish).** A rectangle can be
+  resized to a degenerate or oversized footprint; no bound is enforced.
+- **#3 — "click connection offset" (NEEDS_REPRO, S4).** Either the cosmetic
+  arrowhead-one-tile-short render offset or a duplicate of the now-fixed #5 hit-halo.
+  Needs a one-line browser repro to classify; no fix until then.
+- **#6 — long right-drag surfaces the OS context menu (NEEDS_REPRO).** e2e +
+  pointer-capture indicate it's handled (no hold-gate on the swallow); a real-browser
+  repro is needed before the optional belt-and-suspenders (`preventDefault` while
+  panning) is worth adding.
 
 **Status:** Open, deferred with owner sign-off. Recorded in ADR 0038.

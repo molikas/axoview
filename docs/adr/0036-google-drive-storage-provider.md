@@ -1,13 +1,13 @@
 # ADR 0036 — Google Drive Storage Provider
 
-**Status:** Accepted (2026-07-06 — shipped on `integration`; §6 superseded, see below)
+**Status:** Accepted (2026-07-06 — shipped on `integration`; §4 and §6 superseded, see below)
 **Date:** 2026-07-05
 **Supersedes:** none
-**Superseded by:** [ADR 0037](0037-storage-places-model.md) (§6 only — provider picker / copy-only Save-to-Drive / no-bulk-migration; §1–§5 stand)
+**Superseded by:** [ADR 0037](0037-storage-places-model.md) (§6 only — provider picker / copy-only Save-to-Drive / no-bulk-migration) · [ADR 0042](0042-drive-native-sharing-and-readonly-preview.md) (§4 only — sharing returns in Drive mode, Drive-native); §1–§3, §5, §7 stand
 
 ## Context
 
-Phase 3B (PLAN.md) makes Google Drive the persistent-storage path for the storage-less Cloudflare deployment ([ADR 0009 decision 1](0009-deployment-topology.md)). The plumbing anticipates it: the [`StorageProvider`](../../packages/axoview-app/src/services/storage/types.ts#L65) id union already includes `'google-drive'`, the [`StorageManager`](../../packages/axoview-app/src/services/storage/StorageManager.ts) registry delegates to any registered provider, and [`FileExplorer`](../../packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx#L89) already renders the `google-drive` header label.
+Phase 3B (PLAN.md) makes Google Drive the persistent-storage path for the storage-less Cloudflare deployment ([ADR 0009 decision 1](0009-deployment-topology.md)). The plumbing anticipates it: the [`StorageProvider`](../../packages/axoview-app/src/services/storage/types.ts#L65) id union already includes `'google-drive'`, the [`StorageManager`](../../packages/axoview-app/src/services/storage/StorageManager.ts) registry delegates to any registered provider, and [`FileExplorer`](../../packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx) already renders the `google-drive` header label.
 
 Three drifts since the PLAN 3B spec was written (all reconciled below):
 
@@ -63,9 +63,19 @@ If the user later deletes/trashes the root folder in Drive, the provider's next 
 
 In-app delete keeps the 2B-R contract (confirmation dialog, no in-app trash section) but maps to `trashed: true`: the item disappears from the app and is recoverable for ~30 days via drive.google.com. The Drive-mode confirmation copy says "Move to Google Drive trash". `restoreDiagram` exists on the interface and is implemented (untrash), but no v1 UI calls it.
 
+**2026-07-14:** this soft-delete now also governs **shared preview links**. The [ADR 0042 §8](0042-drive-native-sharing-and-readonly-preview.md) read-proxy honors the `trashed` flag, so trashing a shared diagram makes its `/display/drive/:id` link stop resolving (`410 Gone` → "could not open"), and un-trashing revives it — matching Drive's own web-share behavior, so "delete" means the link dies without a separate unshare step.
+
 ### 4. Sharing is hidden in Drive mode
 
-[ADR 0010](0010-session-backend-contract.md) locks public share links to the session backend; the worker 503s share routes. `GoogleDriveProvider` does **not** implement `shareDiagram`/`unshareDiagram`, and the share affordance (AppToolbar share button + related dialogs) is hidden when the active provider is `google-drive` — otherwise it would dead-end on [StorageManager's "does not support sharing" throw](../../packages/axoview-app/src/services/storage/StorageManager.ts#L125). Drive-native public links (permissions API + `webViewLink`) are a different trust model and, if ever wanted, a future ADR.
+> **SUPERSEDED (2026-07-13, owner direction — Drive-native sharing / [ADR 0042](0042-drive-native-sharing-and-readonly-preview.md)).**
+> The "future ADR" this section reserved for Drive-native links now exists: the
+> share affordance returns in Drive mode, delegating access control to Drive's
+> own ACL (native sharing dialog + `/display/drive/<fileId>` readonly route +
+> Picker per-file grant). `shareDiagram`/`unshareDiagram` remain unimplemented
+> on `GoogleDriveProvider` — ADR 0042 §4 keeps Drive sharing outside the
+> provider interface. The original text is kept below for history.
+
+[ADR 0010](0010-session-backend-contract.md) locks public share links to the session backend; the worker 503s share routes. `GoogleDriveProvider` does **not** implement `shareDiagram`/`unshareDiagram`, and the share affordance (AppToolbar share button + related dialogs) is hidden when the active provider is `google-drive` — otherwise it would dead-end on [StorageManager's "does not support sharing" throw](../../packages/axoview-app/src/services/storage/StorageManager.ts#L137). Drive-native public links (permissions API + `webViewLink`) are a different trust model and, if ever wanted, a future ADR.
 
 ### 5. The app's mode model gains `remoteStorageActive`
 
@@ -74,6 +84,8 @@ The app currently branches on a **binary** `serverStorageAvailable` (autosave vs
 - `AppStorageContext` exposes `remoteStorageActive = serverStorageAvailable || activeProviderId === 'google-drive'`.
 - All storage-behavior branches (autosave, explorer, blank-diagram card, navigation guards) switch to `remoteStorageActive`.
 - Surfaces that are **session-backend contracts** — share links (§4), the `/display/p/<uuid>` public route (ADR 0009 §3) — stay on `serverStorageAvailable`.
+
+> **Amendment (2026-07-13, [ADR 0042](0042-drive-native-sharing-and-readonly-preview.md)):** the "share links (§4)" clause above is narrowed with §4's supersession: only **snapshot** share links and the `/display/p/<uuid>` route remain gated on `serverStorageAvailable`. The share *affordance* is now place-scoped — Drive-place diagrams get a Drive-native share surface that renders regardless of `serverStorageAvailable` (ADR 0042 §1); session-place behavior is unchanged.
 
 This is the single largest integration surface of the feature; treating it as one deliberate flag swap (not 20 ad-hoc edits) is the decision.
 

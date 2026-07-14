@@ -48,6 +48,36 @@ describe('isPublicRoute', () => {
     });
   });
 
+  describe('GET /api/public/drive/:fileId (ADR 0043 #3 read proxy)', () => {
+    test('typical Drive file id accepted', () => {
+      expect(isPublicRoute('GET', `/api/public/drive/${'1VAM0PwYlcMpmF5lX3ht'}`)).toBe(true);
+    });
+
+    test('id with - and _ accepted', () => {
+      expect(isPublicRoute('GET', '/api/public/drive/1VAM0-Pw_lcMpmF5lX3ht')).toBe(true);
+    });
+
+    test('too-short id rejected (below 10)', () => {
+      expect(isPublicRoute('GET', `/api/public/drive/${'A'.repeat(9)}`)).toBe(false);
+    });
+
+    test('over-long id rejected (above 120)', () => {
+      expect(isPublicRoute('GET', `/api/public/drive/${'A'.repeat(121)}`)).toBe(false);
+    });
+
+    test('disallowed characters / trailing segments rejected', () => {
+      expect(isPublicRoute('GET', `/api/public/drive/${'A'.repeat(15)}!`)).toBe(false);
+      expect(isPublicRoute('GET', `/api/public/drive/${'A'.repeat(15)}/x`)).toBe(false);
+    });
+
+    test.each(['POST', 'PUT', 'PATCH', 'DELETE'])(
+      '%s is NOT public (read-only)',
+      (method) => {
+        expect(isPublicRoute(method, `/api/public/drive/${'A'.repeat(15)}`)).toBe(false);
+      }
+    );
+  });
+
   describe('all other routes private', () => {
     test.each([
       ['GET', '/api/diagrams'],

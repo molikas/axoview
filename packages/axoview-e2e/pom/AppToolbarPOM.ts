@@ -18,7 +18,7 @@
  * Lazy data-axoview-id retrofits — Session 6:
  *   - `toolbar-preview`            (Preview IconButton)          ← clickPreview()
  *   - `toolbar-back-to-editing`    (Back-to-editing Button)      ← clickBackToEditing()
- *   - `toolbar-share`              (Share IconButton)            ← openShareDialog()
+ *   - `toolbar-share`              (Share button)                ← openShareDialog()
  *   - `share-popover`              (Popover Paper)               ← sharePopover()
  *   - `share-popover-close`        (Popover close IconButton)    ← closeShareDialog()
  *   - `share-url-input`            (TextField input)             ← shareUrlInput()

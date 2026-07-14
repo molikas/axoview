@@ -3,15 +3,20 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
+  Button,
+  ButtonGroup,
   Chip,
   Divider,
   IconButton,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
   Popover,
   Stack,
   TextField,
-  Typography,
-  Button,
-  Tooltip
+  Tooltip,
+  Typography
 } from '@mui/material';
 import {
   SaveOutlined as SaveIcon,
@@ -19,6 +24,8 @@ import {
   Close as CloseIcon,
   SlideshowOutlined as PresentIcon,
   ArrowBack as ArrowBackIcon,
+  ArrowDropDown as ArrowDropDownIcon,
+  LinkOutlined as LinkIcon,
   VisibilityOutlined as ShowControlsIcon,
   VisibilityOffOutlined as HideControlsIcon
 } from '@mui/icons-material';
@@ -28,13 +35,24 @@ import { StatusCluster } from './StatusCluster';
 import { ExportPopover } from './ExportPopover';
 import { AuthControl } from './AuthControl';
 import { shareUrlFromUuid } from '../utils/shareUrl';
+import {
+  drivePreviewUrl,
+  getAccessOverview,
+  AccessOverview
+} from '../services/drive/driveSharing';
+import { DriveShareManageDialog } from './DriveShareManageDialog';
+import { useNotificationStore } from '../stores/notificationStore';
 
 export function AppToolbar() {
   const { t } = useTranslation('app');
   const location = useLocation();
   const navigate = useNavigate();
-  const { serverStorageAvailable, remoteStorageActive, activeProviderId, storage } =
-    useAppStorage();
+  const {
+    serverStorageAvailable,
+    remoteStorageActive,
+    activeProviderId,
+    storage
+  } = useAppStorage();
   const driveActive = activeProviderId === 'google-drive';
   const {
     hasUnsavedChanges,
@@ -69,7 +87,10 @@ export function AppToolbar() {
     },
     [setSidebarTogglePortalTarget]
   );
+  const notify = useNotificationStore((s) => s.push);
   const [showSharePopover, setShowSharePopover] = useState(false);
+  // Drive-mode share caret menu (quick Copy link + access status). null = closed.
+  const [shareMenuAnchor, setShareMenuAnchor] = useState<HTMLElement | null>(null);
   // View-only "hide all controls" — bridged to the lib (separate store) via a
   // window event the lib's UiOverlay listens for. Local state drives the button.
   const [hideControls, setHideControls] = useState(false);
@@ -77,40 +98,65 @@ export function AppToolbar() {
   const [shareUrl, setShareUrl] = useState('');
   const [shareLoading, setShareLoading] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
+  // Drive branch only (ADR 0042 §1): current ACL state (summary + people count)
+  // for the caret menu's status line. null = still checking.
+  const [driveOverview, setDriveOverview] = useState<AccessOverview | null>(null);
+  // ACL check FAILED (distinct from still-loading) — an inline error beats an
+  // eternal "Checking…". Reset per popover open / diagram change.
+  const [driveAccessError, setDriveAccessError] = useState(false);
+  // Monotonic id guarding the popover's async fetches: a diagram switch (or a
+  // reopen) bumps it, so a late-resolving getFileShareMeta / getAccessSummary
+  // for the OLD file can't paint stale data (or a stale ACL) onto the new one.
+  const shareReqRef = useRef(0);
 
   const currentDiagramId = currentDiagram?.id;
 
   useEffect(() => {
+    shareReqRef.current++; // invalidate any in-flight share fetch for the old id
     setShareUrl('');
     setShareCopied(false);
     setShareError(null);
+    setShareLoading(false);
+    setDriveOverview(null);
+    setDriveAccessError(false);
     setShowSharePopover(false);
+    setShareMenuAnchor(null);
   }, [currentDiagramId]);
 
+  // SESSION-place share: create/copy a `/display/p/<uuid>` snapshot link in a
+  // popover. (Drive-place sharing goes through the split Share button → Manage
+  // dialog + caret menu instead; ADR 0042 §1.)
   const handleShareClick = async () => {
-    if (!serverStorageAvailable || !currentDiagramId || !storage) return;
+    const fileId = currentDiagramId;
+    if (!fileId || !serverStorageAvailable || !storage) return;
+    // This click owns the popover's async state until superseded.
+    const reqId = ++shareReqRef.current;
+    const current = () => shareReqRef.current === reqId;
     setShowSharePopover(true);
     setShareError(null);
     let url = shareUrl;
     if (!url) {
-      if (!storage.shareDiagram) {
-        setShareError(t('share.unavailable', 'Sharing is not available'));
-        return;
-      }
       try {
         setShareLoading(true);
-        const result = await storage.shareDiagram(currentDiagramId);
+        if (!storage?.shareDiagram) {
+          if (current()) setShareError(t('share.unavailable', 'Sharing is not available'));
+          return;
+        }
+        const result = await storage.shareDiagram(fileId);
         url = shareUrlFromUuid(result.uuid);
+        if (!current()) return; // diagram switched mid-fetch — drop the stale URL
         setShareUrl(url);
       } catch (err) {
-        setShareError(
-          err instanceof Error
-            ? err.message
-            : t('share.failed', 'Failed to create share link')
-        );
+        if (current()) {
+          setShareError(
+            err instanceof Error
+              ? err.message
+              : t('share.failed', 'Failed to create share link')
+          );
+        }
         return;
       } finally {
-        setShareLoading(false);
+        if (current()) setShareLoading(false);
       }
     }
     try {
@@ -123,27 +169,107 @@ export function AppToolbar() {
       document.execCommand('copy');
       document.body.removeChild(ta);
     }
+    if (!current()) return;
     setShareCopied(true);
     setTimeout(() => setShareCopied(false), 2500);
+  };
+
+  // Drive-mode caret menu: re-read the ACL each open (the Manage dialog or another
+  // Drive tab may have changed it), guarded by the monotonic request id.
+  const handleShareMenuOpen = (e: React.MouseEvent<HTMLElement>) => {
+    if (!currentDiagramId) return;
+    setShareMenuAnchor(e.currentTarget);
+    const reqId = ++shareReqRef.current;
+    setDriveAccessError(false);
+    setDriveOverview(null);
+    void getAccessOverview(currentDiagramId)
+      .then((o) => {
+        if (shareReqRef.current === reqId) setDriveOverview(o);
+      })
+      .catch(() => {
+        if (shareReqRef.current === reqId) setDriveAccessError(true);
+      });
+  };
+
+  // Quick "Copy link" from the caret menu — the live viewer link (app-created
+  // Drive files carry no resourceKey, so fileId alone is the deterministic URL).
+  const handleQuickCopyLink = async () => {
+    const fileId = currentDiagramId;
+    setShareMenuAnchor(null);
+    if (!fileId) return;
+    try {
+      await navigator.clipboard.writeText(drivePreviewUrl(fileId));
+      // Only worth "success" if the link will actually open for a recipient.
+      // With access restricted (no anyone-link, nobody added), warn instead —
+      // unless the ACL couldn't be read (driveOverview null), where we don't
+      // cry wolf.
+      const shared =
+        driveOverview?.summary === 'anyone-with-link' ||
+        (driveOverview?.peopleCount ?? 0) > 0;
+      notify(
+        shared || !driveOverview
+          ? {
+              severity: 'success',
+              message: t('share.drive.manage.copiedToast', 'Preview link copied to clipboard')
+            }
+          : {
+              severity: 'warning',
+              message: t(
+                'share.drive.manage.copiedRestricted',
+                'Link copied — but only people with access can open it. Set General access to "Anyone with the link" to let anyone view.'
+              )
+            }
+      );
+    } catch {
+      // Clipboard blocked (insecure context) — nothing copied; stay silent.
+    }
   };
 
   const handleShareUrlClick = (e: React.MouseEvent<HTMLInputElement>) => {
     (e.target as HTMLInputElement).select();
   };
 
+  // "Manage access" opens the custom in-app share dialog (ADR 0042 §1, rev.
+  // 2026-07-14 — the deprecated ShareClient widget was replaced by a Drive REST
+  // v3 permissions UI). Re-read the ACL summary when it closes so the popover's
+  // "Anyone with the link" / "Restricted" indicator stays truthful.
+  const [showManageDialog, setShowManageDialog] = useState(false);
+  const handleManageAccessClick = () => {
+    if (!currentDiagramId) return;
+    setShowManageDialog(true);
+  };
+  const refreshAccessSummary = useCallback(() => {
+    if (!driveActive || !currentDiagramId) return;
+    const reqId = ++shareReqRef.current;
+    setDriveAccessError(false);
+    void getAccessOverview(currentDiagramId)
+      .then((o) => {
+        if (shareReqRef.current === reqId) setDriveOverview(o);
+      })
+      .catch(() => {
+        if (shareReqRef.current === reqId) setDriveAccessError(true);
+      });
+  }, [driveActive, currentDiagramId]);
+
   // User-facing copy never says "session mode" — see workflow + ADR 0008 D1:
   // end users read "session" as something different from the audit's mode name.
-  const shareTooltip = !serverStorageAvailable
-    ? t(
-        'toolbar.share.disabled.needsServerStorage',
-        'Share requires server storage. Run Axoview self-hosted (Docker) or on Cloudflare to enable shareable links.'
-      )
-    : !currentDiagramId
+  // The session-place disabled copy must NOT claim sharing requires
+  // self-hosting — Drive-place diagrams share serverlessly (ADR 0042 §3).
+  const shareDisabled = driveActive
+    ? !currentDiagramId
+    : !serverStorageAvailable || !currentDiagramId;
+  const shareTooltip =
+    !serverStorageAvailable && !driveActive
       ? t(
-          'toolbar.share.disabled.needsDiagram',
-          'Open or create a diagram first to share it.'
+          'toolbar.share.disabled.sessionPlaceNeedsServerStorage',
+          'Shareable links for this diagram need server storage (self-hosted Docker or Cloudflare). Diagrams saved to Google Drive can be shared from any deployment.'
         )
-      : t('nav.share', 'Share');
+      : !currentDiagramId
+        ? t(
+            'toolbar.share.disabled.needsDiagram',
+            'Open or create a diagram first to share it.'
+          )
+        : t('nav.share', 'Share');
 
   return (
     <Box
@@ -327,25 +453,56 @@ export function AppToolbar() {
 
             <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
-            {/* Group 3: Document actions — Export + Share + Present. Share is
-                render-disabled (not hidden) without server storage so the
-                affordance still signals the feature exists. In Drive mode it is
-                HIDDEN entirely (ADR 0036 §4 — public share links are a
-                session-backend contract Drive cannot fulfil). */}
+            {/* Group 3: Document actions — Export + Share + Present. Share
+                renders for BOTH places (ADR 0042 §1, superseding ADR 0036 §4's
+                Drive-mode hide): Drive-place diagrams share through Drive's own
+                ACL (live preview links + the native sharing dialog), enabled
+                whenever a diagram is open; session-place diagrams keep the
+                snapshot-link contract (ADR 0010) and stay render-disabled (not
+                hidden) without server storage so the affordance still signals
+                the feature exists. */}
             <ExportPopover />
-            {!driveActive && (
+            {driveActive ? (
+              // Drive place: a split Share button — primary opens the Manage-access
+              // dialog (the full sharing UI), the caret opens a quick menu (Copy
+              // link + access status). Mirrors the Drive/Figma share affordance.
+              <Tooltip title={shareTooltip} placement="bottom">
+                <Box component="span" sx={{ display: 'inline-flex', ml: 0.5 }}>
+                  <ButtonGroup variant="outlined" size="small" disabled={shareDisabled}>
+                    <Button
+                      startIcon={<ShareIcon sx={{ fontSize: 16 }} />}
+                      onClick={handleManageAccessClick}
+                      data-axoview-id="toolbar-share"
+                      sx={{ textTransform: 'none' }}
+                    >
+                      {t('nav.share', 'Share')}
+                    </Button>
+                    <Button
+                      onClick={handleShareMenuOpen}
+                      data-axoview-id="toolbar-share-caret"
+                      aria-label={t('share.moreOptions', 'More share options')}
+                      sx={{ px: 0.25, minWidth: 0 }}
+                    >
+                      <ArrowDropDownIcon sx={{ fontSize: 18 }} />
+                    </Button>
+                  </ButtonGroup>
+                </Box>
+              </Tooltip>
+            ) : (
+              // Session place: single Share button → snapshot-link popover (ADR 0010).
               <Tooltip title={shareTooltip} placement="bottom">
                 <span>
-                  <IconButton
+                  <Button
                     ref={shareButtonRef}
                     size="small"
+                    startIcon={<ShareIcon sx={{ fontSize: 16 }} />}
                     onClick={handleShareClick}
-                    disabled={!serverStorageAvailable || !currentDiagramId}
+                    disabled={shareDisabled}
                     data-axoview-id="toolbar-share"
-                    sx={{ borderRadius: 1, color: 'inherit' }}
+                    sx={{ textTransform: 'none', ml: 0.5 }}
                   >
-                    <ShareIcon sx={{ fontSize: 18 }} />
-                  </IconButton>
+                    {t('nav.share', 'Share')}
+                  </Button>
                 </span>
               </Tooltip>
             )}
@@ -396,7 +553,7 @@ export function AppToolbar() {
           (removed in 95a0fd5) that treated portaled content as outside. This
           reason guard is the defense-in-depth for any future MUI behaviour
           drift. */}
-      {!isReadonlyUrl && (
+      {!isReadonlyUrl && !driveActive && (
         <Popover
           open={showSharePopover && !!currentDiagramId}
           anchorEl={shareButtonRef.current}
@@ -461,6 +618,68 @@ export function AppToolbar() {
             </Stack>
           </Stack>
         </Popover>
+      )}
+
+      {/* Drive-mode share caret menu — quick Copy link + at-a-glance access status
+          (ADR 0042 §1). The primary Share button opens the full Manage dialog. */}
+      {!isReadonlyUrl && driveActive && (
+        <Menu
+          anchorEl={shareMenuAnchor}
+          open={!!shareMenuAnchor && !!currentDiagramId}
+          onClose={() => setShareMenuAnchor(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          // `dense` drops the item text to body2 (14px), matching ExportPopover's
+          // <MenuList dense> — without it the app-level Menu inherits MUI's
+          // body1 (16px) default and "Copy link" reads oversized (bloat fix).
+          MenuListProps={{ dense: true }}
+          slotProps={{
+            paper: {
+              sx: { minWidth: 248, mt: 0.5 },
+              'data-axoview-id': 'share-menu'
+            } as React.ComponentProps<'div'>
+          }}
+        >
+          <MenuItem onClick={() => void handleQuickCopyLink()} data-axoview-id="share-menu-copy-link">
+            <ListItemIcon>
+              <LinkIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>{t('share.drive.manage.copyLink', 'Copy link')}</ListItemText>
+          </MenuItem>
+          <Divider sx={{ my: 0.5 }} />
+          {/* Non-interactive status row (Google's "Shared with…" line analogue). */}
+          <Box sx={{ px: 2, py: 0.5 }} data-axoview-id="share-menu-status">
+            <Typography
+              variant="caption"
+              color={driveAccessError ? 'error' : 'text.secondary'}
+            >
+              {driveAccessError
+                ? t('share.drive.accessError', "Couldn't check who has access.")
+                : !driveOverview
+                  ? t('share.drive.accessUnknown', 'Checking who has access…')
+                  : driveOverview.summary === 'anyone-with-link'
+                    ? t('share.drive.accessAnyone', 'Anyone with the link can view')
+                    : driveOverview.peopleCount > 0
+                      ? t('share.drive.sharedWithCount', {
+                          count: driveOverview.peopleCount,
+                          defaultValue: `Shared with ${driveOverview.peopleCount} people`
+                        })
+                      : t('share.drive.accessRestricted', 'Only people with access can view')}
+            </Typography>
+          </Box>
+        </Menu>
+      )}
+
+      {/* Custom in-app "Manage access" (ADR 0042 §1 rev. 2026-07-14) — Drive
+          REST v3 permissions UI, replacing the deprecated ShareClient widget. */}
+      {driveActive && currentDiagramId && (
+        <DriveShareManageDialog
+          open={showManageDialog}
+          fileId={currentDiagramId}
+          diagramName={currentDiagram?.name}
+          onClose={() => setShowManageDialog(false)}
+          onAccessChanged={refreshAccessSummary}
+        />
       )}
     </Box>
   );

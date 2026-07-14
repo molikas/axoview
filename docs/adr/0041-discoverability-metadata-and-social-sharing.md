@@ -1,13 +1,13 @@
 # ADR 0041 — Discoverability Metadata & Social-Sharing Contract
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-07-10
 **Supersedes:** none
 **Superseded by:** none
 
 > **Paired with:** [ADR 0040 — Marketing Landing & SPA Crawlability](0040-marketing-landing-and-spa-crawlability.md). 0040 owns *where crawlable content comes from*; this ADR owns *the metadata protocol that declares the site to crawlers and social platforms*. This contract is **independent of the URL layout** in 0040 — the tags apply to whichever document is the canonical root.
 
-> **Implementation status (2026-07-10) — shipped in full.** The complete metadata contract below is implemented on the canonical root ([index.html](../../packages/axoview-app/public/index.html)) and mirrored onto the legal pages. The `og:url` / `canonical` / sitemap all point at `/` — the current canonical root under 0040's shipped R2 interim, so the "depends on 0040's layout" note is satisfied. Verified in a real browser: inline JSON-LD is **not** blocked by the `script-src 'self'` CSP (the one item this ADR flagged to confirm). Status stays `Proposed` pending the manual live-validator checks (social-card inspectors, Rich Results Test) that need a public URL.
+> **Implementation status (2026-07-10) — shipped in full.** The complete metadata contract below is implemented on the canonical root ([index.html](../../packages/axoview-app/public/index.html)) and mirrored onto the legal pages. The `og:url` / `canonical` / sitemap all point at `/` — the current canonical root under 0040's shipped R2 interim, so the "depends on 0040's layout" note is satisfied. Verified in a real browser: inline JSON-LD is **not** blocked by the `script-src 'self'` CSP (the one item this ADR flagged to confirm). **Accepted 2026-07-14** — the manual live-validator checks (social-card inspectors, Rich Results Test) on the public landing passed (owner-confirmed), clearing the last gate.
 
 ## Context
 

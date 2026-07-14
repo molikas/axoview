@@ -73,13 +73,49 @@
     "toolbar": {
         "presentSaveFirst": "请先保存以演示",
         "saveAndPresent": "保存并演示",
-        "present": "演示"
+        "present": "演示",
+        "share": {
+            "disabled": {
+                "sessionPlaceNeedsServerStorage": "此图表的分享链接需要服务器存储（通过 Docker 自托管或部署在 Cloudflare 上）。保存到 Google Drive 的图表可以从任何部署中分享。"
+            }
+        }
     },
     "share": {
         "title": "分享图表",
         "hint": "拥有此链接的任何人都可以以只读模式查看图表。",
         "copy": "复制",
-        "copied": "✓ 已复制！"
+        "copied": "✓ 已复制！",
+        "drive": {
+            "liveHint": "获得文件分享的任何人看到的都是最新版本——链接打开的是实时图表，而不是快照。",
+            "accessAnyone": "拥有链接的任何人都可以查看",
+            "accessRestricted": "只有拥有访问权限的人才能查看",
+            "accessUnknown": "正在检查谁有访问权限…",
+            "manageAccess": "管理访问权限",
+            "accessError": "无法检查谁有访问权限。",
+            "sharedWithCount_other": "已与 {{count}} 人共享",
+            "manage": {
+                "title": "管理访问权限",
+                "titleNamed": "分享“{{name}}”",
+                "copyLink": "复制链接",
+                "copiedToast": "预览链接已复制到剪贴板",
+                "emailInvite": "在 Axoview 中查看此图表：{{url}}",
+                "done": "完成",
+                "generalAccess": "常规访问权限",
+                "restricted": "受限——仅限拥有访问权限的人",
+                "anyone": "拥有链接的任何人都可以查看",
+                "peopleWithAccess": "拥有访问权限的人",
+                "onlyYou": "目前只有你拥有访问权限。",
+                "roleOwner": "所有者",
+                "roleViewer": "查看者",
+                "roleEditor": "编辑者",
+                "remove": "移除访问权限",
+                "addPeople": "添加人员",
+                "emailPlaceholder": "name@example.com",
+                "add": "添加",
+                "loadError": "无法加载谁有访问权限。",
+                "actionError": "无法保存该更改。"
+            }
+        }
     },
     "dialog": {
         "save": {
@@ -198,5 +234,15 @@
     "legal": {
         "privacy": "隐私",
         "terms": "条款"
+    },
+    "driveDisplay": {
+        "headline": "此图表保存在其所有者的 Google Drive 中",
+        "signInBody": "使用 Google 登录，以便 Axoview 检查此图表是否已与您分享。",
+        "grantBody": "您已登录，但 Axoview 需要您的许可才能从 Google Drive 打开此文件。",
+        "grantButton": "以 Google Drive 访问权限打开",
+        "grantUnavailable": "您的 Google 账号无法通过 Axoview 访问此图表，且此部署无法请求访问权限。请让所有者在 Google Drive 中与您分享该文件，然后重新加载此页面。",
+        "pickerError": "无法打开 Google Drive 访问对话框。当第三方 Cookie 或弹出窗口被拦截时可能出现此情况——请为本站点允许它们，然后重试。",
+        "transientBody": "无法连接 Google Drive 以加载此图表。请检查网络连接后重试。",
+        "retryButton": "重试"
     }
 }

@@ -1,0 +1,227 @@
+import { appDisplayBase } from '../../appBase';
+import { authStore } from '../../stores/authStore';
+
+// ADR 0042 §1/§4 (rev. 2026-07-14) — Drive-place sharing surface. Deliberately
+// OUTSIDE the StorageProvider interface: "sharing" a Drive diagram is a Drive
+// ACL concern plus a deterministic preview URL, not a publish-a-snapshot
+// contract. v1 manages access with a CUSTOM in-app UI over the Drive REST v3
+// `permissions` collection (list / create / delete), authorized under
+// `drive.file` for app-created files. The legacy client-side `ShareClient`
+// widget was dropped: Google is deprecating it (observed live 2026-07-14 as a
+// fedcm-migration timeout + `contentDocument` crash), it demanded a broad CSP
+// surface, and it broke whenever third-party cookies were blocked. The REST
+// calls all hit www.googleapis.com, already allowed by connect-src.
+
+const DRIVE_API = 'https://www.googleapis.com/drive/v3';
+
+export interface FileShareMeta {
+  /** Drive's own viewer URL — used to open the file directly in Drive if needed. */
+  webViewLink: string | null;
+  /** Non-null only on link-shared legacy files; app-created files omit it. */
+  resourceKey: string | null;
+}
+
+export type AccessSummary = 'anyone-with-link' | 'restricted';
+
+export interface AccessOverview {
+  summary: AccessSummary;
+  /** Named people with access — excludes the owner ("you") and the anyone-link
+   *  entry, so it matches the count a user reads as "shared with N people". */
+  peopleCount: number;
+}
+
+/** The roles the custom share UI can grant. Drive supports more; a read-only
+ *  preview product only meaningfully offers viewer / editor. */
+export type ShareRole = 'reader' | 'writer';
+
+export interface DrivePermission {
+  id: string;
+  type: 'user' | 'group' | 'domain' | 'anyone';
+  role: 'owner' | 'organizer' | 'fileOrganizer' | 'writer' | 'commenter' | 'reader';
+  emailAddress?: string;
+  displayName?: string;
+}
+
+/** Drive's structured error body — Google returns `error.message` we can surface. */
+export class DriveShareError extends Error {
+  constructor(
+    readonly status: number,
+    message: string
+  ) {
+    super(message);
+    this.name = 'DriveShareError';
+    Object.setPrototypeOf(this, DriveShareError.prototype);
+  }
+}
+
+async function requireToken(): Promise<string> {
+  const token = await authStore.getValidToken();
+  if (!token) throw new DriveShareError(401, 'Not signed in to Google');
+  return token;
+}
+
+/** Surface Google's own error message (e.g. "The user ... could not be found")
+ *  instead of a bare status — the custom dialog shows it inline. */
+async function toError(res: Response, fallback: string): Promise<DriveShareError> {
+  let message = fallback;
+  try {
+    const body = (await res.json()) as { error?: { message?: string } };
+    if (body?.error?.message) message = body.error.message;
+  } catch {
+    /* non-JSON body — keep the fallback */
+  }
+  return new DriveShareError(res.status, message);
+}
+
+/**
+ * Preview URL for a Drive-place diagram — `/display/drive/<fileId>` under the
+ * page origin + APP_BASENAME (same anchoring rationale as shareUrl.ts). The
+ * link is LIVE (render-at-open, ADR 0042 §3), unlike `/display/p/<uuid>`
+ * snapshots. `resourceKey` propagates as a query param iff present.
+ */
+export function drivePreviewUrl(fileId: string, resourceKey?: string | null): string {
+  const base = `${appDisplayBase()}/drive/${encodeURIComponent(fileId)}`;
+  return resourceKey
+    ? `${base}?resourceKey=${encodeURIComponent(resourceKey)}`
+    : base;
+}
+
+/** Token-authorized (ADR 0035 rule 2) fetch of the fields sharing needs. */
+export async function getFileShareMeta(fileId: string): Promise<FileShareMeta> {
+  const token = await requireToken();
+  const res = await fetch(
+    `${DRIVE_API}/files/${encodeURIComponent(fileId)}?fields=webViewLink,resourceKey`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok) throw await toError(res, `Drive files.get failed (${res.status})`);
+  const data = (await res.json()) as { webViewLink?: string; resourceKey?: string };
+  return {
+    webViewLink: data.webViewLink ?? null,
+    resourceKey: data.resourceKey ?? null
+  };
+}
+
+/**
+ * All permissions on the file, pages drained. `permissions.list` is authorized
+ * under `drive.file` on app-created files. Drive PAGES permissions — a grant
+ * (incl. `type:'anyone'`) can sit past page 1, so the token is drained
+ * unconditionally or the ACL view silently truncates.
+ */
+export async function listPermissions(fileId: string): Promise<DrivePermission[]> {
+  const token = await requireToken();
+  const out: DrivePermission[] = [];
+  let pageToken: string | undefined;
+  do {
+    const url =
+      `${DRIVE_API}/files/${encodeURIComponent(fileId)}/permissions` +
+      `?fields=${encodeURIComponent(
+        'nextPageToken,permissions(id,type,role,emailAddress,displayName)'
+      )}&pageSize=100` +
+      (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '');
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw await toError(res, `Drive permissions.list failed (${res.status})`);
+    const data = (await res.json()) as {
+      permissions?: DrivePermission[];
+      nextPageToken?: string;
+    };
+    out.push(...(data.permissions ?? []));
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+  return out;
+}
+
+/**
+ * One-line ACL state for the popover (ADR 0042 §1): does the copied preview
+ * link work anonymously? A `type:'anyone'` entry ⇒ link-readable.
+ */
+export async function getAccessSummary(fileId: string): Promise<AccessSummary> {
+  return (await getAccessOverview(fileId)).summary;
+}
+
+/**
+ * Access summary + the count of named people with access — one `permissions.list`
+ * drain drives both the anonymous-link indicator and the "shared with N people"
+ * status. The owner and the `type:'anyone'` entry are excluded from the count.
+ */
+export async function getAccessOverview(fileId: string): Promise<AccessOverview> {
+  const perms = await listPermissions(fileId);
+  return {
+    summary: perms.some((p) => p.type === 'anyone') ? 'anyone-with-link' : 'restricted',
+    peopleCount: perms.filter(
+      (p) => (p.type === 'user' || p.type === 'group') && p.role !== 'owner'
+    ).length
+  };
+}
+
+/**
+ * Toggle "anyone with the link can view". Enabling creates a
+ * `{type:'anyone', role:'reader'}` permission (so the copied `/display/drive`
+ * link resolves via the anonymous key-read rung); disabling deletes every
+ * anyone-permission the file carries.
+ */
+export async function setAnyoneWithLink(fileId: string, enabled: boolean): Promise<void> {
+  if (enabled) {
+    const token = await requireToken();
+    const res = await fetch(
+      `${DRIVE_API}/files/${encodeURIComponent(fileId)}/permissions`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ role: 'reader', type: 'anyone' })
+      }
+    );
+    if (!res.ok) throw await toError(res, `Drive permissions.create(anyone) failed (${res.status})`);
+    return;
+  }
+  const anyone = (await listPermissions(fileId)).filter((p) => p.type === 'anyone');
+  for (const p of anyone) await removePermission(fileId, p.id);
+}
+
+/**
+ * Grant a specific person access by email. `sendNotificationEmail` defaults ON
+ * (Google emails them the file). Google's notification links at the RAW Drive
+ * file, so when notifying we pass an `emailMessage` pointing the recipient at
+ * OUR `/display/drive` viewer — a partial mitigation for the raw-JSON-email UX
+ * (§7.4 of the Google-API review; the full fix is a first-party snapshot store).
+ * `emailMessage` is ignored by Drive unless `sendNotificationEmail` is true.
+ */
+export async function addPersonPermission(
+  fileId: string,
+  emailAddress: string,
+  role: ShareRole,
+  sendNotificationEmail = true,
+  emailMessage?: string
+): Promise<void> {
+  const token = await requireToken();
+  const res = await fetch(
+    `${DRIVE_API}/files/${encodeURIComponent(fileId)}/permissions` +
+      `?sendNotificationEmail=${sendNotificationEmail ? 'true' : 'false'}` +
+      (sendNotificationEmail && emailMessage
+        ? `&emailMessage=${encodeURIComponent(emailMessage)}`
+        : ''),
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ role, type: 'user', emailAddress })
+    }
+  );
+  if (!res.ok) throw await toError(res, `Drive permissions.create(user) failed (${res.status})`);
+}
+
+/** Revoke one permission. A 404 (already gone) is treated as success. */
+export async function removePermission(fileId: string, permissionId: string): Promise<void> {
+  const token = await requireToken();
+  const res = await fetch(
+    `${DRIVE_API}/files/${encodeURIComponent(fileId)}/permissions/${encodeURIComponent(permissionId)}`,
+    { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok && res.status !== 404) {
+    throw await toError(res, `Drive permissions.delete failed (${res.status})`);
+  }
+}
