@@ -95,6 +95,10 @@
             "manage": {
                 "title": "Gestisci accesso",
                 "titleNamed": "Condividi «{{name}}»",
+                "previewLink": "Anteprima link",
+                "copyLink": "Copia link",
+                "linkCopied": "Copiato",
+                "emailInvite": "Visualizza questo diagramma in Axoview: {{url}}",
                 "generalAccess": "Accesso generale",
                 "restricted": "Limitato — solo le persone con accesso",
                 "anyone": "Chiunque abbia il link può visualizzare",
@@ -236,7 +240,7 @@
         "grantBody": "Hai effettuato l'accesso, ma Axoview ha bisogno del tuo permesso per aprire questo specifico file da Google Drive.",
         "grantButton": "Apri con accesso a Google Drive",
         "grantUnavailable": "Il tuo account Google non ha accesso a questo diagramma tramite Axoview e questa installazione non può richiederlo. Chiedi al proprietario di condividere il file con te in Google Drive, poi ricarica questa pagina.",
-        "pickerError": "Impossibile aprire la finestra di accesso a Google Drive. Riprova.",
+        "pickerError": "Impossibile aprire la finestra di accesso a Google Drive. Può succedere quando i cookie di terze parti o i pop-up sono bloccati — consentili per questo sito, poi riprova.",
         "transientBody": "Impossibile raggiungere Google Drive per caricare questo diagramma. Controlla la connessione e riprova.",
         "retryButton": "Riprova"
     }

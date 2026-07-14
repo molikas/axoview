@@ -100,7 +100,7 @@ export function DriveDisplayGate() {
       setPickerError(
         t(
           'driveDisplay.pickerError',
-          'Could not open the Google Drive access dialog. Please try again.'
+          'Could not open the Google Drive access dialog. This can happen when third-party cookies or pop-ups are blocked — allow them for this site, then try again.'
         )
       );
     } finally {

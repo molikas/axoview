@@ -83,6 +83,10 @@
             "manage": {
                 "title": "Zugriff verwalten",
                 "titleNamed": "„{{name}}“ teilen",
+                "previewLink": "Vorschaulink",
+                "copyLink": "Link kopieren",
+                "linkCopied": "Kopiert",
+                "emailInvite": "Sieh dir dieses Diagramm in Axoview an: {{url}}",
                 "generalAccess": "Allgemeiner Zugriff",
                 "restricted": "Eingeschränkt – nur Personen mit Zugriff",
                 "anyone": "Jeder mit dem Link kann es ansehen",
@@ -201,7 +205,7 @@
         "grantBody": "Du bist angemeldet, aber Axoview braucht deine Erlaubnis, um genau diese Datei aus Google Drive zu öffnen.",
         "grantButton": "Mit Google Drive-Zugriff öffnen",
         "grantUnavailable": "Dein Google-Konto hat über Axoview keinen Zugriff auf dieses Diagramm, und diese Installation kann ihn nicht anfordern. Bitte den Besitzer, die Datei in Google Drive für dich freizugeben, und lade die Seite dann neu.",
-        "pickerError": "Der Google Drive-Zugriffsdialog konnte nicht geöffnet werden. Bitte versuche es erneut.",
+        "pickerError": "Der Google Drive-Zugriffsdialog konnte nicht geöffnet werden. Das kann passieren, wenn Cookies von Drittanbietern oder Pop-ups blockiert sind — erlaube sie für diese Seite und versuche es dann erneut.",
         "transientBody": "Google Drive konnte nicht erreicht werden, um dieses Diagramm zu laden. Überprüfe deine Verbindung und versuche es erneut.",
         "retryButton": "Erneut versuchen"
     }

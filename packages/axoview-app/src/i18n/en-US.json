@@ -100,6 +100,10 @@
             "manage": {
                 "title": "Manage access",
                 "titleNamed": "Share \"{{name}}\"",
+                "previewLink": "Preview link",
+                "copyLink": "Copy link",
+                "linkCopied": "Copied",
+                "emailInvite": "View this diagram in Axoview: {{url}}",
                 "generalAccess": "General access",
                 "restricted": "Restricted — only people with access",
                 "anyone": "Anyone with the link can view",
@@ -279,7 +283,7 @@
         "grantBody": "You are signed in, but Axoview needs your permission to open this specific file from Google Drive.",
         "grantButton": "Open with Google Drive access",
         "grantUnavailable": "Your Google account does not have access to this diagram through Axoview, and this deployment cannot request it. Ask the owner to share the file with you in Google Drive, then reload this page.",
-        "pickerError": "Could not open the Google Drive access dialog. Please try again.",
+        "pickerError": "Could not open the Google Drive access dialog. This can happen when third-party cookies or pop-ups are blocked — allow them for this site, then try again.",
         "transientBody": "We couldn't reach Google Drive to load this diagram. Check your connection and try again.",
         "retryButton": "Try again"
     }

@@ -179,6 +179,22 @@ describe('addPersonPermission', () => {
     });
   });
 
+  test('appends the URL-encoded emailMessage when notifying', async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({ id: 'p1' }));
+    await addPersonPermission('f1', 'jane@example.com', 'reader', true, 'come see this: https://x/y');
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain('sendNotificationEmail=true');
+    expect(url).toContain('emailMessage=come%20see%20this%3A%20https%3A%2F%2Fx%2Fy');
+  });
+
+  test('omits emailMessage when not sending a notification', async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({ id: 'p1' }));
+    await addPersonPermission('f1', 'jane@example.com', 'reader', false, 'ignored');
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain('sendNotificationEmail=false');
+    expect(url).not.toContain('emailMessage');
+  });
+
   test('surfaces the Google error message via DriveShareError', async () => {
     fetchMock.mockResolvedValueOnce(
       mockResponse({ error: { message: 'The user nope@x.com could not be found.' } }, 400)

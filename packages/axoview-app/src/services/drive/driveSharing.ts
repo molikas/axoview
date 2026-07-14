@@ -162,19 +162,26 @@ export async function setAnyoneWithLink(fileId: string, enabled: boolean): Promi
 
 /**
  * Grant a specific person access by email. `sendNotificationEmail` defaults ON
- * (Google emails them the file). The owner still copies OUR preview link to
- * point them at the read-only viewer rather than the raw Drive file.
+ * (Google emails them the file). Google's notification links at the RAW Drive
+ * file, so when notifying we pass an `emailMessage` pointing the recipient at
+ * OUR `/display/drive` viewer — a partial mitigation for the raw-JSON-email UX
+ * (§7.4 of the Google-API review; the full fix is a first-party snapshot store).
+ * `emailMessage` is ignored by Drive unless `sendNotificationEmail` is true.
  */
 export async function addPersonPermission(
   fileId: string,
   emailAddress: string,
   role: ShareRole,
-  sendNotificationEmail = true
+  sendNotificationEmail = true,
+  emailMessage?: string
 ): Promise<void> {
   const token = await requireToken();
   const res = await fetch(
     `${DRIVE_API}/files/${encodeURIComponent(fileId)}/permissions` +
-      `?sendNotificationEmail=${sendNotificationEmail ? 'true' : 'false'}`,
+      `?sendNotificationEmail=${sendNotificationEmail ? 'true' : 'false'}` +
+      (sendNotificationEmail && emailMessage
+        ? `&emailMessage=${encodeURIComponent(emailMessage)}`
+        : ''),
     {
       method: 'POST',
       headers: {

@@ -249,9 +249,9 @@ it flags, plus our disposition:
 | # | Reviewer recommendation | Biggest risk called out | Cost | Disposition |
 |---|---|---|---|---|
 | 1 | **Migrate auth → auth-code + PKCE with a minimal token broker** (serverless fn) | Relying on the implicit grant (`response_type=token`) that OAuth 2.1 deprecates; no refresh → no offline/background sync | High (adds a backend; reverses ADR 0035's "no server holds credentials") | **Roadmap — owner decision.** Biggest strategic item. See nuance below. |
-| 2 | **Keep `drive.file` + Picker now; roadmap a first-party publish-snapshot store** | Jarring recipient UX — Google notification emails link to the raw JSON file, not our viewer | High (DB + storage backend) | **Roadmap.** Validate product on current setup; build snapshot publisher when the raw-JSON email UX becomes a blocker. |
-| 3 | **Replace the public anonymous-read key with a signed short-lived proxy** | The 2026 Drive API quota-overage billing — a viral diagram could exhaust quota / bill the Cloud account | Medium (a small proxy backend + cache/rate-limit) | **Roadmap** — but the cheapest backend win; pairs naturally with #1's serverless fn. Interim: keep the key referrer+API-restricted and watch quota. |
-| 4 | **Keep the Picker; build aggressive failure fallbacks + clear cookie/popup instructions** | 3rd-party-cookie phase-out silently breaking the Picker for many users | Low (copy + gate states) | **Partly done** (the display gate already has needs-grant / transient-retry / picker-error / grant-unavailable states). Finalize the cookie/popup copy when the **P2** prototype gate actually exercises the Picker with two real accounts. |
+| 2 | **Keep `drive.file` + Picker now; roadmap a first-party publish-snapshot store** | Jarring recipient UX — Google notification emails link to the raw JSON file, not our viewer | High (DB + storage backend) | **Roadmap** ([ADR 0043](adr/0043-deferred-backend-for-google-api-hardening.md) #2). **Interim mitigation shipped:** `addPersonPermission` now attaches an `emailMessage` pointing at our `/display/drive` viewer + the Manage-access dialog surfaces the copyable preview link. Build the snapshot publisher when the raw-JSON email UX becomes a validated blocker. |
+| 3 | **Replace the public anonymous-read key with a signed short-lived proxy** | The 2026 Drive API quota-overage billing — a viral diagram could exhaust quota / bill the Cloud account | Medium (a small proxy backend + cache/rate-limit) | **Roadmap** ([ADR 0043](adr/0043-deferred-backend-for-google-api-hardening.md) #3) — the cheapest backend win; pairs with #1 on the existing `axoview-worker`. Interim: key stays referrer+API-restricted (P1 gate) and quota is a watch item. |
+| 4 | **Keep the Picker; build aggressive failure fallbacks + clear cookie/popup instructions** | 3rd-party-cookie phase-out silently breaking the Picker for many users | Low (copy + gate states) | **Code half done** ([ADR 0043](adr/0043-deferred-backend-for-google-api-hardening.md) #4): the gate has needs-grant / transient-retry / picker-error / grant-unavailable states, and `pickerError` now names the cookie/pop-up cause. Finalize the copy at the **P2** gate (Picker exercised with two real accounts). |
 
 **Accuracy nuance on #1:** we use Google Identity Services' **token client**
 (`initTokenClient`), Google's *currently-supported* browser library — not a raw
@@ -275,3 +275,10 @@ The through-line the reviewer names — "architectural gravity will pull you tow
 a lightweight backend" — is the honest summary: the current serverless posture is
 a deliberate, correct V1 trade-off, and the next maturity step is a *small* backend
 for auth + quota protection, not a return to a full first-party stack.
+
+> **Durable record:** the deferral decision above and the concrete **activation
+> triggers** for each backend item now live in
+> [ADR 0043 — Deferred Backend for Google-API Hardening](adr/0043-deferred-backend-for-google-api-hardening.md)
+> (Accepted, 2026-07-14). This review-request doc is short-lived and dies at the
+> drive-native-sharing tactical wrap; ADR 0043 is where the triggers persist. The
+> two no-backend mitigations it lists (§1) shipped alongside it.

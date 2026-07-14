@@ -95,6 +95,10 @@
             "manage": {
                 "title": "Erişimi yönet",
                 "titleNamed": "\"{{name}}\" paylaş",
+                "previewLink": "Bağlantıyı önizle",
+                "copyLink": "Bağlantıyı kopyala",
+                "linkCopied": "Kopyalandı",
+                "emailInvite": "Bu diyagramı Axoview'de görüntüle: {{url}}",
                 "generalAccess": "Genel erişim",
                 "restricted": "Kısıtlı — yalnızca erişimi olan kişiler",
                 "anyone": "Bağlantıya sahip herkes görüntüleyebilir",
@@ -236,7 +240,7 @@
         "grantBody": "Oturum açtınız, ancak Axoview'in bu dosyayı Google Drive'dan açabilmesi için izninize ihtiyacı var.",
         "grantButton": "Google Drive erişimiyle aç",
         "grantUnavailable": "Google hesabınızın Axoview üzerinden bu diyagrama erişimi yok ve bu dağıtım erişim isteyemiyor. Sahibinden dosyayı Google Drive'da sizinle paylaşmasını isteyin, ardından bu sayfayı yeniden yükleyin.",
-        "pickerError": "Google Drive erişim penceresi açılamadı. Lütfen tekrar deneyin.",
+        "pickerError": "Google Drive erişim penceresi açılamadı. Bu durum, üçüncü taraf çerezleri veya açılır pencereler engellendiğinde ortaya çıkabilir — bu site için bunlara izin verip tekrar deneyin.",
         "transientBody": "Bu diyagramı yüklemek için Google Drive'a ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.",
         "retryButton": "Tekrar dene"
     }

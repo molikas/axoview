@@ -95,6 +95,10 @@
             "manage": {
                 "title": "管理访问权限",
                 "titleNamed": "分享“{{name}}”",
+                "previewLink": "预览链接",
+                "copyLink": "复制链接",
+                "linkCopied": "已复制",
+                "emailInvite": "在 Axoview 中查看此图表：{{url}}",
                 "generalAccess": "常规访问权限",
                 "restricted": "受限——仅限拥有访问权限的人",
                 "anyone": "拥有链接的任何人都可以查看",
@@ -236,7 +240,7 @@
         "grantBody": "您已登录，但 Axoview 需要您的许可才能从 Google Drive 打开此文件。",
         "grantButton": "以 Google Drive 访问权限打开",
         "grantUnavailable": "您的 Google 账号无法通过 Axoview 访问此图表，且此部署无法请求访问权限。请让所有者在 Google Drive 中与您分享该文件，然后重新加载此页面。",
-        "pickerError": "无法打开 Google Drive 访问对话框。请重试。",
+        "pickerError": "无法打开 Google Drive 访问对话框。当第三方 Cookie 或弹出窗口被拦截时可能出现此情况——请为本站点允许它们，然后重试。",
         "transientBody": "无法连接 Google Drive 以加载此图表。请检查网络连接后重试。",
         "retryButton": "重试"
     }

@@ -25,6 +25,7 @@ import {
 import {
   DrivePermission,
   ShareRole,
+  drivePreviewUrl,
   listPermissions,
   setAnyoneWithLink,
   addPersonPermission,
@@ -77,6 +78,11 @@ export function DriveShareManageDialog({
   const [busy, setBusy] = useState(false);
   const [addEmail, setAddEmail] = useState('');
   const [addRole, setAddRole] = useState<ShareRole>('reader');
+  const [copied, setCopied] = useState(false);
+
+  // The viewer link to hand people — NOT the raw Drive file Google's notification
+  // email points at. App-created files carry no resourceKey, so fileId suffices.
+  const previewUrl = drivePreviewUrl(fileId);
 
   const refresh = useCallback(async () => {
     setLoadError(null);
@@ -98,8 +104,19 @@ export function DriveShareManageDialog({
     setActionError(null);
     setAddEmail('');
     setAddRole('reader');
+    setCopied(false);
     void refresh();
   }, [open, refresh]);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(previewUrl);
+      setCopied(true);
+    } catch {
+      // Clipboard blocked (permissions / insecure context) — the read-only field
+      // is still selectable, so the link remains manually copyable.
+    }
+  };
 
   // Run a mutation, then re-read the ACL from Drive (never trust local state) and
   // notify the caller. A single busy flag serialises the dialog's writes.
@@ -135,7 +152,12 @@ export function DriveShareManageDialog({
   const handleAdd = async () => {
     const email = addEmail.trim();
     if (!email) return;
-    await runAction(() => addPersonPermission(fileId, email, addRole));
+    // Point Google's notification email at OUR viewer, not the raw Drive JSON.
+    const emailMessage = t('share.drive.manage.emailInvite', {
+      url: previewUrl,
+      defaultValue: `View this diagram in Axoview: ${previewUrl}`
+    });
+    await runAction(() => addPersonPermission(fileId, email, addRole, true, emailMessage));
     setAddEmail('');
   };
 
@@ -185,6 +207,35 @@ export function DriveShareManageDialog({
                 {actionError}
               </Alert>
             )}
+
+            {/* Preview link — the viewer URL to share with people (never the raw
+                Drive file Google's notification email links to). */}
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>
+                {t('share.drive.manage.previewLink', 'Preview link')}
+              </Typography>
+              <Stack direction="row" spacing={1}>
+                <TextField
+                  size="small"
+                  fullWidth
+                  value={previewUrl}
+                  InputProps={{ readOnly: true }}
+                  data-axoview-id="drive-share-manage-preview-link"
+                  onFocus={(e) => e.target.select()}
+                />
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => void handleCopy()}
+                  data-axoview-id="drive-share-manage-copy-link"
+                  sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
+                >
+                  {copied
+                    ? t('share.drive.manage.linkCopied', 'Copied')
+                    : t('share.drive.manage.copyLink', 'Copy link')}
+                </Button>
+              </Stack>
+            </Box>
 
             {/* General access — anyone-with-link toggle (the preview-link switch). */}
             <Box>

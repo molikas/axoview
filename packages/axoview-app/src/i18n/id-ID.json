@@ -83,6 +83,10 @@
             "manage": {
                 "title": "Kelola akses",
                 "titleNamed": "Bagikan \"{{name}}\"",
+                "previewLink": "Pratinjau tautan",
+                "copyLink": "Salin tautan",
+                "linkCopied": "Tersalin",
+                "emailInvite": "Lihat diagram ini di Axoview: {{url}}",
                 "generalAccess": "Akses umum",
                 "restricted": "Terbatas — hanya orang dengan akses",
                 "anyone": "Siapa pun yang memiliki tautan dapat melihat",
@@ -201,7 +205,7 @@
         "grantBody": "Anda sudah masuk, tetapi Axoview memerlukan izin Anda untuk membuka file khusus ini dari Google Drive.",
         "grantButton": "Buka dengan akses Google Drive",
         "grantUnavailable": "Akun Google Anda tidak memiliki akses ke diagram ini melalui Axoview, dan deployment ini tidak dapat memintanya. Minta pemilik untuk membagikan file kepada Anda di Google Drive, lalu muat ulang halaman ini.",
-        "pickerError": "Tidak dapat membuka dialog akses Google Drive. Silakan coba lagi.",
+        "pickerError": "Tidak dapat membuka dialog akses Google Drive. Ini bisa terjadi saat cookie pihak ketiga atau pop-up diblokir — izinkan keduanya untuk situs ini, lalu coba lagi.",
         "transientBody": "Tidak dapat menjangkau Google Drive untuk memuat diagram ini. Periksa koneksi Anda dan coba lagi.",
         "retryButton": "Coba lagi"
     }

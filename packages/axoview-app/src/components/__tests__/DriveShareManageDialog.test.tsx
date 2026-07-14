@@ -21,6 +21,7 @@ jest.mock('react-i18next', () => ({
 }));
 
 jest.mock('../../services/drive/driveSharing', () => ({
+  drivePreviewUrl: (id: string) => `http://localhost/app/display/drive/${id}`,
   listPermissions: jest.fn(),
   setAnyoneWithLink: jest.fn(),
   addPersonPermission: jest.fn(),
@@ -69,7 +70,7 @@ test('removing a person calls removePermission then re-reads the list', async ()
   await waitFor(() => expect(screen.queryByText('Jane')).toBeNull());
 });
 
-test('adding a person calls addPersonPermission with the email and default viewer role', async () => {
+test('adding a person calls addPersonPermission with the email, viewer role, and a viewer-link invite', async () => {
   listMock.mockResolvedValueOnce([OWNER]).mockResolvedValueOnce([OWNER, JANE]);
   addMock.mockResolvedValueOnce(undefined);
   renderOpen();
@@ -79,7 +80,27 @@ test('adding a person calls addPersonPermission with the email and default viewe
   await user.type(screen.getByPlaceholderText('name@example.com'), 'jane@x.com');
   await user.click(screen.getByRole('button', { name: 'Add' }));
 
-  await waitFor(() => expect(addMock).toHaveBeenCalledWith('f1', 'jane@x.com', 'reader'));
+  // Notifies, and the notification message points at OUR viewer (not the raw file).
+  await waitFor(() =>
+    expect(addMock).toHaveBeenCalledWith(
+      'f1',
+      'jane@x.com',
+      'reader',
+      true,
+      expect.stringContaining('http://localhost/app/display/drive/f1')
+    )
+  );
+});
+
+test('copying the preview link flips the button to a copied state', async () => {
+  listMock.mockResolvedValueOnce([OWNER]);
+  renderOpen();
+  const user = userEvent.setup();
+
+  await screen.findByText('Only you have access so far.');
+  await user.click(screen.getByRole('button', { name: 'Copy link' }));
+
+  expect(await screen.findByRole('button', { name: 'Copied' })).toBeInTheDocument();
 });
 
 test('surfaces a load error inline', async () => {
