@@ -90,6 +90,7 @@
         "creating": "Creating link…",
         "unavailable": "Sharing is not available",
         "failed": "Failed to create share link",
+        "moreOptions": "More share options",
         "drive": {
             "liveHint": "Anyone the file is shared with sees the latest version — the link opens the live diagram, not a snapshot.",
             "accessAnyone": "Anyone with the link can view",

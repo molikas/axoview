@@ -3,15 +3,20 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
+  Button,
+  ButtonGroup,
   Chip,
   Divider,
   IconButton,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
   Popover,
   Stack,
   TextField,
-  Typography,
-  Button,
-  Tooltip
+  Tooltip,
+  Typography
 } from '@mui/material';
 import {
   SaveOutlined as SaveIcon,
@@ -19,6 +24,8 @@ import {
   Close as CloseIcon,
   SlideshowOutlined as PresentIcon,
   ArrowBack as ArrowBackIcon,
+  ArrowDropDown as ArrowDropDownIcon,
+  LinkOutlined as LinkIcon,
   VisibilityOutlined as ShowControlsIcon,
   VisibilityOffOutlined as HideControlsIcon
 } from '@mui/icons-material';
@@ -30,11 +37,11 @@ import { AuthControl } from './AuthControl';
 import { shareUrlFromUuid } from '../utils/shareUrl';
 import {
   drivePreviewUrl,
-  getFileShareMeta,
   getAccessSummary,
   AccessSummary
 } from '../services/drive/driveSharing';
 import { DriveShareManageDialog } from './DriveShareManageDialog';
+import { useNotificationStore } from '../stores/notificationStore';
 
 export function AppToolbar() {
   const { t } = useTranslation('app');
@@ -80,7 +87,10 @@ export function AppToolbar() {
     },
     [setSidebarTogglePortalTarget]
   );
+  const notify = useNotificationStore((s) => s.push);
   const [showSharePopover, setShowSharePopover] = useState(false);
+  // Drive-mode share caret menu (quick Copy link + access status). null = closed.
+  const [shareMenuAnchor, setShareMenuAnchor] = useState<HTMLElement | null>(null);
   // View-only "hide all controls" — bridged to the lib (separate store) via a
   // window event the lib's UiOverlay listens for. Local state drives the button.
   const [hideControls, setHideControls] = useState(false);
@@ -110,75 +120,30 @@ export function AppToolbar() {
     setDriveAccessSummary(null);
     setDriveAccessError(false);
     setShowSharePopover(false);
+    setShareMenuAnchor(null);
   }, [currentDiagramId]);
 
-  // The native "Manage access" dialog — and Drive's own web UI in another tab —
-  // can change the ACL with the popover still open, and ShareClient exposes no
-  // close callback. Re-check the summary whenever the window regains focus while
-  // the Drive share popover is open, so the indicator can't stay stale forever.
-  // (Best-effort: a same-window ShareClient overlay may not blur the window, but
-  // the multi-tab / return-to-tab case is fully covered. No null-reset here —
-  // this is a silent background refresh, not a reopen, so avoid a "Checking…"
-  // flicker; the value just updates in place if it changed.)
-  useEffect(() => {
-    if (!showSharePopover || !driveActive || !currentDiagramId) return;
-    const onFocus = () => {
-      const reqId = ++shareReqRef.current;
-      setDriveAccessError(false);
-      void getAccessSummary(currentDiagramId)
-        .then((s) => {
-          if (shareReqRef.current === reqId) setDriveAccessSummary(s);
-        })
-        .catch(() => {
-          if (shareReqRef.current === reqId) setDriveAccessError(true);
-        });
-    };
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
-  }, [showSharePopover, driveActive, currentDiagramId]);
-
+  // SESSION-place share: create/copy a `/display/p/<uuid>` snapshot link in a
+  // popover. (Drive-place sharing goes through the split Share button → Manage
+  // dialog + caret menu instead; ADR 0042 §1.)
   const handleShareClick = async () => {
     const fileId = currentDiagramId;
-    if (!fileId) return;
-    if (!driveActive && (!serverStorageAvailable || !storage)) return;
+    if (!fileId || !serverStorageAvailable || !storage) return;
     // This click owns the popover's async state until superseded.
     const reqId = ++shareReqRef.current;
     const current = () => shareReqRef.current === reqId;
     setShowSharePopover(true);
     setShareError(null);
-    if (driveActive) {
-      // Re-check the ACL on every open — the native dialog may have changed it.
-      // Clear the prior summary too (not just the error): the currentDiagramId
-      // reset only fires on a diagram SWITCH, so a same-diagram reopen would
-      // otherwise flash the stale summary instead of the neutral "Checking…".
-      setDriveAccessError(false);
-      setDriveAccessSummary(null);
-      void getAccessSummary(fileId)
-        .then((s) => {
-          if (current()) setDriveAccessSummary(s);
-        })
-        .catch(() => {
-          if (current()) setDriveAccessError(true);
-        });
-    }
     let url = shareUrl;
     if (!url) {
       try {
         setShareLoading(true);
-        if (driveActive) {
-          // Drive place: the diagram id IS the Drive file id; the link is
-          // deterministic (no publish step). resourceKey propagates iff present
-          // (expected absent on app-created files) — ADR 0042 §1.
-          const meta = await getFileShareMeta(fileId);
-          url = drivePreviewUrl(fileId, meta.resourceKey);
-        } else {
-          if (!storage?.shareDiagram) {
-            if (current()) setShareError(t('share.unavailable', 'Sharing is not available'));
-            return;
-          }
-          const result = await storage.shareDiagram(fileId);
-          url = shareUrlFromUuid(result.uuid);
+        if (!storage?.shareDiagram) {
+          if (current()) setShareError(t('share.unavailable', 'Sharing is not available'));
+          return;
         }
+        const result = await storage.shareDiagram(fileId);
+        url = shareUrlFromUuid(result.uuid);
         if (!current()) return; // diagram switched mid-fetch — drop the stale URL
         setShareUrl(url);
       } catch (err) {
@@ -207,6 +172,40 @@ export function AppToolbar() {
     if (!current()) return;
     setShareCopied(true);
     setTimeout(() => setShareCopied(false), 2500);
+  };
+
+  // Drive-mode caret menu: re-read the ACL each open (the Manage dialog or another
+  // Drive tab may have changed it), guarded by the monotonic request id.
+  const handleShareMenuOpen = (e: React.MouseEvent<HTMLElement>) => {
+    if (!currentDiagramId) return;
+    setShareMenuAnchor(e.currentTarget);
+    const reqId = ++shareReqRef.current;
+    setDriveAccessError(false);
+    setDriveAccessSummary(null);
+    void getAccessSummary(currentDiagramId)
+      .then((s) => {
+        if (shareReqRef.current === reqId) setDriveAccessSummary(s);
+      })
+      .catch(() => {
+        if (shareReqRef.current === reqId) setDriveAccessError(true);
+      });
+  };
+
+  // Quick "Copy link" from the caret menu — the live viewer link (app-created
+  // Drive files carry no resourceKey, so fileId alone is the deterministic URL).
+  const handleQuickCopyLink = async () => {
+    const fileId = currentDiagramId;
+    setShareMenuAnchor(null);
+    if (!fileId) return;
+    try {
+      await navigator.clipboard.writeText(drivePreviewUrl(fileId));
+      notify({
+        severity: 'success',
+        message: t('share.drive.manage.copiedToast', 'Preview link copied to clipboard')
+      });
+    } catch {
+      // Clipboard blocked (insecure context) — nothing copied; stay silent.
+    }
   };
 
   const handleShareUrlClick = (e: React.MouseEvent<HTMLInputElement>) => {
@@ -446,20 +445,50 @@ export function AppToolbar() {
                 hidden) without server storage so the affordance still signals
                 the feature exists. */}
             <ExportPopover />
-            <Tooltip title={shareTooltip} placement="bottom">
-              <span>
-                <IconButton
-                  ref={shareButtonRef}
-                  size="small"
-                  onClick={handleShareClick}
-                  disabled={shareDisabled}
-                  data-axoview-id="toolbar-share"
-                  sx={{ borderRadius: 1, color: 'inherit' }}
-                >
-                  <ShareIcon sx={{ fontSize: 18 }} />
-                </IconButton>
-              </span>
-            </Tooltip>
+            {driveActive ? (
+              // Drive place: a split Share button — primary opens the Manage-access
+              // dialog (the full sharing UI), the caret opens a quick menu (Copy
+              // link + access status). Mirrors the Drive/Figma share affordance.
+              <Tooltip title={shareTooltip} placement="bottom">
+                <Box component="span" sx={{ display: 'inline-flex', ml: 0.5 }}>
+                  <ButtonGroup variant="outlined" size="small" disabled={shareDisabled}>
+                    <Button
+                      startIcon={<ShareIcon sx={{ fontSize: 16 }} />}
+                      onClick={handleManageAccessClick}
+                      data-axoview-id="toolbar-share"
+                      sx={{ textTransform: 'none' }}
+                    >
+                      {t('nav.share', 'Share')}
+                    </Button>
+                    <Button
+                      onClick={handleShareMenuOpen}
+                      data-axoview-id="toolbar-share-caret"
+                      aria-label={t('share.moreOptions', 'More share options')}
+                      sx={{ px: 0.25, minWidth: 0 }}
+                    >
+                      <ArrowDropDownIcon sx={{ fontSize: 18 }} />
+                    </Button>
+                  </ButtonGroup>
+                </Box>
+              </Tooltip>
+            ) : (
+              // Session place: single Share button → snapshot-link popover (ADR 0010).
+              <Tooltip title={shareTooltip} placement="bottom">
+                <span>
+                  <Button
+                    ref={shareButtonRef}
+                    size="small"
+                    startIcon={<ShareIcon sx={{ fontSize: 16 }} />}
+                    onClick={handleShareClick}
+                    disabled={shareDisabled}
+                    data-axoview-id="toolbar-share"
+                    sx={{ textTransform: 'none', ml: 0.5 }}
+                  >
+                    {t('nav.share', 'Share')}
+                  </Button>
+                </span>
+              </Tooltip>
+            )}
             <Tooltip
               title={
                 !currentDiagramId
@@ -507,7 +536,7 @@ export function AppToolbar() {
           (removed in 95a0fd5) that treated portaled content as outside. This
           reason guard is the defense-in-depth for any future MUI behaviour
           drift. */}
-      {!isReadonlyUrl && (
+      {!isReadonlyUrl && !driveActive && (
         <Popover
           open={showSharePopover && !!currentDiagramId}
           anchorEl={shareButtonRef.current}
@@ -539,12 +568,7 @@ export function AppToolbar() {
               </IconButton>
             </Stack>
             <Typography variant="body2" color="text.secondary">
-              {driveActive
-                ? t(
-                    'share.drive.liveHint',
-                    'Anyone the file is shared with sees the latest version — the link opens the live diagram, not a snapshot.'
-                  )
-                : t('share.hint', 'Anyone with this link can view the diagram in read-only mode.')}
+              {t('share.hint', 'Anyone with this link can view the diagram in read-only mode.')}
             </Typography>
             {shareError && (
               <Typography variant="body2" color="error">
@@ -575,42 +599,49 @@ export function AppToolbar() {
                 {shareCopied ? t('share.copied', '✓ Copied!') : t('share.copy', 'Copy')}
               </Button>
             </Stack>
-            {driveActive && (
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-                spacing={1}
-              >
-                {/* ACL summary: does the copied link work anonymously? Fetched
-                    on popover open + refreshed when the Manage-access dialog
-                    changes it. */}
-                <Typography
-                  variant="caption"
-                  color={driveAccessError ? 'error' : 'text.secondary'}
-                  data-axoview-id="share-drive-access-summary"
-                >
-                  {driveAccessError
-                    ? t('share.drive.accessError', "Couldn't check who has access.")
-                    : driveAccessSummary === 'anyone-with-link'
-                      ? t('share.drive.accessAnyone', 'Anyone with the link can view')
-                      : driveAccessSummary === 'restricted'
-                        ? t('share.drive.accessRestricted', 'Only people with access can view')
-                        : t('share.drive.accessUnknown', 'Checking who has access…')}
-                </Typography>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={handleManageAccessClick}
-                  data-axoview-id="share-manage-access-button"
-                  sx={{ whiteSpace: 'nowrap', textTransform: 'none', flexShrink: 0 }}
-                >
-                  {t('share.drive.manageAccess', 'Manage access')}
-                </Button>
-              </Stack>
-            )}
           </Stack>
         </Popover>
+      )}
+
+      {/* Drive-mode share caret menu — quick Copy link + at-a-glance access status
+          (ADR 0042 §1). The primary Share button opens the full Manage dialog. */}
+      {!isReadonlyUrl && driveActive && (
+        <Menu
+          anchorEl={shareMenuAnchor}
+          open={!!shareMenuAnchor && !!currentDiagramId}
+          onClose={() => setShareMenuAnchor(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          slotProps={{
+            paper: {
+              sx: { minWidth: 248, mt: 0.5 },
+              'data-axoview-id': 'share-menu'
+            } as React.ComponentProps<'div'>
+          }}
+        >
+          <MenuItem onClick={() => void handleQuickCopyLink()} data-axoview-id="share-menu-copy-link">
+            <ListItemIcon>
+              <LinkIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>{t('share.drive.manage.copyLink', 'Copy link')}</ListItemText>
+          </MenuItem>
+          <Divider sx={{ my: 0.5 }} />
+          {/* Non-interactive status row (Google's "Shared with…" line analogue). */}
+          <Box sx={{ px: 2, py: 0.5 }} data-axoview-id="share-menu-status">
+            <Typography
+              variant="caption"
+              color={driveAccessError ? 'error' : 'text.secondary'}
+            >
+              {driveAccessError
+                ? t('share.drive.accessError', "Couldn't check who has access.")
+                : driveAccessSummary === 'anyone-with-link'
+                  ? t('share.drive.accessAnyone', 'Anyone with the link can view')
+                  : driveAccessSummary === 'restricted'
+                    ? t('share.drive.accessRestricted', 'Only people with access can view')
+                    : t('share.drive.accessUnknown', 'Checking who has access…')}
+            </Typography>
+          </Box>
+        </Menu>
       )}
 
       {/* Custom in-app "Manage access" (ADR 0042 §1 rev. 2026-07-14) — Drive
