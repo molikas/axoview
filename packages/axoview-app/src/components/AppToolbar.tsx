@@ -612,6 +612,10 @@ export function AppToolbar() {
           onClose={() => setShareMenuAnchor(null)}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          // `dense` drops the item text to body2 (14px), matching ExportPopover's
+          // <MenuList dense> — without it the app-level Menu inherits MUI's
+          // body1 (16px) default and "Copy link" reads oversized (bloat fix).
+          MenuListProps={{ dense: true }}
           slotProps={{
             paper: {
               sx: { minWidth: 248, mt: 0.5 },
