@@ -29,7 +29,8 @@
     "docker:run": "docker compose -f compose.dev.yml up",
     "update-version": "node scripts/update-version.js",
     "semantic-release": "semantic-release",
-    "prepare": "simple-git-hooks"
+    "prepare": "simple-git-hooks",
+    "lint:docs": "node scripts/lint-docs.js"
   },
   "simple-git-hooks": {
     "commit-msg": "npx commitlint --edit \"$1\""
