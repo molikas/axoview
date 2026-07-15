@@ -5,6 +5,12 @@ All notable changes to Axoview will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.7.0](https://github.com/molikas/axoview/compare/v3.6.0...v3.7.0) (2026-07-14)
+
+### Features
+
+* **sharing:** Drive-native sharing + read-only preview (ADR 0042) + notes-on-hover parity ([#69](https://github.com/molikas/axoview/issues/69)) ([0bc1e9d](https://github.com/molikas/axoview/commit/0bc1e9d21edb9f809fc4c4711f96d9c437590138)), closes [#54](https://github.com/molikas/axoview/issues/54) [#2](https://github.com/molikas/axoview/issues/2) [#2](https://github.com/molikas/axoview/issues/2) [#4](https://github.com/molikas/axoview/issues/4) [#1](https://github.com/molikas/axoview/issues/1) [A1/A2/#5](https://github.com/A1/A2//issues/5) [1/#9](https://github.com/1/axoview/issues/9) [#5](https://github.com/molikas/axoview/issues/5) [#7](https://github.com/molikas/axoview/issues/7) [#11](https://github.com/molikas/axoview/issues/11) [#7](https://github.com/molikas/axoview/issues/7) [#10](https://github.com/molikas/axoview/issues/10) [#8](https://github.com/molikas/axoview/issues/8) [#8](https://github.com/molikas/axoview/issues/8) [#3](https://github.com/molikas/axoview/issues/3) [retest-after-#5](https://github.com/molikas/retest-after-/issues/5) [#3](https://github.com/molikas/axoview/issues/3) [#4](https://github.com/molikas/axoview/issues/4) [#2](https://github.com/molikas/axoview/issues/2) [#3](https://github.com/molikas/axoview/issues/3) [#4](https://github.com/molikas/axoview/issues/4) [#15](https://github.com/molikas/axoview/issues/15) [#10](https://github.com/molikas/axoview/issues/10) [#12](https://github.com/molikas/axoview/issues/12) [#12](https://github.com/molikas/axoview/issues/12)
+
 ## [3.6.0](https://github.com/molikas/axoview/compare/v3.5.2...v3.6.0) (2026-07-13)
 
 ### Features
