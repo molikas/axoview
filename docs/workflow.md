@@ -1,17 +1,33 @@
 # Workflow — Canonical session cadence
 
-> **Status:** Authoritative · **Last updated:** 2026-07-05 · **Audience:** anyone (human or Claude) opening a session against this repo.
+> **Status:** Authoritative · **Last updated:** 2026-07-15 (docs housekeeping — `docs/` reorganised into `guidelines/` + `reviews/`; dead tactical-exemplar links removed; the doc map below added) · **Audience:** anyone (human or Claude) opening a session against this repo.
 >
 > This doc names the canonical sequence of a working session: which skill fires when, where the artifacts land, and what the design principles are. It is the single source of truth for "how we work here." Skill bodies cross-reference this doc; this doc does not duplicate skill bodies.
 
 ## Read-first
 
-- [docs/architecture.md](architecture.md) — what the codebase actually contains. Open before any structural decision.
-- [docs/ux-principles.md](ux-principles.md) — design language. Every UI-touching session reads this.
+- [docs/guidelines/architecture.md](guidelines/architecture.md) — what the codebase actually contains. Open before any structural decision.
+- [docs/guidelines/ux-principles.md](guidelines/ux-principles.md) — design language. Every UI-touching session reads this.
 - `MEMORY.md` (in your Claude project memory directory) — the persistent context index (auto-loaded by Claude Code).
 - [PLAN.md](../PLAN.md) — phase dashboard. **Read for context; never edit phase content outside `/feature wrap`.**
 - [docs/adr/](adr/) — every locked decision. New work starts by reading the relevant ADR header.
 - [docs/tactical/](tactical/) — short-lived working docs. Each tactical's "Read first" block names the ADRs it implements.
+
+## The doc map — what lives where, and who maintains it
+
+[docs/README.md](README.md) is the full index; this is the one-screen version. **Docs are grouped by change discipline, not by topic:**
+
+| Where | What | Who writes it |
+|---|---|---|
+| [docs/guidelines/](guidelines/) | Durable **how-we-build** references, kept true to the code: `architecture` · `ux-principles` · `canvas-rendering-guidelines` · `testing` · `perf-troubleshooting` | Whoever changes the behaviour, in the same commit. `/notes` sweeps at end-of-session |
+| [docs/reviews/](reviews/) | **Frozen** reviewer-grade snapshots (`technical-review-*`) — immutable once cut, true only as of their freeze date | Cut deliberately at a ship boundary; never edited afterwards |
+| [docs/adr/](adr/) | One durable **decision** each | `/feature start\|extend\|supersede` |
+| [docs/tactical/](tactical/) | Short-lived working docs | `/feature start`, deleted at `/feature wrap` |
+| [docs/features.md](features.md) | The durable **feature inventory** — what this fork adds vs upstream, with ADR links. Tracks `integration`, so it can lead the released line. The root README carries only the condensed Highlights | **`/notes`**, from `feat`/`ux` commits |
+| [docs/deployment.md](deployment.md) · [docs/manual-test-baseline.md](manual-test-baseline.md) | Deploy walkthrough · point-in-time manual walk record | Whoever changes the target · re-walked on demand |
+| [PLAN.md](../PLAN.md) · [known_issues.md](../known_issues.md) | Roadmap dashboard · open-issues register | `/feature wrap` · `/notes` + `/shake-out` |
+
+**Don't confuse `/feature` (the skill, singular) with [docs/features.md](features.md) (the inventory, plural).** They never touch each other: `/feature` owns ADRs + tacticals + PLAN.md; `features.md` is owned solely by `/notes`.
 
 ## Stages of a session
 
@@ -123,10 +139,11 @@ Build/test scope by change class:
 
 ## Tactical-driven sessions
 
-Some work is too large for a single ADR scaffold but too narrow for PLAN.md. That's a tactical doc. Recent examples in the canonical pattern:
+Some work is too large for a single ADR scaffold but too narrow for PLAN.md. That's a tactical doc.
 
-- [docs/tactical/productization-audit.md](tactical/productization-audit.md) (this audit) — 8 workstreams, 9 cross-cutting themes, ADRs 0007–0010 spawned, multiple cleanup tacticals queued. Lives until M10 ships; deleted at wrap-up.
-- [docs/tactical/layout-revamp.md](tactical/layout-revamp.md) — locked-decision exemplar; references back from `/feature` template.
+**Tacticals are deliberately short-lived — the wrap deletes them, so worked examples do not persist.** The canonical exemplars this section used to link (`productization-audit.md`, `layout-revamp.md`) were both wrapped and deleted, exactly as designed; their decisions live in ADRs 0005/0007–0010 and their process history in git. **The template is not an exemplar file — it is inlined in [`/feature` Phase 3](../.claude/commands/feature.md), which is the authoritative copy.** To read a real one, `git log --diff-filter=D --name-only -- docs/tactical/` and check out a deleted file.
+
+[docs/tactical/](tactical/) is **empty between initiatives, by design.** If you find a doc sitting there whose work has shipped, it has calcified — wrap it. Knowledge worth keeping is a **guideline** (durable how-we-build) or an **ADR** (a decision), never a permanent tactical. Three docs were folded out on 2026-07-15 for exactly that reason; see [tactical/README.md](tactical/README.md).
 
 **The tactical-driven session pattern:**
 
@@ -137,7 +154,7 @@ Some work is too large for a single ADR scaffold but too narrow for PLAN.md. Tha
 5. Synthesis spawns the durable artifacts (ADRs) and the downstream cleanup tacticals.
 6. `/feature wrap <topic>` retires the tactical once every downstream artifact has shipped.
 
-This audit (`productization-audit.md`) is the most recent worked example. Future audits or large initiatives should reproduce its shape: Phase A discovery → Phase A synthesis → Phase C artifact authoring → wrap.
+The productization audit (wrapped; git history) is the reference shape. Future audits or large initiatives should reproduce it: Phase A discovery → Phase A synthesis → Phase C artifact authoring → wrap.
 
 ## Design principles
 
@@ -188,7 +205,7 @@ Skill bodies use `cd packages/...`, `npm run ...`, `grep`. Claude Code's harness
 
 **Why:** a per-issue study is well-grounded (Principle 1) yet coherence-blind *by construction* — isolating issues is exactly where cross-issue contradictions hide. The 2026-06-18 canvas-ux-overhaul scaffold routed a command into a context menu that doesn't exist while a sibling ADR reassigned that menu's trigger (right-click) to pan. This is the **opposite** failure from Principle 2's "don't pile on" — hold both at once: **minimal moves, maximal coherence.** See the `feedback_whole_experience_coherence` memory.
 
-**Practiced version:** `/feature` (Phase 1.5) and `/audit` (Phase 5d) run a mandatory consequences pass that names the redundant/contradicted/orphaned surfaces per change and reconciles against mirroring surfaces — selection two-way sync ([ux-principles §4.1](ux-principles.md#41-two-way-panel--canvas-sync)), item-type parity (§5), the edit/view/present split (§11).
+**Practiced version:** `/feature` (Phase 1.5) and `/audit` (Phase 5d) run a mandatory consequences pass that names the redundant/contradicted/orphaned surfaces per change and reconciles against mirroring surfaces — selection two-way sync ([ux-principles §4.1](guidelines/ux-principles.md#41-two-way-panel--canvas-sync)), item-type parity (§5), the edit/view/present split (§11).
 
 ## Review gate
 
@@ -196,8 +213,7 @@ Skill bodies use `cd packages/...`, `npm run ...`, `grep`. Claude Code's harness
 
 ## UX journey testing
 
-The usability analog of the perf harness ([ADR 0020](adr/0020-engine-perf-harness-and-measurement-protocol.md)
-+ [perf-charter](tactical/perf-charter.md)): an **on-demand**, persona-driven journey test of the live UI,
+The usability analog of the perf harness ([ADR 0020](adr/0020-engine-perf-harness-and-measurement-protocol.md)): an **on-demand**, persona-driven journey test of the live UI,
 governed by [ADR 0028 — UX Journey-Testing Protocol](adr/0028-ux-journey-testing-protocol.md). Run it
 **periodically** — before a release, after a broad UX-surface change (an overhaul like ADRs 0022–0027), or
 when usability is in question — **not** every session.
@@ -216,7 +232,7 @@ when usability is in question — **not** every session.
 
 ## Process debt — deferred skills
 
-Per [productization-audit.md A.9.4](tactical/productization-audit.md), nine missing-skill candidates were catalogued. The triage:
+The productization audit (§A.9.4; wrapped — see git history) catalogued nine missing-skill candidates. The triage:
 
 | # | Candidate | Disposition | Gate |
 |---|---|---|---|
@@ -258,6 +274,7 @@ The audit identified nine anomalies (A.9.5 S1–S9). The ones with a written res
 
 ## See also
 
-- [productization-audit.md A.9](tactical/productization-audit.md) — the audit pass that produced this doc.
+- [docs/README.md](README.md) — the map of the `docs/` tree: which doc is a living reference, a frozen review, an ADR, or a tactical, and where each lives.
+- The productization audit §A.9 — the pass that produced this doc. Wrapped and deleted per the tactical lifecycle; see git history.
 - `MEMORY.md` (Claude project memory) — memory index. Every design principle above links to its memory backing.
 - [.claude/commands/](../.claude/commands/) — the in-scope skill bodies. Each one's behaviour is its own source of truth; this doc references but does not duplicate.

@@ -10,7 +10,7 @@
 The engine-performance initiative (T2 render rewrite — [ADR 0019](0019-canvas2d-node-render-layer.md)
 — and the planned T3 simulation engine) needs a **reproducible measurement
 methodology**, not ad-hoc timings. The methodology was developed and proven across
-Iters 0–9 and has been living in [docs/tactical/perf-charter.md](../tactical/perf-charter.md).
+Iters 0–9 and had been living in the `docs/tactical/perf-charter.md` working doc — **this ADR is now the sole durable copy** (the charter was wrapped and deleted 2026-07-15; its history is in git, and its unratified T3 sim mandate moved to PLAN.md's ENG-T3 row).
 That file is a **tactical** doc — by the three-tier convention (ADR 0008, and
 [workflow.md](../workflow.md) Principle 4) it is deleted at `/feature wrap` when T2
 ships. Its durable half — the harness contract, the measurement discipline, the tier
@@ -92,8 +92,9 @@ committing. Local minimum (3 consecutive sub-noise hypotheses) or a provable sub
 ceiling triggers a findings report.
 
 **2026-07-02 (E-slice — labels & text-styling productization).** Productizing the
-labels/text-styling UX ([integration plan](../tactical/integration-productization-plan.md),
-slice E) added five styling/pan stress scenarios to the harness. Each conforms verbatim
+labels/text-styling UX (the integration productization plan, slice E — a tactical wrapped
+in `ce8f8f5`; git history is the archive) added five styling/pan stress scenarios to the
+harness. Each conforms verbatim
 to §1–§6 — env-gated, comma-N lists (e.g. `PERF_LABELHEAVY=200,500,1000`),
 median-of-`REPEATS` with warm-up discarded, calibration-matched, CoV noise band reported —
 and each writes its own `perf-results/<name>.md`, leaving `baseline.md` **untouched** (the
@@ -114,9 +115,11 @@ with a **draw-count == N** assertion (`renderedNodes` for the node canvas; `rend
 for the Canvas2D Label layer — every styled entity must actually draw). The gate result
 (median-of-7, N ∈ {200, 500, 1000}): base spawn unchanged at N ≥ 500, the Canvas2D surfaces
 ride at the ~79 ms baseline, and the DOM floating-label chip layer's ~2.3× spawn-p95 cliff
-is the measured evidence behind the **Label substrate = Canvas2D** decision
-([ADR 0031](0031-floating-label-entity-model.md) E3) — full numbers in
-[`perf-results/e-slice-gate.md`](../../perf-results/e-slice-gate.md). `measurePan` is the
+is the measured evidence behind the then-current **Label substrate = Canvas2D** decision
+([ADR 0031](0031-floating-label-entity-model.md) E3 — since superseded by
+[ADR 0038](0038-webgl-instanced-render-substrate.md): labels are now drawn on the WebGL2
+substrate with every other bulk layer). Full numbers were in `perf-results/e-slice-gate.md`,
+retired 2026-07-08 under the retention policy below; git history is the archive. `measurePan` is the
 **first** pan baseline (it did not exist on master), so it records the floor ENG-PAN R1
 must beat (KR-P3), not a regression comparison.
 
@@ -153,7 +156,7 @@ must beat (KR-P3), not a regression comparison.
   with collision — before any T3 (LEB60) claim. T3 sim targets are unmeasurable until
   it exists.
 - A durable summary of `npm run perf` (contract, env knobs, gotcha) lives in
-  [docs/testing.md](../testing.md); this ADR is the decision, that section is the how-to.
+  [docs/guidelines/testing.md](../guidelines/testing.md); this ADR is the decision, that section is the how-to.
 
 ## Acceptance criteria
 

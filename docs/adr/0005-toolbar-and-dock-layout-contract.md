@@ -16,7 +16,7 @@ Three signals drove this revision:
 
 3. **Future controls (text/node sizing, focus mode, annotation overlay, format toggles) need a reserved place.** Without a layout contract, every new toolbar control gets bolted on ad hoc, repeating the burger-junk-drawer pattern. We need named regions with stable ownership rules so future ADRs can say "this control goes in the View modes group" without re-litigating the layout.
 
-This decision is purely about the **shell** — top toolbar, left strip, and where each class of control lives. Per-panel internals (file-tree controls, layers row controls, elements catalog) are out of scope; existing UX principles in [`docs/ux-principles.md`](../ux-principles.md) continue to govern those.
+This decision is purely about the **shell** — top toolbar, left strip, and where each class of control lives. Per-panel internals (file-tree controls, layers row controls, elements catalog) are out of scope; existing UX principles in [`docs/guidelines/ux-principles.md`](../guidelines/ux-principles.md) continue to govern those.
 
 ## Decision
 

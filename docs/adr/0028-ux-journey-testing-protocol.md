@@ -1,6 +1,6 @@
 # ADR 0028 — UX Journey-Testing Protocol
 
-**Status:** Proposed
+**Status:** Accepted (in force — [workflow.md](../workflow.md) names this the governing protocol for UX journey tests, and the 2026-06-21 persona run followed it. Status corrected 2026-07-15: it had sat `Proposed` while already governing.)
 **Date:** 2026-06-21
 **Supersedes:** none
 **Superseded by:** none
@@ -9,7 +9,7 @@
 
 We validate the **engine** with a repeatable harness and a written protocol —
 [ADR 0020 (engine perf harness & measurement protocol)](0020-engine-perf-harness-and-measurement-protocol.md)
-plus [docs/tactical/perf-charter.md](../tactical/perf-charter.md) and a `workflow.md` slot. We had **no
+plus a `workflow.md` slot. We had **no
 equivalent for usability**. UX regressions (discoverability, accessibility, localisation, mode clarity)
 are exactly the class that type-checks, jest, and code review do not catch, and the canvas-ux-overhaul
 (ADRs 0022–0027) is the kind of broad surface change that warrants a usability pass.

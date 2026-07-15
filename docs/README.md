@@ -2,10 +2,21 @@
 
 **Axoview** is an isometric diagramming tool (a community fork of FossFLOW / Isoflow). For the product overview, feature list, and lineage, start at the [root README](../README.md). This page is the **map of the `docs/` tree** — what each document is for and when to read it.
 
-The docs follow a three-tier convention (see [workflow.md Design principle 4](workflow.md)):
+## The tree
 
-- **Living references** — current quick-reference for how the system works *today*. Kept in sync with the code; the place to read before doing work.
-- **Frozen baselines** — point-in-time deep snapshots. Never updated after they're cut; they record what was true on a date, for reviewer hand-off and historical comparison.
+```
+docs/
+├── guidelines/   Durable how-we-build references — read before touching a surface (living)
+├── reviews/      Frozen reviewer-grade snapshots, immutable once cut
+├── adr/          One durable decision each (Proposed → Accepted → Superseded)
+├── tactical/     Short-lived working docs; deleted at /feature wrap
+└── (root)        README · workflow · deployment · features · manual-test-baseline · upstream-changelog
+```
+
+Four kinds of document, by change discipline (see [workflow.md Design principle 4](workflow.md)):
+
+- **Living references** — how the system works *today*; kept in sync with the code. They live in `guidelines/` (how we build) plus a few at `docs/` root (process, deploy, product).
+- **Frozen baselines** — point-in-time deep snapshots in `reviews/`. **Never updated after they're cut** — they record what was true on a date, for reviewer hand-off and historical comparison.
 - **Decision records (ADRs)** — one durable decision each, with rationale. Change only via the `/feature extend|supersede` discipline.
 - **Operational** — moving-state trackers: the roadmap, the open-issues register, the manual-test record.
 
@@ -17,33 +28,47 @@ When a living reference and a frozen baseline disagree, the **living reference w
 
 Read these before touching the relevant surface. Each is a quick-reference, not a comprehensive description — they cross-link to the deeper baselines and ADRs for detail.
 
+### `guidelines/` — how we build
+
 | Doc | Read it when… | Scope |
 |---|---|---|
-| [architecture.md](architecture.md) | You need the 5-minute orientation: what the codebase contains and where each piece lives | Feature inventory, store/mode/reducer/scene maps, lessons learned, pointers to all deeper sources |
-| [workflow.md](workflow.md) | Starting a session — which skill fires when, where artifacts land | Canonical session cadence, skill decision table, six design principles |
-| [ux-principles.md](ux-principles.md) | Building or reviewing any UI surface (canvas, panels, file explorer, layers, dialogs) | The shipped design language, expressed as principles so new work doesn't drift |
-| [testing.md](testing.md) | You need the regression-suite catalogue — which suite pins which contract, and the coverage gaps | Per-layer suite breakdown, classifications, how to run |
+| [architecture.md](guidelines/architecture.md) | You need the 5-minute orientation: what the codebase contains and where each piece lives | Feature inventory, store/mode/reducer/scene maps, lessons learned, pointers to all deeper sources |
+| [ux-principles.md](guidelines/ux-principles.md) | Building or reviewing any UI surface (canvas, panels, file explorer, layers, dialogs) | The shipped **design language**, expressed as principles so new work doesn't drift |
+| [canvas-interaction.md](guidelines/canvas-interaction.md) | Touching canvas **input** — event routing, hit-testing, modes, drag, selection, gestures | The input contract: dispatch spine, the `isRendererInteraction` gate, the 13-mode registry, algorithm contracts, and the load-bearing drag/perf invariants |
+| [canvas-rendering-guidelines.md](guidelines/canvas-rendering-guidelines.md) | Touching the GPU bulk layers, the sprite atlas, line-style geometry, or image export | The **pixel**-fidelity contract for the WebGL2 substrate |
+| [testing.md](guidelines/testing.md) | You need the regression-suite catalogue — which suite pins which contract, and the coverage gaps | Per-layer suite breakdown, classifications, how to run, CI sharding model |
+| [perf-troubleshooting.md](guidelines/perf-troubleshooting.md) | Chasing a render/drag/startup performance problem in the React/DOM layer | Diagnostic playbook + case studies (drag GC cliff, cold-start gap). For GPU-substrate fidelity/perf, use canvas-rendering-guidelines instead |
+
+### `docs/` root — process, deploy, product
+
+| Doc | Read it when… | Scope |
+|---|---|---|
+| [workflow.md](workflow.md) | Starting a session — which skill fires when, where artifacts land | Canonical session cadence, skill decision table, seven design principles |
 | [deployment.md](deployment.md) | Deploying to local dev / Docker / Cloudflare Pages | From-scratch walkthrough per target, auth modes, smoke tests, troubleshooting |
-| [perf-troubleshooting.md](perf-troubleshooting.md) | Chasing a render/drag/startup performance problem | Diagnostic playbook + case studies (drag GC cliff, cold-start gap) |
+| [features.md](features.md) | You need the complete list of what this fork adds vs upstream | The durable feature inventory, with ADR links. Maintained by `/notes`; the root README carries only the condensed Highlights. Tracks `integration`, so it may list features not yet in a release |
 
 ---
 
-## Frozen baselines
+## Frozen baselines — `reviews/`
 
-Deep snapshots cut on a date and left immutable. Read for the comprehensive narrative the living docs deliberately don't restate, or to see what a past state looked like.
+Deep snapshots cut on a date and left immutable. Read for the comprehensive narrative the living docs deliberately don't restate, or to see what a past state looked like. **Each is true as of its freeze point — never as current state.**
 
-| Doc | What it is |
-|---|---|
-| [technical-review-2026-07.md](technical-review-2026-07.md) | **Current** reviewer-grade deep snapshot (post-labels/text-styling wave, v3.1.0 candidate at PR #58). Delta-based on the 2026-06 baseline; adds the full audit report — health scorecard, UX-consistency / perf hot-path / coherence sweeps, risk register, P1–P3 recommendations. |
-| [technical-review-2026-06.md](technical-review-2026-06.md) | Prior snapshot (post-v1.1 wave, v2.0.1). Still the full-depth architecture narrative (system + sequence diagrams, deployment topology, file-by-file inventory) that the 2026-07 review deliberately does not restate. Superseded as "current" by the 2026-07 review. |
-| [technical-review-2026-05.md](technical-review-2026-05.md) | Prior snapshot (post-M10 v1.0.0). Superseded by the 2026-06 review; kept for historical comparison. |
-| [upstream-changelog.md](upstream-changelog.md) | Verbatim pre-fork `stan-smith/FossFLOW` changelog, preserved for lineage. Not maintained going forward. |
+| Doc | Covers | What it is |
+|---|---|---|
+| [technical-review-2026-07-08.md](reviews/technical-review-2026-07-08.md) | WebGL2 substrate fold · [ADR 0038](adr/0038-webgl-instanced-render-substrate.md) · v3.5.0 (PR #63) | **Newest snapshot**, but *scoped* — the GPU fold only, not a full-system review. Verdict, anti-cheat integrity, context-loss fixes, deferrals. |
+| [technical-review-2026-07.md](reviews/technical-review-2026-07.md) | Labels / text-styling wave · v3.0.3 (v3.1.0 candidate, PR #58) | The most recent **comprehensive** baseline. Delta on 2026-06; first to fold in the full `/audit` report — health scorecard, UX-consistency / perf hot-path / coherence sweeps, risk register, P1–P3 recommendations. |
+| [technical-review-2026-06.md](reviews/technical-review-2026-06.md) | post-v1.1 · v2.0.1 | Still the full-depth **architecture narrative** (system + sequence diagrams, deployment topology, file-by-file inventory) that the later reviews deliberately do not restate. |
+| [technical-review-2026-05.md](reviews/technical-review-2026-05.md) | post-M10 · v1.0.0 | The original baseline. Kept for historical comparison. |
+
+> **Currency (2026-07-15).** The released line is **v3.7.0** (2026-07-14); the newest review above froze at v3.5.0. **No review yet covers** Google Drive storage (v3.2.0, ADRs 0035–0037), marketing landing / SEO (v3.6.0, ADRs 0040–0041), or Drive-native sharing (v3.7.0, ADRs 0042–0043). For those surfaces read the ADRs + the living references; a comprehensive baseline review covering all three is the largest outstanding docs debt.
+
+**Lineage:** [upstream-changelog.md](upstream-changelog.md) — the verbatim pre-fork `stan-smith/FossFLOW` changelog, preserved for traceability and not maintained going forward. Frozen, but kept at `docs/` root rather than in `reviews/` because it is upstream history, not a review of this codebase.
 
 ---
 
 ## Decision records (ADRs)
 
-[docs/adr/](adr/) — 35 ADRs (31 Accepted, 4 Proposed; 0016/0017 are unused numbers), one durable decision each. Start any new work by reading the ADR header for the contract you're about to touch. *(Table rebuilt 2026-07-05 — it had been stale at 11 rows since 0012 landed; technical-review-2026-07 §8j. 0035–0037 added 2026-07-07 with the Drive-storage promotion.)*
+[docs/adr/](adr/) — **41 ADRs** (40 Accepted · 1 superseded-in-part; 0016/0017 are unused numbers), one durable decision each. Start any new work by reading the ADR header for the contract you're about to touch. *(Table rebuilt 2026-07-15 — it had been stale at 35 rows, ending at 0037, since the Drive-storage promotion; 0038–0043 were missing entirely. Same sweep corrected four statuses: 0022/0023/0025/0028 had sat `Proposed` for weeks after their work shipped — 0028 while `workflow.md` already named it the governing protocol. **Nothing is Proposed today**; if you add one, keep this line honest.)*
 
 | # | Decision |
 |---|---|
@@ -54,7 +79,7 @@ Deep snapshots cut on a date and left immutable. Read for the comprehensive narr
 | [0005](adr/0005-toolbar-and-dock-layout-contract.md) | Toolbar & dock layout contract |
 | [0006](adr/0006-canvas-selection-contract.md) | Canvas selection contract (single + multi) |
 | [0007](adr/0007-trace-harness.md) | Operational trace harness |
-| [0008](adr/0008-naming-convention.md) | Naming convention |
+| [0008](adr/0008-naming-convention.md) | Naming convention (incl. the Modal/Dialog/Popover/Panel/Banner/Screen vocabulary) |
 | [0009](adr/0009-deployment-topology.md) | Deployment topology |
 | [0010](adr/0010-session-backend-contract.md) | Session backend contract |
 | [0011](adr/0011-error-ux-contract.md) | Error-UX contract |
@@ -63,16 +88,16 @@ Deep snapshots cut on a date and left immutable. Read for the comprehensive narr
 | [0014](adr/0014-ephemeral-annotation-overlay.md) | Ephemeral annotation overlay |
 | [0015](adr/0015-node-label-legibility-scaling.md) | Node label legibility scaling |
 | [0018](adr/0018-touch-pen-gesture-contract.md) | Touch / pen canvas gesture contract |
-| [0019](adr/0019-canvas2d-node-render-layer.md) | Canvas2D node render layer (default substrate) |
+| [0019](adr/0019-canvas2d-node-render-layer.md) | Canvas2D node render layer *(superseded in part by 0038 — the bulk substrate)* |
 | [0020](adr/0020-engine-perf-harness-and-measurement-protocol.md) | Engine perf harness & measurement protocol |
 | [0021](adr/0021-paste-algorithmic-perf-and-spatial-index.md) | Paste algorithmic perf & the derived tile index |
-| [0022](adr/0022-canvas-pointer-interaction-model.md) | Canvas pointer-interaction model *(Proposed)* |
-| [0023](adr/0023-off-grid-positioning-and-collision.md) | Off-grid positioning & per-item collision *(Proposed)* |
+| [0022](adr/0022-canvas-pointer-interaction-model.md) | Canvas pointer-interaction model |
+| [0023](adr/0023-off-grid-positioning-and-collision.md) | Off-grid positioning & per-item collision |
 | [0024](adr/0024-node-label-positioning-and-sizing.md) | Node label positioning & sizing |
-| [0025](adr/0025-image-export-robustness-and-presets.md) | Image export robustness & presets *(Proposed)* |
+| [0025](adr/0025-image-export-robustness-and-presets.md) | Image export robustness & presets |
 | [0026](adr/0026-rectangle-edge-transform-handles.md) | Rectangle edge-midpoint transform handles |
 | [0027](adr/0027-canvas-context-menu.md) | Canvas context menu (per-item command surface) |
-| [0028](adr/0028-ux-journey-testing-protocol.md) | UX journey-testing protocol *(Proposed)* |
+| [0028](adr/0028-ux-journey-testing-protocol.md) | UX journey-testing protocol |
 | [0029](adr/0029-sanitize-user-authored-html.md) | Sanitize user-authored HTML |
 | [0030](adr/0030-docked-style-controls-strip.md) | Docked style-controls strip (canonical styling surface) |
 | [0031](adr/0031-floating-label-entity-model.md) | Floating Label as a first-class entity |
@@ -82,6 +107,24 @@ Deep snapshots cut on a date and left immutable. Read for the comprehensive narr
 | [0035](adr/0035-google-identity-and-drive-authorization.md) | Google identity & Drive authorization (GIS token model) |
 | [0036](adr/0036-google-drive-storage-provider.md) | Google Drive storage provider |
 | [0037](adr/0037-storage-places-model.md) | Storage places model (one tree, two places) |
+| [0038](adr/0038-webgl-instanced-render-substrate.md) | WebGL2 instanced GPU render substrate (T4) — the **sole** bulk substrate |
+| [0039](adr/0039-unified-color-picker-and-standard-palette.md) | Unified color picker & standard palette |
+| [0040](adr/0040-marketing-landing-and-spa-crawlability.md) | Marketing landing & SPA crawlability (editor at `/app`) |
+| [0041](adr/0041-discoverability-metadata-and-social-sharing.md) | Discoverability metadata & social-sharing contract |
+| [0042](adr/0042-drive-native-sharing-and-readonly-preview.md) | Drive-native diagram sharing & read-only preview |
+| [0043](adr/0043-deferred-backend-for-google-api-hardening.md) | Deferred backend for Google-API hardening (auth broker, read proxy, snapshot store) |
+
+---
+
+## Tactical — [`tactical/`](tactical/)
+
+Short-lived working docs ([workflow.md](workflow.md) Design principle 4): scaffolded by `/feature start`, **deleted** by `/feature wrap` once every downstream artifact ships — the ADRs are the durable record.
+
+**Empty is the healthy state** — see [tactical/README.md](tactical/README.md) for the lifecycle. Three docs that had calcified there were folded out on 2026-07-15: the two `canvas-interaction-*` references became [guidelines/canvas-interaction.md](guidelines/canvas-interaction.md), and `perf-charter.md` was wrapped into [ADR 0020](adr/0020-engine-perf-harness-and-measurement-protocol.md) + PLAN.md's ENG-T3 row.
+
+| In flight | What it is |
+|---|---|
+| [adr-code-audit.md](tactical/adr-code-audit.md) | ADR ⇄ code conformance audit — verify all 41 ADRs' `Status`, cross-links, and decisions against the code. Scaffolded 2026-07-15. |
 
 ---
 
@@ -92,8 +135,8 @@ Moving-state trackers. These change as work progresses (under their own change d
 | Doc | Purpose |
 |---|---|
 | [PLAN.md](../PLAN.md) | Strategic phase dashboard. Read for context; edited only via `/feature wrap`. |
-| [known_issues.md](../known_issues.md) | Register of open runtime issues, deferred fixes, and their risk/complexity. |
-| [manual-test-baseline.md](manual-test-baseline.md) | Canonical "what Axoview does today" walk record; seeds the E2E scenario catalog + ship-readiness checklist. |
+| [known_issues.md](../known_issues.md) | Register of open runtime issues, deferred fixes, and their risk/complexity. The register of record for divergences (e.g. D-9). |
+| [manual-test-baseline.md](manual-test-baseline.md) | Point-in-time manual walk record (2026-05-21). **Historical** — it predates Drive storage, the `/app` split, and Drive-native sharing; re-walk before trusting it as "what Axoview does today." |
 
 ---
 

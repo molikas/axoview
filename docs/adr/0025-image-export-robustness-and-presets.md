@@ -1,6 +1,6 @@
 # ADR 0025 — Image Export Robustness & Presets
 
-**Status:** Proposed
+**Status:** Accepted (shipped 2026-06-21 with the UX-CANVAS wave — robust export + presets; PLAN.md `[x]`. Status corrected 2026-07-15: it had sat `Proposed` since shipping. Note an open export defect is tracked in known_issues.md — a bug in a shipped decision, not an unaccepted one.)
 **Date:** 2026-06-18
 **Supersedes:** none (error surfacing follows [ADR 0011](0011-error-ux-contract.md))
 **Superseded by:** none

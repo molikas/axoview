@@ -17,7 +17,7 @@ Axoview's performance work needed a way to *name a bottleneck before changing co
 
 3. **A behavioural-contract regression suite** — [`__perf_refactor_regression__/`](../../packages/axoview-lib/src/__perf_refactor_regression__/) (18 spec files + a [README](../../packages/axoview-lib/src/__perf_refactor_regression__/README.md)). These tests were written *before* the performance refactoring to lock in correct behaviour so the hot-path rewrites couldn't silently regress it. They are kept separate from `src/**/__tests__/` precisely so a reviewer can open one folder and see what was guarded before the hot paths were touched.
 
-The diagnostic discipline that ties them together is captured in the [performance-troubleshooting playbook](../perf-troubleshooting.md): a four-step diagnostic pyramid (baseline diag → render-count probe → Chrome profile → targeted instrumentation), a set of hard rules ("measure first, fix second"; "one source of truth per frame"; "compositor for position, React for content"), and a catalogue of the six anti-patterns (A-1…A-6) the investigations surfaced and fixed.
+The diagnostic discipline that ties them together is captured in the [performance-troubleshooting playbook](../guidelines/perf-troubleshooting.md): a four-step diagnostic pyramid (baseline diag → render-count probe → Chrome profile → targeted instrumentation), a set of hard rules ("measure first, fix second"; "one source of truth per frame"; "compositor for position, React for content"), and a catalogue of the six anti-patterns (A-1…A-6) the investigations surfaced and fixed.
 
 These three artifacts plus the playbook were shipping and load-bearing, but had no single decision record. [workflow.md](../workflow.md) names "ADR 0007 acceptance" as the gate for the deferred `/trace` verification skill ([A.9.4 #2](../workflow.md#process-debt--deferred-skills), [S7](../workflow.md#cadence-anomalies--locked-resolutions)) — a dangling reference to an ADR that did not exist. This backfill closes that reference.
 
@@ -35,7 +35,7 @@ The zero-cost-when-off property is the load-bearing constraint: diagnostics that
 
 ### 2. Persistent diagnostics live in dedicated, flagged modules; one-off instrumentation is stripped before commit
 
-Per [perf-troubleshooting.md A-6](../perf-troubleshooting.md#a-6--diagnostic-instrumentation-shipped-in-production):
+Per [perf-troubleshooting.md A-6](../guidelines/perf-troubleshooting.md#a-6--diagnostic-instrumentation-shipped-in-production):
 
 - **Persistent diagnostics** (kept indefinitely for future investigations) are gated behind a flag and live in a dedicated module — `renderProbe.ts`, `DiagnosticsOverlay.tsx`. Safe to ship.
 - **One-off troubleshooting** `console.log` calls added during an active investigation MUST be stripped before commit. The check is `git grep -n "console\." packages/*/src` (excluding tests) run immediately before committing perf work.
@@ -50,7 +50,7 @@ Per [perf-troubleshooting.md A-6](../perf-troubleshooting.md#a-6--diagnostic-ins
 
 ### 4. The diagnostic pyramid is the canonical order; the playbook is its living record
 
-When a slow-interaction report lands, the [playbook](../perf-troubleshooting.md#the-diagnostic-pyramid-cheapest-first) prescribes the order: (1) capture a baseline diag from DiagnosticsOverlay, (2) run the render-count probe, (3) only then open a Chrome Performance profile, (4) add targeted throttled instrumentation to confirm the named layer. The playbook is a **living doc** — each investigation that lands appends a Case study subsection (MQA #7, cold-start gap are the two worked examples).
+When a slow-interaction report lands, the [playbook](../guidelines/perf-troubleshooting.md#the-diagnostic-pyramid-cheapest-first) prescribes the order: (1) capture a baseline diag from DiagnosticsOverlay, (2) run the render-count probe, (3) only then open a Chrome Performance profile, (4) add targeted throttled instrumentation to confirm the named layer. The playbook is a **living doc** — each investigation that lands appends a Case study subsection (MQA #7, cold-start gap are the two worked examples).
 
 ## Consequences
 
@@ -68,7 +68,7 @@ When a slow-interaction report lands, the [playbook](../perf-troubleshooting.md#
 
 ## See also
 
-- [docs/perf-troubleshooting.md](../perf-troubleshooting.md) — the diagnostic playbook (hard rules, pyramid, A-1…A-6 anti-patterns, case studies).
+- [docs/guidelines/perf-troubleshooting.md](../guidelines/perf-troubleshooting.md) — the diagnostic playbook (hard rules, pyramid, A-1…A-6 anti-patterns, case studies).
 - [packages/axoview-lib/src/__perf_refactor_regression__/README.md](../../packages/axoview-lib/src/__perf_refactor_regression__/README.md) — the regression suite's charter and run command.
 - [packages/axoview-app/src/components/DiagnosticsOverlay.tsx](../../packages/axoview-app/src/components/DiagnosticsOverlay.tsx) — the runtime sampling surface.
 - [packages/axoview-lib/src/utils/renderProbe.ts](../../packages/axoview-lib/src/utils/renderProbe.ts) — the render-count probe.

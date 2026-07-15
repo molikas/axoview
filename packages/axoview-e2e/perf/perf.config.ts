@@ -1,12 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Dedicated Playwright config for the engine perf harness (PHASE 0 of
- * docs/tactical/perf-charter.md). Separate from the functional e2e config so
- * the perf run owns its own server lifecycle and never shares a worker with
- * the journey suite.
+ * Dedicated Playwright config for the engine perf harness — the measurement
+ * protocol is docs/adr/0020-engine-perf-harness-and-measurement-protocol.md.
+ * Separate from the functional e2e config so the perf run owns its own server
+ * lifecycle and never shares a worker with the journey suite.
  *
- * Build gotcha (charter, "Environment notes"): axoview-app resolves
+ * Build gotcha: axoview-app resolves
  * axoview-lib from `dist/`, NOT source — so a stale dev server silently
  * measures the OLD lib. We bake the fix into webServer.command: build the lib
  * FIRST, then start the dev server, and (by default) do NOT reuse an existing

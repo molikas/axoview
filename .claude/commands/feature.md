@@ -2,7 +2,7 @@
 
 Bootstrap a new feature against the Axoview docs convention (ADRs in `docs/adr/`, short-lived tactical plans in `docs/tactical/`, strategic phases in `PLAN.md`). Also handles ADR addendums, supersession, and tactical wrap-up.
 
-> **Read first when the feature touches UI:** [`docs/ux-principles.md`](../../docs/ux-principles.md) — the consolidated design language for Axoview (layout, affordances, keyboard, item-type parity). Mirror existing patterns rather than introducing new ones.
+> **Read first when the feature touches UI:** [`docs/guidelines/ux-principles.md`](../../docs/guidelines/ux-principles.md) — the consolidated design language for Axoview (layout, affordances, keyboard, item-type parity). Mirror existing patterns rather than introducing new ones.
 
 ## Modes
 
@@ -51,7 +51,7 @@ A per-issue study is coherence-blind by construction. Before scaffolding, run an
 - **Contradicts** — does it collide with another proposed change or an existing affordance? (Reconcile; don't scaffold both sides of a contradiction.)
 - **Orphaned** — does it leave related functionality drifting, or **lean on a surface that doesn't exist?** **Grep to confirm** every surface a plan references ("put it in the X menu / panel / dock") is real — if not, that's a build dependency to call out, not an assumption.
 
-Reconcile against mirroring surfaces: selection two-way sync ([ux-principles §4.1](../../docs/ux-principles.md)), item-type parity (§5), the edit/view/present split (§11). Surface these findings to the user **unprompted** as part of the study — "if we do X, then Y no longer makes sense / Z has no home" is the expected move. A scaffolded plan that contains an internal contradiction or a phantom surface has failed this phase.
+Reconcile against mirroring surfaces: selection two-way sync ([ux-principles §4.1](../../docs/guidelines/ux-principles.md)), item-type parity (§5), the edit/view/present split (§11). Surface these findings to the user **unprompted** as part of the study — "if we do X, then Y no longer makes sense / Z has no home" is the expected move. A scaffolded plan that contains an internal contradiction or a phantom surface has failed this phase.
 
 ### Phase 2 — Scaffold ADR(s)
 
@@ -60,10 +60,10 @@ Pick the next sequential number (zero-padded to 4). Create `docs/adr/NNNN-kebab-
 ```markdown
 # ADR NNNN — Title Case Decision
 
-**Status:** Proposed       <!-- Proposed | Accepted | Superseded -->
+**Status:** Proposed       <!-- Proposed | Accepted | Superseded | Superseded in part (<what> ) -->
 **Date:** YYYY-MM-DD
-**Supersedes:** none       <!-- or: ADR NNNN -->
-**Superseded by:** none
+**Supersedes:** none       <!-- or: ADR NNNN | ADR NNNN in part (<which decision/section>) -->
+**Superseded by:** none    <!-- or: ADR MMMM | ADR MMMM in part (<which decision/section>) -->
 
 ## Context
 
@@ -95,7 +95,7 @@ The new ADR file in `docs/adr/` is the durable record. If the optional `project_
 
 ### Phase 3 — Scaffold tactical doc (if Phase 1 said yes)
 
-Create `docs/tactical/<topic>.md` (kebab-case topic). Use this template — copy the structure of [docs/tactical/layout-revamp.md](../../docs/tactical/layout-revamp.md) verbatim where in doubt. Every new tactical's "Read first" block links [docs/workflow.md](../../docs/workflow.md) as a baseline.
+Create `docs/tactical/<topic>.md` (kebab-case topic). Use the template below — it is self-contained and authoritative. Every new tactical's "Read first" block links [docs/workflow.md](../../docs/workflow.md) as a baseline.
 
 ```markdown
 # Tactical — <Title>
@@ -185,6 +185,21 @@ When a small new constraint or follow-up belongs *inside* an existing ADR rather
 2. Create a new ADR via the `start` template, with `**Supersedes:** ADR NNNN` filled in.
 3. Edit the old ADR: `**Status:** Superseded` and `**Superseded by:** ADR MMMM`. Leave the rest of the body intact for historical record.
 4. The ADR files carry the Supersedes/Superseded-by cross-links — that's the durable record. If the optional convention memory exists, update its ADR list too: the new ADR's bullet replaces the old one's purpose, but keep the old number listed (with `(superseded)` suffix) so cross-references in git history still resolve.
+
+### Partial supersession — and the `none (…prose…)` trap
+
+Most real supersessions here are **partial**: the new ADR takes over *one section* of the old one, which otherwise stands. Spell that in the **fields**, both directions, and **name the section** — "in part" alone makes the next reader diff two ADRs to find out which part:
+
+- New ADR: `**Supersedes:** [ADR NNNN §4](…) (<the decision being retired>)`
+- Old ADR: `**Superseded by:** [ADR MMMM](…) (§4 only — <what went>); §1–§3 stand` — and **leave its `Status` as `Accepted`**. Only flip `Status` to `Superseded` when the *whole* ADR is dead. (`Superseded in part` in the Status line is also legal, for when the retired part is the ADR's headline decision — ADR 0019 uses it.)
+
+Naming the surviving sections ("§1–§3, §5, §7 stand") is the part people skip and the part that pays: it tells the next reader what they can still rely on without re-deriving it.
+
+**Never write `**Supersedes:** none` and then describe a real relationship in the parenthetical.** The 2026-07-15 ADR⇄code audit found 10 ADRs doing this, and it was the mechanical cause of *every* one-way supersession edge in the corpus: a link written as prose after the word "none" is invisible to the reciprocal check, so the other side never gets updated. ADR 0030 was the worst case — its field said `none` while the *same line* said it "supersedes the connector Style tab decision in ADR 0004".
+
+A parenthetical is for **non-supersession context only** (*"amends ux-principles §5"*, *"interacts with ADR 0018"*, *"codifies existing patterns"*). If the word *supersedes* appears in your parenthetical, it belongs in the field. Both directions, every time.
+
+**Copy [ADR 0036](../../docs/adr/0036-google-drive-storage-provider.md)'s `Superseded by` line** — it is the best-formed in the corpus: two partial successors, each with its section and what it took, plus an explicit list of what still stands. Its reciprocals ([0037](../../docs/adr/0037-storage-places-model.md), [0042](../../docs/adr/0042-drive-native-sharing-and-readonly-preview.md)) both point back.
 
 ## Mode: `wrap`
 

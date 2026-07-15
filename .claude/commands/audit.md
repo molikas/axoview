@@ -2,7 +2,7 @@
 
 Run a comprehensive static analysis, coverage evaluation, security audit, and architecture review of the Axoview monorepo. Produces an executive-level report. Does NOT run E2E tests.
 
-> **UX consistency check:** when reviewing UI code, flag deviations from [`docs/ux-principles.md`](../../docs/ux-principles.md) — the Axoview design language. Inline `Typography` headers instead of `Section`, ALL CAPS labels, opacity-0 affordances, missing F2/Enter/Escape, etc. should appear in the audit report under "UX consistency."
+> **UX consistency check:** when reviewing UI code, flag deviations from [`docs/guidelines/ux-principles.md`](../../docs/guidelines/ux-principles.md) — the Axoview design language. Inline `Typography` headers instead of `Section`, ALL CAPS labels, opacity-0 affordances, missing F2/Enter/Escape, etc. should appear in the audit report under "UX consistency."
 >
 > **Process consistency check:** when the audit task touches session cadence (skill alignment, milestone gates, post-rename pointer hygiene, naming consistency across surfaces), read [`docs/workflow.md`](../../docs/workflow.md) first. Deviations from its locked decision table or design principles belong in the audit report.
 
@@ -87,7 +87,7 @@ ls packages/axoview-lib/src/hooks/
 ```
 
 Also read:
-- [`docs/architecture.md`](../../docs/architecture.md) (header + Section 1 inventory)
+- [`docs/guidelines/architecture.md`](../../docs/guidelines/architecture.md) (header + Section 1 inventory)
 - `packages/axoview-lib/src/index.ts` — public API surface
 - `packages/axoview-lib/src/standaloneExports.ts` — secondary exports
 - `packages/axoview-lib/src/stores/sceneStore.tsx` — undo/redo architecture
@@ -106,7 +106,7 @@ Also read:
 
 ## Phase 5b — UX Guideline Compliance
 
-Run grep checks against [`docs/ux-principles.md`](../../docs/ux-principles.md). Each finding is a deviation; report under "UX consistency" in the executive report.
+Run grep checks against [`docs/guidelines/ux-principles.md`](../../docs/guidelines/ux-principles.md). Each finding is a deviation; report under "UX consistency" in the executive report.
 
 ```bash
 # §1.5 — inline fontSize on Typography (drift; theme owns it)
@@ -157,14 +157,14 @@ grep -c 'id="ax-splash"' packages/axoview-app/public/index.html
 | `<TextField label="…">` | Medium | Replace with external `Section`/`caption` label + `placeholder=`. |
 | ALL-CAPS literal in JSX | Medium | Convert to sentence case unless it's a vendor TLA (AWS/GCP/DNS) or a chip-style mode badge. |
 | `console.error` without `setNotification` for user-triggered failure | Medium | Add a notification with severity:'error' summarising the issue. |
-| `createPortal(...)` inside a MUI container's children | Medium | Dev-only warning; hoist the portal to be a sibling of the MUI container (it renders into its target node regardless of JSX position). See [UiOverlay fix in `[2026.5.20+]`](../../CHANGELOG.md) for the pattern. |
+| `createPortal(...)` inside a MUI container's children | Medium | Dev-only warning; hoist the portal to be a sibling of the MUI container (it renders into its target node regardless of JSX position). The `UiOverlay` fix is the reference pattern — `git log -S createPortal -- packages/axoview-lib/src` to find it. |
 | `id="ax-splash"` missing from `public/index.html` (count = 0) | High | Cold-start splash was removed — restore from UX §6.4. Without it the app shows a white screen during bundle parse + storage probes (~1–4 s). |
 
 The audit report must include a **UX Consistency** subsection: count of findings per pattern, top 3 offending files, and whether any high-severity violations exist (any high-severity violation downgrades the maintainability score by one letter grade).
 
 ## Phase 5c — Performance & Hot-Path Anti-Pattern Audit
 
-Run grep checks against the anti-patterns codified in [`docs/perf-troubleshooting.md`](../../docs/perf-troubleshooting.md). Each finding is a potential regression or a candidate for future perf work; report under "Performance hot-path" in the executive report.
+Run grep checks against the anti-patterns codified in [`docs/guidelines/perf-troubleshooting.md`](../../docs/guidelines/perf-troubleshooting.md). Each finding is a potential regression or a candidate for future perf work; report under "Performance hot-path" in the executive report.
 
 ```bash
 # A-1 — useScene() inside SceneLayers (drag-hot-path components should use

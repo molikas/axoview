@@ -1,6 +1,6 @@
 # Axoview — Deployment Guide
 
-**Last updated:** 2026-07-07 (Google Drive storage shipped — §C3 rewritten, storage table updated)
+**Last updated:** 2026-07-15 (docs housekeeping — repaired 4 code links that were missing their `../` prefix. Content last changed 2026-07-14: §C3 rewritten for the Drive **server read-proxy** + `GOOGLE_API_KEY` as a Cloudflare secret — [ADR 0042](adr/0042-drive-native-sharing-and-readonly-preview.md) §8 / [0043](adr/0043-deferred-backend-for-google-api-hardening.md) #3. Prior: 2026-07-07 Google Drive storage shipped.)
 
 Axoview runs on three targets from a single codebase:
 
@@ -31,7 +31,7 @@ npm run dev              # SPA on http://localhost:3000
 npm run dev:backend      # Express on http://localhost:3001 (separate terminal)
 ```
 
-The SPA's `apiBaseUrl()` ([packages/axoview-app/src/utils/apiBaseUrl.ts](packages/axoview-app/src/utils/apiBaseUrl.ts)) auto-redirects `/api/*` to `:3001` when the host is `localhost:3000`. In every other context it uses same-origin relative paths.
+The SPA's `apiBaseUrl()` ([packages/axoview-app/src/utils/apiBaseUrl.ts](../packages/axoview-app/src/utils/apiBaseUrl.ts)) auto-redirects `/api/*` to `:3001` when the host is `localhost:3000`. In every other context it uses same-origin relative paths.
 
 To exercise the filesystem path, run the backend with:
 
@@ -99,7 +99,7 @@ npx wrangler pages secret put AUTH_SHARED_SECRET
 # paste the token when prompted
 ```
 
-In [packages/axoview-worker/wrangler.toml](packages/axoview-worker/wrangler.toml) keep `AUTH_MODE = "shared-token"` (the default).
+In [packages/axoview-worker/wrangler.toml](../packages/axoview-worker/wrangler.toml) keep `AUTH_MODE = "shared-token"` (the default).
 
 **`cf-access`** — Cloudflare Access JWT (zero-trust). Set up an Access application that fronts your `*.pages.dev` (or custom) domain, then:
 
@@ -181,7 +181,7 @@ With `AUTH_MODE=shared-token`, `/api/config` remains unauthenticated so the SPA 
 
 ### C6. One-click "Deploy to Cloudflare"
 
-The repo-root [wrangler.toml](wrangler.toml) is set up so the deploy button works against a fork:
+The repo-root [wrangler.toml](../wrangler.toml) is set up so the deploy button works against a fork:
 
 ```markdown
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/<your-fork>/Axoview)
@@ -224,4 +224,4 @@ The Worker registers a Hono `app.onError` handler ([packages/axoview-worker/src/
 
 **Path-traversal `400 Invalid id`** (Docker) — expected. IDs are strict NanoID-like alphanum; do not relax `assertId`.
 
-**Build succeeds locally but `wrangler pages deploy` 404s on `/api/*`** — check that [packages/axoview-app/public/_routes.json](packages/axoview-app/public/_routes.json) was copied into `build/`. Rsbuild copies the `public/` tree by default.
+**Build succeeds locally but `wrangler pages deploy` 404s on `/api/*`** — check that [packages/axoview-app/public/_routes.json](../packages/axoview-app/public/_routes.json) was copied into `build/`. Rsbuild copies the `public/` tree by default.

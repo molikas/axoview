@@ -2,7 +2,7 @@
 
 A workflow for sessions where the goal is **smoothing what's already shipped**, not building new features. Use this when handed a list of UI bugs, paper-cuts, or rough edges to clean up before a release.
 
-> **Read first when fixing UI:** [`docs/ux-principles.md`](../../docs/ux-principles.md) — the Axoview design language. A "polish" fix that violates the principles is a regression, not a polish.
+> **Read first when fixing UI:** [`docs/guidelines/ux-principles.md`](../../docs/guidelines/ux-principles.md) — the Axoview design language. A "polish" fix that violates the principles is a regression, not a polish.
 >
 > **Surface vocabulary is locked:** when a polish fix introduces or renames an overlay or full-area surface, the canonical Modal / Dialog / Popover / Panel / Banner / Screen vocabulary lives in [ADR 0008 Decision 2](../../docs/adr/0008-naming-convention.md). Pick the term whose visual contract matches yours — do not invent a sixth.
 
