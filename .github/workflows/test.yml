@@ -35,6 +35,13 @@ jobs:
       - name: Lint
         run: npx eslint .
 
+      # Guards the ADR governance metadata (Status / supersession fields /
+      # currency claims) — the fields the 2026-07-15 conformance audit found
+      # ALL of its real defects in, because unlike decision text they have no
+      # feedback loop. No deps beyond node; runs in ~1s.
+      - name: Lint docs governance
+        run: npm run lint:docs
+
       - name: Run tests with coverage
         run: npm test -- --coverage
         env:

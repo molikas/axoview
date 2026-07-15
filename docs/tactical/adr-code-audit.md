@@ -40,6 +40,20 @@ Every headline `CONFIRMED` finding was **re-verified against code before being a
 
 **They are not findings.** The gate refuted **35% of everything it examined** (16/46), including rows the filing agent rated *high* confidence — so expect **~44 of the 127 to be false.** Do not cite, fix, or flip a `Status` from an ungated row without gating it first. The two refutations above were both drawn from the *gated, `CONFIRMED`* set — the ungated tail is weaker evidence than that, not stronger.
 
+### Next step — sample the tail, don't gate it
+
+Gating all 127 would repeat the process that just refuted 35% of its own output, at similar cost. **Gate a random 15 of the 74 `DIVERGED` rows instead.** That class is the only part of the tail that can contain something the governance lint can't reach: an ADR-says-X / code-does-Y row may be a *code* defect wearing a doc costume.
+
+Decide from the sample:
+- **Low real-defect rate → wrap this tactical and delete it.** Its durable output is already extracted: the convention in [`feature.md`](../../.claude/commands/feature.md) and the CI lint (`scripts/lint-docs.js`).
+- **High → fund a scoped pass over the remaining `DIVERGED` rows only**, ignoring the A1/A3 tail the lint now covers.
+
+Either way this costs ~10% of gating the full 127 and answers the same question. **Nothing else here is worth resuming** — checks 1–5 of the lint now catch every class this audit actually found, permanently and for free.
+
+### What the lint already found that this audit did not
+
+The reciprocity check surfaced a **fourth one-way edge on its first run: 0018 → 0027.** ADR 0018's `Superseded by` records the long-press supersession; ADR 0027 filed 0018 under *"touch reconciliation"* in its **non-supersession** parenthetical — understating an edge it owns. The register's "net claimed truth: exactly 3 one-way edges" was wrong, and 458 traced rows plus three gate lenses missed it. **~50 lines of mechanical checking beat the fleet on its own headline class.** That is the argument for linting the metadata instead of auditing it.
+
 ## Session startup checklist
 
 1. Read this file fully.
