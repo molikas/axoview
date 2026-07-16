@@ -100,7 +100,7 @@ The monorepo's four packages — `axoview-lib`, `axoview-app`, `axoview-worker`,
 - New packages within this monorepo follow the `axoview-<role>` pattern.
 - The established roles are: `lib` (publishable React library), `app` (the SPA bundling consumer of `lib`), `worker` (Cloudflare-side runtime), `backend` (Node/Express-side runtime).
 - Adding a fifth role requires explicit ADR or audit gate. Candidate names that would fit: `axoview-core` (if shared route layer ever leaves `axoview-backend/src/routes.js` — see [productization-audit P6](../tactical/productization-audit.md)), `axoview-e2e` (already exists; locked for deletion + rewrite per audit decision #4).
-- Within each package, the `name` field in `package.json` matches the directory exactly (no `@axoview/foo` scoping today; that's a future-publication question if the lib goes scoped).
+- Within each package, the `name` field in `package.json` is close to the directory but **not uniformly identical, and scoping is not uniformly absent**: `axoview-app`, `axoview-backend`, and `axoview-worker` match their dirs, but `axoview-lib`'s package name is `axoview` (unscoped, ≠ dir) and `axoview-e2e`'s is `@axoview/e2e` (scoped). Any future consolidation onto a single `@axoview/*` scope is a publication question, out of scope here.
 
 ### 7. Skill naming — verb for cadence; verb-noun for compound; `-check` for verification
 
@@ -118,7 +118,7 @@ A.9.1 inventoried the five in-scope skills (`/audit`, `/feature`, `/notes`, `/sh
 
 Three smaller rules surfaced from Discovery:
 
-- **Boolean state fields use `is*` / `has*` / `*Enabled` prefixes when their meaning is non-obvious.** `serverStorageAvailable` ([AppToolbar.tsx:179](../../packages/axoview-app/src/components/AppToolbar.tsx#L179)) is acceptable (descriptive); `serverStorage: boolean` (the dead `RuntimeConfig` field deleted by ADR 0009 Decision 2) was rightly removed because the name didn't communicate "is enabled" vs "is a path string" vs "is configured." Future boolean fields prefer `serverStorageEnabled`, `gitBackupEnabled`, `driveProviderRegistered`.
+- **Boolean state fields use `is*` / `has*` / `*Enabled` prefixes when their meaning is non-obvious.** `serverStorageAvailable` ([AppToolbar.tsx](../../packages/axoview-app/src/components/AppToolbar.tsx)) is acceptable (descriptive); `serverStorage: boolean` is the cautionary example — its name doesn't communicate "is enabled" vs "is a path string" vs "is configured." ADR 0009 Decision 2 marks that `RuntimeConfig.serverStorage` field for removal, **but the removal has not landed**: it is still declared in [useRuntimeConfig.ts](../../packages/axoview-app/src/hooks/useRuntimeConfig.ts) and read by `AppStorageContext`. Future boolean fields prefer `serverStorageEnabled`, `gitBackupEnabled`, `driveProviderRegistered`.
 - **Render gates are explicit predicates, not negations of negations.** Prefer `!serverStorageAvailable` over `!(hasServerStorage === true)`. A.4 surfaced no current offenders; this is preventative.
 - **Deployment artifact filenames are Cloudflare-inherited and immutable.** `_routes.json`, `_headers`, `wrangler.toml`, `.dockerignore`, `Dockerfile`, `nginx.conf`, `compose.yml`, `compose.dev.yml` — these names are dictated by the platforms that consume them. The convention is to **never rename them**, and to keep them at the path each platform expects (root for Cloudflare-button consumption per ADR 0009 Decision 5).
 
@@ -158,6 +158,6 @@ ux-principles.md gains a short cross-reference to this ADR's Decision 2 (locked 
 - [productization-audit.md A.4 #C2](../tactical/productization-audit.md) — `SessionModeBanner` semantic inversion (drove the rename).
 - [productization-audit.md A.4.4](../tactical/productization-audit.md) — provider-id inventory (drove Decision 4).
 - [productization-audit.md Theme 5](../tactical/productization-audit.md) — findings-drive-the-ADR principle.
-- [docs/workflow.md](../workflow.md) — references Decision 7 (skill naming) in its "Process debt" section.
+- [docs/workflow.md](../workflow.md#process-debt--deferred-skills) — the deferred-skills catalogue that Decision 7's skill-naming rules govern. *(workflow.md does not itself cite ADR 0008 or "Decision 7"; the naming rules in this ADR are the authority — the link is one-way.)*
 - ADR 0005 — Toolbar and dock layout contract (the surface-naming precedent: "top toolbar", "bottom dock", "left dock", "right sidebar" are locked by 0005; this ADR doesn't restate them).
 - ADR 0009 — Deployment topology (Decision 2 deleted the dead `RuntimeConfig.serverStorage` field that motivated rule 8's boolean-field guidance).

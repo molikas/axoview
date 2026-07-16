@@ -61,7 +61,7 @@ const [config, status] = await Promise.all([
 
 - The boot path issues **one** `GET /api/config` request. Mode is derived from the `serverStorage` boolean in that response.
 - `/api/storage/status` is **deleted** from both runtimes after Phase C cleanup. The decision treats it as a legacy synonym that has no remaining consumer once the dual probe is collapsed.
-- The `RuntimeConfig.serverStorage` *frontend* field (the dead one flagged in A.4 #C1, not the server-emitted flag) is **deleted** along with the redundant probe. Boot derives mode from `/api/config` and writes it into the canonical `AppStorageContext` only.
+- The `RuntimeConfig.serverStorage` *frontend* field (the redundant one flagged in A.4 #C1, not the server-emitted flag) is **deleted** along with the redundant probe. Boot derives mode from `/api/config` and writes it into the canonical `AppStorageContext` only. **(Status: not landed as of v3.7.0 — `RuntimeConfig.serverStorage` is still declared in [useRuntimeConfig.ts](../../packages/axoview-app/src/hooks/useRuntimeConfig.ts) and read by `AppStorageContext`; this cleanup remains open.)**
 - The boot sequence falls back to **Local mode** if `/api/config` itself fails (network error, no backend). The current empty-error swallow path is replaced with an explicit fallback that logs a console warning.
 
 Closes A.4 #C1 + #C4, A.6 #D1 + #D2. The cleanup itself is a C.2 row (single file edit + endpoint deletion in `routes.js` and `app.ts`).
