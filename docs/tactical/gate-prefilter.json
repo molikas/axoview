@@ -1,0 +1,2891 @@
+{
+  "generated": "gate-prefilter",
+  "counts": {
+    "NEEDS_AGENT": 116,
+    "AUTO_CONFIRMED": 8,
+    "LIKELY_ALREADY_FIXED": 3
+  },
+  "results": [
+    {
+      "row": 47,
+      "adr": "0003",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/services/storage/leanModel.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 48,
+      "adr": "0003",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/fixtures/icons.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/utils/leanSave.ts",
+            "exists": true
+          },
+          {
+            "path": "docs/adr/0002-icon-catalog-merge-on-load.md",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 49,
+      "adr": "0003",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/utils/leanSave.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-app/src/services/storage/leanModel.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 50,
+      "adr": "0005",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/components/AppToolbar.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 51,
+      "adr": "0005",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/components/AppToolbar.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 52,
+      "adr": "0005",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/components/AppToolbar.tsx",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-app/src/providers/AppStorageContext.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 53,
+      "adr": "0006",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/interaction/modes/Cursor.ts",
+            "exists": true
+          },
+          {
+            "path": "docs/guidelines/ux-principles.md",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 54,
+      "adr": "0007",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/__perf_refactor_regression__/README.md",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 55,
+      "adr": "0007",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/stores/diagnosticsStore.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 56,
+      "adr": "0007",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/stores/diagnosticsStore.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-app/src/components/DiagnosticsOverlay.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 57,
+      "adr": "0007",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "docs/guidelines/perf-troubleshooting.md",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 58,
+      "adr": "0008",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/hooks/useRuntimeConfig.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-app/src/providers/AppStorageContext.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 59,
+      "adr": "0008",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/package.js",
+            "exists": false
+          },
+          {
+            "path": "packages/axoview-e2e/package.js",
+            "exists": false
+          }
+        ]
+      }
+    },
+    {
+      "row": 60,
+      "adr": "0008",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/SceneLayers/Labels/LabelHitLayer.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 61,
+      "adr": "0009",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-backend/server.js",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 62,
+      "adr": "0009",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-worker/src/app.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-backend/src/routes.js",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-backend/server.js",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-worker/src/auth.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 63,
+      "adr": "0009",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-worker/src/app.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 64,
+      "adr": "0010",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-worker/src/auth.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-backend/server.js",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 65,
+      "adr": "0011",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {}
+    },
+    {
+      "row": 66,
+      "adr": "0011",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/package.js",
+            "exists": false
+          }
+        ]
+      }
+    },
+    {
+      "row": 67,
+      "adr": "0011",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/components/DriveDisplayGate.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 68,
+      "adr": "0012",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/interaction/modes/Pan.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/components/ViewModeInfoPopover/ViewModeInfoPopover.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 69,
+      "adr": "0012",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/ViewModeInfoPopover/ViewModeInfoPopover.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 70,
+      "adr": "0012",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/interaction/modes/Pan.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/components/ViewModeInfoPopover/ViewModeInfoPopover.helpers.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 71,
+      "adr": "0012",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/ViewModeInfoPopover/ViewModeInfoPopover.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 72,
+      "adr": "0013",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {}
+    },
+    {
+      "row": 73,
+      "adr": "0014",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/AnnotationPalette/AnnotationPalette.tsx",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/components/UiOverlay/UiOverlay.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 74,
+      "adr": "0014",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/AnnotationLayer/AnnotationLayer.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 75,
+      "adr": "0018",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/interaction/useInteractionManager.ts",
+            "exists": true
+          },
+          {
+            "path": "docs/guidelines/canvas-interaction.md",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 76,
+      "adr": "0018",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/interaction/useInteractionManager.ts",
+            "exists": true
+          },
+          {
+            "path": "docs/guidelines/canvas-interaction.md",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 77,
+      "adr": "0019",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/Renderer/Renderer.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 78,
+      "adr": "0019",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/SceneLayers/Connectors/ConnectorsCanvas.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 79,
+      "adr": "0020",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {}
+    },
+    {
+      "row": 80,
+      "adr": "0020",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "perf-results/baseline.md",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 81,
+      "adr": "0020",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/SceneLayers/Labels/LabelsCanvas.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 82,
+      "adr": "0021",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/SceneLayers/Nodes/NodesCanvas.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 83,
+      "adr": "0022",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/interaction/useInteractionManager.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 84,
+      "adr": "0023",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/interaction/modes/DragItems.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/utils/resolvePlacement.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 85,
+      "adr": "0025",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {}
+    },
+    {
+      "row": 86,
+      "adr": "0027",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/CanvasContextMenu/CanvasContextMenu.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 87,
+      "adr": "0027",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/CanvasContextMenu/CanvasContextMenu.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 88,
+      "adr": "0027",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/interaction/usePanHandlers.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 89,
+      "adr": "0028",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-worker/src/app.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-backend/src/routes.js",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-app/src/App.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 90,
+      "adr": "0029",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/utils/sanitizeHtml.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 91,
+      "adr": "0030",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 92,
+      "adr": "0030",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 93,
+      "adr": "0031",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/SceneLayers/Labels/LabelsCanvas.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 94,
+      "adr": "0033",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/config.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/types/model.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 95,
+      "adr": "0035",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/stores/authStore.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 96,
+      "adr": "0036",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 97,
+      "adr": "0036",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/services/storage/providers/GoogleDriveProvider.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 98,
+      "adr": "0037",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 99,
+      "adr": "0041",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/appBase.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 100,
+      "adr": "0042",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/i18n/en-US.js",
+            "exists": false
+          }
+        ]
+      }
+    },
+    {
+      "row": 101,
+      "adr": "0042",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-backend/src/routes.js",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-worker/src/app.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-app/src/services/drive/drivePublicRead.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 102,
+      "adr": "0042",
+      "class": "A2a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 103,
+      "adr": "0001",
+      "class": "A2b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 104,
+      "adr": "0018",
+      "class": "A2b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/config/tapGesture.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/interaction/useInteractionManager.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 105,
+      "adr": "0026",
+      "class": "A2b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/TransformControlsManager/TransformAnchor.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 106,
+      "adr": "0040",
+      "class": "A2b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "docs/adr/0009-deployment-topology.md",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-worker/src/app.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 107,
+      "adr": "0014",
+      "class": "A2c",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/AnnotationPalette/AnnotationPalette.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 108,
+      "adr": "0018",
+      "class": "A2c",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/interaction/useInteractionManager.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 109,
+      "adr": "0034",
+      "class": "A2c",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/SceneLayers/TextBoxes/TextBoxInlineEditor.tsx",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/hooks/useInitialDataManager.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 110,
+      "adr": "0036",
+      "class": "A2c",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {}
+    },
+    {
+      "row": 111,
+      "adr": "0038",
+      "class": "A2c",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "docs/adr/0038-webgl-instanced-render-substrate.md",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/webgl/contextLoss.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/webgl/lineStyle.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 112,
+      "adr": "0003",
+      "class": "A2d",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/schemas/icons.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/utils/leanSave.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/types/model.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 113,
+      "adr": "0008",
+      "class": "A2d",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 114,
+      "adr": "0008",
+      "class": "A2d",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/__perf_refactor_regression__/quickAdd.groupButton.test.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/components/QuickAddNodePopover/QuickAddNodePopover.tsx",
+            "exists": false
+          }
+        ]
+      }
+    },
+    {
+      "row": 115,
+      "adr": "0009",
+      "class": "A2d",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-backend/package.js",
+            "exists": false
+          },
+          {
+            "path": "docs/deployment.md",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 116,
+      "adr": "0010",
+      "class": "A2d",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-backend/server.js",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 117,
+      "adr": "0019",
+      "class": "A2d",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {}
+    },
+    {
+      "row": 118,
+      "adr": "0023",
+      "class": "A2d",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "docs/adr/0027-canvas-context-menu.md",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 119,
+      "adr": "0024",
+      "class": "A2d",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/ItemControls/NodeControls/NodeStyleTab/NodeStyleTab.tsx",
+            "exists": false
+          }
+        ]
+      }
+    },
+    {
+      "row": 120,
+      "adr": "0035",
+      "class": "A2d",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/components/AuthControl.tsx",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-app/src/stores/authStore.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 121,
+      "adr": "0039",
+      "class": "A2d",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 122,
+      "adr": "0041",
+      "class": "A2d",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/appBase.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 123,
+      "adr": "0042",
+      "class": "A2d",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/services/drive/driveSharing.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-app/src/services/drive/gapiLoader.ts",
+            "exists": true
+          }
+        ]
+      }
+    },
+    {
+      "row": 124,
+      "adr": "0005",
+      "class": "A3a",
+      "verdict": "AUTO_CONFIRMED",
+      "rationale": "ADR 0005 still contains a markdown link to a path that does not exist (../../packages/axoview-lib/src/components/MainMenu/MainMenu.tsx). A live link to a missing file is a defect by construction -- no judgment required.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/MainMenu/MainMenu.tsx",
+            "exists": false
+          }
+        ],
+        "adrDeadLinks": [
+          "../../packages/axoview-lib/src/components/MainMenu/MainMenu.tsx"
+        ],
+        "adrLinkCount": 14,
+        "rowCitedGonePaths": [
+          "packages/axoview-lib/src/components/MainMenu/MainMenu.tsx"
+        ]
+      }
+    },
+    {
+      "row": 125,
+      "adr": "0006",
+      "class": "A3a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Link facts precomputed (26 links, 1 dead). The row's claim may concern a PLAIN-TEXT citation or a non-link identifier, which link-checking cannot settle. Judge it.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "docs/tactical/canvas-ux-overhaul.md",
+            "exists": false
+          }
+        ],
+        "adrDeadLinks": [
+          "../tactical/mqa-design-shakeout.md"
+        ],
+        "adrLinkCount": 26,
+        "rowCitedGonePaths": [
+          "docs/tactical/canvas-ux-overhaul.md"
+        ]
+      }
+    },
+    {
+      "row": 126,
+      "adr": "0006",
+      "class": "A3a",
+      "verdict": "AUTO_CONFIRMED",
+      "rationale": "ADR 0006 still contains a markdown link to a path that does not exist (../tactical/mqa-design-shakeout.md). A live link to a missing file is a defect by construction -- no judgment required.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "docs/tactical/mqa-design-shakeout.md",
+            "exists": false
+          }
+        ],
+        "adrDeadLinks": [
+          "../tactical/mqa-design-shakeout.md"
+        ],
+        "adrLinkCount": 26,
+        "rowCitedGonePaths": [
+          "docs/tactical/mqa-design-shakeout.md"
+        ]
+      }
+    },
+    {
+      "row": 127,
+      "adr": "0008",
+      "class": "A3a",
+      "verdict": "AUTO_CONFIRMED",
+      "rationale": "ADR 0008 still contains a markdown link to a path that does not exist (../tactical/productization-audit.md). A live link to a missing file is a defect by construction -- no judgment required.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "docs/tactical/productization-audit.md",
+            "exists": false
+          },
+          {
+            "path": "docs/adr/0008-naming-convention.md",
+            "exists": true
+          }
+        ],
+        "adrDeadLinks": [
+          "../tactical/productization-audit.md",
+          "../../packages/axoview-app/src/components/ExportDialog.tsx",
+          "../../packages/axoview-app/src/components/fileExplorer/ExportDialog.tsx",
+          "../../packages/axoview-app/src/StorageManager.tsx",
+          "../../packages/axoview-app/src/components/SessionModeBanner.tsx"
+        ],
+        "adrLinkCount": 30,
+        "rowCitedGonePaths": [
+          "docs/tactical/productization-audit.md"
+        ]
+      }
+    },
+    {
+      "row": 128,
+      "adr": "0008",
+      "class": "A3a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Link facts precomputed (30 links, 5 dead). The row's claim may concern a PLAIN-TEXT citation or a non-link identifier, which link-checking cannot settle. Judge it.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "docs/workflow.md",
+            "exists": true
+          }
+        ],
+        "adrDeadLinks": [
+          "../tactical/productization-audit.md",
+          "../../packages/axoview-app/src/components/ExportDialog.tsx",
+          "../../packages/axoview-app/src/components/fileExplorer/ExportDialog.tsx",
+          "../../packages/axoview-app/src/StorageManager.tsx",
+          "../../packages/axoview-app/src/components/SessionModeBanner.tsx"
+        ],
+        "adrLinkCount": 30,
+        "rowCitedGonePaths": []
+      }
+    },
+    {
+      "row": 129,
+      "adr": "0008",
+      "class": "A3a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Link facts precomputed (30 links, 5 dead). The row's claim may concern a PLAIN-TEXT citation or a non-link identifier, which link-checking cannot settle. Judge it.",
+      "facts": {
+        "adrDeadLinks": [
+          "../tactical/productization-audit.md",
+          "../../packages/axoview-app/src/components/ExportDialog.tsx",
+          "../../packages/axoview-app/src/components/fileExplorer/ExportDialog.tsx",
+          "../../packages/axoview-app/src/StorageManager.tsx",
+          "../../packages/axoview-app/src/components/SessionModeBanner.tsx"
+        ],
+        "adrLinkCount": 30,
+        "rowCitedGonePaths": []
+      }
+    },
+    {
+      "row": 130,
+      "adr": "0009",
+      "class": "A3a",
+      "verdict": "AUTO_CONFIRMED",
+      "rationale": "ADR 0009 still contains a markdown link to a path that does not exist (../tactical/productization-audit.md). A live link to a missing file is a defect by construction -- no judgment required.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "docs/tactical/productization-audit.md",
+            "exists": false
+          }
+        ],
+        "adrDeadLinks": [
+          "../tactical/productization-audit.md"
+        ],
+        "adrLinkCount": 25,
+        "rowCitedGonePaths": [
+          "docs/tactical/productization-audit.md"
+        ]
+      }
+    },
+    {
+      "row": 131,
+      "adr": "0010",
+      "class": "A3a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Link facts precomputed (20 links, 1 dead). The row's claim may concern a PLAIN-TEXT citation or a non-link identifier, which link-checking cannot settle. Judge it.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-backend/src/adapters/fs.js",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-backend/server.js",
+            "exists": true
+          }
+        ],
+        "adrDeadLinks": [
+          "../tactical/productization-audit.md"
+        ],
+        "adrLinkCount": 20,
+        "rowCitedGonePaths": []
+      }
+    },
+    {
+      "row": 132,
+      "adr": "0011",
+      "class": "A3a",
+      "verdict": "AUTO_CONFIRMED",
+      "rationale": "ADR 0011 still contains a markdown link to a path that does not exist (../tactical/productization-audit.md). A live link to a missing file is a defect by construction -- no judgment required.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "docs/tactical/productization-audit.md",
+            "exists": false
+          },
+          {
+            "path": "docs/adr/0011-error-ux-contract.md",
+            "exists": true
+          },
+          {
+            "path": "docs/guidelines/testing.md",
+            "exists": true
+          },
+          {
+            "path": "docs/manual-test-baseline.md",
+            "exists": true
+          },
+          {
+            "path": "docs/workflow.md",
+            "exists": true
+          }
+        ],
+        "adrDeadLinks": [
+          "../tactical/productization-audit.md"
+        ],
+        "adrLinkCount": 42,
+        "rowCitedGonePaths": [
+          "docs/tactical/productization-audit.md"
+        ]
+      }
+    },
+    {
+      "row": 133,
+      "adr": "0018",
+      "class": "A3a",
+      "verdict": "AUTO_CONFIRMED",
+      "rationale": "ADR 0018 still contains a markdown link to a path that does not exist (../tactical/touch-pen-gesture-contract.md). A live link to a missing file is a defect by construction -- no judgment required.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "docs/tactical/touch-pen-gesture-contract.md",
+            "exists": false
+          }
+        ],
+        "adrDeadLinks": [
+          "../tactical/touch-pen-gesture-contract.md"
+        ],
+        "adrLinkCount": 23,
+        "rowCitedGonePaths": [
+          "docs/tactical/touch-pen-gesture-contract.md"
+        ]
+      }
+    },
+    {
+      "row": 134,
+      "adr": "0019",
+      "class": "A3a",
+      "verdict": "AUTO_CONFIRMED",
+      "rationale": "ADR 0019 still contains a markdown link to a path that does not exist (../../perf-results/cpuprofile-spawn-1000.md, ../../perf-results/t2-design.md). A live link to a missing file is a defect by construction -- no judgment required.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "perf-results/cpuprofile-spawn-1000.md",
+            "exists": false
+          },
+          {
+            "path": "perf-results/t2-design.md",
+            "exists": false
+          },
+          {
+            "path": "docs/adr/0019-canvas2d-node-render-layer.md",
+            "exists": true
+          }
+        ],
+        "adrDeadLinks": [
+          "../../perf-results/cpuprofile-spawn-1000.md",
+          "../../perf-results/t2-design.md"
+        ],
+        "adrLinkCount": 12,
+        "rowCitedGonePaths": [
+          "perf-results/cpuprofile-spawn-1000.md",
+          "perf-results/t2-design.md"
+        ]
+      }
+    },
+    {
+      "row": 135,
+      "adr": "0020",
+      "class": "A3a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Link facts precomputed (9 links, 0 dead). The row's claim may concern a PLAIN-TEXT citation or a non-link identifier, which link-checking cannot settle. Judge it.",
+      "facts": {
+        "adrDeadLinks": [],
+        "adrLinkCount": 9,
+        "rowCitedGonePaths": []
+      }
+    },
+    {
+      "row": 136,
+      "adr": "0020",
+      "class": "A3a",
+      "verdict": "LIKELY_ALREADY_FIXED",
+      "rationale": "The row cites path(s) that are gone (perf-results/e-slice-gate.md), but ADR 0020 no longer LINKS them and has zero dead links (9 checked) -- consistent with the 2026-07-15 remediation de-linking them. CONFIRM WITH GIT before recording: this means the finding was RIGHT and is now fixed. It does NOT mean the finding was wrong.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "perf-results/e-slice-gate.md",
+            "exists": false
+          }
+        ],
+        "adrDeadLinks": [],
+        "adrLinkCount": 9,
+        "rowCitedGonePaths": [
+          "perf-results/e-slice-gate.md"
+        ]
+      }
+    },
+    {
+      "row": 137,
+      "adr": "0020",
+      "class": "A3a",
+      "verdict": "LIKELY_ALREADY_FIXED",
+      "rationale": "The row cites path(s) that are gone (docs/testing.md), but ADR 0020 no longer LINKS them and has zero dead links (9 checked) -- consistent with the 2026-07-15 remediation de-linking them. CONFIRM WITH GIT before recording: this means the finding was RIGHT and is now fixed. It does NOT mean the finding was wrong.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "docs/testing.md",
+            "exists": false
+          },
+          {
+            "path": "docs/guidelines/testing.md",
+            "exists": true
+          }
+        ],
+        "adrDeadLinks": [],
+        "adrLinkCount": 9,
+        "rowCitedGonePaths": [
+          "docs/testing.md"
+        ]
+      }
+    },
+    {
+      "row": 138,
+      "adr": "0022",
+      "class": "A3a",
+      "verdict": "AUTO_CONFIRMED",
+      "rationale": "ADR 0022 still contains a markdown link to a path that does not exist (../../packages/axoview-lib/src/components/PanSettings/PanSettings.tsx). A live link to a missing file is a defect by construction -- no judgment required.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "docs/adr/0022-canvas-pointer-interaction-model.md",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/components/PanSettings/PanSettings.tsx",
+            "exists": false
+          },
+          {
+            "path": "packages/axoview-lib/src/config/persistedSettings.ts",
+            "exists": true
+          }
+        ],
+        "adrDeadLinks": [
+          "../../packages/axoview-lib/src/components/PanSettings/PanSettings.tsx"
+        ],
+        "adrLinkCount": 27,
+        "rowCitedGonePaths": [
+          "packages/axoview-lib/src/components/PanSettings/PanSettings.tsx"
+        ]
+      }
+    },
+    {
+      "row": 139,
+      "adr": "0031",
+      "class": "A3a",
+      "verdict": "LIKELY_ALREADY_FIXED",
+      "rationale": "The row cites path(s) that are gone (perf-results/e-slice-gate.md, perf-results/pan.md), but ADR 0031 no longer LINKS them and has zero dead links (19 checked) -- consistent with the 2026-07-15 remediation de-linking them. CONFIRM WITH GIT before recording: this means the finding was RIGHT and is now fixed. It does NOT mean the finding was wrong.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "perf-results/e-slice-gate.md",
+            "exists": false
+          },
+          {
+            "path": "perf-results/pan.md",
+            "exists": false
+          },
+          {
+            "path": "perf-results/baseline.md",
+            "exists": true
+          }
+        ],
+        "adrDeadLinks": [],
+        "adrLinkCount": 19,
+        "rowCitedGonePaths": [
+          "perf-results/e-slice-gate.md",
+          "perf-results/pan.md"
+        ]
+      }
+    },
+    {
+      "row": 140,
+      "adr": "0034",
+      "class": "A3a",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Link facts precomputed (5 links, 0 dead). The row's claim may concern a PLAIN-TEXT citation or a non-link identifier, which link-checking cannot settle. Judge it.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "docs/adr/0034-inline-canvas-text-editing-and-dual-scope-strip-formatting.md",
+            "exists": true
+          }
+        ],
+        "adrDeadLinks": [],
+        "adrLinkCount": 5,
+        "rowCitedGonePaths": []
+      }
+    },
+    {
+      "row": 141,
+      "adr": "0006",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/LayersPanel/LayersPanel.tsx",
+            "exists": true
+          }
+        ],
+        "anchors": [
+          {
+            "file": "../../packages/axoview-lib/src/interaction/modes/Lasso.ts",
+            "line": 48,
+            "status": "OK",
+            "currentText": "if ("
+          },
+          {
+            "file": "../../packages/axoview-lib/src/interaction/modes/Lasso.ts",
+            "line": 68,
+            "status": "OK",
+            "currentText": "// origin tile (ADR 0006 addendum #16): a lasso over a text body selects it."
+          },
+          {
+            "file": "../../packages/axoview-lib/src/components/LayersPanel/LayersPanel.tsx",
+            "line": 122,
+            "status": "OK",
+            "currentText": "const selectedItemId ="
+          },
+          {
+            "file": "../../packages/axoview-lib/src/components/LayersPanel/LayersPanel.tsx",
+            "line": 348,
+            "status": "OK",
+            "currentText": "tryShiftRangeSelect,"
+          }
+        ]
+      }
+    },
+    {
+      "row": 142,
+      "adr": "0007",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "anchors": []
+      }
+    },
+    {
+      "row": 143,
+      "adr": "0008",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/services/storage/types.ts",
+            "exists": true
+          }
+        ],
+        "anchors": [
+          {
+            "file": "../../packages/axoview-app/src/services/storage/types.ts",
+            "line": 26,
+            "status": "OK",
+            "currentText": "folderId?: string | null;"
+          },
+          {
+            "file": "../../packages/axoview-app/src/components/AppToolbar.tsx",
+            "line": 179,
+            "status": "OK",
+            "currentText": "const handleShareMenuOpen = (e: React.MouseEvent<HTMLElement>) => {"
+          }
+        ]
+      }
+    },
+    {
+      "row": 144,
+      "adr": "0009",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-worker/src/app.ts",
+            "exists": true
+          }
+        ],
+        "anchors": [
+          {
+            "file": "../../packages/axoview-worker/src/app.ts",
+            "line": 43,
+            "status": "OK",
+            "currentText": "googleClientId: c.env.GOOGLE_CLIENT_ID || null,"
+          },
+          {
+            "file": "../../packages/axoview-worker/src/app.ts",
+            "line": 43,
+            "status": "OK",
+            "currentText": "googleClientId: c.env.GOOGLE_CLIENT_ID || null,"
+          },
+          {
+            "file": "../../packages/axoview-worker/package.json",
+            "line": 10,
+            "status": "OK",
+            "currentText": "\"dev\": \"wrangler pages dev ../axoview-app/build --compatibility-date=2025-01-01\","
+          },
+          {
+            "file": "../../packages/axoview-app/src/providers/AppStorageContext.tsx",
+            "line": 43,
+            "status": "OK",
+            "currentText": "}"
+          },
+          {
+            "file": "../../packages/axoview-worker/src/app.ts",
+            "line": 29,
+            "status": "OK",
+            "currentText": ""
+          }
+        ]
+      }
+    },
+    {
+      "row": 145,
+      "adr": "0010",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "anchors": [
+          {
+            "file": "../../packages/axoview-backend/src/adapters/fs.js",
+            "line": 45,
+            "status": "OK",
+            "currentText": "const name = path.basename(filePath);"
+          },
+          {
+            "file": "../../packages/axoview-backend/src/adapters/fs.js",
+            "line": 4,
+            "status": "OK",
+            "currentText": "const KEY_PATTERN = /^[a-zA-Z0-9_-]+(\\/[a-zA-Z0-9_-]+)*$/;"
+          },
+          {
+            "file": "../../packages/axoview-backend/server.js",
+            "line": 46,
+            "status": "OK",
+            "currentText": "frameAncestors: [\"'none'\"]"
+          },
+          {
+            "file": "../../nginx.conf",
+            "line": 4,
+            "status": "OK",
+            "currentText": ""
+          },
+          {
+            "file": "../../packages/axoview-backend/src/adapters/fs.js",
+            "line": 80,
+            "status": "OK",
+            "currentText": "if (e.code === 'ENOENT') return [];"
+          },
+          {
+            "file": "../../packages/axoview-backend/src/adapters/fs.js",
+            "line": 45,
+            "status": "OK",
+            "currentText": "const name = path.basename(filePath);"
+          },
+          {
+            "file": "../../nginx.conf",
+            "line": 4,
+            "status": "OK",
+            "currentText": ""
+          }
+        ]
+      }
+    },
+    {
+      "row": 146,
+      "adr": "0011",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "anchors": [
+          {
+            "file": "../../packages/axoview-app/src/components/fileExplorer/ImportDialog.tsx",
+            "line": 118,
+            "status": "OK",
+            "currentText": "} finally {"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/components/ExportImageDialog/ExportImageDialog.tsx",
+            "line": 149,
+            "status": "OK",
+            "currentText": ""
+          }
+        ]
+      }
+    },
+    {
+      "row": 147,
+      "adr": "0018",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/Renderer/Renderer.tsx",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/interaction/modes/Cursor.ts",
+            "exists": true
+          }
+        ],
+        "anchors": []
+      }
+    },
+    {
+      "row": 148,
+      "adr": "0022",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "docs/adr/0022-canvas-pointer-interaction-model.md",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/interaction/modes/Cursor.ts",
+            "exists": true
+          }
+        ],
+        "anchors": [
+          {
+            "file": "../../packages/axoview-lib/src/interaction/modes/Cursor.ts",
+            "line": 575,
+            "status": "OK",
+            "currentText": "// Decision 5), NOT a whole-tile threshold — the tile threshold swallowed"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/interaction/useInteractionManager.ts",
+            "line": 960,
+            "status": "OK",
+            "currentText": "Math.min(MAX_ZOOM, oldZoom * scaleRatio)"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/interaction/modes/Cursor.ts",
+            "line": 559,
+            "status": "OK",
+            "currentText": "mousedown(state);"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/interaction/modes/Cursor.ts",
+            "line": 465,
+            "status": "OK",
+            "currentText": "{ uiState, scene }: State,"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/interaction/useInteractionManager.ts",
+            "line": 926,
+            "status": "OK",
+            "currentText": "type: 'mousedown' | 'mousemove' | 'mouseup',"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/interaction/useInteractionManager.ts",
+            "line": 750,
+            "status": "OK",
+            "currentText": "mouseEvent: e,"
+          }
+        ]
+      }
+    },
+    {
+      "row": 149,
+      "adr": "0022",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "anchors": [
+          {
+            "file": "../../packages/axoview-lib/src/interaction/modes/Cursor.ts",
+            "line": 575,
+            "status": "OK",
+            "currentText": "// Decision 5), NOT a whole-tile threshold — the tile threshold swallowed"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/interaction/useInteractionManager.ts",
+            "line": 960,
+            "status": "OK",
+            "currentText": "Math.min(MAX_ZOOM, oldZoom * scaleRatio)"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/interaction/modes/Cursor.ts",
+            "line": 559,
+            "status": "OK",
+            "currentText": "mousedown(state);"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/interaction/modes/Cursor.ts",
+            "line": 465,
+            "status": "OK",
+            "currentText": "{ uiState, scene }: State,"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/interaction/useInteractionManager.ts",
+            "line": 926,
+            "status": "OK",
+            "currentText": "type: 'mousedown' | 'mousemove' | 'mouseup',"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/interaction/useInteractionManager.ts",
+            "line": 750,
+            "status": "OK",
+            "currentText": "mouseEvent: e,"
+          }
+        ]
+      }
+    },
+    {
+      "row": 150,
+      "adr": "0022",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "docs/adr/0022-canvas-pointer-interaction-model.md",
+            "exists": true
+          }
+        ],
+        "anchors": [
+          {
+            "file": "../../packages/axoview-lib/src/interaction/modes/Cursor.ts",
+            "line": 575,
+            "status": "OK",
+            "currentText": "// Decision 5), NOT a whole-tile threshold — the tile threshold swallowed"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/interaction/useInteractionManager.ts",
+            "line": 960,
+            "status": "OK",
+            "currentText": "Math.min(MAX_ZOOM, oldZoom * scaleRatio)"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/interaction/modes/Cursor.ts",
+            "line": 559,
+            "status": "OK",
+            "currentText": "mousedown(state);"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/interaction/modes/Cursor.ts",
+            "line": 465,
+            "status": "OK",
+            "currentText": "{ uiState, scene }: State,"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/interaction/useInteractionManager.ts",
+            "line": 926,
+            "status": "OK",
+            "currentText": "type: 'mousedown' | 'mousemove' | 'mouseup',"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/interaction/useInteractionManager.ts",
+            "line": 750,
+            "status": "OK",
+            "currentText": "mouseEvent: e,"
+          }
+        ]
+      }
+    },
+    {
+      "row": 151,
+      "adr": "0023",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/schemas/modelItems.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/schemas/views.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/schemas/rectangle.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/schemas/textBox.ts",
+            "exists": true
+          }
+        ],
+        "anchors": []
+      }
+    },
+    {
+      "row": 152,
+      "adr": "0025",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/utils/svgOptimizer.ts",
+            "exists": true
+          }
+        ],
+        "anchors": [
+          {
+            "file": "../../packages/axoview-lib/src/utils/svgOptimizer.ts",
+            "line": 386,
+            "status": "OK",
+            "currentText": "export async function optimizeSvgDataUrl(svgDataUrl: string): Promise<string> {"
+          }
+        ]
+      }
+    },
+    {
+      "row": 153,
+      "adr": "0027",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/interaction/useInteractionManager.ts",
+            "exists": true
+          }
+        ],
+        "anchors": [
+          {
+            "file": "../../packages/axoview-lib/src/interaction/useInteractionManager.ts",
+            "line": 960,
+            "status": "OK",
+            "currentText": "Math.min(MAX_ZOOM, oldZoom * scaleRatio)"
+          }
+        ]
+      }
+    },
+    {
+      "row": 154,
+      "adr": "0028",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/SceneLayers/Nodes/NodesCanvas.tsx",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/interaction/modes/PlaceIcon.ts",
+            "exists": true
+          }
+        ],
+        "anchors": [
+          {
+            "file": "../../packages/axoview-lib/src/components/SceneLayers/Nodes/NodesCanvas.tsx",
+            "line": 127,
+            "status": "OK",
+            "currentText": "};"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/interaction/modes/PlaceIcon.ts",
+            "line": 31,
+            "status": "OK",
+            "currentText": "},"
+          }
+        ]
+      }
+    },
+    {
+      "row": 155,
+      "adr": "0030",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "docs/adr/0030-docked-style-controls-strip.md",
+            "exists": true
+          },
+          {
+            "path": "docs/guidelines/ux-principles.md",
+            "exists": true
+          }
+        ],
+        "anchors": []
+      }
+    },
+    {
+      "row": 156,
+      "adr": "0032",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/SceneLayers/Nodes/NodesCanvas.tsx",
+            "exists": true
+          }
+        ],
+        "anchors": []
+      }
+    },
+    {
+      "row": 157,
+      "adr": "0033",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/schemas/views.ts",
+            "exists": true
+          }
+        ],
+        "anchors": []
+      }
+    },
+    {
+      "row": 158,
+      "adr": "0033",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/schemas/textBox.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/schemas/label.ts",
+            "exists": true
+          }
+        ],
+        "anchors": []
+      }
+    },
+    {
+      "row": 159,
+      "adr": "0035",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-worker/src/app.ts",
+            "exists": true
+          }
+        ],
+        "anchors": [
+          {
+            "file": "../../packages/axoview-worker/src/app.ts",
+            "line": 38,
+            "status": "OK",
+            "currentText": "app.use('/api/*', authMiddleware());"
+          }
+        ]
+      }
+    },
+    {
+      "row": 160,
+      "adr": "0039",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx",
+            "exists": true
+          }
+        ],
+        "anchors": [
+          {
+            "file": "../../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx",
+            "line": 366,
+            "status": "OK",
+            "currentText": "// commit hook, close the popover before the user ever typed)."
+          },
+          {
+            "file": "../../packages/axoview-lib/src/config.ts",
+            "line": 26,
+            "status": "OK",
+            "currentText": "export const DEFAULT_COLOR: Colors[0] = {"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx",
+            "line": 810,
+            "status": "OK",
+            "currentText": "});"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx",
+            "line": 182,
+            "status": "OK",
+            "currentText": "icon,"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx",
+            "line": 1395,
+            "status": "OK",
+            "currentText": "{/* Bold / italic / underline / strikethrough — one cluster, two scopes"
+          },
+          {
+            "file": "../../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx",
+            "line": 366,
+            "status": "OK",
+            "currentText": "// commit hook, close the popover before the user ever typed)."
+          }
+        ]
+      }
+    },
+    {
+      "row": 161,
+      "adr": "0040",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "anchors": [
+          {
+            "file": "../../packages/axoview-app/public/index.html",
+            "line": 81,
+            "status": "OK",
+            "currentText": "font-size: clamp(18px, 2.4vw, 22px); color: var(--body); max-width: 56ch; margin-bottom: 30px;"
+          },
+          {
+            "file": "../../packages/axoview-app/src/App.tsx",
+            "line": 95,
+            "status": "OK",
+            "currentText": "<Routes>"
+          },
+          {
+            "file": "../../packages/axoview-app/src/App.tsx",
+            "line": 51,
+            "status": "OK",
+            "currentText": "import ChangeLanguage from './components/ChangeLanguage';"
+          }
+        ]
+      }
+    },
+    {
+      "row": 162,
+      "adr": "0042",
+      "class": "A3b",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Anchors precomputed: judge whether currentText still supports the ADR's claim. Do not re-grep.",
+      "facts": {
+        "anchors": [
+          {
+            "file": "../../packages/axoview-app/src/components/AppToolbar.tsx",
+            "line": 336,
+            "status": "OK",
+            "currentText": "width. Portal filled by the lib's UiOverlay (selection store + scene"
+          },
+          {
+            "file": "../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx",
+            "line": 202,
+            "status": "OK",
+            "currentText": ""
+          },
+          {
+            "file": "../../packages/axoview-app/src/App.tsx",
+            "line": 323,
+            "status": "OK",
+            "currentText": "// ADR 0009 Decision 3 (addendum 2026-05-22): only the share-UUID form"
+          },
+          {
+            "file": "../../packages/axoview-app/src/services/storage/types.ts",
+            "line": 98,
+            "status": "OK",
+            "currentText": "shareDiagram?(id: string): Promise<{ uuid: string; url: string; sharedAt: string }>;"
+          },
+          {
+            "file": "../../packages/axoview-worker/src/app.ts",
+            "line": 41,
+            "status": "OK",
+            "currentText": "c.json("
+          },
+          {
+            "file": "../../packages/axoview-backend/src/routes.js",
+            "line": 68,
+            "status": "OK",
+            "currentText": "googleClientId: env.GOOGLE_CLIENT_ID || null,"
+          }
+        ]
+      }
+    },
+    {
+      "row": 163,
+      "adr": "0002",
+      "class": "A3c",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Test-file existence + name greps precomputed. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/utils/__tests__/leanSave.test.ts",
+            "exists": true
+          }
+        ],
+        "testFiles": [
+          {
+            "path": "packages/axoview-lib/src/utils/__tests__/leanSave.test.ts",
+            "exists": true
+          }
+        ],
+        "quotedNames": [
+          {
+            "name": "describe(",
+            "hitsInTests": 256
+          },
+          {
+            "name": " the third test is replaced by a comment: ",
+            "hitsInTests": 0
+          },
+          {
+            "name": "override wins over bundled fixture",
+            "hitsInTests": 1
+          },
+          {
+            "name": "bundledFixtures",
+            "hitsInTests": 2
+          }
+        ]
+      }
+    },
+    {
+      "row": 164,
+      "adr": "0002",
+      "class": "A3c",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Test-file existence + name greps precomputed. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-e2e/tests/import-export-json.spec.ts",
+            "exists": true
+          }
+        ],
+        "testFiles": [
+          {
+            "path": "packages/axoview-e2e/tests/import-export-json.spec.ts",
+            "exists": true
+          }
+        ],
+        "quotedNames": [
+          {
+            "name": "all defaults",
+            "hitsInTests": 0
+          },
+          {
+            "name": "test.describe(",
+            "hitsInTests": 70
+          },
+          {
+            "name": " contains only ",
+            "hitsInTests": 2
+          },
+          {
+            "name": "J8: exports the current diagram as JSON; file downloads round-trip",
+            "hitsInTests": 1
+          },
+          {
+            "name": "placeIcon",
+            "hitsInTests": 51
+          },
+          {
+            "name": "The bundled-fixtures array is currently empty (see lib/fixtures/icons.ts), so ",
+            "hitsInTests": 0
+          }
+        ]
+      }
+    },
+    {
+      "row": 165,
+      "adr": "0003",
+      "class": "A3c",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Test-file existence + name greps precomputed. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/utils/__tests__/leanSave.test.ts",
+            "exists": true
+          }
+        ],
+        "testFiles": [
+          {
+            "path": "packages/axoview-lib/src/utils/__tests__/leanSave.test.ts",
+            "exists": true
+          }
+        ],
+        "quotedNames": [
+          {
+            "name": "s strip unit-test criteria are satisfied by tests that cannot fail. Because ",
+            "hitsInTests": 0
+          },
+          {
+            "name": "undefined",
+            "hitsInTests": 164
+          },
+          {
+            "name": "drops icons that are pure duplicates of bundled fixtures",
+            "hitsInTests": 1
+          },
+          {
+            "name": "baseModel(bundledFixtures.map((i) => ({ ...i })))",
+            "hitsInTests": 1
+          },
+          {
+            "name": "baseModel([])",
+            "hitsInTests": 1
+          },
+          {
+            "name": "stripped.icons",
+            "hitsInTests": 1
+          }
+        ]
+      }
+    },
+    {
+      "row": 166,
+      "adr": "0003",
+      "class": "A3c",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Test-file existence + name greps precomputed. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/utils/__tests__/leanSave.test.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-app/src/services/storage/__tests__/LocalStorageProvider.test.ts",
+            "exists": true
+          }
+        ],
+        "testFiles": [
+          {
+            "path": "packages/axoview-lib/src/utils/__tests__/leanSave.test.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-app/src/services/storage/__tests__/LocalStorageProvider.test.ts",
+            "exists": true
+          }
+        ],
+        "quotedNames": [
+          {
+            "name": "describe(",
+            "hitsInTests": 256
+          },
+          {
+            "name": ", is a pure-function composition (",
+            "hitsInTests": 0
+          },
+          {
+            "name": "bundledFixtures",
+            "hitsInTests": 2
+          },
+          {
+            "name": " it proves only that ",
+            "hitsInTests": 0
+          },
+          {
+            "name": "saveDiagram",
+            "hitsInTests": 15
+          }
+        ]
+      }
+    },
+    {
+      "row": 167,
+      "adr": "0005",
+      "class": "A3c",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Test-file existence + name greps precomputed. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-e2e/tests/dialogs.spec.ts",
+            "exists": true
+          }
+        ],
+        "testFiles": [
+          {
+            "path": "packages/axoview-e2e/tests/dialogs.spec.ts",
+            "exists": true
+          }
+        ],
+        "quotedNames": [
+          {
+            "name": "Unit / component",
+            "hitsInTests": 0
+          },
+          {
+            "name": "SettingsDialog",
+            "hitsInTests": 19
+          },
+          {
+            "name": "AppToolbar",
+            "hitsInTests": 15
+          },
+          {
+            "name": " — no AppToolbar unit/component test exists anywhere; (3) ",
+            "hitsInTests": 0
+          },
+          {
+            "name": "the regression guard against accidental re-add",
+            "hitsInTests": 0
+          },
+          {
+            "name": "grep -rln ",
+            "hitsInTests": 0
+          }
+        ]
+      }
+    },
+    {
+      "row": 168,
+      "adr": "0018",
+      "class": "A3c",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Test-file existence + name greps precomputed. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/__perf_refactor_regression__/touchGesture.test.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/interaction/useInteractionManager.ts",
+            "exists": true
+          }
+        ],
+        "testFiles": [
+          {
+            "path": "packages/axoview-lib/src/__perf_refactor_regression__/touchGesture.test.ts",
+            "exists": true
+          }
+        ],
+        "quotedNames": [
+          {
+            "name": "pointercancel",
+            "hitsInTests": 6
+          },
+          {
+            "name": " leaves the node at its origin",
+            "hitsInTests": 0
+          }
+        ]
+      }
+    },
+    {
+      "row": 169,
+      "adr": "0022",
+      "class": "A3c",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Test-file existence + name greps precomputed. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "docs/adr/0022-canvas-pointer-interaction-model.md",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/interaction/__tests__/usePanHandlers.test.ts",
+            "exists": true
+          }
+        ],
+        "testFiles": [
+          {
+            "path": "packages/axoview-lib/src/interaction/__tests__/usePanHandlers.test.ts",
+            "exists": true
+          }
+        ],
+        "quotedNames": [
+          {
+            "name": "s Acceptance criteria name a new e2e spec ",
+            "hitsInTests": 0
+          },
+          {
+            "name": "ls packages/axoview-e2e/tests/",
+            "hitsInTests": 0
+          },
+          {
+            "name": "details-interaction*",
+            "hitsInTests": 0
+          },
+          {
+            "name": "grep -rni ",
+            "hitsInTests": 0
+          },
+          {
+            "name": "right-drag beyond threshold → enters PAN mode",
+            "hitsInTests": 1
+          }
+        ]
+      }
+    },
+    {
+      "row": 170,
+      "adr": "0026",
+      "class": "A3c",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Test-file existence + name greps precomputed. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-e2e/tests/rectangle-ops.spec.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-e2e/tests/rectangle-move-resize.spec.ts",
+            "exists": true
+          }
+        ],
+        "testFiles": [
+          {
+            "path": "packages/axoview-e2e/tests/rectangle-ops.spec.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-e2e/tests/rectangle-move-resize.spec.ts",
+            "exists": true
+          }
+        ],
+        "quotedNames": [
+          {
+            "name": "s e2e acceptance criterion says ",
+            "hitsInTests": 0
+          },
+          {
+            "name": "rectangle-ops",
+            "hitsInTests": 2
+          },
+          {
+            "name": " The edge-handle e2e tests were never added to ",
+            "hitsInTests": 0
+          },
+          {
+            "name": " — they live in ",
+            "hitsInTests": 0
+          },
+          {
+            "name": "Rectangle ops — Track 5h",
+            "hitsInTests": 1
+          },
+          {
+            "name": "; grepping it for ",
+            "hitsInTests": 0
+          }
+        ]
+      }
+    },
+    {
+      "row": 171,
+      "adr": "0027",
+      "class": "A3c",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Test-file existence + name greps precomputed. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/components/NodeActionBar/__tests__/NodeActionBar.helpers.test.ts",
+            "exists": true
+          }
+        ],
+        "testFiles": [
+          {
+            "path": "packages/axoview-lib/src/components/NodeActionBar/__tests__/NodeActionBar.helpers.test.ts",
+            "exists": true
+          }
+        ],
+        "quotedNames": [
+          {
+            "name": "Details…",
+            "hitsInTests": 2
+          },
+          {
+            "name": " — no test drives the menu",
+            "hitsInTests": 0
+          },
+          {
+            "name": "Disable collision",
+            "hitsInTests": 2
+          },
+          {
+            "name": "find packages/axoview-lib/src/components/CanvasContextMenu -type f",
+            "hitsInTests": 0
+          },
+          {
+            "name": "CanvasContextMenu.tsx",
+            "hitsInTests": 0
+          },
+          {
+            "name": "__tests__/",
+            "hitsInTests": 7
+          }
+        ]
+      }
+    },
+    {
+      "row": 172,
+      "adr": "0032",
+      "class": "A3c",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Test-file existence + name greps precomputed. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-lib/src/utils/foldNodeDescription.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-lib/src/hooks/useInitialDataManager.ts",
+            "exists": true
+          },
+          {
+            "path": "packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx",
+            "exists": true
+          }
+        ],
+        "testFiles": [],
+        "quotedNames": [
+          {
+            "name": "s Unit acceptance criterion says ",
+            "hitsInTests": 0
+          },
+          {
+            "name": "absent from the working model post-fold but **preserved on export round-trip**",
+            "hitsInTests": 0
+          },
+          {
+            "name": "s own JSON-export path the claim is false: the fold deletes ",
+            "hitsInTests": 0
+          },
+          {
+            "name": "description",
+            "hitsInTests": 91
+          },
+          {
+            "name": "foldNodeDescription",
+            "hitsInTests": 4
+          },
+          {
+            "name": "delete next.description",
+            "hitsInTests": 1
+          }
+        ]
+      }
+    },
+    {
+      "row": 173,
+      "adr": "0036",
+      "class": "A3c",
+      "verdict": "NEEDS_AGENT",
+      "rationale": "Test-file existence + name greps precomputed. Do not re-grep.",
+      "facts": {
+        "citedPaths": [
+          {
+            "path": "packages/axoview-app/src/services/storage/__tests__/GoogleDriveProvider.test.ts",
+            "exists": true
+          }
+        ],
+        "testFiles": [
+          {
+            "path": "packages/axoview-app/src/services/storage/__tests__/GoogleDriveProvider.test.ts",
+            "exists": true
+          }
+        ],
+        "quotedNames": [
+          {
+            "name": "s first acceptance criterion enumerates sub-criteria ",
+            "hitsInTests": 0
+          },
+          {
+            "name": "root-folder discovery (marker found / not found / stale cache)",
+            "hitsInTests": 0
+          },
+          {
+            "name": "503 ×3 → error notification with Retry",
+            "hitsInTests": 0
+          },
+          {
+            "name": "deleteDiagram trashes (never hard-deletes)",
+            "hitsInTests": 1
+          },
+          {
+            "name": "moveItem swaps parents",
+            "hitsInTests": 1
+          },
+          {
+            "name": "401 forces SESSION_EXPIRED and throws",
+            "hitsInTests": 1
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -4,7 +4,8 @@
 
 | In flight | What it is |
 |---|---|
-| [adr-code-audit.md](adr-code-audit.md) | Verify all 41 ADRs' state + decisions against the code. Scaffolded 2026-07-15; wrap when the register is discharged. |
+| [adr-code-audit.md](adr-code-audit.md) | Verify all 41 ADRs' state + decisions against the code. Scaffolded 2026-07-15; verified findings remediated (see its Disposition block); **419KB — read only that block, never the whole file**. |
+| [adr-audit-gate-brief.md](adr-audit-gate-brief.md) | Cold-start brief to gate the audit's 127 ungated rows. Resumable across sessions (both prior runs died on session limits). Wrap together with the register. |
 
 A tactical is a **short-lived working doc** for work that's too large for a single ADR scaffold but too narrow for `PLAN.md` — a checklist with locked decisions, sub-tasks, and a findings register. See [workflow.md](../workflow.md) Design principle 4 and "Tactical-driven sessions".
 
