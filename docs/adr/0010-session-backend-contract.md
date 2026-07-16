@@ -82,7 +82,7 @@ Express's current implementation puts every diagram in one global namespace. The
 
 The decision shapes everything downstream:
 - Share links work because they're a *public-namespace cutout*, not a cross-user share.
-- HTTP Basic Auth (self-host) covers everything that isn't the public-namespace cutout — that's the nginx config in [nginx.conf:4-5](../../nginx.conf#L4); per A.6 #D3 the current nginx omits the nested `location` block that exempts `/api/public/*`, which is the bug C.2 closes.
+- Self-host auth covers everything that isn't the public-namespace cutout — enforced **in-process** by the Express `AUTH_MODE` middleware (`none` / `shared-token` / `cf-access`) in [server.js](../../packages/axoview-backend/server.js), which lets `isPublicRoute` requests through *before* applying the mode check. nginx Basic Auth was fully removed (ADR 0009): there is no `auth_basic` directive and no `/api/public` `location` block — the cutout is application-level, not nginx-level.
 - Drive (Phase 3B) will need its own tenancy story — likely "one Drive account = one tenant" — and that's the Phase 3B ADR's problem, not this one.
 
 ### 5. Reserved-key list
@@ -103,7 +103,7 @@ Some keys are infrastructure, not user data, and must be excluded from `listDiag
 
 - Snapshots live under the `public/<uuid>` prefix and are **never** enumerated by `listDiagramMeta` or returned to a logged-in user's diagram list.
 - Deletion of a parent diagram (`DELETE /api/diagrams/:id`) cascades to its snapshots; the route layer is responsible for the cascade ([routes.js](../../packages/axoview-backend/src/routes.js)), the adapter doesn't infer relationships.
-- Public-namespace reads bypass the auth middleware on both runtimes (Express: `isPublicRoute` check; Worker: same check in `authMiddleware`). This is **the only auth exception** in the contract.
+- Public-namespace **snapshot** reads (`public/<uuid>`) bypass the auth middleware on both runtimes via the `isPublicRoute` check. On the **Worker**, `isPublicRoute` additionally allows `GET /api/public/drive/:fileId` — the anonymous Drive read-proxy for "anyone with the link" sharing (ADR 0042 / ADR 0043 #3; read-only, and its server-side API key can only fetch already-public files). That Drive proxy is **Worker-only** — Express has no counterpart. So the contract has **two** auth exceptions: the `public/<uuid>` snapshot namespace (both runtimes) and the Drive read-proxy (Worker only). *(Amended by ADR 0042; §6's original "the only auth exception" predates Drive sharing.)*
 
 ### 7. Concurrent-write semantics
 
@@ -131,7 +131,7 @@ Today there is no `/healthz` or `/health` endpoint on Express, no `HEALTHCHECK` 
 - **No auth on `/healthz`** — orchestrators must be able to probe it.
 - The Worker runtime does not need an explicit `/healthz` — Cloudflare's invocation infrastructure handles liveness. Storage-less Worker deploys are healthy by construction.
 
-The Dockerfile + compose.yml additions to wire `/healthz` are owned by the C.2 cleanup tactical, which must coordinate with this ADR's decision 8 to avoid drift.
+The Dockerfile + compose.yml additions to wire `/healthz` have **landed**: [server.js](../../packages/axoview-backend/server.js) exposes `GET /healthz` (with the 10s-cached tmp-file writability probe), the [Dockerfile](../../Dockerfile) has a `HEALTHCHECK` invoking it, and [compose.yml](../../compose.yml) has a `healthcheck:` block.
 
 ### 9. GDrive (Phase 3B) extension contract
 
@@ -162,17 +162,17 @@ Phase 3B's ADR will amend decision 7 (conditional writes go normative for Drive)
 - **The single-tenant lock (decision 4)** will surprise a user who self-hosts intending to invite collaborators. The deployment docs need a clear "single-tenant per deploy" callout (action item for the next docs pass).
 - **Last-writer-wins (decision 7)** is correct for v1 but will need amendment as soon as a real multi-tab regression appears. That's a known forward cost.
 - **The conditional-write pattern is dormant** — preserved as precedent but not exercised. A reader of this ADR could assume it's normative; the language tries to make "dormant" explicit, but if it's missed the contract degrades.
-- **The atomicity contract (decision 3)** requires a one-file change in fs.js that this ADR does not perform. Until that change lands (C.2), the contract is partially aspirational. The C.2 row is the trigger.
+- **The atomicity contract (decision 3)** has **landed**: [fs.js](../../packages/axoview-backend/src/adapters/fs.js) `put` now performs the tmp-file + rename sequence (the `// Atomicity contract (ADR 0010 Decision 3)` block). This item is no longer open.
 
-## Files affected by adopting this ADR
+## Files affected by adopting this ADR (all landed)
 
-- [packages/axoview-backend/src/adapters/fs.js](../../packages/axoview-backend/src/adapters/fs.js#L45) — tmp-file + rename for `put` (decision 3).
-- [packages/axoview-backend/server.js](../../packages/axoview-backend/server.js) — `/healthz` route (decision 8).
-- [Dockerfile](../../Dockerfile) — `HEALTHCHECK` invoking `/healthz`.
-- [compose.yml](../../compose.yml) + [compose.dev.yml](../../compose.dev.yml) — `healthcheck:` block.
-- [nginx.conf](../../nginx.conf#L4) — nested `location` for `/api/public/*` (D3 bug fix that decision 4's public-namespace cutout requires).
+- [packages/axoview-backend/src/adapters/fs.js](../../packages/axoview-backend/src/adapters/fs.js) — tmp-file + rename for `put` (decision 3). ✅
+- [packages/axoview-backend/server.js](../../packages/axoview-backend/server.js) — `/healthz` route (decision 8). ✅
+- [Dockerfile](../../Dockerfile) — `HEALTHCHECK` invoking `/healthz`. ✅
+- [compose.yml](../../compose.yml) + [compose.dev.yml](../../compose.dev.yml) — `healthcheck:` block. ✅
+- ~~nginx.conf — nested `location` for `/api/public/*`~~ — **not applicable**: the `/api/public/*` carve-out was rolled back together with nginx Basic Auth (ADR 0009). The public-namespace cutout is enforced in-process by `isPublicRoute` (decision 6), not by an nginx location block.
 
-All edits land in the C.2 cleanup tactical.
+All edits have landed (originally tracked by the C.2 cleanup tactical).
 
 ## See also
 

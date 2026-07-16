@@ -41,6 +41,8 @@ The HTTP contract is **single-source** ([packages/axoview-backend/src/routes.js]
 
 This explicitly retires flare 5A's "one HTTP contract, two adapters" framing.
 
+**Amended by ADR 0042.** The anonymous Drive read-proxy (`GET /api/public/drive/:fileId`) shipped as a **Worker-only** route defined directly in [app.ts](../../packages/axoview-worker/src/app.ts), *outside* `routes.js` — a deliberate exception to the single-source framing, because it is a Cloudflare-only capability: it uses a server-side `GOOGLE_API_KEY` secret with no Express/self-host equivalent (see ADR 0042 / ADR 0043 #3). The main storage contract stays adapter-based per ADR 0010; this one read-only proxy is the sanctioned second-route-layer carve-out.
+
 ### 2. Mode detection collapses to a single probe; `RuntimeConfig.serverStorage` is removed
 
 Today the frontend makes two parallel probes on boot:
@@ -94,7 +96,7 @@ The Local-mode share-error dialog therefore guards `/display/p/<shareUuid>` only
 |---|---|---|---|
 | `BACKEND_PORT` | no | `3001` | Express listen port. Container exposes 3001 to the network. |
 | `STORAGE_PATH` | no | `/data/diagrams` | Filesystem root used by `fs.js`. **Container volume must back this path** for persistence across restarts; `compose.yml` mounts `/data/diagrams` as a named volume. |
-| `ENABLE_SERVER_STORAGE` | yes | `false` | `"true"` switches `/api/config` to report `serverStorage: true` and gates all storage routes. **The implicit-off default is intentional** — a fresh container without this flag set behaves as if it were a static-only deploy and the SPA falls back to Local mode. |
+| `ENABLE_SERVER_STORAGE` | no | `false` in code / **`true` in the shipped image** | `"true"` switches `/api/config` to report `serverStorage: true` and gates all storage routes. The Express code default is `false`, but the [Dockerfile](../../Dockerfile) bakes `ENV ENABLE_SERVER_STORAGE=true`, so **the default self-host container is a full-storage deploy** — not static-only. To get a static-only / Local-mode deploy, override this to `false` (or serve the SPA off any static host with no backend). |
 | `ENABLE_GIT_BACKUP` | no | `false` | Reserved for a future git-backed snapshot path; today no-op. |
 | `GOOGLE_CLIENT_ID` | no | empty | Echoed in `/api/config` for Phase 3B Drive auth. Empty value means "Drive provider is unavailable" (frontend hides the Drive UI). |
 | `AUTH_MODE` | no | `'none'` | One of `none` / `shared-token` / `cf-access`. The Express implementation supports all three; only the first two are exercised on self-host. |
@@ -109,6 +111,8 @@ The Local-mode share-error dialog therefore guards `/display/p/<shareUuid>` only
 | `CF_ACCESS_TEAM_DOMAIN` | secret | When `AUTH_MODE=cf-access`; team subdomain (e.g. `myteam` → `myteam.cloudflareaccess.com`). |
 | `CF_ACCESS_AUD` | secret | When `AUTH_MODE=cf-access`; the application AUD tag. |
 | `GOOGLE_CLIENT_ID` | secret (or var if non-sensitive) | Echoed in `/api/config`; same semantics as self-host. |
+| `GOOGLE_API_KEY` | secret (`wrangler pages secret put`) | Server-side key for the anonymous Drive read-proxy (`/api/public/drive/:fileId`, ADR 0042 / 0043 #3). Its presence gates `drivePublicPreview` in `/api/config`. Can only fetch already-public Drive files; **never exposed to the browser.** Worker-only — no self-host counterpart. |
+| `GOOGLE_PROJECT_NUMBER` | secret (or var) | Echoed in `/api/config` as `googleProjectNumber` for the Drive Picker (Phase 3B). |
 
 `STORAGE_PATH` and `ENABLE_SERVER_STORAGE` have **no Worker equivalent today** — storage is short-circuited at decision 1's contract. A future Drive (or R2/D1) deployment introduces a binding via `wrangler.toml` *and* a new `StorageAdapter` per ADR 0010; the env-var contract for that path is owned by the Phase 3B ADR, not this one.
 
@@ -118,7 +122,7 @@ The Local-mode share-error dialog therefore guards `/display/p/<shareUuid>` only
 |---|---|---|
 | (none) | — | Local mode requires no environment configuration. The SPA boots, fails the `/api/config` probe (no backend running, or it returns `serverStorage: false`), and falls back to `localStorage`. |
 
-The `npm run dev:server` script invokes the Express backend with `ENABLE_SERVER_STORAGE=true` for end-to-end testing of the session path; this is a dev convenience, not a deployment target.
+The `npm run dev:backend` script runs the Express backend (`nodemon server.js` via its workspace `dev` script) for end-to-end testing of the session path; this is a dev convenience, not a deployment target. It does **not** itself set `ENABLE_SERVER_STORAGE` — export `ENABLE_SERVER_STORAGE=true` in the environment when exercising the storage-enabled path. (There is no `dev:server` script; the root dev scripts are `dev`, `dev:win`, `dev:lib`, `dev:backend`.)
 
 ### 5. Authoritative wrangler.toml, mandatory `_routes.json`, and the asset pipeline
 
