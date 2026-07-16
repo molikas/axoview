@@ -73,7 +73,7 @@ The UI state from `GET /api/tree-manifest` (folder open/closed flags, ordering h
 
 `axoview-project-<YYYY-MM-DDTHH-mm-ss>.zip` for full-project exports.
 `axoview-folder-<folderName>-<timestamp>.zip` for folder scope.
-`axoview-diagram-<diagramName>-<timestamp>.json` for single-diagram (no zip — backwards-compatible with current export).
+`<diagramName>-<YYYY-MM-DD>.json` for single-diagram export (no zip). This is the existing single-diagram exporter's **actual** output — the diagram name plus a date stamp, with no `axoview-diagram-` prefix and no time component ([`exportDiagram`](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx)). *(An earlier draft of this line specified `axoview-diagram-<diagramName>-<timestamp>.json`; that prefixed/timestamped form was never implemented. Kept as-is for backwards-compatibility — adopting the prefixed form would be a deliberate future code change, not a doc fix.)*
 
 ## Import semantics
 

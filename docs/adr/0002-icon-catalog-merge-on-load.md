@@ -69,6 +69,10 @@ When writing the model out (to storage, to export JSON), the lean-save pass stri
 - **Unit test:** load a diagram whose `icons[]` contains an entry with the same `id` as a bundled icon but different metadata; assert the loaded version wins.
 - **Integration test:** export-then-import a diagram with a custom icon; assert the side dock contains both the custom icon and all defaults.
 
+> **As-built note (ADR⇄code, v3.7.0).** `bundledFixtures` is **empty by design** — the app injects `@isoflow/isopacks` at runtime rather than shipping a bundled catalog. This changes how two criteria above stand:
+> - The **override-wins unit test** (same `id`, different metadata) is **intentionally not present**: with no bundled defaults the override path is unreachable in production. That rationale currently lives only as a comment in [`leanSave.test.ts`](../../packages/axoview-lib/src/utils/__tests__/leanSave.test.ts) (`describe('mergeBundledFixtures (ADR 0002)')`) — recorded here as the ADR-level waiver.
+> - The **export-then-import integration test** is **not present** at the e2e layer: [`import-export-json.spec.ts`](../../packages/axoview-e2e/tests/import-export-json.spec.ts) covers import (J7) and export (J8) separately, not the round-trip dock assertion (and "all defaults" is vacuous while `bundledFixtures` is empty). Open test gap.
+
 ## Lifecycle — imported-icon delete + missing-icon tombstone (2026-05-18, MQA #26)
 
 The merge contract above covers *additions* to the catalog. This section covers the inverse operation — the user removing an imported icon — and the rendering contract for items whose `icon` id no longer resolves.
