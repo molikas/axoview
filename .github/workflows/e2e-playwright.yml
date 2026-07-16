@@ -20,7 +20,17 @@ name: E2E (Playwright)
 
 on:
   pull_request:
-    branches: ["master", "integration"]
+    # master only: PRs into `integration` used to run this 6m30s suite while
+    # skipping the 2m20s unit suite (Run Tests is master-only) — exactly
+    # inverted. E2E is wanted on demand or at the promotion gate, not on the
+    # integration loop; `workflow_dispatch` below covers the on-demand half.
+    branches: ["master"]
+    # `ready_for_review` is NOT in the default type set (opened/synchronize/
+    # reopened). Without it the draft filter on `playwright` below becomes a
+    # hole once E2E Gate is a required check: draft → job skipped → mark ready
+    # → nothing re-triggers → the check stays `skipped`, and GitHub counts
+    # skipped as PASSING. The suite would never run and the merge would pass.
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: ["master"]
   workflow_dispatch:
@@ -141,3 +151,27 @@ jobs:
           path: playwright-report
           if-no-files-found: ignore
           retention-days: 7
+
+  # Single stable check name for all shards — this is what makes SHARD_TOTAL
+  # safe to change. Requiring `Playwright (chromium) [shard n/4]` by name would
+  # encode the shard count into the master ruleset, so re-sharding would either
+  # block every PR (contexts that never report) or silently drop coverage.
+  e2e-gate:
+    name: E2E Gate
+    # See the CI Gate note in test.yml: without `always()` a failed shard skips
+    # this job, and a skipped check counts as a PASS for required checks.
+    # Deliberately fail-closed on `skipped` too (draft PRs): "the suite did not
+    # run" is not "the suite passed". Drafts can't be merged, and marking one
+    # ready re-triggers the workflow via the `ready_for_review` type above.
+    if: always()
+    needs: [playwright]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Assert every shard passed
+        run: |
+          echo "playwright shards result: ${{ needs.playwright.result }}"
+          if [ "${{ needs.playwright.result }}" != "success" ]; then
+            echo "::error::E2E Gate: shards did not pass (result=${{ needs.playwright.result }})"
+            exit 1
+          fi
