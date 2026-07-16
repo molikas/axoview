@@ -45,7 +45,7 @@ Every failure-of-intent Dialog follows the shape both existing precedents (Local
 
 ```tsx
 <Dialog open={open} onClose={onDismiss} maxWidth="xs" fullWidth
-  PaperProps={{ sx: { boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)', borderRadius: 2 } }}>
+  slotProps={{ paper: { sx: { boxShadow: '0px 10px 20px -2px rgba(0,0,0,0.25)', borderRadius: 2 } } }}>
   <DialogTitle sx={{ pb: 1 }}>
     <Typography variant="h6" component="span">{headline}</Typography>
   </DialogTitle>
@@ -126,7 +126,7 @@ Optional keys:
 - `btnSecondary` — when the dialog has a secondary action.
 - Per-scenario detail keys when the body needs interpolation (e.g., `"body": "Could not open \"{{name}}\"."` with the diagram name interpolated).
 
-Every key has a default English fallback at the call site via `t('dialog.<scenario>.headline', 'Default English headline.')` — this lets non-English locales fall back gracefully without requiring every locale file to be in lockstep with new error scenarios. The 7 other locale files (`fr-FR.json`, `zh-CN.json`, …) catch up on the next translation pass.
+Every key has a default English fallback at the call site via `t('dialog.<scenario>.headline', 'Default English headline.')` — this lets non-English locales fall back gracefully without requiring every locale file to be in lockstep with new error scenarios. The 12 other locale files (`fr-FR.json`, `zh-CN.json`, …) catch up on the next translation pass.
 
 The `<scenario>` segment in the key tree matches the `<Scenario>` in the component name, lowercased and camel-cased: `LocalModeShareErrorDialog` → `dialog.localModeShareError.*`. This is mechanical so a future grep for the scenario name surfaces both the component and the strings.
 
@@ -157,11 +157,11 @@ The `<scenario>` segment in the key tree matches the `<Scenario>` in the compone
 - **The dialog-vs-toast judgement for inline tree operations is deferred.** Many of the B-9a S-surfaces (rename, delete, drag-move) live inside the file explorer where a modal Dialog would interrupt the user's recovery context. This ADR leaves the per-surface call to B-9b post-T1; the contract permits both in principle (Decision 1's carve-outs) but does not enumerate the dividing line. The carve-out language is the load-bearing part of this gap.
 - **No build-time enforcement.** A future audit could grep for `notificationStore.push.*severity: 'error'` in non-side-effect contexts; this ADR does not require that gate today. Code review is the enforcement mechanism until B-9b execution surfaces a need for tooling.
 - **Per-scenario duplication.** Each new error dialog is ~55 lines of MUI shell. The ADR explicitly rejects extracting a shared base (Decision 4's rationale) to preserve grep-discoverability and per-scenario i18n key freedom. If the scenario count grows large (≥ 6) and the shells remain exactly aligned, a future ADR may re-decide.
-- **The 7 non-English locales lag behind.** Every new error scenario adds keys only to `en-US.json` initially; other locales catch up on the next translation pass via the `t(key, defaultEnglish)` fallback. This is by design — the alternative (block every error-scenario PR on a full translation pass) would slow shipping for marginal a11y benefit while the lib is pre-1.0.
+- **The 12 non-English locales lag behind.** Every new error scenario adds keys only to `en-US.json` initially; other locales catch up on the next translation pass via the `t(key, defaultEnglish)` fallback. This is by design — the alternative (block every error-scenario PR on a full translation pass) would slow shipping for marginal a11y benefit while the lib is pre-1.0.
 
 ## Implementation notes (non-binding)
 
-- The current MUI version's `Dialog` API is stable; no API churn expected.
+- Under MUI 7 (`@mui/material` ^7.3.9) the `Dialog` paper is styled via `slotProps={{ paper: { sx } }}` — the older `PaperProps` shorthand was deprecated in the v6→v7 line. The template above and all six error dialogs use `slotProps`.
 - A future shared-base extraction (if Decision 4's rejection is overturned) would land as `ErrorDialog.tsx` taking `{ open, onDismiss, headline, body, primaryLabel, secondaryAction? }` and per-scenario files becoming 8–12 line wrappers. The migration would touch every conformant dialog file but no consumer state — the props on each `<ScenarioErrorDialog>` instance stay the same.
 - The B-9a inventory's intentional-silent rows (I1–I5) are not affected by this ADR. They remain documented carve-outs in the audit doc.
 
