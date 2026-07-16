@@ -38,6 +38,7 @@ This means the panel-mounting code, the rename helpers, the F2 binding, and ever
 |---|---|
 | Left-click an item | replaces selection with `[item]` |
 | Ctrl/⌘+click an item | toggles `item` in/out of `selectedIds` |
+| **Ctrl/⌘+click a connector** | toggles the connector **plus its tile-bound waypoint anchors** in/out of `selectedIds` as one group — `Cursor.ts` `toggleConnectorGroupSelection`, with the group built from `getConnectorWaypointRefs`. ([ux-principles §4.4](../guidelines/ux-principles.md) documents this and names this ADR as its full contract.) |
 | **Shift+click an item** (2026-06-30, #10) | toggles `item` in/out of `selectedIds` — Shift is an additive-select modifier alongside Ctrl/⌘ (it was unbound on canvas; verified collision-free). Threaded via `uiState.mouse.modifiers?.shift` (§6). |
 | Left-click empty canvas | clears selection |
 | Ctrl/⌘+A | selects every visible + unlocked item in the active view |
@@ -69,7 +70,7 @@ This is the only widening of the `Mouse` type from this change. Existing tests t
 
 ### 7. 2026-06-18 addendum — lasso hit-testing, endpoint capture, panel mirror, and the open/select split
 
-Four refinements from the canvas-UX overhaul (`docs/tactical/canvas-ux-overhaul.md`):
+Four refinements from the 2026-06-18 canvas-UX overhaul work (recorded in git history; there is no standalone `canvas-ux-overhaul.md` tactical — that path never existed):
 
 - **Lasso intersection semantics (#16).** Rectangles are selected on **any overlap** with the marquee, not only when all four corners are enclosed ([Lasso.ts:48-65](../../packages/axoview-lib/src/interaction/modes/Lasso.ts#L48)); textboxes are hit on their **full bounds**, not just the origin tile ([Lasso.ts:68-75](../../packages/axoview-lib/src/interaction/modes/Lasso.ts#L68)). The old all-corners-enclosed rule is replaced because users read marquee-touch as selection (a lasso through the middle of a long rectangle or text body must select it).
 - **Endpoint/start-anchor capture (#2).** A connector's endpoint (start/end) anchors become lasso-capturable for **movement** (not splicing — splicing an endpoint still corrupts the path), so a free-floating start anchor can be selected.
