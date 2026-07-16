@@ -5,7 +5,7 @@
 > - [docs/workflow.md](../workflow.md) — the session cadence + design principles. **Principle 1 (discovery hygiene) governs this audit.**
 > - [.claude/commands/feature.md](../../.claude/commands/feature.md) — the ADR template + the `extend`/`supersede` discipline. **Any fix flows through it.**
 >
-> **Status:** **Discovery complete · verified findings REMEDIATED 2026-07-15 · 127 of 173 rows still ungated (A2a/A3 tail)** · **Owner:** molikas · **Last updated:** 2026-07-15
+> **Status:** **COMPLETE — all 173 rows gated (2026-07-16; the 127-row A2a/A3 tail discharged via `/docs-sweep gate`).** This session gated 127 rows → **57 CONFIRMED, all remediated** (code=ground-truth, ADR prose→code; 1 verified code fix), plus dead-link de-linking (baseline 17→7) and a line-anchor lint rule. **47 PLAUSIBLE + 3 NEEDS_OWNER + open code items left for owner; ready for `/feature wrap`.** 11 commits on `integration`, `lint:docs` green. Full detail: `reports/docs-sweep/report.md` (gitignored). · **Owner:** molikas · **Last updated:** 2026-07-16
 >
 > This is a **short-lived working doc.** Delete it at `/feature wrap` once the register is discharged; the ADRs themselves are the durable record.
 

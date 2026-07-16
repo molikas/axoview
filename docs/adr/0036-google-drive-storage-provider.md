@@ -7,7 +7,7 @@
 
 ## Context
 
-Phase 3B (PLAN.md) makes Google Drive the persistent-storage path for the storage-less Cloudflare deployment ([ADR 0009 decision 1](0009-deployment-topology.md)). The plumbing anticipates it: the [`StorageProvider`](../../packages/axoview-app/src/services/storage/types.ts#L65) id union already includes `'google-drive'`, the [`StorageManager`](../../packages/axoview-app/src/services/storage/StorageManager.ts) registry delegates to any registered provider, and [`FileExplorer`](../../packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx) already renders the `google-drive` header label.
+Phase 3B (PLAN.md) makes Google Drive the persistent-storage path for the storage-less Cloudflare deployment ([ADR 0009 decision 1](0009-deployment-topology.md)). The plumbing anticipates it: the [`StorageProvider`](../../packages/axoview-app/src/services/storage/types.ts) id union already includes `'google-drive'`, the [`StorageManager`](../../packages/axoview-app/src/services/storage/StorageManager.ts) registry delegates to any registered provider, and [`FileExplorer`](../../packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx) already renders the `google-drive` header label.
 
 Three drifts since the PLAN 3B spec was written (all reconciled below):
 
@@ -75,7 +75,7 @@ In-app delete keeps the 2B-R contract (confirmation dialog, no in-app trash sect
 > on `GoogleDriveProvider` — ADR 0042 §4 keeps Drive sharing outside the
 > provider interface. The original text is kept below for history.
 
-[ADR 0010](0010-session-backend-contract.md) locks public share links to the session backend; the worker 503s share routes. `GoogleDriveProvider` does **not** implement `shareDiagram`/`unshareDiagram`, and the share affordance (AppToolbar share button + related dialogs) is hidden when the active provider is `google-drive` — otherwise it would dead-end on [StorageManager's "does not support sharing" throw](../../packages/axoview-app/src/services/storage/StorageManager.ts#L137). Drive-native public links (permissions API + `webViewLink`) are a different trust model and, if ever wanted, a future ADR.
+[ADR 0010](0010-session-backend-contract.md) locks public share links to the session backend; the worker 503s share routes. `GoogleDriveProvider` does **not** implement `shareDiagram`/`unshareDiagram`, and the share affordance (AppToolbar share button + related dialogs) is hidden when the active provider is `google-drive` — otherwise it would dead-end on [StorageManager's "does not support sharing" throw](../../packages/axoview-app/src/services/storage/StorageManager.ts). Drive-native public links (permissions API + `webViewLink`) are a different trust model and, if ever wanted, a future ADR.
 
 ### 5. The app's mode model gains `remoteStorageActive`
 
@@ -107,7 +107,7 @@ This is the single largest integration surface of the feature; treating it as on
 
 ### 7. Errors, retries — online-only v1
 
-- Transient errors (5xx, network timeout): exponential backoff, 3 attempts (500 ms / 1 s / 2 s), then a sticky error notification with a **Retry** action. The diagram's dirty flag survives, so nothing is silently lost.
+- Transient errors (5xx, network timeout): exponential backoff, 3 attempts (500 ms / 1 s / 2 s), then a sticky error notification with a **Retry** action. The diagram's dirty flag survives, so nothing is silently lost. *(As-built: the `useAutoSave` `onError` handler pushes an `{severity:'error'}` notification with **no `action`** — the Retry affordance is not yet implemented. The dirty flag does survive.)*
 - `401`: token invalidated → `authStore` transitions to `SESSION_EXPIRED` (ADR 0035 state machine); the failed operation surfaces the persistent "Sign in again" notification.
 - `403 userRateLimitExceeded / rateLimitExceeded`: treated as transient (backoff), surfaced as a *warning* toast, not an error.
 - **The offline IndexedDB write queue from the PLAN 3B spec is deferred** (owner decision 2026-07-05) — it gets a catalogued entry with a real forcing function (field reports of lost edits), not a v1 implementation.
@@ -134,6 +134,6 @@ This is the single largest integration surface of the feature; treating it as on
 
 ## Acceptance criteria
 
-- **Unit test:** full provider suite with mocked `fetch` — list/load/save/create mapping; rename/move/trash/untrash; root-folder discovery (marker found / not found / stale cache); 401 → SESSION_EXPIRED; 503 ×2 then success (backoff); 503 ×3 → error notification with Retry; token obtained via `getValidToken()` only.
+- **Unit test:** full provider suite with mocked `fetch` — list/load/save/create mapping; rename/move/trash/untrash; root-folder discovery (marker found / not found / stale cache); 401 → SESSION_EXPIRED; 503 ×2 then success (backoff); 503 ×3 → error notification with Retry; token obtained via `getValidToken()` only. *(As-built: the shipped `GoogleDriveProvider.test.ts` covers the mapping + backoff cases, but has **no** `restoreDiagram`/untrash test, no `renameDiagram`/`renameFolder` test, no stale-cache discovery test, and the give-up test asserts only throw + call-count, not the Retry notification — open test gaps.)*
 - **Manual verification (localhost + integration deploy):** first connect shows the folder dialog → default path creates `axoview-diagrams` in My Drive; create diagram → save → reload → reconnect → diagram loads from Drive; rename/move/delete reflect in drive.google.com (delete lands in Drive trash); "Save to Drive" copies a local diagram into the root folder; share button absent in Drive mode; switching back to Local restores local content untouched.
 - **Gate before ship (PLAN.md catalogued workstream):** privacy disclosure/policy published and linked from the OAuth consent screen — Drive does not ship to production without it.

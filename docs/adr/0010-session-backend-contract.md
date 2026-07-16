@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-05-20
-**Supersedes:** the durable adapter / atomicity / concurrency decisions previously held in `flare_plan.md` (deleted in commit `926e66f`; classified in [productization-audit.md A.6.1](../tactical/productization-audit.md#a61-flare_planmd-section-classification))
+**Supersedes:** the durable adapter / atomicity / concurrency decisions previously held in `flare_plan.md` (deleted in commit `926e66f`; classified in productization-audit.md A.6.1)
 **Superseded by:** none
 
 ## Context
@@ -11,7 +11,7 @@ The session backend ([packages/axoview-backend](../../packages/axoview-backend/)
 
 The adapter shape was drafted in `flare_plan.md` (Architectural #2 — Key-based StorageAdapter; Architectural #5 — `diagrams-index.json` + `If-Match` conditional writes) and implemented in [fs.js](../../packages/axoview-backend/src/adapters/fs.js), but was never written down as a decision record. Several recent findings forced one:
 
-- **The atomicity gap.** [fs.js:45](../../packages/axoview-backend/src/adapters/fs.js#L45) uses `fs.writeFile` directly. A crash or power loss mid-write leaves a 5 MB diagram truncated. Real failure mode for self-host operators.
+- **The atomicity gap.** [fs.js](../../packages/axoview-backend/src/adapters/fs.js) uses `fs.writeFile` directly. A crash or power loss mid-write leaves a 5 MB diagram truncated. Real failure mode for self-host operators.
 - **The session-isolation question.** Express's current shape gives every diagram a global namespace within a tenant. Multi-user separation is not in scope today, but every new contributor asks "can two users share a deploy?" The answer needs to live in writing.
 - **The concurrent-write semantics.** Today writes are last-writer-wins. Drive's API supports etag-based conditional writes; R2's API does too. If the contract doesn't specify a pattern, every new adapter will reinvent one.
 - **The health-endpoint gap.** [Dockerfile](../../Dockerfile) has no `HEALTHCHECK` (A.6.2 gap). compose.yml has no `healthcheck:` block. The shape of "/healthz" doesn't exist yet — it should be part of the adapter contract, not an Express afterthought.
@@ -46,7 +46,7 @@ export interface StorageAdapter {
 
 The route layer never sees a filesystem path. Keys look like `diagrams/<id>`, `folders`, `tree-manifest`, `public/<uuid>` — the adapter maps these to its storage primitive.
 
-**Lock:** every adapter enforces the regex `KEY_PATTERN` defined at [fs.js:4](../../packages/axoview-backend/src/adapters/fs.js#L4) as defense in depth, even when the underlying storage primitive doesn't strictly require it. Path-traversal characters (`..`, leading `/`, control characters) MUST be rejected at the adapter boundary, not at the route layer alone.
+**Lock:** every adapter enforces the regex `KEY_PATTERN` defined at [fs.js](../../packages/axoview-backend/src/adapters/fs.js) as defense in depth, even when the underlying storage primitive doesn't strictly require it. Path-traversal characters (`..`, leading `/`, control characters) MUST be rejected at the adapter boundary, not at the route layer alone.
 
 This is the single most important runtime invariant in this contract — the route layer trusts the adapter to refuse malformed keys, and the adapter trusts the route layer to use opaque keys exclusively.
 
@@ -77,12 +77,12 @@ Express's current implementation puts every diagram in one global namespace. The
 **Lock for v1:**
 
 - A deploy is **single-tenant**. The operator's responsibility — not the adapter's — is to ensure only the intended user(s) reach the storage. Mechanisms: one container per user, CF Access policy, network ACL.
-- Within a tenant, all diagrams are visible to anyone with `AUTH_MODE` clearance. The share-namespace (`public/<uuid>`) is the *only* exception: it is intentionally world-readable (no auth middleware applies — see [server.js:46-79](../../packages/axoview-backend/server.js#L46)), and exists only to support unauthenticated share-link viewers.
+- Within a tenant, all diagrams are visible to anyone with `AUTH_MODE` clearance. The share-namespace (`public/<uuid>`) is the *only* exception: it is intentionally world-readable (no auth middleware applies — see [server.js](../../packages/axoview-backend/server.js)), and exists only to support unauthenticated share-link viewers.
 - Multi-user isolation **within** a deploy (per-user namespaces, per-user auth, ACLs) is **out of scope for v1**. A future ADR may introduce it; this one explicitly defers.
 
 The decision shapes everything downstream:
 - Share links work because they're a *public-namespace cutout*, not a cross-user share.
-- HTTP Basic Auth (self-host) covers everything that isn't the public-namespace cutout — that's the nginx config in [nginx.conf:4-5](../../nginx.conf#L4); per A.6 #D3 the current nginx omits the nested `location` block that exempts `/api/public/*`, which is the bug C.2 closes.
+- Self-host auth covers everything that isn't the public-namespace cutout — enforced **in-process** by the Express `AUTH_MODE` middleware (`none` / `shared-token` / `cf-access`) in [server.js](../../packages/axoview-backend/server.js), which lets `isPublicRoute` requests through *before* applying the mode check. nginx Basic Auth was fully removed (ADR 0009): there is no `auth_basic` directive and no `/api/public` `location` block — the cutout is application-level, not nginx-level.
 - Drive (Phase 3B) will need its own tenancy story — likely "one Drive account = one tenant" — and that's the Phase 3B ADR's problem, not this one.
 
 ### 5. Reserved-key list
@@ -97,13 +97,13 @@ Some keys are infrastructure, not user data, and must be excluded from `listDiag
 | `diagrams-index` (R2 precedent) | Denormalised diagrams index. Dead today; reserved against future adapter use. |
 | `public/<uuid>` | Share-namespace snapshots. Enumerated only by share-list routes, never by diagrams listing. |
 
-**Lock:** every adapter excludes these from `listDiagramMeta` ([fs.js:80-84](../../packages/axoview-backend/src/adapters/fs.js#L80) is the reference). Adding a new reserved key requires updating both the adapter and the route layer in the same commit.
+**Lock:** every adapter excludes these from `listDiagramMeta` ([fs.js](../../packages/axoview-backend/src/adapters/fs.js) is the reference). Adding a new reserved key requires updating both the adapter and the route layer in the same commit.
 
 ### 6. Snapshots and share namespace
 
 - Snapshots live under the `public/<uuid>` prefix and are **never** enumerated by `listDiagramMeta` or returned to a logged-in user's diagram list.
 - Deletion of a parent diagram (`DELETE /api/diagrams/:id`) cascades to its snapshots; the route layer is responsible for the cascade ([routes.js](../../packages/axoview-backend/src/routes.js)), the adapter doesn't infer relationships.
-- Public-namespace reads bypass the auth middleware on both runtimes (Express: `isPublicRoute` check; Worker: same check in `authMiddleware`). This is **the only auth exception** in the contract.
+- Public-namespace **snapshot** reads (`public/<uuid>`) bypass the auth middleware on both runtimes via the `isPublicRoute` check. On the **Worker**, `isPublicRoute` additionally allows `GET /api/public/drive/:fileId` — the anonymous Drive read-proxy for "anyone with the link" sharing (ADR 0042 / ADR 0043 #3; read-only, and its server-side API key can only fetch already-public files). That Drive proxy is **Worker-only** — Express has no counterpart. So the contract has **two** auth exceptions: the `public/<uuid>` snapshot namespace (both runtimes) and the Drive read-proxy (Worker only). *(Amended by ADR 0042; §6's original "the only auth exception" predates Drive sharing.)*
 
 ### 7. Concurrent-write semantics
 
@@ -131,7 +131,7 @@ Today there is no `/healthz` or `/health` endpoint on Express, no `HEALTHCHECK` 
 - **No auth on `/healthz`** — orchestrators must be able to probe it.
 - The Worker runtime does not need an explicit `/healthz` — Cloudflare's invocation infrastructure handles liveness. Storage-less Worker deploys are healthy by construction.
 
-The Dockerfile + compose.yml additions to wire `/healthz` are owned by the C.2 cleanup tactical, which must coordinate with this ADR's decision 8 to avoid drift.
+The Dockerfile + compose.yml additions to wire `/healthz` have **landed**: [server.js](../../packages/axoview-backend/server.js) exposes `GET /healthz` (with the 10s-cached tmp-file writability probe), the [Dockerfile](../../Dockerfile) has a `HEALTHCHECK` invoking it, and [compose.yml](../../compose.yml) has a `healthcheck:` block.
 
 ### 9. GDrive (Phase 3B) extension contract
 
@@ -162,21 +162,21 @@ Phase 3B's ADR will amend decision 7 (conditional writes go normative for Drive)
 - **The single-tenant lock (decision 4)** will surprise a user who self-hosts intending to invite collaborators. The deployment docs need a clear "single-tenant per deploy" callout (action item for the next docs pass).
 - **Last-writer-wins (decision 7)** is correct for v1 but will need amendment as soon as a real multi-tab regression appears. That's a known forward cost.
 - **The conditional-write pattern is dormant** — preserved as precedent but not exercised. A reader of this ADR could assume it's normative; the language tries to make "dormant" explicit, but if it's missed the contract degrades.
-- **The atomicity contract (decision 3)** requires a one-file change in fs.js that this ADR does not perform. Until that change lands (C.2), the contract is partially aspirational. The C.2 row is the trigger.
+- **The atomicity contract (decision 3)** has **landed**: [fs.js](../../packages/axoview-backend/src/adapters/fs.js) `put` now performs the tmp-file + rename sequence (the `// Atomicity contract (ADR 0010 Decision 3)` block). This item is no longer open.
 
-## Files affected by adopting this ADR
+## Files affected by adopting this ADR (all landed)
 
-- [packages/axoview-backend/src/adapters/fs.js](../../packages/axoview-backend/src/adapters/fs.js#L45) — tmp-file + rename for `put` (decision 3).
-- [packages/axoview-backend/server.js](../../packages/axoview-backend/server.js) — `/healthz` route (decision 8).
-- [Dockerfile](../../Dockerfile) — `HEALTHCHECK` invoking `/healthz`.
-- [compose.yml](../../compose.yml) + [compose.dev.yml](../../compose.dev.yml) — `healthcheck:` block.
-- [nginx.conf](../../nginx.conf#L4) — nested `location` for `/api/public/*` (D3 bug fix that decision 4's public-namespace cutout requires).
+- [packages/axoview-backend/src/adapters/fs.js](../../packages/axoview-backend/src/adapters/fs.js) — tmp-file + rename for `put` (decision 3). ✅
+- [packages/axoview-backend/server.js](../../packages/axoview-backend/server.js) — `/healthz` route (decision 8). ✅
+- [Dockerfile](../../Dockerfile) — `HEALTHCHECK` invoking `/healthz`. ✅
+- [compose.yml](../../compose.yml) + [compose.dev.yml](../../compose.dev.yml) — `healthcheck:` block. ✅
+- ~~nginx.conf — nested `location` for `/api/public/*`~~ — **not applicable**: the `/api/public/*` carve-out was rolled back together with nginx Basic Auth (ADR 0009). The public-namespace cutout is enforced in-process by `isPublicRoute` (decision 6), not by an nginx location block.
 
-All edits land in the C.2 cleanup tactical.
+All edits have landed (originally tracked by the C.2 cleanup tactical).
 
 ## See also
 
-- [productization-audit.md A.6.1](../tactical/productization-audit.md#a61-flare_planmd-section-classification) — flare_plan.md classification table; rows for Architectural #2 / #5 are this ADR's historical source.
-- [productization-audit.md A.6.8](../tactical/productization-audit.md) — outline this ADR expands.
-- [productization-audit.md A.6.6](../tactical/productization-audit.md) — session backend baseline checklist (16 rows; 4 gaps + 1 risk).
+- productization-audit.md A.6.1 — flare_plan.md classification table; rows for Architectural #2 / #5 are this ADR's historical source.
+- productization-audit.md A.6.8 — outline this ADR expands.
+- productization-audit.md A.6.6 — session backend baseline checklist (16 rows; 4 gaps + 1 risk).
 - ADR 0009 — Deployment topology (the cross-runtime counterpart). Decision 1 of ADR 0009 names the runtime asymmetry that this ADR's decision 4 single-tenancy assumes.

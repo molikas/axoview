@@ -41,6 +41,8 @@ Sanitize `textBox.content` with **DOMPurify** before it reaches
 DOMPurify.sanitize(content, { USE_PROFILES: { html: true } })
 ```
 
+The shared helper also registers a module-load `DOMPurify.addHook('afterSanitizeAttributes', …)` on the singleton that forces `rel="noopener noreferrer"` on every anchor with an `href` (added by the 2026-07-05 security review, after this ADR's date). Link hardening therefore lives in the sanitizer itself, not only at the render sites.
+
 Sanitize at **two layers**:
 
 1. **Render (authoritative boundary):** the TextBox read view sanitizes

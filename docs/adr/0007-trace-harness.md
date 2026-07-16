@@ -11,11 +11,11 @@
 
 Axoview's performance work needed a way to *name a bottleneck before changing code*. Three artifacts converged on that need independently over the MQA #7 drag-cliff investigation (2026-05-16) and the cold-start investigation (2026-05-19):
 
-1. **A runtime diagnostics surface** — [DiagnosticsOverlay.tsx](../../packages/axoview-app/src/components/DiagnosticsOverlay.tsx), toggled from the BottomDock (or `localStorage.setItem('axoview_perf_enabled', 'true')` in prod). It writes a circular buffer of FPS / heap / long-task / scene-count samples and exports a compact JSON via the **↓ AI** button — a format ~80% smaller than the human-readable dump and directly ingestible by Claude.
+1. **A runtime diagnostics surface** — [DiagnosticsOverlay.tsx](../../packages/axoview-app/src/components/DiagnosticsOverlay.tsx), toggled from the BottomDock (or `localStorage.setItem('axoview_perf_enabled', '1')` in prod). It writes a circular buffer of FPS / heap / long-task / scene-count samples and exports a compact JSON via the **↓ AI** button — a format ~80% smaller than the human-readable dump and directly ingestible by Claude.
 
 2. **A render-count probe** — [`renderProbe.ts`](../../packages/axoview-lib/src/utils/renderProbe.ts), gated behind the `?perfprobe=1` URL flag (zero cost when disabled). It distinguishes "too many things re-rendering" from "each render is too expensive" — two different fixes. Wired into the drag hot path (Nodes / Node / NodeContent / Connectors / Connector).
 
-3. **A behavioural-contract regression suite** — [`__perf_refactor_regression__/`](../../packages/axoview-lib/src/__perf_refactor_regression__/) (18 spec files + a [README](../../packages/axoview-lib/src/__perf_refactor_regression__/README.md)). These tests were written *before* the performance refactoring to lock in correct behaviour so the hot-path rewrites couldn't silently regress it. They are kept separate from `src/**/__tests__/` precisely so a reviewer can open one folder and see what was guarded before the hot paths were touched.
+3. **A behavioural-contract regression suite** — [`__perf_refactor_regression__/`](../../packages/axoview-lib/src/__perf_refactor_regression__/) (47 spec files + a [README](../../packages/axoview-lib/src/__perf_refactor_regression__/README.md)). These tests were written *before* the performance refactoring to lock in correct behaviour so the hot-path rewrites couldn't silently regress it. They are kept separate from `src/**/__tests__/` precisely so a reviewer can open one folder and see what was guarded before the hot paths were touched.
 
 The diagnostic discipline that ties them together is captured in the [performance-troubleshooting playbook](../guidelines/perf-troubleshooting.md): a four-step diagnostic pyramid (baseline diag → render-count probe → Chrome profile → targeted instrumentation), a set of hard rules ("measure first, fix second"; "one source of truth per frame"; "compositor for position, React for content"), and a catalogue of the six anti-patterns (A-1…A-6) the investigations surfaced and fixed.
 
@@ -27,7 +27,7 @@ These three artifacts plus the playbook were shipping and load-bearing, but had 
 
 The operational trace harness is the union of three layers. Each is independently toggled and carries **no runtime cost when disabled**:
 
-- **DiagnosticsOverlay** (runtime sampling) — off unless toggled from the BottomDock or enabled via the `axoview_perf_enabled` localStorage flag.
+- **DiagnosticsOverlay** (runtime sampling) — **in production**, off unless toggled from the BottomDock or enabled via the `axoview_perf_enabled='1'` localStorage flag. **In dev (`NODE_ENV !== 'production'`) it is on by default** so instrumentation is always available while building; it is force-disabled only when the `axoview-perf-harness='1'` flag is set — the perf-regression harness sets that flag so its own always-on 1 Hz sampling loop does not pollute frame measurements.
 - **renderProbe** (render-count attribution) — off unless `?perfprobe=1` is present in the URL; the module reads the flag once at load.
 - **`__perf_refactor_regression__`** (behavioural contracts) — a test-only suite; never bundled into production.
 

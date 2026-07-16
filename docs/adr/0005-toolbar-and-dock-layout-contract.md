@@ -10,7 +10,7 @@
 
 Three signals drove this revision:
 
-1. **The burger menu in the top toolbar is a junk drawer.** [`MainMenu.tsx`](../../packages/axoview-lib/src/components/MainMenu/MainMenu.tsx) currently mixes `New / Open / Clear canvas` (lifecycle) with `Settings` (system) with `GitHub / Version` (footer-class info) with `Export JSON / Compact / Image` (document actions). The app portals it into the top-left zone of [`AppToolbar.tsx`](../../packages/axoview-app/src/components/AppToolbar.tsx). Each item has a better natural home elsewhere; co-locating them under one icon hurts discoverability.
+1. **The burger menu in the top toolbar is a junk drawer.** `MainMenu.tsx` currently mixes `New / Open / Clear canvas` (lifecycle) with `Settings` (system) with `GitHub / Version` (footer-class info) with `Export JSON / Compact / Image` (document actions). The app portals it into the top-left zone of [`AppToolbar.tsx`](../../packages/axoview-app/src/components/AppToolbar.tsx). Each item has a better natural home elsewhere; co-locating them under one icon hurts discoverability.
 
 2. **The file-explorer toggle lives in the wrong region.** It's currently in the top-left of [`AppToolbar.tsx`](../../packages/axoview-app/src/components/AppToolbar.tsx), but it semantically opens a left-side navigation panel and belongs in the same strip as Elements + Layers — see [`LeftDock.tsx`](../../packages/axoview-lib/src/components/LeftDock/LeftDock.tsx). Industry convention (VS Code, Figma, Linear) co-locates all panel toggles in a single vertical activity strip.
 
@@ -27,6 +27,8 @@ The application chrome has four shells, each with a defined ownership rule. Any 
 The diagram name is rendered on the canvas (existing behavior); the toolbar does not duplicate it. With no center anchor, LEFT and CENTER zones are intentionally empty. All controls collapse into the RIGHT zone, organized into four groups separated by dividers, ordered left → right:
 
 > **Amendment 2026-05-19** — LEFT zone now carries a subtle brand mark: 18px favicon SVG + muted `Axoview` wordmark (body2, `text.secondary`). Non-interactive. Reads as a quiet header, does not compete with canvas diagram name. CENTER remains empty.
+>
+> **Superseded (2026-07, landing/crawlability work — [ADR 0040](0040-marketing-landing-and-spa-crawlability.md)).** The LEFT-zone brand mark is now an **interactive** home link: [`AppToolbar.tsx`](../../packages/axoview-app/src/components/AppToolbar.tsx) renders `toolbar-left` as `<a href>` to the site root (the "Axoview — home" affordance) with a 24px `favicon-96x96.png` and the toolbar's own wordmark styling — no longer the non-interactive 18px-SVG / body2 mark specified above.
 >
 > **Amendment 2026-07-06 (owner override, storage-ux-unification)** — the Group 1 "Format" slot (docked style strip, ADR 0030/0034) moved from the RIGHT cluster to the **LEFT zone**, immediately after the brand mark (Lucid pattern: formatting reads left-to-right with the content). CENTER is now a flex spacer; the RIGHT cluster keeps document actions + the account control with `flexShrink: 0`. The strip remains the one compressible F1 group per §7's overflow contract. Same day, the `SESSION` chip + storage gauge moved out of the status cluster into the avatar menu (see ux-principles §8.5 dated note); `StatusCluster` renders save-state text only.
 
@@ -46,8 +48,8 @@ The diagram name is rendered on the canvas (existing behavior); the toolbar does
 | Group | Owns | Members | Visibility |
 |---|---|---|---|
 | **1. View modes** | View/format toggles that change how the document is rendered or styled globally | `𝐀 Format` (text/node sizing), `◐ View` (focus mode, annotation overlay) | Reserved slot — buttons not rendered until their feature ADR ships. The position is locked; future ADRs add the controls here. |
-| **2. Save group** | Save action and save state, read as a cohesive unit | `💾 Save` (session mode only, primary-tinted) + status cluster | Status cluster always visible. Save action visible only when `!serverStorageAvailable`. |
-| **3. Document actions** | One-shot operations on the current diagram | `⬇ Export` (popover: JSON / Compact JSON / Image), `🔗 Share`, `👁 Preview` | Always rendered; Share/Preview disabled in session mode. |
+| **2. Save group** | Save action and save state, read as a cohesive unit | `💾 Save` (session mode only, primary-tinted) + status cluster | Status cluster renders **only when there is save-state to show** — `StatusCluster` returns `null` when `!lastSaved && !hasUnsavedChanges`. Save action visible when `!remoteStorageActive` (neither server storage nor Google Drive is the active place — broader than the original `!serverStorageAvailable`). |
+| **3. Document actions** | One-shot operations on the current diagram | `⬇ Export` (popover: JSON / Compact JSON / Image), `🔗 Share`, `👁 Preview` | Always rendered. `👁 Preview` is disabled only until a diagram exists (`!currentDiagramId`) — **not** gated on session vs server mode. `🔗 Share` is disabled when sharing is unavailable (`shareDisabled`). |
 | **4. Sidebar toggle** | Right Properties panel toggle | `≡` | Always visible in editable modes. |
 
 **Status cluster contents:**
@@ -117,6 +119,8 @@ Implementation pattern: parent panel container declares the reveal selector (`&:
 
 ### 6. Settings dialog gains two tabs
 
+> **Amendment (as-built).** Only the **About** tab shipped and remains. The **Diagnostics** tab described below was later removed (commit `315f395`); [`SettingsDialog.tsx`](../../packages/axoview-lib/src/components/SettingsDialog/SettingsDialog.tsx) now renders `AboutTab` only. The e2e `dialogs.spec.ts` J16 asserts the Diagnostics tab is **absent**. The Diagnostics-tab prose below is retained as the historical decision record.
+
 To absorb redistributed burger items and to surface developer affordances that today live behind a dev-only prop, [`SettingsDialog.tsx`](../../packages/axoview-lib/src/components/SettingsDialog/SettingsDialog.tsx) adds:
 
 - **About** tab — GitHub link, version string.
@@ -170,8 +174,8 @@ This ADR originally specified no width budget or overflow rule; once the Group 1
   - Settings → Diagnostics → Session dump downloads the existing dump format.
   - Storage gauge in status cluster opens the existing per-diagram breakdown popover.
   - Export ⬇ popover offers JSON / Compact JSON / Image; each downloads correctly.
-- **Unit / component:**
-  - `SettingsDialog` test asserts About + Diagnostics tabs render.
-  - `AppToolbar` snapshot/render test in both modes asserts the four-group structure.
-  - Storage-gauge test continues to pass (no behavior change).
+- **Unit / component** *(as-built — the originally-specified unit tests were not added; these surfaces are covered at the e2e layer instead):*
+  - There is no `SettingsDialog` unit test (no `__tests__/` folder for it); the dialog is exercised by [`dialogs.spec.ts`](../../packages/axoview-e2e/tests/dialogs.spec.ts) (J16 asserts the removed Diagnostics tab is absent).
+  - There is no `AppToolbar` render/snapshot unit test; toolbar structure/overflow is asserted by [`toolbar-overflow.spec.ts`](../../packages/axoview-e2e/tests/toolbar-overflow.spec.ts).
+  - There is no standalone storage-gauge unit test.
 - **Build:** `yarn build` clean across all packages.

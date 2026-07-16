@@ -9,13 +9,13 @@
 
 Three reported issues share one root: the canvas has no single, opinionated open/select/pan contract, and the parts that exist contradict each other.
 
-- **#4** — Details should open on **double-click**, not single-click. Today a single left-click selects an item, and because `selectedIds.length === 1` auto-mirrors into `itemControls` ([ADR 0006](0006-canvas-selection-contract.md) §4; [Cursor.ts:575](../../packages/axoview-lib/src/interaction/modes/Cursor.ts#L575)), the details panel opens on every single click.
-- **#7** — Right-click opens the details panel + floating action bar ([useInteractionManager.ts:960-970](../../packages/axoview-lib/src/interaction/useInteractionManager.ts#L960)). Users expect right-drag to **pan** the canvas; right-click-to-pan is currently an opt-in setting (`panSettings.rightClickPan`) that collides with the action-bar path.
-- **#6** — Selecting the name text in the details panel by click-dragging closes the panel when the cursor crosses the panel bounds (window-bound pointer listeners per ADR 0018 + a dismiss path the existing MQA-#16 guard at [Cursor.ts:559](../../packages/axoview-lib/src/interaction/modes/Cursor.ts#L559) doesn't cover).
+- **#4** — Details should open on **double-click**, not single-click. Today a single left-click selects an item, and because `selectedIds.length === 1` auto-mirrors into `itemControls` ([ADR 0006](0006-canvas-selection-contract.md) §4; [Cursor.ts](../../packages/axoview-lib/src/interaction/modes/Cursor.ts)), the details panel opens on every single click.
+- **#7** — Right-click opens the details panel + floating action bar ([useInteractionManager.ts](../../packages/axoview-lib/src/interaction/useInteractionManager.ts)). Users expect right-drag to **pan** the canvas; right-click-to-pan is currently an opt-in setting (`panSettings.rightClickPan`) that collides with the action-bar path.
+- **#6** — Selecting the name text in the details panel by click-dragging closes the panel when the cursor crosses the panel bounds (window-bound pointer listeners per ADR 0018 + a dismiss path the existing MQA-#16 guard at [Cursor.ts](../../packages/axoview-lib/src/interaction/modes/Cursor.ts) doesn't cover).
 
 The user also asked to **remove the canvas-interaction customization surface and its code debt**, and to re-verify touch ("TAP") behavior. That surface is:
 
-- [`PanSettings`](../../packages/axoview-lib/src/components/PanSettings/PanSettings.tsx) (Settings → "Canvas" tab) — `emptyAreaClickPan`, `middleClickPan`, `rightClickPan`, `ctrlClickPan`, `altClickPan`, `arrowKeysPan`, `wasdPan`, `ijklPan`, `keyboardPanSpeed`. Several toggles **conflict** with the fixed model below (`ctrlClickPan` vs Ctrl+click multi-select; `altClickPan` vs Alt+click waypoint removal; `emptyAreaClickPan` vs lasso/empty-clear).
+- `PanSettings` (Settings → "Canvas" tab) — `emptyAreaClickPan`, `middleClickPan`, `rightClickPan`, `ctrlClickPan`, `altClickPan`, `arrowKeysPan`, `wasdPan`, `ijklPan`, `keyboardPanSpeed`. Several toggles **conflict** with the fixed model below (`ctrlClickPan` vs Ctrl+click multi-select; `altClickPan` vs Alt+click waypoint removal; `emptyAreaClickPan` vs lasso/empty-clear).
 - The hotkey-profile selector in [`HotkeySettings`](../../packages/axoview-lib/src/components/HotkeySettings/HotkeySettings.tsx) — the default `smnrct` profile maps `connector: 'c'`, the source of the Ctrl+C collision (#17).
 - [`HelpDialog`](../../packages/axoview-lib/src/components/HelpDialog/HelpDialog.tsx) documents the old mouse model and must be rewritten.
 
@@ -97,14 +97,15 @@ What this change makes **redundant**, **contradicts**, or **orphans**, and how e
 
 ## Implementation notes (non-binding)
 
-- `resolveClickSelection` ([Cursor.ts:465](../../packages/axoview-lib/src/interaction/modes/Cursor.ts#L465)) stops opening `itemControls`; a new double-click path opens it.
-- `onContextMenu` ([useInteractionManager.ts:926](../../packages/axoview-lib/src/interaction/useInteractionManager.ts#L926)) no longer calls `setItemControls`/`setItemActionBarOpen` for mouse.
-- Tool-hotkey resolution guarded by `!isCtrlOrCmd` ([useInteractionManager.ts:750](../../packages/axoview-lib/src/interaction/useInteractionManager.ts#L750)).
+- `resolveClickSelection` ([Cursor.ts](../../packages/axoview-lib/src/interaction/modes/Cursor.ts)) stops opening `itemControls`; a new double-click path opens it.
+- `onContextMenu` ([useInteractionManager.ts](../../packages/axoview-lib/src/interaction/useInteractionManager.ts)) no longer calls `setItemControls`/`setItemActionBarOpen` for mouse.
+- Tool-hotkey resolution guarded by `!isCtrlOrCmd` ([useInteractionManager.ts](../../packages/axoview-lib/src/interaction/useInteractionManager.ts)).
 
 ## Acceptance criteria
 
 - **Unit:** `resolveToolHotkey` is not consulted when `isCtrlOrCmd` (Ctrl+C/V/X never switch tool).
 - **e2e (new `details-interaction.spec`):** single-click selects + no panel; double-click opens panel; right-click press-drag pans; right-click **tap opens the context menu** (item) / canvas menu (empty), never the panel ([ADR 0027](0027-canvas-context-menu.md)); name-field text-drag crossing the panel keeps it open.
+  - *(As-built, v3.7.0: no `details-interaction.spec` was created. Some of these behaviours are exercised by other e2e specs, but the double-click-opens-panel and name-drag-keeps-panel assertions have no dedicated e2e coverage — an open test gap.)*
 - **Manual + touch device:** tap = select, double-tap = details, long-press = bar; no double-open.
 - **Build clean;** `grep -r panSettings packages/` returns nothing; `HelpDialog` reflects the new model.
 

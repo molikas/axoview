@@ -19,8 +19,8 @@ agent, then cross-checked every severe finding against the code. Two lessons mad
 protocol:
 
 1. **The method works.** The run surfaced real, otherwise-invisible bugs — a caption rendering literal
-   `&nbsp;` on the Canvas2D layer ([NodesCanvas.tsx:127](../../packages/axoview-lib/src/components/SceneLayers/Nodes/NodesCanvas.tsx#L127)),
-   click-to-arm icon placement landing under the panel ([PlaceIcon.ts:31](../../packages/axoview-lib/src/interaction/modes/PlaceIcon.ts#L31)),
+   `&nbsp;` on the Canvas2D layer ([NodesCanvas.tsx](../../packages/axoview-lib/src/components/SceneLayers/Nodes/NodesCanvas.tsx)),
+   click-to-arm icon placement landing under the panel ([PlaceIcon.ts](../../packages/axoview-lib/src/interaction/modes/PlaceIcon.ts)),
    Esc failing to cancel an action-bar-started connector, a chrome-wide hardcoded-English i18n gap, and
    two genuine accessibility blockers (no focus ring, keyboard-unreachable icon grid).
 2. **The agent manufactures false blockers.** Its two loudest "S1" findings were **artifacts** — a

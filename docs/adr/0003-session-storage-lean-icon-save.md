@@ -34,6 +34,8 @@ In other words: drop an icon iff it is a *pure* duplicate of a bundled fixture. 
 
 Load-time rehydration is handled by [ADR 0002](0002-icon-catalog-merge-on-load.md) — the loader unions `bundledFixtures` back in before populating the model store.
 
+**As implemented (ADR⇄code, v3.7.0).** Only the **export** path applies this exact fixture-diff rule (via `stripDefaultIcons` in [`leanSave.ts`](../../packages/axoview-lib/src/utils/leanSave.ts)). The **session and server** write paths strip with a simpler predicate — keep only `icon.collection === 'imported'` (`leanIfModel` in [`leanModel.ts`](../../packages/axoview-app/src/services/storage/leanModel.ts)). The two differ for an *overridden* bundled icon (same id, changed metadata): the fixture-diff rule keeps it, `collection==='imported'` drops it. Because `bundledFixtures` is currently **empty by design** (the app injects `@isoflow/isopacks` — see ADR 0002), there is nothing to strip on any path, so the divergence is latent, not observable today. Reconciling the write paths onto one rule is an open item.
+
 **2026-05-02:** Lean-save now also persists `requiredPacks: string[]` — the unique non-isoflow/imported collections referenced by `items`. Loaders consult it to lazy-fetch the right icon packs before the merge in ADR 0002 runs; without this signal, items end up pointing at icon ids that nothing in the loaded catalog can resolve. The field is **preserved** (not re-derived) when the input is already lean — otherwise a round-trip through storage wipes the list to `[]`. Authoritative re-derivation only runs when every `item.icon` resolves against `model.icons`.
 
 ## Consequences
@@ -63,5 +65,5 @@ Load-time rehydration is handled by [ADR 0002](0002-icon-catalog-merge-on-load.m
 - **Unit test:** model with `icons` = `bundledFixtures` (verbatim), passed through `leanSave`, produces `icons: []`.
 - **Unit test:** model with `icons` = `[...bundledFixtures, customIcon]` produces `icons: [customIcon]`.
 - **Unit test:** model with `icons[0]` = bundled fixture but `name` changed → fixture is preserved (override wins).
-- **Round-trip test:** session-save then session-load produces a model whose merged `icons` array is element-wise equal to the pre-save merged array.
+- **Round-trip test** *(specified; not implemented as of v3.7.0)*: a session-save→session-load round-trip asserting the merged `icons` array is element-wise equal is **not present**. `leanSave.test.ts`'s "round-trip: strip then merge" is a pure-function composition (`stripDefaultIcons` → merge) with no `sessionStorage`/provider; `LocalStorageProvider.test` does not save-then-load to compare merged icons. Open test gap.
 - **Manual verification:** the side dock after load shows the full bundled catalog (covered by ADR 0002 tests; called out here because the bug history lives in this surface).

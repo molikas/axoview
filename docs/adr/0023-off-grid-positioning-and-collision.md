@@ -37,6 +37,8 @@ collides?: boolean;                  // default true; false = excluded from Tile
 
 All drag/paste/placement position resolution goes through a single helper, `resolvePlacement(tile, offset, snap, globalSnap)`. The rest of the engine — routing, `TileIndex`, spatial queries, the canvas render base — keeps reading the **integer tile**; only the renderer and this chokepoint read `offset`. This bounds the blast radius.
 
+**As-built caveat (v3.7.0):** the *drag* path does not actually call `resolvePlacement` — [`DragItems.ts`](../../packages/axoview-lib/src/interaction/modes/DragItems.ts) re-implements the snap predicate inline as `isOffGrid` (`(snap ?? true) && globalSnap`). Behaviour matches today, but this is exactly the "single chokepoint is load-bearing or the two desync" risk the Consequences below flag; the drag duplication should be folded back through `resolvePlacement`.
+
 ### 3. Global toggle + per-item override
 
 - A persisted `uiState.snapToGrid` global toggle (default on) sets the default for new placements/drags (#12).
@@ -57,7 +59,7 @@ When `collides === false`, paste/drag/rigid-stamp skip the tile-hash occupancy t
 ## Implementation notes (non-binding)
 
 - Renderer applies `offset` after the `CoordinateTransformStrategy` projection.
-- Context-menu entries via the existing `ContextMenu` component; global toggle in `uiStateStore` persisted settings (mirror `canvasMode`).
+- Context-menu entries via the canvas context menu (`CanvasContextMenu`, built by [ADR 0027](0027-canvas-context-menu.md) — there is **no** generic `ContextMenu` component; this corrects the "existing `ContextMenu`" phrasing, which contradicted §3's "no context-menu component today"); global toggle in `uiStateStore` persisted settings (mirror `canvasMode`).
 - Connector endpoint resolution reads the node's rendered position (tile + offset).
 
 ## Acceptance criteria

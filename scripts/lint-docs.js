@@ -89,7 +89,20 @@ for (const file of adrFiles) {
   // it should only ever shrink.
   for (const m of src.matchAll(/\]\(([^)]+)\)/g)) {
     const link = m[1].split('#')[0].trim();
+    const frag = m[1].includes('#') ? m[1].slice(m[1].indexOf('#') + 1).trim() : '';
     if (!link || /^(https?:|mailto:)/.test(link)) continue;
+
+    // --- 6. No line-number anchors on repo-relative links --------------------
+    // `file.ts#L348` drifts on every edit above line 348, can't be machine-
+    // verified ("is 348 still right?"), and adds nothing over a symbol name.
+    // ~40 PLAUSIBLE rows in the conformance register were exactly this churn.
+    // Convention: cite `file.ts` + a `symbolName`, which is grep-stable and
+    // human-meaningful. A genuinely-historical citation belongs on a commit-SHA
+    // permalink (external https:, exempted above), not a moving branch link.
+    if (/^L\d+(-L?\d+)?$/.test(frag)) {
+      err(file, `line-number anchor "#${frag}" on ${link} -- drop it and name the symbol instead (line anchors drift; only external commit-SHA permalinks may pin lines)`);
+    }
+
     if (link.includes('NNNN') || link.includes('<')) continue; // template placeholders
     if (!fs.existsSync(path.resolve(path.dirname(file), link))) {
       const key = `${path.relative(ROOT, file).split(path.sep).join('/')} -> ${link}`;

@@ -8,24 +8,16 @@
     "  the archive). The citation is dead but the content is recoverable. Fix by de-linking",
     "  to plain text naming the retired file, as ADRs 0020/0031 now do.",
     "",
-    "kind=dead-code: the ADR links a source file that no longer exists anywhere. These are",
-    "  the \"ADR says X, code does not have X\" class -- the A2a truth class the 2026-07-15",
-    "  audit gated only 11 of 67 rows in. Each needs judgment: an ADR citing the component",
-    "  it deliberately DELETED (e.g. 0030 -> NodeStyleTab.tsx) is a legitimate historical",
-    "  citation; an ADR citing where an implementation \"lives\" is stale and misleading.",
-    "  Do not bulk-fix -- gate each one.",
+    "kind=dead-code: the ADR links a source file that no longer exists anywhere. Each needs",
+    "  judgment: an ADR citing the component it deliberately DELETED is a legitimate",
+    "  historical citation; an ADR citing where an implementation lives is stale. Gate each.",
     "",
-    "Adoption counts: 17 unique (8 retired-doc, 9 dead-code)."
+    "2026-07-16 docs-sweep remediation: de-linked the 8 retired-doc citations + the MainMenu",
+    "  and PanSettings dead-code refs to plain text; removed them from this baseline.",
+    "",
+    "Adoption counts: 7 unique (0 retired-doc, 7 dead-code)."
   ],
   "brokenLinks": [
-    {
-      "link": "docs/adr/0005-toolbar-and-dock-layout-contract.md -> ../../packages/axoview-lib/src/components/MainMenu/MainMenu.tsx",
-      "kind": "dead-code"
-    },
-    {
-      "link": "docs/adr/0006-canvas-selection-contract.md -> ../tactical/mqa-design-shakeout.md",
-      "kind": "retired-doc"
-    },
     {
       "link": "docs/adr/0008-naming-convention.md -> ../../packages/axoview-app/src/components/ExportDialog.tsx",
       "kind": "dead-code"
@@ -40,38 +32,6 @@
     },
     {
       "link": "docs/adr/0008-naming-convention.md -> ../../packages/axoview-app/src/StorageManager.tsx",
-      "kind": "dead-code"
-    },
-    {
-      "link": "docs/adr/0008-naming-convention.md -> ../tactical/productization-audit.md",
-      "kind": "retired-doc"
-    },
-    {
-      "link": "docs/adr/0009-deployment-topology.md -> ../tactical/productization-audit.md",
-      "kind": "retired-doc"
-    },
-    {
-      "link": "docs/adr/0010-session-backend-contract.md -> ../tactical/productization-audit.md",
-      "kind": "retired-doc"
-    },
-    {
-      "link": "docs/adr/0011-error-ux-contract.md -> ../tactical/productization-audit.md",
-      "kind": "retired-doc"
-    },
-    {
-      "link": "docs/adr/0018-touch-pen-gesture-contract.md -> ../tactical/touch-pen-gesture-contract.md",
-      "kind": "retired-doc"
-    },
-    {
-      "link": "docs/adr/0019-canvas2d-node-render-layer.md -> ../../perf-results/cpuprofile-spawn-1000.md",
-      "kind": "retired-doc"
-    },
-    {
-      "link": "docs/adr/0019-canvas2d-node-render-layer.md -> ../../perf-results/t2-design.md",
-      "kind": "retired-doc"
-    },
-    {
-      "link": "docs/adr/0022-canvas-pointer-interaction-model.md -> ../../packages/axoview-lib/src/components/PanSettings/PanSettings.tsx",
       "kind": "dead-code"
     },
     {

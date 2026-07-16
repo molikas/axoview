@@ -35,7 +35,7 @@ parent). The load-bearing facts:
   a signed-in browser session.
 - The render side is mostly built: `EXPLORABLE_READONLY`, the
   `/display/*` route family, and the public-snapshot loader
-  ([DiagramLifecycleProvider.tsx:462-513](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx#L462-L513))
+  ([DiagramLifecycleProvider.tsx](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx))
   are the exact template.
 
 ## Decision
@@ -48,7 +48,7 @@ the recipient-read gap with the Picker grant.**
 ### 1. Share affordance returns in Drive mode
 
 The AppToolbar share button (currently hidden by `{!driveActive && …}`,
-[AppToolbar.tsx:336](../../packages/axoview-app/src/components/AppToolbar.tsx#L336))
+[AppToolbar.tsx](../../packages/axoview-app/src/components/AppToolbar.tsx))
 renders for Drive-place diagrams and opens a Drive-specific share popover:
 
 - **Copy preview link** — `${origin}${APP_BASENAME}/display/drive/<fileId>`
@@ -106,15 +106,15 @@ and [`DriveShareManageDialog.tsx`](../../packages/axoview-app/src/components/Dri
 
 ### 2. New read-only display route `/display/drive/:driveFileId`
 
-Added beside the existing forms in [App.tsx:95-101](../../packages/axoview-app/src/App.tsx#L95-L101)
+Added beside the existing forms in [App.tsx](../../packages/axoview-app/src/App.tsx)
 (React Router ranks the static `drive` segment above `:readonlyDiagramId` — no
 collision). The route joins `isReadonlyUrl`
-([DiagramLifecycleProvider.tsx:202](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx#L202)),
+([DiagramLifecycleProvider.tsx](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx)),
 inheriting autosave-off and the `EXPLORABLE_READONLY` editor mode. It must NOT
 set `isPublicShareUrl`, so the `LocalModeShareError` gating
-([App.tsx:323](../../packages/axoview-app/src/App.tsx#L323)) cannot misfire.
+([App.tsx](../../packages/axoview-app/src/App.tsx)) cannot misfire.
 **Required mutual-exclusion guard:** the existing owner-readonly loader effect
-([DiagramLifecycleProvider.tsx:518-575](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx#L518-L575))
+([DiagramLifecycleProvider.tsx](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx))
 is guarded only by `isPublicShareUrl`/`isReadonlyUrl`, so once `isReadonlyUrl`
 is extended it would co-fire on `/display/drive/*` — calling
 `storage.listDiagrams()` and `storage.loadDiagram(undefined)`, and racing
@@ -154,7 +154,10 @@ see future edits (draw.io semantics). This is the opposite of
 coexist, scoped by place: session/server diagrams keep snapshot links
 (ADR 0010 unchanged); Drive diagrams get live links. Popover copy must say
 "view the latest version" so the difference is explicit, and revoking access
-is Drive's job (remove the permission), not an app unshare.
+is Drive's job (remove the permission), not an app unshare. *(As-built, v3.7.0:
+this MUST is **not met** — the `share.drive.liveHint` string exists in all 13
+locales but has zero code references; the Drive share menu and
+`DriveShareManageDialog` render no live-vs-snapshot disclosure. Open item.)*
 
 This narrows ADR 0036 §5's standing rule "share links (§4) … stay on
 `serverStorageAvailable`": only **snapshot** share links and the
@@ -164,20 +167,21 @@ records this).
 
 ### 4. Drive sharing lives OUTSIDE the StorageProvider interface
 
-`StorageProvider.shareDiagram` ([types.ts:98](../../packages/axoview-app/src/services/storage/types.ts#L98))
+`StorageProvider.shareDiagram` ([types.ts](../../packages/axoview-app/src/services/storage/types.ts))
 models publish-a-snapshot (`{uuid, url, sharedAt}`) — a server contract Drive
 sharing does not fit (no uuid; "sharing" is a Drive ACL change + a
 deterministic URL). `GoogleDriveProvider` continues to omit
 `shareDiagram`/`unshareDiagram`; the new surface is a Drive-place service
-(`driveSharing`: ShareClient launch, `permissions.list` summary, preview-URL
-builder) consumed by the share popover. The StorageManager "does not support
+(`driveSharing`: Drive-REST `permissions` calls — list summary, set/revoke
+anyone-with-link — plus a preview-URL builder; **not** ShareClient, which
+decision 3 dropped 2026-07-14, see the revision above) consumed by the share popover. The StorageManager "does not support
 sharing" throw stays as-is for non-sharing providers.
 
 ### 5. API key on the existing config rail
 
 Two new optional config values on the existing rail (worker
-[app.ts:41](../../packages/axoview-worker/src/app.ts#L41) + Express
-[routes.js:68](../../packages/axoview-backend/src/routes.js#L68) parity, plus
+[app.ts](../../packages/axoview-worker/src/app.ts) + Express
+[routes.js](../../packages/axoview-backend/src/routes.js) parity, plus
 `PUBLIC_`-prefixed build-time dev fallbacks — the exact `googleClientId`
 pattern from [ADR 0035 §4](0035-google-identity-and-drive-authorization.md)):
 
@@ -234,7 +238,9 @@ Revised acceptance criteria: P1 is now "anonymous read of an anyone-with-link fi
 - Diagram data never leaves the user's Drive; access control is Google's ACL
   with Google's own UI — the correct trust model, near-zero permission code.
 - Anonymous preview with zero server storage — the Drive-native analogue of
-  the rejected server-snapshot option, on both deploy targets.
+  the rejected server-snapshot option, **on Cloudflare only**: the anonymous
+  read-proxy is Worker-only (`routes.js` keeps `drivePublicPreview:false`, so
+  Express/Docker has no anonymous proxy — see §8). Not "both deploy targets".
 - No new OAuth scope, no Google review for v1 (`drive.file` stays the only
   scope; the API key is not a scope).
 - The Picker infrastructure incidentally unlocks the catalogued
@@ -260,8 +266,8 @@ Revised acceptance criteria: P1 is now "anonymous read of an anyone-with-link fi
   summary, preview-URL builder), `services/drive/drivePublicRead.ts` (key/token
   read ladder), `components/DriveDisplayGate.tsx` (gate screen),
   `components/DriveSharePopover` branch inside the existing share popover home
-  (state/handler [AppToolbar.tsx:72-128](../../packages/axoview-app/src/components/AppToolbar.tsx#L72-L128),
-  popover JSX [:400-463](../../packages/axoview-app/src/components/AppToolbar.tsx#L400-L463)).
+  (state/handler [AppToolbar.tsx](../../packages/axoview-app/src/components/AppToolbar.tsx),
+  popover JSX [](../../packages/axoview-app/src/components/AppToolbar.tsx)).
 - Loader effect: third effect in DiagramLifecycleProvider beside the
   public-snapshot one; extend `isReadonlyUrl`'s OR with the new param.
 - Picker: `gapi.load('picker')` from the already-allowed

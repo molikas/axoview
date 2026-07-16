@@ -186,7 +186,12 @@ export const AnnotationLayer = () => {
       ) {
         return;
       }
-      if (e.key === 'Escape' || e.key === 'v' || e.key === 'V') {
+      // 'v' returns to the select tool, but only as a bare keypress — Ctrl/Cmd/Alt+V
+      // (paste and other shortcuts) must not reset the armed tool. Escape always resets.
+      if (
+        e.key === 'Escape' ||
+        ((e.key === 'v' || e.key === 'V') && !e.ctrlKey && !e.metaKey && !e.altKey)
+      ) {
         actions.setAnnotationTool('select');
       }
     };

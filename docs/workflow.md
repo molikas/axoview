@@ -23,6 +23,7 @@
 | [docs/reviews/](reviews/) | **Frozen** reviewer-grade snapshots (`technical-review-*`) — immutable once cut, true only as of their freeze date | Cut deliberately at a ship boundary; never edited afterwards |
 | [docs/adr/](adr/) | One durable **decision** each | `/feature start\|extend\|supersede` |
 | [docs/tactical/](tactical/) | Short-lived working docs | `/feature start`, deleted at `/feature wrap` |
+| [reports/](../reports/) · `perf-results/raw/` | **Generated output — gitignored, regenerable, never committed.** Audit registers, gate worklists, static-analysis reports. Same tier as `playwright-report/`: a build artifact, not a doc. *(Exceptions are explicit and few: `perf-results/decision-log.md` + `baseline.md` are DURABLE by [ADR 0020](adr/0020-engine-perf-harness-and-measurement-protocol.md)'s retention policy, and a cut `docs/reviews/` report is a doc.)* | Whatever emits it (`/audit`, `/docs-sweep`, `npm run perf`) |
 | [docs/features.md](features.md) | The durable **feature inventory** — what this fork adds vs upstream, with ADR links. Tracks `integration`, so it can lead the released line. The root README carries only the condensed Highlights | **`/notes`**, from `feat`/`ux` commits |
 | [docs/deployment.md](deployment.md) · [docs/manual-test-baseline.md](manual-test-baseline.md) | Deploy walkthrough · point-in-time manual walk record | Whoever changes the target · re-walked on demand |
 | [PLAN.md](../PLAN.md) · [known_issues.md](../known_issues.md) | Roadmap dashboard · open-issues register | `/feature wrap` · `/notes` + `/shake-out` |
@@ -107,7 +108,8 @@ A session moves left-to-right through the stages below. Most sessions skip stage
 | Replacing an accepted ADR | `/feature supersede <NNNN>` | New ADR with the cross-link; old one marked superseded. |
 | Tactical doc finished | `/feature wrap <topic>` | Adds PLAN.md line, deletes the tactical, retires its memory pointer. |
 | End-of-session doc sync | `/notes` | README · architecture.md · testing.md · known_issues.md · PLAN.md · ADR statuses · tactical wrap. **CHANGELOG + versions are auto-cut by semantic-release on merge — never hand-edited.** |
-| Heavy multi-dimension review | `/audit` | Static analysis + security + coverage + build + architecture + UX/perf greps. Pre-release or quarterly. |
+| Heavy multi-dimension review | `/audit` | Static analysis + security + coverage + build + architecture + UX/perf greps. Pre-release or quarterly. **Subject = the code.** |
+| Docs feel stale, duplicated, or drifted from the code | `/docs-sweep` | **Subject = the docs.** `lint` (governance metadata, also a CI gate) · `consolidate` (restated facts, calcified tacticals, stale currency claims) · `gate` (discharge the ADR⇄code conformance register — long-running, resumable). |
 | Iterative bug-fix / polish loop on shipped surfaces | `/shake-out` | Per-issue verification loop; one coherent commit per bundle. |
 | Pre-merge code or security review | `/review` / `/security-review` | Built-in skills; fire just before `/ship`. |
 | Promote `integration` → `master` | `/ship` | Test gate + version-coherence check + interactive plan. Doesn't bump versions. |
@@ -116,6 +118,8 @@ A session moves left-to-right through the stages below. Most sessions skip stage
 **Boundaries that have caused confusion before:**
 
 - `/audit` vs `/shake-out` — both "find and fix." `/audit` is the heavy sweep that produces an executive report; `/shake-out` is the per-issue polish loop. Pick `/audit` when the problem isn't named yet; pick `/shake-out` when the issues are listed.
+- `/audit` vs `/docs-sweep` — **the subject differs.** `/audit` reviews the *code* (and flags where it deviates from the docs' principles). `/docs-sweep` reviews the *docs* (and asks whether the code still bears them out). If the finding's remedy is a code change, it was `/audit`'s; if it's a doc edit, it was `/docs-sweep`'s.
+- **`scripts/lint-docs.js` is not part of `/docs-sweep`,** even though the skill invokes it. It is a **CI gate** (`npm run lint:docs`, wired into `test.yml`) and therefore lives in `scripts/` with the other CI-owned tooling. CI must never depend on `.claude/` — that directory is agent tooling and is not guaranteed to exist in a checkout. Agent-only helpers live in `.claude/scripts/docs-sweep/`; their output goes to gitignored `reports/`.
 - `/notes` vs `/ship` — **neither cuts the release.** semantic-release cuts it in CI on merge to `master` (`.releaserc.json` + `release.yml`): it reads the conventional commits, computes the SemVer bump, bumps all 5 `package.json` versions, regenerates `CHANGELOG.md`, and tags `vX.Y.Z`. `/notes` syncs prose docs (README/architecture/testing/known_issues/PLAN + ADR statuses + tactical wrap); `/ship` promotes `integration`→`master`. `/ship`'s version-coherence check just asserts the 5 package.jsons are equal — they always are, because `update-version` keeps them in lockstep, so a mismatch signals an illegal hand-edit. **The old date-based `YYYY.M.D` manual-cut convention is retired.**
 - `/feature start` (convention-memory write) vs `/notes` Phase 4 (convention-memory edit). `/feature` owns writes during scaffolding; `/notes` Phase 4 only deletes bullets during wrap. Don't run both back-to-back on the same convention-memory entry.
 

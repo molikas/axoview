@@ -12,12 +12,12 @@ Color is settable on every stylable surface — text/label color, rectangle fill
 | Component | Surface(s) | Quick-pick | Custom |
 |---|---|---|---|
 | [`LabelColorPicker`](../../packages/axoview-lib/src/components/ItemControls/components/LabelColorPicker.tsx) | text color | Black / White / scene presets | "Custom color" **toggle** → hue-sat |
-| [`PresetCustomColor`](../../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx#L366) (6 call sites) | rectangle fill, text/label background, rectangle border, connector color | scene presets + White + No-color | "Custom color" **toggle** → hue-sat |
+| [`PresetCustomColor`](../../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx) (6 call sites) | rectangle fill, text/label background, rectangle border, connector color | scene presets + White + No-color | "Custom color" **toggle** → hue-sat |
 | [`ColorSelector`](../../packages/axoview-lib/src/components/ColorSelector/ColorSelector.tsx) | — (**dead**: imported only by its own test) | scene presets only | — |
 
-All three lean on the scene **`colors`** palette, which is **near-empty by default** — the initial model ships exactly one entry (`DEFAULT_COLOR = __DEFAULT__`, [`config.ts:26`](../../packages/axoview-lib/src/config.ts#L26); [`colorsSchema`](../../packages/axoview-lib/src/schemas/colors.ts)). So the everyday experience is: **one preset swatch, then flip a toggle into a hue/saturation dialog** ([`CustomColorInput`](../../packages/axoview-lib/src/components/ColorSelector/CustomColorInput.tsx) wrapping [`ColorPicker`](../../packages/axoview-lib/src/components/ColorSelector/ColorPicker.tsx) → `mui-color-input`). There is no grid of ready-to-click standard colors, which is what a user reaches for 90% of the time.
+All three lean on the scene **`colors`** palette, which is **near-empty by default** — the initial model ships exactly one entry (`DEFAULT_COLOR = __DEFAULT__`, [`config.ts:26`](../../packages/axoview-lib/src/config.ts); [`colorsSchema`](../../packages/axoview-lib/src/schemas/colors.ts)). So the everyday experience is: **one preset swatch, then flip a toggle into a hue/saturation dialog** ([`CustomColorInput`](../../packages/axoview-lib/src/components/ColorSelector/CustomColorInput.tsx) wrapping [`ColorPicker`](../../packages/axoview-lib/src/components/ColorSelector/ColorPicker.tsx) → `mui-color-input`). There is no grid of ready-to-click standard colors, which is what a user reaches for 90% of the time.
 
-The color **data model** is a preset-ID / free-hex duality: an element stores either `color: <presetId>` (resolved through the scene palette) **or** a free-form hex on `customColor` / `labelColor` / `borderColor` / `backgroundColor` ([`connector.ts`](../../packages/axoview-lib/src/schemas/connector.ts), [`rectangle.ts`](../../packages/axoview-lib/src/schemas/rectangle.ts), [`textBox.ts`](../../packages/axoview-lib/src/schemas/textBox.ts), [`label.ts`](../../packages/axoview-lib/src/schemas/label.ts)). The strip already resolves both to a hex for display via [`resolveHex`](../../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx#L810).
+The color **data model** is a preset-ID / free-hex duality: an element stores either `color: <presetId>` (resolved through the scene palette) **or** a free-form hex on `customColor` / `labelColor` / `borderColor` / `backgroundColor` ([`connector.ts`](../../packages/axoview-lib/src/schemas/connector.ts), [`rectangle.ts`](../../packages/axoview-lib/src/schemas/rectangle.ts), [`textBox.ts`](../../packages/axoview-lib/src/schemas/textBox.ts), [`label.ts`](../../packages/axoview-lib/src/schemas/label.ts)). The strip already resolves both to a hex for display via [`resolveHex`](../../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx).
 
 The owner's ask (2026-07-09, with a Google Slides / PowerPoint reference screenshot): a **standard-color grid** like Google's custom-color surface — *"we don't need to make it complex, we can keep as is today."* The screenshot's top **"SIMPLE LIGHT" theme-palette row + ✏️ edit** is a document-theme editor; Axoview's analog is the scene `colors` palette, and **building a theme editor is explicitly out of scope**.
 
@@ -27,7 +27,7 @@ The owner's ask (2026-07-09, with a Google Slides / PowerPoint reference screens
 
 ### 1. Layout (single surface, no toggle)
 
-The picker body (rendered inside the existing [`StripButton`](../../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx#L182) popover and the detail-panel controls) shows, top to bottom:
+The picker body (rendered inside the existing [`StripButton`](../../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx) popover — **strip-only today**: there is no detail-panel color control, and `ColorPickerBody`'s sole importer is `TopBarStyleControls`) shows, top to bottom:
 
 1. **Standard color grid** — a fixed palette (§4) of ready-to-click swatches, always visible. The active swatch is ringed when the resolved hex matches a cell.
 2. **＋ Custom** and **⛏ eyedropper** affordances on one row. "＋ Custom" reveals the hue/saturation picker + hex field (today's `CustomColorInput`, retained internally); the eyedropper is promoted from inside that input to a top-level action.
@@ -52,8 +52,8 @@ The grid is a hard-coded palette constant (a Google-Slides-equivalent set — a 
 ### 5. Call-site consolidation
 
 The single shared component replaces:
-- the text-color [`LabelColorPicker`](../../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx#L1395) site (`allowNoColor=false`);
-- the six [`PresetCustomColor`](../../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx#L366) sites — rectangle fill, text/label background, rectangle border, connector color (`allowNoColor` per surface).
+- the text-color [`LabelColorPicker`](../../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx) site (`allowNoColor=false`);
+- the six [`PresetCustomColor`](../../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx) sites — rectangle fill, text/label background, rectangle border, connector color (`allowNoColor` per surface).
 
 [`ColorSelector.tsx`](../../packages/axoview-lib/src/components/ColorSelector/ColorSelector.tsx) and its test are **deleted** (confirm no live import first). The standalone [`ExportImageDialog`](../../packages/axoview-lib/src/components/ExportImageDialog/ExportImageDialog.tsx) background-color field (a one-off dialog color, not an element style) is **left as-is** for this pass; unifying it later is optional.
 
