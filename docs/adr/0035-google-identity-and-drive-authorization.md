@@ -9,7 +9,7 @@
 
 Phase 3A (PLAN.md) gates the Google Drive storage provider ([ADR 0036](0036-google-drive-storage-provider.md)) on a working browser-side Google sign-in. The deployment rails for it were pre-built during productization and are already live:
 
-- The worker's [`/api/config`](../../packages/axoview-worker/src/app.ts#L38) already returns `googleClientId` (from the `GOOGLE_CLIENT_ID` env var, per [ADR 0009 §4](0009-deployment-topology.md)) and `driveScopes: ['https://www.googleapis.com/auth/drive.file']`.
+- The worker's [`/api/config`](../../packages/axoview-worker/src/app.ts) already returns `googleClientId` (from the `GOOGLE_CLIENT_ID` env var, per [ADR 0009 §4](0009-deployment-topology.md)) and `driveScopes: ['https://www.googleapis.com/auth/drive.file']`.
 - The frontend [`RuntimeConfig`](../../packages/axoview-app/src/hooks/useRuntimeConfig.ts) already parses both fields; `googleClientId: null` is the documented "Drive unavailable — hide the UI" signal.
 - The CSP in [`_headers`](../../packages/axoview-app/public/_headers) already allows `script-src`/`frame-src https://accounts.google.com`, `script-src https://apis.google.com`, and `connect-src https://www.googleapis.com https://oauth2.googleapis.com`.
 

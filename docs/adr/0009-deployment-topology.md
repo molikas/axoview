@@ -10,7 +10,7 @@
 Axoview ships to two real deployment targets and a third in-browser fallback:
 
 1. **Self-host (Docker / nginx / Express + fs adapter).** Full storage; the "session backend" path. Documented in [docs/deployment.md](../deployment.md) and exercised by `compose.yml` / `compose.dev.yml`.
-2. **Cloudflare Pages (Worker + Pages Functions).** Static SPA served from the CDN; `/api/*` handled by a Hono Worker bridged via `functions/api/[[path]].ts`. **Storage-less today** — the Worker short-circuits storage routes with `503` (verified at [app.ts:43-45](../../packages/axoview-worker/src/app.ts#L43)). Persistent storage on Cloudflare is tracked on a separate Google Drive branch (Phase 3B).
+2. **Cloudflare Pages (Worker + Pages Functions).** Static SPA served from the CDN; `/api/*` handled by a Hono Worker bridged via `functions/api/[[path]].ts`. **Storage-less today** — the Worker short-circuits storage routes with `503` (verified at [app.ts](../../packages/axoview-worker/src/app.ts)). Persistent storage on Cloudflare is tracked on a separate Google Drive branch (Phase 3B).
 3. **Local mode.** Browser-only, SPA boots from any static host and persists to `localStorage`. Not a separate deployment artifact — it's the same `axoview-app` bundle, behaviour selected at runtime by the mode-detection probe.
 
 Three audit findings forced a written-down topology now rather than later:
@@ -31,7 +31,7 @@ The HTTP contract is **single-source** ([packages/axoview-backend/src/routes.js]
 |---|---|---|
 | `GET /api/config` | full payload | full payload |
 | `GET /api/storage/status` | reports `enabled: true` when `ENABLE_SERVER_STORAGE=true` | reports `enabled: false` (storage-less) — **see decision 2 for removal** |
-| `GET/PUT/DELETE /api/diagrams/*` | live | `503` short-circuit at [app.ts:43-45](../../packages/axoview-worker/src/app.ts#L43) |
+| `GET/PUT/DELETE /api/diagrams/*` | live | `503` short-circuit at [app.ts](../../packages/axoview-worker/src/app.ts) |
 | `GET/PUT /api/folders` | live | `503` |
 | `GET /api/tree-manifest` | live | `503` |
 | `POST /api/diagrams/:id/share`, `DELETE …/share` | live | `503` |
@@ -126,7 +126,7 @@ The `npm run dev:backend` script runs the Express backend (`nodemon server.js` v
 
 ### 5. Authoritative wrangler.toml, mandatory `_routes.json`, and the asset pipeline
 
-- The repo-root [wrangler.toml](../../wrangler.toml) is **authoritative for deploy** — it is what the "Deploy to Cloudflare" button consumes and what `wrangler pages deploy` from the repo root uses. The worker-package copy ([packages/axoview-worker/wrangler.toml](../../packages/axoview-worker/wrangler.toml)) is **retained for local dev workflows**: the `npm run dev` script in [packages/axoview-worker/package.json:10](../../packages/axoview-worker/package.json#L10) invokes `wrangler pages dev ../axoview-app/build --compatibility-date=2025-01-01`; wrangler 4 auto-discovers the `wrangler.toml` in cwd for `[vars]` bindings (the explicit `--binding-from-toml` flag was removed in PR #51 — it is invalid under wrangler 4). Killing the worker-package file would break that workflow, and [docs/deployment.md:92,97](../deployment.md) currently documents it as a real surface. Drift between the two files is the operational risk this decision acknowledges: any change to `[vars]` or `compatibility_date` MUST be applied to both. A future cleanup may consolidate via symlink or a `wrangler.toml` generator script; that's a follow-up, not part of this ADR.
+- The repo-root [wrangler.toml](../../wrangler.toml) is **authoritative for deploy** — it is what the "Deploy to Cloudflare" button consumes and what `wrangler pages deploy` from the repo root uses. The worker-package copy ([packages/axoview-worker/wrangler.toml](../../packages/axoview-worker/wrangler.toml)) is **retained for local dev workflows**: the `npm run dev` script in [packages/axoview-worker/package.json](../../packages/axoview-worker/package.json) invokes `wrangler pages dev ../axoview-app/build --compatibility-date=2025-01-01`; wrangler 4 auto-discovers the `wrangler.toml` in cwd for `[vars]` bindings (the explicit `--binding-from-toml` flag was removed in PR #51 — it is invalid under wrangler 4). Killing the worker-package file would break that workflow, and [docs/deployment.md:92,97](../deployment.md) currently documents it as a real surface. Drift between the two files is the operational risk this decision acknowledges: any change to `[vars]` or `compatibility_date` MUST be applied to both. A future cleanup may consolidate via symlink or a `wrangler.toml` generator script; that's a follow-up, not part of this ADR.
 - [`_routes.json`](../../packages/axoview-app/public/_routes.json) is **mandatory** and committed to source (verified present at audit 2026-05-20). It scopes Pages Functions to `/api/*`; static asset requests bypass the Worker entirely. Removing or weakening this file causes Worker invocation on every static GET — a measurable cold-start tax.
 - [`_headers`](../../packages/axoview-app/public/_headers) ships CSP + the canonical security-header set for CDN-served static. The Worker echoes the same set via `secureHeaders()`; nginx (self-host) ships the equivalent in `nginx.conf`. The canonical set lives in `_headers` — divergence between layers is a bug.
 - The build pipeline emits both `_routes.json` and `_headers` into `packages/axoview-app/build/` (verified). CI should fail if either is missing post-build (tracked under C.8).
@@ -171,9 +171,9 @@ The Worker bundle's deployed size is part of this contract. Target: **< 1 MB** u
 
 ## Files affected by adopting this ADR
 
-- [packages/axoview-app/src/providers/AppStorageContext.tsx](../../packages/axoview-app/src/providers/AppStorageContext.tsx#L43) — single probe, dead-field removal.
+- [packages/axoview-app/src/providers/AppStorageContext.tsx](../../packages/axoview-app/src/providers/AppStorageContext.tsx) — single probe, dead-field removal.
 - [packages/axoview-backend/src/routes.js](../../packages/axoview-backend/src/routes.js) — delete `/api/storage/status` route.
-- [packages/axoview-worker/src/app.ts](../../packages/axoview-worker/src/app.ts#L29) — delete `/api/storage/status` handler.
+- [packages/axoview-worker/src/app.ts](../../packages/axoview-worker/src/app.ts) — delete `/api/storage/status` handler.
 - Frontend share-link consumer (path to be confirmed in cleanup) — Local-mode share-uuid error UI.
 - [packages/axoview-worker/wrangler.toml](../../packages/axoview-worker/wrangler.toml) — retained for local dev (`wrangler pages dev`, which auto-discovers this file under wrangler 4; the `--binding-from-toml` flag was removed in PR #51). Drift-risk callout added to the file header; no structural change.
 - [docs/deployment.md](../deployment.md) — refresh env-var sections to match the locked table above.

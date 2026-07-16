@@ -40,15 +40,15 @@ This breaks on every non-mouse input path:
 
 - The unified listener attaches to `window` and translates `touchstart/move/end`
   → synthetic `mousedown/move/up`
-  ([`useInteractionManager.ts`](../../packages/axoview-lib/src/interaction/useInteractionManager.ts#L867-L897)).
+  ([`useInteractionManager.ts`](../../packages/axoview-lib/src/interaction/useInteractionManager.ts)).
   `onTouchEnd` hardcodes `clientX: 0, clientY: 0`
-  ([L889-L897](../../packages/axoview-lib/src/interaction/useInteractionManager.ts#L889-L897)),
+  ([L889-L897](../../packages/axoview-lib/src/interaction/useInteractionManager.ts)),
   so a touch-drag commits at tile `(0,0)` — the node jumps to the corner.
 - The drag-start threshold in
-  [`Cursor.mousemove`](../../packages/axoview-lib/src/interaction/modes/Cursor.ts#L501-L505)
+  [`Cursor.mousemove`](../../packages/axoview-lib/src/interaction/modes/Cursor.ts)
   is a **whole tile** (`CoordsUtils.isEqual` on tile coords), and the
   click-vs-clear decision on
-  [`Cursor.mouseup`](../../packages/axoview-lib/src/interaction/modes/Cursor.ts#L561-L571)
+  [`Cursor.mouseup`](../../packages/axoview-lib/src/interaction/modes/Cursor.ts)
   keys off `hasMovedTile`. On a **laptop trackpad** — which emits mouse/pointer
   events, *not* `TouchEvent`s — a tap is `down`+`up` with no tile movement, so it
   is read as click-select and never as a drag. "Tap node, lift, move, tap to
@@ -56,7 +56,7 @@ This breaks on every non-mouse input path:
 - There is no `pointercancel` / multi-touch handling: when the OS reclaims the
   gesture (scroll, zoom, system edge-swipe) the canvas is left mid-drag.
 - The canvas interaction surface
-  ([`Renderer.tsx` `canvas-interactions` Box, L221-231](../../packages/axoview-lib/src/components/Renderer/Renderer.tsx#L221-L231))
+  ([`Renderer.tsx` `canvas-interactions` Box, L221-231](../../packages/axoview-lib/src/components/Renderer/Renderer.tsx))
   sets **no** `touch-action`, `user-select`, or `-webkit-touch-callout`, so the
   browser's native pan/zoom/long-press-callout fight the canvas for every touch.
 
@@ -68,7 +68,7 @@ defines that contract so implementation starts from a locked decision rather tha
 ad-hoc patching.
 
 The repo already has the pattern this should converge on:
-[`AnnotationLayer.tsx`](../../packages/axoview-lib/src/components/AnnotationLayer/AnnotationLayer.tsx#L403-L407)
+[`AnnotationLayer.tsx`](../../packages/axoview-lib/src/components/AnnotationLayer/AnnotationLayer.tsx)
 is **Pointer Events based** (`onPointerDown`) and already sets
 `touchAction: 'none'`. It is the in-repo precedent for the rewrite.
 
@@ -222,7 +222,7 @@ Disambiguation is **pixel-based on the raw pointer delta**, not tile-based:
   pan for empty space, press-drag-release move for `mouse`.
 
 This single change is what unbreaks the laptop trackpad: the current whole-tile
-([`Cursor.ts:501-505`](../../packages/axoview-lib/src/interaction/modes/Cursor.ts#L501-L505))
+([`Cursor.ts:501-505`](../../packages/axoview-lib/src/interaction/modes/Cursor.ts))
 threshold means a sub-tile trackpad drag is invisible to drag detection. The
 px-slop threshold applies to **all** `pointerType`s.
 
@@ -284,9 +284,9 @@ These are not per-device; they apply to the one canvas interaction surface:
 
 - **Listener surface = the Renderer container (`rendererEl`), NOT the inner
   `canvas-interactions` Box.** Pointer listeners must bind to the container at
-  [`Renderer.tsx`](../../packages/axoview-lib/src/components/Renderer/Renderer.tsx#L167-L181)
+  [`Renderer.tsx`](../../packages/axoview-lib/src/components/Renderer/Renderer.tsx)
   (`uiState.rendererEl`), not the inner Box at
-  [L221-231](../../packages/axoview-lib/src/components/Renderer/Renderer.tsx#L221-L231).
+  [L221-231](../../packages/axoview-lib/src/components/Renderer/Renderer.tsx).
   Connector-anchor reconnect, waypoint drag, and linked-label clicks live in the
   **sibling** `ConnectorAnchorOverlay` / `ConnectorLabels` SceneLayers — they are
   descendants of `rendererEl` but **not** of the interactions Box, so binding to

@@ -8,7 +8,7 @@
 
 ## Context
 
-The canvas-UX overhaul revealed a coherence gap (workflow.md Principle 7): **there is no context-menu component in the codebase.** The PLAN.md snapshot lists `components/ContextMenu/  # Right-click menu`, but it does not exist — `glob packages/axoview-lib/src/components/ContextMenu/**` returns nothing. Right-click today either opens the details panel + `NodeActionBar` (`onContextMenu`, [useInteractionManager.ts:960](../../packages/axoview-lib/src/interaction/useInteractionManager.ts#L960)) or pans (`panSettings.rightClickPan`).
+The canvas-UX overhaul revealed a coherence gap (workflow.md Principle 7): **there is no context-menu component in the codebase.** The PLAN.md snapshot lists `components/ContextMenu/  # Right-click menu`, but it does not exist — `glob packages/axoview-lib/src/components/ContextMenu/**` returns nothing. Right-click today either opens the details panel + `NodeActionBar` (`onContextMenu`, [useInteractionManager.ts](../../packages/axoview-lib/src/interaction/useInteractionManager.ts)) or pans (`panSettings.rightClickPan`).
 
 This stranded two decisions:
 - [ADR 0022](0022-canvas-pointer-interaction-model.md) reassigns right-click → **pan**, removing the only right-click affordance.

@@ -9,7 +9,7 @@
 
 The export dialog ([`ExportImageDialog.tsx`](../../packages/axoview-lib/src/components/ExportImageDialog/ExportImageDialog.tsx)) renders a hidden `Axoview`, then exports PNG (`exportAsImage`, CSS-transform scale) and SVG (`exportAsSVG` → `optimizeSvgDataUrl`) via [`exportOptions.ts`](../../packages/axoview-lib/src/utils/exportOptions.ts). It already has DPI presets 1×–4× + a custom slider and an `expandLabels` toggle (default on). Three problems:
 
-- **#9** — "Download as SVG" throws. Suspects: tainted/CORS icon images in `domtoimage.toSvg`; `btoa(unescape(encodeURIComponent(...)))` on Unicode content in [svgOptimizer.ts:386](../../packages/axoview-lib/src/utils/svgOptimizer.ts#L386); or `fetch()` on a very large data URL in `downloadSvgFile`.
+- **#9** — "Download as SVG" throws. Suspects: tainted/CORS icon images in `domtoimage.toSvg`; `btoa(unescape(encodeURIComponent(...)))` on Unicode content in [svgOptimizer.ts](../../packages/axoview-lib/src/utils/svgOptimizer.ts); or `fetch()` on a very large data URL in `downloadSvgFile`.
 - **#18** — 4× DPI produces no preview on large diagrams (3× is slow). At 4× the target is `bounds.width × 4`, which exceeds the browser **max canvas dimension** (~16,384 px Chrome; lower on Safari) and total-area cap — `dom-to-image-more` silently yields a blank/failed canvas.
 - **#19** — Keep labels visible in export, and give a sensible **"screenshot"** preset (good default size/quality) instead of forcing users to reason about DPI.
 

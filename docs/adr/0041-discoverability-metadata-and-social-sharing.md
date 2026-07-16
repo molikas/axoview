@@ -15,7 +15,7 @@ Axoview ships almost none of the discoverability metadata that a modern web app 
 
 | Lever | State | Evidence |
 |---|---|---|
-| `<title>` + `<meta description>` | present | [index.html:8-11,23](../../packages/axoview-app/public/index.html#L8-L23) |
+| `<title>` + `<meta description>` | present | [index.html:8-11,23](../../packages/axoview-app/public/index.html) |
 | Open Graph (`og:title`/`image`/`url`/`type`/`site_name`) | **absent** | grep `og:` → 0 hits |
 | Twitter Card (`twitter:card`/`title`/`image`) | **absent** | grep `twitter:` → 0 hits |
 | OG share image (1200×630) | **absent** | no `*og*`/`*social*` asset in `public/` |
@@ -44,7 +44,7 @@ The PWA [manifest.json](../../packages/axoview-app/public/manifest.json) is alre
 
 ### Ripple / consequences (Phase 1.5 — reconciled)
 
-- **Contradicts — CSP vs inline JSON-LD.** [`_headers`](../../packages/axoview-app/public/_headers#L6) sets `script-src 'self' …` with **no** `'unsafe-inline'`. An inline `<script type="application/ld+json">` is a *data block*, not executed JS, so the CSP `script-src` directive does not gate it in spec-compliant browsers — **but this must be verified in a real browser** before we rely on it (Principle 2: screenshot/DOM is truth, not theory). If it is blocked, the fallback is an external `/structured-data.json`-referencing approach or adding a hash. **Do not assume — verify.**
+- **Contradicts — CSP vs inline JSON-LD.** [`_headers`](../../packages/axoview-app/public/_headers) sets `script-src 'self' …` with **no** `'unsafe-inline'`. An inline `<script type="application/ld+json">` is a *data block*, not executed JS, so the CSP `script-src` directive does not gate it in spec-compliant browsers — **but this must be verified in a real browser** before we rely on it (Principle 2: screenshot/DOM is truth, not theory). If it is blocked, the fallback is an external `/structured-data.json`-referencing approach or adding a hash. **Do not assume — verify.**
 - **Not a contradiction — CSP `img-src` vs OG image.** CSP governs what *this page* loads, not what *external scrapers* (Slack/X/LinkedIn) fetch. The OG image is fetched by third-party crawlers directly from `axoview.app/og-image.png`; `img-src 'self'` is irrelevant to them. No CSP change needed.
 - **Orphaned — sitemap ↔ robots.** A `sitemap.xml` with no `Sitemap:` line in `robots.txt` is undiscoverable. The two ship together (single sub-task), not separately.
 - **Redundant?** `og:description` mirrors `<meta name="description">` — this is expected convention, not debt. Keep both; keep them in sync.

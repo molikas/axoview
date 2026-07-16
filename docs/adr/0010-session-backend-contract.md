@@ -11,7 +11,7 @@ The session backend ([packages/axoview-backend](../../packages/axoview-backend/)
 
 The adapter shape was drafted in `flare_plan.md` (Architectural #2 — Key-based StorageAdapter; Architectural #5 — `diagrams-index.json` + `If-Match` conditional writes) and implemented in [fs.js](../../packages/axoview-backend/src/adapters/fs.js), but was never written down as a decision record. Several recent findings forced one:
 
-- **The atomicity gap.** [fs.js:45](../../packages/axoview-backend/src/adapters/fs.js#L45) uses `fs.writeFile` directly. A crash or power loss mid-write leaves a 5 MB diagram truncated. Real failure mode for self-host operators.
+- **The atomicity gap.** [fs.js](../../packages/axoview-backend/src/adapters/fs.js) uses `fs.writeFile` directly. A crash or power loss mid-write leaves a 5 MB diagram truncated. Real failure mode for self-host operators.
 - **The session-isolation question.** Express's current shape gives every diagram a global namespace within a tenant. Multi-user separation is not in scope today, but every new contributor asks "can two users share a deploy?" The answer needs to live in writing.
 - **The concurrent-write semantics.** Today writes are last-writer-wins. Drive's API supports etag-based conditional writes; R2's API does too. If the contract doesn't specify a pattern, every new adapter will reinvent one.
 - **The health-endpoint gap.** [Dockerfile](../../Dockerfile) has no `HEALTHCHECK` (A.6.2 gap). compose.yml has no `healthcheck:` block. The shape of "/healthz" doesn't exist yet — it should be part of the adapter contract, not an Express afterthought.
@@ -46,7 +46,7 @@ export interface StorageAdapter {
 
 The route layer never sees a filesystem path. Keys look like `diagrams/<id>`, `folders`, `tree-manifest`, `public/<uuid>` — the adapter maps these to its storage primitive.
 
-**Lock:** every adapter enforces the regex `KEY_PATTERN` defined at [fs.js:4](../../packages/axoview-backend/src/adapters/fs.js#L4) as defense in depth, even when the underlying storage primitive doesn't strictly require it. Path-traversal characters (`..`, leading `/`, control characters) MUST be rejected at the adapter boundary, not at the route layer alone.
+**Lock:** every adapter enforces the regex `KEY_PATTERN` defined at [fs.js](../../packages/axoview-backend/src/adapters/fs.js) as defense in depth, even when the underlying storage primitive doesn't strictly require it. Path-traversal characters (`..`, leading `/`, control characters) MUST be rejected at the adapter boundary, not at the route layer alone.
 
 This is the single most important runtime invariant in this contract — the route layer trusts the adapter to refuse malformed keys, and the adapter trusts the route layer to use opaque keys exclusively.
 
@@ -77,7 +77,7 @@ Express's current implementation puts every diagram in one global namespace. The
 **Lock for v1:**
 
 - A deploy is **single-tenant**. The operator's responsibility — not the adapter's — is to ensure only the intended user(s) reach the storage. Mechanisms: one container per user, CF Access policy, network ACL.
-- Within a tenant, all diagrams are visible to anyone with `AUTH_MODE` clearance. The share-namespace (`public/<uuid>`) is the *only* exception: it is intentionally world-readable (no auth middleware applies — see [server.js:46-79](../../packages/axoview-backend/server.js#L46)), and exists only to support unauthenticated share-link viewers.
+- Within a tenant, all diagrams are visible to anyone with `AUTH_MODE` clearance. The share-namespace (`public/<uuid>`) is the *only* exception: it is intentionally world-readable (no auth middleware applies — see [server.js](../../packages/axoview-backend/server.js)), and exists only to support unauthenticated share-link viewers.
 - Multi-user isolation **within** a deploy (per-user namespaces, per-user auth, ACLs) is **out of scope for v1**. A future ADR may introduce it; this one explicitly defers.
 
 The decision shapes everything downstream:
@@ -97,7 +97,7 @@ Some keys are infrastructure, not user data, and must be excluded from `listDiag
 | `diagrams-index` (R2 precedent) | Denormalised diagrams index. Dead today; reserved against future adapter use. |
 | `public/<uuid>` | Share-namespace snapshots. Enumerated only by share-list routes, never by diagrams listing. |
 
-**Lock:** every adapter excludes these from `listDiagramMeta` ([fs.js:80-84](../../packages/axoview-backend/src/adapters/fs.js#L80) is the reference). Adding a new reserved key requires updating both the adapter and the route layer in the same commit.
+**Lock:** every adapter excludes these from `listDiagramMeta` ([fs.js](../../packages/axoview-backend/src/adapters/fs.js) is the reference). Adding a new reserved key requires updating both the adapter and the route layer in the same commit.
 
 ### 6. Snapshots and share namespace
 

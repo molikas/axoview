@@ -68,14 +68,14 @@ The first real-world `// LIB-ONLY` case will appear when the published `axoview-
 
 ### 4. Provider-id discriminant — kebab-case lowercase, extensible
 
-A.4.4 inventoried the existing pattern: `id: 'local' | 'google-drive'` ([packages/axoview-app/src/services/storage/types.ts:26](../../packages/axoview-app/src/services/storage/types.ts#L26)).
+A.4.4 inventoried the existing pattern: `id: 'local' | 'google-drive'` ([packages/axoview-app/src/services/storage/types.ts](../../packages/axoview-app/src/services/storage/types.ts)).
 
 **Rule:**
 
 - New provider IDs are **kebab-case lowercase singular nouns**: `'local'`, `'google-drive'`, future candidates `'r2'`, `'d1'`, `'webdav'`, `'http-api'`.
 - The discriminant union is extended in [types.ts](../../packages/axoview-app/src/services/storage/types.ts) only; the union is the single source of truth.
 - The provider's class name is **PascalCase**: `LocalStorageProvider`, `GoogleDriveProvider`. The class name does not need to derive from the id by mechanical transform — `'local'` ↔ `LocalStorageProvider` is acceptable.
-- Each provider id has a human label resolved via `providerIdToLabel` ([FileExplorer.tsx:82-85](../../packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx#L82-L85)); the label is whatever reads best in UI ("Local browser", "Google Drive", "Cloudflare R2").
+- Each provider id has a human label resolved via `providerIdToLabel` ([FileExplorer.tsx](../../packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx)); the label is whatever reads best in UI ("Local browser", "Google Drive", "Cloudflare R2").
 
 ### 5. `data-axoview-id` attribute — selective, not blanket; reserved for E2E and trace harness anchors
 

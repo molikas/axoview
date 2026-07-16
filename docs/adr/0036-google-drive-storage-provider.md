@@ -7,7 +7,7 @@
 
 ## Context
 
-Phase 3B (PLAN.md) makes Google Drive the persistent-storage path for the storage-less Cloudflare deployment ([ADR 0009 decision 1](0009-deployment-topology.md)). The plumbing anticipates it: the [`StorageProvider`](../../packages/axoview-app/src/services/storage/types.ts#L65) id union already includes `'google-drive'`, the [`StorageManager`](../../packages/axoview-app/src/services/storage/StorageManager.ts) registry delegates to any registered provider, and [`FileExplorer`](../../packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx) already renders the `google-drive` header label.
+Phase 3B (PLAN.md) makes Google Drive the persistent-storage path for the storage-less Cloudflare deployment ([ADR 0009 decision 1](0009-deployment-topology.md)). The plumbing anticipates it: the [`StorageProvider`](../../packages/axoview-app/src/services/storage/types.ts) id union already includes `'google-drive'`, the [`StorageManager`](../../packages/axoview-app/src/services/storage/StorageManager.ts) registry delegates to any registered provider, and [`FileExplorer`](../../packages/axoview-app/src/components/fileExplorer/FileExplorer.tsx) already renders the `google-drive` header label.
 
 Three drifts since the PLAN 3B spec was written (all reconciled below):
 
@@ -75,7 +75,7 @@ In-app delete keeps the 2B-R contract (confirmation dialog, no in-app trash sect
 > on `GoogleDriveProvider` — ADR 0042 §4 keeps Drive sharing outside the
 > provider interface. The original text is kept below for history.
 
-[ADR 0010](0010-session-backend-contract.md) locks public share links to the session backend; the worker 503s share routes. `GoogleDriveProvider` does **not** implement `shareDiagram`/`unshareDiagram`, and the share affordance (AppToolbar share button + related dialogs) is hidden when the active provider is `google-drive` — otherwise it would dead-end on [StorageManager's "does not support sharing" throw](../../packages/axoview-app/src/services/storage/StorageManager.ts#L137). Drive-native public links (permissions API + `webViewLink`) are a different trust model and, if ever wanted, a future ADR.
+[ADR 0010](0010-session-backend-contract.md) locks public share links to the session backend; the worker 503s share routes. `GoogleDriveProvider` does **not** implement `shareDiagram`/`unshareDiagram`, and the share affordance (AppToolbar share button + related dialogs) is hidden when the active provider is `google-drive` — otherwise it would dead-end on [StorageManager's "does not support sharing" throw](../../packages/axoview-app/src/services/storage/StorageManager.ts). Drive-native public links (permissions API + `webViewLink`) are a different trust model and, if ever wanted, a future ADR.
 
 ### 5. The app's mode model gains `remoteStorageActive`
 

@@ -37,7 +37,7 @@ When a user-initiated action fails — they clicked a button, typed a URL, dragg
 
 **Carve-out — toasts remain valid for side-effect failures.** Background sync, autosave retry, rehydration writes, thumbnail generation, boot-time probes — failures of *side-effect* operations are not failures-of-intent and continue to use [notificationStore](../../packages/axoview-app/src/stores/notificationStore.ts) or console logging. The discriminator is *"did the user just click/type/drag to trigger this?"* — if yes, the failure is failure-of-intent.
 
-**Carve-out — in-dialog inline error states are valid.** When the user is already inside a Dialog (Import, Export, share popover) and the in-dialog action fails, an inline error region inside the same Dialog is the correct affordance — the user's recovery context is the dialog itself; spawning a second Dialog over it is jarring. [ImportDialog.tsx](../../packages/axoview-app/src/components/fileExplorer/ImportDialog.tsx#L118), [AppToolbar share popover](../../packages/axoview-app/src/components/AppToolbar.tsx#L75-L88), and [ExportImageDialog](../../packages/axoview-lib/src/components/ExportImageDialog/ExportImageDialog.tsx#L149) all follow this in-dialog-inline pattern and are contract-conformant without spawning a child Dialog.
+**Carve-out — in-dialog inline error states are valid.** When the user is already inside a Dialog (Import, Export, share popover) and the in-dialog action fails, an inline error region inside the same Dialog is the correct affordance — the user's recovery context is the dialog itself; spawning a second Dialog over it is jarring. [ImportDialog.tsx](../../packages/axoview-app/src/components/fileExplorer/ImportDialog.tsx), [AppToolbar share popover](../../packages/axoview-app/src/components/AppToolbar.tsx), and [ExportImageDialog](../../packages/axoview-lib/src/components/ExportImageDialog/ExportImageDialog.tsx) all follow this in-dialog-inline pattern and are contract-conformant without spawning a child Dialog.
 
 ### 2. Dialog shape — locked
 
@@ -105,7 +105,7 @@ State ownership pattern (the contract):
 - **Context exposure** — if multiple components need to trigger the error, the state lives in a Context (`DiagramLifecycleContext` for diagram-lifecycle failures, `AppStorageContext` for storage failures, etc.) with both the state value and the setter exposed via the context interface.
 - **Mount site** — the dialog is mounted once at a stable point in the tree (typically [App.tsx](../../packages/axoview-app/src/App.tsx), near the existing two precedents) with its `open` prop derived from the state and its `onDismiss` wired to the clear-setter + any extra base-state restoration.
 
-The [ReadonlyLoadErrorDialog precedent](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx#L83-L84) demonstrates the pattern end-to-end: `readonlyLoadFailed: boolean` + `clearReadonlyLoadFailed: () => void` on `DiagramLifecycleContext`, consumed at [App.tsx:377-383](../../packages/axoview-app/src/App.tsx#L377-L383) with the dismiss handler wired to clearer + `navigate('/', { replace: true })`.
+The [ReadonlyLoadErrorDialog precedent](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx) demonstrates the pattern end-to-end: `readonlyLoadFailed: boolean` + `clearReadonlyLoadFailed: () => void` on `DiagramLifecycleContext`, consumed at [App.tsx](../../packages/axoview-app/src/App.tsx) with the dismiss handler wired to clearer + `navigate('/', { replace: true })`.
 
 ### 6. i18n namespace — `dialog.<scenario>.*`
 
@@ -134,7 +134,7 @@ The `<scenario>` segment in the key tree matches the `<Scenario>` in the compone
 
 - **Toast notifications for side-effect failures** — autosave retries, background sync, fire-and-forget rehydration, thumbnail generation. These continue to use [`notificationStore`](../../packages/axoview-app/src/stores/notificationStore.ts) as today.
 - **In-dialog inline error states** — when the user is already inside a Dialog (Import, Export, share popover) and the in-dialog action fails. Inline `setError` state inside the same dialog is correct; do not spawn a child Dialog.
-- **Boot-time fallback paths** — the [`/api/config` Local-mode fallback](../../packages/axoview-app/src/hooks/useRuntimeConfig.ts#L36-L44) per [ADR 0009 D2](0009-deployment-topology.md#2-mode-detection-collapses-to-a-single-probe-runtimeconfigserverstorage-is-removed) is an explicit non-user-facing fallback with a console warning. That contract stands.
+- **Boot-time fallback paths** — the [`/api/config` Local-mode fallback](../../packages/axoview-app/src/hooks/useRuntimeConfig.ts) per [ADR 0009 D2](0009-deployment-topology.md#2-mode-detection-collapses-to-a-single-probe-runtimeconfigserverstorage-is-removed) is an explicit non-user-facing fallback with a console warning. That contract stands.
 - **Validation errors in editable forms** — these are inline form-field error states (red helper text, etc.), not error Dialogs. The contract is specifically about failures of asynchronous actions that have already been committed by the user (clicked Save, dropped a file, typed a URL).
 
 ### 8. Acceptance criteria
@@ -169,7 +169,7 @@ The `<scenario>` segment in the key tree matches the `<Scenario>` in the compone
 
 - [packages/axoview-app/src/components/LocalModeShareErrorDialog.tsx](../../packages/axoview-app/src/components/LocalModeShareErrorDialog.tsx) — retrofit verification (likely no edits; already conformant).
 - [packages/axoview-app/src/components/ReadonlyLoadErrorDialog.tsx](../../packages/axoview-app/src/components/ReadonlyLoadErrorDialog.tsx) — retrofit verification (likely no edits; already conformant).
-- [packages/axoview-app/src/components/PublicShareLoadErrorDialog.tsx](../../packages/axoview-app/src/components/PublicShareLoadErrorDialog.tsx) — new file. Mirrors the two precedents. Replaces the [DiagramLifecycleProvider.tsx:417-422](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx#L417-L422) toast.
+- [packages/axoview-app/src/components/PublicShareLoadErrorDialog.tsx](../../packages/axoview-app/src/components/PublicShareLoadErrorDialog.tsx) — new file. Mirrors the two precedents. Replaces the [DiagramLifecycleProvider.tsx](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx) toast.
 - [packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx) — new `publicShareLoadFailed` state + clearer on the context, replacing the toast at line 418.
 - [packages/axoview-app/src/App.tsx](../../packages/axoview-app/src/App.tsx) — new `<PublicShareLoadErrorDialog>` mount.
 - [packages/axoview-app/src/i18n/en-US.json](../../packages/axoview-app/src/i18n/en-US.json) — new `dialog.publicShareLoadError.*` key tree.
