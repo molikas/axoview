@@ -16,19 +16,23 @@
  * This script decides what it can and PRECOMPUTES evidence for the rest, so an
  * agent spends its turns judging rather than running `test -f` and `grep`.
  *
- * Usage: node scripts/gate-prefilter.js [--out <path>]
+ * Agent-only helper for `/docs-sweep gate`. Not referenced by CI -- the CI-owned
+ * docs gate is scripts/lint-docs.js (`npm run lint:docs`).
+ *
+ * Usage: node .claude/scripts/docs-sweep/prefilter.js [--out <path>]
  */
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const ROOT = path.resolve(__dirname, '..');
-const WORKLIST = path.join(ROOT, 'docs', 'tactical', 'gate-worklist.jsonl');
+const ROOT = path.resolve(__dirname, '..', '..', '..');
+const WORKLIST = path.join(ROOT, 'reports', 'docs-sweep', 'worklist.jsonl');
 const outArg = process.argv.indexOf('--out');
-const OUT = outArg !== -1 ? process.argv[outArg + 1] : path.join(ROOT, 'docs', 'tactical', 'gate-prefilter.json');
+const OUT = outArg !== -1 ? process.argv[outArg + 1] : path.join(ROOT, 'reports', 'docs-sweep', 'prefilter.json');
+fs.mkdirSync(path.dirname(OUT), { recursive: true });
 
 if (!fs.existsSync(WORKLIST)) {
-  console.error(`missing ${path.relative(ROOT, WORKLIST)} -- run: node scripts/extract-audit-worklist.js`);
+  console.error(`missing ${path.relative(ROOT, WORKLIST)} -- run: node .claude/scripts/docs-sweep/extract-worklist.js`);
   process.exit(1);
 }
 const rows = fs.readFileSync(WORKLIST, 'utf8').trim().split('\n').map((l) => JSON.parse(l));

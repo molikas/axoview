@@ -11,15 +11,22 @@
  * shifts every column right and yields garbage ADR numbers. Split on unescaped
  * pipes only.
  *
- * Usage: node scripts/extract-audit-worklist.js [--out <path>]
+ * Agent-only helper for `/docs-sweep gate`. Not referenced by CI -- the CI-owned
+ * docs gate is scripts/lint-docs.js (`npm run lint:docs`).
+ *
+ * Usage: node .claude/scripts/docs-sweep/extract-worklist.js [--out <path>]
  */
 const fs = require('fs');
 const path = require('path');
 
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = path.resolve(__dirname, '..', '..', '..');
 const REGISTER = path.join(ROOT, 'docs', 'tactical', 'adr-code-audit.md');
 const outArg = process.argv.indexOf('--out');
-const OUT = outArg !== -1 ? process.argv[outArg + 1] : path.join(ROOT, 'docs', 'tactical', 'gate-worklist.jsonl');
+// Generated output goes to reports/ -- gitignored (.gitignore "reports/"), same
+// tier as playwright-report/ and the /audit skill's output. It is derived from
+// the register in ~1s; committing it would be committing a build artifact.
+const OUT = outArg !== -1 ? process.argv[outArg + 1] : path.join(ROOT, 'reports', 'docs-sweep', 'worklist.jsonl');
+fs.mkdirSync(path.dirname(OUT), { recursive: true });
 
 const HEADER_RE = /^\|\s*#\s*\|\s*ADR\s*\|/;
 

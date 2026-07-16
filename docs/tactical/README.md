@@ -4,8 +4,9 @@
 
 | In flight | What it is |
 |---|---|
-| [adr-code-audit.md](adr-code-audit.md) | Verify all 41 ADRs' state + decisions against the code. Scaffolded 2026-07-15; verified findings remediated (see its Disposition block); **419KB — read only that block, never the whole file**. |
-| [adr-audit-gate-brief.md](adr-audit-gate-brief.md) | Cold-start brief to gate the audit's 127 ungated rows. Resumable across sessions (both prior runs died on session limits). Wrap together with the register. |
+| [adr-code-audit.md](adr-code-audit.md) | Verify all 41 ADRs' state + decisions against the code. Scaffolded 2026-07-15; verified findings remediated (see its Disposition block); **419KB — read only that block, never the whole file**. Discharge the remaining rows with **`/docs-sweep gate`**, then wrap. |
+
+**Generated output is not a tactical.** The gate's worklist/prefilter/results are regenerable in ~1s and live in gitignored `reports/docs-sweep/` — the same tier as `playwright-report/`. They were briefly committed here (2026-07-15) and removed; a build artifact in a docs folder reads as a doc. See [workflow.md](../workflow.md)'s doc map.
 
 A tactical is a **short-lived working doc** for work that's too large for a single ADR scaffold but too narrow for `PLAN.md` — a checklist with locked decisions, sub-tasks, and a findings register. See [workflow.md](../workflow.md) Design principle 4 and "Tactical-driven sessions".
 
