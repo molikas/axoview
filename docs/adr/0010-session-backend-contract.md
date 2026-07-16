@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-05-20
-**Supersedes:** the durable adapter / atomicity / concurrency decisions previously held in `flare_plan.md` (deleted in commit `926e66f`; classified in [productization-audit.md A.6.1](../tactical/productization-audit.md#a61-flare_planmd-section-classification))
+**Supersedes:** the durable adapter / atomicity / concurrency decisions previously held in `flare_plan.md` (deleted in commit `926e66f`; classified in productization-audit.md A.6.1)
 **Superseded by:** none
 
 ## Context
@@ -176,7 +176,7 @@ All edits have landed (originally tracked by the C.2 cleanup tactical).
 
 ## See also
 
-- [productization-audit.md A.6.1](../tactical/productization-audit.md#a61-flare_planmd-section-classification) — flare_plan.md classification table; rows for Architectural #2 / #5 are this ADR's historical source.
-- [productization-audit.md A.6.8](../tactical/productization-audit.md) — outline this ADR expands.
-- [productization-audit.md A.6.6](../tactical/productization-audit.md) — session backend baseline checklist (16 rows; 4 gaps + 1 risk).
+- productization-audit.md A.6.1 — flare_plan.md classification table; rows for Architectural #2 / #5 are this ADR's historical source.
+- productization-audit.md A.6.8 — outline this ADR expands.
+- productization-audit.md A.6.6 — session backend baseline checklist (16 rows; 4 gaps + 1 risk).
 - ADR 0009 — Deployment topology (the cross-runtime counterpart). Decision 1 of ADR 0009 names the runtime asymmetry that this ADR's decision 4 single-tenancy assumes.

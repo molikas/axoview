@@ -334,7 +334,7 @@ These are not per-device; they apply to the one canvas interaction surface:
 The questions surfaced 2026-06-13 by the pre-rewrite mapping
 (the pre-rewrite behavior map, since folded into [canvas-interaction.md](../guidelines/canvas-interaction.md)) are now
 **resolved by the ADR owner.** These bind the implementation; the execution
-sequence is in the [tactical plan](../tactical/touch-pen-gesture-contract.md).
+sequence is in the tactical plan.
 
 1. **D-6 — Per-item actions on touch route through the Properties panel.**
    *(Superseded twice: by the 2026-06-14 (B) revision, which gave touch long-press the

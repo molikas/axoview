@@ -22,7 +22,7 @@ paste / import / diagram-open, where all N nodes are on-screen).
 The T1 micro-optimizations that kept the DOM substrate — Iter 3 "wholesale
 de-emotion" and Iter 6 granular store subscriptions
 ([decision-log](../../perf-results/decision-log.md)) — produced modest, slope-
-unchanged gains. The CPU profile ([cpuprofile-spawn-1000](../../perf-results/cpuprofile-spawn-1000.md))
+unchanged gains. The CPU profile (cpuprofile-spawn-1000)
 attributes the spawn freeze to intrinsically per-node DOM cost (~403 ms MUI `sx`
 pipeline, ~364 ms label scroll-reset at N=1000). There is no way to keep ~14×N DOM
 elements and make 1,000 nodes fast — the substrate must change. This is the **T2**
@@ -40,7 +40,7 @@ off, spiked, and measured before this decision:
 - **Iter 9** production hybrid: the full correctness gate passes **13/13 flag-ON** with
   the spawn win preserved exactly.
 
-Evidence detail: [t2-design.md](../../perf-results/t2-design.md) FINDINGs (Iter 8, 9).
+Evidence detail: t2-design.md FINDINGs (Iter 8, 9).
 
 ## Decision
 

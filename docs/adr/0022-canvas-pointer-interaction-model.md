@@ -15,7 +15,7 @@ Three reported issues share one root: the canvas has no single, opinionated open
 
 The user also asked to **remove the canvas-interaction customization surface and its code debt**, and to re-verify touch ("TAP") behavior. That surface is:
 
-- [`PanSettings`](../../packages/axoview-lib/src/components/PanSettings/PanSettings.tsx) (Settings → "Canvas" tab) — `emptyAreaClickPan`, `middleClickPan`, `rightClickPan`, `ctrlClickPan`, `altClickPan`, `arrowKeysPan`, `wasdPan`, `ijklPan`, `keyboardPanSpeed`. Several toggles **conflict** with the fixed model below (`ctrlClickPan` vs Ctrl+click multi-select; `altClickPan` vs Alt+click waypoint removal; `emptyAreaClickPan` vs lasso/empty-clear).
+- `PanSettings` (Settings → "Canvas" tab) — `emptyAreaClickPan`, `middleClickPan`, `rightClickPan`, `ctrlClickPan`, `altClickPan`, `arrowKeysPan`, `wasdPan`, `ijklPan`, `keyboardPanSpeed`. Several toggles **conflict** with the fixed model below (`ctrlClickPan` vs Ctrl+click multi-select; `altClickPan` vs Alt+click waypoint removal; `emptyAreaClickPan` vs lasso/empty-clear).
 - The hotkey-profile selector in [`HotkeySettings`](../../packages/axoview-lib/src/components/HotkeySettings/HotkeySettings.tsx) — the default `smnrct` profile maps `connector: 'c'`, the source of the Ctrl+C collision (#17).
 - [`HelpDialog`](../../packages/axoview-lib/src/components/HelpDialog/HelpDialog.tsx) documents the old mouse model and must be rewritten.
 

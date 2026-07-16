@@ -7,15 +7,15 @@
 
 ## Context
 
-Two failure-of-intent surfaces shipped between [commit cff3942](../../packages/axoview-app/src/components/LocalModeShareErrorDialog.tsx) (B2, 2026-05-21) and [commit 2a04061](../../packages/axoview-app/src/components/ReadonlyLoadErrorDialog.tsx) (B-1 follow-up, 2026-05-22) converged independently on the same component shape — same MUI primitives, same prop interface, same styling sx, same i18n namespace layout, same dismiss semantics. The convergence was not coordinated; each landed in response to a specific bug ([A.4 #C5](../tactical/productization-audit.md) for the share-link case, [B-1 baseline finding #3](../tactical/productization-audit.md) for the owner-readonly case) and arrived at the contract by following the path of least surprise.
+Two failure-of-intent surfaces shipped between [commit cff3942](../../packages/axoview-app/src/components/LocalModeShareErrorDialog.tsx) (B2, 2026-05-21) and [commit 2a04061](../../packages/axoview-app/src/components/ReadonlyLoadErrorDialog.tsx) (B-1 follow-up, 2026-05-22) converged independently on the same component shape — same MUI primitives, same prop interface, same styling sx, same i18n namespace layout, same dismiss semantics. The convergence was not coordinated; each landed in response to a specific bug (A.4 #C5 for the share-link case, B-1 baseline finding #3 for the owner-readonly case) and arrived at the contract by following the path of least surprise.
 
-The [productization-audit B-9a investigation](../tactical/productization-audit.md) catalogued the two precedents and inventoried the SPA's remaining error surfaces. Findings (2026-05-22):
+The productization-audit B-9a investigation catalogued the two precedents and inventoried the SPA's remaining error surfaces. Findings (2026-05-22):
 
 - **6 already-correct surfaces** — the two named dialogs plus four in-context inline error states (ImportDialog, AppToolbar share popover, ExportImageDialog, ExportProjectZipDialog).
 - **20 silent-failure surfaces** — failure-of-intent paths that surface only via `notificationStore.push()` toasts (S1–S20 in B-9a) or fully-swallowed `.catch(() => {})` handlers.
 - **5 intentional-silent surfaces** — boot-time probes, fire-and-forget rehydration, thumbnail dynamic-import, the ADR 0009 D2 `/api/config` fallback, service-worker registration.
 
-The accidental convergence of the two existing dialogs is evidence that the contract is *latent in the project's MUI + i18n + React Router conventions*. This ADR writes it down so future error surfaces inherit it on purpose rather than by accident, and so existing toast-only paths have an explicit target to be retrofitted against (catalogued as the [audit's B-9b](../tactical/productization-audit.md) row, gated on T1).
+The accidental convergence of the two existing dialogs is evidence that the contract is *latent in the project's MUI + i18n + React Router conventions*. This ADR writes it down so future error surfaces inherit it on purpose rather than by accident, and so existing toast-only paths have an explicit target to be retrofitted against (catalogued as the audit's B-9b row, gated on T1).
 
 Cross-cutting references that this ADR formalises:
 
@@ -31,7 +31,7 @@ When a user-initiated action fails — they clicked a button, typed a URL, dragg
 
 **Forbidden patterns:**
 
-- Silent redirect on failure (`window.location.href = '/'`, `navigate('/')` inside a `catch` without user-visible cause). [Closed by B-1 in 2026-05-22.](../tactical/productization-audit.md#b-1-investigation-findings-2026-05-22)
+- Silent redirect on failure (`window.location.href = '/'`, `navigate('/')` inside a `catch` without user-visible cause). Closed by B-1 in 2026-05-22.
 - Silent dismiss (`.catch(() => {})` or `setShow*(false)` in a catch arm) when the user initiated the action.
 - Notification-only handling (a `notificationStore.push({ severity: 'error', ... })` toast as the sole UI signal) for failures that prevent the intended action from completing.
 
@@ -149,7 +149,7 @@ The `<scenario>` segment in the key tree matches the `<Scenario>` in the compone
 
 - The contract is *latent in the codebase already* — both precedents arrived at it without coordination. Writing it down formalises it without imposing a new shape.
 - Future error surfaces inherit the shape automatically; reviewers have a written gate to push back against drift (raw `<div>` overlays, headline + body shape, dismiss semantics).
-- The audit's B-9b row gains a concrete target. The 20 toast-only paths in [B-9a's inventory](../tactical/productization-audit.md) are now classified surfaces with a defined retrofit shape, not unstructured technical debt.
+- The audit's B-9b row gains a concrete target. The 20 toast-only paths in B-9a's inventory are now classified surfaces with a defined retrofit shape, not unstructured technical debt.
 - Cross-ADR coherence: [ADR 0008 D1](0008-naming-convention.md#1-component-file-names-disambiguate-when-colliding-describe-surface-not-state) + [D2](0008-naming-convention.md#2-modal-vs-popover-vs-dialog-vs-panel--locked-vocabulary) + [ADR 0009 D3](0009-deployment-topology.md#3-readonly--share-link-is-a-session-mode-only-overlay-local-mode-must-error-explicitly) now compose into a single explicit contract for failure-of-intent UX.
 
 ### Negative / open
@@ -173,13 +173,13 @@ The `<scenario>` segment in the key tree matches the `<Scenario>` in the compone
 - [packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx](../../packages/axoview-app/src/providers/DiagramLifecycleProvider.tsx) — new `publicShareLoadFailed` state + clearer on the context, replacing the toast at line 418.
 - [packages/axoview-app/src/App.tsx](../../packages/axoview-app/src/App.tsx) — new `<PublicShareLoadErrorDialog>` mount.
 - [packages/axoview-app/src/i18n/en-US.json](../../packages/axoview-app/src/i18n/en-US.json) — new `dialog.publicShareLoadError.*` key tree.
-- [docs/tactical/productization-audit.md](../tactical/productization-audit.md) — B-9a row marked done with this ADR + commit hashes; B-9b row queued with the S2–S20 enumeration as its working catalogue.
+- docs/tactical/productization-audit.md — B-9a row marked done with this ADR + commit hashes; B-9b row queued with the S2–S20 enumeration as its working catalogue.
 
 The actual edits land in the B-9a commits that this ADR accompanies. B-9b's edits land in a future session, gated on T1's scenario catalogue.
 
 ## See also
 
-- [productization-audit.md B-9a](../tactical/productization-audit.md) — the investigation that produced the two-dialog catalogue and the 20-surface silent-failure inventory.
+- productization-audit.md B-9a — the investigation that produced the two-dialog catalogue and the 20-surface silent-failure inventory.
 - [ADR 0008 Decision 1](0008-naming-convention.md#1-component-file-names-disambiguate-when-colliding-describe-surface-not-state) — per-scenario file naming (`<Scenario>ErrorDialog.tsx`).
 - [ADR 0008 Decision 2](0008-naming-convention.md#2-modal-vs-popover-vs-dialog-vs-panel--locked-vocabulary) — "Dialog" vocabulary lock (focus-trapped, explicit user action, centred overlay).
 - [ADR 0009 Decision 3](0009-deployment-topology.md#3-readonly--share-link-is-a-session-mode-only-overlay-local-mode-must-error-explicitly) — the share-link / owner-readonly explicit-error contract this ADR generalises (and its 2026-05-22 addendum naming the share-vs-owner-readonly distinction).

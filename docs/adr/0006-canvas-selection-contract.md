@@ -129,6 +129,6 @@ New acceptance criterion: a selected element shows a solid, high-contrast accent
 
 ## See also
 
-- [MQA tactical plan](../tactical/mqa-design-shakeout.md) — items #8 + #9, where the user-facing requirements were captured.
+- MQA tactical plan — items #8 + #9, where the user-facing requirements were captured.
 - [ux-principles §4](../guidelines/ux-principles.md#4-selection-model) — sets the panel ↔ canvas sync rule and the locked/hidden invariant this ADR inherits.
 - ADR-0005 — toolbar layout contract; the BottomDock badge is one example of a "named region" gaining a new owner.

@@ -10,7 +10,7 @@
 
 Three signals drove this revision:
 
-1. **The burger menu in the top toolbar is a junk drawer.** [`MainMenu.tsx`](../../packages/axoview-lib/src/components/MainMenu/MainMenu.tsx) currently mixes `New / Open / Clear canvas` (lifecycle) with `Settings` (system) with `GitHub / Version` (footer-class info) with `Export JSON / Compact / Image` (document actions). The app portals it into the top-left zone of [`AppToolbar.tsx`](../../packages/axoview-app/src/components/AppToolbar.tsx). Each item has a better natural home elsewhere; co-locating them under one icon hurts discoverability.
+1. **The burger menu in the top toolbar is a junk drawer.** `MainMenu.tsx` currently mixes `New / Open / Clear canvas` (lifecycle) with `Settings` (system) with `GitHub / Version` (footer-class info) with `Export JSON / Compact / Image` (document actions). The app portals it into the top-left zone of [`AppToolbar.tsx`](../../packages/axoview-app/src/components/AppToolbar.tsx). Each item has a better natural home elsewhere; co-locating them under one icon hurts discoverability.
 
 2. **The file-explorer toggle lives in the wrong region.** It's currently in the top-left of [`AppToolbar.tsx`](../../packages/axoview-app/src/components/AppToolbar.tsx), but it semantically opens a left-side navigation panel and belongs in the same strip as Elements + Layers — see [`LeftDock.tsx`](../../packages/axoview-lib/src/components/LeftDock/LeftDock.tsx). Industry convention (VS Code, Figma, Linear) co-locates all panel toggles in a single vertical activity strip.
 

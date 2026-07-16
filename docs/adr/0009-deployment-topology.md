@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-05-20
-**Supersedes:** the durable deployment decisions previously held in `flare_plan.md` (deleted in commit `926e66f`; classified in [productization-audit.md A.6.1](../tactical/productization-audit.md#a61-flare_planmd-section-classification))
+**Supersedes:** the durable deployment decisions previously held in `flare_plan.md` (deleted in commit `926e66f`; classified in productization-audit.md A.6.1)
 **Superseded by:** none
 
 ## Context
@@ -15,7 +15,7 @@ Axoview ships to two real deployment targets and a third in-browser fallback:
 
 Three audit findings forced a written-down topology now rather than later:
 
-- **Theme 7 of the Phase A synthesis** ([productization-audit.md theme 7](../tactical/productization-audit.md#theme-7)): the `flare_plan.md` framing of "one HTTP contract, two adapters" is **aspirational**, not real. The live shape is **one HTTP contract, one adapter, one Worker short-circuit.** Writing this down prevents future contributors (and Phase 3B) from designing against the wrong contract.
+- **Theme 7 of the Phase A synthesis** (productization-audit.md theme 7): the `flare_plan.md` framing of "one HTTP contract, two adapters" is **aspirational**, not real. The live shape is **one HTTP contract, one adapter, one Worker short-circuit.** Writing this down prevents future contributors (and Phase 3B) from designing against the wrong contract.
 - **The dual-probe + dead `RuntimeConfig.serverStorage` field** (A.4 #C1 + #C4, A.6 #D1 + #D2): mode detection asks `/api/config` *and* `/api/storage/status` in parallel on every SPA boot. The second request is redundant with the first. On Cloudflare cold starts that's ~100–200 ms of avoidable latency on every boot. The choice between "keep both endpoints" and "collapse to one" is a deployment-contract decision, not a UI refactor.
 - **The Local-mode share-link bug** (A.4 #C5): pasting a `?share=<uuid>` URL while the SPA is in Local mode silently renders an empty diagram. The right fix is a clear error — but the contract that decides "share is session-mode only" lives at the deployment layer, not the UI.
 
@@ -181,13 +181,13 @@ The Worker bundle's deployed size is part of this contract. Target: **< 1 MB** u
 - [docker-entrypoint.sh](../../docker-entrypoint.sh) — `HTTP_AUTH_USER` / `HTTP_AUTH_PASSWORD` handling + `.htpasswd` generation removed alongside nginx Basic Auth.
 - [.env.example](../../.env.example), [README.md](../../README.md) — `HTTP_AUTH_*` env-var documentation removed; README "Quick start (Docker)" rewritten around `AUTH_MODE`.
 
-**Distribution model:** containerized app (Docker Hub) + CDN-deployed SPA (Cloudflare Pages). `axoview-lib` is consumed within the monorepo only; not published to npm per [productization-audit Locked Decision #11](../tactical/productization-audit.md#locked-decisions-from-scoping-discussion-2026-05-19).
+**Distribution model:** containerized app (Docker Hub) + CDN-deployed SPA (Cloudflare Pages). `axoview-lib` is consumed within the monorepo only; not published to npm per productization-audit Locked Decision #11.
 
 The actual edits land in the C.2 cleanup tactical (single-file rows) and the C.8 git-automation tactical (CI bundle-size + `_routes.json` presence check).
 
 ## See also
 
-- [productization-audit.md A.6.1](../tactical/productization-audit.md#a61-flare_planmd-section-classification) — flare_plan.md classification table (the historical source for every decision above).
-- [productization-audit.md A.6.8](../tactical/productization-audit.md) — outline this ADR expands.
-- [productization-audit.md Theme 7](../tactical/productization-audit.md) — names the runtime asymmetry that decision 1 locks.
+- productization-audit.md A.6.1 — flare_plan.md classification table (the historical source for every decision above).
+- productization-audit.md A.6.8 — outline this ADR expands.
+- productization-audit.md Theme 7 — names the runtime asymmetry that decision 1 locks.
 - ADR 0010 — Session backend contract (the adapter-side counterpart to this ADR).

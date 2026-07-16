@@ -7,13 +7,13 @@
 
 ## Context
 
-The productization audit ([docs/tactical/productization-audit.md](../tactical/productization-audit.md)) Phase A surfaced ~32 surface-level rows in the mode matrix (A.4) and 16 anomaly rows in the concept register (A.3), plus deployment-artifact and skill inventories in A.6 and A.9. Phase A synthesis Theme 5 noted that **Discovery is now richer than the original C.1 naming seed list** — most of the seeded surfaces (`AppToolbar`, `LayersPanel`, `BottomDock`, `StatusCluster`, `ExportPopover`, `ContextMenu`, `QuickAddPopover`) came up clean. The actual naming-decision shape that Discovery revealed centres on:
+The productization audit (docs/tactical/productization-audit.md) Phase A surfaced ~32 surface-level rows in the mode matrix (A.4) and 16 anomaly rows in the concept register (A.3), plus deployment-artifact and skill inventories in A.6 and A.9. Phase A synthesis Theme 5 noted that **Discovery is now richer than the original C.1 naming seed list** — most of the seeded surfaces (`AppToolbar`, `LayersPanel`, `BottomDock`, `StatusCluster`, `ExportPopover`, `ContextMenu`, `QuickAddPopover`) came up clean. The actual naming-decision shape that Discovery revealed centres on:
 
-- **Two real name-collision bugs** ([A.3 anomaly #4 — dual `ExportDialog.tsx`](../tactical/productization-audit.md), [A.3 anomaly #5 — dual `StorageManager`](../tactical/productization-audit.md)) — IDE jump-to-definition cannot disambiguate without path context.
-- **One real semantic-inversion bug** ([A.4 #C2 — `SessionModeBanner` is shown only in LOCAL mode](../tactical/productization-audit.md)) — the render gate is `!serverStorageAvailable`, so the name and the behaviour contradict.
-- **A lib-vs-app surface question** ([A.3 #C7](../tactical/productization-audit.md)) — when a lib surface is app-unused but worth preserving for external lib consumers, how is it marked?
-- **A provider-id discriminant pattern** ([A.4.4](../tactical/productization-audit.md)) — `'local' | 'google-drive'` is established; Phase 3B needs the extension story.
-- **A modal-vs-dialog-vs-popover vocabulary drift** ([A.3 anomalies #4, #5, #6, #7](../tactical/productization-audit.md)) — five surfaces named `*Dialog` vary widely in shape (transient confirm, modal full-screen, popover-anchored).
+- **Two real name-collision bugs** (A.3 anomaly #4 — dual `ExportDialog.tsx`, A.3 anomaly #5 — dual `StorageManager`) — IDE jump-to-definition cannot disambiguate without path context.
+- **One real semantic-inversion bug** (A.4 #C2 — `SessionModeBanner` is shown only in LOCAL mode) — the render gate is `!serverStorageAvailable`, so the name and the behaviour contradict.
+- **A lib-vs-app surface question** (A.3 #C7) — when a lib surface is app-unused but worth preserving for external lib consumers, how is it marked?
+- **A provider-id discriminant pattern** (A.4.4) — `'local' | 'google-drive'` is established; Phase 3B needs the extension story.
+- **A modal-vs-dialog-vs-popover vocabulary drift** (A.3 anomalies #4, #5, #6, #7) — five surfaces named `*Dialog` vary widely in shape (transient confirm, modal full-screen, popover-anchored).
 - **A `data-axoview-id` decision deferred from M4** — testability gates Phase B + future Playwright E2E (C.5).
 - **Naming patterns Discovery confirmed clean** — package naming (`axoview-<role>`), skill naming (`/<verb>` for cadence, `/<verb>-<noun>` for compound), Cloudflare-inherited filenames.
 
@@ -55,7 +55,7 @@ A.3 surfaced four interchangeable terms (`Dialog`, `Modal`, `Popover`, `Panel`) 
 
 ### 3. Lib-vs-app surface distinction is opt-in via `// LIB-ONLY` marker, forward-looking only
 
-A.3 cross-cutting #1 proposed a `// LIB-ONLY` header comment on lib components that are app-unused but preserved for external `axoview-lib` consumers. The MainMenu locked-deletion ([A.3 #1](../tactical/productization-audit.md)) removed the immediate need for the marker, but the convention stands as the **forward-looking pattern** for the first real case (a published lib surface that the app retires post-1.0).
+A.3 cross-cutting #1 proposed a `// LIB-ONLY` header comment on lib components that are app-unused but preserved for external `axoview-lib` consumers. The MainMenu locked-deletion (A.3 #1) removed the immediate need for the marker, but the convention stands as the **forward-looking pattern** for the first real case (a published lib surface that the app retires post-1.0).
 
 **Rule:**
 
@@ -93,18 +93,18 @@ This decision satisfies M4's gate without committing to a blanket attribute retr
 
 ### 6. Package naming — `axoview-<role>` where role is the established 4-set
 
-The monorepo's four packages — `axoview-lib`, `axoview-app`, `axoview-worker`, `axoview-backend` — are 4-of-4 conformant ([A.5 + A.6 + A.7](../tactical/productization-audit.md)).
+The monorepo's four packages — `axoview-lib`, `axoview-app`, `axoview-worker`, `axoview-backend` — are 4-of-4 conformant (A.5 + A.6 + A.7).
 
 **Rule:**
 
 - New packages within this monorepo follow the `axoview-<role>` pattern.
 - The established roles are: `lib` (publishable React library), `app` (the SPA bundling consumer of `lib`), `worker` (Cloudflare-side runtime), `backend` (Node/Express-side runtime).
-- Adding a fifth role requires explicit ADR or audit gate. Candidate names that would fit: `axoview-core` (if shared route layer ever leaves `axoview-backend/src/routes.js` — see [productization-audit P6](../tactical/productization-audit.md)), `axoview-e2e` (already exists; locked for deletion + rewrite per audit decision #4).
+- Adding a fifth role requires explicit ADR or audit gate. Candidate names that would fit: `axoview-core` (if shared route layer ever leaves `axoview-backend/src/routes.js` — see productization-audit P6), `axoview-e2e` (already exists; locked for deletion + rewrite per audit decision #4).
 - Within each package, the `name` field in `package.json` is close to the directory but **not uniformly identical, and scoping is not uniformly absent**: `axoview-app`, `axoview-backend`, and `axoview-worker` match their dirs, but `axoview-lib`'s package name is `axoview` (unscoped, ≠ dir) and `axoview-e2e`'s is `@axoview/e2e` (scoped). Any future consolidation onto a single `@axoview/*` scope is a publication question, out of scope here.
 
 ### 7. Skill naming — verb for cadence; verb-noun for compound; `-check` for verification
 
-A.9.1 inventoried the five in-scope skills (`/audit`, `/feature`, `/notes`, `/shake-out`, `/ship`) and A.9.4 catalogued nine deferred candidates ([/release-check, /trace, /deploy-check, /regression-snapshot, /workflow-check, /ux-baseline, /perf-baseline, …](../tactical/productization-audit.md)).
+A.9.1 inventoried the five in-scope skills (`/audit`, `/feature`, `/notes`, `/shake-out`, `/ship`) and A.9.4 catalogued nine deferred candidates (/release-check, /trace, /deploy-check, /regression-snapshot, /workflow-check, /ux-baseline, /perf-baseline, …).
 
 **Rule:**
 
@@ -154,10 +154,10 @@ ux-principles.md gains a short cross-reference to this ADR's Decision 2 (locked 
 
 ## See also
 
-- [productization-audit.md A.3](../tactical/productization-audit.md) — concept anomaly register (16 rows; anomalies #4, #5 drove Decision 1).
-- [productization-audit.md A.4 #C2](../tactical/productization-audit.md) — `SessionModeBanner` semantic inversion (drove the rename).
-- [productization-audit.md A.4.4](../tactical/productization-audit.md) — provider-id inventory (drove Decision 4).
-- [productization-audit.md Theme 5](../tactical/productization-audit.md) — findings-drive-the-ADR principle.
+- productization-audit.md A.3 — concept anomaly register (16 rows; anomalies #4, #5 drove Decision 1).
+- productization-audit.md A.4 #C2 — `SessionModeBanner` semantic inversion (drove the rename).
+- productization-audit.md A.4.4 — provider-id inventory (drove Decision 4).
+- productization-audit.md Theme 5 — findings-drive-the-ADR principle.
 - [docs/workflow.md](../workflow.md#process-debt--deferred-skills) — the deferred-skills catalogue that Decision 7's skill-naming rules govern. *(workflow.md does not itself cite ADR 0008 or "Decision 7"; the naming rules in this ADR are the authority — the link is one-way.)*
 - ADR 0005 — Toolbar and dock layout contract (the surface-naming precedent: "top toolbar", "bottom dock", "left dock", "right sidebar" are locked by 0005; this ADR doesn't restate them).
 - ADR 0009 — Deployment topology (Decision 2 deleted the dead `RuntimeConfig.serverStorage` field that motivated rule 8's boolean-field guidance).
