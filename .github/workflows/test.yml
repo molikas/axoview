@@ -5,6 +5,11 @@ on:
     branches: ["main", "master"]
   pull_request:
     branches: ["main", "master"]
+  # On-demand run against any branch — `integration` deliberately gets no
+  # automatic CI (it is a live-deploy target that is pushed to mid-thought,
+  # not a shared trunk), so this is how you ask for unit/tsc/knip there:
+  #   gh workflow run "Run Tests" --ref integration
+  workflow_dispatch:
 
 # Least-privilege GITHUB_TOKEN: this workflow only checks out and tests / lints /
 # builds — it never writes to the repo or calls the API.
@@ -100,5 +105,28 @@ jobs:
           echo "Worker bundle size: ${SIZE} bytes (limit ${LIMIT} bytes / 1 MB uncompressed)"
           if [ "$SIZE" -gt "$LIMIT" ]; then
             echo "::error::Worker bundle ${SIZE} bytes exceeds 1 MB uncompressed budget (ADR 0009 Decision 8)"
+            exit 1
+          fi
+
+  # Single stable check name for the whole matrix, so the master ruleset can
+  # require ONE context instead of naming every leg. Requiring `test (22.x)` /
+  # `test (24.x)` directly would silently un-gate the day the matrix changes:
+  # a required context that no longer reports blocks forever, and one that was
+  # dropped stops being checked at all.
+  ci-gate:
+    name: CI Gate
+    # `always()` is load-bearing. Without it this job is SKIPPED when `test`
+    # fails, and GitHub counts a skipped check as PASSING for required status
+    # checks — the gate would green-light precisely the runs it exists to stop.
+    if: always()
+    needs: [test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Assert the test matrix passed
+        run: |
+          echo "test matrix result: ${{ needs.test.result }}"
+          if [ "${{ needs.test.result }}" != "success" ]; then
+            echo "::error::CI Gate: test matrix did not pass (result=${{ needs.test.result }})"
             exit 1
           fi

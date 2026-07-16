@@ -15,7 +15,14 @@ name: Perf smoke
 
 on:
   pull_request:
-    branches: ["master", "integration"]
+    # master only — same reasoning as e2e-playwright.yml: `integration` is a
+    # live-deploy target, not a gate. Use `workflow_dispatch` for a one-off run.
+    branches: ["master"]
+    # `ready_for_review` is not a default type; without it the `draft != true`
+    # filter on the job below would leave this check permanently `skipped` on
+    # any PR opened as a draft — and skipped counts as PASSING once this is a
+    # required check. See the longer note in e2e-playwright.yml.
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: ["master"]
   workflow_dispatch:
