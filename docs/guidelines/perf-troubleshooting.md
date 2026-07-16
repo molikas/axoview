@@ -1,17 +1,32 @@
 # Axoview Performance Troubleshooting Playbook
 
-**Last updated:** 2026-05-16
-**Status:** Living doc. Add a new "Case study" subsection whenever a perf investigation lands.
+**Last updated:** 2026-07-15 (docs housekeeping — scope boundary vs the GPU substrate made explicit; moved to `docs/guidelines/`. Content last substantively extended 2026-05-19 with the cold-start case study.)
+**Status:** Living doc. Add a new "Case study" subsection whenever a perf investigation lands — **and bump the date above** (it sat at 2026-05-16 while a 2026-05-19 case study lived inside this very file).
 
 > Why this exists. The MQA #7 investigation (multi-element drag FPS cliff) burned through several false hypotheses before we found the real bottleneck. This document captures the **diagnostic order**, the **tools we built**, and the **architectural invariants** that resulted — so the next perf round starts from a higher floor.
+
+> ## ⚠️ Scope — this playbook is the React/DOM layer, not the GPU
+>
+> Everything below concerns the **React commit / immer / CSS-compositor** layer: interaction,
+> drag, startup, re-render isolation. Since [ADR 0038](../adr/0038-webgl-instanced-render-substrate.md)
+> (2026-07-08) the *bulk* of what you see — nodes, labels, connectors, rectangles — is drawn
+> on **WebGL2**, and this document has no coverage of it.
+>
+> **If the symptom is inside the canvas region** (frame time at high node counts, pan/zoom
+> smoothness, atlas/sprite artifacts, line-style or stroke-width fidelity), go to
+> **[canvas-rendering-guidelines.md](canvas-rendering-guidelines.md)** — the GPU substrate's
+> perf *and* fidelity contract. Use this playbook when the symptom is chrome, panels, drag
+> mechanics, startup, or React re-render churn.
 
 ---
 
 ## Companion docs
 
-- [docs/architecture.md §1 Drag Items](architecture.md#1-feature-inventory) — Path 4-true invariant (CSS-preview drag, model lags during drag).
-- [known_issues.md MQA #7](../known_issues.md) — measurement table per fix stage + deferred items.
-- [docs/tactical/](tactical/) — short-lived in-flight perf plans (deleted at merge).
+- [canvas-rendering-guidelines.md](canvas-rendering-guidelines.md) — **the GPU sibling.** WebGL2 substrate fidelity + perf rules (atlas, line-style geometry, premultiplied alpha, export). Start there for anything inside the canvas region.
+- [architecture.md §1 Drag Items](architecture.md#1-feature-inventory) — Path 4-true invariant (CSS-preview drag, model lags during drag).
+- [known_issues.md MQA #7](../../known_issues.md) — measurement table per fix stage + deferred items.
+- [ADR 0020](../adr/0020-engine-perf-harness-and-measurement-protocol.md) — the engine-perf harness + measurement protocol (the authoritative copy of the tier ladder / LEB60).
+- [docs/tactical/](../tactical/) — short-lived in-flight perf plans (deleted at merge).
 
 ---
 
@@ -45,7 +60,7 @@ If `ni / nc / ntb` are all 0, the `__axoview__` bridge isn't exposed — that's 
 
 Distinguishes "too many things re-rendering" from "each render is too expensive". Two very different fixes.
 
-The probe lives at [`src/utils/renderProbe.ts`](../packages/axoview-lib/src/utils/renderProbe.ts). Gated by `?perfprobe=1` URL flag (zero cost when disabled). Already wired into Nodes / Node / NodeContent / Connectors / Connector. To add it to a new hot-path component:
+The probe lives at [`src/utils/renderProbe.ts`](../../packages/axoview-lib/src/utils/renderProbe.ts). Gated by `?perfprobe=1` URL flag (zero cost when disabled). Already wired into Nodes / Node / NodeContent / Connectors / Connector. To add it to a new hot-path component:
 
 ```ts
 import { useRenderProbe } from 'src/utils/renderProbe';
@@ -128,7 +143,7 @@ if (!__w.__myDiagLast || __now - __w.__myDiagLast > 250) {
 
 **Root cause:** A single user action triggers a chain of reducers, each running its own `produce(state, ...)` over the full state. For `updateViewItem(tile)` → `updateConnector` per touching connector → `syncConnector` per connector, 6 items × 3 connectors = up to ~50 full-graph clones per drag frame.
 
-**Fix:** For the hot path specifically, write a batched, immer-free action that takes all updates and does ONE structural copy + direct path/scene recomputation. Example: `batchUpdateViewItemTiles` and `previewConnectorPaths` in [useSceneActions.ts](../packages/axoview-lib/src/hooks/useSceneActions.ts).
+**Fix:** For the hot path specifically, write a batched, immer-free action that takes all updates and does ONE structural copy + direct path/scene recomputation. Example: `batchUpdateViewItemTiles` and `previewConnectorPaths` in [useSceneActions.ts](../../packages/axoview-lib/src/hooks/useSceneActions.ts).
 
 **The general principle:** the regular reducer chain is correct and convenient for one-shot user actions (click, keypress). But for 30-60fps mousemove handlers, the immer cost compounds. Have a fast-path action that bypasses immer for tile-only or path-only updates.
 
@@ -141,7 +156,7 @@ if (!__w.__myDiagLast || __now - __w.__myDiagLast > 250) {
 2. Even the components that *should* render are doing too much work — repeatedly re-creating sx object literals, mounting heavy MUI subtrees per frame.
 
 **Fix:**
-1. Split the component into a thin shell (re-renders per tick, trivial output) and a memoized inner that takes only stable primitive props. See [Node.tsx](../packages/axoview-lib/src/components/SceneLayers/Nodes/Node/Node.tsx) — `Node` (shell) vs `NodeContent` (memoized).
+1. Split the component into a thin shell (re-renders per tick, trivial output) and a memoized inner that takes only stable primitive props. See [Node.tsx](../../packages/axoview-lib/src/components/SceneLayers/Nodes/Node/Node.tsx) — `Node` (shell) vs `NodeContent` (memoized).
 2. Move all static `sx` objects to module-level constants (emotion's class hash hits cache).
 3. Move dynamic per-frame values (position, z-index) to inline `style={{ ... }}` (bypasses emotion entirely).
 4. Move compositor-only changes (transform, opacity) into CSS variables read by the static `sx`.
@@ -206,7 +221,7 @@ Session-mode page load showed a white screen for ~5–7 seconds after `html:head
 
 ### Fix shape
 
-- **Probe timeouts dropped 5000 ms → 800 ms** in [`useRuntimeConfig.ts`](../packages/axoview-app/src/hooks/useRuntimeConfig.ts) and [`LocalStorageProvider.ts`](../packages/axoview-app/src/services/storage/providers/LocalStorageProvider.ts). 800 ms gives ~17× headroom over a healthy backend (~45 ms in docker) and caps the OS-level probe.
+- **Probe timeouts dropped 5000 ms → 800 ms** in [`useRuntimeConfig.ts`](../../packages/axoview-app/src/hooks/useRuntimeConfig.ts) and [`LocalStorageProvider.ts`](../../packages/axoview-app/src/services/storage/providers/LocalStorageProvider.ts). 800 ms gives ~17× headroom over a healthy backend (~45 ms in docker) and caps the OS-level probe.
 - **Probes parallelised** with `Promise.all` in `AppStorageContext.tsx` — they're independent, so worst-case storage init = max(p1, p2) not p1+p2.
 - **Inline splash screen** in `public/index.html` (visible from first paint, no React required) covers the remaining bundle-parse + probe gap with a branded surface.
 

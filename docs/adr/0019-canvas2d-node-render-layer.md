@@ -12,7 +12,7 @@ decode, and the `data-all-icons-drawn` export gate) are retained and unchanged.
 ## Context
 
 The DOM/SVG + React per-node renderer does not scale. Production telemetry
-([perf-charter](../tactical/perf-charter.md) "Measured baseline"): ~25 nodes usable,
+(the T0 "Measured baseline", recorded in the since-retired perf charter — see git history; the durable protocol is [ADR 0020](0020-engine-perf-harness-and-measurement-protocol.md)): ~25 nodes usable,
 already below 30fps by ~40, unusable by ~75–90, multi-second main-thread freezes at
 200+; heap ≈ 0.5 MB/node and fps ∝ 1/N — the signature of per-node React reconcile +
 emotion styling + DOM/SVG paint (~14 DOM elements × N). Viewport culling

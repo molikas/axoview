@@ -1,6 +1,6 @@
 # ADR 0023 — Off-Grid Positioning & Per-Item Collision
 
-**Status:** Proposed
+**Status:** Accepted (shipped 2026-06-21 with the UX-CANVAS wave — off-grid placement + per-item collision; PLAN.md `[x]`. Status corrected 2026-07-15: it had sat `Proposed` since shipping.)
 **Date:** 2026-06-18
 **Supersedes:** none
 **Superseded by:** none

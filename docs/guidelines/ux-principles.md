@@ -1,7 +1,7 @@
 # Axoview UX Principles
 
-**Last updated:** 2026-07-02 (integration reshape — styling→top-bar strip; identity name→Metadata section; name↔label decouple; unified label sizing)
-**Status:** Living reference. Update when principles evolve.
+**Last updated:** 2026-07-15 (docs housekeeping — moved to `docs/guidelines/`; stamp reconciled with four edits that landed after the 2026-07-02 date: §8.12 canvas-region fidelity contract → [canvas-rendering-guidelines.md](canvas-rendering-guidelines.md) (2026-07-08); §1.5 theme-at-every-render-root rule + dialog/app-surface typography recipe (2026-07-14); §4.2 strengthened on-canvas selection/hover language (2026-07-14). Prior substantive reshape: 2026-07-02 — styling→top-bar strip; identity name→Metadata section; name↔label decouple; unified label sizing)
+**Status:** Living reference. Update when principles evolve — **and bump the date above in the same commit** (it silently drifted ~12 days / 4 commits before the 2026-07-15 sweep).
 **Audience:** Anyone (or any agent) building UI surfaces, fixing bugs, or reviewing PRs that touch the canvas, side panels, file explorer, or layers.
 
 This is the design language that governs Axoview's UI. It's not opinion — it's the consolidated set of choices already shipped, expressed as principles so new work doesn't drift.
@@ -12,11 +12,11 @@ When in doubt, **mirror what already exists** in the reference implementations l
 
 ## 1. Layout
 
-> **Surface vocabulary (2026-05-20):** the canonical Modal / Dialog / Popover / Panel / Banner / Screen vocabulary is locked in [ADR 0008 — Naming Convention](adr/0008-naming-convention.md) Decision 2. When naming a new overlay or full-area surface, pick the term whose visual contract matches yours — do not invent a sixth.
+> **Surface vocabulary (2026-05-20):** the canonical Modal / Dialog / Popover / Panel / Banner / Screen vocabulary is locked in [ADR 0008 — Naming Convention](../adr/0008-naming-convention.md) Decision 2. When naming a new overlay or full-area surface, pick the term whose visual contract matches yours — do not invent a sixth.
 
 ### 1.1 Section is the layout primitive
 
-Every titled control group in the right sidebar uses [`Section`](../packages/axoview-lib/src/components/ItemControls/components/Section.tsx). Never inline a header:
+Every titled control group in the right sidebar uses [`Section`](../../packages/axoview-lib/src/components/ItemControls/components/Section.tsx). Never inline a header:
 
 ```tsx
 // ✅ Correct
@@ -87,7 +87,7 @@ This bites with MUI `Slider`: the thumb's `::after` pseudo-element is a 42 × 42
 <Box sx={{ overflowY: 'auto', flex: 1 }}>
 ```
 
-Reference: [`ConnectorControls.tsx`](../packages/axoview-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx) and [`NodePanel.tsx`](../packages/axoview-lib/src/components/ItemControls/NodeControls/NodePanel/NodePanel.tsx) `TabPanel`.
+Reference: [`ConnectorControls.tsx`](../../packages/axoview-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx) and [`NodePanel.tsx`](../../packages/axoview-lib/src/components/ItemControls/NodeControls/NodePanel/NodePanel.tsx) `TabPanel`.
 
 ### 1.5 Typography is theme-driven — six tiers, picked by role
 
@@ -108,7 +108,7 @@ The theme owns every font size and weight. Components pick a `<Typography varian
 2. **Never pass `fontSize` to `<Typography>`.** Same for `fontWeight`. Both belong to the variant.
 3. **Component-level overrides live in `theme.ts`.** `MuiTab`, `MuiChip`, `MuiButton` — set there once. Don't sprinkle `'& .MuiTab-root': { fontSize: ... }` inside random components.
 4. **Need a size that doesn't fit a tier?** Propose a new variant in `theme.ts`. Don't inline it. Drift starts with one inline override.
-5. **The table only holds where a `ThemeProvider` provides the theme.** Every size above is the theme's 14px-base scale — it is *not* what MUI renders by default. The lib provides the theme inside `<Axoview>`; the **app root must provide it too** (`<ThemeProvider>` + `<CssBaseline/>`). Where it doesn't — **today `axoview-app` has no root provider** — app-level surfaces (dialogs, the toolbar, popovers, menus) fall back to **MUI defaults**: 16px body, 20px `h6`, 16px inputs, and the tell-tale **`overline` rendered UPPERCASE**. New app UI then looks correct in the code (right variants) yet ships oversized. So on an app-level surface: **never rely on MUI defaults, and never use `overline` for a section header** (un-themed it uppercases — use the recipe below). Tracked in [known_issues.md](../known_issues.md) ("App-level MUI components render un-themed").
+5. **The table only holds where a `ThemeProvider` provides the theme.** Every size above is the theme's 14px-base scale — it is *not* what MUI renders by default. The lib provides the theme inside `<Axoview>`; the **app root must provide it too** (`<ThemeProvider>` + `<CssBaseline/>`). Where it doesn't — **today `axoview-app` has no root provider** — app-level surfaces (dialogs, the toolbar, popovers, menus) fall back to **MUI defaults**: 16px body, 20px `h6`, 16px inputs, and the tell-tale **`overline` rendered UPPERCASE**. New app UI then looks correct in the code (right variants) yet ships oversized. So on an app-level surface: **never rely on MUI defaults, and never use `overline` for a section header** (un-themed it uppercases — use the recipe below). Tracked in [known_issues.md](../../known_issues.md) ("App-level MUI components render un-themed").
 
 **Permitted exceptions (documented):**
 
@@ -132,7 +132,7 @@ The theme owns every font size and weight. Components pick a `<Typography varian
 <Typography variant="overline" sx={{ textTransform: 'uppercase' }}>Layers</Typography>
 ```
 
-`overline` intentionally renders **sentence case** here (against MUI's default) — the "region header" signal comes from weight 600 + tracking + smaller size, not uppercase (satisfies §1.2/§7.2). The custom `micro` variant is registered via TS module augmentation in [`theme.ts`](../packages/axoview-lib/src/styles/theme.ts).
+`overline` intentionally renders **sentence case** here (against MUI's default) — the "region header" signal comes from weight 600 + tracking + smaller size, not uppercase (satisfies §1.2/§7.2). The custom `micro` variant is registered via TS module augmentation in [`theme.ts`](../../packages/axoview-lib/src/styles/theme.ts).
 
 **Dialog / app-surface typography recipe.** Because app-level surfaces may render un-themed (rule 5), build them with the explicit recipe below — it matches the lib's `ExportImageDialog` and looks right with *or* without the theme:
 
@@ -144,7 +144,7 @@ The theme owns every font size and weight. Components pick a `<Typography varian
 | Email / role / helper | `caption`, `color: 'text.secondary'` |
 | Inputs · Select · MenuItem | `body2` (14px); on an un-themed surface a scoped compact `ThemeProvider` pins `MuiInputBase` / `MuiMenuItem` to `0.875rem` |
 
-References: [`ExportImageDialog`](../packages/axoview-lib/src/components/ExportImageDialog/ExportImageDialog.tsx) (renders under the lib theme) and [`DriveShareManageDialog`](../packages/axoview-app/src/components/DriveShareManageDialog.tsx) (scoped compact `ThemeProvider` — the interim pattern for app surfaces until the app-root theme lands).
+References: [`ExportImageDialog`](../../packages/axoview-lib/src/components/ExportImageDialog/ExportImageDialog.tsx) (renders under the lib theme) and [`DriveShareManageDialog`](../../packages/axoview-app/src/components/DriveShareManageDialog.tsx) (scoped compact `ThemeProvider` — the interim pattern for app surfaces until the app-root theme lands).
 
 ---
 
@@ -199,9 +199,9 @@ This differs from §2.1 because:
 
 ### 2.4 The context menu is the *sole* per-item command surface
 
-Right-click (desktop) or long-press (touch) on a node, connector, text box, or rectangle opens a single context menu — the catch-all home for every per-item command (ADR 0027). There is **no floating quick-action bar**: the old bar/menu/panel three-tier model collapsed to two in the 2026-06-25 shake-out — **menu = per-item commands · details panel = editing**. A single click/tap is **select-only** (it derives the panel target but mounts no surface; §4.4); double-click opens the editing panel. Don't reintroduce a selection-triggered floating toolbar — it duplicates the menu and competes with the move-is-drag model (§9.1). Reference: [`CanvasContextMenu.tsx`](../packages/axoview-lib/src/components/CanvasContextMenu/CanvasContextMenu.tsx).
+Right-click (desktop) or long-press (touch) on a node, connector, text box, or rectangle opens a single context menu — the catch-all home for every per-item command (ADR 0027). There is **no floating quick-action bar**: the old bar/menu/panel three-tier model collapsed to two in the 2026-06-25 shake-out — **menu = per-item commands · details panel = editing**. A single click/tap is **select-only** (it derives the panel target but mounts no surface; §4.4); double-click opens the editing panel. Don't reintroduce a selection-triggered floating toolbar — it duplicates the menu and competes with the move-is-drag model (§9.1). Reference: [`CanvasContextMenu.tsx`](../../packages/axoview-lib/src/components/CanvasContextMenu/CanvasContextMenu.tsx).
 
-> **Docked toolbar editing is exempt** (not "floating"). The top-bar style strip ([`TopBarStyleControls.tsx`](../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx), ADR 0005 Group 1 "Format" slot) **is the canonical styling surface** — the single writer of visual styling for every item type ([ADR 0030](adr/0030-docked-style-controls-strip.md)) — in the always-present toolbar chrome, the Google-Docs/Figma persistent-format-toolbar pattern. The item panel is **Details / Notes** only; per-type side-panel styling was retired. The strip is **docked**, **global**, and **selection-gated** (controls enable/disable, they don't float to the cursor), so it does not reintroduce the canvas-anchored quick-action bar this section forbids.
+> **Docked toolbar editing is exempt** (not "floating"). The top-bar style strip ([`TopBarStyleControls.tsx`](../../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx), ADR 0005 Group 1 "Format" slot) **is the canonical styling surface** — the single writer of visual styling for every item type ([ADR 0030](../adr/0030-docked-style-controls-strip.md)) — in the always-present toolbar chrome, the Google-Docs/Figma persistent-format-toolbar pattern. The item panel is **Details / Notes** only; per-type side-panel styling was retired. The strip is **docked**, **global**, and **selection-gated** (controls enable/disable, they don't float to the cursor), so it does not reintroduce the canvas-anchored quick-action bar this section forbids.
 
 ### 2.5 Toolbar controls need a hard enabled/disabled contrast
 
@@ -232,13 +232,13 @@ When implementing F2:
 - Focus the row on click (`ref.focus()`)
 - `e.stopPropagation()` in the row's `onKeyDown` to prevent canvas-level F2 from also firing
 
-Reference: [`LayerItemRow.tsx`](../packages/axoview-lib/src/components/LayersPanel/LayerItemRow.tsx).
+Reference: [`LayerItemRow.tsx`](../../packages/axoview-lib/src/components/LayersPanel/LayerItemRow.tsx).
 
-**Canvas inline-rename commits on click-away, and the blur *cause* decides commit-vs-cancel** (ADR 0022 §4 / [`useInlineRename`](../packages/axoview-lib/src/hooks/useInlineRename.ts)): **Enter** or a **left-click away** commits; **Escape** or a **right-click away** cancels. A capture-phase `pointerdown` listener blurs the editor synchronously, *ahead* of the canvas deselect that would otherwise unmount it before `onBlur` could fire — so the edit is never silently lost on click-away.
+**Canvas inline-rename commits on click-away, and the blur *cause* decides commit-vs-cancel** (ADR 0022 §4 / [`useInlineRename`](../../packages/axoview-lib/src/hooks/useInlineRename.ts)): **Enter** or a **left-click away** commits; **Escape** or a **right-click away** cancels. A capture-phase `pointerdown` listener blurs the editor synchronously, *ahead* of the canvas deselect that would otherwise unmount it before `onBlur` could fire — so the edit is never silently lost on click-away.
 
 ### 3.2 Enter confirms, Escape cancels — in every dialog
 
-Built into [`ConfirmDialog`](../packages/axoview-app/src/components/ConfirmDialog.tsx) at the dialog level. New dialogs should reuse `ConfirmDialog` rather than rolling their own. If a custom dialog is unavoidable, copy the keyboard handler.
+Built into [`ConfirmDialog`](../../packages/axoview-app/src/components/ConfirmDialog.tsx) at the dialog level. New dialogs should reuse `ConfirmDialog` rather than rolling their own. If a custom dialog is unavoidable, copy the keyboard handler.
 
 ---
 
@@ -263,7 +263,7 @@ The file tree's selection has different semantics — it's "which diagram is ope
 
 When a layer is locked or hidden, its items must be **non-selectable, non-draggable, non-context-menu-able** from the canvas — regardless of which gesture the user employs. Locked = visible-but-protected; hidden = invisible. Both states are absolute from the canvas perspective. The Layers panel rows remain the user's escape hatch — they always let the user select an item back so they can un-lock or un-hide.
 
-The enforcement lives in a single helper, `isItemInteractable`, built in [`useInteractionManager`](../packages/axoview-lib/src/interaction/useInteractionManager.ts) from `layerContext.lockedIds` + `layerContext.visibleIds` and injected into every mode's `State`. **Every selection path must consult it.** Today that means:
+The enforcement lives in a single helper, `isItemInteractable`, built in [`useInteractionManager`](../../packages/axoview-lib/src/interaction/useInteractionManager.ts) from `layerContext.lockedIds` + `layerContext.visibleIds` and injected into every mode's `State`. **Every selection path must consult it.** Today that means:
 
 - `Cursor.mousedown` — direct left-click selection
 - `Lasso.getItemsInBounds` — marquee selection
@@ -272,7 +272,7 @@ The enforcement lives in a single helper, `isItemInteractable`, built in [`useIn
 
 If a future feature adds a new selection mechanism (keyboard arrow nav, "select all of type X", paste-into-selection, etc.), it **must** route through `isItemInteractable` too. A new selection path that doesn't consult it is the bug, not an oversight to be fixed later — it silently bypasses the lock/hide contract.
 
-Visual indicator for locked rows lives in [`LayerRow.tsx`](../packages/axoview-lib/src/components/LayersPanel/LayerRow.tsx): left accent stripe + tinted background + saturated lock icon, so the state is unmistakable next to a row of similar outlines.
+Visual indicator for locked rows lives in [`LayerRow.tsx`](../../packages/axoview-lib/src/components/LayersPanel/LayerRow.tsx): left accent stripe + tinted background + saturated lock icon, so the state is unmistakable next to a row of similar outlines.
 
 ### 4.4 Multi-select gesture matrix
 
@@ -291,9 +291,9 @@ Persistent canvas multi-selection lives in `uiState.selectedIds: ItemReference[]
 | Delete / Backspace (selection len > 1) | deletes every selected item; CONNECTOR_ANCHOR refs are spliced from their parent connector |
 | Alt+click a waypoint (connector selected) | removes the waypoint without removing the connector |
 
-**The design rule:** any selection path that includes a connector MUST also include its tile-bound waypoints — they carry `ref.tile` (absolute position) and don't auto-follow the connector, so omitting them pinches the path on multi-drag and orphans them on bulk-delete. The single source of truth is `getConnectorWaypointRefs(connector)` ([`utils/connectorSelection.ts`](../packages/axoview-lib/src/utils/connectorSelection.ts)); a new connector-including selection path must call it, same discipline as §4.3's `isItemInteractable`. User-facing badges count via `countUserFacingRefs` (excludes CONNECTOR_ANCHOR — implementation detail, not user-perceived selection).
+**The design rule:** any selection path that includes a connector MUST also include its tile-bound waypoints — they carry `ref.tile` (absolute position) and don't auto-follow the connector, so omitting them pinches the path on multi-drag and orphans them on bulk-delete. The single source of truth is `getConnectorWaypointRefs(connector)` ([`utils/connectorSelection.ts`](../../packages/axoview-lib/src/utils/connectorSelection.ts)); a new connector-including selection path must call it, same discipline as §4.3's `isItemInteractable`. User-facing badges count via `countUserFacingRefs` (excludes CONNECTOR_ANCHOR — implementation detail, not user-perceived selection).
 
-Full contract, call-site list, and rationale: [ADR 0006](adr/0006-canvas-selection-contract.md).
+Full contract, call-site list, and rationale: [ADR 0006](../adr/0006-canvas-selection-contract.md).
 
 ---
 
@@ -303,17 +303,17 @@ Every selectable item type (Node, Connector, TextBox, Rectangle) is a **first-cl
 
 ### 5.1 Item controls panel structure — a uniform stack of collapsible sections
 
-Every item type's control panel is the **same shape**: a vertical stack of **collapsible sections** (no tabs), under a header row that carries the element's **type identity** — a type icon + name (a node shows its own icon + name) on the left, a close button on the right ([`DeckHeader`](../packages/axoview-lib/src/components/ItemControls/components/DeckHeader.tsx)). The identity gives the close button a companion (it no longer reads as a lone ✕) and says which element the deck is for. Sections run in one canonical order — **content → Notes → Metadata** — the **first open**, the rest collapsed; the context-menu **Add note** deep-links **Notes** open on every type (via the `focusNotes` panel event).
+Every item type's control panel is the **same shape**: a vertical stack of **collapsible sections** (no tabs), under a header row that carries the element's **type identity** — a type icon + name (a node shows its own icon + name) on the left, a close button on the right ([`DeckHeader`](../../packages/axoview-lib/src/components/ItemControls/components/DeckHeader.tsx)). The identity gives the close button a companion (it no longer reads as a lone ✕) and says which element the deck is for. Sections run in one canonical order — **content → Notes → Metadata** — the **first open**, the rest collapsed; the context-menu **Add note** deep-links **Notes** open on every type (via the `focusNotes` panel event).
 
 - **Content** (open, where it exists): the on-canvas field that is *not* edited directly on the canvas — node **Label** (with the inline link button + show/hide-label toggle) and connector **Labels** (the `labels[]` editor). **Text boxes and floating Labels have no deck content editor**: their text is edited **inline on the canvas** (double-click, or drop-and-type on placement — the placement flow drops straight into inline edit) and formatted from the style strip, so their decks lead with **Notes**. A rectangle likewise has no content field and leads with Notes.
-- **Notes**: the shared [`NotesSection`](../packages/axoview-lib/src/components/ItemControls/components/NotesSection.tsx) (`RichTextEditor` bound to `notes`), with a "has content" dot on the header.
-- **Metadata**: the identity `name` in a collapsed [`MetadataSection`](../packages/axoview-lib/src/components/ItemControls/components/MetadataSection.tsx) ([ADR 0032](adr/0032-node-name-caption-label-model.md)) — present for every type whose identity is distinct from its content (node / connector / rectangle / text box), edited primarily in Layers. A floating **Label** has **no** Metadata section: its `text` is both content and identity.
+- **Notes**: the shared [`NotesSection`](../../packages/axoview-lib/src/components/ItemControls/components/NotesSection.tsx) (`RichTextEditor` bound to `notes`), with a "has content" dot on the header.
+- **Metadata**: the identity `name` in a collapsed [`MetadataSection`](../../packages/axoview-lib/src/components/ItemControls/components/MetadataSection.tsx) ([ADR 0032](../adr/0032-node-name-caption-label-model.md)) — present for every type whose identity is distinct from its content (node / connector / rectangle / text box), edited primarily in Layers. A floating **Label** has **no** Metadata section: its `text` is both content and identity.
 
-All sections use one shared [`CollapsibleSection`](../packages/axoview-lib/src/components/ItemControls/components/CollapsibleSection.tsx) primitive, so the deck looks and behaves identically for every element. Visual styling is **not** a panel section — it lives in the docked style strip (§2.4 / §2.5, [ADR 0030](adr/0030-docked-style-controls-strip.md)), the single canonical styling surface. The deck is **never a styling or free-text-entry surface**: on-canvas text is typed inline on the canvas and styled from the strip; the deck holds **notes + identity** (plus the connector's `labels[]` list). **Delete** lives in the context menu ([ADR 0027](adr/0027-canvas-context-menu.md)), not the panel.
+All sections use one shared [`CollapsibleSection`](../../packages/axoview-lib/src/components/ItemControls/components/CollapsibleSection.tsx) primitive, so the deck looks and behaves identically for every element. Visual styling is **not** a panel section — it lives in the docked style strip (§2.4 / §2.5, [ADR 0030](../adr/0030-docked-style-controls-strip.md)), the single canonical styling surface. The deck is **never a styling or free-text-entry surface**: on-canvas text is typed inline on the canvas and styled from the strip; the deck holds **notes + identity** (plus the connector's `labels[]` list). **Delete** lives in the context menu ([ADR 0027](../adr/0027-canvas-context-menu.md)), not the panel.
 
 ### 5.2 Connector mirrors node
 
-Connectors are first-class peers of nodes: `name` (identity, Layers-only), `notes`, `headerLink`, `showLabel`, and the same collapsible-section deck (§5.1). Post-decouple ([ADR 0032](adr/0032-node-name-caption-label-model.md)) a connector's on-canvas text is its **`labels[]`** — the deck's lead content section (F2 adds a label at the midpoint; each is individually styled + linkable), **not** the identity `name` — the same name↔label decouple nodes have. Consequently the connector deck drops the show/hide-name toggle and the connector-level link: label visibility is the **Layers** eye toggle, and the whole-connector link is the strip's **Link** control. This is a *deliberate* parity divergence — a connector has no single on-canvas name, so a node-style name row would be meaningless.
+Connectors are first-class peers of nodes: `name` (identity, Layers-only), `notes`, `headerLink`, `showLabel`, and the same collapsible-section deck (§5.1). Post-decouple ([ADR 0032](../adr/0032-node-name-caption-label-model.md)) a connector's on-canvas text is its **`labels[]`** — the deck's lead content section (F2 adds a label at the midpoint; each is individually styled + linkable), **not** the identity `name` — the same name↔label decouple nodes have. Consequently the connector deck drops the show/hide-name toggle and the connector-level link: label visibility is the **Layers** eye toggle, and the whole-connector link is the strip's **Link** control. This is a *deliberate* parity divergence — a connector has no single on-canvas name, so a node-style name row would be meaningless.
 
 ### 5.3 No icon overloading across item types
 
@@ -321,7 +321,7 @@ When designing new affordances, check that the icon doesn't already mean somethi
 
 ### 5.4 On-canvas label-like text shares one sizing model
 
-Item-type parity extends to *sizing*. Node labels, floating Labels, and connector labels all default to one base size (`LABEL_BASE_FONT_PX = 18`, [`labelSettings.ts`](../packages/axoview-lib/src/config/labelSettings.ts)) and are sized through **one** strip control — a single px range (10–40) with a relative **+/−** stepper that also works across a mixed label-bearing selection. Don't add a per-type size range or a second sizing control; derive from the shared base and override per element via the strip ([ADR 0030](adr/0030-docked-style-controls-strip.md) — 2026-07-02 sizing amendment). The text box is the deliberate exception: its size is *tile-space* (scales with the diagram), not screen-px chrome. This is the consistency target for label-like surfaces generally — **one base, one range, one control; derive, don't duplicate per type.**
+Item-type parity extends to *sizing*. Node labels, floating Labels, and connector labels all default to one base size (`LABEL_BASE_FONT_PX = 18`, [`labelSettings.ts`](../../packages/axoview-lib/src/config/labelSettings.ts)) and are sized through **one** strip control — a single px range (10–40) with a relative **+/−** stepper that also works across a mixed label-bearing selection. Don't add a per-type size range or a second sizing control; derive from the shared base and override per element via the strip ([ADR 0030](../adr/0030-docked-style-controls-strip.md) — 2026-07-02 sizing amendment). The text box is the deliberate exception: its size is *tile-space* (scales with the diagram), not screen-px chrome. This is the consistency target for label-like surfaces generally — **one base, one range, one control; derive, don't duplicate per type.**
 
 ---
 
@@ -367,13 +367,13 @@ if (!validationResult.success) {
 }
 ```
 
-Reference: [`useInitialDataManager.ts`](../packages/axoview-lib/src/hooks/useInitialDataManager.ts) surfaces zod issues this way.
+Reference: [`useInitialDataManager.ts`](../../packages/axoview-lib/src/hooks/useInitialDataManager.ts) surfaces zod issues this way.
 
 ### 6.3.1 Failure-of-intent gets a Dialog, not just a toast
 
 A *failure of intent* — the user asked for something and it could not happen (a save rejected by storage quota, a malformed import, a share-POST that 5xx'd) — surfaces as a **blocking Dialog with a clear next action (retry / cancel)**, not a passive notification that can be missed. A toast is right for *"this happened"*; a Dialog is right for *"this didn't happen and you need to decide what to do."*
 
-The contract — and the standardized dialog shape (soft shadow, X close button, `h6` 600 title, `body2` body, padded `DialogActions`; Enter confirms / Escape cancels per §3.2) — is [ADR 0011 — Error-UX Contract](adr/0011-error-ux-contract.md), shipped in full at the v1.1 close-out. New blocking dialogs reuse [`ConfirmDialog`](../packages/axoview-app/src/components/ConfirmDialog.tsx) or mirror its shape.
+The contract — and the standardized dialog shape (soft shadow, X close button, `h6` 600 title, `body2` body, padded `DialogActions`; Enter confirms / Escape cancels per §3.2) — is [ADR 0011 — Error-UX Contract](../adr/0011-error-ux-contract.md), shipped in full at the v1.1 close-out. New blocking dialogs reuse [`ConfirmDialog`](../../packages/axoview-app/src/components/ConfirmDialog.tsx) or mirror its shape.
 
 ### 6.4 Cover the cold-start gap with a branded splash
 
@@ -409,7 +409,7 @@ Sentence case in all languages where it applies. No ALL CAPS even if the source 
 
 ## 8. Layout regions and overlays
 
-The application chrome has named regions with stable ownership rules. The authoritative contract is [ADR 0005](adr/0005-toolbar-and-dock-layout-contract.md); this section captures the rules-of-thumb that follow from it.
+The application chrome has named regions with stable ownership rules. The authoritative contract is [ADR 0005](../adr/0005-toolbar-and-dock-layout-contract.md); this section captures the rules-of-thumb that follow from it.
 
 ### 8.1 Left-side panels overlay the canvas — never push it
 
@@ -489,7 +489,7 @@ A single mode badge (here: the orange `SESSION` chip) is enough to communicate t
 
 Conditional content should render conditionally. Don't reserve space with an empty `<Typography>` — render nothing when there is nothing to say.
 
-The same principle applies to mode banners outside the cluster (e.g. [`LocalModeBanner`](../packages/axoview-app/src/components/LocalModeBanner.tsx)). The badge in the cluster is the load-bearing signal; a banner that reinforces it should be quiet — accent stripe, caption typography, outlined or no button — not a tinted bar that competes with the chip.
+The same principle applies to mode banners outside the cluster (e.g. [`LocalModeBanner`](../../packages/axoview-app/src/components/LocalModeBanner.tsx)). The badge in the cluster is the load-bearing signal; a banner that reinforces it should be quiet — accent stripe, caption typography, outlined or no button — not a tinted bar that competes with the chip.
 
 > **2026-07-06 (owner override, storage-ux-unification):** the `SESSION` chip + storage gauge no longer live in the toolbar status cluster at all — they moved into the **avatar menu** (`AuthControl`'s `SessionStatusRow`), and `StatusCluster` renders save-state text only (nothing when silent). The chip-in-cluster code example above is retained for the *principle* (one badge, no tinted wrapper), not as a map of where the chip currently renders. Toolbar layout side of the same override: ADR 0005 §1 amendment 2026-07-06.
 
@@ -507,11 +507,11 @@ If you need to set a child's height generically, target a class or component sel
 
 ### 8.8 Canvas-anchored chrome is screen-pixel-stable
 
-Floating chrome positioned in canvas-tile coordinates ([`ViewModeInfoPopover`](../packages/axoview-lib/src/components/ViewModeInfoPopover/ViewModeInfoPopover.tsx) — anchored to the item's tile) must counter-scale the `SceneLayer`'s `transform: scale(zoom)` so it stays at natural pixel size at every zoom level. (The floating `NodeActionBar` that originally motivated this principle was removed in the 2026-06-25 shake-out; the screen-space `CanvasContextMenu` replaced it and needs no counter-scale.)
+Floating chrome positioned in canvas-tile coordinates ([`ViewModeInfoPopover`](../../packages/axoview-lib/src/components/ViewModeInfoPopover/ViewModeInfoPopover.tsx) — anchored to the item's tile) must counter-scale the `SceneLayer`'s `transform: scale(zoom)` so it stays at natural pixel size at every zoom level. (The floating `NodeActionBar` that originally motivated this principle was removed in the 2026-06-25 shake-out; the screen-space `CanvasContextMenu` replaced it and needs no counter-scale.)
 
 Pattern:
 
-- Subscribe to `useUiStateStoreApi` zoom the same way [`SceneLayer`](../packages/axoview-lib/src/components/SceneLayer/SceneLayer.tsx) does — direct DOM ref, bypassing React render.
+- Subscribe to `useUiStateStoreApi` zoom the same way [`SceneLayer`](../../packages/axoview-lib/src/components/SceneLayer/SceneLayer.tsx) does — direct DOM ref, bypassing React render.
 - Apply `transform: ... scale(${1 / zoom})` unconditionally so the bar is screen-pixel-stable at all zoom levels.
 - Set `transformOrigin` to the corner that should stay visually anchored to the node (typically `center bottom` for top-anchored bars).
 
@@ -537,19 +537,19 @@ MUI `<Menu>` spawned from such chrome renders via Portal at the document root �
 
 ### 8.9 Node labels stay readable on demand (opt-in counter-scale)
 
-Node name labels live *inside* the zoom-scaled `SceneLayer`, so by default they shrink with the canvas — correct for most editing, but unreadable on a zoomed-out overview. The **"keep labels readable" toggle** (the "Aa" button in [`ZoomControls`](../packages/axoview-lib/src/components/ZoomControls/ZoomControls.tsx), `uiState.readableLabels`, persisted, **off by default**) opts into a counter-scale (ADR 0015):
+Node name labels live *inside* the zoom-scaled `SceneLayer`, so by default they shrink with the canvas — correct for most editing, but unreadable on a zoomed-out overview. The **"keep labels readable" toggle** (the "Aa" button in [`ZoomControls`](../../packages/axoview-lib/src/components/ZoomControls/ZoomControls.tsx), `uiState.readableLabels`, persisted, **off by default**) opts into a counter-scale (ADR 0015):
 
-- Below the threshold `minReadablePx / baseFontPx`, the label counter-scales by `min(minReadablePx / (baseFontPx · zoom), maxCounterScale)` so its on-screen size holds at a legible floor; above it, the factor is exactly 1. Pure math in [`labelScale.ts`](../packages/axoview-lib/src/utils/labelScale.ts); tunables in [`labelSettings.ts`](../packages/axoview-lib/src/config/labelSettings.ts).
-- **Label-only** — node geometry is untouched. [`ExpandableLabel`](../packages/axoview-lib/src/components/Label/ExpandableLabel.tsx) publishes the factor as the `--axoview-label-scale` CSS custom property via the §8.8 direct-DOM zoom subscription (no React render on zoom); [`Label`](../packages/axoview-lib/src/components/Label/Label.tsx) composes `scale(var(--axoview-label-scale, 1))` after its translate, about `transformOrigin: bottom center` so the stalk-attachment point stays fixed. The default `1` makes it a no-op for non-node Labels (e.g. ConnectorLabel).
+- Below the threshold `minReadablePx / baseFontPx`, the label counter-scales by `min(minReadablePx / (baseFontPx · zoom), maxCounterScale)` so its on-screen size holds at a legible floor; above it, the factor is exactly 1. Pure math in [`labelScale.ts`](../../packages/axoview-lib/src/utils/labelScale.ts); tunables in [`labelSettings.ts`](../../packages/axoview-lib/src/config/labelSettings.ts).
+- **Label-only** — node geometry is untouched. [`ExpandableLabel`](../../packages/axoview-lib/src/components/Label/ExpandableLabel.tsx) publishes the factor as the `--axoview-label-scale` CSS custom property via the §8.8 direct-DOM zoom subscription (no React render on zoom); [`Label`](../../packages/axoview-lib/src/components/Label/Label.tsx) composes `scale(var(--axoview-label-scale, 1))` after its translate, about `transformOrigin: bottom center` so the stalk-attachment point stays fixed. The default `1` makes it a no-op for non-node Labels (e.g. ConnectorLabel).
 - **Opt-in by design:** counter-scaled labels can overlap on dense diagrams, so it is never forced on. It is the user's choice when reading a zoomed-out overview, where unreadable text is the worse failure.
 
 ### 8.10 View-mode presentation chrome is ephemeral
 
 View-only mode (`EXPLORABLE_READONLY`) is a *presentation* surface, not an editing one, so it gets lightweight chrome instead of the editing docks — the right Properties dock no longer auto-opens on selection there, and the left LayersPanel is replaced by a corner control. Two instances:
 
-[`ViewModeInfoPopover`](../packages/axoview-lib/src/components/ViewModeInfoPopover/ViewModeInfoPopover.tsx) (ADR 0012) — an item's name / read-only notes / link read **on the canvas** (hover → preview, click → pinned; Esc / X / click-away close), so reading stays in the diagram instead of bouncing to a 300px editing dock. It is **side-anchored** beside the item (never over it — the game-UI tooltip rule) and **flips/clamps** to stay on screen. Links are sanitised once via the shared read-only notes renderer and open in a new tab.
+[`ViewModeInfoPopover`](../../packages/axoview-lib/src/components/ViewModeInfoPopover/ViewModeInfoPopover.tsx) (ADR 0012) — an item's name / read-only notes / link read **on the canvas** (hover → preview, click → pinned; Esc / X / click-away close), so reading stays in the diagram instead of bouncing to a 300px editing dock. It is **side-anchored** beside the item (never over it — the game-UI tooltip rule) and **flips/clamps** to stay on screen. Links are sanitised once via the shared read-only notes renderer and open in a new tab.
 
-[`PreviewLayerSwitcher`](../packages/axoview-lib/src/components/PreviewLayerSwitcher/PreviewLayerSwitcher.tsx) (ADR 0013) is the layer-control instance of the same idea:
+[`PreviewLayerSwitcher`](../../packages/axoview-lib/src/components/PreviewLayerSwitcher/PreviewLayerSwitcher.tsx) (ADR 0013) is the layer-control instance of the same idea:
 
 - **Placement & affordance:** a compact corner overlay (top-left — reads more naturally in a presentation than bottom-left), semi-transparent at rest and full-opacity on hover (§2) — present but not obtrusive while presenting.
 - **Ephemeral, never destructive:** presentation controls apply a **UI-only override** (`uiState.previewLayerOverrides`), never mutating saved model state (`layer.visible`) and never dirtying/saving. The override clears on leaving preview or switching view. When a view-mode control mirrors an edit-mode one, keep the merge in **one** place (here, `LayerContextProvider`) with a documented precedence so the two visibility sources can't desync.
@@ -557,20 +557,20 @@ View-only mode (`EXPLORABLE_READONLY`) is a *presentation* surface, not an editi
 
 ### 8.11 Scratch overlays never pollute the model
 
-The [annotation overlay](../packages/axoview-lib/src/components/AnnotationLayer/AnnotationLayer.tsx) (ADR 0014) is "paint on top" markup for talking over a diagram — pencil/highlighter/shapes/arrows from a fixed palette opened by a pen toggle (grouped tools behind hover fly-outs). Two principles make it safe:
+The [annotation overlay](../../packages/axoview-lib/src/components/AnnotationLayer/AnnotationLayer.tsx) (ADR 0014) is "paint on top" markup for talking over a diagram — pencil/highlighter/shapes/arrows from a fixed palette opened by a pen toggle (grouped tools behind hover fly-outs). Two principles make it safe:
 
 - **Scratch is not content.** Annotation state lives **only** in `uiState`, never in the Model, so no persistence path (session save, server save, export JSON, project zip) can reach it — the single most important invariant of the feature, asserted by a dedicated exclusion test. A scratch overlay that could accidentally save would be a data-integrity trap.
 - **Capture only when armed.** The overlay intercepts pointer input **only while a draw tool is active**; with the palette open but idle, normal canvas selection/pan still work. Collapse *hides* the drawing without discarding it (collapse ≠ delete); a single explicit Clear is the only wipe — destructive actions are never a side effect of a view toggle.
 
 ### 8.12 The canvas region's pixels have their own fidelity contract
 
-This section governs where surfaces sit; the *pixels rendered inside* the canvas region (the WebGL2 bulk substrate — atlas, blending, line geometry, export) are governed by [canvas-rendering-guidelines.md](canvas-rendering-guidelines.md) ([ADR 0038](adr/0038-webgl-instanced-render-substrate.md)). Touch that layer → read it first.
+This section governs where surfaces sit; the *pixels rendered inside* the canvas region (the WebGL2 bulk substrate — atlas, blending, line geometry, export) are governed by [canvas-rendering-guidelines.md](canvas-rendering-guidelines.md) ([ADR 0038](../adr/0038-webgl-instanced-render-substrate.md)). Touch that layer → read it first.
 
 ---
 
 ## 9. Touch & pointer interaction
 
-Touch and pen are first-class, not a mouse emulation. The whole interaction surface runs on **Pointer Events** ([ADR 0018](adr/0018-touch-pen-gesture-contract.md)); `pointerType` splits mouse from touch/pen, and the desktop/mouse path is byte-for-byte unchanged (regression-pinned by the desktop e2e suite).
+Touch and pen are first-class, not a mouse emulation. The whole interaction surface runs on **Pointer Events** ([ADR 0018](../adr/0018-touch-pen-gesture-contract.md)); `pointerType` splits mouse from touch/pen, and the desktop/mouse path is byte-for-byte unchanged (regression-pinned by the desktop e2e suite).
 
 ### 9.1 Direct manipulation — disambiguate by what's under the finger
 
@@ -609,20 +609,20 @@ When building parallel surfaces, **read these first**:
 
 | Pattern | Reference file |
 |---|---|
-| Layout primitive | [`Section.tsx`](../packages/axoview-lib/src/components/ItemControls/components/Section.tsx) |
-| Touch / pen gesture machine | [`useInteractionManager.ts`](../packages/axoview-lib/src/interaction/useInteractionManager.ts) (search `onTouchPointerDown`) |
-| Tabbed item panel | [`NodePanel.tsx`](../packages/axoview-lib/src/components/ItemControls/NodeControls/NodePanel/NodePanel.tsx) |
-| Label field + inline action buttons | [`NodeInfoTab.tsx`](../packages/axoview-lib/src/components/ItemControls/NodeControls/NodeInfoTab/NodeInfoTab.tsx) |
-| Collapsed identity + notes panel sections | [`MetadataSection.tsx`](../packages/axoview-lib/src/components/ItemControls/components/MetadataSection.tsx) · [`NotesSection.tsx`](../packages/axoview-lib/src/components/ItemControls/components/NotesSection.tsx) — see §5.1 |
-| Connector parity with node | [`ConnectorControls.tsx`](../packages/axoview-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx) |
-| Layer row with rename + action toggle | [`LayerItemRow.tsx`](../packages/axoview-lib/src/components/LayersPanel/LayerItemRow.tsx) |
-| Keyboard-first dialog | [`ConfirmDialog.tsx`](../packages/axoview-app/src/components/ConfirmDialog.tsx) |
-| Inline canvas rename | [`Node.tsx`](../packages/axoview-lib/src/components/SceneLayers/Nodes/Node/Node.tsx) (search `inlineEditNodeName`) |
-| Theme-driven typography contract | [`theme.ts`](../packages/axoview-lib/src/styles/theme.ts) — see §1.5 |
-| Standard search input (panel-level) | [`Searchbox.tsx`](../packages/axoview-lib/src/components/ItemControls/IconSelectionControls/Searchbox.tsx) |
-| Counter-scaled canvas-anchored chrome | [`ViewModeInfoPopover.tsx`](../packages/axoview-lib/src/components/ViewModeInfoPopover/ViewModeInfoPopover.tsx) — see §8.8 |
-| Quiet mode banner | [`SessionModeBanner.tsx`](../packages/axoview-app/src/components/SessionModeBanner.tsx) — see §8.5 |
-| Validation surfacing | [`useInitialDataManager.ts`](../packages/axoview-lib/src/hooks/useInitialDataManager.ts) — see §6.3 |
+| Layout primitive | [`Section.tsx`](../../packages/axoview-lib/src/components/ItemControls/components/Section.tsx) |
+| Touch / pen gesture machine | [`useInteractionManager.ts`](../../packages/axoview-lib/src/interaction/useInteractionManager.ts) (search `onTouchPointerDown`) |
+| Tabbed item panel | [`NodePanel.tsx`](../../packages/axoview-lib/src/components/ItemControls/NodeControls/NodePanel/NodePanel.tsx) |
+| Label field + inline action buttons | [`NodeInfoTab.tsx`](../../packages/axoview-lib/src/components/ItemControls/NodeControls/NodeInfoTab/NodeInfoTab.tsx) |
+| Collapsed identity + notes panel sections | [`MetadataSection.tsx`](../../packages/axoview-lib/src/components/ItemControls/components/MetadataSection.tsx) · [`NotesSection.tsx`](../../packages/axoview-lib/src/components/ItemControls/components/NotesSection.tsx) — see §5.1 |
+| Connector parity with node | [`ConnectorControls.tsx`](../../packages/axoview-lib/src/components/ItemControls/ConnectorControls/ConnectorControls.tsx) |
+| Layer row with rename + action toggle | [`LayerItemRow.tsx`](../../packages/axoview-lib/src/components/LayersPanel/LayerItemRow.tsx) |
+| Keyboard-first dialog | [`ConfirmDialog.tsx`](../../packages/axoview-app/src/components/ConfirmDialog.tsx) |
+| Inline canvas rename | [`Node.tsx`](../../packages/axoview-lib/src/components/SceneLayers/Nodes/Node/Node.tsx) (search `inlineEditNodeName`) |
+| Theme-driven typography contract | [`theme.ts`](../../packages/axoview-lib/src/styles/theme.ts) — see §1.5 |
+| Standard search input (panel-level) | [`Searchbox.tsx`](../../packages/axoview-lib/src/components/ItemControls/IconSelectionControls/Searchbox.tsx) |
+| Counter-scaled canvas-anchored chrome | [`ViewModeInfoPopover.tsx`](../../packages/axoview-lib/src/components/ViewModeInfoPopover/ViewModeInfoPopover.tsx) — see §8.8 |
+| Quiet mode banner | [`SessionModeBanner.tsx`](../../packages/axoview-app/src/components/SessionModeBanner.tsx) — see §8.5 |
+| Validation surfacing | [`useInitialDataManager.ts`](../../packages/axoview-lib/src/hooks/useInitialDataManager.ts) — see §6.3 |
 
 ---
 
@@ -636,7 +636,7 @@ Before shipping a UI change, answer three questions and resolve each in the **sa
 - **Contradicts** — does it collide with another change or an existing affordance? (e.g. right-click = pan vs right-click = context menu.) Reconcile; don't ship both.
 - **Orphaned** — does it leave functionality with no entry point, or depend on a surface that doesn't exist yet? **Grep to confirm the surface is real**, or scope building it. (e.g. "put the command in the context menu" when there is no context-menu component.)
 
-A change that reads correct in isolation but strands a sibling control **is the bug**, not a follow-up. This is the UI-layer expression of [workflow.md Principle 7 — "trace the ripple"](workflow.md).
+A change that reads correct in isolation but strands a sibling control **is the bug**, not a follow-up. This is the UI-layer expression of [workflow.md Principle 7 — "trace the ripple"](../workflow.md).
 
 ## When this document is wrong
 

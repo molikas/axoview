@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-06-29
-**Supersedes:** none (resolves the [ux-principles §5](../ux-principles.md) item-type-parity exemption taken by the spike's `variant:'label'` text box; relates to [ADR 0024](0024-node-label-positioning-and-sizing.md) node-label positioning, [ADR 0019](0019-canvas2d-node-render-layer.md) Canvas2D render substrate, [ADR 0020](0020-engine-perf-harness-and-measurement-protocol.md) perf harness)
+**Supersedes:** none (resolves the [ux-principles §5](../guidelines/ux-principles.md) item-type-parity exemption taken by the spike's `variant:'label'` text box; relates to [ADR 0024](0024-node-label-positioning-and-sizing.md) node-label positioning, [ADR 0019](0019-canvas2d-node-render-layer.md) Canvas2D render substrate, [ADR 0020](0020-engine-perf-harness-and-measurement-protocol.md) perf harness)
 **Superseded by:** none
 
 ## Context
@@ -19,13 +19,13 @@ The branch is **unpushed** — no saved diagram contains a `variant:'label'` ele
 
 ## Decision
 
-**Extract a dedicated first-class `Label` entity** (a peer of Node / Connector / TextBox / Rectangle per [§5](../ux-principles.md)), retiring the `variant:'label'` text-box. Done **before** the integration→master merge, while migration cost is zero.
+**Extract a dedicated first-class `Label` entity** (a peer of Node / Connector / TextBox / Rectangle per [§5](../guidelines/ux-principles.md)), retiring the `variant:'label'` text-box. Done **before** the integration→master merge, while migration cost is zero.
 
 1. **Dedicated schema + reducers.** A `Label` model entity with first-class fields (text, position, `backgroundColor`, `bold/italic/strikethrough`, font size in **px**, z-order). The `variant`/label fields are removed from `textBox.ts`; `TextBox` reverts to text-only.
 2. **Own render layer, placed above the node layer.** Resolves cross-layer z-order — a Label can sit above nodes (and an explicit z-order field orders within the layer).
 3. **Edit model: plain text + whole-chip B/I/S only.** No rich-text editor on labels — this dissolves the two-layer formatting conflict. (Rich text stays on plain TextBox, where per-character formatting is the point.)
 4. **Full-chip hit-testing.** The entire chip is selectable, not just the anchor tile — via the proven `NodeLabelHitLayer` DOM hit-proxy pattern (or the Canvas2D path, per §6).
-5. **Panel parity = Details / Notes** ([ADR 0030](0030-docked-style-controls-strip.md): no Style tab; styling via the docked strip).
+5. **Panel parity** — a Label's panel is whatever shape [ADR 0030](0030-docked-style-controls-strip.md) defines for every item type (no Style tab; styling via the docked strip). The binding decision is *parity*, not a particular shape: 0030 is the single home for what the panel looks like, so this point deliberately does not name it. *(It read "Details / Notes" until 2026-07-15 — falsified by commit `987eaaf`'s collapsible-section deck, which restated wording here could not track.)*
 6. **Render substrate is a performance decision, not an afterthought (binding).** Floating labels are billboard chips and a real diagram may carry **hundreds**. Rendering each as a DOM node reintroduces precisely the DOM-layer scaling cliff [ADR 0019](0019-canvas2d-node-render-layer.md) moved nodes *off of* (DOM doesn't cull or sub-linearly scale the way the Canvas2D layer does). The extracted Label layer **must be measured against the [ADR 0020](0020-engine-perf-harness-and-measurement-protocol.md) harness with a label-heavy scenario before merge.** If a DOM-chip layer regresses spawn/pan p95 beyond the noise band, render the Label layer on **Canvas2D** (billboard text, same substrate as node labels) with viewport culling — or virtualize the DOM layer. The substrate is chosen by measurement, and recorded here in an addendum once measured.
 7. **Migration: none.** Because the branch is unpushed, the reshape lands with no load-time converter. This window does not reopen — if extraction does not happen before master, this ADR is void and the variant is ratified-with-debt instead.
 
@@ -59,7 +59,7 @@ The branch is **unpushed** — no saved diagram contains a `variant:'label'` ele
 
 ## Addendum — render substrate decided by measurement (2026-06-30)
 
-Point 6 (§Decision) deferred the DOM-vs-Canvas2D substrate to the [ADR 0020](0020-engine-perf-harness-and-measurement-protocol.md) harness. The E-slice perf gate now measures it. New scenarios in [`engine-perf.spec.ts`](../../packages/axoview-e2e/perf/engine-perf.spec.ts) at N ∈ {200, 500, 1000}, median-of-7, vs the master spawn baseline ([`perf-results/baseline.md`](../../perf-results/baseline.md)); full table in [`perf-results/e-slice-gate.md`](../../perf-results/e-slice-gate.md):
+Point 6 (§Decision) deferred the DOM-vs-Canvas2D substrate to the [ADR 0020](0020-engine-perf-harness-and-measurement-protocol.md) harness. The E-slice perf gate now measures it. New scenarios in [`engine-perf.spec.ts`](../../packages/axoview-e2e/perf/engine-perf.spec.ts) at N ∈ {200, 500, 1000}, median-of-7, vs the master spawn baseline ([`perf-results/baseline.md`](../../perf-results/baseline.md)); full table was in `perf-results/e-slice-gate.md` (retired 2026-07-08 under the [ADR 0020](0020-engine-perf-harness-and-measurement-protocol.md) retention policy; git history is the archive):
 
 | Surface (substrate) @ N=1000 | spawn p95 | settle | commit |
 |---|---|---|---|
@@ -69,8 +69,8 @@ Point 6 (§Decision) deferred the DOM-vs-Canvas2D substrate to the [ADR 0020](00
 | connector labels, all styled (DOM) | 79.25 ms | 183 ms | 504 ms |
 | **floating labels (DOM chips)** | **184.96 ms** | **600 ms** | **814 ms** |
 
-**Finding.** Every Canvas2D surface adds **≈0** to spawn p95 even at N=1000 (within the <10% noise band). The **DOM floating-label** layer is the lone outlier — it **~2.3× the spawn p95 and ~3× the settle** (over an N-node base), the exact DOM-layer scaling cliff [ADR 0019](0019-canvas2d-node-render-layer.md) moved nodes off of. The pan floor ([`perf-results/pan.md`](../../perf-results/pan.md)) confirms the synchronous-repaint cost is O(visible) regardless of substrate.
+**Finding.** Every Canvas2D surface adds **≈0** to spawn p95 even at N=1000 (within the <10% noise band). The **DOM floating-label** layer is the lone outlier — it **~2.3× the spawn p95 and ~3× the settle** (over an N-node base), the exact DOM-layer scaling cliff [ADR 0019](0019-canvas2d-node-render-layer.md) moved nodes off of. The pan floor (`perf-results/pan.md`, since retired — see the [ADR 0020](0020-engine-perf-harness-and-measurement-protocol.md) retention policy) confirms the synchronous-repaint cost is O(visible) regardless of substrate.
 
 **Decision (fires Point 6's "if DOM regresses, use Canvas2D" trigger).** The extracted `Label` layer (slice **C1**) renders on **Canvas2D** — a billboard text layer with viewport culling, the same substrate as node labels (which the table shows scales for free) — placed **above** the node layer for z-order. A DOM chip layer is rejected: it reintroduces the measured cliff. (Virtualizing a DOM layer is a fallback only if a Canvas2D billboard proves infeasible for hit-testing; the `NodeLabelHitLayer` proxy already shows the hit-layer can stay a thin DOM overlay over a Canvas2D paint.) This binds C1's render-layer implementation.
 
-**Confirmed by C1 (2026-06-30).** The shipped `LabelsCanvas` (Canvas2D billboard + a per-(text, fontSize, B/I) layout cache mirroring `NodesCanvas`, full-chip selection via the `LabelHitLayer` DOM proxy) re-measures at **79.25 ms p95 / 183 ms settle @ N=1000** — within the [ADR 0020](0020-engine-perf-harness-and-measurement-protocol.md) <10% band of the 79.18 ms / 183 ms bare-node baseline, ≈ the node-label Canvas2D surface, and **−57% p95 / −69% settle** vs the rejected DOM chip layer. The per-frame `measureText` was the dominant cost; caching the chip layout drops 1000 extra billboards to ≈0 added spawn cost. Full table: [`perf-results/e-slice-gate.md`](../../perf-results/e-slice-gate.md) §2b. The substrate decision holds.
+**Confirmed by C1 (2026-06-30).** The shipped `LabelsCanvas` (Canvas2D billboard + a per-(text, fontSize, B/I) layout cache mirroring `NodesCanvas`, full-chip selection via the `LabelHitLayer` DOM proxy) re-measures at **79.25 ms p95 / 183 ms settle @ N=1000** — within the [ADR 0020](0020-engine-perf-harness-and-measurement-protocol.md) <10% band of the 79.18 ms / 183 ms bare-node baseline, ≈ the node-label Canvas2D surface, and **−57% p95 / −69% settle** vs the rejected DOM chip layer. The per-frame `measureText` was the dominant cost; caching the chip layout drops 1000 extra billboards to ≈0 added spawn cost. Full table was in `perf-results/e-slice-gate.md` §2b (retired; git history is the archive). The substrate decision holds.

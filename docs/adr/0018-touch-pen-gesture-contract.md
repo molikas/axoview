@@ -294,8 +294,8 @@ These are not per-device; they apply to the one canvas interaction surface:
   to keep the `isRendererInteraction` gate true mid-gesture. The four CSS
   guardrails (Decision 7) go on the **container** so they also cover the `auto`
   anchor/label elements. Full proof:
-  [canvas-interaction-baseline.md §6.2/§8](../tactical/canvas-interaction-baseline.md)
-  and [behavior-map §5.3](../tactical/canvas-interaction-behavior-map.md).
+  [canvas-interaction.md §3](../guidelines/canvas-interaction.md) (the
+  bind-to-the-container rule; folded from the retired pre-rewrite baseline + behavior-map).
   *(This corrects the earlier shorthand that named the `canvas-interactions` Box.
   **Authoritative as of 2026-06-14:** wherever Decision 1 / 7.1 say "the
   `canvas-interactions` Box", read "the Renderer container (`rendererEl`)". See
@@ -332,7 +332,7 @@ These are not per-device; they apply to the one canvas interaction surface:
 ## Resolved contract decisions (2026-06-14)
 
 The questions surfaced 2026-06-13 by the pre-rewrite mapping
-([behavior-map §5.4](../tactical/canvas-interaction-behavior-map.md)) are now
+(the pre-rewrite behavior map, since folded into [canvas-interaction.md](../guidelines/canvas-interaction.md)) are now
 **resolved by the ADR owner.** These bind the implementation; the execution
 sequence is in the [tactical plan](../tactical/touch-pen-gesture-contract.md).
 
@@ -389,6 +389,6 @@ sequence is in the [tactical plan](../tactical/touch-pen-gesture-contract.md).
    (3-finger gestures, rotate).
 
 5. **D-7 sequencing (pre-rewrite).** The confirmed live P0 dual-stack undo skew
-   ([behavior-map §4.5](../tactical/canvas-interaction-behavior-map.md)) is fixed
+   (the dual-stack contract, now [canvas-interaction.md §8.1](../guidelines/canvas-interaction.md)) is fixed
    via sequence-stamping as **commit 1 of the rewrite branch**, before the input
    rewrite, because the rewrite makes paired drag-commits the hot path.

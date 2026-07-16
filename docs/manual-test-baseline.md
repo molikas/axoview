@@ -1,8 +1,32 @@
 # Axoview Manual Test Baseline
 
-**Purpose:** Canonical "what does Axoview do today" record. Walked between Wave 3b (architectural surface frozen 2026-05-20) and T1 (E2E rewrite). Findings here seed T1's scenario catalog AND become the M10 ship-readiness checklist.
+**Purpose:** A "what does Axoview do today" walk record. Walked between Wave 3b (architectural surface frozen 2026-05-20) and T1 (E2E rewrite). Findings here seeded T1's scenario catalog and the M10 ship-readiness checklist — **both of which are done.**
 
-**Status:** _Started 2026-05-21 by Igor · last updated 2026-05-21 · walk complete; awaiting triage of two findings_
+**Status:** _Walked 2026-05-21 by Igor · walk complete, all findings resolved · **HISTORICAL — do not follow as-is** (reviewed 2026-07-15)_
+
+> ## ⚠️ Stale — re-walk before trusting this as current behaviour
+>
+> This record is a **2026-05-21 snapshot at v1.0.0**; the released line is now **v3.6.0**. It is no
+> longer the "canonical what-does-Axoview-do-today" record its purpose line claims — that claim is
+> retained above only to describe what the walk *was*. Known divergences:
+>
+> - **The setup steps are wrong.** §1 and §4 say to open `http://localhost:3000/` and
+>   `https://axoview.app/` — since [ADR 0040](adr/0040-marketing-landing-and-spa-crawlability.md)
+>   (v3.6.0) the root serves the **marketing landing page** and the **editor moved to `/app`**.
+> - **Share URLs are pre-`/app`.** J13/§4 show `/display/p/<uuid>`; real links are now
+>   `/app/display/p/<uuid>` (legacy paths 301-redirect).
+> - **No notion of Google Drive.** The three-mode world (Local · Session-Docker · Session-Cloudflare)
+>   predates Drive storage ([ADRs 0035–0037](adr/), v3.2.0) and Drive-native sharing
+>   ([ADR 0042](adr/0042-drive-native-sharing-and-readonly-preview.md)) — now major surfaces with
+>   zero coverage here. J14's broken session-share finding is superseded by the read-proxy rework.
+> - **`docs/tactical/productization-audit.md`** (referenced below for the A.4 mode matrix) was
+>   wrapped and deleted; see git history.
+>
+> **Its own "last updated" was never bumped** — the file was actually last touched 2026-07-07 (commit
+> `0207ecb`, the axoview.app domain sweep), which is how a current domain name appears in an
+> otherwise-2026-05 document. Treat every date here with suspicion.
+>
+> To restore it as a living baseline, re-walk it against v3.6.0+ and cover Drive + the `/app` split.
 
 ---
 

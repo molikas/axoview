@@ -4,7 +4,7 @@
 **Date:** 2026-07-08
 **Supersedes:** ADR 0019 (Canvas2D node render layer) — as the *bulk substrate* only; see §7
 **Related:** ADR 0020 (perf harness — amended same day, GPU draw-count anti-cheat), ADR 0015/0024 (label legibility/positioning — now computed in the vertex shader), ADR 0025 (image export — depends on `preserveDrawingBuffer`), ADR 0008 (surface vocabulary — the unsupported-browser *Screen*)
-**Fidelity rules:** [docs/canvas-rendering-guidelines.md](../canvas-rendering-guidelines.md) — the GPU pitfalls-and-rules companion (premultiplied pipeline, atlas UV, geometry walkers, crisp-iso follow-up); clears the §Deferred items below as they close.
+**Fidelity rules:** [docs/guidelines/canvas-rendering-guidelines.md](../guidelines/canvas-rendering-guidelines.md) — the GPU pitfalls-and-rules companion (premultiplied pipeline, atlas UV, geometry walkers, crisp-iso follow-up); clears the §Deferred items below as they close.
 
 ## Context
 
@@ -129,7 +129,7 @@ a follow-up, not a silent gap:
   correct premultiplied compositing for translucent ones (halos, fill opacity), and
   image-export composites via the browser's native `toDataURL`/`drawImage` — which
   assume `premultipliedAlpha` (the WebGL default) and never do raw premult readback.
-  Rules folded into [canvas-rendering-guidelines.md §1](../canvas-rendering-guidelines.md).
+  Rules folded into [canvas-rendering-guidelines.md §1](../guidelines/canvas-rendering-guidelines.md).
 - **Crisp iso line rendering — SHIPPED 2026-07-09; MSAA reverted.** Analytic
   edge-AA is now wired into the shared instanced shader: connector line bodies +
   rectangle borders emit `buildAaLineQuad` fat quads (shapeMode 1) and round
@@ -141,7 +141,7 @@ a follow-up, not a silent gap:
   experiment was owner-verified as only a partial band-aid — it feathered iso
   *diagonals* but not the *axis-aligned* segments (already crisp) or the *sampled*
   cases (caps/dots) — and was reverted. Owner-verified. Full design + trade-offs vs
-  SDF/MSAA in [canvas-rendering-guidelines.md §12](../canvas-rendering-guidelines.md).
+  SDF/MSAA in [canvas-rendering-guidelines.md §12](../guidelines/canvas-rendering-guidelines.md).
 - **Connector arrow ground-plane parity — FIXED 2026-07-09.** The GPU bulk arrow
   built an orthonormal SCENE-space basis — a screen-facing *billboard* that did not
   carry the iso shear, so it failed to foreshorten like the DOM `<Connector>` arrow
@@ -150,13 +150,13 @@ a follow-up, not a silent gap:
   segment's *ground-plane* frame (pointing dir + perpendicular mapped through the
   projection's linear map `L`), so the GPU (unselected) and DOM (selected) arrows
   share one silhouette — a hybrid-boundary parity fix (§2). See
-  [canvas-rendering-guidelines.md §13](../canvas-rendering-guidelines.md).
+  [canvas-rendering-guidelines.md §13](../guidelines/canvas-rendering-guidelines.md).
 - **Backing-store viewport clamp — DONE 2026-07-08.** `computeBackingStore`
   (`utils/renderTarget.ts`) now clamps `bw/bh = W·dpr` against the canvas caps and
   returns an effective dpr that feeds the whole render path (buffer size + `u_view`
   scale + device origin); wired into all four bulk layers. Uses the conservative
   cross-browser `DEFAULT_RENDER_CAPS` shared with export rather than a live
-  `MAX_VIEWPORT_DIMS` round-trip. See [canvas-rendering-guidelines.md §9](../canvas-rendering-guidelines.md).
+  `MAX_VIEWPORT_DIMS` round-trip. See [canvas-rendering-guidelines.md §9](../guidelines/canvas-rendering-guidelines.md).
 - **WebGL unit tests — DONE 2026-07-08.** No ts-jest transform blocker existed for
   pure `webgl/` files (they run under jsdom); the atlas-UV inset math was extracted
   from the `createSpriteBatch` closure into the pure, exported `atlasUVRect` so it is

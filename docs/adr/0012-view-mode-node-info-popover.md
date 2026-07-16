@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-06-11
 **Supersedes:** none
-**Superseded by:** [ADR 0030](0030-docked-style-controls-strip.md) in part — the editing panel is now **Details / Notes** (no Style tab); styling moved to the docked style strip. The "Details / Style / Notes" reference below is historical (pre-0030); it does not affect this ADR's view-mode popover decision.
+**Superseded by:** [ADR 0030](0030-docked-style-controls-strip.md) in part — the editing panel no longer has a Style tab; styling moved to the docked style strip. The "Details / Style / Notes" reference below is historical (pre-0030); it does not affect this ADR's view-mode popover decision. **For the panel's current shape, see [ADR 0030](0030-docked-style-controls-strip.md) — do not restate it here.** (This line previously said "the panel is now **Details / Notes**", which commit `987eaaf` had already falsified.)
 
 ## Context
 
@@ -48,12 +48,12 @@ Scope changes:
 
 - The right Properties dock **no longer auto-opens** on selection in `EXPLORABLE_READONLY`.
   Edit-mode (`EDITABLE`) behavior is unchanged.
-- **Item-type parity** (per [ux-principles §5](../ux-principles.md)): node, connector,
+- **Item-type parity** (per [ux-principles §5](../guidelines/ux-principles.md)): node, connector,
   rectangle, and textbox all use the same popover.
 
-Positioning follows [ux-principles §8.8](../ux-principles.md): an MUI `Popover` renders via
+Positioning follows [ux-principles §8.8](../guidelines/ux-principles.md): an MUI `Popover` renders via
 Portal at the document root, so it is already screen-pixel-stable; it anchors to the item's DOM
-node (the canvas-anchored-chrome anchor pattern per [ux-principles §8.8](../ux-principles.md)).
+node (the canvas-anchored-chrome anchor pattern per [ux-principles §8.8](../guidelines/ux-principles.md)).
 
 **Placement (revised 2026-06-12 — shake-out):** the popover is **side-anchored** — to the right of
 the item, vertically centered — so it never occludes the item or its top-mounted name caption (the

@@ -32,8 +32,8 @@ only when `currentView.layers.length > 0`.
 - **Behavior:** per-layer **visibility toggles** (matching the existing additive model — multiple
   layers can be on at once) plus a per-layer **"solo"** action (show only this layer).
 - **Affordance:** semi-transparent at rest, full opacity on hover (presentation-friendly, per
-  [ux-principles §2](../ux-principles.md)). Typography and sentence-case per
-  [ux-principles §1.5 / §7.2](../ux-principles.md).
+  [ux-principles §2](../guidelines/ux-principles.md)). Typography and sentence-case per
+  [ux-principles §1.5 / §7.2](../guidelines/ux-principles.md).
 
 **Ephemeral semantics (load-bearing):** preview toggles do **not** mutate the model's
 `layer.visible`, which is persisted diagram content. They apply a **UI-only override** so that
@@ -65,7 +65,7 @@ presenting a diagram never dirties or saves it. The override is merged into
 - Extend [`useLayerContext.ts`](../../packages/axoview-lib/src/hooks/useLayerContext.ts) so that,
   when `editorMode === EXPLORABLE_READONLY`, `visibleIds` is computed from the override (solo wins;
   else `layer.visible` minus `hiddenLayerIds`). Edit mode keeps the current derivation untouched.
-- Render the overlay as an absolute sibling of the canvas (per [ux-principles §8.1](../ux-principles.md)),
+- Render the overlay as an absolute sibling of the canvas (per [ux-principles §8.1](../guidelines/ux-principles.md)),
   gated on editor mode + layer count. Reuse layer name/visibility iconography from
   [`LayerRow.tsx`](../../packages/axoview-lib/src/components/LayersPanel/LayerRow.tsx) for consistency.
 

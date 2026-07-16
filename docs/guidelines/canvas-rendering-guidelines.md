@@ -6,7 +6,7 @@
 
 This is the fidelity contract for Axoview's GPU render substrate — the sibling of [ux-principles.md](ux-principles.md). Where ux-principles governs the *design language* of the UI, this governs the *pixels inside the canvas region*: how the WebGL2 bulk layers stay visually identical to true vector output, and the pitfalls that cost us a real bug each.
 
-WebGL2 is the **sole** bulk substrate ([ADR 0038](adr/0038-webgl-instanced-render-substrate.md)) — there is no Canvas2D/DOM fallback. Everything the user sees at scale (nodes, labels, connectors, rectangles) is instanced textured quads drawn one `drawArraysInstanced` per layer, with the tile→screen transform computed in the vertex shader. That efficiency is why fidelity is subtle: a chip is a *cached texture*, not a per-frame re-raster, so sampling artifacts that a 2D canvas hid now show.
+WebGL2 is the **sole** bulk substrate ([ADR 0038](../adr/0038-webgl-instanced-render-substrate.md)) — there is no Canvas2D/DOM fallback. Everything the user sees at scale (nodes, labels, connectors, rectangles) is instanced textured quads drawn one `drawArraysInstanced` per layer, with the tile→screen transform computed in the vertex shader. That efficiency is why fidelity is subtle: a chip is a *cached texture*, not a per-frame re-raster, so sampling artifacts that a 2D canvas hid now show.
 
 When in doubt, **mirror what already exists** in the reference implementations at the bottom, and remember the meta-rule (§11): **CI cannot see any of this** — every visual change needs a real-browser check.
 
@@ -38,7 +38,7 @@ outColor = tex * v_tint;
 
 The tint math is exact: for an opaque tint (`a = 1`) it is the identity (chips, opaque icons unchanged); for a translucent tint it produces correct premultiplied compositing (halos, rectangle fill opacity). Image export is safe because `premultipliedAlpha: true` is the WebGL default that `toDataURL`/`dom-to-image-more` assume, and the export path composites via the browser's native `drawImage`/`toDataURL` — never raw `getImageData`/`readPixels` pixel math that would mis-read premultiplied data.
 
-Reference: [`glSpriteBatch.ts`](../packages/axoview-lib/src/webgl/glSpriteBatch.ts) (`FRAG_SRC`, context attrs, `blendFunc`).
+Reference: [`glSpriteBatch.ts`](../../packages/axoview-lib/src/webgl/glSpriteBatch.ts) (`FRAG_SRC`, context attrs, `blendFunc`).
 
 ---
 
@@ -61,7 +61,7 @@ u0 = (x + 0.5) / atlasSize;   uS = (w - 1) / atlasSize;
 u0 = x / atlasSize;           uS = w / atlasSize;
 ```
 
-The inset math is extracted as the pure, unit-tested [`atlasUVRect`](../packages/axoview-lib/src/webgl/glSpriteBatch.ts); the ≥1px content inset lives in [`rasterizeNodeChip`](../packages/axoview-lib/src/webgl/itemRaster.ts) and `drawLabelChip`.
+The inset math is extracted as the pure, unit-tested [`atlasUVRect`](../../packages/axoview-lib/src/webgl/glSpriteBatch.ts); the ≥1px content inset lives in [`rasterizeNodeChip`](../../packages/axoview-lib/src/webgl/itemRaster.ts) and `drawLabelChip`.
 
 ---
 
@@ -81,7 +81,7 @@ sx={{ boxSizing: 'content-box', minWidth: chipInnerWidth }}
 sx={{ minWidth: chipInnerWidth }}
 ```
 
-Reference: `LabelInlineEditor` in [`LabelHitLayer.tsx`](../packages/axoview-lib/src/components/SceneLayers/Labels/LabelHitLayer.tsx).
+Reference: `LabelInlineEditor` in [`LabelHitLayer.tsx`](../../packages/axoview-lib/src/components/SceneLayers/Labels/LabelHitLayer.tsx).
 
 ---
 
@@ -104,7 +104,7 @@ for (let k = kStart, n = 0; k * spacing <= segEnd; k++, n++) {
 for (let cur = start; cur <= segEnd; cur += step) emit(cur);
 ```
 
-Reference + unit tests: [`lineStyle.ts`](../packages/axoview-lib/src/webgl/lineStyle.ts), [`lineStyle.test.ts`](../packages/axoview-lib/src/webgl/__tests__/lineStyle.test.ts) (the "pathologically tiny spacing/period" cases pin this).
+Reference + unit tests: [`lineStyle.ts`](../../packages/axoview-lib/src/webgl/lineStyle.ts), [`lineStyle.test.ts`](../../packages/axoview-lib/src/webgl/__tests__/lineStyle.test.ts) (the "pathologically tiny spacing/period" cases pin this).
 
 ---
 
@@ -123,7 +123,7 @@ const o1 = getTilePos({ tile: { x: 1, y: 0 } });
 const widthScale = Math.hypot(o1.x - o0.x, o1.y - o0.y) / UNPROJECTED_TILE_SIZE;
 ```
 
-Measuring from `getTilePosition` (not a hard-coded iso constant) keeps connectors and rectangles consistent and correct if the projection ever changes. Reference: [`ConnectorsCanvas`](../packages/axoview-lib/src/components/SceneLayers/Connectors/ConnectorsCanvas.tsx) + [`RectanglesCanvas`](../packages/axoview-lib/src/components/SceneLayers/Rectangles/RectanglesCanvas.tsx).
+Measuring from `getTilePosition` (not a hard-coded iso constant) keeps connectors and rectangles consistent and correct if the projection ever changes. Reference: [`ConnectorsCanvas`](../../packages/axoview-lib/src/components/SceneLayers/Connectors/ConnectorsCanvas.tsx) + [`RectanglesCanvas`](../../packages/axoview-lib/src/components/SceneLayers/Rectangles/RectanglesCanvas.tsx).
 
 ---
 
@@ -135,7 +135,7 @@ Measuring from `getTilePosition` (not a hard-coded iso constant) keeps connector
 
 **Rule:** enable anisotropic filtering (`EXT_texture_filter_anisotropic`) on any atlas sampled through a non-axis-aligned transform — it sharpens sheared sampling materially. But **know it is a mitigation, not a cure**: the ceiling is fundamental to rasterised sprites. The crisp fix is geometry/SDF, not filtering (see §12).
 
-Reference: `aniso` setup in [`glSpriteBatch.ts`](../packages/axoview-lib/src/webgl/glSpriteBatch.ts).
+Reference: `aniso` setup in [`glSpriteBatch.ts`](../../packages/axoview-lib/src/webgl/glSpriteBatch.ts).
 
 ---
 
@@ -155,7 +155,7 @@ addSprite(..., arrowUV, 1, 1, 1, 1, 0);
 addSprite(..., arrowUV, 0, 0, 0, 1, 0);
 ```
 
-Reference: arrow emission in [`ConnectorsCanvas`](../packages/axoview-lib/src/components/SceneLayers/Connectors/ConnectorsCanvas.tsx).
+Reference: arrow emission in [`ConnectorsCanvas`](../../packages/axoview-lib/src/components/SceneLayers/Connectors/ConnectorsCanvas.tsx).
 
 ---
 
@@ -167,7 +167,7 @@ Reference: arrow emission in [`ConnectorsCanvas`](../packages/axoview-lib/src/co
 
 **Rule:** any GPU layer whose geometry is tile→scene **projected** must list `strategy.projectionName` in its rebuild deps (mirror `NodesCanvas`). A DOM hit-proxy and its GPU paint must share **one** projection, or they drift apart — a hybrid-boundary invariant (ADR 0038 §2).
 
-Reference: rebuild-effect deps in [`LabelsCanvas`](../packages/axoview-lib/src/components/SceneLayers/Labels/LabelsCanvas.tsx) / [`NodesCanvas`](../packages/axoview-lib/src/components/SceneLayers/Nodes/NodesCanvas.tsx).
+Reference: rebuild-effect deps in [`LabelsCanvas`](../../packages/axoview-lib/src/components/SceneLayers/Labels/LabelsCanvas.tsx) / [`NodesCanvas`](../../packages/axoview-lib/src/components/SceneLayers/Nodes/NodesCanvas.tsx).
 
 ---
 
@@ -188,7 +188,7 @@ b.render(bw, bh, zoom * dpr, originXDev, originYDev, counterScale);
 // ❌ Wrong — clamp bw/bh but leave zoom·dpr / origin on the raw dpr → desync
 ```
 
-There must be exactly **one** backing-store computation per layer, and it must be the clamped one — don't leave an unclamped `round(W*dpr)` lying around for a future reader to wire up. Reference: [`computeBackingStore`](../packages/axoview-lib/src/utils/renderTarget.ts), wired into all four bulk layers.
+There must be exactly **one** backing-store computation per layer, and it must be the clamped one — don't leave an unclamped `round(W*dpr)` lying around for a future reader to wire up. Reference: [`computeBackingStore`](../../packages/axoview-lib/src/utils/renderTarget.ts), wired into all four bulk layers.
 
 ---
 
@@ -235,9 +235,9 @@ export const atlasUVRect = (x, y, w, h, atlasSize) => ({ /* … */ });
 
 The **shipped** wiring:
 
-- Geometry: [`buildAaLineQuad`](../packages/axoview-lib/src/webgl/lineStyle.ts) fattens `segment()`'s parallelogram by `AA_FEATHER` scene units on each perpendicular side (so the ramp isn't clipped by the quad) and reports the true `halfWidth`; a disc grows its quad by the same feather.
+- Geometry: [`buildAaLineQuad`](../../packages/axoview-lib/src/webgl/lineStyle.ts) fattens `segment()`'s parallelogram by `AA_FEATHER` scene units on each perpendicular side (so the ramp isn't clipped by the quad) and reports the true `halfWidth`; a disc grows its quad by the same feather.
 - Per-instance carrier: `addSprite`'s `shapeMode` (0 textured / 1 line / 2 disc) and `halfWidth` pack into `i_misc.y/.z` — previously zero, so no stride growth and the textured path is byte-identical.
-- Shader ([`glSpriteBatch`](../packages/axoview-lib/src/webgl/glSpriteBatch.ts) VERT/FRAG):
+- Shader ([`glSpriteBatch`](../../packages/axoview-lib/src/webgl/glSpriteBatch.ts) VERT/FRAG):
 
 ```glsl
 // vertex — scene-space distance-field coordinate from the quad centre.
@@ -278,7 +278,7 @@ const vx = (La * hx + Lc * hy) * size, vy = (Lb * hx + Ld * hy) * size; // L·h 
 const vx = -uy * size, vy = ux * size;
 ```
 
-Reference: arrow emission in [`ConnectorsCanvas`](../packages/axoview-lib/src/components/SceneLayers/Connectors/ConnectorsCanvas.tsx) (the `La/Lb/Lc/Ld` basis).
+Reference: arrow emission in [`ConnectorsCanvas`](../../packages/axoview-lib/src/components/SceneLayers/Connectors/ConnectorsCanvas.tsx) (the `La/Lb/Lc/Ld` basis).
 
 ---
 
@@ -288,15 +288,15 @@ Reference: arrow emission in [`ConnectorsCanvas`](../packages/axoview-lib/src/co
 
 **Root cause:** the four scene-layer WebGL canvases are painted into a shared compositor layer. When a sibling DOM overlay *above* a canvas toggled, Chrome invalidated only the overlay's rectangle and left the canvas **un-repainted** there — a stale blank strip the overlay's size — until a pan/resize forced a full recomposite. The drawing buffers were correct the whole time (hence export worked, and a forced repaint revealed the content), so this is a **paint/composite bug, not a render or cull bug** — which is why it was GPU/driver-dependent. A per-canvas `transform: translateZ(0)` layer promotion did **not** fix it.
 
-**Rule:** keep a permanent, empty, pointer-transparent **full-area SVG overlay** mounted above the canvases ([`CanvasCompositorOverlay`](../packages/axoview-lib/src/components/CanvasCompositorOverlay/CanvasCompositorOverlay.tsx), next to `AnnotationLayer`). Its presence forces Chrome to composite the whole canvas region as a unit, so a sibling's partial invalidation can no longer leave a stale strip. (This is why the bug vanished whenever `AnnotationLayer` — itself a full-area SVG at the same z-index — happened to be open.) The overlay must stay inert: `pointerEvents: none`, `aria-hidden`, draws nothing. A §11 case — CI can't see it; owner-confirmed in a real browser (Chrome, 1080p, dpr 1).
+**Rule:** keep a permanent, empty, pointer-transparent **full-area SVG overlay** mounted above the canvases ([`CanvasCompositorOverlay`](../../packages/axoview-lib/src/components/CanvasCompositorOverlay/CanvasCompositorOverlay.tsx), next to `AnnotationLayer`). Its presence forces Chrome to composite the whole canvas region as a unit, so a sibling's partial invalidation can no longer leave a stale strip. (This is why the bug vanished whenever `AnnotationLayer` — itself a full-area SVG at the same z-index — happened to be open.) The overlay must stay inert: `pointerEvents: none`, `aria-hidden`, draws nothing. A §11 case — CI can't see it; owner-confirmed in a real browser (Chrome, 1080p, dpr 1).
 
-Reference: [`CanvasCompositorOverlay.tsx`](../packages/axoview-lib/src/components/CanvasCompositorOverlay/CanvasCompositorOverlay.tsx); mounted in [`UiOverlay`](../packages/axoview-lib/src/components/UiOverlay/UiOverlay.tsx).
+Reference: [`CanvasCompositorOverlay.tsx`](../../packages/axoview-lib/src/components/CanvasCompositorOverlay/CanvasCompositorOverlay.tsx); mounted in [`UiOverlay`](../../packages/axoview-lib/src/components/UiOverlay/UiOverlay.tsx).
 
 ---
 
 ## Deferred ADR 0038 items
 
-Live status of the follow-ups scoped in [ADR 0038 §Deferred](adr/0038-webgl-instanced-render-substrate.md), reconciled here as they close:
+Live status of the follow-ups scoped in [ADR 0038 §Deferred](../adr/0038-webgl-instanced-render-substrate.md), reconciled here as they close:
 
 | Item | Status |
 |---|---|
@@ -318,17 +318,17 @@ When building or debugging a GPU layer, **read these first**:
 
 | Concern | Reference file |
 |---|---|
-| Atlas, blend, aniso, context attrs, premultiplied shader | [`glSpriteBatch.ts`](../packages/axoview-lib/src/webgl/glSpriteBatch.ts) |
-| Line-style walkers + analytic-AA prototype | [`lineStyle.ts`](../packages/axoview-lib/src/webgl/lineStyle.ts) |
-| Chip rasterisation (content inset, supersample) | [`itemRaster.ts`](../packages/axoview-lib/src/webgl/itemRaster.ts) |
-| Context-loss recovery | [`contextLoss.ts`](../packages/axoview-lib/src/webgl/contextLoss.ts) |
-| Backing-store / export scale clamp | [`renderTarget.ts`](../packages/axoview-lib/src/utils/renderTarget.ts) |
-| The canonical bulk layer (build vs draw split, projection deps) | [`NodesCanvas.tsx`](../packages/axoview-lib/src/components/SceneLayers/Nodes/NodesCanvas.tsx) |
-| Projection-scaled widths + line-styles | [`ConnectorsCanvas.tsx`](../packages/axoview-lib/src/components/SceneLayers/Connectors/ConnectorsCanvas.tsx) |
-| Unit-testable pure math (the CI-visible surface) | [`webgl/__tests__`](../packages/axoview-lib/src/webgl/__tests__) · [`renderTarget.test.ts`](../packages/axoview-lib/src/utils/__tests__/renderTarget.test.ts) |
+| Atlas, blend, aniso, context attrs, premultiplied shader | [`glSpriteBatch.ts`](../../packages/axoview-lib/src/webgl/glSpriteBatch.ts) |
+| Line-style walkers + analytic-AA prototype | [`lineStyle.ts`](../../packages/axoview-lib/src/webgl/lineStyle.ts) |
+| Chip rasterisation (content inset, supersample) | [`itemRaster.ts`](../../packages/axoview-lib/src/webgl/itemRaster.ts) |
+| Context-loss recovery | [`contextLoss.ts`](../../packages/axoview-lib/src/webgl/contextLoss.ts) |
+| Backing-store / export scale clamp | [`renderTarget.ts`](../../packages/axoview-lib/src/utils/renderTarget.ts) |
+| The canonical bulk layer (build vs draw split, projection deps) | [`NodesCanvas.tsx`](../../packages/axoview-lib/src/components/SceneLayers/Nodes/NodesCanvas.tsx) |
+| Projection-scaled widths + line-styles | [`ConnectorsCanvas.tsx`](../../packages/axoview-lib/src/components/SceneLayers/Connectors/ConnectorsCanvas.tsx) |
+| Unit-testable pure math (the CI-visible surface) | [`webgl/__tests__`](../../packages/axoview-lib/src/webgl/__tests__) · [`renderTarget.test.ts`](../../packages/axoview-lib/src/utils/__tests__/renderTarget.test.ts) |
 
 ---
 
 ## When this document is wrong
 
-It's a snapshot of what the GPU fold taught us, not a law. If a rule here contradicts something the owner just verified in a real browser — the browser wins (§11). Update this doc afterwards as part of wrap-up so the finding isn't relearned. If you deliberately break a rule, leave a short note in [ADR 0038](adr/0038-webgl-instanced-render-substrate.md) explaining why.
+It's a snapshot of what the GPU fold taught us, not a law. If a rule here contradicts something the owner just verified in a real browser — the browser wins (§11). Update this doc afterwards as part of wrap-up so the finding isn't relearned. If you deliberately break a rule, leave a short note in [ADR 0038](../adr/0038-webgl-instanced-render-substrate.md) explaining why.

@@ -1,6 +1,6 @@
 # ADR 0022 — Canvas Pointer-Interaction Model (click semantics + customization removal)
 
-**Status:** Proposed
+**Status:** Accepted (shipped 2026-06-21 with the UX-CANVAS wave — PLAN.md `[x]`; §2 action-bar decision superseded by the 2026-06-25 shake-out addendum below. Status corrected 2026-07-15: it had sat `Proposed` for ~4 weeks after shipping and through two addenda.)
 **Date:** 2026-06-18
 **Supersedes:** none (refines [ADR 0006](0006-canvas-selection-contract.md) §2/§4 and the MQA-#1 "right-click opens the action bar" decision; interacts with [ADR 0018](0018-touch-pen-gesture-contract.md))
 **Superseded by:** none

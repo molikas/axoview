@@ -4,7 +4,7 @@
 **Date:** 2026-05-03
 **Accepted on:** 2026-05-05
 **Supersedes:** none
-**Superseded by:** [ADR 0030](0030-docked-style-controls-strip.md) in part — the connector **Style tab** is retired (the panel is now **Details / Notes**; visual styling lives in the docked style strip) and **Delete** moved to the [ADR 0027](0027-canvas-context-menu.md) context menu. The connector **name/notes parity** decision (the substance of this ADR) stands; the "Style tab" references below are historical (pre-0030).
+**Superseded by:** [ADR 0030](0030-docked-style-controls-strip.md) in part — the connector **Style tab** is retired (visual styling lives in the docked style strip) and **Delete** moved to the [ADR 0027](0027-canvas-context-menu.md) context menu. The connector **name/notes parity** decision (the substance of this ADR) stands; the "Style tab" references below are historical (pre-0030). **For the panel's current shape, see [ADR 0030](0030-docked-style-controls-strip.md) — do not restate it here.** (It is no longer a two-tab "Details / Notes": commit `987eaaf` unified all five item panels into one collapsible-section deck. This line asserted the tab shape for 10 days after that shipped.)
 
 ## Context
 
@@ -46,7 +46,7 @@ Add two fields to `connectorSchema`:
 - **Style** — Line Color, Width, Line Style, Line Type, Show Arrow, Delete button.
 - **Notes** — `RichTextEditor` bound to `connector.notes`.
 
-The "Details" tab name is what `NodePanel` calls its first tab — preserving the contract documented in [docs/architecture.md](../../docs/architecture.md). The Notes tab title gains a primary-coloured asterisk/dot when notes are non-empty, mirroring `NodePanel`'s `notesModified` style.
+The "Details" tab name is what `NodePanel` calls its first tab — preserving the contract documented in [docs/guidelines/architecture.md](../guidelines/architecture.md). The Notes tab title gains a primary-coloured asterisk/dot when notes are non-empty, mirroring `NodePanel`'s `notesModified` style.
 
 ### Backward compatibility
 

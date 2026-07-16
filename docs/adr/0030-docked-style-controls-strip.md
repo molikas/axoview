@@ -2,7 +2,8 @@
 
 **Status:** Accepted
 **Date:** 2026-06-29
-**Supersedes:** none (amends [ux-principles](../ux-principles.md) §2.4 / §2.5 / §5.1 / §5.2; supersedes the connector **Style** tab decision in [ADR 0004](0004-connector-name-and-details-panel.md) §"Right-sidebar panel"; fills the [ADR 0005](0005-toolbar-and-dock-layout-contract.md) Group 1 "Format" reserved slot)
+**Supersedes:** [ADR 0004](0004-connector-name-and-details-panel.md) §"Right-sidebar panel" only — the connector **Style** tab decision; 0004's name/notes parity substance stands. Also cited as partial successor by [ADR 0012](0012-view-mode-node-info-popover.md) and [ADR 0027](0027-canvas-context-menu.md), whose own decisions (view-mode popover / context menu) both stand — only their Style-tab *references* went stale here.
+*(Non-supersession context: amends [ux-principles](../guidelines/ux-principles.md) §2.4 / §2.5 / §5.1 / §5.2; fills the [ADR 0005](0005-toolbar-and-dock-layout-contract.md) Group 1 "Format" reserved slot.)*
 **Superseded by:** none
 
 ## Context
@@ -11,15 +12,17 @@ An exploratory UX session (commits `92b853d1` → `894cb3b2` → `ae090ddc`, bra
 
 This shipped a coherence break (workflow.md Principle 7 / ux §11) that this ADR exists to close:
 
-- **The design language now lies.** [ux-principles §5.1](../ux-principles.md) (lines 293, 295) and [§5.2](../ux-principles.md) (line 300) still mandate a **Details / Style / Notes** three-tab panel with a Style-tab Delete button. That tab no longer exists for any item type. §5 is the normative spec future item types build against — a live false rule.
-- **The exemption is unratified.** [§2.4](../ux-principles.md)'s body forbids selection-triggered editing toolbars; the strip's exemption lives only in a §2.4 blockquote (line 191) + a new §2.5, added in the same spike with no ADR. The blockquote also claims the strip "mirrors a side panel" — false, the side-panel styling it references was deleted.
+- **The design language now lies.** [ux-principles §5.1](../guidelines/ux-principles.md) (lines 293, 295) and [§5.2](../guidelines/ux-principles.md) (line 300) still mandate a **Details / Style / Notes** three-tab panel with a Style-tab Delete button. That tab no longer exists for any item type. §5 is the normative spec future item types build against — a live false rule.
+- **The exemption is unratified.** [§2.4](../guidelines/ux-principles.md)'s body forbids selection-triggered editing toolbars; the strip's exemption lives only in a §2.4 blockquote (line 191) + a new §2.5, added in the same spike with no ADR. The blockquote also claims the strip "mirrors a side panel" — false, the side-panel styling it references was deleted.
 - **The slot was reserved, not specified.** [ADR 0005](0005-toolbar-and-dock-layout-contract.md) §1 reserved the Group 1 "Format" position but explicitly left "what control goes there" to a future feature ADR. This is that ADR.
 
 The strip itself is sound: single 1113-line component, internally componentized, reads `uiState.itemControls` (the [ADR 0006](0006-canvas-selection-contract.md) single source of truth), writes via `useScene()`. The decision below ratifies the **surface model**, not the implementation.
 
 ## Decision
 
-**The docked style strip is the single canonical surface for visual styling of every item type.** Per-type Style tabs are retired; item panels are **Details / Notes** only.
+**The docked style strip is the single canonical surface for visual styling of every item type.** Per-type Style tabs are retired; item panels carry no styling at all.
+
+> **Panel shape — read the 2026-07-05 supersession in §4 (Doc amendments) below before citing this section.** The original wording here was "item panels are **Details / Notes** only", i.e. two tabs. Commit `987eaaf` replaced that with a **single collapsible-section deck** (content section + Notes + Metadata disclosures) across all five item types. **This ADR is the one home for panel shape** — 0004/0012/0027/0031 all point here rather than restating it, precisely because restating it is what let one commit falsify four ADRs at once. The strip-as-sole-styling-surface decision (the substance of this ADR) is unaffected.
 
 ### 1. Surface division of labor (the coherence contract)
 
@@ -50,7 +53,7 @@ This keeps ADR 0006 as the selection source of truth (the strip reads `selectedI
 
 #### Amendment (2026-07-02) — unified cross-type label sizing (owner: "this kind of consistency, everywhere")
 
-The **per-type** font-size ranges in the 2026-06-30 amendment (point #11: "nodes 10–24, labels 8–48") are **superseded** by one shared sizing model — the owner's stated target for the surface generally (see [ux-principles §5.4](../ux-principles.md)):
+The **per-type** font-size ranges in the 2026-06-30 amendment (point #11: "nodes 10–24, labels 8–48") are **superseded** by one shared sizing model — the owner's stated target for the surface generally (see [ux-principles §5.4](../guidelines/ux-principles.md)):
 
 - **One base size.** `LABEL_BASE_FONT_PX = 18` ([`labelSettings.ts`](../../packages/axoview-lib/src/config/labelSettings.ts)) is the on-canvas default for **node labels, floating Labels, and connector labels** alike (bumped 14→18 so labels read without hand-bumping each one).
 - **One range + one stepper.** The strip's size control shares a single px range **10–40 / step 2** (`LABEL_SIZE_MIN/MAX/STEP`) across all three label types, and the relative **+/−** stepper nudges each from its own current size (was node/floating only). This replaces the divergent 10–24 / 8–48 ranges above.

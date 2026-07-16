@@ -2,8 +2,9 @@
 
 **Status:** Accepted
 **Date:** 2026-06-18
-**Supersedes:** none (spawned from [ADR 0022](0022-canvas-pointer-interaction-model.md) §1; home for [ADR 0023](0023-off-grid-positioning-and-collision.md) commands; touch reconciliation with [ADR 0018](0018-touch-pen-gesture-contract.md))
-**Superseded by:** [ADR 0030](0030-docked-style-controls-strip.md) in part — the item panel is now **Details / Notes** (no Style tab) and **Delete** is owned by this context menu; visual styling lives in the docked style strip. The "Style tab" / "Details / Style / Notes" references below are historical (pre-0030).
+**Supersedes:** [ADR 0004](0004-connector-name-and-details-panel.md) §"Right-sidebar panel" in part — the panel's **Delete** button; this context menu owns Delete for every item type. 0004's name/notes parity substance stands. · [ADR 0018](0018-touch-pen-gesture-contract.md) in part (2026-06-25 addendum) — **long-press opens this context menu**, not the NodeActionBar; 0018's gesture *mechanics* (timer-based, opens during the hold, tap-slop cancel, `pointerType` branch) stand.
+*(Non-supersession context: spawned from [ADR 0022](0022-canvas-pointer-interaction-model.md) §1; home for [ADR 0023](0023-off-grid-positioning-and-collision.md) commands.)*
+**Superseded by:** [ADR 0030](0030-docked-style-controls-strip.md) in part — the item panel no longer has a Style tab and **Delete** is owned by this context menu; visual styling lives in the docked style strip. The "Style tab" / "Details / Style / Notes" references below are historical (pre-0030). **For the panel's current shape, see [ADR 0030](0030-docked-style-controls-strip.md) — do not restate it here.** (This line previously said "the item panel is now **Details / Notes**", which commit `987eaaf` had already falsified.)
 
 ## Context
 

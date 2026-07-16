@@ -12,7 +12,7 @@
 ## Decision
 
 1. Add four **edge-midpoint anchors** (`TOP`, `RIGHT`, `BOTTOM`, `LEFT`) to the transform-controls anchor set and to `TransformRectangle`. An edge handle resizes **one axis** (the opposite edge stays fixed); corner handles are unchanged.
-2. **Projection:** handle positions are computed in tile space and projected through the active `CoordinateTransformStrategy`, so midpoints land on the true edge centers in **iso** (diamond) and **2D** (square). Counter-scale handles to screen px per [ux-principles §8.8](../ux-principles.md#88-canvas-anchored-chrome-is-screen-pixel-stable) so they don't shrink with zoom.
+2. **Projection:** handle positions are computed in tile space and projected through the active `CoordinateTransformStrategy`, so midpoints land on the true edge centers in **iso** (diamond) and **2D** (square). Counter-scale handles to screen px per [ux-principles §8.8](../guidelines/ux-principles.md#88-canvas-anchored-chrome-is-screen-pixel-stable) so they don't shrink with zoom.
 3. Commit the resize as **one** history entry (the existing corner-resize `beginDragTransaction` / `commitDragTransaction` pattern).
 
 ## Consequences

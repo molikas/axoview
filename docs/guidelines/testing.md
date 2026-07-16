@@ -1,21 +1,21 @@
 # Regression Test Suite Reference
 
-**Last updated:** 2026-07-06 (Google Drive storage + places model — GIS auth, Drive provider, one-tree/two-places explorer, move-to-drive; ADRs 0035–0037)
-**Unit / integration totals** (measured 2026-07-06 via per-workspace `npm test`):
+**Last updated:** 2026-07-15 (docs housekeeping — totals re-measured; suite links repaired; moved to `docs/guidelines/`)
+**Unit / integration totals** (measured 2026-07-15 via per-workspace `npm test`):
 
 | Workspace | Passing | Suites |
 |---|---|---|
-| `axoview-lib` | 1502 (+1 skipped) | 147 |
-| `axoview-app` | 202 | 20 |
-| `axoview-backend` | 101 | 7 |
-| `axoview-worker` | 105 | — |
-| **Total** | **1910 (+1 skipped)** | — |
+| `axoview-lib` | 1522 (+1 skipped) | 149 |
+| `axoview-app` | 266 | 26 |
+| `axoview-backend` | 102 | 7 |
+| `axoview-worker` | 124 | 4 |
+| **Total** | **2014 (+1 skipped)** | **186** |
 
-**Run:** `npm test --workspace=packages/<pkg>` per package, or `npm test --workspaces` for all. The v1.1 wave added the backend (101) + worker (102) server-runtime suites — the only **high**-severity gap the post-v1.0.0 review named — plus the app-side error-UX, startup-timeout, parallelism-contract, file-explorer-delete, share-URL, and backend-routes contract suites. The single skipped test is `leanSave bundledFixtures[0]` (see [known_issues.md](../known_issues.md)).
+**Run:** `npm test --workspace=packages/<pkg>` per package, or `npm test --workspaces` for all. The v1.1 wave added the backend + worker server-runtime suites — the only **high**-severity gap the post-v1.0.0 review named — plus the app-side error-UX, startup-timeout, parallelism-contract, file-explorer-delete, share-URL, and backend-routes contract suites. The single skipped test is `leanSave bundledFixtures[0]` (see [known_issues.md](../../known_issues.md)).
 
-E2E suite lives at [`packages/axoview-e2e/`](../packages/axoview-e2e/) (Playwright, 72 spec files covering canonical journeys J1–J20 + the v1.1 cross-interaction additions + the Phase 6 presentation/annotation specs + the Phase 6.5 touch/pen specs + the labels & text-styling productization specs). Touch specs run under a dedicated `chromium-touch` project (`hasTouch: true`, `testMatch: /touch-.*\.spec\.ts/`) and drive real touch via CDP `Input.dispatchTouchEvent`; the default `chromium` project ignores them. Runs on PRs + master push via [`.github/workflows/e2e-playwright.yml`](../.github/workflows/e2e-playwright.yml). Locally: `npm run test:e2e:ci` from repo root, or `npx playwright test --ui` from the package. The legacy Python/Selenium suite at `e2e-tests/` was deleted 2026-05-23 (audit C.2 I9; the T1-rewrite tactical was retired along with the rest of `docs/tactical/`).
+E2E suite lives at [`packages/axoview-e2e/`](../../packages/axoview-e2e/) (Playwright, 75 spec files covering canonical journeys J1–J20 + the v1.1 cross-interaction additions + the Phase 6 presentation/annotation specs + the Phase 6.5 touch/pen specs + the labels & text-styling productization specs). Touch specs run under a dedicated `chromium-touch` project (`hasTouch: true`, `testMatch: /touch-.*\.spec\.ts/`) and drive real touch via CDP `Input.dispatchTouchEvent`; the default `chromium` project ignores them. Runs on PRs + master push via [`.github/workflows/e2e-playwright.yml`](../../.github/workflows/e2e-playwright.yml). Locally: `npm run test:e2e:ci` from repo root, or `npx playwright test --ui` from the package. The legacy Python/Selenium suite at `e2e-tests/` was deleted 2026-05-23 (audit C.2 I9; the T1-rewrite tactical was retired along with the rest of `docs/tactical/`).
 
-**CI execution model — sharding (2026-07-10, PR #66).** The suite runs at `workers: 1` because the shared rsbuild dev server can't take parallel HMR clients (a 2-worker "Loading-Axoview" stall is documented in the config). CI parallelism is therefore achieved by **sharding across runners**: [`e2e-playwright.yml`](../.github/workflows/e2e-playwright.yml) fans the run out over 4 jobs via a `shard` matrix, each running `--shard=i/4` at `workers: 1`. Within a runner the execution is byte-for-byte the sequential local flow, so the fan-out is machine-level, not context-level — no new flake risk. This cut the E2E wall-clock **~20m28s → ~6m30s (≈3.2×)**. Per-shard blob reports merge into one HTML report only on failure. Two invariants keep this safe for the future:
+**CI execution model — sharding (2026-07-10, PR #66).** The suite runs at `workers: 1` because the shared rsbuild dev server can't take parallel HMR clients (a 2-worker "Loading-Axoview" stall is documented in the config). CI parallelism is therefore achieved by **sharding across runners**: [`e2e-playwright.yml`](../../.github/workflows/e2e-playwright.yml) fans the run out over 4 jobs via a `shard` matrix, each running `--shard=i/4` at `workers: 1`. Within a runner the execution is byte-for-byte the sequential local flow, so the fan-out is machine-level, not context-level — no new flake risk. This cut the E2E wall-clock **~20m28s → ~6m30s (≈3.2×)**. Per-shard blob reports merge into one HTML report only on failure. Two invariants keep this safe for the future:
 
 - **Keep `fullyParallel: false`.** Playwright then shards at *file* granularity, so every spec file (and its serial/stateful tests) stays wholly inside one shard. Flipping it to `true` would split files across shards **and** reintroduce the dev-server concurrent-context flake — don't, without re-architecting the server first.
 - **Don't swap the dev server for a precompiled prod bundle to raise `workers`.** A `NODE_ENV=production` build tree-shakes out the `window.__axoview__` debug bridge that ~every spec reads (gated in `Axoview.tsx` by `enableDebugTools || exposeStoreBridge || NODE_ENV !== 'production'`); the whole suite would fail on `waitForDebugBridge`. If that route is ever needed for within-runner parallelism, re-expose the bridge via `exposeStoreBridge` behind a **CI-only build flag** (never the Cloudflare prod build).
@@ -24,7 +24,7 @@ To scale further, raise the shard count (`SHARD_TOTAL` + the matrix list in the 
 
 ### ADR 0042 additions — Drive-native sharing & read-only preview (2026-07-14)
 
-E2E for the [ADR 0042](adr/0042-drive-native-sharing-and-readonly-preview.md) Drive display route, driven with **mocked** googleapis fetches (so it runs headless — unlike the real-OAuth Drive provider suites below).
+E2E for the [ADR 0042](../adr/0042-drive-native-sharing-and-readonly-preview.md) Drive display route, driven with **mocked** googleapis fetches (so it runs headless — unlike the real-OAuth Drive provider suites below).
 
 | Suite | Type | Covers |
 |---|---|---|
@@ -36,12 +36,12 @@ Shipped with the 2026-07-10 ADR 0028 persona-sweep triage (sweep doc retired 202
 
 | Suite | Type | Covers |
 |---|---|---|
-| `interaction/__tests__/handleDeleteKey.test.ts` | lib unit | **L-1** — the Delete/Backspace dispatch extracted to [`handleDeleteKey.ts`](../packages/axoview-lib/src/interaction/handleDeleteKey.ts): per-type dispatch (ITEM/CONNECTOR/TEXTBOX/RECTANGLE/**LABEL**) routes to its delete action; single-Label Delete calls `deleteLabel` + clears the panel; the contentEditable-focus guard blocks delete mid inline-edit; `isEditableTarget` truth table |
+| `interaction/__tests__/handleDeleteKey.test.ts` | lib unit | **L-1** — the Delete/Backspace dispatch extracted to [`handleDeleteKey.ts`](../../packages/axoview-lib/src/interaction/handleDeleteKey.ts): per-type dispatch (ITEM/CONNECTOR/TEXTBOX/RECTANGLE/**LABEL**) routes to its delete action; single-Label Delete calls `deleteLabel` + clears the panel; the contentEditable-focus guard blocks delete mid inline-edit; `isEditableTarget` truth table |
 | `label-entity.spec.ts` (extended) | E2E | **L-1** select + Delete removes the Label; **L-3** clicking a Label does not auto-open the Properties dock (`rightSidebarOpen` stays false); **L-2** right-click opens the item context menu (`variant:'item'`, `target.type:'LABEL'`) |
 
 ### Phase 3A/3B additions — Google Drive storage & places model (2026-07-05 → 2026-07-06)
 
-New/extended suites shipped with [ADRs 0035–0037](adr/) (app `+40` unit across `+3` suites; worker `+3`; lib `+2`). No Drive E2E — real OAuth can't run headless, so the owner live-test matrix is the UI gate (e2e is PR-only anyway).
+New/extended suites shipped with [ADRs 0035–0037](../adr/) (app `+40` unit across `+3` suites; worker `+3`; lib `+2`). No Drive E2E — real OAuth can't run headless, so the owner live-test matrix is the UI gate (e2e is PR-only anyway).
 
 | Suite | Type | Covers |
 |---|---|---|
@@ -53,11 +53,11 @@ New/extended suites shipped with [ADRs 0035–0037](adr/) (app `+40` unit across
 
 ### v1.1 close-out gates (2026-06-10)
 
-Two CI gates hardened at the v1.1 close-out (`@typescript-eslint/no-explicit-any` → `error`; Knip → hard-fail). The full CI-gate inventory + lint-debt detail — including the latent ~17 `tsc --noEmit` fixture-type errors confined to `__perf_refactor_regression__/*.test.ts(x)` — lives in [technical-review-2026-06.md §8b/§8e/§11](technical-review-2026-06.md#8-quality-kpis-aggregate); not restated here.
+Two CI gates hardened at the v1.1 close-out (`@typescript-eslint/no-explicit-any` → `error`; Knip → hard-fail). The full CI-gate inventory + lint-debt detail — including the latent ~17 `tsc --noEmit` fixture-type errors confined to `__perf_refactor_regression__/*.test.ts(x)` — lives in [technical-review-2026-06.md §8b/§8e/§11](../reviews/technical-review-2026-06.md#8-quality-kpis-aggregate); not restated here.
 
 ### Phase 6 additions — Presentation & Annotation (2026-06-12)
 
-New suites shipped with [ADRs 0012–0015](adr/) (lib `+39` / app `+7` unit; `+6` E2E specs):
+New suites shipped with [ADRs 0012–0015](../adr/) (lib `+39` / app `+7` unit; `+6` E2E specs):
 
 | Suite | Type | Covers |
 |---|---|---|
@@ -79,7 +79,7 @@ New suites shipped with [ADRs 0012–0015](adr/) (lib `+39` / app `+7` unit; `+6
 
 ### Phase 6.5 additions — Touch & pen gesture contract (2026-06-14)
 
-New suites shipped with [ADR 0018](adr/0018-touch-pen-gesture-contract.md) — the Pointer-Events touch/pen rewrite (direct manipulation) + the D-7 dual-stack undo fix (lib `+32` unit / `+4` suites; `+10` E2E specs):
+New suites shipped with [ADR 0018](../adr/0018-touch-pen-gesture-contract.md) — the Pointer-Events touch/pen rewrite (direct manipulation) + the D-7 dual-stack undo fix (lib `+32` unit / `+4` suites; `+10` E2E specs):
 
 | Suite | Type | Covers |
 |---|---|---|
@@ -100,7 +100,7 @@ New suites shipped with [ADR 0018](adr/0018-touch-pen-gesture-contract.md) — t
 
 ### Pre-T3 hardening additions (2026-06-16) — ADR 0021
 
-New suites + extensions shipped with the paste-O(N) + pre-T3 render/drag wave ([ADR 0021](adr/0021-paste-algorithmic-perf-and-spatial-index.md); PR #48 paste, #49 pre-T3):
+New suites + extensions shipped with the paste-O(N) + pre-T3 render/drag wave ([ADR 0021](../adr/0021-paste-algorithmic-perf-and-spatial-index.md); PR #48 paste, #49 pre-T3):
 
 | Suite | Type | Covers |
 |---|---|---|
@@ -110,9 +110,9 @@ New suites + extensions shipped with the paste-O(N) + pre-T3 render/drag wave ([
 | `hooks/__tests__/useHistory.test.tsx` + `useHistory.realStore.test.tsx` (extended) | lib unit | scoped post-undo/redo D-8 connector re-sync — early-returns when no active-view connector path is empty (uiState store added to both wrappers); D-7 dual-stack coordination unchanged |
 | `__perf_refactor_regression__/DragItems.modes.test.ts` (extended) | lib unit | rectangle / text-box drag is CSS-var-only during the move + a single `batchUpdate*` commit on mouseup (no per-frame store write) |
 | `canvas-node-render.spec.ts` | E2E | Canvas2D node sprite centred on its tile + label connector stalk; `data-draw-count` anti-cheat reads == N at fit-to-view |
-| `perf/engine-perf.spec.ts` (paste-on-top scenario) | perf harness | real Ctrl+C/Ctrl+V paste-on-top adds exactly N → 2N nodes; honest draw-count guard (see [ADR 0020](adr/0020-engine-perf-harness-and-measurement-protocol.md)) |
+| `perf/engine-perf.spec.ts` (paste-on-top scenario) | perf harness | real Ctrl+C/Ctrl+V paste-on-top adds exactly N → 2N nodes; honest draw-count guard (see [ADR 0020](../adr/0020-engine-perf-harness-and-measurement-protocol.md)) |
 
-CI: [`perf-smoke.yml`](../.github/workflows/perf-smoke.yml) runs a small-N `npm run perf` on PRs so a regression in the measured render/paste path trips CI.
+CI: [`perf-smoke.yml`](../../.github/workflows/perf-smoke.yml) runs a small-N `npm run perf` on PRs so a regression in the measured render/paste path trips CI.
 
 ---
 
@@ -142,16 +142,16 @@ UI bug-fix pass: removed the floating `NodeActionBar` (right-click context menu 
 
 ### Labels & text-styling productization (2026-07-05) — ADRs 0030–0034
 
-Shipped on `integration` with [ADRs 0030–0034](adr/) + the 5-persona UX-sweep fixes + the RT (rich-text dedupe / inline canvas editing) rounds. The cycle's suites are folded into the totals above. The table below is the durable catalogue; the RT-round rows (inline editing, link cards, rotate/border) land after the initial UX-sweep block.
+Shipped on `integration` with [ADRs 0030–0034](../adr/) + the 5-persona UX-sweep fixes + the RT (rich-text dedupe / inline canvas editing) rounds. The cycle's suites are folded into the totals above. The table below is the durable catalogue; the RT-round rows (inline editing, link cards, rotate/border) land after the initial UX-sweep block.
 
 | Suite | Type | Covers |
 |---|---|---|
-| `schemas/__tests__/label.test.ts` · `stores/reducers/__tests__/label.test.ts` | lib unit | floating **Label** entity ([ADR 0031](adr/0031-floating-label-entity-model.md)) — schema round-trip + create/update/nudge-z reducers |
+| `schemas/__tests__/label.test.ts` · `stores/reducers/__tests__/label.test.ts` | lib unit | floating **Label** entity ([ADR 0031](../adr/0031-floating-label-entity-model.md)) — schema round-trip + create/update/nudge-z reducers |
 | `schemas/__tests__/notes.test.ts` | lib unit | `notes` on rectangle/textbox/label (parity with node/connector) |
-| `utils/__tests__/foldNodeDescription.test.ts` | lib unit | Option-A `description`→`notes` fold ([ADR 0032](adr/0032-node-name-caption-label-model.md)) — idempotent, block-separator, empty-skip |
+| `utils/__tests__/foldNodeDescription.test.ts` | lib unit | Option-A `description`→`notes` fold ([ADR 0032](../adr/0032-node-name-caption-label-model.md)) — idempotent, block-separator, empty-skip |
 | `utils/__tests__/seedNodeLabel.test.ts` · `seedConnectorLabel.test.ts` | lib unit | `label = name` / `name`→`labels[]` load seeds — idempotent via marker (the zero-migration seed pattern) |
-| `utils/__tests__/bulkStyleTarget.test.ts` | lib unit | homogeneous bulk-target derivation for the strip ([ADR 0030](adr/0030-docked-style-controls-strip.md) §2 amendment) |
-| `ColorSelector/__tests__/ColorPickerBody.test.tsx` | lib unit | unified colour picker ([ADR 0039](adr/0039-unified-color-picker-and-standard-palette.md)) — standard-grid render, hex-on-click, active-swatch (case-insensitive) match, grid-first custom reveal, contextual Transparent (fill/border/background only; absent for text). Replaces the removed dead-`ColorSelector` suite. |
+| `utils/__tests__/bulkStyleTarget.test.ts` | lib unit | homogeneous bulk-target derivation for the strip ([ADR 0030](../adr/0030-docked-style-controls-strip.md) §2 amendment) |
+| `ColorSelector/__tests__/ColorPickerBody.test.tsx` | lib unit | unified colour picker ([ADR 0039](../adr/0039-unified-color-picker-and-standard-palette.md)) — standard-grid render, hex-on-click, active-swatch (case-insensitive) match, grid-first custom reveal, contextual Transparent (fill/border/background only; absent for text). Replaces the removed dead-`ColorSelector` suite. |
 | `IsoTileArea/__tests__/IsoTileArea.borderInset.test.tsx` | lib unit | rectangle border inset by `strokeWidth/2` (no clip on canvas/export) |
 | `interaction/__tests__/TextBox.test.ts` · `Label.test.ts` | lib unit | placement mode contract — arm-vs-place gating (arming tap creates nothing → no double-placement), exactly-one-create on a canvas release, drag-from-panel places, wrong-mode guard (added 2026-07-02) |
 | `label-entity.spec.ts` · `label-edit-and-placement-cancel.spec.ts` | E2E | Label placement, inline-edit, placement cancel (right-click/Escape) |
@@ -160,7 +160,7 @@ Shipped on `integration` with [ADRs 0030–0034](adr/) + the 5-persona UX-sweep 
 | `connector-selection-clarity.spec.ts` · `canvas-selection-polish.spec.ts` | E2E | connector halo/exact-hit; selection polish (lasso reset, dbl-click label edit) |
 | `rectangle-overlap-select.spec.ts` · `rectangle-zorder-menu.spec.ts` | E2E | overlapping-rectangle top-most select; rectangle z-order via context menu |
 | `presenter-hover-notes.spec.ts` | E2E | view-mode hover popover shows only when the node has notes |
-| `utils/__tests__/foldTextBoxStyleFlags.test.ts` · `richTextTransform.test.ts` · `quillListAutofill.test.ts` · `quillLinkShortcut.test.ts` · `isoMath.richtext.test.ts` | lib unit | inline canvas text editing ([ADR 0034](adr/0034-inline-canvas-text-editing-and-dual-scope-strip-formatting.md)) — legacy `is*` flag fold into content, whole-content/range B-I-U-S + align transforms, markdown list autofill, `normalizeWebLinkUrl`/`expandToWord` link helpers, line-spacing/greedy-wrap geometry |
+| `utils/__tests__/foldTextBoxStyleFlags.test.ts` · `richTextTransform.test.ts` · `quillListAutofill.test.ts` · `quillLinkShortcut.test.ts` · `isoMath.richtext.test.ts` | lib unit | inline canvas text editing ([ADR 0034](../adr/0034-inline-canvas-text-editing-and-dual-scope-strip-formatting.md)) — legacy `is*` flag fold into content, whole-content/range B-I-U-S + align transforms, markdown list autofill, `normalizeWebLinkUrl`/`expandToWord` link helpers, line-spacing/greedy-wrap geometry |
 | `schemas/__tests__/textBox.test.ts` (extended) | lib unit | **S1-brick guard:** the ADR 0034 text-styling fields (`lineHeight`/`width`/`height`/`border*`/`verticalAlign`/`orientation`) round-trip, and the large unbounded values the strip can write MUST parse — a re-introduced cap fails the test (the connector-label 24→40 brick lesson) |
 | `components/TransformControlsManager/__tests__/TransformControlsManager.dragChrome.test.tsx` | lib unit | **RECT-1:** selection bounds/anchors render nothing while `mode==='DRAG_ITEMS'` (every item type) and reappear at rest |
 | `textbox-text-edit-move.spec.ts` · `element-link-card.spec.ts` · `rotate-border.spec.ts` · `toolbar-overflow.spec.ts` | E2E | inline text edit (commit/cancel/empty-box lifecycle/resize/paste/align/link card), Ctrl+K link cards for all label types, rotate handle + text-box border, toolbar style-slot overflow |
@@ -185,7 +185,7 @@ Shipped on `integration` with [ADRs 0030–0034](adr/) + the 5-persona UX-sweep 
 | **Standalone app config** | **1** | **3** |
 | **Total** | **60** | **525** |
 
-(This Quick Reference is a by-layer breakdown of the **`axoview-lib`** suite snapshotted earlier in the wave; the current `axoview-lib` figure is the 1039 in the totals table above. App-side suites — projectZip, LocalStorageProvider, lean-save/requiredPacks regressions, and the productization-audit additions — count under `axoview-app`; server-runtime suites under `axoview-backend` / `axoview-worker`.)
+(This Quick Reference is a by-layer breakdown of the **`axoview-lib`** suite snapshotted earlier in the wave, so its per-suite counts lag; the current `axoview-lib` figure is the **1522** in the totals table above. App-side suites — projectZip, LocalStorageProvider, lean-save/requiredPacks regressions, and the productization-audit additions — count under `axoview-app`; server-runtime suites under `axoview-backend` / `axoview-worker`.)
 
 ---
 
@@ -193,7 +193,7 @@ Shipped on `integration` with [ADRs 0030–0034](adr/) + the 5-persona UX-sweep 
 
 The engine-perf harness is the committed, reproducible measurement rig for the render
 (T2) and simulation (T3) work. The decision + protocol are durable in
-[ADR 0020](adr/0020-engine-perf-harness-and-measurement-protocol.md); this is the
+[ADR 0020](../adr/0020-engine-perf-harness-and-measurement-protocol.md); this is the
 how-to.
 
 - **Run:** `npm run perf` (config `packages/axoview-e2e/perf/perf.config.ts`). It
@@ -219,17 +219,17 @@ how-to.
   hand-started server unless it was just rebuilt + restarted. Kill stray :3000 listeners
   between runs.
 
-The running record (committed): [perf-results/baseline.md](../perf-results/baseline.md)
-(certified numbers) and [perf-results/decision-log.md](../perf-results/decision-log.md)
+The running record (committed): [perf-results/baseline.md](../../perf-results/baseline.md)
+(certified numbers) and [perf-results/decision-log.md](../../perf-results/decision-log.md)
 (one row per hypothesis; the resume point is its tail).
 
 ## Branch additions (2026-05-19) — Startup perf + splash screen
 
 | Suite | Coverage |
 |---|---|
-| [`packages/axoview-app/src/hooks/__tests__/useRuntimeConfig.test.ts`](../packages/axoview-app/src/hooks/__tests__/useRuntimeConfig.test.ts) | 3 tests pinning `fetchRuntimeConfig` behavior: falls back to defaults on fetch rejection; aborts a hanging fetch via `AbortSignal.timeout(800)` within ~1 s (the load-bearing assertion — caps Chrome/Windows dual-stack connect-probe latency); singleton cache returns the same instance and hits fetch only once. |
-| [`packages/axoview-app/src/providers/__tests__/AppStorageContext.test.tsx`](../packages/axoview-app/src/providers/__tests__/AppStorageContext.test.tsx) | Render-based regression for the `Promise.all` parallelism contract: with both `/api/config` and `/api/storage/status` mocked to delay 200 ms, fetches must be initiated within 50 ms of each other and `isInitialized` flips to `true` within ~1.8 × the per-probe delay (≈360 ms, not the sequential ≈400 ms). Catches a regression to `await … await …`. |
-| [`packages/axoview-app/src/services/storage/__tests__/LocalStorageProvider.test.ts`](../packages/axoview-app/src/services/storage/__tests__/LocalStorageProvider.test.ts) (extended) | Adds `isAvailable() aborts a hanging /api/storage/status probe within ~1 s and stays offline` — the mirror of the `useRuntimeConfig` timeout pin for the second startup probe. |
+| [`packages/axoview-app/src/hooks/__tests__/useRuntimeConfig.test.ts`](../../packages/axoview-app/src/hooks/__tests__/useRuntimeConfig.test.ts) | 3 tests pinning `fetchRuntimeConfig` behavior: falls back to defaults on fetch rejection; aborts a hanging fetch via `AbortSignal.timeout(800)` within ~1 s (the load-bearing assertion — caps Chrome/Windows dual-stack connect-probe latency); singleton cache returns the same instance and hits fetch only once. |
+| [`packages/axoview-app/src/providers/__tests__/AppStorageContext.test.tsx`](../../packages/axoview-app/src/providers/__tests__/AppStorageContext.test.tsx) | Render-based regression for the `Promise.all` parallelism contract: with both `/api/config` and `/api/storage/status` mocked to delay 200 ms, fetches must be initiated within 50 ms of each other and `isInitialized` flips to `true` within ~1.8 × the per-probe delay (≈360 ms, not the sequential ≈400 ms). Catches a regression to `await … await …`. |
+| [`packages/axoview-app/src/services/storage/__tests__/LocalStorageProvider.test.ts`](../../packages/axoview-app/src/services/storage/__tests__/LocalStorageProvider.test.ts) (extended) | Adds `isAvailable() aborts a hanging /api/storage/status probe within ~1 s and stays offline` — the mirror of the `useRuntimeConfig` timeout pin for the second startup probe. |
 
 > Note: `jest.setup.js` now polyfills `AbortSignal.timeout` because jsdom 20 (bundled with `jest-environment-jsdom@29`) ships an `AbortSignal` missing the static `.timeout()` method. Without the polyfill, the `timeoutSignal()` helper in `LocalStorageProvider.ts` falls back to `undefined` in tests and the abort path can't be observed.
 
@@ -237,29 +237,29 @@ The running record (committed): [perf-results/baseline.md](../perf-results/basel
 
 | Suite | Coverage |
 |---|---|
-| [`packages/axoview-lib/src/__perf_refactor_regression__/multiSelect.contract.test.ts`](../packages/axoview-lib/src/__perf_refactor_regression__/multiSelect.contract.test.ts) | 6 store-level tests pinning ADR-0006 invariants: `setSelectedIds([])` clears both slices; `setSelectedIds([single])` opens panel; `setSelectedIds([>1])` auto-hides panel (MQA #9); `toggleSelected` add/remove + auto-reopen on count→1; `clearSelection`; and `setItemControls(single)` mirroring into `selectedIds` for the layer-row click path. |
-| [`packages/axoview-lib/src/utils/__tests__/connectorSelection.test.ts`](../packages/axoview-lib/src/utils/__tests__/connectorSelection.test.ts) | 8 unit tests pinning the connector-with-waypoint helpers: `getConnectorWaypointRefs` (tile-bound middle anchors only, never endpoints), `isUserFacingRef` / `countUserFacingRefs` (waypoints don't inflate the badge), `filterUserFacingRefs` (drops waypoint refs for assign-to-layer dispatch). |
-| [`packages/axoview-lib/src/__perf_refactor_regression__/Cursor.waypointGestures.test.ts`](../packages/axoview-lib/src/__perf_refactor_regression__/Cursor.waypointGestures.test.ts) | 6 mode-action regression tests for MQA #8/#9 + waypoint-removal: Alt+click splice removes the clicked waypoint; subsequent mouseup preserves the connector selection (no spurious `clearSelection`); plain click still sets up drag; DOM-driven `targetAnchorId` lookup wins over tile-equality so off-tile clicks within the 32 px hit ring still resolve; Ctrl+click on a connector toggles connector + its waypoints as one atomic group. |
+| [`packages/axoview-lib/src/__perf_refactor_regression__/multiSelect.contract.test.ts`](../../packages/axoview-lib/src/__perf_refactor_regression__/multiSelect.contract.test.ts) | 6 store-level tests pinning ADR-0006 invariants: `setSelectedIds([])` clears both slices; `setSelectedIds([single])` opens panel; `setSelectedIds([>1])` auto-hides panel (MQA #9); `toggleSelected` add/remove + auto-reopen on count→1; `clearSelection`; and `setItemControls(single)` mirroring into `selectedIds` for the layer-row click path. |
+| [`packages/axoview-lib/src/utils/__tests__/connectorSelection.test.ts`](../../packages/axoview-lib/src/utils/__tests__/connectorSelection.test.ts) | 8 unit tests pinning the connector-with-waypoint helpers: `getConnectorWaypointRefs` (tile-bound middle anchors only, never endpoints), `isUserFacingRef` / `countUserFacingRefs` (waypoints don't inflate the badge), `filterUserFacingRefs` (drops waypoint refs for assign-to-layer dispatch). |
+| [`packages/axoview-lib/src/__perf_refactor_regression__/Cursor.waypointGestures.test.ts`](../../packages/axoview-lib/src/__perf_refactor_regression__/Cursor.waypointGestures.test.ts) | 6 mode-action regression tests for MQA #8/#9 + waypoint-removal: Alt+click splice removes the clicked waypoint; subsequent mouseup preserves the connector selection (no spurious `clearSelection`); plain click still sets up drag; DOM-driven `targetAnchorId` lookup wins over tile-equality so off-tile clicks within the 32 px hit ring still resolve; Ctrl+click on a connector toggles connector + its waypoints as one atomic group. |
 
 ## Branch additions (2026-05-15 → 2026-05-16) — MQA Bundle B + follow-ups
 
 | Suite | Coverage |
 |---|---|
-| [`packages/axoview-lib/src/__perf_refactor_regression__/connector.createUndoRedo.test.tsx`](../packages/axoview-lib/src/__perf_refactor_regression__/connector.createUndoRedo.test.tsx) | Real-store regression for MQA #5. Exercises the full begin / createConnector / updateConnector×N / commit / undo path on `ModelProvider` + `SceneProvider` + `UiStateProvider`, asserts both stores' `canRedo()` are true after undo, and that the connector reappears after redo. Pins the load-bearing scene-store undo/redo invariant ([architecture.md §2g](architecture.md#2g-history-system)). |
-| [`packages/axoview-lib/src/__perf_refactor_regression__/node.linkTooltipDedup.test.tsx`](../packages/axoview-lib/src/__perf_refactor_regression__/node.linkTooltipDedup.test.ts) | Structural pin for MQA #22 + #25 final design: no chip / no click-Popover; bottom-right link badge is `pointerEvents: 'none'`; Pan.ts opens the readOnly NodePanel on body click for any content-bearing node; default cursor in EXPLORABLE_READONLY is `default`; NodePanel header renders the node name as a clickable link with URL in tooltip; LINKED DIAGRAM body section with resolved-name link or unresolved-id error. |
-| [`packages/axoview-lib/src/__perf_refactor_regression__/f2.rendererScope.test.ts`](../packages/axoview-lib/src/__perf_refactor_regression__/f2.rendererScope.test.ts) | MQA #13. Asserts the F2 → `inlineEditNodeName` dispatch in `useInteractionManager` is scoped to keystrokes originating inside the renderer, so a canvas-selected item can no longer steal focus from the file-explorer's edit input. |
-| [`packages/axoview-app/src/utils/__tests__/shareUrl.test.ts`](../packages/axoview-app/src/utils/__tests__/shareUrl.test.ts) | MQA #24. `shareUrlFromUuid(uuid)` always returns `window.location.origin + /display/p/<uuid>`; never leaks the backend port. |
-| [`packages/axoview-app/src/components/fileExplorer/__tests__/delete.contract.test.ts`](../packages/axoview-app/src/components/fileExplorer/__tests__/delete.contract.test.ts) | MQA #18. Calling-order contract: `notifyDiagramDeletedFromTree(id)` must fire **before** the storage delete in both `FileExplorer.confirmDelete` and `DiagramManager.confirmDelete`, and the provider implementation must cancel autosave, clear the scratch buffer, and reset `currentDiagram`. |
-| [`packages/axoview-app/src/services/storage/__tests__/backendRoutes.contract.test.ts`](../packages/axoview-app/src/services/storage/__tests__/backendRoutes.contract.test.ts) | MQA #21. Source-level contract: `createFolder` and `createDiagram` in `packages/axoview-backend/src/routes.js` use random-suffix ids (`Math.random().toString(36)`) with a collision-retry loop, so sequential project-import bursts can't collide on `Date.now()`. |
-| [`packages/axoview-lib/src/__perf_refactor_regression__/Pan.modes.test.ts`](../packages/axoview-lib/src/__perf_refactor_regression__/Pan.modes.test.ts) | Extended for MQA #22 / #25: cursor switches between `default` (EXPLORABLE_READONLY) and `grab` (EDITABLE) on entry; mousedown does not flip to `grabbing` in preview; body click in preview opens panel for any content-bearing node including link-only. |
-| [`packages/axoview-lib/src/components/RichTextEditor/__tests__/RichTextEditor.formats.test.ts`](../packages/axoview-lib/src/components/RichTextEditor/__tests__/RichTextEditor.formats.test.ts) | Extended for MQA #12, **flipped by the ADR 0034 addendum (2026-07-03)**: markdown list autofill is back ON. Pins that BOTH rich surfaces (Notes `RichTextEditor` + on-canvas `TextBoxInlineEditor`) wire the ONE shared `buildListAutofillBinding` and that the old noop override never returns. Behavior itself is covered by [`quillListAutofill.test.ts`](../packages/axoview-lib/src/utils/__tests__/quillListAutofill.test.ts) (prefix regex incl. checkbox exclusion; delta/history choreography making Ctrl+Z restore the literal typed text; mid-line and no-list-format guards). |
-| [`packages/axoview-app/src/services/storage/__tests__/LocalStorageProvider.test.ts`](../packages/axoview-app/src/services/storage/__tests__/LocalStorageProvider.test.ts) | Extended for MQA #14. Session-mode `renameDiagram` mirrors the new name into both the diagrams listing **and** the per-diagram blob (`blob.title` + `blob.name`). Corrupted-blob path leaves the listing rename in place without crashing. |
+| [`packages/axoview-lib/src/__perf_refactor_regression__/connector.createUndoRedo.test.tsx`](../../packages/axoview-lib/src/__perf_refactor_regression__/connector.createUndoRedo.test.tsx) | Real-store regression for MQA #5. Exercises the full begin / createConnector / updateConnector×N / commit / undo path on `ModelProvider` + `SceneProvider` + `UiStateProvider`, asserts both stores' `canRedo()` are true after undo, and that the connector reappears after redo. Pins the load-bearing scene-store undo/redo invariant ([architecture.md §2g](architecture.md#2g-history-system)). |
+| [`packages/axoview-lib/src/__perf_refactor_regression__/node.linkTooltipDedup.test.tsx`](../../packages/axoview-lib/src/__perf_refactor_regression__/node.linkTooltipDedup.test.ts) | Structural pin for MQA #22 + #25 final design: no chip / no click-Popover; bottom-right link badge is `pointerEvents: 'none'`; Pan.ts opens the readOnly NodePanel on body click for any content-bearing node; default cursor in EXPLORABLE_READONLY is `default`; NodePanel header renders the node name as a clickable link with URL in tooltip; LINKED DIAGRAM body section with resolved-name link or unresolved-id error. |
+| [`packages/axoview-lib/src/__perf_refactor_regression__/f2.rendererScope.test.ts`](../../packages/axoview-lib/src/__perf_refactor_regression__/f2.rendererScope.test.ts) | MQA #13. Asserts the F2 → `inlineEditNodeName` dispatch in `useInteractionManager` is scoped to keystrokes originating inside the renderer, so a canvas-selected item can no longer steal focus from the file-explorer's edit input. |
+| [`packages/axoview-app/src/utils/__tests__/shareUrl.test.ts`](../../packages/axoview-app/src/utils/__tests__/shareUrl.test.ts) | MQA #24. `shareUrlFromUuid(uuid)` always returns `window.location.origin + /display/p/<uuid>`; never leaks the backend port. |
+| [`packages/axoview-app/src/components/fileExplorer/__tests__/delete.contract.test.ts`](../../packages/axoview-app/src/components/fileExplorer/__tests__/delete.contract.test.ts) | MQA #18. Calling-order contract: `notifyDiagramDeletedFromTree(id)` must fire **before** the storage delete in both `FileExplorer.confirmDelete` and `DiagramManager.confirmDelete`, and the provider implementation must cancel autosave, clear the scratch buffer, and reset `currentDiagram`. |
+| [`packages/axoview-app/src/services/storage/__tests__/backendRoutes.contract.test.ts`](../../packages/axoview-app/src/services/storage/__tests__/backendRoutes.contract.test.ts) | MQA #21. Source-level contract: `createFolder` and `createDiagram` in `packages/axoview-backend/src/routes.js` use random-suffix ids (`Math.random().toString(36)`) with a collision-retry loop, so sequential project-import bursts can't collide on `Date.now()`. |
+| [`packages/axoview-lib/src/__perf_refactor_regression__/Pan.modes.test.ts`](../../packages/axoview-lib/src/__perf_refactor_regression__/Pan.modes.test.ts) | Extended for MQA #22 / #25: cursor switches between `default` (EXPLORABLE_READONLY) and `grab` (EDITABLE) on entry; mousedown does not flip to `grabbing` in preview; body click in preview opens panel for any content-bearing node including link-only. |
+| [`packages/axoview-lib/src/components/RichTextEditor/__tests__/RichTextEditor.formats.test.ts`](../../packages/axoview-lib/src/components/RichTextEditor/__tests__/RichTextEditor.formats.test.ts) | Extended for MQA #12, **flipped by the ADR 0034 addendum (2026-07-03)**: markdown list autofill is back ON. Pins that BOTH rich surfaces (Notes `RichTextEditor` + on-canvas `TextBoxInlineEditor`) wire the ONE shared `buildListAutofillBinding` and that the old noop override never returns. Behavior itself is covered by [`quillListAutofill.test.ts`](../../packages/axoview-lib/src/utils/__tests__/quillListAutofill.test.ts) (prefix regex incl. checkbox exclusion; delta/history choreography making Ctrl+Z restore the literal typed text; mid-line and no-list-format guards). |
+| [`packages/axoview-app/src/services/storage/__tests__/LocalStorageProvider.test.ts`](../../packages/axoview-app/src/services/storage/__tests__/LocalStorageProvider.test.ts) | Extended for MQA #14. Session-mode `renameDiagram` mirrors the new name into both the diagrams listing **and** the per-diagram blob (`blob.title` + `blob.name`). Corrupted-blob path leaves the listing rename in place without crashing. |
 
 ## Branch additions (2026-05-10)
 
 | Suite | Coverage |
 |---|---|
-| [`packages/axoview-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx`](../packages/axoview-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx) | 4 tests against the real provider stack (`ModelProvider` + `SceneProvider` + `UiStateProvider`): drag transaction collapses N tile updates into 1 history entry; baseline (no transaction) still pushes N entries; `pendingPre` stays alive across intermediate ticks (per-tick history.past stays flat); 40-tick drag completes under 1500 ms. The fixture is loaded from [`packages/axoview-lib/src/__perf_refactor_regression__/fixtures/perf-stress-diagram.json`](../packages/axoview-lib/src/__perf_refactor_regression__/fixtures/perf-stress-diagram.json) and `modelSchema.safeParse`'d on setup — the file cannot drift out of schema. (Relocated 2026-05-23 from `packages/axoview-e2e/fixtures/` when the legacy e2e suite was deleted; this test is the sole consumer.) |
+| [`packages/axoview-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx`](../../packages/axoview-lib/src/__perf_refactor_regression__/connector.dragPerf.test.tsx) | 4 tests against the real provider stack (`ModelProvider` + `SceneProvider` + `UiStateProvider`): drag transaction collapses N tile updates into 1 history entry; baseline (no transaction) still pushes N entries; `pendingPre` stays alive across intermediate ticks (per-tick history.past stays flat); 40-tick drag completes under 1500 ms. The fixture is loaded from [`packages/axoview-lib/src/__perf_refactor_regression__/fixtures/perf-stress-diagram.json`](../../packages/axoview-lib/src/__perf_refactor_regression__/fixtures/perf-stress-diagram.json) and `modelSchema.safeParse`'d on setup — the file cannot drift out of schema. (Relocated 2026-05-23 from `packages/axoview-e2e/fixtures/` when the legacy e2e suite was deleted; this test is the sole consumer.) |
 
 ---
 
@@ -269,9 +269,9 @@ New suites shipped with Phase 5* + the session-mode UX revamp:
 
 | Suite | Coverage |
 |---|---|
-| [`packages/axoview-lib/src/utils/__tests__/leanSave.test.ts`](../packages/axoview-lib/src/utils/__tests__/leanSave.test.ts) | ADR 0003 round-trip identity (strip-then-merge), strip drops pure duplicates, custom + override icons preserved, empty `icons[]` produces full catalog after merge, `requiredPacks` derivation from full icons, **preservation contract for already-lean inputs** (the regression that broke icon-pack auto-load on import) |
-| [`packages/axoview-app/src/services/project/__tests__/projectZip.test.ts`](../packages/axoview-app/src/services/project/__tests__/projectZip.test.ts) | ADR 0001 round-trip (export → parse → import → identical workspace modulo IDs and `lastModified`), ID rewriting + cross-reference update, malformed zip rejection, unknown version rejection, replace-all typed-confirm gate |
-| [`packages/axoview-app/src/services/storage/__tests__/LocalStorageProvider.test.ts`](../packages/axoview-app/src/services/storage/__tests__/LocalStorageProvider.test.ts) (updated) | Unique-id minting (random suffix prevents same-ms collisions), `sessionSaveDiagram` preserves existing `folderId` when payload doesn't carry one |
+| [`packages/axoview-lib/src/utils/__tests__/leanSave.test.ts`](../../packages/axoview-lib/src/utils/__tests__/leanSave.test.ts) | ADR 0003 round-trip identity (strip-then-merge), strip drops pure duplicates, custom + override icons preserved, empty `icons[]` produces full catalog after merge, `requiredPacks` derivation from full icons, **preservation contract for already-lean inputs** (the regression that broke icon-pack auto-load on import) |
+| [`packages/axoview-app/src/services/project/__tests__/projectZip.test.ts`](../../packages/axoview-app/src/services/project/__tests__/projectZip.test.ts) | ADR 0001 round-trip (export → parse → import → identical workspace modulo IDs and `lastModified`), ID rewriting + cross-reference update, malformed zip rejection, unknown version rejection, replace-all typed-confirm gate |
+| [`packages/axoview-app/src/services/storage/__tests__/LocalStorageProvider.test.ts`](../../packages/axoview-app/src/services/storage/__tests__/LocalStorageProvider.test.ts) (updated) | Unique-id minting (random suffix prevents same-ms collisions), `sessionSaveDiagram` preserves existing `folderId` when payload doesn't carry one |
 
 ---
 
@@ -288,7 +288,7 @@ New suites shipped with Phase 5* + the session-mode UX revamp:
 
 These tests cover the mode state machine, mouse event routing, and keyboard dispatch. They use real module imports with minimal mocking (`src/utils` only).
 
-### [Cursor.modes.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/Cursor.modes.test.ts) · 16 tests · ✅ VALID
+### [Cursor.modes.test.ts](../../packages/axoview-lib/src/__perf_refactor_regression__/Cursor.modes.test.ts) · 16 tests · ✅ VALID
 
 **Production target:** `src/interaction/modes/Cursor.ts`
 
@@ -302,7 +302,7 @@ These tests cover the mode state machine, mouse event routing, and keyboard disp
 
 ---
 
-### [Lasso.modes.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/Lasso.modes.test.ts) · 15 tests · ✅ VALID
+### [Lasso.modes.test.ts](../../packages/axoview-lib/src/__perf_refactor_regression__/Lasso.modes.test.ts) · 15 tests · ✅ VALID
 
 **Production target:** `src/interaction/modes/Lasso.ts`
 
@@ -316,7 +316,7 @@ These tests cover the mode state machine, mouse event routing, and keyboard disp
 
 ---
 
-### [toolMenu.propagation.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/toolMenu.propagation.test.tsx) · 8 tests · ✅ VALID
+### [toolMenu.propagation.test.tsx](../../packages/axoview-lib/src/__perf_refactor_regression__/toolMenu.propagation.test.tsx) · 8 tests · ✅ VALID
 
 **Production targets:** `src/interaction/modes/Lasso.ts`, ToolMenu `onMouseDown` wrapper in `UiOverlay.tsx`
 
@@ -330,7 +330,7 @@ These tests cover the mode state machine, mouse event routing, and keyboard disp
 
 ---
 
-### [keyboard.dispatch.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/keyboard.dispatch.test.tsx) · 25 tests · ✅ VALID
+### [keyboard.dispatch.test.tsx](../../packages/axoview-lib/src/__perf_refactor_regression__/keyboard.dispatch.test.tsx) · 25 tests · ✅ VALID
 
 **Production targets:** `src/interaction/useInteractionManager.ts`, `src/interaction/usePanHandlers.ts`
 
@@ -338,7 +338,7 @@ Covers: keyboard shortcut dispatch, pan key combos, Delete key, Escape key, mode
 
 ---
 
-### [interactionManager.depStability.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/interactionManager.depStability.test.tsx) · 2 tests · ✅ VALID
+### [interactionManager.depStability.test.tsx](../../packages/axoview-lib/src/__perf_refactor_regression__/interactionManager.depStability.test.tsx) · 2 tests · ✅ VALID
 
 **Production target:** `src/interaction/useInteractionManager.ts`
 
@@ -346,7 +346,7 @@ Pins that `useCallback`/`useMemo` dependency arrays in `useInteractionManager` d
 
 ---
 
-### [usePanHandlers.test.ts](packages/axoview-lib/src/interaction/__tests__/usePanHandlers.test.ts) · 20 tests · ✅ VALID
+### [usePanHandlers.test.ts](../../packages/axoview-lib/src/interaction/__tests__/usePanHandlers.test.ts) · 20 tests · ✅ VALID
 
 **Production target:** `src/interaction/usePanHandlers.ts`
 
@@ -365,7 +365,7 @@ Pins that `useCallback`/`useMemo` dependency arrays in `useInteractionManager` d
 
 These tests cover the public API of `useScene`, view operations, clipboard history, and the initialization sequence.
 
-### [useScene.listShape.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/useScene.listShape.test.tsx) · 17 tests · ✅ VALID
+### [useScene.listShape.test.tsx](../../packages/axoview-lib/src/__perf_refactor_regression__/useScene.listShape.test.tsx) · 17 tests · ✅ VALID
 
 **Production target:** `src/hooks/useScene.ts`
 
@@ -373,7 +373,7 @@ Covers: `currentView` shape contract (items, connectors, rectangles, textBoxes a
 
 ---
 
-### [useScene.referenceStability.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/useScene.referenceStability.test.tsx) · 7 tests · ✅ VALID
+### [useScene.referenceStability.test.tsx](../../packages/axoview-lib/src/__perf_refactor_regression__/useScene.referenceStability.test.tsx) · 7 tests · ✅ VALID
 
 **Production target:** `src/hooks/useScene.ts`
 
@@ -381,7 +381,7 @@ Covers: `currentView` reference stability — object identity must not change wh
 
 ---
 
-### [viewOps.integration.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/viewOps.integration.test.tsx) · 16 tests · ✅ VALID
+### [viewOps.integration.test.tsx](../../packages/axoview-lib/src/__perf_refactor_regression__/viewOps.integration.test.tsx) · 16 tests · ✅ VALID
 
 **Production target:** `src/stores/reducers/view.ts`
 
@@ -389,7 +389,7 @@ Covers: `createView`, `updateView`, `deleteView`, `setActiveView` full lifecycle
 
 ---
 
-### [useHistory.test.tsx](packages/axoview-lib/src/hooks/__tests__/useHistory.test.tsx) · 16 tests · ✅ VALID
+### [useHistory.test.tsx](../../packages/axoview-lib/src/hooks/__tests__/useHistory.test.tsx) · 16 tests · ✅ VALID
 
 **Production target:** `src/hooks/useHistory.ts`
 
@@ -397,7 +397,7 @@ Covers (mocked stores): `saveToHistory`/`undo`/`redo` delegation to stores; `can
 
 ---
 
-### [useHistory.realStore.test.tsx](packages/axoview-lib/src/hooks/__tests__/useHistory.realStore.test.tsx) · 7 tests · ✅ VALID
+### [useHistory.realStore.test.tsx](../../packages/axoview-lib/src/hooks/__tests__/useHistory.realStore.test.tsx) · 7 tests · ✅ VALID
 
 **Production targets:** `src/hooks/useHistory.ts`, `src/stores/modelStore.tsx`
 
@@ -412,7 +412,7 @@ Uses real `ModelProvider` + `SceneProvider` wrappers — tests actual Zustand st
 
 ---
 
-### [useInitialDataManager.test.tsx](packages/axoview-lib/src/hooks/__tests__/useInitialDataManager.test.tsx) · 8 tests · ✅ VALID
+### [useInitialDataManager.test.tsx](../../packages/axoview-lib/src/hooks/__tests__/useInitialDataManager.test.tsx) · 8 tests · ✅ VALID
 
 **Production target:** `src/hooks/useInitialDataManager.ts`
 
@@ -424,7 +424,7 @@ Covers: orphaned connector filtering on load (connectors referencing non-existen
 
 All reducer tests use real Immer-based functions with no mocking of the reducer logic itself. They verify immutability (input state unchanged), return-value correctness, and cascade behavior.
 
-### [connector.test.ts](packages/axoview-lib/src/stores/reducers/__tests__/connector.test.ts) · 21 tests · ✅ VALID
+### [connector.test.ts](../../packages/axoview-lib/src/stores/reducers/__tests__/connector.test.ts) · 21 tests · ✅ VALID
 
 **Production target:** `src/stores/reducers/connector.ts`
 
@@ -434,7 +434,7 @@ Covers: `createConnector`, `updateConnector`, `deleteConnector`, `syncConnector`
 
 ---
 
-### [modelItem.test.ts](packages/axoview-lib/src/stores/reducers/__tests__/modelItem.test.ts) · 8 tests · ✅ VALID
+### [modelItem.test.ts](../../packages/axoview-lib/src/stores/reducers/__tests__/modelItem.test.ts) · 8 tests · ✅ VALID
 
 **Production target:** `src/stores/reducers/modelItem.ts`
 
@@ -446,7 +446,7 @@ Covers: `createConnector`, `updateConnector`, `deleteConnector`, `syncConnector`
 
 ---
 
-### [viewItem.test.ts](packages/axoview-lib/src/stores/reducers/__tests__/viewItem.test.ts) · 21 tests · ✅ VALID
+### [viewItem.test.ts](../../packages/axoview-lib/src/stores/reducers/__tests__/viewItem.test.ts) · 21 tests · ✅ VALID
 
 **Production target:** `src/stores/reducers/viewItem.ts`
 
@@ -454,7 +454,7 @@ Covers: `createViewItem`, `updateViewItem`, `deleteViewItem` with connector casc
 
 ---
 
-### [view.test.ts](packages/axoview-lib/src/stores/reducers/__tests__/view.test.ts) · 13 tests · ✅ VALID
+### [view.test.ts](../../packages/axoview-lib/src/stores/reducers/__tests__/view.test.ts) · 13 tests · ✅ VALID
 
 **Production target:** `src/stores/reducers/view.ts`
 
@@ -462,7 +462,7 @@ Covers: view CRUD, action dispatcher, rename idempotency, delete-with-items casc
 
 ---
 
-### [rectangle.test.ts](packages/axoview-lib/src/stores/reducers/__tests__/rectangle.test.ts) · 20 tests · ✅ VALID
+### [rectangle.test.ts](../../packages/axoview-lib/src/stores/reducers/__tests__/rectangle.test.ts) · 20 tests · ✅ VALID
 
 **Production target:** `src/stores/reducers/rectangle.ts`
 
@@ -470,7 +470,7 @@ Covers: CRUD, sync with scene store, immutability, not-found throws.
 
 ---
 
-### [textBox.test.ts](packages/axoview-lib/src/stores/reducers/__tests__/textBox.test.ts) · 23 tests · ✅ VALID
+### [textBox.test.ts](../../packages/axoview-lib/src/stores/reducers/__tests__/textBox.test.ts) · 23 tests · ✅ VALID
 
 **Production target:** `src/stores/reducers/textBox.ts`
 
@@ -484,15 +484,15 @@ All schema tests use Zod's `.parse()` / `.safeParse()` directly. They act as liv
 
 | File | Production target | Tests | What's pinned |
 |---|---|---|---|
-| [colors.test.ts](packages/axoview-lib/src/schemas/__tests__/colors.test.ts) | `schemas/colors.ts` | 4 | colorSchema fields, colorsSchema array |
-| [layer.test.ts](packages/axoview-lib/src/schemas/__tests__/layer.test.ts) | `schemas/layer.ts` | 9 | layerSchema required fields (id, visible, locked, order); order must be integer; round-trip; layersSchema empty array + invalid member |
-| [connector.test.ts](packages/axoview-lib/src/schemas/__tests__/connector.test.ts) | `schemas/connector.ts` | 9 | anchorSchema (valid anchor, missing id); anchorSchema ref contracts (tile-only, empty ref, simultaneous item+tile — no exclusivity guard at schema level); connectorSchema (valid, missing anchors); connector anchor count (0 anchors allowed, 1 anchor allowed — minimum is app-level invariant only) |
-| [icons.test.ts](packages/axoview-lib/src/schemas/__tests__/icons.test.ts) | `schemas/icons.ts` | 4 | iconSchema, iconsSchema |
-| [modelItems.test.ts](packages/axoview-lib/src/schemas/__tests__/modelItems.test.ts) | `schemas/modelItems.ts` | 10 | modelItemSchema including `headerLink` optional URL field |
-| [rectangle.test.ts](packages/axoview-lib/src/schemas/__tests__/rectangle.test.ts) | `schemas/rectangle.ts` | 2 | rectangleSchema required fields |
-| [textBox.test.ts](packages/axoview-lib/src/schemas/__tests__/textBox.test.ts) | `schemas/textBox.ts` | 2 | textBoxSchema required fields |
-| [validation.test.ts](packages/axoview-lib/src/schemas/__tests__/validation.test.ts) | `schemas/validation.ts` | 10 | Full model validation, Zod coercion, invalid model rejection |
-| [views.test.ts](packages/axoview-lib/src/schemas/__tests__/views.test.ts) | `schemas/views.ts` | 6 | viewItemSchema, viewSchema, viewsSchema |
+| [colors.test.ts](../../packages/axoview-lib/src/schemas/__tests__/colors.test.ts) | `schemas/colors.ts` | 4 | colorSchema fields, colorsSchema array |
+| [layer.test.ts](../../packages/axoview-lib/src/schemas/__tests__/layer.test.ts) | `schemas/layer.ts` | 9 | layerSchema required fields (id, visible, locked, order); order must be integer; round-trip; layersSchema empty array + invalid member |
+| [connector.test.ts](../../packages/axoview-lib/src/schemas/__tests__/connector.test.ts) | `schemas/connector.ts` | 9 | anchorSchema (valid anchor, missing id); anchorSchema ref contracts (tile-only, empty ref, simultaneous item+tile — no exclusivity guard at schema level); connectorSchema (valid, missing anchors); connector anchor count (0 anchors allowed, 1 anchor allowed — minimum is app-level invariant only) |
+| [icons.test.ts](../../packages/axoview-lib/src/schemas/__tests__/icons.test.ts) | `schemas/icons.ts` | 4 | iconSchema, iconsSchema |
+| [modelItems.test.ts](../../packages/axoview-lib/src/schemas/__tests__/modelItems.test.ts) | `schemas/modelItems.ts` | 10 | modelItemSchema including `headerLink` optional URL field |
+| [rectangle.test.ts](../../packages/axoview-lib/src/schemas/__tests__/rectangle.test.ts) | `schemas/rectangle.ts` | 2 | rectangleSchema required fields |
+| [textBox.test.ts](../../packages/axoview-lib/src/schemas/__tests__/textBox.test.ts) | `schemas/textBox.ts` | 2 | textBoxSchema required fields |
+| [validation.test.ts](../../packages/axoview-lib/src/schemas/__tests__/validation.test.ts) | `schemas/validation.ts` | 10 | Full model validation, Zod coercion, invalid model rejection |
+| [views.test.ts](../../packages/axoview-lib/src/schemas/__tests__/views.test.ts) | `schemas/views.ts` | 6 | viewItemSchema, viewSchema, viewsSchema |
 
 **Total: 56 tests** (layer.test.ts added; prior count was 47)
 
@@ -500,7 +500,7 @@ All schema tests use Zod's `.parse()` / `.safeParse()` directly. They act as liv
 
 ## Layer 5 — Components
 
-### [uiOverlay.editorModes.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/uiOverlay.editorModes.test.ts) · 19 tests · ⚠️ SEMI-VALID
+### [uiOverlay.editorModes.test.ts](../../packages/axoview-lib/src/__perf_refactor_regression__/uiOverlay.editorModes.test.ts) · 19 tests · ⚠️ SEMI-VALID
 
 **Production target:** `src/components/UiOverlay/UiOverlay.tsx` (`EDITOR_MODE_MAPPING`)
 
@@ -511,7 +511,7 @@ Covers: tool visibility per editor mode (EDITABLE, EXPLORABLE_READONLY, NON_INTE
 
 ---
 
-### [RichTextEditor.formats.test.ts](packages/axoview-lib/src/components/RichTextEditor/__tests__/RichTextEditor.formats.test.ts) · 4 tests · ✅ VALID
+### [RichTextEditor.formats.test.ts](../../packages/axoview-lib/src/components/RichTextEditor/__tests__/RichTextEditor.formats.test.ts) · 4 tests · ✅ VALID
 
 **Production target:** `src/components/RichTextEditor/RichTextEditor.tsx` (`formats` export)
 
@@ -519,10 +519,10 @@ Covers: `'bullet'` absent (Quill unregistered alias); `'list'` present; all 9 ex
 
 ---
 
-### [ColorSelector.test.tsx](packages/axoview-lib/src/components/ColorSelector/__tests__/ColorSelector.test.tsx) · 14 tests · ✅ VALID
-### [CustomColorInput.test.tsx](packages/axoview-lib/src/components/ColorSelector/__tests__/CustomColorInput.test.tsx) · 11 tests · ✅ VALID
+### [ColorPickerBody.test.tsx](../../packages/axoview-lib/src/components/ColorSelector/__tests__/ColorPickerBody.test.tsx) · 12 tests · ✅ VALID
+### [CustomColorInput.test.tsx](../../packages/axoview-lib/src/components/ColorSelector/__tests__/CustomColorInput.test.tsx) · 11 tests · ✅ VALID
 
-**Production targets:** `ColorSelector`, `CustomColorInput`
+**Production targets:** `ColorPickerBody`, `CustomColorInput` (the unified color surface — [ADR 0039](../adr/0039-unified-color-picker-and-standard-palette.md))
 
 Covers: color picker render, hex input validation, EyeDropper API integration, onChange callbacks, cancel handling.
 
@@ -532,12 +532,12 @@ Covers: color picker render, hex input validation, EyeDropper API integration, o
 
 | File | Production target | Tests |
 |---|---|---|
-| [DebugUtils.test.tsx](packages/axoview-lib/src/components/DebugUtils/__tests__/DebugUtils.test.tsx) | `DebugUtils` | 2 |
-| [LineItem.test.tsx](packages/axoview-lib/src/components/DebugUtils/__tests__/LineItem.test.tsx) | `LineItem` | 2 |
-| [SizeIndicator.test.tsx](packages/axoview-lib/src/components/DebugUtils/__tests__/SizeIndicator.test.tsx) | `SizeIndicator` | 2 |
-| [Value.test.tsx](packages/axoview-lib/src/components/DebugUtils/__tests__/Value.test.tsx) | `Value` | 2 |
-| [Icon.test.tsx](packages/axoview-lib/src/components/ItemControls/IconSelectionControls/__tests__/Icon.test.tsx) | `IconSelectionControls/Icon` | 2 |
-| [Label.test.tsx](packages/axoview-lib/src/components/Label/__tests__/Label.test.tsx) | `Label` | 4 |
+| [DebugUtils.test.tsx](../../packages/axoview-lib/src/components/DebugUtils/__tests__/DebugUtils.test.tsx) | `DebugUtils` | 2 |
+| [LineItem.test.tsx](../../packages/axoview-lib/src/components/DebugUtils/__tests__/LineItem.test.tsx) | `LineItem` | 2 |
+| [SizeIndicator.test.tsx](../../packages/axoview-lib/src/components/DebugUtils/__tests__/SizeIndicator.test.tsx) | `SizeIndicator` | 2 |
+| [Value.test.tsx](../../packages/axoview-lib/src/components/DebugUtils/__tests__/Value.test.tsx) | `Value` | 2 |
+| [Icon.test.tsx](../../packages/axoview-lib/src/components/ItemControls/IconSelectionControls/__tests__/Icon.test.tsx) | `IconSelectionControls/Icon` | 2 |
+| [Label.test.tsx](../../packages/axoview-lib/src/components/Label/__tests__/Label.test.tsx) | `Label` | 4 |
 
 ---
 
@@ -547,20 +547,20 @@ These tests pin the fixes from the performance refactoring session. They primari
 
 | File | Production target | Tests | What's pinned |
 |---|---|---|---|
-| [connector.renderIsolation.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/connector.renderIsolation.test.tsx) | `Connectors.tsx`, `Connector.tsx` | 5 | N-2/N-3: `Connector` is `React.memo`; `Connectors` passes stable selector |
-| [expandableLabel.selectorConsolidation.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/expandableLabel.selectorConsolidation.test.tsx) | `ExpandableLabel.tsx` | 3 | N-4: single `useUiStateStore` call (was two — caused double re-render) |
-| [exportImageDialog.memo.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/exportImageDialog.memo.test.ts) | `ExportImageDialog.tsx` | 2 | H-3: component is wrapped in `React.memo` |
-| [grid.backgroundFormula.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/grid.backgroundFormula.test.ts) | `Grid.tsx` | 14 | C-1: CSS background-size formula, tile size, zoom scaling |
-| [gsap.dependency.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/gsap.dependency.test.ts) | `package.json`, source files | 2 | N-5: GSAP removed from dependencies; no remaining imports |
-| [rendererSize.sharedObserver.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/rendererSize.sharedObserver.test.tsx) | `uiStateStore.tsx` | 4 | N-1: single ResizeObserver writes `rendererSize`; all other components read from store |
-| [useRAFThrottle.cleanup.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/useRAFThrottle.cleanup.test.ts) | `src/interaction/useRAFThrottle.ts` | 8 | M-2: RAF handle cancelled on unmount; no stale callbacks; throttle contract |
-| [useResizeObserver.lifecycle.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/useResizeObserver.lifecycle.test.ts) | `src/hooks/useResizeObserver.ts` | 10 | H-2: observer registered on mount, disconnected on unmount, reconnected on ref change |
+| [connector.renderIsolation.test.tsx](../../packages/axoview-lib/src/__perf_refactor_regression__/connector.renderIsolation.test.tsx) | `Connectors.tsx`, `Connector.tsx` | 5 | N-2/N-3: `Connector` is `React.memo`; `Connectors` passes stable selector |
+| [expandableLabel.selectorConsolidation.test.tsx](../../packages/axoview-lib/src/__perf_refactor_regression__/expandableLabel.selectorConsolidation.test.tsx) | `ExpandableLabel.tsx` | 3 | N-4: single `useUiStateStore` call (was two — caused double re-render) |
+| [exportImageDialog.memo.test.ts](../../packages/axoview-lib/src/__perf_refactor_regression__/exportImageDialog.memo.test.ts) | `ExportImageDialog.tsx` | 2 | H-3: component is wrapped in `React.memo` |
+| [grid.backgroundFormula.test.ts](../../packages/axoview-lib/src/__perf_refactor_regression__/grid.backgroundFormula.test.ts) | `Grid.tsx` | 14 | C-1: CSS background-size formula, tile size, zoom scaling |
+| [gsap.dependency.test.ts](../../packages/axoview-lib/src/__perf_refactor_regression__/gsap.dependency.test.ts) | `package.json`, source files | 2 | N-5: GSAP removed from dependencies; no remaining imports |
+| [rendererSize.sharedObserver.test.tsx](../../packages/axoview-lib/src/__perf_refactor_regression__/rendererSize.sharedObserver.test.tsx) | `uiStateStore.tsx` | 4 | N-1: single ResizeObserver writes `rendererSize`; all other components read from store |
+| [useRAFThrottle.cleanup.test.ts](../../packages/axoview-lib/src/__perf_refactor_regression__/useRAFThrottle.cleanup.test.ts) | `src/interaction/useRAFThrottle.ts` | 8 | M-2: RAF handle cancelled on unmount; no stale callbacks; throttle contract |
+| [useResizeObserver.lifecycle.test.ts](../../packages/axoview-lib/src/__perf_refactor_regression__/useResizeObserver.lifecycle.test.ts) | `src/hooks/useResizeObserver.ts` | 10 | H-2: observer registered on mount, disconnected on unmount, reconnected on ref change |
 
 ---
 
 ## Layer 7 — Utilities & Config
 
-### [svgOptimizer.test.ts](packages/axoview-lib/src/utils/svgOptimizer.test.ts) · 30 tests · ✅ VALID
+### [svgOptimizer.test.ts](../../packages/axoview-lib/src/utils/__tests__/svgOptimizer.test.ts) · 30 tests · ✅ VALID
 
 **Production target:** `src/utils/svgOptimizer.ts`
 
@@ -571,13 +571,13 @@ Covers all three SVG export optimization phases:
 
 ---
 
-### [keyboard.dispatch.test.tsx](packages/axoview-lib/src/__perf_refactor_regression__/keyboard.dispatch.test.tsx) · 25 tests · ✅ VALID
+### [keyboard.dispatch.test.tsx](../../packages/axoview-lib/src/__perf_refactor_regression__/keyboard.dispatch.test.tsx) · 25 tests · ✅ VALID
 
 (See Layer 1 — listed here also as it covers utility-level keyboard routing.)
 
 ---
 
-### [shortcuts.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/shortcuts.test.ts) · 7 tests · ✅ VALID
+### [shortcuts.test.ts](../../packages/axoview-lib/src/__perf_refactor_regression__/shortcuts.test.ts) · 7 tests · ✅ VALID
 
 **Production target:** `src/config/shortcuts.ts`
 
@@ -585,7 +585,7 @@ Pins all `FIXED_SHORTCUTS` constant values (Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y, Dele
 
 ---
 
-### [settings.defaults.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/settings.defaults.test.ts) · 14 tests · ✅ VALID
+### [settings.defaults.test.ts](../../packages/axoview-lib/src/__perf_refactor_regression__/settings.defaults.test.ts) · 14 tests · ✅ VALID
 
 **Production targets:** `src/config/hotkeys.ts`, `src/config/panSettings.ts`, `src/config/zoomSettings.ts`
 
@@ -593,7 +593,7 @@ Pins: `DEFAULT_HOTKEY_PROFILE = 'smnrct'`; all pan toggle defaults (middleClick,
 
 ---
 
-### [i18n.config.test.ts](packages/axoview-lib/src/__perf_refactor_regression__/i18n.config.test.ts) · 3 tests · ✅ VALID
+### [i18n.config.test.ts](../../packages/axoview-lib/src/__perf_refactor_regression__/i18n.config.test.ts) · 3 tests · ✅ VALID
 
 **Production target:** `packages/axoview-app/src/i18n.ts`
 
@@ -605,15 +605,15 @@ Pins `load: 'currentOnly'` (prevents short-code `en` 404) and `fallbackLng: 'en-
 
 | File | Production target | Tests | What's covered |
 |---|---|---|---|
-| [renderer.test.ts](packages/axoview-lib/src/utils/__tests__/renderer.test.ts) | `utils/renderer.ts` | 16 | Grid subset, bounds checking, screen-to-isometric coordinate conversion; `incrementZoom`/`decrementZoom` boundary enforcement (clamped at MIN_ZOOM/MAX_ZOOM, correct step, no float drift across full range) |
-| [common.test.ts](packages/axoview-lib/src/utils/__tests__/common.test.ts) | `utils/common.ts` | 1 | `clamp()` function |
-| [immer.test.ts](packages/axoview-lib/src/utils/__tests__/immer.test.ts) | Immer (third-party) | 2 | Array reference stability with Immer drafts |
+| [renderer.test.ts](../../packages/axoview-lib/src/utils/__tests__/renderer.test.ts) | `utils/renderer.ts` | 16 | Grid subset, bounds checking, screen-to-isometric coordinate conversion; `incrementZoom`/`decrementZoom` boundary enforcement (clamped at MIN_ZOOM/MAX_ZOOM, correct step, no float drift across full range) |
+| [common.test.ts](../../packages/axoview-lib/src/utils/__tests__/common.test.ts) | `utils/common.ts` | 1 | `clamp()` function |
+| [immer.test.ts](../../packages/axoview-lib/src/utils/__tests__/immer.test.ts) | Immer (third-party) | 2 | Array reference stability with Immer drafts |
 
 ---
 
 ## Layer 8 — Stores & Infrastructure
 
-### [zustand.deprecation.test.ts](packages/axoview-lib/src/stores/__tests__/zustand.deprecation.test.ts) · 4 tests · ✅ VALID
+### [zustand.deprecation.test.ts](../../packages/axoview-lib/src/stores/__tests__/zustand.deprecation.test.ts) · 4 tests · ✅ VALID
 
 **Production targets:** `stores/uiStateStore.tsx`, `stores/modelStore.tsx`, `stores/sceneStore.tsx`
 
@@ -621,7 +621,7 @@ Covers: no `[DEPRECATED]` console.warn fired when loading any of the 3 stores; s
 
 ---
 
-### [clipboard.test.ts](packages/axoview-lib/src/clipboard/__tests__/clipboard.test.ts) · 7 tests · ✅ VALID
+### [clipboard.test.ts](../../packages/axoview-lib/src/clipboard/__tests__/clipboard.test.ts) · 7 tests · ✅ VALID
 
 **Production target:** `src/clipboard/clipboard.ts`
 
@@ -629,7 +629,7 @@ Covers: `setClipboard` / `getClipboard` round-trip; null/undefined handling; cli
 
 ---
 
-### [useCopyPaste.test.ts](packages/axoview-lib/src/clipboard/__tests__/useCopyPaste.test.ts) · 10 tests · ✅ VALID
+### [useCopyPaste.test.ts](../../packages/axoview-lib/src/clipboard/__tests__/useCopyPaste.test.ts) · 10 tests · ✅ VALID
 
 **Production target:** `src/clipboard/useCopyPaste.ts`
 
@@ -660,7 +660,7 @@ The highest-regression-risk paths still without a real-module regression test:
 
 > **Productization regression-coverage note (2026-07-05):** a full `master..integration` fix-commit audit confirmed the cycle's regressions are largely covered; the two highest-risk uncovered gaps (RECT-1 drag-chrome, the text-box schema S1-brick class) were closed with the unit suites above. The four rows just added are the remaining **e2e-only** gaps — catalogued (not silently dropped) with the exact spec + assertion so they can be closed as a fast follow.
 
-The full standing-gap register (with risk/complexity) is in [known_issues.md](../known_issues.md) and [technical-review-2026-06.md §11](technical-review-2026-06.md#11-open-known-issues); the architectural framing is in [architecture.md §5](architecture.md#5-tests-gaps--quality).
+The full standing-gap register (with risk/complexity) is in [known_issues.md](../../known_issues.md) and [technical-review-2026-06.md §11](../reviews/technical-review-2026-06.md#11-open-known-issues); the architectural framing is in [architecture.md §5](architecture.md#5-tests-gaps--quality).
 
 ---
 
@@ -672,4 +672,4 @@ npx jest <pattern> --no-coverage                       # one suite, e.g. Cursor.
 npm test --workspace=packages/axoview-lib -- --coverage # with coverage
 ```
 
-Run from `packages/axoview-lib/`. HTML coverage report at `packages/axoview-lib/coverage/lcov-report/index.html` (global statement coverage ~32 %; thresholds floored at 10 % while the suite grows). Aggregate KPIs (test:source ratio, LOC, lint debt, complexity baseline) and the static-analysis report locations are in [technical-review-2026-06.md §8](technical-review-2026-06.md#8-quality-kpis-aggregate).
+Run from `packages/axoview-lib/`. HTML coverage report at `packages/axoview-lib/coverage/lcov-report/index.html` (global statement coverage ~32 %; thresholds floored at 10 % while the suite grows). Aggregate KPIs (test:source ratio, LOC, lint debt, complexity baseline) and the static-analysis report locations are in [technical-review-2026-06.md §8](../reviews/technical-review-2026-06.md#8-quality-kpis-aggregate).

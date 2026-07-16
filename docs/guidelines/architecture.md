@@ -1,6 +1,6 @@
 # Axoview — Architecture Reference
 
-**Last updated:** 2026-07-06 (rev 26 — Google identity & Drive storage: GIS token model + remember-me reconnect (ADR 0035), Drive provider (ADR 0036), storage places model — one tree / two places, per-diagram provider routing (ADR 0037); new §2o)
+**Last updated:** 2026-07-15 (rev 27 — docs housekeeping: render substrate corrected to WebGL2-sole ([ADR 0038](../adr/0038-webgl-instanced-render-substrate.md)); depth pointers re-aimed at the current reviews; ADR count + test totals refreshed; landing/`/app` split ([ADRs 0040–0041](../adr/)) and Drive-native sharing ([ADR 0042](../adr/0042-drive-native-sharing-and-readonly-preview.md)) folded into §2m; moved to `docs/guidelines/`)
 **Codebase root:** `packages/axoview-lib/src` (library) · `packages/axoview-app/src` (application shell) · `packages/axoview-backend/src` (Express + fs adapter) · `packages/axoview-worker/src` (Hono + Cloudflare Pages Functions)
 
 **Purpose:** This is the **orientation map** — what the codebase contains and where each piece lives, tight enough to read in five minutes before touching a surface. It is deliberately *not* the comprehensive reference: decisions live in ADRs, the deep architectural narrative + file-by-file inventory + KPIs live in the frozen technical review, the test catalogue lives in `testing.md`, and runtime issues live in `known_issues.md`. Each section below points to its deeper source.
@@ -9,14 +9,19 @@
 
 | You want… | Read |
 |---|---|
-| The *decision* behind a contract (why it works this way) | [docs/adr/](adr/) — 34 ADRs |
-| Deep architecture narrative, sequence diagrams, file-by-file inventory, quality KPIs | [docs/technical-review-2026-06.md](technical-review-2026-06.md) (frozen baseline) |
-| The full regression-suite catalogue (every suite, its contract, gaps) | [docs/testing.md](testing.md) |
-| Open runtime issues, deferred fixes, perf cliffs | [known_issues.md](../known_issues.md) + [docs/perf-troubleshooting.md](perf-troubleshooting.md) |
-| From-scratch deploy walkthrough | [docs/deployment.md](deployment.md) |
-| Design language (UI surfaces) | [docs/ux-principles.md](ux-principles.md) |
-| Strategic phase roadmap | [PLAN.md](../PLAN.md) |
-| How a working session runs (skill cadence) | [docs/workflow.md](workflow.md) |
+| The *decision* behind a contract (why it works this way) | [docs/adr/](../adr/) — 41 ADRs |
+| Deep architecture narrative, sequence diagrams, file-by-file inventory | [technical-review-2026-06.md](../reviews/technical-review-2026-06.md) — still the fullest system narrative (frozen at v2.0.1) |
+| Quality KPIs, `/audit` scorecard, risk register | [technical-review-2026-07.md](../reviews/technical-review-2026-07.md) — the most recent *comprehensive* baseline (frozen at v3.0.3) |
+| The WebGL2 render-substrate fold in depth | [technical-review-2026-07-08.md](../reviews/technical-review-2026-07-08.md) (scoped) + [ADR 0038](../adr/0038-webgl-instanced-render-substrate.md) |
+| The full regression-suite catalogue (every suite, its contract, gaps) | [testing.md](testing.md) |
+| Open runtime issues, deferred fixes, perf cliffs | [known_issues.md](../../known_issues.md) + [perf-troubleshooting.md](perf-troubleshooting.md) |
+| GPU/canvas pixel-fidelity rules | [canvas-rendering-guidelines.md](canvas-rendering-guidelines.md) |
+| From-scratch deploy walkthrough | [deployment.md](../deployment.md) |
+| Design language (UI surfaces) | [ux-principles.md](ux-principles.md) |
+| Strategic phase roadmap | [PLAN.md](../../PLAN.md) |
+| How a working session runs (skill cadence) | [workflow.md](../workflow.md) |
+
+> **Review currency:** every review above is frozen at its cut point and the released line is now **v3.7.0** (2026-07-14) — none covers Drive storage (ADRs 0035–0037), the landing/`/app` split (0040–0041), or Drive-native sharing (0042–0043). For those, this map + the ADRs are the current truth.
 
 ---
 
@@ -51,7 +56,7 @@ A "what exists and where it lives" map. The deep behavioural contracts (gotchas,
 | **Reconnect Anchor** | `interaction/modes/ReconnectAnchor.ts` | Anchor-handle mousedown |
 | **Touch / pen gestures** | `interaction/useInteractionManager.ts` (touch state machine) | Pointer Events → synthetic `SlimMouseEvent` forwarded into the modes above |
 
-**The contracts that matter** are locked in [ADR 0006 — Canvas Selection Contract](adr/0006-canvas-selection-contract.md) (the single + multi-select gesture matrix, connector-waypoint grouping, `getConnectorWaypointRefs` invariant) and [ux-principles §4](ux-principles.md). Touch/pen input (tap-select, drag-to-move/reconnect, two-finger pinch, long-press context menu, hold-then-drag lasso, drag-from-panel placement) is a Pointer-Events state machine that disambiguates by what's under the finger at down and forwards synthetic mouse events into the same modes — locked in [ADR 0018 — Touch/Pen Gesture Contract](adr/0018-touch-pen-gesture-contract.md) and [ux-principles §9](ux-principles.md); the mouse path is unchanged. The high-frequency drag-performance design (CSS-preview path, `previewAnchorTiles`, the stale-model race) is documented in [perf-troubleshooting.md](perf-troubleshooting.md) and summarised in [§3](#3-performance-architecture). The `isRendererInteraction` / `mousedownHandled` guards are explained in [§2b](#2b-mode-state-machine) and [§4](#4-lessons-learned).
+**The contracts that matter** are locked in [ADR 0006 — Canvas Selection Contract](../adr/0006-canvas-selection-contract.md) (the single + multi-select gesture matrix, connector-waypoint grouping, `getConnectorWaypointRefs` invariant) and [ux-principles §4](ux-principles.md). Touch/pen input (tap-select, drag-to-move/reconnect, two-finger pinch, long-press context menu, hold-then-drag lasso, drag-from-panel placement) is a Pointer-Events state machine that disambiguates by what's under the finger at down and forwards synthetic mouse events into the same modes — locked in [ADR 0018 — Touch/Pen Gesture Contract](../adr/0018-touch-pen-gesture-contract.md) and [ux-principles §9](ux-principles.md); the mouse path is unchanged. The high-frequency drag-performance design (CSS-preview path, `previewAnchorTiles`, the stale-model race) is documented in [perf-troubleshooting.md](perf-troubleshooting.md) and summarised in [§3](#3-performance-architecture). The `isRendererInteraction` / `mousedownHandled` guards are explained in [§2b](#2b-mode-state-machine) and [§4](#4-lessons-learned).
 
 ### Clipboard · History · Views
 
@@ -81,7 +86,7 @@ Model and scene maintain **independent** patch-pair history stacks (max 50 each)
 | **TextBox** | F2 · double-click label | `SceneLayers/TextBoxes/TextBox.tsx` |
 | **File tree** | F2 · context-menu Rename | `components/fileExplorer/` → `react-arborist` |
 
-Double-click rename in the file tree does not work (F2 / context-menu workaround) — tracked in [known_issues.md](../known_issues.md).
+Double-click rename in the file tree does not work (F2 / context-menu workaround) — tracked in [known_issues.md](../../known_issues.md).
 
 ### Styling, Labels & Canvas Text (ADRs 0030–0034)
 
@@ -89,20 +94,20 @@ The labels & text-styling productization cycle's subsystems. The **docked style 
 
 | Feature | Source | Entry Point |
 |---|---|---|
-| **Docked style strip** (canonical styling surface) | `components/TopBarStyleControls/TopBarStyleControls.tsx` | Portaled into the ADR 0005 Group-1 "Format" slot; edits the selected item / homogeneous bulk. [ADR 0030](adr/0030-docked-style-controls-strip.md) |
-| **Floating Label entity** | `schemas/label.ts`, `stores/reducers/label.ts`, `components/SceneLayers/` Label layer | Elements panel / placement mode; renders above the node layer. [ADR 0031](adr/0031-floating-label-entity-model.md) |
-| **Node/connector name↔label decouple** | `utils/seedNodeLabel.ts`, `utils/seedConnectorLabel.ts` | Load-time idempotent seed (`useInitialDataManager`); `label`/`labels[]` = on-canvas text, `name` = Layers identity. [ADR 0032](adr/0032-node-name-caption-label-model.md) |
-| **Inline canvas text editing + dual-scope strip formatting** | `components/SceneLayers/TextBoxes/TextBoxInlineEditor.tsx`, `utils/richTextTransform.ts`, `utils/quillListAutofill.ts`, `utils/foldTextBoxStyleFlags.ts` | Double-click / F2 / place-and-type; strip B/I/U/S applies whole-content (selected) or live range (editing). [ADR 0034](adr/0034-inline-canvas-text-editing-and-dual-scope-strip-formatting.md) |
-| **Inline link cards** | `components/SceneLayers/TextBoxes/TextBoxLinkCard.tsx`, `ElementLinkCard`, `utils/quillLinkShortcut.ts` | Ctrl/Cmd+K or caret-in-link; body-portaled Popper; web URL (`normalizeWebLinkUrl`) or `#diagram:<id>` fragment nav. [ADR 0034](adr/0034-inline-canvas-text-editing-and-dual-scope-strip-formatting.md) |
+| **Docked style strip** (canonical styling surface) | `components/TopBarStyleControls/TopBarStyleControls.tsx` | Portaled into the ADR 0005 Group-1 "Format" slot; edits the selected item / homogeneous bulk. [ADR 0030](../adr/0030-docked-style-controls-strip.md) |
+| **Floating Label entity** | `schemas/label.ts`, `stores/reducers/label.ts`, `components/SceneLayers/` Label layer | Elements panel / placement mode; renders above the node layer. [ADR 0031](../adr/0031-floating-label-entity-model.md) |
+| **Node/connector name↔label decouple** | `utils/seedNodeLabel.ts`, `utils/seedConnectorLabel.ts` | Load-time idempotent seed (`useInitialDataManager`); `label`/`labels[]` = on-canvas text, `name` = Layers identity. [ADR 0032](../adr/0032-node-name-caption-label-model.md) |
+| **Inline canvas text editing + dual-scope strip formatting** | `components/SceneLayers/TextBoxes/TextBoxInlineEditor.tsx`, `utils/richTextTransform.ts`, `utils/quillListAutofill.ts`, `utils/foldTextBoxStyleFlags.ts` | Double-click / F2 / place-and-type; strip B/I/U/S applies whole-content (selected) or live range (editing). [ADR 0034](../adr/0034-inline-canvas-text-editing-and-dual-scope-strip-formatting.md) |
+| **Inline link cards** | `components/SceneLayers/TextBoxes/TextBoxLinkCard.tsx`, `ElementLinkCard`, `utils/quillLinkShortcut.ts` | Ctrl/Cmd+K or caret-in-link; body-portaled Popper; web URL (`normalizeWebLinkUrl`) or `#diagram:<id>` fragment nav. [ADR 0034](../adr/0034-inline-canvas-text-editing-and-dual-scope-strip-formatting.md) |
 
 ### Workspace I/O (ADRs 0001–0003)
 
 | Feature | Source | Notes |
 |---|---|---|
-| **Project zip export / parse / import** | `axoview-app/src/services/project/projectZip.ts` | Three scopes/destinations; manifest validated before mutation; IDs always rewritten. [ADR 0001](adr/0001-project-zip-format.md). |
-| **Lean icon save** | `axoview-lib/src/utils/leanSave.ts` → `stripDefaultIcons` | Drops pure duplicates of `bundledFixtures.byId`. [ADR 0003](adr/0003-session-storage-lean-icon-save.md). |
-| **Load-time icon merge** | `axoview-lib/src/hooks/useInitialDataManager.ts` | `bundledFixtures ∪ model.icons`, runs every load. [ADR 0002](adr/0002-icon-catalog-merge-on-load.md). |
-| **Delete imported icon + workspace usage scan** | `ItemControls/IconSelectionControls/Icon.tsx`, `LeftDock/DeleteIconConfirmDialog.tsx`, `axoview-app/src/services/iconUsage.ts` | Hover-× on imported tiles; `TOMBSTONE_ICON` fallback for unresolved ids. Per-diagram scoping is a known gap (see [known_issues.md](../known_issues.md)). |
+| **Project zip export / parse / import** | `axoview-app/src/services/project/projectZip.ts` | Three scopes/destinations; manifest validated before mutation; IDs always rewritten. [ADR 0001](../adr/0001-project-zip-format.md). |
+| **Lean icon save** | `axoview-lib/src/utils/leanSave.ts` → `stripDefaultIcons` | Drops pure duplicates of `bundledFixtures.byId`. [ADR 0003](../adr/0003-session-storage-lean-icon-save.md). |
+| **Load-time icon merge** | `axoview-lib/src/hooks/useInitialDataManager.ts` | `bundledFixtures ∪ model.icons`, runs every load. [ADR 0002](../adr/0002-icon-catalog-merge-on-load.md). |
+| **Delete imported icon + workspace usage scan** | `ItemControls/IconSelectionControls/Icon.tsx`, `LeftDock/DeleteIconConfirmDialog.tsx`, `axoview-app/src/services/iconUsage.ts` | Hover-× on imported tiles; `TOMBSTONE_ICON` fallback for unresolved ids. Per-diagram scoping is a known gap (see [known_issues.md](../../known_issues.md)). |
 | **Session storage gauge / banner** | `fileExplorer/SessionStorageGauge.tsx`, `SessionModeBanner.tsx` | Listens to custom `axoview-session-changed` Event. |
 | **`sessionWorkUnexported` flag** | `DiagramLifecycleProvider` | Drives `beforeunload` in session mode; clears only on project-zip export. |
 
@@ -125,13 +130,13 @@ Persistence flow + canonical type location (`types/settings.ts`) in [§2j](#2j-c
 | Dialogs (Export/Help/Settings) | `ExportImageDialog`, `HelpDialog`, `SettingsDialog` | `uiState.dialog` set |
 | Notification snackbar | `NotificationSnackbar` (lib) · `NotificationStack` (app) | `uiState.notification` / `notificationStore` |
 | Context menu | `CanvasContextMenu` (ADR 0027) | `uiState.contextMenu` set (right-click tap / long-press; the sole per-item command surface — Details/Rename/Add note/cut/copy/layer/z-order/delete) |
-| Item controls panel | `ItemControlsManager` → `NodePanel` | `uiState.itemControls` set; EDITABLE = 2-tab (Details/Notes) — styling moved to the docked strip ([ADR 0030](adr/0030-docked-style-controls-strip.md)), identity name in a collapsed Metadata section ([ADR 0032](adr/0032-node-name-caption-label-model.md)); READONLY = single-scroll |
+| Item controls panel | `ItemControlsManager` → `NodePanel` | `uiState.itemControls` set; EDITABLE = 2-tab (Details/Notes) — styling moved to the docked strip ([ADR 0030](../adr/0030-docked-style-controls-strip.md)), identity name in a collapsed Metadata section ([ADR 0032](../adr/0032-node-name-caption-label-model.md)); READONLY = single-scroll |
 | Quick add popover | `QuickAddNodePopover` | EDITABLE; on `canvasEmptyDblClick` |
 | Preview button | toolbar `IconButton` | EDITABLE + server storage + saved diagram |
 | ToolMenu | `ToolMenu` | EDITABLE; Undo/Redo/Select/Lasso/Freehand/Pan/Connector (Rectangle + Text moved to Elements panel) |
 | ZoomControls / ViewTabs / ViewTitle / hint tooltips | — | per editor mode (see Editor Modes below) |
 
-Overlay region/ownership rules are locked in [ADR 0005 — Toolbar & Dock Layout Contract](adr/0005-toolbar-and-dock-layout-contract.md) and [ux-principles §8](ux-principles.md).
+Overlay region/ownership rules are locked in [ADR 0005 — Toolbar & Dock Layout Contract](../adr/0005-toolbar-and-dock-layout-contract.md) and [ux-principles §8](ux-principles.md).
 
 ### Export · Icon Packs · Canvas Modes
 
@@ -141,7 +146,7 @@ Overlay region/ownership rules are locked in [ADR 0005 — Toolbar & Dock Layout
 
 ### Storage Providers · File Explorer · Cross-Diagram Links
 
-- **Storage**: all ops route through `StorageManager` → active `StorageProvider`. Two shipped providers: `LocalStorageProvider` (server-backed when `/api/storage/*` reachable, else `sessionStorage`) and `GoogleDriveProvider` (2026-07-05/06 — see §2o). **Storage is per-diagram ("places model"), not a global mode**: the manager's active provider silently follows the open diagram ([ADR 0037](adr/0037-storage-places-model.md)). Backend folder CRUD + tree-manifest in `axoview-backend/server.js`. Contract: [ADR 0010 — Session Backend Contract](adr/0010-session-backend-contract.md).
+- **Storage**: all ops route through `StorageManager` → active `StorageProvider`. Two shipped providers: `LocalStorageProvider` (server-backed when `/api/storage/*` reachable, else `sessionStorage`) and `GoogleDriveProvider` (2026-07-05/06 — see §2o). **Storage is per-diagram ("places model"), not a global mode**: the manager's active provider silently follows the open diagram ([ADR 0037](../adr/0037-storage-places-model.md)). Backend folder CRUD + tree-manifest in `axoview-backend/server.js`. Contract: [ADR 0010 — Session Backend Contract](../adr/0010-session-backend-contract.md).
 - **File Explorer** (`axoview-app`, not lib): VS Code-style 280 px panel — `FileExplorerLayout`, `FileExplorer` (`react-arborist`), `FileTreeToolbar`, `ContextMenuItems`, `useFileTree`, `EmptyStateScreen`. Inline create/rename via a `__pending__` node; drag-and-drop with name-collision detection. Dual-place mode composes both providers' trees as synthetic place-root sections in ONE arborist tree, with per-section state rows (skeletons / sign-in / reconnect / error / setup / scope / empty) and cross-place DnD (session → Drive).
 - **Cross-diagram links**: a node stores a reference to another workspace diagram (`linkedDiagrams` via `AxoviewProps`). In EXPLORABLE_READONLY, clicking opens the target in a new tab; a blue badge signals the link.
 
@@ -159,7 +164,7 @@ Starting mode from `getStartingMode()` in `utils`.
 
 ## 2. Architecture Map
 
-> The store topology, package graph, component tree, and sequence flows are diagrammed in depth in [technical-review-2026-06.md §3–§4](technical-review-2026-06.md#3-architecture-overview). This section is the orientation summary; technical-review links back here for the formal mode + store definitions.
+> The store topology, package graph, component tree, and sequence flows are diagrammed in depth in [technical-review-2026-06.md §3–§4](../reviews/technical-review-2026-06.md#3-architecture-overview). This section is the orientation summary; technical-review links back here for the formal mode + store definitions.
 
 ### 2a. Store Layer
 
@@ -179,7 +184,7 @@ History stores **diffs** (Immer `{ patches, inversePatches }` pairs), not snapsh
 
 ### 2b. Mode State Machine
 
-**11 mode types** (the canonical formal definition; [technical-review §3e](technical-review-2026-06.md#3e-interaction-modes) links here):
+**11 mode types** (the canonical formal definition; [technical-review §3e](../reviews/technical-review-2026-06.md#3e-interaction-modes) links here):
 
 `INTERACTIONS_DISABLED` · `CURSOR` · `DRAG_ITEMS` · `PAN` · `PLACE_ICON` · `CONNECTOR` · `RECTANGLE.DRAW` · `RECTANGLE.TRANSFORM` · `TEXTBOX` · `LASSO` · `FREEHAND_LASSO`
 
@@ -237,7 +242,7 @@ Model and scene stores each keep an independent `{ past, future, maxHistorySize:
 
 ### 2h. Component Tree
 
-Full mermaid tree in [technical-review §3d](technical-review-2026-06.md#3d-component-tree-high-level-lib-side). Provider order (from `Axoview.tsx`): Theme → Locale → Model → Scene → UiState → Clipboard → CanvasMode → LayerContext → App(inner), with `LeftDockSlot` / `RightSidebarSlot` / `BottomDockSlot` as absolute-positioned siblings.
+Full mermaid tree in [technical-review §3d](../reviews/technical-review-2026-06.md#3d-component-tree-high-level-lib-side). Provider order (from `Axoview.tsx`): Theme → Locale → Model → Scene → UiState → Clipboard → CanvasMode → LayerContext → App(inner), with `LeftDockSlot` / `RightSidebarSlot` / `BottomDockSlot` as absolute-positioned siblings.
 
 **The one ordering insight that matters:** in `Renderer.tsx` the transparent `interactionsRef` interaction div sits **below** the Nodes + TransformControls SceneLayers, so `e.target === interactionsRef.current` is true only for empty-canvas clicks — the basis of the `isRendererInteraction` guard ([§2b](#2b-mode-state-machine)). `UiOverlay` is a sibling of `Renderer` and absolutely positions all UI relative to `rendererSize`.
 
@@ -283,11 +288,16 @@ Completeness is enforced by `i18n.localeCompleteness.test.ts` (every locale file
 - **`AppStorageContext`** — the only place that touches storage init (`isServerStorage`, `isInitialized`, `StorageManager`). Boot does a single `GET /api/config` probe with an **800 ms `AbortSignal.timeout`** (caps Chrome/Windows dual-stack connect latency); `serverStorage` selects server-backed vs sessionStorage. An inline splash in `public/index.html` covers the cold-start gap.
 - **`DiagramLifecycleProvider`** — diagram state, save / Save As / load / delete, keyboard shortcuts, `beforeunload` guard, icon-pack manager, save/discard/load + the ADR-0011 error dialogs.
 
-> ⚠️ **Correction (technical-review-2026-06 §3b):** the "103-line pure-composition `App.tsx`" this section once claimed is **stale** — `App.tsx` is ~442 LOC and carries the React Router tree, error/export/import dialogs, and icon-usage scanning. Treat [technical-review §3b](technical-review-2026-06.md#3b-package-responsibilities) as the current word on package responsibilities and LOC.
+> ⚠️ **Correction (technical-review-2026-06 §3b):** the "103-line pure-composition `App.tsx`" this section once claimed is **stale** — `App.tsx` is ~442 LOC and carries the React Router tree, error/export/import dialogs, and icon-usage scanning. Treat [technical-review §3b](../reviews/technical-review-2026-06.md#3b-package-responsibilities) as the current word on package responsibilities and LOC.
 
 ### 2m. Deployment & API Contract
 
-Three targets (local dev, Docker, Cloudflare Pages) from one codebase, sharing one `/api/*` HTTP contract; the frontend is byte-identical at the network boundary. **The durable contract is locked in [ADR 0009 — Deployment Topology](adr/0009-deployment-topology.md) and [ADR 0010 — Session Backend Contract](adr/0010-session-backend-contract.md).** Current-state route list, the key-based `StorageAdapter` interface, auth modes, and the Hono/Express split are in [technical-review §5–§6](technical-review-2026-06.md#5-deployment-topology); the from-scratch walkthrough is in [deployment.md](deployment.md). This doc no longer restates them.
+Three targets (local dev, Docker, Cloudflare Pages) from one codebase, sharing one `/api/*` HTTP contract; the frontend is byte-identical at the network boundary. **The durable contract is locked in [ADR 0009 — Deployment Topology](../adr/0009-deployment-topology.md) and [ADR 0010 — Session Backend Contract](../adr/0010-session-backend-contract.md).** Current-state route list, the key-based `StorageAdapter` interface, auth modes, and the Hono/Express split are in [technical-review §5–§6](../reviews/technical-review-2026-06.md#5-deployment-topology); the from-scratch walkthrough is in [deployment.md](../deployment.md). This doc no longer restates them.
+
+Two routing facts post-date that frozen review and are **not** in it:
+
+- **The site root is no longer the app** ([ADR 0040](../adr/0040-marketing-landing-and-spa-crawlability.md) / [0041](../adr/0041-discoverability-metadata-and-social-sharing.md), shipped v3.6.0). `/` serves an indexed marketing landing page; **the editor SPA moved to `/app`** (built as `app.html`, React Router `basename=/app`, assets at `/static`). Legacy `/display/*` links 301 to `/app/display/*` (`_redirects` + nginx + a dev-server fallback). Anything that hardcodes the editor at `/` is wrong — including older walkthrough docs.
+- **Anonymous Drive preview is worker-only** ([ADR 0042](../adr/0042-drive-native-sharing-and-readonly-preview.md) / [0043](../adr/0043-deferred-backend-for-google-api-hardening.md)). `/display/drive/:id` renders a Drive file read through a **server read-proxy** (`/api/public/drive/:id`) so `GOOGLE_API_KEY` stays a Cloudflare **secret** and never reaches the browser; it honours Drive trash (delete kills the link, restore revives it). **The Cloudflare Worker implements this proxy; the Express/Docker target does not** — self-hosted deployments have no anonymous-preview path.
 
 ### 2n. Workspace Bundles & Lean Icon Save
 
@@ -295,15 +305,15 @@ Three load-bearing ADRs lock the persistence contract — read them when touchin
 
 | ADR | Concern |
 |---|---|
-| [0001](adr/0001-project-zip-format.md) | Project zip format (manifest + `diagrams/<id>.json` + `tree-manifest.json`); ID rewriting; destination picker |
-| [0002](adr/0002-icon-catalog-merge-on-load.md) | `sideDockCatalog = bundledFixtures ∪ model.icons`; merge runs every load |
-| [0003](adr/0003-session-storage-lean-icon-save.md) | Strip default-catalog icons on every write; preserve custom + overrides; `requiredPacks` companion field |
+| [0001](../adr/0001-project-zip-format.md) | Project zip format (manifest + `diagrams/<id>.json` + `tree-manifest.json`); ID rewriting; destination picker |
+| [0002](../adr/0002-icon-catalog-merge-on-load.md) | `sideDockCatalog = bundledFixtures ∪ model.icons`; merge runs every load |
+| [0003](../adr/0003-session-storage-lean-icon-save.md) | Strip default-catalog icons on every write; preserve custom + overrides; `requiredPacks` companion field |
 
 The contract is **symmetric**: 0003 strips at write time, 0002 rehydrates at read time. Either side broken in isolation surfaces as "side dock empties after load" or "every diagram gets fatter on every save"; both directions are pinned by round-trip unit tests. `requiredPacks` is **derived-but-preserved** — re-derived only when every `item.icon` resolves against `model.icons`, otherwise preserved verbatim so a lean round-trip (autosave-before-packs-load, import-then-save) doesn't blow it away.
 
 ### 2o. Google Identity & Drive Storage (places model)
 
-Shipped 2026-07-05/06 — three ADRs lock it: [0035](adr/0035-google-identity-and-drive-authorization.md) (GIS implicit-flow token model), [0036](adr/0036-google-drive-storage-provider.md) (Drive provider), [0037](adr/0037-storage-places-model.md) (places model, supersedes 0036 §6). Load-bearing invariants:
+Shipped 2026-07-05/06 — three ADRs lock it: [0035](../adr/0035-google-identity-and-drive-authorization.md) (GIS implicit-flow token model), [0036](../adr/0036-google-drive-storage-provider.md) (Drive provider), [0037](../adr/0037-storage-places-model.md) (places model, supersedes 0036 §6). Load-bearing invariants:
 
 - **Token custody**: the access token lives in `authStore` (zustand, never persisted); `getValidToken()` is the sole accessor and piggybacks on any in-flight GIS request. A `localStorage.setItem` spy in the unit suite enforces token-never-persisted. The **profile hint** (`axoview-google-profile`) persists identity ONLY — it pre-renders the avatar and arms the boot silent reconnect (`RECONNECTING` state; popup-blocked boots arm a one-shot gesture retry). `driveScopeGranted` tracks granular consent — a user can grant identity without `drive.file` (every Drive call then 403s; the explorer shows a "Grant access" row, not a dead retry).
 - **Places, not modes**: `activeProviderId` means "the open diagram's place". `openDiagramById`/`handleCreateBlankDiagram` take a `placeId`; every `remoteStorageActive` branch keys off the open diagram with no per-branch routing. Sign-out flushes/closes the Drive-side diagram BEFORE revoking (`handleGoogleSignedOut(afterClose)`).
@@ -314,13 +324,16 @@ Shipped 2026-07-05/06 — three ADRs lock it: [0035](adr/0035-google-identity-an
 
 ## 3. Performance Architecture
 
-The codebase has been through several perf passes; the **diagnostic narratives and current state live in [perf-troubleshooting.md](perf-troubleshooting.md)** and the runtime-metrics baseline in [technical-review §8g](technical-review-2026-06.md#8g-production-runtime-metrics). The structural fixes still in force:
+The codebase has been through several perf passes; the **diagnostic narratives and current state live in [perf-troubleshooting.md](perf-troubleshooting.md)** and the runtime-metrics baseline in [technical-review §8g](../reviews/technical-review-2026-06.md#8g-production-runtime-metrics). The structural fixes still in force:
 
 - **O(1) item lookup** — module-level `WeakMap<items[], Map<id,item>>` cache (`useModelItem`, `getItemAtTile`).
 - **Patch-pair history** — diffs not snapshots ([§2g](#2g-history-system)).
 - **Zustand transaction batching** — `transaction()` buffers in `pendingStateRef`, flushes as 2 `setState` calls regardless of N.
 - **Viewport culling** — `Renderer.tsx` filters off-screen items/connectors via a coarse tile-bounds subscriber that bypasses React render until the range changes.
-- **Canvas2D node layer (T2, ADR 0019)** — the node layer is rendered by an imperative `<canvas>` (`SceneLayers/Nodes/NodesCanvas.tsx`): icon-bitmap cache + `fillText` labels, store-subscribed and rAF-coalesced, replacing ~14×N React/DOM elements with one canvas + O(visible) draws. Default + sole bulk renderer; the DOM `<Node>` (`Nodes.tsx`/`Node/Node.tsx`) is retained only as a **sparse overlay** for the selected ∪ dragged node (keeps F2 inline-rename, the readable-labels counter-scale, and the `--ff-drag` drag preview). Spawn settle @1000 ≈ −41% vs the DOM renderer; scales sub-linearly to 2,000. Measured by the engine-perf harness ([testing.md](testing.md), [ADR 0020](adr/0020-engine-perf-harness-and-measurement-protocol.md)).
+- **WebGL2 instanced substrate (T4, [ADR 0038](../adr/0038-webgl-instanced-render-substrate.md)) — the SOLE bulk renderer.** Nodes, floating labels, connector bodies and rectangle bodies are drawn by `glSpriteBatch` as one `drawArraysInstanced` **per layer per frame**, from a single texture atlas, with the tile→screen transform computed in the vertex shader — so navigation is **O(1) on the CPU at any N** and panning holds 60 fps to ~20,000 nodes. The DOM `<Node>` (`Nodes.tsx`/`Node/Node.tsx`) survives only as a **sparse overlay** for the selected ∪ dragged item (keeps F2 inline-rename, the readable-labels counter-scale, and the `--ff-drag` drag preview). A browser without WebGL2 gets the `WebGLUnsupportedScreen` gate.
+  - **Superseded:** the earlier Canvas2D node layer (T2, [ADR 0019](../adr/0019-canvas2d-node-render-layer.md)) **and its fallback path were removed** in the 2026-07-08 fold (PR #63, v3.5.0) — ADR 0019 is *superseded in part* (the bulk-substrate decision only). There is no Canvas2D/DOM bulk fallback and no A/B knob.
+  - **Fidelity is a contract, not a detail** — a sprite is a *cached texture*, not a per-frame re-raster, so the atlas must stay a premultiplied-alpha pipeline end-to-end, line styles are geometry, and stroke widths need projection scaling. The hard-won rules live in [canvas-rendering-guidelines.md](canvas-rendering-guidelines.md); **CI cannot see any of it** — every visual change needs a real-browser check.
+  - Measured by the engine-perf harness ([testing.md](testing.md), [ADR 0020](../adr/0020-engine-perf-harness-and-measurement-protocol.md)), whose anti-cheat is re-pointed at the GPU `drawCount`.
 - **Per-connector path subscription** — each `<Connector>` subscribes to its own `scene.connectors[id].path`; an async path write re-renders only that one.
 - **Closed-form connector router** (`utils/pathfinder.ts`) + **drag transactions** — replaced per-tick A\* + per-tile history entries; collapsed a drag to one undo entry.
 - **CSS-preview drag path** — multi-element drags mutate `--ff-drag-dx/dy` CSS variables + `previewAnchorTiles` directly (compositor-only, no React/immer per frame); committed to the model only on mouseup. The `previewAnchorTiles` map exists specifically to keep `syncConnector` from running against stale model tiles mid-drag. Rectangles + text boxes now drag the same way (one `batchUpdate*` commit on drop).
@@ -328,7 +341,7 @@ The codebase has been through several perf passes; the **diagnostic narratives a
 - **Derived `TileIndex` (ADR 0021)** — `utils/spatialIndex.ts`, a uniform-grid hash for O(1) occupancy/placement, **built from the `items` array** (recomputed when it changes, *not* mutated from reducers) so undo/redo applying immer patches straight to the store can't desync it. Paste placement is a rigid-stamp ring-walk over it (the whole block shifts to the first clear offset).
 - **Canvas render-order sort cache (ADR 0021)** — `NodesCanvas.draw()` caches its layer-ordered draw list keyed on `(nodes, layers, visibleIds, skipIds)` reference identities (+ an O(1) `layerId→order` map), so pan/zoom frames don't re-sort with a per-comparison `findLayer`.
 
-**Known cliff (deferred):** a sustained drag (≳50 s without committing) accumulates ~12 MB/s of immer-cloned state → a GC stall. Refactor design (keep the preview in `scene.connectors[id]` only until commit) is in [known_issues.md](../known_issues.md). The `DiagnosticsOverlay` (`axoview-app/src/components/DiagnosticsOverlay.tsx`) is the in-app tool that produced these measurements — a low-overhead, always-available FPS/heap/long-task recorder with AI-compact + human-readable downloads (disabled by default in prod, always on in dev).
+**Known cliff (deferred):** a sustained drag (≳50 s without committing) accumulates ~12 MB/s of immer-cloned state → a GC stall. Refactor design (keep the preview in `scene.connectors[id]` only until commit) is in [known_issues.md](../../known_issues.md). The `DiagnosticsOverlay` (`axoview-app/src/components/DiagnosticsOverlay.tsx`) is the in-app tool that produced these measurements — a low-overhead, always-available FPS/heap/long-task recorder with AI-compact + human-readable downloads (disabled by default in prod, always on in dev).
 
 ---
 
@@ -370,12 +383,12 @@ Durable "don't re-introduce this" knowledge — non-obvious fixes whose *why* is
 
 ## 5. Tests, Gaps & Quality
 
-The per-suite test catalogue, layer breakdown, classifications (VALID / SEMI-VALID), and current coverage gaps are maintained in **[docs/testing.md](testing.md)** — that is the source of truth for counts and what each suite pins. Aggregate KPIs (test inventory, CI gate inventory, LOC, test:source ratio, lint debt, cognitive-complexity baseline) are in **[technical-review-2026-06.md §8](technical-review-2026-06.md#8-quality-kpis-aggregate)**.
+The per-suite test catalogue, layer breakdown, classifications (VALID / SEMI-VALID), and current coverage gaps are maintained in **[docs/guidelines/testing.md](testing.md)** — that is the source of truth for counts and what each suite pins. Aggregate KPIs (test inventory, CI gate inventory, LOC, test:source ratio, lint debt, cognitive-complexity baseline) are in **[technical-review-2026-06.md §8](../reviews/technical-review-2026-06.md#8-quality-kpis-aggregate)**.
 
-Current totals (2026-06-10): lib 1039 (+1 skipped) / 95 suites · app 143 / 15 · backend 101 / 7 · worker 102 · E2E 34 specs (~59 tests). The v1.1 wave closed the server-runtime test gap (the only **high**-severity item the post-v1.0.0 review named).
+Current totals (measured 2026-07-15): lib 1522 (+1 skipped) / 149 suites · app 266 / 26 · backend 102 / 7 · worker 124 / 4 — **2014 passing across 186 suites** · E2E 75 spec files. The v1.1 wave closed the server-runtime test gap (the only **high**-severity item the post-v1.0.0 review named). [testing.md](testing.md) is the authoritative catalogue; re-measure there rather than trusting this line.
 
-**Code-quality infrastructure:** ESLint v10 (flat config; `@typescript-eslint/no-explicit-any` is now **error**, baseline driven 144 → 0), Knip v6 (**hard-fail** in CI since 2026-06-10), `npm audit`, Jest coverage (10 % global floor, intentionally low while the suite grows). Reports land in `reports/`. The v1.1 Sonar wave drove down cyclomatic complexity across the hot files (capstone `useInteractionManager.ts` 131 → <16) behind the ADR-0006 selection contract and the `__perf_refactor_regression__` baseline as guardrails. Full CI-gate + lint-debt detail: [technical-review §8b/§8e](technical-review-2026-06.md#8-quality-kpis-aggregate).
+**Code-quality infrastructure:** ESLint v10 (flat config; `@typescript-eslint/no-explicit-any` is now **error**, baseline driven 144 → 0), Knip v6 (**hard-fail** in CI since 2026-06-10), `npm audit`, Jest coverage (10 % global floor, intentionally low while the suite grows). Reports land in `reports/`. The v1.1 Sonar wave drove down cyclomatic complexity across the hot files (capstone `useInteractionManager.ts` 131 → <16) behind the ADR-0006 selection contract and the `__perf_refactor_regression__` baseline as guardrails. Full CI-gate + lint-debt detail: [technical-review §8b/§8e](../reviews/technical-review-2026-06.md#8-quality-kpis-aggregate).
 
-**Standing functional gaps** (carried, product-decision pending): `createView` not undoable · `updateViewItem` throws mid-drag (no catch in `DragItems`) · connector-only clipboard centroid = `{0,0}` · `deleteModelItem` sparse array · touch `mouseup` zeroed coordinates · imported icons scoped per-diagram. Tracked with full risk/complexity in [known_issues.md](../known_issues.md) and [technical-review §11](technical-review-2026-06.md#11-open-known-issues).
+**Standing functional gaps** (carried, product-decision pending): `createView` not undoable · `updateViewItem` throws mid-drag (no catch in `DragItems`) · connector-only clipboard centroid = `{0,0}` · `deleteModelItem` sparse array · touch `mouseup` zeroed coordinates · imported icons scoped per-diagram. Tracked with full risk/complexity in [known_issues.md](../../known_issues.md) and [technical-review §11](../reviews/technical-review-2026-06.md#11-open-known-issues).
 
 *End of document. This is the orientation map; the deep references it points to are the source of truth.*

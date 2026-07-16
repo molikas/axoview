@@ -2,6 +2,8 @@
 
 The complete list of what this fork adds vs upstream ([FossFLOW](https://github.com/stan-smith/FossFLOW) / [Isoflow](https://github.com/markmanx/isoflow)). This is the durable, detailed record; the [README](../README.md) carries only the condensed highlights. New user-visible features land here (with their ADR links), not in the README.
 
+> **Maintained by `/notes`** at end-of-session, from the `feat`/`ux` commits — see [workflow.md](workflow.md). It therefore tracks the **`integration` branch**, so it may describe features that have not yet reached a release. For what's actually released, read `CHANGELOG.md` — don't infer it from a hand-written note here (one claiming Drive-native sharing was "pending v3.7.0" outlived the v3.7.0 release by a day).
+
 ## Editing
 
 - **Cut, copy and paste** — `Ctrl+C` copies, `Ctrl+X` cuts, `Ctrl+V` pastes at cursor. Works on any combination of nodes, connectors, rectangles, and text boxes. Connectors between pasted nodes are included automatically. Full undo/redo support.
@@ -112,7 +114,7 @@ The complete list of what this fork adds vs upstream ([FossFLOW](https://github.
 | Connector wires following dragged endpoints | one-frame visible lag, occasional flicker | locked in step, no flicker |
 | Undo after a multi-element drag | one undo per intermediate frame | single undo rewinds the whole drag |
 
-*How it works:* During a multi-element drag the model is no longer mutated per frame. Items move via CSS variables on `data-drag-id` DOM elements (compositor-only — no React reconciliation, no immer, no layout). Free-floating waypoint anchors accumulate in a separate preview map; both maps are passed to a single `previewConnectorPaths(items, anchors)` call that recomputes affected connector geometry against a synthetic view and writes directly to `scene.connectors[].path`. `flushSync` keeps Connector React subscribers in lockstep with the CSS mutations. Final tile values commit to the model on mouseup; one history entry covers the entire drag. Full architectural invariant in [docs/architecture.md §1 Drag Items](architecture.md#1-feature-inventory); investigation playbook + diagnostic harness (`?perfprobe=1`) in [docs/perf-troubleshooting.md](perf-troubleshooting.md).
+*How it works:* During a multi-element drag the model is no longer mutated per frame. Items move via CSS variables on `data-drag-id` DOM elements (compositor-only — no React reconciliation, no immer, no layout). Free-floating waypoint anchors accumulate in a separate preview map; both maps are passed to a single `previewConnectorPaths(items, anchors)` call that recomputes affected connector geometry against a synthetic view and writes directly to `scene.connectors[].path`. `flushSync` keeps Connector React subscribers in lockstep with the CSS mutations. Final tile values commit to the model on mouseup; one history entry covers the entire drag. Full architectural invariant in [docs/architecture.md §1 Drag Items](guidelines/architecture.md#1-feature-inventory); investigation playbook + diagnostic harness (`?perfprobe=1`) in [docs/guidelines/perf-troubleshooting.md](guidelines/perf-troubleshooting.md).
 
 **WebGL2 rendering** — The canvas renders on a WebGL2 sprite-batch substrate (one texture atlas, one draw call per layer): panning stays at 60 fps up to 20,000 nodes. See [ADR 0038](adr/0038-webgl-instanced-render-substrate.md).
 
@@ -125,7 +127,7 @@ The complete list of what this fork adds vs upstream ([FossFLOW](https://github.
 ## Panels
 
 - **Left strip + panels (File Explorer / Elements / Layers / Settings)** — 40 px icon strip on the left edge with three regions: Navigation (📁 File Explorer), Working (⊞ Elements / ≣ Layers — mutex pair), and a System anchor at the bottom (⚙ Settings). Clicking 📁 opens the 280 px File Explorer to its right; clicking ⊞ opens the 240 px Elements panel (icon search and drag-to-canvas, Rectangle shape, Connector tool, "More icons" loaders, Import Icons); clicking ≣ opens Layers. All left-side panels overlay the canvas (do not resize it) and snap in/out without animation. File Explorer + one working panel can be open simultaneously. Click the active icon again to close. See [ADR 0005](adr/0005-toolbar-and-dock-layout-contract.md).
-- **Right panel (Properties)** — 300 px panel on the right edge, toggled by a button in the top-right corner. Shows the Details / Style / Notes tabs for the selected item. Slides in/out without resizing the canvas.
+- **Right panel (Properties)** — 300 px panel on the right edge, toggled by a button in the top-right corner. Shows the selected item's **collapsible-section deck** (Details · Notes · Metadata) — a tab-less vertical stack, uniform across every element type. Styling is **not** here: it lives on the docked style strip, which retired the per-type Style tab ([ADR 0030](adr/0030-docked-style-controls-strip.md)). Slides in/out without resizing the canvas.
 - **Icon drag-to-canvas** — Dragging an icon from the Elements panel shows a ghost icon following the cursor across the isometric grid until you drop it at the target tile.
 
 ## Quality-of-life
@@ -136,5 +138,13 @@ The complete list of what this fork adds vs upstream ([FossFLOW](https://github.
 - **Help dialog (`F1` / `?`)** documents all keyboard shortcuts.
 - **Burger menu removed** from the app chrome. Open / Export / Clear actions live in the file explorer; **Settings** moved to the left strip ⚙; GitHub link + version moved into Settings → **About** tab. The floating DiagnosticsOverlay (toggled by a dedicated button) carries debug instrumentation when `enableDebugTools` is on. See [ADR 0005](adr/0005-toolbar-and-dock-layout-contract.md).
 - **Default new-view name** — `"Page 1"` (was `"Untitled view"`).
-- **Sentence case across all property panels** — Section primitive enforces caption + semibold + secondary-color titles; ALL CAPS legacy retired. See [docs/ux-principles.md](ux-principles.md) for the design language driving this and other panel-consistency rules.
+- **Sentence case across all property panels** — Section primitive enforces caption + semibold + secondary-color titles; ALL CAPS legacy retired. See [docs/guidelines/ux-principles.md](guidelines/ux-principles.md) for the design language driving this and other panel-consistency rules.
 - **Enter-to-confirm on dialogs** — `ConfirmDialog` returns on Enter, cancels on Escape, in every destructive-action prompt.
+
+## Hosting & discoverability
+
+*Not editor capabilities, but user-visible behaviour of the hosted app — recorded here so the inventory matches what a visitor actually encounters.*
+
+- **Landing page at the root; editor at `/app`** — `https://axoview.app/` serves a crawlable marketing landing page, and the editor SPA lives at **`/app`** (built as `app.html`, React Router `basename=/app`, assets under `/static`). Legacy `/display/*` share links 301-redirect to `/app/display/*`, and an unknown path renders a graceful in-app 404 rather than a blank screen. Self-hosters get the same split (Docker → landing at `http://localhost`, editor at `http://localhost/app`). See [ADR 0040](adr/0040-marketing-landing-and-spa-crawlability.md).
+- **Social + search metadata** — Open Graph / Twitter cards, JSON-LD structured data, a generated `sitemap.xml`, and an OG image, so a shared Axoview link unfurls with a title, description and preview rather than a bare URL. See [ADR 0041](adr/0041-discoverability-metadata-and-social-sharing.md).
+- **Privacy & terms** — in-app `/privacy` and `/terms` pages, linked from the empty-state footer (localised across all 13 languages).
