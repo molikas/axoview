@@ -107,7 +107,7 @@ This is the single largest integration surface of the feature; treating it as on
 
 ### 7. Errors, retries — online-only v1
 
-- Transient errors (5xx, network timeout): exponential backoff, 3 attempts (500 ms / 1 s / 2 s), then a sticky error notification with a **Retry** action. The diagram's dirty flag survives, so nothing is silently lost.
+- Transient errors (5xx, network timeout): exponential backoff, 3 attempts (500 ms / 1 s / 2 s), then a sticky error notification with a **Retry** action. The diagram's dirty flag survives, so nothing is silently lost. *(As-built: the `useAutoSave` `onError` handler pushes an `{severity:'error'}` notification with **no `action`** — the Retry affordance is not yet implemented. The dirty flag does survive.)*
 - `401`: token invalidated → `authStore` transitions to `SESSION_EXPIRED` (ADR 0035 state machine); the failed operation surfaces the persistent "Sign in again" notification.
 - `403 userRateLimitExceeded / rateLimitExceeded`: treated as transient (backoff), surfaced as a *warning* toast, not an error.
 - **The offline IndexedDB write queue from the PLAN 3B spec is deferred** (owner decision 2026-07-05) — it gets a catalogued entry with a real forcing function (field reports of lost edits), not a v1 implementation.
@@ -134,6 +134,6 @@ This is the single largest integration surface of the feature; treating it as on
 
 ## Acceptance criteria
 
-- **Unit test:** full provider suite with mocked `fetch` — list/load/save/create mapping; rename/move/trash/untrash; root-folder discovery (marker found / not found / stale cache); 401 → SESSION_EXPIRED; 503 ×2 then success (backoff); 503 ×3 → error notification with Retry; token obtained via `getValidToken()` only.
+- **Unit test:** full provider suite with mocked `fetch` — list/load/save/create mapping; rename/move/trash/untrash; root-folder discovery (marker found / not found / stale cache); 401 → SESSION_EXPIRED; 503 ×2 then success (backoff); 503 ×3 → error notification with Retry; token obtained via `getValidToken()` only. *(As-built: the shipped `GoogleDriveProvider.test.ts` covers the mapping + backoff cases, but has **no** `restoreDiagram`/untrash test, no `renameDiagram`/`renameFolder` test, no stale-cache discovery test, and the give-up test asserts only throw + call-count, not the Retry notification — open test gaps.)*
 - **Manual verification (localhost + integration deploy):** first connect shows the folder dialog → default path creates `axoview-diagrams` in My Drive; create diagram → save → reload → reconnect → diagram loads from Drive; rename/move/delete reflect in drive.google.com (delete lands in Drive trash); "Save to Drive" copies a local diagram into the root folder; share button absent in Drive mode; switching back to Local restores local content untouched.
 - **Gate before ship (PLAN.md catalogued workstream):** privacy disclosure/policy published and linked from the OAuth consent screen — Drive does not ship to production without it.

@@ -27,7 +27,7 @@ The owner's ask (2026-07-09, with a Google Slides / PowerPoint reference screens
 
 ### 1. Layout (single surface, no toggle)
 
-The picker body (rendered inside the existing [`StripButton`](../../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx#L182) popover and the detail-panel controls) shows, top to bottom:
+The picker body (rendered inside the existing [`StripButton`](../../packages/axoview-lib/src/components/TopBarStyleControls/TopBarStyleControls.tsx) popover — **strip-only today**: there is no detail-panel color control, and `ColorPickerBody`'s sole importer is `TopBarStyleControls`) shows, top to bottom:
 
 1. **Standard color grid** — a fixed palette (§4) of ready-to-click swatches, always visible. The active swatch is ringed when the resolved hex matches a cell.
 2. **＋ Custom** and **⛏ eyedropper** affordances on one row. "＋ Custom" reveals the hue/saturation picker + hex field (today's `CustomColorInput`, retained internally); the eyedropper is promoted from inside that input to a top-level action.

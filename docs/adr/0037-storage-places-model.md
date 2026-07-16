@@ -27,8 +27,11 @@ bulk migration offer after sign-in, and honest loading states.
    `handleCreateBlankDiagram` take a `placeId` and set the manager's active
    provider before loading/creating (flushing the pending autosave to the old
    place first). Every existing mode branch — `remoteStorageActive`, autosave
-   vs manual save, the Session chip, unsaved-changes guards, delete-dialog
-   copy — thereby keys off the OPEN diagram with no per-branch rewrite. The
+   vs manual save, the Session chip, unsaved-changes guards — thereby keys off
+   the OPEN diagram with no per-branch rewrite. *(As-built exception: the
+   **delete-dialog copy** was mis-listed here — it keys off the deleted **item's**
+   place, not the open diagram: `FileExplorer.tsx` builds `deleteBody${shape}${place}`
+   from `deleteConfirm.placeId`, a per-branch rewrite.)* The
    picker and the user-facing `switchStorageProvider` are deleted; the only
    surviving whole-canvas reset is the Google sign-out fallback
    (`handleGoogleSignedOut`), which closes a Drive-side diagram (flushing

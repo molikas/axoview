@@ -154,7 +154,10 @@ see future edits (draw.io semantics). This is the opposite of
 coexist, scoped by place: session/server diagrams keep snapshot links
 (ADR 0010 unchanged); Drive diagrams get live links. Popover copy must say
 "view the latest version" so the difference is explicit, and revoking access
-is Drive's job (remove the permission), not an app unshare.
+is Drive's job (remove the permission), not an app unshare. *(As-built, v3.7.0:
+this MUST is **not met** — the `share.drive.liveHint` string exists in all 13
+locales but has zero code references; the Drive share menu and
+`DriveShareManageDialog` render no live-vs-snapshot disclosure. Open item.)*
 
 This narrows ADR 0036 §5's standing rule "share links (§4) … stay on
 `serverStorageAvailable`": only **snapshot** share links and the
@@ -169,8 +172,9 @@ models publish-a-snapshot (`{uuid, url, sharedAt}`) — a server contract Drive
 sharing does not fit (no uuid; "sharing" is a Drive ACL change + a
 deterministic URL). `GoogleDriveProvider` continues to omit
 `shareDiagram`/`unshareDiagram`; the new surface is a Drive-place service
-(`driveSharing`: ShareClient launch, `permissions.list` summary, preview-URL
-builder) consumed by the share popover. The StorageManager "does not support
+(`driveSharing`: Drive-REST `permissions` calls — list summary, set/revoke
+anyone-with-link — plus a preview-URL builder; **not** ShareClient, which
+decision 3 dropped 2026-07-14, see the revision above) consumed by the share popover. The StorageManager "does not support
 sharing" throw stays as-is for non-sharing providers.
 
 ### 5. API key on the existing config rail
@@ -234,7 +238,9 @@ Revised acceptance criteria: P1 is now "anonymous read of an anyone-with-link fi
 - Diagram data never leaves the user's Drive; access control is Google's ACL
   with Google's own UI — the correct trust model, near-zero permission code.
 - Anonymous preview with zero server storage — the Drive-native analogue of
-  the rejected server-snapshot option, on both deploy targets.
+  the rejected server-snapshot option, **on Cloudflare only**: the anonymous
+  read-proxy is Worker-only (`routes.js` keeps `drivePublicPreview:false`, so
+  Express/Docker has no anonymous proxy — see §8). Not "both deploy targets".
 - No new OAuth scope, no Google review for v1 (`drive.file` stays the only
   scope; the API key is not a scope).
 - The Picker infrastructure incidentally unlocks the catalogued
