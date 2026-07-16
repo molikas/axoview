@@ -52,7 +52,8 @@ matrix, tile cull, painter-order sort, the readable-labels counter-scale ported 
 
 **The per-node DOM `<Node>` is retained, but only for the *actively-manipulated*
 nodes** — the single selected node (`itemControls`) ∪ the drag set (`mode.items`
-while `DRAG_ITEMS`). The
+while `DRAG_ITEMS`) ∪ the label-drag target (`labelDragId`, Track P/T6 — added after
+this ADR; `Renderer.tsx` `hybridIds` unions all three today). The
 [`Renderer`](../../packages/axoview-lib/src/components/Renderer/Renderer.tsx) lifts
 those into a sparse DOM overlay (`hybridNodes`) and `NodesCanvas` skips them
 (`skipNodes`). This is load-bearing, not legacy: the DOM `<Node>` is what provides the
@@ -71,10 +72,10 @@ DOM-shell count (reads 0/N in canvas mode) to a **canvas draw count**.
 
 **2026-06-21 (UX re-test addendum):** Two correctness signals were added to the canvas
 layer from the journey-test runs (ADR 0028). **(A1)** Text drawn to the canvas — node
-names and rich-description captions — is **HTML-decoded** (`&nbsp;`, `&amp;`, `&lt;`,
+names/labels — is **HTML-decoded** (`&nbsp;`, `&amp;`, `&lt;`,
 numeric entities → chars) before `ctx.fillText`, via one shared
 [`htmlToPlainText`](../../packages/axoview-lib/src/utils/htmlToPlainText.ts) util (a
-decode-only variant keeps the verbatim name, e.g. `List<T>`). The DOM/popover path
+decode-only variant keeps the verbatim name, e.g. `List<T>`). *(The on-canvas rich-description caption this originally also covered was retired by [ADR 0032](0032-node-name-caption-label-model.md) / commit `894cb3b`; the canvas now draws name/label text only. The decode rule itself is unchanged.)* The DOM/popover path
 already decoded via the browser; the canvas path did not, so Quill's literal `&nbsp;`
 reached the bitmap. **(A2)** `NodesCanvas.draw()` publishes a `data-all-icons-drawn`
 dataset flag (alongside the draw count) once a frame paints with every icon bitmap

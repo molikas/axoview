@@ -51,6 +51,11 @@ Scope changes:
 - **Item-type parity** (per [ux-principles §5](../guidelines/ux-principles.md)): node, connector,
   rectangle, and textbox all use the same popover.
 
+> **As-built (v3.7.0) — the content gates diverged from the spec above; three open reconciliation items:**
+> - **Hover** currently requires non-empty **notes only** (owner narrowing, 2026-07-01) — a name-only or headerLink-only item shows no hover preview, narrower than the "name, notes, or headerLink" rule above (`ViewModeInfoPopover` info `useMemo`).
+> - **Click-to-pin** uses a *different* gate — `nodeHasReadonlyContent = link || headerLink || description || notes` (no `name`) in [`Pan.ts`](../../packages/axoview-lib/src/interaction/modes/Pan.ts) — so a name-only node never pins, disagreeing with both the hover gate and the helpers' `hasInfoPopoverContent` (`name || notes || headerLink`).
+> - **Click-to-pin fires for nodes only:** `Pan.handleReadonlyClick` bails (`setItemControls(null)`) for any non-`ITEM` hit, so connector/rectangle/textbox get hover parity but **not** click-pin parity — the item-type parity holds for hover, not pin.
+
 Positioning follows [ux-principles §8.8](../guidelines/ux-principles.md): an MUI `Popover` renders via
 Portal at the document root, so it is already screen-pixel-stable; it anchors to the item's DOM
 node (the canvas-anchored-chrome anchor pattern per [ux-principles §8.8](../guidelines/ux-principles.md)).

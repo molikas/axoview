@@ -105,6 +105,7 @@ What this change makes **redundant**, **contradicts**, or **orphans**, and how e
 
 - **Unit:** `resolveToolHotkey` is not consulted when `isCtrlOrCmd` (Ctrl+C/V/X never switch tool).
 - **e2e (new `details-interaction.spec`):** single-click selects + no panel; double-click opens panel; right-click press-drag pans; right-click **tap opens the context menu** (item) / canvas menu (empty), never the panel ([ADR 0027](0027-canvas-context-menu.md)); name-field text-drag crossing the panel keeps it open.
+  - *(As-built, v3.7.0: no `details-interaction.spec` was created. Some of these behaviours are exercised by other e2e specs, but the double-click-opens-panel and name-drag-keeps-panel assertions have no dedicated e2e coverage — an open test gap.)*
 - **Manual + touch device:** tap = select, double-tap = details, long-press = bar; no double-open.
 - **Build clean;** `grep -r panSettings packages/` returns nothing; `HelpDialog` reflects the new model.
 

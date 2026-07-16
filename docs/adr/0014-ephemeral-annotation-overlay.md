@@ -27,9 +27,12 @@ An **ephemeral free-draw overlay** rendered above the canvas, available in both 
 ### Entry & placement
 
 - A **pen entry in the top toolbar's View-modes group** ([ADR 0005](0005-toolbar-and-dock-layout-contract.md)
-  Group 1).
-- Clicking it opens a **draggable floating vertical palette** (the user's chosen design,
-  2026-06-11), repositionable anywhere on screen. Same control in edit and preview modes.
+  Group 1). *(As-built, v3.7.0: the pen actually ships as a **floating overlay button** mounted in
+  `UiOverlay` — top-right, dodging the dock — **not** the reserved ADR 0005 toolbar slot, which
+  remains reserved/empty. See `AnnotationPalette`.)*
+- Clicking it opens a **fixed** vertical palette directly beneath the pen. *(The original
+  "draggable floating palette, repositionable anywhere" design was superseded by the revision below —
+  the palette is fixed, not draggable.)* Same control in edit and preview modes.
 
 ### Tools
 
@@ -120,7 +123,7 @@ UX refinements after first use, keeping the ephemeral-scratch invariant intact:
 
 ## Acceptance criteria
 
-- **Manual:** The pen toolbar entry opens a draggable floating palette in both edit and preview.
+- **Manual:** The pen (a floating overlay button, not a toolbar entry) opens a **fixed** palette directly beneath it, in both edit and preview. *(Corrected from the original "toolbar entry opens a draggable floating palette" — superseded by the revision above.)*
 - **Manual:** Draw with pencil, highlighter, shape, and arrow; switch color and thickness; eraser
   removes one stroke; undo reverts the last stroke.
 - **Manual:** Collapsing the palette hides the drawing; expanding restores the *same* drawing.

@@ -50,13 +50,15 @@ overlapping controls. Revised decision:
    an invisible per-node hit layer (`NodeLabelHitLayer`) that drives the same
    reposition inside one drag transaction; grabbing a label never changes the
    current selection.
-2. **Repositioning only on canvas; sizing stays numeric.** The separate on-canvas
-   box-height resize and its `labelMaxHeight` field are dropped (the label box
-   keeps the standard height with scroll, as before). Precise positioning lives in
-   the Style panel's existing **Label height** slider, now **signed** (its old
-   `min 60` couldn't express below-node).
-3. **Offset is clamped** to `[-200, 280]` (canvas px) so a drag — or the slider —
-   can't fling the label off into empty canvas.
+2. **Repositioning is on-canvas only.** The separate on-canvas box-height resize
+   and its `labelMaxHeight` field are dropped (the label box keeps the standard
+   height with scroll, as before). *(As-built, v3.7.0: the Style-panel "Label
+   height" slider this line originally pointed at **no longer exists** — it was
+   removed with `NodeStyleTab` during the ADR 0030 style-strip rework. `labelHeight`
+   is written **only** by on-canvas drag today — `Node.tsx` and `NodeLabelHitLayer`;
+   there is no numeric/slider control for it.)*
+3. **Offset is clamped** to `[-200, 280]` (canvas px) so a drag can't fling the
+   label off into empty canvas.
 
 `labelHeight` remains the single signed-offset field; the stalk re-anchor +
 transform-origin flip + `NodesCanvas` below-node rendering are unchanged.
