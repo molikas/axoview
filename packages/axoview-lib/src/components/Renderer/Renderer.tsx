@@ -292,6 +292,18 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   // CSS-preview re-render) instead of a per-frame model write redrawing the whole
   // canvas. A primitive id selector → re-renders only on label-drag start/end.
   const labelDragId = useUiStateStore((s) => s.labelDrag?.id ?? null);
+  // ADR 0044: nodes being icon-resized are promoted to the DOM overlay so their
+  // ICONS preview the live scale (NodeContent reads iconScaleDrag). The single
+  // selected node already is (selectedNodeId), but a GROUP resize leaves
+  // itemControls null, so its members otherwise stay on the WebGL bulk — which
+  // reads the COMMITTED scale — and only the boxes previewed, not the icons. A
+  // primitive key (targets are set once at grab) → re-renders only on resize
+  // start/end, not per frame.
+  const resizingNodesKey = useUiStateStore((s) =>
+    s.mode.type === 'NODE.TRANSFORM'
+      ? s.mode.targets.map((t) => t.id).join(',')
+      : ''
+  );
   // Rectangle GPU-fold (2026-07-08): the DRAGGED rectangles keep their DOM
   // [data-drag-id] element (DragItems mutates --ff-drag on it for the live
   // move preview); everything else draws on the WebGL RectanglesCanvas. Picking
@@ -325,13 +337,16 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   );
 
   const hybridIds = useMemo(() => {
-    if (!selectedNodeId && !draggingKey && !labelDragId) return null;
+    if (!selectedNodeId && !draggingKey && !labelDragId && !resizingNodesKey)
+      return null;
     const ids = new Set<string>();
     if (selectedNodeId) ids.add(selectedNodeId);
     if (draggingKey) for (const id of draggingKey.split(',')) ids.add(id);
     if (labelDragId) ids.add(labelDragId);
+    if (resizingNodesKey)
+      for (const id of resizingNodesKey.split(',')) ids.add(id);
     return ids;
-  }, [selectedNodeId, draggingKey, labelDragId]);
+  }, [selectedNodeId, draggingKey, labelDragId, resizingNodesKey]);
 
   const visibleItemsRaw = useMemo(() => {
     const { minX, maxX, minY, maxY } = coarseBounds;
