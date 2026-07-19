@@ -5,11 +5,13 @@
 
 | Workspace | Passing | Suites |
 |---|---|---|
-| `axoview-lib` | 1522 (+1 skipped) | 149 |
+| `axoview-lib` | 1544 (+1 skipped) | 150 |
 | `axoview-app` | 266 | 26 |
 | `axoview-backend` | 102 | 7 |
 | `axoview-worker` | 124 | 4 |
-| **Total** | **2014 (+1 skipped)** | **186** |
+| **Total** | **2036 (+1 skipped)** | **187** |
+
+*(lib `+22` / `+1` suite on 2026-07-19: the on-canvas icon-resize `NODE.TRANSFORM` suite + `iconScale` schema round-trips — see the ADR 0044 additions below.)*
 
 **Run:** `npm test --workspace=packages/<pkg>` per package, or `npm test --workspaces` for all. The v1.1 wave added the backend + worker server-runtime suites — the only **high**-severity gap the post-v1.0.0 review named — plus the app-side error-UX, startup-timeout, parallelism-contract, file-explorer-delete, share-URL, and backend-routes contract suites. The single skipped test is `leanSave bundledFixtures[0]` (see [known_issues.md](../../known_issues.md)).
 
@@ -21,6 +23,13 @@ E2E suite lives at [`packages/axoview-e2e/`](../../packages/axoview-e2e/) (Playw
 - **Don't swap the dev server for a precompiled prod bundle to raise `workers`.** A `NODE_ENV=production` build tree-shakes out the `window.__axoview__` debug bridge that ~every spec reads (gated in `Axoview.tsx` by `enableDebugTools || exposeStoreBridge || NODE_ENV !== 'production'`); the whole suite would fail on `waitForDebugBridge`. If that route is ever needed for within-runner parallelism, re-expose the bridge via `exposeStoreBridge` behind a **CI-only build flag** (never the Cloudflare prod build).
 
 To scale further, raise the shard count (`SHARD_TOTAL` + the matrix list in the workflow, kept in sync) — diminishing past ~6 shards because a fixed ~3 min setup (npm ci + build:lib + Playwright install + dev-server boot) is paid per shard.
+
+### ADR 0044 additions — on-canvas icon resize (2026-07-19)
+
+| Suite | Type | Covers |
+|---|---|---|
+| `interaction/__tests__/TransformNode.test.ts` | unit | The `NODE.TRANSFORM` mode — drag→scale (clamp `[0.3, 2.5]`, per-corner outward sign, `1/zoom` sensitivity), the uniform group factor (relative sizes preserved across N targets), commit-once-per-gesture inside one transaction, and the exit safety net. Preview-only (no per-frame model write). |
+| `schemas/__tests__/views.test.ts` (extended) | unit | Per-node `iconScale` round-trips + hard bounds; absent = valid (zero-migration). |
 
 ### ADR 0042 additions — Drive-native sharing & read-only preview (2026-07-14)
 
