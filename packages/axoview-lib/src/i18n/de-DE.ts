@@ -339,7 +339,6 @@ const locale: LocaleProps = {
     alignTop: 'Oben ausrichten',
     alignMiddle: 'Mittig ausrichten',
     alignBottom: 'Unten ausrichten',
-    iconSize: 'Symbolgröße',
     textColor: 'Textfarbe',
     textColorDisabled:
       'Wählen Sie einen Knoten, ein Textfeld, eine Beschriftung oder eine Verbindungsbeschriftung, um die Textfarbe festzulegen',
@@ -393,10 +392,6 @@ const locale: LocaleProps = {
     changeIconBulk: 'Symbol ändern gilt jeweils für einen Knoten',
     changeIcon: 'Symbol ändern',
     changeIconDisabled: 'Wählen Sie einen Knoten, um sein Symbol zu ändern',
-    iconSizeBulk:
-      'Symbolgröße bearbeitet jeweils ein Symbol (skaliert alle Knoten mit diesem Symbol)',
-    iconSizeDisabled:
-      'Wählen Sie einen Knoten, um seine Symbolgröße zu ändern',
     connectionColorPredraw: 'Farbe für die nächste Verbindung, die Sie zeichnen',
     connectionColor: 'Verbindungsfarbe',
     connectionColorDisabled:

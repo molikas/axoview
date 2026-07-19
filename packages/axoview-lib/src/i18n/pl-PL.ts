@@ -341,7 +341,6 @@ const locale: LocaleProps = {
     alignTop: 'Wyrównaj do góry',
     alignMiddle: 'Wyrównaj do środka',
     alignBottom: 'Wyrównaj do dołu',
-    iconSize: 'Rozmiar ikony',
     textColor: 'Kolor tekstu',
     textColorDisabled:
       'Zaznacz węzeł, pole tekstowe, etykietę lub etykietę połączenia, aby ustawić kolor tekstu',
@@ -393,9 +392,6 @@ const locale: LocaleProps = {
     changeIconBulk: 'Zmiana ikony dotyczy jednego węzła naraz',
     changeIcon: 'Zmień ikonę',
     changeIconDisabled: 'Zaznacz węzeł, aby zmienić jego ikonę',
-    iconSizeBulk:
-      'Rozmiar ikony edytuje jedną ikonę naraz (zmienia rozmiar wszystkich węzłów, które jej używają)',
-    iconSizeDisabled: 'Zaznacz węzeł, aby zmienić rozmiar jego ikony',
     connectionColorPredraw: 'Kolor następnego rysowanego połączenia',
     connectionColor: 'Kolor połączenia',
     connectionColorDisabled:

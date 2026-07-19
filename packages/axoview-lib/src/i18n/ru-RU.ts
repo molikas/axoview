@@ -336,7 +336,6 @@ const locale: LocaleProps = {
     alignTop: 'По верхнему краю',
     alignMiddle: 'По середине',
     alignBottom: 'По нижнему краю',
-    iconSize: 'Размер иконки',
     textColor: 'Цвет текста',
     textColorDisabled:
       'Выберите узел, текстовое поле, подпись или подпись соединения, чтобы задать цвет текста',
@@ -389,9 +388,6 @@ const locale: LocaleProps = {
     changeIconBulk: 'Смена иконки применяется к одному узлу за раз',
     changeIcon: 'Изменить иконку',
     changeIconDisabled: 'Выберите узел, чтобы изменить его иконку',
-    iconSizeBulk:
-      'Размер иконки редактирует одну иконку за раз (масштабирует все узлы с этой иконкой)',
-    iconSizeDisabled: 'Выберите узел, чтобы изменить размер его иконки',
     connectionColorPredraw: 'Цвет для следующего создаваемого соединения',
     connectionColor: 'Цвет соединения',
     connectionColorDisabled:

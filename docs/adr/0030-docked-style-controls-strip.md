@@ -4,7 +4,7 @@
 **Date:** 2026-06-29
 **Supersedes:** [ADR 0004](0004-connector-name-and-details-panel.md) §"Right-sidebar panel" only — the connector **Style** tab decision; 0004's name/notes parity substance stands. Also cited as partial successor by [ADR 0012](0012-view-mode-node-info-popover.md) and [ADR 0027](0027-canvas-context-menu.md), whose own decisions (view-mode popover / context menu) both stand — only their Style-tab *references* went stale here.
 *(Non-supersession context: amends [ux-principles](../guidelines/ux-principles.md) §2.4 / §2.5 / §5.1 / §5.2; fills the [ADR 0005](0005-toolbar-and-dock-layout-contract.md) Group 1 "Format" reserved slot.)*
-**Superseded by:** none
+**Superseded by:** [ADR 0044](0044-on-canvas-icon-resize.md) (**icon size only** — the §1 "icon size" styling entry + its §2 single-target Icon-size gating; icon size became per-node **on-canvas geometry** and the strip Icon-size control was removed). The rest of §1 (all other visual styling), the **Change icon** control, and §2–§4 **stand**.
 
 ## Context
 

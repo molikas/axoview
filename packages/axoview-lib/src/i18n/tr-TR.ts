@@ -337,7 +337,6 @@ const locale: LocaleProps = {
     alignTop: 'Üste hizala',
     alignMiddle: 'Ortaya hizala',
     alignBottom: 'Alta hizala',
-    iconSize: 'Simge boyutu',
     textColor: 'Metin rengi',
     textColorDisabled:
       'Metin rengini ayarlamak için bir düğüm, metin kutusu, etiket veya bağlantı etiketi seçin',
@@ -389,9 +388,6 @@ const locale: LocaleProps = {
     changeIconBulk: 'Simge değiştirme aynı anda tek bir düğüme uygulanır',
     changeIcon: 'Simgeyi değiştir',
     changeIconDisabled: 'Simgesini değiştirmek için bir düğüm seçin',
-    iconSizeBulk:
-      'Simge boyutu aynı anda tek bir simgeyi düzenler (o simgeyi kullanan tüm düğümleri yeniden boyutlandırır)',
-    iconSizeDisabled: 'Simge boyutunu değiştirmek için bir düğüm seçin',
     connectionColorPredraw: 'Çizeceğiniz sonraki bağlantının rengi',
     connectionColor: 'Bağlantı rengi',
     connectionColorDisabled:

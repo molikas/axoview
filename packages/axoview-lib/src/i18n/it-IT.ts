@@ -338,7 +338,6 @@ const locale: LocaleProps = {
     alignTop: 'Allinea in alto',
     alignMiddle: 'Allinea al centro verticale',
     alignBottom: 'Allinea in basso',
-    iconSize: 'Dimensione icona',
     textColor: 'Colore testo',
     textColorDisabled:
       "Seleziona un nodo, una casella di testo, un'etichetta o un'etichetta di connessione per impostare il colore del testo",
@@ -392,9 +391,6 @@ const locale: LocaleProps = {
     changeIconBulk: "La modifica dell'icona si applica a un nodo alla volta",
     changeIcon: 'Cambia icona',
     changeIconDisabled: "Seleziona un nodo per cambiarne l'icona",
-    iconSizeBulk:
-      "La dimensione dell'icona modifica un'icona alla volta (ridimensiona tutti i nodi che la usano)",
-    iconSizeDisabled: "Seleziona un nodo per cambiarne la dimensione dell'icona",
     connectionColorPredraw: 'Colore per la prossima connessione che disegni',
     connectionColor: 'Colore connessione',
     connectionColorDisabled:

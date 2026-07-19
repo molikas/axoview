@@ -331,7 +331,6 @@ export interface LocaleProps {
     alignTop: string;
     alignMiddle: string;
     alignBottom: string;
-    iconSize: string;
     textColor: string;
     textColorDisabled: string;
     textSizeDisabled: string;
@@ -378,8 +377,6 @@ export interface LocaleProps {
     changeIconBulk: string;
     changeIcon: string;
     changeIconDisabled: string;
-    iconSizeBulk: string;
-    iconSizeDisabled: string;
     connectionColorPredraw: string;
     connectionColor: string;
     connectionColorDisabled: string;

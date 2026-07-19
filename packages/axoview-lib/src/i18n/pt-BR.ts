@@ -337,7 +337,6 @@ const locale: LocaleProps = {
     alignTop: 'Alinhar ao topo',
     alignMiddle: 'Alinhar ao meio',
     alignBottom: 'Alinhar à base',
-    iconSize: 'Tamanho do ícone',
     textColor: 'Cor do texto',
     textColorDisabled:
       'Selecione um nó, uma caixa de texto, um rótulo ou um rótulo de conexão para definir a cor do texto',
@@ -389,9 +388,6 @@ const locale: LocaleProps = {
     changeIconBulk: 'Alterar ícone aplica-se a um nó por vez',
     changeIcon: 'Alterar ícone',
     changeIconDisabled: 'Selecione um nó para alterar seu ícone',
-    iconSizeBulk:
-      'Tamanho do ícone edita um ícone por vez (redimensiona todos os nós que o usam)',
-    iconSizeDisabled: 'Selecione um nó para alterar o tamanho de seu ícone',
     connectionColorPredraw: 'Cor para a próxima conexão que você desenhar',
     connectionColor: 'Cor da conexão',
     connectionColorDisabled:

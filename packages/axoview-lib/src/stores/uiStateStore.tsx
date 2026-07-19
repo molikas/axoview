@@ -88,6 +88,7 @@ const initialState = () => {
       exportHideLabels: false,
       labelDrag: null,
       labelMove: null,
+      iconScaleDrag: null,
       selectedConnectorLabel: null,
       inlineEditLabelId: null,
       viewModeHoveredLabelId: null,
@@ -368,6 +369,17 @@ const initialState = () => {
         },
         clearLabelMove: () => {
           set({ labelMove: null });
+        },
+        setIconScaleDrag: (id, scale) => {
+          // Transient on-canvas icon-resize preview (ADR 0044). The selected node
+          // (DOM) and its selection ring read this to follow the drag with NO
+          // model write, so the O(N) WebGL node bulk isn't rebuilt each frame
+          // (canvas-interaction.md §6.1/§6.4). Committed to the model once, on
+          // release.
+          set({ iconScaleDrag: { id, scale } });
+        },
+        clearIconScaleDrag: () => {
+          set({ iconScaleDrag: null });
         },
         setInlineEditLabelId: (id) => {
           set({ inlineEditLabelId: id });

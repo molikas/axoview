@@ -335,7 +335,6 @@ const locale: LocaleProps = {
     alignTop: 'উপরে সারিবদ্ধ করুন',
     alignMiddle: 'মাঝখানে সারিবদ্ধ করুন',
     alignBottom: 'নিচে সারিবদ্ধ করুন',
-    iconSize: 'আইকনের আকার',
     textColor: 'পাঠ্যের রং',
     textColorDisabled:
       'পাঠ্যের রং সেট করতে একটি নোড, টেক্সট বক্স, লেবেল বা সংযোগ লেবেল নির্বাচন করুন',
@@ -387,9 +386,6 @@ const locale: LocaleProps = {
     changeIconBulk: 'আইকন পরিবর্তন একবারে একটি নোডে প্রযোজ্য',
     changeIcon: 'আইকন পরিবর্তন করুন',
     changeIconDisabled: 'আইকন পরিবর্তন করতে একটি নোড নির্বাচন করুন',
-    iconSizeBulk:
-      'আইকনের আকার একবারে একটি আইকন সম্পাদনা করে (সেই আইকন ব্যবহারকারী সব নোডের আকার বদলায়)',
-    iconSizeDisabled: 'আইকনের আকার পরিবর্তন করতে একটি নোড নির্বাচন করুন',
     connectionColorPredraw: 'আপনি যে পরবর্তী সংযোগ আঁকবেন তার রং',
     connectionColor: 'সংযোগের রং',
     connectionColorDisabled:

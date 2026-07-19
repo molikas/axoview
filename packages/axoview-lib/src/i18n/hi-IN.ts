@@ -336,7 +336,6 @@ const locale: LocaleProps = {
     alignTop: 'ऊपर संरेखित करें',
     alignMiddle: 'मध्य में संरेखित करें',
     alignBottom: 'नीचे संरेखित करें',
-    iconSize: 'आइकन का आकार',
     textColor: 'पाठ का रंग',
     textColorDisabled:
       'पाठ का रंग सेट करने के लिए एक नोड, टेक्स्ट बॉक्स, लेबल या कनेक्शन लेबल चुनें',
@@ -387,9 +386,6 @@ const locale: LocaleProps = {
     changeIconBulk: 'आइकन बदलना एक समय में एक नोड पर लागू होता है',
     changeIcon: 'आइकन बदलें',
     changeIconDisabled: 'आइकन बदलने के लिए एक नोड चुनें',
-    iconSizeBulk:
-      'आइकन का आकार एक समय में एक आइकन संपादित करता है (उस आइकन वाले सभी नोड का आकार बदलता है)',
-    iconSizeDisabled: 'आइकन का आकार बदलने के लिए एक नोड चुनें',
     connectionColorPredraw: 'आपके द्वारा बनाए जाने वाले अगले कनेक्शन का रंग',
     connectionColor: 'कनेक्शन का रंग',
     connectionColorDisabled: 'रंग सेट करने के लिए एक कनेक्शन (या कनेक्टर उपकरण) चुनें',

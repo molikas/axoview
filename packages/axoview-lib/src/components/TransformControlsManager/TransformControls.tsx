@@ -37,6 +37,13 @@ interface Props {
    * for the hovered-but-unselected item.
    */
   subtle?: boolean;
+  /**
+   * ADR 0044: multiplier that grows the selection ring + handles out from the
+   * element centre so they frame a node's scaled icon (which overflows its bare
+   * tile). Omitted / 1 = the element's own footprint (rectangles, text boxes,
+   * scale-1 nodes) — byte-for-byte unchanged.
+   */
+  extentScale?: number;
 }
 
 // Selection / hover chrome geometry (screen px, pre-shear). The ring frames the
@@ -71,13 +78,23 @@ export const TransformControls = ({
   anchorPositions,
   onRotate,
   rotateTooltip,
-  subtle
+  subtle,
+  extentScale
 }: Props) => {
   const { css, pxSize } = useIsoProjection({
     from,
     to
   });
   const { getTilePosition, strategy } = useCanvasMode();
+
+  // ADR 0044: grow the ring rects about the element's local centre so they frame
+  // a scaled node icon. ex === 1 (rectangles / text boxes / scale-1 nodes) →
+  // ringX/Y = 0 and ringW/H = pxSize, i.e. the original geometry unchanged.
+  const ex = extentScale ?? 1;
+  const ringW = pxSize.width * ex;
+  const ringH = pxSize.height * ex;
+  const ringX = (pxSize.width - ringW) / 2;
+  const ringY = (pxSize.height - ringH) / 2;
 
   // Screen position of each outer corner, keyed by corner name — feeds the
   // anchor handles (edge midpoints are corner averages) and the rotate handle.
@@ -115,10 +132,18 @@ export const TransformControls = ({
       { x: 0, y: 0 }
     );
 
+    // ADR 0044: push the handles out to the scaled-icon extent about the same
+    // screen centre the ring grows about (ex === 1 → identity). Uniform scaling
+    // preserves direction, so the resize cursors below still read the true edge.
+    const scaleOut = (p: Coords): Coords => ({
+      x: center.x + (p.x - center.x) * ex,
+      y: center.y + (p.y - center.y) * ex
+    });
+
     const cornerPositions = Object.entries(cornerScreen).map(
       ([key, position]) => ({
         key,
-        position,
+        position: scaleOut(position),
         isEdge: false,
         barAngleDeg: undefined as number | undefined,
         // Corner drag resizes along the diagonal from the centre outward.
@@ -152,7 +177,7 @@ export const TransformControls = ({
       const edgeAngle = Math.atan2(cb.y - ca.y, cb.x - ca.x);
       return {
         key,
-        position: midpoint(ca, cb),
+        position: scaleOut(midpoint(ca, cb)),
         isEdge: true,
         barAngleDeg: (edgeAngle * 180) / Math.PI,
         cursor: resizeCursorForAngle(edgeAngle + Math.PI / 2),
@@ -166,7 +191,7 @@ export const TransformControls = ({
     return anchorPositions
       ? all.filter((a) => anchorPositions.includes(a.key as AnchorPosition))
       : all;
-  }, [onAnchorMouseDown, anchorPositions, cornerScreen]);
+  }, [onAnchorMouseDown, anchorPositions, cornerScreen, ex]);
 
   // Rotate handle floats above the selection's TOPMOST screen point — a
   // stable, unoccluded spot in both projections (iso diamond apex / 2D top
@@ -198,10 +223,10 @@ export const TransformControls = ({
           // anchors) — reads as "a click will grab this".
           <>
             <rect
-              x={-HOVER_OUTSET}
-              y={-HOVER_OUTSET}
-              width={pxSize.width + HOVER_OUTSET * 2}
-              height={pxSize.height + HOVER_OUTSET * 2}
+              x={ringX - HOVER_OUTSET}
+              y={ringY - HOVER_OUTSET}
+              width={ringW + HOVER_OUTSET * 2}
+              height={ringH + HOVER_OUTSET * 2}
               rx={RING_RADIUS}
               fill="none"
               stroke="#ffffff"
@@ -210,10 +235,10 @@ export const TransformControls = ({
               strokeLinejoin="round"
             />
             <rect
-              x={-HOVER_OUTSET}
-              y={-HOVER_OUTSET}
-              width={pxSize.width + HOVER_OUTSET * 2}
-              height={pxSize.height + HOVER_OUTSET * 2}
+              x={ringX - HOVER_OUTSET}
+              y={ringY - HOVER_OUTSET}
+              width={ringW + HOVER_OUTSET * 2}
+              height={ringH + HOVER_OUTSET * 2}
               rx={RING_RADIUS}
               fill="none"
               stroke={TRANSFORM_CONTROLS_COLOR}
@@ -231,10 +256,10 @@ export const TransformControls = ({
           // halo = unmistakable on every element type.
           <>
             <rect
-              x={-SELECT_OUTSET}
-              y={-SELECT_OUTSET}
-              width={pxSize.width + SELECT_OUTSET * 2}
-              height={pxSize.height + SELECT_OUTSET * 2}
+              x={ringX - SELECT_OUTSET}
+              y={ringY - SELECT_OUTSET}
+              width={ringW + SELECT_OUTSET * 2}
+              height={ringH + SELECT_OUTSET * 2}
               rx={RING_RADIUS}
               fill="none"
               stroke={TRANSFORM_CONTROLS_COLOR}
@@ -243,10 +268,10 @@ export const TransformControls = ({
               strokeLinejoin="round"
             />
             <rect
-              x={-SELECT_OUTSET}
-              y={-SELECT_OUTSET}
-              width={pxSize.width + SELECT_OUTSET * 2}
-              height={pxSize.height + SELECT_OUTSET * 2}
+              x={ringX - SELECT_OUTSET}
+              y={ringY - SELECT_OUTSET}
+              width={ringW + SELECT_OUTSET * 2}
+              height={ringH + SELECT_OUTSET * 2}
               rx={RING_RADIUS}
               fill="none"
               stroke="#ffffff"
@@ -255,10 +280,10 @@ export const TransformControls = ({
               strokeLinejoin="round"
             />
             <rect
-              x={-SELECT_OUTSET}
-              y={-SELECT_OUTSET}
-              width={pxSize.width + SELECT_OUTSET * 2}
-              height={pxSize.height + SELECT_OUTSET * 2}
+              x={ringX - SELECT_OUTSET}
+              y={ringY - SELECT_OUTSET}
+              width={ringW + SELECT_OUTSET * 2}
+              height={ringH + SELECT_OUTSET * 2}
               rx={RING_RADIUS}
               fill="none"
               stroke={TRANSFORM_CONTROLS_COLOR}

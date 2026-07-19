@@ -67,6 +67,28 @@ describe('viewItemSchema', () => {
     }
   });
 
+  it('round-trips the ADR 0044 per-node iconScale', () => {
+    const item = { id: 'item1', tile: { x: 1, y: 2 }, iconScale: 1.75 };
+    const result = viewItemSchema.safeParse(item);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.iconScale).toBe(1.75);
+  });
+
+  it('iconScale is optional — omitting it still passes (zero-migration)', () => {
+    const result = viewItemSchema.safeParse({ id: 'item1', tile: { x: 0, y: 0 } });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.iconScale).toBeUndefined();
+  });
+
+  it('rejects iconScale outside the [0.1, 3] hard bounds', () => {
+    expect(
+      viewItemSchema.safeParse({ id: 'i', tile: { x: 0, y: 0 }, iconScale: 5 }).success
+    ).toBe(false);
+    expect(
+      viewItemSchema.safeParse({ id: 'i', tile: { x: 0, y: 0 }, iconScale: 0 }).success
+    ).toBe(false);
+  });
+
   it('fails if required fields are missing', () => {
     const invalid = { tile: { x: 1, y: 2 } };
     const result = viewItemSchema.safeParse(invalid);

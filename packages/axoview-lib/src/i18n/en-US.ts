@@ -336,7 +336,6 @@ const locale: LocaleProps = {
     alignTop: 'Align top',
     alignMiddle: 'Align middle',
     alignBottom: 'Align bottom',
-    iconSize: 'Icon size',
     textColor: 'Text color',
     textColorDisabled:
       'Select a node, text box, label, or connection label to set text color',
@@ -387,8 +386,6 @@ const locale: LocaleProps = {
     changeIconBulk: 'Change icon applies to one node at a time',
     changeIcon: 'Change icon',
     changeIconDisabled: 'Select a node to change its icon',
-    iconSizeBulk: 'Icon size edits one icon at a time (it resizes every node using that icon)',
-    iconSizeDisabled: 'Select a node to change its icon size',
     connectionColorPredraw: 'Color for the next connection you draw',
     connectionColor: 'Connection color',
     connectionColorDisabled:

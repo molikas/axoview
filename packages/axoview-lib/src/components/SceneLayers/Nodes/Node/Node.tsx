@@ -159,6 +159,7 @@ export const Node = memo(({ node, order }: Props) => {
           labelItalic={node.labelItalic}
           labelStrikethrough={node.labelStrikethrough}
           labelUnderline={node.labelUnderline}
+          iconScale={node.iconScale}
         />
       </NodeTransform>
     </NodeShell>
@@ -184,6 +185,10 @@ interface NodeContentProps {
   labelItalic?: boolean;
   labelStrikethrough?: boolean;
   labelUnderline?: boolean;
+  // ADR 0044: per-node icon scale (committed model value). Overrides the shared
+  // icon asset scale for this node only. The live resize preview is merged from
+  // uiState.iconScaleDrag below.
+  iconScale?: number;
 }
 
 const NodeContent = memo(
@@ -196,11 +201,23 @@ const NodeContent = memo(
     labelBold,
     labelItalic,
     labelStrikethrough,
-    labelUnderline
+    labelUnderline,
+    iconScale
   }: NodeContentProps) => {
     useRenderProbe('NodeContent', id);
     const modelItem = useModelItem(id);
-    const { iconComponent } = useIcon(modelItem?.icon);
+    // ADR 0044: while THIS node's icon is being resized on canvas, the live
+    // scale lives in uiState.iconScaleDrag (a transient UI preview — no per-frame
+    // model write, so the O(N) WebGL node bulk isn't rebuilt each frame). Only
+    // the dragged node's value flips, so only it re-renders. Committed once on
+    // release. Null for every other node / when no resize is in flight.
+    const iconScaleDragValue = useUiStateStore((s) =>
+      s.iconScaleDrag?.id === id ? s.iconScaleDrag.scale : null
+    );
+    const { iconComponent } = useIcon(
+      modelItem?.icon,
+      iconScaleDragValue ?? iconScale
+    );
     const editorMode = useUiStateStore((s) => s.editorMode);
     // Present-mode hide-labels override (ADR 0013 addendum) — UI-only.
     const previewHideLabels = useUiStateStore((s) => s.previewHideLabels);

@@ -148,6 +148,20 @@ export interface TransformTextBoxMode {
   selectedAnchor: AnchorPosition | null;
 }
 
+// On-canvas icon resize (ADR 0044): drag a corner handle on the selected node
+// to set its per-node `iconScale`. Single target, uniform scale about the tile
+// centre. `startScale` is the effective scale captured at grab time (per-node
+// override ?? shared asset scale ?? 1); mousemove derives the new scale from the
+// screen-drag delta against it and previews via uiState.iconScaleDrag (no
+// per-frame model write). Corner anchors only.
+export interface NodeTransformMode {
+  type: 'NODE.TRANSFORM';
+  showCursor: boolean;
+  id: string;
+  selectedAnchor: AnchorPosition | null;
+  startScale: number;
+}
+
 export interface TextBoxMode {
   type: 'TEXTBOX';
   showCursor: boolean;
@@ -203,6 +217,7 @@ export type Mode =
   | DragItemsMode
   | TextBoxMode
   | TransformTextBoxMode
+  | NodeTransformMode
   | LabelMode
   | LassoMode
   | FreehandLassoMode
@@ -379,6 +394,16 @@ export interface UiState {
    * model position is committed ONCE on release. Null when no move is in flight.
    */
   labelMove: { id: string; tile: Coords; offset?: Coords } | null;
+  /**
+   * Transient on-canvas icon-resize preview (ADR 0044). While a node's icon is
+   * being resized via its corner handles (NODE.TRANSFORM), this holds the node
+   * id + the live iconScale, so the selected node (DOM) and its selection ring
+   * follow the drag WITHOUT a per-frame model write (which would rebuild the
+   * O(N) WebGL node bulk every frame — canvas-interaction.md §6.1/§6.4). UI-only,
+   * never persisted; the model `iconScale` is committed ONCE on release. Null
+   * when no resize is in flight.
+   */
+  iconScaleDrag: { id: string; scale: number } | null;
   /**
    * The currently-selected connector label (a `labels[]` entry), so the top-bar
    * style strip can target ONE label's text size/colour and the canvas can
@@ -571,6 +596,10 @@ export interface UiStateActions {
   setLabelMove: (id: string, tile: Coords, offset?: Coords) => void;
   /** End the label-move preview (the model tile/offset is committed separately, once). */
   clearLabelMove: () => void;
+  /** Begin / update the transient on-canvas icon-resize preview (ADR 0044). */
+  setIconScaleDrag: (id: string, scale: number) => void;
+  /** End the icon-resize preview (the model iconScale is committed separately, once). */
+  clearIconScaleDrag: () => void;
   /** Select (or clear) the connector label the top-bar style strip targets. */
   setSelectedConnectorLabel: (
     sel: { connectorId: string; labelId: string } | null

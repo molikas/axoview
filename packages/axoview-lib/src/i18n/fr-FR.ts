@@ -340,7 +340,6 @@ const locale: LocaleProps = {
     alignTop: 'Aligner en haut',
     alignMiddle: 'Aligner au milieu',
     alignBottom: 'Aligner en bas',
-    iconSize: "Taille de l'icône",
     textColor: 'Couleur du texte',
     textColorDisabled:
       "Sélectionnez un nœud, une zone de texte, une étiquette ou une étiquette de connexion pour définir la couleur du texte",
@@ -393,9 +392,6 @@ const locale: LocaleProps = {
     changeIconBulk: "Le changement d'icône s'applique à un seul nœud à la fois",
     changeIcon: "Changer l'icône",
     changeIconDisabled: "Sélectionnez un nœud pour changer son icône",
-    iconSizeBulk:
-      "La taille de l'icône modifie une icône à la fois (redimensionne tous les nœuds qui l'utilisent)",
-    iconSizeDisabled: "Sélectionnez un nœud pour changer la taille de son icône",
     connectionColorPredraw: 'Couleur de la prochaine connexion que vous dessinez',
     connectionColor: 'Couleur de la connexion',
     connectionColorDisabled:

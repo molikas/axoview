@@ -505,7 +505,8 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
         if (img) {
           const uv = putIcon(b, icon.url, img);
           if (uv) {
-            const scale = icon.scale || 1;
+            // ADR 0044: per-node iconScale overrides the shared asset scale.
+            const scale = node.iconScale ?? icon.scale ?? 1;
             if (icon.isIsometric) {
               const w = PROJ_W * 0.8 * scale;
               const h = iconHeight(img, w);

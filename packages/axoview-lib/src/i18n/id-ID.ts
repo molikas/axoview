@@ -335,7 +335,6 @@ const locale: LocaleProps = {
     alignTop: 'Rata atas',
     alignMiddle: 'Rata tengah vertikal',
     alignBottom: 'Rata bawah',
-    iconSize: 'Ukuran ikon',
     textColor: 'Warna teks',
     textColorDisabled:
       'Pilih node, kotak teks, label, atau label koneksi untuk mengatur warna teks',
@@ -387,9 +386,6 @@ const locale: LocaleProps = {
     changeIconBulk: 'Ubah ikon berlaku untuk satu node dalam satu waktu',
     changeIcon: 'Ubah ikon',
     changeIconDisabled: 'Pilih node untuk mengubah ikonnya',
-    iconSizeBulk:
-      'Ukuran ikon mengedit satu ikon dalam satu waktu (mengubah ukuran semua node yang memakainya)',
-    iconSizeDisabled: 'Pilih node untuk mengubah ukuran ikonnya',
     connectionColorPredraw: 'Warna untuk koneksi berikutnya yang Anda gambar',
     connectionColor: 'Warna koneksi',
     connectionColorDisabled:
