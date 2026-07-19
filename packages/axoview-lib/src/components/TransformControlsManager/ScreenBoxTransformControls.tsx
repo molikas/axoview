@@ -79,15 +79,69 @@ export const ScreenBoxTransformControls = ({
       >
         {subtle ? (
           <>
-            <rect x={0} y={0} width={ringW} height={ringH} rx={RADIUS} fill="none" stroke="#ffffff" strokeWidth={HOVER_RING_WIDTH + 2} strokeOpacity={0.6} strokeLinejoin="round" />
-            <rect x={0} y={0} width={ringW} height={ringH} rx={RADIUS} fill="none" stroke={TRANSFORM_CONTROLS_COLOR} strokeWidth={HOVER_RING_WIDTH} strokeOpacity={0.7} strokeLinejoin="round" />
+            <rect
+              x={0}
+              y={0}
+              width={ringW}
+              height={ringH}
+              rx={RADIUS}
+              fill="none"
+              stroke="#ffffff"
+              strokeWidth={HOVER_RING_WIDTH + 2}
+              strokeOpacity={0.6}
+              strokeLinejoin="round"
+            />
+            <rect
+              x={0}
+              y={0}
+              width={ringW}
+              height={ringH}
+              rx={RADIUS}
+              fill="none"
+              stroke={TRANSFORM_CONTROLS_COLOR}
+              strokeWidth={HOVER_RING_WIDTH}
+              strokeOpacity={0.7}
+              strokeLinejoin="round"
+            />
           </>
         ) : (
           <>
             {/* accent glow → white contrast under-ring → bold accent ring (ADR 0006 §9). */}
-            <rect x={0} y={0} width={ringW} height={ringH} rx={RADIUS} fill="none" stroke={TRANSFORM_CONTROLS_COLOR} strokeWidth={RING_WIDTH * 3} strokeOpacity={0.22} strokeLinejoin="round" />
-            <rect x={0} y={0} width={ringW} height={ringH} rx={RADIUS} fill="none" stroke="#ffffff" strokeWidth={RING_WIDTH + 2} strokeOpacity={0.9} strokeLinejoin="round" />
-            <rect x={0} y={0} width={ringW} height={ringH} rx={RADIUS} fill="none" stroke={TRANSFORM_CONTROLS_COLOR} strokeWidth={RING_WIDTH} strokeLinejoin="round" />
+            <rect
+              x={0}
+              y={0}
+              width={ringW}
+              height={ringH}
+              rx={RADIUS}
+              fill="none"
+              stroke={TRANSFORM_CONTROLS_COLOR}
+              strokeWidth={RING_WIDTH * 3}
+              strokeOpacity={0.22}
+              strokeLinejoin="round"
+            />
+            <rect
+              x={0}
+              y={0}
+              width={ringW}
+              height={ringH}
+              rx={RADIUS}
+              fill="none"
+              stroke="#ffffff"
+              strokeWidth={RING_WIDTH + 2}
+              strokeOpacity={0.9}
+              strokeLinejoin="round"
+            />
+            <rect
+              x={0}
+              y={0}
+              width={ringW}
+              height={ringH}
+              rx={RADIUS}
+              fill="none"
+              stroke={TRANSFORM_CONTROLS_COLOR}
+              strokeWidth={RING_WIDTH}
+              strokeLinejoin="round"
+            />
           </>
         )}
       </Svg>

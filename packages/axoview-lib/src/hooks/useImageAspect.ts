@@ -8,7 +8,7 @@ const aspectCache = new Map<string, number>();
 
 export const useImageAspect = (url?: string): number => {
   const [aspect, setAspect] = useState<number>(() =>
-    url ? aspectCache.get(url) ?? 1 : 1
+    url ? (aspectCache.get(url) ?? 1) : 1
   );
 
   useEffect(() => {
@@ -25,8 +25,7 @@ export const useImageAspect = (url?: string): number => {
     let cancelled = false;
     const img = new Image();
     img.onload = () => {
-      const a =
-        img.naturalWidth > 0 ? img.naturalHeight / img.naturalWidth : 1;
+      const a = img.naturalWidth > 0 ? img.naturalHeight / img.naturalWidth : 1;
       aspectCache.set(url, a);
       if (!cancelled) setAspect(a);
     };

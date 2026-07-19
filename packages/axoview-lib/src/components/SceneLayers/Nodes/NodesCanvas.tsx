@@ -272,8 +272,9 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
 
     // A throwaway 2D context purely for measureText (the visible canvas is owned
     // by WebGL and has no 2D context).
-    const measureCtx: CanvasRenderingContext2D | null =
-      document.createElement('canvas').getContext('2d');
+    const measureCtx: CanvasRenderingContext2D | null = document
+      .createElement('canvas')
+      .getContext('2d');
     // Shared scratch for downscaling large icons into the atlas.
     const iconScratch = document.createElement('canvas');
 

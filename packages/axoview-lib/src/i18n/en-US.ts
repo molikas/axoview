@@ -276,14 +276,14 @@ const locale: LocaleProps = {
   },
   nodePanel: {
     notes: 'Notes',
-    close: 'Close',
+    close: 'Close'
   },
   nodeDeck: {
     metadata: 'Metadata',
     name: 'Name',
     namePlaceholder: 'Node name…',
     label: 'Label',
-    labelPlaceholder: 'Label shown on the shape…',
+    labelPlaceholder: 'Label shown on the shape…'
   },
   connectorControls: {
     metadata: 'Metadata',
@@ -364,7 +364,8 @@ const locale: LocaleProps = {
     bulletList: 'Bulleted list',
     numberedList: 'Numbered list',
     background: 'Background color',
-    backgroundDisabled: 'Select a rectangle, label, or text box to set its background color',
+    backgroundDisabled:
+      'Select a rectangle, label, or text box to set its background color',
     opacity: 'Opacity',
     border: 'Border',
     borderDisabled: 'Select a rectangle or text box to set its border',
@@ -382,7 +383,8 @@ const locale: LocaleProps = {
     openLinkedDiagram: 'Open linked diagram',
     showLabel: 'Show label',
     hideLabel: 'Hide label',
-    showHideLabelDisabled: 'Select a node or connection to show or hide its label',
+    showHideLabelDisabled:
+      'Select a node or connection to show or hide its label',
     changeIconBulk: 'Change icon applies to one node at a time',
     changeIcon: 'Change icon',
     changeIconDisabled: 'Select a node to change its icon',
@@ -396,7 +398,7 @@ const locale: LocaleProps = {
       'Select a connection (or the connector tool) to set its line options',
     lineType: 'Line type',
     showArrow: 'Show arrow',
-    showDottedLine: 'Show dotted line',
+    showDottedLine: 'Show dotted line'
   },
   quickAddNodePopover: {
     add: 'Add',

@@ -8,7 +8,9 @@ interface AddItemControls {
   type: 'ADD_ITEM';
 }
 
-export type ItemControls = (ItemReference & { tile?: Coords }) | AddItemControls;
+export type ItemControls =
+  | (ItemReference & { tile?: Coords })
+  | AddItemControls;
 
 export interface Mouse {
   position: {
@@ -251,7 +253,10 @@ export type ConnectorInteractionMode = 'click' | 'drag';
 // one). A subset of the connector model — only the appearance fields the top-bar
 // controls expose.
 export type ConnectorDefaults = Partial<
-  Pick<Connector, 'color' | 'customColor' | 'style' | 'lineType' | 'width' | 'showArrow'>
+  Pick<
+    Connector,
+    'color' | 'customColor' | 'style' | 'lineType' | 'width' | 'showArrow'
+  >
 >;
 
 export interface Notification {

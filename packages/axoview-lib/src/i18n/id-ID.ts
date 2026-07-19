@@ -53,8 +53,7 @@ const locale: LocaleProps = {
       'Gambar kotak seleksi persegi panjang untuk memilih beberapa item',
     deselectAction: 'Batal Pilih',
     deselectShortcut: 'Klik Kiri (area kosong)',
-    deselectDescription:
-      'Batalkan pilihan saat ini dan kembali ke mode pilih',
+    deselectDescription: 'Batalkan pilihan saat ini dan kembali ke mode pilih',
     // Mouse interactions
     selectToolAction: 'Alat Pilih',
     selectToolShortcut: 'Klik tombol Pilih',
@@ -94,7 +93,8 @@ const locale: LocaleProps = {
     // D10 — tool-activation keys (ADR 0022 §6)
     keyRenameAction: 'Ganti nama',
     keyRenameShortcut: 'F2',
-    keyRenameDescription: 'Ganti nama item atau diagram terpilih secara langsung',
+    keyRenameDescription:
+      'Ganti nama item atau diagram terpilih secara langsung',
     keyAddItemAction: 'Tambah item / Elemen',
     keyAddItemShortcut: 'N',
     keyAddItemDescription: 'Alihkan panel Elemen untuk menempatkan item baru',
@@ -196,8 +196,7 @@ const locale: LocaleProps = {
     canvas: 'Kanvas',
     language: 'Bahasa',
     about: 'Tentang',
-    languageDescription:
-      'Pilih bahasa tampilan untuk antarmuka aplikasi.',
+    languageDescription: 'Pilih bahasa tampilan untuk antarmuka aplikasi.',
     zoomSection: 'Zoom',
     labelsSection: 'Label',
     zoom: {
@@ -276,14 +275,14 @@ const locale: LocaleProps = {
   },
   nodePanel: {
     notes: 'Catatan',
-    close: 'Tutup',
+    close: 'Tutup'
   },
   nodeDeck: {
     metadata: 'Metadata',
     name: 'Nama',
     namePlaceholder: 'Nama node…',
     label: 'Label',
-    labelPlaceholder: 'Label yang ditampilkan pada bentuk…',
+    labelPlaceholder: 'Label yang ditampilkan pada bentuk…'
   },
   connectorControls: {
     metadata: 'Metadata',
@@ -295,7 +294,8 @@ const locale: LocaleProps = {
     addLabel: 'Tambah label',
     noLabels: 'Belum ada label.',
     labelN: 'Label {count}',
-    positionHint: 'Seret label di kanvas untuk memposisikannya; gunakan bilah atas untuk ukuran teks dan warnanya.',
+    positionHint:
+      'Seret label di kanvas untuk memposisikannya; gunakan bilah atas untuk ukuran teks dan warnanya.',
     line: 'Garis',
     line1: 'Garis 1',
     line2: 'Garis 2'
@@ -363,10 +363,12 @@ const locale: LocaleProps = {
     bulletList: 'Daftar poin',
     numberedList: 'Daftar bernomor',
     background: 'Warna latar belakang',
-    backgroundDisabled: 'Pilih persegi panjang, label, atau kotak teks untuk mengatur warna latar belakangnya',
+    backgroundDisabled:
+      'Pilih persegi panjang, label, atau kotak teks untuk mengatur warna latar belakangnya',
     opacity: 'Opasitas',
     border: 'Batas',
-    borderDisabled: 'Pilih persegi panjang atau kotak teks untuk mengatur bingkainya',
+    borderDisabled:
+      'Pilih persegi panjang atau kotak teks untuk mengatur bingkainya',
     lineStyle: 'Gaya garis',
     width: 'Tebal',
     borderColor: 'Warna batas',
@@ -396,7 +398,7 @@ const locale: LocaleProps = {
       'Pilih koneksi (atau alat konektor) untuk mengatur opsi garisnya',
     lineType: 'Tipe garis',
     showArrow: 'Tampilkan panah',
-    showDottedLine: 'Tampilkan garis putus-putus',
+    showDottedLine: 'Tampilkan garis putus-putus'
   },
   quickAddNodePopover: {
     add: 'Tambah',
@@ -485,7 +487,8 @@ const locale: LocaleProps = {
     showGrid: 'Tampilkan kisi',
     showLabels: 'Tampilkan label',
     screenshotPreset: 'Tangkapan layar (disarankan)',
-    scaleClamped: 'Ukuran ekspor dikurangi agar sesuai dengan batas gambar browser:',
+    scaleClamped:
+      'Ukuran ekspor dikurangi agar sesuai dengan batas gambar browser:',
     cropToContent: 'Pangkas ke konten',
     backgroundColor: 'Warna latar belakang',
     transparentBackground: 'Latar belakang transparan',

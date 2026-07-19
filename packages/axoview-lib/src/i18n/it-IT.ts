@@ -11,7 +11,8 @@ const locale: LocaleProps = {
   },
   rightSidebar: {
     collapsePanel: 'Comprimi pannello',
-    emptyState: 'Seleziona un nodo, un connettore o una forma per visualizzarne le proprietà'
+    emptyState:
+      'Seleziona un nodo, un connettore o una forma per visualizzarne le proprietà'
   },
   helpDialog: {
     title: 'Scorciatoie da tastiera e aiuto',
@@ -95,10 +96,12 @@ const locale: LocaleProps = {
     // D10 — tool-activation keys (ADR 0022 §6)
     keyRenameAction: 'Rinomina',
     keyRenameShortcut: 'F2',
-    keyRenameDescription: 'Rinomina l’elemento o il diagramma selezionato in linea',
+    keyRenameDescription:
+      'Rinomina l’elemento o il diagramma selezionato in linea',
     keyAddItemAction: 'Aggiungi elemento / Elementi',
     keyAddItemShortcut: 'N',
-    keyAddItemDescription: 'Attiva/disattiva il pannello Elementi per inserire un nuovo elemento',
+    keyAddItemDescription:
+      'Attiva/disattiva il pannello Elementi per inserire un nuovo elemento',
     keyConnectorAction: 'Connettore',
     keyConnectorShortcut: 'C',
     keyConnectorDescription: 'Passa allo strumento connettore',
@@ -265,7 +268,7 @@ const locale: LocaleProps = {
   lazyLoadingWelcome: {
     title: 'Benvenuto in Axoview',
     message:
-      "Axoview è uno strumento gratuito e open source per creare splendidi diagrammi isometrici e 2D — architetture cloud, di rete e infrastrutturali, con le icone di AWS, GCP, Azure e Kubernetes già integrate. Tutto funziona direttamente nel tuo browser, salvando in locale o sul tuo Google Drive. Costruito sui progetti open source FossFLOW e Isoflow e in continua espansione — trovi il codice sorgente, segnali un bug o richiedi una funzionalità su github.com/molikas/axoview.",
+      'Axoview è uno strumento gratuito e open source per creare splendidi diagrammi isometrici e 2D — architetture cloud, di rete e infrastrutturali, con le icone di AWS, GCP, Azure e Kubernetes già integrate. Tutto funziona direttamente nel tuo browser, salvando in locale o sul tuo Google Drive. Costruito sui progetti open source FossFLOW e Isoflow e in continua espansione — trovi il codice sorgente, segnali un bug o richiedi una funzionalità su github.com/molikas/axoview.',
     configPath: "Clicca sull'icona dell'hamburger",
     configPath2: 'in alto a sinistra per accedere alla Configurazione.',
     canDisable: 'Puoi disattivare questo comportamento se lo desideri.',
@@ -279,14 +282,14 @@ const locale: LocaleProps = {
   },
   nodePanel: {
     notes: 'Note',
-    close: 'Chiudi',
+    close: 'Chiudi'
   },
   nodeDeck: {
     metadata: 'Metadati',
     name: 'Nome',
     namePlaceholder: 'Nome del nodo…',
     label: 'Etichetta',
-    labelPlaceholder: 'Etichetta mostrata sulla forma…',
+    labelPlaceholder: 'Etichetta mostrata sulla forma…'
   },
   connectorControls: {
     metadata: 'Metadati',
@@ -298,7 +301,8 @@ const locale: LocaleProps = {
     addLabel: 'Aggiungi etichetta',
     noLabels: 'Nessuna etichetta ancora.',
     labelN: 'Etichetta {count}',
-    positionHint: "Trascina un'etichetta sulla tela per posizionarla; usa la barra superiore per la dimensione e il colore del testo.",
+    positionHint:
+      "Trascina un'etichetta sulla tela per posizionarla; usa la barra superiore per la dimensione e il colore del testo.",
     line: 'Linea',
     line1: 'Linea 1',
     line2: 'Linea 2'
@@ -370,12 +374,14 @@ const locale: LocaleProps = {
       "Seleziona un rettangolo, un'etichetta o una casella di testo per impostarne il colore di sfondo",
     opacity: 'Opacità',
     border: 'Bordo',
-    borderDisabled: 'Seleziona un rettangolo o una casella di testo per impostarne il bordo',
+    borderDisabled:
+      'Seleziona un rettangolo o una casella di testo per impostarne il bordo',
     lineStyle: 'Stile linea',
     width: 'Spessore',
     borderColor: 'Colore bordo',
     link: 'Link',
-    linkDisabled: "Seleziona un nodo, una connessione o un'etichetta per aggiungere un link",
+    linkDisabled:
+      "Seleziona un nodo, una connessione o un'etichetta per aggiungere un link",
     linkSelection: 'Collega il testo selezionato',
     linkDisabledTextBox:
       'Seleziona del testo durante la modifica per aggiungere un link',
@@ -401,7 +407,7 @@ const locale: LocaleProps = {
       'Seleziona una connessione (o lo strumento connettore) per impostarne le opzioni di linea',
     lineType: 'Tipo di linea',
     showArrow: 'Mostra freccia',
-    showDottedLine: 'Mostra linea punteggiata',
+    showDottedLine: 'Mostra linea punteggiata'
   },
   quickAddNodePopover: {
     add: 'Aggiungi',
@@ -417,7 +423,8 @@ const locale: LocaleProps = {
   },
   modeHints: {
     connector: 'Trascina tra gli elementi per collegare • Esc per annullare',
-    textBox: 'Fai clic per posizionare una casella di testo • Esc per annullare',
+    textBox:
+      'Fai clic per posizionare una casella di testo • Esc per annullare',
     label: "Fai clic per posizionare un'etichetta • Esc per annullare",
     rectangle: 'Trascina per disegnare un rettangolo • Esc per annullare'
   },
@@ -490,7 +497,8 @@ const locale: LocaleProps = {
     showGrid: 'Mostra griglia',
     showLabels: 'Mostra etichette',
     screenshotPreset: 'Screenshot (consigliato)',
-    scaleClamped: 'Dimensione di esportazione ridotta per rientrare nel limite immagine del browser:',
+    scaleClamped:
+      'Dimensione di esportazione ridotta per rientrare nel limite immagine del browser:',
     cropToContent: 'Ritaglia al contenuto',
     backgroundColor: 'Colore di sfondo',
     transparentBackground: 'Sfondo trasparente',

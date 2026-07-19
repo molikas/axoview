@@ -81,7 +81,8 @@ export const NodeGroupTransformControls = ({ ids }: Props) => {
   // Representative (first selected) drives the readout — matches the strip's
   // "display the representative item" bulk convention.
   const rep = resolved[0];
-  const previewRep = rep && previewScales ? previewScales[rep.id] ?? null : null;
+  const previewRep =
+    rep && previewScales ? (previewScales[rep.id] ?? null) : null;
 
   const onAnchorMouseDown = useCallback(
     (key: AnchorPosition) => {

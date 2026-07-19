@@ -53,8 +53,7 @@ const locale: LocaleProps = {
       'একাধিক আইটেম নির্বাচন করতে একটি আয়তক্ষেত্রাকার নির্বাচন বক্স আঁকুন',
     deselectAction: 'নির্বাচন বাতিল করুন',
     deselectShortcut: 'বাম-ক্লিক (খালি এলাকা)',
-    deselectDescription:
-      'বর্তমান নির্বাচন বাতিল করুন এবং নির্বাচন মোডে ফিরুন',
+    deselectDescription: 'বর্তমান নির্বাচন বাতিল করুন এবং নির্বাচন মোডে ফিরুন',
     // Mouse interactions
     selectToolAction: 'নির্বাচন টুল',
     selectToolShortcut: 'নির্বাচন বোতামে ক্লিক করুন',
@@ -94,7 +93,8 @@ const locale: LocaleProps = {
     // D10 — tool-activation keys (ADR 0022 §6)
     keyRenameAction: 'নাম পরিবর্তন',
     keyRenameShortcut: 'F2',
-    keyRenameDescription: 'নির্বাচিত আইটেম বা ডায়াগ্রামের নাম ইনলাইন পরিবর্তন করুন',
+    keyRenameDescription:
+      'নির্বাচিত আইটেম বা ডায়াগ্রামের নাম ইনলাইন পরিবর্তন করুন',
     keyAddItemAction: 'আইটেম যোগ করুন / এলিমেন্ট',
     keyAddItemShortcut: 'N',
     keyAddItemDescription: 'নতুন আইটেম রাখতে এলিমেন্ট প্যানেল টগল করুন',
@@ -275,14 +275,14 @@ const locale: LocaleProps = {
   },
   nodePanel: {
     notes: 'নোট',
-    close: 'বন্ধ করুন',
+    close: 'বন্ধ করুন'
   },
   nodeDeck: {
     metadata: 'মেটাডেটা',
     name: 'নাম',
     namePlaceholder: 'নোডের নাম…',
     label: 'লেবেল',
-    labelPlaceholder: 'শেপে দেখানো লেবেল…',
+    labelPlaceholder: 'শেপে দেখানো লেবেল…'
   },
   connectorControls: {
     metadata: 'মেটাডেটা',
@@ -363,10 +363,12 @@ const locale: LocaleProps = {
     bulletList: 'বুলেট তালিকা',
     numberedList: 'সংখ্যায়িত তালিকা',
     background: 'পটভূমির রং',
-    backgroundDisabled: 'পটভূমির রং সেট করতে একটি আয়তক্ষেত্র, লেবেল বা টেক্সট বক্স নির্বাচন করুন',
+    backgroundDisabled:
+      'পটভূমির রং সেট করতে একটি আয়তক্ষেত্র, লেবেল বা টেক্সট বক্স নির্বাচন করুন',
     opacity: 'স্বচ্ছতা',
     border: 'বর্ডার',
-    borderDisabled: 'বর্ডার সেট করতে একটি আয়তক্ষেত্র বা টেক্সট বক্স নির্বাচন করুন',
+    borderDisabled:
+      'বর্ডার সেট করতে একটি আয়তক্ষেত্র বা টেক্সট বক্স নির্বাচন করুন',
     lineStyle: 'লাইন স্টাইল',
     width: 'প্রস্থ',
     borderColor: 'বর্ডারের রং',
@@ -396,7 +398,7 @@ const locale: LocaleProps = {
       'লাইন বিকল্প সেট করতে একটি সংযোগ (বা সংযোগকারী টুল) নির্বাচন করুন',
     lineType: 'লাইন প্রকার',
     showArrow: 'তীর দেখান',
-    showDottedLine: 'বিন্দুযুক্ত রেখা দেখান',
+    showDottedLine: 'বিন্দুযুক্ত রেখা দেখান'
   },
   quickAddNodePopover: {
     add: 'যোগ করুন',
@@ -485,7 +487,8 @@ const locale: LocaleProps = {
     showGrid: 'গ্রিড দেখান',
     showLabels: 'লেবেল দেখান',
     screenshotPreset: 'স্ক্রিনশট (প্রস্তাবিত)',
-    scaleClamped: 'ব্রাউজারের ছবির সীমার সাথে মানানসই করতে রপ্তানির আকার হ্রাস করা হয়েছে:',
+    scaleClamped:
+      'ব্রাউজারের ছবির সীমার সাথে মানানসই করতে রপ্তানির আকার হ্রাস করা হয়েছে:',
     cropToContent: 'বিষয়বস্তুতে ক্রপ করুন',
     backgroundColor: 'পটভূমির রং',
     transparentBackground: 'স্বচ্ছ পটভূমি',

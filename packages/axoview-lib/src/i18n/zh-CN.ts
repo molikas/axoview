@@ -73,7 +73,8 @@ const locale: LocaleProps = {
     addTextDescription: '创建新的文本框',
     deleteSelectedAction: '删除所选',
     deleteSelectedShortcut: 'Delete（Mac 上为 Backspace）',
-    deleteSelectedDescription: '删除所选项目或套索选择中的所有项目；支持撤销/重做',
+    deleteSelectedDescription:
+      '删除所选项目或套索选择中的所有项目；支持撤销/重做',
     cutAction: '剪切',
     cutDescription:
       '将所选项目剪切到剪贴板——项目被移除并可粘贴到其他位置；支持撤销/重做',
@@ -84,7 +85,8 @@ const locale: LocaleProps = {
     // D10 — Select all row
     selectAllAction: '全选',
     selectAllShortcut: 'Ctrl+A',
-    selectAllDescription: '选择当前视图中所有可见且未锁定的项目（项目、矩形、文本框、连接线及其路径点）',
+    selectAllDescription:
+      '选择当前视图中所有可见且未锁定的项目（项目、矩形、文本框、连接线及其路径点）',
     // D10 — tool-activation keys (ADR 0022 §6)
     keyRenameAction: '重命名',
     keyRenameShortcut: 'F2',
@@ -104,22 +106,28 @@ const locale: LocaleProps = {
     // D10 — mouse interactions
     miSelectAction: '选择',
     miSelectMethod: '左键单击',
-    miSelectDescription: '单击项目以选择它（高亮显示并显示浮动操作栏）。单击空白画布以清除选择。',
+    miSelectDescription:
+      '单击项目以选择它（高亮显示并显示浮动操作栏）。单击空白画布以清除选择。',
     miOpenDetailsAction: '打开详情',
     miOpenDetailsMethod: '双击',
-    miOpenDetailsDescription: '双击项目以打开其详情面板——与右键菜单中的“详情…”项相同。',
+    miOpenDetailsDescription:
+      '双击项目以打开其详情面板——与右键菜单中的“详情…”项相同。',
     miToggleSelectionAction: '切换选择',
     miToggleSelectionMethod: 'Ctrl/Cmd + 左键单击',
-    miToggleSelectionDescription: '从多选中添加或移除项目；连接线会与其路径点一起切换。',
+    miToggleSelectionDescription:
+      '从多选中添加或移除项目；连接线会与其路径点一起切换。',
     miPanAction: '平移',
     miPanMethod: '右键单击 + 拖动',
-    miPanDescription: '按住右键并拖动以平移画布。中键拖动也可平移；方向键可微移。',
+    miPanDescription:
+      '按住右键并拖动以平移画布。中键拖动也可平移；方向键可微移。',
     miContextMenuAction: '右键菜单',
     miContextMenuMethod: '右键单击（轻点）',
-    miContextMenuDescription: '不拖动的右键单击会打开右键菜单——在项目上为项目菜单，在空白处为画布菜单。触屏上为长按。',
+    miContextMenuDescription:
+      '不拖动的右键单击会打开右键菜单——在项目上为项目菜单，在空白处为画布菜单。触屏上为长按。',
     miRemoveWaypointAction: '移除路径点',
     miRemoveWaypointMethod: 'Alt + 左键单击',
-    miRemoveWaypointDescription: 'Alt+单击连接线路径点以将其删除（无需先选择连接线）；端点锚点会被保留。',
+    miRemoveWaypointDescription:
+      'Alt+单击连接线路径点以将其删除（无需先选择连接线）；端点锚点会被保留。',
     miZoomAction: '缩放',
     miZoomMethod: '滚轮',
     miZoomDescription: '滚动以朝光标方向缩放。'
@@ -255,14 +263,14 @@ const locale: LocaleProps = {
   },
   nodePanel: {
     notes: '备注',
-    close: '关闭',
+    close: '关闭'
   },
   nodeDeck: {
     metadata: '元数据',
     name: '名称',
     namePlaceholder: '节点名称…',
     label: '标签',
-    labelPlaceholder: '显示在形状上的标签…',
+    labelPlaceholder: '显示在形状上的标签…'
   },
   connectorControls: {
     metadata: '元数据',
@@ -274,7 +282,8 @@ const locale: LocaleProps = {
     addLabel: '添加标签',
     noLabels: '暂无标签。',
     labelN: '标签 {count}',
-    positionHint: '在画布上拖动标签以调整其位置；在顶栏中设置其文本大小和颜色。',
+    positionHint:
+      '在画布上拖动标签以调整其位置；在顶栏中设置其文本大小和颜色。',
     line: '线条',
     line1: '线条 1',
     line2: '线条 2'
@@ -368,7 +377,7 @@ const locale: LocaleProps = {
     lineOptionsDisabled: '选择连接线（或连接器工具）以设置其线条选项',
     lineType: '线条类型',
     showArrow: '显示箭头',
-    showDottedLine: '显示虚线',
+    showDottedLine: '显示虚线'
   },
   quickAddNodePopover: {
     add: '添加',

@@ -21,10 +21,7 @@ import { loadPersistedSettings } from 'src/config/persistedSettings';
 // Shared by setAnnotationOpen + setAnnotationTool so both entry points behave
 // identically.
 const canvasResetForAnnotation = (
-  state: Pick<
-    UiStateStore,
-    'editorMode' | 'rightSidebarAutoOpened'
-  >
+  state: Pick<UiStateStore, 'editorMode' | 'rightSidebarAutoOpened'>
 ): Partial<UiStateStore> => ({
   mode: getStartingMode(state.editorMode),
   itemControls: null,
@@ -311,7 +308,10 @@ const initialState = () => {
           // Toggling a visibility checkbox exits solo (mutually exclusive
           // presentation intents).
           set({
-            previewLayerOverrides: { hiddenLayerIds: nextHidden, soloLayerId: null }
+            previewLayerOverrides: {
+              hiddenLayerIds: nextHidden,
+              soloLayerId: null
+            }
           });
         },
         setPreviewSoloLayer: (layerId) => {
@@ -495,7 +495,9 @@ const initialState = () => {
           });
         },
         clearAnnotations: () => {
-          set({ annotation: { ...get().annotation, strokes: [], redoStack: [] } });
+          set({
+            annotation: { ...get().annotation, strokes: [], redoStack: [] }
+          });
         },
         setIconPackManager: (iconPackManager) => {
           set({ iconPackManager });

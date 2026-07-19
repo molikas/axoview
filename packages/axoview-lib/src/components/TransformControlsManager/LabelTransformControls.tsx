@@ -3,7 +3,10 @@ import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useLabel } from 'src/hooks/useLabel';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { TRANSFORM_CONTROLS_COLOR } from 'src/config';
-import { measureLabelChipOffscreen, LABEL_CHIP_RADIUS } from 'src/utils/labelChip';
+import {
+  measureLabelChipOffscreen,
+  LABEL_CHIP_RADIUS
+} from 'src/utils/labelChip';
 
 interface Props {
   id: string;

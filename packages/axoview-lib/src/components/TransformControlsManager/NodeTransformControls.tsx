@@ -20,7 +20,8 @@ interface Props {
 
 // Live size readout shown during a resize (restores the "1.0×" the removed
 // top-bar slider used to show). Multiplier, one decimal.
-export const formatIconScale = (scale: number): string => `${scale.toFixed(1)}×`;
+export const formatIconScale = (scale: number): string =>
+  `${scale.toFixed(1)}×`;
 
 // Icon on-canvas width = PROJECTED_TILE_SIZE.width * k * scale, where k mirrors
 // the render (IsometricIcon 0.8 / NonIsometricIcon 0.7). Height follows the

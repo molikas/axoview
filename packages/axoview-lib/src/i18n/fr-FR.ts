@@ -11,7 +11,8 @@ const locale: LocaleProps = {
   },
   rightSidebar: {
     collapsePanel: 'Réduire le panneau',
-    emptyState: 'Sélectionnez un nœud, un connecteur ou une forme pour afficher ses propriétés'
+    emptyState:
+      'Sélectionnez un nœud, un connecteur ou une forme pour afficher ses propriétés'
   },
   helpDialog: {
     title: 'Raccourcis clavier et aide',
@@ -96,10 +97,12 @@ const locale: LocaleProps = {
     // D10 — tool-activation keys (ADR 0022 §6)
     keyRenameAction: 'Renommer',
     keyRenameShortcut: 'F2',
-    keyRenameDescription: 'Renommer l’élément ou le diagramme sélectionné sur place',
+    keyRenameDescription:
+      'Renommer l’élément ou le diagramme sélectionné sur place',
     keyAddItemAction: 'Ajouter un élément / Éléments',
     keyAddItemShortcut: 'N',
-    keyAddItemDescription: 'Basculer le panneau Éléments pour placer un nouvel élément',
+    keyAddItemDescription:
+      'Basculer le panneau Éléments pour placer un nouvel élément',
     keyConnectorAction: 'Connecteur',
     keyConnectorShortcut: 'C',
     keyConnectorDescription: 'Passer à l’outil connecteur',
@@ -267,7 +270,7 @@ const locale: LocaleProps = {
   lazyLoadingWelcome: {
     title: 'Bienvenue dans Axoview',
     message:
-      "Axoview est un outil gratuit et open source pour créer de superbes diagrammes isométriques et 2D — architecture cloud, réseau et infrastructure, avec les icônes AWS, GCP, Azure et Kubernetes intégrées. Tout fonctionne dans votre navigateur, avec un enregistrement en local ou sur votre propre Google Drive. Construit sur les projets open source FossFLOW et Isoflow et activement enrichi — retrouvez le code source, signalez un bug ou proposez une fonctionnalité sur github.com/molikas/axoview.",
+      'Axoview est un outil gratuit et open source pour créer de superbes diagrammes isométriques et 2D — architecture cloud, réseau et infrastructure, avec les icônes AWS, GCP, Azure et Kubernetes intégrées. Tout fonctionne dans votre navigateur, avec un enregistrement en local ou sur votre propre Google Drive. Construit sur les projets open source FossFLOW et Isoflow et activement enrichi — retrouvez le code source, signalez un bug ou proposez une fonctionnalité sur github.com/molikas/axoview.',
     configPath: "Cliquez sur l'icône Hamburger",
     configPath2: 'en haut à gauche pour accéder à la Configuration.',
     canDisable: 'Vous pouvez désactiver ce comportement si vous le souhaitez.',
@@ -281,14 +284,14 @@ const locale: LocaleProps = {
   },
   nodePanel: {
     notes: 'Notes',
-    close: 'Fermer',
+    close: 'Fermer'
   },
   nodeDeck: {
     metadata: 'Métadonnées',
     name: 'Nom',
     namePlaceholder: 'Nom du nœud…',
     label: 'Étiquette',
-    labelPlaceholder: 'Étiquette affichée sur la forme…',
+    labelPlaceholder: 'Étiquette affichée sur la forme…'
   },
   connectorControls: {
     metadata: 'Métadonnées',
@@ -300,7 +303,8 @@ const locale: LocaleProps = {
     addLabel: 'Ajouter une étiquette',
     noLabels: 'Aucune étiquette pour le moment.',
     labelN: 'Étiquette {count}',
-    positionHint: 'Faites glisser une étiquette sur le canevas pour la positionner ; utilisez la barre supérieure pour sa taille de texte et sa couleur.',
+    positionHint:
+      'Faites glisser une étiquette sur le canevas pour la positionner ; utilisez la barre supérieure pour sa taille de texte et sa couleur.',
     line: 'Ligne',
     line1: 'Ligne 1',
     line2: 'Ligne 2'
@@ -342,9 +346,9 @@ const locale: LocaleProps = {
     alignBottom: 'Aligner en bas',
     textColor: 'Couleur du texte',
     textColorDisabled:
-      "Sélectionnez un nœud, une zone de texte, une étiquette ou une étiquette de connexion pour définir la couleur du texte",
+      'Sélectionnez un nœud, une zone de texte, une étiquette ou une étiquette de connexion pour définir la couleur du texte',
     textSizeDisabled:
-      "Sélectionnez un nœud, une zone de texte, une étiquette ou une étiquette de connexion pour définir la taille du texte",
+      'Sélectionnez un nœud, une zone de texte, une étiquette ou une étiquette de connexion pour définir la taille du texte',
     labelSizeAllSelected: 'Taille des étiquettes (tout sélectionné)',
     textColorAllSelected: 'Couleur du texte (tout sélectionné)',
     armedToolPlaceFirst:
@@ -362,21 +366,24 @@ const locale: LocaleProps = {
     strikethrough: 'Barré',
     format: 'Gras / italique / souligné / barré',
     formatDisabled:
-      "Sélectionnez un nœud, une zone de texte, une étiquette ou une étiquette de connexion pour mettre en forme le texte",
+      'Sélectionnez un nœud, une zone de texte, une étiquette ou une étiquette de connexion pour mettre en forme le texte',
     lists: 'Listes',
     listsDisabled: 'Sélectionnez une zone de texte pour utiliser des listes',
     bulletList: 'Liste à puces',
     numberedList: 'Liste numérotée',
     background: 'Couleur de fond',
-    backgroundDisabled: 'Sélectionnez un rectangle, une étiquette ou une zone de texte pour définir sa couleur de fond',
+    backgroundDisabled:
+      'Sélectionnez un rectangle, une étiquette ou une zone de texte pour définir sa couleur de fond',
     opacity: 'Opacité',
     border: 'Bordure',
-    borderDisabled: 'Sélectionnez un rectangle ou une zone de texte pour définir sa bordure',
+    borderDisabled:
+      'Sélectionnez un rectangle ou une zone de texte pour définir sa bordure',
     lineStyle: 'Style de ligne',
     width: 'Épaisseur',
     borderColor: 'Couleur de la bordure',
     link: 'Lien',
-    linkDisabled: 'Sélectionnez un nœud, une connexion ou une étiquette pour ajouter un lien',
+    linkDisabled:
+      'Sélectionnez un nœud, une connexion ou une étiquette pour ajouter un lien',
     linkSelection: 'Lier le texte sélectionné',
     linkDisabledTextBox:
       "Sélectionnez du texte pendant l'édition pour ajouter un lien",
@@ -391,18 +398,20 @@ const locale: LocaleProps = {
       'Sélectionnez un nœud ou une connexion pour afficher ou masquer son libellé',
     changeIconBulk: "Le changement d'icône s'applique à un seul nœud à la fois",
     changeIcon: "Changer l'icône",
-    changeIconDisabled: "Sélectionnez un nœud pour changer son icône",
-    connectionColorPredraw: 'Couleur de la prochaine connexion que vous dessinez',
+    changeIconDisabled: 'Sélectionnez un nœud pour changer son icône',
+    connectionColorPredraw:
+      'Couleur de la prochaine connexion que vous dessinez',
     connectionColor: 'Couleur de la connexion',
     connectionColorDisabled:
       "Sélectionnez une connexion (ou l'outil connecteur) pour définir sa couleur",
-    lineOptionsPredraw: 'Style de ligne de la prochaine connexion que vous dessinez',
+    lineOptionsPredraw:
+      'Style de ligne de la prochaine connexion que vous dessinez',
     lineOptions: 'Options de ligne',
     lineOptionsDisabled:
       "Sélectionnez une connexion (ou l'outil connecteur) pour définir ses options de ligne",
     lineType: 'Type de ligne',
     showArrow: 'Afficher la flèche',
-    showDottedLine: 'Afficher la ligne pointillée',
+    showDottedLine: 'Afficher la ligne pointillée'
   },
   quickAddNodePopover: {
     add: 'Ajouter',
@@ -492,7 +501,8 @@ const locale: LocaleProps = {
     showGrid: 'Afficher la grille',
     showLabels: 'Afficher les étiquettes',
     screenshotPreset: "Capture d'écran (recommandé)",
-    scaleClamped: "Taille d'export réduite pour respecter la limite d'image du navigateur :",
+    scaleClamped:
+      "Taille d'export réduite pour respecter la limite d'image du navigateur :",
     cropToContent: 'Recadrer au contenu',
     backgroundColor: 'Couleur de fond',
     transparentBackground: 'Fond transparent',
@@ -578,7 +588,8 @@ const locale: LocaleProps = {
     header: 'Calques',
     addLayer: 'Ajouter un calque',
     deleteSelectedLayer: 'Supprimer le calque sélectionné',
-    noLayersYet: 'Aucun calque pour l’instant. Cliquez sur + pour en ajouter un.',
+    noLayersYet:
+      'Aucun calque pour l’instant. Cliquez sur + pour en ajouter un.',
     unassigned: 'Non assigné ({count})',
     dropToUnassign: 'Déposez des éléments ici pour les désassigner',
     layerN: 'Calque {count}'

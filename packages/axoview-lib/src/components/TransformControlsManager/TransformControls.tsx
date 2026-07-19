@@ -139,7 +139,10 @@ export const TransformControls = ({
     // corner handle's resize cursor.
     const pts = Object.values(cornerScreen);
     const center = pts.reduce(
-      (acc, p) => ({ x: acc.x + p.x / pts.length, y: acc.y + p.y / pts.length }),
+      (acc, p) => ({
+        x: acc.x + p.x / pts.length,
+        y: acc.y + p.y / pts.length
+      }),
       { x: 0, y: 0 }
     );
 
@@ -324,18 +327,20 @@ export const TransformControls = ({
       </Svg>
 
       {!subtle &&
-        anchors.map(({ key, position, onMouseDown, cursor, isEdge, barAngleDeg }) => {
-          return (
-            <TransformAnchor
-              key={key}
-              position={position}
-              onActivate={onMouseDown}
-              cursor={cursor}
-              isEdge={isEdge}
-              barAngleDeg={barAngleDeg}
-            />
-          );
-        })}
+        anchors.map(
+          ({ key, position, onMouseDown, cursor, isEdge, barAngleDeg }) => {
+            return (
+              <TransformAnchor
+                key={key}
+                position={position}
+                onActivate={onMouseDown}
+                cursor={cursor}
+                isEdge={isEdge}
+                barAngleDeg={barAngleDeg}
+              />
+            );
+          }
+        )}
 
       {!subtle && onRotate && rotatePosition && (
         <Tooltip title={rotateTooltip ?? ''} placement="top">

@@ -11,7 +11,8 @@ const locale: LocaleProps = {
   },
   rightSidebar: {
     collapsePanel: 'Zwiń panel',
-    emptyState: 'Wybierz węzeł, łącznik lub kształt, aby zobaczyć jego właściwości'
+    emptyState:
+      'Wybierz węzeł, łącznik lub kształt, aby zobaczyć jego właściwości'
   },
   helpDialog: {
     title: 'Skróty klawiaturowe i Pomoc',
@@ -97,7 +98,8 @@ const locale: LocaleProps = {
     // D10 — tool-activation keys (ADR 0022 §6)
     keyRenameAction: 'Zmień nazwę',
     keyRenameShortcut: 'F2',
-    keyRenameDescription: 'Zmień nazwę zaznaczonego elementu lub diagramu w miejscu',
+    keyRenameDescription:
+      'Zmień nazwę zaznaczonego elementu lub diagramu w miejscu',
     keyAddItemAction: 'Dodaj element / Elementy',
     keyAddItemShortcut: 'N',
     keyAddItemDescription: 'Przełącz panel Elementy, aby umieścić nowy element',
@@ -200,8 +202,7 @@ const locale: LocaleProps = {
     canvas: 'Płótno',
     language: 'Język',
     about: 'O programie',
-    languageDescription:
-      'Wybierz język wyświetlania interfejsu aplikacji.',
+    languageDescription: 'Wybierz język wyświetlania interfejsu aplikacji.',
     zoomSection: 'Powiększenie',
     labelsSection: 'Etykiety',
     zoom: {
@@ -282,14 +283,14 @@ const locale: LocaleProps = {
   },
   nodePanel: {
     notes: 'Notatki',
-    close: 'Zamknij',
+    close: 'Zamknij'
   },
   nodeDeck: {
     metadata: 'Metadane',
     name: 'Nazwa',
     namePlaceholder: 'Nazwa węzła…',
     label: 'Etykieta',
-    labelPlaceholder: 'Etykieta widoczna na kształcie…',
+    labelPlaceholder: 'Etykieta widoczna na kształcie…'
   },
   connectorControls: {
     metadata: 'Metadane',
@@ -301,7 +302,8 @@ const locale: LocaleProps = {
     addLabel: 'Dodaj etykietę',
     noLabels: 'Brak etykiet.',
     labelN: 'Etykieta {count}',
-    positionHint: 'Przeciągnij etykietę na płótnie, aby ustawić jej położenie; użyj górnego paska, aby zmienić rozmiar i kolor tekstu.',
+    positionHint:
+      'Przeciągnij etykietę na płótnie, aby ustawić jej położenie; użyj górnego paska, aby zmienić rozmiar i kolor tekstu.',
     line: 'Linia',
     line1: 'Linia 1',
     line2: 'Linia 2'
@@ -369,10 +371,12 @@ const locale: LocaleProps = {
     bulletList: 'Lista punktowana',
     numberedList: 'Lista numerowana',
     background: 'Kolor tła',
-    backgroundDisabled: 'Zaznacz prostokąt, etykietę lub pole tekstowe, aby ustawić kolor tła',
+    backgroundDisabled:
+      'Zaznacz prostokąt, etykietę lub pole tekstowe, aby ustawić kolor tła',
     opacity: 'Przezroczystość',
     border: 'Obramowanie',
-    borderDisabled: 'Zaznacz prostokąt lub pole tekstowe, aby ustawić jego obramowanie',
+    borderDisabled:
+      'Zaznacz prostokąt lub pole tekstowe, aby ustawić jego obramowanie',
     lineStyle: 'Styl linii',
     width: 'Grubość',
     borderColor: 'Kolor obramowania',
@@ -402,7 +406,7 @@ const locale: LocaleProps = {
       'Zaznacz połączenie (lub narzędzie łącznika), aby ustawić jego opcje linii',
     lineType: 'Typ linii',
     showArrow: 'Pokaż strzałkę',
-    showDottedLine: 'Pokaż linię kropkowaną',
+    showDottedLine: 'Pokaż linię kropkowaną'
   },
   quickAddNodePopover: {
     add: 'Dodaj',
@@ -417,7 +421,8 @@ const locale: LocaleProps = {
     selected: 'Zaznaczono: {count}'
   },
   modeHints: {
-    connector: 'Przeciągnij między elementami, aby połączyć • Esc, aby anulować',
+    connector:
+      'Przeciągnij między elementami, aby połączyć • Esc, aby anulować',
     textBox: 'Kliknij, aby umieścić pole tekstowe • Esc, aby anulować',
     label: 'Kliknij, aby umieścić etykietę • Esc, aby anulować',
     rectangle: 'Przeciągnij, aby narysować prostokąt • Esc, aby anulować'
@@ -490,7 +495,8 @@ const locale: LocaleProps = {
     showGrid: 'Pokaż siatkę',
     showLabels: 'Pokaż etykiety',
     screenshotPreset: 'Zrzut ekranu (zalecane)',
-    scaleClamped: 'Rozmiar eksportu zmniejszony, aby zmieścić się w limicie obrazu przeglądarki:',
+    scaleClamped:
+      'Rozmiar eksportu zmniejszony, aby zmieścić się w limicie obrazu przeglądarki:',
     cropToContent: 'Przytnij do zawartości',
     backgroundColor: 'Kolor tła',
     transparentBackground: 'Przezroczyste tło',
