@@ -4,6 +4,7 @@ import { RectangleTransformControls } from './RectangleTransformControls';
 import { TextBoxTransformControls } from './TextBoxTransformControls';
 import { LabelTransformControls } from './LabelTransformControls';
 import { NodeTransformControls } from './NodeTransformControls';
+import { NodeGroupTransformControls } from './NodeGroupTransformControls';
 
 export const TransformControlsManager = () => {
   const itemControls = useUiStateStore((state) => state.itemControls);
@@ -20,15 +21,42 @@ export const TransformControlsManager = () => {
     return null;
   }
 
-  // Multi-selection: render an outline for each selected item (no anchor
-  // handlers — bulk-resize is out of scope per the MQA #8/#9 plan). ADR-0006.
+  // Multi-selection.
   if (selectedIds.length > 1) {
+    // ADR 0044 group-resize: a HOMOGENEOUS node selection gets one bounding-box
+    // control that resizes every node together (each member shows its ring but
+    // NOT its own handles, so it reads as "grab the group, not one node").
+    const allNodes = selectedIds.every((ref) => ref.type === 'ITEM');
+    if (allNodes) {
+      return (
+        <>
+          {selectedIds.map((ref) => (
+            <NodeTransformControls
+              key={`item-${ref.id}`}
+              id={ref.id}
+              showHandles={false}
+            />
+          ))}
+          <NodeGroupTransformControls ids={selectedIds.map((ref) => ref.id)} />
+        </>
+      );
+    }
+
+    // Mixed / non-node selection: per-item outlines. Nodes show a ring but no
+    // resize handles — a cross-type resize isn't meaningful (matches the strip's
+    // homogeneous-only bulk rule, ADR 0030).
     return (
       <>
         {selectedIds.map((ref) => {
           switch (ref.type) {
             case 'ITEM':
-              return <NodeTransformControls key={`item-${ref.id}`} id={ref.id} />;
+              return (
+                <NodeTransformControls
+                  key={`item-${ref.id}`}
+                  id={ref.id}
+                  showHandles={false}
+                />
+              );
             case 'RECTANGLE':
               return (
                 <RectangleTransformControls

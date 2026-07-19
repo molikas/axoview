@@ -211,8 +211,8 @@ const NodeContent = memo(
     // model write, so the O(N) WebGL node bulk isn't rebuilt each frame). Only
     // the dragged node's value flips, so only it re-renders. Committed once on
     // release. Null for every other node / when no resize is in flight.
-    const iconScaleDragValue = useUiStateStore((s) =>
-      s.iconScaleDrag?.id === id ? s.iconScaleDrag.scale : null
+    const iconScaleDragValue = useUiStateStore(
+      (s) => s.iconScaleDrag?.scales[id] ?? null
     );
     const { iconComponent } = useIcon(
       modelItem?.icon,

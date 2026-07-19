@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { IconButton, Tooltip } from '@mui/material';
+import { Box, IconButton, Tooltip } from '@mui/material';
 import { RotateRightOutlined as RotateIcon } from '@mui/icons-material';
 import { Coords, AnchorPosition } from 'src/types';
 import { Svg } from 'src/components/Svg/Svg';
@@ -44,6 +44,11 @@ interface Props {
    * scale-1 nodes) — byte-for-byte unchanged.
    */
   extentScale?: number;
+  /**
+   * ADR 0044: a live size readout (e.g. "1.4×") shown on a pill below the
+   * selection while a resize drag is in flight. Omitted = no readout.
+   */
+  readout?: string;
 }
 
 // Selection / hover chrome geometry (screen px, pre-shear). The ring frames the
@@ -58,6 +63,7 @@ const HOVER_OUTSET = 2;
 const RING_RADIUS = 5;
 const ROTATE_HANDLE_SIZE = 32;
 const ROTATE_HANDLE_OFFSET_PX = 40;
+const READOUT_OFFSET_PX = 14;
 
 // Standard bidirectional resize cursor nearest to a screen-space angle (radians,
 // y-down). Bucketed mod 180° into the four resize cursors. Reads actual on-screen
@@ -79,7 +85,8 @@ export const TransformControls = ({
   onRotate,
   rotateTooltip,
   subtle,
-  extentScale
+  extentScale,
+  readout
 }: Props) => {
   const { css, pxSize } = useIsoProjection({
     from,
@@ -203,6 +210,24 @@ export const TransformControls = ({
     const topmost = points.reduce((min, p) => (p.y < min.y ? p : min));
     return { x: topmost.x, y: topmost.y - ROTATE_HANDLE_OFFSET_PX };
   }, [onRotate, cornerScreen]);
+
+  // ADR 0044: live size readout — centred just below the (scaled) selection.
+  const readoutPosition = useMemo(() => {
+    if (!readout) return null;
+    const points = Object.values(cornerScreen);
+    if (points.length === 0) return null;
+    const c = points.reduce(
+      (acc, p) => ({
+        x: acc.x + p.x / points.length,
+        y: acc.y + p.y / points.length
+      }),
+      { x: 0, y: 0 }
+    );
+    const bottomY = Math.max(...points.map((p) => p.y));
+    // Track the grown extent so the pill sits just below the scaled icon.
+    const scaledBottomY = c.y + (bottomY - c.y) * ex;
+    return { x: c.x, y: scaledBottomY + READOUT_OFFSET_PX };
+  }, [readout, cornerScreen, ex]);
 
   return (
     <>
@@ -344,6 +369,31 @@ export const TransformControls = ({
             <RotateIcon sx={{ fontSize: 20 }} />
           </IconButton>
         </Tooltip>
+      )}
+
+      {!subtle && readout && readoutPosition && (
+        <Box
+          data-axoview-id="canvas-resize-readout"
+          sx={{
+            position: 'absolute',
+            transform: 'translateX(-50%)',
+            px: 0.75,
+            py: 0.25,
+            borderRadius: 1,
+            bgcolor: TRANSFORM_CONTROLS_COLOR,
+            color: '#fff',
+            fontSize: 12,
+            fontWeight: 600,
+            fontVariantNumeric: 'tabular-nums',
+            lineHeight: 1.4,
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+            boxShadow: 1
+          }}
+          style={{ left: readoutPosition.x, top: readoutPosition.y }}
+        >
+          {readout}
+        </Box>
       )}
     </>
   );

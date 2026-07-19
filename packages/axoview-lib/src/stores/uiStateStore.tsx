@@ -370,13 +370,13 @@ const initialState = () => {
         clearLabelMove: () => {
           set({ labelMove: null });
         },
-        setIconScaleDrag: (id, scale) => {
-          // Transient on-canvas icon-resize preview (ADR 0044). The selected node
-          // (DOM) and its selection ring read this to follow the drag with NO
-          // model write, so the O(N) WebGL node bulk isn't rebuilt each frame
-          // (canvas-interaction.md §6.1/§6.4). Committed to the model once, on
-          // release.
-          set({ iconScaleDrag: { id, scale } });
+        setIconScaleDrag: (scales) => {
+          // Transient on-canvas icon-resize preview (ADR 0044). The resized nodes
+          // (DOM) + their selection rings read this map to follow the drag with
+          // NO model write, so the O(N) WebGL node bulk isn't rebuilt each frame
+          // (canvas-interaction.md §6.1/§6.4). One entry for a single node, N for
+          // a group. Committed to the model once, on release.
+          set({ iconScaleDrag: { scales } });
         },
         clearIconScaleDrag: () => {
           set({ iconScaleDrag: null });

@@ -75,6 +75,11 @@ Resizing scales the sprite; the node keeps its **single-tile** footprint for col
 
 `iconScale` rides inside the view item, so it serialises/parses through `viewItemSchema` automatically. But it must be verified end-to-end — the explicit acceptance target — through: **project zip** (ADR 0001), **session/server lean save** (ADR 0003 — `leanSave.ts` strips only duplicate *icons*, never view-item fields, so this is safe by construction but tested anyway), **Drive save**, **clipboard copy/paste** (`clipboard.ts` / `useCopyPaste.ts` reconstruct view items — the real risk site), and **image export** (renders through `NodesCanvas`, so it follows automatically once §4's reader lands).
 
+**2026-07-19 (UX follow-up — first-use feedback):** two refinements, superseding §2's "group resize out of scope":
+
+- **Group resize.** A **homogeneous** node multi-selection shows **one bounding-box control** (each member keeps its selection ring; per-node handles are suppressed so it reads as "grab the group, not one node"). Dragging applies a single uniform scale **factor** to every selected node, **preserving their relative sizes** — the same model as the strip's homogeneous bulk ([ADR 0030](0030-docked-style-controls-strip.md)) and the label-size stepper. Committed in one `transaction` = **one** undo entry. Implementation: `NODE.TRANSFORM` carries `targets: {id, startScale}[]`; `uiState.iconScaleDrag` becomes a node→scale **map**; a **mixed-type** selection shows rings with **no** node resize handles (a cross-type resize isn't meaningful). Note this is resize-the-**selected**-nodes — distinct from the shared-asset "resize every node using this icon" the removed slider did, which stays gone.
+- **Live size readout.** The transform chrome shows a `1.4×` pill below the selection **during the drag** (restores the numeric feedback the slider gave). A group shows the **representative** (first-selected) node's scale, per the strip's bulk-display convention.
+
 ## Consequences
 
 **Positive:**
@@ -103,3 +108,5 @@ Resizing scales the sprite; the node keeps its **single-tile** footprint for col
 - **e2e (extend the transform/`rectangle-ops` suite):** drag a node corner resizes only that node in **iso and 2D**; a sibling using the same icon is unchanged; the size persists across save/reload.
 - **Manual (real browser — CI can't see GPU output):** live DOM drag and committed GL node render at the same size; the selection ring wraps the enlarged icon; the strip has no Icon-size control and nothing looks broken where it was.
 - **Build + lib/app typecheck + i18n key-parity clean.**
+- **Unit (group, 2026-07-19):** one drag over N targets yields one uniform factor (relative sizes preserved — a node started 1.5× another stays 1.5×) and commits N `iconScale` writes; a mixed/empty target set is a no-op.
+- **Manual (group + readout):** a multi-selected node group shows one bounding box + a `×` size pill and resizes all together; a mixed selection shows rings but no node resize handles.

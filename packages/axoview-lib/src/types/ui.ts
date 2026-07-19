@@ -148,18 +148,19 @@ export interface TransformTextBoxMode {
   selectedAnchor: AnchorPosition | null;
 }
 
-// On-canvas icon resize (ADR 0044): drag a corner handle on the selected node
-// to set its per-node `iconScale`. Single target, uniform scale about the tile
-// centre. `startScale` is the effective scale captured at grab time (per-node
-// override ?? shared asset scale ?? 1); mousemove derives the new scale from the
-// screen-drag delta against it and previews via uiState.iconScaleDrag (no
-// per-frame model write). Corner anchors only.
+// On-canvas icon resize (ADR 0044): drag a corner handle to set per-node
+// `iconScale`. `targets` is one node (single-select) or every node in a
+// homogeneous group (group-resize). mousemove derives a single uniform scale
+// FACTOR from the screen-drag delta and applies it to each target's own
+// startScale (per-node override ?? shared asset scale ?? 1) — so relative sizes
+// are preserved across a group — previewing via uiState.iconScaleDrag (no
+// per-frame model write). Corner anchors only; uniform scale about the centre.
 export interface NodeTransformMode {
   type: 'NODE.TRANSFORM';
   showCursor: boolean;
-  id: string;
   selectedAnchor: AnchorPosition | null;
-  startScale: number;
+  // One entry per node being resized — 1 for a single node, N for a group.
+  targets: { id: string; startScale: number }[];
 }
 
 export interface TextBoxMode {
@@ -395,15 +396,16 @@ export interface UiState {
    */
   labelMove: { id: string; tile: Coords; offset?: Coords } | null;
   /**
-   * Transient on-canvas icon-resize preview (ADR 0044). While a node's icon is
-   * being resized via its corner handles (NODE.TRANSFORM), this holds the node
-   * id + the live iconScale, so the selected node (DOM) and its selection ring
-   * follow the drag WITHOUT a per-frame model write (which would rebuild the
-   * O(N) WebGL node bulk every frame — canvas-interaction.md §6.1/§6.4). UI-only,
-   * never persisted; the model `iconScale` is committed ONCE on release. Null
-   * when no resize is in flight.
+   * Transient on-canvas icon-resize preview (ADR 0044). While node icons are
+   * being resized via the corner handles (NODE.TRANSFORM), this holds a map of
+   * node id → live iconScale (one entry for a single node, N for a group), so
+   * the resized nodes (DOM) and their selection rings follow the drag WITHOUT a
+   * per-frame model write (which would rebuild the O(N) WebGL node bulk every
+   * frame — canvas-interaction.md §6.1/§6.4). UI-only, never persisted; the
+   * model `iconScale` is committed ONCE on release. Null when no resize is in
+   * flight.
    */
-  iconScaleDrag: { id: string; scale: number } | null;
+  iconScaleDrag: { scales: Record<string, number> } | null;
   /**
    * The currently-selected connector label (a `labels[]` entry), so the top-bar
    * style strip can target ONE label's text size/colour and the canvas can
@@ -596,8 +598,9 @@ export interface UiStateActions {
   setLabelMove: (id: string, tile: Coords, offset?: Coords) => void;
   /** End the label-move preview (the model tile/offset is committed separately, once). */
   clearLabelMove: () => void;
-  /** Begin / update the transient on-canvas icon-resize preview (ADR 0044). */
-  setIconScaleDrag: (id: string, scale: number) => void;
+  /** Begin / update the transient on-canvas icon-resize preview (ADR 0044).
+   *  Pass a map of node id → previewed scale (one entry, or N for a group). */
+  setIconScaleDrag: (scales: Record<string, number>) => void;
   /** End the icon-resize preview (the model iconScale is committed separately, once). */
   clearIconScaleDrag: () => void;
   /** Select (or clear) the connector label the top-bar style strip targets. */
