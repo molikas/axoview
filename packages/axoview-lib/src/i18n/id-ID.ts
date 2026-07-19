@@ -278,13 +278,12 @@ const locale: LocaleProps = {
     notes: 'Catatan',
     close: 'Tutup',
   },
-  nodeInfoTab: {
+  nodeDeck: {
     metadata: 'Metadata',
     name: 'Nama',
     namePlaceholder: 'Nama node…',
     label: 'Label',
     labelPlaceholder: 'Label yang ditampilkan pada bentuk…',
-    openLink: 'Buka tautan'
   },
   connectorControls: {
     metadata: 'Metadata',
@@ -402,9 +401,6 @@ const locale: LocaleProps = {
     lineType: 'Tipe garis',
     showArrow: 'Tampilkan panah',
     showDottedLine: 'Tampilkan garis putus-putus',
-  },
-  deleteButton: {
-    delete: 'Hapus'
   },
   quickAddNodePopover: {
     add: 'Tambah',

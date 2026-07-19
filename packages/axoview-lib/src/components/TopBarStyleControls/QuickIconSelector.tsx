@@ -4,10 +4,10 @@ import { Icon } from 'src/types';
 import { useModelStore } from 'src/stores/modelStore';
 import { useIconCategories } from 'src/hooks/useIconCategories';
 import { useIconFiltering } from 'src/hooks/useIconFiltering';
-import { IconGrid } from '../IconSelectionControls/IconGrid';
-import { Icons } from '../IconSelectionControls/Icons';
-import { Searchbox } from '../IconSelectionControls/Searchbox';
-import { Section } from '../components/Section';
+import { IconGrid } from '../ItemControls/IconSelectionControls/IconGrid';
+import { Icons } from '../ItemControls/IconSelectionControls/Icons';
+import { Searchbox } from '../ItemControls/IconSelectionControls/Searchbox';
+import { Section } from '../ItemControls/components/Section';
 import { useTranslation } from 'src/stores/localeStore';
 
 interface Props {

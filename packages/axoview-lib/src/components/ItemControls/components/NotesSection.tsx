@@ -22,9 +22,8 @@ const hasContent = (v?: string) => !!v && stripHtmlTags(v).trim() !== '';
 // Shared collapsible rich-text Notes section (2026-07-02). Notes are available
 // on every canvas element (node / connector / rectangle / text / label); the
 // section is one of the deck's uniform collapsibles (ux-principles §5.1). The
-// header carries a "has content" dot when notes exist (mirrors the old
-// Notes-tab marker). Empty content is written as `undefined` so an untouched
-// Notes never dirties the model.
+// header carries a "has content" dot when notes exist. Empty content is written
+// as `undefined` so an untouched Notes never dirties the model.
 export const NotesSection = ({
   title,
   value,

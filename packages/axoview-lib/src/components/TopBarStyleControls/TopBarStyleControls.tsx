@@ -57,7 +57,7 @@ import { useRectangle } from 'src/hooks/useRectangle';
 import { connectorStyleOptions, connectorLineTypeOptions } from 'src/schemas';
 import { TEXTBOX_DEFAULTS, TEXTBOX_LINE_HEIGHT } from 'src/config';
 import { ColorPickerBody } from '../ColorSelector/ColorPickerBody';
-import { QuickIconSelector } from '../ItemControls/NodeControls/QuickIconSelector';
+import { QuickIconSelector } from './QuickIconSelector';
 import { resolveHomogeneousBulk } from 'src/utils/bulkStyleTarget';
 import {
   getWholeContentFormats,
@@ -451,9 +451,9 @@ const PercentSizeSlider = ({
   );
 };
 
-// Icon-size slider with local state + debounce (mirrors NodeStyleTab) so the
-// model store isn't thrashed on every drag tick. Mounted only inside the open
-// popover, so it re-seeds from the current scale each time it opens.
+// Icon-size slider with local state + debounce so the model store isn't
+// thrashed on every drag tick. Mounted only inside the open popover, so it
+// re-seeds from the current scale each time it opens.
 const IconSizeControl = ({
   initialScale,
   onChange
@@ -659,8 +659,8 @@ export const TopBarStyleControls = () => {
     [textBox?.content]
   );
 
-  // Icon size lives on the model icon's `scale` (shared by every node using that
-  // icon) — same source the NodeStyleTab "Icon size" slider writes to.
+  // Icon size lives on the model icon's `scale`, shared by every node using that
+  // icon (so resizing one icon resizes all nodes drawn with it).
   const modelItem = useModelItem(sel?.type === 'ITEM' ? sel.id : '');
   const icons = useModelStore((s) => s.icons);
   const modelActions = useModelStore((s) => s.actions);

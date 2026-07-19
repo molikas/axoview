@@ -209,8 +209,8 @@ function EditorShell() {
   //   navigate to /display/<id> (readonly). Propagate the `fromEditor`
   //   location-state flag so the "Back to editing" button survives across
   //   readonly→readonly hops.
-  // - `axoview-open-diagram-in-editor` (from the NodeInfoTab edit-mode
-  //   picker's open-linked-diagram button) → swap the editor onto the
+  // - `axoview-open-diagram-in-editor` (from the top-bar strip Link control's
+  //   open-linked-diagram button) → swap the editor onto the
   //   linked diagram via openDiagramById (no URL change; same tab; stays
   //   in edit mode).
   const location = useLocation();

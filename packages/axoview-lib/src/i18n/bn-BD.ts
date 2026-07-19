@@ -277,13 +277,12 @@ const locale: LocaleProps = {
     notes: 'নোট',
     close: 'বন্ধ করুন',
   },
-  nodeInfoTab: {
+  nodeDeck: {
     metadata: 'মেটাডেটা',
     name: 'নাম',
     namePlaceholder: 'নোডের নাম…',
     label: 'লেবেল',
     labelPlaceholder: 'শেপে দেখানো লেবেল…',
-    openLink: 'লিঙ্ক খুলুন'
   },
   connectorControls: {
     metadata: 'মেটাডেটা',
@@ -402,9 +401,6 @@ const locale: LocaleProps = {
     lineType: 'লাইন প্রকার',
     showArrow: 'তীর দেখান',
     showDottedLine: 'বিন্দুযুক্ত রেখা দেখান',
-  },
-  deleteButton: {
-    delete: 'মুছুন'
   },
   quickAddNodePopover: {
     add: 'যোগ করুন',

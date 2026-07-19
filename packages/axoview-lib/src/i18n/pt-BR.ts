@@ -279,13 +279,12 @@ const locale: LocaleProps = {
     notes: 'Notas',
     close: 'Fechar',
   },
-  nodeInfoTab: {
+  nodeDeck: {
     metadata: 'Metadados',
     name: 'Nome',
     namePlaceholder: 'Nome do nó…',
     label: 'Rótulo',
     labelPlaceholder: 'Rótulo exibido na forma…',
-    openLink: 'Abrir link'
   },
   connectorControls: {
     metadata: 'Metadados',
@@ -404,9 +403,6 @@ const locale: LocaleProps = {
     lineType: 'Tipo de linha',
     showArrow: 'Mostrar seta',
     showDottedLine: 'Mostrar linha pontilhada',
-  },
-  deleteButton: {
-    delete: 'Excluir'
   },
   quickAddNodePopover: {
     add: 'Adicionar',

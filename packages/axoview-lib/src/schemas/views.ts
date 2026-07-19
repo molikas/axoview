@@ -13,6 +13,9 @@ export const viewItemSchema = z.object({
   // = above the node (legacy behaviour), negative = below it. Doubles as the
   // stalk length.
   labelHeight: z.number().optional(),
+  // label* visual styling (size / colour / weight / show-hide) is edited on the
+  // TOP-BAR style strip (ADR 0030 / 0034), not the right-hand deck — see the note
+  // on modelItemSchema (modelItems.ts). All optional / lean-saved.
   labelFontSize: z.number().optional(),
   labelColor: z.string().optional(),
   labelBold: z.boolean().optional(),

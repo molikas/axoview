@@ -279,13 +279,12 @@ const locale: LocaleProps = {
     notes: 'नोट्स',
     close: 'बंद करें',
   },
-  nodeInfoTab: {
+  nodeDeck: {
     metadata: 'मेटाडेटा',
     name: 'नाम',
     namePlaceholder: 'नोड का नाम…',
     label: 'लेबल',
     labelPlaceholder: 'आकृति पर दिखाया गया लेबल…',
-    openLink: 'लिंक खोलें'
   },
   connectorControls: {
     metadata: 'मेटाडेटा',
@@ -400,9 +399,6 @@ const locale: LocaleProps = {
     lineType: 'रेखा प्रकार',
     showArrow: 'तीर दिखाएं',
     showDottedLine: 'बिंदीदार रेखा दिखाएं',
-  },
-  deleteButton: {
-    delete: 'हटाएं'
   },
   quickAddNodePopover: {
     add: 'जोड़ें',

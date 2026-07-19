@@ -20,7 +20,7 @@ import * as path from 'path';
 
 const QIS_PATH = path.resolve(
   __dirname,
-  '../components/ItemControls/NodeControls/QuickIconSelector.tsx'
+  '../components/TopBarStyleControls/QuickIconSelector.tsx'
 );
 
 describe('QuickIconSelector — i18n strings', () => {
