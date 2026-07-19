@@ -1,8 +1,14 @@
 import React from 'react';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useViewItem } from 'src/hooks/useViewItem';
+import { useModelItem } from 'src/hooks/useModelItem';
+import { useIcon } from 'src/hooks/useIcon';
+import { useImageAspect } from 'src/hooks/useImageAspect';
 import { useRectangle } from 'src/hooks/useRectangle';
+import { useCanvasMode } from 'src/contexts/CanvasModeContext';
+import { PROJECTED_TILE_SIZE } from 'src/config';
 import { TransformControls } from './TransformControls';
+import { ScreenBoxTransformControls } from './ScreenBoxTransformControls';
 
 // A3 (UX sweep) — a faint outline on the item under the cursor, so hover reads
 // as "this is what a click will grab" BEFORE selecting (the cursor already
@@ -14,8 +20,28 @@ import { TransformControls } from './TransformControls';
 
 const HoverNode = ({ id }: { id: string }) => {
   const node = useViewItem(id);
+  const modelItem = useModelItem(id);
+  const { icon } = useIcon(modelItem?.icon);
+  const aspect = useImageAspect(icon.url);
+  const { getTilePosition } = useCanvasMode();
   if (!node) return null;
-  return <TransformControls from={node.tile} to={node.tile} subtle />;
+  // Same screen-space box as the selection (ADR 0044), so a big 3-D icon is
+  // framed correctly on hover too — not a flat tile diamond it escapes.
+  const c = getTilePosition({ tile: node.tile, origin: 'CENTER' });
+  const scale = node.iconScale ?? icon.scale ?? 1;
+  const width =
+    PROJECTED_TILE_SIZE.width * (icon.isIsometric ? 0.8 : 0.7) * scale;
+  return (
+    <ScreenBoxTransformControls
+      center={{
+        x: c.x + (node.offset?.x ?? 0),
+        y: c.y + (node.offset?.y ?? 0)
+      }}
+      width={width}
+      height={width * (aspect || 1)}
+      subtle
+    />
+  );
 };
 
 const HoverRectangle = ({ id }: { id: string }) => {

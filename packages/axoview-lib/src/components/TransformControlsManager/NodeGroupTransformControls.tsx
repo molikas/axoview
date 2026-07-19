@@ -1,31 +1,42 @@
 import React, { useCallback, useMemo } from 'react';
 import { useSceneData } from 'src/hooks/useSceneData';
 import { useModelStore } from 'src/stores/modelStore';
+import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { AnchorPosition, Coords } from 'src/types';
-import { TransformControls } from './TransformControls';
-import { NODE_CORNER_ANCHORS, formatIconScale } from './NodeTransformControls';
+import { PROJECTED_TILE_SIZE } from 'src/config';
+import { ScreenBoxTransformControls } from './ScreenBoxTransformControls';
+import { formatIconScale } from './NodeTransformControls';
 
 interface Props {
   ids: string[];
 }
 
-// ADR 0044 group-resize: one bounding-box transform control around a homogeneous
-// node multi-selection. Dragging a corner applies a single uniform scale FACTOR
-// to every selected node, preserving their relative sizes ("make these all a bit
-// bigger"). Members keep their own selection rings (NodeTransformControls with
-// handles suppressed); this component owns the handles + the size readout.
+const iconWidthFactor = (isIsometric: boolean): number =>
+  isIsometric ? 0.8 : 0.7;
+
+// ADR 0044 group-resize: one screen-space box around a homogeneous node
+// multi-selection. Dragging a corner applies a single uniform scale FACTOR to
+// every selected node, preserving relative sizes. Members keep their own
+// outlines (NodeTransformControls, handles suppressed); this owns the handles +
+// the size readout. The outer box is the union of member boxes (square approx
+// for the frame; each member's own ring hugs its icon precisely).
 export const NodeGroupTransformControls = ({ ids }: Props) => {
   const { items } = useSceneData();
   const modelItems = useModelStore((s) => s.items);
   const icons = useModelStore((s) => s.icons);
+  const { getTilePosition } = useCanvasMode();
   const uiStateActions = useUiStateStore((s) => s.actions);
   const previewScales = useUiStateStore((s) => s.iconScaleDrag?.scales ?? null);
 
-  // Resolve each selected node → tile + effective start scale (per-node override
-  // ?? shared asset scale ?? 1). Plain array finds — no per-node hooks.
   const resolved = useMemo(() => {
-    const out: { id: string; tile: Coords; startScale: number }[] = [];
+    const out: {
+      id: string;
+      tile: Coords;
+      offset?: Coords;
+      startScale: number;
+      isIso: boolean;
+    }[] = [];
     for (const id of ids) {
       const vi = items.find((i) => i.id === id);
       if (!vi) continue;
@@ -34,35 +45,43 @@ export const NodeGroupTransformControls = ({ ids }: Props) => {
       out.push({
         id,
         tile: vi.tile,
-        startScale: vi.iconScale ?? ic?.scale ?? 1
+        offset: vi.offset,
+        startScale: vi.iconScale ?? ic?.scale ?? 1,
+        isIso: ic?.isIsometric ?? true
       });
     }
     return out;
   }, [ids, items, modelItems, icons]);
 
-  const bbox = useMemo(() => {
+  const box = useMemo(() => {
     if (resolved.length === 0) return null;
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
     for (const r of resolved) {
-      minX = Math.min(minX, r.tile.x);
-      minY = Math.min(minY, r.tile.y);
-      maxX = Math.max(maxX, r.tile.x);
-      maxY = Math.max(maxY, r.tile.y);
+      const c = getTilePosition({ tile: r.tile, origin: 'CENTER' });
+      const cx = c.x + (r.offset?.x ?? 0);
+      const cy = c.y + (r.offset?.y ?? 0);
+      const scale = previewScales?.[r.id] ?? r.startScale;
+      const half =
+        (PROJECTED_TILE_SIZE.width * iconWidthFactor(r.isIso) * scale) / 2;
+      minX = Math.min(minX, cx - half);
+      minY = Math.min(minY, cy - half);
+      maxX = Math.max(maxX, cx + half);
+      maxY = Math.max(maxY, cy + half);
     }
-    return { from: { x: minX, y: minY }, to: { x: maxX, y: maxY } };
-  }, [resolved]);
+    return {
+      center: { x: (minX + maxX) / 2, y: (minY + maxY) / 2 },
+      width: maxX - minX,
+      height: maxY - minY
+    };
+  }, [resolved, getTilePosition, previewScales]);
 
-  // Representative (first selected) drives the readout + the group-box growth —
-  // mirrors the strip's "display the representative item" bulk convention.
+  // Representative (first selected) drives the readout — matches the strip's
+  // "display the representative item" bulk convention.
   const rep = resolved[0];
   const previewRep = rep && previewScales ? previewScales[rep.id] ?? null : null;
-  const factor =
-    rep && previewRep != null && rep.startScale
-      ? previewRep / rep.startScale
-      : 1;
 
   const onAnchorMouseDown = useCallback(
     (key: AnchorPosition) => {
@@ -77,17 +96,16 @@ export const NodeGroupTransformControls = ({ ids }: Props) => {
     [resolved, uiStateActions]
   );
 
-  if (!bbox || resolved.length < 2) {
+  if (!box || resolved.length < 2) {
     return null;
   }
 
   return (
-    <TransformControls
-      from={bbox.from}
-      to={bbox.to}
+    <ScreenBoxTransformControls
+      center={box.center}
+      width={box.width}
+      height={box.height}
       onAnchorMouseDown={onAnchorMouseDown}
-      anchorPositions={NODE_CORNER_ANCHORS}
-      extentScale={factor}
       readout={previewRep != null ? formatIconScale(previewRep) : undefined}
     />
   );
