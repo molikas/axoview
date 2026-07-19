@@ -529,9 +529,19 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
             } else if (f.isIso) {
               const w = PROJ_W * 0.7 * scale;
               const h = iconHeight(img, w);
+              // ADR 0044: grow the flat icon about its scale-1 CENTRE — shift the
+              // origin back by half the EXTRA sheared extent — so a resize expands
+              // symmetrically instead of only down-and-right from the top-left
+              // corner (matches the DOM NonIsometricIcon + the isometric branch).
+              // scale-1 (dw=dh=0) is byte-for-byte unchanged.
+              const w1 = PROJ_W * 0.7;
+              const h1 = iconHeight(img, w1);
+              const dw = w - w1;
+              const dh = h - h1;
               // local (lx,ly) → iso; fold ISO translation into the anchor.
-              const ox = pos.x - PROJ_W / 2 + ISO[4];
-              const oy = pos.y + ISO[5];
+              const ox =
+                pos.x - PROJ_W / 2 + ISO[4] - 0.5 * (ISO[0] * dw + ISO[2] * dh);
+              const oy = pos.y + ISO[5] - 0.5 * (ISO[1] * dw + ISO[3] * dh);
               b.addSprite(
                 ox,
                 oy,

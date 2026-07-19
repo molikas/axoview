@@ -100,9 +100,13 @@ export const NodeTransformControls = ({ id, showHandles = true }: Props) => {
       : undefined;
 
   // "Trace each shape" (ADR 0044, 2026-07-19): a flat / Material icon lies in the
-  // tile plane, so the iso diamond traces it (like a rectangle); only a STANDING
-  // isometric icon (a 3-D sprite) needs the screen box a diamond can't wrap.
-  if (!(icon.isIsometric ?? true)) {
+  // tile plane (sheared onto it in iso), so the iso diamond traces it (like a
+  // rectangle); only a STANDING isometric icon (a 3-D sprite) needs the screen
+  // box a diamond can't wrap. Match the RENDERER's classification exactly
+  // (useIcon: `!icon.isIsometric`) — `isIsometric` is optional, and an
+  // undefined-flag icon (e.g. many Material icons) renders flat, so it must get
+  // the diamond, not the screen box (which can't follow the sheared glyph in iso).
+  if (!icon.isIsometric) {
     return (
       <TransformControls
         from={node.tile}

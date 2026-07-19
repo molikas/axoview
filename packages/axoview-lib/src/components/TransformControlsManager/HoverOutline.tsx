@@ -30,8 +30,9 @@ const HoverNode = ({ id }: { id: string }) => {
   if (!node) return null;
   const scale = node.iconScale ?? icon.scale ?? 1;
   // Trace each shape (ADR 0044): a flat / Material icon → the iso diamond (like a
-  // rectangle); only a standing isometric icon → the screen box.
-  if (!(icon.isIsometric ?? true)) {
+  // rectangle); only a standing isometric icon → the screen box. Match the
+  // renderer's `!icon.isIsometric` classification (undefined flag = flat).
+  if (!icon.isIsometric) {
     return (
       <TransformControls
         from={node.tile}

@@ -46,7 +46,15 @@ export const NonIsometricIcon = ({ icon, scale }: Props) => {
           component="img"
           src={icon.url}
           alt={`icon-${icon.id}`}
-          sx={{ width: PROJECTED_TILE_SIZE.width * 0.7 * effectiveScale }}
+          sx={{
+            display: 'block',
+            width: PROJECTED_TILE_SIZE.width * 0.7,
+            // ADR 0044: scale about the CENTRE so a resize grows the flat icon
+            // symmetrically (matching the isometric icon + the WebGL bulk),
+            // instead of only down-and-right from the top-left corner.
+            transform: `scale(${effectiveScale})`,
+            transformOrigin: 'center'
+          }}
         />
       </Box>
     </Box>
