@@ -90,7 +90,9 @@ export const NodeGroupTransformControls = ({ ids }: Props) => {
         type: 'NODE.TRANSFORM',
         selectedAnchor: key,
         targets: resolved.map((r) => ({ id: r.id, startScale: r.startScale })),
-        showCursor: true
+        // No tile-cursor diamond while resizing (QA 2026-07-19) — see
+        // NodeTransformControls.
+        showCursor: false
       });
     },
     [resolved, uiStateActions]

@@ -71,7 +71,9 @@ export const NodeTransformControls = ({ id, showHandles = true }: Props) => {
         type: 'NODE.TRANSFORM',
         selectedAnchor: key,
         targets: [{ id, startScale: node.iconScale ?? icon.scale ?? 1 }],
-        showCursor: true
+        // No tile-cursor diamond while resizing — it would sit at the pointer's
+        // tile over the icon and read as leftover debris (QA 2026-07-19).
+        showCursor: false
       });
     },
     [id, node, icon.scale, uiStateActions]
