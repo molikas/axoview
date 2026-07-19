@@ -22,8 +22,8 @@
  *          assert Back-to-editing visible on the readonly toolbar → click →
  *          returns to the editor route (history goes back one entry).
  *   J5.5 — Properties panel clears on diagram load (B-1 surface): select an
- *          item on DiagramA → NodeInfoTab renders → swap to DiagramB via the
- *          open-linked-diagram event → the Info tab unmounts (the old
+ *          item on DiagramA → the node deck renders → swap to DiagramB via the
+ *          open-linked-diagram event → the deck unmounts (the old
  *          itemControls reference is invalidated by the load).
  *
  * Setup approach — sessionStorage seeding:
@@ -43,17 +43,17 @@
  *   double-test the picker rather than the fix surface).
  *
  * Lazy data-axoview-id retrofits this spec:
- *   - LIB: `node-info-tab-link-picker` (NodeInfoTab.tsx Autocomplete input)
- *   - LIB: `node-info-tab-link-picker-listbox` (NodeInfoTab.tsx Autocomplete listbox)
- *   - LIB: `node-info-tab-open-linked`  (NodeInfoTab.tsx IconButton)
+ *   - LIB: `strip-link-diagram-picker`  (TopBarStyleControls.tsx strip Link Autocomplete input)
+ *   - LIB: `strip-link-diagram-listbox` (TopBarStyleControls.tsx strip Link Autocomplete listbox)
+ *   - LIB: `strip-link-diagram-open`    (TopBarStyleControls.tsx strip open-linked IconButton)
  *   - APP: `toolbar-preview`            (AppToolbar.tsx Preview IconButton)
  *   - APP: `toolbar-back-to-editing`    (AppToolbar.tsx Back-to-editing Button)
  *
- * Lib rebuild cycles this spec: 1 (NodeInfoTab batched).
+ * Lib rebuild cycles this spec: 1 (strip Link control batched).
  */
 import { appTest as test, expect } from '../fixtures/app.fixture';
 import { AppToolbarPOM } from '../pom/AppToolbarPOM';
-import { NodeInfoTabPOM } from '../pom/NodeInfoTabPOM';
+import { DiagramLinkPOM } from '../pom/DiagramLinkPOM';
 import { byLibTestId } from '../helpers/selectors';
 import { waitForDebugBridge } from '../helpers/store';
 
@@ -273,7 +273,7 @@ test.describe('Multi-diagram link — J5 (B-1 + B-2 regression coverage)', () =>
 
   test('J5.1: link picker filters the current diagram (DiagramA absent from options)', async ({ page }) => {
     await selectSeededItem(page);
-    const info = new NodeInfoTabPOM(page);
+    const info = new DiagramLinkPOM(page);
     await info.expectVisible();
     await info.openPicker();
     const names = await info.getOptionNames();
@@ -283,7 +283,7 @@ test.describe('Multi-diagram link — J5 (B-1 + B-2 regression coverage)', () =>
 
   test('J5.2: open-linked-diagram swaps the editor onto DiagramB (no URL change)', async ({ page }) => {
     await selectSeededItem(page);
-    const info = new NodeInfoTabPOM(page);
+    const info = new DiagramLinkPOM(page);
     await info.expectVisible();
 
     // Pre-state: editor is on DiagramA, URL is /app (R1, ADR 0040).
@@ -379,7 +379,7 @@ test.describe('Multi-diagram link — J5 (B-1 + B-2 regression coverage)', () =>
 
   test('J5.5: opening a different diagram clears the right-sidebar item controls', async ({ page }) => {
     await selectSeededItem(page);
-    const info = new NodeInfoTabPOM(page);
+    const info = new DiagramLinkPOM(page);
     await info.expectVisible();
     expect(await getItemControls(page)).not.toBeNull();
 

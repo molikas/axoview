@@ -257,13 +257,12 @@ const locale: LocaleProps = {
     notes: '备注',
     close: '关闭',
   },
-  nodeInfoTab: {
+  nodeDeck: {
     metadata: '元数据',
     name: '名称',
     namePlaceholder: '节点名称…',
     label: '标签',
     labelPlaceholder: '显示在形状上的标签…',
-    openLink: '打开链接'
   },
   connectorControls: {
     metadata: '元数据',
@@ -373,9 +372,6 @@ const locale: LocaleProps = {
     lineType: '线条类型',
     showArrow: '显示箭头',
     showDottedLine: '显示虚线',
-  },
-  deleteButton: {
-    delete: '删除'
   },
   quickAddNodePopover: {
     add: '添加',

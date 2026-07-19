@@ -279,13 +279,12 @@ const locale: LocaleProps = {
     notes: 'Заметки',
     close: 'Закрыть',
   },
-  nodeInfoTab: {
+  nodeDeck: {
     metadata: 'Метаданные',
     name: 'Название',
     namePlaceholder: 'Имя узла…',
     label: 'Подпись',
     labelPlaceholder: 'Подпись, отображаемая на фигуре…',
-    openLink: 'Открыть ссылку'
   },
   connectorControls: {
     metadata: 'Метаданные',
@@ -404,9 +403,6 @@ const locale: LocaleProps = {
     lineType: 'Тип линии',
     showArrow: 'Показать стрелку',
     showDottedLine: 'Показать пунктирную линию',
-  },
-  deleteButton: {
-    delete: 'Удалить'
   },
   quickAddNodePopover: {
     add: 'Добавить',

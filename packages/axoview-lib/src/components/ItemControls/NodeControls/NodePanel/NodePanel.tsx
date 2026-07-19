@@ -13,7 +13,7 @@ import { useScene } from 'src/hooks/useScene';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useIcon } from 'src/hooks/useIcon';
 import { RichTextEditor } from 'src/components/RichTextEditor/RichTextEditor';
-import { NodeInfoTab } from '../NodeInfoTab/NodeInfoTab';
+import { NodeLabelSection } from './NodeLabelSection';
 import { ControlsContainer } from '../../components/ControlsContainer';
 import { DeckHeader } from '../../components/DeckHeader';
 import { NotesSection } from '../../components/NotesSection';
@@ -21,9 +21,10 @@ import { MetadataSection } from '../../components/MetadataSection';
 import { useTranslation } from 'src/stores/localeStore';
 
 // Unified collapsible-section deck (2026-07-02, ux-principles §5.1): the node
-// panel is a vertical stack of collapsible sections — Label (content, open) +
-// Notes + Metadata (in NodeInfoTab) — not tabs. Styling lives in the top-bar
-// style strip; the icon picker + icon/label sizing moved there too.
+// panel is a vertical stack of collapsible sections — an on-canvas Label field
+// (NodeLabelSection) + Notes + Metadata (both rendered directly below) — not
+// tabs. Styling lives on the top-bar style strip (ADR 0030 / 0034); the icon
+// picker + icon/label sizing moved there too.
 const PANEL_EVENT = 'nodePanel';
 
 // True iff an HTML rich-text string carries visible text — used for the
@@ -262,9 +263,9 @@ interface Props {
 
 export const NodePanel = ({ viewItem, readOnly }: Props) => {
   const { t } = useTranslation('nodePanel');
-  // Metadata (identity name) strings live in the nodeInfoTab namespace; NodePanel
+  // Metadata (identity name) strings live in the nodeDeck namespace; NodePanel
   // renders that section itself (after Notes) to keep the canonical section order.
-  const { t: tInfo } = useTranslation('nodeInfoTab');
+  const { t: tDeck } = useTranslation('nodeDeck');
   const modelItem = useModelItem(viewItem.id);
   const { updateModelItem } = useScene();
   const uiStateActions = useUiStateStore((state) => state.actions);
@@ -337,7 +338,7 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
         />
       }
     >
-      <NodeInfoTab
+      <NodeLabelSection
         node={viewItem}
         onModelItemUpdated={onModelUpdate}
         nameRef={nameRef}
@@ -350,10 +351,10 @@ export const NodePanel = ({ viewItem, readOnly }: Props) => {
         onToggle={() => setNotesOpen((v) => !v)}
       />
       <MetadataSection
-        title={tInfo('metadata')}
-        fieldLabel={tInfo('name')}
+        title={tDeck('metadata')}
+        fieldLabel={tDeck('name')}
         name={modelItem.name ?? ''}
-        placeholder={tInfo('namePlaceholder')}
+        placeholder={tDeck('namePlaceholder')}
         onChange={(v) => onModelUpdate({ name: v || undefined })}
       />
     </ControlsContainer>

@@ -279,13 +279,12 @@ const locale: LocaleProps = {
     notes: 'Notlar',
     close: 'Kapat',
   },
-  nodeInfoTab: {
+  nodeDeck: {
     metadata: 'Meta veriler',
     name: 'Ad',
     namePlaceholder: 'Düğüm adı…',
     label: 'Etiket',
     labelPlaceholder: 'Şekilde gösterilen etiket…',
-    openLink: 'Bağlantıyı aç'
   },
   connectorControls: {
     metadata: 'Meta veriler',
@@ -404,9 +403,6 @@ const locale: LocaleProps = {
     lineType: 'Çizgi türü',
     showArrow: 'Oku göster',
     showDottedLine: 'Noktalı çizgiyi göster',
-  },
-  deleteButton: {
-    delete: 'Sil'
   },
   quickAddNodePopover: {
     add: 'Ekle',

@@ -278,13 +278,12 @@ const locale: LocaleProps = {
     notes: 'Notes',
     close: 'Close',
   },
-  nodeInfoTab: {
+  nodeDeck: {
     metadata: 'Metadata',
     name: 'Name',
     namePlaceholder: 'Node name…',
     label: 'Label',
     labelPlaceholder: 'Label shown on the shape…',
-    openLink: 'Open link'
   },
   connectorControls: {
     metadata: 'Metadata',
@@ -401,9 +400,6 @@ const locale: LocaleProps = {
     lineType: 'Line type',
     showArrow: 'Show arrow',
     showDottedLine: 'Show dotted line',
-  },
-  deleteButton: {
-    delete: 'Delete'
   },
   quickAddNodePopover: {
     add: 'Add',
