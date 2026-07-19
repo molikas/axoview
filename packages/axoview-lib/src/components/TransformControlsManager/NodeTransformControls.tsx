@@ -8,6 +8,7 @@ import { useUiStateStore } from 'src/stores/uiStateStore';
 import { AnchorPosition } from 'src/types';
 import { PROJECTED_TILE_SIZE } from 'src/config';
 import { ScreenBoxTransformControls } from './ScreenBoxTransformControls';
+import { TransformControls } from './TransformControls';
 
 interface Props {
   id: string;
@@ -26,6 +27,15 @@ export const formatIconScale = (scale: number): string => `${scale.toFixed(1)}×
 // icon's natural aspect, so the box matches the sprite's rendered bounds.
 const iconWidthFactor = (isIsometric: boolean): number =>
   isIsometric ? 0.8 : 0.7;
+
+// A node resizes its ICON uniformly → corner handles only (no one-axis edge
+// handles, which would distort). Used by the non-iso diamond branch.
+const NODE_CORNER_ANCHORS: AnchorPosition[] = [
+  'TOP_LEFT',
+  'TOP_RIGHT',
+  'BOTTOM_LEFT',
+  'BOTTOM_RIGHT'
+];
 
 export const NodeTransformControls = ({ id, showHandles = true }: Props) => {
   const node = useViewItem(id);
@@ -83,17 +93,35 @@ export const NodeTransformControls = ({ id, showHandles = true }: Props) => {
     return null;
   }
 
+  const handler = showHandles ? onAnchorMouseDown : undefined;
+  const readout =
+    showHandles && previewScale != null
+      ? formatIconScale(previewScale)
+      : undefined;
+
+  // "Trace each shape" (ADR 0044, 2026-07-19): a flat / Material icon lies in the
+  // tile plane, so the iso diamond traces it (like a rectangle); only a STANDING
+  // isometric icon (a 3-D sprite) needs the screen box a diamond can't wrap.
+  if (!(icon.isIsometric ?? true)) {
+    return (
+      <TransformControls
+        from={node.tile}
+        to={node.tile}
+        anchorPositions={NODE_CORNER_ANCHORS}
+        extentScale={effectiveScale}
+        onAnchorMouseDown={handler}
+        readout={readout}
+      />
+    );
+  }
+
   return (
     <ScreenBoxTransformControls
       center={box.center}
       width={box.width}
       height={box.height}
-      onAnchorMouseDown={showHandles ? onAnchorMouseDown : undefined}
-      readout={
-        showHandles && previewScale != null
-          ? formatIconScale(previewScale)
-          : undefined
-      }
+      onAnchorMouseDown={handler}
+      readout={readout}
     />
   );
 };

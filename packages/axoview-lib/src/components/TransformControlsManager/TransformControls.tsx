@@ -11,6 +11,7 @@ import {
   convertBoundsToNamedAnchors
 } from 'src/utils';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
+import { useUiStateStore } from 'src/stores/uiStateStore';
 import { TransformAnchor } from './TransformAnchor';
 
 interface Props {
@@ -93,6 +94,9 @@ export const TransformControls = ({
     to
   });
   const { getTilePosition, strategy } = useCanvasMode();
+  // Screen-pixel-stable readout (counter-scaled 1/zoom), matching the screen-box
+  // node outline so both node shapes show the same size pill (QA 2026-07-19).
+  const zoom = useUiStateStore((s) => s.zoom) || 1;
 
   // ADR 0044: grow the ring rects about the element's local centre so they frame
   // a scaled node icon. ex === 1 (rectangles / text boxes / scale-1 nodes) →
@@ -376,21 +380,25 @@ export const TransformControls = ({
           data-axoview-id="canvas-resize-readout"
           sx={{
             position: 'absolute',
-            transform: 'translateX(-50%)',
-            px: 0.75,
-            py: 0.25,
+            px: 1,
+            py: 0.5,
             borderRadius: 1,
             bgcolor: TRANSFORM_CONTROLS_COLOR,
             color: '#fff',
-            fontSize: 12,
-            fontWeight: 600,
+            fontSize: 14,
+            fontWeight: 700,
             fontVariantNumeric: 'tabular-nums',
-            lineHeight: 1.4,
+            lineHeight: 1.3,
             whiteSpace: 'nowrap',
             pointerEvents: 'none',
-            boxShadow: 1
+            boxShadow: 2
           }}
-          style={{ left: readoutPosition.x, top: readoutPosition.y }}
+          style={{
+            left: readoutPosition.x,
+            top: readoutPosition.y,
+            transform: `translateX(-50%) scale(${1 / zoom})`,
+            transformOrigin: 'top center'
+          }}
         >
           {readout}
         </Box>
