@@ -1,6 +1,6 @@
 # ADR 0044 — On-Canvas Per-Node Icon Resize (Node Transform Handles)
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-07-19
 **Supersedes:** [ADR 0030 §1](0030-docked-style-controls-strip.md) (icon size as strip-owned styling) + its §2 single-target Icon-size gating — icon size becomes **per-node on-canvas geometry** and the strip Icon-size control is removed; §1's other styling ownership, the **Change icon** control, and §2–§4 otherwise stand.
 **Superseded by:** none
