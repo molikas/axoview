@@ -129,6 +129,14 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   const annotationActive = useUiStateStore(
     (state) => state.annotation.open && state.annotation.tool !== 'select'
   );
+  // QA 2026-07-19: over a hovered item in select mode, HoverOutline already draws
+  // that item's box — the tile-cursor diamond on top of it reads as a confusing
+  // SECOND box. Suppress the tile cursor there (it still shows on empty canvas for
+  // placement targeting). hoveredItem is set/cleared per hover-move in CURSOR
+  // mode (Cursor.ts), so it's accurate here.
+  const hoveringItemInCursor = useUiStateStore(
+    (state) => state.mode.type === 'CURSOR' && state.hoveredItem !== null
+  );
   const uiStateActions = useUiStateStore((state) => state.actions);
   const { setInteractionsElement } = useInteractionManager();
   const {
@@ -537,7 +545,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
       >
         {isShowGrid && <Grid />}
       </Box>
-      {showCursor && !annotationActive && (
+      {showCursor && !annotationActive && !hoveringItemInCursor && (
         <SceneLayer>
           <Cursor />
         </SceneLayer>
