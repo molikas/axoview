@@ -11,7 +11,8 @@ const locale: LocaleProps = {
   },
   rightSidebar: {
     collapsePanel: 'Panel einklappen',
-    emptyState: 'Wählen Sie einen Knoten, Verbinder oder eine Form, um die Eigenschaften anzuzeigen'
+    emptyState:
+      'Wählen Sie einen Knoten, Verbinder oder eine Form, um die Eigenschaften anzuzeigen'
   },
   helpDialog: {
     title: 'Tastaturkürzel und Hilfe',
@@ -95,10 +96,12 @@ const locale: LocaleProps = {
     // D10 — tool-activation keys (ADR 0022 §6)
     keyRenameAction: 'Umbenennen',
     keyRenameShortcut: 'F2',
-    keyRenameDescription: 'Ausgewähltes Element oder Diagramm inline umbenennen',
+    keyRenameDescription:
+      'Ausgewähltes Element oder Diagramm inline umbenennen',
     keyAddItemAction: 'Element hinzufügen / Elemente',
     keyAddItemShortcut: 'N',
-    keyAddItemDescription: 'Elemente-Panel umschalten, um ein neues Element zu platzieren',
+    keyAddItemDescription:
+      'Elemente-Panel umschalten, um ein neues Element zu platzieren',
     keyConnectorAction: 'Verbindung',
     keyConnectorShortcut: 'C',
     keyConnectorDescription: 'Zum Verbindungswerkzeug wechseln',
@@ -279,15 +282,14 @@ const locale: LocaleProps = {
   },
   nodePanel: {
     notes: 'Notizen',
-    close: 'Schließen',
+    close: 'Schließen'
   },
-  nodeInfoTab: {
+  nodeDeck: {
     metadata: 'Metadaten',
     name: 'Name',
     namePlaceholder: 'Knotenname…',
     label: 'Beschriftung',
-    labelPlaceholder: 'Auf dem Element angezeigte Beschriftung…',
-    openLink: 'Link öffnen'
+    labelPlaceholder: 'Auf dem Element angezeigte Beschriftung…'
   },
   connectorControls: {
     metadata: 'Metadaten',
@@ -340,7 +342,6 @@ const locale: LocaleProps = {
     alignTop: 'Oben ausrichten',
     alignMiddle: 'Mittig ausrichten',
     alignBottom: 'Unten ausrichten',
-    iconSize: 'Symbolgröße',
     textColor: 'Textfarbe',
     textColorDisabled:
       'Wählen Sie einen Knoten, ein Textfeld, eine Beschriftung oder eine Verbindungsbeschriftung, um die Textfarbe festzulegen',
@@ -369,10 +370,12 @@ const locale: LocaleProps = {
     bulletList: 'Aufzählungsliste',
     numberedList: 'Nummerierte Liste',
     background: 'Hintergrundfarbe',
-    backgroundDisabled: 'Wählen Sie ein Rechteck, eine Beschriftung oder ein Textfeld aus, um die Hintergrundfarbe festzulegen',
+    backgroundDisabled:
+      'Wählen Sie ein Rechteck, eine Beschriftung oder ein Textfeld aus, um die Hintergrundfarbe festzulegen',
     opacity: 'Deckkraft',
     border: 'Rahmen',
-    borderDisabled: 'Wählen Sie ein Rechteck oder Textfeld, um dessen Rahmen festzulegen',
+    borderDisabled:
+      'Wählen Sie ein Rechteck oder Textfeld, um dessen Rahmen festzulegen',
     lineStyle: 'Linienstil',
     width: 'Breite',
     borderColor: 'Rahmenfarbe',
@@ -394,24 +397,19 @@ const locale: LocaleProps = {
     changeIconBulk: 'Symbol ändern gilt jeweils für einen Knoten',
     changeIcon: 'Symbol ändern',
     changeIconDisabled: 'Wählen Sie einen Knoten, um sein Symbol zu ändern',
-    iconSizeBulk:
-      'Symbolgröße bearbeitet jeweils ein Symbol (skaliert alle Knoten mit diesem Symbol)',
-    iconSizeDisabled:
-      'Wählen Sie einen Knoten, um seine Symbolgröße zu ändern',
-    connectionColorPredraw: 'Farbe für die nächste Verbindung, die Sie zeichnen',
+    connectionColorPredraw:
+      'Farbe für die nächste Verbindung, die Sie zeichnen',
     connectionColor: 'Verbindungsfarbe',
     connectionColorDisabled:
       'Wählen Sie eine Verbindung (oder das Verbindungswerkzeug), um ihre Farbe festzulegen',
-    lineOptionsPredraw: 'Linienstil für die nächste Verbindung, die Sie zeichnen',
+    lineOptionsPredraw:
+      'Linienstil für die nächste Verbindung, die Sie zeichnen',
     lineOptions: 'Linienoptionen',
     lineOptionsDisabled:
       'Wählen Sie eine Verbindung (oder das Verbindungswerkzeug), um ihre Linienoptionen festzulegen',
     lineType: 'Linientyp',
     showArrow: 'Pfeil anzeigen',
-    showDottedLine: 'Gepunktete Linie anzeigen',
-  },
-  deleteButton: {
-    delete: 'Löschen'
+    showDottedLine: 'Gepunktete Linie anzeigen'
   },
   quickAddNodePopover: {
     add: 'Hinzufügen',
@@ -501,7 +499,8 @@ const locale: LocaleProps = {
     showGrid: 'Raster anzeigen',
     showLabels: 'Beschriftungen anzeigen',
     screenshotPreset: 'Screenshot (empfohlen)',
-    scaleClamped: 'Exportgröße reduziert, um das Bildlimit des Browsers einzuhalten:',
+    scaleClamped:
+      'Exportgröße reduziert, um das Bildlimit des Browsers einzuhalten:',
     cropToContent: 'Auf Inhalt zuschneiden',
     backgroundColor: 'Hintergrundfarbe',
     transparentBackground: 'Transparenter Hintergrund',
@@ -601,7 +600,8 @@ const locale: LocaleProps = {
     pastedOne: '{count} Element eingefügt',
     pastedOther: '{count} Elemente eingefügt',
     nothingToPaste: 'Nichts zum Einfügen',
-    routingConnectors: 'Wird eingefügt… Verbindungen werden geroutet ({percent}%)'
+    routingConnectors:
+      'Wird eingefügt… Verbindungen werden geroutet ({percent}%)'
   },
   // D13 — default page name; {count} interpolated.
   page: {

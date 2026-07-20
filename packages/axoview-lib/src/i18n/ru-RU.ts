@@ -11,7 +11,8 @@ const locale: LocaleProps = {
   },
   rightSidebar: {
     collapsePanel: 'Свернуть панель',
-    emptyState: 'Выберите узел, соединитель или фигуру, чтобы просмотреть свойства'
+    emptyState:
+      'Выберите узел, соединитель или фигуру, чтобы просмотреть свойства'
   },
   helpDialog: {
     title: 'Горячие клавиши и справка',
@@ -94,10 +95,12 @@ const locale: LocaleProps = {
     // D10 — tool-activation keys (ADR 0022 §6)
     keyRenameAction: 'Переименовать',
     keyRenameShortcut: 'F2',
-    keyRenameDescription: 'Переименовать выбранный объект или диаграмму на месте',
+    keyRenameDescription:
+      'Переименовать выбранный объект или диаграмму на месте',
     keyAddItemAction: 'Добавить элемент / Элементы',
     keyAddItemShortcut: 'N',
-    keyAddItemDescription: 'Переключить панель «Элементы», чтобы разместить новый элемент',
+    keyAddItemDescription:
+      'Переключить панель «Элементы», чтобы разместить новый элемент',
     keyConnectorAction: 'Соединитель',
     keyConnectorShortcut: 'C',
     keyConnectorDescription: 'Переключиться на инструмент соединителя',
@@ -196,8 +199,7 @@ const locale: LocaleProps = {
     canvas: 'Холст',
     language: 'Язык',
     about: 'О программе',
-    languageDescription:
-      'Выберите язык отображения интерфейса приложения.',
+    languageDescription: 'Выберите язык отображения интерфейса приложения.',
     zoomSection: 'Масштаб',
     labelsSection: 'Подписи',
     zoom: {
@@ -277,15 +279,14 @@ const locale: LocaleProps = {
   },
   nodePanel: {
     notes: 'Заметки',
-    close: 'Закрыть',
+    close: 'Закрыть'
   },
-  nodeInfoTab: {
+  nodeDeck: {
     metadata: 'Метаданные',
     name: 'Название',
     namePlaceholder: 'Имя узла…',
     label: 'Подпись',
-    labelPlaceholder: 'Подпись, отображаемая на фигуре…',
-    openLink: 'Открыть ссылку'
+    labelPlaceholder: 'Подпись, отображаемая на фигуре…'
   },
   connectorControls: {
     metadata: 'Метаданные',
@@ -297,7 +298,8 @@ const locale: LocaleProps = {
     addLabel: 'Добавить метку',
     noLabels: 'Меток пока нет.',
     labelN: 'Метка {count}',
-    positionHint: 'Перетащите метку на холсте, чтобы разместить её; размер и цвет её текста задаются на верхней панели.',
+    positionHint:
+      'Перетащите метку на холсте, чтобы разместить её; размер и цвет её текста задаются на верхней панели.',
     line: 'Линия',
     line1: 'Линия 1',
     line2: 'Линия 2'
@@ -337,7 +339,6 @@ const locale: LocaleProps = {
     alignTop: 'По верхнему краю',
     alignMiddle: 'По середине',
     alignBottom: 'По нижнему краю',
-    iconSize: 'Размер иконки',
     textColor: 'Цвет текста',
     textColorDisabled:
       'Выберите узел, текстовое поле, подпись или подпись соединения, чтобы задать цвет текста',
@@ -366,15 +367,18 @@ const locale: LocaleProps = {
     bulletList: 'Маркированный список',
     numberedList: 'Нумерованный список',
     background: 'Цвет фона',
-    backgroundDisabled: 'Выберите прямоугольник, подпись или текстовое поле, чтобы задать цвет фона',
+    backgroundDisabled:
+      'Выберите прямоугольник, подпись или текстовое поле, чтобы задать цвет фона',
     opacity: 'Прозрачность',
     border: 'Граница',
-    borderDisabled: 'Выберите прямоугольник или текстовое поле, чтобы задать его рамку',
+    borderDisabled:
+      'Выберите прямоугольник или текстовое поле, чтобы задать его рамку',
     lineStyle: 'Стиль линии',
     width: 'Толщина',
     borderColor: 'Цвет границы',
     link: 'Ссылка',
-    linkDisabled: 'Выберите узел, соединение или подпись, чтобы добавить ссылку',
+    linkDisabled:
+      'Выберите узел, соединение или подпись, чтобы добавить ссылку',
     linkSelection: 'Добавить ссылку на выделенный текст',
     linkDisabledTextBox:
       'Выделите текст во время редактирования, чтобы добавить ссылку',
@@ -390,9 +394,6 @@ const locale: LocaleProps = {
     changeIconBulk: 'Смена иконки применяется к одному узлу за раз',
     changeIcon: 'Изменить иконку',
     changeIconDisabled: 'Выберите узел, чтобы изменить его иконку',
-    iconSizeBulk:
-      'Размер иконки редактирует одну иконку за раз (масштабирует все узлы с этой иконкой)',
-    iconSizeDisabled: 'Выберите узел, чтобы изменить размер его иконки',
     connectionColorPredraw: 'Цвет для следующего создаваемого соединения',
     connectionColor: 'Цвет соединения',
     connectionColorDisabled:
@@ -403,10 +404,7 @@ const locale: LocaleProps = {
       'Выберите соединение (или инструмент соединителя), чтобы задать параметры линии',
     lineType: 'Тип линии',
     showArrow: 'Показать стрелку',
-    showDottedLine: 'Показать пунктирную линию',
-  },
-  deleteButton: {
-    delete: 'Удалить'
+    showDottedLine: 'Показать пунктирную линию'
   },
   quickAddNodePopover: {
     add: 'Добавить',
@@ -495,7 +493,8 @@ const locale: LocaleProps = {
     showGrid: 'Показать сетку',
     showLabels: 'Показать подписи',
     screenshotPreset: 'Снимок экрана (рекомендуется)',
-    scaleClamped: 'Размер экспорта уменьшен для соответствия ограничению изображения браузера:',
+    scaleClamped:
+      'Размер экспорта уменьшен для соответствия ограничению изображения браузера:',
     cropToContent: 'Обрезать по содержимому',
     backgroundColor: 'Цвет фона',
     transparentBackground: 'Прозрачный фон',

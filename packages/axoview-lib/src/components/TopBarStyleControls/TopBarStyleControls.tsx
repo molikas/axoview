@@ -33,7 +33,6 @@ import {
   VerticalAlignTop as AlignTopIcon,
   VerticalAlignCenter as AlignMiddleIcon,
   VerticalAlignBottom as AlignBottomIcon,
-  PhotoSizeSelectLarge as IconSizeIcon,
   ImageOutlined as ChangeIconIcon,
   ArrowDropDown as CaretIcon,
   Add as AddIcon,
@@ -57,7 +56,7 @@ import { useRectangle } from 'src/hooks/useRectangle';
 import { connectorStyleOptions, connectorLineTypeOptions } from 'src/schemas';
 import { TEXTBOX_DEFAULTS, TEXTBOX_LINE_HEIGHT } from 'src/config';
 import { ColorPickerBody } from '../ColorSelector/ColorPickerBody';
-import { QuickIconSelector } from '../ItemControls/NodeControls/QuickIconSelector';
+import { QuickIconSelector } from './QuickIconSelector';
 import { resolveHomogeneousBulk } from 'src/utils/bulkStyleTarget';
 import {
   getWholeContentFormats,
@@ -451,44 +450,6 @@ const PercentSizeSlider = ({
   );
 };
 
-// Icon-size slider with local state + debounce (mirrors NodeStyleTab) so the
-// model store isn't thrashed on every drag tick. Mounted only inside the open
-// popover, so it re-seeds from the current scale each time it opens.
-const IconSizeControl = ({
-  initialScale,
-  onChange
-}: {
-  initialScale: number;
-  onChange: (scale: number) => void;
-}) => {
-  const { t } = useTranslation('topBarStyleControls');
-  const [localScale, setLocalScale] = useState(initialScale);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-  useEffect(
-    () => () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    },
-    []
-  );
-
-  return (
-    <LabeledSlider
-      label={t('iconSize')}
-      value={localScale}
-      displayValue={`${localScale.toFixed(1)}×`}
-      min={0.3}
-      max={2.5}
-      step={0.1}
-      onChange={(scale) => {
-        setLocalScale(scale);
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => onChange(scale), 100);
-      }}
-    />
-  );
-};
-
 export const TopBarStyleControls = () => {
   const { t } = useTranslation('topBarStyleControls');
   const itemControls = useUiStateStore((s) => s.itemControls);
@@ -659,18 +620,12 @@ export const TopBarStyleControls = () => {
     [textBox?.content]
   );
 
-  // Icon size lives on the model icon's `scale` (shared by every node using that
-  // icon) — same source the NodeStyleTab "Icon size" slider writes to.
+  // The selected node's model item + its current icon — drives the "Change
+  // icon" button preview + picker. (Icon SIZE moved to on-canvas resize handles
+  // per ADR 0044; the strip no longer edits it.)
   const modelItem = useModelItem(sel?.type === 'ITEM' ? sel.id : '');
   const icons = useModelStore((s) => s.icons);
-  const modelActions = useModelStore((s) => s.actions);
   const currentIcon = icons.find((i) => i.id === modelItem?.icon);
-  const applyIconScale = (scale: number) => {
-    if (!currentIcon) return;
-    modelActions.set({
-      icons: icons.map((i) => (i.id === currentIcon.id ? { ...i, scale } : i))
-    });
-  };
 
   const resolveHex = (presetId?: string, customColor?: string) =>
     customColor || colors.find((c) => c.id === presetId)?.value;
@@ -2079,27 +2034,6 @@ export const TopBarStyleControls = () => {
               onIconSelected={(icon) => updateModelItem(node.id, { icon: icon.id })}
             />
           </Box>
-        )}
-      </StripButton>
-
-      {/* Icon size (node) */}
-      <StripButton
-        tooltip={
-          isBulk
-            ? t('iconSizeBulk')
-            : currentIcon
-            ? t('iconSize')
-            : disabledTip('iconSizeDisabled')
-        }
-        disabled={!currentIcon || isBulk}
-        popoverWidth={220}
-        icon={<IconSizeIcon sx={{ fontSize: 18 }} />}
-      >
-        {currentIcon && (
-          <IconSizeControl
-            initialScale={currentIcon.scale ?? 1}
-            onChange={applyIconScale}
-          />
         )}
       </StripButton>
 

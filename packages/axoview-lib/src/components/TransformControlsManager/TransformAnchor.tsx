@@ -29,6 +29,11 @@ const strokeWidth = 2;
 // Edge bars: long ALONG the edge, thin across — the widened hit target.
 const EDGE_LENGTH = 42;
 const EDGE_THICKNESS = 15;
+// Transparent forgiveness margin around every handle glyph: the visible square /
+// bar stays the same size, but the clickable area grows so a near-miss press
+// still grabs the handle instead of falling through to deselect / marquee-select
+// (QA 2026-07-19). Scene-space px (the handle scales with zoom).
+const HIT_PAD = 10;
 
 export const TransformAnchor = ({
   position,
@@ -42,6 +47,10 @@ export const TransformAnchor = ({
 
   const w = isEdge ? EDGE_LENGTH : TRANSFORM_ANCHOR_SIZE;
   const h = isEdge ? EDGE_THICKNESS : TRANSFORM_ANCHOR_SIZE;
+  // Clickable box = glyph + transparent forgiveness margin; the glyph itself
+  // stays w×h, centred inside.
+  const boxW = w + HIT_PAD * 2;
+  const boxH = h + HIT_PAD * 2;
 
   // ALL handles are screen-aligned for a consistent look (the Google/Figma
   // convention — resize handles don't distort with the diagram's perspective):
@@ -64,12 +73,15 @@ export const TransformAnchor = ({
         position: 'absolute',
         cursor,
         transform: boxTransform,
-        width: w,
-        height: h
+        width: boxW,
+        height: boxH,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
       }}
       style={{
-        left: position.x - w / 2,
-        top: position.y - h / 2
+        left: position.x - boxW / 2,
+        top: position.y - boxH / 2
       }}
     >
       <Svg

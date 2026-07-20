@@ -95,10 +95,12 @@ const locale: LocaleProps = {
     // D10 — tool-activation keys (ADR 0022 §6)
     keyRenameAction: 'Renombrar',
     keyRenameShortcut: 'F2',
-    keyRenameDescription: 'Renombrar el elemento o diagrama seleccionado en línea',
+    keyRenameDescription:
+      'Renombrar el elemento o diagrama seleccionado en línea',
     keyAddItemAction: 'Añadir elemento / Elementos',
     keyAddItemShortcut: 'N',
-    keyAddItemDescription: 'Alternar el panel Elementos para colocar un nuevo elemento',
+    keyAddItemDescription:
+      'Alternar el panel Elementos para colocar un nuevo elemento',
     keyConnectorAction: 'Conector',
     keyConnectorShortcut: 'C',
     keyConnectorDescription: 'Cambiar a la herramienta de conector',
@@ -281,15 +283,14 @@ const locale: LocaleProps = {
   },
   nodePanel: {
     notes: 'Notas',
-    close: 'Cerrar',
+    close: 'Cerrar'
   },
-  nodeInfoTab: {
+  nodeDeck: {
     metadata: 'Metadatos',
     name: 'Nombre',
     namePlaceholder: 'Nombre del nodo…',
     label: 'Etiqueta',
-    labelPlaceholder: 'Etiqueta mostrada en la forma…',
-    openLink: 'Abrir enlace'
+    labelPlaceholder: 'Etiqueta mostrada en la forma…'
   },
   connectorControls: {
     metadata: 'Metadatos',
@@ -301,7 +302,8 @@ const locale: LocaleProps = {
     addLabel: 'Añadir etiqueta',
     noLabels: 'Aún no hay etiquetas.',
     labelN: 'Etiqueta {count}',
-    positionHint: 'Arrastra una etiqueta en el lienzo para colocarla; usa la barra superior para su tamaño de texto y color.',
+    positionHint:
+      'Arrastra una etiqueta en el lienzo para colocarla; usa la barra superior para su tamaño de texto y color.',
     line: 'Línea',
     line1: 'Línea 1',
     line2: 'Línea 2'
@@ -341,7 +343,6 @@ const locale: LocaleProps = {
     alignTop: 'Alinear arriba',
     alignMiddle: 'Alinear al medio',
     alignBottom: 'Alinear abajo',
-    iconSize: 'Tamaño del icono',
     textColor: 'Color del texto',
     textColorDisabled:
       'Selecciona un nodo, un cuadro de texto, una etiqueta o una etiqueta de conexión para definir el color del texto',
@@ -370,17 +371,21 @@ const locale: LocaleProps = {
     bulletList: 'Lista con viñetas',
     numberedList: 'Lista numerada',
     background: 'Color de fondo',
-    backgroundDisabled: 'Selecciona un rectángulo, etiqueta o cuadro de texto para definir su color de fondo',
+    backgroundDisabled:
+      'Selecciona un rectángulo, etiqueta o cuadro de texto para definir su color de fondo',
     opacity: 'Opacidad',
     border: 'Borde',
-    borderDisabled: 'Selecciona un rectángulo o cuadro de texto para definir su borde',
+    borderDisabled:
+      'Selecciona un rectángulo o cuadro de texto para definir su borde',
     lineStyle: 'Estilo de línea',
     width: 'Ancho',
     borderColor: 'Color del borde',
     link: 'Enlace',
-    linkDisabled: 'Selecciona un nodo, conexión o etiqueta para añadir un enlace',
+    linkDisabled:
+      'Selecciona un nodo, conexión o etiqueta para añadir un enlace',
     linkSelection: 'Enlazar el texto seleccionado',
-    linkDisabledTextBox: 'Selecciona texto mientras editas para añadir un enlace',
+    linkDisabledTextBox:
+      'Selecciona texto mientras editas para añadir un enlace',
     linkToWeb: 'Enlace a la web',
     webLinkPlaceholder: 'https://…',
     linkToDiagram: 'Enlace al diagrama',
@@ -393,21 +398,17 @@ const locale: LocaleProps = {
     changeIconBulk: 'Cambiar icono se aplica a un nodo a la vez',
     changeIcon: 'Cambiar icono',
     changeIconDisabled: 'Selecciona un nodo para cambiar su icono',
-    iconSizeBulk:
-      'El tamaño del icono edita un icono a la vez (cambia el tamaño de todos los nodos que lo usan)',
-    iconSizeDisabled: 'Selecciona un nodo para cambiar el tamaño de su icono',
     connectionColorPredraw: 'Color de la próxima conexión que dibujes',
     connectionColor: 'Color de la conexión',
-    connectionColorDisabled: 'Selecciona una conexión (o la herramienta de conector) para definir su color',
+    connectionColorDisabled:
+      'Selecciona una conexión (o la herramienta de conector) para definir su color',
     lineOptionsPredraw: 'Estilo de línea de la próxima conexión que dibujes',
     lineOptions: 'Opciones de línea',
-    lineOptionsDisabled: 'Selecciona una conexión (o la herramienta de conector) para definir sus opciones de línea',
+    lineOptionsDisabled:
+      'Selecciona una conexión (o la herramienta de conector) para definir sus opciones de línea',
     lineType: 'Tipo de línea',
     showArrow: 'Mostrar flecha',
-    showDottedLine: 'Mostrar línea punteada',
-  },
-  deleteButton: {
-    delete: 'Eliminar'
+    showDottedLine: 'Mostrar línea punteada'
   },
   quickAddNodePopover: {
     add: 'Añadir',
@@ -497,7 +498,8 @@ const locale: LocaleProps = {
     showGrid: 'Mostrar cuadrícula',
     showLabels: 'Mostrar etiquetas',
     screenshotPreset: 'Captura de pantalla (recomendado)',
-    scaleClamped: 'Tamaño de exportación reducido para ajustarse al límite de imagen del navegador:',
+    scaleClamped:
+      'Tamaño de exportación reducido para ajustarse al límite de imagen del navegador:',
     cropToContent: 'Recortar al contenido',
     backgroundColor: 'Color de fondo',
     transparentBackground: 'Fondo transparente',

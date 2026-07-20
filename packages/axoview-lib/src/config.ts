@@ -60,6 +60,9 @@ export const VIEW_ITEM_DEFAULTS: Required<
     | 'offset'
     | 'snap'
     | 'collides'
+    // ADR 0044: per-node icon scale defaults to absent (fall back to the shared
+    // icon asset scale); lean-save omits it on a node that never overrode it.
+    | 'iconScale'
     // Label B/I/U/S default to absent (unstyled); lean-save omits them.
     | 'labelBold'
     | 'labelItalic'

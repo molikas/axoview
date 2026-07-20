@@ -82,7 +82,8 @@ const locale: LocaleProps = {
     cutDescription:
       'Recortar os itens selecionados para a área de transferência — itens são removidos e podem ser colados em outro lugar; suporta desfazer/refazer',
     copyAction: 'Copiar',
-    copyDescription: 'Copiar os itens selecionados para a área de transferência',
+    copyDescription:
+      'Copiar os itens selecionados para a área de transferência',
     pasteAction: 'Colar',
     pasteDescription:
       'Colar itens da área de transferência na posição do mouse; deslocado para evitar sobreposição',
@@ -97,7 +98,8 @@ const locale: LocaleProps = {
     keyRenameDescription: 'Renomear o item ou diagrama selecionado em linha',
     keyAddItemAction: 'Adicionar item / Elementos',
     keyAddItemShortcut: 'N',
-    keyAddItemDescription: 'Alternar o painel Elementos para colocar um novo item',
+    keyAddItemDescription:
+      'Alternar o painel Elementos para colocar um novo item',
     keyConnectorAction: 'Conector',
     keyConnectorShortcut: 'C',
     keyConnectorDescription: 'Mudar para a ferramenta de conector',
@@ -277,15 +279,14 @@ const locale: LocaleProps = {
   },
   nodePanel: {
     notes: 'Notas',
-    close: 'Fechar',
+    close: 'Fechar'
   },
-  nodeInfoTab: {
+  nodeDeck: {
     metadata: 'Metadados',
     name: 'Nome',
     namePlaceholder: 'Nome do nó…',
     label: 'Rótulo',
-    labelPlaceholder: 'Rótulo exibido na forma…',
-    openLink: 'Abrir link'
+    labelPlaceholder: 'Rótulo exibido na forma…'
   },
   connectorControls: {
     metadata: 'Metadados',
@@ -338,7 +339,6 @@ const locale: LocaleProps = {
     alignTop: 'Alinhar ao topo',
     alignMiddle: 'Alinhar ao meio',
     alignBottom: 'Alinhar à base',
-    iconSize: 'Tamanho do ícone',
     textColor: 'Cor do texto',
     textColorDisabled:
       'Selecione um nó, uma caixa de texto, um rótulo ou um rótulo de conexão para definir a cor do texto',
@@ -367,17 +367,20 @@ const locale: LocaleProps = {
     bulletList: 'Lista com marcadores',
     numberedList: 'Lista numerada',
     background: 'Cor de fundo',
-    backgroundDisabled: 'Selecione um retângulo, rótulo ou caixa de texto para definir sua cor de fundo',
+    backgroundDisabled:
+      'Selecione um retângulo, rótulo ou caixa de texto para definir sua cor de fundo',
     opacity: 'Opacidade',
     border: 'Borda',
-    borderDisabled: 'Selecione um retângulo ou caixa de texto para definir sua borda',
+    borderDisabled:
+      'Selecione um retângulo ou caixa de texto para definir sua borda',
     lineStyle: 'Estilo de linha',
     width: 'Largura',
     borderColor: 'Cor da borda',
     link: 'Link',
     linkDisabled: 'Selecione um nó, conexão ou rótulo para adicionar um link',
     linkSelection: 'Adicionar link ao texto selecionado',
-    linkDisabledTextBox: 'Selecione texto durante a edição para adicionar um link',
+    linkDisabledTextBox:
+      'Selecione texto durante a edição para adicionar um link',
     linkToWeb: 'Link para a web',
     webLinkPlaceholder: 'https://…',
     linkToDiagram: 'Link para o diagrama',
@@ -390,23 +393,18 @@ const locale: LocaleProps = {
     changeIconBulk: 'Alterar ícone aplica-se a um nó por vez',
     changeIcon: 'Alterar ícone',
     changeIconDisabled: 'Selecione um nó para alterar seu ícone',
-    iconSizeBulk:
-      'Tamanho do ícone edita um ícone por vez (redimensiona todos os nós que o usam)',
-    iconSizeDisabled: 'Selecione um nó para alterar o tamanho de seu ícone',
     connectionColorPredraw: 'Cor para a próxima conexão que você desenhar',
     connectionColor: 'Cor da conexão',
     connectionColorDisabled:
       'Selecione uma conexão (ou a ferramenta de conector) para definir sua cor',
-    lineOptionsPredraw: 'Estilo de linha para a próxima conexão que você desenhar',
+    lineOptionsPredraw:
+      'Estilo de linha para a próxima conexão que você desenhar',
     lineOptions: 'Opções de linha',
     lineOptionsDisabled:
       'Selecione uma conexão (ou a ferramenta de conector) para definir suas opções de linha',
     lineType: 'Tipo de linha',
     showArrow: 'Mostrar seta',
-    showDottedLine: 'Mostrar linha pontilhada',
-  },
-  deleteButton: {
-    delete: 'Excluir'
+    showDottedLine: 'Mostrar linha pontilhada'
   },
   quickAddNodePopover: {
     add: 'Adicionar',
@@ -495,7 +493,8 @@ const locale: LocaleProps = {
     showGrid: 'Mostrar grade',
     showLabels: 'Mostrar rótulos',
     screenshotPreset: 'Captura de tela (recomendado)',
-    scaleClamped: 'Tamanho de exportação reduzido para se ajustar ao limite de imagem do navegador:',
+    scaleClamped:
+      'Tamanho de exportação reduzido para se ajustar ao limite de imagem do navegador:',
     cropToContent: 'Recortar ao conteúdo',
     backgroundColor: 'Cor de fundo',
     transparentBackground: 'Fundo transparente',

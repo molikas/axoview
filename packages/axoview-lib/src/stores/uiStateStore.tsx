@@ -21,10 +21,7 @@ import { loadPersistedSettings } from 'src/config/persistedSettings';
 // Shared by setAnnotationOpen + setAnnotationTool so both entry points behave
 // identically.
 const canvasResetForAnnotation = (
-  state: Pick<
-    UiStateStore,
-    'editorMode' | 'rightSidebarAutoOpened'
-  >
+  state: Pick<UiStateStore, 'editorMode' | 'rightSidebarAutoOpened'>
 ): Partial<UiStateStore> => ({
   mode: getStartingMode(state.editorMode),
   itemControls: null,
@@ -88,6 +85,7 @@ const initialState = () => {
       exportHideLabels: false,
       labelDrag: null,
       labelMove: null,
+      iconScaleDrag: null,
       selectedConnectorLabel: null,
       inlineEditLabelId: null,
       viewModeHoveredLabelId: null,
@@ -310,7 +308,10 @@ const initialState = () => {
           // Toggling a visibility checkbox exits solo (mutually exclusive
           // presentation intents).
           set({
-            previewLayerOverrides: { hiddenLayerIds: nextHidden, soloLayerId: null }
+            previewLayerOverrides: {
+              hiddenLayerIds: nextHidden,
+              soloLayerId: null
+            }
           });
         },
         setPreviewSoloLayer: (layerId) => {
@@ -368,6 +369,17 @@ const initialState = () => {
         },
         clearLabelMove: () => {
           set({ labelMove: null });
+        },
+        setIconScaleDrag: (scales) => {
+          // Transient on-canvas icon-resize preview (ADR 0044). The resized nodes
+          // (DOM) + their selection rings read this map to follow the drag with
+          // NO model write, so the O(N) WebGL node bulk isn't rebuilt each frame
+          // (canvas-interaction.md §6.1/§6.4). One entry for a single node, N for
+          // a group. Committed to the model once, on release.
+          set({ iconScaleDrag: { scales } });
+        },
+        clearIconScaleDrag: () => {
+          set({ iconScaleDrag: null });
         },
         setInlineEditLabelId: (id) => {
           set({ inlineEditLabelId: id });
@@ -483,7 +495,9 @@ const initialState = () => {
           });
         },
         clearAnnotations: () => {
-          set({ annotation: { ...get().annotation, strokes: [], redoStack: [] } });
+          set({
+            annotation: { ...get().annotation, strokes: [], redoStack: [] }
+          });
         },
         setIconPackManager: (iconPackManager) => {
           set({ iconPackManager });

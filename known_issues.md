@@ -147,6 +147,22 @@ The pointing-finger cursor on hover (added 2026-05-15) does cover all four cases
 
 **Status:** Open. Decide on a unified badge story — either extend the existing badges to cover the missing cases, or replace both with one consolidated "more info" indicator that fires for any of the four content types.
 
+## Transform handles scale with zoom instead of being screen-pixel-stable (ADR 0026 / 0044)
+
+**Symptom:** The corner/edge resize handles (rectangles, text boxes, and now node icons — [ADR 0026](docs/adr/0026-rectangle-edge-transform-handles.md) / [ADR 0044](docs/adr/0044-on-canvas-icon-resize.md)) live inside the zoom-scaled `SceneLayer`, so they shrink as you zoom out — comfortable at 100% but small at low zoom. ADR 0026 §2 already flags this as an open item ("needs a `scale(1/zoom)` on the anchor").
+
+**Workaround:** A transparent `HIT_PAD` forgiveness margin was added to `TransformAnchor` (2026-07-19) so a near-miss press still grabs the handle; zoom in for precise resizes.
+
+**Status:** Open. Counter-scale the anchor glyph by `1/zoom` (screen-pixel-stable, UX §8.8), keeping its scene-space position — the ADR 0026 fix. Touches every transform-handle type.
+
+## Canvas tile-cursor persists after the pointer leaves the canvas
+
+**Symptom:** The blue tile-cursor highlight (`Cursor` / `IsoTileArea`, shown in select/placement modes) tracks the pointer's tile on mousemove but is not cleared when the pointer leaves the canvas region, so a stale diamond/square can sit at the last tile.
+
+**Workaround:** It is now hidden while hovering an item (2026-07-19, so it no longer draws a confusing 2nd box over a hovered node) and while resizing; move the pointer back onto the canvas to refresh it.
+
+**Status:** Open (minor). Options: hide the tile cursor on a renderer `pointerleave`, and/or only show it in placement/connector modes (not plain select) — a pre-existing behavior call.
+
 ## Canvas node renderer: notes/link badges + connectors not drawn for unselected nodes (ADR 0019)
 
 **Symptom:** With the Canvas2D node layer now the default renderer (ADR 0019), two visuals

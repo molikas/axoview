@@ -8,7 +8,9 @@ interface AddItemControls {
   type: 'ADD_ITEM';
 }
 
-export type ItemControls = (ItemReference & { tile?: Coords }) | AddItemControls;
+export type ItemControls =
+  | (ItemReference & { tile?: Coords })
+  | AddItemControls;
 
 export interface Mouse {
   position: {
@@ -148,6 +150,21 @@ export interface TransformTextBoxMode {
   selectedAnchor: AnchorPosition | null;
 }
 
+// On-canvas icon resize (ADR 0044): drag a corner handle to set per-node
+// `iconScale`. `targets` is one node (single-select) or every node in a
+// homogeneous group (group-resize). mousemove derives a single uniform scale
+// FACTOR from the screen-drag delta and applies it to each target's own
+// startScale (per-node override ?? shared asset scale ?? 1) — so relative sizes
+// are preserved across a group — previewing via uiState.iconScaleDrag (no
+// per-frame model write). Corner anchors only; uniform scale about the centre.
+export interface NodeTransformMode {
+  type: 'NODE.TRANSFORM';
+  showCursor: boolean;
+  selectedAnchor: AnchorPosition | null;
+  // One entry per node being resized — 1 for a single node, N for a group.
+  targets: { id: string; startScale: number }[];
+}
+
 export interface TextBoxMode {
   type: 'TEXTBOX';
   showCursor: boolean;
@@ -203,6 +220,7 @@ export type Mode =
   | DragItemsMode
   | TextBoxMode
   | TransformTextBoxMode
+  | NodeTransformMode
   | LabelMode
   | LassoMode
   | FreehandLassoMode
@@ -235,7 +253,10 @@ export type ConnectorInteractionMode = 'click' | 'drag';
 // one). A subset of the connector model — only the appearance fields the top-bar
 // controls expose.
 export type ConnectorDefaults = Partial<
-  Pick<Connector, 'color' | 'customColor' | 'style' | 'lineType' | 'width' | 'showArrow'>
+  Pick<
+    Connector,
+    'color' | 'customColor' | 'style' | 'lineType' | 'width' | 'showArrow'
+  >
 >;
 
 export interface Notification {
@@ -379,6 +400,17 @@ export interface UiState {
    * model position is committed ONCE on release. Null when no move is in flight.
    */
   labelMove: { id: string; tile: Coords; offset?: Coords } | null;
+  /**
+   * Transient on-canvas icon-resize preview (ADR 0044). While node icons are
+   * being resized via the corner handles (NODE.TRANSFORM), this holds a map of
+   * node id → live iconScale (one entry for a single node, N for a group), so
+   * the resized nodes (DOM) and their selection rings follow the drag WITHOUT a
+   * per-frame model write (which would rebuild the O(N) WebGL node bulk every
+   * frame — canvas-interaction.md §6.1/§6.4). UI-only, never persisted; the
+   * model `iconScale` is committed ONCE on release. Null when no resize is in
+   * flight.
+   */
+  iconScaleDrag: { scales: Record<string, number> } | null;
   /**
    * The currently-selected connector label (a `labels[]` entry), so the top-bar
    * style strip can target ONE label's text size/colour and the canvas can
@@ -571,6 +603,11 @@ export interface UiStateActions {
   setLabelMove: (id: string, tile: Coords, offset?: Coords) => void;
   /** End the label-move preview (the model tile/offset is committed separately, once). */
   clearLabelMove: () => void;
+  /** Begin / update the transient on-canvas icon-resize preview (ADR 0044).
+   *  Pass a map of node id → previewed scale (one entry, or N for a group). */
+  setIconScaleDrag: (scales: Record<string, number>) => void;
+  /** End the icon-resize preview (the model iconScale is committed separately, once). */
+  clearIconScaleDrag: () => void;
   /** Select (or clear) the connector label the top-bar style strip targets. */
   setSelectedConnectorLabel: (
     sel: { connectorId: string; labelId: string } | null

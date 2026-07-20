@@ -1,6 +1,6 @@
 # Axoview UX Principles
 
-**Last updated:** 2026-07-15 (docs housekeeping — moved to `docs/guidelines/`; stamp reconciled with four edits that landed after the 2026-07-02 date: §8.12 canvas-region fidelity contract → [canvas-rendering-guidelines.md](canvas-rendering-guidelines.md) (2026-07-08); §1.5 theme-at-every-render-root rule + dialog/app-surface typography recipe (2026-07-14); §4.2 strengthened on-canvas selection/hover language (2026-07-14). Prior substantive reshape: 2026-07-02 — styling→top-bar strip; identity name→Metadata section; name↔label decouple; unified label sizing)
+**Last updated:** 2026-07-19 (§4.2 "trace each shape" selection/hover rim — ADR 0044); 2026-07-15 (docs housekeeping — moved to `docs/guidelines/`; stamp reconciled with four edits that landed after the 2026-07-02 date: §8.12 canvas-region fidelity contract → [canvas-rendering-guidelines.md](canvas-rendering-guidelines.md) (2026-07-08); §1.5 theme-at-every-render-root rule + dialog/app-surface typography recipe (2026-07-14); §4.2 strengthened on-canvas selection/hover language (2026-07-14). Prior substantive reshape: 2026-07-02 — styling→top-bar strip; identity name→Metadata section; name↔label decouple; unified label sizing)
 **Status:** Living reference. Update when principles evolve — **and bump the date above in the same commit** (it silently drifted ~12 days / 4 commits before the 2026-07-15 sweep).
 **Audience:** Anyone (or any agent) building UI surfaces, fixing bugs, or reviewing PRs that touch the canvas, side panels, file explorer, or layers.
 
@@ -258,6 +258,8 @@ The file tree's selection has different semantics — it's "which diagram is ope
 - File tree selection: `bgcolor: 'action.selected'` (subtle grey)
 
 **On-canvas selection/hover chrome** (the outline drawn *on the diagram*, not a list row) is a separate, ranked language — rest < hover < selected must be visibly distinct. The rule (ADR 0006 §9): draw the chrome *just outside* the element's own border (never coincident with it), in the accent `TRANSFORM_CONTROLS_COLOR`, over a **white contrast under-stroke** so it survives on any fill — a selected element gets a bold solid ring + glow, a hovered one a lighter outset outline. Every item type (node / rectangle / text box / connector / label) speaks this one language (§5 parity); don't reintroduce a bare same-colour outline at the element footprint (it disappears on coloured shapes).
+
+**The rim's SHAPE traces the element's on-canvas geometry (ADR 0044, 2026-07-19).** One ring language (accent + white under-stroke), but the *shape* follows what the element **is**: flat elements lying in the tile plane — rectangles, text boxes, and **flat / Material (non-isometric) icons** — use the iso **diamond**; only **standing isometric icons** (3-D sprites a flat diamond can't wrap) use a screen-space **box** sized to the sprite's rendered bounds. Hover mirrors selection exactly. **Labels** (an upright chip) and **connectors** (a thin line) keep their own outline — a bounding box reads oddly on them. Don't give a flat element the screen box (it can't follow a sheared glyph in iso) or a 3-D icon the flat diamond (the sprite escapes it).
 
 ### 4.3 Locked / hidden layer items are non-interactive — across every selection path
 

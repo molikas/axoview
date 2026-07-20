@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { IconButton, Tooltip } from '@mui/material';
+import { Box, IconButton, Tooltip } from '@mui/material';
 import { RotateRightOutlined as RotateIcon } from '@mui/icons-material';
 import { Coords, AnchorPosition } from 'src/types';
 import { Svg } from 'src/components/Svg/Svg';
@@ -11,6 +11,7 @@ import {
   convertBoundsToNamedAnchors
 } from 'src/utils';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
+import { useUiStateStore } from 'src/stores/uiStateStore';
 import { TransformAnchor } from './TransformAnchor';
 
 interface Props {
@@ -37,6 +38,18 @@ interface Props {
    * for the hovered-but-unselected item.
    */
   subtle?: boolean;
+  /**
+   * ADR 0044: multiplier that grows the selection ring + handles out from the
+   * element centre so they frame a node's scaled icon (which overflows its bare
+   * tile). Omitted / 1 = the element's own footprint (rectangles, text boxes,
+   * scale-1 nodes) — byte-for-byte unchanged.
+   */
+  extentScale?: number;
+  /**
+   * ADR 0044: a live size readout (e.g. "1.4×") shown on a pill below the
+   * selection while a resize drag is in flight. Omitted = no readout.
+   */
+  readout?: string;
 }
 
 // Selection / hover chrome geometry (screen px, pre-shear). The ring frames the
@@ -51,6 +64,7 @@ const HOVER_OUTSET = 2;
 const RING_RADIUS = 5;
 const ROTATE_HANDLE_SIZE = 32;
 const ROTATE_HANDLE_OFFSET_PX = 40;
+const READOUT_OFFSET_PX = 14;
 
 // Standard bidirectional resize cursor nearest to a screen-space angle (radians,
 // y-down). Bucketed mod 180° into the four resize cursors. Reads actual on-screen
@@ -71,13 +85,27 @@ export const TransformControls = ({
   anchorPositions,
   onRotate,
   rotateTooltip,
-  subtle
+  subtle,
+  extentScale,
+  readout
 }: Props) => {
   const { css, pxSize } = useIsoProjection({
     from,
     to
   });
   const { getTilePosition, strategy } = useCanvasMode();
+  // Screen-pixel-stable readout (counter-scaled 1/zoom), matching the screen-box
+  // node outline so both node shapes show the same size pill (QA 2026-07-19).
+  const zoom = useUiStateStore((s) => s.zoom) || 1;
+
+  // ADR 0044: grow the ring rects about the element's local centre so they frame
+  // a scaled node icon. ex === 1 (rectangles / text boxes / scale-1 nodes) →
+  // ringX/Y = 0 and ringW/H = pxSize, i.e. the original geometry unchanged.
+  const ex = extentScale ?? 1;
+  const ringW = pxSize.width * ex;
+  const ringH = pxSize.height * ex;
+  const ringX = (pxSize.width - ringW) / 2;
+  const ringY = (pxSize.height - ringH) / 2;
 
   // Screen position of each outer corner, keyed by corner name — feeds the
   // anchor handles (edge midpoints are corner averages) and the rotate handle.
@@ -111,14 +139,25 @@ export const TransformControls = ({
     // corner handle's resize cursor.
     const pts = Object.values(cornerScreen);
     const center = pts.reduce(
-      (acc, p) => ({ x: acc.x + p.x / pts.length, y: acc.y + p.y / pts.length }),
+      (acc, p) => ({
+        x: acc.x + p.x / pts.length,
+        y: acc.y + p.y / pts.length
+      }),
       { x: 0, y: 0 }
     );
+
+    // ADR 0044: push the handles out to the scaled-icon extent about the same
+    // screen centre the ring grows about (ex === 1 → identity). Uniform scaling
+    // preserves direction, so the resize cursors below still read the true edge.
+    const scaleOut = (p: Coords): Coords => ({
+      x: center.x + (p.x - center.x) * ex,
+      y: center.y + (p.y - center.y) * ex
+    });
 
     const cornerPositions = Object.entries(cornerScreen).map(
       ([key, position]) => ({
         key,
-        position,
+        position: scaleOut(position),
         isEdge: false,
         barAngleDeg: undefined as number | undefined,
         // Corner drag resizes along the diagonal from the centre outward.
@@ -152,7 +191,7 @@ export const TransformControls = ({
       const edgeAngle = Math.atan2(cb.y - ca.y, cb.x - ca.x);
       return {
         key,
-        position: midpoint(ca, cb),
+        position: scaleOut(midpoint(ca, cb)),
         isEdge: true,
         barAngleDeg: (edgeAngle * 180) / Math.PI,
         cursor: resizeCursorForAngle(edgeAngle + Math.PI / 2),
@@ -166,7 +205,7 @@ export const TransformControls = ({
     return anchorPositions
       ? all.filter((a) => anchorPositions.includes(a.key as AnchorPosition))
       : all;
-  }, [onAnchorMouseDown, anchorPositions, cornerScreen]);
+  }, [onAnchorMouseDown, anchorPositions, cornerScreen, ex]);
 
   // Rotate handle floats above the selection's TOPMOST screen point — a
   // stable, unoccluded spot in both projections (iso diamond apex / 2D top
@@ -178,6 +217,24 @@ export const TransformControls = ({
     const topmost = points.reduce((min, p) => (p.y < min.y ? p : min));
     return { x: topmost.x, y: topmost.y - ROTATE_HANDLE_OFFSET_PX };
   }, [onRotate, cornerScreen]);
+
+  // ADR 0044: live size readout — centred just below the (scaled) selection.
+  const readoutPosition = useMemo(() => {
+    if (!readout) return null;
+    const points = Object.values(cornerScreen);
+    if (points.length === 0) return null;
+    const c = points.reduce(
+      (acc, p) => ({
+        x: acc.x + p.x / points.length,
+        y: acc.y + p.y / points.length
+      }),
+      { x: 0, y: 0 }
+    );
+    const bottomY = Math.max(...points.map((p) => p.y));
+    // Track the grown extent so the pill sits just below the scaled icon.
+    const scaledBottomY = c.y + (bottomY - c.y) * ex;
+    return { x: c.x, y: scaledBottomY + READOUT_OFFSET_PX };
+  }, [readout, cornerScreen, ex]);
 
   return (
     <>
@@ -198,10 +255,10 @@ export const TransformControls = ({
           // anchors) — reads as "a click will grab this".
           <>
             <rect
-              x={-HOVER_OUTSET}
-              y={-HOVER_OUTSET}
-              width={pxSize.width + HOVER_OUTSET * 2}
-              height={pxSize.height + HOVER_OUTSET * 2}
+              x={ringX - HOVER_OUTSET}
+              y={ringY - HOVER_OUTSET}
+              width={ringW + HOVER_OUTSET * 2}
+              height={ringH + HOVER_OUTSET * 2}
               rx={RING_RADIUS}
               fill="none"
               stroke="#ffffff"
@@ -210,10 +267,10 @@ export const TransformControls = ({
               strokeLinejoin="round"
             />
             <rect
-              x={-HOVER_OUTSET}
-              y={-HOVER_OUTSET}
-              width={pxSize.width + HOVER_OUTSET * 2}
-              height={pxSize.height + HOVER_OUTSET * 2}
+              x={ringX - HOVER_OUTSET}
+              y={ringY - HOVER_OUTSET}
+              width={ringW + HOVER_OUTSET * 2}
+              height={ringH + HOVER_OUTSET * 2}
               rx={RING_RADIUS}
               fill="none"
               stroke={TRANSFORM_CONTROLS_COLOR}
@@ -231,10 +288,10 @@ export const TransformControls = ({
           // halo = unmistakable on every element type.
           <>
             <rect
-              x={-SELECT_OUTSET}
-              y={-SELECT_OUTSET}
-              width={pxSize.width + SELECT_OUTSET * 2}
-              height={pxSize.height + SELECT_OUTSET * 2}
+              x={ringX - SELECT_OUTSET}
+              y={ringY - SELECT_OUTSET}
+              width={ringW + SELECT_OUTSET * 2}
+              height={ringH + SELECT_OUTSET * 2}
               rx={RING_RADIUS}
               fill="none"
               stroke={TRANSFORM_CONTROLS_COLOR}
@@ -243,10 +300,10 @@ export const TransformControls = ({
               strokeLinejoin="round"
             />
             <rect
-              x={-SELECT_OUTSET}
-              y={-SELECT_OUTSET}
-              width={pxSize.width + SELECT_OUTSET * 2}
-              height={pxSize.height + SELECT_OUTSET * 2}
+              x={ringX - SELECT_OUTSET}
+              y={ringY - SELECT_OUTSET}
+              width={ringW + SELECT_OUTSET * 2}
+              height={ringH + SELECT_OUTSET * 2}
               rx={RING_RADIUS}
               fill="none"
               stroke="#ffffff"
@@ -255,10 +312,10 @@ export const TransformControls = ({
               strokeLinejoin="round"
             />
             <rect
-              x={-SELECT_OUTSET}
-              y={-SELECT_OUTSET}
-              width={pxSize.width + SELECT_OUTSET * 2}
-              height={pxSize.height + SELECT_OUTSET * 2}
+              x={ringX - SELECT_OUTSET}
+              y={ringY - SELECT_OUTSET}
+              width={ringW + SELECT_OUTSET * 2}
+              height={ringH + SELECT_OUTSET * 2}
               rx={RING_RADIUS}
               fill="none"
               stroke={TRANSFORM_CONTROLS_COLOR}
@@ -270,18 +327,20 @@ export const TransformControls = ({
       </Svg>
 
       {!subtle &&
-        anchors.map(({ key, position, onMouseDown, cursor, isEdge, barAngleDeg }) => {
-          return (
-            <TransformAnchor
-              key={key}
-              position={position}
-              onActivate={onMouseDown}
-              cursor={cursor}
-              isEdge={isEdge}
-              barAngleDeg={barAngleDeg}
-            />
-          );
-        })}
+        anchors.map(
+          ({ key, position, onMouseDown, cursor, isEdge, barAngleDeg }) => {
+            return (
+              <TransformAnchor
+                key={key}
+                position={position}
+                onActivate={onMouseDown}
+                cursor={cursor}
+                isEdge={isEdge}
+                barAngleDeg={barAngleDeg}
+              />
+            );
+          }
+        )}
 
       {!subtle && onRotate && rotatePosition && (
         <Tooltip title={rotateTooltip ?? ''} placement="top">
@@ -319,6 +378,35 @@ export const TransformControls = ({
             <RotateIcon sx={{ fontSize: 20 }} />
           </IconButton>
         </Tooltip>
+      )}
+
+      {!subtle && readout && readoutPosition && (
+        <Box
+          data-axoview-id="canvas-resize-readout"
+          sx={{
+            position: 'absolute',
+            px: 1,
+            py: 0.5,
+            borderRadius: 1,
+            bgcolor: TRANSFORM_CONTROLS_COLOR,
+            color: '#fff',
+            fontSize: 14,
+            fontWeight: 700,
+            fontVariantNumeric: 'tabular-nums',
+            lineHeight: 1.3,
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+            boxShadow: 2
+          }}
+          style={{
+            left: readoutPosition.x,
+            top: readoutPosition.y,
+            transform: `translateX(-50%) scale(${1 / zoom})`,
+            transformOrigin: 'top center'
+          }}
+        >
+          {readout}
+        </Box>
       )}
     </>
   );

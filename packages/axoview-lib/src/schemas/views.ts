@@ -13,6 +13,9 @@ export const viewItemSchema = z.object({
   // = above the node (legacy behaviour), negative = below it. Doubles as the
   // stalk length.
   labelHeight: z.number().optional(),
+  // label* visual styling (size / colour / weight / show-hide) is edited on the
+  // TOP-BAR style strip (ADR 0030 / 0034), not the right-hand deck — see the note
+  // on modelItemSchema (modelItems.ts). All optional / lean-saved.
   labelFontSize: z.number().optional(),
   labelColor: z.string().optional(),
   labelBold: z.boolean().optional(),
@@ -33,7 +36,12 @@ export const viewItemSchema = z.object({
   // = false excludes the item from the TileIndex. Lean-save omits the defaults.
   offset: coords.optional(),
   snap: z.boolean().optional(),
-  collides: z.boolean().optional()
+  collides: z.boolean().optional(),
+  // Per-node icon scale multiplier (ADR 0044). Optional / absent = fall back to
+  // the shared icon asset's `scale` (icons[].scale), i.e. today's behaviour
+  // byte-for-byte. When set it overrides icons[].scale for THIS node only,
+  // driven by the on-canvas resize handles. Same hard bounds as icons[].scale.
+  iconScale: z.number().min(0.1).max(3).optional()
 });
 
 export const viewSchema = z.object({

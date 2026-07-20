@@ -274,13 +274,12 @@ export interface LocaleProps {
   // addLink/removeLink/linkPlaceholder + nodePanel show/hideName retired
   // 2026-07-05: the deck's link + hide-name affordances were duplicates of
   // the strip's Link control and show/hide eye.
-  nodeInfoTab: {
+  nodeDeck: {
     name: string;
     namePlaceholder: string;
     metadata: string;
     label: string;
     labelPlaceholder: string;
-    openLink: string;
   };
   connectorControls: {
     close: string;
@@ -332,7 +331,6 @@ export interface LocaleProps {
     alignTop: string;
     alignMiddle: string;
     alignBottom: string;
-    iconSize: string;
     textColor: string;
     textColorDisabled: string;
     textSizeDisabled: string;
@@ -379,8 +377,6 @@ export interface LocaleProps {
     changeIconBulk: string;
     changeIcon: string;
     changeIconDisabled: string;
-    iconSizeBulk: string;
-    iconSizeDisabled: string;
     connectionColorPredraw: string;
     connectionColor: string;
     connectionColorDisabled: string;
@@ -401,9 +397,6 @@ export interface LocaleProps {
     notes: string;
     name: string;
     namePlaceholder: string;
-  };
-  deleteButton: {
-    delete: string;
   };
   quickAddNodePopover: {
     add: string;

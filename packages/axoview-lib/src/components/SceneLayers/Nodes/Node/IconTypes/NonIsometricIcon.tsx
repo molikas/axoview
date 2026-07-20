@@ -7,10 +7,14 @@ import { getIsoProjectionCss } from 'src/utils';
 
 interface Props {
   icon: Icon;
+  // ADR 0044: effective scale resolved by useIcon (per-node override ?? shared
+  // asset scale ?? 1). Kept optional so any direct caller falls back sanely.
+  scale?: number;
 }
 
-export const NonIsometricIcon = ({ icon }: Props) => {
+export const NonIsometricIcon = ({ icon, scale }: Props) => {
   const { strategy } = useCanvasMode();
+  const effectiveScale = scale ?? icon.scale ?? 1;
 
   if (strategy.projectionName === '2D') {
     return (
@@ -20,7 +24,7 @@ export const NonIsometricIcon = ({ icon }: Props) => {
         alt={`icon-${icon.id}`}
         sx={{
           position: 'absolute',
-          width: PROJECTED_TILE_SIZE.width * 0.7 * (icon.scale || 1),
+          width: PROJECTED_TILE_SIZE.width * 0.7 * effectiveScale,
           pointerEvents: 'none'
         }}
       />
@@ -42,7 +46,15 @@ export const NonIsometricIcon = ({ icon }: Props) => {
           component="img"
           src={icon.url}
           alt={`icon-${icon.id}`}
-          sx={{ width: PROJECTED_TILE_SIZE.width * 0.7 * (icon.scale || 1) }}
+          sx={{
+            display: 'block',
+            width: PROJECTED_TILE_SIZE.width * 0.7,
+            // ADR 0044: scale about the CENTRE so a resize grows the flat icon
+            // symmetrically (matching the isometric icon + the WebGL bulk),
+            // instead of only down-and-right from the top-left corner.
+            transform: `scale(${effectiveScale})`,
+            transformOrigin: 'center'
+          }}
         />
       </Box>
     </Box>

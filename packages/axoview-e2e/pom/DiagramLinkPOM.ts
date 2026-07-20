@@ -1,5 +1,5 @@
 /**
- * NodeInfoTabPOM — the "Link to diagram" picker.
+ * DiagramLinkPOM — the top-bar strip's "Link to diagram" picker.
  *
  * As of D2 (2026-07-02) the diagram-link picker moved OUT of the node Details
  * deck and INTO the top-bar style strip's Link control, which is now the single
@@ -22,7 +22,7 @@
 import { Locator, Page } from '@playwright/test';
 import { byAxoviewId } from '../helpers/selectors';
 
-export class NodeInfoTabPOM {
+export class DiagramLinkPOM {
   constructor(readonly page: Page) {}
 
   private linkButton(): Locator {

@@ -49,12 +49,10 @@ const locale: LocaleProps = {
       'पैन मोड चालू/बंद करें; चयन मोड में वापस जाने के लिए बाएँ-क्लिक करें',
     lassoSelectAction: 'लासो चयन',
     lassoSelectShortcut: 'बाएँ-क्लिक + ड्रैग (खाली क्षेत्र)',
-    lassoSelectDescription:
-      'कई आइटम चुनने के लिए एक आयताकार चयन बॉक्स खींचें',
+    lassoSelectDescription: 'कई आइटम चुनने के लिए एक आयताकार चयन बॉक्स खींचें',
     deselectAction: 'चयन रद्द करें',
     deselectShortcut: 'बाएँ-क्लिक (खाली क्षेत्र)',
-    deselectDescription:
-      'वर्तमान चयन रद्द करें और चयन मोड में वापस जाएं',
+    deselectDescription: 'वर्तमान चयन रद्द करें और चयन मोड में वापस जाएं',
     // Mouse interactions
     selectToolAction: 'चयन उपकरण',
     selectToolShortcut: 'चयन बटन क्लिक करें',
@@ -197,8 +195,7 @@ const locale: LocaleProps = {
     canvas: 'कैनवास',
     language: 'भाषा',
     about: 'परिचय',
-    languageDescription:
-      'एप्लिकेशन इंटरफ़ेस के लिए प्रदर्शन भाषा चुनें।',
+    languageDescription: 'एप्लिकेशन इंटरफ़ेस के लिए प्रदर्शन भाषा चुनें।',
     zoomSection: 'ज़ूम',
     labelsSection: 'लेबल',
     zoom: {
@@ -263,7 +260,7 @@ const locale: LocaleProps = {
   lazyLoadingWelcome: {
     title: 'Axoview में आपका स्वागत है',
     message:
-      "Axoview सुंदर आइसोमेट्रिक और 2D डायग्राम बनाने के लिए एक निःशुल्क, ओपन-सोर्स टूल है — क्लाउड, नेटवर्क और इंफ्रास्ट्रक्चर आर्किटेक्चर, जिसमें AWS, GCP, Azure और Kubernetes आइकन पहले से मौजूद हैं। यह सब आपके ब्राउज़र में चलता है, और स्थानीय रूप से या आपकी अपनी Google Drive में सहेजता है। ओपन-सोर्स FossFLOW और Isoflow प्रोजेक्ट्स पर आधारित और सक्रिय रूप से विस्तारित — सोर्स देखें, बग रिपोर्ट करें या कोई फ़ीचर github.com/molikas/axoview पर अनुरोध करें।",
+      'Axoview सुंदर आइसोमेट्रिक और 2D डायग्राम बनाने के लिए एक निःशुल्क, ओपन-सोर्स टूल है — क्लाउड, नेटवर्क और इंफ्रास्ट्रक्चर आर्किटेक्चर, जिसमें AWS, GCP, Azure और Kubernetes आइकन पहले से मौजूद हैं। यह सब आपके ब्राउज़र में चलता है, और स्थानीय रूप से या आपकी अपनी Google Drive में सहेजता है। ओपन-सोर्स FossFLOW और Isoflow प्रोजेक्ट्स पर आधारित और सक्रिय रूप से विस्तारित — सोर्स देखें, बग रिपोर्ट करें या कोई फ़ीचर github.com/molikas/axoview पर अनुरोध करें।',
     configPath: 'हैमबर्गर आइकन पर क्लिक करें',
     configPath2: 'कॉन्फ़िगरेशन तक पहुंचने के लिए ऊपरी बाएं में।',
     canDisable: 'यदि आप चाहें तो आप इस व्यवहार को अक्षम कर सकते हैं।',
@@ -277,15 +274,14 @@ const locale: LocaleProps = {
   },
   nodePanel: {
     notes: 'नोट्स',
-    close: 'बंद करें',
+    close: 'बंद करें'
   },
-  nodeInfoTab: {
+  nodeDeck: {
     metadata: 'मेटाडेटा',
     name: 'नाम',
     namePlaceholder: 'नोड का नाम…',
     label: 'लेबल',
-    labelPlaceholder: 'आकृति पर दिखाया गया लेबल…',
-    openLink: 'लिंक खोलें'
+    labelPlaceholder: 'आकृति पर दिखाया गया लेबल…'
   },
   connectorControls: {
     metadata: 'मेटाडेटा',
@@ -297,7 +293,8 @@ const locale: LocaleProps = {
     addLabel: 'लेबल जोड़ें',
     noLabels: 'अभी कोई लेबल नहीं।',
     labelN: 'लेबल {count}',
-    positionHint: 'किसी लेबल को स्थिति में रखने के लिए उसे कैनवास पर खींचें; उसके पाठ के आकार और रंग के लिए ऊपरी बार का उपयोग करें।',
+    positionHint:
+      'किसी लेबल को स्थिति में रखने के लिए उसे कैनवास पर खींचें; उसके पाठ के आकार और रंग के लिए ऊपरी बार का उपयोग करें।',
     line: 'रेखा',
     line1: 'रेखा 1',
     line2: 'रेखा 2'
@@ -337,7 +334,6 @@ const locale: LocaleProps = {
     alignTop: 'ऊपर संरेखित करें',
     alignMiddle: 'मध्य में संरेखित करें',
     alignBottom: 'नीचे संरेखित करें',
-    iconSize: 'आइकन का आकार',
     textColor: 'पाठ का रंग',
     textColorDisabled:
       'पाठ का रंग सेट करने के लिए एक नोड, टेक्स्ट बॉक्स, लेबल या कनेक्शन लेबल चुनें',
@@ -366,7 +362,8 @@ const locale: LocaleProps = {
     bulletList: 'बुलेट सूची',
     numberedList: 'क्रमांकित सूची',
     background: 'पृष्ठभूमि रंग',
-    backgroundDisabled: 'पृष्ठभूमि रंग सेट करने के लिए एक आयत, लेबल या टेक्स्ट बॉक्स चुनें',
+    backgroundDisabled:
+      'पृष्ठभूमि रंग सेट करने के लिए एक आयत, लेबल या टेक्स्ट बॉक्स चुनें',
     opacity: 'अपारदर्शिता',
     border: 'सीमा',
     borderDisabled: 'बॉर्डर सेट करने के लिए एक आयत या टेक्स्ट बॉक्स चुनें',
@@ -384,25 +381,22 @@ const locale: LocaleProps = {
     openLinkedDiagram: 'लिंक किया गया आरेख खोलें',
     showLabel: 'लेबल दिखाएं',
     hideLabel: 'लेबल छुपाएं',
-    showHideLabelDisabled: 'लेबल दिखाने या छुपाने के लिए एक नोड या कनेक्शन चुनें',
+    showHideLabelDisabled:
+      'लेबल दिखाने या छुपाने के लिए एक नोड या कनेक्शन चुनें',
     changeIconBulk: 'आइकन बदलना एक समय में एक नोड पर लागू होता है',
     changeIcon: 'आइकन बदलें',
     changeIconDisabled: 'आइकन बदलने के लिए एक नोड चुनें',
-    iconSizeBulk:
-      'आइकन का आकार एक समय में एक आइकन संपादित करता है (उस आइकन वाले सभी नोड का आकार बदलता है)',
-    iconSizeDisabled: 'आइकन का आकार बदलने के लिए एक नोड चुनें',
     connectionColorPredraw: 'आपके द्वारा बनाए जाने वाले अगले कनेक्शन का रंग',
     connectionColor: 'कनेक्शन का रंग',
-    connectionColorDisabled: 'रंग सेट करने के लिए एक कनेक्शन (या कनेक्टर उपकरण) चुनें',
+    connectionColorDisabled:
+      'रंग सेट करने के लिए एक कनेक्शन (या कनेक्टर उपकरण) चुनें',
     lineOptionsPredraw: 'आपके द्वारा बनाए जाने वाले अगले कनेक्शन की रेखा शैली',
     lineOptions: 'रेखा विकल्प',
-    lineOptionsDisabled: 'रेखा विकल्प सेट करने के लिए एक कनेक्शन (या कनेक्टर उपकरण) चुनें',
+    lineOptionsDisabled:
+      'रेखा विकल्प सेट करने के लिए एक कनेक्शन (या कनेक्टर उपकरण) चुनें',
     lineType: 'रेखा प्रकार',
     showArrow: 'तीर दिखाएं',
-    showDottedLine: 'बिंदीदार रेखा दिखाएं',
-  },
-  deleteButton: {
-    delete: 'हटाएं'
+    showDottedLine: 'बिंदीदार रेखा दिखाएं'
   },
   quickAddNodePopover: {
     add: 'जोड़ें',
@@ -417,7 +411,8 @@ const locale: LocaleProps = {
     selected: '{count} चयनित'
   },
   modeHints: {
-    connector: 'कनेक्ट करने के लिए आइटम के बीच ड्रैग करें • रद्द करने के लिए Esc',
+    connector:
+      'कनेक्ट करने के लिए आइटम के बीच ड्रैग करें • रद्द करने के लिए Esc',
     textBox: 'टेक्स्ट बॉक्स रखने के लिए क्लिक करें • रद्द करने के लिए Esc',
     label: 'लेबल रखने के लिए क्लिक करें • रद्द करने के लिए Esc',
     rectangle: 'आयत बनाने के लिए खींचें • रद्द करने के लिए Esc'
@@ -491,7 +486,8 @@ const locale: LocaleProps = {
     showGrid: 'ग्रिड दिखाएं',
     showLabels: 'लेबल दिखाएं',
     screenshotPreset: 'स्क्रीनशॉट (अनुशंसित)',
-    scaleClamped: 'ब्राउज़र छवि सीमा में फिट करने के लिए निर्यात आकार घटाया गया:',
+    scaleClamped:
+      'ब्राउज़र छवि सीमा में फिट करने के लिए निर्यात आकार घटाया गया:',
     cropToContent: 'सामग्री पर क्रॉप करें',
     backgroundColor: 'पृष्ठभूमि रंग',
     transparentBackground: 'पारदर्शी पृष्ठभूमि',

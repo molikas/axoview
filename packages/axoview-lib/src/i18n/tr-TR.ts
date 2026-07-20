@@ -11,7 +11,8 @@ const locale: LocaleProps = {
   },
   rightSidebar: {
     collapsePanel: 'Paneli daralt',
-    emptyState: 'Özelliklerini görüntülemek için bir düğüm, bağlayıcı veya şekil seçin'
+    emptyState:
+      'Özelliklerini görüntülemek için bir düğüm, bağlayıcı veya şekil seçin'
   },
   helpDialog: {
     title: 'Klavye Kısayolları ve Yardım',
@@ -93,10 +94,12 @@ const locale: LocaleProps = {
     // D10 — tool-activation keys (ADR 0022 §6)
     keyRenameAction: 'Yeniden adlandır',
     keyRenameShortcut: 'F2',
-    keyRenameDescription: 'Seçili öğeyi veya diyagramı yerinde yeniden adlandır',
+    keyRenameDescription:
+      'Seçili öğeyi veya diyagramı yerinde yeniden adlandır',
     keyAddItemAction: 'Öğe ekle / Öğeler',
     keyAddItemShortcut: 'N',
-    keyAddItemDescription: 'Yeni bir öğe yerleştirmek için Öğeler panelini aç/kapat',
+    keyAddItemDescription:
+      'Yeni bir öğe yerleştirmek için Öğeler panelini aç/kapat',
     keyConnectorAction: 'Bağlayıcı',
     keyConnectorShortcut: 'C',
     keyConnectorDescription: 'Bağlayıcı aracına geç',
@@ -196,8 +199,7 @@ const locale: LocaleProps = {
     canvas: 'Tuval',
     language: 'Dil',
     about: 'Hakkında',
-    languageDescription:
-      'Uygulama arayüzü için görüntüleme dilini seçin.',
+    languageDescription: 'Uygulama arayüzü için görüntüleme dilini seçin.',
     zoomSection: 'Yakınlaştırma',
     labelsSection: 'Etiketler',
     zoom: {
@@ -263,7 +265,7 @@ const locale: LocaleProps = {
   lazyLoadingWelcome: {
     title: "Axoview'a Hoş Geldiniz",
     message:
-      "Axoview, güzel izometrik ve 2D diyagramlar için ücretsiz, açık kaynaklı bir araçtır — bulut, ağ ve altyapı mimarisi; AWS, GCP, Azure ve Kubernetes simgeleri dahili olarak gelir. Tamamı tarayıcınızda çalışır, yerel olarak ya da kendi Google Drive hesabınıza kaydeder. Açık kaynaklı FossFLOW ve Isoflow projeleri üzerine inşa edilmiştir ve etkin biçimde geliştirilmektedir — kaynak koduna ulaşmak, hata bildirmek veya özellik istemek için: github.com/molikas/axoview.",
+      'Axoview, güzel izometrik ve 2D diyagramlar için ücretsiz, açık kaynaklı bir araçtır — bulut, ağ ve altyapı mimarisi; AWS, GCP, Azure ve Kubernetes simgeleri dahili olarak gelir. Tamamı tarayıcınızda çalışır, yerel olarak ya da kendi Google Drive hesabınıza kaydeder. Açık kaynaklı FossFLOW ve Isoflow projeleri üzerine inşa edilmiştir ve etkin biçimde geliştirilmektedir — kaynak koduna ulaşmak, hata bildirmek veya özellik istemek için: github.com/molikas/axoview.',
     configPath: 'Yapılandırmaya erişmek için',
     configPath2: 'sol üstteki Hamburger simgesine tıklayın.',
     canDisable: 'İsterseniz bu davranışı devre dışı bırakabilirsiniz.',
@@ -277,15 +279,14 @@ const locale: LocaleProps = {
   },
   nodePanel: {
     notes: 'Notlar',
-    close: 'Kapat',
+    close: 'Kapat'
   },
-  nodeInfoTab: {
+  nodeDeck: {
     metadata: 'Meta veriler',
     name: 'Ad',
     namePlaceholder: 'Düğüm adı…',
     label: 'Etiket',
-    labelPlaceholder: 'Şekilde gösterilen etiket…',
-    openLink: 'Bağlantıyı aç'
+    labelPlaceholder: 'Şekilde gösterilen etiket…'
   },
   connectorControls: {
     metadata: 'Meta veriler',
@@ -338,7 +339,6 @@ const locale: LocaleProps = {
     alignTop: 'Üste hizala',
     alignMiddle: 'Ortaya hizala',
     alignBottom: 'Alta hizala',
-    iconSize: 'Simge boyutu',
     textColor: 'Metin rengi',
     textColorDisabled:
       'Metin rengini ayarlamak için bir düğüm, metin kutusu, etiket veya bağlantı etiketi seçin',
@@ -367,10 +367,12 @@ const locale: LocaleProps = {
     bulletList: 'Madde işaretli liste',
     numberedList: 'Numaralı liste',
     background: 'Arka plan rengi',
-    backgroundDisabled: 'Arka plan rengini ayarlamak için bir dikdörtgen, etiket veya metin kutusu seçin',
+    backgroundDisabled:
+      'Arka plan rengini ayarlamak için bir dikdörtgen, etiket veya metin kutusu seçin',
     opacity: 'Saydamlık',
     border: 'Kenarlık',
-    borderDisabled: 'Kenarlığını ayarlamak için bir dikdörtgen veya metin kutusu seçin',
+    borderDisabled:
+      'Kenarlığını ayarlamak için bir dikdörtgen veya metin kutusu seçin',
     lineStyle: 'Çizgi stili',
     width: 'Kalınlık',
     borderColor: 'Kenarlık rengi',
@@ -390,9 +392,6 @@ const locale: LocaleProps = {
     changeIconBulk: 'Simge değiştirme aynı anda tek bir düğüme uygulanır',
     changeIcon: 'Simgeyi değiştir',
     changeIconDisabled: 'Simgesini değiştirmek için bir düğüm seçin',
-    iconSizeBulk:
-      'Simge boyutu aynı anda tek bir simgeyi düzenler (o simgeyi kullanan tüm düğümleri yeniden boyutlandırır)',
-    iconSizeDisabled: 'Simge boyutunu değiştirmek için bir düğüm seçin',
     connectionColorPredraw: 'Çizeceğiniz sonraki bağlantının rengi',
     connectionColor: 'Bağlantı rengi',
     connectionColorDisabled:
@@ -403,10 +402,7 @@ const locale: LocaleProps = {
       'Çizgi seçeneklerini ayarlamak için bir bağlantı (veya bağlayıcı aracı) seçin',
     lineType: 'Çizgi türü',
     showArrow: 'Oku göster',
-    showDottedLine: 'Noktalı çizgiyi göster',
-  },
-  deleteButton: {
-    delete: 'Sil'
+    showDottedLine: 'Noktalı çizgiyi göster'
   },
   quickAddNodePopover: {
     add: 'Ekle',
@@ -470,7 +466,8 @@ const locale: LocaleProps = {
     addMoreIcons: 'Daha fazla simge ekle',
     isometricLabel: 'İzometrik olarak değerlendir (3D görünüm)',
     isometricHint: 'Düz simgeler için işareti kaldırın (logolar, UI öğeleri)',
-    dragHint: 'Aşağıdaki herhangi bir öğeyi tuvale sürükleyip bırakabilirsiniz.',
+    dragHint:
+      'Aşağıdaki herhangi bir öğeyi tuvale sürükleyip bırakabilirsiniz.',
     aiPromptTooltip: 'Yapay zekâ ile simge oluştur',
     aiPromptTitle: 'Yapay zekâ ile izometrik simgeler oluştur',
     aiPromptBody:
@@ -495,7 +492,8 @@ const locale: LocaleProps = {
     showGrid: 'Kılavuzu göster',
     showLabels: 'Etiketleri göster',
     screenshotPreset: 'Ekran görüntüsü (önerilen)',
-    scaleClamped: 'Dışa aktarma boyutu, tarayıcı görüntü sınırına uyacak şekilde küçültüldü:',
+    scaleClamped:
+      'Dışa aktarma boyutu, tarayıcı görüntü sınırına uyacak şekilde küçültüldü:',
     cropToContent: 'İçeriğe göre kırp',
     backgroundColor: 'Arka plan rengi',
     transparentBackground: 'Şeffaf arka plan',
@@ -595,7 +593,8 @@ const locale: LocaleProps = {
     pastedOne: '{count} öğe yapıştırıldı',
     pastedOther: '{count} öğe yapıştırıldı',
     nothingToPaste: 'Yapıştırılacak bir şey yok',
-    routingConnectors: 'Yapıştırılıyor… bağlayıcılar yönlendiriliyor ({percent}%)'
+    routingConnectors:
+      'Yapıştırılıyor… bağlayıcılar yönlendiriliyor ({percent}%)'
   },
   // D13 — default page name; {count} interpolated.
   page: {

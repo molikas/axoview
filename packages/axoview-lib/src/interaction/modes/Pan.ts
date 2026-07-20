@@ -38,7 +38,10 @@ const cursorForState = (editorMode: string | undefined): string =>
   editorMode === 'EXPLORABLE_READONLY' ? 'default' : 'grab';
 
 // A node opens the read-only details panel only when it carries something to
-// show: a link, a header link, or non-empty (HTML-stripped) description/notes.
+// show: a link, a header link, or non-empty (HTML-stripped) notes. The
+// `description` check is a legacy no-op — `description` is folded into `notes`
+// at load (foldNodeDescription) and never written, so it can't hold visible
+// text for real data; kept only as a belt-and-braces guard for unfolded blobs.
 const nodeHasReadonlyContent = (modelItem: ModelItem | undefined): boolean =>
   !!modelItem &&
   (!!modelItem.link ||
