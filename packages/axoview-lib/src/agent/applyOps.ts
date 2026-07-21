@@ -14,12 +14,15 @@ import {
   ViewItem,
   Connector,
   ConnectorAnchor,
+  Rectangle,
+  TextBox,
+  Label,
   Coords
 } from 'src/types';
 import { VIEW_ITEM_DEFAULTS } from 'src/config';
 import { opSchema, Op, EndpointRef, NodeStyle } from './opSchemas';
 import { resolveKind } from './resolveKind';
-import { computeLayout, LayoutMode, LayoutEdge } from './layout';
+import { computeLayout, gridPack, LayoutMode, LayoutEdge } from './layout';
 import { SceneBridge, ApplyOpsResult, OpError } from './types';
 
 export interface ApplyOpsOptions {
@@ -112,8 +115,16 @@ export const applyOps = (
   const duplicateOps = new Set<number>();
   for (const { op, index } of validOps) {
     let localId: string | undefined;
-    if (op.op === 'create_node') localId = op.id;
-    else if (op.op === 'connect' && op.id) localId = op.id;
+    if (
+      op.op === 'create_node' ||
+      op.op === 'create_rect' ||
+      op.op === 'create_text' ||
+      op.op === 'create_label'
+    ) {
+      localId = op.id;
+    } else if (op.op === 'connect' && op.id) {
+      localId = op.id;
+    }
     if (localId === undefined) continue;
     if (id_map[localId] !== undefined) {
       // A later op redeclaring an already-claimed agent-local id — flag it; the
@@ -164,6 +175,38 @@ export const applyOps = (
   const placements = computeLayout(needsPlacement, layoutEdges, occupied, {
     mode: opts.layoutMode
   });
+
+  // Every node's tile known this batch (existing + explicit + auto-placed) — used
+  // to resolve create_rect `around:[nodeIds]` bounding boxes.
+  const nodeTiles = new Map<string, Coords>();
+  for (const it of view.items ?? []) nodeTiles.set(it.id, it.tile);
+  for (const { op, index } of validOps) {
+    if (op.op !== 'create_node' || duplicateOps.has(index)) continue;
+    const realId = id_map[op.id];
+    nodeTiles.set(realId, op.tile ?? placements.get(realId) ?? { x: 0, y: 0 });
+  }
+
+  // Coordinate-less create_text / create_label are grid-packed deterministically,
+  // avoiding every node tile (so annotations don't land on nodes).
+  const annotationIds: string[] = [];
+  const annotationOccupied = new Set<string>(
+    [...nodeTiles.values()].map(tileKey)
+  );
+  for (const { op, index } of validOps) {
+    if (duplicateOps.has(index)) continue;
+    if (
+      (op.op === 'create_text' || op.op === 'create_label') &&
+      op.tile === undefined
+    ) {
+      annotationIds.push(id_map[op.id]);
+    } else if (
+      (op.op === 'create_text' || op.op === 'create_label') &&
+      op.tile
+    ) {
+      annotationOccupied.add(tileKey(op.tile));
+    }
+  }
+  const annotationPlacements = gridPack(annotationIds, annotationOccupied);
 
   const makeAnchor = (ref: EndpointRef): ConnectorAnchor => {
     const out: { item?: string; anchor?: string; tile?: Coords } = {};
@@ -282,6 +325,101 @@ export const applyOps = (
         if (failed.length > 0) {
           throw new Error(`${failed.length} target(s) failed: ${failed.join(', ')}`);
         }
+        return;
+      }
+      case 'create_rect': {
+        const realId = id_map[op.id];
+        let from = op.from;
+        let to = op.to;
+        if (op.around && op.around.length > 0) {
+          const pad = op.padding ?? 1;
+          const tiles = op.around
+            .map((ref) => nodeTiles.get(resolveId(ref)))
+            .filter((t): t is Coords => t !== undefined);
+          if (tiles.length === 0) {
+            throw new Error(
+              'create_rect `around`: none of the referenced nodes are placed'
+            );
+          }
+          const xs = tiles.map((t) => t.x);
+          const ys = tiles.map((t) => t.y);
+          from = { x: Math.min(...xs) - pad, y: Math.min(...ys) - pad };
+          to = { x: Math.max(...xs) + pad, y: Math.max(...ys) + pad };
+        }
+        if (!from || !to) {
+          throw new Error('create_rect requires `around` or both `from` and `to`');
+        }
+        const rect: Rectangle = {
+          id: realId,
+          from,
+          to,
+          ...(op.color !== undefined ? { color: op.color } : {}),
+          ...(op.customColor !== undefined ? { customColor: op.customColor } : {}),
+          ...(op.borderColor !== undefined ? { borderColor: op.borderColor } : {}),
+          ...(op.borderWidth !== undefined ? { borderWidth: op.borderWidth } : {}),
+          ...(op.borderStyle !== undefined ? { borderStyle: op.borderStyle } : {}),
+          ...(op.fillOpacity !== undefined ? { fillOpacity: op.fillOpacity } : {}),
+          ...(op.borderOpacity !== undefined
+            ? { borderOpacity: op.borderOpacity }
+            : {}),
+          ...(op.zIndex !== undefined ? { zIndex: op.zIndex } : {}),
+          ...(op.layerId !== undefined ? { layerId: op.layerId } : {}),
+          ...(op.name !== undefined ? { name: op.name } : {}),
+          ...(op.notes !== undefined ? { notes: op.notes } : {})
+        };
+        bridge.createRectangle(rect);
+        created_ids.push(realId);
+        return;
+      }
+      case 'create_text': {
+        const realId = id_map[op.id];
+        const tile =
+          op.tile ?? annotationPlacements.get(realId) ?? { x: 0, y: 0 };
+        const textBox: TextBox = {
+          id: realId,
+          tile,
+          content: op.content,
+          ...(op.fontSize !== undefined ? { fontSize: op.fontSize } : {}),
+          ...(op.color !== undefined ? { color: op.color } : {}),
+          ...(op.isBold !== undefined ? { isBold: op.isBold } : {}),
+          ...(op.isItalic !== undefined ? { isItalic: op.isItalic } : {}),
+          ...(op.isUnderline !== undefined ? { isUnderline: op.isUnderline } : {}),
+          ...(op.backgroundColor !== undefined
+            ? { backgroundColor: op.backgroundColor }
+            : {}),
+          ...(op.width !== undefined ? { width: op.width } : {}),
+          ...(op.height !== undefined ? { height: op.height } : {}),
+          ...(op.layerId !== undefined ? { layerId: op.layerId } : {}),
+          ...(op.name !== undefined ? { name: op.name } : {}),
+          ...(op.notes !== undefined ? { notes: op.notes } : {})
+        };
+        bridge.createTextBox(textBox);
+        created_ids.push(realId);
+        return;
+      }
+      case 'create_label': {
+        const realId = id_map[op.id];
+        const tile =
+          op.tile ?? annotationPlacements.get(realId) ?? { x: 0, y: 0 };
+        const label: Label = {
+          id: realId,
+          tile,
+          text: op.text,
+          ...(op.fontSize !== undefined ? { fontSize: op.fontSize } : {}),
+          ...(op.color !== undefined ? { color: op.color } : {}),
+          ...(op.backgroundColor !== undefined
+            ? { backgroundColor: op.backgroundColor }
+            : {}),
+          ...(op.isBold !== undefined ? { isBold: op.isBold } : {}),
+          ...(op.isItalic !== undefined ? { isItalic: op.isItalic } : {}),
+          ...(op.isUnderline !== undefined ? { isUnderline: op.isUnderline } : {}),
+          ...(op.zIndex !== undefined ? { zIndex: op.zIndex } : {}),
+          ...(op.headerLink !== undefined ? { headerLink: op.headerLink } : {}),
+          ...(op.layerId !== undefined ? { layerId: op.layerId } : {}),
+          ...(op.notes !== undefined ? { notes: op.notes } : {})
+        };
+        bridge.createLabel(label);
+        created_ids.push(realId);
         return;
       }
     }

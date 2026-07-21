@@ -38,7 +38,10 @@ const opsArraySchema = {
           'connect',
           'disconnect',
           'set_style',
-          'set_layer'
+          'set_layer',
+          'create_rect',
+          'create_text',
+          'create_label'
         ]
       }
     },
@@ -138,11 +141,30 @@ const ALL_TOOLS: McpToolDef[] = [
     },
     {
       name: 'open_diagram',
-      description: 'Open a stored diagram by id.',
+      description: 'Open a stored diagram by id (from list_diagrams).',
       inputSchema: {
         type: 'object',
         properties: { id: { type: 'string' } },
         required: ['id']
       }
+    },
+    {
+      name: 'list_diagrams',
+      description:
+        'List the user\'s stored diagrams (session + Google Drive) as {id, name}.',
+      inputSchema: { type: 'object', properties: {} }
+    },
+    {
+      name: 'create_diagram',
+      description: 'Create a new blank diagram (optionally named) and open it.',
+      inputSchema: {
+        type: 'object',
+        properties: { name: { type: 'string' } }
+      }
+    },
+    {
+      name: 'save_diagram',
+      description: 'Save the current diagram to its storage place.',
+      inputSchema: { type: 'object', properties: {} }
     }
 ];

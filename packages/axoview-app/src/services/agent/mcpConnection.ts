@@ -1,12 +1,12 @@
-// Tab-side MCP session glue (ADR 0046 §2 "tab loads → opens WS → registers").
-// This is the piece that makes the remote-MCP path real: it mints a pairing code,
-// opens the WebSocket to the per-session Durable Object, registers the tab's tool
-// manifest, and pumps forwarded tool calls through the lib's bridge client into
-// the verb layer. Pure transport glue — no model, no key.
+// Tab-side MCP session manager (ADR 0046 §2 + V1/V2 hardening 2026-07-21).
 //
-// The worker origin is configurable so it works both same-origin (prod Pages
-// Functions) and cross-origin (local dev: app on :3000, worker on `wrangler dev`
-// :8787).
+// The connection is a MODULE-LEVEL SINGLETON, deliberately NOT owned by the panel
+// component — closing the "Connect your AI" panel must not tear down the socket
+// (field report §4: panel-close unregistered the tab). It also:
+//   - reuses the SAME pairing code on reconnect (no code rotation, §4),
+//   - keep-alives the socket (survives brief tab-focus loss, §4),
+//   - auto-reconnects on an unexpected close (backoff), reusing the code.
+// The panel is a thin subscriber (useSyncExternalStore).
 
 import { createBridgeClient } from 'axoview';
 import type { AgentScope, AgentIdentity } from 'axoview';
@@ -17,6 +17,7 @@ export type McpStatus =
   | 'pairing'
   | 'connecting'
   | 'connected'
+  | 'reconnecting'
   | 'closed'
   | 'error';
 
@@ -24,20 +25,27 @@ export interface McpSession {
   code: string;
   /** Absolute URL the user pastes into their MCP client. */
   mcpUrl: string;
-  close: () => void;
+  wsPath: string;
+  baseUrl: string;
+  scope: AgentScope;
+}
+
+export interface McpState {
+  status: McpStatus;
+  session: McpSession | null;
+  detail: string | null;
 }
 
 export interface ConnectOptions {
   baseUrl: string;
-  onStatus: (status: McpStatus, detail?: string) => void;
-  // Connection permission (Feature A). Defaults to read-only (fail-safe).
   scope?: AgentScope;
-  // Optional signed-in identity (interim; display/audit only until OAuth v2).
   user?: AgentIdentity;
+  // Feature A.5 — confirm a destructive agent action (write mode only).
+  confirmDestructive?: (summary: string) => Promise<boolean>;
 }
 
-// http(s) origin + ws path → ws(s) URL. Exported for unit testing (the http→ws
-// scheme swap is an easy thing to get wrong).
+// ---- URL helpers (pure, unit-tested) --------------------------------------
+
 export const wsUrlFromBase = (baseUrl: string, wsPath: string): string => {
   const u = new URL(wsPath, baseUrl);
   u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -47,64 +55,158 @@ export const wsUrlFromBase = (baseUrl: string, wsPath: string): string => {
 export const absoluteUrl = (baseUrl: string, path: string): string =>
   new URL(path, baseUrl).toString();
 
-interface PairResponse {
-  code: string;
-  wsPath: string;
-  mcpPath: string;
-}
-
-/**
- * Establish an MCP session: mint a code, open the WS, register the manifest, and
- * start pumping tool calls. Resolves once the socket is open (status 'connected'
- * follows registration). Rejects if the canvas isn't ready or pairing fails.
- */
-export const connectMcp = async ({
-  baseUrl,
-  onStatus,
-  scope = 'read',
-  user
-}: ConnectOptions): Promise<McpSession> => {
-  const surface = getAgentSurface();
-  if (!surface) {
-    throw new Error('Axoview canvas is not ready — open a diagram and retry.');
-  }
-
-  onStatus('pairing');
-  const res = await fetch(absoluteUrl(baseUrl, '/pair/new'), {
-    method: 'POST'
-  });
-  if (!res.ok) throw new Error(`pairing failed (${res.status})`);
-  const pair = (await res.json()) as PairResponse;
-
-  onStatus('connecting');
-  const bridge = createBridgeClient(surface, { scope, user });
-  const ws = new WebSocket(wsUrlFromBase(baseUrl, pair.wsPath));
-
-  ws.addEventListener('open', () => {
-    ws.send(bridge.registerMessage());
-    onStatus('connected');
-  });
-  ws.addEventListener('message', (ev) => {
-    const reply = bridge.handleMessage(String(ev.data));
-    if (reply) ws.send(reply);
-  });
-  ws.addEventListener('close', () => onStatus('closed'));
-  ws.addEventListener('error', () => onStatus('error', 'WebSocket error'));
-
-  return {
-    code: pair.code,
-    mcpUrl: absoluteUrl(baseUrl, pair.mcpPath),
-    close: () => ws.close()
-  };
-};
-
-// Sensible default worker origin: same-origin in prod (Pages Functions), but the
-// local `wrangler dev` port when the app is served from the rsbuild dev server.
-// Use 127.0.0.1 (NOT localhost): wrangler dev binds IPv4, while a Node-based MCP
-// client (VSCode/Cursor) resolves `localhost` to IPv6 ::1 first and fails the
-// fetch with AggregateError.
 export const defaultWorkerBaseUrl = (): string => {
   const { origin } = window.location;
+  // Use 127.0.0.1 (NOT localhost): wrangler binds IPv4; a Node-based MCP client
+  // resolves `localhost` to IPv6 ::1 first and fails with AggregateError.
   if (origin.includes(':3000')) return 'http://127.0.0.1:8787';
   return origin;
+};
+
+// ---- Singleton state ------------------------------------------------------
+
+const KEEPALIVE_MS = 25_000;
+const RECONNECT_MS = 2_000;
+
+let state: McpState = { status: 'idle', session: null, detail: null };
+let ws: WebSocket | null = null;
+let user: AgentIdentity | undefined;
+let confirmDestructive: ((summary: string) => Promise<boolean>) | undefined;
+let keepAlive: ReturnType<typeof setInterval> | null = null;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let manualClose = false;
+
+const listeners = new Set<() => void>();
+
+const emit = (patch: Partial<McpState>): void => {
+  state = { ...state, ...patch };
+  listeners.forEach((l) => l());
+};
+
+export const subscribeMcp = (listener: () => void): (() => void) => {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+};
+
+export const getMcpState = (): McpState => state;
+
+// ---- Socket lifecycle -----------------------------------------------------
+
+const stopKeepAlive = (): void => {
+  if (keepAlive) clearInterval(keepAlive);
+  keepAlive = null;
+};
+
+const startKeepAlive = (): void => {
+  stopKeepAlive();
+  keepAlive = setInterval(() => {
+    try {
+      ws?.send(JSON.stringify({ type: 'ping' }));
+    } catch {
+      // socket gone; onclose handles reconnect
+    }
+  }, KEEPALIVE_MS);
+};
+
+const openSocket = (session: McpSession): void => {
+  const surface = getAgentSurface();
+  if (!surface) {
+    emit({ status: 'error', detail: 'Axoview canvas is not ready.' });
+    return;
+  }
+  const bridge = createBridgeClient(surface, {
+    scope: session.scope,
+    user,
+    confirmDestructive
+  });
+  const socket = new WebSocket(wsUrlFromBase(session.baseUrl, session.wsPath));
+  ws = socket;
+
+  socket.addEventListener('open', () => {
+    socket.send(bridge.registerMessage());
+    emit({ status: 'connected', detail: null });
+    startKeepAlive();
+  });
+  socket.addEventListener('message', (ev) => {
+    void bridge.handleMessage(String(ev.data)).then((reply) => {
+      if (reply) socket.send(reply);
+    });
+  });
+  socket.addEventListener('close', () => {
+    stopKeepAlive();
+    if (manualClose) {
+      emit({ status: 'closed' });
+      return;
+    }
+    // Unexpected drop — reconnect to the SAME code (no rotation).
+    emit({ status: 'reconnecting', detail: 'Reconnecting…' });
+    reconnectTimer = setTimeout(() => openSocket(session), RECONNECT_MS);
+  });
+  socket.addEventListener('error', () => emit({ detail: 'WebSocket error' }));
+};
+
+// ---- Public API -----------------------------------------------------------
+
+/** Establish (or reuse) the MCP session. Idempotent while already live. */
+export const connectMcp = async ({
+  baseUrl,
+  scope = 'read',
+  user: identity,
+  confirmDestructive: confirm
+}: ConnectOptions): Promise<McpSession> => {
+  manualClose = false;
+  user = identity;
+  confirmDestructive = confirm;
+
+  // Reuse a live/reconnecting session rather than minting a new code.
+  if (
+    state.session &&
+    (state.status === 'connected' ||
+      state.status === 'reconnecting' ||
+      state.status === 'connecting')
+  ) {
+    return state.session;
+  }
+
+  if (!getAgentSurface()) {
+    emit({ status: 'error', detail: 'Axoview canvas is not ready — open a diagram.' });
+    throw new Error('canvas not ready');
+  }
+
+  emit({ status: 'pairing', detail: null });
+  const res = await fetch(absoluteUrl(baseUrl, '/pair/new'), { method: 'POST' });
+  if (!res.ok) {
+    emit({ status: 'error', detail: `pairing failed (${res.status})` });
+    throw new Error(`pairing failed (${res.status})`);
+  }
+  const pair = (await res.json()) as {
+    code: string;
+    wsPath: string;
+    mcpPath: string;
+  };
+  const session: McpSession = {
+    code: pair.code,
+    mcpUrl: absoluteUrl(baseUrl, pair.mcpPath),
+    wsPath: pair.wsPath,
+    baseUrl,
+    scope
+  };
+  emit({ status: 'connecting', session });
+  openSocket(session);
+  return session;
+};
+
+/** Explicit teardown (the Disconnect button). */
+export const disconnectMcp = (): void => {
+  manualClose = true;
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  reconnectTimer = null;
+  stopKeepAlive();
+  try {
+    ws?.close();
+  } catch {
+    // already closing
+  }
+  ws = null;
+  emit({ status: 'idle', session: null, detail: null });
 };

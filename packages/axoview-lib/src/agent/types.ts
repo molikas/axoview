@@ -4,7 +4,10 @@ import {
   Model,
   ModelItem,
   ViewItem,
-  Connector
+  Connector,
+  Rectangle,
+  TextBox,
+  Label
 } from 'src/types';
 import { Op } from './opSchemas';
 
@@ -21,6 +24,9 @@ export interface SceneBridge {
   deleteViewItem: (id: string) => void;
   createConnector: (connector: Connector) => void;
   deleteConnector: (id: string) => void;
+  createRectangle: (rectangle: Rectangle) => void;
+  createTextBox: (textBox: TextBox) => void;
+  createLabel: (label: Label) => void;
   // Reads. getModel returns the current committed Model; getCurrentViewId the
   // active view. generateId is injected (not imported) so tests can supply a
   // deterministic id source and the layout goldens stay stable.

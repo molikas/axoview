@@ -33,7 +33,9 @@ Coordinates are optional. Omit \`tile\` and Axoview auto-lays-out the diagram
 (a deterministic layered layout for connected graphs). Supply \`tile\` **only** when
 you deliberately want an exact position. Express topology and grouping — not tile
 math. Steer layout declaratively with \`set_diagram\`'s \`layout\` hint
-(\`layered-lr\` | \`layered-tb\` | \`grid\`), never with coordinates.
+(\`layered-lr\` | \`layered-tb\` | \`grid\` | \`radial\`), never with coordinates. Use
+\`radial\` for a CYCLIC process (a lifecycle / loop) so it renders as a visible ring
+instead of a flattened line.
 
 ## Assign your own ids and forward-reference them
 Within a single call you may assign arbitrary string ids and reference them in the
@@ -57,6 +59,15 @@ same batch. Axoview maps them to real ids atomically and returns the mapping in
 - \`disconnect { id }\`
 - \`set_style { targets[], style }\` — bulk restyle in ONE op
 - \`set_layer { targets[], layerId }\` — bulk layer assignment in ONE op
+- \`create_rect { id, around?, padding?, from?, to?, color?, border*?, fillOpacity? }\`
+  — a backdrop / container / swimlane. Position it declaratively with
+  \`around: [nodeIds]\` (auto bounding box + padding — you never compute a tile) or
+  explicit \`from\`/\`to\` tile corners. Rectangles paint BEHIND nodes, so this is a
+  background. Use it for section backdrops and grouping regions.
+- \`create_text { id, content, tile?, fontSize?, color?, backgroundColor? }\` — free
+  text / annotation (a text box). Omit \`tile\` to auto-place.
+- \`create_label { id, text, tile?, color?, backgroundColor? }\` — a floating label
+  chip that can sit over nodes. Omit \`tile\` to auto-place.
 
 **\`set_diagram(spec)\`** — declare a whole desired diagram; Axoview diffs it
 against the current view, applies the minimal patch, and auto-lays-out. Use this
@@ -69,8 +80,13 @@ A node id that already exists is updated in place; an unknown id is created. Pas
 **\`get_diagram()\`** — returns the current diagram as compact JSON. Prefer reading
 the diagram *resource* (free context) over calling this every turn.
 
-**\`list_canvases()\` / \`select_canvas(id)\` / \`open_diagram(id)\`** — navigate
-between canvases when there is more than one.
+**\`list_canvases()\` / \`select_canvas(id)\`** — the pages (views) within the open
+diagram.
+
+**\`list_diagrams()\` / \`open_diagram(id)\` / \`create_diagram(name?)\` /
+\`save_diagram()\`** — the user's stored diagram library (session + Google Drive):
+read what exists, open one, make a new one, or save the current one. (Distinct from
+canvases, which are pages inside one diagram.)
 
 ## Efficiency patterns (follow these)
 - Prefer **one** \`apply_ops\` carrying every node and connector for a task.

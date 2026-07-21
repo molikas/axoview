@@ -4,7 +4,7 @@
 // session Durable Object, registers the tab, and shows the endpoint URL + code to
 // paste into the MCP client. No API key — inference runs in the user's own app.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState, useSyncExternalStore } from 'react';
 import {
   Alert,
   Box,
@@ -27,8 +27,10 @@ import {
 } from '@mui/icons-material';
 import {
   connectMcp,
+  disconnectMcp,
+  subscribeMcp,
+  getMcpState,
   defaultWorkerBaseUrl,
-  McpSession,
   McpStatus
 } from '../../services/agent/mcpConnection';
 
@@ -37,6 +39,7 @@ const STATUS_LABEL: Record<McpStatus, string> = {
   pairing: 'Requesting code…',
   connecting: 'Connecting…',
   connected: 'Connected',
+  reconnecting: 'Reconnecting…',
   closed: 'Disconnected',
   error: 'Connection error'
 };
@@ -51,57 +54,43 @@ export function McpConnectPanel({
   const [baseUrl, setBaseUrl] = useState(defaultWorkerBaseUrl());
   // Fail-safe default: read-only. The user opts INTO edits (Feature A).
   const [allowEdits, setAllowEdits] = useState(false);
-  const [status, setStatus] = useState<McpStatus>('idle');
-  const [detail, setDetail] = useState<string | null>(null);
-  const [session, setSession] = useState<McpSession | null>(null);
   const [busy, setBusy] = useState(false);
-  const sessionRef = useRef<McpSession | null>(null);
 
-  useEffect(() => {
-    sessionRef.current = session;
-  }, [session]);
-
-  // Tear the socket down when the panel unmounts.
-  useEffect(
-    () => () => {
-      sessionRef.current?.close();
-    },
-    []
-  );
+  // The connection is a module-level singleton (survives panel close). The panel
+  // is a thin subscriber — it never tears the socket down on unmount.
+  const mcp = useSyncExternalStore(subscribeMcp, getMcpState);
+  const { status, session, detail } = mcp;
 
   const connect = useCallback(async () => {
     setBusy(true);
-    setDetail(null);
     try {
       const scope: AgentScope = allowEdits ? 'write' : 'read';
-      const s = await connectMcp({
+      await connectMcp({
         baseUrl: baseUrl.trim().replace(/\/$/, ''),
         scope,
-        onStatus: (st, d) => {
-          setStatus(st);
-          if (d) setDetail(d);
-        }
+        // Feature A.5 — in write mode, confirm destructive actions. (v1: browser
+        // confirm; a themed dialog is a later refinement.)
+        confirmDestructive: allowEdits
+          ? (summary) =>
+              Promise.resolve(
+                window.confirm(`The connected AI wants to ${summary}.\n\nAllow this?`)
+              )
+          : undefined
       });
-      setSession(s);
-    } catch (e) {
-      setStatus('error');
-      setDetail(e instanceof Error ? e.message : 'Failed to connect.');
+    } catch {
+      // status/detail are surfaced via the store
     } finally {
       setBusy(false);
     }
   }, [baseUrl, allowEdits]);
 
-  const disconnect = useCallback(() => {
-    session?.close();
-    setSession(null);
-    setStatus('idle');
-  }, [session]);
+  const disconnect = useCallback(() => disconnectMcp(), []);
 
   const copy = (text: string) => {
     navigator.clipboard?.writeText(text).catch(() => undefined);
   };
 
-  const connected = status === 'connected' && !!session;
+  const connected = status === 'connected';
 
   return (
     <Drawer
@@ -160,7 +149,7 @@ export function McpConnectPanel({
             />
             <Typography variant="caption" color="text.secondary" display="block">
               {allowEdits
-                ? 'The AI can create, edit, and delete on this canvas. Every AI action is one undo (Ctrl+Z).'
+                ? 'The AI can create, edit, and delete on this canvas. Destructive actions ask for confirmation, and every AI action is one undo (Ctrl+Z).'
                 : 'The AI can only read the canvas — it cannot edit or delete anything.'}
             </Typography>
           </Box>

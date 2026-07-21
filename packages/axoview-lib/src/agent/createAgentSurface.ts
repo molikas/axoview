@@ -29,16 +29,26 @@ export interface CanvasInfo {
   current: boolean;
 }
 
+export interface DiagramInfo {
+  id: string;
+  name: string;
+}
+
 export interface NavResult {
   ok: boolean;
   error?: string;
 }
 
+// Diagram-library navigation (Feature A.4). The verb layer is canvas-only; the
+// HOST app (which owns storage — session / Google Drive) injects these. Absent
+// callbacks make the corresponding verb return an explicit "not available" result
+// rather than failing silently.
 export interface AgentNavigation {
   switchView: (viewId: string) => void;
-  // Track D seam — load a stored diagram by id (maps to AxoviewRef.load). Absent
-  // until the transport wires it.
-  loadDiagram?: (id: string) => void;
+  loadDiagram?: (id: string) => void | Promise<void>;
+  listDiagrams?: () => DiagramInfo[] | Promise<DiagramInfo[]>;
+  createDiagram?: (name?: string) => void | Promise<void>;
+  saveDiagram?: () => void | Promise<void>;
 }
 
 export interface AgentSurface {
@@ -48,8 +58,17 @@ export interface AgentSurface {
   get_diagram: () => Model;
   list_canvases: () => CanvasInfo[];
   select_canvas: (id: string) => NavResult;
-  open_diagram: (id: string) => NavResult;
+  // Diagram-library verbs — async (storage / Drive).
+  open_diagram: (id: string) => Promise<NavResult>;
+  list_diagrams: () => Promise<{ diagrams: DiagramInfo[] } | { error: string }>;
+  create_diagram: (name?: string) => Promise<NavResult>;
+  save_diagram: () => Promise<NavResult>;
 }
+
+const NOT_WIRED = (verb: string): NavResult => ({
+  ok: false,
+  error: `${verb} is not available in this build (no storage host wired).`
+});
 
 export const createAgentSurface = (
   bridge: SceneBridge,
@@ -79,15 +98,45 @@ export const createAgentSurface = (
     return { ok: true };
   },
 
-  open_diagram: (id: string) => {
-    if (!nav.loadDiagram) {
-      return {
-        ok: false,
-        error:
-          'open_diagram is wired by the MCP transport (Track D); not available in this build.'
-      };
+  open_diagram: async (id: string) => {
+    if (!nav.loadDiagram) return NOT_WIRED('open_diagram');
+    try {
+      await nav.loadDiagram(id);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: (e as Error).message };
     }
-    nav.loadDiagram(id);
-    return { ok: true };
+  },
+
+  list_diagrams: async () => {
+    if (!nav.listDiagrams) {
+      return { error: 'list_diagrams is not available in this build.' };
+    }
+    try {
+      const diagrams = await nav.listDiagrams();
+      return { diagrams };
+    } catch (e) {
+      return { error: (e as Error).message };
+    }
+  },
+
+  create_diagram: async (name?: string) => {
+    if (!nav.createDiagram) return NOT_WIRED('create_diagram');
+    try {
+      await nav.createDiagram(name);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: (e as Error).message };
+    }
+  },
+
+  save_diagram: async () => {
+    if (!nav.saveDiagram) return NOT_WIRED('save_diagram');
+    try {
+      await nav.saveDiagram();
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: (e as Error).message };
+    }
   }
 });

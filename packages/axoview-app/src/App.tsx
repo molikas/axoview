@@ -138,6 +138,8 @@ function EditorShell() {
     iconPackManagerProp,
     handleModelUpdated,
     handleCreateBlankDiagram,
+    handleSaveClick,
+    handleRenameCurrentDiagram,
     sidebarTogglePortalTarget,
     styleControlsPortalTarget,
     isReadonlyUrl,
@@ -169,6 +171,32 @@ function EditorShell() {
   const perfMonitoringEnabled = useSyncExternalStore(
     diagnosticsStore.subscribe,
     diagnosticsStore.getEnabled
+  );
+
+  // Diagram-library callbacks for the pluggable AI agent (Feature A.4). Wires the
+  // agent verbs list_diagrams / open_diagram / create_diagram / save_diagram to
+  // the app's storage + lifecycle. Works for both session and Google Drive places.
+  const agentNavigation = useMemo(
+    () => ({
+      loadDiagram: (id: string) => openDiagramById(id, id),
+      listDiagrams: async () => {
+        if (!storage) return [];
+        const metas = await storage.listDiagrams();
+        return metas.map((m) => ({ id: m.id, name: m.name }));
+      },
+      createDiagram: async (name?: string) => {
+        await handleCreateBlankDiagram(null);
+        if (name) await handleRenameCurrentDiagram(name);
+      },
+      saveDiagram: () => handleSaveClick()
+    }),
+    [
+      openDiagramById,
+      storage,
+      handleCreateBlankDiagram,
+      handleRenameCurrentDiagram,
+      handleSaveClick
+    ]
   );
 
   // Workspace-wide icon usage scan injected into <Axoview>. The lib's
@@ -365,6 +393,7 @@ function EditorShell() {
             fileExplorerOpen={fileExplorerOpen}
             onFileExplorerToggle={() => setFileExplorerOpen(!fileExplorerOpen)}
             disableLeftDockWorkingTabs={!currentDiagram}
+            agentNavigation={agentNavigation}
           />
           {/* File Explorer overlay — sits to the right of the LeftDock strip,
               never pushes the canvas. z=15 places it above the canvas/empty

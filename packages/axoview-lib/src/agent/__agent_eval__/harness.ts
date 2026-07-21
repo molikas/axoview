@@ -71,6 +71,12 @@ const buildBridge = (
       setState(reducers.view({ action: 'CREATE_CONNECTOR', payload: c, ctx: ctx() })),
     deleteConnector: (id) =>
       setState(reducers.view({ action: 'DELETE_CONNECTOR', payload: id, ctx: ctx() })),
+    createRectangle: (r) =>
+      setState(reducers.view({ action: 'CREATE_RECTANGLE', payload: r, ctx: ctx() })),
+    createTextBox: (tb) =>
+      setState(reducers.view({ action: 'CREATE_TEXTBOX', payload: tb, ctx: ctx() })),
+    createLabel: (l) =>
+      setState(reducers.view({ action: 'CREATE_LABEL', payload: l, ctx: ctx() })),
     getModel: () => getState().model,
     getCurrentViewId: () => EVAL_VIEW_ID,
     // Deterministic ids → byte-stable transcripts (ADR 0045 §4 / 0047 goldens).
@@ -114,7 +120,10 @@ export const makeHarness = (): EvalHarness => {
     get_diagram: () => count(() => base.get_diagram()),
     list_canvases: () => count(() => base.list_canvases()),
     select_canvas: (id) => count(() => base.select_canvas(id)),
-    open_diagram: (id) => count(() => base.open_diagram(id))
+    open_diagram: (id) => count(() => base.open_diagram(id)),
+    list_diagrams: () => count(() => base.list_diagrams()),
+    create_diagram: (name) => count(() => base.create_diagram(name)),
+    save_diagram: () => count(() => base.save_diagram())
   };
 
   return {

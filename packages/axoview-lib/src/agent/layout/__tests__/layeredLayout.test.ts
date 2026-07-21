@@ -89,6 +89,29 @@ describe('computeLayout — deterministic layered placement', () => {
     expect(keyset([...layout.values()]).size).toBe(5); // all distinct
   });
 
+  it('radial mode places a cycle on a non-overlapping ring, deterministically (L1)', () => {
+    const ids = ['a', 'b', 'c', 'd', 'e', 'f'];
+    // A closed loop a→b→c→d→e→f→a.
+    const cycle: LayoutEdge[] = ids.map((from, i) => ({
+      from,
+      to: ids[(i + 1) % ids.length]
+    }));
+    const run = () =>
+      [...computeLayout(ids, cycle, [], { mode: 'radial' }).entries()].sort(
+        (x, y) => x[0].localeCompare(y[0])
+      );
+    const a = run();
+    const b = run();
+    expect(a).toEqual(b); // deterministic
+    const tiles = a.map(([, t]) => t);
+    expect(keyset(tiles).size).toBe(6); // non-overlapping
+    // Ring: nodes span a 2D spread (not a single line) — both axes vary.
+    const xs = new Set(tiles.map((t) => t.x));
+    const ys = new Set(tiles.map((t) => t.y));
+    expect(xs.size).toBeGreaterThan(1);
+    expect(ys.size).toBeGreaterThan(1);
+  });
+
   it('grid mode ignores edges and packs deterministically', () => {
     const ids = ['x', 'y', 'z'];
     const a = computeLayout(ids, chain(ids), [], { mode: 'grid' });

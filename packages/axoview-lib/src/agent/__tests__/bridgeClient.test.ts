@@ -25,7 +25,10 @@ const fakeSurface = (over: Partial<AgentSurface> = {}): AgentSurface => ({
   get_diagram: () => ({ title: 'd' }) as never,
   list_canvases: () => [{ id: 'v1', name: 'Page 1', current: true }],
   select_canvas: () => ({ ok: true }),
-  open_diagram: () => ({ ok: false, error: 'not wired' }),
+  open_diagram: async () => ({ ok: true }),
+  list_diagrams: async () => ({ diagrams: [{ id: 'd1', name: 'Diagram 1' }] }),
+  create_diagram: async () => ({ ok: true }),
+  save_diagram: async () => ({ ok: true }),
   ...over
 });
 
@@ -41,7 +44,7 @@ describe('createBridgeClient', () => {
     expect(typeof msg.manifest.skill).toBe('string');
   });
 
-  it('dispatches a forwarded apply_ops call and returns a correlated result', () => {
+  it('dispatches a forwarded apply_ops call and returns a correlated result', async () => {
     const spy = jest.fn(() => ({
       created_ids: [],
       id_map: {},
@@ -52,7 +55,7 @@ describe('createBridgeClient', () => {
     const client = createBridgeClient(fakeSurface({ apply_ops: spy as never }), {
       scope: 'write'
     });
-    const reply = client.handleMessage(
+    const reply = await client.handleMessage(
       JSON.stringify({
         type: 'call',
         id: 'r7',
@@ -67,9 +70,9 @@ describe('createBridgeClient', () => {
     ]);
   });
 
-  it('returns an error result for an unknown tool (never throws to the caller)', () => {
-    const client = createBridgeClient(fakeSurface());
-    const reply = client.handleMessage(
+  it('returns an error result for an unknown tool (never throws to the caller)', async () => {
+    const client = createBridgeClient(fakeSurface(), { scope: 'write' });
+    const reply = await client.handleMessage(
       JSON.stringify({ type: 'call', id: 'r1', tool: 'frobnicate', args: {} })
     );
     expect(JSON.parse(reply!)).toMatchObject({
@@ -79,10 +82,10 @@ describe('createBridgeClient', () => {
     });
   });
 
-  it('ignores a non-call message', () => {
+  it('ignores a non-call message', async () => {
     const client = createBridgeClient(fakeSurface());
-    expect(client.handleMessage(JSON.stringify({ type: 'noise' }))).toBeNull();
-    expect(client.handleMessage('not json')).toBeNull();
+    expect(await client.handleMessage(JSON.stringify({ type: 'noise' }))).toBeNull();
+    expect(await client.handleMessage('not json')).toBeNull();
   });
 
   describe('read-only scope (Feature A)', () => {
@@ -90,30 +93,30 @@ describe('createBridgeClient', () => {
       expect(createBridgeClient(fakeSurface()).scope).toBe('read');
     });
 
-    it('rejects a mutating tool with a read-only error, without touching the surface', () => {
+    it('rejects a mutating tool with a read-only error, without touching the surface', async () => {
       const spy = jest.fn();
       const client = createBridgeClient(fakeSurface({ apply_ops: spy as never }), {
         scope: 'read'
       });
       const reply = JSON.parse(
-        client.handleMessage(
+        (await client.handleMessage(
           JSON.stringify({ type: 'call', id: 'r1', tool: 'apply_ops', args: { ops: [] } })
-        )!
+        ))!
       );
       expect(reply.error).toMatch(/read-only/i);
       expect(spy).not.toHaveBeenCalled();
     });
 
-    it('allows reads under read-only scope', () => {
+    it('allows reads under read-only scope', async () => {
       const spy = jest.fn(() => ({ title: 'd' }));
       const client = createBridgeClient(
         fakeSurface({ get_diagram: spy as never }),
         { scope: 'read' }
       );
       const reply = JSON.parse(
-        client.handleMessage(
+        (await client.handleMessage(
           JSON.stringify({ type: 'call', id: 'r2', tool: 'get_diagram', args: {} })
-        )!
+        ))!
       );
       expect(reply).toMatchObject({ type: 'result', id: 'r2' });
       expect(spy).toHaveBeenCalled();
@@ -128,6 +131,93 @@ describe('createBridgeClient', () => {
       expect(names).not.toContain('set_diagram');
       expect(names).toContain('get_diagram');
       expect(names).toContain('list_canvases');
+    });
+  });
+
+  it('dispatches async diagram-library verbs (A.4) and awaits the result', async () => {
+    const listSpy = jest.fn(async () => ({
+      diagrams: [{ id: 'd9', name: 'Roadmap' }]
+    }));
+    const client = createBridgeClient(
+      fakeSurface({ list_diagrams: listSpy as never }),
+      { scope: 'read' } // list is a read → allowed under read-only
+    );
+    const reply = JSON.parse(
+      (await client.handleMessage(
+        JSON.stringify({ type: 'call', id: 'r9', tool: 'list_diagrams', args: {} })
+      ))!
+    );
+    expect(listSpy).toHaveBeenCalled();
+    expect(reply.result.diagrams[0].name).toBe('Roadmap');
+  });
+
+  it('blocks create_diagram / save_diagram under read-only scope (A.4 is a write)', async () => {
+    const createSpy = jest.fn();
+    const client = createBridgeClient(
+      fakeSurface({ create_diagram: createSpy as never }),
+      { scope: 'read' }
+    );
+    const reply = JSON.parse(
+      (await client.handleMessage(
+        JSON.stringify({ type: 'call', id: 'r1', tool: 'create_diagram', args: {} })
+      ))!
+    );
+    expect(reply.error).toMatch(/read-only/i);
+    expect(createSpy).not.toHaveBeenCalled();
+  });
+
+  describe('destructive-op confirm (Feature A.5)', () => {
+    it('rejects a destructive apply_ops when the user declines', async () => {
+      const applySpy = jest.fn();
+      const confirm = jest.fn(async () => false); // user says no
+      const client = createBridgeClient(
+        fakeSurface({ apply_ops: applySpy as never }),
+        { scope: 'write', confirmDestructive: confirm }
+      );
+      const reply = JSON.parse(
+        (await client.handleMessage(
+          JSON.stringify({
+            type: 'call',
+            id: 'r1',
+            tool: 'apply_ops',
+            args: { ops: [{ op: 'delete_node', id: 'x' }] }
+          })
+        ))!
+      );
+      expect(confirm).toHaveBeenCalledWith(expect.stringMatching(/delete 1 item/));
+      expect(reply.error).toMatch(/declined/i);
+      expect(applySpy).not.toHaveBeenCalled();
+    });
+
+    it('proceeds when the user confirms; non-destructive ops never prompt', async () => {
+      const confirm = jest.fn(async () => true);
+      const client = createBridgeClient(fakeSurface(), {
+        scope: 'write',
+        confirmDestructive: confirm
+      });
+      // Pure creates → no prompt.
+      await client.handleMessage(
+        JSON.stringify({
+          type: 'call',
+          id: 'r1',
+          tool: 'apply_ops',
+          args: { ops: [{ op: 'create_node', id: 'a', kind: 'server' }] }
+        })
+      );
+      expect(confirm).not.toHaveBeenCalled();
+      // prune → prompt, confirmed → applies.
+      const reply = JSON.parse(
+        (await client.handleMessage(
+          JSON.stringify({
+            type: 'call',
+            id: 'r2',
+            tool: 'set_diagram',
+            args: { nodes: [], prune: true }
+          })
+        ))!
+      );
+      expect(confirm).toHaveBeenCalledTimes(1);
+      expect(reply).toMatchObject({ type: 'result', id: 'r2' });
     });
   });
 

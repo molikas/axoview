@@ -15,7 +15,7 @@
 
 import { Coords } from 'src/types';
 
-export type LayoutMode = 'layered-lr' | 'layered-tb' | 'grid';
+export type LayoutMode = 'layered-lr' | 'layered-tb' | 'grid' | 'radial';
 
 export interface LayoutEdge {
   from: string;
@@ -69,6 +69,77 @@ export const gridPack = (
     out.set(id, tile);
   }
   return out;
+};
+
+// ---------------------------------------------------------------------------
+// Radial / cyclic layout (L1) — a lifecycle is inherently a loop; layered modes
+// flatten it into a diagonal ribbon with feedback edges cutting backwards. This
+// places nodes on a ring in cycle-following order so consecutive steps are
+// adjacent and the loop closes visibly. Deterministic: cos/sin/round only, cycle
+// order derived by a sorted greedy walk. No Math.random.
+// ---------------------------------------------------------------------------
+
+// Sequence nodes by following out-edges (sorted) from the lexicographically-first
+// node, so a simple cycle a→b→c→a orders as [a,b,c] around the ring.
+const ringOrder = (nodes: string[], edges: LayoutEdge[]): string[] => {
+  const nodeSet = new Set(nodes);
+  const adj = new Map<string, string[]>();
+  for (const n of nodes) adj.set(n, []);
+  for (const e of edges) {
+    if (nodeSet.has(e.from) && nodeSet.has(e.to) && e.from !== e.to) {
+      adj.get(e.from)!.push(e.to);
+    }
+  }
+  for (const n of nodes) adj.get(n)!.sort();
+
+  const visited = new Set<string>();
+  const order: string[] = [];
+  const sorted = [...nodes].sort();
+  let cur: string | undefined = sorted[0];
+  while (cur && !visited.has(cur)) {
+    visited.add(cur);
+    order.push(cur);
+    cur = (adj.get(cur) ?? []).find((m) => !visited.has(m));
+  }
+  // Append any node not reached by the walk (branches / disconnected), sorted.
+  for (const n of sorted) if (!visited.has(n)) order.push(n);
+  return order;
+};
+
+const radialLayout = (
+  nodes: string[],
+  edges: LayoutEdge[],
+  occupiedKeys: Set<string>,
+  laneGap: number
+): Map<string, Coords> => {
+  const result = new Map<string, Coords>();
+  const n = nodes.length;
+  if (n === 0) return result;
+
+  const taken = new Set(occupiedKeys);
+  if (n === 1) {
+    return gridPack(nodes, taken); // a lone node → just place it
+  }
+
+  const order = ringOrder(nodes, edges);
+  const spacing = Math.max(laneGap, 2);
+  // Radius so the ring circumference roughly fits n nodes at `spacing` apart.
+  const radius = Math.max(2, Math.round((n * spacing) / (2 * Math.PI)));
+
+  order.forEach((id, i) => {
+    const angle = (2 * Math.PI * i) / n;
+    let x = Math.round(radius * Math.cos(angle));
+    let y = Math.round(radius * Math.sin(angle));
+    // Deterministic nudge outward if two angles round to the same tile.
+    let guard = 0;
+    while (taken.has(tileKey({ x, y })) && guard < 100) {
+      x += x >= 0 ? 1 : -1;
+      guard += 1;
+    }
+    taken.add(tileKey({ x, y }));
+    result.set(id, { x, y });
+  });
+  return result;
 };
 
 // ---------------------------------------------------------------------------
@@ -249,6 +320,7 @@ export const computeLayout = (
 
   if (nodes.length === 0) return result;
   if (mode === 'grid') return gridPack(nodes, occupiedKeys);
+  if (mode === 'radial') return radialLayout(nodes, edges, occupiedKeys, laneGap);
 
   // Undirected adjacency for component discovery.
   const nodeSet = new Set(nodes);

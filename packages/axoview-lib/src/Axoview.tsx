@@ -77,6 +77,7 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
       onModelUpdated,
       enableDebugTools = false,
       exposeStoreBridge = false,
+      agentNavigation,
       editorMode = 'EDITABLE',
       renderer,
       iconPackManager,
@@ -147,6 +148,10 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
     // agent call after a view switch still hits the live actions.
     const sceneActionsRef = useRef(sceneActions);
     sceneActionsRef.current = sceneActions;
+    // Host-provided diagram-library callbacks (Feature A.4). Kept in a ref so the
+    // agent surface stays stable even if the app passes a fresh object each render.
+    const agentNavRef = useRef(agentNavigation);
+    agentNavRef.current = agentNavigation;
     const agentBridge = useMemo<SceneBridge>(
       () => ({
         transaction: (ops) => sceneActionsRef.current.transaction(ops),
@@ -159,6 +164,9 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
         deleteViewItem: (id) => sceneActionsRef.current.deleteViewItem(id),
         createConnector: (c) => sceneActionsRef.current.createConnector(c),
         deleteConnector: (id) => sceneActionsRef.current.deleteConnector(id),
+        createRectangle: (r) => sceneActionsRef.current.createRectangle(r),
+        createTextBox: (tb) => sceneActionsRef.current.createTextBox(tb),
+        createLabel: (l) => sceneActionsRef.current.createLabel(l),
         getModel: () => modelFromModelStore(modelStore.getState()),
         getCurrentViewId: () => uiStore.getState().view,
         generateId
@@ -168,8 +176,30 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
     const agentSurface = useMemo(
       () =>
         createAgentSurface(agentBridge, {
-          switchView: (id) => sceneActionsRef.current.switchView(id)
-          // loadDiagram: Track D (MCP transport) seam — left unwired in Track A.
+          switchView: (id) => sceneActionsRef.current.switchView(id),
+          // Diagram-library verbs (Feature A.4) — delegate to the host's callbacks
+          // via the ref. Throw when a callback is absent so the surface reports an
+          // explicit "not available" (its try/catch turns the throw into an error).
+          loadDiagram: (id) => {
+            const fn = agentNavRef.current?.loadDiagram;
+            if (!fn) throw new Error('open_diagram is not wired by the host app.');
+            return fn(id);
+          },
+          listDiagrams: () => {
+            const fn = agentNavRef.current?.listDiagrams;
+            if (!fn) throw new Error('list_diagrams is not wired by the host app.');
+            return fn();
+          },
+          createDiagram: (name) => {
+            const fn = agentNavRef.current?.createDiagram;
+            if (!fn) throw new Error('create_diagram is not wired by the host app.');
+            return fn(name);
+          },
+          saveDiagram: () => {
+            const fn = agentNavRef.current?.saveDiagram;
+            if (!fn) throw new Error('save_diagram is not wired by the host app.');
+            return fn();
+          }
         }),
       [agentBridge]
     );

@@ -70,6 +70,15 @@ const makeHarness = (): Harness => {
     deleteConnector: (id) => {
       state = reducers.view({ action: 'DELETE_CONNECTOR', payload: id, ctx: ctx() });
     },
+    createRectangle: (r) => {
+      state = reducers.view({ action: 'CREATE_RECTANGLE', payload: r, ctx: ctx() });
+    },
+    createTextBox: (tb) => {
+      state = reducers.view({ action: 'CREATE_TEXTBOX', payload: tb, ctx: ctx() });
+    },
+    createLabel: (l) => {
+      state = reducers.view({ action: 'CREATE_LABEL', payload: l, ctx: ctx() });
+    },
     getModel: () => state.model,
     getCurrentViewId: () => VIEW_ID,
     // Deterministic id source so results are byte-stable across runs.
@@ -212,6 +221,79 @@ describe('applyOps — ADR 0045 §2 invariants', () => {
     expect(currentView(h).items).toHaveLength(1);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].message).toMatch(/duplicate/i);
+  });
+});
+
+describe('applyOps — rect / text / label verbs (C1)', () => {
+  // jsdom has no 2D canvas; TextBox creation measures its text via canvas to size
+  // the box (isoMath.getTextWidth). Stub a measurer so create_text works in-test —
+  // it works natively in the browser.
+  const origGetContext = HTMLCanvasElement.prototype.getContext;
+  beforeAll(() => {
+    (HTMLCanvasElement.prototype as unknown as { getContext: unknown }).getContext =
+      () => ({ font: '', measureText: (t: string) => ({ width: t.length * 8 }) });
+  });
+  afterAll(() => {
+    (HTMLCanvasElement.prototype as unknown as { getContext: unknown }).getContext =
+      origGetContext;
+  });
+
+  it('create_rect `around` encloses the referenced nodes with padding', () => {
+    const h = makeHarness();
+    applyOps(
+      [
+        { op: 'create_node', id: 'a', kind: 'server', tile: { x: 0, y: 0 } },
+        { op: 'create_node', id: 'b', kind: 'server', tile: { x: 4, y: 2 } },
+        { op: 'create_rect', id: 'bg', around: ['a', 'b'], padding: 1, color: 'c1' }
+      ],
+      h.bridge
+    );
+    const view = currentView(h);
+    expect(view.rectangles).toHaveLength(1);
+    const r = view.rectangles![0];
+    // bbox of (0,0)+(4,2) padded by 1 → from (-1,-1) to (5,3).
+    expect(r.from).toEqual({ x: -1, y: -1 });
+    expect(r.to).toEqual({ x: 5, y: 3 });
+  });
+
+  it('create_text / create_label auto-place when tile omitted, non-overlapping with nodes', () => {
+    const h = makeHarness();
+    const result = applyOps(
+      [
+        { op: 'create_node', id: 'a', kind: 'server' },
+        { op: 'create_text', id: 't', content: 'A note' },
+        { op: 'create_label', id: 'l', text: 'Legend' }
+      ],
+      h.bridge
+    );
+    const view = currentView(h);
+    expect(view.textBoxes).toHaveLength(1);
+    expect(view.labels).toHaveLength(1);
+    expect(view.textBoxes![0].content).toBe('A note');
+    expect(view.labels![0].text).toBe('Legend');
+    // All placed on distinct tiles.
+    const tiles = [
+      ...view.items.map((i) => `${i.tile.x},${i.tile.y}`),
+      `${view.textBoxes![0].tile.x},${view.textBoxes![0].tile.y}`,
+      `${view.labels![0].tile.x},${view.labels![0].tile.y}`
+    ];
+    expect(new Set(tiles).size).toBe(3);
+    expect(result.created_ids).toHaveLength(3);
+  });
+
+  it('create_rect without around/from/to is a per-op error (rest still apply)', () => {
+    const h = makeHarness();
+    const result = applyOps(
+      [
+        { op: 'create_node', id: 'a', kind: 'server' },
+        { op: 'create_rect', id: 'bad' }
+      ],
+      h.bridge
+    );
+    expect(currentView(h).items).toHaveLength(1);
+    expect(currentView(h).rectangles ?? []).toHaveLength(0);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].message).toMatch(/around.*from.*to|requires/i);
   });
 });
 

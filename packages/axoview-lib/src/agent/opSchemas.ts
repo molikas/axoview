@@ -149,6 +149,75 @@ export const setLayerOp = z
   })
   .strict();
 
+const borderStyleEnum = z.enum(['SOLID', 'DOTTED', 'DASHED']);
+
+// A backdrop / container / swimlane (C1). Position it declaratively with
+// `around: [nodeIds]` (auto bounding box + padding — the agent never computes a
+// tile) OR explicitly with `from`/`to` tile corners. Rectangles paint structurally
+// BEHIND nodes, so this is a natural background.
+export const createRectOp = z
+  .object({
+    op: z.literal('create_rect'),
+    id: agentId,
+    around: z.array(agentId).min(1).optional(),
+    padding: z.number().min(0).max(20).optional(),
+    from: coords.optional(),
+    to: coords.optional(),
+    color: z.string().optional(),
+    customColor: z.string().optional(),
+    borderColor: z.string().optional(),
+    borderWidth: z.number().optional(),
+    borderStyle: borderStyleEnum.optional(),
+    fillOpacity: z.number().min(0).max(1).optional(),
+    borderOpacity: z.number().min(0).max(1).optional(),
+    zIndex: z.number().int().optional(),
+    layerId: z.string().optional(),
+    name: z.string().max(200).optional(),
+    notes: z.string().max(NOTES_MAX_LENGTH).optional()
+  })
+  .strict();
+
+// Free-standing text (a TextBox). `tile` optional → auto-placed.
+export const createTextOp = z
+  .object({
+    op: z.literal('create_text'),
+    id: agentId,
+    content: constrainedStrings.description,
+    tile: optionalTile,
+    fontSize: z.number().optional(),
+    color: z.string().optional(),
+    isBold: z.boolean().optional(),
+    isItalic: z.boolean().optional(),
+    isUnderline: z.boolean().optional(),
+    backgroundColor: z.string().optional(),
+    width: z.number().optional(),
+    height: z.number().optional(),
+    layerId: z.string().optional(),
+    name: z.string().max(200).optional(),
+    notes: z.string().max(NOTES_MAX_LENGTH).optional()
+  })
+  .strict();
+
+// A floating label chip (a Label). `tile` optional → auto-placed.
+export const createLabelOp = z
+  .object({
+    op: z.literal('create_label'),
+    id: agentId,
+    text: constrainedStrings.description,
+    tile: optionalTile,
+    fontSize: z.number().optional(),
+    color: z.string().optional(),
+    backgroundColor: z.string().optional(),
+    isBold: z.boolean().optional(),
+    isItalic: z.boolean().optional(),
+    isUnderline: z.boolean().optional(),
+    zIndex: z.number().int().optional(),
+    headerLink: z.string().max(2048).optional(),
+    layerId: z.string().optional(),
+    notes: z.string().max(NOTES_MAX_LENGTH).optional()
+  })
+  .strict();
+
 export const opSchema = z.discriminatedUnion('op', [
   createNodeOp,
   updateNodeOp,
@@ -156,7 +225,10 @@ export const opSchema = z.discriminatedUnion('op', [
   connectOp,
   disconnectOp,
   setStyleOp,
-  setLayerOp
+  setLayerOp,
+  createRectOp,
+  createTextOp,
+  createLabelOp
 ]);
 
 export const opsSchema = z.array(opSchema).max(ARRAY_MAX.viewItems);
@@ -167,4 +239,7 @@ export type UpdateNodeOp = z.infer<typeof updateNodeOp>;
 export type ConnectOp = z.infer<typeof connectOp>;
 export type SetStyleOp = z.infer<typeof setStyleOp>;
 export type SetLayerOp = z.infer<typeof setLayerOp>;
+export type CreateRectOp = z.infer<typeof createRectOp>;
+export type CreateTextOp = z.infer<typeof createTextOp>;
+export type CreateLabelOp = z.infer<typeof createLabelOp>;
 export type NodeStyle = z.infer<typeof nodeStyleSchema>;

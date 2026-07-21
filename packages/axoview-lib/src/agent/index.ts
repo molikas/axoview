@@ -33,6 +33,7 @@ export type {
 export {
   MUTATING_TOOLS,
   isMutatingTool,
+  destructiveSummary,
   READ_ONLY_ERROR
 } from './scope';
 export type { AgentScope } from './scope';

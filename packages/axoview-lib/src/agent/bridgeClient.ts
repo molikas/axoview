@@ -11,7 +11,12 @@
 
 import { AgentSurface } from './createAgentSurface';
 import { buildMcpManifest } from './mcpManifest';
-import { AgentScope, isMutatingTool, READ_ONLY_ERROR } from './scope';
+import {
+  AgentScope,
+  isMutatingTool,
+  destructiveSummary,
+  READ_ONLY_ERROR
+} from './scope';
 
 // Optional identity metadata the tab attaches at registration (interim before
 // OAuth v2; used for display/audit, not yet enforced).
@@ -26,18 +31,27 @@ export interface BridgeClientOptions {
   // safe one, never accidental write access.
   scope?: AgentScope;
   user?: AgentIdentity;
+  // Feature A.5 / ADR 0045 §6: called (in write mode only) before a DESTRUCTIVE
+  // call (deletes / prune / large bulk) with a short summary; resolve false to
+  // reject it. Absent → destructive calls proceed (write mode is explicit consent).
+  confirmDestructive?: (summary: string) => Promise<boolean>;
 }
 
 export interface BridgeClient {
   scope: AgentScope;
   // Send this once the WS opens, so the DO can answer tools/list + prompts/get.
   registerMessage(): string;
-  // Handle one forwarded call message; returns the JSON result to send back, or
-  // null if the message isn't a call (nothing to reply).
-  handleMessage(raw: string): string | null;
+  // Handle one forwarded call message; resolves to the JSON result to send back,
+  // or null if the message isn't a call (nothing to reply). Async because the
+  // diagram-library verbs (open/list/create/save) touch storage / Drive.
+  handleMessage(raw: string): Promise<string | null>;
 }
 
-const dispatch = (surface: AgentSurface, tool: string, args: unknown): unknown => {
+const dispatch = async (
+  surface: AgentSurface,
+  tool: string,
+  args: unknown
+): Promise<unknown> => {
   const a = (args ?? {}) as Record<string, unknown>;
   switch (tool) {
     case 'apply_ops':
@@ -54,6 +68,14 @@ const dispatch = (surface: AgentSurface, tool: string, args: unknown): unknown =
       return surface.select_canvas(String(a.id));
     case 'open_diagram':
       return surface.open_diagram(String(a.id));
+    case 'list_diagrams':
+      return surface.list_diagrams();
+    case 'create_diagram':
+      return surface.create_diagram(
+        a.name !== undefined ? String(a.name) : undefined
+      );
+    case 'save_diagram':
+      return surface.save_diagram();
     default:
       throw new Error(`unknown tool "${tool}"`);
   }
@@ -78,7 +100,7 @@ export const createBridgeClient = (
         manifest: buildMcpManifest(scope)
       }),
 
-    handleMessage: (raw: string): string | null => {
+    handleMessage: async (raw: string): Promise<string | null> => {
       let msg: { type?: string; id?: string; tool?: string; args?: unknown };
       try {
         msg = JSON.parse(raw);
@@ -96,8 +118,22 @@ export const createBridgeClient = (
           error: READ_ONLY_ERROR
         });
       }
+      // Destructive-op confirm (Feature A.5) — write mode only.
+      if (opts.confirmDestructive) {
+        const summary = destructiveSummary(msg.tool, msg.args);
+        if (summary) {
+          const approved = await opts.confirmDestructive(summary);
+          if (!approved) {
+            return JSON.stringify({
+              type: 'result',
+              id: msg.id,
+              error: `The user declined a destructive action (${summary}).`
+            });
+          }
+        }
+      }
       try {
-        const result = dispatch(surface, msg.tool, msg.args);
+        const result = await dispatch(surface, msg.tool, msg.args);
         return JSON.stringify({ type: 'result', id: msg.id, result });
       } catch (e) {
         return JSON.stringify({

@@ -31,8 +31,9 @@ export const setDiagramSpecSchema = z
   .object({
     nodes: z.array(specNodeSchema).optional(),
     connectors: z.array(specConnectorSchema).optional(),
-    // Declarative layout hint (ADR 0045 §4) — never coordinates.
-    layout: z.enum(['layered-lr', 'layered-tb', 'grid']).optional(),
+    // Declarative layout hint (ADR 0045 §4) — never coordinates. `radial` places
+    // a cyclic process (lifecycle) as a visible loop.
+    layout: z.enum(['layered-lr', 'layered-tb', 'grid', 'radial']).optional(),
     // Delete existing view items whose ids the spec omits (full-redesign mode).
     prune: z.boolean().optional()
   })
