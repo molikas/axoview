@@ -7,6 +7,7 @@ import { getColorVariant } from 'src/utils';
 import { useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useModelStoreApi } from 'src/stores/modelStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
+import { useLayerContext } from 'src/hooks/useLayerContext';
 import {
   createSpriteBatch,
   SpriteBatch,
@@ -58,11 +59,17 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
   const modelApi = useModelStoreApi();
   const theme = useTheme();
   const { getTilePosition, strategy } = useCanvasMode();
+  // Layer visibility (mirrors NodesCanvas / ConnectorsCanvas / LabelsCanvas):
+  // the WebGL bulk must skip rects whose layer is hidden, or hiding a layer
+  // leaves its rectangles drawn (picking + the DOM layers already honour this).
+  const { visibleIds } = useLayerContext();
 
   const rectsRef = useRef(rectangles);
+  const visibleIdsRef = useRef(visibleIds);
   const getTilePosRef = useRef(getTilePosition);
   const isIsoRef = useRef(strategy.projectionName === 'ISOMETRIC');
   rectsRef.current = rectangles;
+  visibleIdsRef.current = visibleIds;
   getTilePosRef.current = getTilePosition;
   isIsoRef.current = strategy.projectionName === 'ISOMETRIC';
 
@@ -194,7 +201,11 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
         );
       };
 
+      const visibleNow = visibleIdsRef.current;
       for (const rect of rectsRef.current) {
+        // Skip rects on a hidden layer. Empty set = no layer context yet
+        // (draw all), matching NodesCanvas's escape hatch.
+        if (visibleNow.size > 0 && !visibleNow.has(rect.id)) continue;
         const fillValue = rect.customColor || colorsById.get(rect.color ?? '');
         if (!fillValue) continue;
         const isTransparent = fillValue === 'transparent';
@@ -360,7 +371,7 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
   useEffect(() => {
     geomDirtyRef.current = true;
     scheduleDrawRef.current();
-  }, [rectangles, getTilePosition, strategy.projectionName, theme]);
+  }, [rectangles, visibleIds, getTilePosition, strategy.projectionName, theme]);
 
   return (
     <canvas

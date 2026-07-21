@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { Tooltip } from '@mui/material';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useScene } from 'src/hooks/useScene';
+import { useLayerContext } from 'src/hooks/useLayerContext';
 import {
   getAnchorTile,
   connectorPathTileToGlobal
@@ -236,6 +237,7 @@ export const ConnectorAnchorOverlay = () => {
   const mode = useUiStateStore((state) => state.mode);
   const { hitConnectors, currentView } = useScene();
   const { getTilePosition } = useCanvasMode();
+  const { lockedIds, visibleIds } = useLayerContext();
 
   const selectedId = useMemo(() => {
     if (mode.type === 'RECONNECT_ANCHOR') return mode.connectorId;
@@ -244,13 +246,26 @@ export const ConnectorAnchorOverlay = () => {
     return null;
   }, [mode, itemControls]);
 
+  // The anchor handles are an editing affordance (drag/reconnect/remove
+  // waypoint), so they follow the codebase-wide interactable invariant: only
+  // render for a connector whose layer is unlocked AND visible. Without this a
+  // connector selected from the Layers list while its layer is hidden/locked
+  // still showed draggable handles floating over the hidden diagram.
+  const interactable = useMemo(() => {
+    if (!selectedId) return false;
+    return (
+      !lockedIds.has(selectedId) &&
+      (visibleIds.size === 0 || visibleIds.has(selectedId))
+    );
+  }, [selectedId, lockedIds, visibleIds]);
+
   const reconnectingAnchorId =
     mode.type === 'RECONNECT_ANCHOR' ? mode.anchorId : null;
 
   const connector = useMemo(() => {
-    if (!selectedId) return null;
+    if (!selectedId || !interactable) return null;
     return hitConnectors.find((c) => c.id === selectedId) ?? null;
-  }, [selectedId, hitConnectors]);
+  }, [selectedId, interactable, hitConnectors]);
 
   if (!connector?.path?.tiles?.length) return null;
 
