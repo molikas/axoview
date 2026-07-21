@@ -23,3 +23,14 @@ GOOGLE_CLIENT_ID = "485371025824-2ullp84i3nda2dgceirg9q87fvm36kl8.apps.googleuse
 
 # Real secrets — configure via `wrangler secret put`, never commit:
 #   AUTH_SHARED_SECRET, CF_ACCESS_TEAM_DOMAIN, CF_ACCESS_AUD
+
+# --- Remote-MCP session bridge (ADR 0046) ---
+# Kept in lockstep with the repo-root wrangler.toml per ADR 0009 §5.
+[[durable_objects.bindings]]
+name = "AGENT_SESSION"
+class_name = "AgentSessionDO"
+
+# FREE-TIER HARD REQUIREMENT (ADR 0046 §2): new_sqlite_classes, NOT new_classes.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["AgentSessionDO"]

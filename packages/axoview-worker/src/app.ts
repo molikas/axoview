@@ -2,6 +2,11 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { secureHeaders } from 'hono/secure-headers';
 import { authMiddleware } from './auth';
+import { registerAgentRoutes } from './agent/routes';
+
+// Remote-MCP contract version — mirrors the modeling-skill version in axoview-lib;
+// moves in lockstep with the op vocabulary (ADR 0045 §Consequences).
+const AGENT_SERVER_VERSION = '1.0.0-track-a';
 
 interface Env {
   AUTH_MODE?: 'none' | 'shared-token' | 'cf-access';
@@ -11,11 +16,19 @@ interface Env {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_API_KEY?: string;
   GOOGLE_PROJECT_NUMBER?: string;
+  // Per-session Durable Object namespace for the MCP session bridge (ADR 0046 §2).
+  // SQLite-backed + hibernatable — see the wrangler migration (new_sqlite_classes).
+  AGENT_SESSION?: DurableObjectNamespace;
 }
 
 type AppEnv = { Bindings: Env };
 
 const app = new Hono<AppEnv>();
+
+// Remote-MCP + pairing routes (ADR 0046 §1). Registered FIRST so they sit outside
+// the /api/* auth middleware + storage-disabled catch-all below — MCP auth is the
+// pairing code, not AUTH_MODE.
+registerAgentRoutes(app, AGENT_SERVER_VERSION);
 
 // DP4 (v1.1 CF hardening): single console.error on uncaught 500 with
 // method + path + error name. Stack stays internal (ADR 0011 spirit:
@@ -141,3 +154,7 @@ app.all('/api/*', (c) =>
 );
 
 export default app;
+
+// The Durable Object class MUST be exported from the worker entry so the runtime
+// can instantiate it for the AGENT_SESSION binding (ADR 0046 §2).
+export { AgentSessionDO } from './agent/agentSession';

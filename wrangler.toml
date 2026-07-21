@@ -28,3 +28,19 @@ GOOGLE_CLIENT_ID = "485371025824-2ullp84i3nda2dgceirg9q87fvm36kl8.apps.googleuse
 #   AUTH_SHARED_SECRET     (when AUTH_MODE=shared-token)
 #   CF_ACCESS_TEAM_DOMAIN  (when AUTH_MODE=cf-access; e.g. "myteam")
 #   CF_ACCESS_AUD          (when AUTH_MODE=cf-access; the application AUD tag)
+
+# --- Remote-MCP session bridge (ADR 0046) ---
+# Per-session Durable Object holding the routing state + the hibernatable WebSocket
+# to the user's tab. Keep in lockstep with packages/axoview-worker/wrangler.toml
+# (ADR 0009 §5 drift rule).
+[[durable_objects.bindings]]
+name = "AGENT_SESSION"
+class_name = "AgentSessionDO"
+
+# FREE-TIER HARD REQUIREMENT (ADR 0046 §2): new_sqlite_classes, NOT new_classes.
+# Only SQLite-backed DOs are on the Workers Free plan; the DO uses state.storage.sql
+# + the WebSocket Hibernation API. The wrong migration class silently demands a paid
+# plan.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["AgentSessionDO"]

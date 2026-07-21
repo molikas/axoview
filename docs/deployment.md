@@ -8,7 +8,7 @@ Axoview runs on three targets from a single codebase:
 |---|---|---|---|
 | **Local dev** | `npm run dev` (rsbuild on :3000 + Express on :3001) | Filesystem if `ENABLE_SERVER_STORAGE=true`, else session (+ Google Drive when configured) | `none`, `shared-token` |
 | **Docker** | nginx + Express on Node | Filesystem volume | `none`, `shared-token` |
-| **Cloudflare Pages** | Pages Functions (Hono) | **Session/localStorage + Google Drive** (per-user, client-side) | `none`, `shared-token`, `cf-access` |
+| **Cloudflare Pages** | Advanced-mode `_worker.js` (Hono) + `AGENT_SESSION` Durable Object | **Session/localStorage + Google Drive** (per-user, client-side) | `none`, `shared-token`, `cf-access` |
 
 The frontend bundle is identical across all three. The Cloudflare deployment has no server-side storage — `/api/config` returns `serverStorage: false` — but ships the **Google Drive place** ([ADR 0036](adr/0036-google-drive-storage-provider.md), [ADR 0037](adr/0037-storage-places-model.md)): a signed-in user's diagrams persist in their own Drive, entirely client-side.
 
@@ -186,6 +186,54 @@ The repo-root [wrangler.toml](../wrangler.toml) is set up so the deploy button w
 ```markdown
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/<your-fork>/Axoview)
 ```
+
+### C7. Remote MCP bridge — Cloudflare only ([ADR 0046](adr/0046-mcp-session-bridge-topology.md))
+
+The pluggable-AI-agent MCP bridge (`/mcp/*`, `/pair/*`) + the per-session
+`AGENT_SESSION` Durable Object ride the **same** Cloudflare deploy — a Worker-only
+carve-out ([ADR 0009 §1](adr/0009-deployment-topology.md)). It is **not available on
+Docker / self-host** (no Durable Objects) — a documented gap ([ADR 0046 §1](adr/0046-mcp-session-bridge-topology.md)), mirroring the Drive read-proxy asymmetry.
+
+- **Advanced mode.** Durable Objects need Pages *Advanced Mode*: Pages **file-based
+  Functions strip the DO class**, so the app build's `postbuild`
+  ([scripts/build-worker.mjs](../packages/axoview-app/scripts/build-worker.mjs))
+  bundles the Hono app + DO into `build/_worker.js`. When `_worker.js` is present
+  Pages runs it and ignores `functions/` (retired). `_routes.json` still gates
+  `/api/*`, `/mcp/*`, `/pair/*` → worker; everything else → static assets. The
+  CI worker-bundle gate measures `build/_worker.js` (< 1 MB, [ADR 0009 §8](adr/0009-deployment-topology.md)).
+- **DO binding + migration** (both [wrangler.toml](../wrangler.toml) and the worker
+  copy, kept in lockstep per ADR 0009 §5):
+
+  ```toml
+  [[durable_objects.bindings]]
+  name = "AGENT_SESSION"
+  class_name = "AgentSessionDO"
+
+  [[migrations]]
+  tag = "v1"
+  new_sqlite_classes = ["AgentSessionDO"]   # SQLite-backed = free-tier; NOT new_classes
+  ```
+
+- **No new secrets.** Pairing v1 uses an ephemeral, high-entropy code (no accounts,
+  no credential custody). OAuth v2 (ADR 0046 §3) is deferred.
+- **Rate limiting.** A per-session cap runs in the DO. For IP-level DoS on
+  `/pair/new` + `/mcp/*`, add a Cloudflare rate-limit rule (dashboard → Security →
+  Rate limiting) — the ADR 0046 §8 "cheap hedge".
+- **Local testing** (advanced mode + DO under Miniflare):
+
+  ```bash
+  npm run build                                   # produces build/_worker.js
+  npx wrangler pages dev packages/axoview-app/build   # static + _worker.js + DO on :8788
+  # or just the bridge: npm run dev:mcp --workspace=packages/axoview-worker (:8787)
+  ```
+
+  Use `127.0.0.1`, **not** `localhost` — wrangler binds IPv4 and Node-based MCP
+  clients resolve `localhost` to IPv6 `::1` first (`fetch failed: AggregateError`).
+  End users connect via the in-app **✨ Connect your AI** panel (default **read-only**;
+  toggle "Allow edits" to grant write access).
+
+**`/ship` note:** promoting `integration` → `master` ships the DO migration; the
+first prod deploy after this applies `new_sqlite_classes` for `AgentSessionDO`.
 
 ---
 
