@@ -297,4 +297,44 @@ test.describe('Layers — J6: assign + hide + lock', () => {
     const tileAfterLockedDrag = (await getFirstItem(page))?.tile;
     expect(tileAfterLockedDrag).toEqual(tileAfterUnlockedDrag);
   });
+
+  test('J6 (lock): a locked layer strips the selected element’s transform handles', async ({ page }) => {
+    // Regression guard for the "locked layer still resizable" bug: an element
+    // on a locked layer can be SELECTED (ring shows) but must expose NO resize
+    // handles — TransformControlsManager gates showHandles on lockedIds, the
+    // same interactable invariant the gesture path already enforces. Handles are
+    // real DOM (`canvas-transform-anchor`), so unlike layer.visible this is
+    // directly observable without pixels (canvas-rendering-guidelines §11/§15).
+    const AT: CanvasPoint = { x: 380, y: 280 };
+    await placeIcon(page, AT);
+    await expect.poll(() => getViewItemCount(page), { timeout: 5_000 }).toBe(1);
+    const item = await getFirstItem(page);
+    if (!item) throw new Error('expected one model item after placeIcon');
+
+    // Assign the node to a fresh layer.
+    const layers = new LayersPanelPOM(page);
+    await layers.open();
+    await layers.addLayer();
+    await layers.dragItemToLayer(item.id, 'Layer 1');
+
+    const anchors = byAxoviewId(page, 'canvas-transform-anchor');
+
+    // Select the node on the canvas while the layer is UNLOCKED — resize handles
+    // appear. Verifying this branch keeps the locked assertion below honest (a
+    // handle-less selection could otherwise pass for the wrong reason).
+    const canvas = new CanvasPOM(page);
+    await canvas.clickAt(AT);
+    await expect(anchors.first()).toBeVisible({ timeout: 5_000 });
+    expect(await anchors.count()).toBeGreaterThan(0);
+
+    // Lock the layer. The selection persists, but every transform handle is
+    // withdrawn — a locked element is inert (draw.io / PowerPoint parity).
+    await layers.toggleLock('Layer 1');
+    await expect
+      .poll(async () => (await getLayer(page, 'Layer 1'))?.locked, {
+        timeout: 3_000
+      })
+      .toBe(true);
+    await expect.poll(() => anchors.count(), { timeout: 3_000 }).toBe(0);
+  });
 });

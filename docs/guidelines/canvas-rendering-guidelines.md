@@ -294,6 +294,18 @@ Reference: [`CanvasCompositorOverlay.tsx`](../../packages/axoview-lib/src/compon
 
 ---
 
+## 15. Layer visibility/lock lives only in `useLayerContext` — every bulk canvas AND handle overlay must re-apply the filter
+
+**Symptom:** hiding a layer left its rectangle painted on the canvas; and a connector on a hidden **+ locked** layer, selected from the Layers list, still showed draggable waypoint/endpoint handles floating over the hidden diagram.
+
+**Root cause:** layer `visible`/`locked` are model state that only [`useLayerContext`](../../packages/axoview-lib/src/hooks/useLayerContext.ts) resolves into `visibleIds` / `lockedIds`. The filtered DOM layer (`<Rectangles>`) applied it — but the **WebGL bulk** (`RectanglesCanvas`) and the **DOM handle overlay** (`ConnectorAnchorOverlay`) are *separate* components that draw/expose the same entities and each iterated the raw scene list, so the filter wasn't inherited. `RectanglesCanvas` was the lone bulk canvas not consulting the context (`NodesCanvas` / `ConnectorsCanvas` / `LabelsCanvas` all did).
+
+**Rule:** any component that **paints** an entity (every `*Canvas` bulk layer) or **exposes an interactive affordance** for it (selection handles, anchor overlays, transform/resize/rotate controls) must re-apply the layer filter itself — it is never inherited from the sibling that happens to filter. Paint layers skip on `visibleIds.size > 0 && !visibleIds.has(id)` (the `size === 0` escape hatch = no layers configured); affordance layers use the codebase-wide interactable invariant `!lockedIds.has(id) && (visibleIds.size === 0 || visibleIds.has(id))` (same predicate as `useInteractionManager` / `usePanHandlers`). A **locked** layer's element may still be *selected* (from the Layers list, to inspect / re-layer / unlock) — so render the selection ring but withhold every transform handle (draw.io / PowerPoint / Canva parity), never a live-editable selection. Add `visibleIds` (and `lockedIds` for affordances) to the geometry-rebuild deps so a visibility/lock toggle rebuilds.
+
+Reference: filter loop + rebuild deps in [`RectanglesCanvas`](../../packages/axoview-lib/src/components/SceneLayers/Rectangles/RectanglesCanvas.tsx); the overlay gate in [`ConnectorAnchorOverlay`](../../packages/axoview-lib/src/components/ConnectorAnchorOverlay/ConnectorAnchorOverlay.tsx); the handle gate in [`TransformControlsManager`](../../packages/axoview-lib/src/components/TransformControlsManager/TransformControlsManager.tsx) (`showHandles={!lockedIds.has(id)}`); invariant source in [`useInteractionManager`](../../packages/axoview-lib/src/interaction/useInteractionManager.ts).
+
+---
+
 ## Deferred ADR 0038 items
 
 Live status of the follow-ups scoped in [ADR 0038 §Deferred](../adr/0038-webgl-instanced-render-substrate.md), reconciled here as they close:
