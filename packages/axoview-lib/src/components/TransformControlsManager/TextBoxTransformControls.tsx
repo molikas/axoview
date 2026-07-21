@@ -9,9 +9,13 @@ import { TransformControls } from './TransformControls';
 
 interface Props {
   id: string;
+  // false on a locked layer: selection ring only, no resize/rotate handles
+  // (see RectangleTransformControls — the "no direct edit on a locked layer"
+  // invariant). Inline editing is already blocked on the gesture path.
+  showHandles?: boolean;
 }
 
-export const TextBoxTransformControls = ({ id }: Props) => {
+export const TextBoxTransformControls = ({ id, showHandles = true }: Props) => {
   const textBox = useTextBox(id);
   const { updateTextBox } = useSceneActions();
   const { t } = useTranslation('topBarStyleControls');
@@ -78,8 +82,8 @@ export const TextBoxTransformControls = ({ id }: Props) => {
     <TransformControls
       from={textBox.tile}
       to={to}
-      onAnchorMouseDown={onAnchorMouseDown}
-      onRotate={onRotate}
+      onAnchorMouseDown={showHandles ? onAnchorMouseDown : undefined}
+      onRotate={showHandles ? onRotate : undefined}
       rotateTooltip={t('rotate90')}
     />
   );

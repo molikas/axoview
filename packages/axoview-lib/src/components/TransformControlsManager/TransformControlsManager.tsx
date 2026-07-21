@@ -1,5 +1,6 @@
 import React from 'react';
 import { useUiStateStore } from 'src/stores/uiStateStore';
+import { useLayerContext } from 'src/hooks/useLayerContext';
 import { RectangleTransformControls } from './RectangleTransformControls';
 import { TextBoxTransformControls } from './TextBoxTransformControls';
 import { LabelTransformControls } from './LabelTransformControls';
@@ -10,6 +11,14 @@ export const TransformControlsManager = () => {
   const itemControls = useUiStateStore((state) => state.itemControls);
   const selectedIds = useUiStateStore((state) => state.selectedIds);
   const modeType = useUiStateStore((state) => state.mode.type);
+  // An element on a LOCKED layer can still be selected (from the Layers list —
+  // to inspect, re-layer, or unlock), but must not be transformable: render the
+  // selection ring WITHOUT resize/rotate handles. Matches the interactable
+  // invariant already enforced on the gesture path (useInteractionManager /
+  // usePanHandlers) and industry behaviour (draw.io / PowerPoint / Canva show an
+  // inert locked selection, never live handles). The canvas body-drag + inline
+  // edit are already blocked for locked; handles were the remaining leak.
+  const { lockedIds } = useLayerContext();
 
   // Hide selection chrome while a move is in flight (owner 2026-07-04): the
   // drag is a CSS-only preview (DragItems, RECT-1) — the model tile doesn't
@@ -26,6 +35,9 @@ export const TransformControlsManager = () => {
     // ADR 0044 group-resize: a HOMOGENEOUS node selection gets one bounding-box
     // control that resizes every node together (each member shows its ring but
     // NOT its own handles, so it reads as "grab the group, not one node").
+    // Suppress the group resize box if ANY member sits on a locked layer —
+    // group-resizing would move a locked node. Members still show their rings.
+    const anyLocked = selectedIds.some((ref) => lockedIds.has(ref.id));
     const allNodes = selectedIds.every((ref) => ref.type === 'ITEM');
     if (allNodes) {
       return (
@@ -37,7 +49,11 @@ export const TransformControlsManager = () => {
               showHandles={false}
             />
           ))}
-          <NodeGroupTransformControls ids={selectedIds.map((ref) => ref.id)} />
+          {!anyLocked && (
+            <NodeGroupTransformControls
+              ids={selectedIds.map((ref) => ref.id)}
+            />
+          )}
         </>
       );
     }
@@ -62,11 +78,16 @@ export const TransformControlsManager = () => {
                 <RectangleTransformControls
                   key={`rect-${ref.id}`}
                   id={ref.id}
+                  showHandles={!lockedIds.has(ref.id)}
                 />
               );
             case 'TEXTBOX':
               return (
-                <TextBoxTransformControls key={`tb-${ref.id}`} id={ref.id} />
+                <TextBoxTransformControls
+                  key={`tb-${ref.id}`}
+                  id={ref.id}
+                  showHandles={!lockedIds.has(ref.id)}
+                />
               );
             case 'LABEL':
               return (
@@ -83,11 +104,28 @@ export const TransformControlsManager = () => {
 
   switch (itemControls?.type) {
     case 'ITEM':
-      return <NodeTransformControls id={itemControls.id} />;
+      return (
+        <NodeTransformControls
+          id={itemControls.id}
+          showHandles={!lockedIds.has(itemControls.id)}
+        />
+      );
     case 'RECTANGLE':
-      return <RectangleTransformControls id={itemControls.id} />;
+      return (
+        <RectangleTransformControls
+          id={itemControls.id}
+          showHandles={!lockedIds.has(itemControls.id)}
+        />
+      );
     case 'TEXTBOX':
-      return <TextBoxTransformControls id={itemControls.id} />;
+      return (
+        <TextBoxTransformControls
+          id={itemControls.id}
+          showHandles={!lockedIds.has(itemControls.id)}
+        />
+      );
+    // LABEL has no resize handles by design (sized via the strip); its outline
+    // is already inert, so a locked label needs no extra gating here.
     case 'LABEL':
       return <LabelTransformControls id={itemControls.id} />;
     default:

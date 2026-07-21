@@ -8,9 +8,13 @@ import { TransformControls } from './TransformControls';
 
 interface Props {
   id: string;
+  // false on a locked layer: render the selection ring only, no resize/rotate
+  // handles (matches the codebase-wide "no direct edit on a locked layer"
+  // invariant; industry parity — draw.io / PowerPoint / Canva).
+  showHandles?: boolean;
 }
 
-export const RectangleTransformControls = ({ id }: Props) => {
+export const RectangleTransformControls = ({ id, showHandles = true }: Props) => {
   const rectangle = useRectangle(id);
   const { updateRectangle } = useSceneActions();
   const { t } = useTranslation('topBarStyleControls');
@@ -64,8 +68,8 @@ export const RectangleTransformControls = ({ id }: Props) => {
     <TransformControls
       from={rectangle.from}
       to={rectangle.to}
-      onAnchorMouseDown={onAnchorMouseDown}
-      onRotate={onRotate}
+      onAnchorMouseDown={showHandles ? onAnchorMouseDown : undefined}
+      onRotate={showHandles ? onRotate : undefined}
       rotateTooltip={t('rotate90')}
     />
   );
