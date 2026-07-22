@@ -25,10 +25,6 @@ GOOGLE_CLIENT_ID = "485371025824-2ullp84i3nda2dgceirg9q87fvm36kl8.apps.googleuse
 #   AUTH_SHARED_SECRET, CF_ACCESS_TEAM_DOMAIN, CF_ACCESS_AUD
 
 # --- Remote-MCP session bridge (ADR 0046) ---
-# Pages binds to the DO defined in the standalone axoview-mcp Worker (Pages cannot
-# host a DO itself). The DO + its migration live in wrangler.mcp.toml. Kept in
+# NOT on Pages — the bridge + AgentSessionDO run as the standalone "axoview-mcp"
+# Worker (wrangler.mcp.toml). This Pages config carries no DO binding. Kept in
 # lockstep with the repo-root wrangler.toml per ADR 0009 §5.
-[[durable_objects.bindings]]
-name = "AGENT_SESSION"
-class_name = "AgentSessionDO"
-script_name = "axoview-mcp"

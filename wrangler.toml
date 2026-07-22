@@ -30,13 +30,10 @@ GOOGLE_CLIENT_ID = "485371025824-2ullp84i3nda2dgceirg9q87fvm36kl8.apps.googleuse
 #   CF_ACCESS_AUD          (when AUTH_MODE=cf-access; the application AUD tag)
 
 # --- Remote-MCP session bridge (ADR 0046) ---
-# Cloudflare PAGES CANNOT define a Durable Object in-project (it rejects
-# [[migrations]] and requires a script_name). So the DO is defined + migrated in a
-# STANDALONE Worker (packages/axoview-worker/wrangler.mcp.toml, name "axoview-mcp"),
-# and Pages binds to it by that Worker's name. This keeps /mcp same-origin on the
-# Pages domain. Deploy the axoview-mcp Worker FIRST (it creates the DO), then Pages.
-# Keep in lockstep with packages/axoview-worker/wrangler.toml (ADR 0009 §5).
-[[durable_objects.bindings]]
-name = "AGENT_SESSION"
-class_name = "AgentSessionDO"
-script_name = "axoview-mcp"
+# The MCP bridge + its Durable Object do NOT run on Pages: Cloudflare Pages cannot
+# host a Durable Object (it rejects [[migrations]] and DO definitions), so the whole
+# bridge — /mcp, /pair, and the AgentSessionDO — is a SEPARATE standalone Worker,
+# "axoview-mcp" (packages/axoview-worker/wrangler.mcp.toml). Deploy it with
+# `wrangler deploy --config wrangler.mcp.toml`; the in-app "Connect your AI" panel
+# points at that Worker's URL. Pages here serves only the app + the Drive proxy, so
+# it carries no DO binding. (ADR 0046 §1 — Cloudflare-only, separate-Worker carve-out.)

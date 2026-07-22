@@ -60,7 +60,10 @@ export const defaultWorkerBaseUrl = (): string => {
   // Use 127.0.0.1 (NOT localhost): wrangler binds IPv4; a Node-based MCP client
   // resolves `localhost` to IPv6 ::1 first and fails with AggregateError.
   if (origin.includes(':3000')) return 'http://127.0.0.1:8787';
-  return origin;
+  // In production the MCP bridge is a SEPARATE Worker (Pages can't host the DO),
+  // so its URL is not same-origin and isn't known at build time — the user pastes
+  // their axoview-mcp Worker URL. (An optional /api/config value could prefill it.)
+  return '';
 };
 
 // ---- Singleton state ------------------------------------------------------

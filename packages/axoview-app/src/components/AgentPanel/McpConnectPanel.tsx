@@ -129,7 +129,8 @@ export function McpConnectPanel({
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
             disabled={connected || busy}
-            helperText="Same origin in production; your local wrangler port in dev."
+            placeholder="https://axoview-mcp.<your-subdomain>.workers.dev"
+            helperText="Your axoview-mcp Worker URL (in dev: http://127.0.0.1:8787)."
             sx={{ mb: 2 }}
           />
 

@@ -21,29 +21,27 @@ const readActive = (path: string): string =>
     .filter((l) => !l.trimStart().startsWith('#'))
     .join('\n');
 
+// Pages CANNOT host a Durable Object, so the Pages configs carry NO DO at all —
+// the whole bridge is the standalone axoview-mcp Worker.
 const pagesConfigs = [
   { name: 'worker wrangler.toml (Pages)', path: p('wrangler.toml') },
   { name: 'repo-root wrangler.toml (Pages)', path: p('../../wrangler.toml') }
 ];
 
+// The standalone Worker configs DEFINE + migrate the DO.
 const workerConfigs = [
   { name: 'wrangler.dev.toml (standalone)', path: p('wrangler.dev.toml') },
   { name: 'wrangler.mcp.toml (standalone)', path: p('wrangler.mcp.toml') }
 ];
 
-describe.each(pagesConfigs)('$name — binds to external DO', ({ path }) => {
+describe.each(pagesConfigs)('$name — carries NO Durable Object', ({ path }) => {
   const toml = readActive(path);
 
-  it('declares the AGENT_SESSION → AgentSessionDO binding', () => {
-    expect(toml).toMatch(/name\s*=\s*"AGENT_SESSION"/);
-    expect(toml).toMatch(/class_name\s*=\s*"AgentSessionDO"/);
+  it('has no durable_objects binding (Pages cannot host a DO)', () => {
+    expect(toml).not.toMatch(/\[\[durable_objects\.bindings\]\]/);
   });
 
-  it('binds via script_name = "axoview-mcp" (Pages requirement)', () => {
-    expect(toml).toMatch(/script_name\s*=\s*"axoview-mcp"/);
-  });
-
-  it('does NOT carry [[migrations]] (Pages rejects them)', () => {
+  it('has no [[migrations]] (Pages rejects them)', () => {
     expect(toml).not.toMatch(/\[\[migrations\]\]/);
     expect(toml).not.toMatch(/new_sqlite_classes/);
   });
@@ -52,10 +50,9 @@ describe.each(pagesConfigs)('$name — binds to external DO', ({ path }) => {
 describe.each(workerConfigs)('$name — defines + migrates DO', ({ path }) => {
   const toml = readActive(path);
 
-  it('declares the AGENT_SESSION → AgentSessionDO binding (no script_name — owns it)', () => {
+  it('declares the AGENT_SESSION → AgentSessionDO binding', () => {
     expect(toml).toMatch(/name\s*=\s*"AGENT_SESSION"/);
     expect(toml).toMatch(/class_name\s*=\s*"AgentSessionDO"/);
-    expect(toml).not.toMatch(/script_name/);
   });
 
   it('uses new_sqlite_classes (free-tier requirement), NOT new_classes', () => {

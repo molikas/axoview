@@ -40,7 +40,12 @@
       "entry": ["server.js", "src/**/__tests__/**/*.spec.js", "jest.config.js"]
     },
     "packages/axoview-worker": {
-      "entry": ["src/app.ts", "src/**/__tests__/**/*.spec.ts", "jest.config.cjs"]
+      "entry": [
+        "src/app.ts",
+        "src/mcpWorker.ts",
+        "src/**/__tests__/**/*.spec.ts",
+        "jest.config.cjs"
+      ]
     },
     "packages/axoview-e2e": {
       "entry": [

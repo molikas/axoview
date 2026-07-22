@@ -239,7 +239,4 @@ export type UpdateNodeOp = z.infer<typeof updateNodeOp>;
 export type ConnectOp = z.infer<typeof connectOp>;
 export type SetStyleOp = z.infer<typeof setStyleOp>;
 export type SetLayerOp = z.infer<typeof setLayerOp>;
-export type CreateRectOp = z.infer<typeof createRectOp>;
-export type CreateTextOp = z.infer<typeof createTextOp>;
-export type CreateLabelOp = z.infer<typeof createLabelOp>;
 export type NodeStyle = z.infer<typeof nodeStyleSchema>;
