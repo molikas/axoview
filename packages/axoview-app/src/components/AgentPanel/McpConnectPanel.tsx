@@ -62,11 +62,17 @@ export function McpConnectPanel({
   const mcp = useSyncExternalStore(subscribeMcp, getMcpState);
   const { status, session, detail } = mcp;
 
-  // Prefill the server field from /api/config when it's empty (prod: the standalone
-  // MCP Worker URL isn't derivable from the Pages origin). Dev already defaults to
-  // the local wrangler port. Runs once; skipped once the user types or connects.
+  // Seed the server field when empty. The panel unmounts on close, so on every
+  // (re)open: if a connection is live, reflect its URL (so the field isn't blank
+  // while connected / after disconnect); otherwise prefill from /api/config (prod:
+  // the standalone MCP Worker URL isn't derivable from the Pages origin — dev
+  // defaults to the local wrangler port). Runs once on mount.
   useEffect(() => {
-    if (baseUrl || session) return;
+    if (baseUrl) return;
+    if (session) {
+      setBaseUrl(session.baseUrl);
+      return;
+    }
     let cancelled = false;
     void fetchConfiguredMcpUrl().then((url) => {
       if (!cancelled && url) setBaseUrl((cur) => cur || url);
