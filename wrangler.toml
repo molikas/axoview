@@ -15,10 +15,11 @@ pages_build_output_dir = "packages/axoview-app/build"
 [vars]
 AUTH_MODE = "shared-token"
 
-# Public URL of the standalone axoview-mcp Worker (ADR 0046). Set this after you
-# deploy that Worker so the in-app "Connect your AI" panel prefills its endpoint —
-# e.g. "https://axoview-mcp.<your-subdomain>.workers.dev". Empty = users paste it.
-MCP_PUBLIC_URL = ""
+# NOTE: MCP_PUBLIC_URL (the axoview-mcp Worker URL that prefills the "Connect your
+# AI" panel, ADR 0046) is deliberately NOT set here — it is configured per
+# environment in the Pages dashboard (Settings → Variables and Secrets), so
+# Production and Preview can differ and a committed empty value can't clobber them.
+# If unset, users paste the URL into the panel manually.
 
 # GOOGLE_CLIENT_ID is a PUBLIC OAuth identifier, NOT a secret. It is sent from the
 # browser to Google on every sign-in and is guarded by the Authorized JavaScript
