@@ -640,6 +640,21 @@ export const useInteractionManager = () => {
       if (!rendererRef.current) return;
 
       const uiState = uiStateApi.getState();
+
+      // While an annotation draw/eraser tool is armed, the AnnotationLayer owns
+      // canvas pointer input (ADR 0014 §8.11 "capture only when armed"). The
+      // interaction manager listens on `window`, so it still SEES these events —
+      // it must not ACT on them, or canvas modes leak under the overlay:
+      //   • hover rim paints on nodes mid-draw (reads as "selectable"),
+      //   • a drag-from-panel Elements icon still places a node (PlaceIcon.mouseup
+      //     places on the `moved` heuristic regardless of isRendererInteraction),
+      //   • a hotkey-armed tool (r / t / …) would run under the overlay.
+      // Pan (right-drag) and wheel-zoom are handled BEFORE this in onMouseEvent /
+      // onScroll, so canvas navigation while drawing stays available. `select` is
+      // the pass-through tool, so it does NOT lock the canvas.
+      const anno = uiState.annotation;
+      if (anno?.open && anno.tool !== 'select') return;
+
       const model = modelStoreApi.getState();
 
       const mode = modes[uiState.mode.type];

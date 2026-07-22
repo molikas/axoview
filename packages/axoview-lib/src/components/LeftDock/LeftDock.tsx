@@ -109,13 +109,21 @@ export const LeftDock = ({
 
   return (
     <Box
+      // Dock chrome sits above the annotation overlay, so a stray draw-drag onto
+      // it would otherwise select its labels ("Common", "Isoflow", …) and paint a
+      // native selection/drag ghost — the same corruption as the top/bottom bars.
+      // Suppress text selection + swallow bubbled dragstart, but keep real inputs
+      // (the icon search box, inline-rename fields) text-selectable.
+      onDragStart={(e) => e.preventDefault()}
       sx={{
         position: 'absolute',
         top: 0,
         left: 0,
         bottom: 40, // stop above the BottomDock (height: 40)
         zIndex: 20,
-        pointerEvents: 'none'
+        pointerEvents: 'none',
+        userSelect: 'none',
+        '& input, & textarea': { userSelect: 'text' }
       }}
     >
       {/* Icon strip — always visible */}
