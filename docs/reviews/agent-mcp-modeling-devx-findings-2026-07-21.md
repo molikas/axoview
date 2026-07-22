@@ -233,3 +233,120 @@ which more clients surface than prompts.
   `packages/axoview-worker/src/agent/` (mcpProtocol.ts, agentSession.ts, routes.ts).
 - ADRs in play: 0045 (agent control contract), 0046 (MCP session bridge topology),
   0047 (agent interaction eval harness).
+
+---
+
+# Round 2 — real-diagram replication (2026-07-22, deployed edit connection)
+
+**What changed since Round 1:** the deployed bridge (`axoview-mcp.molikas.workers.dev`)
+shipped a large chunk of the Round-1 asks — verified live:
+- ✅ `create_rect` / `create_text` / `create_label` now in the `apply_ops` op enum.
+- ✅ `create_diagram` + `save_diagram` tools (fixes unsaved-loss).
+- ✅ Modeling skill injected into `initialize.instructions` (not just a prompt) — reaches tools-only agents.
+- ✅ Icon catalog base64 stripped from diagram reads (`icon.url:""`) — reads are ~3.8 KB.
+- ✅ Read-only vs edit **consent model**: read-only connections hide write verbs and return `-32010`.
+- ✅ Tool descriptions steer to the resource over `get_diagram`.
+
+**The test:** take a real production diagram exported from Axoview (`SDLC V2`, an
+insurance-platform SDLC map: ~96 placed nodes, ~60 connectors, 28 rectangles, 24 text
+boxes, 3 imported PNG icons, a `material` icon pack, waypoint-routed connectors,
+per-node wiki `headerLink`s) and rebuild it **using only MCP**. Script:
+`scratchpad/rebuild.py` (transcribes the export → `apply_ops` batches).
+
+**Result — 199 elements built, 0 failures:** 96 nodes · 55 connectors · 25 rectangles
+· 23 text boxes. The skeleton (positions, zones, lanes, flow) came through. But
+faithful reproduction is still blocked. Fidelity ≈ 50–60% structural, visibly different.
+
+## What replicated 1:1
+
+| Feature | Verified |
+|---|---|
+| Nodes at **exact hand-placed tiles** (`create_node.tile`) | ✓ all 96 |
+| Label color + font size (`style.labelColor/labelFontSize`) | ✓ |
+| **Zone/lane rectangles** incl. hex `customColor` (`create_rect from/to/color/customColor`) | ✓ all 25 |
+| **Horizontal** text labels (`create_text content/tile/fontSize/color/isBold`) | ✓ |
+| Connectors: 2-anchor, palette color, `DOTTED`/`SOLID`, `SINGLE`/`DOUBLE`, arrow toggle | ✓ all 55 |
+| Connector endpoints referencing a **tile** (not just an item) | ✓ |
+
+## Gaps that block 1:1 fidelity (each confirmed by a live op error)
+
+| # | Gap | Evidence | Impact on this diagram |
+|---|-----|----------|------------------------|
+| R2-1 | **No custom icon import** (base64 PNG) | `kind` resolves catalog only | 9 nodes → placeholder |
+| R2-2 | **No `material` pack / non-iso icons** | `requiredPacks` unreachable; `material_*` kinds don't resolve | 12 nodes → placeholder (9 arrows + 3 glyphs) |
+| R2-3 | **`create_node` rejects `headerLink`** | `Unrecognized keys: "headerLink"` | every 🤖-agent's wiki link lost (folded into `notes` as a workaround) |
+| R2-4 | **`create_node` rejects `description`** | `Unrecognized keys: "description"` | minor (notes survives) |
+| R2-5 | **`connect` rejects `waypoints` / no multi-anchor** | `Unrecognized keys: "waypoints"`; schema is `from`+`to` only | all 55 connectors lose hand-routing → straight/default paths (in a dense map this is the biggest *visual* regression) |
+| R2-6 | **`connect` rejects `width`** | `Unrecognized keys: "width"` | no thick connectors |
+| R2-7 | **`connect` rejects `customColor`** | `Unrecognized keys: "customColor"` | capped at 7 palette colors |
+| R2-8 | **`connect` no positional `labels[]`** | single `label` at fixed pos 50 | multi-label edges lost |
+| R2-9 | **`create_text` rejects `orientation`** | `Unrecognized key: "orientation"` | 4 vertical swimlane titles flattened to horizontal |
+| R2-10 | **No per-node `labelHeight`/`offset`/`zIndex`/`snap`** | not in `nodeStyleSchema` | label nudging & z-order lost |
+| R2-11 | **`kind:"database"` → `unknown kind`** | live error | the skill's own canonical example doesn't resolve against the shipped catalog (lockstep drift, same class as the `radial` layout enum gap) |
+
+## New DevX findings this round
+
+- **Pairing codes EXPIRE on a TTL**, not just rotate on reconnect — a working edit code
+  (`AXV-XZMJ-TVAS-B4JB`) went dead mid-session with `-32010 "Pairing expired — re-pair…"`.
+  Combined with rotate-on-reconnect (Round 1 §4), a long agent job is very likely to
+  outlive its credential. **Needs a refresh/renew path or a much longer TTL for edit
+  sessions.**
+- **Cloudflare WAF 403s non-browser User-Agents.** `Python-urllib/*` → `HTTP 403
+  Forbidden` at the edge; `curl` and `Mozilla/5.0` pass. Any non-browser MCP client
+  (scripts, CI, headless agents) needs a browser-like UA or it's blocked before reaching
+  the worker. Undocumented.
+- **Writes hang on backgrounded tab** (Round 1 focus-loss, still present): `-32010
+  "Timed out waiting for the Axoview tab to respond."` after ~15–30 s when the browser
+  tab isn't foregrounded. Reads sometimes still serve; writes don't.
+
+## Suggested improvements to the modeling skill (`modelingSkill.ts` / `MODELING_SKILL`)
+
+The skill text is good but now **drifts from the shipped contract** and **omits the
+newly-shipped verbs**. Concrete edits:
+
+1. **Fix the canonical example** — `kind: "database"` doesn't resolve. Either add a
+   `database` icon or change the example to a real catalog id (`server`, `storage`).
+   Lockstep rule already requires skill↔schema coherence; this violates it.
+2. **Document the new verbs** the code ships but the skill never mentions: `create_rect`
+   (`{from,to}` | `{around}`, `color`, `customColor`), `create_text`
+   (`{content,tile,fontSize,color,isBold,isItalic,isUnderline}` — **no `orientation`**),
+   `create_label`, `create_diagram`, `save_diagram`. Right now an agent only discovers
+   them by probing errors (as this session did).
+3. **State the hard limits inline so agents don't attempt them:** connectors are
+   **exactly two anchors** (no waypoints/manual path/width/customColor); text is
+   **horizontal only**; nodes have **no `headerLink`/`description`**; icons are the
+   **catalog only** (no import, no material). A short "Not supported yet" list prevents
+   wasted ops and mis-set user expectations.
+4. **Reconcile `radial`:** the injected instructions advertise `layout: radial` but
+   `set_diagram.layout`'s enum is `layered-lr|layered-tb|grid`. Either ship `radial` in
+   the enum or drop it from the skill until it lands.
+5. **Add an "exact-replication vs. generation" note.** The skill is written for
+   *generation* ("never compute a tile"). But agents are now asked to *replicate* exact
+   exports — the skill should acknowledge that supplying `tile` for faithful placement is
+   legitimate, and point at `create_rect`/`create_text` for zones/labels.
+6. **Teach the `headerLink→notes` fallback** (and any other lossy-but-lossless-ish
+   workarounds) so data isn't silently dropped when a field isn't supported.
+
+## Updated priority stack (Round 2)
+
+| # | Fix | Why |
+|---|-----|-----|
+| P0 | Icon import + non-iso/material packs via `kind` | #1 fidelity killer; 21/96 nodes unbuildable here |
+| P0 | `create_node.headerLink` | semantic data loss, not cosmetic |
+| P0 | Skill: fix `database` example + document new verbs + list "not supported" | stops drift + wasted ops (cheap, high-leverage) |
+| P1 | `connect` waypoints / manual path | dense diagrams unreadable without routing |
+| P1 | Edit-session credential that survives a long job (TTL refresh / renew) | pairing expiry killed a mid-run job |
+| P1 | Document the browser-UA requirement (or relax the WAF for the MCP path) | non-browser clients 403 silently |
+| P2 | `create_text` vertical orientation; connector `width`/`customColor`; positional labels | remaining visual fidelity |
+| P2 | Node `labelHeight`/`offset`/`zIndex`/`snap` | fine layout control |
+| P2 | Ship `radial` in `set_diagram.layout` enum (or remove from skill) | lockstep |
+
+## Reproduction (Round 2)
+
+- Deployed endpoint `https://axoview-mcp.molikas.workers.dev/mcp/AXV-<code>` (edit-scoped
+  pairing). Source export: `sdlc-v2-20260702-1501.json`. Transform: `scratchpad/rebuild.py`
+  (maps items→`create_node` with `tile`, rectangles→`create_rect`, textBoxes→`create_text`,
+  connectors→`connect` first+last anchor; unknown `kind`→`cube` placeholder, tracked;
+  `headerLink`→appended to `notes`).
+- Non-browser clients MUST send `User-Agent: Mozilla/5.0` (Cloudflare WAF) and, on a
+  stale local CA bundle, an unverified TLS context (server cert is valid; `curl` confirms).
