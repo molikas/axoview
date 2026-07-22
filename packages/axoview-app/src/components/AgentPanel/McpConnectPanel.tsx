@@ -11,6 +11,7 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Divider,
   Drawer,
   FormControlLabel,
   IconButton,
@@ -43,6 +44,25 @@ const STATUS_LABEL: Record<McpStatus, string> = {
   reconnecting: 'Reconnecting…',
   closed: 'Disconnected',
   error: 'Connection error'
+};
+
+// The copy-paste prompt a user hands to their desktop ChatGPT / Claude to set up
+// the connection and start working. Self-contained: carries the endpoint + intent.
+const buildAiPrompt = (mcpUrl: string, allowEdits: boolean): string => {
+  const setup =
+    `Please connect to my Axoview diagram and help me with it.\n\n` +
+    `Add this as a remote MCP connector in your app (connector type: "HTTP" / ` +
+    `"Streamable HTTP"):\n${mcpUrl}\n\n`;
+  return allowEdits
+    ? setup +
+        `Then load the Axoview "modeling-skill" prompt, read my current diagram, ` +
+        `and ask me what I'd like to build or change. Describe the topology (the ` +
+        `nodes and how they connect) and let Axoview place everything — never ` +
+        `compute tile coordinates. You'll be asked to confirm any deletions.`
+    : setup +
+        `Then load the Axoview "modeling-skill" prompt and read my current diagram, ` +
+        `then tell me what's on it or answer my questions. This connection is ` +
+        `READ-ONLY — you can read the diagram but cannot change it.`;
 };
 
 export function McpConnectPanel({
@@ -139,9 +159,9 @@ export function McpConnectPanel({
 
         <Box sx={{ p: 2, overflowY: 'auto', flex: 1 }}>
           <Alert severity="info" sx={{ mb: 2 }}>
-            Point your own AI (Claude.ai, Cursor, an MCP client) at Axoview as a
-            <strong> remote MCP connector</strong>. It reads and edits this canvas
-            through your existing subscription — <strong>no API key</strong>.
+            Let your AI (ChatGPT, Claude, Cursor…) read and edit this diagram using
+            your own subscription — <strong>no API key</strong>. Pick access below,
+            allow pairing, then copy the prompt for your AI.
           </Alert>
 
           <TextField
@@ -202,30 +222,55 @@ export function McpConnectPanel({
               onClick={() => void connect()}
               disabled={busy || baseUrl.trim().length === 0}
             >
-              Connect
+              Allow pairing
             </Button>
           ) : (
             <Stack spacing={2}>
+              <Alert
+                severity={
+                  connected ? 'success' : status === 'error' ? 'error' : 'info'
+                }
+                sx={{ py: 0.5 }}
+              >
+                {connected
+                  ? 'Ready — copy the prompt below into ChatGPT, Claude, or any MCP client.'
+                  : status === 'error'
+                    ? `Couldn't open the canvas link${detail ? `: ${detail}` : ''}. The prompt still works once this tab registers.`
+                    : 'Opening the canvas link…'}
+              </Alert>
+
+              {/* The main action for a non-technical user: copy one prompt. */}
               <Box>
                 <Typography variant="caption" color="text.secondary">
-                  Pairing code (keep this tab open)
+                  Prompt for your AI — paste into your desktop ChatGPT / Claude
                 </Typography>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography
-                    variant="h5"
-                    sx={{ fontFamily: 'monospace', letterSpacing: 2 }}
-                  >
-                    {session!.code}
-                  </Typography>
-                  <IconButton size="small" onClick={() => copy(session!.code)}>
-                    <CopyIcon fontSize="small" />
-                  </IconButton>
-                </Stack>
+                <TextField
+                  multiline
+                  fullWidth
+                  minRows={5}
+                  maxRows={12}
+                  value={buildAiPrompt(session!.mcpUrl, allowEdits)}
+                  slotProps={{ input: { readOnly: true, sx: { fontSize: 12 } } }}
+                  sx={{ mt: 0.5 }}
+                />
+                <Button
+                  variant="contained"
+                  fullWidth
+                  startIcon={<CopyIcon />}
+                  onClick={() =>
+                    copy(buildAiPrompt(session!.mcpUrl, allowEdits))
+                  }
+                  sx={{ mt: 1 }}
+                >
+                  Copy prompt
+                </Button>
               </Box>
+
+              <Divider>or set it up manually</Divider>
 
               <Box>
                 <Typography variant="caption" color="text.secondary">
-                  MCP endpoint — add this as a remote connector in your AI app
+                  Connector URL (add as a remote MCP / Streamable-HTTP connector)
                 </Typography>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <TextField
@@ -243,24 +288,10 @@ export function McpConnectPanel({
                     <CopyIcon fontSize="small" />
                   </IconButton>
                 </Stack>
+                <Typography variant="caption" color="text.secondary">
+                  Code {session!.code} · expires in ~10 min · keep this tab open.
+                </Typography>
               </Box>
-
-              {connected ? (
-                <Alert severity="success" sx={{ py: 0.5 }}>
-                  Tab registered — tool calls from your AI now route to this
-                  canvas. Paste the endpoint above into your MCP client.
-                </Alert>
-              ) : status === 'error' ? (
-                <Alert severity="error" sx={{ py: 0.5 }}>
-                  Socket didn’t open{detail ? `: ${detail}` : ''}. The endpoint is
-                  valid, but tool calls will return “no active canvas” until the
-                  tab registers. Check the worker is running and retry.
-                </Alert>
-              ) : (
-                <Alert severity="info" sx={{ py: 0.5 }}>
-                  Opening the canvas socket… the endpoint above is ready to paste.
-                </Alert>
-              )}
 
               <Button
                 variant="outlined"
@@ -273,22 +304,24 @@ export function McpConnectPanel({
             </Stack>
           )}
 
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: 'block', mt: 3 }}
-          >
-            Local testing: run the worker with{' '}
-            <code>wrangler dev</code>, then point the{' '}
-            <a
-              href="https://github.com/modelcontextprotocol/inspector"
-              target="_blank"
-              rel="noreferrer"
+          {baseUrl.includes('127.0.0.1') && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: 'block', mt: 3 }}
             >
-              MCP Inspector
-            </a>{' '}
-            at the endpoint above.
-          </Typography>
+              Local testing: run the worker with <code>wrangler dev</code>, then
+              point the{' '}
+              <a
+                href="https://github.com/modelcontextprotocol/inspector"
+                target="_blank"
+                rel="noreferrer"
+              >
+                MCP Inspector
+              </a>{' '}
+              at the endpoint above.
+            </Typography>
+          )}
         </Box>
       </Stack>
     </Drawer>
