@@ -18,6 +18,14 @@ name = "axoview-mcp"
 main = "src/mcpWorker.ts"
 compatibility_date = "2025-01-01"
 
+# Mint a per-version preview URL on `wrangler versions upload` — the Workers Builds
+# non-production (preview) deploy command. Without this, a preview build uploads a
+# version but prints no testable URL, so contract changes can't be exercised before
+# merge. With it, each upload yields https://<version-id>-axoview-mcp.<sub>.workers.dev
+# to paste into the ✨ Connect your AI panel. Production is unaffected (still served
+# on the main workers.dev route). See deployment.md §C7.
+preview_urls = true
+
 # This Worker OWNS the DO (no script_name — it's the definition site).
 [[durable_objects.bindings]]
 name = "AGENT_SESSION"
