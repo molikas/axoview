@@ -1,0 +1,189 @@
+name: Deploy MCP Worker
+
+# The pluggable-AI-agent MCP bridge runs as a STANDALONE Cloudflare Worker
+# ("axoview-mcp", wrangler.mcp.toml) — NOT on Pages, which cannot host a Durable
+# Object (ADR 0046 §2). Cloudflare's native git integration deploys ONLY the Pages
+# project, so without this workflow the worker never redeploys on merge: contract
+# plumbing changes land in the repo, the UI updates, and the live worker keeps
+# running the old bundle (the 2026-07-22 deploy gap — serverInfo.version never
+# moved, so nothing revealed the drift).
+#
+# SCOPE: this ships the WORKER (protocol router + serverInfo.version + the DO). The
+# op VOCABULARY (create_node.headerLink, waypoints, radial, kinds, create_text
+# orientation) lives in axoview-lib and rides the tab via the PAGES app — that
+# deploys through CF git integration, not here. So the smoke check below proves the
+# worker bundle is live (initialize → the injected version); it CANNOT assert an op
+# round-trip, which needs a live browser tab. Keep the op-vocab lockstep on the
+# Pages side (axoview-lib opSchemas ↔ modelingSkill ↔ eval suite).
+
+on:
+  # Deploy on merge to master — gated on the unit-test workflow passing, mirroring
+  # release.yml. `workflow_run` ignores path filters, which is what we want: a
+  # merge that touches only Pages code still redeploys the worker harmlessly and
+  # keeps the version stamp current.
+  workflow_run:
+    workflows: ["Run Tests"]
+    types: [completed]
+    branches: ["main", "master"]
+  # Per-PR preview version so contract changes can be exercised against a real
+  # endpoint BEFORE merge (mirrors the Pages preview deploys). Only when the worker
+  # or the tab-side agent vocabulary changes.
+  pull_request:
+    branches: ["main", "master"]
+    paths:
+      - "packages/axoview-worker/**"
+      - "packages/axoview-lib/src/agent/**"
+      - ".github/workflows/deploy-mcp.yml"
+
+# Only checks out + calls the Cloudflare API. Never writes to the repo.
+permissions:
+  contents: read
+
+env:
+  # Deployed worker URL (workers.dev subdomain = the account name). A fork must
+  # change this to its own subdomain.
+  MCP_WORKER_URL: https://axoview-mcp.molikas.workers.dev
+
+jobs:
+  # ---- Production: deploy on merge to master, then prove it shipped -----------
+  deploy:
+    name: Deploy + smoke (master)
+    if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout the tested commit
+        uses: actions/checkout@v6
+        with:
+          # workflow_run's github.sha is the branch tip; head_sha is the exact
+          # commit that passed Run Tests — deploy THAT.
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Require Cloudflare credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID repo secrets are not set — the axoview-mcp worker cannot be deployed. Add a token with Workers Scripts:Edit scope (see docs/deployment.md §C7)."
+            exit 1
+          fi
+
+      - name: Compute deploy version
+        id: ver
+        run: |
+          SHORT="${GITHUB_SHA::7}"
+          echo "version=1.0.0-track-a+${SHORT}" >> "$GITHUB_OUTPUT"
+          echo "Deploying axoview-mcp as 1.0.0-track-a+${SHORT}"
+        env:
+          GITHUB_SHA: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Deploy axoview-mcp worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npm run -w axoview-worker deploy:mcp -- \
+            --var AGENT_SERVER_VERSION:"${{ steps.ver.outputs.version }}"
+
+      - name: Smoke check — live initialize reports the deployed version
+        env:
+          EXPECTED: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          UA="Mozilla/5.0"  # Cloudflare's WAF 403s non-browser UAs (python-urllib etc.)
+
+          # Mint a pairing code (pure token mint — needs no browser tab).
+          code=$(curl -fsS -X POST "$MCP_WORKER_URL/pair/new" -H "User-Agent: $UA" | jq -r .code)
+          if [ -z "$code" ] || [ "$code" = "null" ]; then
+            echo "::error::Smoke: /pair/new did not return a code"; exit 1
+          fi
+
+          # initialize works without a tab: getManifest() is null → serverInfo
+          # still carries the injected version. Retry for edge propagation.
+          got=""
+          for i in 1 2 3 4 5 6; do
+            # `|| true`: tolerate a transient non-2xx while the new version
+            # propagates — the loop retries rather than aborting under `set -e`.
+            resp=$(curl -sS -X POST "$MCP_WORKER_URL/mcp/$code" \
+              -H "Content-Type: application/json" \
+              -H "Accept: application/json, text/event-stream" \
+              -H "User-Agent: $UA" \
+              -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci-smoke","version":"0"}}}' || true)
+            got=$(echo "$resp" | jq -r '.result.serverInfo.version // empty' || true)
+            if [ "$got" = "$EXPECTED" ]; then break; fi
+            echo "attempt $i: serverInfo.version=\"$got\" (want \"$EXPECTED\") — retrying in 5s"
+            sleep 5
+          done
+
+          if [ "$got" != "$EXPECTED" ]; then
+            echo "::error::Smoke FAILED: live serverInfo.version=\"$got\" != deployed \"$EXPECTED\" — the new bundle did not go live."
+            exit 1
+          fi
+          echo "✅ axoview-mcp live at version $got"
+
+  # ---- Per-PR: upload a preview version, surface its URL ----------------------
+  preview:
+    name: Preview version (PR)
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Guard — Cloudflare credentials present
+        id: creds
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "have=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️ CLOUDFLARE_API_TOKEN not set — skipping worker preview." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node.js
+        if: steps.creds.outputs.have == 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        if: steps.creds.outputs.have == 'true'
+        run: npm ci
+
+      - name: Upload preview version
+        if: steps.creds.outputs.have == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          SHORT="${GITHUB_SHA::7}"
+          VERSION="pr-${{ github.event.pull_request.number }}+${SHORT}"
+          # `versions upload` publishes a non-live preview with its own URL — it
+          # does NOT shift production traffic (requires the worker to already exist).
+          npx --no-install wrangler versions upload \
+            --config packages/axoview-worker/wrangler.mcp.toml \
+            --var AGENT_SERVER_VERSION:"$VERSION" | tee upload.log
+          echo "### axoview-mcp preview version" >> "$GITHUB_STEP_SUMMARY"
+          echo "Deployed as \`$VERSION\`. Preview URL from wrangler:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -iE 'preview|version' upload.log >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "Paste that preview URL into the app's ✨ Connect your AI panel to test before merge." >> "$GITHUB_STEP_SUMMARY"

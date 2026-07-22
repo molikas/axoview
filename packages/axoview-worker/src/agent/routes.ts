@@ -19,6 +19,10 @@ import {
 
 interface AgentBindings {
   AGENT_SESSION: DurableObjectNamespace;
+  // Deploy-time build stamp for `serverInfo.version` (see the /mcp handler).
+  // Injected by CI (`wrangler deploy --var AGENT_SERVER_VERSION:<pkg>+<sha>`);
+  // absent under local `wrangler dev`, where the compiled fallback is used.
+  AGENT_SERVER_VERSION?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,7 +83,12 @@ export const registerAgentRoutes = (app: AnyHono, serverVersion: string): void =
       if (!isValidPairingCode(code)) {
         return c.json({ error: 'invalid pairing code' }, 400);
       }
-      const router = createSessionRouter(ns(c), code, serverVersion);
+      // Prefer the deploy-injected version so a live `initialize` proves WHICH
+      // worker bundle is serving (the compiled constant never moved, which hid a
+      // stale worker — 2026-07-22 CI-deploy gap). Falls back to the constant under
+      // local dev, where no `--var` is passed.
+      const version = c.env.AGENT_SERVER_VERSION || serverVersion;
+      const router = createSessionRouter(ns(c), code, version);
 
       let body: unknown;
       try {
