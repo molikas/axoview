@@ -15,6 +15,10 @@ pages_build_output_dir = "../axoview-app/build"
 [vars]
 AUTH_MODE = "shared-token"
 
+# Public URL of the standalone axoview-mcp Worker (ADR 0046); prefills the in-app
+# "Connect your AI" panel. Kept in lockstep with the repo-root wrangler.toml.
+MCP_PUBLIC_URL = ""
+
 # GOOGLE_CLIENT_ID is a PUBLIC OAuth identifier, NOT a secret — safe to commit.
 # Serves /api/config under local `wrangler pages dev`. Kept in lockstep with the
 # repo-root wrangler.toml per ADR 0009 Decision 5 (drift between the two files is

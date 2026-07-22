@@ -18,7 +18,8 @@ describe('GET /api/config', () => {
       googleProjectNumber: null,
       driveScopes: ['https://www.googleapis.com/auth/drive.file'],
       authMode: 'none',
-      serverStorage: false
+      serverStorage: false,
+      mcpBaseUrl: null
     });
   });
 
@@ -45,6 +46,13 @@ describe('GET /api/config', () => {
   test('serverStorage is hardcoded false (§12 B2: Worker is storage-less)', async () => {
     const res = await request('/api/config');
     expect(res.body.serverStorage).toBe(false);
+  });
+
+  test('mcpBaseUrl reflects MCP_PUBLIC_URL (prefills the Connect-your-AI panel)', async () => {
+    const res = await request('/api/config', {}, {
+      MCP_PUBLIC_URL: 'https://axoview-mcp.acme.workers.dev'
+    });
+    expect(res.body.mcpBaseUrl).toBe('https://axoview-mcp.acme.workers.dev');
   });
 });
 

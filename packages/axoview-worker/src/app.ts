@@ -19,6 +19,10 @@ interface Env {
   // Per-session Durable Object namespace for the MCP session bridge (ADR 0046 §2).
   // SQLite-backed + hibernatable — see the wrangler migration (new_sqlite_classes).
   AGENT_SESSION?: DurableObjectNamespace;
+  // Public URL of the standalone axoview-mcp Worker (the MCP bridge lives there,
+  // NOT on Pages). Surfaced via /api/config so the "Connect your AI" panel prefills
+  // its endpoint field. Set once as a Pages var; empty = user pastes it manually.
+  MCP_PUBLIC_URL?: string;
 }
 
 type AppEnv = { Bindings: Env };
@@ -62,7 +66,10 @@ app.get('/api/config', (c) =>
       googleProjectNumber: c.env.GOOGLE_PROJECT_NUMBER || null,
       driveScopes: ['https://www.googleapis.com/auth/drive.file'],
       authMode: c.env.AUTH_MODE || 'none',
-      serverStorage: false
+      serverStorage: false,
+      // Standalone MCP bridge Worker URL (ADR 0046) — lets the app prefill the
+      // "Connect your AI" endpoint. null when unset (self-host / not configured).
+      mcpBaseUrl: c.env.MCP_PUBLIC_URL || null
     },
     200
   )

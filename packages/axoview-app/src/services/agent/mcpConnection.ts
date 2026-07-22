@@ -55,6 +55,19 @@ export const wsUrlFromBase = (baseUrl: string, wsPath: string): string => {
 export const absoluteUrl = (baseUrl: string, path: string): string =>
   new URL(path, baseUrl).toString();
 
+// Prefill source for prod: the standalone MCP Worker URL isn't derivable from the
+// Pages origin, so the Pages /api/config surfaces it (from the MCP_PUBLIC_URL var).
+export const fetchConfiguredMcpUrl = async (): Promise<string | null> => {
+  try {
+    const res = await fetch(`${window.location.origin}/api/config`);
+    if (!res.ok) return null;
+    const cfg = (await res.json()) as { mcpBaseUrl?: string | null };
+    return cfg.mcpBaseUrl || null;
+  } catch {
+    return null;
+  }
+};
+
 export const defaultWorkerBaseUrl = (): string => {
   const { origin } = window.location;
   // Use 127.0.0.1 (NOT localhost): wrangler binds IPv4; a Node-based MCP client

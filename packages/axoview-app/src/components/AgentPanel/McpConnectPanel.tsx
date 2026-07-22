@@ -4,7 +4,7 @@
 // session Durable Object, registers the tab, and shows the endpoint URL + code to
 // paste into the MCP client. No API key — inference runs in the user's own app.
 
-import { useCallback, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import {
   Alert,
   Box,
@@ -31,6 +31,7 @@ import {
   subscribeMcp,
   getMcpState,
   defaultWorkerBaseUrl,
+  fetchConfiguredMcpUrl,
   McpStatus
 } from '../../services/agent/mcpConnection';
 
@@ -60,6 +61,21 @@ export function McpConnectPanel({
   // is a thin subscriber — it never tears the socket down on unmount.
   const mcp = useSyncExternalStore(subscribeMcp, getMcpState);
   const { status, session, detail } = mcp;
+
+  // Prefill the server field from /api/config when it's empty (prod: the standalone
+  // MCP Worker URL isn't derivable from the Pages origin). Dev already defaults to
+  // the local wrangler port. Runs once; skipped once the user types or connects.
+  useEffect(() => {
+    if (baseUrl || session) return;
+    let cancelled = false;
+    void fetchConfiguredMcpUrl().then((url) => {
+      if (!cancelled && url) setBaseUrl((cur) => cur || url);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const connect = useCallback(async () => {
     setBusy(true);
