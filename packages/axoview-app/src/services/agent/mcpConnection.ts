@@ -83,6 +83,12 @@ export const defaultWorkerBaseUrl = (): string => {
 
 const KEEPALIVE_MS = 25_000;
 const RECONNECT_MS = 2_000;
+// V2 (2026-07-22): never leave the panel stuck on a spinner. Both the pairing
+// fetch and the WebSocket open get a hard deadline, and a socket that NEVER
+// connected is a fatal error (bad URL / server down) — NOT an endless reconnect.
+const PAIR_TIMEOUT_MS = 12_000;
+const WS_CONNECT_TIMEOUT_MS = 12_000;
+const MAX_RECONNECTS = 5;
 
 let state: McpState = { status: 'idle', session: null, detail: null };
 let ws: WebSocket | null = null;
@@ -90,7 +96,25 @@ let user: AgentIdentity | undefined;
 let confirmDestructive: ((summary: string) => Promise<boolean>) | undefined;
 let keepAlive: ReturnType<typeof setInterval> | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let connectTimer: ReturnType<typeof setTimeout> | null = null;
+let reconnectAttempts = 0;
 let manualClose = false;
+
+// Fetch with a hard timeout — a bad host makes `fetch` hang (or reject silently),
+// which previously stranded the UI on "Requesting code…".
+const fetchWithTimeout = async (
+  url: string,
+  init: RequestInit,
+  ms: number
+): Promise<Response> => {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+};
 
 const listeners = new Set<() => void>();
 
@@ -137,8 +161,29 @@ const openSocket = (session: McpSession): void => {
   });
   const socket = new WebSocket(wsUrlFromBase(session.baseUrl, session.wsPath));
   ws = socket;
+  let opened = false;
+
+  // Deadline on the open handshake: a wrong URL or a down server would otherwise
+  // sit in 'connecting' forever (the socket neither opens nor cleanly closes).
+  if (connectTimer) clearTimeout(connectTimer);
+  connectTimer = setTimeout(() => {
+    if (opened) return;
+    try {
+      socket.close();
+    } catch {
+      // already closing
+    }
+    emit({
+      status: 'error',
+      detail:
+        'Timed out opening the connection. The MCP server may be unreachable or the URL may be wrong.'
+    });
+  }, WS_CONNECT_TIMEOUT_MS);
 
   socket.addEventListener('open', () => {
+    opened = true;
+    reconnectAttempts = 0;
+    if (connectTimer) clearTimeout(connectTimer);
     socket.send(bridge.registerMessage());
     emit({ status: 'connected', detail: null });
     startKeepAlive();
@@ -150,15 +195,38 @@ const openSocket = (session: McpSession): void => {
   });
   socket.addEventListener('close', () => {
     stopKeepAlive();
+    if (connectTimer) clearTimeout(connectTimer);
     if (manualClose) {
       emit({ status: 'closed' });
       return;
     }
-    // Unexpected drop — reconnect to the SAME code (no rotation).
-    emit({ status: 'reconnecting', detail: 'Reconnecting…' });
+    if (!opened) {
+      // Never established — bad URL / server down. Do NOT loop forever.
+      emit({
+        status: 'error',
+        detail:
+          'Could not reach the MCP server. Check that it is deployed and the URL is correct, then try again.'
+      });
+      return;
+    }
+    if (reconnectAttempts >= MAX_RECONNECTS) {
+      emit({
+        status: 'error',
+        detail:
+          'Lost the connection and could not reconnect. Pair again to reconnect.'
+      });
+      return;
+    }
+    // Unexpected drop after a good connection — reconnect to the SAME code.
+    reconnectAttempts += 1;
+    emit({
+      status: 'reconnecting',
+      detail: `Reconnecting… (${reconnectAttempts}/${MAX_RECONNECTS})`
+    });
     reconnectTimer = setTimeout(() => openSocket(session), RECONNECT_MS);
   });
-  socket.addEventListener('error', () => emit({ detail: 'WebSocket error' }));
+  // 'error' precedes 'close'; the close handler owns the state transition.
+  socket.addEventListener('error', () => undefined);
 };
 
 // ---- Public API -----------------------------------------------------------
@@ -171,6 +239,7 @@ export const connectMcp = async ({
   confirmDestructive: confirm
 }: ConnectOptions): Promise<McpSession> => {
   manualClose = false;
+  reconnectAttempts = 0;
   user = identity;
   confirmDestructive = confirm;
 
@@ -190,9 +259,28 @@ export const connectMcp = async ({
   }
 
   emit({ status: 'pairing', detail: null });
-  const res = await fetch(absoluteUrl(baseUrl, '/pair/new'), { method: 'POST' });
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(
+      absoluteUrl(baseUrl, '/pair/new'),
+      { method: 'POST' },
+      PAIR_TIMEOUT_MS
+    );
+  } catch (e) {
+    const aborted = (e as Error)?.name === 'AbortError';
+    emit({
+      status: 'error',
+      detail: aborted
+        ? 'The MCP server did not respond in time. Check that it is deployed and the URL is correct.'
+        : 'Could not reach the MCP server. Check your network and that the server is running.'
+    });
+    throw e instanceof Error ? e : new Error('pairing request failed');
+  }
   if (!res.ok) {
-    emit({ status: 'error', detail: `pairing failed (${res.status})` });
+    emit({
+      status: 'error',
+      detail: `The MCP server rejected the pairing request (HTTP ${res.status}).`
+    });
     throw new Error(`pairing failed (${res.status})`);
   }
   const pair = (await res.json()) as {
@@ -217,6 +305,9 @@ export const disconnectMcp = (): void => {
   manualClose = true;
   if (reconnectTimer) clearTimeout(reconnectTimer);
   reconnectTimer = null;
+  if (connectTimer) clearTimeout(connectTimer);
+  connectTimer = null;
+  reconnectAttempts = 0;
   stopKeepAlive();
   try {
     ws?.close();
