@@ -189,42 +189,55 @@ The repo-root [wrangler.toml](../wrangler.toml) is set up so the deploy button w
 
 ### C7. Remote MCP bridge — Cloudflare only ([ADR 0046](adr/0046-mcp-session-bridge-topology.md))
 
-The pluggable-AI-agent MCP bridge (`/mcp/*`, `/pair/*`) + the per-session
-`AGENT_SESSION` Durable Object ride the **same** Cloudflare deploy — a Worker-only
-carve-out ([ADR 0009 §1](adr/0009-deployment-topology.md)). It is **not available on
-Docker / self-host** (no Durable Objects) — a documented gap ([ADR 0046 §1](adr/0046-mcp-session-bridge-topology.md)), mirroring the Drive read-proxy asymmetry.
+The pluggable-AI-agent MCP bridge (`/mcp/*`, `/pair/*`) is **Cloudflare-only** —
+**not available on Docker / self-host** (no Durable Objects), a documented gap
+([ADR 0046 §1](adr/0046-mcp-session-bridge-topology.md)), mirroring the Drive
+read-proxy asymmetry.
 
-- **Advanced mode.** Durable Objects need Pages *Advanced Mode*: Pages **file-based
-  Functions strip the DO class**, so the app build's `postbuild`
-  ([scripts/build-worker.mjs](../packages/axoview-app/scripts/build-worker.mjs))
-  bundles the Hono app + DO into `build/_worker.js`. When `_worker.js` is present
-  Pages runs it and ignores `functions/` (retired). `_routes.json` still gates
-  `/api/*`, `/mcp/*`, `/pair/*` → worker; everything else → static assets. The
-  CI worker-bundle gate measures `build/_worker.js` (< 1 MB, [ADR 0009 §8](adr/0009-deployment-topology.md)).
-- **DO binding + migration** (both [wrangler.toml](../wrangler.toml) and the worker
-  copy, kept in lockstep per ADR 0009 §5):
+**Topology (2026-07-22): the DO lives in a SEPARATE Worker.** Cloudflare **Pages
+cannot define a Durable Object in-project** — it rejects `[[migrations]]` and
+requires DO bindings to name an external Worker via `script_name`. So:
+
+- The **`AgentSessionDO` is defined + migrated in a standalone Worker** named
+  `axoview-mcp` ([packages/axoview-worker/wrangler.mcp.toml](../packages/axoview-worker/wrangler.mcp.toml),
+  entry [mcpWorker.ts](../packages/axoview-worker/src/mcpWorker.ts)).
+- The **Pages** deploy runs the same Hono app as an advanced-mode `build/_worker.js`
+  (app build `postbuild` → [build-worker.mjs](../packages/axoview-app/scripts/build-worker.mjs);
+  Pages file-based Functions strip DO classes, so advanced mode is required for the
+  routes). It **binds** to the DO in `axoview-mcp` via `script_name` — keeping `/mcp`
+  same-origin on the Pages domain:
 
   ```toml
+  # repo-root + packages/axoview-worker/wrangler.toml (Pages) — NO [[migrations]]:
   [[durable_objects.bindings]]
   name = "AGENT_SESSION"
   class_name = "AgentSessionDO"
-
-  [[migrations]]
-  tag = "v1"
-  new_sqlite_classes = ["AgentSessionDO"]   # SQLite-backed = free-tier; NOT new_classes
+  script_name = "axoview-mcp"      # the standalone Worker that owns the DO
   ```
+
+**Deploy order (the standalone Worker FIRST, so the DO exists to bind to):**
+
+```bash
+# 1) Deploy the DO-owning Worker (creates + migrates AgentSessionDO):
+cd packages/axoview-worker && npx wrangler deploy --config wrangler.mcp.toml
+# 2) Then the Pages deploy (git push or `wrangler pages deploy …/build`) —
+#    its script_name binding now resolves.
+```
 
 - **No new secrets.** Pairing v1 uses an ephemeral, high-entropy code (no accounts,
   no credential custody). OAuth v2 (ADR 0046 §3) is deferred.
 - **Rate limiting.** A per-session cap runs in the DO. For IP-level DoS on
   `/pair/new` + `/mcp/*`, add a Cloudflare rate-limit rule (dashboard → Security →
   Rate limiting) — the ADR 0046 §8 "cheap hedge".
-- **Local testing** (advanced mode + DO under Miniflare):
+- **Local testing.** The `script_name` binding does **not** resolve under
+  `wrangler pages dev` (no external Worker locally), so test the bridge with the
+  self-contained standalone Worker, which serves `/api` + `/mcp` + `/pair` + the DO
+  in one process:
 
   ```bash
-  npm run build                                   # produces build/_worker.js
-  npx wrangler pages dev packages/axoview-app/build   # static + _worker.js + DO on :8788
-  # or just the bridge: npm run dev:mcp --workspace=packages/axoview-worker (:8787)
+  npm run build:lib
+  npm run dev:mcp --workspace=packages/axoview-worker   # :8787, DO under Miniflare
+  npm run dev                                           # app on :3000
   ```
 
   Use `127.0.0.1`, **not** `localhost` — wrangler binds IPv4 and Node-based MCP
@@ -232,8 +245,9 @@ Docker / self-host** (no Durable Objects) — a documented gap ([ADR 0046 §1](a
   End users connect via the in-app **✨ Connect your AI** panel (default **read-only**;
   toggle "Allow edits" to grant write access).
 
-**`/ship` note:** promoting `integration` → `master` ships the DO migration; the
-first prod deploy after this applies `new_sqlite_classes` for `AgentSessionDO`.
+**Fallback.** `axoview-mcp` also serves `/mcp` + `/pair` on its own `workers.dev`
+URL, so if the Pages `script_name` binding ever misbehaves, point the panel's
+"Axoview MCP server" field at that URL — zero Pages change.
 
 ---
 

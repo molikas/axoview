@@ -1,0 +1,29 @@
+# Standalone Worker that DEFINES the AGENT_SESSION Durable Object (ADR 0046).
+#
+# WHY THIS EXISTS: Cloudflare Pages cannot define a Durable Object in-project — it
+# rejects [[migrations]] and requires DO bindings to name an external Worker via
+# `script_name`. So the DO is defined + migrated HERE, deployed as its own Worker
+# named "axoview-mcp", and the Pages project binds to it (root wrangler.toml +
+# packages/axoview-worker/wrangler.toml → script_name = "axoview-mcp").
+#
+# DEPLOY (must run BEFORE the Pages deploy, so the DO class exists to bind to):
+#     cd packages/axoview-worker
+#     npx wrangler deploy --config wrangler.mcp.toml
+#
+# This Worker runs the SAME Hono app (app.ts) — so it also serves /mcp + /pair on
+# its own workers.dev URL, which is the ready-made fallback if the Pages
+# script_name binding ever misbehaves (just point the app's MCP panel at this URL).
+
+name = "axoview-mcp"
+main = "src/mcpWorker.ts"
+compatibility_date = "2025-01-01"
+
+# This Worker OWNS the DO (no script_name — it's the definition site).
+[[durable_objects.bindings]]
+name = "AGENT_SESSION"
+class_name = "AgentSessionDO"
+
+# FREE-TIER HARD REQUIREMENT (ADR 0046 §2): SQLite-backed, NOT new_classes.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["AgentSessionDO"]

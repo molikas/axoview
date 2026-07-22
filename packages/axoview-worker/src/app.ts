@@ -155,6 +155,8 @@ app.all('/api/*', (c) =>
 
 export default app;
 
-// The Durable Object class MUST be exported from the worker entry so the runtime
-// can instantiate it for the AGENT_SESSION binding (ADR 0046 §2).
-export { AgentSessionDO } from './agent/agentSession';
+// NOTE: the AgentSessionDO class is intentionally NOT exported here. This module
+// is bundled into the Pages advanced-mode _worker.js, and Pages binds AGENT_SESSION
+// to the DO defined in the STANDALONE axoview-mcp Worker via `script_name` — a
+// Pages _worker.js must not ALSO define that class. The standalone Worker's entry
+// (src/mcpWorker.ts) is what exports the DO. (ADR 0046 §2, 2026-07-22 Pages fix.)

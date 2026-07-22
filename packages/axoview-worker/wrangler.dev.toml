@@ -12,7 +12,7 @@
 # and the MCP Inspector at :8787.
 
 name = "axoview-mcp-dev"
-main = "src/app.ts"
+main = "src/mcpWorker.ts"
 compatibility_date = "2025-01-01"
 
 [[durable_objects.bindings]]
