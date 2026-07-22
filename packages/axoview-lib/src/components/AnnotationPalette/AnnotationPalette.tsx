@@ -289,7 +289,10 @@ export const AnnotationPalette = () => {
             position: 'absolute',
             right: rightOffset,
             top: 12,
-            zIndex: 20,
+            // Above the annotation overlay's armed z-index (25) so the pen —
+            // the single exit toggle — stays operable while drawing covers the
+            // rest of the editor chrome (whole-screen annotation, ADR 0014).
+            zIndex: 30,
             p: 1,
             borderRadius: 1.5,
             // Active state uses the same grey selected fill as the other
@@ -313,7 +316,9 @@ export const AnnotationPalette = () => {
             position: 'absolute',
             right: rightOffset,
             top: 60,
-            zIndex: 20,
+            // Above the annotation overlay's armed z-index (25) so tool/color/
+            // clear stay operable while the overlay covers the editor chrome.
+            zIndex: 30,
             width: 48,
             borderRadius: 2,
             p: 0.5,
