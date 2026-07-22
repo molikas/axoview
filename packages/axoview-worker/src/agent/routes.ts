@@ -20,8 +20,9 @@ import {
 interface AgentBindings {
   AGENT_SESSION: DurableObjectNamespace;
   // Deploy-time build stamp for `serverInfo.version` (see the /mcp handler).
-  // Injected by CI (`wrangler deploy --var AGENT_SERVER_VERSION:<pkg>+<sha>`);
-  // absent under local `wrangler dev`, where the compiled fallback is used.
+  // Injected by the Cloudflare Workers Builds deploy command
+  // (`wrangler deploy --var AGENT_SERVER_VERSION:<pkg>+<sha>`); absent under local
+  // `wrangler dev`, where the compiled fallback is used.
   AGENT_SERVER_VERSION?: string;
 }
 

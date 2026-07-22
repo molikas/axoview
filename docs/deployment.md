@@ -203,38 +203,45 @@ entry [mcpWorker.ts](../packages/axoview-worker/src/mcpWorker.ts)), on its own
 proxy — so the two deploys are fully independent (the Pages build never waits on the
 Worker).
 
-**Deploying the bridge is now CI-automated** ([deploy-mcp.yml](../.github/workflows/deploy-mcp.yml)).
-Cloudflare's git integration deploys **only** the Pages project — it never touches a
-Worker — so before this workflow existed, a merge updated the UI but left the
-`axoview-mcp` worker running the old bundle (contract plumbing shipped to the repo
-but not to production, invisibly). The workflow closes that gap:
+**Deploying the bridge is Cloudflare-native — two git integrations, not GitHub
+Actions.** Cloudflare's git integration deploys projects on push, but a **Pages**
+integration deploys ONLY the Pages project — it never touches a Worker. So the
+`axoview-mcp` worker gets its OWN git integration: **Workers Builds** (dashboard →
+Workers & Pages → `axoview-mcp` → **Settings → Builds → Connect / configure**). Once
+connected, a push to `master` deploys the worker the same hands-off way Pages already
+deploys the app — no GitHub Actions, **no API token in the repo** (Cloudflare is
+already authenticated as you). This closes the gap where a merge updated the UI but
+left the worker on its old bundle, invisibly.
 
-- **On merge to master** (gated on **Run Tests** passing) it runs
-  `npm run -w axoview-worker deploy:mcp` and then **smoke-checks** the live endpoint:
-  mint a pairing code → `initialize` → assert `serverInfo.version` equals what was
-  just deployed. A stale bundle fails the job.
-- **On PRs** touching `packages/axoview-worker/**` or `packages/axoview-lib/src/agent/**`
-  it uploads a **preview version** (`wrangler versions upload`) and prints the preview
-  URL to the job summary — paste it into **✨ Connect your AI** to test before merge.
+**Workers Builds settings** (one-time, in the dashboard):
 
-> **Scope of the smoke check.** It proves *which worker bundle is live*, not that a
-> given op works. The worker is a pure protocol **router** — the op vocabulary
-> (`create_node.headerLink`, connector waypoints, `radial` layout, node kinds,
-> `create_text` orientation) lives in **axoview-lib** and reaches the agent through
-> the **browser tab**, i.e. via the **Pages** deploy, not this worker. An op
-> round-trip needs a live tab and so can't run headlessly. Keep the op-vocab
-> lockstep on the Pages side: `opSchemas.ts` ↔ `modelingSkill.ts` ↔ the eval suite.
+| Setting | Value |
+|---|---|
+| Repository / branch | this repo · `master` (production) |
+| Root directory | repo root (npm workspaces install from there) |
+| Deploy command | `npm run -w axoview-worker deploy:mcp -- --var AGENT_SERVER_VERSION:1.0.0-track-a+$WORKERS_CI_COMMIT_SHA` |
 
-**`serverInfo.version` is the "what's live" signal.** CI injects a moving value at
-deploy time — `wrangler deploy --var AGENT_SERVER_VERSION:1.0.0-track-a+<git-sha>` —
-so a client's `initialize` reveals the exact commit serving. The `AGENT_SERVER_VERSION`
-constant in `app.ts` is only the local-`wrangler dev` fallback (no `--var` there).
+The `--var` is what makes `serverInfo.version` **move**: Cloudflare exposes the commit
+to the build (env var, e.g. `WORKERS_CI_COMMIT_SHA` — confirm the exact name under
+Builds → build variables), so a live `initialize` reveals the exact commit serving.
+Without it, `serverInfo.version` falls back to the compiled `AGENT_SERVER_VERSION`
+constant in `app.ts` and you're back to a dead constant that can't tell deploys apart.
 
-**Two Cloudflare projects, one CI target.** The Pages project is named **`axoview`**
-(root `wrangler.toml`, `pages_build_output_dir`) and deploys via CF git integration —
-**not** from Actions; the package's `deploy` script is a local-dev relic, not a
-production path. The **only** worker CI deploys is **`axoview-mcp`**. Don't add
-`axoview` to CI — you'd race Cloudflare's own Pages build.
+> **This ships the worker, not the op vocabulary.** The worker is a pure protocol
+> **router** — the ops (`create_node.headerLink`, connector waypoints, `radial`
+> layout, node kinds, `create_text` orientation) live in **axoview-lib** and reach
+> the agent through the **browser tab**, i.e. via the **Pages** deploy, not this
+> worker. So a worker redeploy is needed ONLY for changes under
+> `packages/axoview-worker/src/**` or `wrangler.mcp.toml` (pairing, the WebSocket,
+> MCP methods, the Durable Object, `serverInfo`). Op-vocab lockstep stays on the
+> Pages side: `opSchemas.ts` ↔ `modelingSkill.ts` ↔ the eval suite.
+
+**Two Cloudflare projects, two integrations.** The Pages project is named **`axoview`**
+(root `wrangler.toml`, `pages_build_output_dir`) with a **Pages** git integration. The
+worker is **`axoview-mcp`** (`wrangler.mcp.toml`) with a **Workers Builds** integration.
+Both watch the same repo + branch and each deploys its own half on the same push,
+independently and in parallel — neither waits on the other. (The package's plain
+`deploy` script is a local-dev relic, not a production path.)
 
 **Manual deploy (fork / break-glass), independent of Pages, whenever:**
 
@@ -246,10 +253,10 @@ cd packages/axoview-worker && npx wrangler deploy --config wrangler.mcp.toml
 Then in the app's **✨ Connect your AI** panel, paste that Worker URL into the
 "Axoview MCP server" field. (CORS is already handled for the cross-origin call.)
 
-- **Two CI secrets** (repo → Settings → Secrets → Actions): `CLOUDFLARE_API_TOKEN`
-  (a token with **Workers Scripts:Edit** scope) and `CLOUDFLARE_ACCOUNT_ID`. Absent,
-  the deploy job fails with a clear message and nothing ships. These are the *only*
-  new secrets — pairing itself needs none.
+- **Verify what's live** any time: `initialize` against the endpoint returns
+  `serverInfo.version` — it should match the deployed commit's short SHA. A mismatch
+  means the worker is stale (redeploy). Send `User-Agent: Mozilla/5.0` — Cloudflare's
+  WAF 403s non-browser agents.
 - **Pairing needs no secrets.** v1 uses an ephemeral, high-entropy code (no accounts,
   no credential custody). OAuth v2 (ADR 0046 §3) is deferred.
 - **Rate limiting.** A per-session cap runs in the DO. For IP-level DoS on

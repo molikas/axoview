@@ -5,9 +5,9 @@ import { authMiddleware } from './auth';
 import { registerAgentRoutes } from './agent/routes';
 
 // Remote-MCP contract version — the COMPILE-TIME FALLBACK for `serverInfo.version`.
-// In production CI injects the real, moving value at deploy time via
-// `wrangler deploy --var AGENT_SERVER_VERSION:<pkg>+<git-sha>` (see routes.ts +
-// .github/workflows/deploy-mcp.yml), so a live `initialize` proves which worker
+// In production the Cloudflare Workers Builds deploy command injects the real,
+// moving value via `wrangler deploy --var AGENT_SERVER_VERSION:<pkg>+<git-sha>`
+// (see routes.ts + deployment.md §C7), so a live `initialize` proves which worker
 // bundle is serving. This constant is only what a local `wrangler dev` (no --var)
 // reports. Mirrors the modeling-skill version in axoview-lib (ADR 0045 §Consequences).
 const AGENT_SERVER_VERSION = '1.0.0-track-a';
