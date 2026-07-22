@@ -63,13 +63,22 @@ export class AgentSessionDO {
   private pending = new Map<string, Pending>();
   private reqSeq = 0;
   private callTimes: number[] = [];
+  private initError: string | null = null;
 
   constructor(state: AgentSessionState, _env?: unknown) {
     this.state = state;
-    // Using `.sql` is the runtime proof the DO is SQLite-backed (trap 1).
-    this.exec(
-      'CREATE TABLE IF NOT EXISTS session (k TEXT PRIMARY KEY, v TEXT NOT NULL)'
-    );
+    // Using `.sql` is the runtime proof the DO is SQLite-backed (trap 1). Guarded
+    // so a mis-provisioned (non-SQLite) DO surfaces a readable error instead of an
+    // unhandled constructor throw (which the runtime returns as an opaque 1042).
+    try {
+      this.exec(
+        'CREATE TABLE IF NOT EXISTS session (k TEXT PRIMARY KEY, v TEXT NOT NULL)'
+      );
+    } catch (e) {
+      this.initError = `DO storage init failed (is it SQLite-backed?): ${
+        (e as Error).message
+      }`;
+    }
   }
 
   // ---- SQLite helpers -----------------------------------------------------
@@ -110,11 +119,17 @@ export class AgentSessionDO {
   // ---- HTTP surface (called by the worker router via the DO stub) ---------
 
   async fetch(req: Request): Promise<Response> {
-    const path = new URL(req.url).pathname;
-    if (path.endsWith('/ws')) return this.handleWsUpgrade(req);
-    if (path.endsWith('/manifest')) return this.handleManifest();
-    if (path.endsWith('/call')) return this.handleCall(req);
-    return json({ error: 'not found' }, 404);
+    // Never let the DO throw unhandled — that returns an opaque edge error (1042).
+    if (this.initError) return json({ error: this.initError }, 500);
+    try {
+      const path = new URL(req.url).pathname;
+      if (path.endsWith('/ws')) return this.handleWsUpgrade(req);
+      if (path.endsWith('/manifest')) return this.handleManifest();
+      if (path.endsWith('/call')) return this.handleCall(req);
+      return json({ error: 'not found' }, 404);
+    } catch (e) {
+      return json({ error: `DO error: ${(e as Error).message}` }, 500);
+    }
   }
 
   private handleWsUpgrade(req: Request): Response {
