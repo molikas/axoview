@@ -199,6 +199,31 @@ export const AnnotationLayer = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, [shown, tool, actions]);
 
+  // Whole-screen annotation (2026-07-22): while a draw/eraser tool is armed the
+  // overlay lifts above the in-canvas docks (z-index below) so the entire canvas
+  // region — panels included — becomes the drawing surface and its chrome goes
+  // inert. The app TOP BAR is a separate bar ABOVE the canvas box, out of the
+  // overlay's reach, so we bridge the armed state to the app (same window-event
+  // channel as 'axoview-navigate-to-diagram') and it makes the toolbar inert.
+  // The pen + palette sit above the lifted overlay, so exiting annotation stays
+  // reachable at all times.
+  useEffect(() => {
+    const armed = capturing || eraserActive;
+    window.dispatchEvent(
+      new CustomEvent('axoview-annotation-capturing', {
+        detail: { capturing: armed }
+      })
+    );
+    return () => {
+      // Re-enable the toolbar if the overlay unmounts mid-draw (mode switch).
+      window.dispatchEvent(
+        new CustomEvent('axoview-annotation-capturing', {
+          detail: { capturing: false }
+        })
+      );
+    };
+  }, [capturing, eraserActive]);
+
   // While a draw/eraser tool is active, swallow LEFT-button mouse events AND all
   // touch events at the layer so they never reach the window-level interaction
   // manager (which would otherwise pan in preview's PAN mode, or select/drag a
@@ -406,7 +431,12 @@ export const AnnotationLayer = () => {
         // left-button draws), so canvas navigation stays available while drawing.
         pointerEvents: capturing || eraserActive ? 'auto' : 'none',
         cursor: layerCursor,
-        zIndex: 6,
+        // Below the docks (z-index 20) when idle/select so pass-through hover +
+        // panels work; ABOVE them while a draw tool is armed so the whole canvas
+        // region — panels included — is one drawing surface and its chrome is
+        // inert (whole-screen annotation, 2026-07-22). The pen + palette sit at a
+        // still-higher z-index so they stay operable. See ADR 0014.
+        zIndex: capturing || eraserActive ? 25 : 6,
         touchAction: 'none'
       }}
       onPointerDown={handlePointerDown}

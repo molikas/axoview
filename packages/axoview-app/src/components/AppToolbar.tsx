@@ -101,6 +101,20 @@ export function AppToolbar() {
   // View-only "hide all controls" — bridged to the lib (separate store) via a
   // window event the lib's UiOverlay listens for. Local state drives the button.
   const [hideControls, setHideControls] = useState(false);
+  // Whole-screen annotation (2026-07-22): the lib's AnnotationLayer covers the
+  // canvas region + its docks while a draw/eraser tool is armed, but the top bar
+  // lives ABOVE that region, out of the overlay's reach. It bridges the armed
+  // state here so the bar goes inert (and reads inert) while drawing — the pen +
+  // palette (in the lib overlay) stay operable, so annotation is always exitable.
+  const [annotationCapturing, setAnnotationCapturing] = useState(false);
+  useEffect(() => {
+    const onCapturing = (e: Event) => {
+      setAnnotationCapturing(!!(e as CustomEvent).detail?.capturing);
+    };
+    window.addEventListener('axoview-annotation-capturing', onCapturing);
+    return () =>
+      window.removeEventListener('axoview-annotation-capturing', onCapturing);
+  }, []);
   const [shareCopied, setShareCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [shareLoading, setShareLoading] = useState(false);
@@ -283,6 +297,15 @@ export function AppToolbar() {
   return (
     <Box
       className="toolbar"
+      // The toolbar sits ABOVE the canvas, so the annotation overlay can never
+      // cover it. Without this, a press-drag on the bar (e.g. someone drawing
+      // with the annotation pen who strays onto the top bar) starts a native
+      // HTML drag — the avatar <img> or a text selection — which paints a
+      // translucent ghost of the toolbar and reads as UI corruption. Suppress
+      // both: no text selection, and swallow any bubbled `dragstart` from a
+      // child (image / selection). Mirrors the renderer's onDragStart guard in
+      // useInteractionManager.
+      onDragStart={(e) => e.preventDefault()}
       sx={{
         bgcolor: 'background.paper',
         borderBottom: '1px solid',
@@ -291,7 +314,13 @@ export function AppToolbar() {
         py: 0.75,
         display: 'flex',
         alignItems: 'center',
-        gap: 0
+        gap: 0,
+        userSelect: 'none',
+        // Inert (and dimmed, so it READS inert — §2.5 spirit) while an annotation
+        // draw tool is armed; the lib overlay owns the rest of the screen.
+        pointerEvents: annotationCapturing ? 'none' : undefined,
+        opacity: annotationCapturing ? 0.5 : 1,
+        transition: 'opacity 120ms ease'
       }}
     >
       {/* LEFT: subtle brand mark (ADR 0005 amendment 2026-05-19 — logo + muted
