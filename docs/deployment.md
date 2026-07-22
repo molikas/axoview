@@ -1,6 +1,6 @@
 # Axoview — Deployment Guide
 
-**Last updated:** 2026-07-15 (docs housekeeping — repaired 4 code links that were missing their `../` prefix. Content last changed 2026-07-14: §C3 rewritten for the Drive **server read-proxy** + `GOOGLE_API_KEY` as a Cloudflare secret — [ADR 0042](adr/0042-drive-native-sharing-and-readonly-preview.md) §8 / [0043](adr/0043-deferred-backend-for-google-api-hardening.md) #3. Prior: 2026-07-07 Google Drive storage shipped.)
+**Last updated:** 2026-07-22 (added the **Configuration inventory** source-of-truth section below; reconciled §C7 to Cloudflare **Workers Builds** for the `axoview-mcp` deploy; corrected the intro table — the `AGENT_SESSION` Durable Object lives in the standalone worker, not Pages. Prior: 2026-07-15 docs housekeeping; 2026-07-14 §C3 Drive **server read-proxy** + `GOOGLE_API_KEY` as a Cloudflare secret — [ADR 0042](adr/0042-drive-native-sharing-and-readonly-preview.md) §8 / [0043](adr/0043-deferred-backend-for-google-api-hardening.md) #3.)
 
 Axoview runs on three targets from a single codebase:
 
@@ -8,7 +8,7 @@ Axoview runs on three targets from a single codebase:
 |---|---|---|---|
 | **Local dev** | `npm run dev` (rsbuild on :3000 + Express on :3001) | Filesystem if `ENABLE_SERVER_STORAGE=true`, else session (+ Google Drive when configured) | `none`, `shared-token` |
 | **Docker** | nginx + Express on Node | Filesystem volume | `none`, `shared-token` |
-| **Cloudflare Pages** | Advanced-mode `_worker.js` (Hono) + `AGENT_SESSION` Durable Object | **Session/localStorage + Google Drive** (per-user, client-side) | `none`, `shared-token`, `cf-access` |
+| **Cloudflare Pages** | Advanced-mode `_worker.js` (Hono); MCP bridge + `AGENT_SESSION` Durable Object run in the standalone **`axoview-mcp`** Worker | **Session/localStorage + Google Drive** (per-user, client-side) | `none`, `shared-token`, `cf-access` |
 
 The frontend bundle is identical across all three. The Cloudflare deployment has no server-side storage — `/api/config` returns `serverStorage: false` — but ships the **Google Drive place** ([ADR 0036](adr/0036-google-drive-storage-provider.md), [ADR 0037](adr/0037-storage-places-model.md)): a signed-in user's diagrams persist in their own Drive, entirely client-side.
 
@@ -20,6 +20,73 @@ Both backends share a single `/api/*` HTTP contract. Two routes are public on ev
 - `GET /api/public/diagrams/:uuid`
 
 Everything else is gated by `AUTH_MODE`.
+
+---
+
+## Configuration inventory (source of truth)
+
+Config lives in **two worlds**: **📄 code** (git-tracked — the real source of truth)
+and **🖥 dashboard/external** (click-ops — Cloudflare, Google, GitHub). This table is
+the reconciliation, so "what the repo implies" vs "what the live instance is set to"
+is never guesswork. **Principle:** anything that *can* be code lives in the repo; the
+dashboard holds only the irreducible — **secrets, the git-integration connections,
+and DNS**. When you change a 🖥 row, update this table in the same PR.
+
+> The 🖥 columns are a **snapshot last verified 2026-07-22**. Rows marked **confirm**
+> are what the code *requires*; verify the live value in the named dashboard.
+
+### Runtime env vars (Cloudflare `c.env`)
+
+| Key | Lives in | Target | Scope | Secret | Notes |
+|---|---|---|---|---|---|
+| `AUTH_MODE` | 📄 `wrangler.toml [vars]` (root + worker) | Pages + worker | both | no | `none` \| `shared-token` \| `cf-access`; default `none` |
+| `GOOGLE_CLIENT_ID` | 📄 `wrangler.toml [vars]` | Pages + worker | both | no | **Public** OAuth ID — safe to commit |
+| `GOOGLE_API_KEY` | 🖥 Pages → Settings → Vars & Secrets | Pages | Preview ✅ · **Prod: confirm** | 🔒 | Drive read-proxy key; presence flips `drivePublicPreview` ([ADR 0043](adr/0043-deferred-backend-for-google-api-hardening.md) #3) |
+| `MCP_PUBLIC_URL` | 🖥 Pages → Vars & Secrets (set as a Secret) | Pages | Preview ✅ · **Prod: confirm** | 🔒* | `https://axoview-mcp.molikas.workers.dev`; prefills the Connect panel. *Not truly sensitive — set via the Secret path only because the dashboard blocks plaintext vars managed by `wrangler.toml` |
+| `GOOGLE_PROJECT_NUMBER` | 🖥 Pages (optional) | Pages | — · **confirm** | no | Drive **Picker** only (deferred); may be unset |
+| `AUTH_SHARED_SECRET` | 🖥 `wrangler secret put` | Pages + worker | — · **confirm** | 🔒 | Required **only** when `AUTH_MODE=shared-token` |
+| `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD` | 🖥 `wrangler secret put` | Pages | — · **confirm** | 🔒 | Required **only** when `AUTH_MODE=cf-access` |
+| `AGENT_SERVER_VERSION` | 📄 injected by the Workers Builds deploy cmd (`--var`) | worker | prod=`deploy` · preview=`upload` | no | `1.0.0-track-a+<sha>` / `preview+<sha>`; fallback constant in `app.ts` |
+| `AGENT_SESSION` (DO binding) | 📄 `wrangler.mcp.toml` | worker | — | no | `AgentSessionDO`, SQLite (`new_sqlite_classes`) |
+
+### Deploy & integration (the click-ops surface)
+
+| What | Lives in | Notes |
+|---|---|---|
+| Pages git integration — project **`axoview`** | 🖥 Pages → the project → Builds & deployments | Connected to `molikas/axoview`; deploys the **app** on push. No repo token. |
+| Workers Builds — worker **`axoview-mcp`** | 🖥 Workers & Pages → axoview-mcp → Settings → Builds | Prod `master` → `npm run -w axoview-worker deploy:mcp -- --var …`; non-prod → `npx wrangler versions upload … --var …`; root `/`. **Logic lives in 📄 `package.json` + `wrangler.mcp.toml`** — the dashboard only names the script. |
+| Preview URLs | 📄 `wrangler.mcp.toml` (`preview_urls = true`) + 🖥 axoview-mcp → Domains → Worker URL | Toggle ON; applied by a full `wrangler deploy` (not by `versions upload`). |
+| Custom domain **`axoview.app`** | 🖥 Cloudflare DNS + Pages custom domain | Apex `CNAME`→`pages.dev` (proxied); `www`→apex 301; `axoview.pages.dev` kept as fallback. |
+| `workers.dev` subdomain | 🖥 account-level (`molikas`) | Yields `axoview-mcp.molikas.workers.dev`. |
+
+### External + CI
+
+| What | Lives in | Notes |
+|---|---|---|
+| Google OAuth (client, JS origins, consent, authorized domains) | 🖥 Google Cloud console | Origins + consent home/privacy/terms + authorized-domain on `axoview.app` (and `pages.dev` fallback). App uses runtime `origin` — **no domain hardcoded in src**. |
+| GitHub Actions `GITHUB_TOKEN` | 🖥 auto-provided by GitHub | Used by `release.yml` (semantic-release). **No `CLOUDFLARE_*` secret needed** — deploys are Cloudflare-native. |
+
+### Docker / self-host (separate world — build-time, not CF runtime)
+
+`PUBLIC_GOOGLE_CLIENT_ID`, `PUBLIC_GOOGLE_API_KEY`, `PUBLIC_GOOGLE_PROJECT_NUMBER` are
+injected at **build** time (not via `/api/config`); plus container env `AUTH_MODE`,
+`AUTH_SHARED_SECRET`, `STORAGE_PATH`, `ENABLE_SERVER_STORAGE`. See §B.
+
+### Known tracked-but-redundant
+
+Two near-identical **Pages** configs — root `wrangler.toml` and
+`packages/axoview-worker/wrangler.toml` — are kept in lockstep **by hand** ([ADR 0009](adr/0009-deployment-topology.md)
+§5 flags the drift risk). Both are git-tracked, but the duplication is a consolidation
+candidate (deferred — see the "Map + consolidate" option).
+
+### One-glance rules
+
+- **To ship a code/config change:** edit the 📄 file → push → Pages **and** Workers
+  Builds auto-deploy their halves. Hands-off.
+- **To change a secret or a 🖥 setting:** do it in the named dashboard **and** update
+  the row above in the same PR. That is the only manual surface.
+- **To verify what's live:** `GET /api/config` (Pages vars) and `initialize` →
+  `serverInfo.version` (worker bundle).
 
 ---
 
