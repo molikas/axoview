@@ -51,9 +51,17 @@ module.exports = function resolveVersion(fallback) {
 
   let version = describeVersion();
   if (!version && (process.env.CF_PAGES || process.env.CI)) {
-    // Cloudflare / CI checkout without tags — fetch once, best-effort, retry.
+    // Cloudflare / CI often does a single-commit (shallow, tag-less) checkout.
+    // Fetch tags first — enough for an exact tag on HEAD (the post-release
+    // rebuild case). If still unresolved, deepen so `--abbrev=0` can reach the
+    // nearest tag (a pre-release commit whose tag doesn't exist yet). Both are
+    // best-effort; a failure just falls through to the package.json fallback.
     git('fetch --tags --force');
     version = describeVersion();
+    if (!version) {
+      git('fetch --unshallow --tags --force');
+      version = describeVersion();
+    }
   }
   return version || clean(fallback);
 };

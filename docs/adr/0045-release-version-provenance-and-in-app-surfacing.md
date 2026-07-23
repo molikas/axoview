@@ -55,7 +55,7 @@ The in-repo [CHANGELOG.md](../../CHANGELOG.md) stops at `3.7.0` because it is re
 
 **Negative / risks:**
 - **Version exactness depends on a post-release rebuild.** Cloudflare builds a commit *before* its release tag exists, so between the merge and the release it shows the **clean previous tag** (e.g. `3.8.3`). To show the exact just-cut version, semantic-release's `successCmd` POSTs to a **Cloudflare deploy hook** after publishing, triggering a rebuild of the now-tagged commit → `git describe --exact-match` → the exact version (e.g. `3.8.4`). Gated on the `CF_PAGES_DEPLOY_HOOK` secret; **without it, the app shows the last released tag** (still a large improvement over the multi-release freeze).
-- **Tag-less clones self-heal.** [resolve-version.js](../../scripts/resolve-version.js) does a best-effort `git fetch --tags` in CI/Cloudflare, so a shallow/tag-less checkout fetches tags rather than falling back to the frozen `package.json`.
+- **Shallow / tag-less clones self-heal.** Cloudflare's Pages build was confirmed (2026-07-23) to do a **single-commit checkout** (no tags, no history). [resolve-version.js](../../scripts/resolve-version.js) handles this best-effort: `git fetch --tags` (enough for `--exact-match` on the post-release rebuild), then `git fetch --unshallow` if still unresolved (so `--abbrev=0` reaches the nearest tag on a pre-release commit) — falling back to `package.json` only if git is entirely unavailable.
 - The committed `package.json` / `CHANGELOG.md` stay frozen (accepted per #77). Nothing reads `package.json` at runtime; the build now reads the tag.
 
 ## Implementation notes (non-binding)
