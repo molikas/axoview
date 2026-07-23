@@ -26,6 +26,7 @@ import { createSpriteBatch, SpriteBatch } from 'src/webgl/glSpriteBatch';
 import { attachContextLossRecovery } from 'src/webgl/contextLoss';
 import { rasterizeNodeChip, CHIP_SUPERSAMPLE } from 'src/webgl/itemRaster';
 import { computeBackingStore } from 'src/utils/renderTarget';
+import { getRenderedTilePosition } from 'src/utils/renderedGeometry';
 
 // ---------------------------------------------------------------------------
 // NodesCanvas — WebGL2 INSTANCED bulk draw of the node layer (icon sprite +
@@ -458,10 +459,7 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
         if (!modelItem) continue;
         drawn += 1;
 
-        const base = f.getTilePos({ tile: node.tile, origin: 'CENTER' });
-        const pos = node.offset
-          ? { x: base.x + node.offset.x, y: base.y + node.offset.y }
-          : base;
+        const pos = getRenderedTilePosition(node, f.getTilePos, 'CENTER');
 
         const name = decodeHtmlEntities(modelItem.label ?? modelItem.name);
         const hasLabel =

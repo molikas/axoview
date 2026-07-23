@@ -88,7 +88,7 @@ Make "forgot the offset" (a) structurally hard to write, (b) impossible to ship 
 - [x] Full unit + e2e suites green before moving on. — unit 150/150; e2e subset covering every refactored path (snap-grid, canvas-node-render, label-drag, label-entity, contextmenu-scope, canvas-selection-polish) 18/18. Full e2e sweep deferred to the end-of-work run.
 
 ### C. Source-scan contract test (locks B in place)
-- [ ] `utils/__tests__/renderedGeometry.contract.test.ts` per decision 2, with a "Why this exists" header telling the seven-bug story in two sentences. Adding a new hand-rolled composition anywhere in `src` fails CI with a message pointing at `renderedGeometry.ts`.
+- [x] `utils/__tests__/renderedGeometry.contract.test.ts` per decision 2, with a "Why this exists" header telling the seven-bug story in two sentences. Adding a new hand-rolled composition anywhere in `src` fails CI with a message pointing at `renderedGeometry.ts`. — three patterns (nullish-coalesced read, `+ x.offset.x`, `${…offset.x}px` translate), allowlist = `utils/renderedGeometry.ts` only, `__tests__` dirs skipped. Each pattern is itself pinned by a positive/negative sample so a rotted regex can't pass silently. Verified red against a deliberate plant in `HoverOutline.tsx`, then removed.
 
 ### D. Invariant test family (the test that would have caught all seven)
 - [ ] `utils/__tests__/renderedGeometry.invariant.test.tsx` — parametrized: **element kind × offset corpus × canvas mode** (decisions 3–4). Per case assert, within ±0.5 px:
@@ -144,3 +144,4 @@ Make "forgot the offset" (a) structurally hard to write, (b) impossible to ship 
 - 2026-07-23 · **A** — temp `[hover-hit]` log + temp imports stripped from `Cursor.ts`/`Renderer.tsx`; `HoverHitDebug` re-homed to `components/DebugUtils/` behind `enableDebugTools`. Unit suite green (150/150). · `refactor(off-grid): retire the temp hover-hit diagnostics` · `478a4124`
 
 - 2026-07-23 · **B** — `utils/renderedGeometry.ts` created (coordinate-space header + pure composition/footprint helpers); all 14 hand-rolled composition sites refactored onto it, incl. the WebGL rect vertex math extracted out of `RectanglesCanvas`; "unprojected px" retired everywhere it described `offset`; ADR 0023 dated addendum written. Unit 150/150, e2e subset 18/18, knip + tsc clean. · `refactor(off-grid): one rendered-geometry source of truth` (this commit)
+- 2026-07-23 · **C** — `renderedGeometry.contract.test.ts` landed and verified red-on-plant. The scan immediately caught a 15th composition site B's `offset?.x ?? 0` inventory had missed (`NodesCanvas.tsx:462`, the WebGL node bulk); refactored onto `getRenderedTilePosition` in this commit. Unit 151/151. · `test(off-grid): fail CI on hand-rolled offset composition` (this commit)
