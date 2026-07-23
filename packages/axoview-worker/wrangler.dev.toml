@@ -1,0 +1,25 @@
+# Standalone Worker config for LOCAL MCP testing only (ADR 0046).
+#
+# The production deploy is Cloudflare Pages (see wrangler.toml / repo-root
+# wrangler.toml), where app.ts is compiled to a Pages Function. For local
+# end-to-end testing of the remote-MCP bridge we run the SAME Hono app + Durable
+# Object as a standalone Worker via:
+#
+#     npx wrangler dev --config packages/axoview-worker/wrangler.dev.toml
+#
+# It serves /pair/* and /mcp/* on http://localhost:8787 with a real SQLite-backed,
+# hibernatable Durable Object (Miniflare emulates both locally). Point the app tab
+# and the MCP Inspector at :8787.
+
+name = "axoview-mcp-dev"
+main = "src/mcpWorker.ts"
+compatibility_date = "2025-01-01"
+
+[[durable_objects.bindings]]
+name = "AGENT_SESSION"
+class_name = "AgentSessionDO"
+
+# Free-tier requirement (ADR 0046 §2): SQLite-backed, NOT new_classes.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["AgentSessionDO"]

@@ -15,6 +15,9 @@ pages_build_output_dir = "../axoview-app/build"
 [vars]
 AUTH_MODE = "shared-token"
 
+# MCP_PUBLIC_URL is set per environment in the Pages dashboard, not here (ADR 0046).
+# Kept in lockstep with the repo-root wrangler.toml.
+
 # GOOGLE_CLIENT_ID is a PUBLIC OAuth identifier, NOT a secret — safe to commit.
 # Serves /api/config under local `wrangler pages dev`. Kept in lockstep with the
 # repo-root wrangler.toml per ADR 0009 Decision 5 (drift between the two files is
@@ -23,3 +26,8 @@ GOOGLE_CLIENT_ID = "485371025824-2ullp84i3nda2dgceirg9q87fvm36kl8.apps.googleuse
 
 # Real secrets — configure via `wrangler secret put`, never commit:
 #   AUTH_SHARED_SECRET, CF_ACCESS_TEAM_DOMAIN, CF_ACCESS_AUD
+
+# --- Remote-MCP session bridge (ADR 0046) ---
+# NOT on Pages — the bridge + AgentSessionDO run as the standalone "axoview-mcp"
+# Worker (wrangler.mcp.toml). This Pages config carries no DO binding. Kept in
+# lockstep with the repo-root wrangler.toml per ADR 0009 §5.

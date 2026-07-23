@@ -81,6 +81,10 @@ jobs:
         run: |
           test -f packages/axoview-app/build/_routes.json || (echo "::error::_routes.json missing from build output" && exit 1)
           test -f packages/axoview-app/build/_headers || (echo "::error::_headers missing from build output" && exit 1)
+          # Advanced-mode Pages worker (ADR 0046 §2 / D1): the build's postbuild step
+          # bundles the Hono app + AGENT_SESSION Durable Object into _worker.js. Its
+          # absence means the Drive proxy AND the MCP bridge won't deploy.
+          test -f packages/axoview-app/build/_worker.js || (echo "::error::_worker.js missing from build output (postbuild build-worker.mjs failed)" && exit 1)
 
       # Strict type-check (lib + app tsc --noEmit via workspace lint scripts).
       # Added 2026-07-05: both the v1.1 perf-fixture drift and the app's four
@@ -97,10 +101,13 @@ jobs:
       - name: Knip — dead-code report
         run: npx knip --reporter compact
 
-      - name: Build Worker bundle and check size (ADR 0009 D8)
+      - name: Check Worker bundle size (ADR 0009 D8)
+        # Advanced-mode Pages worker (D1 resolution 2026-07-21): the app build's
+        # postbuild already produced build/_worker.js (Hono app + MCP + AGENT_SESSION
+        # DO). Measure it directly — file-based `wrangler pages functions build` is
+        # retired because it strips the DO class (DOs need advanced mode).
         run: |
-          npx wrangler pages functions build --outdir .worker-build
-          SIZE=$(du -sb .worker-build | cut -f1)
+          SIZE=$(du -sb packages/axoview-app/build/_worker.js | cut -f1)
           LIMIT=1048576
           echo "Worker bundle size: ${SIZE} bytes (limit ${LIMIT} bytes / 1 MB uncompressed)"
           if [ "$SIZE" -gt "$LIMIT" ]; then

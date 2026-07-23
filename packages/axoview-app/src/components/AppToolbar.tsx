@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -26,9 +26,16 @@ import {
   ArrowBack as ArrowBackIcon,
   ArrowDropDown as ArrowDropDownIcon,
   LinkOutlined as LinkIcon,
+  AutoAwesomeOutlined as AgentIcon,
   VisibilityOutlined as ShowControlsIcon,
   VisibilityOffOutlined as HideControlsIcon
 } from '@mui/icons-material';
+// Lazy-loaded so the MCP connect panel isn't in the initial toolbar bundle.
+const McpConnectPanel = lazy(() =>
+  import('./AgentPanel/McpConnectPanel').then((m) => ({
+    default: m.McpConnectPanel
+  }))
+);
 import { useAppStorage } from '../providers/AppStorageContext';
 import { useDiagramLifecycle } from '../providers/DiagramLifecycleProvider';
 import { StatusCluster } from './StatusCluster';
@@ -248,6 +255,8 @@ export function AppToolbar() {
   // v3 permissions UI). Re-read the ACL summary when it closes so the popover's
   // "Anyone with the link" / "Restricted" indicator stays truthful.
   const [showManageDialog, setShowManageDialog] = useState(false);
+  // MCP connect panel (ADR 0046 §1). Opens on demand.
+  const [showAgentPanel, setShowAgentPanel] = useState(false);
   const handleManageAccessClick = () => {
     if (!currentDiagramId) return;
     setShowManageDialog(true);
@@ -490,6 +499,16 @@ export function AppToolbar() {
                 snapshot-link contract (ADR 0010) and stay render-disabled (not
                 hidden) without server storage so the affordance still signals
                 the feature exists. */}
+            <Tooltip title={t('toolbar.agent', 'Connect your AI')} placement="bottom">
+              <IconButton
+                size="small"
+                onClick={() => setShowAgentPanel(true)}
+                data-axoview-id="toolbar-agent"
+                sx={{ borderRadius: 1, color: 'inherit' }}
+              >
+                <AgentIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
             <ExportPopover />
             {driveActive ? (
               // Drive place: a split Share button — primary opens the Manage-access
@@ -709,6 +728,16 @@ export function AppToolbar() {
           onClose={() => setShowManageDialog(false)}
           onAccessChanged={refreshAccessSummary}
         />
+      )}
+
+      {/* MCP connect panel (ADR 0046 §1). Mounted once opened. */}
+      {showAgentPanel && (
+        <Suspense fallback={null}>
+          <McpConnectPanel
+            open={showAgentPanel}
+            onClose={() => setShowAgentPanel(false)}
+          />
+        </Suspense>
       )}
     </Box>
   );

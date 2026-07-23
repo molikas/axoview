@@ -29,6 +29,7 @@
     "prestart": "node scripts/generateMaterialIconPack.js",
     "start": "rsbuild dev",
     "build": "rsbuild build",
+    "postbuild": "node scripts/build-worker.mjs",
     "preview": "rsbuild preview",
     "preview:r1": "node scripts/preview-r1.mjs",
     "og:image": "node scripts/generate-og-image.mjs",
@@ -56,6 +57,7 @@
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
     "@types/jest": "^29.5.14",
+    "esbuild": "^0.28.1",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "ts-jest": "^29.4.9"

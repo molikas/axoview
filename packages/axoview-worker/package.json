@@ -8,6 +8,8 @@
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler pages dev ../axoview-app/build --compatibility-date=2025-01-01",
+    "dev:mcp": "wrangler dev --config wrangler.dev.toml",
+    "deploy:mcp": "wrangler deploy --config wrangler.mcp.toml",
     "test": "npx --no-install jest"
   },
   "dependencies": {

@@ -2,6 +2,15 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { secureHeaders } from 'hono/secure-headers';
 import { authMiddleware } from './auth';
+import { registerAgentRoutes } from './agent/routes';
+
+// Remote-MCP contract version — the COMPILE-TIME FALLBACK for `serverInfo.version`.
+// In production the Cloudflare Workers Builds deploy command injects the real,
+// moving value via `wrangler deploy --var AGENT_SERVER_VERSION:<pkg>+<git-sha>`
+// (see routes.ts + deployment.md §C7), so a live `initialize` proves which worker
+// bundle is serving. This constant is only what a local `wrangler dev` (no --var)
+// reports. Mirrors the modeling-skill version in axoview-lib (ADR 0045 §Consequences).
+const AGENT_SERVER_VERSION = '1.0.0-track-a';
 
 interface Env {
   AUTH_MODE?: 'none' | 'shared-token' | 'cf-access';
@@ -11,11 +20,23 @@ interface Env {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_API_KEY?: string;
   GOOGLE_PROJECT_NUMBER?: string;
+  // Per-session Durable Object namespace for the MCP session bridge (ADR 0046 §2).
+  // SQLite-backed + hibernatable — see the wrangler migration (new_sqlite_classes).
+  AGENT_SESSION?: DurableObjectNamespace;
+  // Public URL of the standalone axoview-mcp Worker (the MCP bridge lives there,
+  // NOT on Pages). Surfaced via /api/config so the "Connect your AI" panel prefills
+  // its endpoint field. Set once as a Pages var; empty = user pastes it manually.
+  MCP_PUBLIC_URL?: string;
 }
 
 type AppEnv = { Bindings: Env };
 
 const app = new Hono<AppEnv>();
+
+// Remote-MCP + pairing routes (ADR 0046 §1). Registered FIRST so they sit outside
+// the /api/* auth middleware + storage-disabled catch-all below — MCP auth is the
+// pairing code, not AUTH_MODE.
+registerAgentRoutes(app, AGENT_SERVER_VERSION);
 
 // DP4 (v1.1 CF hardening): single console.error on uncaught 500 with
 // method + path + error name. Stack stays internal (ADR 0011 spirit:
@@ -49,7 +70,10 @@ app.get('/api/config', (c) =>
       googleProjectNumber: c.env.GOOGLE_PROJECT_NUMBER || null,
       driveScopes: ['https://www.googleapis.com/auth/drive.file'],
       authMode: c.env.AUTH_MODE || 'none',
-      serverStorage: false
+      serverStorage: false,
+      // Standalone MCP bridge Worker URL (ADR 0046) — lets the app prefill the
+      // "Connect your AI" endpoint. null when unset (self-host / not configured).
+      mcpBaseUrl: c.env.MCP_PUBLIC_URL || null
     },
     200
   )
@@ -141,3 +165,9 @@ app.all('/api/*', (c) =>
 );
 
 export default app;
+
+// NOTE: the AgentSessionDO class is intentionally NOT exported here. This module
+// is bundled into the Pages advanced-mode _worker.js, and Pages binds AGENT_SESSION
+// to the DO defined in the STANDALONE axoview-mcp Worker via `script_name` — a
+// Pages _worker.js must not ALSO define that class. The standalone Worker's entry
+// (src/mcpWorker.ts) is what exports the DO. (ADR 0046 §2, 2026-07-22 Pages fix.)

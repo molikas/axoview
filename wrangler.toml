@@ -15,6 +15,12 @@ pages_build_output_dir = "packages/axoview-app/build"
 [vars]
 AUTH_MODE = "shared-token"
 
+# NOTE: MCP_PUBLIC_URL (the axoview-mcp Worker URL that prefills the "Connect your
+# AI" panel, ADR 0046) is deliberately NOT set here — it is configured per
+# environment in the Pages dashboard (Settings → Variables and Secrets), so
+# Production and Preview can differ and a committed empty value can't clobber them.
+# If unset, users paste the URL into the panel manually.
+
 # GOOGLE_CLIENT_ID is a PUBLIC OAuth identifier, NOT a secret. It is sent from the
 # browser to Google on every sign-in and is guarded by the Authorized JavaScript
 # origins allowlist (Google Cloud console), not by secrecy — so it is safe to
@@ -28,3 +34,12 @@ GOOGLE_CLIENT_ID = "485371025824-2ullp84i3nda2dgceirg9q87fvm36kl8.apps.googleuse
 #   AUTH_SHARED_SECRET     (when AUTH_MODE=shared-token)
 #   CF_ACCESS_TEAM_DOMAIN  (when AUTH_MODE=cf-access; e.g. "myteam")
 #   CF_ACCESS_AUD          (when AUTH_MODE=cf-access; the application AUD tag)
+
+# --- Remote-MCP session bridge (ADR 0046) ---
+# The MCP bridge + its Durable Object do NOT run on Pages: Cloudflare Pages cannot
+# host a Durable Object (it rejects [[migrations]] and DO definitions), so the whole
+# bridge — /mcp, /pair, and the AgentSessionDO — is a SEPARATE standalone Worker,
+# "axoview-mcp" (packages/axoview-worker/wrangler.mcp.toml). Deploy it with
+# `wrangler deploy --config wrangler.mcp.toml`; the in-app "Connect your AI" panel
+# points at that Worker's URL. Pages here serves only the app + the Drive proxy, so
+# it carries no DO binding. (ADR 0046 §1 — Cloudflare-only, separate-Worker carve-out.)

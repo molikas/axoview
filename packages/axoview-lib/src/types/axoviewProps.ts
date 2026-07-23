@@ -692,6 +692,21 @@ export interface AxoviewProps {
   onFileExplorerToggle?: () => void;
   /** When true, the LeftDock's Elements/Layers icons are disabled (e.g. no diagram is loaded yet). */
   disableLeftDockWorkingTabs?: boolean;
+  /**
+   * Diagram-library callbacks for the pluggable AI agent (ADR 0046 Feature A.4).
+   * The verb layer is canvas-only; the host app (which owns storage — session /
+   * Google Drive) injects these so the agent can list / open / create / save
+   * stored diagrams. Omitted callbacks make the corresponding agent verb report
+   * "not available".
+   */
+  agentNavigation?: {
+    loadDiagram?: (id: string) => void | Promise<void>;
+    listDiagrams?: () =>
+      | Array<{ id: string; name: string }>
+      | Promise<Array<{ id: string; name: string }>>;
+    createDiagram?: (name?: string) => void | Promise<void>;
+    saveDiagram?: () => void | Promise<void>;
+  };
 }
 
 export interface LoadOptions {

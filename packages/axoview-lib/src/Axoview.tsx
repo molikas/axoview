@@ -10,7 +10,7 @@ import { Box } from '@mui/material';
 import { shallow } from 'zustand/shallow';
 import { theme } from 'src/styles/theme';
 import { AxoviewProps, AxoviewRef } from 'src/types';
-import { setWindowCursor, modelFromModelStore } from 'src/utils';
+import { setWindowCursor, modelFromModelStore, generateId } from 'src/utils';
 import {
   useModelStore,
   ModelProvider,
@@ -30,6 +30,9 @@ import { INITIAL_DATA } from 'src/config';
 import { savePersistedSettings } from 'src/config/persistedSettings';
 import { useInitialDataManager } from 'src/hooks/useInitialDataManager';
 import { useView } from 'src/hooks/useView';
+import { useSceneActions } from 'src/hooks/useSceneActions';
+import { createAgentSurface } from 'src/agent';
+import type { SceneBridge } from 'src/agent';
 import { useDirtyTracker } from 'src/hooks/useDirtyTracker';
 import { ClipboardProvider } from 'src/clipboard/ClipboardContext';
 import { LayerContextProvider } from 'src/hooks/useLayerContext';
@@ -74,6 +77,7 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
       onModelUpdated,
       enableDebugTools = false,
       exposeStoreBridge = false,
+      agentNavigation,
       editorMode = 'EDITABLE',
       renderer,
       iconPackManager,
@@ -133,6 +137,73 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
     // Stable (useCallback over stable store actions), so the bridge effect's
     // [enableDebugTools] dep list still captures the current ref.
     const { changeView } = useView();
+
+    // -- Curated agent surface (ADR 0045 §1). SEPARATE from the raw-store debug
+    // bridge below (which stays as-is): this is the typed, transaction-correct
+    // action façade the MCP bridge (ADR 0046 §1) and the BYOK loop (§7) both
+    // drive. Published at window.__axoview__.agent. --
+    const sceneActions = useSceneActions();
+    // useSceneActions returns fresh callbacks whenever currentViewId changes; a
+    // ref keeps the (otherwise stable) bridge pointed at the latest ones so an
+    // agent call after a view switch still hits the live actions.
+    const sceneActionsRef = useRef(sceneActions);
+    sceneActionsRef.current = sceneActions;
+    // Host-provided diagram-library callbacks (Feature A.4). Kept in a ref so the
+    // agent surface stays stable even if the app passes a fresh object each render.
+    const agentNavRef = useRef(agentNavigation);
+    agentNavRef.current = agentNavigation;
+    const agentBridge = useMemo<SceneBridge>(
+      () => ({
+        transaction: (ops) => sceneActionsRef.current.transaction(ops),
+        createModelItem: (m) => sceneActionsRef.current.createModelItem(m),
+        updateModelItem: (id, u) =>
+          sceneActionsRef.current.updateModelItem(id, u),
+        createViewItem: (v) => sceneActionsRef.current.createViewItem(v),
+        updateViewItem: (id, u) =>
+          sceneActionsRef.current.updateViewItem(id, u),
+        deleteViewItem: (id) => sceneActionsRef.current.deleteViewItem(id),
+        createConnector: (c) => sceneActionsRef.current.createConnector(c),
+        deleteConnector: (id) => sceneActionsRef.current.deleteConnector(id),
+        createRectangle: (r) => sceneActionsRef.current.createRectangle(r),
+        createTextBox: (tb) => sceneActionsRef.current.createTextBox(tb),
+        createLabel: (l) => sceneActionsRef.current.createLabel(l),
+        getModel: () => modelFromModelStore(modelStore.getState()),
+        getCurrentViewId: () => uiStore.getState().view,
+        generateId
+      }),
+      [modelStore, uiStore]
+    );
+    const agentSurface = useMemo(
+      () =>
+        createAgentSurface(agentBridge, {
+          switchView: (id) => sceneActionsRef.current.switchView(id),
+          // Diagram-library verbs (Feature A.4) — delegate to the host's callbacks
+          // via the ref. Throw when a callback is absent so the surface reports an
+          // explicit "not available" (its try/catch turns the throw into an error).
+          loadDiagram: (id) => {
+            const fn = agentNavRef.current?.loadDiagram;
+            if (!fn) throw new Error('open_diagram is not wired by the host app.');
+            return fn(id);
+          },
+          listDiagrams: () => {
+            const fn = agentNavRef.current?.listDiagrams;
+            if (!fn) throw new Error('list_diagrams is not wired by the host app.');
+            return fn();
+          },
+          createDiagram: (name) => {
+            const fn = agentNavRef.current?.createDiagram;
+            if (!fn) throw new Error('create_diagram is not wired by the host app.');
+            return fn(name);
+          },
+          saveDiagram: () => {
+            const fn = agentNavRef.current?.saveDiagram;
+            if (!fn) throw new Error('save_diagram is not wired by the host app.');
+            return fn();
+          }
+        }),
+      [agentBridge]
+    );
+
     useEffect(() => {
       const shouldExpose =
         enableDebugTools ||
@@ -190,6 +261,27 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
       // Store instances are stable (created once in Provider via useRef)
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [enableDebugTools, exposeStoreBridge]);
+
+    // Attach the curated agent surface AFTER the debug-bridge effect above, so it
+    // rides on the same window.__axoview__ namespace without being clobbered. The
+    // debug bridge owns the object's identity (and may recreate it when its
+    // triggers change); sharing those triggers here means .agent is re-attached
+    // in the same commit, right after the rebuild, in declaration order. When the
+    // debug bridge is absent (prod, no opt-in) this creates the namespace itself
+    // and tears it down if it's the only occupant.
+    useEffect(() => {
+      type WindowWithAgent = Window & {
+        __axoview__?: Record<string, unknown>;
+      };
+      const win = window as WindowWithAgent;
+      win.__axoview__ = win.__axoview__ ?? {};
+      win.__axoview__.agent = agentSurface;
+      return () => {
+        if (!win.__axoview__) return;
+        delete win.__axoview__.agent;
+        if (Object.keys(win.__axoview__).length === 0) delete win.__axoview__;
+      };
+    }, [agentSurface, enableDebugTools, exposeStoreBridge]);
 
     const { load } = initialDataManager;
     const { markClean } = useDirtyTracker(initialDataManager.isReady);

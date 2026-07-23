@@ -86,7 +86,13 @@ export const getItemAtTile = ({
   if (textBox) return { type: 'TEXTBOX', id: textBox.id };
 
   const connector = scene.hitConnectors.find((con) => {
-    if (!con.path?.tiles) return false;
+    // Skip connectors with no routable geometry. An UNROUTABLE connector
+    // (syncConnector's catch) and a paste-PROVISIONAL connector both carry
+    // `path.tiles: []` with a placeholder rectangle — a legitimate scene state.
+    // The old guard `!con.path?.tiles` let an empty array through (arrays are
+    // truthy), so `pathTiles[0]` was undefined and connectorPathTileToGlobal read
+    // `.x` of undefined → hover crash on any agent-created / just-pasted diagram.
+    if (!con.path?.tiles?.length || !con.path.rectangle) return false;
     const pathTiles = con.path.tiles;
     const origin = con.path.rectangle.from;
 
