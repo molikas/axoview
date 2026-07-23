@@ -350,7 +350,7 @@ const isHoveringConnectorAnchor = ({ scene, uiState }: State): boolean => {
 // 'pointer' over any item, 'default' otherwise. Uses hasMovedTile to avoid
 // redundant work when the tile under the cursor hasn't changed.
 const updateHoverCursor = (state: State) => {
-  const { scene, uiState } = state;
+  const { scene, uiState, isItemInteractable } = state;
   if (!hasMovedTile(uiState.mouse)) return;
 
   if (isHoveringConnectorAnchor(state)) {
@@ -358,10 +358,17 @@ const updateHoverCursor = (state: State) => {
     return;
   }
 
-  const hoverItem = getItemAtTile({
+  const hit = getItemAtTile({
     tile: uiState.mouse.position.tile,
     scene
   });
+  // A hidden (or locked) element isn't interactable, so it must not read as
+  // hoverable — no pointer cursor, no hover outline. getItemAtTile is purely
+  // geometric and still hits elements on a hidden layer, so without this gate
+  // hovering their (invisible) footprint lit the HoverOutline (reported). Mirrors
+  // the click/drag/select-all invariant. Absent gate (partial test state) = hoverable.
+  const hoverItem =
+    hit && (!isItemInteractable || isItemInteractable(hit)) ? hit : null;
   setWindowCursor(hoverItem ? 'pointer' : 'default');
 
   // A3: publish the hovered item for the faint hover outline (HoverOutline),
