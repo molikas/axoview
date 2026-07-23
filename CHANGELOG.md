@@ -5,6 +5,25 @@ All notable changes to Axoview will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.8.1](https://github.com/molikas/axoview/compare/v3.8.0...v3.8.1) (2026-07-21)
+
+### Bug Fixes
+
+* **layers:** honour layer visibility/lock in rectangle bulk + connector anchors ([#78](https://github.com/molikas/axoview/issues/78)) ([87bf45c](https://github.com/molikas/axoview/commit/87bf45c8189a19ab7881314176adbb42b4a38556))
+
+## [3.8.0](https://github.com/molikas/axoview/compare/v3.7.0...v3.8.0) (2026-07-20)
+
+### Features
+
+* **canvas:** on-canvas per-node icon resize (ADR 0044) ([33d64ae](https://github.com/molikas/axoview/commit/33d64aef5a78c5606a61ce32a4a35836b9f1f88c))
+
+### Documentation
+
+* **adr:** docs-tree housekeeping, ADR-audit remediation, and a governance lint ([#70](https://github.com/molikas/axoview/issues/70)) ([0244067](https://github.com/molikas/axoview/commit/024406710050dc5c968eecdbb752f8f104b03f2b))
+* **adr:** full ADR⇄code conformance remediation + line-anchor lint (fix: annotation Ctrl+V) ([#72](https://github.com/molikas/axoview/issues/72)) ([eaeb610](https://github.com/molikas/axoview/commit/eaeb610819f0d557a2fc4661959fe490d774b431))
+* **landing:** explain Drive (drive.file) data usage on the home page ([#73](https://github.com/molikas/axoview/issues/73)) ([8c86a57](https://github.com/molikas/axoview/commit/8c86a573f8016fe9b0bf0f7b9331fe567781c66c))
+* **reviews:** phaser 4 render-engine perf evaluation (no-go) ([#74](https://github.com/molikas/axoview/issues/74)) ([5993ee9](https://github.com/molikas/axoview/commit/5993ee97edc4f650e7bc1960da4c3945da73ebd7))
+
 ## [3.7.0](https://github.com/molikas/axoview/compare/v3.6.0...v3.7.0) (2026-07-14)
 
 ### Features

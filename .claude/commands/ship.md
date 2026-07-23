@@ -18,7 +18,7 @@ git rev-parse master                     # → master SHA
 git remote get-url origin                # → for the compare link in Phase 4
 ```
 
-Then **verify version coherence** — semantic-release's `update-version` keeps all 5 `package.json` files in lockstep at the last released version, so on a healthy branch they are all equal. A mismatch means someone hand-edited a version (which the automation forbids) — stop and report it as a bug rather than shipping a split version. Read the `"version"` line in all 5 and assert equality:
+Then **verify version coherence** — the committed `package.json` versions are **not** bumped on release (semantic-release runs `update-version` only inside the CI build, and the bump is not committed back to `master` — branch protection blocks the push, see commit #77), so all 5 stay frozen and equal between releases. The check just asserts they are all equal; a mismatch means someone hand-edited one — stop and report it as a bug rather than shipping a split version. Read the `"version"` line in all 5 and assert equality:
 
 - `package.json`
 - `packages/axoview-app/package.json`
