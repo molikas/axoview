@@ -433,7 +433,7 @@ export const DragItems: ModeActions = {
     // until the mouseup commit, and skip produceWithPatches while frozen.
     scene.beginDragTransaction();
   },
-  exit: ({ rendererRef, scene }) => {
+  exit: ({ rendererRef, scene, uiState }) => {
     rendererRef.style.userSelect = 'auto';
     setWindowCursor('default');
     // Safety net for escape / programmatic mode change. If exit fires without
@@ -449,6 +449,9 @@ export const DragItems: ModeActions = {
     previewTextBoxOffsets.clear();
     previewLabelOffsets.clear();
     externalOccupiedCache = null;
+    // Drop the canvas label move-preview too, or an escaped group drag leaves the
+    // labels stranded at their (uncommitted) preview position.
+    uiState.actions.clearLabelMoves?.();
     scene.commitDragTransaction();
   },
   mousemove: ({ uiState, scene }) => {
@@ -502,6 +505,20 @@ export const DragItems: ModeActions = {
       uiState.canvasMode,
       uiState.snapToGrid ?? true
     );
+
+    // Floating labels are canvas-drawn (LabelsCanvas) with no [data-drag-id] DOM
+    // element to carry a CSS `--ff-drag-*` preview, so publish their accumulated
+    // target tile/offset to the group move-preview channel — LabelsCanvas redraws
+    // each dragged chip there. Without this the labels stay frozen mid-drag and
+    // only jump into place on the mouseup commit (the reported "label not moving"
+    // confusion). Cleared on mouseup (after commit) and on exit.
+    if (previewLabels.size > 0) {
+      const moves: Record<string, { tile: Coords; offset?: Coords }> = {};
+      for (const [id, t] of previewLabels) {
+        moves[id] = { tile: t, offset: previewLabelOffsets.get(id) };
+      }
+      uiState.actions.setLabelMoves?.(moves);
+    }
   },
   mouseup: ({ uiState, scene }) => {
     // Commit deferred CSS-preview moves (nodes + rectangles + textboxes) to the
@@ -546,6 +563,11 @@ export const DragItems: ModeActions = {
         }))
       );
     }
+    // Drop the canvas move-preview AFTER the model commit above, so LabelsCanvas
+    // redraws each chip at its new model position and the preview clears in the
+    // same pass (no one-frame jump back to the origin). Mirrors the single-label
+    // updateLabel → clearLabelMove ordering in LabelHitLayer.
+    uiState.actions.clearLabelMoves?.();
     clearAllCssOffsets();
     previewTiles.clear();
     previewRectangles.clear();
