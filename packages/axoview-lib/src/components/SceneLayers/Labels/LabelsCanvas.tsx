@@ -16,6 +16,10 @@ import { rasterizeLabelChip, CHIP_SUPERSAMPLE } from 'src/webgl/itemRaster';
 import { computeBackingStore } from 'src/utils/renderTarget';
 import { computeLabelCounterScale } from 'src/utils/labelScale';
 import {
+  getRenderedTilePosition,
+  TilePositionFn
+} from 'src/utils/renderedGeometry';
+import {
   LABEL_BASE_FONT_PX,
   LABEL_MIN_READABLE_PX,
   LABEL_MAX_COUNTER_SCALE
@@ -150,18 +154,17 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
     const resolveLabel = (
       label: Label,
       move: { id: string; tile: Coords; offset?: Coords } | null | undefined,
-      getTilePos: (a: { tile: Coords; origin: 'CENTER' }) => {
-        x: number;
-        y: number;
-      },
+      getTilePos: TilePositionFn,
       mctx: CanvasRenderingContext2D
     ) => {
       const moved = move && move.id === label.id ? move : null;
       const tile: Coords = moved ? moved.tile : label.tile;
       const offset: Coords | undefined = moved ? moved.offset : label.offset;
-      const pos = getTilePos({ tile, origin: 'CENTER' });
-      const cx = pos.x + (offset?.x ?? 0);
-      const cy = pos.y + (offset?.y ?? 0);
+      const { x: cx, y: cy } = getRenderedTilePosition(
+        { tile, offset },
+        getTilePos,
+        'CENTER'
+      );
       const fontSize = labelFontPx(label);
       const key = `${fontSize}:${label.isBold ? 1 : 0}:${
         label.isItalic ? 1 : 0

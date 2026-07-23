@@ -3,6 +3,10 @@ import { useScene } from 'src/hooks/useScene';
 import { IsoTileArea } from 'src/components/IsoTileArea/IsoTileArea';
 import { getColorVariant } from 'src/utils';
 import { useColor } from 'src/hooks/useColor';
+import {
+  RENDERED_DRAG_TRANSFORM,
+  getRenderedDragTransform
+} from 'src/utils/renderedGeometry';
 
 type Props = ReturnType<typeof useScene>['rectangles'][0];
 
@@ -17,7 +21,7 @@ const RECT_DRAG_STYLE: React.CSSProperties = {
   position: 'absolute',
   left: 0,
   top: 0,
-  transform: 'translate3d(var(--ff-drag-dx, 0px), var(--ff-drag-dy, 0px), 0)',
+  transform: RENDERED_DRAG_TRANSFORM,
   willChange: 'transform'
 };
 
@@ -44,7 +48,7 @@ export const Rectangle = memo(
     // seen and selectable (SVG fill="transparent" stays hit-testable).
     const isTransparent = colorValue === 'transparent';
 
-    // ADR 0023 off-grid: compose the unprojected-px offset into the SAME
+    // ADR 0023 off-grid: compose the SceneLayer-px offset into the SAME
     // translate3d that hosts the live drag delta, so they add (the IsoTileArea
     // inside still positions from the integer from/to). Snapped rectangles keep
     // the shared module-const style (referential stability for emotion).
@@ -53,7 +57,7 @@ export const Rectangle = memo(
         offset
           ? {
               ...RECT_DRAG_STYLE,
-              transform: `translate3d(calc(var(--ff-drag-dx, 0px) + ${offset.x}px), calc(var(--ff-drag-dy, 0px) + ${offset.y}px), 0)`
+              transform: getRenderedDragTransform(offset)
             }
           : RECT_DRAG_STYLE,
       [offset?.x, offset?.y] // eslint-disable-line react-hooks/exhaustive-deps

@@ -50,6 +50,61 @@ When `collides === false`, paste/drag/rigid-stamp skip the tile-hash occupancy t
 
 **2026-06-21 (UX re-test addendum):** Two clarifications from the journey-test runs (ADR 0028). **Snap UX:** the per-item "Snap/Unsnap from grid" override is shown in the context menu **only when the global snap toggle is on** — with global snap off a per-item snap override is meaningless, so it is hidden; the global toggle itself renders a checked state when on. (Per-item collision overrides are unaffected.) **Round-trip:** the off-grid fields (`offset`/`snap`/`collides`) survive a full export→import cycle for nodes, rectangles and text boxes, and for both new diagrams and pre-existing ones — items lacking the fields default to snapped/colliding, and a saved `snap:false` is preserved. The export serialises the full `views` and the loader parses them via `modelSchema` without stripping; locked by a round-trip test.
 
+### 2026-07-23 addendum — rendered-geometry hardening
+
+Written after the off-grid seven-bug cluster (commit `8ee54861`) and the hardening
+pass that followed. The accepted text above is left as shipped; this addendum
+corrects and extends it.
+
+**A. Terminology correction — `offset` is SceneLayer px, not "unprojected px".**
+§1 and Consequences call the stored `offset` "unprojected px". That is wrong, and
+it is the kind of wrong that produces bugs: it invites consumers to project the
+offset, or to convert it back into tiles. The residual is committed by
+`DragItems` as `preciseDelta = screenDelta / zoom` and applied as a translate
+**after** the projection — i.e. it lives in **SceneLayer px (post-projection)**,
+the same space `getTilePosition`, `screenToCanvasPoint` and a SceneLayer child's
+`style.left/top` all use. It is still projection-*independent* in the sense §1
+cared about (the same numeric residual is applied in ISOMETRIC and 2D), which is
+what made the original phrasing feel right. The coordinate spaces are now defined
+in exactly one place: the header of
+[`utils/renderedGeometry.ts`](../../packages/axoview-lib/src/utils/renderedGeometry.ts).
+
+**B. One rendered-geometry source, and never round an offset into a tile.**
+§2's "one snap chokepoint" bounded *writes*. It said nothing about *reads*, so
+every renderer, chrome and hit-test site hand-rolled `getTilePosition(tile) +
+offset` — and seven of them forgot. Composition now lives in
+`utils/renderedGeometry.ts` (`getRenderedTilePosition`, `getRenderedOffset`,
+`getRenderedTileFootprint`, `getRenderedAreaCorners`, `footprintContainsPoint`),
+and a source-scan contract test fails CI on a new hand-rolled composition.
+
+The proven-wrong alternative, recorded so it is not retried: making the tile
+spatial index offset-aware by re-keying items on `round(tile +
+fromCanvasPoint(offset))`. The offset is *sub-tile*; any integer-tile
+representation discards up to half a tile (real captured case: offset `(-75,-3)`
+quantised to a diagonal one-tile shift, putting the hit centre ~38 px from the
+drawn node). **All off-grid hit-testing compares px against rendered
+footprints** — `getItemAtTile` takes the cursor's SceneLayer `point` for exactly
+this reason. The tile index survives untouched for what it is good at (raw
+tile → id, connector endpoints).
+
+**C. Cost model (why no footprint spatial index).** Pixel hit-testing is O(N)
+over items and runs only on gesture paths — hover once per tile crossing, click
+once, drag-over once per move — never in a render loop. ADR 0021's `TileIndex` is
+unchanged. Revisit only on measured evidence from the ADR 0020 perf harness.
+
+**D. The WebGL path is held to the DOM path by construction.** Bug #3 (a rect
+snapping back to its grid cell on drop) lived in the gap between the DOM
+`<Rectangle>` and the ADR 0038 WebGL bulk. Both now derive their vertices from
+`getRenderedAreaCorners`, and the invariant suite asserts cross-path equality
+rather than reading pixels (jsdom has no GL context).
+
+**E. New acceptance surface.** The original acceptance criteria assert the *data
+model* (tile stays integer, offset is committed) — which is why all seven bugs
+were invisible to them. The acceptance surface for off-grid geometry is now
+`utils/__tests__/renderedGeometry.invariant.test.tsx` (render == chrome == hit
+zone, parametrized over element kind × offset corpus × canvas mode) plus the
+sub-tile e2e specs. See [testing.md](../guidelines/testing.md).
+
 ## Consequences
 
 **Positive:** minimal blast radius — the integer-tile invariant the whole engine relies on is preserved; per-item granularity matches the cherry-pick workflow; offset in unprojected px works in both projections.

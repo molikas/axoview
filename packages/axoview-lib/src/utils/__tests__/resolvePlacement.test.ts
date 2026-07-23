@@ -105,7 +105,7 @@ describe('cursorTileResidual', () => {
     expect(r.y).toBeCloseTo(0);
   });
 
-  it('divides the screen delta by zoom (offset is unprojected px)', () => {
+  it('divides the screen delta by zoom (offset is SceneLayer px)', () => {
     const r = cursorTileResidual(
       '2D',
       { x: 120, y: 100 },
@@ -114,7 +114,7 @@ describe('cursorTileResidual', () => {
       scroll,
       rendererSize
     );
-    // (120 - 100)/2 = 10 unprojected px.
+    // (120 - 100)/2 = 10 SceneLayer px.
     expect(r.x).toBeCloseTo(10);
   });
 });

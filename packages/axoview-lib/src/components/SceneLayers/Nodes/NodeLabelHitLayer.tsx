@@ -7,6 +7,7 @@ import { useModelStore } from 'src/stores/modelStore';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useSceneActions } from 'src/hooks/useSceneActions';
 import { resolveDraggedOffset } from 'src/utils/labelPosition';
+import { getRenderedTilePosition } from 'src/utils/renderedGeometry';
 import {
   EDIT_ELEMENT_LINK_EVENT,
   HIDE_ELEMENT_LINK_EVENT
@@ -224,15 +225,11 @@ export const NodeLabelHitLayer = ({ nodes }: Props) => {
         const fontSize = node.labelFontSize || LABEL_BASE_FONT_PX;
         const chip = measureNameChip(name, fontSize);
         const offset = node.labelHeight ?? DEFAULT_LABEL_HEIGHT;
-        const base = getTilePosition({ tile: node.tile, origin: 'CENTER' });
         // ADR 0023 off-grid: the label is drawn at the node's RENDERED position
         // (tile + px offset), so its hit proxy must carry the same offset — else it
         // sits at the grid cell, grabbing the label off-position and covering the
         // node body (which swallows a right-click → no context menu).
-        const pos = {
-          x: base.x + (node.offset?.x ?? 0),
-          y: base.y + (node.offset?.y ?? 0)
-        };
+        const pos = getRenderedTilePosition(node, getTilePosition, 'CENTER');
         // Match the canvas chip rect: anchored at the node centre, floated by the
         // signed offset; above → chip sits above the anchor, below → at it.
         const y0 = offset < 0 ? 0 : -chip.height;

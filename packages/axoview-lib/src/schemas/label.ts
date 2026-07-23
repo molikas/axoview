@@ -47,7 +47,7 @@ export const labelSchema = z.object({
   layerId: id.optional(),
   // Off-grid positioning (ADR 0023): a floating billboard can sit at a px
   // residual off its tile anchor. Absent/snapped = the tile centre. `tile`
-  // stays an integer tile; `offset` is the unprojected px residual.
+  // stays an integer tile; `offset` is the SceneLayer-px residual.
   offset: coords.optional(),
   snap: z.boolean().optional()
 });

@@ -3,7 +3,7 @@
  *
  * The acceptance surface for #12 (global snap-to-grid toggle) and #20 (per-item
  * unsnap / disable collision). The integer tile stays the engine's source of
- * truth; off-grid lives ONLY in `viewItem.offset` (unprojected px) committed by
+ * truth; off-grid lives ONLY in `viewItem.offset` (SceneLayer px) committed by
  * the one `resolvePlacement` chokepoint and applied as a post-projection render
  * translate. These tests read the model directly (debug bridge) and assert the
  * data-model invariants the rest of the engine relies on:

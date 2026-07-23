@@ -3,6 +3,7 @@ import { useUiStateStore } from 'src/stores/uiStateStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useScene } from 'src/hooks/useScene';
 import { screenToCanvasPoint } from 'src/utils/coordinateTransforms';
+import { getRenderedTilePosition } from 'src/utils/renderedGeometry';
 
 // Off-grid hit-test debug overlay (ADR 0023). Mounted by `Renderer` only when
 // `enableDebugTools` is on — the same gate as the `window.__axoview__` bridge.
@@ -47,8 +48,8 @@ export const HoverHitDebug = () => {
   );
 
   const footprints = items.map((it) => {
-    const c = getTilePosition({ tile: it.tile, origin: 'CENTER' });
-    return { id: it.id, x: c.x + (it.offset?.x ?? 0), y: c.y + (it.offset?.y ?? 0) };
+    const c = getRenderedTilePosition(it, getTilePosition, 'CENTER');
+    return { id: it.id, x: c.x, y: c.y };
   });
 
   return (

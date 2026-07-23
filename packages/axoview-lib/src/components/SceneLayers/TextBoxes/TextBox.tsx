@@ -3,6 +3,10 @@ import { Box, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { toPx, CoordsUtils, getTextBoxDimensions } from 'src/utils';
 import { sanitizeHtml } from 'src/utils/sanitizeHtml';
+import {
+  RENDERED_DRAG_TRANSFORM,
+  getRenderedDragTransform
+} from 'src/utils/renderedGeometry';
 import { useTranslation } from 'src/stores/localeStore';
 import { DIAGRAM_LINK_PREFIX } from 'src/utils/quillLinkShortcut';
 import { useIsoProjection } from 'src/hooks/useIsoProjection';
@@ -22,7 +26,7 @@ const TEXTBOX_DRAG_STYLE: React.CSSProperties = {
   position: 'absolute',
   left: 0,
   top: 0,
-  transform: 'translate3d(var(--ff-drag-dx, 0px), var(--ff-drag-dy, 0px), 0)',
+  transform: RENDERED_DRAG_TRANSFORM,
   willChange: 'transform'
 };
 
@@ -229,7 +233,7 @@ export const TextBox = memo(({ textBox }: Props) => {
     orientation: textBox.orientation
   });
 
-  // ADR 0023 off-grid: compose the unprojected-px offset into the same wrapper
+  // ADR 0023 off-grid: compose the SceneLayer-px offset into the same wrapper
   // translate3d as the drag delta (the inner projected Box stays driven by the
   // integer tile/size). Snapped text boxes keep the shared module-const style.
   const dragStyle = useMemo(
@@ -237,7 +241,7 @@ export const TextBox = memo(({ textBox }: Props) => {
       textBox.offset
         ? {
             ...TEXTBOX_DRAG_STYLE,
-            transform: `translate3d(calc(var(--ff-drag-dx, 0px) + ${textBox.offset.x}px), calc(var(--ff-drag-dy, 0px) + ${textBox.offset.y}px), 0)`
+            transform: getRenderedDragTransform(textBox.offset)
           }
         : TEXTBOX_DRAG_STYLE,
     [textBox.offset?.x, textBox.offset?.y] // eslint-disable-line react-hooks/exhaustive-deps

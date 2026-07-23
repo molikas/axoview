@@ -18,6 +18,7 @@ import {
   LABEL_CHIP_RADIUS
 } from 'src/utils/labelChip';
 import { computeLabelCounterScale } from 'src/utils/labelScale';
+import { getRenderedTilePosition } from 'src/utils/renderedGeometry';
 import {
   LABEL_BASE_FONT_PX,
   LABEL_MIN_READABLE_PX,
@@ -481,9 +482,11 @@ export const LabelHitLayer = ({ labels }: Props) => {
               label.isItalic
             )
           : fallbackChip(label.text, fontSize);
-        const pos = getTilePosition({ tile: label.tile, origin: 'CENTER' });
-        const cx = pos.x + (label.offset?.x ?? 0);
-        const cy = pos.y + (label.offset?.y ?? 0);
+        const { x: cx, y: cy } = getRenderedTilePosition(
+          label,
+          getTilePosition,
+          'CENTER'
+        );
         const left = cx - chip.chipW / 2;
         const top = cy - chip.chipH / 2;
         if (editing) {

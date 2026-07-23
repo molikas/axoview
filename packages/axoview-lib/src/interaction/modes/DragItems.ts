@@ -182,7 +182,7 @@ function computeNodeUpdates(
 //
 // Snapped nodes step by whole tiles (the projected integer-tile delta — today's
 // behaviour). Off-grid nodes (ADR 0023) follow the pointer pixel-for-pixel: the
-// CSS preview is the precise unprojected-px cursor delta, and the committed
+// CSS preview is the precise SceneLayer-px cursor delta, and the committed
 // `offset` is the item's current offset plus the SUB-TILE residual (the part of
 // the precise delta beyond the whole-tile step). Tile + offset therefore stay in
 // lockstep so the on-drop commit matches the preview exactly (no jump).
@@ -460,7 +460,7 @@ export const DragItems: ModeActions = {
       uiState.mouse.mousedown.tile
     );
 
-    // Precise (sub-tile) pointer delta in unprojected px — screen delta divided
+    // Precise (sub-tile) pointer delta in SceneLayer px — screen delta divided
     // by zoom (the SceneLayer applies scale(zoom) outside the drag translate).
     // Drives off-grid previews; snapped items ignore it (ADR 0023). Falls back to
     // the whole-tile projected delta when screen coords are absent (real getMouse

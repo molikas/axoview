@@ -15,6 +15,9 @@ export * from './spatialIndex';
 // src/config, which imports this barrel, so eager re-export would create a
 // load-order cycle (its functions would be transiently undefined). Import it
 // directly from 'src/utils/resolvePlacement' (same pattern as coordinateTransforms).
+// NOTE: renderedGeometry is intentionally NOT re-exported here either (same
+// src/config cycle as resolvePlacement above). Import it by path:
+//   import { getRenderedTilePosition } from 'src/utils/renderedGeometry';
 export * from './pointInPolygon';
 export * from './segmentIntersection';
 export * from './connectorLabels';

@@ -1,20 +1,28 @@
 // Hit detection: find which scene item (if any) sits at a given isometric tile.
 // Kept separate from isoMath.ts so the WeakMap spatial index is isolated and testable.
 
-import { Coords, Size, ItemReference, TextBox } from 'src/types';
+import { CanvasMode, Coords, Size, ItemReference, TextBox } from 'src/types';
 import {
   getBoundingBox,
   isWithinBounds,
   connectorPathTileToGlobal,
   getTextBoxEndTile
 } from 'src/utils/isoMath';
-import { UNPROJECTED_TILE_SIZE, PROJECTED_TILE_SIZE } from 'src/config';
-import { getStrategy } from 'src/utils/coordinateTransforms';
+import { UNPROJECTED_TILE_SIZE } from 'src/config';
+import {
+  getStrategy,
+  makeTilePositionFn
+} from 'src/utils/coordinateTransforms';
+import {
+  footprintContainsPoint,
+  getRenderedTileFootprint
+} from 'src/utils/renderedGeometry';
 
 // Explicit scene shape — avoids importing the full useScene hook type here.
 export interface HitTestScene {
-  // `offset` (ADR 0023, unprojected/post-projection px) is optional: present on
-  // off-grid items so hit-testing can resolve them under their rendered position.
+  // `offset` (ADR 0023, SceneLayer px — see renderedGeometry.ts for the
+  // coordinate spaces) is optional: present on off-grid items so hit-testing can
+  // resolve them under their rendered position.
   items: Array<{ id: string; tile: Coords; offset?: Coords }>;
   textBoxes: Array<TextBox & { size: Size }>;
   hitConnectors: Array<{
@@ -49,35 +57,26 @@ const getItemTileIndex = (
   return itemTileIndexCache.get(items)!;
 };
 
-// Pixel-accurate ITEM hit test (ADR 0023). An off-grid item renders at
-// toScreen(tile) + px offset, and that offset is SUB-TILE — snapping the cursor
-// to an integer tile and comparing tile keys throws away up to half a tile, so
+// Pixel-accurate ITEM hit test (ADR 0023). An off-grid item renders at its tile
+// projection + a px offset, and that offset is SUB-TILE — snapping the cursor to
+// an integer tile and comparing tile keys throws away up to half a tile, so
 // hovering the visible item lands on a neighbour. Instead we test the cursor's
-// canvas point directly against each item's RENDERED tile footprint (an iso
-// diamond / a 2D square centred on toScreen(tile) + offset). Topmost (last
-// painted) wins, matching the raw index's last-write-wins + the node paint order.
+// SceneLayer point directly against each item's RENDERED footprint (the iso
+// diamond / 2D square from `renderedGeometry`). Topmost (last painted) wins,
+// matching the raw index's last-write-wins + the node paint order.
 //
 // O(N) per call, but only on gesture paths that pass a `point` (hover fires once
 // per tile crossing, click once, drag-over once per move) — never the render loop.
 const itemAtPoint = (
   items: HitTestScene['items'],
   point: Coords,
-  canvasMode: 'ISOMETRIC' | '2D'
+  canvasMode: CanvasMode
 ): string | null => {
-  const strategy = getStrategy(canvasMode);
-  const halfW = PROJECTED_TILE_SIZE.width / 2;
-  const halfH = PROJECTED_TILE_SIZE.height / 2;
-  const half2D = UNPROJECTED_TILE_SIZE / 2;
+  const getTilePosition = makeTilePositionFn(getStrategy(canvasMode));
   for (let i = items.length - 1; i >= 0; i -= 1) {
     const it = items[i];
-    const c = strategy.toScreen(it.tile.x, it.tile.y, UNPROJECTED_TILE_SIZE);
-    const dx = point.x - (c.x + (it.offset?.x ?? 0));
-    const dy = point.y - (c.y + (it.offset?.y ?? 0));
-    const inside =
-      canvasMode === '2D'
-        ? Math.abs(dx) <= half2D && Math.abs(dy) <= half2D
-        : Math.abs(dx) / halfW + Math.abs(dy) / halfH <= 1;
-    if (inside) return it.id;
+    const footprint = getRenderedTileFootprint(it, getTilePosition, canvasMode);
+    if (footprintContainsPoint(footprint, point)) return it.id;
   }
   return null;
 };

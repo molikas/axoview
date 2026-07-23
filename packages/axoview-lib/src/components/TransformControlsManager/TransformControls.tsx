@@ -10,6 +10,7 @@ import {
   outermostCornerPositions,
   convertBoundsToNamedAnchors
 } from 'src/utils';
+import { getRenderedOffset } from 'src/utils/renderedGeometry';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { TransformAnchor } from './TransformAnchor';
@@ -105,10 +106,9 @@ export const TransformControls = ({
   });
   // ADR 0023 off-grid: shift the chrome by the item's committed px residual so
   // it tracks the element's real rendered position, not its grid cell. Same
-  // SceneLayer/post-projection units as css.left/top and the anchor corners
-  // below, so it composes as a plain translate.
-  const offX = offset?.x ?? 0;
-  const offY = offset?.y ?? 0;
+  // SceneLayer px as css.left/top and the anchor corners below, so it composes
+  // as a plain translate.
+  const { x: offX, y: offY } = getRenderedOffset({ offset });
   const { getTilePosition, strategy } = useCanvasMode();
   // Screen-pixel-stable readout (counter-scaled 1/zoom), matching the screen-box
   // node outline so both node shapes show the same size pill (QA 2026-07-19).

@@ -396,7 +396,7 @@ function installHarness() {
     const side = Math.ceil(Math.sqrt(N));
     const noLabel = !!w.__perfNoLabel; // diagnostic: isolate label-subtree cost
     const noConn = !!w.__perfNoConn; // diagnostic: isolate connector-subtree cost (T2 prize sizing)
-    // T8 (ADR 0023) all-offset: every node off-grid by a fixed unprojected-px
+    // T8 (ADR 0023) all-offset: every node off-grid by a fixed SceneLayer-px
     // residual + collides:false → renderer adds one transform compose per node
     // (no React work) and buildTileIndex excludes them all (empty obstacle set →
     // drag collision marginally cheaper). The integer `tile` is unchanged.

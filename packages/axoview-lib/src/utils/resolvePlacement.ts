@@ -13,9 +13,10 @@ export interface Placement {
   /** The integer tile committed to the model (always integer). */
   tile: Coords;
   /**
-   * The unprojected-px residual the renderer applies post-projection, or
-   * `undefined` when the item is snapped (so lean-save omits it and a re-snap
-   * clears any stale offset).
+   * The SceneLayer-px (post-projection) residual the renderer applies as a
+   * translate, or `undefined` when the item is snapped (so lean-save omits it
+   * and a re-snap clears any stale offset). See `utils/renderedGeometry.ts` for
+   * the coordinate spaces.
    */
   offset?: Coords;
 }
@@ -44,7 +45,7 @@ export const resolvePlacement = (
 };
 
 /**
- * The sub-tile residual (unprojected px) of a screen-space cursor relative to a
+ * The sub-tile residual (SceneLayer px) of a screen-space cursor relative to a
  * tile's centre. Used by fresh-placement flows (place-icon, text-box, paste) to
  * land an off-grid item where the pointer is. Mode-aware via the strategy.
  */
@@ -66,7 +67,7 @@ export const cursorTileResidual = (
 };
 
 /**
- * Convert a node's unprojected-px render offset into the delta to add to a
+ * Convert a node's SceneLayer-px render offset into the delta to add to a
  * connector's endpoint VERTEX so the wire follows the node's rendered position.
  *
  * The connector SVG draws vertices in tile-space (`tile · UNPROJECTED_TILE_SIZE`)
