@@ -37,6 +37,7 @@ const HoverNode = ({ id }: { id: string }) => {
       <TransformControls
         from={node.tile}
         to={node.tile}
+        offset={node.offset}
         extentScale={scale}
         subtle
       />
@@ -60,7 +61,14 @@ const HoverNode = ({ id }: { id: string }) => {
 const HoverRectangle = ({ id }: { id: string }) => {
   const rectangle = useRectangle(id);
   if (!rectangle) return null;
-  return <TransformControls from={rectangle.from} to={rectangle.to} subtle />;
+  return (
+    <TransformControls
+      from={rectangle.from}
+      to={rectangle.to}
+      offset={rectangle.offset}
+      subtle
+    />
+  );
 };
 
 const HoverTextBox = ({ id }: { id: string }) => {
@@ -68,7 +76,9 @@ const HoverTextBox = ({ id }: { id: string }) => {
   if (!textBox) return null;
   // A text box lies in the tile plane → the iso diamond, like a rectangle.
   const to = getTextBoxEndTile(textBox, textBox.size);
-  return <TransformControls from={textBox.tile} to={to} subtle />;
+  return (
+    <TransformControls from={textBox.tile} to={to} offset={textBox.offset} subtle />
+  );
 };
 
 export const HoverOutline = () => {

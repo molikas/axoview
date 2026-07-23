@@ -50,6 +50,16 @@ interface Props {
    * selection while a resize drag is in flight. Omitted = no readout.
    */
   readout?: string;
+  /**
+   * ADR 0023 off-grid: the element's unprojected-px offset when unsnapped. The
+   * element wrapper (TextBox / Rectangle / flat Node) translates by this in
+   * screen px, so the selection ring + handles must shift by the SAME vector —
+   * otherwise the frame stays pinned to the snapped tile while the element
+   * floats free (the "frame doesn't follow the unsnapped element" bug). Omitted
+   * / undefined (a snapped element) = zero shift, geometry byte-for-byte
+   * unchanged.
+   */
+  offset?: Coords;
 }
 
 // Selection / hover chrome geometry (screen px, pre-shear). The ring frames the
@@ -87,12 +97,18 @@ export const TransformControls = ({
   rotateTooltip,
   subtle,
   extentScale,
-  readout
+  readout,
+  offset
 }: Props) => {
   const { css, pxSize } = useIsoProjection({
     from,
     to
   });
+  // ADR 0023 off-grid: screen-px shift applied identically to the SVG box and
+  // every anchor screen position, so the whole frame tracks an unsnapped
+  // element's wrapper translate. Zero for a snapped element.
+  const ox = offset?.x ?? 0;
+  const oy = offset?.y ?? 0;
   const { getTilePosition, strategy } = useCanvasMode();
   // Screen-pixel-stable readout (counter-scaled 1/zoom), matching the screen-box
   // node outline so both node shapes show the same size pill (QA 2026-07-19).
@@ -121,16 +137,17 @@ export const TransformControls = ({
         const half = UNPROJECTED_TILE_SIZE / 2;
         const offsetX = key.endsWith('LEFT') ? -half : half;
         const offsetY = key.startsWith('BOTTOM') ? half : -half;
-        out[key] = { x: center.x + offsetX, y: center.y + offsetY };
+        out[key] = { x: center.x + offsetX + ox, y: center.y + offsetY + oy };
       } else {
-        out[key] = getTilePosition({
+        const p = getTilePosition({
           tile: value,
           origin: outermostCornerPositions[i]
         });
+        out[key] = { x: p.x + ox, y: p.y + oy };
       }
     });
     return out;
-  }, [from, to, getTilePosition, strategy.projectionName]);
+  }, [from, to, getTilePosition, strategy.projectionName, ox, oy]);
 
   const anchors = useMemo(() => {
     if (!onAnchorMouseDown) return [];
@@ -241,6 +258,14 @@ export const TransformControls = ({
       <Svg
         style={{
           ...css,
+          // ADR 0023 off-grid: shift the box by the same screen-px offset the
+          // element wrapper uses (css.left/top are numeric px from useIsoProjection).
+          ...(ox || oy
+            ? {
+                left: (css.left as number) + ox,
+                top: (css.top as number) + oy
+              }
+            : {}),
           pointerEvents: 'none',
           // Selection/hover chrome frames the element from just OUTSIDE its own
           // border; the default svg viewport (== element footprint) would clip

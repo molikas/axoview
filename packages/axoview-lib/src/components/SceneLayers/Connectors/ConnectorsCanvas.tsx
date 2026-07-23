@@ -4,6 +4,7 @@ import chroma from 'chroma-js';
 import { Connector, Coords } from 'src/types';
 import { CONNECTOR_DEFAULTS, UNPROJECTED_TILE_SIZE } from 'src/config';
 import { connectorPathTileToGlobal } from 'src/utils/isoMath';
+import { getColorVariant } from 'src/utils';
 import { useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useModelStoreApi } from 'src/stores/modelStore';
 import { useSceneStoreApi } from 'src/stores/sceneStore';
@@ -349,8 +350,12 @@ export const ConnectorsCanvas = memo(({ connectors }: Props) => {
           connector.customColor ||
           colorsById.get(connector.color ?? '') ||
           '#9e9e9e';
+        // Mirror the DOM connector stroke (Connector.tsx uses the same
+        // getColorVariant 'dark' derivation) — a single source so the WebGL
+        // bulk can't drift, and so the achromatic-grey guard (no warm tint on
+        // greyscale connectors) applies on both paths.
         const [cr, cg, cb] = glRGB(
-          chroma(colorValue).darken(1).saturate(1).css()
+          getColorVariant(colorValue, 'dark', { grade: 1 })
         );
         const style = connector.style ?? 'SOLID';
         const lineType = connector.lineType ?? 'SINGLE';

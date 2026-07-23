@@ -26,8 +26,18 @@ export const getColorVariant = (
   switch (variant) {
     case 'light':
       return chroma(color).brighten(grade).alpha(alpha).css();
-    case 'dark':
-      return chroma(color).darken(grade).saturate(grade).alpha(alpha).css();
+    case 'dark': {
+      const darkened = chroma(color).darken(grade);
+      // Saturating a NEUTRAL grey fabricates a hue: grey has ~0 LCH chroma and
+      // an undefined hue, so `.saturate()` boosts chroma around chroma-js's
+      // fallback hue and the result reads warm — the "grey connector / border
+      // renders orange, not grey" bug. Only boost saturation when the input
+      // actually has a hue; achromatic input darkens straight down the grey
+      // axis. Coloured input is byte-for-byte unchanged.
+      const hasHue = chroma(color).get('lch.c') >= 1;
+      const adjusted = hasHue ? darkened.saturate(grade) : darkened;
+      return adjusted.alpha(alpha).css();
+    }
     default:
       return chroma(color).alpha(alpha).css();
   }
