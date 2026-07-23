@@ -121,7 +121,14 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
       from: Coords,
       to: Coords,
       getTilePos: (a: { tile: Coords; origin?: 'LEFT' | 'CENTER' }) => Coords,
-      isIso: boolean
+      isIso: boolean,
+      // ADR 0023 off-grid: the unprojected-px residual of an unsnapped rectangle.
+      // Every corner derives from the anchor `p`, so shifting `p` by the offset
+      // translates the whole quad — matching NodesCanvas (base + node.offset), the
+      // DOM Rectangle wrapper (translate3d), and the selection/hover frame
+      // (TransformControls `offset`). Without it the WebGL bulk drew unsnapped
+      // rects at their SNAPPED tile while the frame floated off (reported).
+      offset?: Coords
     ): [Coords, Coords, Coords, Coords] => {
       const lowX = Math.min(from.x, to.x);
       const highX = Math.max(from.x, to.x);
@@ -129,8 +136,11 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
       const highY = Math.max(from.y, to.y);
       const W = (highX - lowX + 1) * UNPROJECTED_TILE_SIZE;
       const H = (highY - lowY + 1) * UNPROJECTED_TILE_SIZE;
+      const ox = offset?.x ?? 0;
+      const oy = offset?.y ?? 0;
       if (isIso) {
-        const p = getTilePos({ tile: { x: lowX, y: highY }, origin: 'LEFT' });
+        const base = getTilePos({ tile: { x: lowX, y: highY }, origin: 'LEFT' });
+        const p = { x: base.x + ox, y: base.y + oy };
         return [
           p,
           { x: p.x + ISO_A * W, y: p.y + ISO_B * W },
@@ -140,8 +150,8 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
       }
       const c = getTilePos({ tile: { x: lowX, y: highY }, origin: 'CENTER' });
       const p = {
-        x: c.x - UNPROJECTED_TILE_SIZE / 2,
-        y: c.y - UNPROJECTED_TILE_SIZE / 2
+        x: c.x - UNPROJECTED_TILE_SIZE / 2 + ox,
+        y: c.y - UNPROJECTED_TILE_SIZE / 2 + oy
       };
       return [
         p,
@@ -213,7 +223,13 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
         const fillValue = rect.customColor || colorsById.get(rect.color ?? '');
         if (!fillValue) continue;
         const isTransparent = fillValue === 'transparent';
-        const [c0, c1, c2, c3] = corners(rect.from, rect.to, getTilePos, isIso);
+        const [c0, c1, c2, c3] = corners(
+          rect.from,
+          rect.to,
+          getTilePos,
+          isIso,
+          rect.offset
+        );
 
         // Border metrics (needed BEFORE the fill so the fill can inset away from
         // the stroke — see below). Scale the authored width to scene space
