@@ -54,10 +54,11 @@ Make the released version honest and the release notes useful. Concretely: (1) t
 ## Sub-tasks
 
 ### A. Version provenance (build-time tag injection)
-- [x] Add [scripts/resolve-version.js](../../scripts/resolve-version.js): `AXOVIEW_VERSION` env → exact tag → `git describe --tags` → `package.json` fallback.
+- [x] Add [scripts/resolve-version.js](../../scripts/resolve-version.js): `AXOVIEW_VERSION` env → exact tag → nearest clean tag (`--abbrev=0`) → `package.json` fallback; best-effort `git fetch --tags` in CI/CF.
 - [x] Wire into `rslib.config.ts` (`PACKAGE_VERSION`) and `rsbuild.config.ts` (`REACT_APP_VERSION`).
 - [x] Confirm `.releaserc.json` carries **no** `@semantic-release/git` (would re-break releases via GH013 — #77).
-- [ ] **Live-verify:** on the Cloudflare build, confirm tags are present in the clone (else add `git fetch --tags` to the build step). Optional exactness enhancement: post-release CF deploy hook (ADR 0045 Consequences).
+- [x] Deploy hook wired: `successCmd` in `.releaserc.json` + `CF_PAGES_DEPLOY_HOOK` env in `release.yml` (no-op until the secret is set).
+- [ ] **Live-verify:** create the CF Pages deploy hook → add it as the `CF_PAGES_DEPLOY_HOOK` repo secret → confirm a release rebuilds CF and the About tab reads the exact version.
 
 ### B. Version surfacing (`axoview-app`)
 - [ ] Stamp `REACT_APP_VERSION` onto the `#ax-splash` markup in `app-shell.html` (paints before React mounts; removed with the splash by `bootScreen.ts`). Keep it small/muted.

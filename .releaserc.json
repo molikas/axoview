@@ -38,7 +38,8 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "npm run update-version ${nextRelease.version} && npm run build"
+        "prepareCmd": "npm run update-version ${nextRelease.version} && npm run build",
+        "successCmd": "[ -n \"$CF_PAGES_DEPLOY_HOOK\" ] && curl -fsS -X POST \"$CF_PAGES_DEPLOY_HOOK\" || true"
       }
     ],
     [
