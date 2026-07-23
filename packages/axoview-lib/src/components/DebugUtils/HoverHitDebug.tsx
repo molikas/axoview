@@ -4,14 +4,18 @@ import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useScene } from 'src/hooks/useScene';
 import { screenToCanvasPoint } from 'src/utils/coordinateTransforms';
 
-// ⚠ TEMP DIAGNOSTIC — off-grid hover hit-test (remove with the fix).
+// Off-grid hit-test debug overlay (ADR 0023). Mounted by `Renderer` only when
+// `enableDebugTools` is on — the same gate as the `window.__axoview__` bridge.
+// It repeatedly proved decisive while chasing the off-grid hit-test cluster, so
+// it is kept as a permanent dev tool rather than deleted.
 //
-//   • RED dot  = the cursor's exact canvas point (screenToCanvasPoint) — the
+//   • RED dot  = the cursor's exact SceneLayer point (screenToCanvasPoint) — the
 //     point pixel-accurate hit-testing tests.
-//   • GREEN dot = each node's RENDERED footprint centre (toScreen(tile) + offset)
-//     — the centre of the tile diamond the fix now hit-tests against. A hover
-//     fires when the RED dot falls inside a node's footprint diamond (half-extent
-//     ≈ 70.75 × 40.95 px in iso). Green should sit dead-centre on the node.
+//   • GREEN dot = each node's RENDERED footprint centre (tile projection +
+//     offset) — the centre of the tile diamond hit-testing compares against. A
+//     hover fires when the RED dot falls inside a node's footprint diamond
+//     (half-extent ≈ 70.75 × 40.95 px in iso). Green should sit dead-centre on
+//     the node.
 //
 // Lives in a SceneLayer so left/top are the SceneLayer-px coords getTilePosition
 // and screenToCanvasPoint both return.

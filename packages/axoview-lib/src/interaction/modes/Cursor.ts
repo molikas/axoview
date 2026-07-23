@@ -23,9 +23,6 @@ import {
 import { getConnectorWaypointRefs } from 'src/utils/connectorSelection';
 import { exceedsTapSlop } from 'src/config/tapGesture';
 import { cursorCanvasPoint } from 'src/utils/coordinateTransforms';
-// ⚠ TEMP DIAGNOSTIC imports — off-grid hover hit-test (remove with the fix).
-import { getStrategy } from 'src/utils/coordinateTransforms';
-import { UNPROJECTED_TILE_SIZE } from 'src/config';
 
 // hitConnectors elements merge the view connector (id, anchors) with the
 // scene connector (path) — richer than the bare SceneConnector type.
@@ -376,32 +373,6 @@ const updateHoverCursor = (state: State) => {
     canvasMode: uiState.canvasMode,
     point
   });
-
-  // ⚠ TEMP DIAGNOSTIC — off-grid hover hit-test (remove with the fix). Logs the
-  // cursor's canvas point and each node's RENDERED footprint centre
-  // (toScreen(tile) + offset); a hover fires when `point` falls inside a node's
-  // footprint (iso diamond half-extent ≈ 70.75×40.95 px).
-  const dbgStrategy = getStrategy(uiState.canvasMode);
-  const dbgItems = scene.items.map((it) => {
-    const c = dbgStrategy.toScreen(it.tile.x, it.tile.y, UNPROJECTED_TILE_SIZE);
-    const off = it.offset;
-    return {
-      id: it.id.slice(0, 4),
-      raw: `${it.tile.x},${it.tile.y}`,
-      off: off ? `${Math.round(off.x)},${Math.round(off.y)}` : null,
-      center: `${Math.round(c.x + (off?.x ?? 0))},${Math.round(c.y + (off?.y ?? 0))}`
-    };
-  });
-  // eslint-disable-next-line no-console
-  console.log(
-    '[hover-hit] ' +
-      JSON.stringify({
-        mode: uiState.canvasMode,
-        point: point ? `${Math.round(point.x)},${Math.round(point.y)}` : null,
-        hover: hoverItem ? `${hoverItem.type}:${hoverItem.id.slice(0, 4)}` : null,
-        items: dbgItems
-      })
-  );
 
   setWindowCursor(hoverItem ? 'pointer' : 'default');
 
