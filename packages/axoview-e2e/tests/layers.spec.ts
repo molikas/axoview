@@ -171,6 +171,25 @@ const getViewItem = (page: import('@playwright/test').Page, id: string) =>
   }, id);
 
 /**
+ * Number of nodes the WebGL bulk layer actually PAINTED, read off the
+ * `data-draw-count` the NodesCanvas publishes each build (the same observable
+ * the perf harness uses as its anti-cheat). This is the load-bearing assertion
+ * for the layer-visibility regression: `view.layers[*].visible` flipping to
+ * false is necessary but NOT sufficient — the bug was that the flip left the
+ * elements DRAWN because the render guard misread an empty visible-set as
+ * "no layers → draw everything". Asserting the paint count (not the model flag)
+ * is what makes this test fail on the real symptom instead of passing green
+ * against a still-buggy canvas.
+ */
+const nodesDrawCount = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => {
+    const el = document.querySelector(
+      '[data-testid="axoview-nodes-canvas"]'
+    ) as HTMLCanvasElement | null;
+    return el ? parseInt(el.dataset.drawCount ?? '0', 10) || 0 : 0;
+  });
+
+/**
  * Synthetic mouse drag on the renderer interactions Box. Delegates to
  * CanvasPOM.dragFromTo which dispatches each event in a SEPARATE page.evaluate
  * — that's load-bearing. Bundling all dispatches into one evaluate breaks
@@ -336,5 +355,52 @@ test.describe('Layers — J6: assign + hide + lock', () => {
       })
       .toBe(true);
     await expect.poll(() => anchors.count(), { timeout: 3_000 }).toBe(0);
+  });
+
+  test('J6 (hide actually hides): a node on the ONLY hidden layer stops painting, and shows again on re-toggle', async ({ page }) => {
+    // Regression guard for the layer-visibility bug (hide-layer left elements
+    // drawn). The trap the old layers spec fell into: it asserted only
+    // `layer.visible === false` and passed green while the canvas kept painting
+    // the node. The failure lived in the render guards, which treated an EMPTY
+    // visible-set as "no layers configured → draw all" — but an empty set also
+    // means "every element is on a hidden layer". With a SINGLE layer holding
+    // the SINGLE node, hiding it empties the set and tripped exactly that path.
+    //
+    // So this test uses that minimal one-node/one-layer shape (the worst case)
+    // and asserts the PAINTED node count via NodesCanvas `data-draw-count`.
+    await placeIcon(page, { x: 380, y: 280 });
+    await expect.poll(() => getModelItemCount(page), { timeout: 5_000 }).toBe(1);
+    const item = await getFirstItem(page);
+    if (!item) throw new Error('expected one model item after placeIcon');
+
+    // Deselect so the node lives on the bulk canvas (a selected node is lifted
+    // into the DOM overlay and excluded from the canvas draw count).
+    await page.keyboard.press('Escape');
+
+    const layers = new LayersPanelPOM(page);
+    await layers.open();
+    await layers.addLayer();
+    await expect(layers.getLayerRow('Layer 1')).toBeVisible({ timeout: 5_000 });
+    await layers.dragItemToLayer(item.id, 'Layer 1');
+
+    // Sanity: the node is on the canvas and PAINTED while its layer is visible.
+    // (If this never reaches 1 the draw-count assertions below are meaningless.)
+    await expect.poll(() => nodesDrawCount(page), { timeout: 5_000 }).toBe(1);
+
+    // Hide the layer → the node must STOP painting. Pre-fix this stayed 1.
+    await layers.toggleVisibility('Layer 1');
+    await expect
+      .poll(async () => (await getLayer(page, 'Layer 1'))?.visible, { timeout: 3_000 })
+      .toBe(false);
+    await expect.poll(() => nodesDrawCount(page), { timeout: 3_000 }).toBe(0);
+
+    // Show it again → the node must come BACK. This is the "user can reset
+    // visibility" path the report said was stuck — the toggle has to work both
+    // directions, not just latch hidden.
+    await layers.toggleVisibility('Layer 1');
+    await expect
+      .poll(async () => (await getLayer(page, 'Layer 1'))?.visible, { timeout: 3_000 })
+      .toBe(true);
+    await expect.poll(() => nodesDrawCount(page), { timeout: 3_000 }).toBe(1);
   });
 });

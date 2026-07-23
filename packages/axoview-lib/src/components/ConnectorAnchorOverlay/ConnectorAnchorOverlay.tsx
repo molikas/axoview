@@ -237,7 +237,7 @@ export const ConnectorAnchorOverlay = () => {
   const mode = useUiStateStore((state) => state.mode);
   const { hitConnectors, currentView } = useScene();
   const { getTilePosition } = useCanvasMode();
-  const { lockedIds, visibleIds } = useLayerContext();
+  const { lockedIds, visibleIds, layers } = useLayerContext();
 
   const selectedId = useMemo(() => {
     if (mode.type === 'RECONNECT_ANCHOR') return mode.connectorId;
@@ -255,9 +255,9 @@ export const ConnectorAnchorOverlay = () => {
     if (!selectedId) return false;
     return (
       !lockedIds.has(selectedId) &&
-      (visibleIds.size === 0 || visibleIds.has(selectedId))
+      (layers.length === 0 || visibleIds.has(selectedId))
     );
-  }, [selectedId, lockedIds, visibleIds]);
+  }, [selectedId, lockedIds, visibleIds, layers.length]);
 
   const reconnectingAnchorId =
     mode.type === 'RECONNECT_ANCHOR' ? mode.anchorId : null;

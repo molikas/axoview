@@ -220,11 +220,12 @@ interface KeydownDeps {
 // multi-selection visual + drag work. Reads scene/layer state via refs so the
 // keydown effect's dep array stays stable (M-1 perf invariant). ADR-0006.
 const handleSelectAll = (uiState: State['uiState'], deps: KeydownDeps) => {
-  const { lockedIds, visibleIds } = deps.layerContextRef.current;
+  const { lockedIds, visibleIds, layers } = deps.layerContextRef.current;
   const refs = collectSelectableRefs(
     deps.sceneRef.current,
     lockedIds,
-    visibleIds
+    visibleIds,
+    layers.length > 0
   );
   // Switch to CURSOR mode so the multi-selection visual + drag work.
   if (uiState.mode.type !== 'CURSOR') {
@@ -673,13 +674,15 @@ export const useInteractionManager = () => {
       };
       uiState.actions.setMouse(nextMouse);
 
-      const { lockedIds, visibleIds } = layerContext;
+      const { lockedIds, visibleIds, layers } = layerContext;
       // An item is interactable only if its layer is unlocked AND visible.
-      // `visibleIds.size === 0` is the "no layers configured" fallback (matches
-      // the SceneLayers render guards). mqa-results.md #2.
+      // `layers.length === 0` is the "no layers configured" fallback (matches
+      // the SceneLayers render guards). mqa-results.md #2. NOT `visibleIds.size`
+      // — an empty set also means "every entity is on a hidden layer", which
+      // must stay non-interactable (layer-visibility regression fix).
       const isItemInteractable = (ref: { id: string; type?: unknown }) =>
         !lockedIds.has(ref.id) &&
-        (visibleIds.size === 0 || visibleIds.has(ref.id));
+        (layers.length === 0 || visibleIds.has(ref.id));
       // Anchor overlay elements (data-anchor-id) need pointerEvents:'auto'
       // so MUI Tooltip can detect hover, but they're conceptually part of
       // the canvas — treat clicks on them as renderer interactions so
@@ -853,10 +856,10 @@ export const useInteractionManager = () => {
       // (matches the left-click fix in Cursor).
       const item = getItemAtTile({ tile, scene, connectorMatch: 'exact' });
       if (!item) return;
-      const { lockedIds, visibleIds } = layerContext;
+      const { lockedIds, visibleIds, layers } = layerContext;
       const interactable =
         !lockedIds.has(item.id) &&
-        (visibleIds.size === 0 || visibleIds.has(item.id));
+        (layers.length === 0 || visibleIds.has(item.id));
       if (!interactable) return;
       if (item.type === 'TEXTBOX') {
         // Select (so the strip targets it) WITHOUT opening the deck, then drop
@@ -1157,7 +1160,7 @@ export const useInteractionManager = () => {
       // Only CURSOR-mode-on-empty does the touch-specific pan / tap-to-clear.
       // Scene + layers via refs so the listener effect doesn't re-bind per frame.
       const sceneNow = sceneRef.current;
-      const { lockedIds, visibleIds } = layerContextRef.current;
+      const { lockedIds, visibleIds, layers } = layerContextRef.current;
       const onAnchor =
         e.target instanceof Element && !!e.target.closest('[data-anchor-id]');
       const itemAtDown = getItemAtTile({
@@ -1167,7 +1170,7 @@ export const useInteractionManager = () => {
       const interactable =
         !!itemAtDown &&
         !lockedIds.has(itemAtDown.id) &&
-        (visibleIds.size === 0 || visibleIds.has(itemAtDown.id));
+        (layers.length === 0 || visibleIds.has(itemAtDown.id));
       const inToolMode = uiState.mode.type !== 'CURSOR';
 
       ts.downTile = seeded.position.tile;

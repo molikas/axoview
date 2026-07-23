@@ -1,6 +1,6 @@
 # Axoview Canvas Interaction Guidelines
 
-**Last updated:** 2026-07-15 (folded from the retired `canvas-interaction-baseline.md` + `canvas-interaction-behavior-map.md` tacticals; reconciled against code)
+**Last updated:** 2026-07-23 (added §5.9 per-element interaction contract + new-element checklist; folded from the retired `canvas-interaction-baseline.md` + `canvas-interaction-behavior-map.md` tacticals; reconciled against code)
 **Status:** Living reference. Update when the interaction layer evolves.
 **Audience:** Anyone (or any agent) touching canvas input — event routing, hit-testing, modes, drag, selection, or the gestures on top of them.
 
@@ -172,6 +172,33 @@ Two latent traps:
 
 - **Duplicated projection math.** `DragItems.tileDeltaToPixels` reimplements both projections' delta math instead of deriving from the strategy's `toScreen`. It matches *today*, but a strategy change wouldn't propagate → drag preview would diverge from rendering in one mode. Derive from the active strategy.
 - **`getMouse`'s default `screenToTileFn` is ISO-hardcoded.** It is only safe because `useInteractionManager` always injects the mode-aware fn. **Always inject `useCanvasMode().screenToTile`** — a handler that calls `getMouse` without it silently snaps via ISO in 2D.
+
+### 5.9 Per-element interaction contract — the new-element checklist
+
+Every placeable element must be wired into the **same set of surfaces**, and the exact wiring differs by whether it renders to the **DOM** or to a **WebGL canvas**. The recurring bug (Labels, twice) is a new element type wired into *some* surfaces and silently missing others — and the gaps don't show up in tests that assert the model flag, only in what the user sees. This is the matrix; grep the symbols, they don't drift.
+
+| Element (ref type) | Render layer | Live **drag preview** (before mouseup) | Lasso hit | Group-drag seed → commit |
+|---|---|---|---|---|
+| Node (`ITEM`) | `NodesCanvas` (WebGL) + DOM `Node` overlay for the selected/dragged one | CSS `--ff-drag-dx/dy` on the DOM `[data-drag-id]` node | tile (`isWithinBounds` / `isPointInPolygon`) | `seedDragItemPosition` → `initialTiles`; `batchUpdateViewItemTiles` |
+| Rectangle (`RECTANGLE`) | `RectanglesCanvas` (WebGL); Renderer lifts the **dragged** rect to a DOM `Rectangle` | CSS `--ff-drag-*` on the DOM wrapper | AABB overlap (`doBoundsOverlap`) | `seedDragItemPosition` → `initialRectangles`; `batchUpdateRectangles` |
+| Text box (`TEXTBOX`) | DOM | CSS `--ff-drag-*` | full bounds (`getTextBoxEndTile` + overlap) | `seedDragItemPosition` → `initialTiles`; `batchUpdateTextBoxTiles` |
+| Floating Label (`LABEL`) | `LabelsCanvas` (WebGL) — **no DOM element** | **UI-state channel**: `labelMove` (single, from `LabelHitLayer`) / `labelMoves` (group, from `DragItems`) → `LabelsCanvas` redraws the chip | tile (anchor `tile`) | `seedDragItemPosition` `LABEL` branch → `initialTiles`; `batchUpdateLabelTiles` **+ `clearLabelMoves`** |
+| Connector (`CONNECTOR` / `CONNECTOR_ANCHOR`) | `ConnectorsCanvas` (WebGL); DOM `Connector` for the selected one | `scene.previewConnectorPaths` (synthetic scene path, one call/frame) | path-hit (`segmentIntersects*`) + tile-bound waypoint/endpoint capture (I-2) | endpoints ride their nodes; tile-bound anchors seeded from `ref.tile`; committed per-connector |
+
+**The load-bearing distinction — preview channel by render layer:**
+
+- **DOM elements move for free.** They carry a CSS `--ff-drag-*` transform on their `[data-drag-id]` wrapper (§6.1), so the compositor moves them with no model write.
+- **Canvas-drawn elements have no DOM node to translate**, so they need an **explicit preview channel** that the canvas layer reads each frame: Labels use `labelMove`/`labelMoves` (UI state), connectors use `previewConnectorPaths` (scene state). **Forgetting this is the "the element doesn't move when I drag it, then jumps into place on release" bug** — the commit path is fine, only the live preview is missing. A canvas element with no preview channel *looks* broken even though the model is correct.
+
+**Checklist when you add a new placeable element** — wire ALL of these, then add altitude-correct tests (assert the observable, never just the model flag):
+
+1. **Render + visibility gate.** Filter the render layer by `layers.length === 0 || visibleIds.has(id)` — **not** `visibleIds.size === 0` (that empties when everything is on a hidden layer, showing all). Same gate on any hit-proxy.
+2. **Hit-testing.** Add it to `getItemAtTile` if it needs geometric click/hover selection.
+3. **Both lasso collectors** — `Lasso.getItemsInBounds` **and** `FreehandLasso.getItemsInFreehandBounds`. Guarded by [`lassoDragParity.test.ts`](../../packages/axoview-lib/src/interaction/modes/__tests__/lassoDragParity.test.ts) — add the type to its `EXPECTED_TYPES`.
+4. **Group-drag seed + commit** — a branch in `Cursor.seedDragItemPosition` (into `initialTiles`/`initialRectangles`) **and** in `DragItems` (preview accumulation + `mouseup` batch-commit). Guarded by `DragItems.modes.test.ts`.
+5. **Live drag preview channel** appropriate to the render layer (see the distinction above). Canvas elements: publish during `mousemove`, **clear on both `mouseup` (after commit) and `exit` (escaped drag)**.
+6. **Interactable gate on every interaction path** (§7 I-1) — hover (`updateHoverCursor` + `HoverOutline`), click, select-all, context menu.
+7. **Off-grid (ADR 0023)** — if it can be unsnapped, thread its `offset` through the render layer, the transform-controls frame (`TransformControls` `offset` prop), and the drag preview/commit.
 
 ---
 

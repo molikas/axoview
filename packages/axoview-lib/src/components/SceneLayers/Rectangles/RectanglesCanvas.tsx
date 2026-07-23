@@ -62,14 +62,16 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
   // Layer visibility (mirrors NodesCanvas / ConnectorsCanvas / LabelsCanvas):
   // the WebGL bulk must skip rects whose layer is hidden, or hiding a layer
   // leaves its rectangles drawn (picking + the DOM layers already honour this).
-  const { visibleIds } = useLayerContext();
+  const { visibleIds, layers } = useLayerContext();
 
   const rectsRef = useRef(rectangles);
   const visibleIdsRef = useRef(visibleIds);
+  const layersRef = useRef(layers);
   const getTilePosRef = useRef(getTilePosition);
   const isIsoRef = useRef(strategy.projectionName === 'ISOMETRIC');
   rectsRef.current = rectangles;
   visibleIdsRef.current = visibleIds;
+  layersRef.current = layers;
   getTilePosRef.current = getTilePosition;
   isIsoRef.current = strategy.projectionName === 'ISOMETRIC';
 
@@ -119,7 +121,14 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
       from: Coords,
       to: Coords,
       getTilePos: (a: { tile: Coords; origin?: 'LEFT' | 'CENTER' }) => Coords,
-      isIso: boolean
+      isIso: boolean,
+      // ADR 0023 off-grid: the unprojected-px residual of an unsnapped rectangle.
+      // Every corner derives from the anchor `p`, so shifting `p` by the offset
+      // translates the whole quad — matching NodesCanvas (base + node.offset), the
+      // DOM Rectangle wrapper (translate3d), and the selection/hover frame
+      // (TransformControls `offset`). Without it the WebGL bulk drew unsnapped
+      // rects at their SNAPPED tile while the frame floated off (reported).
+      offset?: Coords
     ): [Coords, Coords, Coords, Coords] => {
       const lowX = Math.min(from.x, to.x);
       const highX = Math.max(from.x, to.x);
@@ -127,8 +136,11 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
       const highY = Math.max(from.y, to.y);
       const W = (highX - lowX + 1) * UNPROJECTED_TILE_SIZE;
       const H = (highY - lowY + 1) * UNPROJECTED_TILE_SIZE;
+      const ox = offset?.x ?? 0;
+      const oy = offset?.y ?? 0;
       if (isIso) {
-        const p = getTilePos({ tile: { x: lowX, y: highY }, origin: 'LEFT' });
+        const base = getTilePos({ tile: { x: lowX, y: highY }, origin: 'LEFT' });
+        const p = { x: base.x + ox, y: base.y + oy };
         return [
           p,
           { x: p.x + ISO_A * W, y: p.y + ISO_B * W },
@@ -138,8 +150,8 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
       }
       const c = getTilePos({ tile: { x: lowX, y: highY }, origin: 'CENTER' });
       const p = {
-        x: c.x - UNPROJECTED_TILE_SIZE / 2,
-        y: c.y - UNPROJECTED_TILE_SIZE / 2
+        x: c.x - UNPROJECTED_TILE_SIZE / 2 + ox,
+        y: c.y - UNPROJECTED_TILE_SIZE / 2 + oy
       };
       return [
         p,
@@ -202,27 +214,67 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
       };
 
       const visibleNow = visibleIdsRef.current;
+      const layersNow = layersRef.current;
       for (const rect of rectsRef.current) {
-        // Skip rects on a hidden layer. Empty set = no layer context yet
-        // (draw all), matching NodesCanvas's escape hatch.
-        if (visibleNow.size > 0 && !visibleNow.has(rect.id)) continue;
+        // Skip rects on a hidden layer. The "draw all" escape hatch keys off
+        // whether ANY layer exists — NOT `visibleNow.size`, since an empty set
+        // also means "every rect is on a hidden layer" and must stay hidden.
+        if (layersNow.length > 0 && !visibleNow.has(rect.id)) continue;
         const fillValue = rect.customColor || colorsById.get(rect.color ?? '');
         if (!fillValue) continue;
         const isTransparent = fillValue === 'transparent';
-        const [c0, c1, c2, c3] = corners(rect.from, rect.to, getTilePos, isIso);
+        const [c0, c1, c2, c3] = corners(
+          rect.from,
+          rect.to,
+          getTilePos,
+          isIso,
+          rect.offset
+        );
 
-        // Fill (skip for an explicit transparent choice — outline only).
+        // Border metrics (needed BEFORE the fill so the fill can inset away from
+        // the stroke — see below). Scale the authored width to scene space
+        // (widthScale), then honour the border style — SOLID (four edges + round
+        // join dots) or DASHED / DOTTED dash-walked around the closed loop,
+        // mirroring the DOM Rectangle strokeDasharray.
+        const strokeColor =
+          rect.borderColor ||
+          (isTransparent
+            ? '#9e9e9e'
+            : getColorVariant(fillValue, 'dark', { grade: 2 }));
+        const strokeW =
+          (rect.borderWidth ?? (isTransparent ? 2 : 1)) * widthScale;
+
+        // Fill (skip for an explicit transparent choice — outline only). INSET by
+        // half the stroke so the fill's hard edge never lands exactly on the
+        // border centreline: a fill edge coincident with the analytic-AA stroke
+        // centreline cancels the stroke's coverage on the fill's excluded
+        // (bottom/right, per the top-left fill rule) boundary — the "rectangle's
+        // bottom border missing in 2D" bug. Insetting mirrors the DOM
+        // IsoTileArea, which draws its <rect> inset by halfStroke for the same
+        // reason (SVG strokes centre on the path). The stroke still traces the
+        // true footprint (c0..c3); only the fill shrinks under it, so there is no
+        // visible gap (the stroke covers the seam).
         if (!isTransparent) {
           const [fr, fg, fb] = glRGB(fillValue);
+          const uLen = Math.hypot(c1.x - c0.x, c1.y - c0.y) || 1;
+          const vLen = Math.hypot(c3.x - c0.x, c3.y - c0.y) || 1;
+          // Clamp so a thick border on a small rect can't invert the fill quad
+          // (2·ins must stay within each side); at the limit the fill collapses to
+          // zero and the stroke fills the footprint, which is the correct look.
+          const ins = Math.min(strokeW / 2, uLen / 2, vLen / 2);
+          const uhx = (c1.x - c0.x) / uLen;
+          const uhy = (c1.y - c0.y) / uLen;
+          const vhx = (c3.x - c0.x) / vLen;
+          const vhy = (c3.y - c0.y) / vLen;
           b.addSprite(
-            c0.x,
-            c0.y,
+            c0.x + ins * (uhx + vhx),
+            c0.y + ins * (uhy + vhy),
             0,
             0,
-            c1.x - c0.x,
-            c1.y - c0.y,
-            c3.x - c0.x,
-            c3.y - c0.y,
+            c1.x - c0.x - 2 * ins * uhx,
+            c1.y - c0.y - 2 * ins * uhy,
+            c3.x - c0.x - 2 * ins * vhx,
+            c3.y - c0.y - 2 * ins * vhy,
             white as UVRect,
             fr,
             fg,
@@ -232,17 +284,6 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
           );
         }
 
-        // Border. Scale the authored width to scene space (widthScale), then
-        // honour the border style — SOLID (four edges + round join dots) or
-        // DASHED (3w,2w) / DOTTED (w,2w) dash-walked around the closed loop,
-        // mirroring the DOM Rectangle strokeDasharray.
-        const strokeColor =
-          rect.borderColor ||
-          (isTransparent
-            ? '#9e9e9e'
-            : getColorVariant(fillValue, 'dark', { grade: 2 }));
-        const strokeW =
-          (rect.borderWidth ?? (isTransparent ? 2 : 1)) * widthScale;
         const [sr, sg, sb] = glRGB(strokeColor);
         const sa = rect.borderOpacity ?? 1;
         const jr = strokeW / 2;
@@ -371,7 +412,7 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
   useEffect(() => {
     geomDirtyRef.current = true;
     scheduleDrawRef.current();
-  }, [rectangles, visibleIds, getTilePosition, strategy.projectionName, theme]);
+  }, [rectangles, visibleIds, layers, getTilePosition, strategy.projectionName, theme]);
 
   return (
     <canvas

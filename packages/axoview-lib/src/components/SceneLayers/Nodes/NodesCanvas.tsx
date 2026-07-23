@@ -369,7 +369,7 @@ export const NodesCanvas = memo(({ nodes, skipNodes }: Props) => {
           );
         const visible = nodesRef.current.filter(
           (n) =>
-            (visibleNow.size === 0 || visibleNow.has(n.id)) &&
+            (layersNow.length === 0 || visibleNow.has(n.id)) &&
             !skipIds.has(n.id)
         );
         sorted = visible.sort((a, b) => orderOf(a) - orderOf(b));

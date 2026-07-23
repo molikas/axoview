@@ -76,7 +76,11 @@ jest.mock('src/hooks/useScene', () => ({
 jest.mock('src/hooks/useLayerContext', () => ({
   useLayerContext: jest.fn(() => ({
     lockedIds: new Set<string>(),
-    visibleIds: new Set<string>()
+    visibleIds: new Set<string>(),
+    // No layers configured → the interactable check's "draw/select all" escape
+    // hatch keys off `layers.length === 0`, so every item stays interactable
+    // regardless of the empty visibleIds set.
+    layers: []
   }))
 }));
 
