@@ -215,18 +215,50 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
         const isTransparent = fillValue === 'transparent';
         const [c0, c1, c2, c3] = corners(rect.from, rect.to, getTilePos, isIso);
 
-        // Fill (skip for an explicit transparent choice — outline only).
+        // Border metrics (needed BEFORE the fill so the fill can inset away from
+        // the stroke — see below). Scale the authored width to scene space
+        // (widthScale), then honour the border style — SOLID (four edges + round
+        // join dots) or DASHED / DOTTED dash-walked around the closed loop,
+        // mirroring the DOM Rectangle strokeDasharray.
+        const strokeColor =
+          rect.borderColor ||
+          (isTransparent
+            ? '#9e9e9e'
+            : getColorVariant(fillValue, 'dark', { grade: 2 }));
+        const strokeW =
+          (rect.borderWidth ?? (isTransparent ? 2 : 1)) * widthScale;
+
+        // Fill (skip for an explicit transparent choice — outline only). INSET by
+        // half the stroke so the fill's hard edge never lands exactly on the
+        // border centreline: a fill edge coincident with the analytic-AA stroke
+        // centreline cancels the stroke's coverage on the fill's excluded
+        // (bottom/right, per the top-left fill rule) boundary — the "rectangle's
+        // bottom border missing in 2D" bug. Insetting mirrors the DOM
+        // IsoTileArea, which draws its <rect> inset by halfStroke for the same
+        // reason (SVG strokes centre on the path). The stroke still traces the
+        // true footprint (c0..c3); only the fill shrinks under it, so there is no
+        // visible gap (the stroke covers the seam).
         if (!isTransparent) {
           const [fr, fg, fb] = glRGB(fillValue);
+          const uLen = Math.hypot(c1.x - c0.x, c1.y - c0.y) || 1;
+          const vLen = Math.hypot(c3.x - c0.x, c3.y - c0.y) || 1;
+          // Clamp so a thick border on a small rect can't invert the fill quad
+          // (2·ins must stay within each side); at the limit the fill collapses to
+          // zero and the stroke fills the footprint, which is the correct look.
+          const ins = Math.min(strokeW / 2, uLen / 2, vLen / 2);
+          const uhx = (c1.x - c0.x) / uLen;
+          const uhy = (c1.y - c0.y) / uLen;
+          const vhx = (c3.x - c0.x) / vLen;
+          const vhy = (c3.y - c0.y) / vLen;
           b.addSprite(
-            c0.x,
-            c0.y,
+            c0.x + ins * (uhx + vhx),
+            c0.y + ins * (uhy + vhy),
             0,
             0,
-            c1.x - c0.x,
-            c1.y - c0.y,
-            c3.x - c0.x,
-            c3.y - c0.y,
+            c1.x - c0.x - 2 * ins * uhx,
+            c1.y - c0.y - 2 * ins * uhy,
+            c3.x - c0.x - 2 * ins * vhx,
+            c3.y - c0.y - 2 * ins * vhy,
             white as UVRect,
             fr,
             fg,
@@ -236,17 +268,6 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
           );
         }
 
-        // Border. Scale the authored width to scene space (widthScale), then
-        // honour the border style — SOLID (four edges + round join dots) or
-        // DASHED (3w,2w) / DOTTED (w,2w) dash-walked around the closed loop,
-        // mirroring the DOM Rectangle strokeDasharray.
-        const strokeColor =
-          rect.borderColor ||
-          (isTransparent
-            ? '#9e9e9e'
-            : getColorVariant(fillValue, 'dark', { grade: 2 }));
-        const strokeW =
-          (rect.borderWidth ?? (isTransparent ? 2 : 1)) * widthScale;
         const [sr, sg, sb] = glRGB(strokeColor);
         const sa = rect.borderOpacity ?? 1;
         const jr = strokeW / 2;

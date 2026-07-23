@@ -431,6 +431,15 @@ const seedDragItemPosition = (
       scene.textBoxes,
       dragItem.id
     ).value.tile;
+  } else if (dragItem.type === 'LABEL') {
+    // Floating Labels (ADR 0031) move by whole-tile group delta like nodes /
+    // text boxes; DragItems commits them via batchUpdateLabelTiles. Without
+    // this seed the label was selected by the lasso but had no initial tile, so
+    // the group drag skipped it and it stayed put (reported regression).
+    initialTiles[dragItem.id] = getItemByIdOrThrow(
+      scene.labels,
+      dragItem.id
+    ).value.tile;
   } else if (dragItem.type === 'RECTANGLE') {
     const r = getItemByIdOrThrow(scene.rectangles, dragItem.id).value;
     initialRectangles[dragItem.id] = { from: r.from, to: r.to };
