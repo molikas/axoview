@@ -91,8 +91,8 @@ Project doc conventions (see [docs/workflow.md](../../docs/workflow.md); the `pr
 Single coherent commit covering all fixes from the session.
 
 - Stage explicit paths, not `git add -A`.
-- Message style matches recent `git log` here: lowercase prefix (`feat:` / `fix:` / `chore:` / `docs:`), short title, body explaining the why.
-- Co-author trailer per repo `CLAUDE.md` instructions.
+- Message style matches recent `git log` here: lowercase prefix (`feat:` / `fix:` / `chore:` / `docs:`), short title. The **body** must carry a user-facing, per-fix bullet list (one plain-language line per fix): the release-notes generator renders the commit body into the GitHub Release and `CHANGELOG.md` ([ADR 0046](../../docs/adr/0046-release-notes-generation-and-reference-integrity.md) §1), so keep it release-ready — no internal scratch notes.
+- Co-author trailer per repo `CLAUDE.md` instructions. No `Closes #N` / issue-reference footers — the project uses no issue tracker (issues are triaged in chat), so there is nothing to close ([ADR 0046](../../docs/adr/0046-release-notes-generation-and-reference-integrity.md) §3).
 - Push to the current branch. Don't open a PR unless the user asks.
 
 If multiple unrelated bug-classes were fixed, ask the user whether to split into multiple commits.

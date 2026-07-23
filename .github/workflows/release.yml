@@ -40,4 +40,9 @@ jobs:
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional: after a release is published, semantic-release's successCmd
+          # POSTs to this Cloudflare Pages deploy hook so CF rebuilds the now-tagged
+          # commit and the in-app version reads the exact release (ADR 0045). No-op
+          # when the secret is unset.
+          CF_PAGES_DEPLOY_HOOK: ${{ secrets.CF_PAGES_DEPLOY_HOOK }}
         run: npx semantic-release

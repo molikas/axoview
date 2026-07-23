@@ -25,22 +25,7 @@
     [
       "@semantic-release/release-notes-generator",
       {
-        "preset": "conventionalcommits",
-        "presetConfig": {
-          "types": [
-            { "type": "feat", "section": "Features" },
-            { "type": "fix", "section": "Bug Fixes" },
-            { "type": "perf", "section": "Performance" },
-            { "type": "revert", "section": "Reverts" },
-            { "type": "docs", "section": "Documentation", "hidden": false },
-            { "type": "style", "section": "Styles", "hidden": true },
-            { "type": "chore", "section": "Chores", "hidden": true },
-            { "type": "refactor", "section": "Code Refactoring" },
-            { "type": "test", "section": "Tests", "hidden": true },
-            { "type": "build", "section": "Build System", "hidden": true },
-            { "type": "ci", "section": "CI/CD", "hidden": true }
-          ]
-        }
+        "config": "./scripts/release-changelog-preset.mjs"
       }
     ],
     [
@@ -53,7 +38,8 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "npm run update-version ${nextRelease.version} && npm run build"
+        "prepareCmd": "npm run update-version ${nextRelease.version} && npm run build",
+        "successCmd": "[ -n \"$CF_PAGES_DEPLOY_HOOK\" ] && curl -fsS -X POST \"$CF_PAGES_DEPLOY_HOOK\" || true"
       }
     ],
     [

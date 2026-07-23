@@ -2,10 +2,13 @@ import { defineConfig } from '@rsbuild/core';
 import { pluginReact } from '@rsbuild/plugin-react';
 import path from 'path';
 import pkg from './package.json';
+import resolveVersion from '../../scripts/resolve-version.js';
 
 const publicUrl = process.env.PUBLIC_URL || '';
 const assetPrefix = publicUrl ? (publicUrl.endsWith('/') ? publicUrl : publicUrl + '/') : '/';
-const appVersion = process.env.REACT_APP_VERSION || pkg.version;
+// Version comes from the git tag at build time, not the (frozen) committed
+// package.json — see scripts/resolve-version.js + ADR 0045.
+const appVersion = process.env.REACT_APP_VERSION || resolveVersion(pkg.version);
 
 // Resolve React from root node_modules to avoid duplicate instances
 const rootNodeModules = path.resolve(__dirname, '../../node_modules');
@@ -39,6 +42,10 @@ export default defineConfig({
         template: './app-shell.html',
         templateParameters: {
             assetPrefix: assetPrefix,
+            // Stamp the build version onto the boot splash (ADR 0045 §2). Same
+            // value the About tab shows; correct in production once the release
+            // bump is committed back (ADR 0045 §1).
+            appVersion: appVersion,
         },
     },
     source: {
