@@ -63,6 +63,16 @@
           transform: rotate(360deg);
         }
       }
+      .ax-splash-version {
+        position: absolute;
+        bottom: 20px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 12px;
+        letter-spacing: 0.02em;
+        color: #9ca3af;
+      }
     </style>
   </head>
   <body>
@@ -72,6 +82,7 @@
         <div class="ax-splash-logo">Axo<span class="ax-splash-logo-accent">view</span></div>
         <div class="ax-splash-spinner" role="progressbar" aria-label="Loading Axoview"></div>
       </div>
+      <div class="ax-splash-version">v<%= appVersion %></div>
     </div>
     <div id="root"></div>
   </body>

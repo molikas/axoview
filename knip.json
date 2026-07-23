@@ -21,7 +21,7 @@
   },
   "workspaces": {
     ".": {
-      "entry": ["functions/**/*.ts", "scripts/*.js"]
+      "entry": ["functions/**/*.ts", "scripts/*.js", "scripts/*.mjs"]
     },
     "packages/axoview-app": {
       "entry": [
