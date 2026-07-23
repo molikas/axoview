@@ -24,7 +24,7 @@ export const Nodes = memo(({ nodes }: Props) => {
     // Filter to visible-only, then sort by resolved render order descending
     // (higher order = rendered later = visually on top in CSS stacking).
     return [...nodes]
-      .filter((node) => visibleIds.size === 0 || visibleIds.has(node.id))
+      .filter((node) => layers.length === 0 || visibleIds.has(node.id))
       .sort((a, b) => {
         const layerA = findLayer(a.layerId, layers);
         const layerB = findLayer(b.layerId, layers);

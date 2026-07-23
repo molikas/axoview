@@ -7,6 +7,7 @@ import { useImageAspect } from 'src/hooks/useImageAspect';
 import { useRectangle } from 'src/hooks/useRectangle';
 import { useTextBox } from 'src/hooks/useTextBox';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
+import { useLayerContext } from 'src/hooks/useLayerContext';
 import { getTextBoxEndTile } from 'src/utils';
 import { PROJECTED_TILE_SIZE } from 'src/config';
 import { TransformControls } from './TransformControls';
@@ -37,6 +38,7 @@ const HoverNode = ({ id }: { id: string }) => {
       <TransformControls
         from={node.tile}
         to={node.tile}
+        offset={node.offset}
         extentScale={scale}
         subtle
       />
@@ -60,7 +62,14 @@ const HoverNode = ({ id }: { id: string }) => {
 const HoverRectangle = ({ id }: { id: string }) => {
   const rectangle = useRectangle(id);
   if (!rectangle) return null;
-  return <TransformControls from={rectangle.from} to={rectangle.to} subtle />;
+  return (
+    <TransformControls
+      from={rectangle.from}
+      to={rectangle.to}
+      offset={rectangle.offset}
+      subtle
+    />
+  );
 };
 
 const HoverTextBox = ({ id }: { id: string }) => {
@@ -68,7 +77,9 @@ const HoverTextBox = ({ id }: { id: string }) => {
   if (!textBox) return null;
   // A text box lies in the tile plane → the iso diamond, like a rectangle.
   const to = getTextBoxEndTile(textBox, textBox.size);
-  return <TransformControls from={textBox.tile} to={to} subtle />;
+  return (
+    <TransformControls from={textBox.tile} to={to} offset={textBox.offset} subtle />
+  );
 };
 
 export const HoverOutline = () => {
@@ -77,12 +88,24 @@ export const HoverOutline = () => {
   const editorMode = useUiStateStore((s) => s.editorMode);
   const itemControls = useUiStateStore((s) => s.itemControls);
   const selectedIds = useUiStateStore((s) => s.selectedIds);
+  const { visibleIds, lockedIds, layers } = useLayerContext();
 
   // Only in the editable pointer mode; hover has no meaning while a tool is
   // armed, dragging, or in read-only/present.
   if (editorMode !== 'EDITABLE' || modeType !== 'CURSOR' || !hoveredItem) {
     return null;
   }
+
+  // A hidden or locked element isn't interactable, so it must not paint a hover
+  // outline. The hover-source gate (Cursor.updateHoverCursor) already skips
+  // publishing these, but re-check here so a layer hidden/locked WHILE its
+  // element is hovered (a panel toggle, no canvas mouse-move to re-run the
+  // source gate) drops the stale outline immediately. Mirrors the interactable
+  // invariant: unlocked AND (no layers OR visible).
+  const interactable =
+    !lockedIds.has(hoveredItem.id) &&
+    (layers.length === 0 || visibleIds.has(hoveredItem.id));
+  if (!interactable) return null;
 
   // Don't double-outline the already-selected item (the selection ring owns it).
   const isSelected =

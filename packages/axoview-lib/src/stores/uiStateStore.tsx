@@ -85,6 +85,7 @@ const initialState = () => {
       exportHideLabels: false,
       labelDrag: null,
       labelMove: null,
+      labelMoves: null,
       iconScaleDrag: null,
       selectedConnectorLabel: null,
       inlineEditLabelId: null,
@@ -369,6 +370,17 @@ const initialState = () => {
         },
         clearLabelMove: () => {
           set({ labelMove: null });
+        },
+        setLabelMoves: (moves) => {
+          // Transient GROUP floating-Label move preview (ADR 0031): the
+          // multi-selection-drag counterpart of setLabelMove. DragItems writes
+          // the whole dragged-label set once per frame; LabelsCanvas redraws each
+          // keyed chip at its preview tile/offset with NO model write. Committed
+          // to the model once, on release.
+          set({ labelMoves: moves });
+        },
+        clearLabelMoves: () => {
+          set({ labelMoves: null });
         },
         setIconScaleDrag: (scales) => {
           // Transient on-canvas icon-resize preview (ADR 0044). The resized nodes

@@ -59,7 +59,9 @@ function makeUiState(overrides: any = {}) {
     },
     actions: overrides.actions ?? {
       setMode: jest.fn(),
-      setItemControls: jest.fn()
+      setItemControls: jest.fn(),
+      setLabelMoves: jest.fn(),
+      clearLabelMoves: jest.fn()
     },
     canvasMode: overrides.canvasMode ?? 'ISOMETRIC'
   };
@@ -70,8 +72,10 @@ function makeScene(overrides: any = {}) {
     items: overrides.items ?? [],
     textBoxes: [],
     rectangles: [],
+    labels: overrides.labels ?? [],
     connectors: [],
     transaction: jest.fn((fn: () => void) => fn()),
+    batchUpdateLabelTiles: jest.fn(),
     updateViewItem: jest.fn((_id: any, _update: any, state: any) => state),
     updateTextBox: jest.fn((_id: any, _update: any, state: any) => state),
     updateRectangle: jest.fn((_id: any, _update: any, state: any) => state),
@@ -679,5 +683,116 @@ describe('DragItems — rectangle/textbox CSS-preview move (perf, RECT-1)', () =
     expect(scene.batchUpdateTextBoxTiles).toHaveBeenCalledWith([
       { id: 'tb1', tile: { x: 3, y: 3 } }
     ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Floating-label GROUP move (ADR 0031). A label is canvas-drawn (LabelsCanvas)
+// with no [data-drag-id] DOM element, so — unlike nodes/rectangles/text boxes —
+// it cannot carry a CSS `--ff-drag-*` preview. Its live preview instead rides the
+// uiState `labelMoves` channel, which LabelsCanvas reads. REGRESSION GUARD: two
+// reported bugs, (1) the label wasn't seeded so it never moved at all, and (2)
+// once seeded it moved on COMMIT but showed no live preview (looked frozen). This
+// locks both: the preview is published during the drag AND committed once + the
+// preview cleared on mouseup.
+// ---------------------------------------------------------------------------
+describe('DragItems — floating-label group move (ADR 0031)', () => {
+  beforeEach(() => {
+    DragItems.exit!({
+      rendererRef: makeRendererRef(),
+      uiState: makeUiState(),
+      scene: makeScene()
+    } as any);
+    jest.clearAllMocks();
+    mockGetItemAtTile.mockReturnValue(null);
+  });
+
+  it('publishes the live labelMoves preview during mousemove (no model write yet)', () => {
+    const uiState = makeUiState({
+      mode: {
+        type: 'DRAG_ITEMS',
+        showCursor: true,
+        items: [{ type: 'LABEL', id: 'lbl1' }],
+        initialTiles: { lbl1: { x: 1, y: 1 } },
+        initialRectangles: {}
+      },
+      mouse: {
+        position: { tile: { x: 5, y: 5 } },
+        mousedown: { tile: { x: 3, y: 3 } } // offset {2,2}
+      }
+    });
+    const scene = makeScene({
+      labels: [{ id: 'lbl1', tile: { x: 1, y: 1 }, text: 'x' }]
+    });
+
+    DragItems.mousemove!({ uiState, scene } as any);
+
+    // The canvas label preview is published — this is what makes the chip follow
+    // the pointer instead of sitting frozen until commit.
+    expect(uiState.actions.setLabelMoves).toHaveBeenCalledTimes(1);
+    const moves = uiState.actions.setLabelMoves.mock.calls[0][0];
+    expect(moves.lbl1.tile).toEqual({ x: 3, y: 3 }); // initial {1,1} + offset {2,2}
+    // And NO model write during the drag.
+    expect(scene.batchUpdateLabelTiles).not.toHaveBeenCalled();
+  });
+
+  it('commits via batchUpdateLabelTiles and clears the preview once on mouseup', () => {
+    const uiState = makeUiState({
+      mode: {
+        type: 'DRAG_ITEMS',
+        showCursor: true,
+        items: [{ type: 'LABEL', id: 'lbl1' }],
+        initialTiles: { lbl1: { x: 1, y: 1 } },
+        initialRectangles: {}
+      },
+      mouse: {
+        position: { tile: { x: 5, y: 5 } },
+        mousedown: { tile: { x: 3, y: 3 } }
+      }
+    });
+    const scene = makeScene({
+      labels: [{ id: 'lbl1', tile: { x: 1, y: 1 }, text: 'x' }]
+    });
+
+    DragItems.mousemove!({ uiState, scene } as any);
+    DragItems.mouseup!({ uiState, scene } as any);
+
+    expect(scene.batchUpdateLabelTiles).toHaveBeenCalledTimes(1);
+    expect(scene.batchUpdateLabelTiles).toHaveBeenCalledWith([
+      { id: 'lbl1', tile: { x: 3, y: 3 }, offset: undefined }
+    ]);
+    // Preview must be dropped so the committed chip isn't shadowed by a stale
+    // override.
+    expect(uiState.actions.clearLabelMoves).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears the preview on exit (escaped drag leaves no stranded chip)', () => {
+    const uiState = makeUiState({
+      mode: {
+        type: 'DRAG_ITEMS',
+        showCursor: true,
+        items: [{ type: 'LABEL', id: 'lbl1' }],
+        initialTiles: { lbl1: { x: 1, y: 1 } },
+        initialRectangles: {}
+      },
+      mouse: {
+        position: { tile: { x: 5, y: 5 } },
+        mousedown: { tile: { x: 3, y: 3 } }
+      }
+    });
+    const scene = makeScene({
+      labels: [{ id: 'lbl1', tile: { x: 1, y: 1 }, text: 'x' }]
+    });
+
+    DragItems.mousemove!({ uiState, scene } as any);
+    DragItems.exit!({
+      rendererRef: makeRendererRef(),
+      uiState,
+      scene
+    } as any);
+
+    expect(uiState.actions.clearLabelMoves).toHaveBeenCalled();
+    // No commit on an escaped drag.
+    expect(scene.batchUpdateLabelTiles).not.toHaveBeenCalled();
   });
 });

@@ -68,6 +68,7 @@ export const RectangleTransformControls = ({ id, showHandles = true }: Props) =>
     <TransformControls
       from={rectangle.from}
       to={rectangle.to}
+      offset={rectangle.offset}
       onAnchorMouseDown={showHandles ? onAnchorMouseDown : undefined}
       onRotate={showHandles ? onRotate : undefined}
       rotateTooltip={t('rotate90')}

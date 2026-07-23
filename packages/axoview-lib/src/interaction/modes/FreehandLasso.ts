@@ -6,6 +6,7 @@ import {
   ViewItem,
   Rectangle,
   TextBox,
+  Label,
   Connector,
   ConnectorAnchor
 } from 'src/types';
@@ -20,6 +21,9 @@ interface FreehandScene {
   items: ViewItem[];
   rectangles: Rectangle[];
   textBoxes: TextBox[];
+  // Optional so partial scenes (tests / older callers) don't crash; reads guard
+  // with `?? []`. The live useScene scene always provides it. ADR 0031.
+  labels?: Label[];
   connectors: Connector[];
 }
 
@@ -71,6 +75,19 @@ const getItemsInFreehandBounds = (
       isItemInteractable({ type: 'TEXTBOX', id: textBox.id })
     ) {
       items.push({ type: 'TEXTBOX', id: textBox.id });
+    }
+  });
+
+  // Floating Labels (ADR 0031) hit on their anchor tile — a billboard chip has
+  // no iso footprint, so the polygon selects it when its tile is enclosed.
+  // Mirrors Lasso.ts; without this the freehand marquee silently dropped every
+  // label (they were never even enumerated here).
+  (scene.labels ?? []).forEach((label: Label) => {
+    if (
+      isPointInPolygon(label.tile, pathTiles) &&
+      isItemInteractable({ type: 'LABEL', id: label.id })
+    ) {
+      items.push({ type: 'LABEL', id: label.id });
     }
   });
 
@@ -153,6 +170,11 @@ export const FreehandLasso: ModeActions = {
           } else if (item.type === 'TEXTBOX') {
             initialTiles[item.id] = getItemByIdOrThrow(
               scene.textBoxes,
+              item.id
+            ).value.tile;
+          } else if (item.type === 'LABEL') {
+            initialTiles[item.id] = getItemByIdOrThrow(
+              scene.labels ?? [],
               item.id
             ).value.tile;
           } else if (item.type === 'RECTANGLE') {
