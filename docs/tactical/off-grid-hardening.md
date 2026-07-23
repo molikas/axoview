@@ -7,7 +7,7 @@
 > - [guidelines/testing.md](../guidelines/testing.md) — suite conventions; update its additions table when suites land
 > - [workflow.md](../workflow.md) — baseline
 >
-> **Status:** Not started · **Owner:** molikas · **Last updated:** 2026-07-23
+> **Status:** Implemented (A–G) 2026-07-23 — **awaiting the plan author's review**; see the Progress log at the bottom · **Owner:** molikas · **Last updated:** 2026-07-23
 >
 > This is a **short-lived working doc.** Delete it after the work merges; ADRs are the durable record. PLAN.md gets a one-line entry once shipped — see "Wrap-up".
 
@@ -114,15 +114,15 @@ Make "forgot the offset" (a) structurally hard to write, (b) impossible to ship 
 - [x] Assertions via DOM bounding boxes + the `window.__axoview__` bridge for model reads — no screenshots, no bridge extension unless something is genuinely unreachable (if needed, add a read-only `hitTest(point)` to the bridge rather than reaching into internals). — no bridge extension was needed. Two `data-axoview-id` hooks WERE added to product code: `canvas-hover-outline` / `canvas-selection-chrome` on the two chrome components' root `<Svg>`, which carried no identifying attribute at all. Shared helpers live in `packages/axoview-e2e/helpers/offGrid.ts`.
 
 ### G. Docs & wrap
-- [ ] `guidelines/testing.md`: additions table for the new suites (repo discipline), incl. the "Why this exists" pointers.
-- [ ] ADR 0023 addendum (decision 8 + decisions 5/6 rationale + pointer to the invariant suite as the new acceptance surface).
-- [ ] `git grep` the retired terms ("unprojected px" describing `offset`) → zero live hits.
+- [x] `guidelines/testing.md`: additions table for the new suites (repo discipline), incl. the "Why this exists" pointers. — new "ADR 0023 hardening additions" section + refreshed lib totals (1723 / 154 suites) and the e2e spec-file count.
+- [x] ADR 0023 addendum (decision 8 + decisions 5/6 rationale + pointer to the invariant suite as the new acceptance surface). — dated 2026-07-23, §§A–G: terminology, the one-source rule + the proven-wrong tile-rounding fix, the O(N) cost model, WebGL-vs-DOM by construction, the §2 as-built caveat closed (E1), the shared label pointer contract (E2), and the new acceptance surface. The accepted text is untouched; §1 gained a one-line pointer block to the addendum so nobody reads the wrong semantics out of it.
+- [x] `git grep` the retired terms ("unprojected px" describing `offset`) → zero live hits. — zero in code and in every doc EXCEPT ADR 0023's own accepted text, which decision 8 says not to rewrite; that text now carries the pointer block above. The surviving `unprojected` matches elsewhere are the legitimate ones (`UNPROJECTED_TILE_SIZE`, `getUnprojectedBounds`, authored-in-unprojected-tile-space stroke widths).
 
 ## Wrap-up
 
-1. Add one line under the relevant PLAN.md phase: `Off-grid rendered-geometry hardening shipped — see ADR 0023 addendum + docs/guidelines/testing.md (this file's git history for the plan).`
-2. Delete this file (after the reviewing agent signs off).
-3. Refresh any memory pointer referencing this tactical.
+1. [x] Add one line under the relevant PLAN.md phase: `Off-grid rendered-geometry hardening shipped — see ADR 0023 addendum + docs/guidelines/testing.md (this file's git history for the plan).` — added to the UX-CANVAS row, together with F3's open question about re-snapping on global-toggle-ON.
+2. [ ] Delete this file (after the reviewing agent signs off). — **left in place deliberately; it is the review checklist.**
+3. [x] Refresh any memory pointer referencing this tactical.
 
 ## Notes for Claude (implementing agent)
 
@@ -150,3 +150,6 @@ Make "forgot the offset" (a) structurally hard to write, (b) impossible to ship 
 - 2026-07-23 · **D** — invariant suite (162 cases), off-grid right-click menu resolution test, shared label pointer-contract test. Mutation gate performed on `HoverOutline` → 14 red, restored; the menu test independently verified red by dropping `point` from its `getItemAtTile` call. Unit 154 suites / 1719 tests green. · `test(off-grid): invariant suite for render == chrome == hit zone` (this commit)
 - 2026-07-23 · **E** — E1 predicate fold (`isSnappedPlacement`), E2 shared `labelPointerContract` + node-label context menu (the one intended behaviour change), E3 footprint-accurate textbox/rectangle hit-testing. Unit 154 suites / 1723 tests; e2e subset over labels, context menus, drag, lasso and snap-grid 19/19. · `refactor(off-grid): fold the drag, label and area-hit paths onto one contract` (this commit)
 - 2026-07-23 · **F** — `off-grid-pointer.spec.ts` (3 real-mouse cases: exact sub-tile delta, hover/chrome/menu at the drawn position + canvas menu on the vacated cell, name-chip grab & right-click) and three new `snap-grid.spec.ts` cases (lasso-accumulate → per-item menus, reload-survives-as-painted, global-snap-ON freeze). Shared helpers extracted to `helpers/offGrid.ts`; `canvas-hover-outline` / `canvas-selection-chrome` test hooks added to the chrome components. 9/9 green across both specs. · `test(off-grid): e2e coverage for the sub-tile regime` (this commit)
+- 2026-07-23 · **G** — `guidelines/testing.md` additions section + refreshed totals; ADR 0023 addendum extended with E1/E2 and a pointer block on the superseded §1 wording; retired terminology verified clear; PLAN.md wrap-up line + F3 open question; memory pointer refreshed. The tactical doc itself is NOT deleted — it is the review checklist. · `docs(off-grid): record the hardening pass in testing.md, ADR 0023 and PLAN` (this commit)
+
+**Status: A–G complete.** Unit 154 suites / 1723 tests (+1 skipped); the off-grid e2e specs 9/9; `tsc --noEmit`, `eslint`, `knip` and `lint:docs` clean. The full e2e sweep is the remaining gate — see the handover note below.

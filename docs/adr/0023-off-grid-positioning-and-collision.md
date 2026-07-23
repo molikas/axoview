@@ -33,6 +33,10 @@ collides?: boolean;                  // default true; false = excluded from Tile
 - Stored offset is **unprojected px** so it is projection-independent (iso ↔ 2D). The renderer applies it as a final translate after projection.
 - Zod `modelItem` schema extends with these optionals; lean-save omits defaults.
 
+> ⚠ **"unprojected px" above is wrong** — corrected by the 2026-07-23 addendum §A.
+> The residual is **SceneLayer px (post-projection)**. The accepted text is left
+> as shipped; read the addendum before writing any code against `offset`.
+
 ### 2. One snap chokepoint
 
 All drag/paste/placement position resolution goes through a single helper, `resolvePlacement(tile, offset, snap, globalSnap)`. The rest of the engine — routing, `TileIndex`, spatial queries, the canvas render base — keeps reading the **integer tile**; only the renderer and this chokepoint read `offset`. This bounds the blast radius.
@@ -98,7 +102,27 @@ snapping back to its grid cell on drop) lived in the gap between the DOM
 `getRenderedAreaCorners`, and the invariant suite asserts cross-path equality
 rather than reading pixels (jsdom has no GL context).
 
-**E. New acceptance surface.** The original acceptance criteria assert the *data
+**E. The as-built caveat in §2 is closed.** `DragItems` no longer re-implements
+the snap predicate: it is exported from the chokepoint module itself as
+`isSnappedPlacement(snap, globalSnap)`, and `resolvePlacement` and `DragItems`
+are its only callers. The predicate rather than a `resolvePlacement()` call from
+the drag loop, deliberately: the drag needs the decision *before* it has a
+candidate residual (it picks the CSS preview from it), calling through per item
+per frame would allocate in the hot path ADR 0020's harness guards, and
+`resolvePlacement`'s zero-residual collapse would change what a drag commits.
+Behaviour is unchanged; the duplication is gone.
+
+**F. Label hit-proxies share one pointer contract.** `LabelHitLayer` and
+`NodeLabelHitLayer` are siblings over two paint layers and had drifted: the node
+layer let a right-click fall through so the window handler resolved the (empty)
+tile above the node and opened the CANVAS menu, while a floating label opened its
+item menu. The mechanics now live in `utils/labelPointerContract.ts` — the proxy
+always swallows the press, and therefore must own the context menu — and node
+labels open their node's item menu. This is a deliberate behaviour change, one of
+two in the hardening pass (the other is footprint-accurate text box / rectangle
+hit-testing, §B).
+
+**G. New acceptance surface.** The original acceptance criteria assert the *data
 model* (tile stays integer, offset is committed) — which is why all seven bugs
 were invisible to them. The acceptance surface for off-grid geometry is now
 `utils/__tests__/renderedGeometry.invariant.test.tsx` (render == chrome == hit
