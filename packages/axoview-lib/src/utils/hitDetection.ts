@@ -8,13 +8,13 @@ import {
   connectorPathTileToGlobal,
   getTextBoxEndTile
 } from 'src/utils/isoMath';
-import { UNPROJECTED_TILE_SIZE } from 'src/config';
 import {
   getStrategy,
   makeTilePositionFn
 } from 'src/utils/coordinateTransforms';
 import {
   footprintContainsPoint,
+  getRenderedAreaFootprint,
   getRenderedTileFootprint
 } from 'src/utils/renderedGeometry';
 
@@ -121,21 +121,38 @@ export const getItemAtTile = ({
 
   if (itemId != null) return { type: 'ITEM', id: itemId };
 
-  // ADR 0023: the tile-bounds shapes (text box, rectangle) render at their
-  // projected tiles PLUS a px offset when off-grid. Map the cursor point back
-  // into the shape's UN-offset tile frame so the existing isWithinBounds range
-  // test lands where the shape is DRAWN. Snapped shapes (no offset) or callers
-  // without a point fall back to the raw mouse tile — behaviour unchanged.
-  const queryTileFor = (offset?: Coords): Coords => {
-    if (!point || !canvasMode || !offset || (offset.x === 0 && offset.y === 0)) {
-      return tile;
+  // ADR 0023: the tile-range shapes (text box, rectangle) are drawn at their
+  // projected tile range PLUS a px offset. Test the cursor point against the
+  // shape's RENDERED quad — the very corners the renderers draw — rather than
+  // rounding the point back into the shape's un-offset tile frame. Rounding was
+  // the fix's first shape and it leaves up to half a tile of slop at every edge:
+  // a shape nudged by a residual stayed grabbable at the cell it had left, and
+  // missed part of its own drawn body.
+  //
+  // Callers without a point/mode (connector, pan, placement paths) keep the raw
+  // integer-tile range test — behaviour unchanged.
+  const areaGetTilePosition =
+    point && canvasMode ? makeTilePositionFn(getStrategy(canvasMode)) : null;
+
+  const areaContainsCursor = (
+    from: Coords,
+    to: Coords,
+    offset: Coords | undefined,
+    tileBounds: Coords[]
+  ): boolean => {
+    if (!areaGetTilePosition || !point || !canvasMode) {
+      return isWithinBounds(tile, tileBounds);
     }
-    const d = getStrategy(canvasMode).fromCanvasPoint(
-      point.x - offset.x,
-      point.y - offset.y,
-      UNPROJECTED_TILE_SIZE
+    return footprintContainsPoint(
+      getRenderedAreaFootprint(
+        from,
+        to,
+        offset,
+        areaGetTilePosition,
+        canvasMode
+      ),
+      point
     );
-    return { x: Math.round(d.x), y: Math.round(d.y) };
   };
 
   // A text box claims its whole tile footprint and outranks connectors (clicking
@@ -145,17 +162,19 @@ export const getItemAtTile = ({
   // here everywhere the chip isn't.
   const textBox = scene.textBoxes.find((tb) => {
     const textBoxTo = getTextBoxEndTile(tb, tb.size);
-    const textBoxBounds = getBoundingBox([
+    const textBoxEnd = {
+      x: Math.ceil(textBoxTo.x),
+      y:
+        tb.orientation === 'X'
+          ? Math.ceil(textBoxTo.y)
+          : Math.floor(textBoxTo.y)
+    };
+    return areaContainsCursor(
       tb.tile,
-      {
-        x: Math.ceil(textBoxTo.x),
-        y:
-          tb.orientation === 'X'
-            ? Math.ceil(textBoxTo.y)
-            : Math.floor(textBoxTo.y)
-      }
-    ]);
-    return isWithinBounds(queryTileFor(tb.offset), textBoxBounds);
+      textBoxEnd,
+      tb.offset,
+      getBoundingBox([tb.tile, textBoxEnd])
+    );
   });
 
   if (textBox) return { type: 'TEXTBOX', id: textBox.id };
@@ -219,7 +238,7 @@ export const getItemAtTile = ({
   let rectangle: (typeof rectPaintOrder)[number] | undefined;
   for (let i = rectPaintOrder.length - 1; i >= 0; i -= 1) {
     const r = rectPaintOrder[i];
-    if (isWithinBounds(queryTileFor(r.offset), [r.from, r.to])) {
+    if (areaContainsCursor(r.from, r.to, r.offset, [r.from, r.to])) {
       rectangle = r;
       break;
     }

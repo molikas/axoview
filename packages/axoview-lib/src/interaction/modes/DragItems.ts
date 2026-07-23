@@ -10,6 +10,7 @@ import {
   itemCollides
 } from 'src/utils';
 import { cursorCanvasPoint } from 'src/utils/coordinateTransforms';
+import { isSnappedPlacement } from 'src/utils/resolvePlacement';
 import { UNPROJECTED_TILE_SIZE, PROJECTED_TILE_SIZE } from 'src/config';
 
 // =============================================================================
@@ -64,13 +65,12 @@ const previewTextBoxOffsets = new Map<string, Coords | undefined>();
 const previewLabelOffsets = new Map<string, Coords | undefined>();
 
 // An item is off-grid (commits a px residual instead of snapping) when the
-// global toggle is off OR the item itself is unsnapped (ADR 0023). Mirrors the
-// snapped test in resolvePlacement; kept inline so the drag hot path has no
-// extra import indirection.
-const isOffGrid = (
-  snap: boolean | undefined,
-  globalSnap: boolean
-): boolean => !((snap ?? true) && globalSnap);
+// global toggle is off OR the item itself is unsnapped (ADR 0023). This used to
+// re-implement the predicate inline — the "second chokepoint" ADR 0023's
+// as-built caveat flagged. It now reads the ONE definition, in the placement
+// chokepoint itself, so the drag and the placement path cannot desync.
+const isOffGrid = (snap: boolean | undefined, globalSnap: boolean): boolean =>
+  !isSnappedPlacement(snap, globalSnap);
 
 // D4-4: external (non-dragged) item occupancy is invariant during a drag — the
 // dragged items move via CSS only, the model isn't written — so it's snapshotted

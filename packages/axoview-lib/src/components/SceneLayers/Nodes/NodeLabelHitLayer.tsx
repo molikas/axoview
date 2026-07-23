@@ -9,6 +9,11 @@ import { useSceneActions } from 'src/hooks/useSceneActions';
 import { resolveDraggedOffset } from 'src/utils/labelPosition';
 import { getRenderedTilePosition } from 'src/utils/renderedGeometry';
 import {
+  LABEL_DRAG_SLOP_PX,
+  openLabelContextMenu,
+  shouldBeginLabelDrag
+} from 'src/utils/labelPointerContract';
+import {
   EDIT_ELEMENT_LINK_EVENT,
   HIDE_ELEMENT_LINK_EVENT
 } from 'src/utils/quillLinkShortcut';
@@ -41,7 +46,6 @@ const HIT_MIN_ZOOM = 0.4;
 const CHIP_PAD_X = 12;
 const CHIP_PAD_Y = 8;
 const CHIP_MAX_W = 250;
-const DRAG_SLOP_PX = 4;
 
 // Module-level offscreen 2D context for name-width measurement (matches the
 // canvas renderer's measureText). One per module; never attached to the DOM.
@@ -118,7 +122,7 @@ export const NodeLabelHitLayer = ({ nodes }: Props) => {
       const d = dragRef.current;
       if (!d) return;
       if (!d.started) {
-        if (Math.abs(e.clientY - d.startClientY) < DRAG_SLOP_PX) return;
+        if (Math.abs(e.clientY - d.startClientY) < LABEL_DRAG_SLOP_PX) return;
         d.started = true;
         // Past slop: promote the node into the DOM overlay (via labelDrag), so the
         // label now moves as a single-node DOM re-render. A plain click never gets
@@ -176,14 +180,27 @@ export const NodeLabelHitLayer = ({ nodes }: Props) => {
     [uiStoreApi]
   );
 
+  // Right-click a node's name chip → the NODE's item menu, matching what a
+  // right-click on the node body does and what a floating Label already did.
+  // Before this the proxy let the press fall through, the window-level handler
+  // resolved the bare tile under the chip (which is above the node, so empty),
+  // and the user got the CANVAS menu — bug #7's other half.
+  const onContextMenu = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>, node: ViewItem) => {
+      const ui = uiStoreApi.getState();
+      openLabelContextMenu(e, ui.actions, { type: 'ITEM', id: node.id }, () => {
+        ui.actions.setSelectedIds?.([{ type: 'ITEM', id: node.id }]);
+      });
+    },
+    [uiStoreApi]
+  );
+
   const onPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>, node: ViewItem) => {
-      // Label reposition is a LEFT-drag only; let right/middle presses fall
-      // through so a right-click over the label still reaches the canvas and opens
-      // the context menu (the proxy no longer swallows it).
-      if (e.button !== 0) return;
-      // Don't let the press fall through to the canvas hit-test / pan.
-      e.stopPropagation();
+      // Shared contract: swallow the press (it must not reach the canvas box),
+      // and let only the primary button start the reposition drag — right/middle
+      // belong to onContextMenu below.
+      if (!shouldBeginLabelDrag(e)) return;
       const startOffset = node.labelHeight ?? DEFAULT_LABEL_HEIGHT;
       dragRef.current = {
         id: node.id,
@@ -240,6 +257,7 @@ export const NodeLabelHitLayer = ({ nodes }: Props) => {
             data-label-hit-id={node.id}
             onPointerDown={(e) => onPointerDown(e, node)}
             onDoubleClick={(e) => onLabelDoubleClick(e, node)}
+            onContextMenu={(e) => onContextMenu(e, node)}
             // Hovering a LINKED, unselected node's name raises the element link
             // card as a view chip (ADR 0034 addendum 2026-07-05) — parity with
             // the floating Label hit-proxy and the selected node's own DOM

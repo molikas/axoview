@@ -451,18 +451,42 @@ describe.each<CanvasMode>(['ISOMETRIC', '2D'])(
           x: (corners[0].x + corners[2].x) / 2,
           y: (corners[0].y + corners[2].y) / 2
         };
+        const scene = {
+          items: [],
+          textBoxes: [],
+          hitConnectors: [],
+          rectangles: [{ id: 'r1', from, to, offset }]
+        };
         const hit = getItemAtTile({
           tile: TILE,
-          scene: {
-            items: [],
-            textBoxes: [],
-            hitConnectors: [],
-            rectangles: [{ id: 'r1', from, to, offset }]
-          },
+          scene,
           canvasMode: mode,
           point
         });
         expect(hit).toEqual({ type: 'RECTANGLE', id: 'r1' });
+
+        // …and NOT at the cell it vacated. This is the E3 tightening: the old
+        // tile-granular test rounded the point back into the shape's un-offset
+        // frame, so the vacated cell stayed grabbable. Whether the vacated
+        // centre is genuinely outside is derived independently — convert the
+        // residual to tile units and compare against the area's half-extents.
+        const shiftTiles = getStrategy(mode).fromCanvasPoint(
+          offset?.x ?? 0,
+          offset?.y ?? 0,
+          UNPROJECTED_TILE_SIZE
+        );
+        const halfTilesX = (Math.abs(to.x - from.x) + 1) / 2;
+        const halfTilesY = (Math.abs(to.y - from.y) + 1) / 2;
+        if (
+          offset &&
+          (Math.abs(shiftTiles.x) > halfTilesX ||
+            Math.abs(shiftTiles.y) > halfTilesY)
+        ) {
+          const vacated = { x: point.x - offset.x, y: point.y - offset.y };
+          expect(
+            getItemAtTile({ tile: TILE, scene, canvasMode: mode, point: vacated })
+          ).toBeNull();
+        }
       });
     });
   }

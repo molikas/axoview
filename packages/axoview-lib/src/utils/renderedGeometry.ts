@@ -222,6 +222,34 @@ export const getRenderedAreaCorners = (
 };
 
 /**
+ * {@link getRenderedAreaCorners} as a footprint. Used by hit-testing, so a
+ * rectangle / text box is grabbed against the EXACT quad the bulk renderer
+ * draws — same function, no second derivation to drift.
+ */
+export const getRenderedAreaFootprint = (
+  from: Coords,
+  to: Coords,
+  offset: Coords | undefined,
+  getTilePosition: TilePositionFn,
+  canvasMode: CanvasMode
+): RenderedFootprint => {
+  const corners = getRenderedAreaCorners(
+    from,
+    to,
+    offset,
+    getTilePosition,
+    canvasMode
+  );
+  return {
+    corners,
+    center: {
+      x: (corners[0].x + corners[2].x) / 2,
+      y: (corners[0].y + corners[2].y) / 2
+    }
+  };
+};
+
+/**
  * Is a SceneLayer-px point inside a drawn footprint? Convex, boundary-inclusive,
  * winding-agnostic — every footprint this module produces is a convex quad.
  *

@@ -22,6 +22,22 @@ export interface Placement {
 }
 
 /**
+ * THE snap predicate. An item is SNAPPED iff the global toggle is on AND the
+ * item is not explicitly unsnapped.
+ *
+ * Exported because the drag path needs the decision *before* it has a candidate
+ * residual to resolve — it picks the CSS preview from it (follow the pointer vs
+ * step by whole tiles). `DragItems` used to carry its own copy of this
+ * expression, which is precisely the "the single chokepoint is load-bearing or
+ * the two desync" risk ADR 0023's Consequences flag; there is now one
+ * definition, here, and `resolvePlacement` below is its only other caller.
+ */
+export const isSnappedPlacement = (
+  snap: boolean | undefined,
+  globalSnap: boolean
+): boolean => (snap ?? true) && globalSnap;
+
+/**
  * THE single placement chokepoint. Given the nearest integer tile, a desired
  * sub-tile residual (or none), the item's `snap` flag and the global toggle,
  * decide whether to keep the px offset (off-grid) or clear it (snap).
@@ -37,7 +53,7 @@ export const resolvePlacement = (
   snap: boolean | undefined,
   globalSnap: boolean
 ): Placement => {
-  const snapped = (snap ?? true) && globalSnap;
+  const snapped = isSnappedPlacement(snap, globalSnap);
   if (snapped || !offset || (offset.x === 0 && offset.y === 0)) {
     return { tile };
   }

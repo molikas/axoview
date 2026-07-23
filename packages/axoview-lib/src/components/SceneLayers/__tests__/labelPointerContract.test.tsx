@@ -98,10 +98,13 @@ const TILE: Coords = { x: 1, y: 1 };
 
 const LAYERS: {
   name: string;
+  /** What the chip's own context menu must target. */
+  menuTarget: { type: string; id: string };
   render: () => ReturnType<typeof render>;
 }[] = [
   {
     name: 'LabelHitLayer (floating label)',
+    menuTarget: { type: 'LABEL', id: 'l1' },
     render: () =>
       render(
         <LabelHitLayer
@@ -115,6 +118,7 @@ const LAYERS: {
   },
   {
     name: 'NodeLabelHitLayer (node name chip)',
+    menuTarget: { type: 'ITEM', id: 'n1' },
     render: () =>
       render(
         <NodeLabelHitLayer
@@ -134,7 +138,9 @@ const LAYERS: {
   }
 ];
 
-describe.each(LAYERS)('label pointer contract — $name', ({ render: mount }) => {
+describe.each(LAYERS)(
+  'label pointer contract — $name',
+  ({ render: mount, menuTarget }) => {
   let addSpy: jest.SpyInstance;
 
   beforeEach(() => {
@@ -174,4 +180,37 @@ describe.each(LAYERS)('label pointer contract — $name', ({ render: mount }) =>
     fireEvent.pointerDown(proxy(container), { button: 1 });
     expect(movesArmed()).toBe(false);
   });
-});
+
+  // The proxy swallows every press, so the window-level right-tap handler can
+  // never resolve the chip. A layer that swallows the press without owning the
+  // menu leaves its chip un-right-clickable — that WAS the node label's bug.
+  it('owns its own context menu (the press never reaches the canvas)', () => {
+    const { container } = mount();
+    const el = proxy(container);
+
+    fireEvent.pointerDown(el, { button: 2 });
+    // Swallowed, so usePanHandlers never sees it.
+    expect(
+      addSpy.mock.calls.some(([type]) => type === 'pointermove')
+    ).toBe(false);
+
+    fireEvent.contextMenu(el, { clientX: 210, clientY: 130 });
+    expect(actions.openContextMenu).toHaveBeenCalledTimes(1);
+    expect(actions.openContextMenu).toHaveBeenCalledWith({
+      anchor: { x: 210, y: 130 },
+      variant: 'item',
+      target: menuTarget
+    });
+  });
+
+  it('its context menu preventDefaults the native menu', () => {
+    const { container } = mount();
+    const event = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true
+    });
+    fireEvent(proxy(container), event);
+    expect(event.defaultPrevented).toBe(true);
+  });
+  }
+);

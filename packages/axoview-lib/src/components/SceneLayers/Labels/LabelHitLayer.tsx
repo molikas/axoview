@@ -20,6 +20,11 @@ import {
 import { computeLabelCounterScale } from 'src/utils/labelScale';
 import { getRenderedTilePosition } from 'src/utils/renderedGeometry';
 import {
+  LABEL_DRAG_SLOP_PX,
+  openLabelContextMenu,
+  shouldBeginLabelDrag
+} from 'src/utils/labelPointerContract';
+import {
   LABEL_BASE_FONT_PX,
   LABEL_MIN_READABLE_PX,
   LABEL_MAX_COUNTER_SCALE
@@ -50,7 +55,6 @@ import {
 // Below this zoom chips are too small to grab precisely; skip the layer (also
 // bounds the div count at low zoom). Mirrors NodeLabelHitLayer.
 const HIT_MIN_ZOOM = 0.4;
-const DRAG_SLOP_PX = 4;
 
 // Module-level offscreen 2D context for chip measurement (matches the canvas
 // renderer's measureText). One per module; never attached to the DOM.
@@ -342,17 +346,12 @@ export const LabelHitLayer = ({ labels }: Props) => {
   // here, mirroring usePanHandlers' CURSOR-mode item-menu path.
   const onContextMenu = useCallback(
     (e: React.MouseEvent, label: Label) => {
-      e.preventDefault();
-      e.stopPropagation();
       const actions = uiStoreApi.getState().actions;
-      actions.setItemControls(
-        { type: 'LABEL', id: label.id },
-        { openPanel: false }
-      );
-      actions.openContextMenu({
-        anchor: { x: e.clientX, y: e.clientY },
-        variant: 'item',
-        target: { type: 'LABEL', id: label.id }
+      openLabelContextMenu(e, actions, { type: 'LABEL', id: label.id }, () => {
+        actions.setItemControls(
+          { type: 'LABEL', id: label.id },
+          { openPanel: false }
+        );
       });
     },
     [uiStoreApi]
@@ -365,7 +364,8 @@ export const LabelHitLayer = ({ labels }: Props) => {
       const dx = e.clientX - d.startClient.x;
       const dy = e.clientY - d.startClient.y;
       if (!d.started) {
-        if (Math.abs(dx) < DRAG_SLOP_PX && Math.abs(dy) < DRAG_SLOP_PX) return;
+        if (Math.abs(dx) < LABEL_DRAG_SLOP_PX && Math.abs(dy) < LABEL_DRAG_SLOP_PX)
+          return;
         d.started = true;
       }
       e.preventDefault();
@@ -401,12 +401,10 @@ export const LabelHitLayer = ({ labels }: Props) => {
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>, label: Label) => {
-      // Don't fall through to the canvas-interactions box (which would clear the
-      // selection / start a pan).
-      e.stopPropagation();
-      // Right/middle button: onContextMenu owns it (select + open the item
-      // menu). Only the primary button selects-and-drags.
-      if (e.button !== 0) return;
+      // Shared contract: swallow the press (it must not reach the canvas box),
+      // and let only the primary button select-and-drag — right/middle belong
+      // to onContextMenu above.
+      if (!shouldBeginLabelDrag(e)) return;
       // Full-chip select (ADR 0031 §4): the press selects the label WITHOUT
       // mounting the Properties deck. A Label is inline-edited on canvas and
       // styled from the strip (see Label.ts / TextBox.ts) — its only deck
