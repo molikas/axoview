@@ -136,14 +136,16 @@ export const ConnectorsCanvas = memo(({ connectors }: Props) => {
   const sceneApi = useSceneStoreApi();
   const theme = useTheme();
   const { getTilePosition } = useCanvasMode();
-  const { visibleIds } = useLayerContext();
+  const { visibleIds, layers } = useLayerContext();
 
   const connectorsRef = useRef(connectors);
   const getTilePosRef = useRef(getTilePosition);
   const visibleIdsRef = useRef<ReadonlySet<string>>(visibleIds);
+  const layersRef = useRef(layers);
   connectorsRef.current = connectors;
   getTilePosRef.current = getTilePosition;
   visibleIdsRef.current = visibleIds;
+  layersRef.current = layers;
 
   const pendingRef = useRef(false);
   const rafIdRef = useRef(0);
@@ -201,6 +203,7 @@ export const ConnectorsCanvas = memo(({ connectors }: Props) => {
       const colorsById = new Map(model.colors.map((c) => [c.id, c.value]));
       const getTilePos = getTilePosRef.current;
       const visible = visibleIdsRef.current;
+      const layersNow = layersRef.current;
       const dot = b.dot;
       const white = b.white;
       let drawn = 0;
@@ -328,7 +331,9 @@ export const ConnectorsCanvas = memo(({ connectors }: Props) => {
       };
 
       for (const connector of connectorsRef.current) {
-        if (visible.size !== 0 && !visible.has(connector.id)) continue;
+        // Escape hatch keys off whether ANY layer exists — an empty `visible`
+        // set also means "every connector is on a hidden layer" (stay hidden).
+        if (layersNow.length > 0 && !visible.has(connector.id)) continue;
         const scene = scenePaths[connector.id];
         const path = scene?.path;
         if (!path?.tiles || path.tiles.length < 2 || scene?.unroutable)
@@ -558,7 +563,7 @@ export const ConnectorsCanvas = memo(({ connectors }: Props) => {
   useEffect(() => {
     geomDirtyRef.current = true;
     scheduleDrawRef.current();
-  }, [connectors, visibleIds, getTilePosition, theme]);
+  }, [connectors, visibleIds, layers, getTilePosition, theme]);
 
   return (
     <canvas

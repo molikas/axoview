@@ -8,11 +8,11 @@ interface Props {
 }
 
 export const Rectangles = memo(({ rectangles }: Props) => {
-  const { visibleIds } = useLayerContext();
+  const { visibleIds, layers } = useLayerContext();
 
   const visibleRectangles = useMemo(() => {
     const filtered = rectangles.filter(
-      (r) => visibleIds.size === 0 || visibleIds.has(r.id)
+      (r) => layers.length === 0 || visibleIds.has(r.id)
     );
     // Higher zIndex paints later (on top). Stable sort over the reversed
     // insertion order keeps the prior look for equal (default 0) zIndex — only
@@ -20,7 +20,7 @@ export const Rectangles = memo(({ rectangles }: Props) => {
     return [...filtered]
       .reverse()
       .sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
-  }, [rectangles, visibleIds]);
+  }, [rectangles, visibleIds, layers]);
 
   return (
     <>

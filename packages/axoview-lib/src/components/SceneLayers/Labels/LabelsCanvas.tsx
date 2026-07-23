@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useRef } from 'react';
 import { useTheme } from '@mui/material/styles';
-import { Label, Coords } from 'src/types';
+import { Label, Layer, Coords } from 'src/types';
 import { useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useLayerContext } from 'src/hooks/useLayerContext';
@@ -46,15 +46,17 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
   const uiApi = useUiStateStoreApi();
   const theme = useTheme();
   const { getTilePosition, strategy } = useCanvasMode();
-  const { visibleIds } = useLayerContext();
+  const { visibleIds, layers } = useLayerContext();
 
   const labelsRef = useRef(labels);
   const getTilePositionRef = useRef(getTilePosition);
   const visibleIdsRef = useRef(visibleIds);
+  const layersRef = useRef(layers);
   const chipColorsRef = useRef<ChipColors>({ bg: '', border: '', text: '' });
   labelsRef.current = labels;
   getTilePositionRef.current = getTilePosition;
   visibleIdsRef.current = visibleIds;
+  layersRef.current = layers;
   chipColorsRef.current = {
     bg: theme.palette.common.white,
     border: theme.palette.grey[400],
@@ -71,8 +73,9 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
   const sortCacheRef = useRef<{
     labels: Label[] | null;
     visibleIds: ReadonlySet<string> | null;
+    layers: Layer[] | null;
     sorted: Label[];
-  }>({ labels: null, visibleIds: null, sorted: [] });
+  }>({ labels: null, visibleIds: null, layers: null, sorted: [] });
 
   // Per-(text, fontSize, bold, italic) chip-layout cache.
   const layoutCacheRef = useRef<Map<string, LabelChipLayout>>(new Map());
@@ -112,14 +115,19 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
 
       const allLabels = labelsRef.current;
       const visible = visibleIdsRef.current;
+      const layersNow = layersRef.current;
       const getTilePos = getTilePositionRef.current;
       const colors = chipColorsRef.current;
 
       const cache = sortCacheRef.current;
       let sorted = cache.sorted;
-      if (cache.labels !== allLabels || cache.visibleIds !== visible) {
+      if (
+        cache.labels !== allLabels ||
+        cache.visibleIds !== visible ||
+        cache.layers !== layersNow
+      ) {
         const filtered = allLabels.filter(
-          (l) => visible.size === 0 || visible.has(l.id)
+          (l) => layersNow.length === 0 || visible.has(l.id)
         );
         sorted = [...filtered]
           .reverse()
@@ -127,6 +135,7 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
         sortCacheRef.current = {
           labels: allLabels,
           visibleIds: visible,
+          layers: layersNow,
           sorted
         };
       }
@@ -344,7 +353,7 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
     // projection while the DOM hit-proxy (LabelHitLayer) moves to the new one —
     // the chip and its clickable div separate and the label becomes unselectable
     // until some other change dirties geometry. NodesCanvas already does this.
-  }, [labels, visibleIds, strategy.projectionName, theme]);
+  }, [labels, visibleIds, layers, strategy.projectionName, theme]);
 
   return (
     <canvas
