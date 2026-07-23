@@ -8,16 +8,26 @@ import {
   connectorPathTileToGlobal,
   getTextBoxEndTile
 } from 'src/utils/isoMath';
+import { UNPROJECTED_TILE_SIZE, PROJECTED_TILE_SIZE } from 'src/config';
+import { getStrategy } from 'src/utils/coordinateTransforms';
 
 // Explicit scene shape — avoids importing the full useScene hook type here.
 export interface HitTestScene {
-  items: Array<{ id: string; tile: Coords }>;
+  // `offset` (ADR 0023, unprojected/post-projection px) is optional: present on
+  // off-grid items so hit-testing can resolve them under their rendered position.
+  items: Array<{ id: string; tile: Coords; offset?: Coords }>;
   textBoxes: Array<TextBox & { size: Size }>;
   hitConnectors: Array<{
     id: string;
     path?: { tiles: Coords[]; rectangle: { from: Coords } };
   }>;
-  rectangles: Array<{ id: string; from: Coords; to: Coords; zIndex?: number }>;
+  rectangles: Array<{
+    id: string;
+    from: Coords;
+    to: Coords;
+    zIndex?: number;
+    offset?: Coords;
+  }>;
 }
 
 // WeakMap-based spatial index: one Map<"x,y", id> per unique scene.items array reference.
@@ -39,13 +49,57 @@ const getItemTileIndex = (
   return itemTileIndexCache.get(items)!;
 };
 
+// Pixel-accurate ITEM hit test (ADR 0023). An off-grid item renders at
+// toScreen(tile) + px offset, and that offset is SUB-TILE — snapping the cursor
+// to an integer tile and comparing tile keys throws away up to half a tile, so
+// hovering the visible item lands on a neighbour. Instead we test the cursor's
+// canvas point directly against each item's RENDERED tile footprint (an iso
+// diamond / a 2D square centred on toScreen(tile) + offset). Topmost (last
+// painted) wins, matching the raw index's last-write-wins + the node paint order.
+//
+// O(N) per call, but only on gesture paths that pass a `point` (hover fires once
+// per tile crossing, click once, drag-over once per move) — never the render loop.
+const itemAtPoint = (
+  items: HitTestScene['items'],
+  point: Coords,
+  canvasMode: 'ISOMETRIC' | '2D'
+): string | null => {
+  const strategy = getStrategy(canvasMode);
+  const halfW = PROJECTED_TILE_SIZE.width / 2;
+  const halfH = PROJECTED_TILE_SIZE.height / 2;
+  const half2D = UNPROJECTED_TILE_SIZE / 2;
+  for (let i = items.length - 1; i >= 0; i -= 1) {
+    const it = items[i];
+    const c = strategy.toScreen(it.tile.x, it.tile.y, UNPROJECTED_TILE_SIZE);
+    const dx = point.x - (c.x + (it.offset?.x ?? 0));
+    const dy = point.y - (c.y + (it.offset?.y ?? 0));
+    const inside =
+      canvasMode === '2D'
+        ? Math.abs(dx) <= half2D && Math.abs(dy) <= half2D
+        : Math.abs(dx) / halfW + Math.abs(dy) / halfH <= 1;
+    if (inside) return it.id;
+  }
+  return null;
+};
+
 export const getItemAtTile = ({
   tile,
   scene,
+  canvasMode,
+  point,
   connectorMatch = 'halo'
 }: {
   tile: Coords;
   scene: HitTestScene;
+  // ADR 0023: canvas mode for the projection used by the pixel-accurate ITEM
+  // hit test. Paired with `point`; omit both to keep the raw-tile behaviour used
+  // by paths that don't grab an item's body (connector/pan/placement).
+  canvasMode?: 'ISOMETRIC' | '2D';
+  // ADR 0023: the cursor in canvas/SceneLayer space (screenToCanvasPoint). When
+  // given with `canvasMode`, ITEM hit-testing is pixel-accurate against each
+  // item's rendered footprint, so an off-grid item is grabbed where it's DRAWN,
+  // not at its grid cell. Omitted = raw integer-tile lookup.
+  point?: Coords;
   // Connector hit tolerance (#5). 'halo' (default) keeps the ±1 Chebyshev
   // neighbourhood — needed for hover and reconnect/waypoint grabbing on a thin
   // line. 'exact' requires the query tile to BE a path tile — used for
@@ -55,13 +109,35 @@ export const getItemAtTile = ({
   // the segment for the select gesture only.
   connectorMatch?: 'halo' | 'exact';
 }): ItemReference | null => {
+  // Raw tile → id, still needed for the node-anchored connector-endpoint check
+  // below (an endpoint sits on the node's RAW tile, offset or not).
   const tileIndex = getItemTileIndex(scene.items);
-  const itemId = tileIndex.get(`${tile.x},${tile.y}`);
+  // ITEM hit: pixel-accurate against rendered footprints when we have the cursor
+  // point + mode (grabs an off-grid item where it's drawn); else the raw tile
+  // index (SPATIAL-1: O(1) Map lookup, id returned directly).
+  const itemId =
+    point && canvasMode
+      ? itemAtPoint(scene.items, point, canvasMode)
+      : tileIndex.get(`${tile.x},${tile.y}`);
 
-  // The index already maps tile → id; return it directly. (SPATIAL-1: the old
-  // code did an O(1) Map lookup and then threw the id away with an O(N)
-  // scene.items.find to recover an object whose only field we use is the id.)
-  if (itemId !== undefined) return { type: 'ITEM', id: itemId };
+  if (itemId != null) return { type: 'ITEM', id: itemId };
+
+  // ADR 0023: the tile-bounds shapes (text box, rectangle) render at their
+  // projected tiles PLUS a px offset when off-grid. Map the cursor point back
+  // into the shape's UN-offset tile frame so the existing isWithinBounds range
+  // test lands where the shape is DRAWN. Snapped shapes (no offset) or callers
+  // without a point fall back to the raw mouse tile — behaviour unchanged.
+  const queryTileFor = (offset?: Coords): Coords => {
+    if (!point || !canvasMode || !offset || (offset.x === 0 && offset.y === 0)) {
+      return tile;
+    }
+    const d = getStrategy(canvasMode).fromCanvasPoint(
+      point.x - offset.x,
+      point.y - offset.y,
+      UNPROJECTED_TILE_SIZE
+    );
+    return { x: Math.round(d.x), y: Math.round(d.y) };
+  };
 
   // A text box claims its whole tile footprint and outranks connectors (clicking
   // inside the box selects it). Floating Labels are NOT tile-hit-tested — they
@@ -80,7 +156,7 @@ export const getItemAtTile = ({
             : Math.floor(textBoxTo.y)
       }
     ]);
-    return isWithinBounds(tile, textBoxBounds);
+    return isWithinBounds(queryTileFor(tb.offset), textBoxBounds);
   });
 
   if (textBox) return { type: 'TEXTBOX', id: textBox.id };
@@ -144,7 +220,7 @@ export const getItemAtTile = ({
   let rectangle: (typeof rectPaintOrder)[number] | undefined;
   for (let i = rectPaintOrder.length - 1; i >= 0; i -= 1) {
     const r = rectPaintOrder[i];
-    if (isWithinBounds(tile, [r.from, r.to])) {
+    if (isWithinBounds(queryTileFor(r.offset), [r.from, r.to])) {
       rectangle = r;
       break;
     }

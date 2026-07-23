@@ -84,7 +84,10 @@ const richTextStyles = {
   '& pre code': { padding: 0, backgroundColor: 'transparent' },
   // Strip leading/trailing block margin so the first/last block sits flush
   // with the textbox padding — avoids a visible gap at the top of the box.
-  '& > :first-child, & > * > :first-child': { marginTop: 0 },
+  // `:first-of-type` (not `:first-child`) silences emotion's SSR-unsafe
+  // pseudo-class warning; here the content is client-rendered rich text whose
+  // first block is the flush target, so the two behave the same in practice.
+  '& > :first-of-type, & > * > :first-of-type': { marginTop: 0 },
   '& > :last-child, & > * > :last-child': { marginBottom: 0 }
 };
 

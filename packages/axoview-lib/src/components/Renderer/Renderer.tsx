@@ -31,6 +31,8 @@ import { SizeIndicator } from 'src/components/DebugUtils/SizeIndicator';
 import { SceneLayer } from 'src/components/SceneLayer/SceneLayer';
 import { TransformControlsManager } from 'src/components/TransformControlsManager/TransformControlsManager';
 import { HoverOutline } from 'src/components/TransformControlsManager/HoverOutline';
+// ⚠ TEMP DIAGNOSTIC — off-grid hover hit-test red dot (remove with the fix).
+import { HoverHitDebug } from 'src/components/TransformControlsManager/HoverHitDebug';
 import { ConnectorAnchorOverlay } from 'src/components/ConnectorAnchorOverlay/ConnectorAnchorOverlay';
 import { ElementLinkCard } from 'src/components/ElementLinkCard/ElementLinkCard';
 import { Lasso } from 'src/components/Lasso/Lasso';
@@ -606,6 +608,8 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
       </SceneLayer>
       <SceneLayer>
         <HoverOutline />
+        {/* ⚠ TEMP DIAGNOSTIC — red dot at the hover hit-test tile (remove with fix). */}
+        <HoverHitDebug />
       </SceneLayer>
       <SceneLayer>
         <TransformControlsManager />

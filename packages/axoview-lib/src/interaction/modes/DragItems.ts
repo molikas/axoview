@@ -9,6 +9,7 @@ import {
   setWindowCursor,
   itemCollides
 } from 'src/utils';
+import { cursorCanvasPoint } from 'src/utils/coordinateTransforms';
 import { UNPROJECTED_TILE_SIZE, PROJECTED_TILE_SIZE } from 'src/config';
 
 // =============================================================================
@@ -477,9 +478,14 @@ export const DragItems: ModeActions = {
 
     const hasDraggedNode = uiState.mode.items.some((i) => i.type === 'ITEM');
     const draggedIds = new Set(uiState.mode.items.map((i) => i.id));
+    // ADR 0023: pixel-accurate "over another item?" check so dragging over an
+    // off-grid node reads its real drawn footprint (matches hover/click).
+    const cursorPoint = cursorCanvasPoint(uiState, posScreen);
     const itemAtCursor = getItemAtTile({
       tile: uiState.mouse.position.tile,
-      scene
+      scene,
+      canvasMode: uiState.canvasMode,
+      point: cursorPoint
     });
     if (
       hasDraggedNode &&

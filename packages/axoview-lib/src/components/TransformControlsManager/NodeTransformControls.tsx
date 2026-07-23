@@ -116,6 +116,7 @@ export const NodeTransformControls = ({ id, showHandles = true }: Props) => {
         extentScale={effectiveScale}
         onAnchorMouseDown={handler}
         readout={readout}
+        offset={node.offset}
       />
     );
   }

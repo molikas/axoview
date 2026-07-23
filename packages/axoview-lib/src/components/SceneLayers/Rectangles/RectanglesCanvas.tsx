@@ -119,7 +119,8 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
       from: Coords,
       to: Coords,
       getTilePos: (a: { tile: Coords; origin?: 'LEFT' | 'CENTER' }) => Coords,
-      isIso: boolean
+      isIso: boolean,
+      offset?: Coords
     ): [Coords, Coords, Coords, Coords] => {
       const lowX = Math.min(from.x, to.x);
       const highX = Math.max(from.x, to.x);
@@ -127,8 +128,17 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
       const highY = Math.max(from.y, to.y);
       const W = (highX - lowX + 1) * UNPROJECTED_TILE_SIZE;
       const H = (highY - lowY + 1) * UNPROJECTED_TILE_SIZE;
+      // ADR 0023 off-grid: the committed px residual is a post-projection scene
+      // translate (same space getTilePos returns, and the same value the DOM
+      // <Rectangle> composes into its translate3d). All four corners derive from
+      // the origin `p`, so shifting `p` shifts the whole fill/border — otherwise
+      // the WebGL bulk snaps an off-grid rect back to its grid cell while its
+      // selection frame sits at the offset position.
+      const ox = offset?.x ?? 0;
+      const oy = offset?.y ?? 0;
       if (isIso) {
-        const p = getTilePos({ tile: { x: lowX, y: highY }, origin: 'LEFT' });
+        const base = getTilePos({ tile: { x: lowX, y: highY }, origin: 'LEFT' });
+        const p = { x: base.x + ox, y: base.y + oy };
         return [
           p,
           { x: p.x + ISO_A * W, y: p.y + ISO_B * W },
@@ -138,8 +148,8 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
       }
       const c = getTilePos({ tile: { x: lowX, y: highY }, origin: 'CENTER' });
       const p = {
-        x: c.x - UNPROJECTED_TILE_SIZE / 2,
-        y: c.y - UNPROJECTED_TILE_SIZE / 2
+        x: c.x - UNPROJECTED_TILE_SIZE / 2 + ox,
+        y: c.y - UNPROJECTED_TILE_SIZE / 2 + oy
       };
       return [
         p,
@@ -209,7 +219,13 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
         const fillValue = rect.customColor || colorsById.get(rect.color ?? '');
         if (!fillValue) continue;
         const isTransparent = fillValue === 'transparent';
-        const [c0, c1, c2, c3] = corners(rect.from, rect.to, getTilePos, isIso);
+        const [c0, c1, c2, c3] = corners(
+          rect.from,
+          rect.to,
+          getTilePos,
+          isIso,
+          rect.offset
+        );
 
         // Fill (skip for an explicit transparent choice — outline only).
         if (!isTransparent) {

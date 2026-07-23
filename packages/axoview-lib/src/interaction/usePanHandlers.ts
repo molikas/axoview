@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { getItemAtTile, setWindowCursor } from 'src/utils';
+import { cursorCanvasPoint } from 'src/utils/coordinateTransforms';
 import { useScene } from 'src/hooks/useScene';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { SlimMouseEvent } from 'src/types';
@@ -275,7 +276,17 @@ export const usePanHandlers = () => {
       // #5: right-click SELECTS the target for its context menu, so use exact
       // connector tiles — a right-click on an empty tile beside a connector must
       // open the canvas menu, not grab the connector (matches the left-click fix).
-      const item = getItemAtTile({ tile, scene, connectorMatch: 'exact' });
+      // ADR 0023: pass the cursor point + mode so an off-grid item is hit where
+      // it's DRAWN — otherwise right-clicking a moved-off-grid node/text opens the
+      // CANVAS menu (raw-tile miss) instead of the element's menu.
+      const point = cursorCanvasPoint(uiState, uiState.mouse.position.screen);
+      const item = getItemAtTile({
+        tile,
+        scene,
+        canvasMode: uiState.canvasMode,
+        point,
+        connectorMatch: 'exact'
+      });
       const { lockedIds, visibleIds } = layerContext;
       const itemInteractable =
         !!item &&

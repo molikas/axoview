@@ -177,6 +177,10 @@ export const NodeLabelHitLayer = ({ nodes }: Props) => {
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>, node: ViewItem) => {
+      // Label reposition is a LEFT-drag only; let right/middle presses fall
+      // through so a right-click over the label still reaches the canvas and opens
+      // the context menu (the proxy no longer swallows it).
+      if (e.button !== 0) return;
       // Don't let the press fall through to the canvas hit-test / pan.
       e.stopPropagation();
       const startOffset = node.labelHeight ?? DEFAULT_LABEL_HEIGHT;
@@ -220,7 +224,15 @@ export const NodeLabelHitLayer = ({ nodes }: Props) => {
         const fontSize = node.labelFontSize || LABEL_BASE_FONT_PX;
         const chip = measureNameChip(name, fontSize);
         const offset = node.labelHeight ?? DEFAULT_LABEL_HEIGHT;
-        const pos = getTilePosition({ tile: node.tile, origin: 'CENTER' });
+        const base = getTilePosition({ tile: node.tile, origin: 'CENTER' });
+        // ADR 0023 off-grid: the label is drawn at the node's RENDERED position
+        // (tile + px offset), so its hit proxy must carry the same offset — else it
+        // sits at the grid cell, grabbing the label off-position and covering the
+        // node body (which swallows a right-click → no context menu).
+        const pos = {
+          x: base.x + (node.offset?.x ?? 0),
+          y: base.y + (node.offset?.y ?? 0)
+        };
         // Match the canvas chip rect: anchored at the node centre, floated by the
         // signed offset; above → chip sits above the anchor, below → at it.
         const y0 = offset < 0 ? 0 : -chip.height;
