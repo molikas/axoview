@@ -67,6 +67,12 @@ export const ScreenBoxTransformControls = ({
   return (
     <>
       <Svg
+        // Selection vs hover chrome, addressable from e2e: off-grid specs assert
+        // that the ring lands on the DRAWN element, not its grid cell, and
+        // nothing else in the DOM identifies these rings.
+        data-axoview-id={
+          subtle ? 'canvas-hover-outline' : 'canvas-selection-chrome'
+        }
         style={{
           position: 'absolute',
           left: left - OUTSET,

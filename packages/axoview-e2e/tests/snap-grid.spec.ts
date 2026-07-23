@@ -16,11 +16,25 @@
  * Drag is driven by CanvasPOM's synthetic-pointer path (same as
  * drag-collision.spec); the menu handler is exercised by opening the context
  * menu via the store action and clicking the real MenuItem.
+ *
+ * The 2026-07-23 off-grid hardening added three cases at the bottom that go one
+ * layer further and drive REAL `page.mouse` against DRAWN positions (locked
+ * decision 7) — the lasso-accumulate repro, reload-survives-as-painted, and the
+ * global-toggle freeze test. See `off-grid-pointer.spec.ts` for why the
+ * data-model assertions above could not see the seven-bug cluster.
  */
 import { canvasReadyTest as test, expect } from '../fixtures/app.fixture';
 import { CanvasPOM, CanvasPoint } from '../pom/CanvasPOM';
 import { byAxoviewId, byLibTestId } from '../helpers/selectors';
 import { getViewItemCount, waitForDebugBridge } from '../helpers/store';
+import {
+  closeElementsPanel,
+  drawnClientPoint,
+  getContextMenu,
+  getOffGridItems,
+  placeIconRealMouse,
+  realDrag
+} from '../helpers/offGrid';
 
 type Page = import('@playwright/test').Page;
 
@@ -226,5 +240,230 @@ test.describe('T8 — off-grid positioning & per-item collision (ADR 0023)', () 
     await page.reload();
     await waitForDebugBridge(page);
     expect(await getSnapToGrid(page)).toBe(false);
+  });
+
+  // -------------------------------------------------------------------------
+  // Off-grid hardening (2026-07-23). The three tests above assert the MODEL;
+  // these assert what the user actually sees and grabs. The lasso case is the
+  // owner's deterministic repro for the seven-bug cluster: selecting several
+  // items and moving them together ACCUMULATES each item's residual, which is
+  // how the offsets grew large enough for the cell/drawn gap to bite.
+  // -------------------------------------------------------------------------
+
+  test('lasso-move accumulates offsets, and every moved item still opens its OWN menu', async ({
+    page,
+    app
+  }) => {
+    void app;
+    await setSnapToGrid(page, false);
+
+    await placeIconRealMouse(page, { x: 380, y: 300 });
+    await placeIconRealMouse(page, { x: 520, y: 300 });
+    await placeIconRealMouse(page, { x: 450, y: 380 });
+    await expect.poll(() => getViewItemCount(page), { timeout: 5_000 }).toBe(3);
+    await closeElementsPanel(page);
+
+    const before = await getOffGridItems(page);
+    const centres = await Promise.all(
+      before.map((i) => drawnClientPoint(page, i))
+    );
+    const minX = Math.min(...centres.map((c) => c.x));
+    const maxX = Math.max(...centres.map((c) => c.x));
+    const minY = Math.min(...centres.map((c) => c.y));
+    const maxY = Math.max(...centres.map((c) => c.y));
+
+    // Lasso all three from empty canvas outside their footprints.
+    await realDrag(
+      page,
+      { x: minX - 120, y: minY - 120 },
+      { x: maxX + 120, y: maxY + 120 }
+    );
+    await expect
+      .poll(
+        () =>
+          page.evaluate(
+            () =>
+              ((window as any).__axoview__.ui.getState().selectedIds ?? []).length
+          ),
+        { timeout: 3_000 }
+      )
+      .toBe(3);
+
+    // Move the whole selection by a sub-tile, off-axis delta — twice, so the
+    // residuals accumulate rather than merely being set once.
+    for (let i = 0; i < 2; i += 1) {
+      const grabItem = (await getOffGridItems(page)).find(
+        (it) => it.id === before[0].id
+      )!;
+      const grab = await drawnClientPoint(page, grabItem);
+      await realDrag(page, grab, { x: grab.x + 29, y: grab.y + 13 });
+    }
+
+    const after = await getOffGridItems(page);
+    expect(after).toHaveLength(3);
+    for (const item of after) {
+      expect(Number.isInteger(item.tile.x)).toBe(true);
+      expect(Number.isInteger(item.tile.y)).toBe(true);
+      expect(item.offset).toBeTruthy();
+    }
+
+    // Drop the multi-selection first: a right-click on a member of an active
+    // multi-selection opens the BULK menu by design (ADR 0027), which would mask
+    // what this case is about.
+    await page.mouse.click(minX - 120, maxY + 140);
+    await page.waitForTimeout(200);
+
+    // Right-click EACH at its drawn position: every one must open its own item
+    // menu. Before the fix the target was resolved from the rounded mouse tile,
+    // so an accumulated residual sent the user to the canvas menu instead.
+    for (const item of after) {
+      const drawn = await drawnClientPoint(page, item);
+      await page.mouse.click(drawn.x, drawn.y, { button: 'right' });
+      await expect
+        .poll(() => getContextMenu(page), { timeout: 3_000 })
+        .toEqual({ variant: 'item', targetType: 'ITEM' });
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(150);
+    }
+  });
+
+  test('an off-grid item survives a reload at its DRAWN position, not just in the model', async ({
+    page,
+    app
+  }) => {
+    void app;
+    await setSnapToGrid(page, false);
+    await placeIconRealMouse(page, { x: 460, y: 320 });
+    await expect.poll(() => getViewItemCount(page), { timeout: 5_000 }).toBe(1);
+    await closeElementsPanel(page);
+
+    const [placed] = await getOffGridItems(page);
+    const grab = await drawnClientPoint(page, placed);
+    await realDrag(page, grab, { x: grab.x + 41, y: grab.y + 17 });
+
+    const moved = (await getOffGridItems(page))[0];
+    const drawnBefore = await drawnClientPoint(page, moved);
+    // Select it so it is promoted to DOM, and measure the box the user sees.
+    await page.mouse.click(drawnBefore.x, drawnBefore.y);
+    const icon = page.locator(`[data-drag-id="${moved.id}"] img`).first();
+    await icon.waitFor({ state: 'visible', timeout: 5_000 });
+    const boxBefore = await icon.boundingBox();
+    if (!boxBefore) throw new Error('node has no bounding box before reload');
+
+    // Persist exactly what an explicit Save writes, then reload — boot
+    // re-validates through viewItemSchema, so this also proves `offset` survives
+    // the round-trip (label-drag.spec uses the same idiom).
+    await page.evaluate(() => {
+      const m = (window as any).__axoview__.model.getState();
+      const blob = {
+        title: m.title,
+        version: m.version,
+        icons: m.icons,
+        colors: m.colors,
+        items: m.items,
+        views: m.views
+      };
+      // The model blob alone restores the STORE but leaves the app on its
+      // empty-state screen (the fixture's diagram is never written to the
+      // explorer). Seed the explorer entry + last-opened id too, so the reload
+      // comes back with the diagram actually OPEN and painted.
+      localStorage.setItem('axoview-last-opened-data', JSON.stringify(blob));
+      localStorage.setItem(
+        'axoview-diagrams',
+        JSON.stringify([
+          {
+            id: 'e2e-offgrid',
+            name: blob.title || 'Untitled Diagram',
+            data: { ...blob, icons: [] },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        ])
+      );
+      localStorage.setItem('axoview-last-opened', 'e2e-offgrid');
+    });
+    await page.reload();
+    await byLibTestId(page, 'axoview-canvas').waitFor({
+      state: 'visible',
+      timeout: 10_000
+    });
+    await waitForDebugBridge(page);
+    await expect.poll(() => getViewItemCount(page), { timeout: 10_000 }).toBe(1);
+
+    const restored = (await getOffGridItems(page))[0];
+    expect(restored.offset).toBeTruthy();
+    expect(restored.offset).toEqual(moved.offset);
+    expect(restored.tile).toEqual(moved.tile);
+
+    // The model surviving is what the old acceptance test checked. What matters
+    // to the user is the PAINT. Boot may fit-to-view, so absolute client coords
+    // are not comparable across the reload — assert instead that the node is
+    // drawn at tile + offset in the NEW viewport, and that clicking there (a
+    // hit-test assertion in itself) still selects it. The pre-reload box is
+    // compared by SIZE, which the viewport change would also perturb if the
+    // reload had dropped the residual onto the grid.
+    await closeElementsPanel(page);
+    await page.waitForTimeout(300);
+    const drawnAfter = await drawnClientPoint(page, restored);
+    await page.mouse.click(drawnAfter.x, drawnAfter.y);
+    const iconAfter = page.locator(`[data-drag-id="${restored.id}"] img`).first();
+    await iconAfter.waitFor({ state: 'visible', timeout: 5_000 });
+    const boxAfter = await iconAfter.boundingBox();
+    if (!boxAfter) throw new Error('node has no bounding box after reload');
+
+    // The icon's horizontal centre sits on the drawn point.
+    expect(
+      Math.abs(boxAfter.x + boxAfter.width / 2 - drawnAfter.x)
+    ).toBeLessThan(8);
+    // …and that point is NOT the grid cell: the residual is still being applied
+    // to the paint, not merely stored. (Boot fit-to-screen changes the zoom, so
+    // the pre-reload box is only useful as a "it had one" sanity check — client
+    // coordinates and drawn size are not comparable across the refit.)
+    expect(boxBefore.width).toBeGreaterThan(0);
+    const bareAfter = await drawnClientPoint(page, {
+      ...restored,
+      offset: undefined
+    });
+    expect(
+      Math.hypot(drawnAfter.x - bareAfter.x, drawnAfter.y - bareAfter.y)
+    ).toBeGreaterThan(4);
+  });
+
+  test('turning global snap ON does NOT re-snap items that are already off-grid', async ({
+    page,
+    app
+  }) => {
+    void app;
+    // FREEZE TEST, not an endorsement. Whether the global toggle should pull
+    // existing off-grid items back onto the grid is an open product question
+    // (PLAN.md open questions). Today it does not, and that is load-bearing:
+    // per-item `snap:false` overrides exist precisely so a few items can stay
+    // between tiles while the rest snap. This pins the behaviour so the answer
+    // is a deliberate change with a failing test, not a silent drift.
+    await setSnapToGrid(page, false);
+    await placeIconRealMouse(page, { x: 460, y: 320 });
+    await expect.poll(() => getViewItemCount(page), { timeout: 5_000 }).toBe(1);
+    await closeElementsPanel(page);
+
+    const [placed] = await getOffGridItems(page);
+    const grab = await drawnClientPoint(page, placed);
+    await realDrag(page, grab, { x: grab.x + 33, y: grab.y + 15 });
+
+    const offGrid = (await getOffGridItems(page))[0];
+    expect(offGrid.offset).toBeTruthy();
+
+    await setSnapToGrid(page, true);
+    await page.waitForTimeout(300);
+
+    const afterToggle = (await getOffGridItems(page))[0];
+    expect(afterToggle.tile).toEqual(offGrid.tile);
+    expect(afterToggle.offset).toEqual(offGrid.offset);
+
+    // …and it is still grabbable where it is drawn, not at its cell.
+    const drawn = await drawnClientPoint(page, afterToggle);
+    await page.mouse.click(drawn.x, drawn.y, { button: 'right' });
+    await expect
+      .poll(() => getContextMenu(page), { timeout: 3_000 })
+      .toEqual({ variant: 'item', targetType: 'ITEM' });
   });
 });

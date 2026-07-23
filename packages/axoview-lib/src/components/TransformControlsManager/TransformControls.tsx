@@ -275,6 +275,10 @@ export const TransformControls = ({
   return (
     <>
       <Svg
+        // See ScreenBoxTransformControls — same hook, iso-ring variant.
+        data-axoview-id={
+          subtle ? 'canvas-hover-outline' : 'canvas-selection-chrome'
+        }
         style={{
           ...positionedCss,
           pointerEvents: 'none',
