@@ -51,6 +51,12 @@ export const BottomDock = ({ endSlot }: BottomDockProps = {}) => {
 
   return (
     <Box
+      // Chrome sits above the canvas at a higher z-index than the annotation
+      // overlay, so a stray draw-drag onto the dock would otherwise start a
+      // native selection/drag (e.g. the ViewTabs page name) and paint a ghost —
+      // the same top-bar corruption, on the bottom bar. Suppress text selection
+      // and swallow any bubbled dragstart. Matches AppToolbar's guard.
+      onDragStart={(e) => e.preventDefault()}
       sx={{
         position: 'absolute',
         bottom: 0,
@@ -64,7 +70,8 @@ export const BottomDock = ({ endSlot }: BottomDockProps = {}) => {
         alignItems: 'center',
         justifyContent: 'space-between',
         px: 1.5,
-        zIndex: 20
+        zIndex: 20,
+        userSelect: 'none'
       }}
     >
       {/* Left zone: page selector (ViewTabs) + multi-selection feedback */}

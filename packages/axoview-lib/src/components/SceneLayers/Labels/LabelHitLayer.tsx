@@ -221,7 +221,7 @@ interface DragState {
 
 export const LabelHitLayer = ({ labels }: Props) => {
   const { getTilePosition } = useCanvasMode();
-  const { visibleIds, lockedIds } = useLayerContext();
+  const { visibleIds, lockedIds, layers } = useLayerContext();
   const uiStoreApi = useUiStateStoreApi();
   const { updateLabel } = useSceneActions();
   // Coarse zoom gate — boolean selector so this only re-renders when the gate
@@ -325,11 +325,11 @@ export const LabelHitLayer = ({ labels }: Props) => {
   const renderableLabelIds = useMemo(() => {
     const ids = new Set<string>();
     for (const l of labels) {
-      if (visibleIds.size > 0 && !visibleIds.has(l.id)) continue;
+      if (layers.length > 0 && !visibleIds.has(l.id)) continue;
       ids.add(l.id);
     }
     return ids;
-  }, [labels, visibleIds]);
+  }, [labels, visibleIds, layers]);
   useEffect(() => {
     if (!viewProxiesLive) return;
     const { viewModeHoveredLabelId, actions } = uiStoreApi.getState();
@@ -462,7 +462,7 @@ export const LabelHitLayer = ({ labels }: Props) => {
         // editor); the pixel-accurate hit proxies stay gated on zoom.
         if (!active && !editing) return null;
         if (!editing) {
-          if (visibleIds.size > 0 && !visibleIds.has(label.id)) return null;
+          if (layers.length > 0 && !visibleIds.has(label.id)) return null;
           // Locked layers gate EDIT gestures only — the view-mode proxy is a
           // pure hover surface, and the tile hit-test the other element types
           // hover through never consults lockedIds, so parity keeps a locked

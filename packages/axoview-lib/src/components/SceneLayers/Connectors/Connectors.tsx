@@ -12,14 +12,14 @@ interface Props {
 
 export const Connectors = memo(({ connectors, currentView }: Props) => {
   useRenderProbe('Connectors');
-  const { visibleIds } = useLayerContext();
+  const { visibleIds, layers } = useLayerContext();
 
   const visibleConnectors = useMemo(() => {
     const filtered = connectors.filter(
-      (c) => visibleIds.size === 0 || visibleIds.has(c.id)
+      (c) => layers.length === 0 || visibleIds.has(c.id)
     );
     return [...filtered].reverse();
-  }, [connectors, visibleIds]);
+  }, [connectors, visibleIds, layers]);
 
   return (
     <>

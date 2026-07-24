@@ -3,6 +3,7 @@ import { ViewItem } from 'src/types';
 import { DEFAULT_LABEL_HEIGHT, DEFAULT_FONT_FAMILY } from 'src/config';
 import { LABEL_BASE_FONT_PX } from 'src/config/labelSettings';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
+import { useLayerContext } from 'src/hooks/useLayerContext';
 import { useModelStore } from 'src/stores/modelStore';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useSceneActions } from 'src/hooks/useSceneActions';
@@ -100,6 +101,11 @@ export const NodeLabelHitLayer = ({ nodes }: Props) => {
     (s) => s.editorMode === 'EDITABLE' && s.zoom >= HIT_MIN_ZOOM
   );
   const modelItems = useModelStore((s) => s.items);
+  // Layer visibility: a node on a hidden layer is not drawn (NodesCanvas), so it
+  // must expose no invisible drag/rename hit-proxy either. `layers.length === 0`
+  // is the no-layer-system escape hatch — NOT `visibleIds.size`, which is also
+  // empty when every node sits on a hidden layer.
+  const { visibleIds, layers } = useLayerContext();
 
   // ADR 0032 amendment: the on-canvas chip shows `label` (fallback `name`), so
   // size the hit box from that text to match the drawn chip. Carries headerLink
@@ -236,6 +242,7 @@ export const NodeLabelHitLayer = ({ nodes }: Props) => {
     <>
       {nodes.map((node) => {
         if (node.showLabel === false) return null;
+        if (layers.length > 0 && !visibleIds.has(node.id)) return null;
         const meta = metaById.get(node.id);
         if (!meta) return null;
         const { name, headerLink } = meta;

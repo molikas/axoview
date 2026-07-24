@@ -109,11 +109,11 @@ export const NodeTransformControls = ({ id, showHandles = true }: Props) => {
       <TransformControls
         from={node.tile}
         to={node.tile}
+        offset={node.offset}
         anchorPositions={NODE_CORNER_ANCHORS}
         extentScale={effectiveScale}
         onAnchorMouseDown={handler}
         readout={readout}
-        offset={node.offset}
       />
     );
   }

@@ -77,7 +77,9 @@ jest.mock('src/stores/modelStore', () => ({
 jest.mock('src/hooks/useLayerContext', () => ({
   useLayerContext: () => ({
     visibleIds: new Set<string>(),
-    lockedIds: new Set<string>()
+    lockedIds: new Set<string>(),
+    // #81 added a `layers.length` read in LabelHitLayer; empty = all visible.
+    layers: []
   })
 }));
 

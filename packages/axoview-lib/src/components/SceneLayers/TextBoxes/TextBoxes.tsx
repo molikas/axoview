@@ -8,14 +8,14 @@ interface Props {
 }
 
 export const TextBoxes = memo(({ textBoxes }: Props) => {
-  const { visibleIds } = useLayerContext();
+  const { visibleIds, layers } = useLayerContext();
 
   const visibleTextBoxes = useMemo(() => {
     const filtered = textBoxes.filter(
-      (t) => visibleIds.size === 0 || visibleIds.has(t.id)
+      (t) => layers.length === 0 || visibleIds.has(t.id)
     );
     return [...filtered].reverse();
-  }, [textBoxes, visibleIds]);
+  }, [textBoxes, visibleIds, layers]);
 
   return (
     <>

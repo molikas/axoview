@@ -338,4 +338,37 @@ describe('FreehandLasso.mouseup', () => {
 
     expect(mockSetMode).not.toHaveBeenCalled();
   });
+
+  it('includes a floating Label whose anchor tile is inside the polygon (ADR 0031 regression)', () => {
+    // Regression guard: FreehandLasso previously never enumerated labels at all,
+    // so a floating Label inside the marquee was silently dropped while nodes /
+    // rectangles / text boxes / connectors were captured (the "floating label
+    // not selected when lasso-selecting" bug). Rectangular Lasso already covered
+    // labels; this proves the freehand path now matches.
+    mockIsPointInPolygon.mockReturnValue(true);
+    const state = makeState(
+      {
+        mode: {
+          type: 'FREEHAND_LASSO',
+          path: [
+            { x: 10, y: 10 },
+            { x: 100, y: 10 },
+            { x: 55, y: 100 }
+          ],
+          selection: null,
+          isDragging: false,
+          showCursor: true
+        }
+      },
+      { labels: [{ id: 'label-1', tile: { x: 5, y: 5 }, text: 'hi' }] }
+    );
+
+    FreehandLasso.mouseup?.(state as any);
+
+    const call = mockSetMode.mock.calls.at(-1)?.[0];
+    expect(call?.selection?.items).toContainEqual({
+      type: 'LABEL',
+      id: 'label-1'
+    });
+  });
 });

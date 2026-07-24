@@ -287,11 +287,11 @@ export const usePanHandlers = () => {
         point,
         connectorMatch: 'exact'
       });
-      const { lockedIds, visibleIds } = layerContext;
+      const { lockedIds, visibleIds, layers } = layerContext;
       const itemInteractable =
         !!item &&
         !lockedIds.has(item.id) &&
-        (visibleIds.size === 0 || visibleIds.has(item.id));
+        (layers.length === 0 || visibleIds.has(item.id));
 
       // Multi-selection takes precedence (ADR 0027). A right-tap on an item that
       // is part of the current multi-selection opens the BULK menu over the

@@ -401,6 +401,18 @@ export interface UiState {
    */
   labelMove: { id: string; tile: Coords; offset?: Coords } | null;
   /**
+   * Transient GROUP move-preview for floating labels (ADR 0031). A single-label
+   * drag uses `labelMove` (LabelHitLayer); a MULTI-selection drag moves through
+   * DragItems, where nodes/rectangles/text boxes get a CSS `--ff-drag-*` preview
+   * on their DOM wrapper — but a label is canvas-drawn (LabelsCanvas) with no DOM
+   * element to translate, so without this channel the label sat frozen until the
+   * mouseup commit ("the label doesn't move when I drag the selection"). Keyed by
+   * label id → its preview tile + off-grid offset; LabelsCanvas redraws each keyed
+   * chip at that position. UI-only, never persisted; committed once on release.
+   * Null when no group drag is in flight.
+   */
+  labelMoves: Record<string, { tile: Coords; offset?: Coords }> | null;
+  /**
    * Transient on-canvas icon-resize preview (ADR 0044). While node icons are
    * being resized via the corner handles (NODE.TRANSFORM), this holds a map of
    * node id → live iconScale (one entry for a single node, N for a group), so
@@ -603,6 +615,13 @@ export interface UiStateActions {
   setLabelMove: (id: string, tile: Coords, offset?: Coords) => void;
   /** End the label-move preview (the model tile/offset is committed separately, once). */
   clearLabelMove: () => void;
+  /** Begin / update the transient GROUP floating-Label move preview (ADR 0031) —
+   *  the multi-selection-drag counterpart of setLabelMove. */
+  setLabelMoves: (
+    moves: Record<string, { tile: Coords; offset?: Coords }>
+  ) => void;
+  /** End the group label-move preview (tiles/offsets committed separately, once). */
+  clearLabelMoves: () => void;
   /** Begin / update the transient on-canvas icon-resize preview (ADR 0044).
    *  Pass a map of node id → previewed scale (one entry, or N for a group). */
   setIconScaleDrag: (scales: Record<string, number>) => void;

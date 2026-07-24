@@ -14,12 +14,23 @@ interface SelectableScene {
 }
 
 // An item is interactable only if its layer is unlocked AND visible.
-// `visibleIds.size === 0` is the "no layers configured" fallback (matches the
+// `hasLayers === false` is the "no layers configured" fallback (matches the
 // SceneLayers render guards + onContextMenu). UX §4.3.
+//
+// NOTE: the fallback keys off whether ANY layer exists, NOT `visibleIds.size`.
+// An empty `visibleIds` is ambiguous — it also occurs when every entity sits on
+// a hidden layer — so treating "empty" as "no layers" made a fully-hidden view
+// snap back to fully-interactable (the layer-visibility regression). When layers
+// exist, `visibleIds` is authoritative: unassigned/visible entities are members,
+// hidden-layer entities are not.
 export const makeInteractableCheck =
-  (lockedIds: ReadonlySet<string>, visibleIds: ReadonlySet<string>) =>
+  (
+    lockedIds: ReadonlySet<string>,
+    visibleIds: ReadonlySet<string>,
+    hasLayers: boolean
+  ) =>
   (id: string) =>
-    !lockedIds.has(id) && (visibleIds.size === 0 || visibleIds.has(id));
+    !lockedIds.has(id) && (!hasLayers || visibleIds.has(id));
 
 // Every visible + unlocked item in the active view, including connector
 // waypoints (which aren't free — see getConnectorWaypointRefs). The single
@@ -28,9 +39,10 @@ export const makeInteractableCheck =
 export const collectSelectableRefs = (
   scene: SelectableScene,
   lockedIds: ReadonlySet<string>,
-  visibleIds: ReadonlySet<string>
+  visibleIds: ReadonlySet<string>,
+  hasLayers: boolean
 ): ItemReference[] => {
-  const isInteractable = makeInteractableCheck(lockedIds, visibleIds);
+  const isInteractable = makeInteractableCheck(lockedIds, visibleIds, hasLayers);
   const refs: ItemReference[] = [];
   for (const item of scene.items) {
     if (isInteractable(item.id)) refs.push({ type: 'ITEM', id: item.id });

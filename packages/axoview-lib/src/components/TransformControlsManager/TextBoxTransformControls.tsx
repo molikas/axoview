@@ -82,10 +82,10 @@ export const TextBoxTransformControls = ({ id, showHandles = true }: Props) => {
     <TransformControls
       from={textBox.tile}
       to={to}
+      offset={textBox.offset}
       onAnchorMouseDown={showHandles ? onAnchorMouseDown : undefined}
       onRotate={showHandles ? onRotate : undefined}
       rotateTooltip={t('rotate90')}
-      offset={textBox.offset}
     />
   );
 };

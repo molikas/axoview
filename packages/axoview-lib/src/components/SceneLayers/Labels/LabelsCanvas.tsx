@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useRef } from 'react';
 import { useTheme } from '@mui/material/styles';
-import { Label, Coords } from 'src/types';
+import { Label, Layer, Coords } from 'src/types';
 import { useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useLayerContext } from 'src/hooks/useLayerContext';
@@ -50,15 +50,17 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
   const uiApi = useUiStateStoreApi();
   const theme = useTheme();
   const { getTilePosition, strategy } = useCanvasMode();
-  const { visibleIds } = useLayerContext();
+  const { visibleIds, layers } = useLayerContext();
 
   const labelsRef = useRef(labels);
   const getTilePositionRef = useRef(getTilePosition);
   const visibleIdsRef = useRef(visibleIds);
+  const layersRef = useRef(layers);
   const chipColorsRef = useRef<ChipColors>({ bg: '', border: '', text: '' });
   labelsRef.current = labels;
   getTilePositionRef.current = getTilePosition;
   visibleIdsRef.current = visibleIds;
+  layersRef.current = layers;
   chipColorsRef.current = {
     bg: theme.palette.common.white,
     border: theme.palette.grey[400],
@@ -75,8 +77,9 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
   const sortCacheRef = useRef<{
     labels: Label[] | null;
     visibleIds: ReadonlySet<string> | null;
+    layers: Layer[] | null;
     sorted: Label[];
-  }>({ labels: null, visibleIds: null, sorted: [] });
+  }>({ labels: null, visibleIds: null, layers: null, sorted: [] });
 
   // Per-(text, fontSize, bold, italic) chip-layout cache.
   const layoutCacheRef = useRef<Map<string, LabelChipLayout>>(new Map());
@@ -107,6 +110,7 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
       const ui = uiApi.getState();
       const { scroll, zoom, rendererSize } = ui;
       const move = ui.labelMove;
+      const moves = ui.labelMoves;
       const editingId = ui.inlineEditLabelId;
       // dpr here is only for chip supersampling (f.dpr, capped at 2 below) — the
       // render-path backing store is computed + clamped in drawGLBatch.
@@ -116,14 +120,19 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
 
       const allLabels = labelsRef.current;
       const visible = visibleIdsRef.current;
+      const layersNow = layersRef.current;
       const getTilePos = getTilePositionRef.current;
       const colors = chipColorsRef.current;
 
       const cache = sortCacheRef.current;
       let sorted = cache.sorted;
-      if (cache.labels !== allLabels || cache.visibleIds !== visible) {
+      if (
+        cache.labels !== allLabels ||
+        cache.visibleIds !== visible ||
+        cache.layers !== layersNow
+      ) {
         const filtered = allLabels.filter(
-          (l) => visible.size === 0 || visible.has(l.id)
+          (l) => layersNow.length === 0 || visible.has(l.id)
         );
         sorted = [...filtered]
           .reverse()
@@ -131,6 +140,7 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
         sortCacheRef.current = {
           labels: allLabels,
           visibleIds: visible,
+          layers: layersNow,
           sorted
         };
       }
@@ -142,6 +152,7 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
         H,
         dpr,
         move,
+        moves,
         editingId,
         getTilePos,
         colors,
@@ -150,16 +161,21 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
     };
 
     // Per-label geometry: resolves the live move-preview and the layout cache,
-    // returns the chip centre (cx,cy) in tile space + layout.
+    // returns the chip centre (cx,cy) in tile space + layout. `move` is the
+    // single-label drag preview (LabelHitLayer); `moves` is the group-drag
+    // preview (DragItems) keyed by id — both are UI-only, and a label matched by
+    // either draws at the previewed tile/offset instead of its model position.
     const resolveLabel = (
       label: Label,
       move: { id: string; tile: Coords; offset?: Coords } | null | undefined,
+      moves: Record<string, { tile: Coords; offset?: Coords }> | null | undefined,
       getTilePos: TilePositionFn,
       mctx: CanvasRenderingContext2D
     ) => {
-      const moved = move && move.id === label.id ? move : null;
-      const tile: Coords = moved ? moved.tile : label.tile;
-      const offset: Coords | undefined = moved ? moved.offset : label.offset;
+      const preview =
+        move && move.id === label.id ? move : moves?.[label.id] ?? null;
+      const tile: Coords = preview ? preview.tile : label.tile;
+      const offset: Coords | undefined = preview ? preview.offset : label.offset;
       const { x: cx, y: cy } = getRenderedTilePosition(
         { tile, offset },
         getTilePos,
@@ -201,6 +217,7 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
           const { cx, cy, layout } = resolveLabel(
             label,
             f.move,
+            f.moves,
             f.getTilePos,
             mctx
           );
@@ -295,16 +312,18 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
         s.zoom === p.zoom &&
         s.rendererSize === p.rendererSize &&
         s.labelMove === p.labelMove &&
+        s.labelMoves === p.labelMoves &&
         s.inlineEditLabelId === p.inlineEditLabelId &&
         s.readableLabels === p.readableLabels
       ) {
         return;
       }
-      // A live move-preview or an edit-skip change what's drawn → rebuild;
-      // scroll/zoom (and the readable-labels uniform, whose flag is already baked
-      // into every chip) alone just re-render the cached instances.
+      // A live move-preview (single or group) or an edit-skip change what's
+      // drawn → rebuild; scroll/zoom (and the readable-labels uniform, whose flag
+      // is already baked into every chip) alone just re-render the cached instances.
       if (
         s.labelMove !== p.labelMove ||
+        s.labelMoves !== p.labelMoves ||
         s.inlineEditLabelId !== p.inlineEditLabelId
       ) {
         geomDirtyRef.current = true;
@@ -347,7 +366,7 @@ export const LabelsCanvas = memo(({ labels }: Props) => {
     // projection while the DOM hit-proxy (LabelHitLayer) moves to the new one —
     // the chip and its clickable div separate and the label becomes unselectable
     // until some other change dirties geometry. NodesCanvas already does this.
-  }, [labels, visibleIds, strategy.projectionName, theme]);
+  }, [labels, visibleIds, layers, strategy.projectionName, theme]);
 
   return (
     <canvas

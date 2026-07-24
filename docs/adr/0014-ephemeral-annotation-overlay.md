@@ -92,6 +92,31 @@ UX refinements after first use, keeping the ephemeral-scratch invariant intact:
 - **Tool-reflecting cursors** (pen / crosshair / eraser) instead of a blanket crosshair, and a proper
   eraser glyph in the palette.
 
+### Revision (2026-07-22 — whole-screen annotation)
+
+Shake-out feedback: while a draw tool was armed, the surrounding **chrome stayed live** — the overlay
+only captured the bare canvas rectangle (it sat *below* the docks at z-index 6 and entirely below the
+app top bar), so a stray draw-drag onto the Elements/Layers panel still highlighted nodes, could place
+an icon (via `PlaceIcon`'s drag-from-panel heuristic), or started a native selection/drag on a toolbar.
+This **amends the 2026-06-12 "draw/eraser tools capture input; panels stay interactive"** behaviour:
+
+- **A draw/eraser tool now captures the whole editor, not just the canvas.** The overlay lifts above
+  the in-canvas docks (z-index 25 > docks' 20) so the entire canvas region — panels included — is one
+  drawing surface and its chrome goes inert; the pen + palette sit higher still (z-index 30) so
+  annotation stays exitable. The interaction manager also ignores every canvas mouse event while armed
+  (`processMouseUpdate` early-return), closing the hover / place-icon / hotkey-armed-tool leaks.
+- **The app top bar is a separate bar above the canvas box**, out of the overlay's z-index reach, so
+  the lib bridges the armed state to the app over a `window` CustomEvent (`axoview-annotation-capturing`,
+  the same lib→app channel as `axoview-navigate-to-diagram`); the app makes the toolbar inert + dimmed
+  while a draw tool is armed. (It is made inert, not drawn-over — inking literally over the top strip
+  would need the overlay portaled to the viewport, deferred as out of scope.)
+- **`select` is unchanged** — the pass-through tool keeps the overlay below the chrome (z-index 6,
+  `pointer-events: none`), so the full editor is interactive again the moment the user switches to it
+  (or Esc / `V`). This is the "stop drawing to interact" affordance; the chrome-inert behaviour is
+  strictly a *draw/eraser-armed* state.
+- Belt-and-suspenders: chrome surfaces (`AppToolbar`, `BottomDock`, `LeftDock`) also suppress native
+  text-selection + `dragstart`, so no stray selection ghost can appear in the pass-through states.
+
 ## Consequences
 
 **Positive:**

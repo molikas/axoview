@@ -282,9 +282,9 @@ export const CanvasContextMenu = () => {
 
   const handleSelectAll = useCallback(() => {
     actions.setSelectedIds(
-      collectSelectableRefs(scene, lockedIds, visibleIds)
+      collectSelectableRefs(scene, lockedIds, visibleIds, layers.length > 0)
     );
-  }, [actions, scene, lockedIds, visibleIds]);
+  }, [actions, scene, lockedIds, visibleIds, layers.length]);
 
   const handleAddItem = useCallback(() => {
     actions.setActiveLeftTab('ELEMENTS');

@@ -356,7 +356,7 @@ const isHoveringConnectorAnchor = ({ scene, uiState }: State): boolean => {
 // 'pointer' over any item, 'default' otherwise. Uses hasMovedTile to avoid
 // redundant work when the tile under the cursor hasn't changed.
 const updateHoverCursor = (state: State) => {
-  const { scene, uiState } = state;
+  const { scene, uiState, isItemInteractable } = state;
   if (!hasMovedTile(uiState.mouse)) return;
 
   if (isHoveringConnectorAnchor(state)) {
@@ -367,13 +367,19 @@ const updateHoverCursor = (state: State) => {
   // ADR 0023: pixel-accurate hit-testing needs the cursor's canvas point, not the
   // floored tile, so an off-grid item is grabbed where it's drawn.
   const point = cursorCanvasPoint(uiState, uiState.mouse.position.screen);
-  const hoverItem = getItemAtTile({
+  const hit = getItemAtTile({
     tile: uiState.mouse.position.tile,
     scene,
     canvasMode: uiState.canvasMode,
     point
   });
-
+  // A hidden (or locked) element isn't interactable, so it must not read as
+  // hoverable — no pointer cursor, no hover outline. getItemAtTile is purely
+  // geometric and still hits elements on a hidden layer, so without this gate
+  // hovering their (invisible) footprint lit the HoverOutline (reported). Mirrors
+  // the click/drag/select-all invariant. Absent gate (partial test state) = hoverable.
+  const hoverItem =
+    hit && (!isItemInteractable || isItemInteractable(hit)) ? hit : null;
   setWindowCursor(hoverItem ? 'pointer' : 'default');
 
   // A3: publish the hovered item for the faint hover outline (HoverOutline),
@@ -441,6 +447,15 @@ const seedDragItemPosition = (
   } else if (dragItem.type === 'TEXTBOX') {
     initialTiles[dragItem.id] = getItemByIdOrThrow(
       scene.textBoxes,
+      dragItem.id
+    ).value.tile;
+  } else if (dragItem.type === 'LABEL') {
+    // Floating Labels (ADR 0031) move by whole-tile group delta like nodes /
+    // text boxes; DragItems commits them via batchUpdateLabelTiles. Without
+    // this seed the label was selected by the lasso but had no initial tile, so
+    // the group drag skipped it and it stayed put (reported regression).
+    initialTiles[dragItem.id] = getItemByIdOrThrow(
+      scene.labels,
       dragItem.id
     ).value.tile;
   } else if (dragItem.type === 'RECTANGLE') {
