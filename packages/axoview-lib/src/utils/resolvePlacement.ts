@@ -13,12 +13,29 @@ export interface Placement {
   /** The integer tile committed to the model (always integer). */
   tile: Coords;
   /**
-   * The unprojected-px residual the renderer applies post-projection, or
-   * `undefined` when the item is snapped (so lean-save omits it and a re-snap
-   * clears any stale offset).
+   * The SceneLayer-px (post-projection) residual the renderer applies as a
+   * translate, or `undefined` when the item is snapped (so lean-save omits it
+   * and a re-snap clears any stale offset). See `utils/renderedGeometry.ts` for
+   * the coordinate spaces.
    */
   offset?: Coords;
 }
+
+/**
+ * THE snap predicate. An item is SNAPPED iff the global toggle is on AND the
+ * item is not explicitly unsnapped.
+ *
+ * Exported because the drag path needs the decision *before* it has a candidate
+ * residual to resolve — it picks the CSS preview from it (follow the pointer vs
+ * step by whole tiles). `DragItems` used to carry its own copy of this
+ * expression, which is precisely the "the single chokepoint is load-bearing or
+ * the two desync" risk ADR 0023's Consequences flag; there is now one
+ * definition, here, and `resolvePlacement` below is its only other caller.
+ */
+export const isSnappedPlacement = (
+  snap: boolean | undefined,
+  globalSnap: boolean
+): boolean => (snap ?? true) && globalSnap;
 
 /**
  * THE single placement chokepoint. Given the nearest integer tile, a desired
@@ -36,7 +53,7 @@ export const resolvePlacement = (
   snap: boolean | undefined,
   globalSnap: boolean
 ): Placement => {
-  const snapped = (snap ?? true) && globalSnap;
+  const snapped = isSnappedPlacement(snap, globalSnap);
   if (snapped || !offset || (offset.x === 0 && offset.y === 0)) {
     return { tile };
   }
@@ -44,7 +61,7 @@ export const resolvePlacement = (
 };
 
 /**
- * The sub-tile residual (unprojected px) of a screen-space cursor relative to a
+ * The sub-tile residual (SceneLayer px) of a screen-space cursor relative to a
  * tile's centre. Used by fresh-placement flows (place-icon, text-box, paste) to
  * land an off-grid item where the pointer is. Mode-aware via the strategy.
  */
@@ -66,7 +83,7 @@ export const cursorTileResidual = (
 };
 
 /**
- * Convert a node's unprojected-px render offset into the delta to add to a
+ * Convert a node's SceneLayer-px render offset into the delta to add to a
  * connector's endpoint VERTEX so the wire follows the node's rendered position.
  *
  * The connector SVG draws vertices in tile-space (`tile · UNPROJECTED_TILE_SIZE`)

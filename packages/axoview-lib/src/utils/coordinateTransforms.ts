@@ -261,6 +261,29 @@ export const screenToCanvasPoint = (
   y: (screen.y - rendererSize.height * 0.5 - scroll.position.y) / zoom
 });
 
+/**
+ * The cursor's canvas point for ADR 0023 pixel-accurate hit-testing, or
+ * `undefined` when the viewport state needed to compute it isn't there. The real
+ * store always populates zoom/scroll/rendererSize; the mode-action unit tests
+ * construct partial `uiState` mocks, and hit-testing must not throw on those.
+ * `getItemAtTile` treats an absent `point` as "use the raw integer tile", which
+ * is exactly the pre-off-grid behaviour those tests assert.
+ */
+export const cursorCanvasPoint = (
+  viewport: { zoom?: number; scroll?: Scroll; rendererSize?: Size },
+  screen: Coords | undefined
+): Coords | undefined => {
+  if (!screen || !viewport.scroll?.position || !viewport.rendererSize) {
+    return undefined;
+  }
+  return screenToCanvasPoint(
+    screen,
+    viewport.zoom || 1,
+    viewport.scroll,
+    viewport.rendererSize
+  );
+};
+
 // ---------------------------------------------------------------------------
 // Canvas-mode (iso↔2D) switch — preserve zoom + viewport center
 // ---------------------------------------------------------------------------

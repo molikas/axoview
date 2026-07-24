@@ -7,6 +7,7 @@ import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { AnchorPosition } from 'src/types';
 import { PROJECTED_TILE_SIZE } from 'src/config';
+import { getRenderedTilePosition } from 'src/utils/renderedGeometry';
 import { ScreenBoxTransformControls } from './ScreenBoxTransformControls';
 import { TransformControls } from './TransformControls';
 
@@ -60,16 +61,12 @@ export const NodeTransformControls = ({ id, showHandles = true }: Props) => {
   // like the WebGL sprite), so a big 3-D icon is framed correctly (ADR 0044).
   const box = useMemo(() => {
     if (!node) return null;
-    const c = getTilePosition({ tile: node.tile, origin: 'CENTER' });
     const width =
       PROJECTED_TILE_SIZE.width *
       iconWidthFactor(icon.isIsometric ?? false) *
       effectiveScale;
     return {
-      center: {
-        x: c.x + (node.offset?.x ?? 0),
-        y: c.y + (node.offset?.y ?? 0)
-      },
+      center: getRenderedTilePosition(node, getTilePosition, 'CENTER'),
       width,
       height: width * (aspect || 1)
     };

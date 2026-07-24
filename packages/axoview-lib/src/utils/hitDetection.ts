@@ -1,23 +1,41 @@
 // Hit detection: find which scene item (if any) sits at a given isometric tile.
 // Kept separate from isoMath.ts so the WeakMap spatial index is isolated and testable.
 
-import { Coords, Size, ItemReference, TextBox } from 'src/types';
+import { CanvasMode, Coords, Size, ItemReference, TextBox } from 'src/types';
 import {
   getBoundingBox,
   isWithinBounds,
   connectorPathTileToGlobal,
   getTextBoxEndTile
 } from 'src/utils/isoMath';
+import {
+  getStrategy,
+  makeTilePositionFn
+} from 'src/utils/coordinateTransforms';
+import {
+  footprintContainsPoint,
+  getRenderedAreaFootprint,
+  getRenderedTileFootprint
+} from 'src/utils/renderedGeometry';
 
 // Explicit scene shape — avoids importing the full useScene hook type here.
 export interface HitTestScene {
-  items: Array<{ id: string; tile: Coords }>;
+  // `offset` (ADR 0023, SceneLayer px — see renderedGeometry.ts for the
+  // coordinate spaces) is optional: present on off-grid items so hit-testing can
+  // resolve them under their rendered position.
+  items: Array<{ id: string; tile: Coords; offset?: Coords }>;
   textBoxes: Array<TextBox & { size: Size }>;
   hitConnectors: Array<{
     id: string;
     path?: { tiles: Coords[]; rectangle: { from: Coords } };
   }>;
-  rectangles: Array<{ id: string; from: Coords; to: Coords; zIndex?: number }>;
+  rectangles: Array<{
+    id: string;
+    from: Coords;
+    to: Coords;
+    zIndex?: number;
+    offset?: Coords;
+  }>;
 }
 
 // WeakMap-based spatial index: one Map<"x,y", id> per unique scene.items array reference.
@@ -39,13 +57,48 @@ const getItemTileIndex = (
   return itemTileIndexCache.get(items)!;
 };
 
+// Pixel-accurate ITEM hit test (ADR 0023). An off-grid item renders at its tile
+// projection + a px offset, and that offset is SUB-TILE — snapping the cursor to
+// an integer tile and comparing tile keys throws away up to half a tile, so
+// hovering the visible item lands on a neighbour. Instead we test the cursor's
+// SceneLayer point directly against each item's RENDERED footprint (the iso
+// diamond / 2D square from `renderedGeometry`). Topmost (last painted) wins,
+// matching the raw index's last-write-wins + the node paint order.
+//
+// O(N) per call, but only on gesture paths that pass a `point` (hover fires once
+// per tile crossing, click once, drag-over once per move) — never the render loop.
+const itemAtPoint = (
+  items: HitTestScene['items'],
+  point: Coords,
+  canvasMode: CanvasMode
+): string | null => {
+  const getTilePosition = makeTilePositionFn(getStrategy(canvasMode));
+  for (let i = items.length - 1; i >= 0; i -= 1) {
+    const it = items[i];
+    const footprint = getRenderedTileFootprint(it, getTilePosition, canvasMode);
+    if (footprintContainsPoint(footprint, point)) return it.id;
+  }
+  return null;
+};
+
 export const getItemAtTile = ({
   tile,
   scene,
+  canvasMode,
+  point,
   connectorMatch = 'halo'
 }: {
   tile: Coords;
   scene: HitTestScene;
+  // ADR 0023: canvas mode for the projection used by the pixel-accurate ITEM
+  // hit test. Paired with `point`; omit both to keep the raw-tile behaviour used
+  // by paths that don't grab an item's body (connector/pan/placement).
+  canvasMode?: 'ISOMETRIC' | '2D';
+  // ADR 0023: the cursor in canvas/SceneLayer space (screenToCanvasPoint). When
+  // given with `canvasMode`, ITEM hit-testing is pixel-accurate against each
+  // item's rendered footprint, so an off-grid item is grabbed where it's DRAWN,
+  // not at its grid cell. Omitted = raw integer-tile lookup.
+  point?: Coords;
   // Connector hit tolerance (#5). 'halo' (default) keeps the ±1 Chebyshev
   // neighbourhood — needed for hover and reconnect/waypoint grabbing on a thin
   // line. 'exact' requires the query tile to BE a path tile — used for
@@ -55,13 +108,52 @@ export const getItemAtTile = ({
   // the segment for the select gesture only.
   connectorMatch?: 'halo' | 'exact';
 }): ItemReference | null => {
+  // Raw tile → id, still needed for the node-anchored connector-endpoint check
+  // below (an endpoint sits on the node's RAW tile, offset or not).
   const tileIndex = getItemTileIndex(scene.items);
-  const itemId = tileIndex.get(`${tile.x},${tile.y}`);
+  // ITEM hit: pixel-accurate against rendered footprints when we have the cursor
+  // point + mode (grabs an off-grid item where it's drawn); else the raw tile
+  // index (SPATIAL-1: O(1) Map lookup, id returned directly).
+  const itemId =
+    point && canvasMode
+      ? itemAtPoint(scene.items, point, canvasMode)
+      : tileIndex.get(`${tile.x},${tile.y}`);
 
-  // The index already maps tile → id; return it directly. (SPATIAL-1: the old
-  // code did an O(1) Map lookup and then threw the id away with an O(N)
-  // scene.items.find to recover an object whose only field we use is the id.)
-  if (itemId !== undefined) return { type: 'ITEM', id: itemId };
+  if (itemId != null) return { type: 'ITEM', id: itemId };
+
+  // ADR 0023: the tile-range shapes (text box, rectangle) are drawn at their
+  // projected tile range PLUS a px offset. Test the cursor point against the
+  // shape's RENDERED quad — the very corners the renderers draw — rather than
+  // rounding the point back into the shape's un-offset tile frame. Rounding was
+  // the fix's first shape and it leaves up to half a tile of slop at every edge:
+  // a shape nudged by a residual stayed grabbable at the cell it had left, and
+  // missed part of its own drawn body.
+  //
+  // Callers without a point/mode (connector, pan, placement paths) keep the raw
+  // integer-tile range test — behaviour unchanged.
+  const areaGetTilePosition =
+    point && canvasMode ? makeTilePositionFn(getStrategy(canvasMode)) : null;
+
+  const areaContainsCursor = (
+    from: Coords,
+    to: Coords,
+    offset: Coords | undefined,
+    tileBounds: Coords[]
+  ): boolean => {
+    if (!areaGetTilePosition || !point || !canvasMode) {
+      return isWithinBounds(tile, tileBounds);
+    }
+    return footprintContainsPoint(
+      getRenderedAreaFootprint(
+        from,
+        to,
+        offset,
+        areaGetTilePosition,
+        canvasMode
+      ),
+      point
+    );
+  };
 
   // A text box claims its whole tile footprint and outranks connectors (clicking
   // inside the box selects it). Floating Labels are NOT tile-hit-tested — they
@@ -70,17 +162,19 @@ export const getItemAtTile = ({
   // here everywhere the chip isn't.
   const textBox = scene.textBoxes.find((tb) => {
     const textBoxTo = getTextBoxEndTile(tb, tb.size);
-    const textBoxBounds = getBoundingBox([
+    const textBoxEnd = {
+      x: Math.ceil(textBoxTo.x),
+      y:
+        tb.orientation === 'X'
+          ? Math.ceil(textBoxTo.y)
+          : Math.floor(textBoxTo.y)
+    };
+    return areaContainsCursor(
       tb.tile,
-      {
-        x: Math.ceil(textBoxTo.x),
-        y:
-          tb.orientation === 'X'
-            ? Math.ceil(textBoxTo.y)
-            : Math.floor(textBoxTo.y)
-      }
-    ]);
-    return isWithinBounds(tile, textBoxBounds);
+      textBoxEnd,
+      tb.offset,
+      getBoundingBox([tb.tile, textBoxEnd])
+    );
   });
 
   if (textBox) return { type: 'TEXTBOX', id: textBox.id };
@@ -144,7 +238,7 @@ export const getItemAtTile = ({
   let rectangle: (typeof rectPaintOrder)[number] | undefined;
   for (let i = rectPaintOrder.length - 1; i >= 0; i -= 1) {
     const r = rectPaintOrder[i];
-    if (isWithinBounds(tile, [r.from, r.to])) {
+    if (areaContainsCursor(r.from, r.to, r.offset, [r.from, r.to])) {
       rectangle = r;
       break;
     }

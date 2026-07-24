@@ -14,6 +14,7 @@ import {
   useUiStateStoreApi
 } from 'src/stores/uiStateStore';
 import { useRenderProbe } from 'src/utils/renderProbe';
+import { getRenderedOffset } from 'src/utils/renderedGeometry';
 import { ExpandableLabel } from 'src/components/Label/ExpandableLabel';
 import { useInlineRename } from 'src/hooks/useInlineRename';
 import {
@@ -135,6 +136,10 @@ export const Node = memo(({ node, order }: Props) => {
     [getTilePosition, node.tile]
   );
 
+  // ADR 0023: off-grid residual as a post-projection (SceneLayer px) translate;
+  // {0,0} when snapped. Composes with --ff-x/y and the live drag delta below.
+  const renderedOffset = getRenderedOffset(node);
+
   return (
     <NodeShell style={{ zIndex: order }} data-drag-id={node.id}>
       <NodeTransform
@@ -142,10 +147,8 @@ export const Node = memo(({ node, order }: Props) => {
           {
             '--ff-x': `${position.x}px`,
             '--ff-y': `${position.y}px`,
-            // ADR 0023: off-grid residual as a post-projection translate; 0 when
-            // snapped. Composes with --ff-x/y and the live drag delta above.
-            '--ff-off-x': `${node.offset?.x ?? 0}px`,
-            '--ff-off-y': `${node.offset?.y ?? 0}px`
+            '--ff-off-x': `${renderedOffset.x}px`,
+            '--ff-off-y': `${renderedOffset.y}px`
           } as React.CSSProperties
         }
       >

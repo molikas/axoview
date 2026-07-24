@@ -5,6 +5,7 @@ import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { AnchorPosition, Coords } from 'src/types';
 import { PROJECTED_TILE_SIZE } from 'src/config';
+import { getRenderedTilePosition } from 'src/utils/renderedGeometry';
 import { ScreenBoxTransformControls } from './ScreenBoxTransformControls';
 import { formatIconScale } from './NodeTransformControls';
 
@@ -60,9 +61,11 @@ export const NodeGroupTransformControls = ({ ids }: Props) => {
     let maxX = -Infinity;
     let maxY = -Infinity;
     for (const r of resolved) {
-      const c = getTilePosition({ tile: r.tile, origin: 'CENTER' });
-      const cx = c.x + (r.offset?.x ?? 0);
-      const cy = c.y + (r.offset?.y ?? 0);
+      const { x: cx, y: cy } = getRenderedTilePosition(
+        r,
+        getTilePosition,
+        'CENTER'
+      );
       const scale = previewScales?.[r.id] ?? r.startScale;
       const half =
         (PROJECTED_TILE_SIZE.width * iconWidthFactor(r.isIso) * scale) / 2;

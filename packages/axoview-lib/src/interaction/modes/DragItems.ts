@@ -9,6 +9,8 @@ import {
   setWindowCursor,
   itemCollides
 } from 'src/utils';
+import { cursorCanvasPoint } from 'src/utils/coordinateTransforms';
+import { isSnappedPlacement } from 'src/utils/resolvePlacement';
 import { UNPROJECTED_TILE_SIZE, PROJECTED_TILE_SIZE } from 'src/config';
 
 // =============================================================================
@@ -63,13 +65,12 @@ const previewTextBoxOffsets = new Map<string, Coords | undefined>();
 const previewLabelOffsets = new Map<string, Coords | undefined>();
 
 // An item is off-grid (commits a px residual instead of snapping) when the
-// global toggle is off OR the item itself is unsnapped (ADR 0023). Mirrors the
-// snapped test in resolvePlacement; kept inline so the drag hot path has no
-// extra import indirection.
-const isOffGrid = (
-  snap: boolean | undefined,
-  globalSnap: boolean
-): boolean => !((snap ?? true) && globalSnap);
+// global toggle is off OR the item itself is unsnapped (ADR 0023). This used to
+// re-implement the predicate inline — the "second chokepoint" ADR 0023's
+// as-built caveat flagged. It now reads the ONE definition, in the placement
+// chokepoint itself, so the drag and the placement path cannot desync.
+const isOffGrid = (snap: boolean | undefined, globalSnap: boolean): boolean =>
+  !isSnappedPlacement(snap, globalSnap);
 
 // D4-4: external (non-dragged) item occupancy is invariant during a drag — the
 // dragged items move via CSS only, the model isn't written — so it's snapshotted
@@ -181,7 +182,7 @@ function computeNodeUpdates(
 //
 // Snapped nodes step by whole tiles (the projected integer-tile delta — today's
 // behaviour). Off-grid nodes (ADR 0023) follow the pointer pixel-for-pixel: the
-// CSS preview is the precise unprojected-px cursor delta, and the committed
+// CSS preview is the precise SceneLayer-px cursor delta, and the committed
 // `offset` is the item's current offset plus the SUB-TILE residual (the part of
 // the precise delta beyond the whole-tile step). Tile + offset therefore stay in
 // lockstep so the on-drop commit matches the preview exactly (no jump).
@@ -462,7 +463,7 @@ export const DragItems: ModeActions = {
       uiState.mouse.mousedown.tile
     );
 
-    // Precise (sub-tile) pointer delta in unprojected px — screen delta divided
+    // Precise (sub-tile) pointer delta in SceneLayer px — screen delta divided
     // by zoom (the SceneLayer applies scale(zoom) outside the drag translate).
     // Drives off-grid previews; snapped items ignore it (ADR 0023). Falls back to
     // the whole-tile projected delta when screen coords are absent (real getMouse
@@ -480,9 +481,14 @@ export const DragItems: ModeActions = {
 
     const hasDraggedNode = uiState.mode.items.some((i) => i.type === 'ITEM');
     const draggedIds = new Set(uiState.mode.items.map((i) => i.id));
+    // ADR 0023: pixel-accurate "over another item?" check so dragging over an
+    // off-grid node reads its real drawn footprint (matches hover/click).
+    const cursorPoint = cursorCanvasPoint(uiState, posScreen);
     const itemAtCursor = getItemAtTile({
       tile: uiState.mouse.position.tile,
-      scene
+      scene,
+      canvasMode: uiState.canvasMode,
+      point: cursorPoint
     });
     if (
       hasDraggedNode &&

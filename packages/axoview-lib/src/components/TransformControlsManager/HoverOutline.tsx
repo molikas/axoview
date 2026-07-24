@@ -9,6 +9,7 @@ import { useTextBox } from 'src/hooks/useTextBox';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { getTextBoxEndTile } from 'src/utils';
+import { getRenderedTilePosition } from 'src/utils/renderedGeometry';
 import { PROJECTED_TILE_SIZE } from 'src/config';
 import { TransformControls } from './TransformControls';
 import { ScreenBoxTransformControls } from './ScreenBoxTransformControls';
@@ -44,14 +45,10 @@ const HoverNode = ({ id }: { id: string }) => {
       />
     );
   }
-  const c = getTilePosition({ tile: node.tile, origin: 'CENTER' });
   const width = PROJECTED_TILE_SIZE.width * 0.8 * scale;
   return (
     <ScreenBoxTransformControls
-      center={{
-        x: c.x + (node.offset?.x ?? 0),
-        y: c.y + (node.offset?.y ?? 0)
-      }}
+      center={getRenderedTilePosition(node, getTilePosition, 'CENTER')}
       width={width}
       height={width * (aspect || 1)}
       subtle
@@ -78,7 +75,12 @@ const HoverTextBox = ({ id }: { id: string }) => {
   // A text box lies in the tile plane → the iso diamond, like a rectangle.
   const to = getTextBoxEndTile(textBox, textBox.size);
   return (
-    <TransformControls from={textBox.tile} to={to} offset={textBox.offset} subtle />
+    <TransformControls
+      from={textBox.tile}
+      to={to}
+      offset={textBox.offset}
+      subtle
+    />
   );
 };
 

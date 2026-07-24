@@ -15,6 +15,7 @@ import {
 } from 'src/webgl/glSpriteBatch';
 import { attachContextLossRecovery } from 'src/webgl/contextLoss';
 import { computeBackingStore } from 'src/utils/renderTarget';
+import { getRenderedAreaCorners } from 'src/utils/renderedGeometry';
 import { walkDashes, buildAaLineQuad, AA_FEATHER } from 'src/webgl/lineStyle';
 
 // ---------------------------------------------------------------------------
@@ -37,12 +38,6 @@ interface Props {
   // Rectangles to draw on the GPU (Renderer excludes the dragged ones).
   rectangles: RectangleType[];
 }
-
-// X-orientation iso matrix (a,b,c,d); e,f translation is sub-pixel, ignored.
-const ISO_A = 0.707;
-const ISO_B = -0.409;
-const ISO_C = 0.707;
-const ISO_D = 0.409;
 
 const glRGB = (css: string): [number, number, number] => {
   try {
@@ -117,50 +112,6 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
       };
     };
 
-    const corners = (
-      from: Coords,
-      to: Coords,
-      getTilePos: (a: { tile: Coords; origin?: 'LEFT' | 'CENTER' }) => Coords,
-      isIso: boolean,
-      // ADR 0023 off-grid: the unprojected-px residual of an unsnapped rectangle.
-      // Every corner derives from the anchor `p`, so shifting `p` by the offset
-      // translates the whole quad — matching NodesCanvas (base + node.offset), the
-      // DOM Rectangle wrapper (translate3d), and the selection/hover frame
-      // (TransformControls `offset`). Without it the WebGL bulk drew unsnapped
-      // rects at their SNAPPED tile while the frame floated off (reported).
-      offset?: Coords
-    ): [Coords, Coords, Coords, Coords] => {
-      const lowX = Math.min(from.x, to.x);
-      const highX = Math.max(from.x, to.x);
-      const lowY = Math.min(from.y, to.y);
-      const highY = Math.max(from.y, to.y);
-      const W = (highX - lowX + 1) * UNPROJECTED_TILE_SIZE;
-      const H = (highY - lowY + 1) * UNPROJECTED_TILE_SIZE;
-      const ox = offset?.x ?? 0;
-      const oy = offset?.y ?? 0;
-      if (isIso) {
-        const base = getTilePos({ tile: { x: lowX, y: highY }, origin: 'LEFT' });
-        const p = { x: base.x + ox, y: base.y + oy };
-        return [
-          p,
-          { x: p.x + ISO_A * W, y: p.y + ISO_B * W },
-          { x: p.x + ISO_A * W + ISO_C * H, y: p.y + ISO_B * W + ISO_D * H },
-          { x: p.x + ISO_C * H, y: p.y + ISO_D * H }
-        ];
-      }
-      const c = getTilePos({ tile: { x: lowX, y: highY }, origin: 'CENTER' });
-      const p = {
-        x: c.x - UNPROJECTED_TILE_SIZE / 2 + ox,
-        y: c.y - UNPROJECTED_TILE_SIZE / 2 + oy
-      };
-      return [
-        p,
-        { x: p.x + W, y: p.y },
-        { x: p.x + W, y: p.y + H },
-        { x: p.x, y: p.y + H }
-      ];
-    };
-
     const buildInstances = (b: SpriteBatch) => {
       const model = modelApi.getState();
       const colorsById = new Map(model.colors.map((c) => [c.id, c.value]));
@@ -223,12 +174,15 @@ export const RectanglesCanvas = memo(({ rectangles }: Props) => {
         const fillValue = rect.customColor || colorsById.get(rect.color ?? '');
         if (!fillValue) continue;
         const isTransparent = fillValue === 'transparent';
-        const [c0, c1, c2, c3] = corners(
+        // ADR 0023 off-grid: the shared vertex math — the DOM <Rectangle> path
+        // and this bulk MUST agree on where a rect is drawn (bug #3 lived in
+        // exactly that gap), so the corners come from renderedGeometry.
+        const [c0, c1, c2, c3] = getRenderedAreaCorners(
           rect.from,
           rect.to,
+          rect.offset,
           getTilePos,
-          isIso,
-          rect.offset
+          isIso ? 'ISOMETRIC' : '2D'
         );
 
         // Border metrics (needed BEFORE the fill so the fill can inset away from

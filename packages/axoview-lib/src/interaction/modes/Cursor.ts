@@ -22,6 +22,7 @@ import {
 } from 'src/utils';
 import { getConnectorWaypointRefs } from 'src/utils/connectorSelection';
 import { exceedsTapSlop } from 'src/config/tapGesture';
+import { cursorCanvasPoint } from 'src/utils/coordinateTransforms';
 
 // hitConnectors elements merge the view connector (id, anchors) with the
 // scene connector (path) — richer than the bare SceneConnector type.
@@ -298,9 +299,14 @@ const selectItemAtTileMousedown = (state: State) => {
   // #5: click-SELECTION uses exact connector tiles so an empty tile beside a
   // connector clears the selection instead of grabbing it. Hover and
   // reconnect/waypoint paths keep the ±1 halo (default).
+  // ADR 0023: pixel-accurate click hit-test — select an off-grid item where it's
+  // drawn (matches the hover path), not at its grid cell.
+  const point = cursorCanvasPoint(uiState, uiState.mouse.position.screen);
   const itemAtTile = getItemAtTile({
     tile: uiState.mouse.position.tile,
     scene,
+    canvasMode: uiState.canvasMode,
+    point,
     connectorMatch: 'exact'
   });
 
@@ -358,9 +364,14 @@ const updateHoverCursor = (state: State) => {
     return;
   }
 
+  // ADR 0023: pixel-accurate hit-testing needs the cursor's canvas point, not the
+  // floored tile, so an off-grid item is grabbed where it's drawn.
+  const point = cursorCanvasPoint(uiState, uiState.mouse.position.screen);
   const hit = getItemAtTile({
     tile: uiState.mouse.position.tile,
-    scene
+    scene,
+    canvasMode: uiState.canvasMode,
+    point
   });
   // A hidden (or locked) element isn't interactable, so it must not read as
   // hoverable — no pointer cursor, no hover outline. getItemAtTile is purely

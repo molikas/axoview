@@ -163,6 +163,16 @@ The pointing-finger cursor on hover (added 2026-05-15) does cover all four cases
 
 **Status:** Open (minor). Options: hide the tile cursor on a renderer `pointerleave`, and/or only show it in placement/connector modes (not plain select) — a pre-existing behavior call.
 
+## Hover feedback lags the cursor by one mousemove (`hasMovedTile` gate)
+
+**Symptom:** The hover cursor + faint hover outline (`updateHoverCursor` in [`Cursor.ts`](packages/axoview-lib/src/interaction/modes/Cursor.ts)) recompute the hovered item only when the pointer crosses into a **new tile**, and the recompute reads the *previous* move's tile — so a single discrete pointer move onto an item does not raise its hover state until the next move event fires. A real user never notices (their mouse emits a continuous stream of moves, so the next event lands within a frame), but a scripted single `mouse.move` reveals it — the ADR 0023 off-grid e2e (`off-grid-pointer.spec.ts`) parks the cursor and sends an extra 1px nudge to work around it.
+
+**Root cause:** the `if (!hasMovedTile(uiState.mouse)) return;` early-out is a per-tile-crossing throttle (a deliberate perf guard — a per-move hover recompute would churn every subscriber). The published `hoveredItem` therefore trails the live pointer by one move event. This is projection-independent and **not** off-grid-specific: snapped items behave identically. The ADR 0023 hardening surfaced it while writing real-mouse hover assertions but did not change it — it is a pre-existing perf/latency tradeoff, invisible in normal use.
+
+**Workaround (tests only):** send a second, tiny pointer move (`hoverAt` in [`packages/axoview-e2e/helpers/offGrid.ts`](packages/axoview-e2e/helpers/offGrid.ts) does this) so the recompute lands.
+
+**Status:** Open, deferred (working-as-designed latency). A fix would drop the one-move lag by recomputing on the *current* tile rather than gating on the delta, but must not reintroduce a per-move store write for every subscriber; not worth it until a user-visible symptom appears.
+
 ## Canvas node renderer: notes/link badges + connectors not drawn for unselected nodes (ADR 0019)
 
 **Symptom:** With the Canvas2D node layer now the default renderer (ADR 0019), two visuals
@@ -201,6 +211,16 @@ blocks the T2 render-substrate win. Tracked in
 
 **Status:** **Closed as stale 2026-07-05** (technical-review-2026-07 audit). The lib suite is fully green (145 suites / 1,481 passing) with [`leanSave.test.ts`](packages/axoview-lib/src/utils/__tests__/leanSave.test.ts) running — its assertions tolerate the (still deliberately empty) [`fixtures/icons.ts`](packages/axoview-lib/src/fixtures/icons.ts). No skip or failure matching this entry exists anymore. The suite's **single standing skip** is a different, environment-shaped one: [`coordinateTransforms.test.ts:361`](packages/axoview-lib/src/utils/__tests__/coordinateTransforms.test.ts#L361) ("strategies have different gridTileUrls") is skipped because SVG imports are string-mocked under jsdom, so the two strategies' URLs are indistinguishable in the test env — deliberate, not debt.
 
+
+## E2E `canvasReadyTest` fixture: a plain `page.reload()` lands on the empty state, not the diagram
+
+**Symptom:** The `canvasReadyTest` fixture ([`packages/axoview-e2e/fixtures/app.fixture.ts`](packages/axoview-e2e/fixtures/app.fixture.ts)) boots by clicking the empty-state **Create** button, which mounts a blank diagram in the **stores** but never writes it to the app's explorer persistence (`axoview-diagrams` / `axoview-last-opened`). So a spec that calls `page.reload()` mid-test comes back on the **empty-state screen** (or the Import dialog) with the model gone from the canvas — a plain reload does not "reopen" the fixture diagram. `label-drag.spec.ts` only asserts the *model* across reload for this reason; the ADR 0023 off-grid reload case (`snap-grid.spec.ts`, "survives a reload at its DRAWN position") had to seed all three keys — `axoview-last-opened-data` **and** `axoview-diagrams` **and** `axoview-last-opened` — before reloading so the diagram comes back OPEN and painted.
+
+**Root cause:** the fixture is designed to reach a canvas quickly, not to exercise the explorer's save/reopen path; persistence to the explorer only happens on an explicit save action the fixture never performs.
+
+**Workaround (tests):** before a reload that must restore a painted diagram, write the model blob to `axoview-last-opened-data` and seed a matching `axoview-diagrams` entry + `axoview-last-opened` id (see the off-grid reload case). Boot also fit-to-screens, so assert drawn-position relationships (tile+offset, still-clickable, not-at-cell), not client coordinates compared across the refit.
+
+**Status:** Open, deferred (test-infra sharp edge, not a product bug). A `canvasReadyTest` variant that persists the created diagram to the explorer would remove the per-spec seeding; low priority until more specs need reload-with-paint.
 
 ## File tree: double-click on a diagram does not enter rename mode
 

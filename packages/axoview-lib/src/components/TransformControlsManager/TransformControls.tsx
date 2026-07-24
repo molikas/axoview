@@ -10,6 +10,7 @@ import {
   outermostCornerPositions,
   convertBoundsToNamedAnchors
 } from 'src/utils';
+import { getRenderedOffset } from 'src/utils/renderedGeometry';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { TransformAnchor } from './TransformAnchor';
@@ -51,13 +52,12 @@ interface Props {
    */
   readout?: string;
   /**
-   * ADR 0023 off-grid: the element's unprojected-px offset when unsnapped. The
-   * element wrapper (TextBox / Rectangle / flat Node) translates by this in
-   * screen px, so the selection ring + handles must shift by the SAME vector —
-   * otherwise the frame stays pinned to the snapped tile while the element
-   * floats free (the "frame doesn't follow the unsnapped element" bug). Omitted
-   * / undefined (a snapped element) = zero shift, geometry byte-for-byte
-   * unchanged.
+   * ADR 0023 off-grid: the item's committed px residual (post-projection,
+   * SceneLayer space — same units getTilePosition returns). The ring + handles
+   * are laid out from the integer from/to tiles, so without this the chrome sits
+   * on the grid cell while the element renders at tile + offset (the off-centre
+   * selector when snap is off). Applied as a pure screen translate to both the
+   * ring and every anchor. Omitted / undefined = snapped (no shift).
    */
   offset?: Coords;
 }
@@ -104,11 +104,11 @@ export const TransformControls = ({
     from,
     to
   });
-  // ADR 0023 off-grid: screen-px shift applied identically to the SVG box and
-  // every anchor screen position, so the whole frame tracks an unsnapped
-  // element's wrapper translate. Zero for a snapped element.
-  const ox = offset?.x ?? 0;
-  const oy = offset?.y ?? 0;
+  // ADR 0023 off-grid: shift the chrome by the item's committed px residual so
+  // it tracks the element's real rendered position, not its grid cell. Same
+  // SceneLayer px as css.left/top and the anchor corners below, so it composes
+  // as a plain translate.
+  const { x: offX, y: offY } = getRenderedOffset({ offset });
   const { getTilePosition, strategy } = useCanvasMode();
   // Screen-pixel-stable readout (counter-scaled 1/zoom), matching the screen-box
   // node outline so both node shapes show the same size pill (QA 2026-07-19).
@@ -123,6 +123,20 @@ export const TransformControls = ({
   const ringX = (pxSize.width - ringW) / 2;
   const ringY = (pxSize.height - ringH) / 2;
 
+  // The off-grid shift moves the ring's SVG origin (left/top). The anchors read
+  // the already-shifted corners (cornerScreen below), so both stay in lockstep.
+  const positionedCss = useMemo(
+    () =>
+      offX || offY
+        ? {
+            ...css,
+            left: (css.left as number) + offX,
+            top: (css.top as number) + offY
+          }
+        : css,
+    [css, offX, offY]
+  );
+
   // Screen position of each outer corner, keyed by corner name — feeds the
   // anchor handles (edge midpoints are corner averages) and the rotate handle.
   const cornerScreen = useMemo(() => {
@@ -135,19 +149,24 @@ export const TransformControls = ({
         // corner-tile's center, not single-axis offsets like in iso.
         const center = getTilePosition({ tile: value });
         const half = UNPROJECTED_TILE_SIZE / 2;
-        const offsetX = key.endsWith('LEFT') ? -half : half;
-        const offsetY = key.startsWith('BOTTOM') ? half : -half;
-        out[key] = { x: center.x + offsetX + ox, y: center.y + offsetY + oy };
+        // Corner direction from the tile centre (distinct from the off-grid
+        // offX/offY shift added below).
+        const cornerX = key.endsWith('LEFT') ? -half : half;
+        const cornerY = key.startsWith('BOTTOM') ? half : -half;
+        out[key] = {
+          x: center.x + cornerX + offX,
+          y: center.y + cornerY + offY
+        };
       } else {
         const p = getTilePosition({
           tile: value,
           origin: outermostCornerPositions[i]
         });
-        out[key] = { x: p.x + ox, y: p.y + oy };
+        out[key] = { x: p.x + offX, y: p.y + offY };
       }
     });
     return out;
-  }, [from, to, getTilePosition, strategy.projectionName, ox, oy]);
+  }, [from, to, getTilePosition, strategy.projectionName, offX, offY]);
 
   const anchors = useMemo(() => {
     if (!onAnchorMouseDown) return [];
@@ -256,16 +275,12 @@ export const TransformControls = ({
   return (
     <>
       <Svg
+        // See ScreenBoxTransformControls — same hook, iso-ring variant.
+        data-axoview-id={
+          subtle ? 'canvas-hover-outline' : 'canvas-selection-chrome'
+        }
         style={{
-          ...css,
-          // ADR 0023 off-grid: shift the box by the same screen-px offset the
-          // element wrapper uses (css.left/top are numeric px from useIsoProjection).
-          ...(ox || oy
-            ? {
-                left: (css.left as number) + ox,
-                top: (css.top as number) + oy
-              }
-            : {}),
+          ...positionedCss,
           pointerEvents: 'none',
           // Selection/hover chrome frames the element from just OUTSIDE its own
           // border; the default svg viewport (== element footprint) would clip
