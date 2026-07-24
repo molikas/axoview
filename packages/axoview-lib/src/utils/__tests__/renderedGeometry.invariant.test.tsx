@@ -359,6 +359,32 @@ describe.each<CanvasMode>(['ISOMETRIC', '2D'])(
           offset?.y ?? 0,
           'ring top shift'
         );
+
+        // R1 base-agreement tripwire (plan-author review 2026-07-24). Every
+        // assertion in this file so far checks a DELTA (offset shift, corner
+        // shift) — all of which stay green if `getRenderedAreaCorners` has the
+        // right OFFSET math but the wrong BASE (a matrix fat-finger, the wrong
+        // origin tile, a dropped `origin:'LEFT'`). And because hit-testing
+        // consumes the same corners, such a base error moves render + hit +
+        // chrome together, so the cross-artifact checks stay green too while
+        // every rectangle visibly shifts. This is the one absolute pin that
+        // closes that hole: the snapped chrome's origin is `useIsoProjection`'s
+        // `position` (its own `getTilePosition` call via `getBoundingBox`,
+        // independent of renderedGeometry), and it must land on the bulk path's
+        // base corner. Tolerance ~1.5 px: the two derivations agree to the
+        // sub-pixel in practice, but the wide band keeps this a coarse tripwire
+        // (a base error is a whole tile, ~46–141 px) rather than a precision
+        // assertion that would duplicate the delta checks.
+        const bulkBase = getRenderedAreaCorners(
+          from,
+          to,
+          undefined,
+          makeTilePositionFn(getStrategy(mode)),
+          mode
+        )[0];
+        const BASE_TOL = 1.5;
+        expect(Math.abs(px(b.style.left) - bulkBase.x)).toBeLessThan(BASE_TOL);
+        expect(Math.abs(px(b.style.top) - bulkBase.y)).toBeLessThan(BASE_TOL);
       });
 
       it('the WebGL rect corners carry the offset the DOM path carries', () => {

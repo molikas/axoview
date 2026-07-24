@@ -153,3 +153,23 @@ Make "forgot the offset" (a) structurally hard to write, (b) impossible to ship 
 - 2026-07-23 · **G** — `guidelines/testing.md` additions section + refreshed totals; ADR 0023 addendum extended with E1/E2 and a pointer block on the superseded §1 wording; retired terminology verified clear; PLAN.md wrap-up line + F3 open question; memory pointer refreshed. The tactical doc itself is NOT deleted — it is the review checklist. · `docs(off-grid): record the hardening pass in testing.md, ADR 0023 and PLAN` (this commit)
 
 **Status: A–G complete.** Unit 154 suites / 1723 tests (+1 skipped); the off-grid e2e specs 9/9; `tsc --noEmit`, `eslint`, `knip` and `lint:docs` clean. The full e2e sweep is the remaining gate — see the handover note below.
+
+## Review (plan author, 2026-07-24)
+
+Reviewed against the ten locked decisions: targeted read of `renderedGeometry.ts`, the contract + invariant suites, the E1/E3 diffs, and every flagged deviation. **All deviations accepted:**
+
+| Deviation | Verdict |
+|---|---|
+| D tolerance 1e-6 px instead of ±0.5 | Approved — strictly stronger; the "(0.5,0.5) survives at ±0.5" argument is correct and fixes a latent weakness in the plan's own spec. |
+| WebGL/DOM tier asserts offset **delta** per corner | Accepted. Decision 6's intent (the two paths cannot disagree) is now enforced *structurally* — area hit-testing consumes the identical `getRenderedAreaCorners` the bulk renderer draws — and the delta pin proves offset composition at a tolerance absolute comparison cannot reach (documented ~0.9 px base approximation). See follow-up R1. |
+| E1 folds the predicate (`isSnappedPlacement`), not a `resolvePlacement()` call | Approved — one definition, two callers, byte-identical; the zero-residual-collapse observation is a sharp catch that a naive fold would have shipped as a behaviour change. |
+| Two `data-axoview-id` chrome hooks in product code | Approved — same affordance class as `data-draw-count` (ADR 0020 anti-cheat). |
+| New `usePanHandlers.offGridMenu.test.ts` instead of extending the existing file | Approved — the existing file stubs `getItemAtTile` wholesale and is structurally blind to this bug class; verified red. |
+| 15th composition site (`NodesCanvas.tsx:462`) found by C | That is the contract test earning its keep before merge. |
+
+**Follow-ups before wrap (neither blocks the e2e sweep; both are sweep-independent):**
+
+- [x] **R1 (done):** one coarse absolute assertion in the rectangle tier — DOM path base vs `getRenderedAreaCorners` base agree within a documented ~1.5 px on the 3-tile fixture. The delta assertion is structurally blind to a *base* error (matrix fat-finger, wrong origin tile, dropped `origin:'LEFT'`), and because hit-testing shares the function, such an error moves render + hit + chrome *together* — the invariant suite stays green while every rectangle visibly shifts. One cheap tripwire closes that. — landed in the `iso-ring chrome` case of `renderedGeometry.invariant.test.tsx`: the snapped chrome's origin (`useIsoProjection.position`, its own `getTilePosition`/`getBoundingBox` call — independent of `renderedGeometry`) must land on `getRenderedAreaCorners(...)[0]` within 1.5 px. Verified: a one-tile base error in the iso branch trips 18 cases (2D correctly unaffected), and it is the base pin catching it — the delta assertions stay green.
+- [x] **R2 (done):** record the two unactioned pre-existing observations in `known_issues.md` (the repo's register — spec comments rot invisibly): (a) hover recompute lags the cursor by one mousemove (`hasMovedTile` gate); (b) the e2e fixture's diagram is never written to the explorer, so a plain reload lands on the empty state with the model restored but nothing painted. — both added as `## Hover feedback lags the cursor by one mousemove` and `## E2E canvasReadyTest fixture: a plain reload lands on the empty state` (each Status: Open, deferred).
+
+**Sign-off:** granted contingent on the full e2e sweep passing and R2 landing (R1 strongly recommended). After that, execute Wrap-up step 2 — delete this file; the ADR 0023 addendum + testing.md are the durable record.
