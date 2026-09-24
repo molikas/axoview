@@ -129,7 +129,7 @@ Docker builds exclude `.git` ([.dockerignore](../../.dockerignore)), so `resolve
 - Workflows:
   - `.github/workflows/docker-smoke.yml`: the `Docker Gate` check;
   - `.github/workflows/docker-regression.yml`: the `Docker Regression Gate` check, on PRs and pushes to master plus `workflow_dispatch`, sharded.
-- Playwright: `packages/axoview-e2e/playwright.docker.config.ts`, with a `docker-smoke` project (`tests-docker/`) and a `docker-regression` project (`tests/`, with the bridge `storageState`).
+- Playwright: `packages/axoview-e2e/playwright.docker.config.ts`, with three smoke projects over `tests-docker/` (`smoke-secure`, `smoke-insecure`, `smoke-storage-off`) and two regression projects over `tests/` (`regression`, `regression-touch`, with the bridge `storageState`).
 - Runner: `scripts/e2e-docker.js`, wired as `npm run test:e2e:docker` (the smoke) and `test:e2e:docker:full`.
 - Build: [Dockerfile](../../Dockerfile) takes `ARG AXOVIEW_VERSION` in the build stage.
 - Step-by-step plan: [docs/tactical/docker-regression-gate.md](../tactical/docker-regression-gate.md).
@@ -141,7 +141,16 @@ Docker builds exclude `.git` ([.dockerignore](../../.dockerignore)), so `resolve
   - nginx sends `$host` instead of `$http_host` → the remapped-port write is refused;
   - `generateId` loses its fallback → the insecure-origin load fails.
 
-  Record the three run URLs here.
+  Proven 2026-09-24 on `gate-proof/docker-smoke` (branch deleted afterwards), one revert at a time on top of the phase-A head `46a80d30`:
+
+  | Revert | Run | Result |
+  |---|---|---|
+  | none (baseline) | [36072933840](https://github.com/molikas/axoview/actions/runs/36072933840) | green, 8/8, 5 min 8 s wall on a cold buildx cache |
+  | `isOwnOrigin` → `return false` | [36073428591](https://github.com/molikas/axoview/actions/runs/36073428591) | red: both own-origin rows of the Origin table, and the journey's first `POST /api/diagrams` under both origins |
+  | nginx `$http_host` → `$host` | [36073749706](https://github.com/molikas/axoview/actions/runs/36073749706) | red: the same three, plus "same host, port missing → 403", which now passes the gate: the port-less `Host` makes a port-less `Origin` match |
+  | `generateId` → the pre-v3.9.2 body, `return crypto.randomUUID()` | [36074327050](https://github.com/molikas/axoview/actions/runs/36074327050) | red: only `smoke-insecure`'s journey. The server creates the diagram, but the editor never mounts on the insecure origin. |
+
+  For the third revert, an error boundary catches the throw, so no `pageerror` fires. The journey's canvas assertion is what fails. An earlier attempt at the same revert ([36074059820](https://github.com/molikas/axoview/actions/runs/36074059820)) returned early inside the current body, which broke TypeScript narrowing and failed the image build. That run was red for the wrong reason, so it doesn't count.
 - **Positive:** `Docker Gate` is green on `master` and appears in the ruleset's `required_status_checks`.
 - **Runner hygiene:** interrupt a local run with Ctrl+C, and in a second run kill its container mid-run. Both must end in a leak audit that reports zero leftover processes, containers, volumes and images.
 - **Full regression:** `Docker Regression Gate` runs green on `master`, with no failures and none attributed away. Only then does it join the ruleset (§5), and `/ship` drops its advisory confirmation.
