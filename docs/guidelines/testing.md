@@ -1,6 +1,6 @@
 # Regression Test Suite Reference
 
-**Last updated:** 2026-08-21 (rev — the durable CI, gate and canvas contracts promoted above the catalogue; the wave-by-wave record collapsed into `## Suite history` at the end; section index added)
+**Last updated:** 2026-09-24 (rev — `server.wiring.spec.js` gains the deployment's-own-origin leg; previous rev 2026-08-21 promoted the durable CI, gate and canvas contracts above the catalogue, collapsed the wave-by-wave record into `## Suite history` and added the section index)
 **Unit / integration totals** (measured 2026-08-08 via per-workspace `npm test`):
 
 | Workspace | Passing | Suites |
@@ -925,7 +925,7 @@ Promoted suites:
 - **[`GoogleDriveProvider.authFailures.test.ts`](../../packages/axoview-app/src/services/storage/__tests__/GoogleDriveProvider.authFailures.test.ts)** · 8 tests · `request()` is where an HTTP answer becomes an auth *decision*, and three of the four it made were wrong the same way — a status code treated as if it named the cause. Pins the 403 split (scope vs rate limit vs neither), that a withheld token in `DRIVE_ACCESS_REQUIRED` reads as a scope problem rather than "not signed in", and that sign-out invalidates the per-account Drive root caches. S1/AUTH-06, 08, 09, 16.
 - **[`AuthControl.identity.test.tsx`](../../packages/axoview-app/src/components/__tests__/AuthControl.identity.test.tsx)** · 3 tests · the DOM consequence AUTH-05 was actually about: a session whose one `userinfo` call failed must still render its Sign out control. `AuthControl` had no unit test at all.
 - **[`routes.shareIntegrity.spec.js`](../../packages/axoview-backend/src/__tests__/routes.shareIntegrity.spec.js)** · 25 tests · what the route layer does when "one well-formed request at a time" stops holding: a concurrent second request, a reserved id, a body carrying a server-owned field, a source diagram since trashed. S2/SHARE-01..06, 11, 15.
-- **[`server.wiring.spec.js`](../../packages/axoview-backend/src/__tests__/server.wiring.spec.js)** · 7 tests · boots the real `server.js` as a child process and speaks HTTP to it, because middleware ordering and the `requireStorage` route flags cannot be answered at the handler tier. The CORS leg asserts the diagram is genuinely **not published**, not merely that the response was withheld — the distinction SHARE-09 exists for. S2/SHARE-08, 09, 10.
+- **[`server.wiring.spec.js`](../../packages/axoview-backend/src/__tests__/server.wiring.spec.js)** · 10 tests · boots the real `server.js` as a child process and speaks HTTP to it, because middleware ordering and the `requireStorage` route flags cannot be answered at the handler tier. The CORS leg asserts the diagram is genuinely **not published**, not merely that the response was withheld — the distinction SHARE-09 exists for. Its other half asserts the deployment's **own** origin (Origin host = `Host`, or `PUBLIC_BASE_URL`) can still write, because browsers send `Origin` on same-origin writes too; v3.9.0 shipped a gate that refused every Docker save. S2/SHARE-08, 09, 10.
 
 Existing suites absorbed the rest: `drivePublicRead.test.ts` (+4, and its toy
 `'fid'` fixture replaced with a realistic Drive id, which the new DRV-12 shape

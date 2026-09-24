@@ -30,6 +30,13 @@ const autoDismissDefaults: Record<NotificationSeverity, number | undefined> = {
   error: undefined
 }
 
+// Toast ids only need to be unique within this queue. Deliberately not
+// crypto.randomUUID: that API is absent outside secure contexts (plain-HTTP
+// self-hosting by LAN IP), and a toast must never throw while reporting an error.
+let nextNotificationSeq = 0
+const nextNotificationId = () =>
+  `n_${Date.now().toString(36)}_${(nextNotificationSeq++).toString(36)}`
+
 export const useNotificationStore = create<NotificationStore>((set) => ({
   queue: [],
 
@@ -38,7 +45,7 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
       n.autoDismiss !== undefined ? n.autoDismiss : autoDismissDefaults[n.severity]
     const notification: Notification = {
       ...n,
-      id: crypto.randomUUID(),
+      id: nextNotificationId(),
       autoDismiss
     }
     set((state) => ({ queue: [...state.queue, notification] }))

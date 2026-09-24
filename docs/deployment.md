@@ -196,12 +196,16 @@ The repo-root [wrangler.toml](../wrangler.toml) is set up so the deploy button w
 - Body limit: 10 MB per request. Over it, or a body that does not parse, answers
   `{ "error": … }` JSON (413 / 400) — never an HTML error page, and never a
   stack trace.
-- Requests carrying an `Origin` header that is not in `ALLOWED_ORIGINS` are
-  **refused with 403 before any handler runs**. CORS alone only withholds the
-  *response*; a CORS-safelisted request (e.g. `POST` with
+- Requests carrying an `Origin` header from anywhere other than the deployment
+  itself are **refused with 403 before any handler runs**. CORS alone only
+  withholds the *response*; a CORS-safelisted request (e.g. `POST` with
   `Content-Type: text/plain`) skips the preflight entirely and would otherwise
-  have already executed. Requests with no `Origin` (same-origin, curl,
-  server-to-server) are unaffected.
+  have already executed. Browsers send `Origin` on every non-GET request, the
+  app's own included, so an origin counts as the deployment's own when its
+  host (and port) matches the request's `Host` header, or when it equals
+  `PUBLIC_BASE_URL`. `ALLOWED_ORIGINS` (comma-separated; default
+  `http://localhost:3000`, the dev server) adds genuinely cross-origin callers.
+  Requests with no `Origin` (plain GETs, curl, server-to-server) are unaffected.
 - ID validation: `^[a-zA-Z0-9_-]{1,64}$`, minus the four reserved storage names
   `folders`, `tree-manifest`, `metadata` and `diagrams-index` — anything else is
   `400 Invalid id` (Docker only; Cloudflare 503s before reaching the validator).
@@ -281,3 +285,5 @@ The Worker registers a Hono `app.onError` handler ([packages/axoview-worker/src/
 **Path-traversal `400 Invalid id`** (Docker) — expected. IDs are strict NanoID-like alphanum; do not relax `assertId`.
 
 **Build succeeds locally but `wrangler pages deploy` 404s on `/api/*`** — check that [packages/axoview-app/public/_routes.json](../packages/axoview-app/public/_routes.json) was copied into `build/`. Rsbuild copies the `public/` tree by default.
+
+**`403 Origin not allowed` when creating or saving a diagram** (Docker) — the browser's origin did not match the API's `Host` (§D). Images built from v3.9.0–v3.9.1 refused *every* browser write this way; rebuild from a newer release. On a current image it means a proxy in front of the container rewrote `Host`: set `PUBLIC_BASE_URL` to the address users open, or list that origin in `ALLOWED_ORIGINS`.

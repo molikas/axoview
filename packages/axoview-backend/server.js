@@ -89,12 +89,44 @@ app.use(
 // — which the ACAO check the 2026-07-05 security review relied on cannot see.
 //
 // Reject the REQUEST, not just the response: a disallowed Origin never reaches
-// a handler. Requests with no Origin header (same-origin, curl,
-// server-to-server) are unaffected, matching the CORS callback above.
+// a handler. Requests with no Origin header (curl, server-to-server) are
+// unaffected, matching the CORS callback above.
+//
+// Browsers send `Origin` on EVERY non-GET request, same-origin ones included, so
+// "no Origin" is not what the editor's own writes look like. Treating it that
+// way refused every create/save/share on the Docker image from v3.9.0 (dev never
+// saw it: its :3000 origin is allowlisted). The deployment's own origin is
+// therefore always allowed: an Origin whose host[:port] is the Host the request
+// was sent to (nginx forwards `$http_host`, port included), or PUBLIC_BASE_URL's
+// origin (a front proxy may rewrite Host). The scheme is not compared, because
+// TLS usually terminates in front of nginx. A cross-site page can forge neither
+// header, so SHARE-09 still holds. A DNS-rebinding page does count as
+// same-origin; it could already read, and only AUTH_MODE=shared-token closes it.
+const PUBLIC_ORIGIN = (() => {
+  try {
+    return process.env.PUBLIC_BASE_URL ? new URL(process.env.PUBLIC_BASE_URL).origin : null;
+  } catch {
+    return null;
+  }
+})();
+
+function isOwnOrigin(req, origin) {
+  if (origin === PUBLIC_ORIGIN) return true;
+  const host = req.headers.host;
+  if (!host) return false;
+  try {
+    const o = new URL(origin);
+    // Parsing Host with the origin's scheme drops a default port (`:80`/`:443`).
+    return o.host === new URL(`${o.protocol}//${host}`).host;
+  } catch {
+    return false; // `Origin: null` (opaque origins) or a malformed Host
+  }
+}
+
 app.use((req, res, next) => {
   if (!req.path.startsWith('/api/')) return next();
   const origin = req.headers.origin;
-  if (!origin || ALLOWED_ORIGINS.includes(origin)) return next();
+  if (!origin || ALLOWED_ORIGINS.includes(origin) || isOwnOrigin(req, origin)) return next();
   return res.status(403).json({ error: 'Origin not allowed' });
 });
 
