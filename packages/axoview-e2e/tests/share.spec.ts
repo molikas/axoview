@@ -190,9 +190,11 @@ async function seedSessionDiagram(page: import('@playwright/test').Page) {
  * work locally. Other storage endpoints (folders, manifest, listDiagrams)
  * fall through to LocalStorageProvider's catch-and-fallback paths.
  *
- * Note: This mocks ABSOLUTE /api/* requests since apiBaseUrl() returns ''
- * in dev (relative paths). page.route accepts a glob/regex against full
- * URL; '**\/api/...' matches both relative and absolute forms.
+ * Note: apiBaseUrl() returns 'http://localhost:3001' on the dev server
+ * (a development build on localhost:3000), so /api/* requests there are
+ * ABSOLUTE and cross-origin; on a production bundle (the Docker image) it
+ * returns '' and they are same-origin relative. context.route matches its
+ * glob against the full URL, and '**\/api/...' matches both forms.
  */
 async function installSessionMocks(context: import('@playwright/test').BrowserContext, blob: any) {
   await context.route('**/api/config', async (route) => {
@@ -227,12 +229,23 @@ async function installSessionMocks(context: import('@playwright/test').BrowserCo
 }
 
 baseTest.describe('Share — J14 (Session share link round-trip via mocked backend)', () => {
-  baseTest('J14: share popover stays open on inside-click; Copy writes URL to clipboard; incognito context renders the readonly view', async ({ browser }) => {
+  baseTest('J14: share popover stays open on inside-click; Copy writes URL to clipboard; incognito context renders the readonly view', async ({ browser, baseURL }, testInfo) => {
     const blob = buildSharedBlob();
+
+    // Contexts made with browser.newContext inherit none of the project's
+    // `use` options, so forward the two this spec depends on: the origin
+    // under test (the Docker config points it at the image, not :3000) and
+    // storageState. On a production bundle storageState carries the
+    // `axoview_perf_enabled` flag that exposes the debug bridge
+    // (ADR 0048 §4); the dev config sets none, so it forwards `undefined`.
+    const projectContextOptions = {
+      baseURL,
+      storageState: testInfo.project.use.storageState
+    };
 
     // ── Context A — generates the share URL ────────────────────────────
     const ctxA = await browser.newContext({
-      baseURL: 'http://localhost:3000',
+      ...projectContextOptions,
       permissions: ['clipboard-read', 'clipboard-write']
     });
     await installSessionMocks(ctxA, blob);
@@ -274,8 +287,9 @@ baseTest.describe('Share — J14 (Session share link round-trip via mocked backe
 
     const sharedUrl = await toolbar.getShareUrl();
 
-    // ── Context B — incognito (fresh context, no auth, no seeded storage)
-    const ctxB = await browser.newContext({ baseURL: 'http://localhost:3000' });
+    // ── Context B — incognito (fresh context, no auth, no seeded storage).
+    // The forwarded storageState seeds no diagrams: at most the bridge flag.
+    const ctxB = await browser.newContext(projectContextOptions);
     await installSessionMocks(ctxB, blob);
     const pageB = await ctxB.newPage();
     await pageB.goto(sharedUrl);
