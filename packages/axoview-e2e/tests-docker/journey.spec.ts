@@ -150,14 +150,12 @@ test('journey: create, edit and save, reload, rename, create again, share, delet
         )
       )
       .toBe(true);
-    // ...and makes it current. The app records the open diagram in
-    // `axoview-last-opened` in the same step that sets it current
-    // (DiagramLifecycleProvider handleDiagramManagerLoad); nothing in the DOM
-    // names the open diagram, and the bridge is off. Share (next step) acts on
-    // the current diagram, so it must not start before this lands.
-    await expect
-      .poll(() => page.evaluate(() => localStorage.getItem('axoview-last-opened')))
-      .toBe(secondId);
+    // ...and makes it current: its row carries aria-current (FileTreeNode,
+    // selectedId = currentDiagram.id). The bridge is off, so this is the DOM
+    // signal. Share (next step) acts on the current diagram, so it must not
+    // start before this lands.
+    await expect(explorer.getRowByName(SECOND)).toHaveAttribute('aria-current', 'true');
+    await expect(explorer.getRowByName(RENAMED)).not.toHaveAttribute('aria-current', 'true');
   });
 
   await test.step('6. share it; the link renders for a fresh visitor', async () => {
