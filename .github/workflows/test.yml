@@ -27,7 +27,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-      
+        with:
+          # Full history for "Lint docs governance": its `**Last updated:**`
+          # stamp check (scripts/lint-docs.js §10) reads each doc's last commit
+          # date and skips on a shallow clone, so at the default depth 1 it
+          # never ran in CI. The pack is about 17 MiB.
+          fetch-depth: 0
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v6
         with:
