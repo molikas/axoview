@@ -1,7 +1,52 @@
 import chroma from 'chroma-js';
-import { clamp, getColorVariant } from '../common';
+import { clamp, generateId, getColorVariant } from '../common';
+
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 describe('Tests common utilities', () => {
+  describe('generateId', () => {
+    // Issue #89: crypto.randomUUID is secure-context-only, so a self-hosted
+    // instance opened over plain HTTP by LAN IP has `crypto` without it and
+    // the first load threw. generateId must survive every degradation step.
+    const cryptoObj = globalThis.crypto as Crypto & Record<string, unknown>;
+    const original = {
+      randomUUID: cryptoObj.randomUUID,
+      getRandomValues: cryptoObj.getRandomValues
+    };
+    const stub = (name: keyof typeof original, value: unknown) =>
+      Object.defineProperty(cryptoObj, name, { value, configurable: true, writable: true });
+
+    afterEach(() => {
+      stub('randomUUID', original.randomUUID);
+      stub('getRandomValues', original.getRandomValues);
+    });
+
+    test('returns a v4 UUID when crypto.randomUUID is available', () => {
+      expect(generateId()).toMatch(UUID_V4);
+    });
+
+    test('falls back to getRandomValues when randomUUID is missing (non-secure context)', () => {
+      stub('randomUUID', undefined);
+      stub('getRandomValues', (arr: Uint8Array) => {
+        for (let i = 0; i < arr.length; i++) arr[i] = (i * 37) & 0xff;
+        return arr;
+      });
+      const id = generateId();
+      expect(id).toMatch(UUID_V4);
+      // version/variant nibbles are forced regardless of the raw bytes
+      expect(id[14]).toBe('4');
+      expect('89ab').toContain(id[19]);
+    });
+
+    test('falls back to Math.random when crypto has neither API', () => {
+      stub('randomUUID', undefined);
+      stub('getRandomValues', undefined);
+      const ids = new Set(Array.from({ length: 50 }, generateId));
+      ids.forEach((id) => expect(id).toMatch(UUID_V4));
+      expect(ids.size).toBe(50);
+    });
+  });
+
   test('clamp() works correctly', () => {
     const clampNoChange = clamp(5, 0, 10);
     const clampMin = clamp(5, 6, 10);

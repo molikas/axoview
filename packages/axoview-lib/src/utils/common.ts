@@ -1,8 +1,32 @@
 import chroma from 'chroma-js';
 import { Icon, EditorModeEnum, Mode } from 'src/types';
 
+// Formats 16 random bytes as an RFC 4122 v4 UUID (sets the version/variant bits).
+const formatUuidV4 = (bytes: Uint8Array) => {
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+};
+
 export const generateId = () => {
-  return crypto.randomUUID();
+  const c = typeof crypto !== 'undefined' ? crypto : undefined;
+  if (c && typeof c.randomUUID === 'function') {
+    return c.randomUUID();
+  }
+  // crypto.randomUUID is gated to secure contexts (HTTPS / localhost). A
+  // self-hosted instance opened over plain HTTP by LAN IP has `crypto` but not
+  // `randomUUID`, which used to throw on the very first load (issue #89).
+  // getRandomValues is not secure-context-gated, so build the v4 UUID from it.
+  const bytes = new Uint8Array(16);
+  if (c && typeof c.getRandomValues === 'function') {
+    c.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytes.length; i++) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  return formatUuidV4(bytes);
 };
 
 export const clamp = (num: number, min: number, max: number) => {

@@ -252,7 +252,24 @@ const STAMPED_DOCS = [
   'docs/guidelines/canvas-interaction.md',
   'docs/guidelines/perf-troubleshooting.md',
 ];
+// A shallow clone (CI's actions/checkout is depth 1) does NOT come back empty:
+// its boundary commit looks like it added every file, so each doc would report
+// the tip's date and fail once the stamps are more than a day old. Ask up front.
+const isShallowRepo = (() => {
+  try {
+    return (
+      execFileSync('git', ['rev-parse', '--is-shallow-repository'], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim() === 'true'
+    );
+  } catch {
+    return false;
+  }
+})();
 const lastCommitDate = (rel) => {
+  if (isShallowRepo) return '';
   try {
     return execFileSync('git', ['log', '-1', '--format=%ad', '--date=short', '--', rel], {
       cwd: ROOT,

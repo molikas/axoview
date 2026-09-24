@@ -201,6 +201,47 @@ describe('cross-origin writes are refused, not merely unreadable', () => {
     expect(shared.status).toBe(200);
   }, T);
 
+  // v3.9.0 regression: browsers send Origin on every non-GET request, same-origin
+  // included, so the gate refused the editor's own writes behind nginx (403 on
+  // every create/save/share in Docker). Host is browser-forbidden, hence rawRequest.
+  const postAs = (port, headers) =>
+    rawRequest(port, {
+      method: 'POST',
+      pathname: '/api/diagrams',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': '2', ...headers },
+      body: '{}'
+    });
+
+  test("the deployment's own origin (Origin host = Host) may write — the Docker/nginx case", async () => {
+    const { port } = await startServer({ storagePath: dir });
+    const res = await postAs(port, {
+      Host: 'diagrams.lan:8080',
+      Origin: 'http://diagrams.lan:8080'
+    });
+    expect(res.status).toBe(201);
+  }, T);
+
+  test('an origin that differs from Host only by port is still refused', async () => {
+    const { port } = await startServer({ storagePath: dir });
+    const res = await postAs(port, {
+      Host: 'diagrams.lan:8080',
+      Origin: 'http://diagrams.lan:9999'
+    });
+    expect(res.status).toBe(403);
+  }, T);
+
+  test('the PUBLIC_BASE_URL origin may write even when a front proxy rewrites Host', async () => {
+    const { port } = await startServer({
+      storagePath: dir,
+      env: { PUBLIC_BASE_URL: 'https://diagrams.example.com/' }
+    });
+    const res = await postAs(port, {
+      Host: 'axoview:80',
+      Origin: 'https://diagrams.example.com'
+    });
+    expect(res.status).toBe(201);
+  }, T);
+
   test('a request with no Origin header (same-origin, curl) is unaffected', async () => {
     const { base, port } = await startServer({ storagePath: dir });
     const res = await rawRequest(port, {

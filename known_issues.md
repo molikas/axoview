@@ -4887,6 +4887,13 @@ the CORS callback. The regression asserts the diagram is genuinely not
 published, not merely that the response was withheld — the distinction this
 entry exists for. Promoted regression: [`server.wiring.spec.js`](packages/axoview-backend/src/__tests__/server.wiring.spec.js).
 
+**Regression (2026-09-24), fixed in PR #90:** the "no `Origin` means same-origin" premise
+above was wrong. Browsers send `Origin` on every non-GET request, same-origin included, so
+from v3.9.0 the gate refused the editor's own writes on every Docker install (create, save
+and share all returned 403). Dev and E2E never saw it because `http://localhost:3000` is
+allowlisted. The deployment's own origin (Origin host = `Host`, which nginx now forwards
+with its port, or `PUBLIC_BASE_URL`) is now allowed; unknown origins are still refused.
+
 ## A shared diagram loses its icon packs and its description
 
 **Found by:** exploratory campaign SHARE-11
