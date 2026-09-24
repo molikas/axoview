@@ -13,8 +13,9 @@ COPY packages/axoview-backend/package*.json ./packages/axoview-backend/
 #Update NPM
 RUN npm install -g npm@11.5.2
 
-# Install dependencies for the entire workspace
-RUN npm install
+# Install dependencies for the entire workspace from the root lockfile: the
+# same locked tree CI tests, never re-resolved the way `npm install` can.
+RUN npm ci
 
 # Install backend production deps via npm ci into the backend dir (workspace-isolated,
 # reproducible, offline-safe at container boot) — see DP2-B4(a) in v1.1-tech-debt.md.
