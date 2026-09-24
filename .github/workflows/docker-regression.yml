@@ -1,0 +1,373 @@
+# Docker regression — the `Docker Regression Gate` check (ADR 0048 §3, §5;
+# tactical docs/tactical/docker-regression-gate.md B2 + B3).
+#
+# The full E2E suite (packages/axoview-e2e/tests) against the built image,
+# storage OFF, through the same runner as the smoke (scripts/e2e-docker.js
+# --suite=full). One build job produces the image once and hands it to every
+# shard as a `docker save | gzip` artifact, so all shards test identical bytes.
+# Each shard runs at workers=1 (playwright.docker.config.ts), the same
+# machine-level fan-out as e2e-playwright.yml.
+#
+# Advisory at first (locked decision 6): the check reports on every PR but is not
+# in the ruleset until it has run green on master; /ship waits for it and asks
+# once if it's red. Then it becomes required.
+#
+# Runs whenever changes land (decision 10): every PR to master, every push to
+# master, and on demand. No `schedule`, and no `paths:` filter (a path-filtered
+# check can't be made required safely; ADR 0048 §1).
+#
+# The `attribute` job (B3) re-runs failing spec files against a master image and
+# labels each failure regression / pre-existing / flake. It only annotates: it is
+# `continue-on-error`, always exits 0, and the gate never depends on it.
+
+name: Docker regression
+
+on:
+  pull_request:
+    branches: ["master"]
+    # `ready_for_review` is NOT in the default type set; see e2e-playwright.yml
+    # for why the draft filter needs it.
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: ["master"]
+  workflow_dispatch:
+    inputs:
+      shards:
+        description: 'Shard count (1-8)'
+        required: false
+        default: '4'
+        type: string
+
+concurrency:
+  group: docker-regression-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least-privilege GITHUB_TOKEN. The buildx GitHub Actions cache authenticates
+# with the runner's own cache token, not this.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build image
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      shards: ${{ steps.matrix.outputs.shards }}
+      total: ${{ steps.matrix.outputs.total }}
+
+    steps:
+      # Full history + tags for scripts/resolve-version.js (.dockerignore keeps
+      # .git out of the build context, so the version goes in as a build arg).
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      # push / pull_request events carry no inputs, so the default lives here
+      # too, not only in the workflow_dispatch block.
+      - name: Resolve shard matrix
+        id: matrix
+        env:
+          SHARDS_INPUT: ${{ inputs.shards }}
+        run: |
+          n="${SHARDS_INPUT:-4}"
+          case "$n" in
+            [1-8]) ;;
+            *) echo "::error::shards must be 1-8, got '$n'"; exit 1 ;;
+          esac
+          echo "total=$n" >> "$GITHUB_OUTPUT"
+          echo "shards=$(node -e "console.log(JSON.stringify(Array.from({ length: +process.argv[1] }, (_, i) => i + 1)))" "$n")" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve AXOVIEW_VERSION
+        id: version
+        run: echo "version=$(node -p "require('./scripts/resolve-version')(require('./package.json').version)")" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (docker build .)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: axoview:ci
+          build-args: |
+            AXOVIEW_VERSION=${{ steps.version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Save image
+        run: docker save axoview:ci | gzip -1 > axoview-image.tar.gz
+
+      - name: Upload image
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-image
+          path: axoview-image.tar.gz
+          retention-days: 1
+
+  shard:
+    name: Docker regression [shard ${{ matrix.shard }}/${{ needs.build.outputs.total }}]
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      # One shard failing must not cancel the others — we want the full picture.
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.build.outputs.shards) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Cache the Playwright browser binaries keyed on the installed Playwright
+      # version, so only the very first run per version pays the download.
+      - name: Resolve Playwright version
+        id: pw
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
+      # `--with-deps` still apt-installs the OS libs on a cache hit (cheap); the
+      # browser binary itself is skipped when already cached.
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Download image
+        uses: actions/download-artifact@v7
+        with:
+          name: docker-image
+
+      - name: Load image
+        run: gunzip -c axoview-image.tar.gz | docker load
+
+      - name: Run the regression (shard ${{ matrix.shard }}/${{ needs.build.outputs.total }})
+        run: >-
+          node scripts/e2e-docker.js --suite=full --image=axoview:ci
+          --shard=${{ matrix.shard }}/${{ needs.build.outputs.total }}
+          --run-id=shard-${{ matrix.shard }}
+        env:
+          CI: true
+
+      # Every shard uploads its blob and its summary, pass or fail, so the
+      # summary job can assemble the whole report.
+      - name: Upload blob report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: blob-report-${{ matrix.shard }}
+          path: test-results/docker-shard-${{ matrix.shard }}/full/blob
+          if-no-files-found: ignore
+          retention-days: 3
+
+      - name: Upload shard summary
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-summary-${{ matrix.shard }}
+          path: test-results/docker-shard-${{ matrix.shard }}/summary.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload shard output (traces + container logs)
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-regression-output-${{ matrix.shard }}
+          path: |
+            test-results/docker-shard-${{ matrix.shard }}
+            !test-results/docker-shard-${{ matrix.shard }}/full/blob
+          if-no-files-found: ignore
+          retention-days: 7
+
+  summary:
+    name: Docker regression summary
+    if: ${{ always() && needs.build.result == 'success' }}
+    needs: [build, shard]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # A shard that died before writing anything leaves nothing to download;
+      # the aggregate below reports the missing shard instead of this step failing.
+      - name: Download blob reports
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          path: all-blob-reports
+          pattern: blob-report-*
+          merge-multiple: true
+
+      # Not merge-multiple: every shard's file is called summary.json, so each
+      # artifact keeps its own directory.
+      - name: Download shard summaries
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          path: shard-summaries
+          pattern: docker-summary-*
+
+      - name: Merge into a single HTML report
+        run: |
+          if ls all-blob-reports/*.zip >/dev/null 2>&1; then
+            npx playwright merge-reports --reporter html ./all-blob-reports
+          else
+            echo "No blob reports to merge."
+          fi
+
+      - name: Write the aggregate summary
+        run: >-
+          node scripts/e2e-docker.js --aggregate=shard-summaries
+          --out=docker-regression-summary.json
+          --expect-shards=${{ needs.build.outputs.total }}
+
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-regression-html-report
+          path: playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload aggregate summary
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-regression-summary
+          path: docker-regression-summary.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  # B3 — advisory attribution. Only when shards failed; never part of the gate.
+  attribute:
+    name: Attribute Docker regression failures (advisory)
+    if: ${{ always() && needs.build.result == 'success' && needs.shard.result == 'failure' }}
+    needs: [build, shard]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    continue-on-error: true
+
+    steps:
+      # Full history: the script checks whether the PR itself changed a failing
+      # spec (git diff origin/master...HEAD).
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve Playwright version
+        id: pw
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Download image
+        uses: actions/download-artifact@v7
+        with:
+          name: docker-image
+
+      - name: Load the candidate image
+        run: gunzip -c axoview-image.tar.gz | docker load
+
+      - name: Download shard summaries
+        uses: actions/download-artifact@v7
+        with:
+          path: shard-summaries
+          pattern: docker-summary-*
+
+      # The baseline the attribution rule compares against (tactical,
+      # "Reference facts"): a master image, built the way the plan records it.
+      - name: Build a master image
+        run: docker build -t axoview:master https://github.com/molikas/axoview.git#master
+
+      - name: Attribute failures
+        run: >-
+          node scripts/e2e-docker-attribute.js --summaries=shard-summaries
+          --candidate=axoview:ci --baseline=axoview:master
+          --base-ref=origin/master --out=docker-regression-attribution.json
+        env:
+          CI: true
+
+      - name: Upload attribution
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-regression-attribution
+          path: docker-regression-attribution.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  # Single stable check name for all shards — this is what makes the shard count
+  # safe to change. It needs only [shard]: never the summary or the advisory
+  # attribution job (ADR 0048 §5).
+  docker-regression-gate:
+    name: Docker Regression Gate
+    # See the CI Gate note in test.yml: without `always()` a failed shard skips
+    # this job, and a skipped check counts as a PASS for required checks.
+    # Deliberately fail-closed on `skipped` too (draft PRs): "the suite did not
+    # run" is not "the suite passed". Drafts can't be merged, and marking one
+    # ready re-triggers the workflow via the `ready_for_review` type above.
+    if: always()
+    needs: [shard]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Assert every shard passed
+        run: |
+          echo "docker regression shards result: ${{ needs.shard.result }}"
+          if [ "${{ needs.shard.result }}" != "success" ]; then
+            echo "::error::Docker Regression Gate: shards did not pass (result=${{ needs.shard.result }})"
+            exit 1
+          fi
