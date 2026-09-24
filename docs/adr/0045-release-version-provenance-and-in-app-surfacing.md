@@ -47,6 +47,14 @@ In CI / Cloudflare the clone may omit tags, so steps 3–4 first do a best-effor
 
 The in-repo [CHANGELOG.md](../../CHANGELOG.md) stops at `3.7.0` because it is regenerated in CI but never committed back (same frozen-tree cause). It is **non-canonical** (GitHub Releases is canonical, per #77), but leaving it visibly stale reads as unmaintained. Backfill the missing shipped releases (`3.8.0`, `3.8.1`) **once by hand**, in the link-clean format from [ADR 0046](0046-release-notes-generation-and-reference-integrity.md). Ongoing, the in-repo file will still drift; the durable answer to "what shipped" is the GitHub Releases page.
 
+**2026-09-24:** The Docker image showed `v3.7.0` on every release. [.dockerignore](../../.dockerignore) excludes `.git`, so inside the build there is no tag to describe and no repository to fetch one from, and [resolve-version.js](../../scripts/resolve-version.js) always reached its `package.json` fallback (step 4). The self-healing fetches in Decision 1 can't help there, because nothing git-shaped is in the build context. The Docker path therefore uses step 1, the `AXOVIEW_VERSION` override, which Decision 1 already provided for CI:
+
+- the [Dockerfile](../../Dockerfile) build stage declares `ARG AXOVIEW_VERSION` after the dependency installs and before the lib and app builds, so `RUN` sees it as an environment variable and a new version doesn't invalidate the install layers;
+- both compose files forward `${AXOVIEW_VERSION:-}`, and an unset or empty value falls through to the old fallback, so a plain `docker compose up --build` still builds, just with the `package.json` version ([deployment.md](../deployment.md) §B says how to pass it);
+- the resolver itself doesn't change. Whoever builds the image resolves the version outside it, with the git history this build can't see, and passes it in: the Docker workflows and [scripts/e2e-docker.js](../../scripts/e2e-docker.js) ([ADR 0048](0048-docker-image-regression-gate.md) §6) call `resolve-version` on the full checkout.
+
+This keeps the rule of Decision 1: the version comes from the tag, never from a commit-back.
+
 ## Consequences
 
 **Positive:**
@@ -70,3 +78,4 @@ The in-repo [CHANGELOG.md](../../CHANGELOG.md) stops at `3.7.0` because it is re
 - **Manual verification (fallback):** with git/tags unavailable, the build still succeeds and falls back to the `package.json` version.
 - **No pipeline regression:** `.releaserc.json` carries no `@semantic-release/git` plugin; releases continue to cut as tag + GitHub Release (no GH013).
 - **Backfill:** `CHANGELOG.md` contains `3.8.0` + `3.8.1` sections with no dead links (per ADR 0046).
+- **Docker image (2026-09-24 addendum):** an image built with `--build-arg AXOVIEW_VERSION=<v>` carries `<v>` in `/usr/share/nginx/html/app.html` and no stale `package.json` version. Verified 2026-09-24 with `3.9.2`: `3.9.2` present, `3.7.0` absent.
