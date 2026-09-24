@@ -22,7 +22,13 @@
     "10 advisories published since the last pass all had non-breaking fixes, so",
     "they were upgraded rather than allowlisted. The same upgrade fixed 11 entries",
     "below (dompurify, hono x4, js-yaml, undici x5); they were removed for the same",
-    "reason as the react-router entry above."
+    "reason as the react-router entry above.",
+    "",
+    "`scope` names the tree an entry was reviewed against: \"root\" (the workspace",
+    "lockfile) or \"backend\" (packages/axoview-backend/package-lock.json, prod deps",
+    "only: the tree the Docker image installs). Use [\"root\", \"backend\"] when the",
+    "advisory is in both. An entry without `scope` covers \"root\" only, so a",
+    "dev-only acceptance can never silently cover a package the image ships."
   ],
   "allow": [
     {
