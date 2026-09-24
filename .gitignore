@@ -11,6 +11,8 @@ coverage/
 test-results/
 playwright-report/
 blob-report/
+# scripts/e2e-docker.js single-instance lock (pid + run id)
+.e2e-docker.lock
 .vscode/
 .idea/
 *.swp
