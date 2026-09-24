@@ -1775,6 +1775,7 @@ export const TopBarStyleControls = () => {
             : disabledTip('backgroundDisabled')
         }
         disabled={!rectangle && !label && !textBox}
+        testId="strip-fill-button"
         icon={<FillIcon sx={{ fontSize: 18 }} />}
         colorBar={
           rectangle

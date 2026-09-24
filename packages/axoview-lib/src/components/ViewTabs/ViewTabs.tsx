@@ -234,6 +234,7 @@ export const ViewTabs = () => {
                 <Tooltip title={t('deletePage')}>
                   <IconButton
                     size="small"
+                    data-axoview-id="view-tab-close"
                     onClick={(e) => {
                       e.stopPropagation();
                       deleteView(view.id);
@@ -263,6 +264,7 @@ export const ViewTabs = () => {
             <span>
               <IconButton
                 size="small"
+                data-axoview-id="view-tabs-add"
                 onClick={() => createView()}
                 disabled={atLimit}
                 sx={iconBtnSx}
