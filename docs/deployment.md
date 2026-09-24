@@ -51,6 +51,8 @@ docker compose up --build
 
 Defaults to `AUTH_MODE=none`, `ENABLE_SERVER_STORAGE=true`, `STORAGE_PATH=/data/diagrams`.
 
+The build context excludes `.git`, so the image can't read the release tag, and the About tab and boot splash show the frozen `package.json` version unless you pass it in: `AXOVIEW_VERSION=$(git describe --tags --abbrev=0) docker compose up --build`. Both compose files forward it; plain `docker build` takes `--build-arg AXOVIEW_VERSION=…` ([ADR 0045](adr/0045-release-version-provenance-and-in-app-surfacing.md)).
+
 ### Enable shared-token auth
 
 ```yaml
