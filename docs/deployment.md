@@ -1,6 +1,6 @@
 # Axoview — Deployment Guide
 
-**Last updated:** 2026-07-15 (docs housekeeping — repaired 4 code links that were missing their `../` prefix. Content last changed 2026-07-14: §C3 rewritten for the Drive **server read-proxy** + `GOOGLE_API_KEY` as a Cloudflare secret — [ADR 0042](adr/0042-drive-native-sharing-and-readonly-preview.md) §8 / [0043](adr/0043-deferred-backend-for-google-api-hardening.md) #3. Prior: 2026-07-07 Google Drive storage shipped.)
+**Last updated:** 2026-09-24 (§B: `npm run docker:run` serves on `:8080`, and the image takes its release version as the `AXOVIEW_VERSION` build arg — [ADR 0048](adr/0048-docker-image-regression-gate.md), [ADR 0045](adr/0045-release-version-provenance-and-in-app-surfacing.md). Prior: 2026-07-15 docs housekeeping — repaired 4 code links that were missing their `../` prefix. Content last changed 2026-07-14: §C3 rewritten for the Drive **server read-proxy** + `GOOGLE_API_KEY` as a Cloudflare secret — [ADR 0042](adr/0042-drive-native-sharing-and-readonly-preview.md) §8 / [0043](adr/0043-deferred-backend-for-google-api-hardening.md) #3. Prior: 2026-07-07 Google Drive storage shipped.)
 
 Axoview runs on three targets from a single codebase:
 
@@ -48,6 +48,8 @@ Otherwise the app falls back to `sessionStorage`.
 ```bash
 docker compose up --build
 ```
+
+`npm run docker:run` (compose.dev.yml) serves on `http://localhost:8080`, with the editor at `/app`, and publishes the backend on `:3001`. It stays off `3000`, the backend's default `ALLOWED_ORIGINS`, so local writes cross the Origin gate the way a real deployment's do ([ADR 0048](adr/0048-docker-image-regression-gate.md) §2).
 
 Defaults to `AUTH_MODE=none`, `ENABLE_SERVER_STORAGE=true`, `STORAGE_PATH=/data/diagrams`.
 

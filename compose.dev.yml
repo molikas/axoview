@@ -11,7 +11,10 @@ services:
       args:
         AXOVIEW_VERSION: ${AXOVIEW_VERSION:-}
     ports:
-      - "3000:80"
+      # 8080, never 3000: the backend's default ALLOWED_ORIGINS is
+      # http://localhost:3000, so on 3000 the Origin gate always passes and
+      # hides the 403 a real deployment would get (ADR 0048 §2).
+      - "8080:80"
       - "3001:3001"
     environment:
       - NODE_ENV=development
