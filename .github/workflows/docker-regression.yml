@@ -8,9 +8,8 @@
 # Each shard runs at workers=1 (playwright.docker.config.ts), the same
 # machine-level fan-out as e2e-playwright.yml.
 #
-# Advisory at first (locked decision 6): the check reports on every PR but is not
-# in the ruleset until it has run green on master; /ship waits for it and asks
-# once if it's red. Then it becomes required.
+# A required check in the master ruleset. It was advisory until its first green
+# run on master (ADR 0048 §5); the attribution job below still only annotates.
 #
 # Runs whenever changes land (decision 10): every PR to master, every push to
 # master, and on demand. No `schedule`, and no `paths:` filter (a path-filtered

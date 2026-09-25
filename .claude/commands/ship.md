@@ -90,22 +90,10 @@ killed the release commit-back, see commit #77):
   3. gh pr checks --watch --required                 # required checks must be green first
                                                      # (long-running — give it a generous timeout).
                                                      # --required: stop only on a REQUIRED failure
-                                                     # (Docker Gate is one). Plain --watch exits
-                                                     # non-zero on ANY red check, advisory ones too.
-  3b. Docker regression — advisory until it is required (ADR 0048 §5):
-      a. wait until `Docker Regression Gate`, `Docker regression summary` and (when it
-         runs, i.e. only on failure) `Attribute Docker regression failures (advisory)`
-         leave the pending bucket:
-           gh pr checks <N> --json name,bucket,link \
-             --jq '.[] | select(.name | test("Docker regression|Docker Regression Gate|Attribute Docker")) | "\(.bucket)\t\(.name)\t\(.link)"'
-      b. read the run's artifacts (the run id is in the gate's link):
-           gh run download <run-id> -n docker-regression-summary       # totals, unexpectedFailures
-           gh run download <run-id> -n docker-regression-attribution   # only when a shard failed
-      c. report:  Docker regression: <passed>/<tests> · <r> regressions · <run url>
-                  (<r> = attribution labels `regression`; 0 when the run passed)
-      d. if the gate's bucket is fail, ask ONCE:
-           "Docker regression failed (advisory). Merge anyway? Yes/No."
-         No → stop before step 4, leave the PR open, run step 6.
+                                                     # (Docker Gate and Docker Regression Gate are
+                                                     # both required, ADR 0048). Plain --watch
+                                                     # exits non-zero on ANY red check, required
+                                                     # or not.
   4. gh pr merge --merge                             # a merge commit is the preferred strategy
                                                      # here; a squash is permitted and the
                                                      # conventional title carries it
@@ -132,7 +120,7 @@ Then a single confirmation prompt: *"Proceed with this plan? Yes / No."* Skill s
 
 ## Phase 3 — Promote
 
-Execute the plan exactly as printed in Phase 2. Don't deviate, don't optimize, don't combine. The user reviewed those exact commands. Phase 3 is silent: run the commands and go straight to the Phase 4 block. The one exception is step 3b's advisory prompt, which is legal only because the Phase 2 plan printed it. The user has already read the plan — running commentary between the confirmation and the report is noise, and if something fails, the report is where they need to read about it, not a stream of intermediate reasoning.
+Execute the plan exactly as printed in Phase 2. Don't deviate, don't optimize, don't combine. The user reviewed those exact commands. Phase 3 is silent: run the commands and go straight to the Phase 4 block. The user has already read the plan — running commentary between the confirmation and the report is noise, and if something fails, the report is where they need to read about it, not a stream of intermediate reasoning.
 
 If the merge cannot proceed — `gh pr merge` reports the PR is not mergeable, or a merge you were asked to run locally returns a conflict:
 
@@ -150,8 +138,6 @@ Shipped:
 
 Diff shipped:
   <git diff --shortstat origin/master~..origin/master output>
-
-Docker regression: <passed>/<tests> · <r> regressions · <run url>   (advisory; step 3b)
 
 Subjects merged:
   - <sha> <subject>
@@ -172,4 +158,4 @@ If `git remote get-url origin` returned a GitHub URL, append a compare link: `ht
 - **Always restore the working branch** at the end, even on partial failure.
 - **Refuse on master.** The skill is meaningless from master.
 - **No manual tags.** Never create git tags by hand — semantic-release tags `vX.Y.Z` (and regenerates `CHANGELOG.md`) automatically when the merge lands on master; a hand-made tag would desync the automation's version math.
-- **Strict test gate.** Any test failure aborts. Don't propose tolerance lists. The one sanctioned exception is step 3b's advisory `Docker Regression Gate` (ADR 0048 §5), which asks once instead of aborting. It is temporary: once that check has run green on master and joined the ruleset, delete step 3b, its Phase 4 line and this sentence in the same commit, because `--required` then covers it.
+- **Strict test gate.** Any test failure aborts. Don't propose tolerance lists.

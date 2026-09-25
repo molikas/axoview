@@ -144,8 +144,8 @@ failed to load over plain HTTP. So the built image has two gates of its own
 
 | Check | What runs | When | Status |
 |---|---|---|---|
-| `Docker Gate` ([docker-smoke.yml](../../.github/workflows/docker-smoke.yml)) | [`tests-docker/`](../../packages/axoview-e2e/tests-docker/), no bridge: the write journey from a secure and an insecure origin, the Origin-gate table, a storage-OFF boot probe | every PR to master | required once proven able to fail |
-| `Docker Regression Gate` ([docker-regression.yml](../../.github/workflows/docker-regression.yml)) | the whole `tests/` suite, storage OFF, 4 shards | every PR and push to master | advisory until green on master |
+| `Docker Gate` ([docker-smoke.yml](../../.github/workflows/docker-smoke.yml)) | [`tests-docker/`](../../packages/axoview-e2e/tests-docker/), no bridge: the write journey from a secure and an insecure origin, the Origin-gate table, a storage-OFF boot probe | every PR and push to master | required |
+| `Docker Regression Gate` ([docker-regression.yml](../../.github/workflows/docker-regression.yml)) | the whole `tests/` suite, storage OFF, 4 shards | every PR and push to master | required |
 
 **One runner for both, local and CI:** [`scripts/e2e-docker.js`](../../scripts/e2e-docker.js).
 
