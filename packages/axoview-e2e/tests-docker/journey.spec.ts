@@ -105,12 +105,14 @@ test('journey: create, edit and save, reload, rename, create again, share, delet
 
   await test.step('4. rename it in the explorer', async () => {
     // A single row click selects it and, if the reload didn't restore it as the
-    // current diagram, opens it after the row's 300 ms timer. Let that settle
-    // before F2 so the open can't land mid-edit: the empty state renders only
-    // while no diagram is open.
+    // current diagram, opens it after the row's 300 ms timer (FileExplorer
+    // handleOpenDiagram skips the diagram that is already open). Wait for the
+    // row's aria-current before F2, so the open can't land mid-edit.
     await explorer.selectRow(firstName);
-    await expect(byAxoviewId(page, 'screen-empty-create')).toBeHidden({ timeout: 10_000 });
-    await page.waitForTimeout(500);
+    await expect(explorer.getRowByName(firstName)).toHaveAttribute('aria-current', 'true', {
+      timeout: 10_000
+    });
+    await expect(byAxoviewId(page, 'screen-empty-create')).toBeHidden();
 
     const patched = waitForApi(page, 'PATCH', `/api/diagrams/${firstId}`);
     await explorer.renameDiagram(firstName, RENAMED);
