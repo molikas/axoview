@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * E2E against the built Docker image — the one runner CI and local runs share
- * (ADR 0048 §6; docs/tactical/docker-regression-gate.md A3 + B1).
+ * (ADR 0048 §6; the rules are in docs/guidelines/testing.md, "Testing against
+ * the Docker image").
  *
  *   npm run test:e2e:docker                 the smoke (the `Docker Gate` check)
  *   npm run test:e2e:docker:full            the full regression, storage OFF
@@ -34,7 +35,7 @@
  *      the process tree recorded while Playwright ran), no container or volume
  *      labelled with this run, no `axoview:regress-<run-id>` image.
  *
- * Exit codes (the tactical's table):
+ * Exit codes (testing.md's table):
  *   0 pass · 1 test failures · 2 harness or setup error (Docker not running,
  *   refused start, build failure, interrupted, nothing ran) · 3 aborted: the
  *   container died · 4 leak audit failed. A failed audit always wins: exit 4

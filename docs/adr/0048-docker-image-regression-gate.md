@@ -132,7 +132,7 @@ Docker builds exclude `.git` ([.dockerignore](../../.dockerignore)), so `resolve
 - Playwright: `packages/axoview-e2e/playwright.docker.config.ts`, with three smoke projects over `tests-docker/` (`smoke-secure`, `smoke-insecure`, `smoke-storage-off`) and two regression projects over `tests/` (`regression`, `regression-touch`, with the bridge `storageState`).
 - Runner: `scripts/e2e-docker.js`, wired as `npm run test:e2e:docker` (the smoke) and `test:e2e:docker:full`.
 - Build: [Dockerfile](../../Dockerfile) takes `ARG AXOVIEW_VERSION` in the build stage.
-- Step-by-step plan: [docs/tactical/docker-regression-gate.md](../tactical/docker-regression-gate.md).
+- Step-by-step plan: `docs/tactical/docker-regression-gate.md`, retired at the close-out; read it in git history. The durable rules live in [testing.md](../guidelines/testing.md#testing-against-the-docker-image-adr-0048).
 
 ## Acceptance criteria
 

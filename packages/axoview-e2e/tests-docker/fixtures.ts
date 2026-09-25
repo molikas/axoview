@@ -1,5 +1,6 @@
 /**
- * Fixtures for the Docker smoke (ADR 0048 §2; docs/tactical/docker-regression-gate.md A4).
+ * Fixtures for the Docker smoke (ADR 0048 §2; the rules are in
+ * docs/guidelines/testing.md, "Testing against the Docker image").
  *
  * These specs test the image exactly as users receive it, so they never touch
  * the store bridge: no helpers/store.ts, and nothing that reads

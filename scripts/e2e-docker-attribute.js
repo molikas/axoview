@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Attribute the Docker regression's failures (ADR 0048 §5; docs/tactical/
- * docker-regression-gate.md B3). CI's `attribute` job runs it only when a shard
+ * Attribute the Docker regression's failures (ADR 0048 §5). CI's `attribute`
+ * job (docker-regression.yml) runs it only when a shard
  * failed. It ANNOTATES; it never changes a conclusion: it always exits 0, and
  * the `Docker Regression Gate` job doesn't depend on it.
  *
@@ -9,7 +9,8 @@
  *     --candidate=axoview:ci --baseline=axoview:master [--base-ref=origin/master] \
  *     [--max-files=8] [--out=attribution.json]
  *
- * The rule (tactical, "Reference facts"), applied per failing spec file:
+ * The rule (docs/guidelines/testing.md, "Attributing a failure"), applied per
+ * failing spec file:
  *   1. Re-run the file alone against the baseline (master) image, same mode.
  *      A test that fails there too is `pre-existing` (or environmental).
  *   2. For the rest, re-run the file alone against the candidate image. Still

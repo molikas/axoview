@@ -5,7 +5,7 @@
 # the app's boot probe and must answer `serverStorage:false` (ADR 0009 D2),
 # `/healthz` is what the HEALTHCHECK polls (ADR 0010 Decision 8), and the
 # published-link read and unpublish routes stay reachable (docs/deployment.md
-# §D.1). Before ADR 0048 A1 nothing listened on :3001 with storage OFF, so all
+# §D.1). Before ADR 0048 (2026-09-24) nothing listened on :3001 with storage OFF, so all
 # three answered 502 through nginx and the container stayed `unhealthy` forever.
 # server.js already refuses the storage routes with 503 when storage is off.
 #

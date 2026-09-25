@@ -1,6 +1,6 @@
 /**
  * journey.spec.ts — the browser-driven write journey through nginx, storage ON
- * (ADR 0048 §2; docs/tactical/docker-regression-gate.md A4).
+ * (ADR 0048 §2).
  *
  * Runs under both origins: smoke-secure (http://localhost:<port>) and
  * smoke-insecure (http://axoview.test:<port>, an insecure context). Browsers
