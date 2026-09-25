@@ -228,7 +228,7 @@ Also: **an assertion written "either way" is a tautology.** `expect(x).toEqual(c
 
 ### 9e. E2E environment
 
-- **`npm run test:e2e` does not work on Windows** — the script's `node_modules/.bin/playwright` path is not resolvable by cmd.exe. Use `npx playwright test --config packages/axoview-e2e/playwright.config.ts`.
+- **`npm run test:e2e` works on Windows too** (since 2026-09-24: the scripts call a bare `playwright`, which npm resolves through its bin path, instead of `node_modules/.bin/playwright`, which cmd.exe can't parse).
 - **Never pipe Playwright through `tail`** — the pipeline's exit code is `tail`'s, so a run with failures reads as exit 0. Three runs were read as green while 13 journeys were broken. Run unpiped with `--reporter=dot` and check the exit code.
 - **Never run two Playwright invocations at once.** They share the dev-server port and the first HANGS rather than failing — an empty log and no error for as long as you let it.
 - **The dev server serves the BUILT lib.** `prestart` does not build (only `prebuild` does) and `reuseExistingServer` will reuse a stale one, so a lib source change is invisible to Playwright until `npm run build:lib`. It presents as *the element does not exist* — indistinguishable from a product bug, and it cost an 11.3-minute run of 7 false reds. **And `build:lib` over a LIVE dev server poisons it** (`Can't resolve 'axoview'`), presenting as every test failing at `waitForAppReady`. Sequence: **stop the dev server → `build:lib` → let Playwright start a fresh one.**
