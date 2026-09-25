@@ -8,7 +8,7 @@
 > - [docs/workflow.md](../workflow.md): session conventions (the baseline).
 > - Evidence: [issue #89](https://github.com/molikas/axoview/issues/89) and [PR #90](https://github.com/molikas/axoview/pull/90). The PR's Verification section is the raw record of the local Docker runs.
 >
-> **Status:** In progress: A1–A6, C1–C4, B1, B2, B4, B5 and D1–D7, D9, D10 are done on `feat/docker-regression-gate` (PR #92). Still open: A7 and B5's flip (ruleset changes after merge), and B3's first real run, which only happens when a shard fails. **Owner:** molikas · **Last updated:** 2026-09-24
+> **Status:** In progress: A1–A6, C1–C4, B1, B2, B4, B5 and D1–D7, D9, D10 are done on `feat/docker-regression-gate` (PR #92). Still open: A7 and B5's flip (ruleset changes after merge), Phase E (the close-out PR, which carries the wrap-up), and B3's first real run, which only happens when a shard fails. **Owner:** molikas · **Last updated:** 2026-09-24
 >
 > This is a **short-lived working doc.** Delete it after the work merges; the ADRs and testing.md are the durable record. See "Wrap-up".
 
@@ -17,7 +17,7 @@
 1. Read this file fully, then ADR 0048.
 2. Read the other "Read first" links; for testing.md, read only the two sections named.
 3. Skim `PLAN.md` Phase Status Dashboard **for context only**; do not modify it.
-4. Work in phase order (A → C → B → D). Each numbered item is one commit unless it says otherwise. A single orchestrated session may have subagents write code for different phases in parallel, but everything heavy still runs one stream at a time, in this order.
+4. Work in phase order (A → C → B → D, then E, the close-out PR, after the main PR merges). Each numbered item is one commit unless it says otherwise. A single orchestrated session may have subagents write code for different phases in parallel, but everything heavy still runs one stream at a time, in this order.
 5. Mark `[x]` as work completes. Put run URLs and measurements next to the item they prove.
 
 ## Goal
@@ -358,16 +358,59 @@ Land B only after C3 is green on a master image. B runs on every PR, so landing 
 - **Storage-ON limits:** `clearAllStorage()` never clears the server. Between spec files, `rm -rf /data/diagrams/*` inside the container is a safe wipe (the fs adapter keeps no cache), but it doesn't isolate tests within a file.
 - **`curl` sends no `Origin`,** but browsers send it on every non-GET request.
 
-## Wrap-up
+## Phase E — Close-out PR (the wrap-up; after PR #92 merges)
 
-When A–C are complete (D items may close separately) and ADR 0048 is Accepted:
+The last PR of this initiative carries the wrap-up, the notes that must outlive this file, and the `/ship` protocol change, together. It is the only change after #92.
 
-1. Add one line under `PLAN.md` Phase **5*** (Cloudflare + Docker dual-target deploy):
-   ```
-   - Docker regression gate shipped — see docs/adr/0048 and (this file's git history).
-   ```
-2. Carry any open D items to `known_issues.md`, then delete this file.
-3. Remove this file's row from [README.md](README.md).
+**Preconditions, in order.** Prepare the branch early if useful, but open the PR only when all of these hold:
+
+1. #92 is merged with a **merge commit** (not squash: its title is `ci(…)`, which cuts no release), and the release it cut is noted.
+2. `Docker Gate` is green on master, and A7's ruleset PUT is done.
+3. `Docker Regression Gate` is green on master, and the ruleset half of B5's flip is done: add `{"context":"Docker Regression Gate"}` the same way as A7.
+
+The PUTs are GitHub settings changes, so each needs the owner's explicit yes. The close-out PR then shows both checks green as **required** checks.
+
+**Branch and merge:** branch `docs/docker-regression-gate-closeout` off master, one commit per item below. Every commit is `docs`, `ci` or `chore`, so the merge cuts no release. Its own CI is the final proof that both checks are required and green.
+
+- [ ] **E1. ADR 0048 → Accepted.**
+  - Set `**Status:** Accepted` and add `**Accepted on:** <date>` (the ADR 0045 shape).
+  - In Acceptance criteria:
+    - **Positive:** the first green `Docker Gate` run on master, and the date it joined `required_status_checks`;
+    - **Runner hygiene:** point at B4's runs;
+    - **Full regression:** the first green master run, and the date it joined the ruleset.
+  - Tick A7 and B5's flip here before the file goes (E5).
+- [ ] **E2. The `/ship` protocol: B5's flip, docs half.**
+  - In [ship.md](../../.claude/commands/ship.md), delete:
+    - step 3b;
+    - Phase 3's advisory-prompt exception sentence;
+    - Phase 4's `Docker regression:` report line;
+    - the strict-test-gate exception sentence.
+  - Step 3 stays `gh pr checks --watch --required`, which now covers both Docker checks.
+  - In [testing.md](../guidelines/testing.md)'s "Testing against the Docker image" table, both Status cells become `required`.
+  - **Verify:** `grep -n '3b\|advisory' .claude/commands/ship.md` returns nothing Docker-related.
+- [ ] **E3. Notes: move what must outlive this file.** Go through "Where the plan was wrong", "Reference facts" and "Notes for Claude" line by line. Each line either moves to a permanent home or is dropped because testing.md or ADR 0048 already says it. Known moves:
+  - **testing.md, Docker section,** two lessons:
+    - a `pageerror` guard misses a throw an error boundary catches, so assert that the UI actually rendered (A6 revert 3);
+    - prove a gate by reverting each fix alone on a `gate-proof/**` branch, and don't count a revert that breaks the build.
+  - **`known_issues.md`:** D8 as an Open entry. That's the `no-restricted-properties` rule for `crypto.randomUUID`, blocked on `jest.axoviewMock.ts` needing a `generateId` re-export or `generateId` moving into its own module.
+  - **Claude's local memory** (not in the PR): repoint `docker-e2e-against-prod-image` at the runner and testing.md; its "temporary untracked config" advice is obsolete.
+- [ ] **E4. Repoint every pointer to this file** ([workflow.md](../workflow.md) Principle 5: pointers move in the commit that retires the file). `git grep -n 'tactical/docker-regression-gate'` lists them:
+  - ADR 0048's Implementation-notes link;
+  - the header comments of `docker-smoke.yml` and `docker-regression.yml`;
+  - `playwright.docker.config.ts`;
+  - the four `tests-docker/` files;
+  - `scripts/e2e-docker.js` and `scripts/e2e-docker-attribute.js`.
+
+  Point them at ADR 0048 and testing.md instead.
+  - **Verify:** that grep finds only `docs/tactical/README.md` until E5 removes the row, and `lint:docs` passes.
+- [ ] **E5. Wrap** (`/feature wrap docker-regression-gate`).
+  - **PLAN.md:** Phase **5*** is a dashboard row with no section of its own, so append to that row's Notes cell, the way the landing page's wrap did:
+    ```
+    **Docker regression gate shipped <date>** — required `Docker Gate` smoke + `Docker Regression Gate` full E2E against the built image; see [ADR 0048](docs/adr/0048-docker-image-regression-gate.md) + retired `docs/tactical/docker-regression-gate.md` git history.
+    ```
+  - **[README.md](README.md):** remove this file's row and fix the count sentence.
+  - Delete this file.
+  - **Verify:** `lint:docs` passes, and `ls docs/tactical/` no longer lists this file.
 
 ## Notes for Claude
 
