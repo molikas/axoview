@@ -8,7 +8,7 @@
 > - [docs/workflow.md](../workflow.md): session conventions (the baseline).
 > - Evidence: [issue #89](https://github.com/molikas/axoview/issues/89) and [PR #90](https://github.com/molikas/axoview/pull/90). The PR's Verification section is the raw record of the local Docker runs.
 >
-> **Status:** Not started · **Owner:** molikas · **Last updated:** 2026-09-24
+> **Status:** In progress: A1–A6, C1–C4, B1, B5 and D1–D7, D9, D10 are done on `feat/docker-regression-gate`. Still open: A7 (owner), B2 and B3's first CI runs, the Ctrl+C half of B4, and B5's flip. **Owner:** molikas · **Last updated:** 2026-09-24
 >
 > This is a **short-lived working doc.** Delete it after the work merges; the ADRs and testing.md are the durable record. See "Wrap-up".
 
@@ -90,7 +90,8 @@ Exit codes:
 
 ## Phase A — Docker smoke gate (P0)
 
-- [ ] **A1. Always start the backend** ([docker-entrypoint.sh:10-21](../../docker-entrypoint.sh)).
+- [x] **A1. Always start the backend** ([docker-entrypoint.sh:10-21](../../docker-entrypoint.sh)).
+  - **Done:** `13e441aa`. Every storage-OFF phase comes up `healthy` with `/api/config` 200 in about 6 s (e.g. run `20260924-230217-d1d7`), and `boot-storage-off.spec.ts` gets the backend's 404 JSON from `/api/public/diagrams/<id>`, not nginx's 502.
   - **Change:** move `su-exec node:node node server.js &` out of the `ENABLE_SERVER_STORAGE` branch. Keep `mkdir` and `chown` unconditional.
   - **Why:** the backend already handles storage-off. `/healthz` returns ok ([server.js](../../packages/axoview-backend/server.js) `probeStorage`), `/api/config` reports `serverStorage:false`, and the §D.1 routes stay reachable. Today nothing listens, so with storage OFF:
     - `/api/config`, the ADR 0009 D2 boot probe, returns 502;
@@ -98,7 +99,8 @@ Exit codes:
     - the container is `unhealthy` forever.
   - **Also closes** D's healthcheck item.
   - **Verify:** run with `-e ENABLE_SERVER_STORAGE=false -p 8081:80`. `/api/config` returns 200 with `serverStorage:false`, and `docker inspect` reports `healthy`. A `fix(docker)` commit whose body carries the user-facing bullet.
-- [ ] **A2. Playwright config** `packages/axoview-e2e/playwright.docker.config.ts` (new):
+- [x] **A2. Playwright config** `packages/axoview-e2e/playwright.docker.config.ts` (new):
+  - **Done:** `f30e2670`, with C3. One deviation: `smoke-secure` ignores `boot-storage-off.spec.ts`, which needs a storage-OFF container. Each project sets `expectSecureContext` and `expectServerStorage` as fixture options.
   - **Server:** no `webServer`. `baseURL` comes from `AXOVIEW_BASE_URL`, and the config **throws if it's unset** (so it can never silently hit `:3000`).
   - **Run settings:** `workers: 1`, `fullyParallel: false`, `retries: 0`.
   - **Reporters:** list, json to `$AXOVIEW_E2E_OUT/results.json`, html, and blob under `CI`.
@@ -109,7 +111,8 @@ Exit codes:
     - `smoke-insecure`: `tests-docker/journey.spec.ts` only, baseURL `http://axoview.test:<port>`;
     - `smoke-storage-off`: `tests-docker/boot-storage-off.spec.ts` only;
     - `regression` and `regression-touch` are added in C3.
-- [ ] **A3. Runner** `scripts/e2e-docker.js` (new; Node builtins only, like the other `scripts/*.js`).
+- [x] **A3. Runner** `scripts/e2e-docker.js` (new; Node builtins only, like the other `scripts/*.js`).
+  - **Done:** `18216933`, with B1. The smoke is green locally: run `20260924-230217-d1d7`, 8/8, 281 s wall including a 161 s build, and about 2 min against an existing image. The leak audit was CLEAN on every run. A `docker kill` mid-Playwright exits 3 with a clean audit (B4). Ctrl+C at each stage is the owner's test. Beyond the plan the runner has `--run-id`, `-- <playwright args>`, `--aggregate` (the CI merge), a loopback-only port binding, and one output directory per phase, because Playwright empties its output directory at startup. `.dockerignore` keeps the runner's lock and output out of the build context.
   - **Flags:** `--suite=smoke|full` (default smoke), `--image=<tag>` (skip the build), `--port=8081`, `--shard=i/N`, `--files=<spec,...>`, `--no-volume`.
   - **Smoke sequence:**
     1. Build `axoview:regress-<id>` with `--build-arg AXOVIEW_VERSION=$(node -p "require('./scripts/resolve-version')(require('./package.json').version)")`.
@@ -121,7 +124,11 @@ Exit codes:
   - **Scripts:** add root `package.json` script `test:e2e:docker` (`node scripts/e2e-docker.js`), and add `.e2e-docker.lock` to `.gitignore`.
   - **Docs:** [.claude/commands/shake-out.md:65](../../.claude/commands/shake-out.md) tells agents to build an image, run it on a spare port and open it through `--host-resolver-rules` by hand. Replace that procedure with `npm run test:e2e:docker`, which now does all of it and cleans up afterwards.
   - **Verify:** the smoke runs green locally. Ctrl+C at each stage (build, wait, Playwright) leaves a clean leak audit.
-- [ ] **A4. Smoke specs** in `packages/axoview-e2e/tests-docker/` (new).
+- [x] **A4. Smoke specs** in `packages/axoview-e2e/tests-docker/` (new).
+  - **Done:** `a3c2d9e1`, fixed in `6b12ac20`. Deviations:
+    - save is Ctrl+S, because `toolbar-save` isn't rendered with server storage;
+    - step 5 waits on the explorer row's new `aria-current`: the first run waited on `localStorage['axoview-last-opened']`, which the explorer's load path never writes;
+    - origin-gate row 5 posts to loopback with an explicit `Host: axoview.test:<port>`.
   - **Imports:** no import of `helpers/store.ts` or any other bridge helper. Use `byAxoviewId` from `helpers/selectors.ts`, and seed the onboarding flags the way `fixtures/app.fixture.ts` does (`ONBOARDING_DISMISS_FLAGS`).
   - **`fixtures.ts`** fails the test on:
     - any `/api/*` response ≥ 400 that the test didn't declare;
@@ -158,7 +165,8 @@ Exit codes:
     - the editor reaches the empty state;
     - create works (session storage);
     - no `/api/diagrams` write is attempted.
-- [ ] **A5. Workflow** `.github/workflows/docker-smoke.yml` (new). Copy the trigger block from [e2e-playwright.yml](../../.github/workflows/e2e-playwright.yml): PRs to master with `ready_for_review`, push to master, `workflow_dispatch`, a draft filter, `concurrency`, and `permissions: contents: read`. **Add no `paths:` filter** (see ADR 0048 §1). Also add `push: branches: ['gate-proof/**']` so A6 can run before this file is on master. `gh workflow run` only works for workflows that already exist on the default branch.
+- [x] **A5. Workflow** `.github/workflows/docker-smoke.yml` (new). Copy the trigger block from [e2e-playwright.yml](../../.github/workflows/e2e-playwright.yml): PRs to master with `ready_for_review`, push to master, `workflow_dispatch`, a draft filter, `concurrency`, and `permissions: contents: read`. **Add no `paths:` filter** (see ADR 0048 §1). Also add `push: branches: ['gate-proof/**']` so A6 can run before this file is on master. `gh workflow run` only works for workflows that already exist on the default branch.
+  - **Done:** `0e239ad0`. The first CI run is green on the gate-proof baseline: [36072933840](https://github.com/molikas/axoview/actions/runs/36072933840), 5 min 8 s wall on a cold buildx cache; warm runs take about 3 min. The PR's own first run is still to come.
   - Job `docker-smoke`:
     1. `actions/checkout@v6` with `fetch-depth: 0` (for the version).
     2. Node 22 and `npm ci`.
@@ -169,7 +177,8 @@ Exit codes:
     7. On failure, upload the output directory (report plus container logs).
   - Job `docker-gate`, named **`Docker Gate`**: `if: always()`, `needs: [docker-smoke]`, and fails unless the result is `success`. Copy `e2e-gate` verbatim.
   - **Verify:** the first run is green on the PR that lands A. Record its wall-clock time; the target is under 8 min.
-- [ ] **A6. Prove it can fail.** Branch `gate-proof/docker-smoke` off the phase-A branch. For each revert: apply it alone, push the branch (the `push` trigger from A5 runs the smoke), read the result, then undo the revert before the next one. **Ask the owner before the first push, and don't open a PR to master.**
+- [x] **A6. Prove it can fail.** Branch `gate-proof/docker-smoke` off the phase-A branch. For each revert: apply it alone, push the branch (the `push` trigger from A5 runs the smoke), read the result, then undo the revert before the next one. **Ask the owner before the first push, and don't open a PR to master.**
+  - **Done:** Recorded in ADR 0048's Acceptance criteria (`16c8e29f`), and the branch is deleted. Revert 3 needed a second attempt: the first broke the image build, so it was red for the wrong reason.
 
   | Revert | Where | Expected failure |
   |---|---|---|
@@ -187,7 +196,8 @@ Exit codes:
 
 ## Phase C — Make the suite prod-compatible (P1; gates B5's flip to strict)
 
-- [ ] **C1. Replace the three MUI-icon selectors** (MUI strips icon `data-testid` in production builds). Only 3 helpers in 2 files depend on them:
+- [x] **C1. Replace the three MUI-icon selectors** (MUI strips icon `data-testid` in production builds). Only 3 helpers in 2 files depend on them:
+  - **Done:** `93b23d86`. `grep -rn 'Icon"\]' packages/axoview-e2e` returns nothing, the lib builds, and both specs pass on the dev server and on the image.
 
   | Helper | Spec location | Icon | Calls | Add this hook |
   |---|---|---|---|---|
@@ -197,16 +207,19 @@ Exit codes:
 
   Delete `stripButtonByIcon` once it has no callers. Follow ADR 0008's naming (`data-axoview-id`, kebab-case).
   - **Verify:** `grep -rn 'Icon"\]' packages/axoview-e2e` returns nothing; both specs pass on the dev server; the lib builds.
-- [ ] **C2. Remove the hardcoded dev URLs.**
+- [x] **C2. Remove the hardcoded dev URLs.**
+  - **Done:** `f6c179a8`. Both specs pass on the dev server (18/18 with C1's) and on the image.
   - `landing-navigation.spec.ts:44`: `waitForURL(/localhost:3000\/$/)` becomes a pathname predicate (`u => u.pathname === '/'`).
   - `share.spec.ts:235` and `:278`: take the `baseURL` fixture, **and forward `storageState`** from `testInfo.project.use`. Contexts made with `browser.newContext` inherit neither, and on the image the bridge rides on `storageState`.
   - Fix the stale comment at `share.spec.ts:193-195`: `apiBaseUrl()` returns `http://localhost:3001` in dev.
-- [ ] **C3. Add the regression projects** to `playwright.docker.config.ts`:
+- [x] **C3. Add the regression projects** to `playwright.docker.config.ts`:
+  - **Done:** Config `f30e2670`, runner `18216933`. The full regression on `axoview:local` (HEAD `6b12ac20`), run `20260924-231621-6b3e`: 289 tests, 286 passed, 3 expected-fail (the `test.fail()` repros), 0 unexpected, 0 flaky. It took 42 min 26 s at 1 worker, not 80. There was nothing to attribute.
   - `regression` and `regression-touch` use `testDir: ./tests` and the same `touch-*` split as `playwright.config.ts:38-54`.
   - Set `storageState` as an object: `{ cookies: [], origins: [{ origin: <baseURL>, localStorage: [{ name: 'axoview_perf_enabled', value: '1' }] }] }`.
   - Make the runner's `--suite=full` start one storage-OFF container and run both projects.
   - **Verify** with one local stream (about 80 min at 1 worker; 42 min was measured at 2 workers on 2026-09-24). Read `results.json`, not the list output: the list reporter prints the 3 `test.fail()` repros as `x` even when they fail as expected. The target is 0 unexpected failures. Attribute every remaining failure per "Reference facts" before calling it done.
-- [ ] **C4. testing.md.**
+- [x] **C4. testing.md.**
+  - **Done:** `5e4b5988`.
   - Correct the second invariant in "CI execution model — sharding" (line 54): the bridge is gated at runtime, not tree-shaken. Point it at ADR 0048 §4. The rule "never point the *dev* config at a prod bundle" stays.
   - Add a "Testing against the Docker image" section under Contracts, drawn from ADR 0048, the runner contract above and "Reference facts" below.
   - Add its row to the `## Sections` index.
@@ -228,8 +241,10 @@ Exit codes:
 
 Land B only after C3 is green on a master image. B runs on every PR, so landing it earlier would put a red check on every PR until C catches up.
 
-- [ ] **B1. Runner `--suite=full`:** shard support, and a `summary.json` (passed, failed, flaky, expected-fail, failures with file and title) in the output directory. Print the ETA from the measured cost.
+- [x] **B1. Runner `--suite=full`:** shard support, and a `summary.json` (passed, failed, flaky, expected-fail, failures with file and title) in the output directory. Print the ETA from the measured cost.
+  - **Done:** `18216933`. Every local run writes `summary.json`.
 - [ ] **B2. Workflow** `.github/workflows/docker-regression.yml` (decision 10).
+  - **Status:** `0cedfa73`. Written; its first run is on the PR, since the workflow has no gate-proof trigger.
   - **Triggers:** copy the trigger block from e2e-playwright.yml: PRs to master with `ready_for_review`, push to master, `workflow_dispatch` (input: shard count, default 4), plus the draft filter and `concurrency` with `cancel-in-progress`. **No `schedule`** and **no `paths:` filter**; the check becomes required later.
   - **Jobs:**
     1. `build`: buildx, then upload `docker save | gzip` as an artifact, so every shard tests identical bytes.
@@ -238,8 +253,11 @@ Land B only after C3 is green on a master image. B runs on every PR, so landing 
     4. `docker-regression-gate`, named **`Docker Regression Gate`**: `if: always()`, `needs: [shard]`, and fails unless the result is `success`. It must not depend on B3's job.
   - **Verify:** the first run is green on the PR that lands B. Record its wall-clock time.
 - [ ] **B3. Attribution job.** It runs only when there are failures. Build a master image (`docker build https://github.com/molikas/axoview.git#master`) and apply the attribution rule to each failing file. Label each failure `regression`, `pre-existing` or `flake` in the summary. **It annotates only; it never changes the conclusion** (ADR 0048 §5).
+  - **Status:** `0cedfa73`. Written; it runs only when a shard fails, so it stays unexercised until then.
 - [ ] **B4. Runner hygiene proof.** Interrupt one run with Ctrl+C, and `docker kill` the container during another. Both must end in an empty leak audit. Paste both audits into the PR.
-- [ ] **B5. `.claude/commands/ship.md`** (decision 6). The regression now runs on the promotion PR by itself, so `/ship` never triggers it; it only waits for it and reports it.
+  - **Status:** The `docker kill` half is done: exit 3 with a CLEAN audit, run `20260924-231033-4533`. The Ctrl+C half is the owner's.
+- [x] **B5. `.claude/commands/ship.md`** (decision 6). The regression now runs on the promotion PR by itself, so `/ship` never triggers it; it only waits for it and reports it.
+  - **Done:** `46a80d30`. The flip is still pending.
   - **Plan step 3:** make the stop condition `gh pr checks --watch --required`, which stops on required-check failures (these include `Docker Gate`). Plain `gh pr checks --watch` exits non-zero on *any* failure, so an advisory red would stop `/ship`, and it doesn't do that yet.
   - **New step 3b (advisory period):**
     1. Wait for `Docker Regression Gate` to finish (read it with `gh pr checks`).
@@ -252,30 +270,39 @@ Land B only after C3 is green on a master image. B runs on every PR, so landing 
 
 ## Phase D — Fidelity backlog from #90 (independent; one commit each)
 
-- [ ] **D1.** Healthcheck `unhealthy` forever with storage OFF: resolved by A1. Tick it when A1 lands.
-- [ ] **D2. The Docker version shows `v3.7.0`.** `.dockerignore:2` excludes `.git`, so `resolve-version.js` falls back to the frozen `package.json`.
+- [x] **D1.** Healthcheck `unhealthy` forever with storage OFF: resolved by A1. Tick it when A1 lands.
+  - **Done:** Resolved by A1 (`13e441aa`).
+- [x] **D2. The Docker version shows `v3.7.0`.** `.dockerignore:2` excludes `.git`, so `resolve-version.js` falls back to the frozen `package.json`.
+  - **Done:** `6a8edd79`, plus the ADR 0045 addendum `d9a75ace`. In an image built with `AXOVIEW_VERSION=3.9.2`, `app.html` carries `3.9.2` and no `3.7.0`.
   - Add `ARG AXOVIEW_VERSION` to the Dockerfile build stage before line 27. An ARG is visible to `RUN` as an environment variable, and an empty value falls through.
   - Add `build.args` to both compose files.
   - Add one line to deployment.md §B.
   - Run `/feature extend 0045` to record the addendum.
   - **Verify:** `grep` the version in `/usr/share/nginx/html/app.html` inside the image.
   - The provenance tactical has no Docker coverage.
-- [ ] **D3. `check:audit` misses the lockfile Docker actually ships.** [scripts/check-audit.js](../../scripts/check-audit.js) audits only the root tree (`npm audit --json --workspaces`), while the image installs from `packages/axoview-backend/package-lock.json`.
+- [x] **D3. `check:audit` misses the lockfile Docker actually ships.** [scripts/check-audit.js](../../scripts/check-audit.js) audits only the root tree (`npm audit --json --workspaces`), while the image installs from `packages/axoview-backend/package-lock.json`.
+  - **Done:** `c35c0ee7`. The backend pass reads 72 prod / 98 total deps (the backend lockfile has 98 entries), and both trees are clean.
   - Add a second pass in that directory: `npm audit --json --omit=dev --workspaces=false`.
   - Allowlist entries may need a scope field.
   - **Verify** the pass reads the backend tree (its dependency count matches the backend lockfile).
-- [ ] **D4. Delete `packages/axoview-app/package-lock.json`.** Nothing has referenced it since the 2026-05-19 folder rename (33d4d71b); npm workspaces use only the root lockfile; it carries 5 advisories.
+- [x] **D4. Delete `packages/axoview-app/package-lock.json`.** Nothing has referenced it since the 2026-05-19 folder rename (33d4d71b); npm workspaces use only the root lockfile; it carries 5 advisories.
+  - **Done:** `de3dc892`. `docker build` succeeds, including its `npm ci`. The PR's CI runs the local `npm ci`.
   - The `Dockerfile:10` glob still matches `package.json`.
   - **Verify:** `npm ci` and `docker build` both succeed.
-- [ ] **D5. nginx's first-request 502.** `proxy_pass http://localhost:3001` resolves to `::1` and `127.0.0.1`, and both get marked down.
+- [x] **D5. nginx's first-request 502.** `proxy_pass http://localhost:3001` resolves to `::1` and `127.0.0.1`, and both get marked down.
+  - **Done:** `cf09dbad`. Polling every 100 ms from container start gave one 502 before the backend bound, then 200 from 256 ms on, and no 502 after that.
   - Change it to `http://127.0.0.1:3001`. nginx never marks a single-address upstream unavailable.
   - Confirm the backend accepts IPv4: `app.listen(PORT)` binds dual-stack `::`.
   - **Verify:** looping requests at startup see no multi-second 502 window.
-- [ ] **D6. The build stage uses `npm install`** (`Dockerfile:17`). Switch to `npm ci`, so the image builds from the same locked tree CI tests.
-- [ ] **D7. The docs stamp check always skips in CI.** `test.yml` checks out at depth 1, and `lint-docs.js:244-261` skips on a shallow clone. Set `fetch-depth: 0` (the pack is about 17 MiB).
+- [x] **D6. The build stage uses `npm install`** (`Dockerfile:17`). Switch to `npm ci`, so the image builds from the same locked tree CI tests.
+  - **Done:** `e8f4d147`. The build succeeds with `npm ci` even though the stage doesn't copy the worker and e2e `package.json` files.
+- [x] **D7. The docs stamp check always skips in CI.** `test.yml` checks out at depth 1, and `lint-docs.js:244-261` skips on a shallow clone. Set `fetch-depth: 0` (the pack is about 17 MiB).
+  - **Done:** `294b2d8c`. The PR's CI run proves it.
 - [ ] **D8. Optional lint rule** `no-restricted-properties` for `crypto.randomUUID` in `eslint.config.mjs` (rules at :35-56).
+  - **Skipped:** it isn't small. The app's jest maps `axoview` to `jest.axoviewMock.ts`, which would have to re-export `generateId` (pulling chroma-js into app tests), or `generateId` would have to move into its own module. Carry it to `known_issues.md` at wrap.
   - It needs `generateId` exported from the lib's `src/index.ts`, and the two guarded app call sites (`projectZip.ts:420`, `LocalStorageProvider.ts:73`) migrated to it.
-- [ ] **D9. Move `npm run docker:run` to port 8080** (decision 11). `compose.dev.yml:7` maps `"3000:80"`, so the local container's origin equals the backend's default `ALLOWED_ORIGINS` (`http://localhost:3000`), and the Origin gate always passes: the setup that hid the v3.9.0 403. It also clashes with `npm run dev`, which uses 3000 too.
+- [x] **D9. Move `npm run docker:run` to port 8080** (decision 11). `compose.dev.yml:7` maps `"3000:80"`, so the local container's origin equals the backend's default `ALLOWED_ORIGINS` (`http://localhost:3000`), and the Origin gate always passes: the setup that hid the v3.9.0 403. It also clashes with `npm run dev`, which uses 3000 too.
+  - **Done:** `c70537b5`. compose.dev.yml on `:8080` (throwaway project, no bind mount, `ALLOWED_ORIGINS` unset): the smoke journey and the Origin table pass in a real browser, 6/6. `git grep -n '3000:80'` still hits the docs that describe history (ADR 0048's Context, this file, known_issues CHR-07), but nothing in code or config.
   - **Change:** `compose.dev.yml:7` becomes `"8080:80"`. Leave `"3001:3001"` and the `docker:run` script as they are.
   - **Docs and comments that move with it:**
     - `packages/axoview-app/src/utils/apiBaseUrl.ts:7-22`: keep the A5/CHR-07 history, but note that compose.dev.yml moved to 8080 on this date (ADR 0048), and drop "the deployment deliberately serves on the port developers expect". **The code doesn't change.** Its production-build check is still the right guard for any prod bundle served on `localhost:3000`, and its tests stay as they are.
@@ -287,7 +314,21 @@ Land B only after C3 is green on a master image. B runs on every PR, so landing 
     - `docs/manual-test-baseline.md`: its header marks it as a historical record not to follow as-is.
     - The ADR 0048 Context line, which describes what happened at the time.
   - **Verify:** `npm run docker:run`, then create and save a diagram at `http://localhost:8080/app`. The write succeeds through the Origin gate with no `ALLOWED_ORIGINS` override. Finally, `git grep -n '3000:80'` returns nothing.
-- [ ] **D10. Storage ON without a mount returned 500 on writes** (seen once, not investigated). Reproduce with `--no-volume`, then either file it in `known_issues.md` or strike this line.
+- [x] **D10. Storage ON without a mount returned 500 on writes** (seen once, not investigated). Reproduce with `--no-volume`, then either file it in `known_issues.md` or strike this line.
+  - **Struck, not reproduced:** storage ON with `--no-volume` (run `20260924-230815-372d`) passed 8/8, and every write returned 2xx.
+
+## Where the plan was wrong (found while implementing, 2026-09-24)
+
+- **A4, save:** with server storage, `toolbar-save` isn't rendered. The journey saves with Ctrl+S, which runs the same handler.
+- **A4, the insecure-origin failure:** the plan expected a `pageerror`. With `generateId` reverted, an error boundary catches the throw, so none fires. What goes red is the journey's canvas assertion (A6 run 36074327050). The pageerror guard alone wouldn't have caught v3.9.1.
+- **A2, `smoke-secure: tests-docker/`:** that would include `boot-storage-off.spec.ts`, which fails with storage ON. `smoke-secure` ignores it.
+- **A6, "revert `generateId` to bare `crypto.randomUUID()`":** an early `return` in the current body breaks TypeScript narrowing and the image build. The revert has to restore the pre-v3.9.2 body.
+- **C3, the estimate:** the full regression took 42 min at 1 worker, not 80.
+- **D8:** not small; see the item.
+- **D9, verify:** `git grep -n '3000:80'` can't come back empty, because the docs that describe the history still quote it. Scope the grep to code and config: `git grep -n '3000:80' -- ':!docs' ':!known_issues.md'`.
+- **D10:** not reproduced.
+- **ADR 0048 §1, "/ship needs no change":** true for `Docker Gate`, but the advisory regression needed `--required` in `/ship` anyway (B5).
+- **Not in the plan:** the root `npm run test:e2e` script doesn't run on Windows, because cmd.exe can't parse `node_modules/.bin/playwright`. It predates this work. `node node_modules/@playwright/test/cli.js test --config packages/axoview-e2e/playwright.config.ts <files>` is the equivalent.
 
 ## Reference facts (verified 2026-09-24)
 
