@@ -1,12 +1,11 @@
 # Tactical working docs
 
-**Empty is the healthy state here.** Three initiatives are currently in flight:
+**Empty is the healthy state here.** Two initiatives are currently in flight:
 
 | In flight | What it is |
 |---|---|
 | [adr-code-audit.md](adr-code-audit.md) | Verify all 41 ADRs' state + decisions against the code. Scaffolded 2026-07-15; verified findings remediated (see its Disposition block); **419KB — read only that block, never the whole file**. Discharge the remaining rows with **`/docs-sweep gate`**, then wrap. |
 | [release-provenance-and-notes.md](release-provenance-and-notes.md) | Fix version drift (deployed shows 3.7 vs released 3.8.3), stamp the version on the boot splash, and make release notes carry per-fix detail without dead issue links. Scaffolded 2026-07-23 — [ADR 0045](../adr/0045-release-version-provenance-and-in-app-surfacing.md) + [ADR 0046](../adr/0046-release-notes-generation-and-reference-integrity.md). |
-| [docker-regression-gate.md](docker-regression-gate.md) | Make Docker-only regressions fail a gate before release (v3.9.0–v3.9.1 shipped a 403 on every write and a plain-HTTP load failure): a required `Docker Gate` smoke on PRs to master, a full pre-ship regression against the built image, and the Docker-fidelity backlog from #90. Scaffolded 2026-09-24 — [ADR 0048](../adr/0048-docker-image-regression-gate.md) (Proposed). A–D landed in PR #92; the close-out PR (its Phase E) carries the wrap-up. |
 
 **Generated output is not a tactical.** The gate's worklist/prefilter/results are regenerable in ~1s and live in gitignored `reports/docs-sweep/` — the same tier as `playwright-report/`. They were briefly committed here (2026-07-15) and removed; a build artifact in a docs folder reads as a doc. See [workflow.md](../workflow.md)'s doc map.
 
