@@ -8,7 +8,7 @@
 > - [docs/workflow.md](../workflow.md): session conventions (the baseline).
 > - Evidence: [issue #89](https://github.com/molikas/axoview/issues/89) and [PR #90](https://github.com/molikas/axoview/pull/90). The PR's Verification section is the raw record of the local Docker runs.
 >
-> **Status:** In progress: A1–A6, C1–C4, B1, B5 and D1–D7, D9, D10 are done on `feat/docker-regression-gate`. Still open: A7 (owner), B2 and B3's first CI runs, the Ctrl+C half of B4, and B5's flip. **Owner:** molikas · **Last updated:** 2026-09-24
+> **Status:** In progress: A1–A6, C1–C4, B1, B2, B4, B5 and D1–D7, D9, D10 are done on `feat/docker-regression-gate` (PR #92). Still open: A7 and B5's flip (ruleset changes after merge), and B3's first real run, which only happens when a shard fails. **Owner:** molikas · **Last updated:** 2026-09-24
 >
 > This is a **short-lived working doc.** Delete it after the work merges; the ADRs and testing.md are the durable record. See "Wrap-up".
 
@@ -243,8 +243,8 @@ Land B only after C3 is green on a master image. B runs on every PR, so landing 
 
 - [x] **B1. Runner `--suite=full`:** shard support, and a `summary.json` (passed, failed, flaky, expected-fail, failures with file and title) in the output directory. Print the ETA from the measured cost.
   - **Done:** `18216933`. Every local run writes `summary.json`.
-- [ ] **B2. Workflow** `.github/workflows/docker-regression.yml` (decision 10).
-  - **Status:** `0cedfa73`. Written; its first run is on the PR, since the workflow has no gate-proof trigger.
+- [x] **B2. Workflow** `.github/workflows/docker-regression.yml` (decision 10).
+  - **Done:** `0cedfa73`. Its first run, on PR #92, was green: [36076295118](https://github.com/molikas/axoview/actions/runs/36076295118), 4 shards, 13 min wall from trigger to summary. [36077456478](https://github.com/molikas/axoview/actions/runs/36077456478) was green too: 11 min 38 s to `Docker Regression Gate`, with the slowest shard at 9 min 17 s.
   - **Triggers:** copy the trigger block from e2e-playwright.yml: PRs to master with `ready_for_review`, push to master, `workflow_dispatch` (input: shard count, default 4), plus the draft filter and `concurrency` with `cancel-in-progress`. **No `schedule`** and **no `paths:` filter**; the check becomes required later.
   - **Jobs:**
     1. `build`: buildx, then upload `docker save | gzip` as an artifact, so every shard tests identical bytes.
@@ -254,8 +254,15 @@ Land B only after C3 is green on a master image. B runs on every PR, so landing 
   - **Verify:** the first run is green on the PR that lands B. Record its wall-clock time.
 - [ ] **B3. Attribution job.** It runs only when there are failures. Build a master image (`docker build https://github.com/molikas/axoview.git#master`) and apply the attribution rule to each failing file. Label each failure `regression`, `pre-existing` or `flake` in the summary. **It annotates only; it never changes the conclusion** (ADR 0048 §5).
   - **Status:** `0cedfa73`. Written; it runs only when a shard fails, so it stays unexercised until then.
-- [ ] **B4. Runner hygiene proof.** Interrupt one run with Ctrl+C, and `docker kill` the container during another. Both must end in an empty leak audit. Paste both audits into the PR.
-  - **Status:** The `docker kill` half is done: exit 3 with a CLEAN audit, run `20260924-231033-4533`. The Ctrl+C half is the owner's.
+- [x] **B4. Runner hygiene proof.** Interrupt one run with Ctrl+C, and `docker kill` the container during another. Both must end in an empty leak audit. Paste both audits into the PR.
+  - **Done:**
+    - **`docker kill`:** exit 3 with a CLEAN audit, run `20260924-231033-4533`.
+    - **Ctrl+C:** a real `CTRL_C_EVENT` sent to the runner's console (`GenerateConsoleCtrlEvent`, the event a keypress delivers) at each stage. Every run printed "SIGINT received", audited CLEAN and exited 2:
+      - build, 40 s in (`20260925-004831-66f2`): killed the `docker build` tree and removed its image;
+      - container wait (`20260925-004949-41dc`): removed the container and volume;
+      - Playwright, mid-journey (`20260925-005011-7f6c`): killed the Playwright tree, removed the container and volume.
+
+      An independent check found no leftover processes, containers, volumes, images or lock. The audits are in PR #92.
 - [x] **B5. `.claude/commands/ship.md`** (decision 6). The regression now runs on the promotion PR by itself, so `/ship` never triggers it; it only waits for it and reports it.
   - **Done:** `46a80d30`. The flip is still pending.
   - **Plan step 3:** make the stop condition `gh pr checks --watch --required`, which stops on required-check failures (these include `Docker Gate`). Plain `gh pr checks --watch` exits non-zero on *any* failure, so an advisory red would stop `/ship`, and it doesn't do that yet.
