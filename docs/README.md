@@ -119,6 +119,7 @@ Deep snapshots cut on a date and left immutable. Read for the comprehensive narr
 | [0045](adr/0045-release-version-provenance-and-in-app-surfacing.md) | Release version provenance & in-app version surfacing |
 | [0046](adr/0046-release-notes-generation-and-reference-integrity.md) | Release-notes generation: body-level detail & reference integrity |
 | [0047](adr/0047-exploratory-testing-program.md) | Exploratory testing program (probe lane, promotion protocol, `/explore`) |
+| [0048](adr/0048-docker-image-regression-gate.md) | Docker image regression gate (smoke `Docker Gate`, full regression, prod-bundle bridge policy) |
 
 ---
 

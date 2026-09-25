@@ -93,11 +93,6 @@ const strip = (page: Page) => page.locator('[data-axoview-strip]');
 const formatButton = (page: Page, name: 'Bold' | 'Italic') =>
   strip(page).getByRole('button', { name, exact: true });
 
-/** A StripButton carries no accessible name (MUI Tooltip titles the wrapper,
- *  not the button), so target its MUI icon. */
-const stripButtonByIcon = (page: Page, icon: string) =>
-  strip(page).locator(`button:has(svg[data-testid="${icon}"])`);
-
 test.describe('Bulk text formatting — the whole selection decides', () => {
   test('STYL-01: a Bold press leaves every other format on every member alone', async ({
     page,
@@ -289,7 +284,10 @@ test.describe('No-colour is an absent fill (ADR 0039 addendum — STYL-03)', () 
     expect(rect.customColor).toBeUndefined();
 
     await select(page, [{ type: 'RECTANGLE', id: rect.id }]);
-    const fill = stripButtonByIcon(page, 'FormatColorFillIcon').first();
+    // A StripButton carries no accessible name (MUI Tooltip titles the
+    // wrapper, not the button), so target its test hook. Not its MUI icon:
+    // production builds strip the icon's test id (ADR 0048).
+    const fill = strip(page).getByTestId('strip-fill-button');
     await expect(fill).toBeEnabled();
     await fill.click();
     const noColor = page.getByRole('button', { name: 'No color' }).first();

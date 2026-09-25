@@ -54,7 +54,8 @@
         "fixtures/**/*.ts",
         "pom/**/*.ts",
         "helpers/**/*.ts",
-        "playwright.config.ts"
+        "playwright.config.ts",
+        "playwright.docker.config.ts"
       ]
     }
   }

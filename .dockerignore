@@ -4,3 +4,13 @@ node_modules
 *.md
 .env
 diagrams
+# Local test output and the e2e-docker runner's lock (scripts/e2e-docker.js):
+# both change on every run, so in the context they'd bust the COPY . . cache.
+.e2e-docker.lock
+test-results
+**/test-results
+playwright-report
+**/playwright-report
+blob-report
+**/blob-report
+.codegraph

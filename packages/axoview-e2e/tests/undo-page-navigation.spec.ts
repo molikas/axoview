@@ -14,20 +14,22 @@
  * follows, not just the model and the tab strip.
  *
  * ViewTabs' icon buttons carry no accessible name (MUI Tooltip only sets a
- * title on the wrapper), so they are targeted by their MUI icon test id.
+ * title on the wrapper), so they are targeted by their `data-axoview-id`
+ * anchors. Not by the MUI icon's `data-testid`: MUI strips that in production
+ * builds, so it never matches on the Docker image (ADR 0048).
  */
 import { canvasReadyTest as test, expect } from '../fixtures/app.fixture';
 import { placeIconViaMouse, CanvasPoint } from '../helpers/place';
+import { byAxoviewId } from '../helpers/selectors';
 import { CanvasPOM } from '../pom/CanvasPOM';
 import { getModelConnectorCount, getUiMode } from '../helpers/store';
 
 type PW = import('@playwright/test').Page;
 
-const addPage = (page: PW) =>
-  page.locator('button:has(svg[data-testid="AddIcon"])').click();
+const addPage = (page: PW) => byAxoviewId(page, 'view-tabs-add').click();
 
 const deletePageTab = (page: PW, nth: number) =>
-  page.locator('button:has(svg[data-testid="CloseIcon"])').nth(nth).click();
+  byAxoviewId(page, 'view-tab-close').nth(nth).click();
 
 const viewCount = (page: PW) =>
   page.evaluate(

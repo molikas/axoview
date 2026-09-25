@@ -13,8 +13,9 @@ COPY packages/axoview-backend/package*.json ./packages/axoview-backend/
 #Update NPM
 RUN npm install -g npm@11.5.2
 
-# Install dependencies for the entire workspace
-RUN npm install
+# Install dependencies for the entire workspace from the root lockfile: the
+# same locked tree CI tests, never re-resolved the way `npm install` can.
+RUN npm ci
 
 # Install backend production deps via npm ci into the backend dir (workspace-isolated,
 # reproducible, offline-safe at container boot) — see DP2-B4(a) in v1.1-tech-debt.md.
@@ -22,6 +23,15 @@ RUN cd packages/axoview-backend && npm ci --omit=dev --workspaces=false
 
 # Copy the entire monorepo code
 COPY . .
+
+# Release version for the About tab and boot splash (ADR 0045). The build
+# context excludes .git (.dockerignore), so scripts/resolve-version.js can't
+# read the tag and falls back to the frozen package.json version. Pass it in:
+#   docker build --build-arg AXOVIEW_VERSION=3.9.2 .
+# RUN sees an ARG as an environment variable; unset or empty, it falls through
+# to that fallback. Declared after the installs so a new version doesn't
+# invalidate their cached layers.
+ARG AXOVIEW_VERSION
 
 # Build the library first, then the app
 RUN npm run build:lib && npm run build:app

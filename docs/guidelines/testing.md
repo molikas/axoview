@@ -1,6 +1,6 @@
 # Regression Test Suite Reference
 
-**Last updated:** 2026-09-24 (rev — `server.wiring.spec.js` gains the deployment's-own-origin leg; previous rev 2026-08-21 promoted the durable CI, gate and canvas contracts above the catalogue, collapsed the wave-by-wave record into `## Suite history` and added the section index)
+**Last updated:** 2026-09-24 (rev 2 — new contract "Testing against the Docker image" (ADR 0048), and the sharding section's second invariant corrected: the bridge is gated at runtime, not tree-shaken; rev 1 the same day — `server.wiring.spec.js` gains the deployment's-own-origin leg; previous rev 2026-08-21 promoted the durable CI, gate and canvas contracts above the catalogue, collapsed the wave-by-wave record into `## Suite history` and added the section index)
 **Unit / integration totals** (measured 2026-08-08 via per-workspace `npm test`):
 
 | Workspace | Passing | Suites |
@@ -27,6 +27,7 @@ E2E suite lives at [`packages/axoview-e2e/`](../../packages/axoview-e2e/) (Playw
 | Section | What is in it |
 |---|---|
 | [Contracts the suite depends on](#contracts-the-suite-depends-on) | how CI shards the e2e run and the two invariants that keep it safe · reading a gate's exit code · gate authoring · the merged scene canvas · label counter-scale · the exploratory lane · the e2e rig traps |
+| [Testing against the Docker image](#testing-against-the-docker-image-adr-0048) | the `Docker Gate` smoke and the full regression against the built image: the runner and its resource contract, exit codes, the bridge flag, the insecure origin, why the port is never 3000, reading `summary.json`, attributing a failure |
 | [Engine performance harness](#engine-performance-harness-2026-06-15--adr-0020) | `npm run perf`, its env knobs, and the same-session A/B measurement rule |
 | [Quick Reference](#quick-reference) | layer → suite index |
 | [Classifications](#classifications) | what ✅ VALID and ⚠️ SEMI-VALID mean |
@@ -51,7 +52,7 @@ named so the reason stays attached to it.
 The suite runs at `workers: 1` because the shared rsbuild dev server can't take parallel HMR clients (a 2-worker "Loading-Axoview" stall is documented in the config). CI parallelism is therefore achieved by **sharding across runners**: [`e2e-playwright.yml`](../../.github/workflows/e2e-playwright.yml) fans the run out over 4 jobs via a `shard` matrix, each running `--shard=i/4` at `workers: 1`. Within a runner the execution is byte-for-byte the sequential local flow, so the fan-out is machine-level, not context-level — no new flake risk. This cut the E2E wall-clock **~20m28s → ~6m30s (≈3.2×)**. Per-shard blob reports merge into one HTML report only on failure. Two invariants keep this safe for the future:
 
 - **Keep `fullyParallel: false`.** Playwright then shards at *file* granularity, so every spec file (and its serial/stateful tests) stays wholly inside one shard. Flipping it to `true` would split files across shards **and** reintroduce the dev-server concurrent-context flake — don't, without re-architecting the server first.
-- **Don't swap the dev server for a precompiled prod bundle to raise `workers`.** A `NODE_ENV=production` build tree-shakes out the `window.__axoview__` debug bridge that ~every spec reads (gated in `Axoview.tsx` by `enableDebugTools || exposeStoreBridge || NODE_ENV !== 'production'`); the whole suite would fail on `waitForDebugBridge`. If that route is ever needed for within-runner parallelism, re-expose the bridge via `exposeStoreBridge` behind a **CI-only build flag** (never the Cloudflare prod build).
+- **Never point the *dev* config (`playwright.config.ts`) at a prod bundle.** A production bundle doesn't expose the `window.__axoview__` debug bridge that ~every spec reads unless something turns it on: `Axoview.tsx` gates it on `enableDebugTools || exposeStoreBridge || NODE_ENV !== 'production'`, so the whole dev-config suite would fail on `waitForDebugBridge`. The gate is decided **at runtime**, not tree-shaken, and the app already passes `exposeStoreBridge` from the `axoview_perf_enabled` localStorage flag. That runtime flag is how the suite runs against the Docker image, through its own config ([ADR 0048](../adr/0048-docker-image-regression-gate.md) §4; see [Testing against the Docker image](#testing-against-the-docker-image-adr-0048)). There is no CI-only build flag, and none should be added: it would build a variant nobody runs.
 
 To scale further, raise the shard count (`SHARD_TOTAL` + the matrix list in the workflow, kept in sync) — diminishing past ~6 shards because a fixed ~3 min setup (npm ci + build:lib + Playwright install + dev-server boot) is paid per shard.
 
@@ -132,6 +133,123 @@ known_issues.md: `gpu-icon-recovery.spec.ts`'s recovery test was racing the
 layer's own retry cascade (`MAX_ICON_LOAD_ATTEMPTS`), which burns back-to-back
 without any help from `forceRebuilds`. Fixed spec-side; the reconciliation was
 deliberately left alone.
+
+### Testing against the Docker image (ADR 0048)
+
+The dev-server suite never touches nginx, the backend, the prod bundle, a
+non-loopback origin or a remapped port. v3.9.0 and v3.9.1 shipped two bugs that
+lived only there: a `403 Origin not allowed` on every write, and an editor that
+failed to load over plain HTTP. So the built image has two gates of its own
+([ADR 0048](../adr/0048-docker-image-regression-gate.md)):
+
+| Check | What runs | When | Status |
+|---|---|---|---|
+| `Docker Gate` ([docker-smoke.yml](../../.github/workflows/docker-smoke.yml)) | [`tests-docker/`](../../packages/axoview-e2e/tests-docker/), no bridge: the write journey from a secure and an insecure origin, the Origin-gate table, a storage-OFF boot probe | every PR to master | required once proven able to fail |
+| `Docker Regression Gate` ([docker-regression.yml](../../.github/workflows/docker-regression.yml)) | the whole `tests/` suite, storage OFF, 4 shards | every PR and push to master | advisory until green on master |
+
+**One runner for both, local and CI:** [`scripts/e2e-docker.js`](../../scripts/e2e-docker.js).
+
+```
+npm run test:e2e:docker                               # the smoke: build, run, test, tear down
+npm run test:e2e:docker:full -- --image=axoview:local # the full regression on an image you built
+node scripts/e2e-docker.js --suite=full --image=axoview:local --files=share.spec.ts
+node scripts/e2e-docker.js --help                     # --port, --shard, --no-volume, -- <playwright args>
+```
+
+Measured on 2026-09-24:
+
+- **The smoke, locally:** about 2 min against an existing image, 5–6 min with
+  the image build.
+- **The smoke, in CI:** 5 min on a cold buildx cache, about 3 min warm.
+- **The full regression, locally:** 42 min at 1 worker, on one storage-OFF
+  container. 289 tests: 286 passed, the 3 `test.fail()` repros failed as
+  declared, 0 unexpected.
+
+**The runner enforces the resource contract; the operator doesn't have to.** It
+was written after four Playwright streams, about eight containers and two image
+builds froze the dev machine on 2026-09-24, and stopping the tasks left 33 child
+processes running.
+
+- **One heavy stream at a time.** It prints the ETA and the resource plan
+  first. Don't start another Playwright run or image build until it exits. No
+  local sharding: parallelism belongs in CI.
+- **Single instance.** A lock at `.e2e-docker.lock` (pid plus run id), or any
+  container labelled `axoview.regress`, refuses the start and prints the cleanup
+  commands without running them.
+- **Everything it creates is labelled** (`axoview.regress=<run-id>`, and the
+  image `axoview:regress-<run-id>` when it built one) and removed on exit,
+  Ctrl+C, SIGTERM and uncaught errors. An `--image` it was given is never
+  removed.
+- **Process trees are killed, never PIDs** (`taskkill /T /F` on Windows, process
+  groups on POSIX). A watchdog polls `docker inspect` every 5 s and aborts the
+  run when the container stops.
+- **Capped:** `--cpus=2 --memory=2g`, `workers: 1`, video off, traces kept on
+  failure only, output in `test-results/docker-<run-id>/`.
+- **A leak audit ends every run**, passed, failed or aborted: no Chromium,
+  ffmpeg or Playwright node from this run (matched by a marker switch on
+  Chromium's command line and by the recorded process tree), and no labelled
+  container, volume or image.
+
+| Exit | Meaning |
+|---|---|
+| 0 | pass |
+| 1 | test failures |
+| 2 | harness or setup error: Docker not running, a refused start, a build failure, an interrupt |
+| 3 | aborted: the container died |
+| 4 | the leak audit found something (wins over every other code) |
+
+**Rules that keep the check honest:**
+
+- **Only [`playwright.docker.config.ts`](../../packages/axoview-e2e/playwright.docker.config.ts)
+  targets the image.** It has no `webServer` and throws unless
+  `AXOVIEW_BASE_URL` carries a remapped port. The dev config stays as it is.
+- **The port is never 3000 and never 80.** 3000 is the backend's default
+  `ALLOWED_ORIGINS`, so the Origin gate always passes there, and 80 hides the
+  port half of the gate (nginx `$host` drops it; `$http_host` keeps it). The
+  same goes for local runs: `npm run docker:run` serves on
+  `http://localhost:8080` for exactly this reason. On 3000 it hid the v3.9.0 403.
+- **The insecure origin is `http://axoview.test:<port>`,** mapped by Chromium's
+  `--host-resolver-rules="MAP axoview.test 127.0.0.1"`. `localhost` and HTTPS
+  are always secure contexts, so only a non-loopback plain-HTTP name loses
+  `crypto.randomUUID`. The mapping stays inside Chromium: the Node-side request
+  API can't resolve that name, so Node-side calls go to the loopback port and
+  set `Host` explicitly.
+- **The smoke uses no bridge,** and its fixtures assert
+  `window.__axoview__ === undefined`, nginx's `Server` header, `isSecureContext`
+  and `serverStorage` before each test. A precondition that silently fails turns
+  the check into a false green.
+- **The full regression turns the bridge on through `storageState`**
+  (`localStorage.axoview_perf_enabled = '1'`, [ADR 0048](../adr/0048-docker-image-regression-gate.md)
+  §4). The fixtures remove five named keys and never call
+  `localStorage.clear()`, so the flag survives. It also starts the diagnostics
+  rAF loop and shows the dock toggle (the panel stays closed), which is the
+  state dev builds are always in. Contexts made with `browser.newContext` inherit
+  neither `baseURL` nor `storageState`: forward both from `testInfo.project.use`
+  (see `share.spec.ts`).
+- **No specs that depend on the origin or on MUI icon test ids.** Match paths,
+  not `localhost:3000`, and target `data-axoview-id` hooks: MUI strips an icon's
+  `data-testid` in production builds.
+- **Storage OFF for the full suite.** It's the suite's native mode.
+  `clearAllStorage()` never clears the server, so server-storage runs of the
+  full suite stay out of scope until tests can isolate server state. Between
+  files, `rm -rf /data/diagrams/*` inside the container is a safe wipe (the fs
+  adapter keeps no cache), but it doesn't isolate tests within a file.
+- **Browsers send `Origin` on every non-GET request; curl sends none.** A curl
+  check can't stand in for a browser write.
+
+**Reading a result.** Read `test-results/docker-<run-id>/summary.json`, not the
+list output: the list reporter prints `test.fail()` repros with an `x` even when
+they fail as expected. `unexpectedFailures` is the number that must be 0.
+`expectedFail` holds the declared repros, and a run with zero tests, tests that
+never ran, or global errors fails.
+
+**Attributing a failure.** Treat every Docker-only failure as unattributed until
+you have re-run the failing spec alone against a master image, in the same mode
+(`docker build -t axoview:baseline https://github.com/molikas/axoview.git#master`,
+then `--image=axoview:baseline --files=<spec>`). If it fails there too, it's
+pre-existing or environmental. If it passes there, re-run the candidate alone:
+still failing means a regression, passing means a flake. CI's `attribute` job
+applies the same rule and only annotates. It never turns red into green.
 
 ### The bulk canvas is ONE canvas (2026-08-02, R3/GPU-13)
 

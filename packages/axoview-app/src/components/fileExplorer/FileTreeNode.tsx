@@ -297,6 +297,10 @@ export function FileTreeNode({
       data-axoview-id="file-explorer-row"
       data-diagram-name={node.data.name}
       data-diagram-type={node.data.type}
+      // The open diagram's row: the one fact the highlight below carries only
+      // as a colour. Also what the Docker smoke waits on, since nothing else in
+      // the DOM names the open diagram (ADR 0048).
+      aria-current={isSelected ? 'true' : undefined}
       sx={{
         display: 'flex',
         alignItems: 'center',

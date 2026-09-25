@@ -41,7 +41,9 @@ test.describe('R1 landing ⇄ app ⇄ 404 navigation (ADR 0040)', () => {
     // accept defensively so the assertion is about routing, not a stray dialog.
     page.on('dialog', (d) => d.accept());
     await page.locator('a.toolbar-left').click();
-    await page.waitForURL(/localhost:3000\/$/);
+    // Match the path, not the origin: the suite also runs against the Docker
+    // image, which is served from another host and port (ADR 0048).
+    await page.waitForURL((u) => u.pathname === '/');
     await expect(page.locator('.hero h1')).toBeVisible();
   });
 

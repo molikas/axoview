@@ -2,9 +2,19 @@ name: axoview
 
 services:
   app:
-    build: .
+    build:
+      context: .
+      # The build context has no .git, so the release version for the About
+      # tab comes in as a build arg (ADR 0045): set AXOVIEW_VERSION in the
+      # shell or .env before building. Unset, it's empty and the build falls
+      # back to package.json's version.
+      args:
+        AXOVIEW_VERSION: ${AXOVIEW_VERSION:-}
     ports:
-      - "3000:80"
+      # 8080, never 3000: the backend's default ALLOWED_ORIGINS is
+      # http://localhost:3000, so on 3000 the Origin gate always passes and
+      # hides the 403 a real deployment would get (ADR 0048 §2).
+      - "8080:80"
       - "3001:3001"
     environment:
       - NODE_ENV=development

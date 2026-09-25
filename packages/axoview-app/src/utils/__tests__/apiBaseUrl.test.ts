@@ -3,15 +3,17 @@
  *
  * `apiBaseUrl()` identified the `npm run dev` split (SPA :3000 → backend :3001)
  * by sniffing `hostname === 'localhost' && port === '3000'`. The Docker
- * deployment the README documents matches that exactly — `compose.dev.yml`
- * publishes nginx as `"3000:80"` — so in the container every API call was
+ * deployment the README documented matched that exactly — `compose.dev.yml`
+ * published nginx on host port 3000 — so in the container every API call was
  * addressed cross-origin to :3001, bypassing the nginx proxy that fronts the
  * API and violating the app's own CSP (`connect-src 'self'`; a different port
  * is a different origin). Server storage appeared broken in the deployment the
- * docs tell people to use.
+ * docs told people to use.
  *
- * The two cases are indistinguishable by ORIGIN, deliberately — the container
- * serves on the port developers expect. They are distinguishable by BUILD.
+ * The two cases were indistinguishable by ORIGIN — the container served on
+ * the port developers expected — and distinguishable by BUILD. On 2026-09-24
+ * `compose.dev.yml` moved to 8080 (ADR 0048), but the cases below still pin
+ * the build check: a production bundle on localhost:3000 stays same-origin.
  */
 import { apiBaseUrl } from '../apiBaseUrl';
 
