@@ -8,7 +8,7 @@
 > - [docs/workflow.md](../workflow.md): session conventions (the baseline).
 > - Evidence: [issue #89](https://github.com/molikas/axoview/issues/89) and [PR #90](https://github.com/molikas/axoview/pull/90). The PR's Verification section is the raw record of the local Docker runs.
 >
-> **Status:** In progress: A1–A6, C1–C4, B1, B2, B4, B5 and D1–D7, D9, D10 are done on `feat/docker-regression-gate` (PR #92). Still open: A7 and B5's flip (ruleset changes after merge), Phase E (the close-out PR, which carries the wrap-up), and B3's first real run, which only happens when a shard fails. **Owner:** molikas · **Last updated:** 2026-09-24
+> **Status:** Done, and being wrapped. A–E landed through PR #92 and the close-out PR; both Docker checks are required on master. B3 is still unexercised (it only runs on a failure). **Owner:** molikas · **Last updated:** 2026-09-24
 >
 > This is a **short-lived working doc.** Delete it after the work merges; the ADRs and testing.md are the durable record. See "Wrap-up".
 
@@ -187,7 +187,8 @@ Exit codes:
   | `generateId` → bare `crypto.randomUUID()` | lib `utils/common.ts` `generateId` | `smoke-insecure` journey (pageerror) |
 
   Record the three run URLs in ADR 0048's Acceptance criteria, then delete the branch.
-- [ ] **A7. Make it required (owner action).** Add `{"context":"Docker Gate"}` to the `required_status_checks` rule of ruleset `16783964` ("master protect"):
+- [x] **A7. Make it required (owner action).** Add `{"context":"Docker Gate"}` to the `required_status_checks` rule of ruleset `16783964` ("master protect"):
+  - **Done:** `Docker Gate` joined ruleset `16783964` at 23:22 EDT on 2026-09-24, after the first master run on PR #92's merge commit `376410fd` was green ([36089799380](https://github.com/molikas/axoview/actions/runs/36089799380)). Run on the owner's go-ahead. ADR 0048 is Accepted (E1).
   1. `gh api repos/molikas/axoview/rulesets/16783964 > rs.json`.
   2. Edit `rules[].parameters.required_status_checks`.
   3. `gh api -X PUT repos/molikas/axoview/rulesets/16783964 --input rs.json`.
@@ -264,7 +265,9 @@ Land B only after C3 is green on a master image. B runs on every PR, so landing 
 
       An independent check found no leftover processes, containers, volumes, images or lock. The audits are in PR #92.
 - [x] **B5. `.claude/commands/ship.md`** (decision 6). The regression now runs on the promotion PR by itself, so `/ship` never triggers it; it only waits for it and reports it.
-  - **Done:** `46a80d30`. The flip is still pending.
+  - **Done:** `46a80d30`. The flip:
+    - **ruleset half:** `Docker Regression Gate` joined the ruleset at 23:31 EDT on 2026-09-24, after its first master run was green ([36089799370](https://github.com/molikas/axoview/actions/runs/36089799370));
+    - **docs half:** E2.
   - **Plan step 3:** make the stop condition `gh pr checks --watch --required`, which stops on required-check failures (these include `Docker Gate`). Plain `gh pr checks --watch` exits non-zero on *any* failure, so an advisory red would stop `/ship`, and it doesn't do that yet.
   - **New step 3b (advisory period):**
     1. Wait for `Docker Regression Gate` to finish (read it with `gh pr checks`).
@@ -337,6 +340,12 @@ Land B only after C3 is green on a master image. B runs on every PR, so landing 
 - **ADR 0048 §1, "/ship needs no change":** true for `Docker Gate`, but the advisory regression needed `--required` in `/ship` anyway (B5).
 - **Not in the plan:** the root `npm run test:e2e` script doesn't run on Windows, because cmd.exe can't parse `node_modules/.bin/playwright`. It predates this work. `node node_modules/@playwright/test/cli.js test --config packages/axoview-e2e/playwright.config.ts <files>` is the equivalent.
 
+- **Found while preparing the close-out:**
+  - the runner's `--files` never worked: it put the file filters after the multi-value `--project`, so Playwright read them as project names. That would have broken the CI attribute job the first time a shard failed. Fixed in `8a1b8c39`.
+  - the smoke journey slept 500 ms for the explorer's click-to-open timer; it now waits for the row's `aria-current` (`2d9291e9`).
+  - the runner printed the plan's estimates; it now prints the measured ETAs (`5d09afa8`).
+- **B3 is still unexercised:** the attribute job only runs when a shard fails, and none has yet.
+
 ## Reference facts (verified 2026-09-24)
 
 - **Insecure context without editing hosts files:**
@@ -372,14 +381,16 @@ The PUTs are GitHub settings changes, so each needs the owner's explicit yes. Th
 
 **Branch and merge:** branch `docs/docker-regression-gate-closeout` off master, one commit per item below. Every commit is `docs`, `ci` or `chore`, so the merge cuts no release. Its own CI is the final proof that both checks are required and green.
 
-- [ ] **E1. ADR 0048 → Accepted.**
+- [x] **E1. ADR 0048 → Accepted.**
+  - **Done:** ADR 0048 is Accepted on 2026-09-24, with its three acceptance criteria met and recorded, and §1 names `/ship`'s real step-3 command.
   - Set `**Status:** Accepted` and add `**Accepted on:** <date>` (the ADR 0045 shape).
   - In Acceptance criteria:
     - **Positive:** the first green `Docker Gate` run on master, and the date it joined `required_status_checks`;
     - **Runner hygiene:** point at B4's runs;
     - **Full regression:** the first green master run, and the date it joined the ruleset.
   - Tick A7 and B5's flip here before the file goes (E5).
-- [ ] **E2. The `/ship` protocol: B5's flip, docs half.**
+- [x] **E2. The `/ship` protocol: B5's flip, docs half.**
+  - **Done:** `3bd6301e`. `ship.md` now differs from its pre-initiative version only by `--required`.
   - In [ship.md](../../.claude/commands/ship.md), delete:
     - step 3b;
     - Phase 3's advisory-prompt exception sentence;
@@ -388,13 +399,15 @@ The PUTs are GitHub settings changes, so each needs the owner's explicit yes. Th
   - Step 3 stays `gh pr checks --watch --required`, which now covers both Docker checks.
   - In [testing.md](../guidelines/testing.md)'s "Testing against the Docker image" table, both Status cells become `required`.
   - **Verify:** `grep -n '3b\|advisory' .claude/commands/ship.md` returns nothing Docker-related.
-- [ ] **E3. Notes: move what must outlive this file.** Go through "Where the plan was wrong", "Reference facts" and "Notes for Claude" line by line. Each line either moves to a permanent home or is dropped because testing.md or ADR 0048 already says it. Known moves:
+- [x] **E3. Notes: move what must outlive this file.** Go through "Where the plan was wrong", "Reference facts" and "Notes for Claude" line by line. Each line either moves to a permanent home or is dropped because testing.md or ADR 0048 already says it. Known moves:
+  - **Done:** `cffdd587`, plus the memory note, which is local to Claude.
   - **testing.md, Docker section,** two lessons:
     - a `pageerror` guard misses a throw an error boundary catches, so assert that the UI actually rendered (A6 revert 3);
     - prove a gate by reverting each fix alone on a `gate-proof/**` branch, and don't count a revert that breaks the build.
   - **`known_issues.md`:** D8 as an Open entry. That's the `no-restricted-properties` rule for `crypto.randomUUID`, blocked on `jest.axoviewMock.ts` needing a `generateId` re-export or `generateId` moving into its own module.
   - **Claude's local memory** (not in the PR): repoint `docker-e2e-against-prod-image` at the runner and testing.md; its "temporary untracked config" advice is obsolete.
-- [ ] **E4. Repoint every pointer to this file** ([workflow.md](../workflow.md) Principle 5: pointers move in the commit that retires the file). `git grep -n 'tactical/docker-regression-gate'` lists them:
+- [x] **E4. Repoint every pointer to this file** ([workflow.md](../workflow.md) Principle 5: pointers move in the commit that retires the file). `git grep -n 'tactical/docker-regression-gate'` lists them:
+  - **Done:** `55c58a49`.
   - ADR 0048's Implementation-notes link;
   - the header comments of `docker-smoke.yml` and `docker-regression.yml`;
   - `playwright.docker.config.ts`;
