@@ -1,6 +1,5 @@
 /**
- * boot-storage-off.spec.ts — the storage-OFF boot probe (ADR 0048 §2 last row;
- * docs/tactical/docker-regression-gate.md A1 + A4).
+ * boot-storage-off.spec.ts — the storage-OFF boot probe (ADR 0048 §2 last row).
  *
  * The runner restarts the container with ENABLE_SERVER_STORAGE=false and waits
  * for `/api/config` = 200 and a `healthy` container before this runs, so
@@ -8,7 +7,7 @@
  * promises the rest: `/api/config` stays reachable (it is the app's only boot
  * probe, ADR 0009 D2) and reports `serverStorage:false`, the published-link
  * read stays reachable, and the editor works from session storage without ever
- * writing to `/api/diagrams`. Before A1 the entrypoint started no backend with
+ * writing to `/api/diagrams`. Before ADR 0048 the entrypoint started no backend with
  * storage OFF, so every `/api/*` answered 502 through nginx.
  */
 import { byAxoviewId, byLibTestId } from '../helpers/selectors';

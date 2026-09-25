@@ -1,7 +1,8 @@
 # ADR 0048 — Docker Image Regression Gate
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-09-24
+**Accepted on:** 2026-09-24
 **Supersedes:** none (retires the "CI-only build flag" recommendation in [testing.md "CI execution model — sharding"](../guidelines/testing.md#ci-execution-model--sharding-2026-07-10-pr-66); relates to [ADR 0009](0009-deployment-topology.md), [ADR 0010](0010-session-backend-contract.md) decision 8 and [ADR 0045](0045-release-version-provenance-and-in-app-surfacing.md))
 **Superseded by:** none
 
@@ -34,7 +35,7 @@ The first full run against the image (storage OFF) failed 9 of 289 tests. All 9 
 
 Every pull request to `master` builds the image from the PR head and runs a **smoke** against the running container. The smoke reports under one stable check name, **`Docker Gate`**: an aggregator job with `if: always()` that fails closed on `skipped`, the same pattern as `CI Gate` and `E2E Gate`. The workflow has no `paths:` filter, because a path-filtered required check either never reports (and blocks) or reports skipped (and passes).
 
-`Docker Gate` joins the master ruleset's required checks only after it has been **proven able to go red**: each of the three v3.9.x fixes, reverted on its own, must fail it (see Acceptance criteria). `/ship` needs no change for this, because its `gh pr checks --watch` step already waits on every required check.
+`Docker Gate` joins the master ruleset's required checks only after it has been **proven able to go red**: each of the three v3.9.x fixes, reverted on its own, must fail it (see Acceptance criteria). `/ship` needs no change for this: its step 3, `gh pr checks --watch --required`, waits on every required check.
 
 ### 2. What the smoke must exercise
 
@@ -132,7 +133,7 @@ Docker builds exclude `.git` ([.dockerignore](../../.dockerignore)), so `resolve
 - Playwright: `packages/axoview-e2e/playwright.docker.config.ts`, with three smoke projects over `tests-docker/` (`smoke-secure`, `smoke-insecure`, `smoke-storage-off`) and two regression projects over `tests/` (`regression`, `regression-touch`, with the bridge `storageState`).
 - Runner: `scripts/e2e-docker.js`, wired as `npm run test:e2e:docker` (the smoke) and `test:e2e:docker:full`.
 - Build: [Dockerfile](../../Dockerfile) takes `ARG AXOVIEW_VERSION` in the build stage.
-- Step-by-step plan: [docs/tactical/docker-regression-gate.md](../tactical/docker-regression-gate.md).
+- Step-by-step plan: `docs/tactical/docker-regression-gate.md`, retired at the close-out; read it in git history. The durable rules live in [testing.md](../guidelines/testing.md#testing-against-the-docker-image-adr-0048).
 
 ## Acceptance criteria
 
@@ -152,5 +153,12 @@ Docker builds exclude `.git` ([.dockerignore](../../.dockerignore)), so `resolve
 
   For the third revert, an error boundary catches the throw, so no `pageerror` fires. The journey's canvas assertion is what fails. An earlier attempt at the same revert ([36074059820](https://github.com/molikas/axoview/actions/runs/36074059820)) returned early inside the current body, which broke TypeScript narrowing and failed the image build. That run was red for the wrong reason, so it doesn't count.
 - **Positive:** `Docker Gate` is green on `master` and appears in the ruleset's `required_status_checks`.
+  - **Met 2026-09-24.** The first master run, on PR #92's merge commit `376410fd`, was green ([36089799380](https://github.com/molikas/axoview/actions/runs/36089799380), 4 min 4 s). The check joined ruleset `16783964` ("master protect") at 23:22 EDT, and nothing else in the ruleset changed.
 - **Runner hygiene:** interrupt a local run with Ctrl+C, and in a second run kill its container mid-run. Both must end in a leak audit that reports zero leftover processes, containers, volumes and images.
+  - **Met 2026-09-24.**
+    - **`docker kill`** mid-Playwright: exit 3 with a clean audit.
+    - **Ctrl+C:** a real console `CTRL_C_EVENT` at the image build, the container wait and mid-Playwright. Each exited 2 with a clean audit, and an independent check found nothing left behind.
+
+    The audits are in PR #92's description.
 - **Full regression:** `Docker Regression Gate` runs green on `master`, with no failures and none attributed away. Only then does it join the ruleset (§5), and `/ship` drops its advisory confirmation.
+  - **Met 2026-09-24.** The first master run was green on all 4 shards with nothing attributed ([36089799370](https://github.com/molikas/axoview/actions/runs/36089799370), 12 min 29 s). Locally the suite ran 286 passed, 3 expected-fail and 0 unexpected in 42 min at 1 worker. The check joined the ruleset at 23:31 EDT, and the close-out PR removed `/ship`'s advisory step.

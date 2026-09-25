@@ -1,5 +1,5 @@
-# Docker smoke — the `Docker Gate` check (ADR 0048 §1-§2; tactical
-# docs/tactical/docker-regression-gate.md A5).
+# Docker smoke — the `Docker Gate` check (ADR 0048 §1-§2;
+# docs/guidelines/testing.md, "Testing against the Docker image").
 #
 # Builds the image from the PR head exactly as `docker build .` does (the version
 # build argument is the only one allowed) and runs the smoke against the running
@@ -14,7 +14,8 @@
 # No `paths:` filter, deliberately: a path-filtered required check either never
 # reports (and blocks) or reports skipped (and passes). See ADR 0048 §1.
 #
-# `gate-proof/**` pushes exist for A6 (prove the gate can fail): `gh workflow run`
+# `gate-proof/**` pushes exist to prove the gate can fail (testing.md, "Proving a
+# gate can fail"; ADR 0048's Acceptance criteria record the runs): `gh workflow run`
 # only works for workflows already on the default branch, so the proof runs by
 # pushing reverts to a gate-proof branch instead of opening a PR.
 
@@ -117,8 +118,9 @@ jobs:
           retention-days: 7
 
   # Single stable check name, the same aggregator pattern as `E2E Gate`
-  # (e2e-playwright.yml) and `CI Gate` (test.yml). Required once A6 has proven
-  # the smoke can go red (ADR 0048 §1).
+  # (e2e-playwright.yml) and `CI Gate` (test.yml). A required check in the master
+  # ruleset, added only after reverting each v3.9.x fix had turned it red (ADR
+  # 0048 §1 and its Acceptance criteria).
   docker-gate:
     name: Docker Gate
     # See the CI Gate note in test.yml: without `always()` a failed shard skips

@@ -1,5 +1,5 @@
 # Docker regression — the `Docker Regression Gate` check (ADR 0048 §3, §5;
-# tactical docs/tactical/docker-regression-gate.md B2 + B3).
+# docs/guidelines/testing.md, "Testing against the Docker image").
 #
 # The full E2E suite (packages/axoview-e2e/tests) against the built image,
 # storage OFF, through the same runner as the smoke (scripts/e2e-docker.js
@@ -8,15 +8,14 @@
 # Each shard runs at workers=1 (playwright.docker.config.ts), the same
 # machine-level fan-out as e2e-playwright.yml.
 #
-# Advisory at first (locked decision 6): the check reports on every PR but is not
-# in the ruleset until it has run green on master; /ship waits for it and asks
-# once if it's red. Then it becomes required.
+# A required check in the master ruleset. It was advisory until its first green
+# run on master (ADR 0048 §5); the attribution job below still only annotates.
 #
-# Runs whenever changes land (decision 10): every PR to master, every push to
+# Runs whenever changes land (ADR 0048 §3): every PR to master, every push to
 # master, and on demand. No `schedule`, and no `paths:` filter (a path-filtered
 # check can't be made required safely; ADR 0048 §1).
 #
-# The `attribute` job (B3) re-runs failing spec files against a master image and
+# The `attribute` job re-runs failing spec files against a master image and
 # labels each failure regression / pre-existing / flake. It only annotates: it is
 # `continue-on-error`, always exits 0, and the gate never depends on it.
 
@@ -274,7 +273,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
-  # B3 — advisory attribution. Only when shards failed; never part of the gate.
+  # Advisory attribution. Only when shards failed; never part of the gate.
   attribute:
     name: Attribute Docker regression failures (advisory)
     if: ${{ always() && needs.build.result == 'success' && needs.shard.result == 'failure' }}
@@ -327,8 +326,8 @@ jobs:
           path: shard-summaries
           pattern: docker-summary-*
 
-      # The baseline the attribution rule compares against (tactical,
-      # "Reference facts"): a master image, built the way the plan records it.
+      # The baseline the attribution rule compares against (testing.md,
+      # "Attributing a failure"): a master image, built the way testing.md records it.
       - name: Build a master image
         run: docker build -t axoview:master https://github.com/molikas/axoview.git#master
 

@@ -1,6 +1,6 @@
 /**
  * origin-gate.spec.ts — pins the backend's Origin gate as seen through nginx on
- * a remapped port (ADR 0048 §2 table; docs/tactical/docker-regression-gate.md A4).
+ * a remapped port (ADR 0048 §2 table).
  *
  * Browsers send `Origin` on every non-GET request, same-origin ones included;
  * curl sends none, which is why curl never saw the v3.9.0 403. Each row sends a

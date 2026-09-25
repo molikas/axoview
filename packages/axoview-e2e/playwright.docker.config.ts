@@ -3,8 +3,8 @@ import { defineConfig, devices } from '@playwright/test';
 import type { DockerSmokeOptions } from './tests-docker/fixtures';
 
 /**
- * Playwright config for the built Docker image (ADR 0048; step-by-step plan in
- * docs/tactical/docker-regression-gate.md, items A2 and C3).
+ * Playwright config for the built Docker image (ADR 0048; the rules are in
+ * docs/guidelines/testing.md, "Testing against the Docker image").
  *
  * Run it through the runner, never by hand: `npm run test:e2e:docker` (smoke)
  * or `npm run test:e2e:docker:full` (the regression). scripts/e2e-docker.js
@@ -12,7 +12,7 @@ import type { DockerSmokeOptions } from './tests-docker/fixtures';
  * this file reads, and tears everything down afterwards.
  *
  * The dev-server config (playwright.config.ts) and its invariants stay exactly
- * as they are (locked decision 3). That config must never be pointed at a prod
+ * as they are (ADR 0048 §3). That config must never be pointed at a prod
  * bundle; this one is the only config that targets the image.
  *
  * Environment (set by the runner):
@@ -96,8 +96,9 @@ const smoke = (opts: Omit<DockerSmokeOptions, 'apiURL'>): DockerSmokeOptions => 
 });
 
 export default defineConfig<DockerSmokeOptions>({
-  // One stream, one worker, no retries: the runner contract (tactical, "Runner
-  // contract" item 6) and the same sharding invariant as the dev config —
+  // One stream, one worker, no retries: the runner's resource contract
+  // (testing.md, "Testing against the Docker image") and the same sharding
+  // invariant as the dev config —
   // fullyParallel:false keeps every spec file inside one shard.
   fullyParallel: false,
   workers: 1,
@@ -156,7 +157,7 @@ export default defineConfig<DockerSmokeOptions>({
         ...smoke({ expectSecureContext: true, expectServerStorage: false })
       }
     },
-    // C3 — the full suite against the image, storage OFF (ADR 0048 §3). The
+    // The full suite against the image, storage OFF (ADR 0048 §3). The
     // touch split mirrors playwright.config.ts's chromium / chromium-touch
     // projects exactly.
     {

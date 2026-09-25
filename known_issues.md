@@ -8424,3 +8424,38 @@ product was never broken. The spec now polls the settled outcome. See the
 **Status:** Open — the capture race is closed for the test, but the product
 should either disable Download until the recapture settles or show that the
 preview is still refining.
+
+## Nothing stops a new bare `crypto.randomUUID()` from bringing back the v3.9.1 insecure-origin crash
+
+**Found by:** [ADR 0048](docs/adr/0048-docker-image-regression-gate.md) plan
+item D8 (the fidelity backlog from PR #90), deferred on 2026-09-24 as not small.
+
+**Symptom:** none today. But any new `crypto.randomUUID()` call in lib or app
+source throws `crypto.randomUUID is not a function` on a plain-HTTP,
+non-loopback origin (a self-hosted image opened by LAN IP), which is the
+v3.9.1 bug. `Docker Gate`'s insecure-origin journey catches it only on the
+paths that journey drives.
+
+**Root cause:** the lib's `generateId` (`utils/common.ts`) carries the
+`getRandomValues` fallback, but nothing makes code use it. The two app call
+sites that need an id (`services/project/projectZip.ts` and
+`services/storage/providers/LocalStorageProvider.ts`) guard `randomUUID` by
+hand instead.
+
+**The fix, and what blocks it:**
+- add `no-restricted-properties` for `crypto.randomUUID` to the TS block of
+  `eslint.config.mjs`, which covers lib and app `src/` and ignores tests;
+- export `generateId` from the lib's `src/index.ts`;
+- migrate the two app call sites to it.
+
+The blocker is the app's jest config, which maps `axoview` to
+`packages/axoview-app/jest.axoviewMock.ts`. That mock doesn't export
+`generateId`, and re-exporting it from `utils/common.ts` would pull chroma-js
+into app tests. Take the path `downloadFile` took in wave 4 (see "One
+file-download helper is written five times"): move `generateId` and `formatUuidV4` into their own
+module, `utils/generateId.ts`, and have the mock re-export that module from
+source.
+
+**Workaround:** the `smoke-insecure` project of `Docker Gate`, and review.
+
+**Status:** Open.
