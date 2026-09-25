@@ -164,7 +164,9 @@ function main() {
     '| Label | File | Test | Project | Note |',
     '|---|---|---|---|---|'
   );
-  const cell = (s) => String(s == null ? '' : s).replace(/\|/g, '\\|').replace(/\n/g, ' ');
+  // Backslashes first (see e2e-docker.js `aggregate`).
+  const cell = (s) =>
+    String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
   const order = { regression: 0, unattributed: 1, flake: 2, 'pre-existing': 3 };
   for (const l of [...out.labels].sort((a, b) => order[a.label] - order[b.label])) {
     lines.push(`| **${l.label}** | ${cell(`${l.file}:${l.line}`)} | ${cell(l.title)} | ${cell(l.project)} | ${cell(l.note)} |`);

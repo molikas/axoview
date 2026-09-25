@@ -1419,7 +1419,9 @@ function aggregate(opts) {
   const out = opts.out || path.resolve('docker-regression-summary.json');
   fs.writeFileSync(out, `${JSON.stringify(merged, null, 2)}\n`);
 
-  const cell = (s) => String(s).replace(/\|/g, '\\|').replace(/\n/g, ' ');
+  // Backslashes first, so an input `\|` can't turn the added escape into a
+  // literal backslash followed by a live column separator.
+  const cell = (s) => String(s).replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
   const md = [];
   md.push(`## Docker regression — ${verdict.toUpperCase()}`);
   md.push('');
