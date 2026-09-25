@@ -902,10 +902,12 @@ function playwrightCli() {
 
 async function runPlaywright(phase, phaseDir, container) {
   const cli = playwrightCli();
-  const args = [cli, 'test', '--config', CONFIG, '--output', path.join(phaseDir, 'artifacts')];
+  // File filters go straight after `test`: `--project` takes several values, so
+  // anything positional after it is read as another project name.
+  const args = [cli, 'test', ...phase.files, '--config', CONFIG, '--output', path.join(phaseDir, 'artifacts')];
   for (const p of phase.projects) args.push('--project', p);
   if (state.opts.shard) args.push(`--shard=${state.opts.shard}`);
-  args.push(...state.opts.passthrough, ...phase.files);
+  args.push(...state.opts.passthrough);
 
   const env = {
     ...process.env,
@@ -913,7 +915,7 @@ async function runPlaywright(phase, phaseDir, container) {
     AXOVIEW_E2E_OUT: phaseDir,
     AXOVIEW_REGRESS_RUN: state.runId
   };
-  log(`phase ${phase.name}: playwright test --project ${phase.projects.join(' --project ')}${state.opts.shard ? ` --shard=${state.opts.shard}` : ''}${phase.files.length ? ` ${phase.files.join(' ')}` : ''}`);
+  log(`phase ${phase.name}: playwright test${phase.files.length ? ` ${phase.files.join(' ')}` : ''} --project ${phase.projects.join(' --project ')}${state.opts.shard ? ` --shard=${state.opts.shard}` : ''}`);
   const { child, done } = spawnTracked(process.execPath, args, { label: 'playwright', env });
   state.playwright = { pid: child.pid };
 
