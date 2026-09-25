@@ -43,6 +43,8 @@ docker compose up --build           # first run — takes 3–5 min
 
 Open **http://localhost** for the landing page — the editor lives at **http://localhost/app**. Diagrams are saved to a `diagrams/` folder in the project directory. Subsequent starts omit `--build`; stop with `Ctrl+C` or `docker compose down`.
 
+The image can't read git tags, so **Settings → About** shows the release version only if you pass it at build time: `AXOVIEW_VERSION=$(git describe --tags --abbrev=0) docker compose up --build`.
+
 > **Security note:** no authentication is enabled by default, which is fine for a single-user machine but means anyone who can reach the port has full read/write access to your diagrams. Before exposing the instance to any untrusted network, set `AUTH_MODE=shared-token` + `AUTH_SHARED_SECRET` (and, behind a reverse proxy, `PUBLIC_BASE_URL`) per [docs/deployment.md](docs/deployment.md).
 
 ### From source (Node ≥ 22)
@@ -82,11 +84,15 @@ For the from-scratch deploy walkthrough, see [docs/deployment.md](docs/deploymen
 ## Development
 
 ```bash
-npm run test:unit      # jest suite (packages/axoview-lib)
-npm run test:e2e       # Playwright E2E (needs a build; see docs/testing.md)
-npm run lint           # tsc + eslint across workspaces
+npm run test:unit            # jest suite (packages/axoview-lib)
+npm run test:e2e             # Playwright E2E on the dev server (it starts `npm run dev`; run `npm run build:lib` first)
+npm run test:e2e:docker      # smoke against the built Docker image: builds it, runs it, tests, cleans up (needs Docker)
+npm run test:e2e:docker:full # the whole E2E suite against the image (about 45 min locally)
+npm run lint                 # tsc --noEmit for lib and app (eslint is separate: npx eslint .)
 npm test --workspace=packages/axoview-lib -- --coverage   # HTML report in coverage/lcov-report/
 ```
+
+Run one heavy stream at a time: one Playwright run or one image build, never two at once. See [docs/guidelines/testing.md](docs/guidelines/testing.md), including "Testing against the Docker image".
 
 ## Issues and feedback
 
