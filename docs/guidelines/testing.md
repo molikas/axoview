@@ -236,6 +236,20 @@ processes running.
   adapter keeps no cache), but it doesn't isolate tests within a file.
 - **Browsers send `Origin` on every non-GET request; curl sends none.** A curl
   check can't stand in for a browser write.
+- **Assert that the UI rendered, not only that nothing threw.** The fixtures
+  fail on any `pageerror`, but a throw that a React error boundary catches never
+  becomes one. With the v3.9.1 `generateId` fix reverted, the insecure-origin
+  editor never mounted and no `pageerror` fired. The journey's "the canvas is
+  visible" assertion is what went red (ADR 0048's acceptance runs).
+
+**Proving a gate can fail.** Before a Docker check joins the ruleset, revert
+each fix it exists to catch, one at a time, on a `gate-proof/**` branch.
+`docker-smoke.yml` runs on pushes there, so no PR is needed. Read each run and
+confirm it went red in the named spec. A revert that breaks the build or the
+harness proves nothing, because the run is red for the wrong reason. Restore the
+exact pre-fix code instead of patching the current code: an early `return`
+patched into the fixed `generateId` broke TypeScript's narrowing, and the image
+build failed before any test ran.
 
 **Reading a result.** Read `test-results/docker-<run-id>/summary.json`, not the
 list output: the list reporter prints `test.fail()` repros with an `x` even when
@@ -250,6 +264,12 @@ then `--image=axoview:baseline --files=<spec>`). If it fails there too, it's
 pre-existing or environmental. If it passes there, re-run the candidate alone:
 still failing means a regression, passing means a flake. CI's `attribute` job
 applies the same rule and only annotates. It never turns red into green.
+
+**Checking what an image really ships.** Read it from inside the image rather
+than inferring it from the source:
+`docker run --rm --entrypoint sh <image> -c '<command>'`. For example,
+`grep -o 3.9.2 /usr/share/nginx/html/app.html` confirmed that the
+`AXOVIEW_VERSION` build arg reached the bundle.
 
 ### The bulk canvas is ONE canvas (2026-08-02, R3/GPU-13)
 
