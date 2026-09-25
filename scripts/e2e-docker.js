@@ -83,9 +83,10 @@ const UNHEALTHY_TICKS_TO_ABORT = 3; // 3 × 5 s
 const TRACK_MS = IS_WIN ? 30_000 : 5_000;
 const KILL_GRACE_MS = 5_000;
 
-// Measured 2026-09-24: the full suite (~289 tests) took ~80 min locally at 1
-// worker (42 min at 2 workers). The smoke is an estimate until A5's first run.
-const FULL_MINUTES_LOCAL = 80;
+// Measured 2026-09-24 on a Windows dev machine: the full suite (289 tests) took
+// 42 min 26 s at 1 worker on one storage-OFF container; the smoke's tests took
+// about 2 min, and an image build 161-204 s with the dependency layers cached.
+const FULL_MINUTES_LOCAL = 43;
 const FULL_TESTS = 289;
 
 const PHASES = {
@@ -747,7 +748,7 @@ function preflightSingleInstance() {
 function printPlan(phases, dockerVersion) {
   const o = state.opts;
   const shardN = o.shard ? Number(o.shard.split('/')[1]) : 1;
-  const build = o.image ? 'none (--image)' : '~3-6 min image build (estimate; the build cache makes repeats faster)';
+  const build = o.image ? 'none (--image)' : '~3-4 min image build (seconds when nothing changed; longer with a cold cache)';
   let tests;
   if (o.suite === 'full') {
     const minutes = Math.round(FULL_MINUTES_LOCAL / shardN);
@@ -755,7 +756,7 @@ function printPlan(phases, dockerVersion) {
       ? `${o.files.length} spec file(s): budget ~${Math.round((FULL_MINUTES_LOCAL * 60) / FULL_TESTS)} s per test (measured average) + ~30 s container boot`
       : `~${minutes} min for ${o.shard ? `shard ${o.shard} (~${Math.round(FULL_TESTS / shardN)} of ~${FULL_TESTS} tests)` : `~${FULL_TESTS} tests`} at 1 worker (measured locally 2026-09-24: ~${FULL_MINUTES_LOCAL} min for the whole suite)`;
   } else {
-    tests = '~2-4 min: 2 container boots (~15 s each) + ~8 smoke tests at 1 worker (estimate, not yet measured)';
+    tests = '~2 min: 2 container boots (~6 s each) + 8 smoke tests at 1 worker (measured 2026-09-24)';
   }
   log(`run ${state.runId} · suite=${o.suite}${o.shard ? ` · shard ${o.shard}` : ''}${o.files.length ? ` · files ${o.files.join(',')}` : ''} · Docker ${dockerVersion}`);
   log(`image: ${o.image ? `${o.image} (given; never removed)` : `axoview:regress-${state.runId} (built here, removed at the end)`}`);
