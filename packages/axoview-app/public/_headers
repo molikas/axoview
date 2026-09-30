@@ -1,4 +1,5 @@
 /*
+  Strict-Transport-Security: max-age=31536000
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
@@ -7,3 +8,10 @@
 
 /api/*
   Cache-Control: no-store
+
+# Everything under /static/ is content-hashed by rsbuild (a new build = new
+# names), so it never needs revalidating. Pages' default here is
+# max-age=14400 + must-revalidate, which re-checks the ~9 MB vendor chunk
+# every four hours.
+/static/*
+  Cache-Control: public, max-age=31536000, immutable
