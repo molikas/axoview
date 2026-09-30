@@ -100,6 +100,8 @@ working. Filed alongside B-13 closure (productization audit Section 5).
 
 **Ops action still Open (highest value):** add `GOOGLE_API_KEY` to the **Production** environment (`wrangler pages secret put GOOGLE_API_KEY`, or Cloudflare dashboard → Workers & Pages → `axoview` → Settings → Variables and secrets → **Production**). Confirm with `curl -s https://axoview.app/api/config` showing `"drivePublicPreview":true`. That restores rung 1 so public share links open with no sign-in. Restoring the Picker (rung 3) is a **separate, larger** task — it needs a new browser-restricted Picker key *plus* `GOOGLE_PROJECT_NUMBER` (project number `485371025824`), and is tracked as deferred in ADR 0042 §8, not here.
 
+*Re-checked 2026-09-30: the owner confirmed that `GOOGLE_API_KEY` is now set under **Production** in the dashboard, yet the live `/api/config` still reports `false` on `axoview.app` and `axoview.pages.dev` (`true` on `integration.axoview.pages.dev`). A Pages secret only reaches deployments built **after** it is set. Expect `true` after the next production deploy, and trigger a redeploy if that is not soon.*
+
 ## Strict CSP blocks Cloudflare's injected bot-detection script (benign)
 
 **Symptom:** On the deployed app the Console logs `app:88 Executing inline script violates the following Content Security Policy directive 'script-src 'self' https://accounts.google.com https://apis.google.com'`, suggesting a hash (`sha256-Zj25giKcc2e9gOw7hrLaG34A1qUEP6sdBk9FekCjt8Q=`) or a nonce. Reported 2026-07-28.
@@ -8459,3 +8461,59 @@ source.
 **Workaround:** the `smoke-insecure` project of `Docker Gate`, and review.
 
 **Status:** Open.
+
+## Production answered bot probes with 5xx, and `http://www.axoview.app/` with 522
+
+**Found by:** the 2026-09-30 review of the Cloudflare dashboard and Google
+Search Console, confirmed with live requests the same day.
+
+**Symptom:** Cloudflare reported a 2.04% 5xx rate (130 a week) and a 42.9% 4xx
+rate, and Search Console listed `http://www.axoview.app/` as "Server error
+(5xx)". Live: `GET /api/foo` → `500 {"error":"Server auth misconfigured"}`,
+`/api/public/diagrams/<id>` → 503, `http://www.axoview.app/` → 522 on every
+request. `https://www.axoview.app/` and `http://axoview.app/` 301 correctly.
+Browsers never show the 522: `.app` is on the HSTS preload list, so they
+upgrade to https before sending anything. Googlebot and other crawlers
+still request plain http, so they hit it.
+
+**Root cause:** three layers.
+
+1. **Code — fixed.** The Worker ran auth before routing, so every unknown
+   `/api/*` path (`/api/.env`, `/api/v1/…`) reached the auth middleware.
+   Production runs `AUTH_MODE=shared-token` with no `AUTH_SHARED_SECRET`,
+   so the middleware answers each one with the fail-closed 500. Paths that
+   passed auth fell into the 503 storage sink instead, which also counts
+   as 5xx.
+2. **Config — open.** The `AUTH_SHARED_SECRET` secret is missing from the
+   Production environment (deployment.md C2 says to set it). The storage
+   routes still return 500 to probes until it is set.
+3. **Dashboard — open.** The www → apex redirect only matches https.
+   "Always Use HTTPS" is off, so plain-http www requests go to the origin
+   and fail with 522.
+
+Most of the 4xx are not the app at all. Bot Fight Mode answers non-browser
+clients with a 403 Managed Challenge page (plain `curl` gets one on `/`), and
+`_redirects` returns a 404 for every probe path. `/favicon.ico` and
+`/.well-known/security.txt` were real misses.
+
+**Fix:** `app.ts` now answers any path outside `KNOWN_API_PATH` (the Worker's
+own two routes plus the Docker backend's storage table) with a 404 **before**
+auth. Known storage routes keep their ADR 0009 behaviour: auth first, then
+503. `app.spec.ts` pins the probe inputs under the no-secret production
+state. `favicon.ico` and `.well-known/security.txt` were added to `public/`,
+and `_headers` gained HSTS plus `immutable` caching for the hashed `/static/*`.
+
+**Workaround:** none needed. The failing responses only reached bots and
+crawlers.
+
+**Status:** Code fixed on branch `fix/cloudflare-review-2026-09-30`
+(2026-09-30). The ops side was done the same day:
+
+- **The www redirect is fixed.** `http://www.axoview.app/` now 301s to
+  `https://axoview.app/`, and Search Console's Validate Fix has started.
+- **The secret is set in Production.** It only reaches deployments built
+  after it was set, so it takes effect on the next production deploy.
+- **Preview has no `AUTH_SHARED_SECRET`.** Preview builds therefore still
+  answer a *real* storage route with the fail-closed 500. Unknown paths get a
+  404 there too, because the route check does not depend on the secret.
+  Harmless, but add the secret to Preview as well if a 401 is wanted there.
