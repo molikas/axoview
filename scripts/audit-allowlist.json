@@ -24,6 +24,13 @@
     "below (dompurify, hono x4, js-yaml, undici x5); they were removed for the same",
     "reason as the react-router entry above.",
     "",
+    "2026-09-30 pass (`npm audit fix --package-lock-only`, shipped with the",
+    "Cloudflare-review fixes): 13 advisories published since the last pass",
+    "(brace-expansion x3, undici x10, all in build/dev tooling) had non-breaking",
+    "fixes, so they were upgraded rather than allowlisted: wrangler 4.138 -> 4.145",
+    "(miniflare + workerd with it) and brace-expansion 1.1.15 -> 1.1.21. The same",
+    "upgrade fixed the three brace-expansion entries below; they were removed.",
+    "",
     "`scope` names the tree an entry was reviewed against: \"root\" (the workspace",
     "lockfile) or \"backend\" (packages/axoview-backend/package-lock.json, prod deps",
     "only: the tree the Docker image installs). Use [\"root\", \"backend\"] when the",
@@ -41,36 +48,6 @@
       "tripwire": "If the ADR 0029 sanitize is removed from ANY of those three points, this becomes live stored-XSS. renderedGeometry-style contract coverage on sanitizeHtml call sites would make that unmissable.",
       "acceptedOn": "2026-07-29",
       "reviewBy": "2026-10-29"
-    },
-    {
-      "id": "GHSA-3jxr-9vmj-r5cp",
-      "package": "brace-expansion",
-      "title": "brace-expansion DoS via exponential-time expansion",
-      "shipped": false,
-      "why": "devDependency only, reached via nodemon. Never bundled, never served, never processes user input.",
-      "tripwire": "brace-expansion appearing under a runtime dependency.",
-      "acceptedOn": "2026-07-29",
-      "reviewBy": "2026-10-29"
-    },
-    {
-      "id": "GHSA-mh99-v99m-4gvg",
-      "package": "brace-expansion",
-      "title": "brace-expansion DoS via unbounded expansion length (OOM)",
-      "shipped": false,
-      "why": "devDependency only, reached via nodemon. Never bundled, never served, never processes user input.",
-      "tripwire": "brace-expansion appearing under a runtime dependency.",
-      "acceptedOn": "2026-07-29",
-      "reviewBy": "2026-10-29"
-    },
-    {
-      "id": "GHSA-rgw5-rvv9-x895",
-      "package": "brace-expansion",
-      "title": "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation",
-      "shipped": false,
-      "why": "Test/build tooling only. `npm ls` puts it under jest → @jest/reporters → glob (axoview-app) and under the backend's dev tree; no workspace lists it as a runtime dependency (worker deps are hono alone; backend deps are cors/dotenv/express/helmet). The patterns it expands are our own glob literals in configs, never user input.",
-      "tripwire": "brace-expansion appearing under a runtime dependency, or any code path expanding a user-supplied brace pattern.",
-      "acceptedOn": "2026-08-09",
-      "reviewBy": "2026-11-09"
     }
   ]
 }
