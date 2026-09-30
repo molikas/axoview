@@ -208,7 +208,12 @@ describe('/api/* catch-all (storage disabled per app.ts:40)', () => {
     ['POST', '/api/folders'],
     ['GET', '/api/tree-manifest'],
     ['PUT', '/api/tree-manifest'],
-    ['POST', '/api/diagrams/abc/share']
+    ['POST', '/api/diagrams/abc/share'],
+    ['DELETE', '/api/diagrams/abc/share'],
+    ['PATCH', '/api/diagrams/abc/move'],
+    ['PUT', '/api/folders/abc'],
+    ['PATCH', '/api/folders/abc/move'],
+    ['DELETE', '/api/folders/abc']
   ])('%s %s → 503 "Server storage is disabled"', async (method, pathname) => {
     const res = await request(pathname, { method });
     expect(res.status).toBe(503);
@@ -318,11 +323,16 @@ describe('onError handler (DP4 — log method+path+errorName on uncaught 500)', 
 // v1.1 Cloudflare hardening — Workstream A.1.
 // 30-day CF Analytics review recorded 5xx responses on the paths below in
 // production. This block reproduces the exact inputs against the current
-// integration bundle: a 503 (for `/api/*`) or 404 (for non-`/api/*` —
-// scoped out of the Worker by `_routes.json` in prod, returned by Hono with
-// no static handler in tests) is the expected, healthy outcome. A 500
-// surfacing on any of these inputs IS the diagnosis — the test failure
-// stack identifies the originating middleware.
+// integration bundle: a 404 is the expected, healthy outcome — for `/api/*`
+// because no such Axoview route exists (answered before auth), for
+// non-`/api/*` because `_routes.json` scopes it out of the Worker in prod (Hono
+// has no static handler in tests). A 5xx surfacing on any of these inputs IS
+// the diagnosis — the test failure stack identifies the originating middleware.
+//
+// 2026-09-30 Cloudflare review: these probes used to land on the 503 storage
+// sink, or behind auth — and production runs AUTH_MODE=shared-token with no
+// AUTH_SHARED_SECRET, so every one of them answered 500 "Server auth
+// misconfigured". The missing-secret block below pins that exact state.
 describe('probe-input surface (CF analytics 5xx fingerprints)', () => {
   const apiProbes = [
     '/api/.env',
@@ -345,10 +355,10 @@ describe('probe-input surface (CF analytics 5xx fingerprints)', () => {
   ];
 
   describe('AUTH_MODE=none (default)', () => {
-    test.each(apiProbes)('GET %s → 503 (catch-all sink, no 500 leak)', async (path) => {
+    test.each(apiProbes)('GET %s → 404 (not an Axoview route)', async (path) => {
       const res = await request(path);
-      expect(res.status).toBe(503);
-      expect(res.body).toEqual({ error: 'Server storage is disabled' });
+      expect(res.status).toBe(404);
+      expect(res.body).toEqual({ error: 'Not found' });
     });
 
     test.each(nonApiProbes)('GET %s → 404 (no Worker route)', async (path) => {
@@ -360,14 +370,44 @@ describe('probe-input surface (CF analytics 5xx fingerprints)', () => {
   describe('AUTH_MODE=shared-token without credentials', () => {
     const env = { AUTH_MODE: 'shared-token', AUTH_SHARED_SECRET: 'sekret' };
 
-    test.each(apiProbes)('GET %s → 401 (auth middleware fires before catch-all)', async (path) => {
+    test.each(apiProbes)('GET %s → 404 (unknown route answered before auth)', async (path) => {
       const res = await request(path, {}, env);
-      expect(res.status).toBe(401);
+      expect(res.status).toBe(404);
     });
 
     test.each(nonApiProbes)('GET %s → 404 (Worker scope unchanged by AUTH_MODE)', async (path) => {
       const res = await request(path, {}, env);
       expect(res.status).toBe(404);
     });
+  });
+
+  describe('AUTH_MODE=shared-token with NO secret (production, 2026-09-30)', () => {
+    const env = { AUTH_MODE: 'shared-token' };
+
+    test.each(apiProbes)('GET %s → 404, not 500 "Server auth misconfigured"', async (path) => {
+      const res = await request(path, {}, env);
+      expect(res.status).toBe(404);
+    });
+
+    // The storage surface is still auth-gated, and the missing secret still
+    // fails CLOSED there — the gate narrows what reaches auth, it does not
+    // weaken auth.
+    test('a real storage route still fails closed on the missing secret', async () => {
+      const res = await request('/api/diagrams', {}, env);
+      expect(res.status).toBe(500);
+      expect(res.body).toEqual({ error: 'Server auth misconfigured' });
+    });
+  });
+
+  test.each([
+    '/api',
+    '/api/',
+    '/api/configx',
+    '/api/diagrams/a/b/c',
+    '/api/folders/a/share',
+    '/api/public/drive/a/b'
+  ])('near-miss %s → 404 (anchored path table)', async (path) => {
+    const res = await request(path);
+    expect(res.status).toBe(404);
   });
 });

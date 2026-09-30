@@ -36,7 +36,38 @@ app.onError((err, c) => {
  */
 const MAX_PROXY_BYTES = 10 * 1024 * 1024;
 
+/**
+ * Every path this Worker answers under /api/*: its own two routes, plus the
+ * Docker backend's storage surface (ADR 0009 route table, server.js), which the
+ * catch-all at the bottom short-circuits to 503 because this Worker is
+ * storage-less. Anything else under /api/* is not an Axoview endpoint.
+ * A new route must be added here too, or the gate below 404s it.
+ */
+const KNOWN_API_PATH = new RegExp(
+  '^/api/(?:' +
+    [
+      'config',
+      'public/drive/[^/]+',
+      'public/diagrams/[^/]+',
+      'diagrams(?:/[^/]+(?:/(?:move|share))?)?',
+      'folders(?:/[^/]+(?:/move)?)?',
+      'tree-manifest'
+    ].join('|') +
+    ')$'
+);
+
 app.use('*', secureHeaders());
+// Unknown /api/* paths 404 BEFORE auth. With auth first, scanner traffic
+// (/api/.env, /api/v1/…) got a 401 — or a 500 "Server auth misconfigured"
+// wherever AUTH_MODE=shared-token runs without its secret, which is how
+// production answered bot probes with 5xx (2026-09-30 Cloudflare review). The
+// route table is public (open source), so a 404 ahead of auth discloses nothing.
+app.use('/api/*', async (c, next) => {
+  if (!KNOWN_API_PATH.test(new URL(c.req.url).pathname)) {
+    return c.json({ error: 'Not found' }, 404);
+  }
+  await next();
+});
 app.use(
   '/api/*',
   bodyLimit({
@@ -181,6 +212,8 @@ app.get('/api/public/drive/:fileId', async (c) => {
   });
 });
 
+// Only KNOWN_API_PATH reaches here — in practice the storage surface, which a
+// storage-less Worker cannot serve.
 app.all('/api/*', (c) =>
   c.json({ error: 'Server storage is disabled' }, 503)
 );
