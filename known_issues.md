@@ -8492,9 +8492,20 @@ still request plain http, so they hit it.
    origin and failed with 522.
 
 Most of the 4xx are not the app. Cloudflare's bot protection answers some
-scripted clients with a 403 challenge page, and `_redirects` returns a 404
-for every probe path. `/favicon.ico` and `/.well-known/security.txt` were
+scripted clients with a 403 challenge page, and Pages answers every probe
+path with the 404 page. `/favicon.ico` and `/.well-known/security.txt` were
 real misses.
+
+The deploy log surfaced two more problems, both fixed on the same branch:
+
+- **`_redirects` held a dead rule.** Its `/* /404.html 404` line was rejected
+  as invalid on every deploy, because a 404 is not a redirect status. Pages
+  already serves the top-level `404.html` with a 404 status on its own, so
+  the line was removed.
+- **A test file was published.** The i18n copy rule in `rsbuild.config.ts`
+  also copied `src/i18n/__tests__/`, so
+  `/i18n/app/__tests__/localeKeyParity.contract.test.ts` was live. That
+  directory is now ignored by the copy.
 
 **Fix:** `app.ts` now answers any path outside `KNOWN_API_PATH` (the Worker's
 own two routes plus the Docker backend's storage table) with a 404 **before**

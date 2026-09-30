@@ -16,5 +16,9 @@
 # /app needs no rule: Pages serves app.html at /app via clean URLs.
 /app/*       /app                  200
 
-# Anything else that is not a real file is a genuine 404 (not the landing).
-/*           /404.html             404
+# Anything else that is not a real file is a genuine 404 (not the landing), and
+# that needs no rule here. Pages rejects `/* /404.html 404` (a redirect status
+# must be 200/301/302/303/307/308) and logs it as invalid on every deploy. Pages
+# already answers unmatched paths with the top-level build/404.html and a 404
+# status. Keep that file: without it, Pages falls back to SPA mode and serves the
+# landing with a 200.

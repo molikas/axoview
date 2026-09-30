@@ -89,6 +89,10 @@ export default defineConfig({
             {
                 from: './src/i18n',
                 to: 'i18n/app',
+                // Locale JSON only. src/i18n/__tests__ holds the key-parity
+                // contract test, which was being published on the live site at
+                // /i18n/app/__tests__/.
+                globOptions: { ignore: ['**/__tests__/**'] },
             },
         ]
     }
