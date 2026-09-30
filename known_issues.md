@@ -8467,7 +8467,7 @@ source.
 **Found by:** the 2026-09-30 review of the Cloudflare dashboard and Google
 Search Console, confirmed with live requests the same day.
 
-**Symptom:** Cloudflare reported a 2.04% 5xx rate (130 a week) and a 42.9% 4xx
+**Symptom:** Cloudflare analytics showed a steady 5xx rate and a high 4xx
 rate, and Search Console listed `http://www.axoview.app/` as "Server error
 (5xx)". Live: `GET /api/foo` → `500 {"error":"Server auth misconfigured"}`,
 `/api/public/diagrams/<id>` → 503, `http://www.axoview.app/` → 522 on every
@@ -8484,17 +8484,17 @@ still request plain http, so they hit it.
    so the middleware answers each one with the fail-closed 500. Paths that
    passed auth fell into the 503 storage sink instead, which also counts
    as 5xx.
-2. **Config — open.** The `AUTH_SHARED_SECRET` secret is missing from the
-   Production environment (deployment.md C2 says to set it). The storage
-   routes still return 500 to probes until it is set.
-3. **Dashboard — open.** The www → apex redirect only matches https.
-   "Always Use HTTPS" is off, so plain-http www requests go to the origin
-   and fail with 522.
+2. **Config — fixed in the dashboard.** The `AUTH_SHARED_SECRET` secret was
+   missing from the Production environment (deployment.md C2 says to set
+   it). Until it was set, the storage routes returned 500 to probes.
+3. **Dashboard — fixed.** The www → apex redirect only matched https, and
+   "Always Use HTTPS" was off. Plain-http www requests therefore went to the
+   origin and failed with 522.
 
-Most of the 4xx are not the app at all. Bot Fight Mode answers non-browser
-clients with a 403 Managed Challenge page (plain `curl` gets one on `/`), and
-`_redirects` returns a 404 for every probe path. `/favicon.ico` and
-`/.well-known/security.txt` were real misses.
+Most of the 4xx are not the app. Cloudflare's bot protection answers some
+scripted clients with a 403 challenge page, and `_redirects` returns a 404
+for every probe path. `/favicon.ico` and `/.well-known/security.txt` were
+real misses.
 
 **Fix:** `app.ts` now answers any path outside `KNOWN_API_PATH` (the Worker's
 own two routes plus the Docker backend's storage table) with a 404 **before**
@@ -8506,14 +8506,10 @@ and `_headers` gained HSTS plus `immutable` caching for the hashed `/static/*`.
 **Workaround:** none needed. The failing responses only reached bots and
 crawlers.
 
-**Status:** Code fixed on branch `fix/cloudflare-review-2026-09-30`
+**Status:** Fixed in 5499c885 (Worker) and 6226cd24 (static files)
 (2026-09-30). The ops side was done the same day:
 
 - **The www redirect is fixed.** `http://www.axoview.app/` now 301s to
   `https://axoview.app/`, and Search Console's Validate Fix has started.
 - **The secret is set in Production.** It only reaches deployments built
   after it was set, so it takes effect on the next production deploy.
-- **Preview has no `AUTH_SHARED_SECRET`.** Preview builds therefore still
-  answer a *real* storage route with the fail-closed 500. Unknown paths get a
-  404 there too, because the route check does not depend on the secret.
-  Harmless, but add the secret to Preview as well if a 401 is wanted there.

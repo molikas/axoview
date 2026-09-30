@@ -1,6 +1,6 @@
 # Axoview — Architecture Reference
 
-**Last updated:** 2026-08-21 (rev 31 — header changelog collapsed to this line; the ADR count and the test totals replaced with pointers to the files that measure them) · revision history: `git log --follow docs/guidelines/architecture.md`
+**Last updated:** 2026-09-30 (rev 32 — Lessons Learned §4.16: a Worker `/api/*` route must also be listed in `KNOWN_API_PATH`) · revision history: `git log --follow docs/guidelines/architecture.md`
 **Codebase root:** `packages/axoview-lib/src` (library) · `packages/axoview-app/src` (application shell) · `packages/axoview-backend/src` (Express + fs adapter) · `packages/axoview-worker/src` (Hono + Cloudflare Pages Functions)
 
 **Purpose:** This is the **orientation map** — what the codebase contains and where each piece lives, tight enough to read in five minutes before touching a surface. It is deliberately *not* the comprehensive reference: decisions live in ADRs, the deep architectural narrative + file-by-file inventory + KPIs live in the frozen technical review, the test catalogue lives in `testing.md`, and runtime issues live in `known_issues.md`. Each section below points to its deeper source.
@@ -379,6 +379,8 @@ Durable "don't re-introduce this" knowledge — non-obvious fixes whose *why* is
 14. **Stacking-context trap: `transform: translateZ(0)` on Axoview's outer Box (2026-05-09)** — any non-`none` transform creates a stacking context, trapping inner z-indexes (LeftDock 20, BottomDock 20) so an app-level sibling at `zIndex:5` (`EmptyStateScreen`) wins regardless. **Fix is geometric, not z-index:** position overlays to leave the chrome's pixels uncovered (`top:0,left:40,right:0,bottom:40`). A second trap: `.axoview-container > div { height:100% }` in `App.css` overrode inline `bottom:40` on the new siblings (removed). Heuristic: if you're fighting z-index across the `Axoview` boundary, reach for geometric exclusion. (Referenced by [ux-principles §8.4](ux-principles.md).)
 
 15. **Unroutable connectors are now visible** — `syncConnector` wraps `getConnectorPath` in try/catch, emits `console.warn`, sets `unroutable=true`, and `<Connector>` renders a dashed-red indicator. Previously these were silent zero-size ghosts.
+
+16. **A Worker `/api/*` route must also be listed in `KNOWN_API_PATH` (2026-09-30)** — with auth running first, scanner probes (`/api/.env`, `/api/v1/…`) reached the auth middleware, which fails closed with a 500 when shared-token mode has no secret; that was production's state. Fix: `packages/axoview-worker/src/app.ts` now 404s any `/api/*` path outside `KNOWN_API_PATH` *before* auth. Consequence: a route registered in `app.ts` but not in that table 404s. Routes outside `/api/*` (such as `/mcp`, `/pair`) are not gated.
 
 ---
 

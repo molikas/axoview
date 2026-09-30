@@ -1,15 +1,15 @@
 # Regression Test Suite Reference
 
-**Last updated:** 2026-09-24 (rev 2 — new contract "Testing against the Docker image" (ADR 0048), and the sharding section's second invariant corrected: the bridge is gated at runtime, not tree-shaken; rev 1 the same day — `server.wiring.spec.js` gains the deployment's-own-origin leg; previous rev 2026-08-21 promoted the durable CI, gate and canvas contracts above the catalogue, collapsed the wave-by-wave record into `## Suite history` and added the section index)
-**Unit / integration totals** (measured 2026-08-08 via per-workspace `npm test`):
+**Last updated:** 2026-09-30 (rev 1 — totals re-measured; the Worker's `app.spec.ts` probe-input block now expects `404` for unknown `/api/*` paths in every auth mode, including shared-token with no secret; previous rev 2026-09-24 added the contract "Testing against the Docker image" (ADR 0048))
+**Unit / integration totals** (measured 2026-09-30 via `npm test -- --coverage` across the workspaces):
 
 | Workspace | Passing | Suites |
 |---|---|---|
-| `axoview-lib` | 2346 (+1 skipped) | 199 |
-| `axoview-app` | 555 | 50 |
-| `axoview-backend` | 134 | 9 |
-| `axoview-worker` | 129 | 4 |
-| **Total** | **3164 (+1 skipped)** | **262** |
+| `axoview-lib` | 2384 (+1 skipped) | 205 |
+| `axoview-app` | 566 | 52 |
+| `axoview-backend` | 137 | 9 |
+| `axoview-worker` | 147 | 4 |
+| **Total** | **3234 (+1 skipped)** | **270** |
 
 **End-to-end:** 286 Playwright specs, 38.4 min, exit 0 (2026-08-08).
 

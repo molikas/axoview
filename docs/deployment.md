@@ -184,7 +184,7 @@ curl -i "$BASE/api/nope"            # 404 — not an Axoview route, answered bef
 
 With `AUTH_MODE=shared-token`, `/api/config` remains unauthenticated so the SPA can boot. Every other `/api/*` route requires the bearer token (`GET /api/public/diagrams/:uuid` is also public, but is the read-only share-snapshot route, not a boot probe). Paths outside the Axoview route table 404 before auth runs, so scanner traffic never reaches the auth middleware. Still set the secret: a missing one turns every probe of a real storage route into a `500 Server auth misconfigured`.
 
-With Bot Fight Mode on, plain `curl` gets a `403` challenge page instead of these responses. Pass a browser `User-Agent` (`curl -A 'Mozilla/5.0 …'`) to smoke-test through it.
+If the zone has Cloudflare bot protection enabled, a scripted request may get a challenge page (`403`) instead of the app's response.
 
 ### C6. One-click "Deploy to Cloudflare"
 
