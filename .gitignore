@@ -46,3 +46,6 @@ packages/axoview-app/src/assets/material-icons-pack.json
 # perf-results/baseline.md + perf-results/decision-log.md)
 perf-results/raw/
 packages/axoview-e2e/perf/perf-test-results/
+
+# CodeGraph index (local to each machine)
+.codegraph/
