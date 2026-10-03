@@ -107,13 +107,14 @@ Ship the turntable view rotation: free-angle, per instance, correct for off-grid
 - [x] Add a `viewRotationControls` namespace to all 13 lib locales; add Help rows (keyboard and mouse); announce the angle via aria-live on settle.
 
 ### G. Verification
-- [ ] Unit tests per each ADR's acceptance criteria; `tsc`, lint, and both lib and app builds.
-- [ ] E2E: rotated select, drag, resize and lasso; display-route default; no dirty state for viewers; export at both angles.
-- [ ] A real-GPU browser pass (not SwiftShader) with screenshots at 0°, 37°, 90° and 180°.
+- [x] Unit tests per each ADR's acceptance criteria; `tsc`, lint, and both lib and app builds.
+- [x] E2E: rotated select, drag, resize and lasso; display-route default; no dirty state for viewers; export at both angles.
+- [x] A real-GPU browser pass (not SwiftShader) with screenshots at 0°, 37°, 90° and 180°.
 
 ### H. Docs at ship
-- [ ] `/feature extend 0022` for the Alt+drag orbit, and `/feature extend 0038` for the grid pass and the motion transform.
-- [ ] Add entries to canvas-interaction.md and canvas-rendering-guidelines.md; flip ADRs 0049–0051 to Accepted.
+- [x] `/feature extend 0022` for the Alt+drag orbit, and `/feature extend 0038` for the grid pass and the motion transform.
+- [x] Add entries to canvas-interaction.md and canvas-rendering-guidelines.md.
+- [ ] Flip ADRs 0049–0051 to Accepted — after the owner's CI/browser review and the open TODOs (step size, perf thresholds, Present angle) are resolved.
 
 ## Wrap-up
 

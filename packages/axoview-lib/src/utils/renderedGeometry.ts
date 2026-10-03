@@ -64,15 +64,6 @@ import type {
 } from 'src/utils/coordinateTransforms';
 import { isoPlaneMatrix, rotationTrig } from 'src/utils/viewRotation';
 
-/** The projection accessor every consumer already has (`useCanvasMode()`). */
-export type TilePositionFn = (args: {
-  tile: Coords;
-  origin?: TileOrigin;
-}) => Coords;
-
-/** The projected TILE-SPACE corner accessor (`useCanvasMode().getTileCorner`). */
-export type TileCornerFn = (args: { tile: Coords; corner: TileCorner }) => Coords;
-
 /**
  * What every composer here takes: the projection strategy, which carries θ.
  * Only these members are read, so a test double needs no more than them.
