@@ -81,6 +81,24 @@ otherwise rasterise at 6× = 36× area). The node atlas is **8192²**, capped to
 clamped to `MAX_TEXTURE_SIZE`. Backing-store dimensions are the caller's concern
 (see the deferred viewport clamp, §Deferred).
 
+**2026-10-03:** View rotation ([ADR 0049 §6](0049-view-rotation-camera-and-projection-model.md),
+[ADR 0050 §5–§6](0050-view-rotation-render-and-legibility-policy.md)) holds §5 and
+extends the substrate three ways. **(a) Motion is a uniform.** While a rotation is
+in motion, the instances built at the settled angle θ₀ are carried to the live
+angle by a `u_motion` mat2 uniform `M(θ − θ₀)`: ground-plane instances turn
+whole, billboards move only their anchor. An instance's class rides in
+`i_misc.x` (bit value 2 = billboard) and a billboard's vertical screen offset
+from its ground anchor in `i_misc.z`, so the 80-byte stride is unchanged.
+`buildInstances` runs once at settle (and at bounded re-baselines on a long
+orbit), never per frame; `measureRotate` (`PERF_ROTATE`) asserts zero builds in
+motion and a build delta equal to the settle count. **(b) The grid is a pass in
+this context** — one full-screen procedural triangle after the clear and before
+the bulk, with pan, zoom and rotation as uniforms. It replaced the SVG background
+tiles, so pixel probes that count *content* ignore grid ink (alpha ≤ 38, the
+e2e `GRID_INK_ALPHA_MAX`). **(c) Export renders at export resolution:** the hidden
+export instance draws at `dpr = export scale` (renderer `pixelRatio`), within the
+§6 clamps.
+
 ## Deferred (recorded, not yet shipped)
 
 These were scoped in the productization audit and deliberately deferred; each is

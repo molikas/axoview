@@ -29,6 +29,9 @@ Each numbered rule below is one hard-won finding: **symptom → root cause → r
 13. [Connector arrows live on the ground plane](#13-connector-arrows-live-on-the-ground-plane-not-facing-the-screen)
 14. [Stacked WebGL canvases need a full-area overlay](#14-stacked-webgl-canvases-need-a-full-area-overlay-so-chrome-recomposites-them)
 15. [Layer visibility/lock re-applied in every paint layer](#15-layer-visibilitylock-lives-only-in-uselayercontext--every-bulk-canvas-and-handle-overlay-must-re-apply-the-filter)
+16. [View rotation in motion is a uniform — build at the settled angle](#16-view-rotation-in-motion-is-a-uniform--build-at-the-settled-angle-draw-relative-to-the-built-one)
+17. [Floor-readable content keeps upright; billboards never shear](#17-floor-readable-content-keeps-upright-billboards-never-shear)
+18. [The grid is a pass in the scene canvas — pixel probes must ignore its ink](#18-the-grid-is-a-pass-in-the-scene-canvas--pixel-probes-must-ignore-its-ink)
 
 [Deferred ADR 0038 items](#deferred-adr-0038-items) · [Reference implementations](#reference-implementations) · [When this document is wrong](#when-this-document-is-wrong)
 
@@ -185,7 +188,7 @@ Reference: arrow emission in [`connectorEmitter`](../../packages/axoview-lib/src
 
 **Root cause:** the geometry-rebuild effect omitted `strategy.projectionName`, so the GPU chip kept the *old* projection's position while the DOM hit-proxy moved to the new one.
 
-**Rule:** any GPU layer whose geometry is tile→scene **projected** must list `strategy.projectionName` in its rebuild deps (mirror `NodesCanvas`). A DOM hit-proxy and its GPU paint must share **one** projection, or they drift apart — a hybrid-boundary invariant (ADR 0038 §2).
+**Rule:** any GPU layer whose geometry is tile→scene **projected** must list the projection **strategy** in its rebuild deps — its identity, not `strategy.projectionName`: since view rotation ([ADR 0049](../adr/0049-view-rotation-camera-and-projection-model.md)) the angle changes the projection without changing the name. A DOM hit-proxy and its GPU paint must share **one** projection, or they drift apart — a hybrid-boundary invariant (ADR 0038 §2).
 
 Reference: rebuild-effect deps in [`SceneCanvas`](../../packages/axoview-lib/src/components/SceneLayers/SceneCanvas.tsx) — one effect for the whole bulk since the ADR 0038 §8 merge.
 
@@ -323,6 +326,36 @@ Reference: [`CanvasCompositorOverlay.tsx`](../../packages/axoview-lib/src/compon
 **Rule:** any component that **paints** an entity (every `*Canvas` bulk layer) or **exposes an interactive affordance** for it (selection handles, anchor overlays, transform/resize/rotate controls) must re-apply the layer filter itself — it is never inherited from the sibling that happens to filter. Paint layers skip on `visibleIds.size > 0 && !visibleIds.has(id)` (the `size === 0` escape hatch = no layers configured); affordance layers use the codebase-wide interactable invariant `!lockedIds.has(id) && (visibleIds.size === 0 || visibleIds.has(id))` (same predicate as `useInteractionManager` / `usePanHandlers`). A **locked** layer's element may still be *selected* (from the Layers list, to inspect / re-layer / unlock) — so render the selection ring but withhold every transform handle (draw.io / PowerPoint / Canva parity), never a live-editable selection. Add `visibleIds` (and `lockedIds` for affordances) to the geometry-rebuild deps so a visibility/lock toggle rebuilds.
 
 Reference: the `buildDrawOrder` filter + rebuild deps in [`SceneCanvas`](../../packages/axoview-lib/src/components/SceneLayers/SceneCanvas.tsx); the overlay gate in [`ConnectorAnchorOverlay`](../../packages/axoview-lib/src/components/ConnectorAnchorOverlay/ConnectorAnchorOverlay.tsx); the handle gate in [`TransformControlsManager`](../../packages/axoview-lib/src/components/TransformControlsManager/TransformControlsManager.tsx) (`showHandles={!lockedIds.has(id)}`); invariant source in [`useInteractionManager`](../../packages/axoview-lib/src/interaction/useInteractionManager.ts).
+
+---
+
+## 16. View rotation in motion is a uniform — build at the settled angle, draw relative to the built one
+
+**Symptom (POC):** every angle step rebuilt every instance and re-rendered every `useCanvasMode()` consumer — 30–60 fps at 1k nodes, 120–250 ms frames at 20k (ADR 0049 finding F3).
+
+**Root cause:** the angle was part of the geometry, so a moving angle was a moving scene.
+
+**Rule:** the bulk is built at the **settled** angle θ₀ (the context strategy); a rotation in motion is the `u_motion` uniform `M(θ − θ₀)` — ground-plane instances turn whole, billboards move only their anchor — and DOM content layers follow by a CSS `matrix()` on their `SceneLayer` (`rotationMotion`). Draw relative to the angle the instances were **actually built at**, not the store's `viewRotationBase`: between a settle and the rebuild it triggers the two differ, and only the built angle keeps that frame exact. Interaction-only layers (`rotationMotion="pause"`) hide in motion and re-sync at settle. A new billboard emitter must pass `billboardDy` (its vertical float above its ground anchor) or it will shear and drift while the view turns. `PERF_ROTATE` asserts zero builds in motion.
+
+Reference: [`SceneCanvas`](../../packages/axoview-lib/src/components/SceneLayers/SceneCanvas.tsx) (`builtRotation`), [`glSpriteBatch`](../../packages/axoview-lib/src/webgl/glSpriteBatch.ts) (`u_motion`, `i_misc.x` class bit), [`SceneLayer`](../../packages/axoview-lib/src/components/SceneLayer/SceneLayer.tsx).
+
+---
+
+## 17. Floor-readable content keeps upright; billboards never shear
+
+**Rule:** there are three element classes under rotation ([ADR 0050 §1](../adr/0050-view-rotation-render-and-legibility-policy.md)). **Ground plane** (grid, rectangles, connectors, footprints, ink) turns with the floor. **Billboards** (iso sprites, chips, stalks, labels, popovers, handles) move their anchor and stay screen-aligned. **Floor-readable** content (text boxes, flat icons) turns with the floor and is then drawn rotated 180° in its own plane when its reading direction points left — `keepUprightFlip`, one predicate with a 10° hysteresis band, read from `useCanvasMode().uprightFlip` by both the DOM matrix and the WebGL quad. Never mirror (the determinant must stay positive) and never change the footprint: hit areas and selection frames must not notice the flip.
+
+Reference: [`viewRotation.ts`](../../packages/axoview-lib/src/utils/viewRotation.ts) (`keepUprightFlip`), [`useIsoProjection`](../../packages/axoview-lib/src/hooks/useIsoProjection.ts) (`keepUpright`), [`nodeEmitter`](../../packages/axoview-lib/src/webgl/scene/nodeEmitter.ts) (flat-icon flip).
+
+---
+
+## 18. The grid is a pass in the scene canvas — pixel probes must ignore its ink
+
+**Symptom (POC):** a Canvas2D grid stroked per line shimmered (peak alpha varied ~4× at ~38°) and popped when switching back to the SVG tile at 0°.
+
+**Rule:** the grid is one procedural full-screen pass in the scene's WebGL context ([ADR 0050 §5](../adr/0050-view-rotation-render-and-legibility-policy.md)): each pixel goes back to tile space through the inverse of the **live** view, lines use `fwidth` coverage at a constant screen width, and a family fades out as its cells approach a pixel. One path at every angle and in both projections, so nothing pops. Because it draws into the same canvas as the content, any e2e probe that asks "did **content** paint here?" must count only pixels above the grid's ink (alpha ≤ 38 — `GRID_INK_ALPHA_MAX` in [`helpers/sceneCanvas.ts`](../../packages/axoview-e2e/helpers/sceneCanvas.ts)). Export renders the canvas at `dpr = export scale` so the grid and every other GPU element capture crisp ([ADR 0050 §6](../adr/0050-view-rotation-render-and-legibility-policy.md)).
+
+Reference: [`glSpriteBatch`](../../packages/axoview-lib/src/webgl/glSpriteBatch.ts) (`GRID_FRAG_SRC`), [`gridPass.ts`](../../packages/axoview-lib/src/webgl/scene/gridPass.ts).
 
 ---
 

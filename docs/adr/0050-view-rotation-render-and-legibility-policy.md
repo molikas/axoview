@@ -27,7 +27,7 @@ Rotating the floor raises five visual questions that the POC answered only in pa
 - Everything else that carries text is already a billboard: node name chips and stalks, floating labels, connector labels, the view-mode popover, link cards and menus.
 
 **The grid shimmers and pops.**
-- Today's grid is a repeating SVG background ([`Grid.tsx`](../../packages/axoview-lib/src/components/Grid/Grid.tsx)): black at 15 % opacity, one SVG unit wide and scaled by zoom, so lines thin and fade as you zoom out.
+- Today's grid is a repeating SVG background (`Grid.tsx`, removed by §5 below — see git history): black at 15 % opacity, one SVG unit wide and scaled by zoom, so lines thin and fade as you zoom out.
 - An SVG tile cannot represent a rotated lattice. The POC therefore hides it when θ ≠ 0 and strokes every line on a Canvas2D instead: 1.5 px at 11 %, capped at 600 lines per axis, with a full redraw on every pan and zoom.
 - Measured on the POC, peak alpha per line varies up to ~4× at ~38° because each line lands at a different sub-pixel phase.
 - Switching back to the SVG at exactly 0° is a visible jump. With free resting angles, that happens every time a user drags across 0°.

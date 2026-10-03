@@ -21,8 +21,8 @@ Read the section that covers the code you're about to change — the invariants 
 1. [The dispatch spine](#1-the-dispatch-spine) — the one pipeline every canvas gesture flows through
 2. [The `isRendererInteraction` gate](#2-the-isrendererinteraction-gate) — what separates canvas input from chrome input
 3. [The load-bearing layout](#3-the-load-bearing-layout) — the DOM stack the hit-testing depends on
-4. [Mode registry](#4-mode-registry) — the 13 modes, and the four that carry contracts: [CURSOR](#41-cursor--the-hub) · [DRAG_ITEMS](#42-drag_items--the-css-preview-move) · [CONNECTOR](#43-connector--create) · [PAN](#44-pan--and-the-read-only-click-surface) · [keybindings](#45-keybindings)
-5. [Algorithm contracts](#5-algorithm-contracts) — screen→tile, node-drag collision, nearest-free-tile, group-drag math, the connector router, anchor and item hit-testing, 2D ↔ ISO parity, and the [new-element checklist](#59-per-element-interaction-contract--the-new-element-checklist)
+4. [Mode registry](#4-mode-registry) — the 14 modes, and the five that carry contracts: [CURSOR](#41-cursor--the-hub) · [DRAG_ITEMS](#42-drag_items--the-css-preview-move) · [CONNECTOR](#43-connector--create) · [PAN](#44-pan--and-the-read-only-click-surface) · [keybindings](#45-keybindings) · [VIEW_ROTATE](#46-view_rotate--the-alt--drag-orbit)
+5. [Algorithm contracts](#5-algorithm-contracts) — screen→tile, node-drag collision, nearest-free-tile, group-drag math, the connector router, anchor and item hit-testing, 2D ↔ ISO parity, the [new-element checklist](#59-per-element-interaction-contract--the-new-element-checklist), and [projecting under view rotation](#510-projecting-under-view-rotation--the-live-strategy)
 6. [Perf invariants — the load-bearing set](#6-perf-invariants--the-load-bearing-set) — the [CSS-only drag preview](#61-the-css-only-drag-preview--the-most-fragile-invariant-set) (most fragile), drag transactions, the closed-form router, render isolation, the [open GC cliff](#65-the-open-gc-cliff--do-not-worsen), RAF throttle, how to measure
 7. [Selection invariants](#7-selection-invariants) — what must stay true across every selection path
 8. [Abort / commit semantics](#8-abort--commit-semantics) — including [undo/redo as two independent patch stacks](#81-undoredo-is-two-independent-patch-stacks)
@@ -99,7 +99,7 @@ where `rendererRef.current` is the **`canvas-interactions` Box** and `isAnchorOv
 
 ## 4. Mode registry
 
-`modes` maps **13** reducer keys to `ModeActions` ([`interaction/modes/`](../../packages/axoview-lib/src/interaction/modes/)). `INTERACTIONS_DISABLED` is a **14th** state with no reducer — the input effect early-returns and binds **no listeners at all** (`NON_INTERACTIVE`). Preserve that guard.
+`modes` maps **14** reducer keys to `ModeActions` ([`interaction/modes/`](../../packages/axoview-lib/src/interaction/modes/)). `INTERACTIONS_DISABLED` is a **15th** state with no reducer — the input effect early-returns and binds **no listeners at all** (`NON_INTERACTIVE`). Preserve that guard.
 
 | Mode | Drag-txn? | Model writes | Commits on |
 |---|---|---|---|
@@ -114,6 +114,7 @@ where `rendererRef.current` is the **`canvas-interactions` Box** and `isAnchorOv
 | `LABEL` | no (not needed) | `mousemove` is a **no-op** | mouseup (`createLabel`) |
 | `PLACE_ICON` | no (one `transaction`) | none until commit | mouseup (`placeIcon`) |
 | `PAN` | n/a | none (scroll only) | n/a |
+| `VIEW_ROTATE` | n/a | **none** — uiState angle only (§4.6) | mouseup (settle) |
 | `INTERACTIONS_DISABLED` | — | — | no listeners bound |
 
 ### 4.1 CURSOR — the hub
@@ -143,6 +144,12 @@ The perf-critical mode. `entry` opens a **drag transaction** and clears the prev
 Dispatch order matters — earlier handlers consume. `Escape` (panel-clear → selection-clear → connector-abort) and `Delete`/`Backspace` run **before** the editable-target guard; everything below is **skipped on INPUT / TEXTAREA / contentEditable / `.ql-editor`**: undo/redo, cut/copy/paste, Ctrl+A, F1/F2, tool hotkeys (`s m n r c t`), Ctrl+`]`/`[` z-order, and arrow/wasd/ijkl pan.
 
 **The keydown effect's dep array is a perf invariant** — scene/layer are read through refs to keep it stable. Guarded by `interactionManager.depStability.test.tsx`.
+
+**Q / E** (Shift: next cardinal angle) step the view 15° ([ADR 0049 §7](../adr/0049-view-rotation-camera-and-projection-model.md)) through `handleViewRotationKeys` — a `viewer` surface in `readonlyPolicy.ts`, so it runs in read-only too; isometric only.
+
+### 4.6 VIEW_ROTATE — the Alt + drag orbit
+
+Entered **by the manager, never by a mode**: `onMouseEvent` holds back an Alt+left press on the bare interactions box in an idle mode (CURSOR, or the viewer's PAN) in the isometric view. Past the drag slop it `setMode`s `VIEW_ROTATE` and falls through, so the dispatcher runs the mode's `entry` (begin motion) and the move; released inside the slop, the held press is **replayed** as an ordinary click — which is what keeps Alt+click waypoint removal (§4.1) alive. The mode turns ≈ 0.4° per horizontal px (Shift snaps to 15°), re-baselines at a bounded interval on a long orbit, and on `mouseup` lands on the release point, settles once and returns to the mode it came from. It writes **no model state**. A canvas press during a rotation step animation lands the animation first ([ADR 0022 §1 addendum](../adr/0022-canvas-pointer-interaction-model.md)).
 
 ---
 
@@ -215,6 +222,12 @@ Every placeable element must be wired into the **same set of surfaces**, and the
 7. **Off-grid (ADR 0023)** — if it can be unsnapped, thread its `offset` through the render layer, the transform-controls frame (`TransformControls` `offset` prop), and the drag preview/commit.
 
 ---
+
+### 5.10 Projecting under view rotation — the live strategy
+
+The projection is a **value** built from (mode, θ) ([ADR 0049 §2](../adr/0049-view-rotation-camera-and-projection-model.md)). React consumers read the **settled** angle through `useCanvasMode().strategy`; the interaction pipeline projects at the **live** angle — `State.strategy`, built per event by the manager (`stateStrategy(state)` in a mode, `getLiveStrategy(uiState)` in a hook). Never pass a `canvasMode` to a projecting utility, and never default a projection parameter: either one silently falls back to the unrotated map. Offsets are **written** through `strategy.offsetFromRender` (M(−θ)) and **composed** only in `renderedGeometry.ts` (M(θ)).
+
+**The one-sample pointer lag.** A mode's `uiState` is the snapshot taken *before* the manager writes the event's pointer sample, so `uiState.mouse` is the **previous** sample. The established modes are tuned around it (dense pointer streams make it invisible; synthetic e2e drags repeat their last move). A mode that must land exactly on the release point reads `State.pointer` — this event's own sample — as `VIEW_ROTATE` does.
 
 ## 6. Perf invariants — the load-bearing set
 
