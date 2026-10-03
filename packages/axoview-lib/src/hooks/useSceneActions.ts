@@ -936,7 +936,10 @@ export const useSceneActions = () => {
   );
 
   const updateView = useCallback(
-    (viewId: string, updates: Partial<Pick<View, 'name'>>) => {
+    (
+      viewId: string,
+      updates: Partial<Pick<View, 'name' | 'defaultRotation'>>
+    ) => {
       return withHistory(() => {
         const newState = reducers.view({
           action: 'UPDATE_VIEW',

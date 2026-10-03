@@ -40,6 +40,9 @@ const locale: LocaleProps = {
     zoomOutAction: 'জুম আউট করুন',
     zoomOutShortcut: 'মাউস হুইল নিচে',
     zoomOutDescription: 'ক্যানভাস থেকে জুম আউট করুন',
+    rotateViewAction: 'ভিউ ঘোরান',
+    rotateViewShortcut: 'Q / E (Shift: এক-চতুর্থাংশ ঘূর্ণন)',
+    rotateViewDescription: 'আইসোমেট্রিক মেঝে 15° ঘড়ির কাঁটার বিপরীতে (Q) বা দিকে (E) ঘোরান; Shift পরবর্তী এক-চতুর্থাংশ ঘূর্ণনে নিয়ে যায়',
     panCanvasAction: 'ক্যানভাস প্যান করুন',
     panCanvasShortcut: 'বাম-ক্লিক + টেনে আনুন',
     panCanvasDescription: 'প্যান মোডে ক্যানভাস প্যান করুন',
@@ -134,7 +137,10 @@ const locale: LocaleProps = {
       'একটি কানেক্টর ওয়েপয়েন্ট সরাতে Alt+ক্লিক করুন (প্রথমে কানেক্টর নির্বাচন করার দরকার নেই); প্রান্তের অ্যাঙ্কর সংরক্ষিত থাকে।',
     miZoomAction: 'জুম',
     miZoomMethod: 'স্ক্রল হুইল',
-    miZoomDescription: 'কার্সারের দিকে জুম করতে স্ক্রল করুন।'
+    miZoomDescription: 'কার্সারের দিকে জুম করতে স্ক্রল করুন।',
+    miRotateViewAction: 'ভিউ ঘোরান',
+    miRotateViewMethod: 'Alt + টেনে আনা',
+    miRotateViewDescription: 'আইসোমেট্রিক মেঝের চারপাশে ঘোরান; 15°-এ স্ন্যাপ করতে Shift ধরে রাখুন। টেনে না নিয়ে Alt + ক্লিক এখনও একটি ওয়েপয়েন্ট সরায়।'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'টিপ: সংযোগকারী তৈরি করা',
@@ -413,6 +419,17 @@ const locale: LocaleProps = {
     help: 'সাহায্য (F1)',
     selected: '{count}টি নির্বাচিত'
   },
+  viewRotationControls: {
+    groupLabel: 'ভিউ ঘোরানো',
+    rotateCounterClockwise: 'ভিউ ঘড়ির কাঁটার বিপরীত দিকে ঘোরান (Q)',
+    rotateClockwise: 'ভিউ ঘড়ির কাঁটার দিকে ঘোরান (E)',
+    resetToDefault: 'ভিউ কোণ {angle} — পৃষ্ঠার ডিফল্টে ({default}) ফিরতে ক্লিক করুন',
+    atDefault: 'ভিউ কোণ {angle} (পৃষ্ঠার ডিফল্ট)',
+    setAsPageDefault: 'পৃষ্ঠার ডিফল্ট হিসেবে সেট করুন',
+    setAsPageDefaultHint: 'সবার জন্য এই পৃষ্ঠা {angle} কোণে খুলুন — এক ধাপে পূর্বাবস্থায় ফেরানো যায়',
+    disabledIn2D: 'ভিউ ঘোরানো আইসোমেট্রিক ভিউতে উপলব্ধ',
+    announce: 'ভিউ কোণ {angle}'
+  },
   modeHints: {
     connector: 'সংযোগ করতে আইটেমগুলির মধ্যে টেনে আনুন • বাতিল করতে Esc',
     textBox: 'টেক্সট বক্স রাখতে ক্লিক করুন • বাতিল করতে Esc',
@@ -476,6 +493,9 @@ const locale: LocaleProps = {
   },
   exportImageDialog: {
     groupAppearance: 'Appearance',
+    angle: 'কোণ',
+    angleAsViewed: 'যেমন দেখা যাচ্ছে ({angle})',
+    anglePageDefault: 'পৃষ্ঠার ডিফল্ট ({angle})',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'ছবি হিসেবে রপ্তানি করুন',

@@ -94,17 +94,17 @@ Ship the turntable view rotation: free-angle, per instance, correct for off-grid
 - [x] Draw annotation ink through `M(θ)` with non-scaling strokes.
 
 ### E. Default angle, sharing and export (ADR 0051)
-- [ ] Add `defaultRotation` to `viewSchema`, with round-trip and old-client tests. Lean save omits it at 0.
-- [ ] "Set as page default": EDITABLE only, one undo step.
-- [ ] Apply the default on load, page switch and display routes; reset goes to the default; support `initialData.viewRotation`.
-- [ ] Add the export angle option. The hidden instance and the bounds use the chosen angle; the file explorer uses the default.
+- [x] Add `defaultRotation` to `viewSchema`, with round-trip and old-client tests. Lean save omits it at 0.
+- [x] "Set as page default": EDITABLE only, one undo step.
+- [x] Apply the default on load, page switch and display routes; reset goes to the default; support `initialData.viewRotation`.
+- [x] Add the export angle option. The hidden instance and the bounds use the chosen angle; the file explorer uses the default.
 
 ### F. Controls and UX (ADR 0049 §7)
-- [ ] Dock widget: new icons, readout as a button, no slider, disabled with a tooltip in 2D, and `view-rotation-*` test ids.
-- [ ] Q/E (plus Shift) in the keydown handler, classified `viewer` in `readonlyPolicy.ts`.
-- [ ] Alt+drag becomes an interaction mode with click/drag separation, rAF-coalesced, with Shift-snap. Delete `useViewRotationGesture.ts`.
-- [ ] Animations follow the shortest arc, respect `prefers-reduced-motion`, and a canvas press completes them.
-- [ ] Add a `viewRotationControls` namespace to all 13 lib locales; add Help rows (keyboard and mouse); announce the angle via aria-live on settle.
+- [x] Dock widget: new icons, readout as a button, no slider, disabled with a tooltip in 2D, and `view-rotation-*` test ids.
+- [x] Q/E (plus Shift) in the keydown handler, classified `viewer` in `readonlyPolicy.ts`.
+- [x] Alt+drag becomes an interaction mode with click/drag separation, rAF-coalesced, with Shift-snap. Delete `useViewRotationGesture.ts`.
+- [x] Animations follow the shortest arc, respect `prefers-reduced-motion`, and a canvas press completes them.
+- [x] Add a `viewRotationControls` namespace to all 13 lib locales; add Help rows (keyboard and mouse); announce the angle via aria-live on settle.
 
 ### G. Verification
 - [ ] Unit tests per each ADR's acceptance criteria; `tsc`, lint, and both lib and app builds.

@@ -210,7 +210,8 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
           load(data, opts);
           markClean();
         },
-        openExportImageDialog: () => {
+        openExportImageDialog: (options) => {
+          uiStateActions.setExportImageAngle(options?.angle ?? 'asViewed');
           uiStateActions.setDialog('EXPORT_IMAGE');
         }
       }),

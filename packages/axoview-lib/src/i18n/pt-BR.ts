@@ -40,6 +40,9 @@ const locale: LocaleProps = {
     zoomOutAction: 'Diminuir zoom',
     zoomOutShortcut: 'Roda do mouse para baixo',
     zoomOutDescription: 'Diminuir o zoom da tela',
+    rotateViewAction: 'Girar vista',
+    rotateViewShortcut: 'Q / E (Shift: quarto de volta)',
+    rotateViewDescription: 'Girar o piso isométrico 15° no sentido anti-horário (Q) ou horário (E); Shift salta para o próximo quarto de volta',
     panCanvasAction: 'Mover tela',
     panCanvasShortcut: 'Clique esquerdo + Arrastar',
     panCanvasDescription: 'Mover a tela no modo de movimentação',
@@ -136,7 +139,10 @@ const locale: LocaleProps = {
       'Alt+clique em um ponto de rota de um conector para removê-lo (sem precisar selecionar o conector primeiro); as âncoras das extremidades são preservadas.',
     miZoomAction: 'Zoom',
     miZoomMethod: 'Roda do mouse',
-    miZoomDescription: 'Role para aplicar zoom em direção ao cursor.'
+    miZoomDescription: 'Role para aplicar zoom em direção ao cursor.',
+    miRotateViewAction: 'Girar vista',
+    miRotateViewMethod: 'Alt + arrastar',
+    miRotateViewDescription: 'Orbitar o piso isométrico; segure Shift para encaixar em 15°. Alt + clique sem arrastar ainda remove um ponto intermediário.'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'Dica: Criar conectores',
@@ -419,6 +425,17 @@ const locale: LocaleProps = {
     help: 'Ajuda (F1)',
     selected: '{count} selecionados'
   },
+  viewRotationControls: {
+    groupLabel: 'Rotação da vista',
+    rotateCounterClockwise: 'Girar a vista no sentido anti-horário (Q)',
+    rotateClockwise: 'Girar a vista no sentido horário (E)',
+    resetToDefault: 'Ângulo da vista {angle} — clique para voltar ao padrão da página ({default})',
+    atDefault: 'Ângulo da vista {angle} (padrão da página)',
+    setAsPageDefault: 'Definir como padrão da página',
+    setAsPageDefaultHint: 'Abrir esta página em {angle} para todos — uma etapa de desfazer',
+    disabledIn2D: 'A rotação da vista está disponível na vista isométrica',
+    announce: 'Ângulo da vista {angle}'
+  },
   modeHints: {
     connector: 'Arraste entre os itens para conectar • Esc para cancelar',
     textBox: 'Clique para inserir uma caixa de texto • Esc para cancelar',
@@ -482,6 +499,9 @@ const locale: LocaleProps = {
   },
   exportImageDialog: {
     groupAppearance: 'Appearance',
+    angle: 'Ângulo',
+    angleAsViewed: 'Como exibido ({angle})',
+    anglePageDefault: 'Padrão da página ({angle})',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'Exportar como imagem',

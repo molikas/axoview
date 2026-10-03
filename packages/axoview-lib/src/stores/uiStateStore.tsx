@@ -140,6 +140,7 @@ const initialState = () => {
       viewRotation: 0,
       viewRotationBase: 0,
       viewRotationInMotion: false,
+      exportImageAngle: 'asViewed',
       snapToGrid: persisted?.snapToGrid ?? true,
       iconPackManager: null, // Will be set by Axoview if provided
       iconUsageScan: null, // Will be set by Axoview if provided
@@ -858,6 +859,19 @@ const initialState = () => {
               toCardinal ? 90 : VIEW_ROTATION_STEP_DEG
             )
           );
+        },
+        setExportImageAngle: (exportImageAngle) => {
+          set({ exportImageAngle });
+        },
+        jumpViewRotation: (degrees) => {
+          cancelRotationAnim();
+          if (get().viewRotationInMotion) {
+            set({
+              viewRotationInMotion: false,
+              viewRotationBase: get().viewRotation
+            });
+          }
+          get().actions.setViewRotation(degrees);
         },
         finishViewRotationAnimation: () => {
           if (!rotationAnim) return;

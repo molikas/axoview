@@ -72,6 +72,21 @@ export interface PanMode {
   showCursor: boolean;
 }
 
+/**
+ * Alt + left-drag orbit of the view (ADR 0049 §7, amends ADR 0022 §1). Entered
+ * by the interaction manager only once an Alt+left press in an idle mode has
+ * passed the drag slop — a shorter press stays an Alt+click.
+ */
+export interface ViewRotateMode {
+  type: 'VIEW_ROTATE';
+  showCursor: boolean;
+  /** Renderer-relative x of the press, and the live angle there. */
+  startScreenX: number;
+  startRotation: number;
+  /** The idle mode the orbit started from, restored on release. */
+  returnTo: 'CURSOR' | 'PAN';
+}
+
 export interface PlaceIconMode {
   type: 'PLACE_ICON';
   showCursor: boolean;
@@ -231,7 +246,8 @@ export type Mode =
   | LabelMode
   | LassoMode
   | FreehandLassoMode
-  | ReconnectAnchorMode;
+  | ReconnectAnchorMode
+  | ViewRotateMode;
 // End mode types
 
 export interface Scroll {
@@ -374,6 +390,12 @@ export interface UiState {
    * while it is set and re-sync on settle (ADR 0049 §6).
    */
   viewRotationInMotion: boolean;
+  /**
+   * Which angle the image export opens on (ADR 0051 §5): the live angle "as
+   * viewed" (the editor's export), or the page default (the file explorer's,
+   * which has no live canvas to speak for). Set by `openExportImageDialog`.
+   */
+  exportImageAngle: 'asViewed' | 'pageDefault';
   /**
    * Global snap-to-grid toggle (ADR 0023, #12). Default true; persisted,
    * mirroring `canvasMode`. The default for new placements/drags — when false
@@ -784,6 +806,14 @@ export interface UiStateActions {
    * calls this first, so the press is resolved against a settled view.
    */
   finishViewRotationAnimation: () => void;
+  /**
+   * Put the view at an angle NOW, abandoning any animation or gesture in
+   * flight (no tween, one settle). Used where a document decides the angle —
+   * load, page switch — rather than the user (ADR 0051 §3).
+   */
+  jumpViewRotation: (degrees: number) => void;
+  /** See `exportImageAngle`. */
+  setExportImageAngle: (angle: 'asViewed' | 'pageDefault') => void;
   /** Set the global snap-to-grid flag (persisted, mirrors setCanvasMode). */
   setSnapToGrid: (snap: boolean) => void;
   /** Flip the global snap-to-grid flag (canvas context-menu entry, #12). */

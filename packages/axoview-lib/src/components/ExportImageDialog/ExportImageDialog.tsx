@@ -20,7 +20,10 @@ import {
   Slider,
   Select,
   MenuItem,
-  FormControl
+  FormControl,
+  FormLabel,
+  Radio,
+  RadioGroup
 } from '@mui/material';
 import { useModelStore } from 'src/stores/modelStore';
 import {
@@ -30,8 +33,11 @@ import {
   base64ToBlob,
   generateGenericFilename,
   modelFromModelStore,
-  computeRenderTarget
+  computeRenderTarget,
+  getUnprojectedBounds as getUnprojectedBoundsAt
 } from 'src/utils';
+import { getStrategy } from 'src/utils/coordinateTransforms';
+import { normaliseDeg } from 'src/utils/viewRotation';
 import { ModelStore, Coords } from 'src/types';
 import { useDiagramUtils } from 'src/hooks/useDiagramUtils';
 import { useUiStateStore } from 'src/stores/uiStateStore';
@@ -246,10 +252,6 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
     { label: '4x (288 DPI)', value: 4 }
   ];
 
-  // Use original bounds for the base image
-  const bounds = useMemo(() => {
-    return getUnprojectedBounds();
-  }, [getUnprojectedBounds]);
 
   // QA #10 (CI): `data-all-icons-drawn` is vacuously "true" on any paint whose
   // build saw no node with a pending icon — including the hidden Axoview's
@@ -267,6 +269,37 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
       return v.id === currentView;
     }) ?? model.views[0];
   const minNodesForCapture = (exportedView?.items.length ?? 0) > 0 ? 1 : 0;
+
+  // ADR 0051 §5 — the export angle. As viewed by default (the live angle on
+  // screen); the page default when the dialog was opened for one (a file
+  // explorer has no live canvas to speak for). The choice is offered only when
+  // the two differ, and only in iso (the angle has no effect in 2D).
+  const canvasMode = useUiStateStore((state) => state.canvasMode);
+  const liveRotation = useUiStateStore((state) => state.viewRotation);
+  const openOnAngle = useUiStateStore((state) => state.exportImageAngle);
+  const pageDefaultRotation = exportedView?.defaultRotation ?? 0;
+  const isIso = canvasMode === 'ISOMETRIC';
+  const anglesDiffer =
+    isIso && normaliseDeg(liveRotation) !== normaliseDeg(pageDefaultRotation);
+  const [angleSource, setAngleSource] = useState<'asViewed' | 'pageDefault'>(
+    openOnAngle
+  );
+  const exportAngle = !isIso
+    ? 0
+    : angleSource === 'pageDefault'
+      ? pageDefaultRotation
+      : liveRotation;
+  const formatAngle = (deg: number) => `${Math.round(normaliseDeg(deg))}°`;
+
+  // The base image frames the content AT THE EXPORT ANGLE — a rotated diagram
+  // occupies a different screen extent — rather than the main instance's.
+  const bounds = useMemo(() => {
+    if (!exportedView) return getUnprojectedBounds();
+    return getUnprojectedBoundsAt(
+      exportedView,
+      getStrategy(canvasMode, exportAngle).tilePosition
+    );
+  }, [exportedView, canvasMode, exportAngle, getUnprojectedBounds]);
   const minNodesForCaptureRef = useRef(minNodesForCapture);
   useEffect(() => {
     minNodesForCaptureRef.current = minNodesForCapture;
@@ -283,6 +316,19 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
   // Track when the hidden Axoview has finished its first render cycle
   const axoviewLoadedRef = useRef(false);
   const [axoviewReadySignal, setIsoflowReadySignal] = useState(0);
+
+  // A new export angle remounts the hidden instance (its `key`), so its
+  // readiness must be re-armed: the capture then runs the full initial path —
+  // icon wait, then recapture — exactly as on open (ADR 0051 §5).
+  const lastExportAngleRef = useRef(exportAngle);
+  useEffect(() => {
+    if (lastExportAngleRef.current === exportAngle) return;
+    lastExportAngleRef.current = exportAngle;
+    axoviewLoadedRef.current = false;
+    setImageData(undefined);
+    setSvgData(undefined);
+    setCroppedImageData(undefined);
+  }, [exportAngle]);
 
   // Called by the hidden Axoview's onModelUpdated — fires after its model store
   // is first populated, meaning React has the data and will paint next rAF
@@ -930,12 +976,18 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
             >
               <DOMErrorBoundary>
                 <Axoview
-                  key="export-dialog-axoview"
+                  // Remounted per angle, so a changed angle re-runs the full
+                  // icon-ready capture path rather than racing a reload.
+                  key={`export-dialog-axoview-${exportAngle}`}
                   editorMode="NON_INTERACTIVE"
                   initialData={{
                     ...model,
                     fitToView: true,
-                    view: currentView
+                    view: currentView,
+                    // ADR 0051 §5: the hidden instance renders at the chosen
+                    // angle — it is a separate instance with its own uiState,
+                    // so it never touches the live canvas's angle.
+                    viewRotation: exportAngle
                   }}
                   renderer={{
                     showGrid,
@@ -1025,6 +1077,45 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
                       />
                     }
                   />
+                  {anglesDiffer && (
+                    <FormControl sx={{ gridColumn: '1 / -1', mt: 0.5 }}>
+                      <FormLabel
+                        sx={{ fontSize: 12 }}
+                        id="export-angle-label"
+                      >
+                        {t('angle')}
+                      </FormLabel>
+                      <RadioGroup
+                        row
+                        aria-labelledby="export-angle-label"
+                        value={angleSource}
+                        onChange={(event) =>
+                          setAngleSource(
+                            event.target.value as 'asViewed' | 'pageDefault'
+                          )
+                        }
+                      >
+                        <FormControlLabel
+                          value="asViewed"
+                          control={<Radio size="small" />}
+                          data-testid="export-angle-as-viewed"
+                          label={t('angleAsViewed').replace(
+                            '{angle}',
+                            formatAngle(liveRotation)
+                          )}
+                        />
+                        <FormControlLabel
+                          value="pageDefault"
+                          control={<Radio size="small" />}
+                          data-testid="export-angle-page-default"
+                          label={t('anglePageDefault').replace(
+                            '{angle}',
+                            formatAngle(pageDefaultRotation)
+                          )}
+                        />
+                      </RadioGroup>
+                    </FormControl>
+                  )}
                 </Box>
 
                 {/* Background */}

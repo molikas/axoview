@@ -72,7 +72,8 @@ const DELEGATE_SURFACES: Record<string, CanvasKeyboardSurface[]> = {
   handleFunctionKeys: ['help', 'inlineRename'],
   handleToolHotkeys: ['toolHotkeys'],
   handleZOrderShortcut: ['zOrder'],
-  handleArrowKey: ['arrowNudge', 'arrowPan']
+  handleArrowKey: ['arrowNudge', 'arrowPan'],
+  handleViewRotationKeys: ['viewRotation']
 };
 
 const calledDelegates = (): string[] => {

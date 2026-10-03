@@ -41,6 +41,9 @@ const locale: LocaleProps = {
     zoomOutAction: 'Verkleinern',
     zoomOutShortcut: 'Mausrad nach unten',
     zoomOutDescription: 'Auf der Leinwand verkleinern',
+    rotateViewAction: 'Ansicht drehen',
+    rotateViewShortcut: 'Q / E (Umschalt: Vierteldrehung)',
+    rotateViewDescription: 'Den isometrischen Boden um 15° gegen (Q) oder im Uhrzeigersinn (E) drehen; Umschalt springt zur nächsten Vierteldrehung',
     panCanvasAction: 'Leinwand verschieben',
     panCanvasShortcut: 'Linksklick + Ziehen',
     panCanvasDescription: 'Leinwand im Verschiebbemodus bewegen',
@@ -138,7 +141,10 @@ const locale: LocaleProps = {
       'Mit Alt+Klick auf einen Verbindungs-Wegpunkt diesen herausnehmen (die Verbindung muss nicht zuerst ausgewählt werden); Endpunkt-Anker bleiben erhalten.',
     miZoomAction: 'Zoomen',
     miZoomMethod: 'Mausrad',
-    miZoomDescription: 'Scrollen, um zum Cursor zu zoomen.'
+    miZoomDescription: 'Scrollen, um zum Cursor zu zoomen.',
+    miRotateViewAction: 'Ansicht drehen',
+    miRotateViewMethod: 'Alt + Ziehen',
+    miRotateViewDescription: 'Den isometrischen Boden umkreisen; Umschalt rastet in 15°-Schritten ein. Alt + Klick ohne Ziehen entfernt weiterhin einen Wegpunkt.'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'Tipp: Verbindungen erstellen',
@@ -424,6 +430,17 @@ const locale: LocaleProps = {
     help: 'Hilfe (F1)',
     selected: '{count} ausgewählt'
   },
+  viewRotationControls: {
+    groupLabel: 'Ansichtsdrehung',
+    rotateCounterClockwise: 'Ansicht gegen den Uhrzeigersinn drehen (Q)',
+    rotateClockwise: 'Ansicht im Uhrzeigersinn drehen (E)',
+    resetToDefault: 'Ansichtswinkel {angle} — klicken, um zum Seitenstandard ({default}) zurückzukehren',
+    atDefault: 'Ansichtswinkel {angle} (Seitenstandard)',
+    setAsPageDefault: 'Als Seitenstandard festlegen',
+    setAsPageDefaultHint: 'Diese Seite für alle unter {angle} öffnen — ein Rückgängig-Schritt',
+    disabledIn2D: 'Die Ansichtsdrehung ist in der isometrischen Ansicht verfügbar',
+    announce: 'Ansichtswinkel {angle}'
+  },
   modeHints: {
     connector: 'Zum Verbinden zwischen Elementen ziehen • Esc zum Abbrechen',
     textBox: 'Klicken, um ein Textfeld zu platzieren • Esc zum Abbrechen',
@@ -488,6 +505,9 @@ const locale: LocaleProps = {
   },
   exportImageDialog: {
     groupAppearance: 'Appearance',
+    angle: 'Winkel',
+    angleAsViewed: 'Wie angezeigt ({angle})',
+    anglePageDefault: 'Seitenstandard ({angle})',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'Als Bild exportieren',

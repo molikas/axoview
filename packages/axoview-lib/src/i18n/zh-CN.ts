@@ -40,6 +40,9 @@ const locale: LocaleProps = {
     zoomOutAction: '缩小',
     zoomOutShortcut: '鼠标滚轮向下',
     zoomOutDescription: '缩小画布',
+    rotateViewAction: '旋转视图',
+    rotateViewShortcut: 'Q / E（Shift：四分之一圈）',
+    rotateViewDescription: '将等距地面逆时针 (Q) 或顺时针 (E) 旋转 15°；按住 Shift 跳到下一个四分之一圈',
     panCanvasAction: '平移画布',
     panCanvasShortcut: '左键拖拽',
     panCanvasDescription: '在平移模式下移动画布',
@@ -130,7 +133,10 @@ const locale: LocaleProps = {
       'Alt+单击连接线路径点以将其删除（无需先选择连接线）；端点锚点会被保留。',
     miZoomAction: '缩放',
     miZoomMethod: '滚轮',
-    miZoomDescription: '滚动以朝光标方向缩放。'
+    miZoomDescription: '滚动以朝光标方向缩放。',
+    miRotateViewAction: '旋转视图',
+    miRotateViewMethod: 'Alt + 拖动',
+    miRotateViewDescription: '环绕等距地面旋转；按住 Shift 以 15° 吸附。不拖动的 Alt + 单击仍会删除路径点。'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: '提示：创建连接器',
@@ -392,6 +398,17 @@ const locale: LocaleProps = {
     help: '帮助 (F1)',
     selected: '已选择 {count} 项'
   },
+  viewRotationControls: {
+    groupLabel: '视图旋转',
+    rotateCounterClockwise: '逆时针旋转视图 (Q)',
+    rotateClockwise: '顺时针旋转视图 (E)',
+    resetToDefault: '视角 {angle} — 点击返回页面默认角度 ({default})',
+    atDefault: '视角 {angle}（页面默认）',
+    setAsPageDefault: '设为页面默认',
+    setAsPageDefaultHint: '让所有人以 {angle} 打开此页面 — 可一步撤销',
+    disabledIn2D: '视图旋转仅在等距视图中可用',
+    announce: '视角 {angle}'
+  },
   modeHints: {
     connector: '在项目之间拖拽以连接 • 按 Esc 取消',
     textBox: '点击放置文本框 • Esc 取消',
@@ -454,6 +471,9 @@ const locale: LocaleProps = {
   },
   exportImageDialog: {
     groupAppearance: 'Appearance',
+    angle: '角度',
+    angleAsViewed: '当前视角 ({angle})',
+    anglePageDefault: '页面默认 ({angle})',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: '导出为图片',

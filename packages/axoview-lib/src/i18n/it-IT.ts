@@ -41,6 +41,9 @@ const locale: LocaleProps = {
     zoomOutAction: 'Rimpicciolisci',
     zoomOutShortcut: 'Rotella del mouse giù',
     zoomOutDescription: 'Rimpicciolisci la tela',
+    rotateViewAction: 'Ruota vista',
+    rotateViewShortcut: 'Q / E (Maiusc: quarto di giro)',
+    rotateViewDescription: 'Ruota il pavimento isometrico di 15° in senso antiorario (Q) o orario (E); Maiusc passa al quarto di giro successivo',
     panCanvasAction: 'Sposta la tela',
     panCanvasShortcut: 'Clic sinistro + trascina',
     panCanvasDescription: 'Muovi la tela in modalità panoramica',
@@ -138,7 +141,10 @@ const locale: LocaleProps = {
       'Alt+clic su un punto di passaggio di un connettore per rimuoverlo (senza dover prima selezionare il connettore); gli ancoraggi terminali vengono conservati.',
     miZoomAction: 'Zoom',
     miZoomMethod: 'Rotellina',
-    miZoomDescription: 'Scorri per ingrandire verso il cursore.'
+    miZoomDescription: 'Scorri per ingrandire verso il cursore.',
+    miRotateViewAction: 'Ruota vista',
+    miRotateViewMethod: 'Alt + trascina',
+    miRotateViewDescription: 'Orbita attorno al pavimento isometrico; tieni premuto Maiusc per agganciare a 15°. Alt + clic senza trascinare rimuove ancora un punto di passaggio.'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'Suggerimento: Creazione connettori',
@@ -422,6 +428,17 @@ const locale: LocaleProps = {
     help: 'Aiuto (F1)',
     selected: '{count} selezionati'
   },
+  viewRotationControls: {
+    groupLabel: 'Rotazione della vista',
+    rotateCounterClockwise: 'Ruota la vista in senso antiorario (Q)',
+    rotateClockwise: 'Ruota la vista in senso orario (E)',
+    resetToDefault: 'Angolo di vista {angle} — fai clic per tornare al predefinito della pagina ({default})',
+    atDefault: 'Angolo di vista {angle} (predefinito della pagina)',
+    setAsPageDefault: 'Imposta come predefinito della pagina',
+    setAsPageDefaultHint: 'Apri questa pagina a {angle} per tutti — un passo di annullamento',
+    disabledIn2D: 'La rotazione della vista è disponibile nella vista isometrica',
+    announce: 'Angolo di vista {angle}'
+  },
   modeHints: {
     connector: 'Trascina tra gli elementi per collegare • Esc per annullare',
     textBox:
@@ -487,6 +504,9 @@ const locale: LocaleProps = {
   },
   exportImageDialog: {
     groupAppearance: 'Appearance',
+    angle: 'Angolo',
+    angleAsViewed: 'Come visualizzato ({angle})',
+    anglePageDefault: 'Predefinito della pagina ({angle})',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'Esporta come immagine',

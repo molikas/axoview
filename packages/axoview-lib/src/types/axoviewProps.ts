@@ -13,6 +13,13 @@ export type InitialData = Model & {
    */
   fitToScreen?: boolean;
   view?: string;
+  /**
+   * Load-time view-rotation hint (ADR 0051 §3), degrees. Wins over the opened
+   * page's `defaultRotation` — the image export renders its hidden instance at
+   * the angle the user chose with it, and an embedder may open at any angle.
+   * Never persisted; ignored in 2D, where the angle has no effect.
+   */
+  viewRotation?: number;
 };
 
 export interface LocaleProps {
@@ -54,6 +61,9 @@ export interface LocaleProps {
     zoomOutAction: string;
     zoomOutShortcut: string;
     zoomOutDescription: string;
+    rotateViewAction: string;
+    rotateViewShortcut: string;
+    rotateViewDescription: string;
     panCanvasAction: string;
     panCanvasShortcut: string;
     panCanvasDescription: string;
@@ -138,6 +148,9 @@ export interface LocaleProps {
     miZoomAction: string;
     miZoomMethod: string;
     miZoomDescription: string;
+    miRotateViewAction: string;
+    miRotateViewMethod: string;
+    miRotateViewDescription: string;
   };
   connectorHintTooltip: {
     tipCreatingConnectors: string;
@@ -413,6 +426,18 @@ export interface LocaleProps {
     help: string;
     selected: string;
   };
+  /** The view-rotation dock widget (ADR 0049 §7). `{angle}` / `{default}` are degree strings. */
+  viewRotationControls: {
+    groupLabel: string;
+    rotateCounterClockwise: string;
+    rotateClockwise: string;
+    resetToDefault: string;
+    atDefault: string;
+    setAsPageDefault: string;
+    setAsPageDefaultHint: string;
+    disabledIn2D: string;
+    announce: string;
+  };
   modeHints: {
     connector: string;
     textBox: string;
@@ -479,6 +504,9 @@ export interface LocaleProps {
     cropInstruction: string;
     options: string;
     groupAppearance: string;
+    angle: string;
+    angleAsViewed: string;
+    anglePageDefault: string;
     groupBackground: string;
     groupCrop: string;
     showGrid: string;
@@ -718,6 +746,11 @@ export interface LoadOptions {
 
 export interface AxoviewRef {
   load: (data: InitialData, options?: LoadOptions) => void;
-  /** Opens the built-in image export dialog for the currently-loaded diagram. */
-  openExportImageDialog: () => void;
+  /**
+   * Opens the built-in image export dialog for the currently-loaded diagram.
+   * `angle` picks the view angle it opens on (ADR 0051 §5): `'asViewed'` (the
+   * default — the live angle on screen) or `'pageDefault'`, for a caller with
+   * no live canvas to speak for, such as a file explorer.
+   */
+  openExportImageDialog: (options?: { angle?: 'asViewed' | 'pageDefault' }) => void;
 }

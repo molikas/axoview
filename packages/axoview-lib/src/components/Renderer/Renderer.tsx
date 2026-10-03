@@ -34,7 +34,6 @@ import { Lasso } from 'src/components/Lasso/Lasso';
 import { FreehandLasso } from 'src/components/FreehandLasso/FreehandLasso';
 import { useScene } from 'src/hooks/useScene';
 import { useInlineEditHistoryBracket } from 'src/hooks/useInlineEditHistoryBracket';
-import { useViewRotationGesture } from 'src/hooks/useViewRotationGesture';
 import {
   getLiveStrategy,
   makeScreenToTileFn
@@ -161,8 +160,6 @@ export const Renderer = ({
   );
   const uiStateActions = useUiStateStore((state) => state.actions);
   const { setInteractionsElement } = useInteractionManager();
-  // POC: Alt + drag orbits the ground plane about the vertical axis.
-  useViewRotationGesture(containerRef);
   const {
     items,
     rectangles,

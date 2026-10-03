@@ -41,6 +41,9 @@ const locale: LocaleProps = {
     zoomOutAction: 'Uzaklaştır',
     zoomOutShortcut: 'Fare Tekerleği Aşağı',
     zoomOutDescription: 'Tuvalden uzaklaştır',
+    rotateViewAction: 'Görünümü döndür',
+    rotateViewShortcut: 'Q / E (Shift: çeyrek tur)',
+    rotateViewDescription: 'İzometrik zemini 15° saat yönünün tersine (Q) veya saat yönünde (E) döndür; Shift bir sonraki çeyrek tura atlar',
     panCanvasAction: 'Tuvali Kaydır',
     panCanvasShortcut: 'Sol tık + Sürükle',
     panCanvasDescription: 'Kaydırma modundayken tuvali kaydır',
@@ -136,7 +139,10 @@ const locale: LocaleProps = {
       'Bir bağlayıcı ara noktasını çıkarmak için Alt+tıklayın (önce bağlayıcıyı seçmeye gerek yok); uç bağlantı noktaları korunur.',
     miZoomAction: 'Yakınlaştır',
     miZoomMethod: 'Fare tekerleği',
-    miZoomDescription: 'İmlece doğru yakınlaştırmak için kaydırın.'
+    miZoomDescription: 'İmlece doğru yakınlaştırmak için kaydırın.',
+    miRotateViewAction: 'Görünümü döndür',
+    miRotateViewMethod: 'Alt + sürükle',
+    miRotateViewDescription: 'İzometrik zeminin etrafında dön; 15° adımlara yapışmak için Shift tuşunu basılı tutun. Sürüklemeden Alt + tıklama hâlâ bir ara noktayı kaldırır.'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'İpucu: Bağlayıcı Oluşturma',
@@ -417,6 +423,17 @@ const locale: LocaleProps = {
     help: 'Yardım (F1)',
     selected: '{count} seçildi'
   },
+  viewRotationControls: {
+    groupLabel: 'Görünüm döndürme',
+    rotateCounterClockwise: 'Görünümü saat yönünün tersine döndür (Q)',
+    rotateClockwise: 'Görünümü saat yönünde döndür (E)',
+    resetToDefault: 'Görünüm açısı {angle} — sayfa varsayılanına ({default}) dönmek için tıklayın',
+    atDefault: 'Görünüm açısı {angle} (sayfa varsayılanı)',
+    setAsPageDefault: 'Sayfa varsayılanı olarak ayarla',
+    setAsPageDefaultHint: 'Bu sayfayı herkes için {angle} açısında aç — tek bir geri alma adımı',
+    disabledIn2D: 'Görünüm döndürme izometrik görünümde kullanılabilir',
+    announce: 'Görünüm açısı {angle}'
+  },
   modeHints: {
     connector: 'Bağlamak için öğeler arasında sürükleyin • İptal için Esc',
     textBox: 'Metin kutusu yerleştirmek için tıklayın • İptal için Esc',
@@ -481,6 +498,9 @@ const locale: LocaleProps = {
   },
   exportImageDialog: {
     groupAppearance: 'Appearance',
+    angle: 'Açı',
+    angleAsViewed: 'Görüntülendiği gibi ({angle})',
+    anglePageDefault: 'Sayfa varsayılanı ({angle})',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'Resim olarak dışa aktar',

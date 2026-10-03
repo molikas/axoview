@@ -843,7 +843,10 @@ export function FileExplorer() {
   const handleExportImage = useCallback(
     (node: FileNode) => {
       if (node.type !== 'diagram' || !node.diagramMeta) return;
-      const openDialog = () => axoviewRef.current?.openExportImageDialog();
+      // ADR 0051 §5: an export started from the explorer has no live canvas to
+      // speak for, so it opens on the page's default angle.
+      const openDialog = () =>
+        axoviewRef.current?.openExportImageDialog({ angle: 'pageDefault' });
       if (currentDiagram?.id === node.id) {
         openDialog();
         return;

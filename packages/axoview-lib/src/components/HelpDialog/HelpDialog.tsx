@@ -75,6 +75,13 @@ export const HelpDialog = () => {
       description: t('zoomOutDescription')
     },
     {
+      // ADR 0049 §7 — the view-rotation keys (viewer-classed: they work in
+      // every interactive mode, isometric view only).
+      action: t('rotateViewAction'),
+      shortcut: t('rotateViewShortcut'),
+      description: t('rotateViewDescription')
+    },
+    {
       action: t('lassoSelectAction'),
       shortcut: t('lassoSelectShortcut'),
       description: t('lassoSelectDescription')
@@ -178,6 +185,12 @@ export const HelpDialog = () => {
       action: t('miZoomAction'),
       shortcut: t('miZoomMethod'),
       description: t('miZoomDescription')
+    },
+    {
+      // ADR 0049 §7 / ADR 0022 §1 amendment — the Alt + left-drag orbit.
+      action: t('miRotateViewAction'),
+      shortcut: t('miRotateViewMethod'),
+      description: t('miRotateViewDescription')
     }
   ];
 

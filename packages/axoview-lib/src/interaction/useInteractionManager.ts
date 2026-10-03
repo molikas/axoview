@@ -25,6 +25,7 @@ import { resolveToolHotkey, resolveZOrderDirection } from './toolHotkeys';
 import { handleEscapeKey, handleConnectorEscape } from './handleEscapeKey';
 import { handleDeleteOrBackspace, isEditableTarget } from './handleDeleteKey';
 import { handleArrowKey } from './handleArrowKey';
+import { handleViewRotationKeys } from './handleViewRotationKeys';
 import {
   canUseKeyboardSurface,
   type CanvasKeyboardSurface
@@ -49,6 +50,7 @@ import { Label } from './modes/Label';
 import { Lasso } from './modes/Lasso';
 import { FreehandLasso } from './modes/FreehandLasso';
 import { ReconnectAnchor, abortReconnectAnchor } from './modes/ReconnectAnchor';
+import { ViewRotate } from './modes/ViewRotate';
 import { exceedsTapSlop, LONG_PRESS_MS } from 'src/config/tapGesture';
 import { MIN_ZOOM, MAX_ZOOM, UNPROJECTED_TILE_SIZE } from 'src/config';
 import { usePanHandlers } from './usePanHandlers';
@@ -69,7 +71,8 @@ const modes: { [k in string]: ModeActions } = {
   LABEL: Label,
   LASSO: Lasso,
   FREEHAND_LASSO: FreehandLasso,
-  RECONNECT_ANCHOR: ReconnectAnchor
+  RECONNECT_ANCHOR: ReconnectAnchor,
+  VIEW_ROTATE: ViewRotate
 };
 
 // Device class of the originating pointer (ADR 0018). The mouse-shaped
@@ -692,6 +695,7 @@ export const useInteractionManager = () => {
       }
 
       handleFunctionKeys(e, uiState, deps, allow('inlineRename'));
+      if (handleViewRotationKeys(e, uiState, allow('viewRotation'))) return;
       if (allow('toolHotkeys')) {
         handleToolHotkeys(e, isCtrlOrCmd, uiState, key, deps);
       }
@@ -849,7 +853,7 @@ export const useInteractionManager = () => {
     [uiStateApi, modelStoreApi, scene, rendererSize, layerContext, screenToTile]
   );
 
-  const onMouseEvent = useCallback(
+  const dispatchMouseEvent = useCallback(
     (e: SlimMouseEvent) => {
       if (!rendererRef.current) return;
 
@@ -927,6 +931,78 @@ export const useInteractionManager = () => {
       flushUpdate,
       processMouseUpdate
     ]
+  );
+
+  // ADR 0049 §7 — the Alt + left-drag orbit, decided BEFORE any mode sees the
+  // press. An Alt+left press on the bare canvas in an idle mode (CURSOR, or the
+  // viewer's PAN) in the isometric view is held back: once it travels past the
+  // drag slop it becomes a VIEW_ROTATE orbit; released before that, it is
+  // replayed as the ordinary Alt+click it was — so waypoint removal (ADR 0022)
+  // keeps working, which the POC's capture-phase hook broke (finding F7).
+  const pendingAltOrbitRef = useRef<{
+    down: SlimMouseEvent;
+    client: { x: number; y: number };
+    startScreenX: number;
+    returnTo: 'CURSOR' | 'PAN';
+  } | null>(null);
+
+  const onMouseEvent = useCallback(
+    (e: SlimMouseEvent) => {
+      if (!rendererRef.current) return;
+      const ui = uiStateApi.getState();
+
+      // A canvas press lands any rotation step still animating first, so the
+      // press resolves against a settled view (ADR 0049 §7).
+      if (e.type === 'mousedown') ui.actions.finishViewRotationAnimation();
+
+      const pending = pendingAltOrbitRef.current;
+      if (pending) {
+        if (e.type === 'mousemove') {
+          if (
+            !exceedsTapSlop(pending.client, { x: e.clientX, y: e.clientY })
+          ) {
+            return; // still possibly a click — no mode sees sub-slop travel
+          }
+          pendingAltOrbitRef.current = null;
+          ui.actions.setMode({
+            type: 'VIEW_ROTATE',
+            showCursor: false,
+            startScreenX: pending.startScreenX,
+            startRotation: ui.viewRotation,
+            returnTo: pending.returnTo
+          });
+          // Fall through: the dispatcher runs the mode's entry, then this move.
+        } else if (e.type === 'mouseup') {
+          pendingAltOrbitRef.current = null;
+          // Released inside the slop: it was a click. Replay the held press.
+          dispatchMouseEvent(pending.down);
+        }
+      }
+
+      if (
+        e.type === 'mousedown' &&
+        e.button === 0 &&
+        e.altKey &&
+        pointerTypeRef.current === 'mouse' &&
+        e.target === rendererRef.current &&
+        ui.canvasMode === 'ISOMETRIC' &&
+        (ui.mode.type === 'CURSOR' || ui.mode.type === 'PAN') &&
+        (ui.editorMode === 'EDITABLE' ||
+          ui.editorMode === 'EXPLORABLE_READONLY')
+      ) {
+        const rect = rendererRef.current.getBoundingClientRect();
+        pendingAltOrbitRef.current = {
+          down: e,
+          client: { x: e.clientX, y: e.clientY },
+          startScreenX: e.clientX - (rect?.left ?? 0),
+          returnTo: ui.mode.type
+        };
+        return;
+      }
+
+      dispatchMouseEvent(e);
+    },
+    [uiStateApi, dispatchMouseEvent]
   );
 
   const onContextMenu = useCallback(

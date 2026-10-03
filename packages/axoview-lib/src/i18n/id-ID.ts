@@ -40,6 +40,9 @@ const locale: LocaleProps = {
     zoomOutAction: 'Perkecil',
     zoomOutShortcut: 'Roda Mouse Turun',
     zoomOutDescription: 'Perkecil kanvas',
+    rotateViewAction: 'Putar tampilan',
+    rotateViewShortcut: 'Q / E (Shift: seperempat putaran)',
+    rotateViewDescription: 'Putar lantai isometrik 15° berlawanan (Q) atau searah (E) jarum jam; Shift melompat ke seperempat putaran berikutnya',
     panCanvasAction: 'Geser Kanvas',
     panCanvasShortcut: 'Klik Kiri + Seret',
     panCanvasDescription: 'Geser kanvas saat dalam mode Geser',
@@ -134,7 +137,10 @@ const locale: LocaleProps = {
       'Alt+klik titik jalur konektor untuk menghapusnya (tanpa perlu memilih konektor terlebih dahulu); jangkar ujung dipertahankan.',
     miZoomAction: 'Zoom',
     miZoomMethod: 'Roda gulir',
-    miZoomDescription: 'Gulir untuk memperbesar ke arah kursor.'
+    miZoomDescription: 'Gulir untuk memperbesar ke arah kursor.',
+    miRotateViewAction: 'Putar tampilan',
+    miRotateViewMethod: 'Alt + seret',
+    miRotateViewDescription: 'Mengorbit lantai isometrik; tahan Shift untuk mengunci per 15°. Alt + klik tanpa menyeret tetap menghapus titik jalur.'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'Tip: Membuat Konektor',
@@ -413,6 +419,17 @@ const locale: LocaleProps = {
     help: 'Bantuan (F1)',
     selected: '{count} dipilih'
   },
+  viewRotationControls: {
+    groupLabel: 'Rotasi tampilan',
+    rotateCounterClockwise: 'Putar tampilan berlawanan arah jarum jam (Q)',
+    rotateClockwise: 'Putar tampilan searah jarum jam (E)',
+    resetToDefault: 'Sudut tampilan {angle} — klik untuk kembali ke bawaan halaman ({default})',
+    atDefault: 'Sudut tampilan {angle} (bawaan halaman)',
+    setAsPageDefault: 'Jadikan bawaan halaman',
+    setAsPageDefaultHint: 'Buka halaman ini pada {angle} untuk semua orang — satu langkah urungkan',
+    disabledIn2D: 'Rotasi tampilan tersedia di tampilan isometrik',
+    announce: 'Sudut tampilan {angle}'
+  },
   modeHints: {
     connector: 'Seret antar item untuk menghubungkan • Esc untuk membatalkan',
     textBox: 'Klik untuk menempatkan kotak teks • Esc untuk batal',
@@ -477,6 +494,9 @@ const locale: LocaleProps = {
   },
   exportImageDialog: {
     groupAppearance: 'Appearance',
+    angle: 'Sudut',
+    angleAsViewed: 'Seperti ditampilkan ({angle})',
+    anglePageDefault: 'Bawaan halaman ({angle})',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'Ekspor sebagai gambar',

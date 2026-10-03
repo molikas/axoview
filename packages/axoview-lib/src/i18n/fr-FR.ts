@@ -42,6 +42,9 @@ const locale: LocaleProps = {
     zoomOutAction: 'Zoom arrière',
     zoomOutShortcut: 'Molette de la souris vers le bas',
     zoomOutDescription: 'Effectuer un zoom arrière sur le canevas',
+    rotateViewAction: 'Faire pivoter la vue',
+    rotateViewShortcut: 'Q / E (Maj : quart de tour)',
+    rotateViewDescription: 'Faire pivoter le sol isométrique de 15° dans le sens antihoraire (Q) ou horaire (E) ; Maj passe au quart de tour suivant',
     panCanvasAction: 'Déplacer le canevas',
     panCanvasShortcut: 'Clic gauche + Glisser',
     panCanvasDescription: 'Déplacer le canevas en mode déplacement',
@@ -139,7 +142,10 @@ const locale: LocaleProps = {
       'Alt+clic sur un point de passage de connecteur pour le retirer (pas besoin de sélectionner le connecteur d’abord) ; les ancres d’extrémité sont préservées.',
     miZoomAction: 'Zoomer',
     miZoomMethod: 'Molette',
-    miZoomDescription: 'Faire défiler pour zoomer vers le curseur.'
+    miZoomDescription: 'Faire défiler pour zoomer vers le curseur.',
+    miRotateViewAction: 'Faire pivoter la vue',
+    miRotateViewMethod: 'Alt + glisser',
+    miRotateViewDescription: 'Tourner autour du sol isométrique ; maintenez Maj pour aligner sur 15°. Alt + clic sans glisser supprime toujours un point de passage.'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'Astuce : Créer des connecteurs',
@@ -426,6 +432,17 @@ const locale: LocaleProps = {
     help: 'Aide (F1)',
     selected: '{count} sélectionnés'
   },
+  viewRotationControls: {
+    groupLabel: 'Rotation de la vue',
+    rotateCounterClockwise: 'Faire pivoter la vue dans le sens antihoraire (Q)',
+    rotateClockwise: 'Faire pivoter la vue dans le sens horaire (E)',
+    resetToDefault: 'Angle de vue {angle} — cliquez pour revenir à la valeur par défaut de la page ({default})',
+    atDefault: 'Angle de vue {angle} (valeur par défaut de la page)',
+    setAsPageDefault: 'Définir comme valeur par défaut de la page',
+    setAsPageDefaultHint: 'Ouvrir cette page à {angle} pour tous — une étape d’annulation',
+    disabledIn2D: 'La rotation de la vue est disponible en vue isométrique',
+    announce: 'Angle de vue {angle}'
+  },
   modeHints: {
     connector: 'Glissez entre les éléments pour connecter • Échap pour annuler',
     textBox: 'Cliquez pour placer une zone de texte • Échap pour annuler',
@@ -490,6 +507,9 @@ const locale: LocaleProps = {
   },
   exportImageDialog: {
     groupAppearance: 'Appearance',
+    angle: 'Angle',
+    angleAsViewed: 'Tel qu’affiché ({angle})',
+    anglePageDefault: 'Par défaut de la page ({angle})',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'Exporter en image',
