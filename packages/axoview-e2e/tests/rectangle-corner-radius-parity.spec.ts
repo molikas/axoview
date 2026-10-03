@@ -55,7 +55,9 @@ test.fail(
       const W = s.width;
       const H = s.height;
       const d = ctx.getImageData(0, 0, W, H).data;
-      const on = (x: number, y: number) => d[(y * W + x) * 4 + 3] > 16;
+      // > 40, not > 16: the grid pass shares this canvas at ≤ 38 alpha
+      // (ADR 0050 §5) and must not read as the rectangle's paint.
+      const on = (x: number, y: number) => d[(y * W + x) * 4 + 3] > 40;
       let x0 = W;
       let y0 = H;
       let x1 = -1;

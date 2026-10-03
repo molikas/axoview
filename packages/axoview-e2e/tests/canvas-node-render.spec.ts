@@ -118,7 +118,9 @@ const canvasCentroid = (page: Page, pt: Pt, half: number) =>
       let n = 0;
       for (let j = 0; j < h; j++) {
         for (let i = 0; i < w; i++) {
-          if (data[(j * w + i) * 4 + 3] > 20) {
+          // > 40, not > 20: the grid pass shares this canvas at ≤ 38 alpha
+          // (ADR 0050 §5) and would drag the centroid toward its lines.
+          if (data[(j * w + i) * 4 + 3] > 40) {
             sX += i;
             sY += j;
             n += 1;

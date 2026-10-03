@@ -65,14 +65,17 @@ export const ViewRotate: ModeActions = {
     uiState.actions.settleViewRotation();
     setWindowCursor('default');
   },
-  mousemove: ({ uiState }) => {
+  mousemove: ({ uiState, pointer }) => {
     const mode = uiState.mode;
     if (mode.type !== 'VIEW_ROTATE') return;
+    // This event's own sample — `uiState.mouse` lags one sample behind, and an
+    // orbit must end exactly where the pointer is released.
+    const sample = pointer ?? uiState.mouse;
     const next = orbitAngle(
       mode.startRotation,
       mode.startScreenX,
-      uiState.mouse.position.screen.x,
-      !!uiState.mouse.modifiers?.shift
+      sample.position.screen.x,
+      !!sample.modifiers?.shift
     );
     uiState.actions.setViewRotation(next);
     // `uiState` is this event's snapshot; the base it carries is current (only
@@ -89,9 +92,20 @@ export const ViewRotate: ModeActions = {
   mousedown: () => {
     // The press that started the orbit was consumed by the manager.
   },
-  mouseup: ({ uiState }) => {
+  mouseup: ({ uiState, pointer }) => {
     const mode = uiState.mode;
     if (mode.type !== 'VIEW_ROTATE') return;
+    // Land on the release point itself, then settle (one rebuild).
+    if (pointer) {
+      uiState.actions.setViewRotation(
+        orbitAngle(
+          mode.startRotation,
+          mode.startScreenX,
+          pointer.position.screen.x,
+          !!pointer.modifiers?.shift
+        )
+      );
+    }
     uiState.actions.settleViewRotation();
     setWindowCursor('default');
     uiState.actions.setMode(returnMode(mode.returnTo));

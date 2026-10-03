@@ -830,7 +830,8 @@ export const useInteractionManager = () => {
         isItemInteractable,
         pointerType: pointerTypeRef.current,
         screenToTile,
-        strategy: getLiveStrategy(uiState)
+        strategy: getLiveStrategy(uiState),
+        pointer: nextMouse
       };
 
       if (reducerTypeRef.current !== uiState.mode.type) {

@@ -17,6 +17,15 @@
 import type { Page } from '@playwright/test';
 
 /** The merged bulk canvas. Four test ids collapsed into this one. */
+/**
+ * The procedural GRID draws into the scene canvas itself (ADR 0050 §5): black
+ * at 15 % opacity, so a grid-only pixel reads back with alpha ≤ 38. A probe
+ * that asks "did CONTENT paint here?" must count only pixels above this —
+ * every content class (icons, chips, strokes, fills, halos) paints well over
+ * it. Passed into page-side probes as an argument.
+ */
+export const GRID_INK_ALPHA_MAX = 40;
+
 export const SCENE_CANVAS = 'axoview-scene-canvas';
 export const SCENE_CANVAS_SELECTOR = `[data-testid="${SCENE_CANVAS}"]`;
 
@@ -85,7 +94,7 @@ export const paintedPixels = (
   page: Page,
   selector: string = SCENE_CANVAS_SELECTOR
 ): Promise<number> =>
-  page.evaluate((sel: string) => {
+  page.evaluate(([sel, gridMax]: [string, number]) => {
     const gl = document.querySelector(sel) as HTMLCanvasElement | null;
     if (!gl || !gl.width || !gl.height) return -1;
     const scratch = document.createElement('canvas');
@@ -96,9 +105,9 @@ export const paintedPixels = (
     ctx.drawImage(gl, 0, 0);
     const data = ctx.getImageData(0, 0, scratch.width, scratch.height).data;
     let n = 0;
-    for (let i = 3; i < data.length; i += 4) if (data[i] !== 0) n += 1;
+    for (let i = 3; i < data.length; i += 4) if (data[i] > gridMax) n += 1;
     return n;
-  }, selector);
+  }, [selector, GRID_INK_ALPHA_MAX] as [string, number]);
 
 export interface Rgba {
   r: number;
