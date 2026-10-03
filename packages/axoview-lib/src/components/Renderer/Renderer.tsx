@@ -36,9 +36,13 @@ import { FreehandLasso } from 'src/components/FreehandLasso/FreehandLasso';
 import { useScene } from 'src/hooks/useScene';
 import { useInlineEditHistoryBracket } from 'src/hooks/useInlineEditHistoryBracket';
 import { useViewRotationGesture } from 'src/hooks/useViewRotationGesture';
+import {
+  getLiveStrategy,
+  makeScreenToTileFn
+} from 'src/utils/coordinateTransforms';
 import { getFitToViewParams, CoordsUtils } from 'src/utils';
 import { RendererProps } from 'src/types/rendererProps';
-import { Scroll, Size, ViewItem } from 'src/types';
+import { Scroll, Size, ViewItem, UiStateStore } from 'src/types';
 
 // Stable empty list so the canvas-node DOM hybrid overlay memo returns a
 // referentially-stable value when nothing is selected (avoids re-renders).
@@ -74,6 +78,9 @@ const computeTileBounds = (
   rendererSize: Size,
   screenToTile: CanvasModeContextValue['screenToTile']
 ): TileBounds => {
+  // Viewport corners mapped to tiles, then their AABB — under view rotation the
+  // corners land on a rotated rectangle in tile space, and its AABB (padded)
+  // still bounds everything on screen.
   if (rendererSize.width === 0 || rendererSize.height === 0) {
     return { minX: -Infinity, maxX: Infinity, minY: -Infinity, maxY: Infinity };
   }
@@ -95,6 +102,12 @@ const computeTileBounds = (
     maxY: Math.max(...ys) + VIEWPORT_TILE_PADDING
   };
 };
+
+// Culling resolves the viewport at the LIVE angle (ADR 0049 §6): while a
+// rotation is in motion the settled context angle lags the screen, and content
+// turning in from off-screen must already be mounted.
+const liveScreenToTile = (s: UiStateStore) =>
+  makeScreenToTileFn(getLiveStrategy(s));
 
 const tileBoundsEqual = (a: TileBounds, b: TileBounds) =>
   a.minX === b.minX &&
@@ -127,7 +140,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const interactionsRef = useRef<HTMLDivElement>(null);
   const uiStateApi = useUiStateStoreApi();
-  const { screenToTile, getTilePosition } = useCanvasMode();
+  const { getTilePosition } = useCanvasMode();
   const enableDebugTools = useUiStateStore((state) => state.enableDebugTools);
   const showCursor = useUiStateStore((state) => state.mode.showCursor);
   // While an annotation draw/eraser tool is active, the canvas cursor tile
@@ -162,7 +175,12 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   // the user pans far enough to expose new tiles, not on every pixel.
   const [coarseBounds, setCoarseBounds] = useState<TileBounds>(() => {
     const s = uiStateApi.getState();
-    return computeTileBounds(s.scroll, s.zoom, s.rendererSize, screenToTile);
+    return computeTileBounds(
+      s.scroll,
+      s.zoom,
+      s.rendererSize,
+      liveScreenToTile(s)
+    );
   });
 
   // Viewport-culling re-render, decoupled from the per-frame pan path.
@@ -197,7 +215,9 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
       if (
         state.scroll === prev.scroll &&
         state.zoom === prev.zoom &&
-        state.rendererSize === prev.rendererSize
+        state.rendererSize === prev.rendererSize &&
+        state.viewRotation === prev.viewRotation &&
+        state.canvasMode === prev.canvasMode
       ) {
         return;
       }
@@ -205,7 +225,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
         state.scroll,
         state.zoom,
         state.rendererSize,
-        screenToTile
+        liveScreenToTile(state)
       );
       pending = newBounds;
       const now = performance.now();
@@ -230,7 +250,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
       if (settleTimer) clearTimeout(settleTimer);
       unsubscribe();
     };
-  }, [uiStateApi, screenToTile]);
+  }, [uiStateApi]);
 
   useEffect(() => {
     if (!containerRef.current || !interactionsRef.current) return;
@@ -593,12 +613,15 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
       <SceneLayer>
         <Connectors connectors={domConnectors} currentView={currentView} />
       </SceneLayer>
-      <SceneLayer>
+      {/* ADR 0049 §6: interaction-only layers PAUSE while a view rotation is in
+          motion (they would sit at the pre-motion angle) and re-sync at settle;
+          content layers follow the floor by a transform-only update. */}
+      <SceneLayer rotationMotion="pause">
         <Lasso />
       </SceneLayer>
       <FreehandLasso />
       {showCursor && !annotationActive && !hoveringItemInCursor && (
-        <SceneLayer>
+        <SceneLayer rotationMotion="pause">
           <Cursor />
         </SceneLayer>
       )}
@@ -626,10 +649,10 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
           0031 §2's "a Label paints above nodes" is now the `label` TYPE RANK in
           `compareSceneDrawOrder`, not this layer's mount position. Only the
           pixel-accurate DOM hit-proxy remains here. */}
-      <SceneLayer>
+      <SceneLayer rotationMotion="pause">
         <LabelHitLayer labels={visibleLabels} />
       </SceneLayer>
-      <SceneLayer>
+      <SceneLayer rotationMotion="pause">
         <NodeLabelHitLayer nodes={canvasLabelNodes} />
       </SceneLayer>
       {/* Connector labels render ABOVE the interactions box (like
@@ -637,7 +660,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
           its onPointerDown + stopPropagation then own the gesture. Below the
           interactions box the box ate every press, so label drag/select did
           nothing and the connector got dragged instead. */}
-      <SceneLayer>
+      <SceneLayer rotationMotion="billboard">
         <ConnectorLabels connectors={visibleConnectors} />
       </SceneLayer>
       {hybridNodes.length > 0 && (
@@ -645,16 +668,16 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
           <Nodes nodes={hybridNodes} />
         </SceneLayer>
       )}
-      <SceneLayer>
+      <SceneLayer rotationMotion="pause">
         <ConnectorAnchorOverlay />
       </SceneLayer>
-      <SceneLayer>
+      <SceneLayer rotationMotion="pause">
         <HoverOutline />
         {/* Debug tool (ADR 0023 follow-up): cursor point + rendered footprint
             centres, the two things off-grid hit-testing compares. */}
         {enableDebugTools && <HoverHitDebug />}
       </SceneLayer>
-      <SceneLayer>
+      <SceneLayer rotationMotion="pause">
         <TransformControlsManager />
       </SceneLayer>
       {/* The inline-edited text box (ADR 0034) — promoted above the

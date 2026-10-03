@@ -210,7 +210,13 @@ export const createNodeEmitter = ({
             0,
             0,
             1,
-            0
+            0,
+            0,
+            0,
+            0,
+            // Billboard: the stalk stands on the node's ground point and stays
+            // vertical on screen while the floor turns (ADR 0049 §6).
+            -sign * d
           );
         }
       }
@@ -243,6 +249,11 @@ export const createNodeEmitter = ({
               1,
               1,
               1,
+              0,
+              0,
+              0,
+              0,
+              // Billboard: an upright sprite standing on its tile (ADR 0050 §3).
               0
             );
           } else if (isIso) {
@@ -298,6 +309,11 @@ export const createNodeEmitter = ({
               1,
               1,
               1,
+              0,
+              0,
+              0,
+              0,
+              // Billboard: an upright sprite standing on its tile (ADR 0050 §3).
               0
             );
           }
@@ -389,7 +405,9 @@ export const createNodeEmitter = ({
             1,
             0,
             0,
-            labelCounterScaleFor(zoom, readableLabels, node.labelFontSize)
+            labelCounterScaleFor(zoom, readableLabels, node.labelFontSize),
+            // Billboard floating `labelHeight` above the node's ground point.
+            -labelHeight
           );
         }
       }

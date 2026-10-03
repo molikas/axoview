@@ -172,6 +172,10 @@ const ConnectorTextLabel = ({
       // sets `--axoview-label-scale` on THIS element, so each connector label
       // gets a factor derived from its own font size.
       data-label-font={label.fontSize ?? LABEL_BASE_FONT_PX}
+      // ADR 0049 §6: the anchor a billboard SceneLayer moves while a view
+      // rotation is in motion (the chip itself stays upright).
+      data-billboard-x={position.x}
+      data-billboard-y={position.y}
       sx={{
         position: 'absolute',
         pointerEvents: interactive || linkActive ? 'auto' : 'none',

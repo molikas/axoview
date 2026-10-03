@@ -17,6 +17,8 @@ import { useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useModelStoreApi } from 'src/stores/modelStore';
 import { useSceneStoreApi } from 'src/stores/sceneStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
+import { isoKappa } from 'src/utils/coordinateTransforms';
+import { offsetMatrix, rotationTrig } from 'src/utils/viewRotation';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import {
   SceneEntityKind,
@@ -65,7 +67,10 @@ import { makeArrowCanvas, makeRingCanvas } from 'src/webgl/scene/connectorSprite
 //     `data-all-icons-drawn`.
 //   • ADR 0038 §5 — no per-frame CPU geometry work: `buildInstances` runs on a
 //     scene change or an LOD-band crossing only, and `data-build-count` stays
-//     flat across a pan.
+//     flat across a pan — and across a view-rotation gesture (ADR 0049 §6):
+//     the instances are built at the settled angle θ₀ and each frame only
+//     writes the `u_motion` uniform M(θ − θ₀); the settle rebuild comes from
+//     the strategy change once the gesture ends.
 //   • ADR 0031 §2 — "a floating Label paints above nodes" is now a SORT-KEY
 //     property (the label type rank), not a mount-order accident.
 // ---------------------------------------------------------------------------
@@ -484,6 +489,13 @@ export const SceneCanvas = memo(
       };
 
       let lastBuiltDrawLabels = -1; // -1 = never built
+      // The view angle (and projection) the CURRENT instances were built at.
+      // The motion transform is relative to THESE, not to the store's
+      // `viewRotationBase`: between a settle and the rebuild that follows it the
+      // two differ, and drawing relative to the stale geometry is what keeps
+      // that frame exact (ADR 0049 §6).
+      let builtRotation = 0;
+      let builtIso = false;
       // Published on data-build-count: the "no per-frame CPU work" invariant is
       // that this stays FLAT during a pan/zoom. The perf harness asserts it.
       let buildCount = 0;
@@ -531,6 +543,8 @@ export const SceneCanvas = memo(
 
         const buildStrategy = strategyRef.current;
         const isIso = buildStrategy.projectionName === 'ISOMETRIC';
+        builtRotation = buildStrategy.rotation;
+        builtIso = isIso;
         // Clamp effective dpr at 2 for chip rasterisation: on a 3x screen
         // dpr*CHIP_SUPERSAMPLE would be 6x (36x chip area), overflowing the atlas
         // and thrashing memory for no visible gain.
@@ -697,7 +711,24 @@ export const SceneCanvas = memo(
         canvas.style.height = `${H}px`;
         const originXDev = (W / 2 + scroll.position.x) * dpr;
         const originYDev = (H / 2 + scroll.position.y) * dpr;
-        b.render(bw, bh, zoom * dpr, originXDev, originYDev, counterScale);
+        // ADR 0049 §6: a rotation in motion is a uniform, never a rebuild. The
+        // live angle vs. the angle these instances were built at.
+        const motionDeg =
+          builtIso && ui.canvasMode === 'ISOMETRIC'
+            ? ui.viewRotation - builtRotation
+            : 0;
+        const motion =
+          motionDeg !== 0 ? offsetMatrix(rotationTrig(motionDeg), isoKappa()) : null;
+        b.render(
+          bw,
+          bh,
+          zoom * dpr,
+          originXDev,
+          originYDev,
+          counterScale,
+          motion
+        );
+        canvas.dataset.motionDeg = String(motionDeg);
         canvas.dataset.labelScale = String(counterScale);
         // Now — and only now — is it true that a frame was painted with every
         // available icon. See `allIconsDrawnPending`.
@@ -732,6 +763,7 @@ export const SceneCanvas = memo(
         if (
           s.scroll === p.scroll &&
           s.zoom === p.zoom &&
+          s.viewRotation === p.viewRotation &&
           s.rendererSize === p.rendererSize &&
           s.readableLabels === p.readableLabels &&
           s.previewHideLabels === p.previewHideLabels &&
@@ -759,7 +791,11 @@ export const SceneCanvas = memo(
         ) {
           geomDirtyRef.current = true;
         }
-        if (s.scroll !== p.scroll || s.zoom !== p.zoom) {
+        if (
+          s.scroll !== p.scroll ||
+          s.zoom !== p.zoom ||
+          s.viewRotation !== p.viewRotation
+        ) {
           drawNow();
         } else {
           scheduleDraw();

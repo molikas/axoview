@@ -198,7 +198,9 @@ describe('SceneCanvas — pan/zoom repaints synchronously (rubber-band regressio
       0.65,
       523,
       756,
-      expect.anything()
+      expect.anything(),
+      // No view-rotation motion at rest — the motion uniform is the identity.
+      null
     );
   });
 
@@ -220,7 +222,50 @@ describe('SceneCanvas — pan/zoom repaints synchronously (rubber-band regressio
       2,
       400,
       300,
-      expect.anything()
+      expect.anything(),
+      null
     );
+  });
+
+  // ADR 0049 §6 / ADR 0038 §5: a view-rotation gesture is a uniform write per
+  // frame, never a rebuild; the instance buffer is rebuilt ONCE, after settle.
+  it('orbits with the motion uniform only — no rebuild in motion, one after settle', () => {
+    renderCanvas();
+    const actions = () => uiApi!.getState().actions;
+    act(() => {
+      actions().setCanvasMode('ISOMETRIC');
+      actions().setRendererSize({ width: 800, height: 600 });
+    });
+    // rAF never runs here: a scroll write is the synchronous draw that flushes
+    // any pending build.
+    act(() => {
+      actions().setScroll({ position: { x: 1, y: 0 }, offset: { x: 0, y: 0 } });
+    });
+    const builds = () => stubBatch.beginInstances.mock.calls.length;
+    const settledBuilds = builds();
+    stubBatch.render.mockClear();
+
+    act(() => {
+      actions().beginViewRotationMotion();
+      actions().setViewRotation(20);
+      actions().setViewRotation(40);
+    });
+    expect(builds()).toBe(settledBuilds);
+    const moving = stubBatch.render.mock.calls;
+    expect(moving.length).toBeGreaterThanOrEqual(2);
+    // A real 2×2, not the identity.
+    expect(moving[moving.length - 1][6]).toHaveLength(4);
+    expect(moving[moving.length - 1][6]).not.toEqual([1, 0, 0, 1]);
+
+    act(() => {
+      actions().settleViewRotation();
+    });
+    act(() => {
+      actions().setScroll({ position: { x: 2, y: 0 }, offset: { x: 0, y: 0 } });
+    });
+    // Exactly one settle rebuild, and the geometry now IS the live angle.
+    expect(builds()).toBe(settledBuilds + 1);
+    const after = stubBatch.render.mock.calls;
+    expect(after[after.length - 1][6]).toBeNull();
   });
 });

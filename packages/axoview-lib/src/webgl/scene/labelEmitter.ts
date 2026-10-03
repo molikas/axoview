@@ -133,7 +133,10 @@ export const createLabelEmitter = ({
         1,
         0,
         0,
-        labelCounterScaleFor(zoom, readableLabels, labelFontPx(label))
+        labelCounterScaleFor(zoom, readableLabels, labelFontPx(label)),
+        // Billboard: the chip's anchor follows the floor, the chip stays
+        // upright (ADR 0050 §1).
+        0
       );
       return true;
     }

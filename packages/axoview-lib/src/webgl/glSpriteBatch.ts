@@ -28,6 +28,16 @@
 // WebGL2 is required (Phase C): createSpriteBatch returns null when it is
 // unavailable, and the Renderer gates the whole canvas behind the
 // WebGLUnsupportedScreen rather than any per-component Canvas2D fallback.
+//
+// View-rotation MOTION (ADR 0049 §6). The instances are built at one view angle
+// θ₀. The scene at a live angle θ is exactly `M(θ − θ₀)` (a 2×2 in scene space,
+// see utils/viewRotation `offsetMatrix`) applied to ground-plane positions and
+// to billboard ANCHORS — billboard quads stay screen-aligned. So while a
+// rotation is in motion only the `u_motion` uniform changes, exactly as pan and
+// zoom only change `u_view`; the instance buffer is rebuilt once, at settle.
+// Each instance carries its CLASS in `i_misc.x` (bit value 2 = billboard) and a
+// billboard's vertical screen offset from its ground anchor in `i_misc.z` (a
+// name chip floats `labelHeight` px above its node), keeping the 80-byte stride.
 // ---------------------------------------------------------------------------
 
 const VERT_SRC = `#version 300 es
@@ -35,10 +45,12 @@ layout(location=0) in vec4 i_anchorLocal; // (anchorX, anchorY, localOriginX, lo
 layout(location=1) in vec4 i_basis;       // (ux, uy, vx, vy)  local edge vectors, tile space
 layout(location=2) in vec4 i_uvRect;      // (u0, v0, uSize, vSize)  atlas coords
 layout(location=3) in vec4 i_tint;        // (r, g, b, a)  colour multiply
-layout(location=4) in vec4 i_misc;        // (counterScaleFlag, shapeMode, halfWidth, counterScale)
+layout(location=4) in vec4 i_misc;        // (counterScaleFlag + 2·billboard, shapeMode, halfWidth | billboardDy, counterScale)
 uniform vec2 u_resolution;   // device px
 uniform vec3 u_view;         // (zoom*dpr, originX_dev, originY_dev)
 uniform float u_counterScale;
+uniform mat2 u_motion;       // M(θ − θ₀): the view-rotation motion transform (ADR 0049 §6)
+uniform float u_moving;      // 0 at rest — the exact pre-rotation formula, no float drift
 out vec2 v_uv;
 out vec4 v_tint;
 // Analytic edge-AA carriers (§12). Only read when shapeMode>0 (line/disc); a
@@ -61,16 +73,32 @@ void main() {
   // per-instance value (w <= 0), so an emitter that has not been migrated keeps
   // its previous behaviour rather than collapsing to 1.
   float perInstance = (i_misc.w > 0.0) ? i_misc.w : u_counterScale;
-  float s = mix(1.0, perInstance, i_misc.x);
+  // i_misc.x = counterScaleFlag (0/1) + 2 for a BILLBOARD instance.
+  float billboard = step(1.5, i_misc.x);
+  float csFlag = i_misc.x - 2.0 * billboard;
+  float s = mix(1.0, perInstance, csFlag);
   vec2 local = (i_anchorLocal.zw + q.x * i_basis.xy + q.y * i_basis.zw) * s;
   vec2 tile = i_anchorLocal.xy + local;
+  if (u_moving > 0.5) {
+    if (billboard > 0.5) {
+      // The anchor follows the floor; the quad (and its screen-space float above
+      // the ground anchor) stays upright. i_misc.z is the anchor's vertical
+      // screen offset from its ground point (textured sprites only).
+      vec2 ground = i_anchorLocal.xy - vec2(0.0, i_misc.z);
+      tile = u_motion * ground + vec2(0.0, i_misc.z) + local;
+    } else {
+      // Ground plane: the whole quad turns with the floor. Stroke widths shear
+      // with |θ − θ₀| until the settle rebuild — accepted (ADR 0049 §6).
+      tile = u_motion * tile;
+    }
+  }
   vec2 dev = vec2(u_view.x * tile.x + u_view.y, u_view.x * tile.y + u_view.z);
   vec2 clip = (dev / u_resolution) * 2.0 - 1.0;
   gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
   v_uv = i_uvRect.xy + q * i_uvRect.zw;
   v_tint = i_tint;
   v_mode = i_misc.y;
-  v_hw = i_misc.z;
+  v_hw = i_misc.y > 0.5 ? i_misc.z : 0.0;
   // Scene-space distance-field coordinate. A DISC (mode 2) needs both axes; a LINE
   // (mode 1) needs only the perpendicular (.y), so the along-axis is zeroed to keep
   // a long segment's length out of mediump. Scaled by s (the counter-scale mix) so
@@ -298,7 +326,16 @@ export interface SpriteBatch {
      * per-label quantity — a single uniform can only ever be right for a
      * default-sized label.
      */
-    counterScale?: number
+    counterScale?: number,
+    /**
+     * ADR 0049 §6: present ⇒ a BILLBOARD — the anchor follows the floor during
+     * rotation motion, the quad stays screen-aligned. The value is the anchor's
+     * vertical screen offset from its ground point (`anchor.y − ground.y`, e.g.
+     * `−labelHeight` for a name chip), so motion can move the ground point and
+     * keep the float. Absent ⇒ GROUND plane (the whole quad turns). Textured
+     * sprites only — a line/disc instance (shapeMode > 0) is always ground.
+     */
+    billboardDy?: number
   ): void;
   commitInstances(): void;
   instanceCount(): number;
@@ -310,7 +347,12 @@ export interface SpriteBatch {
     zoomDpr: number,
     originXDev: number,
     originYDev: number,
-    counterScale: number
+    counterScale: number,
+    /**
+     * The view-rotation motion transform `M(θ − θ₀)` as a row-major 2×2, or
+     * omitted/null at rest (ADR 0049 §6). A uniform write — no rebuild.
+     */
+    motion?: readonly [number, number, number, number] | null
   ): void;
 
   destroy(): void;
@@ -404,6 +446,10 @@ export const createSpriteBatch = (
   const uView = gl.getUniformLocation(prog, 'u_view');
   const uCounterScale = gl.getUniformLocation(prog, 'u_counterScale');
   const uAtlas = gl.getUniformLocation(prog, 'u_atlas');
+  const uMotion = gl.getUniformLocation(prog, 'u_motion');
+  const uMoving = gl.getUniformLocation(prog, 'u_moving');
+  // Column-major scratch for uniformMatrix2fv (no per-frame allocation).
+  const motionCols = new Float32Array([1, 0, 0, 1]);
 
   // --- atlas texture ---
   const MAX = gl.getParameter(gl.MAX_TEXTURE_SIZE) as number;
@@ -828,8 +874,10 @@ export const createSpriteBatch = (
       counterScaleFlag,
       shapeMode = 0,
       halfWidth = 0,
-      counterScale = 0
+      counterScale = 0,
+      billboardDy
     ) {
+      const billboard = billboardDy !== undefined && shapeMode === 0;
       ensureCapacity(FLOATS_PER_INSTANCE);
       const v = staging;
       stagingPages[(floatCount / FLOATS_PER_INSTANCE) | 0] = uv.page;
@@ -850,9 +898,12 @@ export const createSpriteBatch = (
       v[i++] = g;
       v[i++] = b;
       v[i++] = a;
-      v[i++] = counterScaleFlag; // i_misc.x
+      // i_misc.x — counter-scale flag, +2 for a billboard (ADR 0049 §6).
+      v[i++] = counterScaleFlag + (billboard ? 2 : 0);
       v[i++] = shapeMode; // i_misc.y (0 textured / 1 line / 2 disc)
-      v[i++] = halfWidth; // i_misc.z (scene units)
+      // i_misc.z — line/disc half-width (scene units), or a billboard's
+      // vertical screen offset from its ground anchor.
+      v[i++] = billboard ? (billboardDy as number) : halfWidth;
       // i_misc.w — R5/OVL-02 per-instance counter-scale. 0 = "use the uniform".
       v[i++] = counterScale;
       floatCount = i;
@@ -908,7 +959,7 @@ export const createSpriteBatch = (
     }),
     drawCallCount: () => runs.length,
     instanceCount: () => instCount,
-    render(bw, bh, zoomDpr, originXDev, originYDev, counterScale) {
+    render(bw, bh, zoomDpr, originXDev, originYDev, counterScale, motion) {
       if (canvas.width !== bw || canvas.height !== bh) {
         canvas.width = bw;
         canvas.height = bh;
@@ -937,6 +988,20 @@ export const createSpriteBatch = (
       gl!.uniform2f(uResolution, bw, bh);
       gl!.uniform3f(uView, zoomDpr, originXDev, originYDev);
       gl!.uniform1f(uCounterScale, counterScale);
+      if (motion) {
+        // Row-major [a, b, c, d] → GLSL column-major (a, c, b, d).
+        motionCols[0] = motion[0];
+        motionCols[1] = motion[2];
+        motionCols[2] = motion[1];
+        motionCols[3] = motion[3];
+      } else {
+        motionCols[0] = 1;
+        motionCols[1] = 0;
+        motionCols[2] = 0;
+        motionCols[3] = 1;
+      }
+      gl!.uniformMatrix2fv(uMotion, false, motionCols);
+      gl!.uniform1f(uMoving, motion ? 1 : 0);
       gl!.activeTexture(gl!.TEXTURE0);
       gl!.uniform1i(uAtlas, 0);
       // One draw per material run. With everything on one page this is a single

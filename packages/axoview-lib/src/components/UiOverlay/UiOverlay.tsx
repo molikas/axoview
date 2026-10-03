@@ -67,7 +67,7 @@ const PlaceIconLayer = () => {
     return null;
 
   return (
-    <SceneLayer disableAnimation>
+    <SceneLayer disableAnimation rotationMotion="pause">
       <DragAndDrop iconId={mode.id} tile={tile} />
     </SceneLayer>
   );
@@ -130,13 +130,13 @@ const PlacementGhostLayer = () => {
     </Box>
   );
 
-  if (modeType === 'LABEL') return <SceneLayer disableAnimation>{chip('Label', 6, '#ffffff')}</SceneLayer>;
-  if (modeType === 'TEXTBOX') return <SceneLayer disableAnimation>{chip('Text', 4, 'rgba(255,255,255,0.6)')}</SceneLayer>;
+  if (modeType === 'LABEL') return <SceneLayer disableAnimation rotationMotion="pause">{chip('Label', 6, '#ffffff')}</SceneLayer>;
+  if (modeType === 'TEXTBOX') return <SceneLayer disableAnimation rotationMotion="pause">{chip('Text', 4, 'rgba(255,255,255,0.6)')}</SceneLayer>;
 
   if (modeType === 'RECTANGLE.DRAW') {
     // A faint shape ghost (no text) hinting the rectangle the drag will draw.
     return (
-      <SceneLayer disableAnimation>
+      <SceneLayer disableAnimation rotationMotion="pause">
         <Box
           data-testid="placement-ghost"
           style={{
@@ -160,7 +160,7 @@ const PlacementGhostLayer = () => {
   // CONNECTOR (armed): a faint start-point marker with a short arrow stub, so
   // it's clear the next click begins a connection here.
   return (
-    <SceneLayer disableAnimation>
+    <SceneLayer disableAnimation rotationMotion="pause">
       <Box
         data-testid="placement-ghost"
         style={{
