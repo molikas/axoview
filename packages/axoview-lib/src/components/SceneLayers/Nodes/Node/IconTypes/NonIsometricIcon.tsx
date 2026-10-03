@@ -12,7 +12,8 @@ interface Props {
 }
 
 export const NonIsometricIcon = ({ icon, scale }: Props) => {
-  const { strategy, getTileCorner, getProjectionCss } = useCanvasMode();
+  const { strategy, getTileCorner, getProjectionCss, uprightFlip } =
+    useCanvasMode();
   const effectiveScale = scale ?? icon.scale ?? 1;
   // The flat icon's local origin is the tile's LEFT corner relative to the tile
   // centre. Projection is linear, so the offset from tile (0,0) is tile-independent;
@@ -54,8 +55,12 @@ export const NonIsometricIcon = ({ icon, scale }: Props) => {
             width: PROJECTED_TILE_SIZE.width * 0.7,
             // ADR 0044: scale about the CENTRE so a resize grows the flat icon
             // symmetrically (matching the isometric icon + the WebGL bulk),
-            // instead of only down-and-right from the top-left corner.
-            transform: `scale(${effectiveScale})`,
+            // instead of only down-and-right from the top-left corner. ADR 0050
+            // §2 keep-upright turns it 180° about the same centre, in step with
+            // the WebGL bulk's flipped quad.
+            transform: `scale(${effectiveScale})${
+              uprightFlip.X ? ' rotate(180deg)' : ''
+            }`,
             transformOrigin: 'center'
           }}
         />

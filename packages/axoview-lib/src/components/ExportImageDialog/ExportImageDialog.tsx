@@ -951,7 +951,11 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
                     // label draw. readableLabels keeps labels rendered + counter-
                     // scaled to a legible size (ADR 0025 §3 / ADR 0015). Tied to
                     // showLabels: nothing to keep readable when labels are off.
-                    readableLabels: showLabels
+                    readableLabels: showLabels,
+                    // ADR 0050 §6: render the GPU canvas AT the export scale, so
+                    // the grid, icons and chips are captured crisp instead of
+                    // upscaled from screen dpr.
+                    pixelRatio: renderTarget.effectiveScale
                   }}
                   onModelUpdated={handleHiddenAxoviewReady}
                 />

@@ -200,7 +200,9 @@ describe('SceneCanvas — pan/zoom repaints synchronously (rubber-band regressio
       756,
       expect.anything(),
       // No view-rotation motion at rest — the motion uniform is the identity.
-      null
+      null,
+      // The procedural grid pass (ADR 0050 §5) rides the same draw.
+      expect.objectContaining({ lineWidth: expect.any(Number) })
     );
   });
 
@@ -223,7 +225,8 @@ describe('SceneCanvas — pan/zoom repaints synchronously (rubber-band regressio
       400,
       300,
       expect.anything(),
-      null
+      null,
+      expect.objectContaining({ lineWidth: 2 })
     );
   });
 

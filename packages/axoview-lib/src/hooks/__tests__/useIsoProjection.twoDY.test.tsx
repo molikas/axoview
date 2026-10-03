@@ -43,7 +43,6 @@ jest.mock('src/contexts/CanvasModeContext', () => ({
 
     const strategy = {
       projectionName: currentMode,
-      gridTileUrl: '',
       toScreen: currentMode === '2D' ? toScreen2D : toScreenIso,
       fromScreen: () => ({ x: 0, y: 0 })
     };

@@ -4,6 +4,12 @@
 import type { Coords, Size } from 'src/types';
 import type { AnnotationStroke } from 'src/types/ui';
 import { HIGHLIGHTER_WIDTH_MULTIPLIER } from 'src/config/annotationSettings';
+import { isoKappa } from 'src/utils/coordinateTransforms';
+import {
+  normaliseDeg,
+  offsetMatrix,
+  rotationTrig
+} from 'src/utils/viewRotation';
 
 /**
  * Convert a renderer-relative screen point to scene-canvas coordinates (the
@@ -20,6 +26,38 @@ export const screenToSceneCanvas = (
   x: (screen.x - rendererSize.width / 2 - scroll.x) / zoom,
   y: (screen.y - rendererSize.height / 2 - scroll.y) / zoom
 });
+
+/**
+ * The ink frame (ADR 0050 §4): annotation strokes are STORED in the unrotated
+ * scene frame and drawn through `M(θ)`, so ink follows the floor as the view
+ * turns — the offset idea of ADR 0049 §4 applied to uiState. Returns the
+ * row-major 2×2 to draw with (`toRender`) and its inverse for pointer input
+ * (`fromRender`); both the identity at 0° and in 2D, where θ is inert.
+ */
+export const inkFrame = (
+  canvasMode: 'ISOMETRIC' | '2D',
+  viewRotation: number
+): {
+  toRender: readonly [number, number, number, number];
+  fromRender: readonly [number, number, number, number];
+} => {
+  if (canvasMode !== 'ISOMETRIC' || normaliseDeg(viewRotation) === 0) {
+    return { toRender: IDENTITY, fromRender: IDENTITY };
+  }
+  const t = rotationTrig(viewRotation);
+  const k = isoKappa();
+  return {
+    toRender: offsetMatrix(t, k) as [number, number, number, number],
+    fromRender: offsetMatrix({ cos: t.cos, sin: -t.sin }, k) as [
+      number,
+      number,
+      number,
+      number
+    ]
+  };
+};
+
+const IDENTITY = [1, 0, 0, 1] as const;
 
 /** SVG path `d` for a polyline through the given points (freehand / line). */
 export const polylinePathD = (points: Coords[]): string => {

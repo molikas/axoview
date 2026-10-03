@@ -32,6 +32,7 @@ import {
   footprintContainsPoint
 } from 'src/utils/renderedGeometry';
 import { getItemAtTile } from 'src/utils/hitDetection';
+import { inkFrame } from 'src/utils/annotationGeometry';
 import {
   compareSceneDrawOrder,
   sortTilesInPaintOrder,
@@ -439,5 +440,35 @@ describe('ADR 0049 §7 — viewport pivot and the step lattice', () => {
     expect(shortestArc(170, -170)).toBe(20);
     expect(shortestArc(-170, 170)).toBe(-20);
     expect(shortestArc(0, 180)).toBe(180);
+  });
+});
+
+describe('ADR 0050 §4 — annotation ink follows the floor', () => {
+  const apply = (m: readonly number[], v: { x: number; y: number }) => ({
+    x: m[0] * v.x + m[1] * v.y,
+    y: m[2] * v.x + m[3] * v.y
+  });
+
+  it.each(ANGLES)('ink round-trips through M(θ)·M(−θ) at %i°', (deg) => {
+    const { toRender, fromRender } = inkFrame('ISOMETRIC', deg);
+    const drawnAt = { x: 120.5, y: -48 }; // where the pen touched, scene px
+    const stored = apply(fromRender, drawnAt);
+    const back = apply(toRender, stored);
+    near(back.x, drawnAt.x);
+    near(back.y, drawnAt.y);
+  });
+
+  it('ink drawn through M(θ) is the offset map — it stays on what it marked', () => {
+    const s = makeIsometricStrategy(64);
+    const v = { x: 31, y: 7 };
+    const viaInk = apply(inkFrame('ISOMETRIC', 64).toRender, v);
+    const viaOffset = s.offsetToRender(v);
+    near(viaInk.x, viaOffset.x);
+    near(viaInk.y, viaOffset.y);
+  });
+
+  it('is the identity at 0° and in 2D', () => {
+    expect(inkFrame('ISOMETRIC', 0).toRender).toEqual([1, 0, 0, 1]);
+    expect(inkFrame('2D', 90).toRender).toEqual([1, 0, 0, 1]);
   });
 });

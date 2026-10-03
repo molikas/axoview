@@ -130,6 +130,39 @@ export const isoPlaneMatrix = (
 export const shortestArc = (from: number, to: number): number =>
   normaliseDeg(to - from);
 
+/**
+ * Total width of the keep-upright hysteresis band, centred on each boundary
+ * (ADR 0050 §2): ±5°.
+ */
+export const KEEP_UPRIGHT_BAND_DEG = 10;
+
+/**
+ * Keep-upright for floor-readable content (ADR 0050 §2): should an element of
+ * this orientation be drawn rotated 180° within its own plane at view angle
+ * `deg`, so its text / logo never reads upside-down?
+ *
+ * An element's reading direction is its local +u axis through the rotated
+ * plane; its on-screen x component is `cos θ − sin θ` for 'X' (and flat icons)
+ * and `cos θ + sin θ` for 'Y', i.e. ∝ cos(θ ± 45°). It "reads leftward" when
+ * that is negative — X for θ ∈ (45°, 180°] ∪ (−180°, −135°), Y for
+ * θ ∈ (135°, 180°] ∪ (−180°, −45°).
+ *
+ * HYSTERESIS: within half the band of a boundary the element keeps its
+ * `previous` state, so one resting near a boundary (an Alt+drag let go at 46°,
+ * then nudged to 44°) does not flip back and forth. The flip never mirrors —
+ * the determinant stays positive — and never changes the footprint.
+ */
+export const keepUprightFlip = (
+  orientation: 'X' | 'Y',
+  deg: number,
+  previous = false
+): boolean => {
+  const phase = orientation === 'Y' ? -45 : 45;
+  const ux = Math.cos(((normaliseDeg(deg) + phase) * Math.PI) / 180);
+  const band = Math.sin(((KEEP_UPRIGHT_BAND_DEG / 2) * Math.PI) / 180);
+  return previous ? ux < band : ux < -band;
+};
+
 /** The rotation step of the dock buttons and Q/E (ADR 0049 §7). */
 export const VIEW_ROTATION_STEP_DEG = 15;
 

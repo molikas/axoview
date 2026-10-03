@@ -14,4 +14,11 @@ export interface RendererProps {
    * from `expandLabels`, which controls rich-description expansion.
    */
   showLabels?: boolean;
+  /**
+   * Device-pixel ratio the GPU canvas renders at, overriding the screen's
+   * (ADR 0050 §6). The image export sets it to the export scale so GPU content
+   * — the grid, icons, chips — is captured at export resolution instead of
+   * being upscaled from screen dpr. Still subject to the backing-store clamps.
+   */
+  pixelRatio?: number;
 }

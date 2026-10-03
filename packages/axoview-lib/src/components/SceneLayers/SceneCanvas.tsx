@@ -17,7 +17,7 @@ import { useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useModelStoreApi } from 'src/stores/modelStore';
 import { useSceneStoreApi } from 'src/stores/sceneStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
-import { isoKappa } from 'src/utils/coordinateTransforms';
+import { getLiveStrategy, isoKappa } from 'src/utils/coordinateTransforms';
 import { offsetMatrix, rotationTrig } from 'src/utils/viewRotation';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import {
@@ -31,6 +31,7 @@ import {
   SpriteBatch,
   UVRect
 } from 'src/webgl/glSpriteBatch';
+import { gridPassFor } from 'src/webgl/scene/gridPass';
 import { publishAtlasStats } from 'src/webgl/atlasDiagnostics';
 import { attachContextLossRecovery } from 'src/webgl/contextLoss';
 import { CHIP_SUPERSAMPLE } from 'src/webgl/itemRaster';
@@ -86,7 +87,20 @@ interface Props {
   skipNodes?: ViewItem[];
   /** Viewport-culled floating Labels. */
   labels: Label[];
+  /**
+   * Draw the procedural grid pass under the bulk (ADR 0050 §5) —
+   * `renderer.showGrid` and the export dialog's grid checkbox.
+   */
+  showGrid?: boolean;
+  /**
+   * Render at this dpr instead of the screen's — the export instance passes
+   * its export scale (ADR 0050 §6), so GPU content is captured crisp.
+   */
+  pixelRatio?: number;
 }
+
+const screenDpr = (): number =>
+  (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
 
 // R3/GPU-01/03: how many times a failing icon url is re-requested before the
 // layer gives up on it. Bounded on both sides deliberately — zero retries cached
@@ -133,13 +147,21 @@ interface DrawUnit {
 }
 
 export const SceneCanvas = memo(
-  ({ rectangles, connectors, nodes, skipNodes, labels }: Props) => {
+  ({
+    rectangles,
+    connectors,
+    nodes,
+    skipNodes,
+    labels,
+    showGrid = true,
+    pixelRatio
+  }: Props) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const uiApi = useUiStateStoreApi();
     const modelApi = useModelStoreApi();
     const sceneApi = useSceneStoreApi();
     const theme = useTheme();
-    const { strategy } = useCanvasMode();
+    const { strategy, uprightFlip } = useCanvasMode();
     const { layers, visibleIds } = useLayerContext();
 
     // Live refs — the GL effect runs once per store identity and reads the
@@ -153,6 +175,10 @@ export const SceneCanvas = memo(
     // The strategy the bulk is BUILT at: mode + the settled view rotation θ₀
     // (ADR 0049 §6). Read at build time through a ref, like every input here.
     const strategyRef = useRef(strategy);
+    const showGridRef = useRef(showGrid);
+    const pixelRatioRef = useRef(pixelRatio);
+    // Keep-upright for flat icons (ADR 0050 §2) — decided with the strategy.
+    const uprightFlipXRef = useRef(uprightFlip.X);
     const skipIdsRef = useRef<Set<string>>(EMPTY_SKIP);
     const chipStyleRef = useRef<ChipStyle>({
       radius: 0,
@@ -176,6 +202,9 @@ export const SceneCanvas = memo(
     layersRef.current = layers;
     visibleIdsRef.current = visibleIds;
     strategyRef.current = strategy;
+    showGridRef.current = showGrid;
+    pixelRatioRef.current = pixelRatio;
+    uprightFlipXRef.current = uprightFlip.X;
     skipIdsRef.current =
       skipNodes && skipNodes.length > 0
         ? new Set(skipNodes.map((n) => n.id))
@@ -549,7 +578,7 @@ export const SceneCanvas = memo(
         // dpr*CHIP_SUPERSAMPLE would be 6x (36x chip area), overflowing the atlas
         // and thrashing memory for no visible gain.
         const ss =
-          Math.min(window.devicePixelRatio || 1, 2) * CHIP_SUPERSAMPLE;
+          Math.min(pixelRatioRef.current ?? screenDpr(), 2) * CHIP_SUPERSAMPLE;
         const drawLabels = isNodeLabelDrawn(zoom, readableLabels);
 
         // beginInstances() compacts the atlas if a prior build overflowed it (or
@@ -586,6 +615,7 @@ export const SceneCanvas = memo(
           itemsById,
           iconsById,
           strategy: buildStrategy,
+          uprightFlip: uprightFlipXRef.current,
           isIso,
           inPreview: ui.editorMode === 'EXPLORABLE_READONLY',
           previewHideLabels: ui.previewHideLabels,
@@ -697,7 +727,7 @@ export const SceneCanvas = memo(
           width: bw,
           height: bh,
           dpr
-        } = computeBackingStore(W, H, window.devicePixelRatio || 1);
+        } = computeBackingStore(W, H, pixelRatioRef.current ?? screenDpr());
         const counterScale = labelCounterScaleFor(zoom, readableLabels);
         const drawLabels = isNodeLabelDrawn(zoom, readableLabels) ? 1 : 0;
 
@@ -726,7 +756,10 @@ export const SceneCanvas = memo(
           originXDev,
           originYDev,
           counterScale,
-          motion
+          motion,
+          showGridRef.current
+            ? gridPassFor(getLiveStrategy(ui), zoom * dpr)
+            : null
         );
         canvas.dataset.motionDeg = String(motionDeg);
         canvas.dataset.labelScale = String(counterScale);
@@ -860,6 +893,19 @@ export const SceneCanvas = memo(
       geomDirtyRef.current = true;
       drawNowRef.current();
     }, [skipNodes]);
+
+    // The grid toggle is a uniform-level change: repaint, no rebuild.
+    useEffect(() => {
+      scheduleDrawRef.current();
+    }, [showGrid]);
+
+    // A new render dpr (the export scale changed) re-rasterises the chips at it
+    // and repaints in the same commit, before the export's re-capture reads the
+    // canvas.
+    useLayoutEffect(() => {
+      geomDirtyRef.current = true;
+      drawNowRef.current();
+    }, [pixelRatio]);
 
     return (
       <canvas

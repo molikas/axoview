@@ -34,13 +34,6 @@ import {
   unrotateTile
 } from 'src/utils/viewRotation';
 
-// SVG imports are inlined as data-URI strings at build time.
-// TypeScript may infer them as React.FC (module.d.ts global.d.ts) — cast to string.
-import gridTileSvgRaw from 'src/assets/grid-tile-bg.svg';
-import gridTile2dSvgRaw from 'src/assets/grid-tile-2d.svg';
-const gridTileSvg = gridTileSvgRaw as unknown as string;
-const gridTile2dSvg = gridTile2dSvgRaw as unknown as string;
-
 /** A tile-space corner, named by where it sits on screen at 0°. */
 export type TileCorner = 'LEFT' | 'RIGHT' | 'TOP' | 'BOTTOM';
 
@@ -85,9 +78,6 @@ export interface CoordinateTransformStrategy {
     scroll: Scroll,
     rendererSize: Size
   ): Coords;
-
-  /** Path to the SVG tile used as Grid background */
-  gridTileUrl: string;
 
   /** Discriminator — used by useIsoProjection to decide whether to apply the ISO CSS matrix */
   projectionName: 'ISOMETRIC' | '2D';
@@ -242,7 +232,6 @@ const ISO_0: RotationTrig = { cos: 1, sin: 0 };
 
 export const isometricStrategy: CoordinateTransformStrategy = {
   projectionName: 'ISOMETRIC',
-  gridTileUrl: gridTileSvg,
   rotation: 0,
 
   toScreen(tileX, tileY, tileSize) {
@@ -318,7 +307,6 @@ const buildRotatedIsometricStrategy = (
 
   return {
     projectionName: 'ISOMETRIC',
-    gridTileUrl: gridTileSvg,
     rotation: theta,
 
     toScreen,
@@ -405,7 +393,6 @@ const toScreen2D = (tileX: number, tileY: number, tileSize: number): Coords => (
 
 export const cartesian2DStrategy: CoordinateTransformStrategy = {
   projectionName: '2D',
-  gridTileUrl: gridTile2dSvg,
   rotation: 0,
 
   toScreen: toScreen2D,

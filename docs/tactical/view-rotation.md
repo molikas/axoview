@@ -88,10 +88,10 @@ Ship the turntable view rotation: free-angle, per instance, correct for off-grid
 - [ ] Add the `PERF_ROTATE` harness case and record its row in `perf-results/decision-log.md`.
 
 ### D. Render and legibility (ADR 0050)
-- [ ] Keep-upright predicate with hysteresis, wired into the DOM matrix, the flat-icon emitter, the inline editor and export.
-- [ ] Procedural grid pass; retire the SVG tiles and the Canvas2D path; side-by-side screenshots at 0°.
-- [ ] Export at `dpr = export scale`; this ships together with the grid.
-- [ ] Draw annotation ink through `M(θ)` with non-scaling strokes.
+- [x] Keep-upright predicate with hysteresis, wired into the DOM matrix, the flat-icon emitter, the inline editor and export.
+- [x] Procedural grid pass; retire the SVG tiles and the Canvas2D path; side-by-side screenshots at 0°.
+- [x] Export at `dpr = export scale`; this ships together with the grid.
+- [x] Draw annotation ink through `M(θ)` with non-scaling strokes.
 
 ### E. Default angle, sharing and export (ADR 0051)
 - [ ] Add `defaultRotation` to `viewSchema`, with round-trip and old-client tests. Lean save omits it at 0.

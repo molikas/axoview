@@ -139,6 +139,65 @@ void main() {
   outColor = (v_mode > 0.5) ? shape : sprite;
 }`;
 
+// ---------------------------------------------------------------------------
+// The procedural GRID pass (ADR 0050 §5) — one full-screen triangle drawn after
+// the clear and before the instanced bulk, in the same context. Its fragment
+// shader maps each pixel back to TILE space through the inverse of the live
+// view (pan, zoom, rotation θ — all uniforms) and draws the half-integer cell
+// boundaries with `fwidth` coverage at a constant screen width, fading a line
+// family out as its cells shrink towards a pixel. Pan, zoom and rotation change
+// uniforms only; there is no geometry to rebuild and nothing switches path at
+// 0°, so no pop and no per-line sub-pixel shimmer (the POC Canvas2D grid had
+// both). Replaces the SVG background tiles in iso AND 2D.
+// ---------------------------------------------------------------------------
+const GRID_VERT_SRC = `#version 300 es
+void main() {
+  // One oversized triangle covering the viewport: (-1,-1), (3,-1), (-1,3).
+  vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
+  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+}`;
+
+const GRID_FRAG_SRC = `#version 300 es
+precision highp float;
+uniform vec2 u_resolution;   // device px
+uniform vec3 u_view;         // (zoom*dpr, originX_dev, originY_dev) — as the bulk
+uniform mat2 u_sceneToTile;  // inverse of the live tile→scene map (θ folded in)
+uniform vec4 u_color;        // straight RGBA; alpha = line opacity
+uniform float u_lineWidth;   // device px
+uniform vec2 u_fade;         // cell spacing (device px) where a family fades out → in
+out vec4 outColor;
+void main() {
+  vec2 dev = vec2(gl_FragCoord.x, u_resolution.y - gl_FragCoord.y);
+  vec2 scene = (dev - u_view.yz) / u_view.x;
+  // Tile centres are integers, so cell boundaries are the half-integers.
+  vec2 d = u_sceneToTile * scene - 0.5;
+  vec2 dist = abs(fract(d + 0.5) - 0.5);   // tile units to the nearest line
+  vec2 fw = max(fwidth(d), vec2(1e-6));    // tile units per device px
+  vec2 px = dist / fw;                     // device px to the nearest line
+  // Box-filtered line of width u_lineWidth: thin lines get proportionally less
+  // ink, which is the zoom-out fade the SVG tile had.
+  vec2 cov = clamp(u_lineWidth * 0.5 + 0.5 - px, 0.0, min(u_lineWidth, 1.0));
+  // Fade a family out as its spacing (≈ 1 / fwidth) shrinks towards a pixel —
+  // no moiré, and no cost that grows with the zoom-out line count.
+  cov *= smoothstep(u_fade.x, u_fade.y, 1.0 / fw);
+  float a = u_color.a * max(cov.x, cov.y);
+  outColor = vec4(u_color.rgb * a, a); // premultiplied, like the bulk
+}`;
+
+/** The grid pass's per-frame inputs (ADR 0050 §5). */
+export interface GridPass {
+  /** Inverse of the live tile→scene map as a row-major 2×2 (θ folded in). */
+  sceneToTile: readonly [number, number, number, number];
+  /** Straight RGBA, 0–1; alpha is the line opacity. */
+  color: readonly [number, number, number, number];
+  /** Line width in DEVICE px. */
+  lineWidth: number;
+}
+
+// Cell spacings (device px) over which a line family fades out.
+const GRID_FADE_OUT_PX = 4;
+const GRID_FADE_IN_PX = 12;
+
 // 20 floats / instance = 5 vec4 attributes (80-byte stride, 16-byte aligned).
 const FLOATS_PER_INSTANCE = 20;
 const ATTR_STRIDE = FLOATS_PER_INSTANCE * 4;
@@ -352,7 +411,9 @@ export interface SpriteBatch {
      * The view-rotation motion transform `M(θ − θ₀)` as a row-major 2×2, or
      * omitted/null at rest (ADR 0049 §6). A uniform write — no rebuild.
      */
-    motion?: readonly [number, number, number, number] | null
+    motion?: readonly [number, number, number, number] | null,
+    /** The procedural grid, drawn under the bulk — or omitted/null for none. */
+    grid?: GridPass | null
   ): void;
 
   destroy(): void;
@@ -448,6 +509,30 @@ export const createSpriteBatch = (
   const uAtlas = gl.getUniformLocation(prog, 'u_atlas');
   const uMotion = gl.getUniformLocation(prog, 'u_motion');
   const uMoving = gl.getUniformLocation(prog, 'u_moving');
+
+  // --- grid program (ADR 0050 §5) ---
+  const gvs = compileShader(gl, gl.VERTEX_SHADER, GRID_VERT_SRC);
+  const gfs = compileShader(gl, gl.FRAGMENT_SHADER, GRID_FRAG_SRC);
+  if (!gvs || !gfs) return null;
+  const gridProg = gl.createProgram();
+  if (!gridProg) return null;
+  gl.attachShader(gridProg, gvs);
+  gl.attachShader(gridProg, gfs);
+  gl.linkProgram(gridProg);
+  if (!gl.getProgramParameter(gridProg, gl.LINK_STATUS)) {
+    console.warn(
+      '[glSpriteBatch] grid link failed:',
+      gl.getProgramInfoLog(gridProg)
+    );
+    return null;
+  }
+  const gResolution = gl.getUniformLocation(gridProg, 'u_resolution');
+  const gView = gl.getUniformLocation(gridProg, 'u_view');
+  const gSceneToTile = gl.getUniformLocation(gridProg, 'u_sceneToTile');
+  const gColor = gl.getUniformLocation(gridProg, 'u_color');
+  const gLineWidth = gl.getUniformLocation(gridProg, 'u_lineWidth');
+  const gFade = gl.getUniformLocation(gridProg, 'u_fade');
+  const gridCols = new Float32Array(4);
   // Column-major scratch for uniformMatrix2fv (no per-frame allocation).
   const motionCols = new Float32Array([1, 0, 0, 1]);
 
@@ -959,7 +1044,16 @@ export const createSpriteBatch = (
     }),
     drawCallCount: () => runs.length,
     instanceCount: () => instCount,
-    render(bw, bh, zoomDpr, originXDev, originYDev, counterScale, motion) {
+    render(
+      bw,
+      bh,
+      zoomDpr,
+      originXDev,
+      originYDev,
+      counterScale,
+      motion,
+      grid
+    ) {
       if (canvas.width !== bw || canvas.height !== bh) {
         canvas.width = bw;
         canvas.height = bh;
@@ -972,6 +1066,29 @@ export const createSpriteBatch = (
         gl!.bindTexture(gl!.TEXTURE_2D, p.tex);
         gl!.generateMipmap(gl!.TEXTURE_2D);
         p.mipDirty = false;
+      }
+      if (grid) {
+        // Under everything the bulk draws; above the container background.
+        gl!.useProgram(gridProg);
+        gl!.bindVertexArray(null);
+        gl!.uniform2f(gResolution, bw, bh);
+        gl!.uniform3f(gView, zoomDpr, originXDev, originYDev);
+        // Row-major [a, b, c, d] → GLSL column-major (a, c, b, d).
+        gridCols[0] = grid.sceneToTile[0];
+        gridCols[1] = grid.sceneToTile[2];
+        gridCols[2] = grid.sceneToTile[1];
+        gridCols[3] = grid.sceneToTile[3];
+        gl!.uniformMatrix2fv(gSceneToTile, false, gridCols);
+        gl!.uniform4f(
+          gColor,
+          grid.color[0],
+          grid.color[1],
+          grid.color[2],
+          grid.color[3]
+        );
+        gl!.uniform1f(gLineWidth, grid.lineWidth);
+        gl!.uniform2f(gFade, GRID_FADE_OUT_PX, GRID_FADE_IN_PX);
+        gl!.drawArrays(gl!.TRIANGLES, 0, 3);
       }
       if (instCount === 0) return;
       gl!.useProgram(prog);
@@ -1033,6 +1150,9 @@ export const createSpriteBatch = (
       gl!.deleteProgram(prog);
       gl!.deleteShader(vs);
       gl!.deleteShader(fs);
+      gl!.deleteProgram(gridProg);
+      gl!.deleteShader(gvs);
+      gl!.deleteShader(gfs);
     }
   };
 };

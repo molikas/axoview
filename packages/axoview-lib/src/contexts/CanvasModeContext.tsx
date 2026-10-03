@@ -12,7 +12,7 @@
 // Mount <CanvasModeContext.Provider> once inside the UiStateProvider tree.
 // Consumers call useCanvasMode() to get mode-aware tile/screen helpers.
 
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useMemo, useRef } from 'react';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import {
   CoordinateTransformStrategy,
@@ -22,6 +22,7 @@ import {
   makeTileCornerFn,
   makeScreenToTileFn
 } from 'src/utils/coordinateTransforms';
+import { keepUprightFlip } from 'src/utils/viewRotation';
 import type { Coords, Scroll, Size, TileOrigin } from 'src/types';
 
 // ---------------------------------------------------------------------------
@@ -66,7 +67,18 @@ export interface CanvasModeContextValue {
    * or an empty string in 2D mode (no projection transform needed).
    */
   getProjectionCss: (orientation?: 'X' | 'Y') => string;
+
+  /**
+   * Keep-upright (ADR 0050 §2): per orientation, whether FLOOR-READABLE content
+   * — text boxes, flat icons — is drawn rotated 180° within its own plane at
+   * the settled view angle, so it never reads upside-down. Always false in 2D
+   * and at |θ| < 45°. Decided at the settled angle with hysteresis, so a flip
+   * lands at settle (ADR 0049 §6) and never flickers at a boundary.
+   */
+  uprightFlip: { X: boolean; Y: boolean };
 }
+
+const NO_FLIP = { X: false, Y: false } as const;
 
 // ---------------------------------------------------------------------------
 // Context + Provider
@@ -88,6 +100,23 @@ export const CanvasModeProvider = ({ children }: ProviderProps) => {
   // θ to one strategy in 2D — so its identity is the memo key.
   const strategy = getStrategy(canvasMode, viewRotationBase);
 
+  // The flip carries HYSTERESIS, so it depends on the previous decision — kept
+  // per provider (per instance), never module state. Recomputing for the same
+  // strategy is idempotent (a decided state re-decides to itself).
+  const flipRef = useRef<{ X: boolean; Y: boolean }>(NO_FLIP);
+  const uprightFlip = useMemo(() => {
+    if (strategy.projectionName !== 'ISOMETRIC' || strategy.rotation === 0) {
+      flipRef.current = NO_FLIP;
+      return NO_FLIP;
+    }
+    const prev = flipRef.current;
+    const X = keepUprightFlip('X', strategy.rotation, prev.X);
+    const Y = keepUprightFlip('Y', strategy.rotation, prev.Y);
+    const next = X === prev.X && Y === prev.Y ? prev : { X, Y };
+    flipRef.current = next;
+    return next;
+  }, [strategy]);
+
   const value = useMemo<CanvasModeContextValue>(() => {
     const getTilePosition = makeTilePositionFn(strategy);
     const getTileCorner = makeTileCornerFn(strategy);
@@ -103,9 +132,10 @@ export const CanvasModeProvider = ({ children }: ProviderProps) => {
       getTilePosition,
       getTileCorner,
       screenToTile,
-      getProjectionCss
+      getProjectionCss,
+      uprightFlip
     };
-  }, [strategy]);
+  }, [strategy, uprightFlip]);
 
   return (
     <CanvasModeContext.Provider value={value}>

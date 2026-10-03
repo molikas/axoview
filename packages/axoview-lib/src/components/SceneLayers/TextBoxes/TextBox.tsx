@@ -316,7 +316,9 @@ export const TextBox = memo(({ textBox }: Props) => {
     from,
     to,
     originOverride,
-    orientation: textBox.orientation
+    orientation: textBox.orientation,
+    // Text lies flat on the floor — never let it read upside-down.
+    keepUpright: true
   });
 
   // ADR 0023 off-grid: compose the SceneLayer-px offset into the same wrapper

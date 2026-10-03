@@ -12,7 +12,6 @@ import {
   useCanvasMode,
   CanvasModeContextValue
 } from 'src/contexts/CanvasModeContext';
-import { Grid } from 'src/components/Grid/Grid';
 import { Cursor } from 'src/components/Cursor/Cursor';
 import { Nodes } from 'src/components/SceneLayers/Nodes/Nodes';
 import { NodeLabelHitLayer } from 'src/components/SceneLayers/Nodes/NodeLabelHitLayer';
@@ -136,7 +135,11 @@ function useStableList<T>(next: T[]): T[] {
   return next;
 }
 
-export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
+export const Renderer = ({
+  showGrid,
+  backgroundColor,
+  pixelRatio
+}: RendererProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const interactionsRef = useRef<HTMLDivElement>(null);
   const uiStateApi = useUiStateStoreApi();
@@ -573,33 +576,20 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
             : (backgroundColor ?? theme.customVars.customPalette.diagramBg)
       }}
     >
-      {/* The GRID is the backdrop and mounts FIRST now.
-          Before the merge it sat between RectanglesCanvas and ConnectorsCanvas,
-          so grid lines painted over grouping-rectangle fills but under
-          everything else — a position that only existed because there were four
-          canvases to sit between. With one bulk canvas the grid is either under
-          all content or over all of it, and under is what a backdrop means
-          (and what every other tool does). */}
-      <Box
-        sx={{
-          position: 'absolute',
-          width: '100%',
-          height: '100%',
-          top: 0,
-          left: 0
-        }}
-      >
-        {isShowGrid && <Grid />}
-      </Box>
       {/* THE bulk canvas — rectangles, connectors, nodes and floating Labels in
           ONE WebGL2 context, ordered by one sort (R3/GPU-13, ADR 0038 §8). Mount
-          order carries no ordering meaning any more; the sort key does. */}
+          order carries no ordering meaning any more; the sort key does.
+          The GRID is its first pass (ADR 0050 §5): a procedural backdrop under
+          all content and above the container background, at every view angle
+          and in both projections — it replaced the SVG background tiles. */}
       <SceneCanvas
         rectangles={canvasRectangles}
         connectors={canvasConnectors}
         nodes={visibleItems}
         skipNodes={hybridNodes}
         labels={visibleLabels}
+        showGrid={isShowGrid}
+        pixelRatio={pixelRatio}
       />
       {/* The DOM <Rectangles> keeps only the DRAGGED rect (its [data-drag-id] is
           what DragItems mutates for the live move preview) and the DOM

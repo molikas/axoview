@@ -9,21 +9,35 @@ interface Props {
   to: Coords;
   originOverride?: Coords;
   orientation?: keyof typeof ProjectionOrientationEnum;
+  /**
+   * FLOOR-READABLE content (text boxes): apply keep-upright (ADR 0050 §2) —
+   * when the view turns the reading direction leftward, draw the element
+   * rotated 180° within its own plane about its footprint centre. Never set
+   * for areas or chrome, whose orientation carries no reading direction.
+   */
+  keepUpright?: boolean;
 }
 
 export const useIsoProjection = ({
   from,
   to,
   originOverride,
-  orientation
+  orientation,
+  keepUpright = false
 }: Props): {
   css: React.CSSProperties;
   position: Coords;
   gridSize: Size;
   pxSize: Size;
 } => {
-  const { getTilePosition, getTileCorner, getProjectionCss, strategy } =
-    useCanvasMode();
+  const {
+    getTilePosition,
+    getTileCorner,
+    getProjectionCss,
+    strategy,
+    uprightFlip
+  } = useCanvasMode();
+  const flipped = keepUpright && uprightFlip[orientation === 'Y' ? 'Y' : 'X'];
 
   const gridSize = useMemo(() => {
     return {
@@ -84,8 +98,16 @@ export const useIsoProjection = ({
     // axis convention for "left to right on the y-axis".
     const twoDOrientationY =
       strategy.projectionName === '2D' && orientation === 'Y';
+    // Keep-upright (ADR 0050 §2): rotate 180° about the footprint centre in the
+    // element's OWN (pre-projection) frame — `translate(W, H) rotate(180deg)`
+    // maps local (u, v) → (W − u, H − v) — so the footprint, hit area and
+    // selection frame are unchanged and nothing is mirrored. The inline editor
+    // lives inside this container and inherits it.
+    const uprightCss = flipped
+      ? ` translate(${pxSize.width}px, ${pxSize.height}px) rotate(180deg)`
+      : '';
     const transform = projectionCss
-      ? projectionCss
+      ? projectionCss + uprightCss
       : twoDOrientationY
         ? `translateX(${pxSize.height}px) rotate(90deg)`
         : null;
@@ -110,6 +132,7 @@ export const useIsoProjection = ({
     gridSize,
     projectionCss,
     strategy,
-    orientation
+    orientation,
+    flipped
   ]);
 };

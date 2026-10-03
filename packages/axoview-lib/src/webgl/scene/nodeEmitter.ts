@@ -101,6 +101,12 @@ export interface NodeEmitterInput {
    * the ground-plane matrix a flat icon is sheared by all come from it.
    */
   strategy: CoordinateTransformStrategy;
+  /**
+   * Keep-upright for FLAT icons (ADR 0050 §2): they lie on the floor in the X
+   * orientation, so at the angles where X reads leftward the quad is drawn
+   * rotated 180° within its own plane — same footprint, never mirrored.
+   */
+  uprightFlip: boolean;
   isIso: boolean;
   inPreview: boolean;
   previewHideLabels: boolean;
@@ -144,6 +150,7 @@ export const createNodeEmitter = ({
   itemsById,
   iconsById,
   strategy,
+  uprightFlip,
   isIso,
   inPreview,
   previewHideLabels,
@@ -273,18 +280,33 @@ export const createNodeEmitter = ({
             // its tile when the view is rotated (ADR 0049 §3); off-grid residual
             // included.
             const leftCorner = getRenderedTileCorner(node, strategy, 'LEFT');
-            const ox =
+            let ox =
               leftCorner.x + ISO[4] - 0.5 * (ISO[0] * dw + ISO[2] * dh);
-            const oy = leftCorner.y + ISO[5] - 0.5 * (ISO[1] * dw + ISO[3] * dh);
+            let oy = leftCorner.y + ISO[5] - 0.5 * (ISO[1] * dw + ISO[3] * dh);
+            let ux = ISO[0] * w;
+            let uy = ISO[1] * w;
+            let vx = ISO[2] * h;
+            let vy = ISO[3] * h;
+            if (uprightFlip) {
+              // Keep-upright (ADR 0050 §2): 180° about the quad's own centre —
+              // start at the opposite corner and walk the negated basis. UVs are
+              // untouched, so the logo turns rather than mirrors.
+              ox += ux + vx;
+              oy += uy + vy;
+              ux = -ux;
+              uy = -uy;
+              vx = -vx;
+              vy = -vy;
+            }
             b.addSprite(
               ox,
               oy,
               0,
               0,
-              ISO[0] * w,
-              ISO[1] * w,
-              ISO[2] * h,
-              ISO[3] * h,
+              ux,
+              uy,
+              vx,
+              vy,
               uv,
               1,
               1,
