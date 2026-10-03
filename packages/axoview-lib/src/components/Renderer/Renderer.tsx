@@ -8,10 +8,7 @@ import React, {
 import { Box } from '@mui/material';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useInteractionManager } from 'src/interaction/useInteractionManager';
-import {
-  useCanvasMode,
-  CanvasModeContextValue
-} from 'src/contexts/CanvasModeContext';
+import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { Cursor } from 'src/components/Cursor/Cursor';
 import { Nodes } from 'src/components/SceneLayers/Nodes/Nodes';
 import { NodeLabelHitLayer } from 'src/components/SceneLayers/Nodes/NodeLabelHitLayer';
@@ -34,25 +31,23 @@ import { Lasso } from 'src/components/Lasso/Lasso';
 import { FreehandLasso } from 'src/components/FreehandLasso/FreehandLasso';
 import { useScene } from 'src/hooks/useScene';
 import { useInlineEditHistoryBracket } from 'src/hooks/useInlineEditHistoryBracket';
-import {
-  getLiveStrategy,
-  makeScreenToTileFn
-} from 'src/utils/coordinateTransforms';
+import { getLiveStrategy } from 'src/utils/coordinateTransforms';
 import { getFitToViewParams, CoordsUtils } from 'src/utils';
+import {
+  computeTileBounds,
+  TileBounds
+} from 'src/components/Renderer/viewportBounds';
 import { RendererProps } from 'src/types/rendererProps';
-import { Scroll, Size, ViewItem, UiStateStore } from 'src/types';
+import { ViewItem, UiStateStore } from 'src/types';
 
 // Stable empty list so the canvas-node DOM hybrid overlay memo returns a
 // referentially-stable value when nothing is selected (avoids re-renders).
 const NO_HYBRID_NODES: ViewItem[] = [];
 
-// Extra tiles of padding around the screen edges to avoid visible pop-in.
-const VIEWPORT_TILE_PADDING = 4;
-
 // Coalescing windows for the viewport-culling re-render during a continuous
 // pan/zoom gesture (see the coarseBounds subscriber). A fast fling otherwise
 // re-culls on most frames; these throttle it to a handful of times/sec off the
-// per-frame path while keeping the cull current within VIEWPORT_TILE_PADDING.
+// per-frame path while keeping the cull current within the viewport padding.
 const PAN_GESTURE_GAP_MS = 250; // scroll/zoom changes closer than this = one gesture
 const PAN_BOUNDS_THROTTLE_MS = 180; // max cull cadence mid-gesture
 const PAN_SETTLE_MS = 120; // flush the final cull this long after motion stops
@@ -63,49 +58,11 @@ const PAN_SETTLE_MS = 120; // flush the final cull this long after motion stops
  */
 const ID_KEY_SEP = '\u0000';
 
-interface TileBounds {
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
-}
-
-const computeTileBounds = (
-  scroll: Scroll,
-  zoom: number,
-  rendererSize: Size,
-  screenToTile: CanvasModeContextValue['screenToTile']
-): TileBounds => {
-  // Viewport corners mapped to tiles, then their AABB — under view rotation the
-  // corners land on a rotated rectangle in tile space, and its AABB (padded)
-  // still bounds everything on screen.
-  if (rendererSize.width === 0 || rendererSize.height === 0) {
-    return { minX: -Infinity, maxX: Infinity, minY: -Infinity, maxY: Infinity };
-  }
-
-  const corners = [
-    { x: 0, y: 0 },
-    { x: rendererSize.width, y: 0 },
-    { x: 0, y: rendererSize.height },
-    { x: rendererSize.width, y: rendererSize.height }
-  ].map((mouse) => screenToTile({ mouse, zoom, scroll, rendererSize }));
-
-  const xs = corners.map((t) => t.x);
-  const ys = corners.map((t) => t.y);
-
-  return {
-    minX: Math.min(...xs) - VIEWPORT_TILE_PADDING,
-    maxX: Math.max(...xs) + VIEWPORT_TILE_PADDING,
-    minY: Math.min(...ys) - VIEWPORT_TILE_PADDING,
-    maxY: Math.max(...ys) + VIEWPORT_TILE_PADDING
-  };
-};
-
 // Culling resolves the viewport at the LIVE angle (ADR 0049 §6): while a
-// rotation is in motion the settled context angle lags the screen, and content
-// turning in from off-screen must already be mounted.
-const liveScreenToTile = (s: UiStateStore) =>
-  makeScreenToTileFn(getLiveStrategy(s));
+// rotation is in motion the settled context angle lags the screen. In the
+// isometric view the bounds do not depend on the angle (viewportBounds.ts).
+const liveViewportBounds = (s: UiStateStore) =>
+  computeTileBounds(s.scroll, s.zoom, s.rendererSize, getLiveStrategy(s));
 
 const tileBoundsEqual = (a: TileBounds, b: TileBounds) =>
   a.minX === b.minX &&
@@ -175,12 +132,7 @@ export const Renderer = ({
   // the user pans far enough to expose new tiles, not on every pixel.
   const [coarseBounds, setCoarseBounds] = useState<TileBounds>(() => {
     const s = uiStateApi.getState();
-    return computeTileBounds(
-      s.scroll,
-      s.zoom,
-      s.rendererSize,
-      liveScreenToTile(s)
-    );
+    return liveViewportBounds(s);
   });
 
   // Viewport-culling re-render, decoupled from the per-frame pan path.
@@ -195,7 +147,7 @@ export const Renderer = ({
   // scroll, resize) culls immediately, but a continuous gesture (mouse pan, touch
   // pan, pinch — all detected generically as a rapid stream of changes) throttles
   // the cull off the per-frame path and always flushes once motion settles.
-  // VIEWPORT_TILE_PADDING keeps already-rendered content on-screen during the
+  // The viewport padding keeps already-rendered content on-screen during the
   // throttled window. This leaves the #54 synchronous canvas repaint untouched
   // (SceneCanvas keeps painting the committed set every frame), so no
   // cross-surface rubber-band returns.
@@ -221,12 +173,7 @@ export const Renderer = ({
       ) {
         return;
       }
-      const newBounds = computeTileBounds(
-        state.scroll,
-        state.zoom,
-        state.rendererSize,
-        liveScreenToTile(state)
-      );
+      const newBounds = liveViewportBounds(state);
       pending = newBounds;
       const now = performance.now();
       const continuous = now - lastChangeAt < PAN_GESTURE_GAP_MS;

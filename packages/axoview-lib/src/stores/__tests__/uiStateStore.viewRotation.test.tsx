@@ -10,6 +10,10 @@
 import React from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { UiStateProvider, useUiStateStoreApi } from 'src/stores/uiStateStore';
+import {
+  CanvasModeProvider,
+  useCanvasMode
+} from 'src/contexts/CanvasModeContext';
 import { getLiveStrategy } from 'src/utils/coordinateTransforms';
 import { UNPROJECTED_TILE_SIZE } from 'src/config';
 
@@ -18,8 +22,7 @@ const Providers = ({ children }: { children: React.ReactNode }) => (
 );
 
 const setup = () =>
-  renderHook(() => useUiStateStoreApi(), { wrapper: Providers }).result
-    .current;
+  renderHook(() => useUiStateStoreApi(), { wrapper: Providers }).result.current;
 
 const setIso = (api: ReturnType<typeof setup>) =>
   act(() => {
@@ -90,11 +93,19 @@ describe('uiState view rotation (ADR 0049)', () => {
     const before = getLiveStrategy(api.getState());
     const s0 = api.getState().scroll.position;
     const z = api.getState().zoom;
-    const tile0 = before.fromCanvasPoint(-s0.x / z, -s0.y / z, UNPROJECTED_TILE_SIZE);
+    const tile0 = before.fromCanvasPoint(
+      -s0.x / z,
+      -s0.y / z,
+      UNPROJECTED_TILE_SIZE
+    );
     act(() => api.getState().actions.setViewRotation(-75));
     const after = getLiveStrategy(api.getState());
     const s1 = api.getState().scroll.position;
-    const tile1 = after.fromCanvasPoint(-s1.x / z, -s1.y / z, UNPROJECTED_TILE_SIZE);
+    const tile1 = after.fromCanvasPoint(
+      -s1.x / z,
+      -s1.y / z,
+      UNPROJECTED_TILE_SIZE
+    );
     expect(tile1.x).toBeCloseTo(tile0.x, 9);
     expect(tile1.y).toBeCloseTo(tile0.y, 9);
   });
@@ -178,5 +189,33 @@ describe('uiState view rotation (ADR 0049)', () => {
     } finally {
       window.matchMedia = original;
     }
+  });
+
+  it('the context strategy keeps its identity through a long orbit', () => {
+    // Its identity keys every consumer memo and the SceneCanvas rebuild: a new
+    // object for the same θ₀ mid-orbit is a full rebuild in motion (ADR 0049 §6).
+    const Both = ({ children }: { children: React.ReactNode }) => (
+      <UiStateProvider>
+        <CanvasModeProvider>{children}</CanvasModeProvider>
+      </UiStateProvider>
+    );
+    const { result, rerender } = renderHook(
+      () => ({ api: useUiStateStoreApi(), strategy: useCanvasMode().strategy }),
+      { wrapper: Both }
+    );
+    const api = result.current.api;
+    setIso(api);
+    act(() => api.getState().actions.setViewRotation(15));
+    const settled = result.current.strategy;
+    expect(settled.rotation).toBe(15);
+    act(() => api.getState().actions.beginViewRotationMotion());
+    for (let i = 1; i <= 100; i++) {
+      act(() =>
+        api.getState().actions.setViewRotation(15 + 45 * Math.sin(i / 10 + 0.1))
+      );
+      getLiveStrategy(api.getState());
+    }
+    rerender();
+    expect(result.current.strategy).toBe(settled);
   });
 });

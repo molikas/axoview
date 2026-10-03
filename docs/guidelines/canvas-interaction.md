@@ -1,6 +1,6 @@
 # Axoview Canvas Interaction Guidelines
 
-**Last updated:** 2026-08-21 (section index added; content last revised 2026-07-23 — §5.9 per-element interaction contract + new-element checklist, folded from the retired `canvas-interaction-baseline.md` + `canvas-interaction-behavior-map.md` tacticals and reconciled against code) · revision history: `git log --follow docs/guidelines/canvas-interaction.md`
+**Last updated:** 2026-10-03 (view rotation: §4.6 VIEW_ROTATE, §5.10 the live strategy, Q/E keybindings — ADR 0049; previously 2026-07-23 — §5.9 per-element interaction contract + new-element checklist) · revision history: `git log --follow docs/guidelines/canvas-interaction.md`
 **Status:** Living reference. Update when the interaction layer evolves.
 **Audience:** Anyone (or any agent) touching canvas input — event routing, hit-testing, modes, drag, selection, or the gestures on top of them.
 

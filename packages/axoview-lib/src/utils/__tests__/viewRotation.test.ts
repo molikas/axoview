@@ -74,6 +74,15 @@ describe('ADR 0049 §2 — the strategy is a value built from (mode, θ)', () =>
     expect(makeIsometricStrategy(37)).not.toBe(makeIsometricStrategy(38));
   });
 
+  it('a recently used θ survives a long orbit through the bounded cache', () => {
+    const settled = makeIsometricStrategy(15);
+    // An orbit builds a live strategy per frame, re-reading θ₀ as it goes.
+    for (let i = 1; i <= 200; i++) {
+      makeIsometricStrategy(15 + i * 0.37);
+      if (i % 32 === 0) expect(makeIsometricStrategy(15)).toBe(settled);
+    }
+  });
+
   it('carries its angle, normalised', () => {
     expect(makeIsometricStrategy(190).rotation).toBe(-170);
     expect(getStrategy('2D', 90).rotation).toBe(0);

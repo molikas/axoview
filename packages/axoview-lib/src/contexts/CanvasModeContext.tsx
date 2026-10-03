@@ -96,9 +96,14 @@ export const CanvasModeProvider = ({ children }: ProviderProps) => {
   // a 2D canvas never re-renders for a rotation.
   const viewRotationBase = useUiStateStore((state) => state.viewRotationBase);
 
-  // getStrategy returns the SAME object for the same (mode, θ) — and maps every
-  // θ to one strategy in 2D — so its identity is the memo key.
-  const strategy = getStrategy(canvasMode, viewRotationBase);
+  // Its identity is the memo key for every consumer and the SceneCanvas rebuild,
+  // so it is PINNED to (mode, θ₀) here: the strategy cache is shared with the
+  // live per-frame strategies and evicts during a long orbit, and a re-render
+  // that fetched a fresh object for the same θ₀ would rebuild mid-motion.
+  const strategy = useMemo(
+    () => getStrategy(canvasMode, viewRotationBase),
+    [canvasMode, viewRotationBase]
+  );
 
   // The flip carries HYSTERESIS, so it depends on the previous decision — kept
   // per provider (per instance), never module state. Recomputing for the same

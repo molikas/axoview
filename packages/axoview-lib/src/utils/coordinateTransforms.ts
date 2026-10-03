@@ -357,7 +357,10 @@ const buildRotatedIsometricStrategy = (
 };
 
 // Strategies are values, but memos key on their IDENTITY, so the same θ should
-// hand back the same object. Bounded: a long Alt+drag visits many angles.
+// hand back the same object. Bounded, least-recently-used out: a long Alt+drag
+// builds a live strategy per angle it visits. The cache only shares objects —
+// a holder whose identity must not change (the CanvasModeContext θ₀ strategy)
+// pins its own reference rather than relying on staying cached.
 const ROTATED_CACHE_LIMIT = 64;
 const rotatedCache = new Map<number, CoordinateTransformStrategy>();
 
@@ -371,8 +374,15 @@ export const makeIsometricStrategy = (
   const d = normaliseDeg(theta);
   if (d === 0) return isometricStrategy;
   const hit = rotatedCache.get(d);
-  if (hit) return hit;
-  if (rotatedCache.size >= ROTATED_CACHE_LIMIT) rotatedCache.clear();
+  if (hit) {
+    // Re-insert so Map order stays least- to most-recently used.
+    rotatedCache.delete(d);
+    rotatedCache.set(d, hit);
+    return hit;
+  }
+  if (rotatedCache.size >= ROTATED_CACHE_LIMIT) {
+    rotatedCache.delete(rotatedCache.keys().next().value as number);
+  }
   const built = buildRotatedIsometricStrategy(d);
   rotatedCache.set(d, built);
   return built;

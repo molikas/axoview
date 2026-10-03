@@ -85,7 +85,7 @@ Ship the turntable view rotation: free-angle, per instance, correct for off-grid
 - [x] Add a `mat2` uniform and instance classes in `glSpriteBatch.ts`, and split the chip/stalk screen offset from the anchor.
 - [x] Remove θ from SceneCanvas's geometry deps, apply `M(θ − θ₀)` at draw time, and settle-rebuild under a re-baseline policy.
 - [x] DOM content layers update by transform only; hit proxies and handles are suspended until settle.
-- [ ] Add the `PERF_ROTATE` harness case and record its row in `perf-results/decision-log.md`.
+- [x] Add the `PERF_ROTATE` harness case and record its row in `perf-results/decision-log.md`.
 
 ### D. Render and legibility (ADR 0050)
 - [x] Keep-upright predicate with hysteresis, wired into the DOM matrix, the flat-icon emitter, the inline editor and export.
