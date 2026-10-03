@@ -441,16 +441,19 @@ test.describe('View rotation — rotated interaction (ADR 0049)', () => {
             ?.defaultRotation ?? null
         );
       });
-    // No set-default control while the angle IS the default.
-    await expect(
-      page.locator('[data-axoview-id="view-rotation-set-default"]')
-    ).toHaveCount(0);
+    // While the angle IS the default the pin is disabled in place — never
+    // removed, so the dock does not reflow as the view turns.
+    const pin = page.locator('[data-axoview-id="view-rotation-set-default"]');
+    await expect(pin).toBeDisabled();
     await page.locator('[data-axoview-id="view-rotation-ccw"]').click();
+    await expect(pin).toHaveCount(1);
     await settled(page);
+    await expect(pin).toBeEnabled();
     expect(await defaultRotation()).toBeNull();
 
-    await page.locator('[data-axoview-id="view-rotation-set-default"]').click();
+    await pin.click();
     await expect.poll(defaultRotation).toBe(15);
+    await expect(pin).toBeDisabled();
 
     await page.keyboard.press('Control+z');
     await expect.poll(defaultRotation).toBeNull();

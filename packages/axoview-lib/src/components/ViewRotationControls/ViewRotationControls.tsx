@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Stack, IconButton, Tooltip, ButtonBase, Divider, Box } from '@mui/material';
-import { useUiStateStore } from 'src/stores/uiStateStore';
+import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useModelStore } from 'src/stores/modelStore';
 import { useScene } from 'src/hooks/useScene';
 import { useTranslation } from 'src/stores/localeStore';
@@ -14,7 +14,7 @@ import { normaliseDeg } from 'src/utils/viewRotation';
 //
 //   ⟲ / ⟳        step 15° onto the 15° lattice (Q / E do the same)
 //   θ°           a BUTTON: returns to the page default; its tooltip names both
-//   set default  editor only, shown while θ differs from the page default —
+//   set default  editor only, enabled while θ differs from the page default —
 //                writes the page's `defaultRotation` as one undo step
 //
 // The angle itself is per-viewer uiState (viewers get the same controls, minus
@@ -83,12 +83,17 @@ export const ViewRotationControls = () => {
     (s) => s.views.find((v) => v.id === viewId)?.defaultRotation ?? 0
   );
   const { updateView } = useScene();
+  const uiApi = useUiStateStoreApi();
 
   const isIso = canvasMode === 'ISOMETRIC';
+  // Keyed to the SETTLED angle, so the controls change state once per gesture —
+  // at settle — and never flicker frame to frame while the view turns (or while
+  // an orbit sweeps across the default). The pin is never mounted/unmounted by
+  // a rotation either: it is disabled in place, so the dock does not reflow.
   const atDefault =
-    Math.round(normaliseDeg(rotation) * 10) ===
+    Math.round(normaliseDeg(settled) * 10) ===
     Math.round(normaliseDeg(pageDefault) * 10);
-  const canSetDefault = canMutate(editorMode) && isIso && !atDefault && !inMotion;
+  const showSetDefault = canMutate(editorMode);
 
   // Announce the angle once a rotation settles (aria-live), never per frame.
   const [announcement, setAnnouncement] = useState('');
@@ -111,9 +116,15 @@ export const ViewRotationControls = () => {
 
   const setAsPageDefault = () => {
     if (!viewId) return;
+    // Mid-step, land the animation first: the default is the angle the step
+    // was going to, never an intermediate frame.
+    if (uiApi.getState().viewRotationInMotion) {
+      actions.finishViewRotationAnimation();
+    }
     // One timestamped UPDATE_VIEW = one undo step, dirty + autosave like any
     // edit (ADR 0051 §2). 0 removes the field (lean save); rounded to 0.1°.
-    const value = Math.round(normaliseDeg(rotation) * 10) / 10;
+    const landed = uiApi.getState().viewRotation;
+    const value = Math.round(normaliseDeg(landed) * 10) / 10;
     updateView(viewId, { defaultRotation: value === 0 ? undefined : value });
   };
 
@@ -189,23 +200,32 @@ export const ViewRotationControls = () => {
         </span>
       </Tooltip>
 
-      {canSetDefault && (
+      {showSetDefault && (
         <Tooltip
-          title={`${t('setAsPageDefault')} — ${t('setAsPageDefaultHint').replace(
-            '{angle}',
-            formatDeg(rotation)
-          )}`}
+          title={
+            !isIso
+              ? disabledHint
+              : atDefault
+                ? readoutTitle
+                : `${t('setAsPageDefault')} — ${t('setAsPageDefaultHint').replace(
+                    '{angle}',
+                    formatDeg(rotation)
+                  )}`
+          }
           placement="top"
         >
-          <IconButton
-            size="small"
-            sx={btnSx}
-            aria-label={t('setAsPageDefault')}
-            onClick={setAsPageDefault}
-            data-axoview-id="view-rotation-set-default"
-          >
-            <PinIcon />
-          </IconButton>
+          <span>
+            <IconButton
+              size="small"
+              sx={btnSx}
+              disabled={!isIso || atDefault}
+              aria-label={t('setAsPageDefault')}
+              onClick={setAsPageDefault}
+              data-axoview-id="view-rotation-set-default"
+            >
+              <PinIcon />
+            </IconButton>
+          </span>
         </Tooltip>
       )}
 
