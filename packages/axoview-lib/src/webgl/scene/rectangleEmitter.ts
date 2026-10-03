@@ -46,8 +46,15 @@ export const createRectangleEmitter = ({
   // DOM's getProjectionCss scale) or they draw ~1/scale too thick.
   const g0 = getTilePos({ tile: { x: 0, y: 0 } });
   const g1 = getTilePos({ tile: { x: 1, y: 0 } });
+  const gY = getTilePos({ tile: { x: 0, y: 1 } });
+  // Mean of both axis scales: equal when the view is unrotated (so identical to
+  // the old single-axis value) and the smooth compromise under the POC horizontal
+  // rotation, where the two tile axes foreshorten differently.
   const widthScale =
-    Math.hypot(g1.x - g0.x, g1.y - g0.y) / UNPROJECTED_TILE_SIZE || 1;
+    (Math.hypot(g1.x - g0.x, g1.y - g0.y) +
+      Math.hypot(gY.x - g0.x, gY.y - g0.y)) /
+      2 /
+      UNPROJECTED_TILE_SIZE || 1;
 
   // Border edge as an ANALYTIC-AA line quad (shapeMode 1) — crisp at every iso
   // angle/zoom via the shader's fwidth() coverage ramp (guidelines §12);

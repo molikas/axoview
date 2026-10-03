@@ -149,8 +149,13 @@ export const createConnectorEmitter = ({
   const o0 = getTilePos({ tile: { x: 0, y: 0 } });
   const o1 = getTilePos({ tile: { x: 1, y: 0 } });
   const oY = getTilePos({ tile: { x: 0, y: 1 } });
+  // Mean of both axis scales (the POC view rotation foreshortens them unequally;
+  // identical to the single-axis value when unrotated / in 2D).
   const widthScale =
-    Math.hypot(o1.x - o0.x, o1.y - o0.y) / UNPROJECTED_TILE_SIZE || 1;
+    (Math.hypot(o1.x - o0.x, o1.y - o0.y) +
+      Math.hypot(oY.x - o0.x, oY.y - o0.y)) /
+      2 /
+      UNPROJECTED_TILE_SIZE || 1;
   // The projection's 2×2 linear map L (tile→scene), probed from unit tile steps.
   // Used to iso-shear the arrow onto the ground plane; in 2D L is a scaled
   // identity, so the arrow stays an un-sheared square there automatically.

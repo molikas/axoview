@@ -22,6 +22,7 @@ import {
   compareSceneDrawOrder,
   SceneDrawOrder
 } from 'src/utils/renderOrder';
+import { viewDepth } from 'src/utils/viewRotation';
 
 // Explicit scene shape — avoids importing the full useScene hook type here.
 export interface HitTestScene {
@@ -150,12 +151,14 @@ const itemsInPaintOrder = (
       resolveRenderOrder(
         layerOrderOf(a.layerId),
         a.zIndex ?? 0,
-        -a.tile.x - a.tile.y
+        // POC view rotation: depth on the ROTATED plane (== -x - y unrotated),
+        // the same value SceneCanvas paints by.
+        viewDepth(a.tile)
       ) -
       resolveRenderOrder(
         layerOrderOf(b.layerId),
         b.zIndex ?? 0,
-        -b.tile.x - b.tile.y
+        viewDepth(b.tile)
       )
   );
 
@@ -270,7 +273,7 @@ export const getItemAtTile = ({
     kind: 'node',
     layerOrder: layerOrderOf(hitItem.layerId),
     zIndex: hitItem.zIndex ?? 0,
-    isoDepth: -hitItem.tile.x - hitItem.tile.y
+    isoDepth: viewDepth(hitItem.tile)
   };
 
   // The other bulk branches are only worth evaluating when one of them could

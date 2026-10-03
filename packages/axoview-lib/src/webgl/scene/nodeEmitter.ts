@@ -14,7 +14,9 @@ import { SpriteBatch, UVRect } from 'src/webgl/glSpriteBatch';
 import { rasterizeNodeChip } from 'src/webgl/itemRaster';
 import {
   getRenderedTilePosition,
-  TilePositionFn
+  getRenderedTileCorner,
+  TilePositionFn,
+  TileCornerFn
 } from 'src/utils/renderedGeometry';
 
 // ---------------------------------------------------------------------------
@@ -52,12 +54,6 @@ export interface NodeLabelLayout {
 // 2·padX). The on-canvas label is the node's `name` only.
 const LABEL_CHIP_MAX_W = 250;
 const PROJ_W = PROJECTED_TILE_SIZE.width;
-
-// Fixed iso projection matrix (X-orientation) — mirrors getProjectionCss / the
-// NonIsometricIcon transform.
-const ISO: [number, number, number, number, number, number] = [
-  0.707, -0.409, 0.707, 0.409, 0, -0.816
-];
 
 const resolveIcon = (
   iconId: string | undefined,
@@ -101,6 +97,14 @@ export interface NodeEmitterInput {
   itemsById: Map<string, ModelItem>;
   iconsById: Map<string, Icon>;
   getTilePos: TilePositionFn;
+  /** Tile-space corner accessor (POC view rotation) — anchors flat icons. */
+  getTileCorner: TileCornerFn;
+  /**
+   * The ground-plane CSS matrix [a,b,c,d,e,f] (X orientation) at the current view
+   * rotation — what a flat (non-isometric) icon is sheared by. Was a fixed
+   * constant before the rotation POC.
+   */
+  isoMatrix: readonly number[];
   isIso: boolean;
   inPreview: boolean;
   previewHideLabels: boolean;
@@ -144,6 +148,8 @@ export const createNodeEmitter = ({
   itemsById,
   iconsById,
   getTilePos,
+  getTileCorner,
+  isoMatrix: ISO,
   isIso,
   inPreview,
   previewHideLabels,
@@ -250,10 +256,14 @@ export const createNodeEmitter = ({
             const h1 = iconHeight(img, w1);
             const dw = w - w1;
             const dh = h - h1;
-            // local (lx,ly) → iso; fold ISO translation into the anchor.
+            // local (lx,ly) → iso; fold ISO translation into the anchor. The
+            // anchor is the tile's LEFT CORNER in tile space (== the screen-space
+            // `pos − (PROJ_W/2, 0)` while unrotated) so a flat icon stays glued to
+            // its tile when the view is rotated; off-grid residual included.
+            const leftCorner = getRenderedTileCorner(node, getTileCorner, 'LEFT');
             const ox =
-              pos.x - PROJ_W / 2 + ISO[4] - 0.5 * (ISO[0] * dw + ISO[2] * dh);
-            const oy = pos.y + ISO[5] - 0.5 * (ISO[1] * dw + ISO[3] * dh);
+              leftCorner.x + ISO[4] - 0.5 * (ISO[0] * dw + ISO[2] * dh);
+            const oy = leftCorner.y + ISO[5] - 0.5 * (ISO[1] * dw + ISO[3] * dh);
             b.addSprite(
               ox,
               oy,

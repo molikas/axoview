@@ -47,11 +47,26 @@ import {
   TILE_PROJECTION_MULTIPLIERS
 } from 'src/config';
 import type { CanvasMode, Coords, TileOrigin } from 'src/types';
+import {
+  isViewRotated,
+  rotateTile,
+  getRotatedIsoMatrix
+} from 'src/utils/viewRotation';
 
 /** The projection accessor every consumer already has (`useCanvasMode()`). */
 export type TilePositionFn = (args: {
   tile: Coords;
   origin?: TileOrigin;
+}) => Coords;
+
+/**
+ * POC view rotation: the projected TILE-SPACE corner of a tile (see
+ * `useCanvasMode().getTileCorner`). Unlike `getTilePosition({ origin })` — whose
+ * LEFT/TOP/… are screen-space nudges — this one swings with the rotated plane.
+ */
+export type TileCornerFn = (args: {
+  tile: Coords;
+  corner: 'LEFT' | 'RIGHT' | 'TOP' | 'BOTTOM';
 }) => Coords;
 
 /** Anything positioned by an integer tile plus an optional off-grid residual. */
@@ -139,6 +154,23 @@ export const getRenderedTilePosition = (
 };
 
 /**
+ * {@link getRenderedTilePosition} for a tile-space CORNER (POC view rotation): the
+ * anchor of an element whose local axes are the tile axes (a flat, non-isometric
+ * icon lying on the ground plane). The off-grid residual composes exactly as it
+ * does for the centre.
+ */
+export const getRenderedTileCorner = (
+  item: RenderedPlacement,
+  getTileCorner: TileCornerFn,
+  corner: 'LEFT' | 'RIGHT' | 'TOP' | 'BOTTOM'
+): Coords => {
+  const base = getTileCorner({ tile: item.tile, corner });
+  const off = item.offset;
+  if (!off) return base;
+  return { x: base.x + off.x, y: base.y + off.y };
+};
+
+/**
  * The single-tile footprint an item is drawn on: the iso tile diamond or the 2D
  * tile square, centred on the item's RENDERED position. This is what
  * pixel-accurate item hit-testing compares the cursor against.
@@ -175,6 +207,22 @@ export const tileFootprintAt = (
   // Iso diamond: TOP, RIGHT, BOTTOM, LEFT.
   const halfW = PROJECTED_TILE_SIZE.width / 2;
   const halfH = PROJECTED_TILE_SIZE.height / 2;
+  if (isViewRotated()) {
+    // POC view rotation: the tile's four TILE-SPACE corners, rotated then
+    // projected — a parallelogram once the plane is turned. Same TOP, RIGHT,
+    // BOTTOM, LEFT order (consecutive around the quad), centred on `center`.
+    const at = (dx: number, dy: number): Coords => {
+      const r = rotateTile(dx, dy);
+      return {
+        x: center.x + halfW * (r.x - r.y),
+        y: center.y - halfH * (r.x + r.y)
+      };
+    };
+    return {
+      center,
+      corners: [at(0.5, 0.5), at(0.5, -0.5), at(-0.5, -0.5), at(-0.5, 0.5)]
+    };
+  }
   return {
     center,
     corners: [
@@ -215,13 +263,23 @@ export const getRenderedAreaCorners = (
   const ox = offset?.x ?? 0;
   const oy = offset?.y ?? 0;
   if (canvasMode !== '2D') {
-    const base = getTilePosition({ tile: { x: lowX, y: highY }, origin: 'LEFT' });
+    // POC view rotation: the quad's origin is the (lowX, highY) tile's LEFT
+    // CORNER in TILE space — (−½, +½) from its centre — which swings with the
+    // rotated plane; and its edges follow the rotated matrix. Unrotated, this is
+    // exactly the original screen-space 'LEFT' nudge + the derived ISO_A..D.
+    const rotated = isViewRotated();
+    const base = rotated
+      ? getTilePosition({ tile: { x: lowX - 0.5, y: highY + 0.5 } })
+      : getTilePosition({ tile: { x: lowX, y: highY }, origin: 'LEFT' });
+    const [isoA, isoB, isoC, isoD] = rotated
+      ? getRotatedIsoMatrix('X', ISO_A, -ISO_B)
+      : [ISO_A, ISO_B, ISO_C, ISO_D];
     const p = { x: base.x + ox, y: base.y + oy };
     return [
       p,
-      { x: p.x + ISO_A * W, y: p.y + ISO_B * W },
-      { x: p.x + ISO_A * W + ISO_C * H, y: p.y + ISO_B * W + ISO_D * H },
-      { x: p.x + ISO_C * H, y: p.y + ISO_D * H }
+      { x: p.x + isoA * W, y: p.y + isoB * W },
+      { x: p.x + isoA * W + isoC * H, y: p.y + isoB * W + isoD * H },
+      { x: p.x + isoC * H, y: p.y + isoD * H }
     ];
   }
   const c = getTilePosition({ tile: { x: lowX, y: highY }, origin: 'CENTER' });

@@ -72,6 +72,8 @@ jest.mock('src/contexts/CanvasModeContext', () => {
       return {
         strategy,
         getTilePosition: actual.makeTilePositionFn(strategy),
+        getTileCorner: actual.makeTileCornerFn(strategy),
+        viewRotation: 0,
         screenToTile: () => ({ x: 0, y: 0 }),
         getProjectionCss: () =>
           strategy.projectionName === '2D'

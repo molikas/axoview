@@ -17,6 +17,7 @@ import { useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useModelStoreApi } from 'src/stores/modelStore';
 import { useSceneStoreApi } from 'src/stores/sceneStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
+import { viewDepth, getViewRotationRad } from 'src/utils/viewRotation';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import {
   SceneEntityKind,
@@ -134,7 +135,7 @@ export const SceneCanvas = memo(
     const modelApi = useModelStoreApi();
     const sceneApi = useSceneStoreApi();
     const theme = useTheme();
-    const { getTilePosition, strategy } = useCanvasMode();
+    const { getTilePosition, getTileCorner, strategy } = useCanvasMode();
     const { layers, visibleIds } = useLayerContext();
 
     // Live refs — the GL effect runs once per store identity and reads the
@@ -146,6 +147,10 @@ export const SceneCanvas = memo(
     const layersRef = useRef(layers);
     const visibleIdsRef = useRef(visibleIds);
     const getTilePositionRef = useRef(getTilePosition);
+    // POC view rotation: tile-corner accessor + the strategy (for the ground-plane
+    // matrix flat icons are sheared by) read at build time, like getTilePosition.
+    const getTileCornerRef = useRef(getTileCorner);
+    const strategyRef = useRef(strategy);
     const projectionRef = useRef(strategy.projectionName);
     const skipIdsRef = useRef<Set<string>>(EMPTY_SKIP);
     const chipStyleRef = useRef<ChipStyle>({
@@ -170,6 +175,8 @@ export const SceneCanvas = memo(
     layersRef.current = layers;
     visibleIdsRef.current = visibleIds;
     getTilePositionRef.current = getTilePosition;
+    getTileCornerRef.current = getTileCorner;
+    strategyRef.current = strategy;
     projectionRef.current = strategy.projectionName;
     skipIdsRef.current =
       skipNodes && skipNodes.length > 0
@@ -229,6 +236,9 @@ export const SceneCanvas = memo(
       layers: Layer[] | null;
       visibleIds: ReadonlySet<string> | null;
       skipIds: ReadonlySet<string> | null;
+      // POC view rotation: iso depth follows the rotated plane, so the sorted
+      // list is stale whenever the angle changes.
+      rotation: number;
       sorted: DrawUnit[];
     }>({
       rectangles: null,
@@ -238,6 +248,7 @@ export const SceneCanvas = memo(
       layers: null,
       visibleIds: null,
       skipIds: null,
+      rotation: 0,
       sorted: []
     });
 
@@ -387,6 +398,7 @@ export const SceneCanvas = memo(
         const visibleNow = visibleIdsRef.current;
         const skipIds = skipIdsRef.current;
         const cache = sortCacheRef.current;
+        const rotationNow = getViewRotationRad();
         if (
           cache.rectangles === rects &&
           cache.connectors === conns &&
@@ -394,7 +406,8 @@ export const SceneCanvas = memo(
           cache.labels === lbls &&
           cache.layers === layersNow &&
           cache.visibleIds === visibleNow &&
-          cache.skipIds === skipIds
+          cache.skipIds === skipIds &&
+          cache.rotation === rotationNow
         ) {
           return cache.sorted;
         }
@@ -444,7 +457,9 @@ export const SceneCanvas = memo(
             kind: 'node',
             layerOrder: layerOrderOf(n.layerId),
             zIndex: n.zIndex ?? 0,
-            isoDepth: -n.tile.x - n.tile.y,
+            // POC view rotation: depth of the tile on the ROTATED plane
+            // (== -x - y while unrotated).
+            isoDepth: viewDepth(n.tile),
             entity: n
           });
         }
@@ -469,6 +484,7 @@ export const SceneCanvas = memo(
           layers: layersNow,
           visibleIds: visibleNow,
           skipIds,
+          rotation: rotationNow,
           sorted: units
         };
         return units;
@@ -564,6 +580,11 @@ export const SceneCanvas = memo(
           itemsById,
           iconsById,
           getTilePos,
+          getTileCorner: getTileCornerRef.current,
+          // Flat icons lie on the ground plane: the matrix at the current angle.
+          isoMatrix: strategyRef.current.projectionMatrix('X') ?? [
+            1, 0, 0, 1, 0, 0
+          ],
           isIso,
           inPreview: ui.editorMode === 'EXPLORABLE_READONLY',
           previewHideLabels: ui.previewHideLabels,
