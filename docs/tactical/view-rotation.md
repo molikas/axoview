@@ -7,7 +7,7 @@
 > - [view-rotation-poc.md](view-rotation-poc.md): the POC walkthrough (how the code in the working tree works). It is not the plan.
 > - [docs/workflow.md](../workflow.md) · [canvas-rendering-guidelines](../guidelines/canvas-rendering-guidelines.md) · ADRs [0022](../adr/0022-canvas-pointer-interaction-model.md), [0023](../adr/0023-off-grid-positioning-and-collision.md), [0038](../adr/0038-webgl-instanced-render-substrate.md), [0020](../adr/0020-engine-perf-harness-and-measurement-protocol.md)
 >
-> **Status:** Not started · **Owner:** molikas · **Last updated:** 2026-10-03
+> **Status:** In progress · **Owner:** molikas · **Last updated:** 2026-10-03
 >
 > This is a **short-lived working doc.** Delete it, together with `view-rotation-poc.md`, after the work merges; the ADRs are the durable record. Once it ships, PLAN.md gets a one-line entry referencing the ADRs (see "Wrap-up").
 
@@ -68,18 +68,18 @@ Ship the turntable view rotation: free-angle, per instance, correct for off-grid
 ## Sub-tasks
 
 ### A. Foundation: per-instance strategy (ADR 0049 §1–§3, §5)
-- [ ] Commit the POC as-is on this branch first; the code and its brief are still untracked.
-- [ ] Add `makeIsometricStrategy(θ)` and `getStrategy(mode, θ)`. θ = 0 must return the shared strategy (identity test).
-- [ ] Keep θ in `uiState` only: delete the module state and the reset in `initialState`, and use exact trig at cardinal angles.
-- [ ] Inject `strategy` into the interaction `State`. Replace the `canvasMode` parameters in the pure utilities, and re-key memos on the strategy.
-- [ ] Revert the POC's `isoMath.ts` copies, and make the `renderer.ts` fallbacks required.
-- [ ] One depth comparator plus tiebreak in `renderOrder.ts`, with no θ in 2D. Add a two-instance test.
+- [x] Commit the POC as-is on this branch first; the code and its brief are still untracked.
+- [x] Add `makeIsometricStrategy(θ)` and `getStrategy(mode, θ)`. θ = 0 must return the shared strategy (identity test).
+- [x] Keep θ in `uiState` only: delete the module state and the reset in `initialState`, and use exact trig at cardinal angles.
+- [x] Inject `strategy` into the interaction `State`. Replace the `canvasMode` parameters in the pure utilities, and re-key memos on the strategy.
+- [x] Revert the POC's `isoMath.ts` copies, and make the `renderer.ts` fallbacks required.
+- [x] One depth comparator plus tiebreak in `renderOrder.ts`, with no θ in 2D. Add a two-instance test.
 
 ### B. Offsets and input orientation (ADR 0049 §4, §7)
-- [ ] Render offsets as `M(θ)·o` and write them through `M(−θ)`. Fold the three hand-composed sites into `renderedGeometry` and extend the contract test.
-- [ ] Re-project iso↔2D between the unrotated strategies.
-- [ ] Remap arrow nudge; give flat-icon resize the real screen direction; compute the DOUBLE line-2 label normal from the projected path.
-- [ ] Refresh the cursor tile after a rotation, so paste targets the right tile.
+- [x] Render offsets as `M(θ)·o` and write them through `M(−θ)`. Fold the three hand-composed sites into `renderedGeometry` and extend the contract test.
+- [x] Re-project iso↔2D between the unrotated strategies.
+- [x] Remap arrow nudge; give flat-icon resize the real screen direction; compute the DOUBLE line-2 label normal from the projected path.
+- [x] Refresh the cursor tile after a rotation, so paste targets the right tile.
 
 ### C. Motion without per-frame rebuilds (ADR 0049 §6)
 - [ ] Add a `mat2` uniform and instance classes in `glSpriteBatch.ts`, and split the chip/stalk screen offset from the anchor.

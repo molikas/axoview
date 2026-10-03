@@ -60,7 +60,25 @@ const PATTERNS: Pattern[] = [
     name: 'offset interpolated into a CSS translate (`${o.offset.x}px`)',
     re: /\{[^{}]*\.offset\.(x|y)[^{}]*\}px/,
     positive: 'transform: `translate3d(${rect.offset.x}px, 0, 0)`',
-    negative: 'transform: getRenderedDragTransform(rect.offset)'
+    negative: 'transform: getRenderedDragTransform(rect.offset, strategy)'
+  },
+  // ADR 0049 §4 (view rotation): a stored offset must render as M(θ)·offset.
+  // The two shapes below are how three sites escaped the patterns above — a
+  // residual held in a local named `*Offset` and added to a vertex
+  // (connectorEmitter, PROJ-12), and a short-named nullish read folded into a
+  // screen point (ViewModeInfoPopover). Each one rendered the UNROTATED residual.
+  // `drawOffset` (Connector's SVG layout origin) is not an item offset.
+  {
+    name: 'a named residual added to a point (`+ startOffset.x`)',
+    re: /\+\s*(?!draw)[a-z][A-Za-z0-9_$]*Offset\.(x|y)\b/,
+    positive: 'pts[0] = { x: pts[0].x + startOffset.x, y: pts[0].y };',
+    negative: 'pts[0] = shiftByRenderedOffset(pts[0], startOffset, strategy);'
+  },
+  {
+    name: 'a nullish-coalesced short offset read (`off?.x ?? 0`)',
+    re: /\b[oO]ff[A-Za-z]*\?\.(x|y)\s*\?\?\s*0/,
+    positive: 'x: zoom * (p.x + (off?.x ?? 0)),',
+    negative: 'const q = shiftByRenderedOffset(p, off, strategy);'
   }
 ];
 
@@ -90,6 +108,8 @@ describe('renderedGeometry contract — one offset composition site (ADR 0023)',
       'getRenderedTileFootprint',
       'getRenderedAreaCorners',
       'getRenderedDragTransform',
+      'shiftByRenderedOffset',
+      'getRenderedEndpointVertexDelta',
       'footprintContainsPoint'
     ]) {
       expect(src).toContain(`export const ${fn}`);
@@ -131,10 +151,15 @@ describe('renderedGeometry contract — one offset composition site (ADR 0023)',
             'drawing, framing or hit-testing items at their grid cell instead of',
             'where they are drawn. Use src/utils/renderedGeometry.ts:',
             '',
-            '  getRenderedTilePosition(item, getTilePosition, origin)  — a point',
-            '  getRenderedTileFootprint(item, getTilePosition, mode)   — a hit shape',
-            '  getRenderedAreaCorners(from, to, offset, …)             — a rect/textbox quad',
-            '  getRenderedOffset(item) / getRenderedDragTransform(o)   — a bare translate',
+            '  getRenderedTilePosition(item, strategy, origin)         — a point',
+            '  getRenderedTileFootprint(item, strategy)                — a hit shape',
+            '  getRenderedAreaCorners(from, to, offset, strategy)      — a rect/textbox quad',
+            '  getRenderedOffset(item, strategy) / getRenderedDragTransform(o, strategy)',
+            '                                                          — a bare translate',
+            '  shiftByRenderedOffset(point, offset, strategy)          — any other vertex',
+            '',
+            'Each renders the stored offset as M(θ)·offset (ADR 0049 §4), so it turns',
+            'with its tile under view rotation; a hand-rolled add does not.',
             '',
             'Never round an offset into a tile — it is sub-tile, and rounding it',
             'discards up to half a tile. See the ADR 0023 addendum (2026-07-23).',

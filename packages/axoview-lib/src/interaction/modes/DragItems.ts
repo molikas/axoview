@@ -9,10 +9,14 @@ import {
   setWindowCursor,
   itemCollides
 } from 'src/utils';
-import { cursorCanvasPoint } from 'src/utils/coordinateTransforms';
+import {
+  cursorCanvasPoint,
+  stateStrategy,
+  type CoordinateTransformStrategy
+} from 'src/utils/coordinateTransforms';
 import { isSnappedPlacement } from 'src/utils/resolvePlacement';
-import { UNPROJECTED_TILE_SIZE, PROJECTED_TILE_SIZE } from 'src/config';
-import { rotateTile } from 'src/utils/viewRotation';
+import { getRenderedOffset } from 'src/utils/renderedGeometry';
+import { UNPROJECTED_TILE_SIZE } from 'src/config';
 
 // =============================================================================
 // MQA #7 Path 4-true (EXPERIMENTAL)
@@ -94,21 +98,29 @@ function buildExternalOccupied(
   return occupied;
 }
 
+// A whole-tile delta in SceneLayer px. Every projection is linear with tile
+// (0,0) at the origin, so the projected delta IS `toScreen(delta)` — which also
+// carries the view rotation (ADR 0049) with no special case.
 function tileDeltaToPixels(
   dx: number,
   dy: number,
-  canvasMode: 'ISOMETRIC' | '2D'
+  strategy: CoordinateTransformStrategy
 ): { x: number; y: number } {
-  if (canvasMode === '2D') {
-    return { x: dx * UNPROJECTED_TILE_SIZE, y: -dy * UNPROJECTED_TILE_SIZE };
-  }
-  // Isometric — matches isometricStrategy.toScreen() delta math.
-  const halfW = PROJECTED_TILE_SIZE.width / 2;
-  const halfH = PROJECTED_TILE_SIZE.height / 2;
-  // POC view rotation: the tile delta spins with the ground plane (linear, so
-  // rotating the delta is the delta of the rotated positions).
-  const r = rotateTile(dx, dy);
-  return { x: halfW * (r.x - r.y), y: -halfH * (r.x + r.y) };
+  return strategy.toScreen(dx, dy, UNPROJECTED_TILE_SIZE);
+}
+
+// The SceneLayer-px residual `r` (pointer beyond the whole-tile step) added to a
+// stored offset. A stored offset lives in the UNROTATED frame (ADR 0049 §4), so
+// the residual goes in through M(−θ) — the identity at 0° and in 2D.
+function addRenderedResidual(
+  stored: Coords | undefined,
+  residual: Coords,
+  strategy: CoordinateTransformStrategy
+): Coords {
+  return CoordsUtils.add(
+    stored ?? CoordsUtils.zero(),
+    strategy.offsetFromRender(residual)
+  );
 }
 
 function applyCssOffset(id: string, dx: number, dy: number) {
@@ -195,7 +207,7 @@ function applyNodePreview(
   initialTiles: Record<string, Coords>,
   preciseDelta: Coords,
   scene: ReturnType<typeof useScene>,
-  canvasMode: 'ISOMETRIC' | '2D',
+  strategy: CoordinateTransformStrategy,
   globalSnap: boolean
 ) {
   if (!nodeUpdates) return;
@@ -204,22 +216,29 @@ function applyNodePreview(
     if (!initial) continue;
     const dx = u.tile.x - initial.x;
     const dy = u.tile.y - initial.y;
-    const tilePx = tileDeltaToPixels(dx, dy, canvasMode);
+    const tilePx = tileDeltaToPixels(dx, dy, strategy);
     const viewItem = scene.items.find((it) => it.id === u.id);
     previewTiles.set(u.id, u.tile);
 
-    const current = viewItem?.offset ?? CoordsUtils.zero();
     if (viewItem && isOffGrid(viewItem.snap, globalSnap)) {
       applyCssOffset(u.id, preciseDelta.x, preciseDelta.y);
-      previewNodeOffsets.set(u.id, {
-        x: current.x + (preciseDelta.x - tilePx.x),
-        y: current.y + (preciseDelta.y - tilePx.y)
-      });
+      previewNodeOffsets.set(
+        u.id,
+        addRenderedResidual(
+          viewItem.offset,
+          {
+            x: preciseDelta.x - tilePx.x,
+            y: preciseDelta.y - tilePx.y
+          },
+          strategy
+        )
+      );
     } else {
       // Snapped: the commit clears the offset, and the renderer always applies
-      // the (still-stale) model offset during the preview — so subtract it here
-      // (current) to keep the preview pixel-identical to the post-commit render
-      // (base + tilePx) and avoid a one-frame jump on release.
+      // the (still-stale) model offset during the preview — so subtract its
+      // RENDERED value here to keep the preview pixel-identical to the
+      // post-commit render (base + tilePx) and avoid a one-frame jump on release.
+      const current = getRenderedOffset(viewItem ?? {}, strategy);
       applyCssOffset(u.id, tilePx.x - current.x, tilePx.y - current.y);
       previewNodeOffsets.set(u.id, undefined);
     }
@@ -299,7 +318,7 @@ const dragItems = (
   initialTiles: Record<string, Coords>,
   initialRectangles: Record<string, { from: Coords; to: Coords }>,
   scene: ReturnType<typeof useScene>,
-  canvasMode: 'ISOMETRIC' | '2D',
+  strategy: CoordinateTransformStrategy,
   globalSnap: boolean
 ) => {
   const itemRefs = items.filter((item) => item.type === 'ITEM');
@@ -333,7 +352,7 @@ const dragItems = (
     initialTiles,
     preciseDelta,
     scene,
-    canvasMode,
+    strategy,
     globalSnap
   );
 
@@ -358,7 +377,7 @@ const dragItems = (
   // so the pixel delta is shared. Items missing an initial position (shouldn't
   // happen — entry records them) are skipped, mirroring the node preview.
   if (rectangleRefs.length > 0 || textBoxRefs.length > 0) {
-    const pixels = tileDeltaToPixels(mouseOffset.x, mouseOffset.y, canvasMode);
+    const pixels = tileDeltaToPixels(mouseOffset.x, mouseOffset.y, strategy);
     // Sub-tile residual shared by every off-grid item this frame (the part of
     // the precise cursor delta beyond the whole-tile step).
     const residual = { x: preciseDelta.x - pixels.x, y: preciseDelta.y - pixels.y };
@@ -367,10 +386,11 @@ const dragItems = (
       if (!init) continue;
       const rect = scene.rectangles.find((r) => r.id === item.id);
       const offGrid = !!rect && isOffGrid(rect.snap, globalSnap);
-      const rectOffset = rect?.offset ?? CoordsUtils.zero();
+      const rectOffset = getRenderedOffset(rect ?? {}, strategy);
       // Off-grid: follow the pointer (preciseDelta). Snapped: the wrapper still
-      // renders the stale model offset during the preview, so subtract it so the
-      // preview matches the post-commit (offset-cleared) position.
+      // renders the stale model offset during the preview, so subtract its
+      // rendered value so the preview matches the post-commit (offset-cleared)
+      // position.
       const css = offGrid
         ? preciseDelta
         : { x: pixels.x - rectOffset.x, y: pixels.y - rectOffset.y };
@@ -381,9 +401,7 @@ const dragItems = (
       });
       previewRectOffsets.set(
         item.id,
-        offGrid
-          ? CoordsUtils.add(rect!.offset ?? CoordsUtils.zero(), residual)
-          : undefined
+        offGrid ? addRenderedResidual(rect!.offset, residual, strategy) : undefined
       );
     }
     for (const item of textBoxRefs) {
@@ -391,7 +409,7 @@ const dragItems = (
       if (!init) continue;
       const textBox = scene.textBoxes.find((t) => t.id === item.id);
       const offGrid = !!textBox && isOffGrid(textBox.snap, globalSnap);
-      const tbOffset = textBox?.offset ?? CoordsUtils.zero();
+      const tbOffset = getRenderedOffset(textBox ?? {}, strategy);
       const css = offGrid
         ? preciseDelta
         : { x: pixels.x - tbOffset.x, y: pixels.y - tbOffset.y };
@@ -400,7 +418,7 @@ const dragItems = (
       previewTextBoxOffsets.set(
         item.id,
         offGrid
-          ? CoordsUtils.add(textBox!.offset ?? CoordsUtils.zero(), residual)
+          ? addRenderedResidual(textBox!.offset, residual, strategy)
           : undefined
       );
     }
@@ -491,8 +509,10 @@ export const DragItems: ModeActions = {
     // stranded at their (uncommitted) preview position.
     abortDragItems(scene, uiState);
   },
-  mousemove: ({ uiState, scene }) => {
+  mousemove: (state) => {
+    const { uiState, scene } = state;
     if (uiState.mode.type !== 'DRAG_ITEMS' || !uiState.mouse.mousedown) return;
+    const strategy = stateStrategy(state);
 
     const mouseOffset = CoordsUtils.subtract(
       uiState.mouse.position.tile,
@@ -513,7 +533,7 @@ export const DragItems: ModeActions = {
             x: (posScreen.x - downScreen.x) / zoom,
             y: (posScreen.y - downScreen.y) / zoom
           }
-        : tileDeltaToPixels(mouseOffset.x, mouseOffset.y, uiState.canvasMode);
+        : tileDeltaToPixels(mouseOffset.x, mouseOffset.y, strategy);
 
     const hasDraggedNode = uiState.mode.items.some((i) => i.type === 'ITEM');
     const draggedIds = new Set(uiState.mode.items.map((i) => i.id));
@@ -523,7 +543,7 @@ export const DragItems: ModeActions = {
     const itemAtCursor = getItemAtTile({
       tile: uiState.mouse.position.tile,
       scene,
-      canvasMode: uiState.canvasMode,
+      strategy,
       point: cursorPoint
     });
     if (
@@ -544,7 +564,7 @@ export const DragItems: ModeActions = {
       uiState.mode.initialTiles,
       uiState.mode.initialRectangles,
       scene,
-      uiState.canvasMode,
+      strategy,
       uiState.snapToGrid ?? true
     );
 

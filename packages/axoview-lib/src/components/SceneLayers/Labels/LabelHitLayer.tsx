@@ -18,6 +18,7 @@ import {
   LABEL_CHIP_RADIUS
 } from 'src/utils/labelChip';
 import { getRenderedTilePosition } from 'src/utils/renderedGeometry';
+import { getLiveStrategy } from 'src/utils/coordinateTransforms';
 import {
   LABEL_DRAG_SLOP_PX,
   createLabelLongPress,
@@ -252,7 +253,7 @@ interface DragState {
 }
 
 export const LabelHitLayer = ({ labels }: Props) => {
-  const { getTilePosition } = useCanvasMode();
+  const { strategy } = useCanvasMode();
   const { visibleIds, lockedIds, layers } = useLayerContext();
   const uiStoreApi = useUiStateStoreApi();
   const { updateLabel } = useSceneActions();
@@ -422,13 +423,19 @@ export const LabelHitLayer = ({ labels }: Props) => {
         longPressRef.current?.cancel();
       }
       e.preventDefault();
-      const zoom = uiStoreApi.getState().zoom || 1;
+      const ui = uiStoreApi.getState();
+      const zoom = ui.zoom || 1;
       // Screen delta → canvas-space residual (the offset is applied inside the
       // zoom-scaled SceneLayer, so divide by zoom). The chip floats off its
-      // original tile by the accumulated offset.
+      // original tile by the accumulated offset — stored in the UNROTATED frame,
+      // so the rendered delta goes in through M(−θ) (ADR 0049 §4).
+      const stored = getLiveStrategy(ui).offsetFromRender({
+        x: dx / zoom,
+        y: dy / zoom
+      });
       const offset: Coords = {
-        x: d.startOffset.x + dx / zoom,
-        y: d.startOffset.y + dy / zoom
+        x: d.startOffset.x + stored.x,
+        y: d.startOffset.y + stored.y
       };
       d.last = offset;
       // Transient preview only — NO model write, so the proxy divs don't
@@ -550,7 +557,7 @@ export const LabelHitLayer = ({ labels }: Props) => {
           : fallbackChip(label.text, fontSize);
         const { x: cx, y: cy } = getRenderedTilePosition(
           label,
-          getTilePosition,
+          strategy,
           'CENTER'
         );
         const left = cx - chip.chipW / 2;

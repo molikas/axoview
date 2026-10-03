@@ -10,6 +10,7 @@ import {
   getUnprojectedBounds
 } from '../renderer';
 import { sortByPosition } from '../isoMath';
+import { isometricStrategy } from '../coordinateTransforms';
 import { PROJECT_BOUNDING_BOX_PADDING } from 'src/config';
 import type { View } from 'src/types';
 
@@ -161,7 +162,7 @@ describe('getUnprojectedBounds — pixel extents (PROJ-04)', () => {
   });
 
   it('an empty view still reports a finite frame', () => {
-    const out = getUnprojectedBounds(makeView());
+    const out = getUnprojectedBounds(makeView(), isometricStrategy.tilePosition);
     expect(Number.isFinite(out.width)).toBe(true);
     expect(out.width).toBeGreaterThan(0);
   });

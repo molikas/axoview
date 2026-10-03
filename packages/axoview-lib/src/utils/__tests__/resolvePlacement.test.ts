@@ -1,8 +1,6 @@
-import {
-  resolvePlacement,
-  cursorTileResidual,
-  connectorEndpointVertexDelta
-} from '../resolvePlacement';
+import { resolvePlacement, cursorTileResidual } from '../resolvePlacement';
+import { getRenderedEndpointVertexDelta } from '../renderedGeometry';
+import { getStrategy } from '../coordinateTransforms';
 import { itemCollides } from '../spatialIndex';
 
 const TILE = { x: 3, y: -2 };
@@ -81,7 +79,7 @@ describe('cursorTileResidual', () => {
   it('is zero when the cursor sits exactly on the tile centre', () => {
     // Tile {0,0} centre projects to {0,0}; the renderer centre is at screen 100,100.
     const r = cursorTileResidual(
-      '2D',
+      getStrategy('2D'),
       { x: 100, y: 100 },
       { x: 0, y: 0 },
       1,
@@ -94,7 +92,7 @@ describe('cursorTileResidual', () => {
 
   it('is the sub-tile px delta of the cursor from the tile centre', () => {
     const r = cursorTileResidual(
-      '2D',
+      getStrategy('2D'),
       { x: 130, y: 100 },
       { x: 0, y: 0 },
       1,
@@ -107,7 +105,7 @@ describe('cursorTileResidual', () => {
 
   it('divides the screen delta by zoom (offset is SceneLayer px)', () => {
     const r = cursorTileResidual(
-      '2D',
+      getStrategy('2D'),
       { x: 120, y: 100 },
       { x: 0, y: 0 },
       2,
@@ -119,13 +117,17 @@ describe('cursorTileResidual', () => {
   });
 });
 
-describe('connectorEndpointVertexDelta', () => {
+describe('getRenderedEndpointVertexDelta', () => {
   it('inverts the connector projection so the endpoint follows the offset (2D)', () => {
-    expect(connectorEndpointVertexDelta('2D', { x: 10, y: 0 })).toEqual({
+    expect(
+      getRenderedEndpointVertexDelta({ x: 10, y: 0 }, getStrategy('2D'))
+    ).toEqual({
       x: -10,
       y: 0
     });
-    expect(connectorEndpointVertexDelta('2D', { x: 0, y: 10 })).toEqual({
+    expect(
+      getRenderedEndpointVertexDelta({ x: 0, y: 10 }, getStrategy('2D'))
+    ).toEqual({
       x: 0,
       y: 10
     });
@@ -133,8 +135,52 @@ describe('connectorEndpointVertexDelta', () => {
 
   it('is mode-aware (iso uses the strategy projection, no magic constants)', () => {
     // A symmetric down-screen offset maps to equal x/y vertex shift in iso.
-    const d = connectorEndpointVertexDelta('ISOMETRIC', { x: 0, y: 10 });
+    const d = getRenderedEndpointVertexDelta(
+      { x: 0, y: 10 },
+      getStrategy('ISOMETRIC')
+    );
     expect(d.x).toBeCloseTo(d.y);
     expect(d.x).toBeGreaterThan(0);
+  });
+
+  it('is the stored offset\'s fixed tile-space vector at every view angle (ADR 0049 §4)', () => {
+    // The vertex lives in tile space, and the stored offset is a fixed sub-tile
+    // vector that turns WITH its tile — so the vertex delta must not move.
+    const o = { x: 12, y: -7 };
+    const at0 = getRenderedEndpointVertexDelta(o, getStrategy('ISOMETRIC', 0));
+    for (const deg of [37, 90, 180, -120]) {
+      const d = getRenderedEndpointVertexDelta(o, getStrategy('ISOMETRIC', deg));
+      expect(d.x).toBeCloseTo(at0.x, 9);
+      expect(d.y).toBeCloseTo(at0.y, 9);
+    }
+  });
+});
+
+describe('cursorTileResidual under view rotation (ADR 0049 §4)', () => {
+  it('returns the STORED-frame residual that renders back under the pointer', () => {
+    const scroll = { position: { x: 13, y: -21 }, offset: { x: 0, y: 0 } };
+    const rendererSize = { width: 800, height: 600 };
+    const zoom = 1.5;
+    const tile = { x: 2, y: -1 };
+    for (const deg of [0, 37, 90, 180, -64]) {
+      const strategy = getStrategy('ISOMETRIC', deg);
+      const centre = strategy.toScreen(tile.x, tile.y, 100);
+      // A pointer 9 px right / 4 px down of the tile centre, in SceneLayer px.
+      const screen = {
+        x: rendererSize.width / 2 + scroll.position.x + zoom * (centre.x + 9),
+        y: rendererSize.height / 2 + scroll.position.y + zoom * (centre.y + 4)
+      };
+      const stored = cursorTileResidual(
+        strategy,
+        screen,
+        tile,
+        zoom,
+        scroll,
+        rendererSize
+      );
+      const rendered = strategy.offsetToRender(stored);
+      expect(rendered.x).toBeCloseTo(9, 9);
+      expect(rendered.y).toBeCloseTo(4, 9);
+    }
   });
 });

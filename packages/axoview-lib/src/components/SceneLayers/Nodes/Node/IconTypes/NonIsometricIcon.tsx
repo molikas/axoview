@@ -16,7 +16,7 @@ export const NonIsometricIcon = ({ icon, scale }: Props) => {
   const effectiveScale = scale ?? icon.scale ?? 1;
   // The flat icon's local origin is the tile's LEFT corner relative to the tile
   // centre. Projection is linear, so the offset from tile (0,0) is tile-independent;
-  // (−halfW, 0) while unrotated, swings around with the POC view rotation.
+  // (−halfW, 0) while unrotated; swings around with the view rotation (ADR 0049 §3).
   const leftCorner = getTileCorner({ tile: { x: 0, y: 0 }, corner: 'LEFT' });
 
   if (strategy.projectionName === '2D') {

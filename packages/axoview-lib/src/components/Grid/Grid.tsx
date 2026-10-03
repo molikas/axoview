@@ -24,7 +24,7 @@ export const Grid = () => {
   const rotatedCanvasRef = useRef<HTMLCanvasElement>(null);
   const { size } = useResizeObserver(elementRef.current);
   const storeApi = useUiStateStoreApi();
-  const { strategy, viewRotation } = useCanvasMode();
+  const { strategy } = useCanvasMode();
 
   useEffect(() => {
     const el = elementRef.current;
@@ -35,7 +35,7 @@ export const Grid = () => {
     // POC view rotation: a repeating SVG tile can't represent a rotated grid, so
     // while the ground plane is rotated the grid is drawn as projected lines on a
     // canvas instead (and the tiled background is hidden).
-    const isRotated = isIso && viewRotation !== 0;
+    const isRotated = isIso && strategy.rotation !== 0;
     el.style.display = isRotated ? 'none' : '';
     if (rotatedCanvas) rotatedCanvas.style.display = isRotated ? '' : 'none';
 
@@ -166,7 +166,7 @@ export const Grid = () => {
     });
 
     return unsubscribe;
-  }, [storeApi, size, strategy, viewRotation]); // strategy/rotation change triggers re-calculation
+  }, [storeApi, size, strategy]); // strategy (mode + rotation) change triggers re-calculation
 
   return (
     <Box

@@ -1,5 +1,10 @@
 import { CoordsUtils } from 'src/utils';
 import type { Coords, ItemReference, State } from 'src/types';
+import {
+  getLiveStrategy,
+  getStrategy,
+  type CoordinateTransformStrategy
+} from 'src/utils/coordinateTransforms';
 
 // ─── Arrow-key handling: selection-aware nudge OR pan (B6) ───────────────────
 //
@@ -51,6 +56,46 @@ export const ARROW_TILE_DELTAS: Record<string, Coords> = {
   ArrowDown: { x: 0, y: -1 },
   ArrowLeft: { x: -1, y: 0 },
   ArrowRight: { x: 1, y: 0 }
+};
+
+// The four whole-tile steps a nudge can take.
+const UNIT_STEPS: Coords[] = [
+  { x: 1, y: 0 },
+  { x: -1, y: 0 },
+  { x: 0, y: 1 },
+  { x: 0, y: -1 }
+];
+
+/**
+ * The tile step an arrow takes under the current view (ADR 0049 §7, finding F4).
+ *
+ * `ARROW_TILE_DELTAS` is authored for the UNROTATED view, so at 180° every
+ * arrow would push the item the opposite way on screen. Instead the key keeps
+ * its on-screen MEANING: of the four unit steps, take the one whose projection
+ * at the live angle points closest to where the key's step pointed at 0°. The
+ * identity at 0° and in 2D (θ is inert there). A tie (exactly between two
+ * steps) resolves to the first in `UNIT_STEPS`, so it is deterministic.
+ */
+export const orientArrowDelta = (
+  delta: Coords,
+  strategy: CoordinateTransformStrategy
+): Coords => {
+  if (strategy.rotation === 0) return delta;
+  const want = getStrategy(strategy.projectionName).toScreen(delta.x, delta.y, 1);
+  const wantLen = Math.hypot(want.x, want.y) || 1;
+  let best = delta;
+  let bestCos = -Infinity;
+  for (const step of UNIT_STEPS) {
+    const got = strategy.toScreen(step.x, step.y, 1);
+    const cos =
+      (got.x * want.x + got.y * want.y) /
+      ((Math.hypot(got.x, got.y) || 1) * wantLen);
+    if (cos > bestCos + 1e-9) {
+      bestCos = cos;
+      best = step;
+    }
+  }
+  return best;
 };
 
 // Refs of selectable item types that can be tile-nudged. CONNECTOR /
@@ -146,8 +191,9 @@ const nudge = (
   uiState: State['uiState'],
   deps: ArrowKeyDeps
 ): boolean => {
-  const delta = ARROW_TILE_DELTAS[e.key];
-  if (!delta) return false;
+  const authored = ARROW_TILE_DELTAS[e.key];
+  if (!authored) return false;
+  const delta = orientArrowDelta(authored, getLiveStrategy(uiState));
 
   // selectedIds is the persistent multi-selection (a single selected item is
   // len === 1 there). Filter to the nudge-able types; a selection of ONLY

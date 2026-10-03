@@ -219,7 +219,7 @@ describe('§3 — iso-depth tier: the same entity is painted last and picked', (
         hitConnectors: [],
         rectangles: []
       },
-      canvasMode: 'ISOMETRIC',
+      strategy: getStrategy('ISOMETRIC'),
       point: posA
     });
     expect(hit?.id).toBe(top);

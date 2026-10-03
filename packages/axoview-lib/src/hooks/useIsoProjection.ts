@@ -57,7 +57,7 @@ export const useIsoProjection = ({
       tile: origin,
       corner: orientation === 'Y' ? 'TOP' : 'LEFT'
     });
-  }, [strategy.projectionName, getTilePosition, getTileCorner, origin, orientation]);
+  }, [strategy, getTilePosition, getTileCorner, origin, orientation]);
 
   const pxSize = useMemo(() => {
     return {
@@ -109,7 +109,7 @@ export const useIsoProjection = ({
     pxSize,
     gridSize,
     projectionCss,
-    strategy.projectionName,
+    strategy,
     orientation
   ]);
 };

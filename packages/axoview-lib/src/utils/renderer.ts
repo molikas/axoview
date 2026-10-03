@@ -17,8 +17,6 @@ import { Coords, Size, Scroll, Mouse, SlimMouseEvent, View } from 'src/types';
 import { CoordsUtils } from 'src/utils/coordsUtils';
 import { clamp } from 'src/utils/common';
 import {
-  screenToIso,
-  getTilePosition,
   getBoundingBox,
   getBoundingBoxSize,
   sortByPosition,
@@ -29,8 +27,9 @@ import {
 } from 'src/utils/isoMath';
 
 // Type alias for a mode-aware getTilePosition function.
-// Callers (hooks/components) inject this from CanvasModeContext; pure utilities
-// default to the isometric implementation for backward compatibility.
+// Callers (hooks/components) inject this from CanvasModeContext. REQUIRED, never
+// defaulted: a default to the unrotated iso projection would let a caller
+// silently fall back past the view rotation (ADR 0049 §2).
 export type TilePositionFn = (args: {
   tile: Coords;
   origin?: import('src/types').TileOrigin;
@@ -55,8 +54,8 @@ interface GetMouse {
   lastMouse: Mouse;
   mouseEvent: SlimMouseEvent;
   rendererSize: Size;
-  /** Injected by the caller from CanvasModeContext. Defaults to isometric. */
-  screenToTileFn?: ScreenToTileFn;
+  /** The mode- and rotation-aware screen→tile map (required, ADR 0049 §2). */
+  screenToTileFn: ScreenToTileFn;
 }
 
 export const getMouse = ({
@@ -66,7 +65,7 @@ export const getMouse = ({
   lastMouse,
   mouseEvent,
   rendererSize,
-  screenToTileFn = screenToIso
+  screenToTileFn
 }: GetMouse): Mouse => {
   const componentOffset = interactiveElement.getBoundingClientRect();
   const offset: Coords = {
@@ -164,7 +163,7 @@ export const getProjectBounds = (
 
 export const getVisualBounds = (
   view: View,
-  getTilePositionFn: TilePositionFn = getTilePosition,
+  getTilePositionFn: TilePositionFn,
   padding = 50
 ) => {
   let minX = Infinity,
@@ -232,7 +231,7 @@ export const getVisualBounds = (
 
 export const getUnprojectedBounds = (
   view: View,
-  getTilePositionFn: TilePositionFn = getTilePosition
+  getTilePositionFn: TilePositionFn
 ) => {
   const projectBounds = getProjectBounds(view);
   const cornerPositions = projectBounds.map((corner) =>
@@ -257,7 +256,7 @@ export const getUnprojectedBounds = (
 export const getFitToViewParams = (
   view: View,
   viewportSize: Size,
-  getTilePositionFn: TilePositionFn = getTilePosition
+  getTilePositionFn: TilePositionFn
 ) => {
   const projectBounds = getProjectBounds(view);
   const sortedCornerPositions = sortByPosition(projectBounds);

@@ -1,7 +1,7 @@
 // Hit detection: find which scene item (if any) sits at a given isometric tile.
 // Kept separate from isoMath.ts so the WeakMap spatial index is isolated and testable.
 
-import { CanvasMode, Coords, Size, ItemReference, TextBox } from 'src/types';
+import { Coords, Size, ItemReference, TextBox } from 'src/types';
 import {
   getBoundingBox,
   isWithinBounds,
@@ -9,8 +9,8 @@ import {
   getTextBoxEndTile
 } from 'src/utils/isoMath';
 import {
-  getStrategy,
-  makeTilePositionFn
+  isometricStrategy,
+  type CoordinateTransformStrategy
 } from 'src/utils/coordinateTransforms';
 import {
   footprintContainsPoint,
@@ -20,9 +20,10 @@ import {
 import {
   resolveRenderOrder,
   compareSceneDrawOrder,
+  sortTilesInPaintOrder,
+  DepthSource,
   SceneDrawOrder
 } from 'src/utils/renderOrder';
-import { viewDepth } from 'src/utils/viewRotation';
 
 // Explicit scene shape — avoids importing the full useScene hook type here.
 export interface HitTestScene {
@@ -142,25 +143,17 @@ const getItemTileIndex = (
 // the ordering an APPROXIMATION of the paint order rather than the paint order —
 // a visually top rectangle on a high-`order` layer lost the click to a
 // lower-layer one that won the `zIndex` tie.
+//
+// ADR 0049 §5: the depth tier is the PROJECTION's (`strategy.depth`, rotated
+// under view rotation) through the one comparator `SceneCanvas` and the DOM
+// node overlay also read, so the clicked item is always the painted one. The
+// raw-tile index below may use any depth: entities that share a tile share a
+// depth, so only layer, z-index and model order can separate them there.
 const itemsInPaintOrder = (
   items: HitTestScene['items'],
-  layerOrderOf: LayerOrderOf
-) =>
-  [...items].sort(
-    (a, b) =>
-      resolveRenderOrder(
-        layerOrderOf(a.layerId),
-        a.zIndex ?? 0,
-        // POC view rotation: depth on the ROTATED plane (== -x - y unrotated),
-        // the same value SceneCanvas paints by.
-        viewDepth(a.tile)
-      ) -
-      resolveRenderOrder(
-        layerOrderOf(b.layerId),
-        b.zIndex ?? 0,
-        viewDepth(b.tile)
-      )
-  );
+  layerOrderOf: LayerOrderOf,
+  depth: DepthSource = isometricStrategy
+) => sortTilesInPaintOrder(items, layerOrderOf, depth);
 
 // Pixel-accurate ITEM hit test (ADR 0023). An off-grid item renders at its tile
 // projection + a px offset, and that offset is SUB-TILE — snapping the cursor to
@@ -176,14 +169,13 @@ const itemsInPaintOrder = (
 const itemAtPoint = (
   items: HitTestScene['items'],
   point: Coords,
-  canvasMode: CanvasMode,
+  strategy: CoordinateTransformStrategy,
   layerOrderOf: LayerOrderOf
 ): HitItem | null => {
-  const getTilePosition = makeTilePositionFn(getStrategy(canvasMode));
-  const painted = itemsInPaintOrder(items, layerOrderOf);
+  const painted = itemsInPaintOrder(items, layerOrderOf, strategy);
   for (let i = painted.length - 1; i >= 0; i -= 1) {
     const it = painted[i];
-    const footprint = getRenderedTileFootprint(it, getTilePosition, canvasMode);
+    const footprint = getRenderedTileFootprint(it, strategy);
     if (footprintContainsPoint(footprint, point)) return it;
   }
   return null;
@@ -221,18 +213,19 @@ const canOutrankItem = (
 export const getItemAtTile = ({
   tile,
   scene,
-  canvasMode,
+  strategy,
   point,
   connectorMatch = 'halo'
 }: {
   tile: Coords;
   scene: HitTestScene;
-  // ADR 0023: canvas mode for the projection used by the pixel-accurate ITEM
-  // hit test. Paired with `point`; omit both to keep the raw-tile behaviour used
-  // by paths that don't grab an item's body (connector/pan/placement).
-  canvasMode?: 'ISOMETRIC' | '2D';
+  // ADR 0023: the projection used by the pixel-accurate ITEM hit test — the
+  // strategy at (mode, view rotation), so a rotated view picks what it paints
+  // (ADR 0049). Paired with `point`; omit both to keep the raw-tile behaviour
+  // used by paths that don't grab an item's body (connector/pan/placement).
+  strategy?: CoordinateTransformStrategy;
   // ADR 0023: the cursor in canvas/SceneLayer space (screenToCanvasPoint). When
-  // given with `canvasMode`, ITEM hit-testing is pixel-accurate against each
+  // given with `strategy`, ITEM hit-testing is pixel-accurate against each
   // item's rendered footprint, so an off-grid item is grabbed where it's DRAWN,
   // not at its grid cell. Omitted = raw integer-tile lookup.
   point?: Coords;
@@ -253,8 +246,8 @@ export const getItemAtTile = ({
   // point + mode (grabs an off-grid item where it's drawn); else the raw tile
   // index (SPATIAL-1: O(1) Map lookup, the item returned directly).
   const hitItem =
-    (point && canvasMode
-      ? itemAtPoint(scene.items, point, canvasMode, layerOrderOf)
+    (point && strategy
+      ? itemAtPoint(scene.items, point, strategy, layerOrderOf)
       : tileIndex.get(`${tile.x},${tile.y}`)) ?? null;
 
   // PROJ-10 residual — CROSS-TYPE resolution. An ITEM hit used to return here,
@@ -273,7 +266,7 @@ export const getItemAtTile = ({
     kind: 'node',
     layerOrder: layerOrderOf(hitItem.layerId),
     zIndex: hitItem.zIndex ?? 0,
-    isoDepth: viewDepth(hitItem.tile)
+    isoDepth: (strategy ?? isometricStrategy).depth(hitItem.tile)
   };
 
   // The other bulk branches are only worth evaluating when one of them could
@@ -293,8 +286,7 @@ export const getItemAtTile = ({
   //
   // Callers without a point/mode (connector, pan, placement paths) keep the raw
   // integer-tile range test — behaviour unchanged.
-  const areaGetTilePosition =
-    point && canvasMode ? makeTilePositionFn(getStrategy(canvasMode)) : null;
+  const areaStrategy = point && strategy ? strategy : null;
 
   const areaContainsCursor = (
     from: Coords,
@@ -302,17 +294,11 @@ export const getItemAtTile = ({
     offset: Coords | undefined,
     tileBounds: Coords[]
   ): boolean => {
-    if (!areaGetTilePosition || !point || !canvasMode) {
+    if (!areaStrategy || !point) {
       return isWithinBounds(tile, tileBounds);
     }
     return footprintContainsPoint(
-      getRenderedAreaFootprint(
-        from,
-        to,
-        offset,
-        areaGetTilePosition,
-        canvasMode
-      ),
+      getRenderedAreaFootprint(from, to, offset, areaStrategy),
       point
     );
   };

@@ -16,7 +16,10 @@
 // answer cannot drift between drawing a connector and re-anchoring one.
 
 import { getItemAtTile } from 'src/utils';
-import { cursorCanvasPoint } from 'src/utils/coordinateTransforms';
+import {
+  cursorCanvasPoint,
+  stateStrategy
+} from 'src/utils/coordinateTransforms';
 import type { ConnectorAnchor, Coords, ItemReference, State } from 'src/types';
 
 /**
@@ -41,7 +44,7 @@ export const connectorItemAtTile = (state: State): ItemReference | null => {
   const hit = getItemAtTile({
     tile,
     scene,
-    canvasMode: uiState.canvasMode,
+    strategy: stateStrategy(state),
     point: cursorCanvasPoint(uiState, uiState.mouse.position.screen)
   });
   if (hit?.type !== 'ITEM') return null;

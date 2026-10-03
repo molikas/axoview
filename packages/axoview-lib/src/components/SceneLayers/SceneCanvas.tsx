@@ -17,7 +17,6 @@ import { useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useModelStoreApi } from 'src/stores/modelStore';
 import { useSceneStoreApi } from 'src/stores/sceneStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
-import { viewDepth, getViewRotationRad } from 'src/utils/viewRotation';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import {
   SceneEntityKind,
@@ -135,7 +134,7 @@ export const SceneCanvas = memo(
     const modelApi = useModelStoreApi();
     const sceneApi = useSceneStoreApi();
     const theme = useTheme();
-    const { getTilePosition, getTileCorner, strategy } = useCanvasMode();
+    const { strategy } = useCanvasMode();
     const { layers, visibleIds } = useLayerContext();
 
     // Live refs — the GL effect runs once per store identity and reads the
@@ -146,12 +145,9 @@ export const SceneCanvas = memo(
     const labelsRef = useRef(labels);
     const layersRef = useRef(layers);
     const visibleIdsRef = useRef(visibleIds);
-    const getTilePositionRef = useRef(getTilePosition);
-    // POC view rotation: tile-corner accessor + the strategy (for the ground-plane
-    // matrix flat icons are sheared by) read at build time, like getTilePosition.
-    const getTileCornerRef = useRef(getTileCorner);
+    // The strategy the bulk is BUILT at: mode + the settled view rotation θ₀
+    // (ADR 0049 §6). Read at build time through a ref, like every input here.
     const strategyRef = useRef(strategy);
-    const projectionRef = useRef(strategy.projectionName);
     const skipIdsRef = useRef<Set<string>>(EMPTY_SKIP);
     const chipStyleRef = useRef<ChipStyle>({
       radius: 0,
@@ -174,10 +170,7 @@ export const SceneCanvas = memo(
     labelsRef.current = labels;
     layersRef.current = layers;
     visibleIdsRef.current = visibleIds;
-    getTilePositionRef.current = getTilePosition;
-    getTileCornerRef.current = getTileCorner;
     strategyRef.current = strategy;
-    projectionRef.current = strategy.projectionName;
     skipIdsRef.current =
       skipNodes && skipNodes.length > 0
         ? new Set(skipNodes.map((n) => n.id))
@@ -236,9 +229,9 @@ export const SceneCanvas = memo(
       layers: Layer[] | null;
       visibleIds: ReadonlySet<string> | null;
       skipIds: ReadonlySet<string> | null;
-      // POC view rotation: iso depth follows the rotated plane, so the sorted
-      // list is stale whenever the angle changes.
-      rotation: number;
+      // Node depth is the strategy's (rotated under view rotation, ADR 0049
+      // §5), so the sorted list is stale whenever the build strategy changes.
+      strategy: typeof strategy | null;
       sorted: DrawUnit[];
     }>({
       rectangles: null,
@@ -248,7 +241,7 @@ export const SceneCanvas = memo(
       layers: null,
       visibleIds: null,
       skipIds: null,
-      rotation: 0,
+      strategy: null,
       sorted: []
     });
 
@@ -398,7 +391,7 @@ export const SceneCanvas = memo(
         const visibleNow = visibleIdsRef.current;
         const skipIds = skipIdsRef.current;
         const cache = sortCacheRef.current;
-        const rotationNow = getViewRotationRad();
+        const strategyNow = strategyRef.current;
         if (
           cache.rectangles === rects &&
           cache.connectors === conns &&
@@ -407,7 +400,7 @@ export const SceneCanvas = memo(
           cache.layers === layersNow &&
           cache.visibleIds === visibleNow &&
           cache.skipIds === skipIds &&
-          cache.rotation === rotationNow
+          cache.strategy === strategyNow
         ) {
           return cache.sorted;
         }
@@ -457,9 +450,9 @@ export const SceneCanvas = memo(
             kind: 'node',
             layerOrder: layerOrderOf(n.layerId),
             zIndex: n.zIndex ?? 0,
-            // POC view rotation: depth of the tile on the ROTATED plane
-            // (== -x - y while unrotated).
-            isoDepth: viewDepth(n.tile),
+            // The projection's depth — `−x − y` unrotated, the rotated plane's
+            // otherwise — the value the picker reads too (ADR 0049 §5).
+            isoDepth: strategyNow.depth(n.tile),
             entity: n
           });
         }
@@ -484,7 +477,7 @@ export const SceneCanvas = memo(
           layers: layersNow,
           visibleIds: visibleNow,
           skipIds,
-          rotation: rotationNow,
+          strategy: strategyNow,
           sorted: units
         };
         return units;
@@ -536,8 +529,8 @@ export const SceneCanvas = memo(
           if (it.offset) offsetByItemId.set(it.id, it.offset);
         }
 
-        const getTilePos = getTilePositionRef.current;
-        const isIso = projectionRef.current === 'ISOMETRIC';
+        const buildStrategy = strategyRef.current;
+        const isIso = buildStrategy.projectionName === 'ISOMETRIC';
         // Clamp effective dpr at 2 for chip rasterisation: on a 3x screen
         // dpr*CHIP_SUPERSAMPLE would be 6x (36x chip area), overflowing the atlas
         // and thrashing memory for no visible gain.
@@ -561,15 +554,14 @@ export const SceneCanvas = memo(
         const rectEmitter = createRectangleEmitter({
           batch: b,
           colorsById,
-          getTilePos,
-          isIso
+          strategy: buildStrategy
         });
         const connEmitter = createConnectorEmitter({
           batch: b,
           colorsById,
           scenePaths,
           offsetByItemId,
-          getTilePos,
+          strategy: buildStrategy,
           arrowUV,
           ringUV,
           selectedIds: connectorSelection(ui.itemControls, ui.selectedIds).ids,
@@ -579,12 +571,7 @@ export const SceneCanvas = memo(
           batch: b,
           itemsById,
           iconsById,
-          getTilePos,
-          getTileCorner: getTileCornerRef.current,
-          // Flat icons lie on the ground plane: the matrix at the current angle.
-          isoMatrix: strategyRef.current.projectionMatrix('X') ?? [
-            1, 0, 0, 1, 0, 0
-          ],
+          strategy: buildStrategy,
           isIso,
           inPreview: ui.editorMode === 'EXPLORABLE_READONLY',
           previewHideLabels: ui.previewHideLabels,
@@ -608,7 +595,7 @@ export const SceneCanvas = memo(
               move: ui.labelMove,
               moves: ui.labelMoves,
               editingId: ui.inlineEditLabelId,
-              getTilePos,
+              strategy: buildStrategy,
               zoom,
               readableLabels,
               ss,
@@ -825,8 +812,9 @@ export const SceneCanvas = memo(
       labels,
       layers,
       visibleIds,
-      getTilePosition,
-      strategy.projectionName,
+      // The build strategy's identity — mode AND settled view rotation. Keying
+      // on `projectionName` alone would miss a rotation (finding F6).
+      strategy,
       theme
     ]);
 

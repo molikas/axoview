@@ -26,7 +26,7 @@ export const NodeGroupTransformControls = ({ ids }: Props) => {
   const { items } = useSceneData();
   const modelItems = useModelStore((s) => s.items);
   const icons = useModelStore((s) => s.icons);
-  const { getTilePosition } = useCanvasMode();
+  const { strategy } = useCanvasMode();
   const uiStateActions = useUiStateStore((s) => s.actions);
   const previewScales = useUiStateStore((s) => s.iconScaleDrag?.scales ?? null);
 
@@ -63,7 +63,7 @@ export const NodeGroupTransformControls = ({ ids }: Props) => {
     for (const r of resolved) {
       const { x: cx, y: cy } = getRenderedTilePosition(
         r,
-        getTilePosition,
+        strategy,
         'CENTER'
       );
       const scale = previewScales?.[r.id] ?? r.startScale;
@@ -79,7 +79,7 @@ export const NodeGroupTransformControls = ({ ids }: Props) => {
       width: maxX - minX,
       height: maxY - minY
     };
-  }, [resolved, getTilePosition, previewScales]);
+  }, [resolved, strategy, previewScales]);
 
   // Representative (first selected) drives the readout — matches the strip's
   // "display the representative item" bulk convention.

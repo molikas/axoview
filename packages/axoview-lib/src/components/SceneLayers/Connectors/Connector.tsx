@@ -6,7 +6,7 @@ import {
   TRANSFORM_CONTROLS_COLOR
 } from 'src/config';
 import { getColorVariant, getConnectorDirectionIcon } from 'src/utils';
-import { connectorEndpointVertexDelta } from 'src/utils/resolvePlacement';
+import { getRenderedEndpointVertexDelta } from 'src/utils/renderedGeometry';
 import { Svg } from 'src/components/Svg/Svg';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useIsoProjection } from 'src/hooks/useIsoProjection';
@@ -42,13 +42,15 @@ export const Connector = memo(({ connector, currentView }: Props) => {
       if (!itemId) return ZERO_DELTA;
       const viewItem = items.find((it) => it.id === itemId);
       if (!viewItem?.offset) return ZERO_DELTA;
-      return connectorEndpointVertexDelta(strategy.projectionName, viewItem.offset);
+      return getRenderedEndpointVertexDelta(viewItem.offset, strategy);
     };
     return {
       start: deltaFor(anchors[0]),
       end: deltaFor(anchors[anchors.length - 1])
     };
-  }, [connector.anchors, currentView?.items, strategy.projectionName]);
+    // Keyed on the strategy, not `projectionName`: the delta depends on the
+    // whole projection, view rotation included (finding F6).
+  }, [connector.anchors, currentView?.items, strategy]);
 
   // S3/A2: connectors had NO selected-state — a selected connector was
   // indistinguishable from the rest in a dense diagram (the only cue was the

@@ -14,10 +14,9 @@ import { SpriteBatch, UVRect } from 'src/webgl/glSpriteBatch';
 import { rasterizeNodeChip } from 'src/webgl/itemRaster';
 import {
   getRenderedTilePosition,
-  getRenderedTileCorner,
-  TilePositionFn,
-  TileCornerFn
+  getRenderedTileCorner
 } from 'src/utils/renderedGeometry';
+import type { CoordinateTransformStrategy } from 'src/utils/coordinateTransforms';
 
 // ---------------------------------------------------------------------------
 // Node sprites — dotted stalk, icon, name chip — for the merged bulk canvas
@@ -96,15 +95,12 @@ export interface NodeEmitterInput {
   batch: SpriteBatch;
   itemsById: Map<string, ModelItem>;
   iconsById: Map<string, Icon>;
-  getTilePos: TilePositionFn;
-  /** Tile-space corner accessor (POC view rotation) — anchors flat icons. */
-  getTileCorner: TileCornerFn;
   /**
-   * The ground-plane CSS matrix [a,b,c,d,e,f] (X orientation) at the current view
-   * rotation — what a flat (non-isometric) icon is sheared by. Was a fixed
-   * constant before the rotation POC.
+   * The projection strategy the bulk is BUILT at — mode + the settled view
+   * rotation θ₀ (ADR 0049 §2, §6). Node centres, the flat-icon tile corner and
+   * the ground-plane matrix a flat icon is sheared by all come from it.
    */
-  isoMatrix: readonly number[];
+  strategy: CoordinateTransformStrategy;
   isIso: boolean;
   inPreview: boolean;
   previewHideLabels: boolean;
@@ -147,9 +143,7 @@ export const createNodeEmitter = ({
   batch: b,
   itemsById,
   iconsById,
-  getTilePos,
-  getTileCorner,
-  isoMatrix: ISO,
+  strategy,
   isIso,
   inPreview,
   previewHideLabels,
@@ -165,6 +159,12 @@ export const createNodeEmitter = ({
   iconPending,
   putIcon
 }: NodeEmitterInput): NodeEmitter => {
+  // The ground-plane matrix [a,b,c,d,e,f] (X orientation) at the build angle —
+  // what a flat (non-isometric) icon is sheared by. Identity in 2D, where flat
+  // icons are not sheared at all (that branch never reads it).
+  const ISO: readonly number[] = strategy.projectionMatrix('X') ?? [
+    1, 0, 0, 1, 0, 0
+  ];
   const stats: NodeEmitterStats = {
     labelsDrawn: 0,
     linkedLabelsDrawn: 0,
@@ -177,7 +177,7 @@ export const createNodeEmitter = ({
       const modelItem = itemsById.get(node.id);
       if (!modelItem) return false;
 
-      const pos = getRenderedTilePosition(node, getTilePos, 'CENTER');
+      const pos = getRenderedTilePosition(node, strategy, 'CENTER');
 
       const name = decodeHtmlEntities(modelItem.label ?? modelItem.name);
       const hasLabel =
@@ -259,8 +259,9 @@ export const createNodeEmitter = ({
             // local (lx,ly) → iso; fold ISO translation into the anchor. The
             // anchor is the tile's LEFT CORNER in tile space (== the screen-space
             // `pos − (PROJ_W/2, 0)` while unrotated) so a flat icon stays glued to
-            // its tile when the view is rotated; off-grid residual included.
-            const leftCorner = getRenderedTileCorner(node, getTileCorner, 'LEFT');
+            // its tile when the view is rotated (ADR 0049 §3); off-grid residual
+            // included.
+            const leftCorner = getRenderedTileCorner(node, strategy, 'LEFT');
             const ox =
               leftCorner.x + ISO[4] - 0.5 * (ISO[0] * dw + ISO[2] * dh);
             const oy = leftCorner.y + ISO[5] - 0.5 * (ISO[1] * dw + ISO[3] * dh);

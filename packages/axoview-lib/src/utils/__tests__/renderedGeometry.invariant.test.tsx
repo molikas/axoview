@@ -73,7 +73,6 @@ jest.mock('src/contexts/CanvasModeContext', () => {
         strategy,
         getTilePosition: actual.makeTilePositionFn(strategy),
         getTileCorner: actual.makeTileCornerFn(strategy),
-        viewRotation: 0,
         screenToTile: () => ({ x: 0, y: 0 }),
         getProjectionCss: () =>
           strategy.projectionName === '2D'
@@ -305,7 +304,7 @@ describe.each<CanvasMode>(['ISOMETRIC', '2D'])(
         const hit = getItemAtTile({
           tile: TILE,
           scene,
-          canvasMode: mode,
+          strategy: getStrategy(mode),
           point: centre
         });
         expect(hit).toEqual({ type: 'ITEM', id: 'n1' });
@@ -317,7 +316,7 @@ describe.each<CanvasMode>(['ISOMETRIC', '2D'])(
             UNPROJECTED_TILE_SIZE
           );
           expect(
-            getItemAtTile({ tile: TILE, scene, canvasMode: mode, point: bare })
+            getItemAtTile({ tile: TILE, scene, strategy: getStrategy(mode), point: bare })
           ).toBeNull();
         }
       });
@@ -381,8 +380,7 @@ describe.each<CanvasMode>(['ISOMETRIC', '2D'])(
           from,
           to,
           undefined,
-          makeTilePositionFn(getStrategy(mode)),
-          mode
+          getStrategy(mode)
         )[0];
         const BASE_TOL = 1.5;
         expect(Math.abs(px(b.style.left) - bulkBase.x)).toBeLessThan(BASE_TOL);
@@ -392,20 +390,17 @@ describe.each<CanvasMode>(['ISOMETRIC', '2D'])(
       it('the WebGL rect corners carry the offset the DOM path carries', () => {
         const from: Coords = TILE;
         const to: Coords = { x: TILE.x + 2, y: TILE.y - 1 };
-        const getTilePosition = makeTilePositionFn(getStrategy(mode));
         const shifted = getRenderedAreaCorners(
           from,
           to,
           offset,
-          getTilePosition,
-          mode
+          getStrategy(mode)
         );
         const bare = getRenderedAreaCorners(
           from,
           to,
           undefined,
-          getTilePosition,
-          mode
+          getStrategy(mode)
         );
         shifted.forEach((corner, i) => {
           expectClose(
@@ -458,7 +453,7 @@ describe.each<CanvasMode>(['ISOMETRIC', '2D'])(
             hitConnectors: [],
             rectangles: []
           },
-          canvasMode: mode,
+          strategy: getStrategy(mode),
           point: centre
         });
         expect(hit).toEqual({ type: 'TEXTBOX', id: 'tb1' });
@@ -467,13 +462,11 @@ describe.each<CanvasMode>(['ISOMETRIC', '2D'])(
       it('a rectangle HIT ZONE follows the drawn area', () => {
         const from: Coords = TILE;
         const to: Coords = { x: TILE.x + 2, y: TILE.y - 1 };
-        const getTilePosition = makeTilePositionFn(getStrategy(mode));
         const corners = getRenderedAreaCorners(
           from,
           to,
           offset,
-          getTilePosition,
-          mode
+          getStrategy(mode)
         );
         const point = {
           x: (corners[0].x + corners[2].x) / 2,
@@ -488,7 +481,7 @@ describe.each<CanvasMode>(['ISOMETRIC', '2D'])(
         const hit = getItemAtTile({
           tile: TILE,
           scene,
-          canvasMode: mode,
+          strategy: getStrategy(mode),
           point
         });
         expect(hit).toEqual({ type: 'RECTANGLE', id: 'r1' });
@@ -512,7 +505,7 @@ describe.each<CanvasMode>(['ISOMETRIC', '2D'])(
         ) {
           const vacated = { x: point.x - offset.x, y: point.y - offset.y };
           expect(
-            getItemAtTile({ tile: TILE, scene, canvasMode: mode, point: vacated })
+            getItemAtTile({ tile: TILE, scene, strategy: getStrategy(mode), point: vacated })
           ).toBeNull();
         }
       });

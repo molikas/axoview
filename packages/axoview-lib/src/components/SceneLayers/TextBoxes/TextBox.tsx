@@ -327,10 +327,10 @@ export const TextBox = memo(({ textBox }: Props) => {
       textBox.offset
         ? {
             ...TEXTBOX_DRAG_STYLE,
-            transform: getRenderedDragTransform(textBox.offset)
+            transform: getRenderedDragTransform(textBox.offset, strategy)
           }
         : TEXTBOX_DRAG_STYLE,
-    [textBox.offset?.x, textBox.offset?.y] // eslint-disable-line react-hooks/exhaustive-deps
+    [textBox.offset?.x, textBox.offset?.y, strategy] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   // ADR 0029: the read view renders Quill HTML via dangerouslySetInnerHTML.

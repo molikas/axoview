@@ -13,7 +13,10 @@
 import { useCallback } from 'react';
 import { useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useScene } from 'src/hooks/useScene';
-import { useCanvasMode } from 'src/contexts/CanvasModeContext';
+import {
+  getLiveStrategy,
+  makeScreenToTileFn
+} from 'src/utils/coordinateTransforms';
 import {
   generateId,
   findNearestUnoccupiedTile,
@@ -26,7 +29,6 @@ import { Icon } from 'src/types';
 export const useKeyboardIconPlacement = () => {
   const uiStateApi = useUiStateStoreApi();
   const scene = useScene();
-  const { screenToTile } = useCanvasMode();
 
   return useCallback(
     (icon: Icon) => {
@@ -36,6 +38,9 @@ export const useKeyboardIconPlacement = () => {
       // diagram is editable (the disabled-panel convention already keeps the
       // Elements panel itself shut in non-edit / no-diagram states — UX §8.3).
       if (uiState.editorMode !== 'EDITABLE') return;
+      // The live projection (mode + view rotation, ADR 0049) — the one the
+      // mouse path's State carries.
+      const strategy = getLiveStrategy(uiState);
 
       // Keyboard has no cursor → target the tile under the viewport centre,
       // derived the same way getMouse derives the cursor tile (renderer-centre
@@ -44,7 +49,7 @@ export const useKeyboardIconPlacement = () => {
         rendererSize: uiState.rendererSize,
         scroll: uiState.scroll,
         zoom: uiState.zoom,
-        screenToTile
+        screenToTile: makeScreenToTileFn(strategy)
       });
 
       // From here down this mirrors PlaceIcon.mouseup exactly (the single mouse
@@ -58,7 +63,7 @@ export const useKeyboardIconPlacement = () => {
       const residual = globalSnap
         ? undefined
         : cursorTileResidual(
-            uiState.canvasMode,
+            strategy,
             // No real screen cursor — use the renderer centre as the screen
             // point so the off-grid residual is measured against the same tile.
             {
@@ -92,6 +97,6 @@ export const useKeyboardIconPlacement = () => {
         }
       });
     },
-    [uiStateApi, scene, screenToTile]
+    [uiStateApi, scene]
   );
 };

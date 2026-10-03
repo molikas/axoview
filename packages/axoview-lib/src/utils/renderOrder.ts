@@ -91,6 +91,56 @@ export const compareSceneDrawOrder = (
   SCENE_TYPE_RANK[a.kind] - SCENE_TYPE_RANK[b.kind] ||
   a.isoDepth - b.isoDepth;
 
+/** The projection's depth function — `strategy.depth` (ADR 0049 §5). */
+export interface DepthSource {
+  depth(tile: { x: number; y: number }): number;
+}
+
+/** What a tile-anchored entity needs to be placed in paint order. */
+export interface PaintOrderedTileEntity {
+  tile: { x: number; y: number };
+  layerId?: string;
+  zIndex?: number;
+}
+
+/**
+ * THE node depth comparator — the one both the painter (`SceneCanvas`, via
+ * `compareSceneDrawOrder`), the picker (`hitDetection`) and the DOM node
+ * overlay read (ADR 0049 §5).
+ *
+ * Tiers: layer stack, z-index, then the projection's depth — the same tiers
+ * `compareSceneDrawOrder` applies within the `node` kind, compared tier by tier
+ * rather than through `resolveRenderOrder`'s single sum. A rotated depth is a
+ * float, and folding it into a `layer·1e6 + z·1e3` sum would round a near-tie
+ * differently from the painter's tier-by-tier compare — exactly the
+ * painter/picker disagreement this function exists to rule out.
+ *
+ * The TIEBREAK is stable model order: callers sort with `Array.prototype.sort`
+ * (stable) over model-ordered input. At the cardinal angles the strategy's
+ * depth is exact (`rotationTrig`), so tied tiles really tie and fall through to
+ * it, instead of being split by 1e-17 float noise (finding F5).
+ */
+export const compareTilePaintOrder = (
+  a: PaintOrderedTileEntity,
+  b: PaintOrderedTileEntity,
+  layerOrderOf: (layerId: string | undefined) => number,
+  depth: DepthSource
+): number =>
+  resolveRenderOrder(layerOrderOf(a.layerId), a.zIndex ?? 0, 0) -
+    resolveRenderOrder(layerOrderOf(b.layerId), b.zIndex ?? 0, 0) ||
+  depth.depth(a.tile) - depth.depth(b.tile);
+
+/**
+ * Tile-anchored entities in PAINT order, bottom-first — a stable sort with
+ * {@link compareTilePaintOrder}, so equal keys keep model order.
+ */
+export const sortTilesInPaintOrder = <T extends PaintOrderedTileEntity>(
+  items: readonly T[],
+  layerOrderOf: (layerId: string | undefined) => number,
+  depth: DepthSource
+): T[] =>
+  [...items].sort((a, b) => compareTilePaintOrder(a, b, layerOrderOf, depth));
+
 /**
  * Look up a layer by ID from the layers array.
  * Returns undefined if no layerId provided or layer not found.

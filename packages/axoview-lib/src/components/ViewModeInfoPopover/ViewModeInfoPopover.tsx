@@ -25,6 +25,7 @@ import {
 } from '@mui/icons-material';
 import { Coords, ItemReference } from 'src/types';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
+import { shiftByRenderedOffset } from 'src/utils/renderedGeometry';
 import { useScene } from 'src/hooks/useScene';
 import { useViewItem } from 'src/hooks/useViewItem';
 import { useModelItem } from 'src/hooks/useModelItem';
@@ -63,7 +64,7 @@ const INFO_TYPES = new Set([
 
 export const ViewModeInfoPopover = () => {
   const { t } = useTranslation('viewModeInfoPopover');
-  const { getTilePosition } = useCanvasMode();
+  const { strategy } = useCanvasMode();
   const uiStoreApi = useUiStateStoreApi();
   const actions = useUiStateStore((s) => s.actions);
   const itemControls = useUiStateStore((s) => s.itemControls);
@@ -236,16 +237,20 @@ export const ViewModeInfoPopover = () => {
     const { scroll, zoom, rendererSize } = uiStoreApi.getState();
     if (!rendererSize.width || !rendererSize.height) return;
 
-    // Canvas px scale with zoom (the SceneLayer transform), so the offset is
-    // folded in BEFORE the zoom multiply.
+    // Canvas px scale with zoom (the SceneLayer transform), so the RENDERED
+    // offset (M(θ)·offset, ADR 0049 §4 — composed by renderedGeometry, never by
+    // hand) is folded in BEFORE the zoom multiply.
     const off = anchorOffsetRef.current;
-    const toScreen = (p: Coords) => ({
-      x: rendererSize.width / 2 + scroll.position.x + zoom * (p.x + (off?.x ?? 0)),
-      y: rendererSize.height / 2 + scroll.position.y + zoom * (p.y + (off?.y ?? 0))
-    });
-    const center = toScreen(getTilePosition({ tile, origin: 'CENTER' }));
-    const rightEdge = toScreen(getTilePosition({ tile, origin: 'RIGHT' }));
-    const leftEdge = toScreen(getTilePosition({ tile, origin: 'LEFT' }));
+    const toScreen = (p: Coords) => {
+      const q = shiftByRenderedOffset(p, off, strategy);
+      return {
+        x: rendererSize.width / 2 + scroll.position.x + zoom * q.x,
+        y: rendererSize.height / 2 + scroll.position.y + zoom * q.y
+      };
+    };
+    const center = toScreen(strategy.tilePosition({ tile, origin: 'CENTER' }));
+    const rightEdge = toScreen(strategy.tilePosition({ tile, origin: 'RIGHT' }));
+    const leftEdge = toScreen(strategy.tilePosition({ tile, origin: 'LEFT' }));
 
     const w = el.offsetWidth;
     const h = el.offsetHeight;
@@ -270,7 +275,7 @@ export const ViewModeInfoPopover = () => {
     el.style.left = `${leftPx}px`;
     el.style.top = `${topPx}px`;
     el.style.transform = `translate(${txPercent}, -50%)`;
-  }, [uiStoreApi, getTilePosition]);
+  }, [uiStoreApi, strategy]);
 
   // Reposition immediately when the active item / its content (and thus size)
   // changes — useLayoutEffect runs pre-paint so there's no visible jump.

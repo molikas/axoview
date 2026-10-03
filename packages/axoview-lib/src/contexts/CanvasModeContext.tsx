@@ -1,5 +1,13 @@
 // CanvasModeContext — provides the active coordinate transform strategy and
-// pre-bound helper functions derived from the current canvasMode in uiStateStore.
+// pre-bound helper functions derived from the current canvasMode and view
+// rotation in uiStateStore.
+//
+// The strategy is built at the SETTLED view rotation θ₀ (`viewRotationBase`),
+// not the live one (ADR 0049 §6): while a rotation is in motion, every consumer
+// keeps its θ₀ geometry and the scene is carried to the live angle by the
+// motion transform (SceneLayer CSS + a SceneCanvas uniform). The context value
+// therefore changes once per settle, never per frame — 29 consumers re-render
+// once, not 60 times a second.
 //
 // Mount <CanvasModeContext.Provider> once inside the UiStateProvider tree.
 // Consumers call useCanvasMode() to get mode-aware tile/screen helpers.
@@ -8,8 +16,8 @@ import React, { createContext, useContext, useMemo } from 'react';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import {
   CoordinateTransformStrategy,
-  isometricStrategy,
-  cartesian2DStrategy,
+  TileCorner,
+  getStrategy,
   makeTilePositionFn,
   makeTileCornerFn,
   makeScreenToTileFn
@@ -21,7 +29,11 @@ import type { Coords, Scroll, Size, TileOrigin } from 'src/types';
 // ---------------------------------------------------------------------------
 
 export interface CanvasModeContextValue {
-  /** The raw strategy object — carry if you need gridTileUrl or projectionName */
+  /**
+   * The strategy at (canvas mode, settled view rotation). Memos that depend on
+   * the projection key on THIS identity, never on `projectionName` alone —
+   * the angle changes the projection without changing the name (finding F6).
+   */
   strategy: CoordinateTransformStrategy;
 
   /**
@@ -36,13 +48,7 @@ export interface CanvasModeContextValue {
    * to anchor an element whose local axes are the tile axes (matrix'd rectangles,
    * text boxes, selection frames) so it stays glued to the tile under view rotation.
    */
-  getTileCorner: (args: {
-    tile: Coords;
-    corner: 'LEFT' | 'RIGHT' | 'TOP' | 'BOTTOM';
-  }) => Coords;
-
-  /** POC horizontal view rotation (degrees). A dep for layers that rebuild on it. */
-  viewRotation: number;
+  getTileCorner: (args: { tile: Coords; corner: TileCorner }) => Coords;
 
   /**
    * Mode-aware screenToTile.
@@ -74,15 +80,15 @@ interface ProviderProps {
 
 export const CanvasModeProvider = ({ children }: ProviderProps) => {
   const canvasMode = useUiStateStore((state) => state.canvasMode);
-  // POC view rotation: a new angle mints a new context value (→ new
-  // getTilePosition identity), which is what makes every projection-dependent
-  // layer (WebGL bulk rebuilds, DOM overlays, culling) recompute.
-  const viewRotation = useUiStateStore((state) => state.viewRotation);
+  // θ₀, not the live angle — see the header. In 2D the strategy ignores it, so
+  // a 2D canvas never re-renders for a rotation.
+  const viewRotationBase = useUiStateStore((state) => state.viewRotationBase);
+
+  // getStrategy returns the SAME object for the same (mode, θ) — and maps every
+  // θ to one strategy in 2D — so its identity is the memo key.
+  const strategy = getStrategy(canvasMode, viewRotationBase);
 
   const value = useMemo<CanvasModeContextValue>(() => {
-    const strategy =
-      canvasMode === '2D' ? cartesian2DStrategy : isometricStrategy;
-
     const getTilePosition = makeTilePositionFn(strategy);
     const getTileCorner = makeTileCornerFn(strategy);
     const screenToTile = makeScreenToTileFn(strategy);
@@ -96,11 +102,10 @@ export const CanvasModeProvider = ({ children }: ProviderProps) => {
       strategy,
       getTilePosition,
       getTileCorner,
-      viewRotation,
       screenToTile,
       getProjectionCss
     };
-  }, [canvasMode, viewRotation]);
+  }, [strategy]);
 
   return (
     <CanvasModeContext.Provider value={value}>

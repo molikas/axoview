@@ -19,7 +19,7 @@ import {
 import { useResizeObserver } from 'src/hooks/useResizeObserver';
 import { useScene } from 'src/hooks/useScene';
 import { useHistory } from 'src/hooks/useHistory';
-import { useCanvasMode } from 'src/contexts/CanvasModeContext';
+import { getLiveStrategy } from 'src/utils/coordinateTransforms';
 import { TOOL_HOTKEYS } from 'src/config/hotkeys';
 import { resolveToolHotkey, resolveZOrderDirection } from './toolHotkeys';
 import { handleEscapeKey, handleConnectorEscape } from './handleEscapeKey';
@@ -50,7 +50,7 @@ import { Lasso } from './modes/Lasso';
 import { FreehandLasso } from './modes/FreehandLasso';
 import { ReconnectAnchor, abortReconnectAnchor } from './modes/ReconnectAnchor';
 import { exceedsTapSlop, LONG_PRESS_MS } from 'src/config/tapGesture';
-import { MIN_ZOOM, MAX_ZOOM } from 'src/config';
+import { MIN_ZOOM, MAX_ZOOM, UNPROJECTED_TILE_SIZE } from 'src/config';
 import { usePanHandlers } from './usePanHandlers';
 import { useRAFThrottle } from './useRAFThrottle';
 import { useCopyPaste } from 'src/clipboard/useCopyPaste';
@@ -563,7 +563,22 @@ export const useInteractionManager = () => {
   const { size: rendererSize } = useResizeObserver(rendererEl);
   const { undo, redo, canUndo, canRedo } = useHistory();
   const { handleCopy, handleCut, handlePaste } = useCopyPaste();
-  const { screenToTile } = useCanvasMode();
+  // ADR 0049 §2: input projects at the LIVE view angle, read from the store at
+  // event time — not the settled angle React renders at, which lags the screen
+  // while a rotation is in motion. Stable identity (the store api never
+  // changes), so the keydown effect's deps stay stable too (M-1).
+  const screenToTile = useCallback<ScreenToTileFn>(
+    ({ mouse, zoom, scroll, rendererSize: size }) =>
+      getLiveStrategy(uiStateApi.getState()).fromScreen(
+        mouse.x,
+        mouse.y,
+        UNPROJECTED_TILE_SIZE,
+        zoom,
+        scroll,
+        size
+      ),
+    [uiStateApi]
+  );
   const {
     deleteSelectedItems,
     deleteViewItem,
@@ -810,7 +825,8 @@ export const useInteractionManager = () => {
           rendererRef.current === e.target || isAnchorOverlay,
         isItemInteractable,
         pointerType: pointerTypeRef.current,
-        screenToTile
+        screenToTile,
+        strategy: getLiveStrategy(uiState)
       };
 
       if (reducerTypeRef.current !== uiState.mode.type) {

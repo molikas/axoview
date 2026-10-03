@@ -7,10 +7,8 @@ import {
 } from 'src/utils/labelChip';
 import { SpriteBatch } from 'src/webgl/glSpriteBatch';
 import { rasterizeLabelChip } from 'src/webgl/itemRaster';
-import {
-  getRenderedTilePosition,
-  TilePositionFn
-} from 'src/utils/renderedGeometry';
+import { getRenderedTilePosition } from 'src/utils/renderedGeometry';
+import type { CoordinateTransformStrategy } from 'src/utils/coordinateTransforms';
 import { labelCounterScaleFor } from 'src/config/labelSettings';
 
 // ---------------------------------------------------------------------------
@@ -33,7 +31,12 @@ export interface LabelEmitterInput {
   moves: Record<string, { tile: Coords; offset?: Coords }> | null | undefined;
   /** The label being inline-edited — skipped here, the DOM editor owns it. */
   editingId: string | null;
-  getTilePos: TilePositionFn;
+  /**
+   * The projection strategy the bulk is BUILT at — mode + the settled view
+   * rotation θ₀ (ADR 0049 §2, §6). Positions, corners, depth and the off-grid
+   * offset map all come from it.
+   */
+  strategy: CoordinateTransformStrategy;
   zoom: number;
   readableLabels: boolean;
   /** Chip supersample factor (dpr capped at 2, × CHIP_SUPERSAMPLE). */
@@ -54,7 +57,7 @@ export const createLabelEmitter = ({
   move,
   moves,
   editingId,
-  getTilePos,
+  strategy,
   zoom,
   readableLabels,
   ss,
@@ -70,7 +73,7 @@ export const createLabelEmitter = ({
     const offset: Coords | undefined = preview ? preview.offset : label.offset;
     const { x: cx, y: cy } = getRenderedTilePosition(
       { tile, offset },
-      getTilePos,
+      strategy,
       'CENTER'
     );
     const fontSize = labelFontPx(label);

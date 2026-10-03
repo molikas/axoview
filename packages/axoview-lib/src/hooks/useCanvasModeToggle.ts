@@ -18,8 +18,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useModelStoreApi } from 'src/stores/modelStore';
 import {
-  isometricStrategy,
-  cartesian2DStrategy,
+  getStrategy,
   getCanvasModeSwitchScroll,
   reprojectOffset
 } from 'src/utils/coordinateTransforms';
@@ -72,16 +71,25 @@ export const useCanvasModeToggle = (): {
     if (prevCanvasMode === canvasMode) return;
     prevCanvasModeRef.current = canvasMode;
 
-    const { zoom, scroll, actions } = uiStateApi.getState();
-    const fromStrategy =
-      prevCanvasMode === '2D' ? cartesian2DStrategy : isometricStrategy;
-    const toStrategy =
-      canvasMode === '2D' ? cartesian2DStrategy : isometricStrategy;
-
+    const { zoom, scroll, actions, viewRotation } = uiStateApi.getState();
+    // The VIEWPORT pivots between what is on screen before and after: the
+    // projections at the live view angle (θ is inert in 2D, so switching back
+    // to iso restores θ with the centre preserved — ADR 0049 §1).
     actions.setScroll({
-      position: getCanvasModeSwitchScroll(fromStrategy, toStrategy, zoom, scroll),
+      position: getCanvasModeSwitchScroll(
+        getStrategy(prevCanvasMode, viewRotation),
+        getStrategy(canvasMode, viewRotation),
+        zoom,
+        scroll
+      ),
       offset: CoordsUtils.zero()
     });
+    // Everything STORED — off-grid residuals (a model write) and annotation ink
+    // (uiState) — lives in the UNROTATED frame (ADR 0049 §4, ADR 0050 §4), so it
+    // re-projects between the unrotated projections. Using the rotated ones
+    // here was finding F6: the angle leaked into a 2D model write.
+    const fromStrategy = getStrategy(prevCanvasMode);
+    const toStrategy = getStrategy(canvasMode);
 
     // F2/VIEW-03 — the annotation ink re-projects with the content. Strokes are
     // stored in scene-canvas px inside a `<g>` whose transform is rebuilt from
@@ -145,6 +153,9 @@ export const useCanvasModeToggle = (): {
   }, [canvasMode, uiStateApi, modelApi]);
 
   const toggleCanvasMode = useCallback(() => {
+    // A rotation step in flight lands first, so the switch pivots from a
+    // settled view.
+    uiStateStoreActions.finishViewRotationAnimation();
     uiStateStoreActions.setCanvasMode(
       canvasMode === 'ISOMETRIC' ? '2D' : 'ISOMETRIC'
     );

@@ -2,7 +2,8 @@ import { Connector, Coords } from 'src/types';
 import { CONNECTOR_DEFAULTS, UNPROJECTED_TILE_SIZE } from 'src/config';
 import { connectorPathTileToGlobal } from 'src/utils/isoMath';
 import { getColorVariant } from 'src/utils';
-import { TilePositionFn } from 'src/utils/renderedGeometry';
+import { shiftByRenderedOffset } from 'src/utils/renderedGeometry';
+import type { CoordinateTransformStrategy } from 'src/utils/coordinateTransforms';
 import { SpriteBatch, UVRect } from 'src/webgl/glSpriteBatch';
 import {
   walkDots,
@@ -43,7 +44,12 @@ export interface ConnectorEmitterInput {
    * endpoints anchored to an off-grid node. Empty when the diagram is all-snapped.
    */
   offsetByItemId: Map<string, Coords>;
-  getTilePos: TilePositionFn;
+  /**
+   * The projection strategy the bulk is BUILT at — mode + the settled view
+   * rotation θ₀ (ADR 0049 §2, §6). Positions, corners, depth and the off-grid
+   * offset map all come from it.
+   */
+  strategy: CoordinateTransformStrategy;
   arrowUV: UVRect;
   ringUV: UVRect;
   /**
@@ -71,13 +77,14 @@ export const createConnectorEmitter = ({
   colorsById,
   scenePaths,
   offsetByItemId,
-  getTilePos,
+  strategy,
   arrowUV,
   ringUV,
   selectedIds,
   selectionColor
 }: ConnectorEmitterInput): ConnectorEmitter => {
   const dot = b.dot;
+  const getTilePos = strategy.tilePosition;
   const white = b.white;
   const [selR, selG, selB] = glRGB(selectionColor);
 
@@ -149,8 +156,8 @@ export const createConnectorEmitter = ({
   const o0 = getTilePos({ tile: { x: 0, y: 0 } });
   const o1 = getTilePos({ tile: { x: 1, y: 0 } });
   const oY = getTilePos({ tile: { x: 0, y: 1 } });
-  // Mean of both axis scales (the POC view rotation foreshortens them unequally;
-  // identical to the single-axis value when unrotated / in 2D).
+  // Mean of both axis scales (ADR 0050 §1: view rotation foreshortens them
+  // unequally; identical to the single-axis value when unrotated / in 2D).
   const widthScale =
     (Math.hypot(o1.x - o0.x, o1.y - o0.y) +
       Math.hypot(oY.x - o0.x, oY.y - o0.y)) /
@@ -254,16 +261,11 @@ export const createConnectorEmitter = ({
         const endOffset = offsetByItemId.get(
           anchors[anchors.length - 1]?.ref?.item ?? ''
         );
-        if (startOffset) {
-          pts[0] = { x: pts[0].x + startOffset.x, y: pts[0].y + startOffset.y };
-        }
-        if (endOffset) {
-          const last = pts.length - 1;
-          pts[last] = {
-            x: pts[last].x + endOffset.x,
-            y: pts[last].y + endOffset.y
-          };
-        }
+        // The rendered residual M(θ)·offset (ADR 0049 §4), composed by the one
+        // composer — this used to be the first of three hand-rolled sites.
+        pts[0] = shiftByRenderedOffset(pts[0], startOffset, strategy);
+        const last = pts.length - 1;
+        pts[last] = shiftByRenderedOffset(pts[last], endOffset, strategy);
       }
 
       const colorValue =

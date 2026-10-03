@@ -3,6 +3,9 @@
  * `getFitToViewParams` had no tests; see also `projectBounds.test.ts`.
  */
 import { getFitToViewParams } from '../renderer';
+import { isometricStrategy } from '../coordinateTransforms';
+
+const isoPos = isometricStrategy.tilePosition;
 import { MIN_ZOOM, MAX_ZOOM } from 'src/config';
 import type { View } from 'src/types';
 
@@ -29,13 +32,13 @@ describe('getFitToViewParams — the zoom floor (RND-01)', () => {
         tile: { x: i * 200, y: i * 200 }
       }))
     );
-    const { zoom } = getFitToViewParams(huge, { width: 400, height: 300 });
+    const { zoom } = getFitToViewParams(huge, { width: 400, height: 300 }, isoPos);
     expect(zoom).toBeGreaterThanOrEqual(MIN_ZOOM);
   });
 
   it('still clamps at the top', () => {
     const tiny = viewWith([{ id: 'n1', tile: { x: 0, y: 0 } }]);
-    const { zoom } = getFitToViewParams(tiny, { width: 8000, height: 8000 });
+    const { zoom } = getFitToViewParams(tiny, { width: 8000, height: 8000 }, isoPos);
     expect(zoom).toBeLessThanOrEqual(MAX_ZOOM);
   });
 
@@ -45,7 +48,7 @@ describe('getFitToViewParams — the zoom floor (RND-01)', () => {
       { id: 'a', tile: { x: 0, y: 0 } },
       { id: 'b', tile: { x: 12, y: 12 } }
     ]);
-    const { zoom } = getFitToViewParams(mid, { width: 1200, height: 900 });
+    const { zoom } = getFitToViewParams(mid, { width: 1200, height: 900 }, isoPos);
     expect(zoom).toBeGreaterThan(MIN_ZOOM);
     expect(zoom).toBeLessThanOrEqual(MAX_ZOOM);
   });
@@ -58,8 +61,8 @@ describe('getFitToViewParams — the zoom floor (RND-01)', () => {
       { id: 'a', tile: { x: 0, y: 0 } },
       { id: 'b', tile: { x: 10, y: 10 } }
     ]);
-    const wide = getFitToViewParams(v, { width: 1600, height: 900 }).zoom;
-    const inset = getFitToViewParams(v, { width: 1000, height: 900 }).zoom;
+    const wide = getFitToViewParams(v, { width: 1600, height: 900 }, isoPos).zoom;
+    const inset = getFitToViewParams(v, { width: 1000, height: 900 }, isoPos).zoom;
     expect(inset).toBeLessThanOrEqual(wide);
   });
 });
