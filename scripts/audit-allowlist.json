@@ -31,6 +31,11 @@
     "(miniflare + workerd with it) and brace-expansion 1.1.15 -> 1.1.21. The same",
     "upgrade fixed the three brace-expansion entries below; they were removed.",
     "",
+    "2026-10-03 (view-rotation PR #95): GHSA-vfj7-8cjw-p6xm (braces, high) was",
+    "published after master's last green run. Every braces version is affected and",
+    "npm's only remedy is a breaking tsc-alias downgrade, so it is allowlisted below",
+    "(dev-only, verified against the lockfile) rather than upgraded.",
+    "",
     "`scope` names the tree an entry was reviewed against: \"root\" (the workspace",
     "lockfile) or \"backend\" (packages/axoview-backend/package-lock.json, prod deps",
     "only: the tree the Docker image installs). Use [\"root\", \"backend\"] when the",
@@ -48,6 +53,18 @@
       "tripwire": "If the ADR 0029 sanitize is removed from ANY of those three points, this becomes live stored-XSS. renderedGeometry-style contract coverage on sanitizeHtml call sites would make that unmissable.",
       "acceptedOn": "2026-07-29",
       "reviewBy": "2026-10-29"
+    },
+    {
+      "id": "GHSA-vfj7-8cjw-p6xm",
+      "package": "braces",
+      "title": "braces vulnerable to stack-exhaustion denial of service through deeply nested patterns",
+      "shipped": false,
+      "scope": "root",
+      "why": "braces@3.0.3 is dev-only: package-lock marks it `dev`, `npm ls braces --omit=dev` is empty, and its only dependents are chokidar and micromatch, both dev (file watching in nodemon / the dev server, glob matching in jest, rsbuild, eslint, knip, semantic-release). It is in neither browser bundle and not in the Docker image (the backend audit tree is clean). Every pattern it expands is authored in this repo's own config, so no attacker can supply the deeply nested pattern the DoS needs.",
+      "noForwardFix": "The range is `*`: no braces release fixes it, and npm's only remedy is a breaking downgrade of tsc-alias to 1.0.11.",
+      "tripwire": "If braces (or micromatch / chokidar) enters the prod tree, or any code passes a user-supplied string to a glob matcher, this becomes a live DoS. Drop this entry once a patched braces ships.",
+      "acceptedOn": "2026-10-03",
+      "reviewBy": "2027-01-03"
     }
   ]
 }
