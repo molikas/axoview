@@ -12,6 +12,7 @@ import {
 import { cursorCanvasPoint } from 'src/utils/coordinateTransforms';
 import { isSnappedPlacement } from 'src/utils/resolvePlacement';
 import { UNPROJECTED_TILE_SIZE, PROJECTED_TILE_SIZE } from 'src/config';
+import { rotateTile } from 'src/utils/viewRotation';
 
 // =============================================================================
 // MQA #7 Path 4-true (EXPERIMENTAL)
@@ -104,7 +105,10 @@ function tileDeltaToPixels(
   // Isometric — matches isometricStrategy.toScreen() delta math.
   const halfW = PROJECTED_TILE_SIZE.width / 2;
   const halfH = PROJECTED_TILE_SIZE.height / 2;
-  return { x: halfW * (dx - dy), y: -halfH * (dx + dy) };
+  // POC view rotation: the tile delta spins with the ground plane (linear, so
+  // rotating the delta is the delta of the rotated positions).
+  const r = rotateTile(dx, dy);
+  return { x: halfW * (r.x - r.y), y: -halfH * (r.x + r.y) };
 }
 
 function applyCssOffset(id: string, dx: number, dy: number) {

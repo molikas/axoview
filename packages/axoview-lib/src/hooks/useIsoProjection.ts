@@ -22,7 +22,8 @@ export const useIsoProjection = ({
   gridSize: Size;
   pxSize: Size;
 } => {
-  const { getTilePosition, getProjectionCss, strategy } = useCanvasMode();
+  const { getTilePosition, getTileCorner, getProjectionCss, strategy } =
+    useCanvasMode();
 
   const gridSize = useMemo(() => {
     return {
@@ -50,11 +51,13 @@ export const useIsoProjection = ({
         y: center.y - UNPROJECTED_TILE_SIZE / 2
       };
     }
-    return getTilePosition({
+    // Tile CORNER (not a screen-space nudge): the element's local axes are the
+    // tile axes, so its origin must follow the tile corner under view rotation.
+    return getTileCorner({
       tile: origin,
-      origin: orientation === 'Y' ? 'TOP' : 'LEFT'
+      corner: orientation === 'Y' ? 'TOP' : 'LEFT'
     });
-  }, [strategy.projectionName, getTilePosition, origin, orientation]);
+  }, [strategy.projectionName, getTilePosition, getTileCorner, origin, orientation]);
 
   const pxSize = useMemo(() => {
     return {

@@ -344,6 +344,12 @@ export interface UiState {
   isDirty: boolean;
   canvasMode: CanvasMode;
   /**
+   * POC: horizontal (turntable) rotation of the ISOMETRIC ground plane, in
+   * degrees, normalised to (-180, 180]. View-only — never persisted or saved.
+   * Mirrors utils/viewRotation.ts; change it via `actions.setViewRotation`.
+   */
+  viewRotation: number;
+  /**
    * Global snap-to-grid toggle (ADR 0023, #12). Default true; persisted,
    * mirroring `canvasMode`. The default for new placements/drags — when false
    * they commit a px offset instead of rounding to the integer tile. Per-item
@@ -723,6 +729,11 @@ export interface UiStateActions {
   closeContextMenu: () => void;
   setIsDirty: (isDirty: boolean) => void;
   setCanvasMode: (mode: CanvasMode) => void;
+  /**
+   * POC: rotate the isometric ground plane about the vertical axis (degrees).
+   * Keeps the tile under the viewport centre fixed by adjusting scroll.
+   */
+  setViewRotation: (degrees: number) => void;
   /** Set the global snap-to-grid flag (persisted, mirrors setCanvasMode). */
   setSnapToGrid: (snap: boolean) => void;
   /** Flip the global snap-to-grid flag (canvas context-menu entry, #12). */

@@ -109,7 +109,7 @@ export const TransformControls = ({
   // SceneLayer px as css.left/top and the anchor corners below, so it composes
   // as a plain translate.
   const { x: offX, y: offY } = getRenderedOffset({ offset });
-  const { getTilePosition, strategy } = useCanvasMode();
+  const { getTilePosition, getTileCorner, strategy } = useCanvasMode();
   // Screen-pixel-stable readout (counter-scaled 1/zoom), matching the screen-box
   // node outline so both node shapes show the same size pill (QA 2026-07-19).
   const zoom = useUiStateStore((s) => s.zoom) || 1;
@@ -158,15 +158,29 @@ export const TransformControls = ({
           y: center.y + cornerY + offY
         };
       } else {
-        const p = getTilePosition({
+        // Tile CORNER (not a screen-space nudge) so the frame hugs the tile under
+        // the POC view rotation; identical to the origin offsets when unrotated.
+        const p = getTileCorner({
           tile: value,
-          origin: outermostCornerPositions[i]
+          corner: outermostCornerPositions[i] as
+            | 'LEFT'
+            | 'RIGHT'
+            | 'TOP'
+            | 'BOTTOM'
         });
         out[key] = { x: p.x + offX, y: p.y + offY };
       }
     });
     return out;
-  }, [from, to, getTilePosition, strategy.projectionName, offX, offY]);
+  }, [
+    from,
+    to,
+    getTilePosition,
+    getTileCorner,
+    strategy.projectionName,
+    offX,
+    offY
+  ]);
 
   const anchors = useMemo(() => {
     if (!onAnchorMouseDown) return [];

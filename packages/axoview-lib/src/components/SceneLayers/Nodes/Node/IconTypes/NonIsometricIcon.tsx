@@ -3,7 +3,6 @@ import { Box } from '@mui/material';
 import { Icon } from 'src/types';
 import { PROJECTED_TILE_SIZE } from 'src/config';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
-import { getIsoProjectionCss } from 'src/utils';
 
 interface Props {
   icon: Icon;
@@ -13,8 +12,12 @@ interface Props {
 }
 
 export const NonIsometricIcon = ({ icon, scale }: Props) => {
-  const { strategy } = useCanvasMode();
+  const { strategy, getTileCorner, getProjectionCss } = useCanvasMode();
   const effectiveScale = scale ?? icon.scale ?? 1;
+  // The flat icon's local origin is the tile's LEFT corner relative to the tile
+  // centre. Projection is linear, so the offset from tile (0,0) is tile-independent;
+  // (−halfW, 0) while unrotated, swings around with the POC view rotation.
+  const leftCorner = getTileCorner({ tile: { x: 0, y: 0 }, corner: 'LEFT' });
 
   if (strategy.projectionName === '2D') {
     return (
@@ -36,10 +39,10 @@ export const NonIsometricIcon = ({ icon, scale }: Props) => {
       <Box
         sx={{
           position: 'absolute',
-          left: -PROJECTED_TILE_SIZE.width / 2,
-          top: 0,
+          left: leftCorner.x,
+          top: leftCorner.y,
           transformOrigin: 'top left',
-          transform: getIsoProjectionCss()
+          transform: getProjectionCss()
         }}
       >
         <Box

@@ -35,6 +35,7 @@ import { Lasso } from 'src/components/Lasso/Lasso';
 import { FreehandLasso } from 'src/components/FreehandLasso/FreehandLasso';
 import { useScene } from 'src/hooks/useScene';
 import { useInlineEditHistoryBracket } from 'src/hooks/useInlineEditHistoryBracket';
+import { useViewRotationGesture } from 'src/hooks/useViewRotationGesture';
 import { getFitToViewParams, CoordsUtils } from 'src/utils';
 import { RendererProps } from 'src/types/rendererProps';
 import { Scroll, Size, ViewItem } from 'src/types';
@@ -144,6 +145,8 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   );
   const uiStateActions = useUiStateStore((state) => state.actions);
   const { setInteractionsElement } = useInteractionManager();
+  // POC: Alt + drag orbits the ground plane about the vertical axis.
+  useViewRotationGesture(containerRef);
   const {
     items,
     rectangles,

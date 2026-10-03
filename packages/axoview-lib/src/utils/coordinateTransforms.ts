@@ -11,6 +11,12 @@
 
 import { PROJECTED_TILE_SIZE, UNPROJECTED_TILE_SIZE } from 'src/config';
 import type { Coords, Scroll, Size, TileOrigin } from 'src/types';
+import {
+  rotateTile,
+  unrotateTile,
+  isViewRotated,
+  getRotatedIsoMatrix
+} from 'src/utils/viewRotation';
 
 // SVG imports are inlined as data-URI strings at build time.
 // TypeScript may infer them as React.FC (module.d.ts global.d.ts) — cast to string.
@@ -66,6 +72,16 @@ export interface CoordinateTransformStrategy {
 
   /** Discriminator — used by useIsoProjection to decide whether to apply the ISO CSS matrix */
   projectionName: 'ISOMETRIC' | '2D';
+
+  /**
+   * CSS-matrix components [a, b, c, d, e, f] mapping an element's local
+   * UNPROJECTED px axes onto the ground plane, or null when no projection matrix
+   * applies (2D). Orientation 'X' = local u → +tile x, v → −tile y; 'Y' = local
+   * u → −tile y, v → −tile x. Honours the POC horizontal view rotation.
+   */
+  projectionMatrix(
+    orientation?: 'X' | 'Y'
+  ): [number, number, number, number, number, number] | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -109,9 +125,11 @@ export const isometricStrategy: CoordinateTransformStrategy = {
     const projectedHeight = tileSize * (PROJECTED_TILE_SIZE.height / UNPROJECTED_TILE_SIZE);
     const halfW = projectedWidth / 2;
     const halfH = projectedHeight / 2;
+    // POC view rotation: spin the tile about the origin before projecting.
+    const r = rotateTile(tileX, tileY);
     return {
-      x: halfW * tileX - halfW * tileY,
-      y: -(halfH * tileX + halfH * tileY)
+      x: halfW * r.x - halfW * r.y,
+      y: -(halfH * r.x + halfH * r.y)
     };
   },
 
@@ -123,7 +141,7 @@ export const isometricStrategy: CoordinateTransformStrategy = {
     // Invert toScreen: canvasX = halfW(tx - ty), canvasY = -halfH(tx + ty).
     const diff = canvasX / halfW; // tx - ty
     const sum = -canvasY / halfH; // tx + ty
-    return { x: (diff + sum) / 2, y: (sum - diff) / 2 };
+    return unrotateTile((diff + sum) / 2, (sum - diff) / 2);
   },
 
   fromScreen(screenX, screenY, tileSize, zoom, scroll, rendererSize) {
@@ -135,10 +153,27 @@ export const isometricStrategy: CoordinateTransformStrategy = {
     const projX = -rendererSize.width * 0.5 + screenX - scroll.position.x;
     const projY = -rendererSize.height * 0.5 + screenY - scroll.position.y;
 
+    if (isViewRotated()) {
+      // Fractional tile under the pointer in the ROTATED frame, un-rotated back
+      // into model tile space, then snapped with the same half-tile convention as
+      // the unrotated formula below (x = round, y = ceil(· − ½)).
+      const fx = projX / scaledW - projY / scaledH;
+      const fy = -projY / scaledH - projX / scaledW;
+      const t = unrotateTile(fx, fy);
+      return {
+        x: Math.floor(t.x + 0.5),
+        y: Math.ceil(t.y - 0.5) || 0
+      };
+    }
+
     return {
       x: Math.floor((projX + scaledW / 2) / scaledW - projY / scaledH),
       y: (-Math.floor((projY + scaledH / 2) / scaledH + projX / scaledW)) || 0
     };
+  },
+
+  projectionMatrix(orientation) {
+    return getRotatedIsoMatrix(orientation);
   }
 };
 
@@ -179,6 +214,10 @@ export const cartesian2DStrategy: CoordinateTransformStrategy = {
       // `|| 0` converts -0 to 0.
       y: Math.floor((-relY + half) / scaledTile) || 0
     };
+  },
+
+  projectionMatrix() {
+    return null;
   }
 };
 
@@ -212,6 +251,47 @@ export const makeTilePositionFn =
 
     return applyOriginOffset(center, origin, halfW, halfH);
   };
+
+// Tile-space offset of each diamond corner from the tile centre. These are the
+// tile corners that sit at screen LEFT/RIGHT/TOP/BOTTOM when the view is
+// unrotated; under the POC view rotation they swing around with the tile.
+const TILE_CORNER_OFFSETS: Record<
+  'LEFT' | 'RIGHT' | 'TOP' | 'BOTTOM',
+  Coords
+> = {
+  LEFT: { x: -0.5, y: 0.5 },
+  RIGHT: { x: 0.5, y: -0.5 },
+  TOP: { x: 0.5, y: 0.5 },
+  BOTTOM: { x: -0.5, y: -0.5 }
+};
+
+/**
+ * Returns a function giving the projected position of a TILE-SPACE corner of a
+ * tile (named by where that corner sits on screen when the view is unrotated).
+ *
+ * Distinct from `getTilePosition({ origin })`, whose LEFT/TOP/… offsets are
+ * SCREEN-space nudges from the tile centre (right for icon anchoring). Anything
+ * that positions an element whose local axes are the tile axes (CSS-matrix'd
+ * rectangles / text boxes, selection frames) needs the tile corner instead, so it
+ * keeps hugging the tile when the ground plane is rotated. Identical to the
+ * origin-offset path while the view is unrotated (and always in 2D).
+ */
+export const makeTileCornerFn = (strategy: CoordinateTransformStrategy) => {
+  const getTilePos = makeTilePositionFn(strategy);
+  return ({
+    tile,
+    corner
+  }: {
+    tile: Coords;
+    corner: 'LEFT' | 'RIGHT' | 'TOP' | 'BOTTOM';
+  }): Coords => {
+    if (strategy.projectionName !== 'ISOMETRIC' || !isViewRotated()) {
+      return getTilePos({ tile, origin: corner });
+    }
+    const off = TILE_CORNER_OFFSETS[corner];
+    return getTilePos({ tile: { x: tile.x + off.x, y: tile.y + off.y } });
+  };
+};
 
 /**
  * Returns a screenToTile function bound to the given strategy.

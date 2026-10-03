@@ -11,6 +11,7 @@ import {
   isometricStrategy,
   cartesian2DStrategy,
   makeTilePositionFn,
+  makeTileCornerFn,
   makeScreenToTileFn
 } from 'src/utils/coordinateTransforms';
 import type { Coords, Scroll, Size, TileOrigin } from 'src/types';
@@ -28,6 +29,20 @@ export interface CanvasModeContextValue {
    * Drop-in replacement for isoMath.getTilePosition at component level.
    */
   getTilePosition: (args: { tile: Coords; origin?: TileOrigin }) => Coords;
+
+  /**
+   * Projected position of a TILE-SPACE corner of a tile (see makeTileCornerFn).
+   * Use this — not `getTilePosition({ origin })`, whose offsets are screen-space —
+   * to anchor an element whose local axes are the tile axes (matrix'd rectangles,
+   * text boxes, selection frames) so it stays glued to the tile under view rotation.
+   */
+  getTileCorner: (args: {
+    tile: Coords;
+    corner: 'LEFT' | 'RIGHT' | 'TOP' | 'BOTTOM';
+  }) => Coords;
+
+  /** POC horizontal view rotation (degrees). A dep for layers that rebuild on it. */
+  viewRotation: number;
 
   /**
    * Mode-aware screenToTile.
@@ -59,26 +74,33 @@ interface ProviderProps {
 
 export const CanvasModeProvider = ({ children }: ProviderProps) => {
   const canvasMode = useUiStateStore((state) => state.canvasMode);
+  // POC view rotation: a new angle mints a new context value (→ new
+  // getTilePosition identity), which is what makes every projection-dependent
+  // layer (WebGL bulk rebuilds, DOM overlays, culling) recompute.
+  const viewRotation = useUiStateStore((state) => state.viewRotation);
 
   const value = useMemo<CanvasModeContextValue>(() => {
     const strategy =
       canvasMode === '2D' ? cartesian2DStrategy : isometricStrategy;
 
     const getTilePosition = makeTilePositionFn(strategy);
+    const getTileCorner = makeTileCornerFn(strategy);
     const screenToTile = makeScreenToTileFn(strategy);
 
     const getProjectionCss = (orientation?: 'X' | 'Y'): string => {
-      if (strategy.projectionName === '2D') return '';
-      // Isometric CSS matrix — mirrors getIsoProjectionCss from isoMath.ts
-      const base = [0.707, -0.409, 0.707, 0.409, 0, -0.816];
-      if (orientation === 'Y') {
-        return `matrix(${[base[0], -base[1], -base[2], base[3], base[4], base[5]].join(', ')})`;
-      }
-      return `matrix(${base.join(', ')})`;
+      const m = strategy.projectionMatrix(orientation);
+      return m ? `matrix(${m.join(', ')})` : '';
     };
 
-    return { strategy, getTilePosition, screenToTile, getProjectionCss };
-  }, [canvasMode]);
+    return {
+      strategy,
+      getTilePosition,
+      getTileCorner,
+      viewRotation,
+      screenToTile,
+      getProjectionCss
+    };
+  }, [canvasMode, viewRotation]);
 
   return (
     <CanvasModeContext.Provider value={value}>

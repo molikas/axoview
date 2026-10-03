@@ -32,6 +32,12 @@ import {
 } from 'src/types';
 import { CoordsUtils } from 'src/utils/coordsUtils';
 import { SizeUtils } from 'src/utils/sizeUtils';
+import {
+  rotateTile,
+  unrotateTile,
+  isViewRotated,
+  getRotatedIsoMatrix
+} from 'src/utils/viewRotation';
 import { findPath } from 'src/utils/pathfinder';
 import { htmlToPlainText } from 'src/utils/htmlToPlainText';
 // ONE "is this HTML?" sniff for the whole app (TXT-14) — measurement, render
@@ -70,6 +76,18 @@ export const screenToIso = ({
     y: -rendererSize.height * 0.5 + mouse.y - scroll.position.y
   };
 
+  if (isViewRotated()) {
+    // POC view rotation — see utils/viewRotation.ts. Mirrors isometricStrategy.
+    const fx =
+      projectPosition.x / projectedTileSize.width -
+      projectPosition.y / projectedTileSize.height;
+    const fy =
+      -projectPosition.y / projectedTileSize.height -
+      projectPosition.x / projectedTileSize.width;
+    const t = unrotateTile(fx, fy);
+    return { x: Math.floor(t.x + 0.5), y: Math.ceil(t.y - 0.5) || 0 };
+  }
+
   return {
     x: Math.floor(
       (projectPosition.x + halfW) / projectedTileSize.width -
@@ -94,9 +112,10 @@ export const getTilePosition = ({
   const halfW = PROJECTED_TILE_SIZE.width / 2;
   const halfH = PROJECTED_TILE_SIZE.height / 2;
 
+  const r = rotateTile(tile.x, tile.y); // POC view rotation (identity at 0°)
   const position: Coords = {
-    x: halfW * tile.x - halfW * tile.y,
-    y: -(halfH * tile.x + halfH * tile.y)
+    x: halfW * r.x - halfW * r.y,
+    y: -(halfH * r.x + halfH * r.y)
   };
 
   switch (origin) {
@@ -218,6 +237,8 @@ const isoProjectionBaseValues = [0.707, -0.409, 0.707, 0.409, 0, -0.816];
 export const getIsoMatrix = (
   orientation?: keyof typeof ProjectionOrientationEnum
 ) => {
+  // POC view rotation: a rotated ground plane needs the general matrix.
+  if (isViewRotated()) return getRotatedIsoMatrix(orientation);
   switch (orientation) {
     case ProjectionOrientationEnum.Y:
       return produce(isoProjectionBaseValues, (draft) => {

@@ -3,6 +3,8 @@ import { ViewItem } from 'src/types';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { resolveRenderOrder, findLayer } from 'src/utils/renderOrder';
 import { useRenderProbe } from 'src/utils/renderProbe';
+import { viewDepth } from 'src/utils/viewRotation';
+import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { Node } from './Node/Node';
 
 interface Props {
@@ -19,6 +21,8 @@ interface Props {
 export const Nodes = memo(({ nodes }: Props) => {
   useRenderProbe('Nodes');
   const { layers, visibleIds } = useLayerContext();
+  // POC view rotation: depth order changes with the angle, so it's a memo dep.
+  const { viewRotation } = useCanvasMode();
 
   const sortedNodes = useMemo(() => {
     // Filter to visible-only, then sort by resolved render order descending
@@ -31,25 +35,31 @@ export const Nodes = memo(({ nodes }: Props) => {
         const orderA = resolveRenderOrder(
           layerA?.order ?? 0,
           a.zIndex ?? 0,
-          -a.tile.x - a.tile.y
+          viewDepth(a.tile)
         );
         const orderB = resolveRenderOrder(
           layerB?.order ?? 0,
           b.zIndex ?? 0,
-          -b.tile.x - b.tile.y
+          viewDepth(b.tile)
         );
         return orderA - orderB;
       });
-  }, [nodes, layers, visibleIds]);
+    // viewRotation is read via the module-level rotation inside viewDepth(), so
+    // it isn't referenced in the body — but a new angle must re-sort.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes, layers, visibleIds, viewRotation]);
 
   return (
     <>
       {sortedNodes.map((node) => {
         const layer = findLayer(node.layerId, layers);
-        const order = resolveRenderOrder(
-          layer?.order ?? 0,
-          node.zIndex ?? 0,
-          -node.tile.x - node.tile.y
+        // Rounded: the order becomes a CSS z-index, which must be an integer.
+        const order = Math.round(
+          resolveRenderOrder(
+            layer?.order ?? 0,
+            node.zIndex ?? 0,
+            viewDepth(node.tile)
+          )
         );
         return <Node key={node.id} order={order} node={node} />;
       })}

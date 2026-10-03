@@ -12,7 +12,13 @@ import {
   applyAnnotationOp,
   revertAnnotationOp
 } from 'src/utils/annotationOps';
-import { INITIAL_UI_STATE } from 'src/config';
+import { INITIAL_UI_STATE, UNPROJECTED_TILE_SIZE } from 'src/config';
+import { isometricStrategy } from 'src/utils/coordinateTransforms';
+import {
+  setViewRotationRad,
+  degToRad,
+  normaliseDeg
+} from 'src/utils/viewRotation';
 import { DEFAULT_ZOOM_SETTINGS } from 'src/config/zoomSettings';
 import { DEFAULT_LABEL_SETTINGS } from 'src/config/labelSettings';
 import { ANNOTATION_COLOR_PRESETS } from 'src/config/annotationSettings';
@@ -43,6 +49,8 @@ const canvasResetForAnnotation = (
 const initialState = () => {
   // Load any previously saved user preferences — fall back to defaults if absent/corrupt.
   const persisted = loadPersistedSettings();
+  // The rotation lives in a module-level var; a fresh store always starts at 0°.
+  setViewRotationRad(0);
 
   return createStore<UiStateStore>((set, get) => {
     return {
@@ -73,6 +81,7 @@ const initialState = () => {
       expandLabels: persisted?.expandLabels ?? false,
       readableLabels: persisted?.readableLabels ?? false,
       canvasMode: persisted?.canvasMode ?? 'ISOMETRIC',
+      viewRotation: 0,
       snapToGrid: persisted?.snapToGrid ?? true,
       iconPackManager: null, // Will be set by Axoview if provided
       iconUsageScan: null, // Will be set by Axoview if provided
@@ -681,6 +690,32 @@ const initialState = () => {
         },
         setCanvasMode: (canvasMode) => {
           set({ canvasMode });
+        },
+        setViewRotation: (degrees) => {
+          const next = normaliseDeg(degrees);
+          const { viewRotation, scroll, zoom } = get();
+          if (next === viewRotation) return;
+          // Pivot about the tile under the viewport centre (same trick as the
+          // iso↔2D switch): find it under the OLD angle, swap the angle, then
+          // re-project it and choose the scroll that lands it back at the centre.
+          const centreTile = isometricStrategy.fromCanvasPoint(
+            -scroll.position.x / (zoom || 1),
+            -scroll.position.y / (zoom || 1),
+            UNPROJECTED_TILE_SIZE
+          );
+          setViewRotationRad(degToRad(next));
+          const canvas = isometricStrategy.toScreen(
+            centreTile.x,
+            centreTile.y,
+            UNPROJECTED_TILE_SIZE
+          );
+          set({
+            viewRotation: next,
+            scroll: {
+              ...scroll,
+              position: { x: -(zoom || 1) * canvas.x, y: -(zoom || 1) * canvas.y }
+            }
+          });
         },
         setSnapToGrid: (snapToGrid) => {
           set({ snapToGrid });
