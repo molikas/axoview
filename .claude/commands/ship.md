@@ -96,7 +96,14 @@ killed the release commit-back, see commit #77):
                                                      # or not.
   4. gh pr merge --merge                             # a merge commit is the preferred strategy
                                                      # here; a squash is permitted and the
-                                                     # conventional title carries it
+                                                     # conventional title carries it. A squash
+                                                     # takes --subject "<the PR title>" and
+                                                     # --body "<a short user-facing summary>"
+                                                     # ending in ONE Co-Authored-By trailer.
+                                                     # Without --body, GitHub pastes every
+                                                     # commit message, trailers included, into
+                                                     # the body the release notes render
+                                                     # (ADR 0046 §4).
   5. git fetch origin --quiet                        # refresh origin/master for the Phase 4 SHAs
   6. git checkout <branch>                           # always return here (this path never leaves it)
   7. git pull origin <branch>                        # confirm the branch is in sync with origin

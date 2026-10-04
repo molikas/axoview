@@ -47,4 +47,6 @@ Conventional commits, lower-case subject (commitlint rejects a leading capital �
 codes later in the subject). Releases are cut by semantic-release from master; never edit
 `CHANGELOG.md` or bump a version by hand. Close with a `Co-Authored-By:` trailer naming the model
 you are actually running as — take the name from your own harness, never by copying one out of a
-doc.
+doc. One trailer per commit, never more. When you write a squash-merge body, write it fresh for the
+release and give it a single trailer at the end. GitHub's default squash body pastes in every commit
+message, trailers included, and the release notes render that body (ADR 0046 §4).

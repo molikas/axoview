@@ -13,6 +13,13 @@
 //      scraping; the real merge-PR link is untouched because the writer
 //      re-linkifies the `(#N)` in the subject line separately.
 //
+//   3. Credit co-authors ONCE (ADR 0046 §4). Every commit carries a
+//      `Co-Authored-By:` trailer, and a squash merge pastes each branch
+//      commit's message into its body, so rendering bodies verbatim repeated
+//      the same trailer once per commit (v3.10.0 had 15). Trailers are
+//      stripped from every body, and the distinct co-authors are named in one
+//      line at the end of the notes.
+//
 // Wired via `.releaserc.json` → release-notes-generator `{ "config": "./scripts/release-changelog-preset.mjs" }`.
 // The loader calls this default export with no arguments and expects the
 // conventional-changelog config shape `{ commits, parser, writer, whatBump }`.
@@ -37,6 +44,21 @@ const TYPES = [
   { type: 'ci', section: 'CI/CD', hidden: true },
 ];
 
+// `Co-Authored-By: Name <email>` (git trailer keys are case-insensitive).
+const CO_AUTHOR_LINE = /^\s*co-authored-by:\s*(.+?)\s*$/i;
+
+/** Splits text into its lines without co-author trailers and the names those trailers credit. */
+export function splitCoAuthors(text) {
+  const names = [];
+  const kept = [];
+  for (const line of (text || '').split('\n')) {
+    const m = CO_AUTHOR_LINE.exec(line);
+    if (m) names.push(m[1].replace(/\s*<[^>]*>$/, '').trim());
+    else kept.push(line);
+  }
+  return { text: kept.join('\n').replace(/\n{3,}/g, '\n\n').trim(), names };
+}
+
 export default async function createAxoviewChangelogConfig() {
   const preset = await createPreset({ types: TYPES });
 
@@ -55,7 +77,10 @@ export default async function createAxoviewChangelogConfig() {
 
       // (1) Carry the commit BODY through (the preset strips it) and indent each
       // line two spaces so it nests as a sub-list under the commit's bullet.
-      const body = (commit.body || '').trim();
+      // (3) Co-author trailers are credited once, in the footer — never per commit.
+      const split = splitCoAuthors(commit.body);
+      out.coAuthorNames = [...split.names, ...splitCoAuthors(commit.footer).names];
+      const body = split.text;
       out.body = body
         ? body
             .split('\n')
@@ -70,6 +95,20 @@ export default async function createAxoviewChangelogConfig() {
   // (dashes, em-dashes, quotes) is emitted verbatim rather than HTML-escaped.
   preset.writer.commitPartial =
     preset.writer.commitPartial.replace(/\s*$/, '') + '\n{{#if body}}\n\n{{{body}}}\n{{/if}}\n';
+
+  // (3) One credit line for the whole release, from the commits it renders.
+  // The transform has already stripped the trailers, so it hands the names on
+  // as `coAuthorNames` (read from both the parsed body and footer).
+  preset.writer.finalizeContext = (context, _options, filteredCommits) => {
+    const names = new Set();
+    for (const commit of filteredCommits || []) {
+      for (const name of commit.coAuthorNames || []) if (name) names.add(name);
+    }
+    return { ...context, coAuthors: [...names].join(', ') };
+  };
+  preset.writer.footerPartial =
+    preset.writer.footerPartial.replace(/\s*$/, '') +
+    '\n{{#if coAuthors}}\n\nCo-authored by {{coAuthors}}.\n{{/if}}\n';
 
   return preset;
 }
