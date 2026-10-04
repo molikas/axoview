@@ -32,18 +32,30 @@ const DIAGRAM = {
   icons: [{ id: 'imp1', name: 'Imported', collection: 'imported', url: 'data:png' }]
 };
 
+// What a production JSON export looks like: no `requiredPacks` (the export path
+// never wrote one) and only the user's imported icons inline — the pack icon an
+// item references is named by its id and nothing else.
+const UNNAMED_PACK_DIAGRAM = {
+  items: [
+    { id: 'i1', icon: 'material_DoubleArrow' },
+    { id: 'i2', icon: 'block' }
+  ],
+  icons: [{ id: 'imp1', name: 'Imported', collection: 'imported', url: 'data:png' }]
+};
+
 // Mirrors the real call sites in DiagramLifecycleProvider: await the pack load,
 // then build the model's icon list from the manager's icons.
 const Harness: React.FC<{
+  diagram?: typeof DIAGRAM | typeof UNNAMED_PACK_DIAGRAM;
   onCommit: (icons: Icon[]) => void;
   onStaleRead: (icons: Icon[]) => void;
-}> = ({ onCommit, onStaleRead }) => {
+}> = ({ diagram = DIAGRAM, onCommit, onStaleRead }) => {
   const mgr = useIconPackManager(CORE);
   const [done, setDone] = useState(false);
   const ranRef = useRef(false);
   const load = async () => {
-    await mgr.loadPacksForDiagram(DIAGRAM);
-    const imported = DIAGRAM.icons.filter((i) => i.collection === 'imported') as Icon[];
+    await mgr.loadPacksForDiagram(diagram);
+    const imported = diagram.icons.filter((i) => i.collection === 'imported') as Icon[];
     // What the call sites used to read — captured before the await, so it can
     // never contain the pack that was just fetched. Recorded, not used.
     onStaleRead(mgr.loadedIcons);
@@ -58,12 +70,13 @@ const Harness: React.FC<{
 };
 
 describe('a diagram that needs a lazily-loaded pack', () => {
-  const run = async () => {
+  const run = async (diagram?: typeof UNNAMED_PACK_DIAGRAM) => {
     const commits: Icon[][] = [];
     const stale: Icon[][] = [];
     await act(async () => {
       render(
         <Harness
+          diagram={diagram}
           onCommit={(i) => commits.push(i)}
           onStaleRead={(i) => stale.push(i)}
         />
@@ -90,5 +103,10 @@ describe('a diagram that needs a lazily-loaded pack', () => {
   it('WHY the ref exists: the state field read after the await is still stale', async () => {
     const { stale } = await run();
     expect(stale.map((i) => i.id)).not.toContain('material_DoubleArrow');
+  });
+
+  it('loads the pack an item icon id is namespaced to when the file names no pack', async () => {
+    const { committed } = await run(UNNAMED_PACK_DIAGRAM);
+    expect(committed.map((i) => i.id)).toContain('material_DoubleArrow');
   });
 });

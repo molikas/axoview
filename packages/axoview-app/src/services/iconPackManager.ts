@@ -167,8 +167,31 @@ const buildIconIdToCollection = (icons: unknown[]): Map<string, string> => {
   return idToCollection;
 };
 
-// Derive the icon collections a diagram payload references, honouring both
-// `requiredPacks` and the items × icons cross-reference (see callers' note).
+// Every fetchable pack namespaces its icon ids, so an id alone names its pack
+// (checked against the shipped packs: no core id carries one of these). This is
+// the signal for an item whose icon the payload neither carries nor names a
+// pack for — a JSON export never wrote `requiredPacks`, and a lean save made in
+// a session that had not loaded the pack could not derive one, so those files
+// opened with every pack icon missing.
+const PACK_ID_PREFIXES: ReadonlyArray<readonly [string, IconPackName]> = [
+  ['material_', 'material'],
+  ['aws-', 'aws'],
+  ['gcp-', 'gcp'],
+  // No dash: the azure pack also ships `azureattestation`.
+  ['azure', 'azure'],
+  ['k8s-', 'kubernetes']
+];
+
+export const packForIconId = (id: string): IconPackName | null => {
+  for (const [prefix, pack] of PACK_ID_PREFIXES) {
+    if (id.startsWith(prefix)) return pack;
+  }
+  return null;
+};
+
+// Derive the icon collections a diagram payload references, honouring
+// `requiredPacks`, the items × icons cross-reference, and — for an item icon
+// the payload's icons array does not carry — the pack its id is namespaced to.
 const collectRequiredCollections = (blob: {
   requiredPacks?: unknown;
   items?: unknown;
@@ -184,7 +207,7 @@ const collectRequiredCollections = (blob: {
 
   const items: unknown[] = Array.isArray(blob.items) ? blob.items : [];
   const icons: unknown[] = Array.isArray(blob.icons) ? blob.icons : [];
-  if (!items.length || !icons.length) return collections;
+  if (!items.length) return collections;
 
   const idToCollection = buildIconIdToCollection(icons);
   for (const item of items) {
@@ -195,8 +218,9 @@ const collectRequiredCollections = (blob: {
       typeof itemIcon === 'string'
         ? itemIcon
         : (itemIcon as { id?: string } | undefined)?.id;
-    if (!iconId) continue;
-    const c = idToCollection.get(iconId);
+    if (typeof iconId !== 'string' || !iconId) continue;
+    // The payload's own icon wins: a user's imported icon may reuse any id.
+    const c = idToCollection.get(iconId) ?? packForIconId(iconId);
     if (c) collections.add(c);
   }
 
