@@ -1,11 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Stack, IconButton, Tooltip, ButtonBase, Divider, Box } from '@mui/material';
+import {
+  PushPin as PinnedIcon,
+  PushPinOutlined as PinIcon
+} from '@mui/icons-material';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useModelStore } from 'src/stores/modelStore';
 import { useScene } from 'src/hooks/useScene';
 import { useTranslation } from 'src/stores/localeStore';
 import { canMutate } from 'src/interaction/readonlyPolicy';
-import { normaliseDeg } from 'src/utils/viewRotation';
+import { formatViewAngle, normaliseDeg } from 'src/utils/viewRotation';
 
 // ─── The view-rotation dock widget (ADR 0049 §7, ADR 0051 §2–§4) ──────────────
 //
@@ -13,18 +17,21 @@ import { normaliseDeg } from 'src/utils/viewRotation';
 // reserves — beside the zoom controls, in their idiom.
 //
 //   ⟲ / ⟳        step 15° onto the 15° lattice (Q / E do the same)
-//   ↺ θ°         a RESET button: off the page default it returns there; on a
-//                pinned (non-zero) default it returns to 0°. Its tooltip names
-//                the target, and the glyph says it is a button, not a label
+//   ↺ 30°        a RESET button with ONE target: the page default. Disabled
+//                once there, so repeated clicks never wander on to another angle
 //   pin          editor only, a TOGGLE: off the default it pins θ as the page's
-//                `defaultRotation`; on a pinned default it shows pressed and
+//                `defaultRotation`; on a pinned default it shows filled and
 //                unpins it (the page opens at 0° again). Each is one undo step
+//                and is confirmed by a notice, because it changes the page for
+//                everyone. To get back to 0° after pinning: unpin, then reset
 //
-// The angle itself is per-viewer uiState (viewers get the same controls, minus
-// "set default"); rotating never dirties the diagram. In 2D the controls stay
-// visible but disabled, with a tooltip saying why (ux-principles §2.5). The
-// icons are an orbit around a floor — deliberately unlike the per-item
-// "Rotate 90°" handle's arrow (ux-principles §2.2).
+// The readout shows a BEARING, clockwise positive (`formatViewAngle`), so E —
+// which turns the floor clockwise — counts up. The angle itself is per-viewer
+// uiState (viewers get the same controls, minus the pin); rotating never
+// dirties the diagram. In 2D the controls stay visible but disabled, with a
+// tooltip saying why (ux-principles §2.5). The step icons are an arrow orbiting
+// a floor tile — deliberately unlike the per-item "Rotate 90°" handle's
+// RotateRight (ux-principles §2.2).
 
 const btnSx = {
   borderRadius: 1,
@@ -34,24 +41,30 @@ const btnSx = {
   '&:disabled': { opacity: 0.35 }
 } as const;
 
-// A turntable seen at an angle: the floor's back edge faint, its near edge
-// carrying the arrow. Counter-clockwise from above = the near side moves right.
-const OrbitIcon = ({ direction }: { direction: 1 | -1 }) => (
+// An arrow orbiting a floor tile. Drawn CLOCKWISE (over the top, left to right,
+// head down on the right); the counter-clockwise button is its mirror. A solid
+// diamond under an open arc — no ellipse-and-dot, which read as an eye.
+const OrbitIcon = ({ clockwise }: { clockwise: boolean }) => (
   <svg
-    viewBox="0 0 16 16"
-    width="16"
-    height="16"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.2"
-    strokeLinecap="round"
-    style={direction < 0 ? { transform: 'scaleX(-1)' } : undefined}
+    viewBox="0 0 20 20"
+    width="18"
+    height="18"
+    style={clockwise ? undefined : { transform: 'scaleX(-1)' }}
     aria-hidden="true"
   >
-    <path d="M2 9.5 A6 3.2 0 0 1 14 9.5" opacity="0.4" />
-    <path d="M2 9.5 A6 3.2 0 0 0 13.2 11.2" />
-    <path d="M11.8 10.35 L14.4 10 L13.85 12.55" strokeLinejoin="round" />
-    <circle cx="8" cy="9.5" r="1" fill="currentColor" stroke="none" />
+    <path
+      d="M10 9 L15.5 11.75 L10 14.5 L4.5 11.75 Z"
+      fill="currentColor"
+      opacity="0.45"
+    />
+    <path
+      d="M3 9.5 A7 5 0 0 1 17 9.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    />
+    <path d="M14.4 8.9 H19.6 L17 12.7 Z" fill="currentColor" />
   </svg>
 );
 
@@ -68,21 +81,6 @@ const ResetIcon = () => (
   </svg>
 );
 
-// "Pin this angle as the page's": a pushpin.
-const PinIcon = () => (
-  <svg
-    viewBox="0 0 16 16"
-    width="14"
-    height="14"
-    fill="currentColor"
-    aria-hidden="true"
-  >
-    <path d="M9.83 1.5a.75.75 0 0 1 .53.22l3.92 3.92a.75.75 0 0 1-.25 1.23l-2.1.84-1.98 1.98.4 2.4a.75.75 0 0 1-1.27.66L6.6 10.27l-3.32 3.31a.5.5 0 0 1-.7-.7l3.3-3.32-2.48-2.48a.75.75 0 0 1 .66-1.27l2.4.4 1.98-1.98.84-2.1a.75.75 0 0 1 .7-.47z" />
-  </svg>
-);
-
-/** Whole degrees for display; −0 reads as 0. */
-const formatDeg = (deg: number) => `${Math.round(normaliseDeg(deg)) || 0}°`;
 
 /** Equal to the 0.1° a default is stored at. */
 const sameAngle = (a: number, b: number) =>
@@ -112,11 +110,8 @@ export const ViewRotationControls = () => {
   // a rotation either: it is disabled in place, so the dock does not reflow.
   const atDefault = sameAngle(settled, pageDefault);
   const hasDefault = !sameAngle(pageDefault, 0);
-  // Pressed while the view sits on a pinned page default: clicking unpins it.
+  // Filled while the view sits on a pinned page default: clicking unpins it.
   const pinned = atDefault && hasDefault;
-  // Where the reset button goes: back to the page default, or — already there,
-  // on a pinned default — back to 0°. Nowhere at 0° with no default.
-  const resetTarget = !atDefault ? pageDefault : hasDefault ? 0 : null;
   const showSetDefault = canMutate(editorMode);
 
   // Announce the angle once a rotation settles (aria-live), never per frame.
@@ -128,29 +123,27 @@ export const ViewRotationControls = () => {
       return;
     }
     if (inMotion) return;
-    setAnnouncement(t('announce').replace('{angle}', formatDeg(settled)));
+    setAnnouncement(t('announce').replace('{angle}', formatViewAngle(settled)));
   }, [settled, inMotion, t]);
 
   const disabledHint = t('disabledIn2D');
-  const readoutTitle = !atDefault
-    ? t('resetToDefault')
-        .replace('{angle}', formatDeg(rotation))
-        .replace('{default}', formatDeg(pageDefault))
-    : hasDefault
-      ? t('resetToZero').replace('{angle}', formatDeg(rotation))
-      : t('atDefault').replace('{angle}', formatDeg(rotation));
+  const readoutTitle = atDefault
+    ? t('atDefault').replace('{angle}', formatViewAngle(rotation))
+    : t('resetToDefault')
+        .replace('{angle}', formatViewAngle(rotation))
+        .replace('{default}', formatViewAngle(pageDefault));
   const pinTitle = !isIso
     ? disabledHint
     : pinned
       ? `${t('unpinPageDefault')} — ${t('unpinPageDefaultHint').replace(
           '{angle}',
-          formatDeg(pageDefault)
+          formatViewAngle(pageDefault)
         )}`
       : atDefault
         ? t('nothingToPin')
         : `${t('setAsPageDefault')} — ${t('setAsPageDefaultHint').replace(
             '{angle}',
-            formatDeg(rotation)
+            formatViewAngle(rotation)
           )}`;
 
   const togglePageDefault = () => {
@@ -162,8 +155,11 @@ export const ViewRotationControls = () => {
     }
     // Unpin: the field goes (lean save) and the page opens at 0° again. The
     // camera stays where it is, so the pin is offered again right away.
+    // Either way the change reaches everyone who opens the page, so it is
+    // confirmed in words, not left to a hover tooltip (it stays one undo step).
     if (pinned) {
       updateView(viewId, { defaultRotation: undefined });
+      actions.setNotification({ message: t('unpinnedNotice'), severity: 'info' });
       return;
     }
     // One timestamped UPDATE_VIEW = one undo step, dirty + autosave like any
@@ -171,6 +167,10 @@ export const ViewRotationControls = () => {
     const landed = uiApi.getState().viewRotation;
     const value = Math.round(normaliseDeg(landed) * 10) / 10;
     updateView(viewId, { defaultRotation: value === 0 ? undefined : value });
+    actions.setNotification({
+      message: t('pinnedNotice').replace('{angle}', formatViewAngle(value)),
+      severity: 'success'
+    });
   };
 
   return (
@@ -195,7 +195,7 @@ export const ViewRotationControls = () => {
             onClick={() => actions.stepViewRotation(1)}
             data-axoview-id="view-rotation-ccw"
           >
-            <OrbitIcon direction={1} />
+            <OrbitIcon clockwise={false} />
           </IconButton>
         </span>
       </Tooltip>
@@ -203,11 +203,9 @@ export const ViewRotationControls = () => {
       <Tooltip title={isIso ? readoutTitle : disabledHint} placement="top">
         <span>
           <ButtonBase
-            disabled={!isIso || resetTarget === null}
+            disabled={!isIso || atDefault}
             aria-label={readoutTitle}
-            onClick={() => {
-              if (resetTarget !== null) actions.animateViewRotationTo(resetTarget);
-            }}
+            onClick={() => actions.animateViewRotationTo(pageDefault)}
             data-axoview-id="view-rotation-readout"
             sx={{
               // Fixed width (tabular digits, room for "−180°") so the dock never
@@ -229,7 +227,7 @@ export const ViewRotationControls = () => {
             }}
           >
             <ResetIcon />
-            {formatDeg(rotation)}
+            {formatViewAngle(rotation)}
           </ButtonBase>
         </span>
       </Tooltip>
@@ -247,7 +245,7 @@ export const ViewRotationControls = () => {
             onClick={() => actions.stepViewRotation(-1)}
             data-axoview-id="view-rotation-cw"
           >
-            <OrbitIcon direction={-1} />
+            <OrbitIcon clockwise />
           </IconButton>
         </span>
       </Tooltip>
@@ -273,7 +271,11 @@ export const ViewRotationControls = () => {
               onClick={togglePageDefault}
               data-axoview-id="view-rotation-set-default"
             >
-              <PinIcon />
+              {pinned && isIso ? (
+                <PinnedIcon sx={{ fontSize: 16 }} />
+              ) : (
+                <PinIcon sx={{ fontSize: 16 }} />
+              )}
             </IconButton>
           </span>
         </Tooltip>

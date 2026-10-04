@@ -37,7 +37,7 @@ import {
   getUnprojectedBounds as getUnprojectedBoundsAt
 } from 'src/utils';
 import { getStrategy } from 'src/utils/coordinateTransforms';
-import { normaliseDeg } from 'src/utils/viewRotation';
+import { formatViewAngle, normaliseDeg } from 'src/utils/viewRotation';
 import { ModelStore, Coords } from 'src/types';
 import { useDiagramUtils } from 'src/hooks/useDiagramUtils';
 import { useUiStateStore } from 'src/stores/uiStateStore';
@@ -289,7 +289,6 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
     : angleSource === 'pageDefault'
       ? pageDefaultRotation
       : liveRotation;
-  const formatAngle = (deg: number) => `${Math.round(normaliseDeg(deg))}°`;
 
   // The base image frames the content AT THE EXPORT ANGLE — a rotated diagram
   // occupies a different screen extent — rather than the main instance's.
@@ -1101,7 +1100,7 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
                           data-testid="export-angle-as-viewed"
                           label={t('angleAsViewed').replace(
                             '{angle}',
-                            formatAngle(liveRotation)
+                            formatViewAngle(liveRotation)
                           )}
                         />
                         <FormControlLabel
@@ -1110,7 +1109,7 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
                           data-testid="export-angle-page-default"
                           label={t('anglePageDefault').replace(
                             '{angle}',
-                            formatAngle(pageDefaultRotation)
+                            formatViewAngle(pageDefaultRotation)
                           )}
                         />
                       </RadioGroup>

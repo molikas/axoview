@@ -427,10 +427,11 @@ const locale: LocaleProps = {
     atDefault: 'View angle {angle} (the page default)',
     setAsPageDefault: 'Set as page default',
     setAsPageDefaultHint: 'Open this page at {angle} for everyone — one undo step',
-    resetToZero: 'View angle {angle} (the page default) — click to reset to 0°',
     unpinPageDefault: 'Unpin page default',
     unpinPageDefaultHint: 'This page opens at {angle} for everyone — click to unpin, so it opens at 0° (one undo step)',
     nothingToPin: '0° is the standard angle — rotate the view to pin a different page default',
+    pinnedNotice: 'Page default set to {angle}: this page now opens at this angle for everyone (undo to revert)',
+    unpinnedNotice: 'Page default removed: this page now opens at 0° for everyone (undo to revert)',
     disabledIn2D: 'View rotation is available in the isometric view',
     announce: 'View angle {angle}'
   },

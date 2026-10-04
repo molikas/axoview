@@ -147,15 +147,18 @@ const dragOnto = async (canvas: CanvasPOM, from: CanvasPoint, to: CanvasPoint) =
   await canvas.dispatchAt(['mouseup'], to);
 };
 
-/** The MAIN instance's live angle, from its dock readout ("37°"). */
+/**
+ * The MAIN instance's live angle θ, from its dock readout. The readout shows a
+ * clockwise-positive bearing ("37°" is θ = −37), so θ is its negation.
+ */
 const readoutDeg = async (page: Page) =>
-  Number(
+  -Number(
     (
       (await page
         .locator('[data-axoview-id="view-rotation-readout"]')
         .textContent()) ?? ''
     ).replace('°', '')
-  );
+  ) || 0;
 
 /** Synthetic pointer sequence WITH modifiers (CanvasPOM's has none). */
 const dispatchWith = (
@@ -419,6 +422,10 @@ test.describe('View rotation — rotated interaction (ADR 0049)', () => {
     await page.keyboard.press('e');
     await settled(page);
     expect(await ui<number>(page, 'viewRotation')).toBe(-15);
+    // E turned the floor clockwise, and the readout counts that as positive.
+    await expect(
+      page.locator('[data-axoview-id="view-rotation-readout"]')
+    ).toHaveText('15°');
 
     // The readout is a button back to the page default (0° here).
     await page.locator('[data-axoview-id="view-rotation-readout"]').click();
@@ -463,7 +470,7 @@ test.describe('View rotation — rotated interaction (ADR 0049)', () => {
     expect(await ui<number>(page, 'viewRotation')).toBe(15);
   });
 
-  test('a pinned default can be unpinned, and reset then returns to 0°', async ({
+  test('reset has one target; after pinning, unpin then reset returns to 0°', async ({
     page,
     app
   }) => {
@@ -481,35 +488,38 @@ test.describe('View rotation — rotated interaction (ADR 0049)', () => {
     const pin = page.locator('[data-axoview-id="view-rotation-set-default"]');
     const readout = page.locator('[data-axoview-id="view-rotation-readout"]');
 
-    await page.locator('[data-axoview-id="view-rotation-ccw"]').click();
+    // Pin at θ −30 (two clockwise steps; the readout says 30°).
+    await page.locator('[data-axoview-id="view-rotation-cw"]').click();
     await settled(page);
-    await page.locator('[data-axoview-id="view-rotation-ccw"]').click();
+    await page.locator('[data-axoview-id="view-rotation-cw"]').click();
     await settled(page);
+    await expect(readout).toHaveText('30°');
     await pin.click();
-    await expect.poll(defaultRotation).toBe(30);
+    await expect.poll(defaultRotation).toBe(-30);
+    // The shared change is confirmed in words.
+    await expect(
+      page.getByRole('alert').filter({ hasText: 'Page default set to 30°' })
+    ).toBeVisible();
 
-    // On the pinned default, reset goes to 0°...
-    await expect(readout).toBeEnabled();
-    await readout.click();
-    await expect.poll(() => ui<number>(page, 'viewRotation')).toBe(0);
+    // Away, then reset: back to the pinned default — and a second click (the
+    // reviewer's double-click) has nowhere else to go.
+    await rotateTo(page, 15);
+    await readout.dblclick();
     await settled(page);
-    // ...and from there back to the page default.
-    await readout.click();
-    await expect.poll(() => ui<number>(page, 'viewRotation')).toBe(30);
-    await settled(page);
+    expect(await ui<number>(page, 'viewRotation')).toBe(-30);
+    await expect(readout).toBeDisabled();
 
-    // Unpin: one undoable edit; the camera stays put.
+    // The way back to 0°: unpin (one undoable edit, camera stays), then reset.
     await expect(pin).toHaveAttribute('aria-pressed', 'true');
     await pin.click();
     await expect.poll(defaultRotation).toBeNull();
     await expect(pin).toHaveAttribute('aria-pressed', 'false');
-    expect(await ui<number>(page, 'viewRotation')).toBe(30);
-    // With no default, reset returns to 0°.
+    expect(await ui<number>(page, 'viewRotation')).toBe(-30);
     await readout.click();
     await expect.poll(() => ui<number>(page, 'viewRotation')).toBe(0);
 
     await page.keyboard.press('Control+z');
-    await expect.poll(defaultRotation).toBe(30);
+    await expect.poll(defaultRotation).toBe(-30);
   });
 
   test('2D: the controls are disabled and Q does nothing', async ({ page, app }) => {

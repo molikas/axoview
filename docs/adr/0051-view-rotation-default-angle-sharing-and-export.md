@@ -55,7 +55,8 @@ The POC keeps the angle in `uiState` only. So it resets on reload and never reac
 ### 2. Setting the default is an explicit, undoable edit
 
 - **Editor only.** In EDITABLE, the rotation widget offers **Set as page default** whenever θ differs from the page default.
-- **The pin is a toggle (2026-10-03).** While the view sits on a pinned, non-zero default, the pin shows pressed and clicking it **unpins** the default, so the page opens at 0° again. The camera stays where it is. Without this, a pinned angle could only be undone with Ctrl+Z or by rotating back to 0° and pinning that. The pin never disappears; it is disabled in place at 0° with no default, so the dock does not reflow as the view turns.
+- **The pin is a toggle (2026-10-03).** While the view sits on a pinned, non-zero default, the pin shows filled and pressed, and clicking it **unpins** the default, so the page opens at 0° again. The camera stays where it is. Without this, a pinned angle could only be undone with Ctrl+Z or by rotating back to 0° and pinning that. The pin never disappears; it is disabled in place at 0° with no default, so the dock does not reflow as the view turns.
+- **Confirmed in words (2026-10-03, UX review).** Pinning and unpinning change the page for everyone, so each shows a notice naming the effect and that undo reverts it, instead of relying on hover text. There is no confirm dialog: the change is one undo step.
 - **An ordinary edit.** It writes `defaultRotation` through the normal view update: one undo step, marked dirty, autosaved like any other edit. Setting the default to 0 removes the field, and so does unpinning.
 - **Nowhere else.** It is never offered in view-only, Present or `NON_INTERACTIVE` instances.
 
@@ -65,7 +66,7 @@ The POC keeps the angle in `uiState` only. So it resets on reload and never reac
   - when a diagram loads, with no carry-over from the previous diagram (the POC carried it over);
   - when switching pages (zoom and scroll still carry over, as today);
   - on every display, share and Present route.
-- **Reset returns to the page default**, not to 0°. The widget's tooltip names both. The angle readout is the reset button and carries a reset glyph, so it reads as one. **Already on a pinned, non-zero default, reset returns to 0° (2026-10-03).** That gives viewers too a one-click way back to the standard view, and a second click returns to the default.
+- **Reset returns to the page default**, not to 0°. The widget's tooltip names both. The angle readout is the reset button and carries a reset glyph, so it reads as one. **It has exactly one target and is disabled once there (2026-10-03, UX review).** A version that went on to 0° from a pinned default made a double-click land on 0°, contradicting the tooltip. After pinning, the way back to 0° is unpin, then reset.
 - **A load-time hint can override it.** `initialData.viewRotation`, alongside `view` and `fitToView`, overrides the default. The export instance uses it (§5), and embedders may too.
 - **2D:** the default is retained but not applied (ADR 0049 §1).
 
@@ -119,7 +120,7 @@ The POC keeps the angle in `uiState` only. So it resets on reload and never reac
   - The schema round-trips with and without the field.
   - An old-client simulation (raw load, re-save) keeps the field.
   - Set-default adds exactly one undo entry and marks the diagram dirty; rotating adds none.
-  - On a pinned default the pin is pressed and unpins (one undo entry). Reset goes to the default when off it, and to 0° when on a pinned default.
+  - On a pinned default the pin is pressed and unpins (one undo entry); pin and unpin each raise a notice. Reset goes to the default when off it and is disabled on it.
   - Load and page switch apply the page default.
   - `initialData.viewRotation` wins over the default.
   - Q/E are classified `viewer` (readonly-surfaces contract).

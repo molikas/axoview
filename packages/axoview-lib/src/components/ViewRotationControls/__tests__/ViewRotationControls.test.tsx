@@ -35,6 +35,7 @@ const baseUi = (over: Record<string, unknown> = {}) => ({
   actions: {
     stepViewRotation: jest.fn(),
     animateViewRotationTo: jest.fn(),
+    setNotification: jest.fn(),
     finishViewRotationAnimation
   },
   canvasMode: 'ISOMETRIC',
@@ -133,20 +134,23 @@ describe('ViewRotationControls — no flicker while turning', () => {
   });
 });
 
-describe('ViewRotationControls — pin toggle and reset (ADR 0051 §2–§3)', () => {
+describe('ViewRotationControls — pin toggle, reset and readout (UX review 2026-10-03)', () => {
   const readout = () =>
     document.querySelector<HTMLButtonElement>(
       '[data-axoview-id="view-rotation-readout"]'
     )!;
-  const animateTo = () =>
-    (ui.actions as { animateViewRotationTo: jest.Mock }).animateViewRotationTo;
+  const acts = () =>
+    ui.actions as {
+      animateViewRotationTo: jest.Mock;
+      setNotification: jest.Mock;
+    };
 
   beforeEach(() => {
     pageDefault = undefined;
     updateView.mockClear();
   });
 
-  it('on a pinned default the pin shows pressed and clicking it unpins', () => {
+  it('on a pinned default the pin shows pressed, unpins, and says so', () => {
     pageDefault = 30;
     ui = baseUi({ viewRotation: 30, viewRotationBase: 30 });
     render(<ViewRotationControls />);
@@ -159,9 +163,13 @@ describe('ViewRotationControls — pin toggle and reset (ADR 0051 §2–§3)', (
     expect(updateView).toHaveBeenCalledWith('v1', {
       defaultRotation: undefined
     });
+    expect(acts().setNotification).toHaveBeenCalledWith({
+      message: 'unpinnedNotice',
+      severity: 'info'
+    });
   });
 
-  it('off the default the pin is an unpressed "set" again', () => {
+  it('pinning confirms the shared change in words', () => {
     pageDefault = 30;
     ui = baseUi({ viewRotation: 45, viewRotationBase: 45 });
     render(<ViewRotationControls />);
@@ -169,25 +177,45 @@ describe('ViewRotationControls — pin toggle and reset (ADR 0051 §2–§3)', (
     expect(pin()!.getAttribute('aria-label')).toBe('setAsPageDefault');
     fireEvent.click(pin()!);
     expect(updateView).toHaveBeenCalledWith('v1', { defaultRotation: 45 });
+    expect(acts().setNotification).toHaveBeenCalledWith({
+      message: 'pinnedNotice',
+      severity: 'success'
+    });
   });
 
-  it('reset goes to the page default when off it', () => {
-    pageDefault = 30;
-    ui = baseUi({ viewRotation: 75, viewRotationBase: 75 });
-    render(<ViewRotationControls />);
+  it('reset has ONE target — the page default — and is disabled once there', () => {
+    pageDefault = -30;
+    ui = baseUi({ viewRotation: 15, viewRotationBase: 15 });
+    const { rerender } = render(<ViewRotationControls />);
     expect(readout().disabled).toBe(false);
     fireEvent.click(readout());
-    expect(animateTo()).toHaveBeenCalledWith(30);
+    expect(acts().animateViewRotationTo).toHaveBeenCalledWith(-30);
+    // Landed on the pinned default: a second click has nowhere else to go
+    // (the reviewer's double-click ended at 0° because it used to).
+    ui = baseUi({ viewRotation: -30, viewRotationBase: -30 });
+    rerender(<ViewRotationControls />);
+    expect(readout().disabled).toBe(true);
+    expect(readout().getAttribute('aria-label')).toBe('atDefault');
   });
 
-  it('reset goes to 0° when the view is on a pinned default', () => {
-    pageDefault = 30;
-    ui = baseUi({ viewRotation: 30, viewRotationBase: 30 });
+  it('after unpinning, reset goes to 0°', () => {
+    ui = baseUi({ viewRotation: -30, viewRotationBase: -30 });
     render(<ViewRotationControls />);
-    expect(readout().disabled).toBe(false);
-    expect(readout().getAttribute('aria-label')).toBe('resetToZero');
     fireEvent.click(readout());
-    expect(animateTo()).toHaveBeenCalledWith(0);
+    expect(acts().animateViewRotationTo).toHaveBeenCalledWith(0);
+  });
+
+  it('the readout counts clockwise as positive (a bearing)', () => {
+    // θ −30 is the floor turned clockwise twice with E.
+    ui = baseUi({ viewRotation: -30, viewRotationBase: -30 });
+    const { rerender } = render(<ViewRotationControls />);
+    expect(readout().textContent).toBe('30°');
+    ui = baseUi({ viewRotation: 15, viewRotationBase: 15 });
+    rerender(<ViewRotationControls />);
+    expect(readout().textContent).toBe('-15°');
+    ui = baseUi({ viewRotation: 180, viewRotationBase: 180 });
+    rerender(<ViewRotationControls />);
+    expect(readout().textContent).toBe('180°');
   });
 
   it('at 0° with no default there is nowhere to reset to and nothing to pin', () => {
@@ -196,18 +224,5 @@ describe('ViewRotationControls — pin toggle and reset (ADR 0051 §2–§3)', (
     expect(readout().disabled).toBe(true);
     expect(pin()!.disabled).toBe(true);
     expect(pin()!.getAttribute('aria-pressed')).toBe('false');
-  });
-
-  it('viewers still get the reset to 0° on a pinned default', () => {
-    pageDefault = 30;
-    ui = baseUi({
-      editorMode: 'EXPLORABLE_READONLY',
-      viewRotation: 30,
-      viewRotationBase: 30
-    });
-    render(<ViewRotationControls />);
-    expect(pin()).toBeNull();
-    fireEvent.click(readout());
-    expect(animateTo()).toHaveBeenCalledWith(0);
   });
 });

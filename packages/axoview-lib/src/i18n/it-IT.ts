@@ -436,10 +436,11 @@ const locale: LocaleProps = {
     atDefault: 'Angolo di vista {angle} (predefinito della pagina)',
     setAsPageDefault: 'Imposta come predefinito della pagina',
     setAsPageDefaultHint: 'Apri questa pagina a {angle} per tutti — un passo di annullamento',
-    resetToZero: 'Angolo di vista {angle} (predefinito della pagina) — fai clic per tornare a 0°',
     unpinPageDefault: 'Rimuovi il predefinito della pagina',
     unpinPageDefaultHint: 'Questa pagina si apre a {angle} per tutti — fai clic per rimuoverlo, così si aprirà a 0° (un passo di annullamento)',
     nothingToPin: '0° è l’angolo standard — ruota la vista per fissare un altro predefinito della pagina',
+    pinnedNotice: 'Predefinito della pagina impostato a {angle}: ora questa pagina si apre con questo angolo per tutti (annulla per ripristinare)',
+    unpinnedNotice: 'Predefinito della pagina rimosso: ora questa pagina si apre a 0° per tutti (annulla per ripristinare)',
     disabledIn2D: 'La rotazione della vista è disponibile nella vista isometrica',
     announce: 'Angolo di vista {angle}'
   },

@@ -36,6 +36,15 @@ export const normaliseDeg = (deg: number): number => {
 };
 
 /**
+ * The view angle as people read it: a BEARING, clockwise positive — the way a
+ * compass, a clock and CSS `rotate()` count. θ itself stays the math angle
+ * (counter-clockwise positive, so E — which turns the floor clockwise on
+ * screen — lowers it); only what is SHOWN is flipped. Whole degrees; never "-0°".
+ */
+export const formatViewAngle = (theta: number): string =>
+  `${Math.round(normaliseDeg(-theta)) || 0}°`;
+
+/**
  * cos/sin of a view angle, EXACT at the cardinal angles (0°, ±90°, 180°).
  *
  * `Math.cos(Math.PI / 2)` is 6e-17, not 0. At a cardinal angle that noise is

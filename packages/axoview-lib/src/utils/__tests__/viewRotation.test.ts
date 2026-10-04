@@ -18,6 +18,7 @@ import {
 } from 'src/utils/coordinateTransforms';
 import {
   normaliseDeg,
+  formatViewAngle,
   rotationTrig,
   offsetMatrix,
   isoPlaneMatrix,
@@ -86,6 +87,20 @@ describe('ADR 0049 §2 — the strategy is a value built from (mode, θ)', () =>
   it('carries its angle, normalised', () => {
     expect(makeIsometricStrategy(190).rotation).toBe(-170);
     expect(getStrategy('2D', 90).rotation).toBe(0);
+  });
+});
+
+describe('the readout shows a bearing (UX review 2026-10-03)', () => {
+  it('counts clockwise as positive, whole degrees, never "-0°"', () => {
+    // E turns the floor clockwise and lowers θ, so the readout negates it.
+    expect(formatViewAngle(-30)).toBe('30°');
+    expect(formatViewAngle(15)).toBe('-15°');
+    expect(formatViewAngle(0)).toBe('0°');
+    expect(formatViewAngle(-0)).toBe('0°');
+    expect(formatViewAngle(0.3)).toBe('0°');
+    expect(formatViewAngle(180)).toBe('180°');
+    expect(formatViewAngle(-180)).toBe('180°');
+    expect(formatViewAngle(-37.6)).toBe('38°');
   });
 });
 

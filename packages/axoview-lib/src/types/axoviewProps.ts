@@ -435,10 +435,11 @@ export interface LocaleProps {
     atDefault: string;
     setAsPageDefault: string;
     setAsPageDefaultHint: string;
-    resetToZero: string;
     unpinPageDefault: string;
     unpinPageDefaultHint: string;
     nothingToPin: string;
+    pinnedNotice: string;
+    unpinnedNotice: string;
     disabledIn2D: string;
     announce: string;
   };

@@ -438,10 +438,11 @@ const locale: LocaleProps = {
     atDefault: 'Ansichtswinkel {angle} (Seitenstandard)',
     setAsPageDefault: 'Als Seitenstandard festlegen',
     setAsPageDefaultHint: 'Diese Seite für alle unter {angle} öffnen — ein Rückgängig-Schritt',
-    resetToZero: 'Ansichtswinkel {angle} (Seitenstandard) — klicken, um auf 0° zurückzusetzen',
     unpinPageDefault: 'Seitenstandard lösen',
     unpinPageDefaultHint: 'Diese Seite öffnet sich für alle unter {angle} — klicken zum Lösen, dann öffnet sie sich unter 0° (ein Rückgängig-Schritt)',
     nothingToPin: '0° ist der Standardwinkel — drehen Sie die Ansicht, um einen anderen Seitenstandard festzulegen',
+    pinnedNotice: 'Seitenstandard auf {angle} gesetzt: Diese Seite öffnet sich jetzt für alle unter diesem Winkel (rückgängig machen zum Zurücksetzen)',
+    unpinnedNotice: 'Seitenstandard entfernt: Diese Seite öffnet sich jetzt für alle unter 0° (rückgängig machen zum Zurücksetzen)',
     disabledIn2D: 'Die Ansichtsdrehung ist in der isometrischen Ansicht verfügbar',
     announce: 'Ansichtswinkel {angle}'
   },
