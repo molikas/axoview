@@ -132,3 +132,82 @@ describe('ViewRotationControls — no flicker while turning', () => {
     expect(screen.getByRole('group')).toBeTruthy();
   });
 });
+
+describe('ViewRotationControls — pin toggle and reset (ADR 0051 §2–§3)', () => {
+  const readout = () =>
+    document.querySelector<HTMLButtonElement>(
+      '[data-axoview-id="view-rotation-readout"]'
+    )!;
+  const animateTo = () =>
+    (ui.actions as { animateViewRotationTo: jest.Mock }).animateViewRotationTo;
+
+  beforeEach(() => {
+    pageDefault = undefined;
+    updateView.mockClear();
+  });
+
+  it('on a pinned default the pin shows pressed and clicking it unpins', () => {
+    pageDefault = 30;
+    ui = baseUi({ viewRotation: 30, viewRotationBase: 30 });
+    render(<ViewRotationControls />);
+    expect(pin()!.getAttribute('aria-pressed')).toBe('true');
+    expect(pin()!.disabled).toBe(false);
+    expect(pin()!.getAttribute('aria-label')).toBe('unpinPageDefault');
+    fireEvent.click(pin()!);
+    // The field goes: the page opens at 0° again. One UPDATE_VIEW = one undo.
+    expect(updateView).toHaveBeenCalledTimes(1);
+    expect(updateView).toHaveBeenCalledWith('v1', {
+      defaultRotation: undefined
+    });
+  });
+
+  it('off the default the pin is an unpressed "set" again', () => {
+    pageDefault = 30;
+    ui = baseUi({ viewRotation: 45, viewRotationBase: 45 });
+    render(<ViewRotationControls />);
+    expect(pin()!.getAttribute('aria-pressed')).toBe('false');
+    expect(pin()!.getAttribute('aria-label')).toBe('setAsPageDefault');
+    fireEvent.click(pin()!);
+    expect(updateView).toHaveBeenCalledWith('v1', { defaultRotation: 45 });
+  });
+
+  it('reset goes to the page default when off it', () => {
+    pageDefault = 30;
+    ui = baseUi({ viewRotation: 75, viewRotationBase: 75 });
+    render(<ViewRotationControls />);
+    expect(readout().disabled).toBe(false);
+    fireEvent.click(readout());
+    expect(animateTo()).toHaveBeenCalledWith(30);
+  });
+
+  it('reset goes to 0° when the view is on a pinned default', () => {
+    pageDefault = 30;
+    ui = baseUi({ viewRotation: 30, viewRotationBase: 30 });
+    render(<ViewRotationControls />);
+    expect(readout().disabled).toBe(false);
+    expect(readout().getAttribute('aria-label')).toBe('resetToZero');
+    fireEvent.click(readout());
+    expect(animateTo()).toHaveBeenCalledWith(0);
+  });
+
+  it('at 0° with no default there is nowhere to reset to and nothing to pin', () => {
+    ui = baseUi({ viewRotation: 0, viewRotationBase: 0 });
+    render(<ViewRotationControls />);
+    expect(readout().disabled).toBe(true);
+    expect(pin()!.disabled).toBe(true);
+    expect(pin()!.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('viewers still get the reset to 0° on a pinned default', () => {
+    pageDefault = 30;
+    ui = baseUi({
+      editorMode: 'EXPLORABLE_READONLY',
+      viewRotation: 30,
+      viewRotationBase: 30
+    });
+    render(<ViewRotationControls />);
+    expect(pin()).toBeNull();
+    fireEvent.click(readout());
+    expect(animateTo()).toHaveBeenCalledWith(0);
+  });
+});

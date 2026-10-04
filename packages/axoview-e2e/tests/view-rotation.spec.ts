@@ -453,12 +453,63 @@ test.describe('View rotation — rotated interaction (ADR 0049)', () => {
 
     await pin.click();
     await expect.poll(defaultRotation).toBe(15);
-    await expect(pin).toBeDisabled();
+    // Pinned: the pin shows pressed and stays clickable — it is the way back.
+    await expect(pin).toHaveAttribute('aria-pressed', 'true');
+    await expect(pin).toBeEnabled();
 
     await page.keyboard.press('Control+z');
     await expect.poll(defaultRotation).toBeNull();
     // Undo restored the document, not the camera.
     expect(await ui<number>(page, 'viewRotation')).toBe(15);
+  });
+
+  test('a pinned default can be unpinned, and reset then returns to 0°', async ({
+    page,
+    app
+  }) => {
+    void app;
+    await seed(page);
+    await rotateTo(page, 0);
+    const defaultRotation = () =>
+      page.evaluate(() => {
+        const b = (window as any).__axoview__;
+        return (
+          b.model.getState().views.find((v: any) => v.id === b.ui.getState().view)
+            ?.defaultRotation ?? null
+        );
+      });
+    const pin = page.locator('[data-axoview-id="view-rotation-set-default"]');
+    const readout = page.locator('[data-axoview-id="view-rotation-readout"]');
+
+    await page.locator('[data-axoview-id="view-rotation-ccw"]').click();
+    await settled(page);
+    await page.locator('[data-axoview-id="view-rotation-ccw"]').click();
+    await settled(page);
+    await pin.click();
+    await expect.poll(defaultRotation).toBe(30);
+
+    // On the pinned default, reset goes to 0°...
+    await expect(readout).toBeEnabled();
+    await readout.click();
+    await expect.poll(() => ui<number>(page, 'viewRotation')).toBe(0);
+    await settled(page);
+    // ...and from there back to the page default.
+    await readout.click();
+    await expect.poll(() => ui<number>(page, 'viewRotation')).toBe(30);
+    await settled(page);
+
+    // Unpin: one undoable edit; the camera stays put.
+    await expect(pin).toHaveAttribute('aria-pressed', 'true');
+    await pin.click();
+    await expect.poll(defaultRotation).toBeNull();
+    await expect(pin).toHaveAttribute('aria-pressed', 'false');
+    expect(await ui<number>(page, 'viewRotation')).toBe(30);
+    // With no default, reset returns to 0°.
+    await readout.click();
+    await expect.poll(() => ui<number>(page, 'viewRotation')).toBe(0);
+
+    await page.keyboard.press('Control+z');
+    await expect.poll(defaultRotation).toBe(30);
   });
 
   test('2D: the controls are disabled and Q does nothing', async ({ page, app }) => {

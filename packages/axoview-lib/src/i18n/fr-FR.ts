@@ -440,6 +440,10 @@ const locale: LocaleProps = {
     atDefault: 'Angle de vue {angle} (valeur par défaut de la page)',
     setAsPageDefault: 'Définir comme valeur par défaut de la page',
     setAsPageDefaultHint: 'Ouvrir cette page à {angle} pour tous — une étape d’annulation',
+    resetToZero: 'Angle de vue {angle} (valeur par défaut de la page) — cliquez pour revenir à 0°',
+    unpinPageDefault: 'Retirer la valeur par défaut de la page',
+    unpinPageDefaultHint: 'Cette page s’ouvre à {angle} pour tous — cliquez pour la retirer, elle s’ouvrira alors à 0° (une étape d’annulation)',
+    nothingToPin: '0° est l’angle standard — faites pivoter la vue pour fixer une autre valeur par défaut de la page',
     disabledIn2D: 'La rotation de la vue est disponible en vue isométrique',
     announce: 'Angle de vue {angle}'
   },

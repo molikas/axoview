@@ -427,6 +427,10 @@ const locale: LocaleProps = {
     atDefault: 'Sudut tampilan {angle} (bawaan halaman)',
     setAsPageDefault: 'Jadikan bawaan halaman',
     setAsPageDefaultHint: 'Buka halaman ini pada {angle} untuk semua orang — satu langkah urungkan',
+    resetToZero: 'Sudut tampilan {angle} (bawaan halaman) — klik untuk mengatur ulang ke 0°',
+    unpinPageDefault: 'Lepas sematan bawaan halaman',
+    unpinPageDefaultHint: 'Halaman ini terbuka pada {angle} untuk semua orang — klik untuk melepasnya agar terbuka pada 0° (satu langkah urungkan)',
+    nothingToPin: '0° adalah sudut standar — putar tampilan untuk menyematkan bawaan halaman yang lain',
     disabledIn2D: 'Rotasi tampilan tersedia di tampilan isometrik',
     announce: 'Sudut tampilan {angle}'
   },

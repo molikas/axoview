@@ -431,6 +431,10 @@ const locale: LocaleProps = {
     atDefault: 'Görünüm açısı {angle} (sayfa varsayılanı)',
     setAsPageDefault: 'Sayfa varsayılanı olarak ayarla',
     setAsPageDefaultHint: 'Bu sayfayı herkes için {angle} açısında aç — tek bir geri alma adımı',
+    resetToZero: "Görünüm açısı {angle} (sayfa varsayılanı) — 0°'ye sıfırlamak için tıklayın",
+    unpinPageDefault: 'Sayfa varsayılanının sabitlemesini kaldır',
+    unpinPageDefaultHint: "Bu sayfa herkes için {angle} açısında açılır — sabitlemeyi kaldırmak için tıklayın, böylece 0°'de açılır (tek bir geri alma adımı)",
+    nothingToPin: '0° standart açıdır — farklı bir sayfa varsayılanı sabitlemek için görünümü döndürün',
     disabledIn2D: 'Görünüm döndürme izometrik görünümde kullanılabilir',
     announce: 'Görünüm açısı {angle}'
   },

@@ -437,6 +437,10 @@ const locale: LocaleProps = {
     atDefault: 'Ángulo de vista {angle} (predeterminado de la página)',
     setAsPageDefault: 'Establecer como predeterminado de la página',
     setAsPageDefaultHint: 'Abrir esta página a {angle} para todos — un paso de deshacer',
+    resetToZero: 'Ángulo de vista {angle} (predeterminado de la página) — haz clic para restablecer a 0°',
+    unpinPageDefault: 'Quitar el predeterminado de la página',
+    unpinPageDefaultHint: 'Esta página se abre a {angle} para todos — haz clic para quitarlo y que se abra a 0° (un paso de deshacer)',
+    nothingToPin: '0° es el ángulo estándar — gira la vista para fijar otro predeterminado de la página',
     disabledIn2D: 'La rotación de la vista está disponible en la vista isométrica',
     announce: 'Ángulo de vista {angle}'
   },

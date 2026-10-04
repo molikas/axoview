@@ -435,6 +435,10 @@ const locale: LocaleProps = {
     atDefault: 'Kąt widoku {angle} (domyślny dla strony)',
     setAsPageDefault: 'Ustaw jako domyślny dla strony',
     setAsPageDefaultHint: 'Otwieraj tę stronę pod kątem {angle} dla wszystkich — jeden krok cofania',
+    resetToZero: 'Kąt widoku {angle} (domyślny dla strony) — kliknij, aby zresetować do 0°',
+    unpinPageDefault: 'Odepnij domyślny kąt strony',
+    unpinPageDefaultHint: 'Ta strona otwiera się pod kątem {angle} dla wszystkich — kliknij, aby odpiąć, wtedy otworzy się pod kątem 0° (jeden krok cofania)',
+    nothingToPin: '0° to kąt standardowy — obróć widok, aby przypiąć inny domyślny kąt strony',
     disabledIn2D: 'Obrót widoku jest dostępny w widoku izometrycznym',
     announce: 'Kąt widoku {angle}'
   },

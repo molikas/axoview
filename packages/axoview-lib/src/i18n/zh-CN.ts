@@ -406,6 +406,10 @@ const locale: LocaleProps = {
     atDefault: '视角 {angle}（页面默认）',
     setAsPageDefault: '设为页面默认',
     setAsPageDefaultHint: '让所有人以 {angle} 打开此页面 — 可一步撤销',
+    resetToZero: '视角 {angle}（页面默认）— 点击重置为 0°',
+    unpinPageDefault: '取消固定页面默认角度',
+    unpinPageDefaultHint: '所有人都以 {angle} 打开此页面 — 点击取消固定，之后将以 0° 打开（可一步撤销）',
+    nothingToPin: '0° 为标准角度 — 旋转视图以固定其他页面默认角度',
     disabledIn2D: '视图旋转仅在等距视图中可用',
     announce: '视角 {angle}'
   },
