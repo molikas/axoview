@@ -213,6 +213,8 @@ b.render(bw, bh, zoom * dpr, originXDev, originYDev, counterScale);
 
 There must be exactly **one** backing-store computation per layer, and it must be the clamped one — don't leave an unclamped `round(W*dpr)` lying around for a future reader to wire up. Reference: [`computeBackingStore`](../../packages/axoview-lib/src/utils/renderTarget.ts), wired into all four bulk layers.
 
+**2026-10-04 — the caps are not a guarantee; the drawing buffer is.** Setting `canvas.width/height` *requests* a buffer; the browser may allocate a smaller one (`gl.drawingBufferWidth/Height`) — past the GPU's max dimensions (headless SwiftShader caps at 8192), or when the allocation fails, which a 2× image export of a large diagram (~120 MP) hit even on a desktop GPU. A frame drawn in requested-size device px then lands only the scene's lower-left in the buffer, and the browser stretches that over the canvas: the export showed half the diagram, magnified, with the DOM layers correctly placed over it. `SpriteBatch.render` therefore returns the allocated size instead of drawing, and [`SceneCanvas`](../../packages/axoview-lib/src/components/SceneLayers/SceneCanvas.tsx) tightens its caps to it and redraws at the dpr that fits (bounded retry; `data-backing-dpr` reports the dpr drawn). Any new GPU surface must read the drawing buffer back the same way.
+
 ---
 
 ## 10. Rebuild geometry only on a scene change — never per frame

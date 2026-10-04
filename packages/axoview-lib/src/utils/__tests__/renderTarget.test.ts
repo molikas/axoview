@@ -1,7 +1,9 @@
 import {
   computeRenderTarget,
   computeBackingStore,
-  DEFAULT_RENDER_CAPS
+  DEFAULT_RENDER_CAPS,
+  screenshotScale,
+  SCREENSHOT_MAX_PIXELS
 } from '../renderTarget';
 
 // Small caps make the clamp boundary easy to reason about in tests.
@@ -125,5 +127,30 @@ describe('computeBackingStore', () => {
     expect(b.wasClamped).toBe(true);
     expect(b.width).toBeLessThanOrEqual(DEFAULT_RENDER_CAPS.maxDimension);
     expect(b.height).toBeLessThanOrEqual(DEFAULT_RENDER_CAPS.maxDimension);
+  });
+});
+
+describe('screenshotScale', () => {
+  test('keeps the preferred 2× while the image fits the budget', () => {
+    expect(screenshotScale({ width: 1600, height: 900 }, 2)).toBe(2);
+  });
+
+  test('lowers the scale just enough for a large diagram to fit the budget', () => {
+    // The diagram from the 2026-10-04 report: 2× was a 15282 × 8846 px PNG.
+    const bounds = { width: 7641, height: 4423 };
+    const scale = screenshotScale(bounds, 2);
+    expect(scale).toBeLessThan(2);
+    const t = computeRenderTarget(bounds, scale);
+    expect(t.width * t.height).toBeLessThanOrEqual(SCREENSHOT_MAX_PIXELS * 1.001);
+    expect(t.width * t.height).toBeGreaterThan(SCREENSHOT_MAX_PIXELS * 0.99);
+    expect(t.wasClamped).toBe(false);
+  });
+
+  test('never raises the scale above the one asked for', () => {
+    expect(screenshotScale({ width: 10, height: 10 }, 2)).toBe(2);
+  });
+
+  test('degenerate bounds still yield a finite scale', () => {
+    expect(screenshotScale({ width: 0, height: NaN }, 2)).toBe(2);
   });
 });

@@ -25,7 +25,11 @@ import {
   compareSceneDrawOrder
 } from 'src/utils/renderOrder';
 import { ChipColors, LabelChipLayout } from 'src/utils/labelChip';
-import { computeBackingStore } from 'src/utils/renderTarget';
+import {
+  computeBackingStore,
+  DEFAULT_RENDER_CAPS,
+  type RenderTargetCaps
+} from 'src/utils/renderTarget';
 import {
   createSpriteBatch,
   SpriteBatch,
@@ -518,6 +522,9 @@ export const SceneCanvas = memo(
       };
 
       let lastBuiltDrawLabels = -1; // -1 = never built
+      // The backing-store caps, tightened to the largest drawing buffer this
+      // context has actually been given (see the retry in drawGLBatch).
+      let backingCaps: RenderTargetCaps = DEFAULT_RENDER_CAPS;
       // The view angle (and projection) the CURRENT instances were built at.
       // The motion transform is relative to THESE, not to the store's
       // `viewRotationBase`: between a settle and the rebuild that follows it the
@@ -721,13 +728,7 @@ export const SceneCanvas = memo(
         const { scroll, zoom, rendererSize, readableLabels } = ui;
         const W = rendererSize.width;
         const H = rendererSize.height;
-        // Clamp the backing store to the canvas caps; the effective dpr then feeds
-        // BOTH the buffer size AND the u_view scale/origin below (ADR 0038).
-        const {
-          width: bw,
-          height: bh,
-          dpr
-        } = computeBackingStore(W, H, pixelRatioRef.current ?? screenDpr());
+        const requestedDpr = pixelRatioRef.current ?? screenDpr();
         const counterScale = labelCounterScaleFor(zoom, readableLabels);
         const drawLabels = isNodeLabelDrawn(zoom, readableLabels) ? 1 : 0;
 
@@ -739,8 +740,6 @@ export const SceneCanvas = memo(
 
         canvas.style.width = `${W}px`;
         canvas.style.height = `${H}px`;
-        const originXDev = (W / 2 + scroll.position.x) * dpr;
-        const originYDev = (H / 2 + scroll.position.y) * dpr;
         // ADR 0049 §6: a rotation in motion is a uniform, never a rebuild. The
         // live angle vs. the angle these instances were built at.
         const motionDeg =
@@ -749,23 +748,54 @@ export const SceneCanvas = memo(
             : 0;
         const motion =
           motionDeg !== 0 ? offsetMatrix(rotationTrig(motionDeg), isoKappa()) : null;
-        b.render(
-          bw,
-          bh,
-          zoom * dpr,
-          originXDev,
-          originYDev,
-          counterScale,
-          motion,
-          showGridRef.current
-            ? gridPassFor(getLiveStrategy(ui), zoom * dpr)
-            : null
-        );
+        // Clamp the backing store to the canvas caps; the effective dpr then feeds
+        // BOTH the buffer size AND the u_view scale/origin (ADR 0038). When the
+        // browser allocates less than asked, `render` draws nothing and reports
+        // what it got: the caps tighten to that and the frame is redrawn at the
+        // dpr that fits. Bounded, so a buffer that keeps shrinking cannot spin.
+        let drew = false;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          const {
+            width: bw,
+            height: bh,
+            dpr
+          } = computeBackingStore(W, H, requestedDpr, backingCaps);
+          const short = b.render(
+            bw,
+            bh,
+            zoom * dpr,
+            (W / 2 + scroll.position.x) * dpr,
+            (H / 2 + scroll.position.y) * dpr,
+            counterScale,
+            motion,
+            showGridRef.current
+              ? gridPassFor(getLiveStrategy(ui), zoom * dpr)
+              : null
+          );
+          canvas.dataset.backingDpr = String(dpr);
+          if (!short) {
+            drew = true;
+            break;
+          }
+          // No buffer at all is a lost context's business, not a size to fit.
+          if (short.width < 1 || short.height < 1) break;
+          backingCaps = {
+            maxDimension: Math.min(
+              backingCaps.maxDimension,
+              Math.max(short.width, short.height)
+            ),
+            maxArea: Math.min(backingCaps.maxArea, short.width * short.height)
+          };
+          // Out of attempts with tighter caps in hand: the next frame starts
+          // from them.
+          if (attempt === 2) scheduleDraw();
+        }
         canvas.dataset.motionDeg = String(motionDeg);
         canvas.dataset.labelScale = String(counterScale);
         // Now — and only now — is it true that a frame was painted with every
-        // available icon. See `allIconsDrawnPending`.
-        canvas.dataset.allIconsDrawn = String(allIconsDrawnPending);
+        // available icon. See `allIconsDrawnPending`. A frame the buffer
+        // refused painted nothing, and the export must not capture it.
+        canvas.dataset.allIconsDrawn = String(drew && allIconsDrawnPending);
       };
 
       const draw = () => {

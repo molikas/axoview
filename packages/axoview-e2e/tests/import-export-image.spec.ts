@@ -100,8 +100,9 @@ async function bootBlankDiagram(page: import('@playwright/test').Page) {
 const svgButton = (page: import('@playwright/test').Page) =>
   byLibTestId(page, 'export-svg-button');
 
-// The SVG button is disabled until the hidden Axoview's SVG export resolves —
-// a reliable "the dialog finished its first export" signal.
+// The SVG button is disabled until the hidden Axoview's PNG capture resolves —
+// a reliable "the dialog finished its first export" signal. (The SVG itself is
+// built on click.)
 async function openImageDialogAndWaitReady(
   page: import('@playwright/test').Page
 ) {

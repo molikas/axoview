@@ -90,6 +90,8 @@ Strokes are stored in the unrotated frame and drawn through `M(θ)` with non-sca
 
 The hidden export instance renders its SceneCanvas at `dpr = export scale`, within the existing backing-store and atlas clamps. A WebGL grid then exports as crisply as today's SVG one, and icons and chips get sharper too. This ships together with §5; without it, §5 makes exported grids softer than today's.
 
+**2026-10-04 (shake-out):** the backing-store clamp alone did not hold. At 2× a large diagram asks for a ~120 MP buffer, the browser allocated a smaller one, and the export lost every GPU element outside the scene's lower-left. The scene now renders at the dpr of the buffer the browser actually allocated ([canvas-rendering guideline §9](../guidelines/canvas-rendering-guidelines.md)), so on such a machine exported GPU content is softer than the export scale, never cropped. ADR 0025 §4's Screenshot pixel budget keeps the default export well inside that range.
+
 ## Consequences
 
 **Positive:**

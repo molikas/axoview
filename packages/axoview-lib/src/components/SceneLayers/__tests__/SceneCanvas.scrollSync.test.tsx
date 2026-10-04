@@ -230,6 +230,58 @@ describe('SceneCanvas — pan/zoom repaints synchronously (rubber-band regressio
     );
   });
 
+  // Shake-out 2026-10-04 (PR #95 image export): a 2× export of a large diagram
+  // asks for a ~120 MP buffer and the browser allocates half. Drawing the
+  // requested-size view into it showed the scene's lower-left, magnified, and
+  // dropped the rest. The frame must be redrawn with buffer size, zoom·dpr and
+  // origin ALL re-derived for the buffer that was actually allocated.
+  it('redraws at the dpr that fits when the browser allocates a smaller buffer', () => {
+    (window as unknown as { devicePixelRatio: number }).devicePixelRatio = 2;
+    stubBatch.render.mockImplementation((bw: number, bh: number) =>
+      bw > 800 || bh > 600 ? { width: 800, height: 600 } : null
+    );
+    renderCanvas();
+    act(() => {
+      uiApi!.getState().actions.setRendererSize({ width: 800, height: 600 });
+    });
+    stubBatch.render.mockClear();
+
+    act(() => {
+      uiApi!.getState().actions.setScroll({
+        position: { x: 123, y: 456 },
+        offset: { x: 0, y: 0 }
+      });
+    });
+
+    const calls = stubBatch.render.mock.calls;
+    // Asked at dpr 2, was refused…
+    expect(calls[0].slice(0, 5)).toEqual([1600, 1200, 1.3, 1046, 1512]);
+    // …and redrew the same frame at dpr 1, where the whole transform agrees.
+    expect(calls[calls.length - 1].slice(0, 5)).toEqual([800, 600, 0.65, 523, 756]);
+    expect(calls.length).toBe(2);
+  });
+
+  // The export's readiness wait keys on `data-all-icons-drawn`; a frame the
+  // buffer refused painted nothing and must not be reported as captured.
+  it('does not report icons drawn for a frame the drawing buffer refused', () => {
+    stubBatch.render.mockImplementation(() => ({ width: 0, height: 0 }));
+    const { container } = renderCanvas();
+    act(() => {
+      uiApi!.getState().actions.setRendererSize({ width: 800, height: 600 });
+    });
+    act(() => {
+      uiApi!.getState().actions.setScroll({
+        position: { x: 1, y: 0 },
+        offset: { x: 0, y: 0 }
+      });
+    });
+    const canvas = container.querySelector<HTMLCanvasElement>(
+      '[data-testid="axoview-scene-canvas"]'
+    )!;
+    expect(stubBatch.render).toHaveBeenCalled();
+    expect(canvas.dataset.allIconsDrawn).toBe('false');
+  });
+
   // ADR 0049 §6 / ADR 0038 §5: a view-rotation gesture is a uniform write per
   // frame, never a rebuild; the instance buffer is rebuilt ONCE, after settle.
   it('orbits with the motion uniform only — no rebuild in motion, one after settle', () => {

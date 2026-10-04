@@ -400,6 +400,12 @@ export interface SpriteBatch {
   instanceCount(): number;
 
   // --- per-frame render (one instanced draw call) ---
+  /**
+   * Draws the frame and returns `null` — unless the browser allocated a
+   * SMALLER drawing buffer than `bw × bh`, in which case nothing is drawn and
+   * the size it did allocate is returned. The caller must re-derive its dpr to
+   * fit that buffer and render again (see SceneCanvas `drawGLBatch`).
+   */
   render(
     bw: number,
     bh: number,
@@ -414,7 +420,7 @@ export interface SpriteBatch {
     motion?: readonly [number, number, number, number] | null,
     /** The procedural grid, drawn under the bulk — or omitted/null for none. */
     grid?: GridPass | null
-  ): void;
+  ): { width: number; height: number } | null;
 
   destroy(): void;
 }
@@ -1058,6 +1064,16 @@ export const createSpriteBatch = (
         canvas.width = bw;
         canvas.height = bh;
       }
+      // The browser may allocate a smaller drawing buffer than the canvas size
+      // asks for: past the GPU's max dimensions, or when the allocation fails
+      // (Chromium halves it — a 2× export of a large diagram is ~120 MP).
+      // `u_view` / `u_resolution` are in REQUESTED device px, so drawing anyway
+      // lands only the scene's lower-left in the buffer, which the browser then
+      // stretches over the whole canvas: half the diagram missing, the rest
+      // magnified. Hand the real size back instead of drawing a wrong frame.
+      const dbw = gl!.drawingBufferWidth;
+      const dbh = gl!.drawingBufferHeight;
+      if (dbw < bw || dbh < bh) return { width: dbw, height: dbh };
       gl!.viewport(0, 0, bw, bh);
       gl!.clearColor(0, 0, 0, 0);
       gl!.clear(gl!.COLOR_BUFFER_BIT);
@@ -1090,7 +1106,7 @@ export const createSpriteBatch = (
         gl!.uniform2f(gFade, GRID_FADE_OUT_PX, GRID_FADE_IN_PX);
         gl!.drawArrays(gl!.TRIANGLES, 0, 3);
       }
-      if (instCount === 0) return;
+      if (instCount === 0) return null;
       gl!.useProgram(prog);
       gl!.bindVertexArray(vao);
       gl!.bindBuffer(gl!.ARRAY_BUFFER, instBuf);
@@ -1142,6 +1158,7 @@ export const createSpriteBatch = (
         gl!.drawArraysInstanced(gl!.TRIANGLES, 0, 6, run.count);
       }
       gl!.bindVertexArray(null);
+      return null;
     },
     destroy() {
       for (const p of pages) gl!.deleteTexture(p.tex);

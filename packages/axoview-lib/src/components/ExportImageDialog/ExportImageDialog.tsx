@@ -34,6 +34,7 @@ import {
   generateGenericFilename,
   modelFromModelStore,
   computeRenderTarget,
+  screenshotScale,
   getUnprojectedBounds as getUnprojectedBoundsAt
 } from 'src/utils';
 import { getStrategy } from 'src/utils/coordinateTransforms';
@@ -304,12 +305,20 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
     minNodesForCaptureRef.current = minNodesForCapture;
   }, [minNodesForCapture]);
 
+  // ADR 0025 §4 (2026-10-04): the Screenshot preset is 2× within a pixel
+  // budget, so a large diagram stops producing a 100+ MP PNG. The DPI presets
+  // and the custom slider mean exactly the scale they name.
+  const requestedScale =
+    scaleMode === 'screenshot'
+      ? screenshotScale(bounds, exportScale)
+      : exportScale;
+
   // Clamp the requested scale against the browser's canvas limits (ADR 0025 §2).
   // The same calculator runs inside exportAsImage/exportAsSVG; here it drives the
   // user-visible "size was reduced" notice so the cap is never silent (#18).
   const renderTarget = useMemo(
-    () => computeRenderTarget(bounds, exportScale),
-    [bounds, exportScale]
+    () => computeRenderTarget(bounds, requestedScale),
+    [bounds, requestedScale]
   );
 
   // Track when the hidden Axoview has finished its first render cycle
@@ -360,30 +369,25 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
     const bgColor = transparentBackground ? 'transparent' : backgroundColor;
 
     try {
-      // Export both PNG and SVG in parallel
-      const [pngData, svgDataResult] = await Promise.all([
-        exportAsImage(
-          containerRef.current as HTMLDivElement,
-          containerSize,
-          exportScale,
-          bgColor
-        ),
-        exportAsSVG(
-          containerRef.current as HTMLDivElement,
-          containerSize,
-          bgColor
-        )
-      ]);
+      // PNG only. The SVG is built when it is asked for (downloadSvgFile): it
+      // is a second full DOM rasterisation — re-encoding the GPU canvas and
+      // re-parsing the result — and running it on every preview capture
+      // doubled the wait for a preview most exports never download as SVG.
+      const pngData = await exportAsImage(
+        containerRef.current as HTMLDivElement,
+        containerSize,
+        requestedScale,
+        bgColor
+      );
 
       setImageData(pngData);
-      setSvgData(svgDataResult);
       isExporting.current = false;
     } catch (err) {
       console.error(err);
       setExportError(true);
       isExporting.current = false;
     }
-  }, [bounds, exportScale, transparentBackground, backgroundColor]);
+  }, [bounds, requestedScale, transparentBackground, backgroundColor]);
 
   // Stable ref so effects can call the latest exportImage without adding it
   // to their dependency arrays (which would cause spurious re-fires)
@@ -774,7 +778,7 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
     backgroundColor,
     showLabels,
     cropToContent,
-    exportScale,
+    requestedScale,
     transparentBackground
   ]);
 
@@ -790,25 +794,46 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
     downloadFileUtil(data, generateGenericFilename('png'));
   }, [imageData, croppedImageData]);
 
-  const downloadSvgFile = useCallback(() => {
-    if (!svgData) return;
+  const [isBuildingSvg, setIsBuildingSvg] = useState(false);
+  const downloadSvgFile = useCallback(async () => {
+    if (!containerRef.current || isBuildingSvg) return;
 
     try {
+      // Built on first request from the same hidden instance the preview was
+      // captured from, then reused until an option change clears it.
+      let svg = svgData;
+      if (!svg) {
+        setIsBuildingSvg(true);
+        svg = await exportAsSVG(
+          containerRef.current,
+          { width: bounds.width, height: bounds.height },
+          transparentBackground ? 'transparent' : backgroundColor
+        );
+        setSvgData(svg);
+      }
       // Decode the base64 data URL to a Blob directly (atob) — mirrors the PNG
       // path. The old `fetch(svgData)` is blocked by the deployed connect-src
       // CSP (a data: URL is not an allowed connect source), and a local decode
       // avoids the network round-trip entirely. exportAsSVG always returns the
       // `data:image/svg+xml;base64,…` form.
       const blob = base64ToBlob(
-        svgData.replace('data:image/svg+xml;base64,', ''),
+        svg.replace('data:image/svg+xml;base64,', ''),
         'image/svg+xml;charset=utf-8'
       );
       downloadFileUtil(blob, generateGenericFilename('svg'));
     } catch (error) {
       console.error('SVG download failed:', error);
       setExportError(true);
+    } finally {
+      setIsBuildingSvg(false);
     }
-  }, [svgData]);
+  }, [
+    svgData,
+    isBuildingSvg,
+    bounds,
+    transparentBackground,
+    backgroundColor
+  ]);
 
   const displayImage = croppedImageData || imageData;
 
@@ -928,7 +953,7 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
             variant="outlined"
             data-testid="export-svg-button"
             onClick={downloadSvgFile}
-            disabled={!svgData || cropSelectionPending}
+            disabled={!imageData || isBuildingSvg || cropSelectionPending}
           >
             {t('downloadSvg')}
           </Button>

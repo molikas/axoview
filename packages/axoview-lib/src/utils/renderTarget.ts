@@ -75,6 +75,30 @@ export function computeRenderTarget(
   };
 }
 
+/**
+ * The Screenshot preset's pixel budget (ADR 0025 §4, 2026-10-04 note): one 8K
+ * UHD frame. 2× of a large diagram is otherwise well past 100 MP, and encoding
+ * that PNG is most of what made exporting one slow, for an image far beyond
+ * anything a screenshot is pasted into.
+ */
+export const SCREENSHOT_MAX_PIXELS = 7680 * 4320;
+
+/**
+ * The Screenshot preset's scale: `preferred` (2×), lowered just enough to keep
+ * the image within {@link SCREENSHOT_MAX_PIXELS}. Small and medium diagrams get
+ * `preferred` unchanged. The explicit DPI presets and the custom slider do not
+ * go through this — they mean exactly the scale they name, clamped only by the
+ * browser caps in {@link computeRenderTarget}.
+ */
+export function screenshotScale(
+  bounds: { width: number; height: number },
+  preferred: number,
+  maxPixels: number = SCREENSHOT_MAX_PIXELS
+): number {
+  const area = Math.max(1, bounds.width || 0) * Math.max(1, bounds.height || 0);
+  return Math.min(preferred, Math.sqrt(maxPixels / area));
+}
+
 export interface BackingStore {
   /** Backing-store width in device px (clamped, rounded, ≥ 1). */
   width: number;
@@ -104,6 +128,9 @@ export interface BackingStore {
  * Uses the conservative cross-browser `DEFAULT_RENDER_CAPS` rather than querying
  * live `MAX_VIEWPORT_DIMS` / `MAX_TEXTURE_SIZE`: one shared ceiling with export,
  * already the safe common floor, and no GL round-trip on the per-frame path.
+ * They are not a guarantee, though — a GPU can still allocate less than they
+ * allow — so SceneCanvas passes tighter caps once the drawing buffer it actually
+ * got says so (`SpriteBatch.render`'s return).
  */
 export function computeBackingStore(
   cssW: number,
