@@ -20,6 +20,11 @@
 //      stripped from every body, and the distinct co-authors are named in one
 //      line at the end of the notes.
 //
+//   4. Re-flow hard-wrapped bodies (ADR 0046 §4). GitHub renders each newline
+//      in a release body as a line break, so 72-column commit wrapping showed
+//      as a narrow ragged column; wrapped lines are joined back into their
+//      paragraph or list item.
+//
 // Wired via `.releaserc.json` → release-notes-generator `{ "config": "./scripts/release-changelog-preset.mjs" }`.
 // The loader calls this default export with no arguments and expects the
 // conventional-changelog config shape `{ commits, parser, writer, whatBump }`.
@@ -59,6 +64,39 @@ export function splitCoAuthors(text) {
   return { text: kept.join('\n').replace(/\n{3,}/g, '\n\n').trim(), names };
 }
 
+// A line that starts its own block: a list item, heading, quote or table row.
+const BLOCK_START = /^\s*(?:[-*+]\s|\d+[.)]\s|#|>|\|)/;
+const FENCE = /^\s*(?:```|~~~)/;
+
+/**
+ * Joins hard-wrapped lines back into their paragraph or list item. GitHub
+ * renders every newline in a release body as a line break, so a body wrapped
+ * at 72 columns showed as a narrow ragged column instead of filling the page.
+ * List items, headings, quotes, table rows, blank lines and fenced code keep
+ * their own lines.
+ */
+export function unwrapLines(text) {
+  const out = [];
+  let inFence = false;
+  let joinable = false;
+  for (const line of (text || '').split('\n')) {
+    if (FENCE.test(line)) {
+      inFence = !inFence;
+      out.push(line);
+      joinable = false;
+    } else if (inFence || !line.trim()) {
+      out.push(line);
+      joinable = false;
+    } else if (joinable && !BLOCK_START.test(line)) {
+      out[out.length - 1] += ' ' + line.trim();
+    } else {
+      out.push(line);
+      joinable = !/^\s*(?:#|\|)/.test(line);
+    }
+  }
+  return out.join('\n');
+}
+
 export default async function createAxoviewChangelogConfig() {
   const preset = await createPreset({ types: TYPES });
 
@@ -80,7 +118,8 @@ export default async function createAxoviewChangelogConfig() {
       // (3) Co-author trailers are credited once, in the footer — never per commit.
       const split = splitCoAuthors(commit.body);
       out.coAuthorNames = [...split.names, ...splitCoAuthors(commit.footer).names];
-      const body = split.text;
+      // (4) Re-flow hard-wrapped lines so the text fills the release page.
+      const body = unwrapLines(split.text);
       out.body = body
         ? body
             .split('\n')

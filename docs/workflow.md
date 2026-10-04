@@ -1,6 +1,6 @@
 # Workflow — Canonical session cadence
 
-> **Status:** Authoritative · **Last updated:** 2026-08-21 (prompt-surface audit — `/explore` and `/docs-sweep` folded into the cadence and the router, the commit-subject rule corrected against commitlint, Principle 8 added, the cadence-anomaly register retired to git) · **Audience:** anyone (human or Claude) opening a session against this repo.
+> **Status:** Authoritative · **Last updated:** 2026-10-04 (commit convention: co-author credit appears once per release, ADR 0046 §4) · **Audience:** anyone (human or Claude) opening a session against this repo.
 >
 > This doc names the canonical sequence of a working session: which skill fires when, where the artifacts land, and what the design principles are. It is the single source of truth for "how we work here." Skill bodies cross-reference this doc; this doc does not duplicate skill bodies.
 

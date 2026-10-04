@@ -50,6 +50,8 @@ Document in [workflow.md](../workflow.md)'s commit convention that, **while no i
 
 Every commit closes with a `Co-Authored-By:` trailer (CLAUDE.md), and a squash merge's default body pastes in each branch commit's whole message. Rendering bodies per Decision 1 therefore repeated the same trailer once per commit: v3.10.0 shipped with 15 copies. The notes generator now strips `Co-Authored-By:` lines from every rendered body and names the distinct co-authors **once**, in a single `Co-authored by …` line at the end of the release. The trailer stays on each commit, so git history keeps the attribution. The notes say it once.
 
+The same pass **re-flows hard-wrapped bodies**. GitHub renders every newline in a release body as a line break, so commit bodies wrapped at 72 columns showed as a narrow, ragged column (v3.10.0 had 122 forced breaks). Wrapped lines are joined back into their paragraph or list item. List items, headings, quotes, table rows, blank lines and fenced code keep their own lines.
+
 ## Consequences
 
 **Positive:**
@@ -74,3 +76,4 @@ Every commit closes with a `Co-Authored-By:` trailer (CLAUDE.md), and a squash m
 - **Offline validation (links):** the same run shows **no** dead issue links — a body containing `#999999`, `#88606c`, and `#1f2937` produces zero issue links, while the PR reference `(#81)` and the commit hash still link correctly. *(Validated.)*
 - **Doc:** [workflow.md](../workflow.md)'s commit convention states the "no issue-footer while no tracker" rule and the revisit-if-adopted caveat.
 - **Offline validation (co-authors, 2026-10-04):** regenerating v3.10.0's notes from its squash commit yields zero `Co-Authored-By:` lines in the bodies and exactly one `Co-authored by Claude Opus 5.5.` line at the end; the rest of the notes are byte-identical. *(Validated.)*
+- **Offline validation (re-flow, 2026-10-04):** the same run keeps all 2,188 words, renders no code blocks, and shrinks the body from 269 lines to 147, each a whole paragraph or list item. *(Validated.)*
