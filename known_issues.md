@@ -8524,3 +8524,51 @@ crawlers.
   `https://axoview.app/`, and Search Console's Validate Fix has started.
 - **The secret is set in Production.** It only reaches deployments built
   after it was set, so it takes effect on the next production deploy.
+
+## Large image exports dropped part of the diagram, and "Screenshot" was slow
+
+**Found by:** owner shake-out of PR #95 on a large production diagram, 2026-10-04.
+
+**Symptom:** a large diagram exported at 2× showed only its lower-left part,
+magnified, with half its rectangles, nodes and connectors missing; the
+"Screenshot (recommended)" preset of the same diagram was a ~135 MP PNG and slow.
+
+**Root cause:** the GPU layer requested a ~120 MP drawing buffer and the browser
+silently allocated a smaller one ([canvas-rendering-guidelines §9](docs/guidelines/canvas-rendering-guidelines.md)).
+The missing-elements half came in with the export pixel ratio of
+[ADR 0050](docs/adr/0050-view-rotation-render-and-legibility-policy.md) §6 and
+never reached a release.
+
+**Workaround:** none needed.
+
+**Status:** Fixed in `7a8bd74` (2026-10-04) — the layer redraws at the dpr of
+the buffer it actually got, "Screenshot" is capped at one 8K frame's pixel count
+([ADR 0025](docs/adr/0025-image-export-robustness-and-presets.md) §4), and the SVG
+is built only when "Download as SVG" is clicked.
+
+## Imported diagram JSON showed its pack icons as missing
+
+**Symptom:** importing a diagram JSON whose nodes use Material, AWS, GCP, Azure
+or Kubernetes icons left those icons missing until the pack was loaded by hand
+from the Elements panel. A JSON export never lists its icon packs.
+
+**Workaround:** load the pack from the Elements panel.
+
+**Status:** Fixed in `e44805b` + `7af7eec` (2026-10-04) — the pack is inferred
+from the icon id's prefix, including each vendor's logo id, the one id outside
+its pack's prefix (architecture.md §4.18).
+
+## Orbiting a ~1k-node diagram runs just over one frame because of connector-label chips
+
+**Found by:** `PERF_ROTATE` ([ADR 0049](docs/adr/0049-view-rotation-camera-and-projection-model.md)), 2026-10-03.
+
+**Symptom:** at 1k nodes the rotation p95 frame is 16.74 ms against the
+16.7 ms bar (5k: 16.7, 20k: 16.8); the occasional frame drops. No rebuild
+happens in motion — the cost is the ~330 DOM connector-label chips each taking a
+CSS `translate` per frame (about 6–7 ms). `will-change` was tried and made it worse.
+
+**Workaround:** none known; the turn stays smooth to the eye.
+
+**Status:** Open — follow-up is GPU connector labels, or hiding the chips while
+the view turns and re-syncing at settle (the `rotationMotion="pause"` path the
+interaction layers already use).

@@ -120,9 +120,9 @@ Deep snapshots cut on a date and left immutable. Read for the comprehensive narr
 | [0046](adr/0046-release-notes-generation-and-reference-integrity.md) | Release-notes generation: body-level detail & reference integrity |
 | [0047](adr/0047-exploratory-testing-program.md) | Exploratory testing program (probe lane, promotion protocol, `/explore`) |
 | [0048](adr/0048-docker-image-regression-gate.md) | Docker image regression gate (smoke `Docker Gate`, full regression, prod-bundle bridge policy) |
-| [0049](adr/0049-view-rotation-camera-and-projection-model.md) | View rotation: camera & projection model (per-instance θ, offset frame, GPU motion transform, controls) — Proposed |
-| [0050](adr/0050-view-rotation-render-and-legibility-policy.md) | View rotation: render & legibility policy (element classes, keep-upright, procedural grid, export dpr) — Proposed |
-| [0051](adr/0051-view-rotation-default-angle-sharing-and-export.md) | View rotation: per-page default angle, viewer controls, export angle — Proposed |
+| [0049](adr/0049-view-rotation-camera-and-projection-model.md) | View rotation: camera & projection model (per-instance θ, offset frame, GPU motion transform, controls) — Accepted |
+| [0050](adr/0050-view-rotation-render-and-legibility-policy.md) | View rotation: render & legibility policy (element classes, keep-upright, procedural grid, export dpr) — Accepted |
+| [0051](adr/0051-view-rotation-default-angle-sharing-and-export.md) | View rotation: per-page default angle, viewer controls, export angle — Accepted |
 
 ---
 

@@ -2662,7 +2662,7 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
         `_Generated ${new Date().toISOString()} · ${REPEATS} kept runs/cell (${WARMUP_RUNS} warm-up), ` +
           `cal ${round(calibrationMs, 1)} ms. A 13-step eased 15° turn + a sustained ±45° sine, each ` +
           `followed by a settle. Gate: zero rebuilds in motion, build delta == settle count. ` +
-          `p95 target ≤ 16.7 ms on the reference GPU (owner to confirm the thresholds)._`,
+          `p95 target ≤ 16.7 ms on the reference GPU (thresholds confirmed 2026-10-04, ADR 0049)._`,
         '',
         '| N | draw-count range | builds / settles | mean frame (ms) | p95 frame (ms) | longest (ms) | noise (CoV mean) |',
         '|---|---|---|---|---|---|---|',

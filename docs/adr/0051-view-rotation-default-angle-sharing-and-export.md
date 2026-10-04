@@ -1,6 +1,6 @@
 # ADR 0051 — View Rotation: Default Angle, Sharing & Export
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-03
 **Supersedes:** none
 **Superseded by:** none
@@ -79,7 +79,7 @@ The POC keeps the angle in `uiState` only. So it resets on reload and never reac
 - **Hide controls.** "Hide controls" hides the widget along with the dock. The keys and the gesture keep working, as arrow-key panning does.
 - **No share-link parameter in v1.** The page default covers the need to share a perspective. A per-link angle could later use `initialData.viewRotation`.
 
-> **TODO (owner):** should Present launched from the editor open at the presenter's live angle instead of the page default? The angle would ride in router state, the way `fromEditor` already does.
+**2026-10-04 (owner):** Present launched from the editor opens at the page default, as built, so every viewer sees the same angle. The presenter's live angle is not carried in router state.
 
 ### 5. Export: as viewed by default, page default selectable
 
@@ -106,7 +106,7 @@ The POC keeps the angle in `uiState` only. So it resets on reload and never reac
 - **Two angle concepts**, live and default, that the widget must keep legible.
 - **Each page's default is set separately.**
 - **Older pinned deployments show 0°.**
-- **Present opens at the default** unless the TODO above resolves otherwise.
+- **Present opens at the page default**, not the presenter's live angle (§4, confirmed 2026-10-04).
 
 ## Implementation notes (non-binding)
 

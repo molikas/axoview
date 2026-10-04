@@ -1,15 +1,15 @@
 # Regression Test Suite Reference
 
-**Last updated:** 2026-09-30 (rev 1 — totals re-measured; the Worker's `app.spec.ts` probe-input block now expects `404` for unknown `/api/*` paths in every auth mode, including shared-token with no secret; previous rev 2026-09-24 added the contract "Testing against the Docker image" (ADR 0048))
-**Unit / integration totals** (measured 2026-09-30 via `npm test -- --coverage` across the workspaces):
+**Last updated:** 2026-10-04 (rev 2 — totals re-measured after view rotation, ADRs 0049–0051; previous rev 2026-09-30 re-measured totals; the Worker's `app.spec.ts` probe-input block now expects `404` for unknown `/api/*` paths in every auth mode, including shared-token with no secret; previous rev 2026-09-24 added the contract "Testing against the Docker image" (ADR 0048))
+**Unit / integration totals** (measured 2026-10-04 via `npm test` per workspace):
 
 | Workspace | Passing | Suites |
 |---|---|---|
-| `axoview-lib` | 2384 (+1 skipped) | 205 |
-| `axoview-app` | 566 | 52 |
+| `axoview-lib` | 2516 | 214 |
+| `axoview-app` | 583 | 53 |
 | `axoview-backend` | 137 | 9 |
 | `axoview-worker` | 147 | 4 |
-| **Total** | **3234 (+1 skipped)** | **270** |
+| **Total** | **3383** | **280** |
 
 **End-to-end:** 286 Playwright specs, 38.4 min, exit 0 (2026-08-08).
 
@@ -842,6 +842,7 @@ campaign, in the frozen
 
 | Wave | Delta | What it landed |
 |---|---|---|
+| View rotation, ADRs 0049–0051 (2026-10-04) | lib `+132` / `+9` suites, app `+17` / `+1` suite; e2e `view-rotation.spec.ts` (18 tests) + `PERF_ROTATE` | the per-instance strategy and orientation suites, keep-upright and grid-pass geometry, the page-default and controls suites, rotation-invariant cull bounds, the drawing-buffer redraw and screenshot budget, and icon-pack inference by id prefix (`packForIconId.test.ts`). `PERF_ROTATE` asserts zero builds in motion at 1k / 5k / 20k |
 | Exploratory remediation waves 4–6 (2026-08-02 → 2026-08-08) | lib `+324` / `+24` suites, app `+132` / `+11` | consistency & decided UX, the two design-gated larges, and the program build-out. Wave 6 closed the program: the picker resolves the layer tier and cross-type through the renderer's own comparator (`pickerAgreement.contract.test.ts`, 22 tests, red-verified once per moving part), and the method became the [`/explore`](../../.claude/commands/explore.md) skill |
 | Exploratory remediation wave 3 (2026-07-31) | lib `+188` / `+13` suites | the I-block and the R-block — the whole delta is lib because both are lib code — plus the layer-filter class gate. E2E **250 passed (34.8 min), exit 0** |
 | Exploratory remediation wave 2 (2026-07-30) | lib `+6` / `+1` suite, app `+14` / `+1`, backend `+32` / `+2`, worker `+5` | the S-track and the read-only enforcement class, plus four class gates. E2E **189 passed, exit 0** |

@@ -1,6 +1,6 @@
 # ADR 0049 — View Rotation: Camera & Projection Model
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-03
 **Supersedes:** none
 **Superseded by:** none
@@ -100,7 +100,7 @@ All changes go through `uiState.actions.setViewRotation`, which keeps the tile u
 - **Step animations** ease along the shortest arc in about 220 ms, and are instant under `prefers-reduced-motion`. A canvas press during an animation completes it first.
 - **Touch:** twist stays out of scope ([ADR 0018](0018-touch-pen-gesture-contract.md)). The dock buttons work on touch.
 
-> **TODO (owner):** confirm the step size (15°, with Shift jumping to the next cardinal angle), dropping the POC's slider, and the drag sensitivity.
+**2026-10-04 (owner):** confirmed as built — 15° steps, Shift jumps to the next cardinal angle, no slider, and Alt + drag at about 0.4° per px with Shift snapping to 15°.
 
 ## Consequences
 
@@ -142,7 +142,7 @@ All changes go through `uiState.actions.setViewRotation`, which keeps the tile u
   - The contract test fails on a hand-composed offset.
 - **Perf (`PERF_ROTATE`):** no per-frame build during motion at 1k, 5k and 20k nodes, and p95 motion frame ≤ 16.7 ms at all three tiers on the reference GPU.
 
-  > **TODO (owner):** confirm these thresholds.
+  **2026-10-04 (owner):** the thresholds stand. As measured ([`perf-results/rotate.md`](../../perf-results/rotate.md)) the zero-build gate holds at all three tiers and p95 is 16.74 / 16.7 / 16.8 ms. The 1k overshoot is the ~330 DOM connector-label chips (about 6–7 ms per frame), logged as a follow-up in [known_issues.md](../../known_issues.md); the 20k figure sits on the 60 Hz frame-timer boundary.
 - **Manual verification** (real browser, real GPU):
   - Orbit a 1k mixed-element diagram without stutter; geometry is exact after release.
   - Alt+click still removes a waypoint.

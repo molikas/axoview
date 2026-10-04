@@ -1,6 +1,6 @@
 # ADR 0050 — View Rotation: Render & Legibility Policy
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-03
 **Supersedes:** none
 **Superseded by:** none
