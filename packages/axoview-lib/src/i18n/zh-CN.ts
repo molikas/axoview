@@ -411,6 +411,10 @@ const locale: LocaleProps = {
     nothingToPin: '0° 为标准角度 — 旋转视图以固定其他页面默认角度',
     pinnedNotice: '页面默认角度已设为 {angle}：此页面现在对所有人都以该角度打开（可撤销）',
     unpinnedNotice: '已移除页面默认角度：此页面现在对所有人都以 0° 打开（可撤销）',
+    orbitHint: '按住 Alt 拖动画布可自由环绕旋转',
+    replacePageDefault: '将 {angle} 设为页面默认角度（替换 {default}）',
+    removePageDefault: '移除页面默认角度（{default}）— 页面将以 0° 打开',
+    pinnedElsewhereHint: '页面默认角度：{default} — 点击以替换或移除',
     disabledIn2D: '视图旋转仅在等距视图中可用',
     announce: '视角 {angle}'
   },
@@ -479,6 +483,7 @@ const locale: LocaleProps = {
     angle: '角度',
     angleAsViewed: '当前视角 ({angle})',
     anglePageDefault: '页面默认 ({angle})',
+    anglePageDefaultSame: '页面默认角度（{angle}）— 与当前视图相同',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: '导出为图片',

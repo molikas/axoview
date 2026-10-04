@@ -1076,7 +1076,10 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
                       />
                     }
                   />
-                  {anglesDiffer && (
+                  {/* Always shown in iso, so the choice can be found; at the
+                      page default the two options coincide, and the second
+                      says so instead of vanishing (UX review 2026-10-03). */}
+                  {isIso && (
                     <FormControl sx={{ gridColumn: '1 / -1', mt: 0.5 }}>
                       <FormLabel
                         sx={{ fontSize: 12 }}
@@ -1087,7 +1090,7 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
                       <RadioGroup
                         row
                         aria-labelledby="export-angle-label"
-                        value={angleSource}
+                        value={anglesDiffer ? angleSource : 'asViewed'}
                         onChange={(event) =>
                           setAngleSource(
                             event.target.value as 'asViewed' | 'pageDefault'
@@ -1106,11 +1109,11 @@ export const ExportImageDialog = memo(({ onClose }: Props) => {
                         <FormControlLabel
                           value="pageDefault"
                           control={<Radio size="small" />}
+                          disabled={!anglesDiffer}
                           data-testid="export-angle-page-default"
-                          label={t('anglePageDefault').replace(
-                            '{angle}',
-                            formatViewAngle(pageDefaultRotation)
-                          )}
+                          label={t(
+                            anglesDiffer ? 'anglePageDefault' : 'anglePageDefaultSame'
+                          ).replace('{angle}', formatViewAngle(pageDefaultRotation))}
                         />
                       </RadioGroup>
                     </FormControl>

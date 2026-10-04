@@ -432,6 +432,10 @@ const locale: LocaleProps = {
     nothingToPin: '0° adalah sudut standar — putar tampilan untuk menyematkan bawaan halaman yang lain',
     pinnedNotice: 'Bawaan halaman diatur ke {angle}: halaman ini kini terbuka pada sudut ini untuk semua orang (urungkan untuk membatalkan)',
     unpinnedNotice: 'Bawaan halaman dihapus: halaman ini kini terbuka pada 0° untuk semua orang (urungkan untuk membatalkan)',
+    orbitHint: 'Alt + seret kanvas untuk mengorbit bebas',
+    replacePageDefault: 'Jadikan {angle} bawaan halaman (menggantikan {default})',
+    removePageDefault: 'Hapus bawaan halaman ({default}) — halaman terbuka pada 0°',
+    pinnedElsewhereHint: 'Bawaan halaman: {default} — klik untuk mengganti atau menghapusnya',
     disabledIn2D: 'Rotasi tampilan tersedia di tampilan isometrik',
     announce: 'Sudut tampilan {angle}'
   },
@@ -502,6 +506,7 @@ const locale: LocaleProps = {
     angle: 'Sudut',
     angleAsViewed: 'Seperti ditampilkan ({angle})',
     anglePageDefault: 'Bawaan halaman ({angle})',
+    anglePageDefaultSame: 'Bawaan halaman ({angle}) — sama dengan tampilan Anda',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'Ekspor sebagai gambar',

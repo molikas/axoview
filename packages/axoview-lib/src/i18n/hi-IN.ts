@@ -430,6 +430,10 @@ const locale: LocaleProps = {
     nothingToPin: '0° मानक कोण है — कोई दूसरा पेज डिफ़ॉल्ट पिन करने के लिए दृश्य घुमाएँ',
     pinnedNotice: 'पेज डिफ़ॉल्ट {angle} पर सेट हुआ: अब यह पेज सभी के लिए इसी कोण पर खुलेगा (वापस लेने के लिए पूर्ववत करें)',
     unpinnedNotice: 'पेज डिफ़ॉल्ट हटाया गया: अब यह पेज सभी के लिए 0° पर खुलेगा (वापस लेने के लिए पूर्ववत करें)',
+    orbitHint: 'स्वतंत्र रूप से घुमाने के लिए Alt + कैनवास खींचें',
+    replacePageDefault: '{angle} को पेज डिफ़ॉल्ट बनाएँ ({default} की जगह)',
+    removePageDefault: 'पेज डिफ़ॉल्ट ({default}) हटाएँ — पेज 0° पर खुलेगा',
+    pinnedElsewhereHint: 'पेज डिफ़ॉल्ट: {default} — बदलने या हटाने के लिए क्लिक करें',
     disabledIn2D: 'दृश्य घुमाव आइसोमेट्रिक दृश्य में उपलब्ध है',
     announce: 'दृश्य कोण {angle}'
   },
@@ -500,6 +504,7 @@ const locale: LocaleProps = {
     angle: 'कोण',
     angleAsViewed: 'जैसा दिख रहा है ({angle})',
     anglePageDefault: 'पेज डिफ़ॉल्ट ({angle})',
+    anglePageDefaultSame: 'पेज डिफ़ॉल्ट ({angle}) — आपके दृश्य जैसा ही',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'छवि के रूप में निर्यात करें',

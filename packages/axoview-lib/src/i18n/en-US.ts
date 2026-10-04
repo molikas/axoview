@@ -432,6 +432,10 @@ const locale: LocaleProps = {
     nothingToPin: '0° is the standard angle — rotate the view to pin a different page default',
     pinnedNotice: 'Page default set to {angle}: this page now opens at this angle for everyone (undo to revert)',
     unpinnedNotice: 'Page default removed: this page now opens at 0° for everyone (undo to revert)',
+    orbitHint: 'Alt + drag the canvas to orbit freely',
+    replacePageDefault: 'Set {angle} as page default (replaces {default})',
+    removePageDefault: 'Remove page default ({default}) — the page opens at 0°',
+    pinnedElsewhereHint: 'Page default: {default} — click to replace or remove it',
     disabledIn2D: 'View rotation is available in the isometric view',
     announce: 'View angle {angle}'
   },
@@ -501,6 +505,7 @@ const locale: LocaleProps = {
     angle: 'Angle',
     angleAsViewed: 'As viewed ({angle})',
     anglePageDefault: 'Page default ({angle})',
+    anglePageDefaultSame: 'Page default ({angle}) — same as your view',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'Export as image',

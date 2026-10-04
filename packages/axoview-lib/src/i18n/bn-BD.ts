@@ -432,6 +432,10 @@ const locale: LocaleProps = {
     nothingToPin: '0° হলো আদর্শ কোণ — অন্য কোনো পৃষ্ঠার ডিফল্ট পিন করতে ভিউ ঘোরান',
     pinnedNotice: 'পৃষ্ঠার ডিফল্ট {angle} সেট হয়েছে: এখন সবার জন্য এই পৃষ্ঠা এই কোণে খুলবে (ফেরাতে পূর্বাবস্থায় ফিরুন)',
     unpinnedNotice: 'পৃষ্ঠার ডিফল্ট সরানো হয়েছে: এখন সবার জন্য এই পৃষ্ঠা 0°-এ খুলবে (ফেরাতে পূর্বাবস্থায় ফিরুন)',
+    orbitHint: 'মুক্তভাবে ঘোরাতে Alt চেপে ক্যানভাস টানুন',
+    replacePageDefault: '{angle} পৃষ্ঠার ডিফল্ট হিসেবে সেট করুন ({default}-এর বদলে)',
+    removePageDefault: 'পৃষ্ঠার ডিফল্ট ({default}) সরান — পৃষ্ঠাটি 0°-এ খুলবে',
+    pinnedElsewhereHint: 'পৃষ্ঠার ডিফল্ট: {default} — বদলাতে বা সরাতে ক্লিক করুন',
     disabledIn2D: 'ভিউ ঘোরানো আইসোমেট্রিক ভিউতে উপলব্ধ',
     announce: 'ভিউ কোণ {angle}'
   },
@@ -501,6 +505,7 @@ const locale: LocaleProps = {
     angle: 'কোণ',
     angleAsViewed: 'যেমন দেখা যাচ্ছে ({angle})',
     anglePageDefault: 'পৃষ্ঠার ডিফল্ট ({angle})',
+    anglePageDefaultSame: 'পৃষ্ঠার ডিফল্ট ({angle}) — আপনার ভিউয়ের মতোই',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'ছবি হিসেবে রপ্তানি করুন',

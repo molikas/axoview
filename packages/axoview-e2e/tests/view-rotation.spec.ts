@@ -566,7 +566,7 @@ test.describe('View rotation — export (ADR 0051 §5)', () => {
     expect(await readoutDeg(page)).toBe(45);
   });
 
-  test('no angle choice when the view is at the page default', async ({
+  test('at the page default the angle choice is shown, with the two options merged', async ({
     page,
     app
   }) => {
@@ -579,7 +579,15 @@ test.describe('View rotation — export (ADR 0051 §5)', () => {
     await page
       .locator('img[alt="preview"]')
       .waitFor({ state: 'visible', timeout: 20_000 });
-    await expect(page.locator('[data-testid="export-angle-page-default"]')).toHaveCount(0);
+    // Still shown, so it can be found; the second option says it is the same
+    // angle and cannot be picked (UX review 2026-10-03).
+    const asViewed = page.locator('[data-testid="export-angle-as-viewed"] input');
+    const pageDefault = page.locator('[data-testid="export-angle-page-default"] input');
+    await expect(asViewed).toBeChecked();
+    await expect(pageDefault).toBeDisabled();
+    await expect(page.locator('[data-testid="export-angle-page-default"]')).toContainText(
+      'same as your view'
+    );
   });
 });
 

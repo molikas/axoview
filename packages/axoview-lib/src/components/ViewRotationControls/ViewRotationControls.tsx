@@ -1,5 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Stack, IconButton, Tooltip, ButtonBase, Divider, Box } from '@mui/material';
+import {
+  Stack,
+  IconButton,
+  Tooltip,
+  ButtonBase,
+  Divider,
+  Box,
+  Menu,
+  MenuItem
+} from '@mui/material';
 import {
   PushPin as PinnedIcon,
   PushPinOutlined as PinIcon
@@ -19,11 +28,13 @@ import { formatViewAngle, normaliseDeg } from 'src/utils/viewRotation';
 //   ⟲ / ⟳        step 15° onto the 15° lattice (Q / E do the same)
 //   ↺ 30°        a RESET button with ONE target: the page default. Disabled
 //                once there, so repeated clicks never wander on to another angle
-//   pin          editor only, a TOGGLE: off the default it pins θ as the page's
-//                `defaultRotation`; on a pinned default it shows filled and
-//                unpins it (the page opens at 0° again). Each is one undo step
-//                and is confirmed by a notice, because it changes the page for
-//                everyone. To get back to 0° after pinning: unpin, then reset
+//   pin          editor only. Outlined while the page has no default: a click
+//                pins θ as the page's `defaultRotation`. FILLED whenever a
+//                default exists, so it is visible from any angle: on the
+//                default (highlighted) a click unpins it; elsewhere a click
+//                opens a menu — replace it with θ, or remove it. Each change is
+//                one undo step and is confirmed by a notice, because it changes
+//                the page for everyone
 //
 // The readout shows a BEARING, clockwise positive (`formatViewAngle`), so E —
 // which turns the floor clockwise — counts up. The angle itself is per-viewer
@@ -110,8 +121,12 @@ export const ViewRotationControls = () => {
   // a rotation either: it is disabled in place, so the dock does not reflow.
   const atDefault = sameAngle(settled, pageDefault);
   const hasDefault = !sameAngle(pageDefault, 0);
-  // Filled while the view sits on a pinned page default: clicking unpins it.
+  // Highlighted while the view sits on a pinned page default: clicking unpins.
   const pinned = atDefault && hasDefault;
+  // A default exists but the view is elsewhere: the pin stays filled (so the
+  // default is never invisible) and offers replace / remove.
+  const pinnedElsewhere = hasDefault && !atDefault;
+  const [pinMenuAnchor, setPinMenuAnchor] = useState<HTMLElement | null>(null);
   const showSetDefault = canMutate(editorMode);
 
   // Announce the angle once a rotation settles (aria-live), never per frame.
@@ -127,6 +142,17 @@ export const ViewRotationControls = () => {
   }, [settled, inMotion, t]);
 
   const disabledHint = t('disabledIn2D');
+  // The step buttons also teach the free orbit, which has no button of its own.
+  const stepTitle = (label: string) =>
+    isIso ? (
+      <>
+        {label}
+        <br />
+        {t('orbitHint')}
+      </>
+    ) : (
+      disabledHint
+    );
   const readoutTitle = atDefault
     ? t('atDefault').replace('{angle}', formatViewAngle(rotation))
     : t('resetToDefault')
@@ -139,29 +165,37 @@ export const ViewRotationControls = () => {
           '{angle}',
           formatViewAngle(pageDefault)
         )}`
-      : atDefault
+      : pinnedElsewhere
+        ? t('pinnedElsewhereHint').replace('{default}', formatViewAngle(pageDefault))
+        : atDefault
         ? t('nothingToPin')
         : `${t('setAsPageDefault')} — ${t('setAsPageDefaultHint').replace(
             '{angle}',
             formatViewAngle(rotation)
           )}`;
 
-  const togglePageDefault = () => {
-    if (!viewId) return;
-    // Mid-step, land the animation first: the default is the angle the step
-    // was going to, never an intermediate frame.
+  // Mid-step, land the animation first: a default is the angle the step was
+  // going to, never an intermediate frame.
+  const landAnimation = () => {
     if (uiApi.getState().viewRotationInMotion) {
       actions.finishViewRotationAnimation();
     }
-    // Unpin: the field goes (lean save) and the page opens at 0° again. The
-    // camera stays where it is, so the pin is offered again right away.
-    // Either way the change reaches everyone who opens the page, so it is
-    // confirmed in words, not left to a hover tooltip (it stays one undo step).
-    if (pinned) {
-      updateView(viewId, { defaultRotation: undefined });
-      actions.setNotification({ message: t('unpinnedNotice'), severity: 'info' });
-      return;
-    }
+  };
+
+  // Each change reaches everyone who opens the page, so it is confirmed in
+  // words, not left to a hover tooltip — and stays one undo step.
+  const removePageDefault = () => {
+    if (!viewId) return;
+    landAnimation();
+    // The field goes (lean save) and the page opens at 0° again. The camera
+    // stays where it is, so the pin is offered again right away.
+    updateView(viewId, { defaultRotation: undefined });
+    actions.setNotification({ message: t('unpinnedNotice'), severity: 'info' });
+  };
+
+  const setPageDefault = () => {
+    if (!viewId) return;
+    landAnimation();
     // One timestamped UPDATE_VIEW = one undo step, dirty + autosave like any
     // edit (ADR 0051 §2). 0 removes the field (lean save); rounded to 0.1°.
     const landed = uiApi.getState().viewRotation;
@@ -171,6 +205,12 @@ export const ViewRotationControls = () => {
       message: t('pinnedNotice').replace('{angle}', formatViewAngle(value)),
       severity: 'success'
     });
+  };
+
+  const onPinClick = (e: React.MouseEvent<HTMLElement>) => {
+    if (pinned) removePageDefault();
+    else if (pinnedElsewhere) setPinMenuAnchor(e.currentTarget);
+    else setPageDefault();
   };
 
   return (
@@ -183,7 +223,7 @@ export const ViewRotationControls = () => {
       data-axoview-id="view-rotation"
     >
       <Tooltip
-        title={isIso ? t('rotateCounterClockwise') : disabledHint}
+        title={stepTitle(t('rotateCounterClockwise'))}
         placement="top"
       >
         <span>
@@ -219,11 +259,13 @@ export const ViewRotationControls = () => {
               fontVariantNumeric: 'tabular-nums',
               color: 'text.primary',
               '&:hover': { bgcolor: 'action.hover' },
+              // At the default only the reset ARROW fades: the angle is a value
+              // to read, and greying it made the readout look broken.
               '&.Mui-disabled': {
-                color: 'text.secondary',
+                color: 'text.primary',
                 opacity: isIso ? 1 : 0.35
               },
-              '&.Mui-disabled svg': { opacity: 0.4 }
+              '&.Mui-disabled svg': { opacity: 0.3 }
             }}
           >
             <ResetIcon />
@@ -233,7 +275,7 @@ export const ViewRotationControls = () => {
       </Tooltip>
 
       <Tooltip
-        title={isIso ? t('rotateClockwise') : disabledHint}
+        title={stepTitle(t('rotateClockwise'))}
         placement="top"
       >
         <span>
@@ -266,12 +308,22 @@ export const ViewRotationControls = () => {
                   : btnSx
               }
               disabled={!isIso || (atDefault && !hasDefault)}
-              aria-label={pinned ? t('unpinPageDefault') : t('setAsPageDefault')}
+              aria-label={
+                pinned
+                  ? t('unpinPageDefault')
+                  : pinnedElsewhere
+                    ? t('pinnedElsewhereHint').replace(
+                        '{default}',
+                        formatViewAngle(pageDefault)
+                      )
+                    : t('setAsPageDefault')
+              }
               aria-pressed={isIso && pinned}
-              onClick={togglePageDefault}
+              aria-haspopup={pinnedElsewhere ? 'menu' : undefined}
+              onClick={onPinClick}
               data-axoview-id="view-rotation-set-default"
             >
-              {pinned && isIso ? (
+              {hasDefault && isIso ? (
                 <PinnedIcon sx={{ fontSize: 16 }} />
               ) : (
                 <PinIcon sx={{ fontSize: 16 }} />
@@ -280,6 +332,36 @@ export const ViewRotationControls = () => {
           </span>
         </Tooltip>
       )}
+      <Menu
+        anchorEl={pinMenuAnchor}
+        open={!!pinMenuAnchor}
+        onClose={() => setPinMenuAnchor(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <MenuItem
+          dense
+          data-axoview-id="view-rotation-replace-default"
+          onClick={() => {
+            setPinMenuAnchor(null);
+            setPageDefault();
+          }}
+        >
+          {t('replacePageDefault')
+            .replace('{angle}', formatViewAngle(rotation))
+            .replace('{default}', formatViewAngle(pageDefault))}
+        </MenuItem>
+        <MenuItem
+          dense
+          data-axoview-id="view-rotation-remove-default"
+          onClick={() => {
+            setPinMenuAnchor(null);
+            removePageDefault();
+          }}
+        >
+          {t('removePageDefault').replace('{default}', formatViewAngle(pageDefault))}
+        </MenuItem>
+      </Menu>
 
       {/* Screen-reader announcement on settle (ADR 0049 §7). */}
       <Box

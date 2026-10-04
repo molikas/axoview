@@ -443,6 +443,10 @@ const locale: LocaleProps = {
     nothingToPin: '0° ist der Standardwinkel — drehen Sie die Ansicht, um einen anderen Seitenstandard festzulegen',
     pinnedNotice: 'Seitenstandard auf {angle} gesetzt: Diese Seite öffnet sich jetzt für alle unter diesem Winkel (rückgängig machen zum Zurücksetzen)',
     unpinnedNotice: 'Seitenstandard entfernt: Diese Seite öffnet sich jetzt für alle unter 0° (rückgängig machen zum Zurücksetzen)',
+    orbitHint: 'Alt + Ziehen auf der Zeichenfläche dreht frei',
+    replacePageDefault: '{angle} als Seitenstandard festlegen (ersetzt {default})',
+    removePageDefault: 'Seitenstandard ({default}) entfernen — die Seite öffnet sich unter 0°',
+    pinnedElsewhereHint: 'Seitenstandard: {default} — klicken, um ihn zu ersetzen oder zu entfernen',
     disabledIn2D: 'Die Ansichtsdrehung ist in der isometrischen Ansicht verfügbar',
     announce: 'Ansichtswinkel {angle}'
   },
@@ -513,6 +517,7 @@ const locale: LocaleProps = {
     angle: 'Winkel',
     angleAsViewed: 'Wie angezeigt ({angle})',
     anglePageDefault: 'Seitenstandard ({angle})',
+    anglePageDefaultSame: 'Seitenstandard ({angle}) — wie Ihre Ansicht',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'Als Bild exportieren',

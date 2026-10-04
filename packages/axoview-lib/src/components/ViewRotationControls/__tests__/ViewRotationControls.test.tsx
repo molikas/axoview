@@ -170,7 +170,6 @@ describe('ViewRotationControls — pin toggle, reset and readout (UX review 2026
   });
 
   it('pinning confirms the shared change in words', () => {
-    pageDefault = 30;
     ui = baseUi({ viewRotation: 45, viewRotationBase: 45 });
     render(<ViewRotationControls />);
     expect(pin()!.getAttribute('aria-pressed')).toBe('false');
@@ -181,6 +180,42 @@ describe('ViewRotationControls — pin toggle, reset and readout (UX review 2026
       message: 'pinnedNotice',
       severity: 'success'
     });
+  });
+
+  it('away from a pinned default, the pin says one exists and offers replace or remove', () => {
+    const menuItem = (id: string) =>
+      document.querySelector<HTMLElement>(`[data-axoview-id="${id}"]`);
+    pageDefault = 30;
+    ui = baseUi({ viewRotation: 45, viewRotationBase: 45 });
+    render(<ViewRotationControls />);
+    // Not pressed (the view is not on it), but announced and menu-backed.
+    expect(pin()!.getAttribute('aria-pressed')).toBe('false');
+    expect(pin()!.getAttribute('aria-haspopup')).toBe('menu');
+    expect(pin()!.getAttribute('aria-label')).toBe('pinnedElsewhereHint');
+    expect(updateView).not.toHaveBeenCalled();
+
+    fireEvent.click(pin()!);
+    fireEvent.click(menuItem('view-rotation-replace-default')!);
+    expect(updateView).toHaveBeenLastCalledWith('v1', { defaultRotation: 45 });
+
+    fireEvent.click(pin()!);
+    fireEvent.click(menuItem('view-rotation-remove-default')!);
+    expect(updateView).toHaveBeenLastCalledWith('v1', {
+      defaultRotation: undefined
+    });
+    expect(acts().setNotification).toHaveBeenLastCalledWith({
+      message: 'unpinnedNotice',
+      severity: 'info'
+    });
+  });
+
+  it('the step buttons teach the Alt + drag orbit', async () => {
+    ui = baseUi();
+    render(<ViewRotationControls />);
+    fireEvent.mouseOver(
+      document.querySelector('[data-axoview-id="view-rotation-cw"]')!
+    );
+    expect(await screen.findByText(/orbitHint/)).toBeTruthy();
   });
 
   it('reset has ONE target — the page default — and is disabled once there', () => {

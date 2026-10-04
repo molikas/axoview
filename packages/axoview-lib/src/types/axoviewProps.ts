@@ -440,6 +440,10 @@ export interface LocaleProps {
     nothingToPin: string;
     pinnedNotice: string;
     unpinnedNotice: string;
+    orbitHint: string;
+    replacePageDefault: string;
+    removePageDefault: string;
+    pinnedElsewhereHint: string;
     disabledIn2D: string;
     announce: string;
   };
@@ -512,6 +516,7 @@ export interface LocaleProps {
     angle: string;
     angleAsViewed: string;
     anglePageDefault: string;
+    anglePageDefaultSame: string;
     groupBackground: string;
     groupCrop: string;
     showGrid: string;

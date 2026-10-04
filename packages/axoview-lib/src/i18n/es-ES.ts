@@ -442,6 +442,10 @@ const locale: LocaleProps = {
     nothingToPin: '0° es el ángulo estándar — gira la vista para fijar otro predeterminado de la página',
     pinnedNotice: 'Predeterminado de la página fijado en {angle}: esta página se abre ahora con este ángulo para todos (deshaz para revertir)',
     unpinnedNotice: 'Predeterminado de la página eliminado: esta página se abre ahora a 0° para todos (deshaz para revertir)',
+    orbitHint: 'Alt + arrastrar el lienzo para orbitar libremente',
+    replacePageDefault: 'Establecer {angle} como predeterminado de la página (sustituye a {default})',
+    removePageDefault: 'Quitar el predeterminado de la página ({default}) — se abrirá a 0°',
+    pinnedElsewhereHint: 'Predeterminado de la página: {default} — haz clic para sustituirlo o quitarlo',
     disabledIn2D: 'La rotación de la vista está disponible en la vista isométrica',
     announce: 'Ángulo de vista {angle}'
   },
@@ -512,6 +516,7 @@ const locale: LocaleProps = {
     angle: 'Ángulo',
     angleAsViewed: 'Como se ve ({angle})',
     anglePageDefault: 'Predeterminado de la página ({angle})',
+    anglePageDefaultSame: 'Predeterminado de la página ({angle}) — igual que tu vista',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'Exportar como imagen',

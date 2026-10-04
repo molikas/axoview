@@ -440,6 +440,10 @@ const locale: LocaleProps = {
     nothingToPin: '0° to kąt standardowy — obróć widok, aby przypiąć inny domyślny kąt strony',
     pinnedNotice: 'Ustawiono domyślny kąt strony na {angle}: ta strona otwiera się teraz pod tym kątem dla wszystkich (cofnij, aby przywrócić)',
     unpinnedNotice: 'Usunięto domyślny kąt strony: ta strona otwiera się teraz pod kątem 0° dla wszystkich (cofnij, aby przywrócić)',
+    orbitHint: 'Alt + przeciągnij płótno, aby swobodnie obracać',
+    replacePageDefault: 'Ustaw {angle} jako domyślny kąt strony (zastępuje {default})',
+    removePageDefault: 'Usuń domyślny kąt strony ({default}) — strona otworzy się pod kątem 0°',
+    pinnedElsewhereHint: 'Domyślny kąt strony: {default} — kliknij, aby go zastąpić lub usunąć',
     disabledIn2D: 'Obrót widoku jest dostępny w widoku izometrycznym',
     announce: 'Kąt widoku {angle}'
   },
@@ -510,6 +514,7 @@ const locale: LocaleProps = {
     angle: 'Kąt',
     angleAsViewed: 'Jak wyświetlono ({angle})',
     anglePageDefault: 'Domyślny dla strony ({angle})',
+    anglePageDefaultSame: 'Domyślny kąt strony ({angle}) — taki sam jak Twój widok',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'Eksportuj jako obraz',

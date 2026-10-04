@@ -436,6 +436,10 @@ const locale: LocaleProps = {
     nothingToPin: '0° standart açıdır — farklı bir sayfa varsayılanı sabitlemek için görünümü döndürün',
     pinnedNotice: 'Sayfa varsayılanı {angle} olarak ayarlandı: bu sayfa artık herkes için bu açıda açılır (geri almak için geri alın)',
     unpinnedNotice: 'Sayfa varsayılanı kaldırıldı: bu sayfa artık herkes için 0° açısında açılır (geri almak için geri alın)',
+    orbitHint: 'Serbestçe döndürmek için Alt + tuvali sürükleyin',
+    replacePageDefault: '{angle} açısını sayfa varsayılanı yap ({default} yerine)',
+    removePageDefault: "Sayfa varsayılanını ({default}) kaldır — sayfa 0°'de açılır",
+    pinnedElsewhereHint: 'Sayfa varsayılanı: {default} — değiştirmek veya kaldırmak için tıklayın',
     disabledIn2D: 'Görünüm döndürme izometrik görünümde kullanılabilir',
     announce: 'Görünüm açısı {angle}'
   },
@@ -506,6 +510,7 @@ const locale: LocaleProps = {
     angle: 'Açı',
     angleAsViewed: 'Görüntülendiği gibi ({angle})',
     anglePageDefault: 'Sayfa varsayılanı ({angle})',
+    anglePageDefaultSame: 'Sayfa varsayılanı ({angle}) — görünümünüzle aynı',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'Resim olarak dışa aktar',

@@ -441,6 +441,10 @@ const locale: LocaleProps = {
     nothingToPin: '0° è l’angolo standard — ruota la vista per fissare un altro predefinito della pagina',
     pinnedNotice: 'Predefinito della pagina impostato a {angle}: ora questa pagina si apre con questo angolo per tutti (annulla per ripristinare)',
     unpinnedNotice: 'Predefinito della pagina rimosso: ora questa pagina si apre a 0° per tutti (annulla per ripristinare)',
+    orbitHint: 'Alt + trascina la tela per orbitare liberamente',
+    replacePageDefault: 'Imposta {angle} come predefinito della pagina (sostituisce {default})',
+    removePageDefault: 'Rimuovi il predefinito della pagina ({default}) — si aprirà a 0°',
+    pinnedElsewhereHint: 'Predefinito della pagina: {default} — fai clic per sostituirlo o rimuoverlo',
     disabledIn2D: 'La rotazione della vista è disponibile nella vista isometrica',
     announce: 'Angolo di vista {angle}'
   },
@@ -512,6 +516,7 @@ const locale: LocaleProps = {
     angle: 'Angolo',
     angleAsViewed: 'Come visualizzato ({angle})',
     anglePageDefault: 'Predefinito della pagina ({angle})',
+    anglePageDefaultSame: 'Predefinito della pagina ({angle}) — uguale alla tua vista',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'Esporta come immagine',

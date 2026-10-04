@@ -56,6 +56,7 @@ The POC keeps the angle in `uiState` only. So it resets on reload and never reac
 
 - **Editor only.** In EDITABLE, the rotation widget offers **Set as page default** whenever θ differs from the page default.
 - **The pin is a toggle (2026-10-03).** While the view sits on a pinned, non-zero default, the pin shows filled and pressed, and clicking it **unpins** the default, so the page opens at 0° again. The camera stays where it is. Without this, a pinned angle could only be undone with Ctrl+Z or by rotating back to 0° and pinning that. The pin never disappears; it is disabled in place at 0° with no default, so the dock does not reflow as the view turns.
+- **A default is never invisible (2026-10-03, UX review).** The pin is filled whenever the page has a default. Away from it, a click opens a menu: **set θ as the page default (replaces d)** or **remove the page default**. Before, the default could only be removed while sitting exactly on it, and from anywhere else the pin silently replaced it.
 - **Confirmed in words (2026-10-03, UX review).** Pinning and unpinning change the page for everyone, so each shows a notice naming the effect and that undo reverts it, instead of relying on hover text. There is no confirm dialog: the change is one undo step.
 - **An ordinary edit.** It writes `defaultRotation` through the normal view update: one undo step, marked dirty, autosaved like any other edit. Setting the default to 0 removes the field, and so does unpinning.
 - **Nowhere else.** It is never offered in view-only, Present or `NON_INTERACTIVE` instances.
@@ -83,7 +84,7 @@ The POC keeps the angle in `uiState` only. So it resets on reload and never reac
 ### 5. Export: as viewed by default, page default selectable
 
 - **The default is the live angle.** The export dialog renders at the live θ.
-- **When they differ, offer both.** If θ differs from the page default, the dialog's Appearance group offers **Angle: As viewed (θ°) / Page default (d°)**.
+- **When they differ, offer both.** If θ differs from the page default, the dialog's Appearance group offers **Angle: As viewed (θ°) / Page default (d°)**. **2026-10-03 (UX review):** in the isometric view the choice is always shown, so it can be found; at the page default the second option is disabled and labelled "same as your view" instead of the whole group vanishing.
 - **No live canvas, no live angle.** Exports started from the file explorer use the page default.
 - **Wiring.**
   - The chosen angle reaches the hidden instance through `initialData.viewRotation`.
