@@ -179,7 +179,12 @@ const PACK_ID_PREFIXES: ReadonlyArray<readonly [string, IconPackName]> = [
   ['gcp-', 'gcp'],
   // No dash: the azure pack also ships `azureattestation`.
   ['azure', 'azure'],
-  ['k8s-', 'kubernetes']
+  ['k8s-', 'kubernetes'],
+  // Each vendor pack's own logo is the one id outside its prefix.
+  ['_aws_', 'aws'],
+  ['_gcp_', 'gcp'],
+  ['_azure_', 'azure'],
+  ['_k8s_', 'kubernetes']
 ];
 
 export const packForIconId = (id: string): IconPackName | null => {
