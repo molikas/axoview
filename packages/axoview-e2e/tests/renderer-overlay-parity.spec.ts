@@ -39,6 +39,7 @@ import { CanvasPOM } from '../pom/CanvasPOM';
 import { placeIconViaMouse } from '../helpers/place';
 import { getViewItemCount } from '../helpers/store';
 import { sceneCounters } from '../helpers/sceneCanvas';
+import { GRID_INK_ALPHA_MAX } from '../helpers/sceneCanvas';
 
 test.describe.configure({ timeout: 120_000 });
 
@@ -110,7 +111,7 @@ const nodeCounters = (page: Page) =>
 
 /** Non-transparent pixels on a bulk canvas — "is this layer painting?". */
 const paintedPixels = (page: Page, sel: string) =>
-  page.evaluate((s: string) => {
+  page.evaluate(([s, gridMax]: [string, number]) => {
     const gl = document.querySelector(s) as HTMLCanvasElement | null;
     if (!gl || !gl.width || !gl.height) return -1;
     const scratch = document.createElement('canvas');
@@ -121,9 +122,10 @@ const paintedPixels = (page: Page, sel: string) =>
     ctx.drawImage(gl, 0, 0);
     const data = ctx.getImageData(0, 0, scratch.width, scratch.height).data;
     let n = 0;
-    for (let i = 3; i < data.length; i += 4) if (data[i] !== 0) n += 1;
+    // Content only — the grid pass shares this canvas (ADR 0050 §5).
+    for (let i = 3; i < data.length; i += 4) if (data[i] > gridMax) n += 1;
     return n;
-  }, sel);
+  }, [sel, GRID_INK_ALPHA_MAX] as [string, number]);
 
 /**
  * Put ONE layer on the active view and assign every entity to it.

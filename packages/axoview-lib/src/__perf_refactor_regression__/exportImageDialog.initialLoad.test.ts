@@ -92,7 +92,8 @@ describe('ExportImageDialog — initial load fix', () => {
     // fires even while the loading spinner is shown.
     // If the component were inside `{!imageData && ...}` it would unmount
     // as soon as the first export completes, making re-exports impossible.
-    const axoviewBlock = src.indexOf('key="export-dialog-axoview"');
+    // Keyed per export angle since ADR 0051 §5 (a new angle remounts it).
+    const axoviewBlock = src.indexOf('key={`export-dialog-axoview-');
     const imageDataGate = src.indexOf('{!imageData && (');
     // The hidden Axoview must come BEFORE the imageData gate, i.e. it is
     // unconditionally rendered.

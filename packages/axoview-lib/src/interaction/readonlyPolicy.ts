@@ -69,7 +69,12 @@ export const CANVAS_KEYBOARD_SURFACES = {
   /** Arrow keys with a nudge-able selection: moves it by one tile. */
   arrowNudge: 'editor',
   /** Arrow keys with nothing nudge-able selected: scrolls the viewport. */
-  arrowPan: 'viewer'
+  arrowPan: 'viewer',
+  /**
+   * Q / E (Shift: next cardinal angle): turns the view (ADR 0049 §7). The angle
+   * is per-viewer uiState, never written to the model (ADR 0051 §4).
+   */
+  viewRotation: 'viewer'
 } as const satisfies Record<string, SurfaceAccess>;
 
 export type CanvasKeyboardSurface = keyof typeof CANVAS_KEYBOARD_SURFACES;

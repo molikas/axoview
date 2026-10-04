@@ -74,7 +74,9 @@ const paintedBox = (page: Page) =>
     let maxY = -Infinity;
     for (let y = 0; y < scratch.height; y += 1) {
       for (let x = 0; x < scratch.width; x += 1) {
-        if (d[(y * scratch.width + x) * 4 + 3] !== 0) {
+        // Content only: the grid pass shares this canvas at ≤ 38 alpha
+        // (ADR 0050 §5), and would otherwise make the whole canvas "painted".
+        if (d[(y * scratch.width + x) * 4 + 3] > 40) {
           if (x < minX) minX = x;
           if (x > maxX) maxX = x;
           if (y < minY) minY = y;

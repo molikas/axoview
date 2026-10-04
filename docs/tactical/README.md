@@ -1,9 +1,10 @@
 # Tactical working docs
 
-**Empty is the healthy state here.** Two initiatives are currently in flight:
+**Empty is the healthy state here.** Three initiatives are currently in flight:
 
 | In flight | What it is |
 |---|---|
+| [view-rotation.md](view-rotation.md) | Productize the turntable view-rotation POC: per-instance θ, GPU motion transform, keep-upright, procedural grid, per-page default angle, export angle. Scaffolded 2026-10-03 — [ADRs 0049](../adr/0049-view-rotation-camera-and-projection-model.md)–[0051](../adr/0051-view-rotation-default-angle-sharing-and-export.md). Its companion [view-rotation-poc.md](view-rotation-poc.md) is the POC code walkthrough, deleted with it at wrap. |
 | [adr-code-audit.md](adr-code-audit.md) | Verify all 41 ADRs' state + decisions against the code. Scaffolded 2026-07-15; verified findings remediated (see its Disposition block); **419KB — read only that block, never the whole file**. Discharge the remaining rows with **`/docs-sweep gate`**, then wrap. |
 | [release-provenance-and-notes.md](release-provenance-and-notes.md) | Fix version drift (deployed shows 3.7 vs released 3.8.3), stamp the version on the boot splash, and make release notes carry per-fix detail without dead issue links. Scaffolded 2026-07-23 — [ADR 0045](../adr/0045-release-version-provenance-and-in-app-surfacing.md) + [ADR 0046](../adr/0046-release-notes-generation-and-reference-integrity.md). |
 

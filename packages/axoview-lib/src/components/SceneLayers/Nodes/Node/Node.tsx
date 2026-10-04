@@ -125,7 +125,7 @@ const LabelTitle = styled('p')(({ theme }) => ({
 
 export const Node = memo(({ node, order }: Props) => {
   useRenderProbe('Node', node.id);
-  const { getTilePosition } = useCanvasMode();
+  const { getTilePosition, strategy } = useCanvasMode();
 
   const position = useMemo(
     () =>
@@ -138,7 +138,7 @@ export const Node = memo(({ node, order }: Props) => {
 
   // ADR 0023: off-grid residual as a post-projection (SceneLayer px) translate;
   // {0,0} when snapped. Composes with --ff-x/y and the live drag delta below.
-  const renderedOffset = getRenderedOffset(node);
+  const renderedOffset = getRenderedOffset(node, strategy);
 
   return (
     <NodeShell style={{ zIndex: order }} data-drag-id={node.id}>

@@ -14,8 +14,9 @@ import { SpriteBatch, UVRect } from 'src/webgl/glSpriteBatch';
 import { rasterizeNodeChip } from 'src/webgl/itemRaster';
 import {
   getRenderedTilePosition,
-  TilePositionFn
+  getRenderedTileCorner
 } from 'src/utils/renderedGeometry';
+import type { CoordinateTransformStrategy } from 'src/utils/coordinateTransforms';
 
 // ---------------------------------------------------------------------------
 // Node sprites — dotted stalk, icon, name chip — for the merged bulk canvas
@@ -52,12 +53,6 @@ export interface NodeLabelLayout {
 // 2·padX). The on-canvas label is the node's `name` only.
 const LABEL_CHIP_MAX_W = 250;
 const PROJ_W = PROJECTED_TILE_SIZE.width;
-
-// Fixed iso projection matrix (X-orientation) — mirrors getProjectionCss / the
-// NonIsometricIcon transform.
-const ISO: [number, number, number, number, number, number] = [
-  0.707, -0.409, 0.707, 0.409, 0, -0.816
-];
 
 const resolveIcon = (
   iconId: string | undefined,
@@ -100,7 +95,18 @@ export interface NodeEmitterInput {
   batch: SpriteBatch;
   itemsById: Map<string, ModelItem>;
   iconsById: Map<string, Icon>;
-  getTilePos: TilePositionFn;
+  /**
+   * The projection strategy the bulk is BUILT at — mode + the settled view
+   * rotation θ₀ (ADR 0049 §2, §6). Node centres, the flat-icon tile corner and
+   * the ground-plane matrix a flat icon is sheared by all come from it.
+   */
+  strategy: CoordinateTransformStrategy;
+  /**
+   * Keep-upright for FLAT icons (ADR 0050 §2): they lie on the floor in the X
+   * orientation, so at the angles where X reads leftward the quad is drawn
+   * rotated 180° within its own plane — same footprint, never mirrored.
+   */
+  uprightFlip: boolean;
   isIso: boolean;
   inPreview: boolean;
   previewHideLabels: boolean;
@@ -143,7 +149,8 @@ export const createNodeEmitter = ({
   batch: b,
   itemsById,
   iconsById,
-  getTilePos,
+  strategy,
+  uprightFlip,
   isIso,
   inPreview,
   previewHideLabels,
@@ -159,6 +166,12 @@ export const createNodeEmitter = ({
   iconPending,
   putIcon
 }: NodeEmitterInput): NodeEmitter => {
+  // The ground-plane matrix [a,b,c,d,e,f] (X orientation) at the build angle —
+  // what a flat (non-isometric) icon is sheared by. Identity in 2D, where flat
+  // icons are not sheared at all (that branch never reads it).
+  const ISO: readonly number[] = strategy.projectionMatrix('X') ?? [
+    1, 0, 0, 1, 0, 0
+  ];
   const stats: NodeEmitterStats = {
     labelsDrawn: 0,
     linkedLabelsDrawn: 0,
@@ -171,7 +184,7 @@ export const createNodeEmitter = ({
       const modelItem = itemsById.get(node.id);
       if (!modelItem) return false;
 
-      const pos = getRenderedTilePosition(node, getTilePos, 'CENTER');
+      const pos = getRenderedTilePosition(node, strategy, 'CENTER');
 
       const name = decodeHtmlEntities(modelItem.label ?? modelItem.name);
       const hasLabel =
@@ -204,7 +217,13 @@ export const createNodeEmitter = ({
             0,
             0,
             1,
-            0
+            0,
+            0,
+            0,
+            0,
+            // Billboard: the stalk stands on the node's ground point and stays
+            // vertical on screen while the floor turns (ADR 0049 §6).
+            -sign * d
           );
         }
       }
@@ -237,6 +256,11 @@ export const createNodeEmitter = ({
               1,
               1,
               1,
+              0,
+              0,
+              0,
+              0,
+              // Billboard: an upright sprite standing on its tile (ADR 0050 §3).
               0
             );
           } else if (isIso) {
@@ -250,19 +274,39 @@ export const createNodeEmitter = ({
             const h1 = iconHeight(img, w1);
             const dw = w - w1;
             const dh = h - h1;
-            // local (lx,ly) → iso; fold ISO translation into the anchor.
-            const ox =
-              pos.x - PROJ_W / 2 + ISO[4] - 0.5 * (ISO[0] * dw + ISO[2] * dh);
-            const oy = pos.y + ISO[5] - 0.5 * (ISO[1] * dw + ISO[3] * dh);
+            // local (lx,ly) → iso; fold ISO translation into the anchor. The
+            // anchor is the tile's LEFT CORNER in tile space (== the screen-space
+            // `pos − (PROJ_W/2, 0)` while unrotated) so a flat icon stays glued to
+            // its tile when the view is rotated (ADR 0049 §3); off-grid residual
+            // included.
+            const leftCorner = getRenderedTileCorner(node, strategy, 'LEFT');
+            let ox =
+              leftCorner.x + ISO[4] - 0.5 * (ISO[0] * dw + ISO[2] * dh);
+            let oy = leftCorner.y + ISO[5] - 0.5 * (ISO[1] * dw + ISO[3] * dh);
+            let ux = ISO[0] * w;
+            let uy = ISO[1] * w;
+            let vx = ISO[2] * h;
+            let vy = ISO[3] * h;
+            if (uprightFlip) {
+              // Keep-upright (ADR 0050 §2): 180° about the quad's own centre —
+              // start at the opposite corner and walk the negated basis. UVs are
+              // untouched, so the logo turns rather than mirrors.
+              ox += ux + vx;
+              oy += uy + vy;
+              ux = -ux;
+              uy = -uy;
+              vx = -vx;
+              vy = -vy;
+            }
             b.addSprite(
               ox,
               oy,
               0,
               0,
-              ISO[0] * w,
-              ISO[1] * w,
-              ISO[2] * h,
-              ISO[3] * h,
+              ux,
+              uy,
+              vx,
+              vy,
               uv,
               1,
               1,
@@ -287,6 +331,11 @@ export const createNodeEmitter = ({
               1,
               1,
               1,
+              0,
+              0,
+              0,
+              0,
+              // Billboard: an upright sprite standing on its tile (ADR 0050 §3).
               0
             );
           }
@@ -378,7 +427,9 @@ export const createNodeEmitter = ({
             1,
             0,
             0,
-            labelCounterScaleFor(zoom, readableLabels, node.labelFontSize)
+            labelCounterScaleFor(zoom, readableLabels, node.labelFontSize),
+            // Billboard floating `labelHeight` above the node's ground point.
+            -labelHeight
           );
         }
       }

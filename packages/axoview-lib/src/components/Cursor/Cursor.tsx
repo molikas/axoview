@@ -9,6 +9,7 @@ import {
   isSnappedPlacement
 } from 'src/utils/resolvePlacement';
 import { getRenderedDragTransform } from 'src/utils/renderedGeometry';
+import { getLiveStrategy } from 'src/utils/coordinateTransforms';
 
 export const Cursor = memo(() => {
   const theme = useTheme();
@@ -37,8 +38,10 @@ export const Cursor = memo(() => {
     (state) => {
       if (isSnappedPlacement(undefined, state.snapToGrid ?? true)) return null;
       if (!state.rendererSize) return null;
+      // Measured at the LIVE angle (what is under the pointer now), returned in
+      // the stored frame — exactly what a placement would commit.
       return cursorTileResidual(
-        strategy.projectionName,
+        getLiveStrategy(state),
         state.mouse.position.screen,
         state.mouse.position.tile,
         state.zoom,
@@ -50,8 +53,11 @@ export const Cursor = memo(() => {
   );
 
   const offsetStyle = useMemo(
-    () => (residual ? { transform: getRenderedDragTransform(residual) } : null),
-    [residual?.x, residual?.y] // eslint-disable-line react-hooks/exhaustive-deps
+    () =>
+      residual
+        ? { transform: getRenderedDragTransform(residual, strategy) }
+        : null,
+    [residual?.x, residual?.y, strategy] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const area = (

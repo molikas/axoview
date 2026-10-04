@@ -98,7 +98,7 @@ interface DragState {
 }
 
 export const NodeLabelHitLayer = ({ nodes }: Props) => {
-  const { getTilePosition } = useCanvasMode();
+  const { strategy } = useCanvasMode();
   const uiStoreApi = useUiStateStoreApi();
   // Only the single on-release commit touches the model now (T6 fix); the live
   // drag is a transient DOM preview via uiStore.actions.setLabelDrag.
@@ -356,7 +356,7 @@ export const NodeLabelHitLayer = ({ nodes }: Props) => {
         // (tile + px offset), so its hit proxy must carry the same offset — else it
         // sits at the grid cell, grabbing the label off-position and covering the
         // node body (which swallows a right-click → no context menu).
-        const pos = getRenderedTilePosition(node, getTilePosition, 'CENTER');
+        const pos = getRenderedTilePosition(node, strategy, 'CENTER');
         // Match the canvas chip rect: anchored at the node centre, floated by the
         // signed offset; above → chip sits above the anchor, below → at it.
         const y0 = offset < 0 ? 0 : -chip.height;

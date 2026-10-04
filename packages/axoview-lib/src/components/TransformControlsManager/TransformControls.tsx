@@ -18,7 +18,12 @@ import { TransformAnchor } from './TransformAnchor';
 interface Props {
   from: Coords;
   to: Coords;
-  onAnchorMouseDown?: (anchorPosition: AnchorPosition) => void;
+  /**
+   * A handle press. `outward` is the handle's on-screen direction from the
+   * selection centre (unnormalised, SceneLayer px) — the frame is projected, so
+   * under view rotation a corner's direction is not its name's (ADR 0049 §7).
+   */
+  onAnchorMouseDown?: (anchorPosition: AnchorPosition, outward?: Coords) => void;
   /**
    * Restrict which anchors render (e.g. a text box resizes width only, so it
    * offers just the two run-axis edge anchors — ADR 0034 addendum
@@ -108,8 +113,8 @@ export const TransformControls = ({
   // it tracks the element's real rendered position, not its grid cell. Same
   // SceneLayer px as css.left/top and the anchor corners below, so it composes
   // as a plain translate.
-  const { x: offX, y: offY } = getRenderedOffset({ offset });
-  const { getTilePosition, strategy } = useCanvasMode();
+  const { getTilePosition, getTileCorner, strategy } = useCanvasMode();
+  const { x: offX, y: offY } = getRenderedOffset({ offset }, strategy);
   // Screen-pixel-stable readout (counter-scaled 1/zoom), matching the screen-box
   // node outline so both node shapes show the same size pill (QA 2026-07-19).
   const zoom = useUiStateStore((s) => s.zoom) || 1;
@@ -158,15 +163,21 @@ export const TransformControls = ({
           y: center.y + cornerY + offY
         };
       } else {
-        const p = getTilePosition({
+        // Tile CORNER (not a screen-space nudge) so the frame hugs the tile under
+        // view rotation (ADR 0049 §3); identical to the origin offsets at 0°.
+        const p = getTileCorner({
           tile: value,
-          origin: outermostCornerPositions[i]
+          corner: outermostCornerPositions[i] as
+            | 'LEFT'
+            | 'RIGHT'
+            | 'TOP'
+            | 'BOTTOM'
         });
         out[key] = { x: p.x + offX, y: p.y + offY };
       }
     });
     return out;
-  }, [from, to, getTilePosition, strategy.projectionName, offX, offY]);
+  }, [from, to, getTilePosition, getTileCorner, strategy, offX, offY]);
 
   const anchors = useMemo(() => {
     if (!onAnchorMouseDown) return [];
@@ -201,7 +212,10 @@ export const TransformControls = ({
           Math.atan2(position.y - center.y, position.x - center.x)
         ),
         onMouseDown: () => {
-          onAnchorMouseDown(key as AnchorPosition);
+          onAnchorMouseDown(key as AnchorPosition, {
+            x: position.x - center.x,
+            y: position.y - center.y
+          });
         }
       })
     );
@@ -232,7 +246,8 @@ export const TransformControls = ({
         barAngleDeg: (edgeAngle * 180) / Math.PI,
         cursor: resizeCursorForAngle(edgeAngle + Math.PI / 2),
         onMouseDown: () => {
-          onAnchorMouseDown(key);
+          const m = midpoint(ca, cb);
+          onAnchorMouseDown(key, { x: m.x - center.x, y: m.y - center.y });
         }
       };
     });

@@ -28,7 +28,7 @@ const HoverNode = ({ id }: { id: string }) => {
   const modelItem = useModelItem(id);
   const { icon } = useIcon(modelItem?.icon);
   const aspect = useImageAspect(icon.url);
-  const { getTilePosition } = useCanvasMode();
+  const { strategy } = useCanvasMode();
   if (!node) return null;
   const scale = node.iconScale ?? icon.scale ?? 1;
   // Trace each shape (ADR 0044): a flat / Material icon → the iso diamond (like a
@@ -48,7 +48,7 @@ const HoverNode = ({ id }: { id: string }) => {
   const width = PROJECTED_TILE_SIZE.width * 0.8 * scale;
   return (
     <ScreenBoxTransformControls
-      center={getRenderedTilePosition(node, getTilePosition, 'CENTER')}
+      center={getRenderedTilePosition(node, strategy, 'CENTER')}
       width={width}
       height={width * (aspect || 1)}
       subtle

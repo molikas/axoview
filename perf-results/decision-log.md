@@ -1771,3 +1771,45 @@ decision rather than contradicting it; no owner round-trip. The fallback stays,
 because "does not require one texture" is the property that made the design safe
 to commit to.
 
+---
+
+## 2026-10-03 — view rotation in motion (ADR 0049 §6), `PERF_ROTATE`
+
+New harness case `measureRotate` (`PERF_ROTATE=1000,5000,20000`): over the
+realistic scene, a 13-step eased 15° turn and a sustained ±45° sine, each
+followed by a settle, driven through the same store actions as the dock / Q·E
+animation and the Alt+drag orbit. Gate: the motion uniform engaged every frame,
+≈N drawn, **zero builds while moving**, build delta == settle count. On AC,
+real GPU (Intel UHD, ANGLE/D3D11), cal 3.4 ms:
+
+| N | builds / settles | mean | p95 | longest | noise |
+|---|---|---|---|---|---|
+| 1000 | 2/2 | 17.38 ms | 16.74 ms | 66.8 ms | 0.6% |
+| 5000 | 2/2 | 16.67 ms | 16.7 ms | 16.8 ms | 0% |
+| 20000 | 2/2 | 16.76 ms | 16.8 ms | 25.05 ms | 0.7% |
+
+**Verdict: 🟢 GREEN** — every tier holds the vsync floor at p95 with no rebuild
+in motion. Rotation is O(1) CPU per frame in N, like pan.
+
+**Found by the gate, fixed before it went green (two hidden mid-motion
+rebuilds):**
+- **Context strategy identity.** The strategy cache (64 entries, shared with
+  the live per-frame strategies) was CLEARED when full; a long orbit filled it,
+  and the next `CanvasModeProvider` render fetched a fresh object for the same
+  θ₀ → every consumer re-rendered and the scene rebuilt mid-orbit (builds 3/2,
+  deterministic). Fix: the provider pins the strategy with `useMemo` on
+  (mode, θ₀); the cache evicts least-recently-used instead of clearing.
+- **Culling under rotation.** Iso culling took the AABB of the four snapped
+  corner tiles at the live angle, so a turn could change the mounted set and
+  rebuild. It now takes the box around the viewport's centre-to-corner circle
+  (`viewportBounds.ts`): a rotation about the centre cannot change it, and at 0°
+  it is within ~0.1 % of the old box for a 16:10 viewport.
+
+**Open, not blocking — the next lever at 1k:** the 1k tier's mean sits a little
+above the floor because the DOM connector-label chips (≈330 at the 1k
+framing; LOD-hidden at 5k/20k) each get a `translate` per motion frame — about
+6–7 ms/frame of style + paint + layerize on this machine (profiled: 1.7 / 3.0 /
+2.3 ms medians). `will-change: translate` during motion was tried and REVERTED
+(paint unchanged, layerize 2.3 → 3.7 ms). The real fix is GPU connector labels
+(or pausing them in motion), an owner call.
+

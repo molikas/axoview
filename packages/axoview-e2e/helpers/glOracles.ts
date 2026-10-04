@@ -13,6 +13,7 @@
  * exploratory lane rig; moved to helpers/ at the 2026-08-10 lane dissolution.)
  */
 import type { Page } from '@playwright/test';
+import { GRID_INK_ALPHA_MAX } from './sceneCanvas';
 
 /**
  * The bulk GPU scene layer.
@@ -42,7 +43,7 @@ export const paintedPixels = (
   page: Page,
   id: BulkLayer | string
 ): Promise<number> =>
-  page.evaluate((sel: string) => {
+  page.evaluate(([sel, gridMax]: [string, number]) => {
     const gl = document.querySelector(sel) as HTMLCanvasElement | null;
     if (!gl || !gl.width || !gl.height) return -1;
     const scratch = document.createElement('canvas');
@@ -52,10 +53,11 @@ export const paintedPixels = (
     if (!ctx) return -2;
     ctx.drawImage(gl, 0, 0);
     const data = ctx.getImageData(0, 0, scratch.width, scratch.height).data;
+    // Content only — the grid pass shares this canvas (see GRID_INK_ALPHA_MAX).
     let n = 0;
-    for (let i = 3; i < data.length; i += 4) if (data[i] !== 0) n += 1;
+    for (let i = 3; i < data.length; i += 4) if (data[i] > gridMax) n += 1;
     return n;
-  }, layerSelector(id));
+  }, [layerSelector(id), GRID_INK_ALPHA_MAX] as [string, number]);
 
 /** `paintedPixels` for every bulk layer, keyed by testid. */
 export const paintedPixelsAll = async (

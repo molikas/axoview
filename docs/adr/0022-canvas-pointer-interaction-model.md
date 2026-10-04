@@ -89,6 +89,8 @@ What this change makes **redundant**, **contradicts**, or **orphans**, and how e
 - **`NodeActionBar` is screen-space** with edge flip/clamp (mirroring `ViewModeInfoPopover`) and renders above the LeftDock stacking context, so the start-connector affordance stays reachable near viewport edges.
 - **Mode clarity:** an active CONNECTOR tool shows a click-through hint pill ("Drag between items to connect • Esc to cancel") so the mode and its exit are discoverable.
 
+**2026-10-03:** Alt + left-drag on the canvas orbits the isometric view ([ADR 0049 §7](0049-view-rotation-camera-and-projection-model.md)), adding a row to the §1 table — *Alt + left-drag on empty canvas (isometric) → orbit the view*. It is an interaction-manager mode (`VIEW_ROTATE`), not a capture-phase listener: an Alt+left press on the bare canvas in an idle mode (CURSOR, or the viewer's PAN) is held back until it either travels past the drag slop — it then orbits at about 0.4° per horizontal px, with Shift snapping to 15° — or is released inside the slop, when it is replayed as the ordinary Alt+click of §1, so waypoint removal keeps working. Isometric and mouse only: touch twist stays out of scope ([ADR 0018](0018-touch-pen-gesture-contract.md)). A canvas press during a rotation step animation lands the animation first. The keyboard companions, Q / E (Shift: next cardinal angle), are viewer-classed surfaces in `readonlyPolicy.ts`.
+
 ## Consequences
 
 **Positive:** predictable, opinionated model; right-click freed for panning; less surface area and dead code; one place to reason about open-vs-select.
@@ -108,6 +110,7 @@ What this change makes **redundant**, **contradicts**, or **orphans**, and how e
   - *(As-built, v3.7.0: no `details-interaction.spec` was created. Some of these behaviours are exercised by other e2e specs, but the double-click-opens-panel and name-drag-keeps-panel assertions have no dedicated e2e coverage — an open test gap.)*
 - **Manual + touch device:** tap = select, double-tap = details, long-press = bar; no double-open.
 - **Build clean;** `grep -r panSettings packages/` returns nothing; `HelpDialog` reflects the new model.
+- **(2026-10-03, view rotation) e2e (`view-rotation.spec.ts`):** at a non-zero view angle, Alt + click on a connector waypoint still removes it and does not turn the view; an Alt + drag past the slop orbits (≈ 0.4°/px, Shift → 15° steps) and moves, selects and writes nothing; the HelpDialog lists the Alt + drag row.
 
 ## Addendum — 2026-06-25 (action bar removed; inline-rename commit contract)
 

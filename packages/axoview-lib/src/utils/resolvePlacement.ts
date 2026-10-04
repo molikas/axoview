@@ -7,7 +7,10 @@
 
 import { Coords, Scroll, Size } from 'src/types';
 import { UNPROJECTED_TILE_SIZE } from 'src/config';
-import { getStrategy, screenToCanvasPoint } from './coordinateTransforms';
+import {
+  screenToCanvasPoint,
+  type CoordinateTransformStrategy
+} from './coordinateTransforms';
 
 export interface Placement {
   /** The integer tile committed to the model (always integer). */
@@ -61,12 +64,17 @@ export const resolvePlacement = (
 };
 
 /**
- * The sub-tile residual (SceneLayer px) of a screen-space cursor relative to a
- * tile's centre. Used by fresh-placement flows (place-icon, text-box, paste) to
- * land an off-grid item where the pointer is. Mode-aware via the strategy.
+ * The sub-tile residual of a screen-space cursor relative to a tile's centre,
+ * IN THE STORED FRAME — ready to write as an `offset`. Used by fresh-placement
+ * flows (place-icon, text-box, label, keyboard placement) to land an off-grid
+ * item where the pointer is.
+ *
+ * The pointer's residual is measured in SceneLayer px at the live view angle;
+ * a stored offset lives in the unrotated frame (ADR 0049 §4), so it goes in
+ * through `M(−θ)` (`strategy.offsetFromRender`) — the identity at 0° and in 2D.
  */
 export const cursorTileResidual = (
-  canvasMode: 'ISOMETRIC' | '2D',
+  strategy: CoordinateTransformStrategy,
   screen: Coords,
   tile: Coords,
   zoom: number,
@@ -74,41 +82,11 @@ export const cursorTileResidual = (
   rendererSize: Size
 ): Coords => {
   const point = screenToCanvasPoint(screen, zoom, scroll, rendererSize);
-  const centre = getStrategy(canvasMode).toScreen(
-    tile.x,
-    tile.y,
-    UNPROJECTED_TILE_SIZE
-  );
-  return { x: point.x - centre.x, y: point.y - centre.y };
-};
-
-/**
- * Convert a node's SceneLayer-px render offset into the delta to add to a
- * connector's endpoint VERTEX so the wire follows the node's rendered position.
- *
- * The connector SVG draws vertices in tile-space (`tile · UNPROJECTED_TILE_SIZE`)
- * then projects them via a `scale(-1,1)` + iso/2D matrix whose net map is
- * exactly `-toScreen(vertex / UNPROJECTED_TILE_SIZE)` in both modes. Inverting
- * that linear map, a screen-plane offset `o` shifts the endpoint when the vertex
- * is moved by `-UNPROJECTED_TILE_SIZE · fromCanvasPoint(o)`. No magic constants:
- * the strategy's own `fromCanvasPoint` carries the projection. (Verified
- * numerically against `toScreen` in iso and 2D.)
- */
-export const connectorEndpointVertexDelta = (
-  canvasMode: 'ISOMETRIC' | '2D',
-  offset: Coords
-): Coords => {
-  const frac = getStrategy(canvasMode).fromCanvasPoint(
-    offset.x,
-    offset.y,
-    UNPROJECTED_TILE_SIZE
-  );
-  // `0 -` (not unary minus) normalises a -0 result to +0 so it never reaches the
-  // SVG path string as "-0".
-  return {
-    x: 0 - UNPROJECTED_TILE_SIZE * frac.x,
-    y: 0 - UNPROJECTED_TILE_SIZE * frac.y
-  };
+  const centre = strategy.toScreen(tile.x, tile.y, UNPROJECTED_TILE_SIZE);
+  return strategy.offsetFromRender({
+    x: point.x - centre.x,
+    y: point.y - centre.y
+  });
 };
 
 /**

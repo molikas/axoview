@@ -19,6 +19,7 @@ import { generateId } from 'src/utils';
 import { strokeHasExtent } from 'src/utils/annotationOps';
 import {
   screenToSceneCanvas,
+  inkFrame,
   polylinePathD,
   arrowHeadPoints,
   rectFromPoints,
@@ -80,24 +81,29 @@ const cursorForTool = (tool: AnnotationTool): string => {
 const StrokeShape = ({ stroke }: { stroke: AnnotationStroke }) => {
   const { tool, color, thickness, points } = stroke;
   const eraseProps = { style: { pointerEvents: 'none' as const } };
+  const width =
+    tool === 'highlighter' ? thickness * HIGHLIGHTER_WIDTH_MULTIPLIER : thickness;
   const common = {
     stroke: color,
-    strokeWidth: thickness,
     fill: 'none' as const,
     strokeLinecap: 'round' as const,
     strokeLinejoin: 'round' as const,
-    ...(tool === 'highlighter'
-      ? {
-          opacity: HIGHLIGHTER_OPACITY,
-          strokeWidth: thickness * HIGHLIGHTER_WIDTH_MULTIPLIER
-        }
-      : {})
+    // ADR 0050 §4: the group draws through M(θ), which is not a similarity, so
+    // the stroke is non-scaling (screen px) and its width tracks the zoom via
+    // the `--ink-zoom` var the transform subscription sets — exactly the
+    // `thickness × zoom` px it was under the plain `scale(zoom)` before.
+    vectorEffect: 'non-scaling-stroke' as const,
+    style: {
+      pointerEvents: 'none' as const,
+      strokeWidth: `calc(${width}px * var(--ink-zoom, 1))`
+    },
+    ...(tool === 'highlighter' ? { opacity: HIGHLIGHTER_OPACITY } : {})
   };
 
   if (isShape(tool) && points.length >= 2) {
     const r = rectFromPoints(points[0], points[points.length - 1]);
     if (tool === 'rectangle') {
-      return <rect x={r.x} y={r.y} width={r.width} height={r.height} {...common} {...eraseProps} />;
+      return <rect x={r.x} y={r.y} width={r.width} height={r.height} {...common} />;
     }
     return (
       <ellipse
@@ -106,7 +112,6 @@ const StrokeShape = ({ stroke }: { stroke: AnnotationStroke }) => {
         rx={r.width / 2}
         ry={r.height / 2}
         {...common}
-        {...eraseProps}
       />
     );
   }
@@ -265,22 +270,33 @@ export const AnnotationLayer = () => {
   }, [capturing, eraserActive]);
 
   // Mirror the SceneLayer transform onto the <g> via a direct store
-  // subscription — pan/zoom updates the attribute without re-rendering React.
+  // subscription — pan/zoom/rotation update the attribute without re-rendering
+  // React. Ink is stored in the UNROTATED frame and drawn through M(θ) at the
+  // LIVE angle (ADR 0050 §4), so it stays on what it marked while the view
+  // turns — in motion too, since this is a transform write, never a rebuild.
   useEffect(() => {
     const apply = () => {
       const g = gRef.current;
       if (!g) return;
-      const { scroll, zoom, rendererSize } = uiStoreApi.getState();
+      const { scroll, zoom, rendererSize, canvasMode, viewRotation } =
+        uiStoreApi.getState();
       const tx = rendererSize.width / 2 + scroll.position.x;
       const ty = rendererSize.height / 2 + scroll.position.y;
-      g.setAttribute('transform', `translate(${tx}, ${ty}) scale(${zoom})`);
+      const m = inkFrame(canvasMode, viewRotation).toRender;
+      g.setAttribute(
+        'transform',
+        `translate(${tx}, ${ty}) scale(${zoom}) matrix(${m[0]}, ${m[2]}, ${m[1]}, ${m[3]}, 0, 0)`
+      );
+      g.style.setProperty('--ink-zoom', String(zoom));
     };
     apply();
     return uiStoreApi.subscribe((state, prev) => {
       if (
         state.scroll === prev.scroll &&
         state.zoom === prev.zoom &&
-        state.rendererSize === prev.rendererSize
+        state.rendererSize === prev.rendererSize &&
+        state.viewRotation === prev.viewRotation &&
+        state.canvasMode === prev.canvasMode
       ) {
         return;
       }
@@ -288,16 +304,21 @@ export const AnnotationLayer = () => {
     });
   }, [uiStoreApi, shown]);
 
+  // Pointer → the STORED ink frame: the scene point under the cursor, taken
+  // back through M(−θ) so a stroke drawn at any angle is stored unrotated.
   const toScene = useCallback(
     (e: React.PointerEvent): Coords => {
       const rect = rootRef.current!.getBoundingClientRect();
-      const { scroll, zoom, rendererSize } = uiStoreApi.getState();
-      return screenToSceneCanvas(
+      const { scroll, zoom, rendererSize, canvasMode, viewRotation } =
+        uiStoreApi.getState();
+      const p = screenToSceneCanvas(
         { x: e.clientX - rect.left, y: e.clientY - rect.top },
         rendererSize,
         scroll.position,
         zoom
       );
+      const m = inkFrame(canvasMode, viewRotation).fromRender;
+      return { x: m[0] * p.x + m[1] * p.y, y: m[2] * p.x + m[3] * p.y };
     },
     [uiStoreApi]
   );

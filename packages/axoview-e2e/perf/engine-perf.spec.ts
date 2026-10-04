@@ -1544,6 +1544,116 @@ function installHarness() {
     };
   }
 
+  // ---- E-slice: view-rotation motion (ADR 0049 §6, PERF_ROTATE) ----
+  // Rotation in motion must be O(1) CPU per frame at any N, like pan: the
+  // instances are built at the settled angle θ₀ and each frame writes only the
+  // `u_motion` uniform M(θ − θ₀). Two gestures over the realistic scene, driven
+  // through the same store actions the dock / Q·E animation and the Alt+drag
+  // orbit use:
+  //   1. a 13-step eased 15° turn (one step animation), then settle;
+  //   2. a sustained ±45° sine (a long orbit), then settle.
+  // Anti-cheats: the canvas published a non-zero motion angle each frame (the
+  // uniform path was engaged), and the draw count stayed ≈ N. The gate is that
+  // the build count moved by EXACTLY the settle count (2): zero rebuilds while
+  // moving, one per settle.
+  async function measureRotate(N: number, steps: number) {
+    resetState();
+    const scene = buildScene(N, 1);
+    fitForGrid(1, N);
+    const { view } = activeView();
+    ax()
+      .model.getState()
+      .actions.set(
+        {
+          items: scene.items,
+          views: viewsWith(
+            view.id,
+            scene.vitems,
+            scene.connectors,
+            scene.rectangles,
+            scene.textBoxes,
+            scene.labels
+          )
+        },
+        true
+      );
+    ax().model.getState().actions.clearHistory();
+    ax().changeView(view.id, ax().model.getState());
+    const uiActs = () => ax().ui.getState().actions;
+    uiActs().setCanvasMode('ISOMETRIC');
+    uiActs().setViewRotation(0);
+    await quiesce();
+    const canvasEl = document.querySelector(
+      '[data-testid="axoview-scene-canvas"]'
+    ) as HTMLElement | null;
+    const num = (k: string) =>
+      canvasEl ? parseFloat(canvasEl.dataset[k] ?? '0') || 0 : 0;
+    const buildStart = num('buildCount');
+    const frames: number[] = [];
+    const longTasks: Array<{ start: number; duration: number }> = [];
+    const stop = observeLongTasks(longTasks);
+    let motionEngaged = true;
+    let buildsWhileMoving = 0;
+    let drawMin = Infinity;
+    let drawMax = 0;
+    const sample = () => {
+      if (num('motionDeg') === 0) motionEngaged = false;
+      const dc = num('nodesDrawn');
+      if (dc < drawMin) drawMin = dc;
+      if (dc > drawMax) drawMax = dc;
+    };
+
+    // 1. eased 15° step, 13 frames.
+    let prev = await raf();
+    uiActs().beginViewRotationMotion();
+    const STEP_FRAMES = 13;
+    for (let s = 1; s <= STEP_FRAMES; s++) {
+      const t = s / STEP_FRAMES;
+      // Stop short of the target so the last moving frame still has a motion
+      // angle; the settle lands it.
+      const eased = (1 - Math.pow(1 - t, 3)) * 15 * (s === STEP_FRAMES ? 0.999 : 1);
+      uiActs().setViewRotation(eased);
+      const now = await raf();
+      frames.push(now - prev);
+      prev = now;
+      sample();
+    }
+    buildsWhileMoving += num('buildCount') - buildStart;
+    uiActs().setViewRotation(15);
+    uiActs().settleViewRotation();
+    await quiesce();
+    const afterFirstSettle = num('buildCount');
+
+    // 2. sustained ±45° sine around 15°.
+    uiActs().beginViewRotationMotion();
+    prev = await raf();
+    for (let s = 1; s <= steps; s++) {
+      // Never exactly 15° mid-gesture, so every frame is a real motion frame.
+      const a = 15 + 45 * Math.sin((s / steps) * Math.PI * 4 + 0.1);
+      uiActs().setViewRotation(a);
+      const now = await raf();
+      frames.push(now - prev);
+      prev = now;
+      sample();
+    }
+    buildsWhileMoving += num('buildCount') - afterFirstSettle;
+    uiActs().settleViewRotation();
+    await quiesce();
+    stop();
+    const buildDelta = num('buildCount') - buildStart;
+    uiActs().setViewRotation(0);
+    return {
+      frames,
+      longTasks,
+      motionEngaged,
+      drawMin: drawMin === Infinity ? 0 : drawMin,
+      drawMax,
+      buildsWhileMoving,
+      buildDelta,
+      settles: 2
+    };
+  }
+
   // ---- E-slice: floating-label-heavy (Canvas2D Label layer; gates ADR 0031 E3) ----
   // N floating Labels (the first-class Label entity, ADR 0031) with B/I/S +
   // colour + background, over the realistic node/connector/rect base. Labels now
@@ -1743,6 +1853,7 @@ function installHarness() {
     measureBloat,
     measureAtlas,
     measurePan,
+    measureRotate,
     measureLabelHeavy,
     measureConnLabelHeavy,
     measureBgHeavy,
@@ -2493,6 +2604,71 @@ test('engine perf baseline — bulk-spawn + drag across N', async ({ page }) => 
         "ADR 0031 E3 chose after the DOM chip layer ~2.3×'d spawn p95 — so this re-measures the " +
         'floating-label spawn cost on the new substrate. labels=N/N anti-cheats every chip drew.',
       parseNs(process.env.PERF_FLOATLABELS)
+    );
+    return;
+  }
+
+  // ADR 0049 §6 — view-rotation motion. PERF_ROTATE=1000,5000,20000.
+  if (process.env.PERF_ROTATE) {
+    const Ns = parseNs(process.env.PERF_ROTATE);
+    fs.mkdirSync(RESULTS_DIR, { recursive: true });
+    const rows: string[] = [];
+    for (const N of Ns) {
+      const run = (): Promise<any> =>
+        page.evaluate(([n, s]) => (window as any).__perfH.measureRotate(n, s), [
+          N,
+          DRAG_STEPS
+        ] as const);
+      for (let i = 0; i < WARMUP_RUNS; i++) await run();
+      const reps: any[] = [];
+      for (let r = 0; r < REPEATS; r++) reps.push(await run());
+      const m = reps.map((r) => metricsOf(r as RunResult));
+      const p95s = m.map((x) => x.p95);
+      const means = m.map((x) => x.meanFrame);
+      const maxs = m.map((x) => x.max);
+      const last = reps[reps.length - 1];
+      const engaged = reps.every((r) => r.motionEngaged);
+      const noMotionRebuild = reps.every((r) => r.buildsWhileMoving === 0);
+      const settleOnly = reps.every((r) => r.buildDelta === r.settles);
+      console.log(
+        `[rotate] N=${N} cal=${round(calibrationMs, 1)} engaged=${engaged} ` +
+          `draw≈[${last.drawMin}..${last.drawMax}]/${N} noMotionRebuild=${noMotionRebuild} ` +
+          `buildDelta=${last.buildDelta}/${last.settles} mean=${round(median(means))}ms ` +
+          `p95=${round(median(p95s))}ms longest=${round(median(maxs))}ms noise(CoV mean)=${covPct(means)}%`
+      );
+      rows.push(
+        `| ${N} | ${last.drawMin}..${last.drawMax}/${N} | ${last.buildDelta}/${last.settles} | ` +
+          `${round(median(means))} | ${round(median(p95s))} | ${round(median(maxs))} | ${covPct(means)}% |`
+      );
+      expect(engaged, `rotate: the motion uniform was engaged every frame at N=${N}`).toBe(true);
+      expect(
+        last.drawMin,
+        `rotate: canvas repainted ≈ all nodes at N=${N}`
+      ).toBeGreaterThanOrEqual(Math.floor(N * 0.9));
+      expect(
+        noMotionRebuild,
+        `rotate: NO rebuild while moving at N=${N} (ADR 0049 §6 / ADR 0038 §5)`
+      ).toBe(true);
+      expect(
+        settleOnly,
+        `rotate: build count moved by exactly the settle count at N=${N}`
+      ).toBe(true);
+    }
+    fs.writeFileSync(
+      path.join(RESULTS_DIR, 'rotate.md'),
+      [
+        '# View-rotation motion — measureRotate (ADR 0049 §6)',
+        '',
+        `_Generated ${new Date().toISOString()} · ${REPEATS} kept runs/cell (${WARMUP_RUNS} warm-up), ` +
+          `cal ${round(calibrationMs, 1)} ms. A 13-step eased 15° turn + a sustained ±45° sine, each ` +
+          `followed by a settle. Gate: zero rebuilds in motion, build delta == settle count. ` +
+          `p95 target ≤ 16.7 ms on the reference GPU (owner to confirm the thresholds)._`,
+        '',
+        '| N | draw-count range | builds / settles | mean frame (ms) | p95 frame (ms) | longest (ms) | noise (CoV mean) |',
+        '|---|---|---|---|---|---|---|',
+        ...rows,
+        ''
+      ].join('\n')
     );
     return;
   }

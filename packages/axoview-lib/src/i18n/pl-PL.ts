@@ -42,6 +42,9 @@ const locale: LocaleProps = {
     zoomOutAction: 'Pomniejsz',
     zoomOutShortcut: 'Kółko muszy w dół',
     zoomOutDescription: 'Pomniejsz obszar roboczy',
+    rotateViewAction: 'Obróć widok',
+    rotateViewShortcut: 'Q / E (Shift: ćwierć obrotu)',
+    rotateViewDescription: 'Obróć izometryczną podłogę o 15° przeciwnie (Q) lub zgodnie (E) z ruchem wskazówek zegara; Shift przechodzi do następnej ćwiartki',
     panCanvasAction: 'Przesuwanie obszaru roboczego',
     panCanvasShortcut: 'Kliknij lewym przyciskiem myszy + przeciągnij',
     panCanvasDescription: 'Przesuwaj obszar roboczy w trybie przesuwania',
@@ -139,7 +142,10 @@ const locale: LocaleProps = {
       'Alt+kliknij punkt trasy łącznika, aby go usunąć (bez konieczności wcześniejszego zaznaczania łącznika); kotwice końcowe są zachowywane.',
     miZoomAction: 'Powiększenie',
     miZoomMethod: 'Kółko myszy',
-    miZoomDescription: 'Przewijaj, aby powiększać w kierunku kursora.'
+    miZoomDescription: 'Przewijaj, aby powiększać w kierunku kursora.',
+    miRotateViewAction: 'Obróć widok',
+    miRotateViewMethod: 'Alt + przeciągnij',
+    miRotateViewDescription: 'Krąż wokół izometrycznej podłogi; przytrzymaj Shift, aby przyciągać co 15°. Alt + kliknięcie bez przeciągania nadal usuwa punkt pośredni.'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'Wskazówka: Tworzenie połączeń',
@@ -421,6 +427,26 @@ const locale: LocaleProps = {
     help: 'Pomoc (F1)',
     selected: 'Zaznaczono: {count}'
   },
+  viewRotationControls: {
+    groupLabel: 'Obrót widoku',
+    rotateCounterClockwise: 'Obróć widok przeciwnie do ruchu wskazówek zegara (Q)',
+    rotateClockwise: 'Obróć widok zgodnie z ruchem wskazówek zegara (E)',
+    resetToDefault: 'Kąt widoku {angle} — kliknij, aby wrócić do domyślnego kąta strony ({default})',
+    atDefault: 'Kąt widoku {angle} (domyślny dla strony)',
+    setAsPageDefault: 'Ustaw jako domyślny dla strony',
+    setAsPageDefaultHint: 'Otwieraj tę stronę pod kątem {angle} dla wszystkich — jeden krok cofania',
+    unpinPageDefault: 'Odepnij domyślny kąt strony',
+    unpinPageDefaultHint: 'Ta strona otwiera się pod kątem {angle} dla wszystkich — kliknij, aby odpiąć, wtedy otworzy się pod kątem 0° (jeden krok cofania)',
+    nothingToPin: '0° to kąt standardowy — obróć widok, aby przypiąć inny domyślny kąt strony',
+    pinnedNotice: 'Ustawiono domyślny kąt strony na {angle}: ta strona otwiera się teraz pod tym kątem dla wszystkich (cofnij, aby przywrócić)',
+    unpinnedNotice: 'Usunięto domyślny kąt strony: ta strona otwiera się teraz pod kątem 0° dla wszystkich (cofnij, aby przywrócić)',
+    orbitHint: 'Alt + przeciągnij płótno, aby swobodnie obracać',
+    replacePageDefault: 'Ustaw {angle} jako domyślny kąt strony (zastępuje {default})',
+    removePageDefault: 'Usuń domyślny kąt strony ({default}) — strona otworzy się pod kątem 0°',
+    pinnedElsewhereHint: 'Domyślny kąt strony: {default} — kliknij, aby go zastąpić lub usunąć',
+    disabledIn2D: 'Obrót widoku jest dostępny w widoku izometrycznym',
+    announce: 'Kąt widoku {angle}'
+  },
   modeHints: {
     connector:
       'Przeciągnij między elementami, aby połączyć • Esc, aby anulować',
@@ -485,6 +511,10 @@ const locale: LocaleProps = {
   },
   exportImageDialog: {
     groupAppearance: 'Appearance',
+    angle: 'Kąt',
+    angleAsViewed: 'Jak wyświetlono ({angle})',
+    anglePageDefault: 'Domyślny dla strony ({angle})',
+    anglePageDefaultSame: 'Domyślny kąt strony ({angle}) — taki sam jak Twój widok',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'Eksportuj jako obraz',

@@ -54,7 +54,12 @@ export const viewSchema = z.object({
   connectors: z.array(connectorSchema).max(ARRAY_MAX.connectors).optional(),
   textBoxes: z.array(textBoxSchema).max(ARRAY_MAX.textBoxes).optional(),
   labels: z.array(labelSchema).max(ARRAY_MAX.labels).optional(),
-  layers: layersSchema.optional()
+  layers: layersSchema.optional(),
+  // Page default view rotation (ADR 0051): degrees in (-180, 180], rounded to 0.1.
+  // Absent = 0, i.e. today's view byte-for-byte. Positive = floor turned
+  // counter-clockwise as seen from above (ADR 0049 §1). The ONLY persisted
+  // angle: the live angle is per-viewer uiState and never written here.
+  defaultRotation: z.number().gt(-180).lte(180).optional()
 });
 
 export const viewsSchema = z.array(viewSchema);

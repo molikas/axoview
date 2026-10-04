@@ -19,12 +19,13 @@ import {
 import { useResizeObserver } from 'src/hooks/useResizeObserver';
 import { useScene } from 'src/hooks/useScene';
 import { useHistory } from 'src/hooks/useHistory';
-import { useCanvasMode } from 'src/contexts/CanvasModeContext';
+import { getLiveStrategy } from 'src/utils/coordinateTransforms';
 import { TOOL_HOTKEYS } from 'src/config/hotkeys';
 import { resolveToolHotkey, resolveZOrderDirection } from './toolHotkeys';
 import { handleEscapeKey, handleConnectorEscape } from './handleEscapeKey';
 import { handleDeleteOrBackspace, isEditableTarget } from './handleDeleteKey';
 import { handleArrowKey } from './handleArrowKey';
+import { handleViewRotationKeys } from './handleViewRotationKeys';
 import {
   canUseKeyboardSurface,
   type CanvasKeyboardSurface
@@ -49,8 +50,9 @@ import { Label } from './modes/Label';
 import { Lasso } from './modes/Lasso';
 import { FreehandLasso } from './modes/FreehandLasso';
 import { ReconnectAnchor, abortReconnectAnchor } from './modes/ReconnectAnchor';
+import { ViewRotate } from './modes/ViewRotate';
 import { exceedsTapSlop, LONG_PRESS_MS } from 'src/config/tapGesture';
-import { MIN_ZOOM, MAX_ZOOM } from 'src/config';
+import { MIN_ZOOM, MAX_ZOOM, UNPROJECTED_TILE_SIZE } from 'src/config';
 import { usePanHandlers } from './usePanHandlers';
 import { useRAFThrottle } from './useRAFThrottle';
 import { useCopyPaste } from 'src/clipboard/useCopyPaste';
@@ -69,7 +71,8 @@ const modes: { [k in string]: ModeActions } = {
   LABEL: Label,
   LASSO: Lasso,
   FREEHAND_LASSO: FreehandLasso,
-  RECONNECT_ANCHOR: ReconnectAnchor
+  RECONNECT_ANCHOR: ReconnectAnchor,
+  VIEW_ROTATE: ViewRotate
 };
 
 // Device class of the originating pointer (ADR 0018). The mouse-shaped
@@ -563,7 +566,22 @@ export const useInteractionManager = () => {
   const { size: rendererSize } = useResizeObserver(rendererEl);
   const { undo, redo, canUndo, canRedo } = useHistory();
   const { handleCopy, handleCut, handlePaste } = useCopyPaste();
-  const { screenToTile } = useCanvasMode();
+  // ADR 0049 §2: input projects at the LIVE view angle, read from the store at
+  // event time — not the settled angle React renders at, which lags the screen
+  // while a rotation is in motion. Stable identity (the store api never
+  // changes), so the keydown effect's deps stay stable too (M-1).
+  const screenToTile = useCallback<ScreenToTileFn>(
+    ({ mouse, zoom, scroll, rendererSize: size }) =>
+      getLiveStrategy(uiStateApi.getState()).fromScreen(
+        mouse.x,
+        mouse.y,
+        UNPROJECTED_TILE_SIZE,
+        zoom,
+        scroll,
+        size
+      ),
+    [uiStateApi]
+  );
   const {
     deleteSelectedItems,
     deleteViewItem,
@@ -677,6 +695,7 @@ export const useInteractionManager = () => {
       }
 
       handleFunctionKeys(e, uiState, deps, allow('inlineRename'));
+      if (handleViewRotationKeys(e, uiState, allow('viewRotation'))) return;
       if (allow('toolHotkeys')) {
         handleToolHotkeys(e, isCtrlOrCmd, uiState, key, deps);
       }
@@ -810,7 +829,9 @@ export const useInteractionManager = () => {
           rendererRef.current === e.target || isAnchorOverlay,
         isItemInteractable,
         pointerType: pointerTypeRef.current,
-        screenToTile
+        screenToTile,
+        strategy: getLiveStrategy(uiState),
+        pointer: nextMouse
       };
 
       if (reducerTypeRef.current !== uiState.mode.type) {
@@ -833,7 +854,7 @@ export const useInteractionManager = () => {
     [uiStateApi, modelStoreApi, scene, rendererSize, layerContext, screenToTile]
   );
 
-  const onMouseEvent = useCallback(
+  const dispatchMouseEvent = useCallback(
     (e: SlimMouseEvent) => {
       if (!rendererRef.current) return;
 
@@ -911,6 +932,78 @@ export const useInteractionManager = () => {
       flushUpdate,
       processMouseUpdate
     ]
+  );
+
+  // ADR 0049 §7 — the Alt + left-drag orbit, decided BEFORE any mode sees the
+  // press. An Alt+left press on the bare canvas in an idle mode (CURSOR, or the
+  // viewer's PAN) in the isometric view is held back: once it travels past the
+  // drag slop it becomes a VIEW_ROTATE orbit; released before that, it is
+  // replayed as the ordinary Alt+click it was — so waypoint removal (ADR 0022)
+  // keeps working, which the POC's capture-phase hook broke (finding F7).
+  const pendingAltOrbitRef = useRef<{
+    down: SlimMouseEvent;
+    client: { x: number; y: number };
+    startScreenX: number;
+    returnTo: 'CURSOR' | 'PAN';
+  } | null>(null);
+
+  const onMouseEvent = useCallback(
+    (e: SlimMouseEvent) => {
+      if (!rendererRef.current) return;
+      const ui = uiStateApi.getState();
+
+      // A canvas press lands any rotation step still animating first, so the
+      // press resolves against a settled view (ADR 0049 §7).
+      if (e.type === 'mousedown') ui.actions.finishViewRotationAnimation();
+
+      const pending = pendingAltOrbitRef.current;
+      if (pending) {
+        if (e.type === 'mousemove') {
+          if (
+            !exceedsTapSlop(pending.client, { x: e.clientX, y: e.clientY })
+          ) {
+            return; // still possibly a click — no mode sees sub-slop travel
+          }
+          pendingAltOrbitRef.current = null;
+          ui.actions.setMode({
+            type: 'VIEW_ROTATE',
+            showCursor: false,
+            startScreenX: pending.startScreenX,
+            startRotation: ui.viewRotation,
+            returnTo: pending.returnTo
+          });
+          // Fall through: the dispatcher runs the mode's entry, then this move.
+        } else if (e.type === 'mouseup') {
+          pendingAltOrbitRef.current = null;
+          // Released inside the slop: it was a click. Replay the held press.
+          dispatchMouseEvent(pending.down);
+        }
+      }
+
+      if (
+        e.type === 'mousedown' &&
+        e.button === 0 &&
+        e.altKey &&
+        pointerTypeRef.current === 'mouse' &&
+        e.target === rendererRef.current &&
+        ui.canvasMode === 'ISOMETRIC' &&
+        (ui.mode.type === 'CURSOR' || ui.mode.type === 'PAN') &&
+        (ui.editorMode === 'EDITABLE' ||
+          ui.editorMode === 'EXPLORABLE_READONLY')
+      ) {
+        const rect = rendererRef.current.getBoundingClientRect();
+        pendingAltOrbitRef.current = {
+          down: e,
+          client: { x: e.clientX, y: e.clientY },
+          startScreenX: e.clientX - (rect?.left ?? 0),
+          returnTo: ui.mode.type
+        };
+        return;
+      }
+
+      dispatchMouseEvent(e);
+    },
+    [uiStateApi, dispatchMouseEvent]
   );
 
   const onContextMenu = useCallback(

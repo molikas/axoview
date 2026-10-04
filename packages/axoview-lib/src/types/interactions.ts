@@ -1,6 +1,14 @@
-import { ModelStore, UiStateStore, Size, ItemReference, Coords } from 'src/types';
+import {
+  ModelStore,
+  UiStateStore,
+  Size,
+  ItemReference,
+  Coords,
+  Mouse
+} from 'src/types';
 import { Scroll } from 'src/types/ui';
 import { useScene } from 'src/hooks/useScene';
+import type { CoordinateTransformStrategy } from 'src/utils/coordinateTransforms';
 
 export interface State {
   model: ModelStore;
@@ -31,6 +39,24 @@ export interface State {
     scroll: Scroll;
     rendererSize: Size;
   }) => Coords;
+  /**
+   * The projection strategy at (canvas mode, LIVE view rotation), built for this
+   * event (ADR 0049 §2). Modes pass it to every pure utility that projects —
+   * hit-testing, placement residuals, drag previews — instead of a `canvasMode`,
+   * so nothing in the input path can fall back to the unrotated projection.
+   * Optional so existing test mocks that construct a State still compile; read
+   * it through `stateStrategy(state)`, which falls back to the store's own.
+   */
+  strategy?: CoordinateTransformStrategy;
+  /**
+   * THIS event's pointer sample, modifiers included. `uiState` is the store
+   * snapshot taken before the manager wrote the sample, so `uiState.mouse` is
+   * the PREVIOUS one — a one-sample lag the established modes are tuned around
+   * (dense pointer streams make it invisible). A mode that maps the pointer
+   * continuously and must land exactly on the release point — the view-rotation
+   * orbit (ADR 0049 §7) — reads this instead. Optional for hand-built States.
+   */
+  pointer?: Mouse;
 }
 
 export type ModeActionsAction = (state: State) => void;

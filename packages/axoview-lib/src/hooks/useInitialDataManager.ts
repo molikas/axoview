@@ -255,6 +255,16 @@ export const useInitialDataManager = () => {
 
         changeView(view.value.id, merged);
 
+        // ADR 0051 §3: a load opens at the page's default angle — no carry-over
+        // from the previous diagram — unless the caller hints one (the export
+        // instance, an embedder). A preserveViewport reload is the SAME diagram
+        // (an icon-pack swap), so the viewer keeps their angle.
+        if (!options?.preserveViewport) {
+          uiStateActions.jumpViewRotation(
+            _initialData.viewRotation ?? view.value.defaultRotation ?? 0
+          );
+        }
+
         // Fit-to-view on open — routed through a deferred flag rather than
         // applied here. On FIRST mount the Renderer isn't in the tree yet
         // (Axoview renders null until isReady, which `load` only sets at its

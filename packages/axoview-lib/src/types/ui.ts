@@ -72,6 +72,21 @@ export interface PanMode {
   showCursor: boolean;
 }
 
+/**
+ * Alt + left-drag orbit of the view (ADR 0049 §7, amends ADR 0022 §1). Entered
+ * by the interaction manager only once an Alt+left press in an idle mode has
+ * passed the drag slop — a shorter press stays an Alt+click.
+ */
+export interface ViewRotateMode {
+  type: 'VIEW_ROTATE';
+  showCursor: boolean;
+  /** Renderer-relative x of the press, and the live angle there. */
+  startScreenX: number;
+  startRotation: number;
+  /** The idle mode the orbit started from, restored on release. */
+  returnTo: 'CURSOR' | 'PAN';
+}
+
 export interface PlaceIconMode {
   type: 'PLACE_ICON';
   showCursor: boolean;
@@ -163,6 +178,13 @@ export interface NodeTransformMode {
   selectedAnchor: AnchorPosition | null;
   // One entry per node being resized — 1 for a single node, N for a group.
   targets: { id: string; startScale: number }[];
+  /**
+   * The grabbed handle's REAL on-screen outward direction (unit vector, y-down),
+   * when the handle sits on a projected frame — a flat icon's tile-plane frame,
+   * whose corners swing with the view rotation (ADR 0049 §7, finding F4).
+   * Absent for the screen-aligned box, whose corner directions are fixed.
+   */
+  outward?: { x: number; y: number };
 }
 
 export interface TextBoxMode {
@@ -224,7 +246,8 @@ export type Mode =
   | LabelMode
   | LassoMode
   | FreehandLassoMode
-  | ReconnectAnchorMode;
+  | ReconnectAnchorMode
+  | ViewRotateMode;
 // End mode types
 
 export interface Scroll {
@@ -343,6 +366,36 @@ export interface UiState {
   /** true when model has changed since last export-to-file or explicit save */
   isDirty: boolean;
   canvasMode: CanvasMode;
+  /**
+   * The LIVE turntable rotation of the ISOMETRIC ground plane (ADR 0049 §1):
+   * degrees in (−180, 180], positive = floor turned counter-clockwise as seen
+   * from above. Per-instance camera state beside `zoom`/`scroll` — never
+   * written to the model, never dirtying (the only persisted angle is a page's
+   * `defaultRotation`, ADR 0051). Retained but without effect in 2D. Change it
+   * only through the rotation actions, which pivot about the viewport centre.
+   */
+  viewRotation: number;
+  /**
+   * θ₀ — the angle the projection strategy, every DOM consumer and the GPU
+   * geometry are BUILT at (ADR 0049 §6). Equal to `viewRotation` at rest.
+   * While a rotation is in motion it holds still and the scene is carried to
+   * the live angle by the motion transform `M(viewRotation − viewRotationBase)`
+   * — uniforms and CSS transforms only; `settleViewRotation` catches it up with
+   * ONE rebuild.
+   */
+  viewRotationBase: number;
+  /**
+   * True while a step animation or an Alt+drag orbit is in progress. Layers
+   * that exist only for interaction (hit proxies, transform handles) hide
+   * while it is set and re-sync on settle (ADR 0049 §6).
+   */
+  viewRotationInMotion: boolean;
+  /**
+   * Which angle the image export opens on (ADR 0051 §5): the live angle "as
+   * viewed" (the editor's export), or the page default (the file explorer's,
+   * which has no live canvas to speak for). Set by `openExportImageDialog`.
+   */
+  exportImageAngle: 'asViewed' | 'pageDefault';
   /**
    * Global snap-to-grid toggle (ADR 0023, #12). Default true; persisted,
    * mirroring `canvasMode`. The default for new placements/drags — when false
@@ -723,6 +776,44 @@ export interface UiStateActions {
   closeContextMenu: () => void;
   setIsDirty: (isDirty: boolean) => void;
   setCanvasMode: (mode: CanvasMode) => void;
+  /**
+   * Set the live view rotation (degrees, normalised). Keeps the tile under the
+   * viewport centre fixed by adjusting scroll (iso only). Outside motion it also
+   * settles (base := live); inside motion only the live angle moves.
+   */
+  setViewRotation: (degrees: number) => void;
+  /** Enter continuous rotation motion: the base angle stays, the live one moves. */
+  beginViewRotationMotion: () => void;
+  /** Mid-gesture re-baseline (bounded interval, never per frame): base := live. */
+  rebaseViewRotation: () => void;
+  /** End motion: base := live — the one settle rebuild (ADR 0049 §6). */
+  settleViewRotation: () => void;
+  /**
+   * Ease to an angle along the shortest arc in ~220 ms; instant under
+   * `prefers-reduced-motion` (ADR 0049 §7).
+   */
+  animateViewRotationTo: (degrees: number) => void;
+  /**
+   * Step to the next 15° multiple in `direction` — `+1` turns the floor
+   * counter-clockwise as seen from above (θ grows; Q and ⟲), `−1` clockwise
+   * (E and ⟳), per the sign convention of ADR 0049 §1 — or, with `toCardinal`,
+   * to the next multiple of 90°. Steps chain from an in-flight animation's
+   * target, so repeated presses accumulate.
+   */
+  stepViewRotation: (direction: 1 | -1, toCardinal?: boolean) => void;
+  /**
+   * Jump an in-flight step animation to its target and settle. A canvas press
+   * calls this first, so the press is resolved against a settled view.
+   */
+  finishViewRotationAnimation: () => void;
+  /**
+   * Put the view at an angle NOW, abandoning any animation or gesture in
+   * flight (no tween, one settle). Used where a document decides the angle —
+   * load, page switch — rather than the user (ADR 0051 §3).
+   */
+  jumpViewRotation: (degrees: number) => void;
+  /** See `exportImageAngle`. */
+  setExportImageAngle: (angle: 'asViewed' | 'pageDefault') => void;
   /** Set the global snap-to-grid flag (persisted, mirrors setCanvasMode). */
   setSnapToGrid: (snap: boolean) => void;
   /** Flip the global snap-to-grid flag (canvas context-menu entry, #12). */

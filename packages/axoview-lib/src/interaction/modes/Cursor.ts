@@ -22,7 +22,10 @@ import {
 } from 'src/utils';
 import { getConnectorWaypointRefs } from 'src/utils/connectorSelection';
 import { exceedsTapSlop } from 'src/config/tapGesture';
-import { cursorCanvasPoint } from 'src/utils/coordinateTransforms';
+import {
+  cursorCanvasPoint,
+  stateStrategy
+} from 'src/utils/coordinateTransforms';
 
 // hitConnectors elements merge the view connector (id, anchors) with the
 // scene connector (path) — richer than the bare SceneConnector type.
@@ -305,7 +308,7 @@ const selectItemAtTileMousedown = (state: State) => {
   const itemAtTile = getItemAtTile({
     tile: uiState.mouse.position.tile,
     scene,
-    canvasMode: uiState.canvasMode,
+    strategy: stateStrategy(state),
     point,
     connectorMatch: 'exact'
   });
@@ -370,7 +373,7 @@ const updateHoverCursor = (state: State) => {
   const hit = getItemAtTile({
     tile: uiState.mouse.position.tile,
     scene,
-    canvasMode: uiState.canvasMode,
+    strategy: stateStrategy(state),
     point
   });
   // A hidden (or locked) element isn't interactable, so it must not read as

@@ -1,7 +1,10 @@
 import { useCallback, useRef } from 'react';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { getItemAtTile, setWindowCursor } from 'src/utils';
-import { cursorCanvasPoint } from 'src/utils/coordinateTransforms';
+import {
+  cursorCanvasPoint,
+  getLiveStrategy
+} from 'src/utils/coordinateTransforms';
 import { useScene } from 'src/hooks/useScene';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import { SlimMouseEvent } from 'src/types';
@@ -307,7 +310,7 @@ export const usePanHandlers = () => {
       const item = getItemAtTile({
         tile,
         scene,
-        canvasMode: uiState.canvasMode,
+        strategy: getLiveStrategy(uiState),
         point,
         connectorMatch: 'exact'
       });

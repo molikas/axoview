@@ -11,6 +11,7 @@ import {
   activeLayerPatch
 } from 'src/utils/resolvePlacement';
 import { isCanvasDrop } from 'src/utils/canvasDropTarget';
+import { stateStrategy } from 'src/utils/coordinateTransforms';
 import { VIEW_ITEM_DEFAULTS } from 'src/config';
 import { exceedsTapSlop } from 'src/config/tapGesture';
 
@@ -34,7 +35,8 @@ export const PlaceIcon: ModeActions = {
       uiState.actions.setItemControls(null);
     }
   },
-  mouseup: ({ uiState, scene, isRendererInteraction, rendererRef }) => {
+  mouseup: (state) => {
+    const { uiState, scene, isRendererInteraction, rendererRef } = state;
     if (uiState.mode.type !== 'PLACE_ICON') return;
 
     // B1 / Decision #2: a plain TAP on an Elements-panel icon must only ARM
@@ -88,7 +90,7 @@ export const PlaceIcon: ModeActions = {
         const residual = globalSnap
           ? undefined
           : cursorTileResidual(
-              uiState.canvasMode,
+              stateStrategy(state),
               uiState.mouse.position.screen,
               targetTile,
               uiState.zoom,

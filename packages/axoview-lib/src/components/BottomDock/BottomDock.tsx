@@ -2,6 +2,7 @@ import React from 'react';
 import type { ReactNode } from 'react';
 import { Box, Chip, IconButton, Tooltip } from '@mui/material';
 import { ZoomControls } from 'src/components/ZoomControls/ZoomControls';
+import { ViewRotationControls } from 'src/components/ViewRotationControls/ViewRotationControls';
 import { ViewTabs } from 'src/components/ViewTabs/ViewTabs';
 import { useUiStateStore } from 'src/stores/uiStateStore';
 import { DialogTypeEnum } from 'src/types/ui';
@@ -104,6 +105,7 @@ export const BottomDock = ({ endSlot }: BottomDockProps = {}) => {
 
       {/* Right zone: zoom controls + help + optional end slot */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <ViewRotationControls />
         <ZoomControls />
         <Tooltip title={t('help')} placement="top">
           <IconButton

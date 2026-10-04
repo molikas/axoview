@@ -22,7 +22,7 @@ interface Props {
 // move-dragged — the chip itself follows the pointer on the canvas.
 export const LabelTransformControls = ({ id }: Props) => {
   const label = useLabel(id);
-  const { getTilePosition } = useCanvasMode();
+  const { strategy } = useCanvasMode();
   const moving = useUiStateStore((s) => s.labelMove?.id === id);
 
   if (!label || moving) return null;
@@ -32,7 +32,7 @@ export const LabelTransformControls = ({ id }: Props) => {
 
   const { x: cx, y: cy } = getRenderedTilePosition(
     label,
-    getTilePosition,
+    strategy,
     'CENTER'
   );
   const PAD = 2;

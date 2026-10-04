@@ -62,20 +62,27 @@ export const TransformNode: ModeActions = {
   mousemove: ({ uiState }) => {
     const mode = uiState.mode;
     if (mode.type !== 'NODE.TRANSFORM' || !mode.selectedAnchor) return;
-    const sign = CORNER_SIGN[mode.selectedAnchor];
-    if (!sign) return;
+    // A projected frame's handle (flat icon) carries its REAL screen direction —
+    // under view rotation the frame turns, and a corner named TOP_LEFT may point
+    // anywhere (ADR 0049 §7, finding F4). The screen-aligned box keeps the fixed
+    // diagonal of its name.
+    const fixed = CORNER_SIGN[mode.selectedAnchor];
+    const dir =
+      mode.outward ??
+      (fixed && { x: fixed.x / Math.SQRT2, y: fixed.y / Math.SQRT2 });
+    if (!dir) return;
     const md = uiState.mouse.mousedown;
     if (!md || mode.targets.length === 0) return;
 
     // Screen-space drag from the grab point (zoom-independent CSS px), projected
-    // onto the centre→corner diagonal, then /zoom because the icon's on-screen
+    // onto the centre→handle direction, then /zoom because the icon's on-screen
     // size scales with zoom. Yields ONE factor (1 at the grab point) applied to
     // every target's own start scale. Deliberately NOT gated on hasMovedTile — a
     // node is a single tile, so scaling needs the sub-tile screen delta.
     const cur = uiState.mouse.position.screen;
     const dx = cur.x - md.screen.x;
     const dy = cur.y - md.screen.y;
-    const outward = (dx * sign.x + dy * sign.y) / Math.SQRT2;
+    const outward = dx * dir.x + dy * dir.y;
     const zoom = uiState.zoom || 1;
     const factor = Math.max(
       0.05,

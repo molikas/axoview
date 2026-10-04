@@ -40,6 +40,9 @@ const locale: LocaleProps = {
     zoomOutAction: 'Zoom Out',
     zoomOutShortcut: 'Mouse Wheel Down',
     zoomOutDescription: 'Zoom out from the canvas',
+    rotateViewAction: 'Rotate View',
+    rotateViewShortcut: 'Q / E (Shift: quarter turn)',
+    rotateViewDescription: 'Turn the isometric floor 15° counter-clockwise (Q) or clockwise (E); Shift jumps to the next quarter turn',
     panCanvasAction: 'Pan Canvas',
     panCanvasShortcut: 'Right-click + Drag',
     panCanvasDescription: 'Pan the canvas when in Pan mode',
@@ -135,7 +138,10 @@ const locale: LocaleProps = {
       'Alt+click a connector waypoint to splice it out (no need to select the connector first); endpoint anchors are preserved.',
     miZoomAction: 'Zoom',
     miZoomMethod: 'Scroll wheel',
-    miZoomDescription: 'Scroll to zoom toward the cursor.'
+    miZoomDescription: 'Scroll to zoom toward the cursor.',
+    miRotateViewAction: 'Rotate View',
+    miRotateViewMethod: 'Alt + Drag',
+    miRotateViewDescription: 'Orbit the isometric floor; hold Shift to snap to 15°. Alt + click without dragging still removes a waypoint.'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'Tip: Creating Connectors',
@@ -413,6 +419,26 @@ const locale: LocaleProps = {
     help: 'Help (F1)',
     selected: '{count} selected'
   },
+  viewRotationControls: {
+    groupLabel: 'View rotation',
+    rotateCounterClockwise: 'Rotate view counter-clockwise (Q)',
+    rotateClockwise: 'Rotate view clockwise (E)',
+    resetToDefault: 'View angle {angle} — click to return to the page default ({default})',
+    atDefault: 'View angle {angle} (the page default)',
+    setAsPageDefault: 'Set as page default',
+    setAsPageDefaultHint: 'Open this page at {angle} for everyone — one undo step',
+    unpinPageDefault: 'Unpin page default',
+    unpinPageDefaultHint: 'This page opens at {angle} for everyone — click to unpin, so it opens at 0° (one undo step)',
+    nothingToPin: '0° is the standard angle — rotate the view to pin a different page default',
+    pinnedNotice: 'Page default set to {angle}: this page now opens at this angle for everyone (undo to revert)',
+    unpinnedNotice: 'Page default removed: this page now opens at 0° for everyone (undo to revert)',
+    orbitHint: 'Alt + drag the canvas to orbit freely',
+    replacePageDefault: 'Set {angle} as page default (replaces {default})',
+    removePageDefault: 'Remove page default ({default}) — the page opens at 0°',
+    pinnedElsewhereHint: 'Page default: {default} — click to replace or remove it',
+    disabledIn2D: 'View rotation is available in the isometric view',
+    announce: 'View angle {angle}'
+  },
   modeHints: {
     connector: 'Drag between items to connect • Esc to cancel',
     textBox: 'Click to place a text box • Esc to cancel',
@@ -476,6 +502,10 @@ const locale: LocaleProps = {
   },
   exportImageDialog: {
     groupAppearance: 'Appearance',
+    angle: 'Angle',
+    angleAsViewed: 'As viewed ({angle})',
+    anglePageDefault: 'Page default ({angle})',
+    anglePageDefaultSame: 'Page default ({angle}) — same as your view',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'Export as image',

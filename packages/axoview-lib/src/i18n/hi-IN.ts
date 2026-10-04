@@ -40,6 +40,9 @@ const locale: LocaleProps = {
     zoomOutAction: 'ज़ूम आउट करें',
     zoomOutShortcut: 'माउस व्हील नीचे',
     zoomOutDescription: 'कैनवास से ज़ूम आउट करें',
+    rotateViewAction: 'दृश्य घुमाएँ',
+    rotateViewShortcut: 'Q / E (Shift: चौथाई घुमाव)',
+    rotateViewDescription: 'आइसोमेट्रिक फ़र्श को 15° वामावर्त (Q) या दक्षिणावर्त (E) घुमाएँ; Shift अगले चौथाई घुमाव पर ले जाता है',
     panCanvasAction: 'कैनवास को पैन करें',
     panCanvasShortcut: 'बाएँ-क्लिक + ड्रैग',
     panCanvasDescription: 'पैन मोड में कैनवास को पैन करें',
@@ -133,7 +136,10 @@ const locale: LocaleProps = {
       'किसी कनेक्टर वेपॉइंट को हटाने के लिए Alt+क्लिक करें (पहले कनेक्टर चुनने की आवश्यकता नहीं); अंतिम-बिंदु एंकर सुरक्षित रहते हैं।',
     miZoomAction: 'ज़ूम',
     miZoomMethod: 'स्क्रॉल व्हील',
-    miZoomDescription: 'कर्सर की ओर ज़ूम करने के लिए स्क्रॉल करें।'
+    miZoomDescription: 'कर्सर की ओर ज़ूम करने के लिए स्क्रॉल करें।',
+    miRotateViewAction: 'दृश्य घुमाएँ',
+    miRotateViewMethod: 'Alt + ड्रैग',
+    miRotateViewDescription: 'आइसोमेट्रिक फ़र्श के चारों ओर घुमाएँ; 15° पर स्नैप करने के लिए Shift दबाए रखें। बिना ड्रैग किए Alt + क्लिक अब भी वेपॉइंट हटाता है।'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'टिप: कनेक्टर बनाना',
@@ -411,6 +417,26 @@ const locale: LocaleProps = {
     help: 'सहायता (F1)',
     selected: '{count} चयनित'
   },
+  viewRotationControls: {
+    groupLabel: 'दृश्य घुमाव',
+    rotateCounterClockwise: 'दृश्य को वामावर्त घुमाएँ (Q)',
+    rotateClockwise: 'दृश्य को दक्षिणावर्त घुमाएँ (E)',
+    resetToDefault: 'दृश्य कोण {angle} — पेज के डिफ़ॉल्ट ({default}) पर लौटने के लिए क्लिक करें',
+    atDefault: 'दृश्य कोण {angle} (पेज डिफ़ॉल्ट)',
+    setAsPageDefault: 'पेज डिफ़ॉल्ट के रूप में सेट करें',
+    setAsPageDefaultHint: 'यह पेज सभी के लिए {angle} पर खोलें — एक पूर्ववत चरण',
+    unpinPageDefault: 'पेज डिफ़ॉल्ट अनपिन करें',
+    unpinPageDefaultHint: 'यह पेज सभी के लिए {angle} पर खुलता है — अनपिन करने के लिए क्लिक करें, फिर यह 0° पर खुलेगा (एक पूर्ववत चरण)',
+    nothingToPin: '0° मानक कोण है — कोई दूसरा पेज डिफ़ॉल्ट पिन करने के लिए दृश्य घुमाएँ',
+    pinnedNotice: 'पेज डिफ़ॉल्ट {angle} पर सेट हुआ: अब यह पेज सभी के लिए इसी कोण पर खुलेगा (वापस लेने के लिए पूर्ववत करें)',
+    unpinnedNotice: 'पेज डिफ़ॉल्ट हटाया गया: अब यह पेज सभी के लिए 0° पर खुलेगा (वापस लेने के लिए पूर्ववत करें)',
+    orbitHint: 'स्वतंत्र रूप से घुमाने के लिए Alt + कैनवास खींचें',
+    replacePageDefault: '{angle} को पेज डिफ़ॉल्ट बनाएँ ({default} की जगह)',
+    removePageDefault: 'पेज डिफ़ॉल्ट ({default}) हटाएँ — पेज 0° पर खुलेगा',
+    pinnedElsewhereHint: 'पेज डिफ़ॉल्ट: {default} — बदलने या हटाने के लिए क्लिक करें',
+    disabledIn2D: 'दृश्य घुमाव आइसोमेट्रिक दृश्य में उपलब्ध है',
+    announce: 'दृश्य कोण {angle}'
+  },
   modeHints: {
     connector:
       'कनेक्ट करने के लिए आइटम के बीच ड्रैग करें • रद्द करने के लिए Esc',
@@ -475,6 +501,10 @@ const locale: LocaleProps = {
   },
   exportImageDialog: {
     groupAppearance: 'Appearance',
+    angle: 'कोण',
+    angleAsViewed: 'जैसा दिख रहा है ({angle})',
+    anglePageDefault: 'पेज डिफ़ॉल्ट ({angle})',
+    anglePageDefaultSame: 'पेज डिफ़ॉल्ट ({angle}) — आपके दृश्य जैसा ही',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'छवि के रूप में निर्यात करें',

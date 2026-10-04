@@ -41,6 +41,9 @@ const locale: LocaleProps = {
     zoomOutAction: 'Уменьшить',
     zoomOutShortcut: 'Колесико мыши вниз',
     zoomOutDescription: 'Уменьшить масштаб холста',
+    rotateViewAction: 'Повернуть вид',
+    rotateViewShortcut: 'Q / E (Shift: четверть оборота)',
+    rotateViewDescription: 'Повернуть изометрический пол на 15° против (Q) или по (E) часовой стрелке; Shift — до следующей четверти оборота',
     panCanvasAction: 'Переместить холст',
     panCanvasShortcut: 'Левая кнопка + перетаскивание',
     panCanvasDescription: 'Переместить холст в режиме перемещения',
@@ -137,7 +140,10 @@ const locale: LocaleProps = {
       'Alt+клик по путевой точке соединителя, чтобы удалить её (не нужно сначала выделять соединитель); конечные привязки сохраняются.',
     miZoomAction: 'Масштаб',
     miZoomMethod: 'Колесо мыши',
-    miZoomDescription: 'Прокручивайте для масштабирования к курсору.'
+    miZoomDescription: 'Прокручивайте для масштабирования к курсору.',
+    miRotateViewAction: 'Повернуть вид',
+    miRotateViewMethod: 'Alt + перетаскивание',
+    miRotateViewDescription: 'Облёт изометрического пола; удерживайте Shift для привязки к 15°. Alt + щелчок без перетаскивания по-прежнему удаляет точку маршрута.'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'Совет: Создание соединителей',
@@ -419,6 +425,26 @@ const locale: LocaleProps = {
     help: 'Помощь (F1)',
     selected: 'Выбрано: {count}'
   },
+  viewRotationControls: {
+    groupLabel: 'Поворот вида',
+    rotateCounterClockwise: 'Повернуть вид против часовой стрелки (Q)',
+    rotateClockwise: 'Повернуть вид по часовой стрелке (E)',
+    resetToDefault: 'Угол обзора {angle} — нажмите, чтобы вернуться к углу страницы по умолчанию ({default})',
+    atDefault: 'Угол обзора {angle} (по умолчанию для страницы)',
+    setAsPageDefault: 'Сделать углом страницы по умолчанию',
+    setAsPageDefaultHint: 'Открывать эту страницу под углом {angle} для всех — один шаг отмены',
+    unpinPageDefault: 'Открепить угол страницы по умолчанию',
+    unpinPageDefaultHint: 'Эта страница открывается под углом {angle} для всех — нажмите, чтобы открепить, и она будет открываться под углом 0° (один шаг отмены)',
+    nothingToPin: '0° — стандартный угол; поверните вид, чтобы закрепить другой угол страницы по умолчанию',
+    pinnedNotice: 'Угол страницы по умолчанию — {angle}: теперь эта страница открывается под этим углом для всех (отмените, чтобы вернуть)',
+    unpinnedNotice: 'Угол страницы по умолчанию удалён: теперь эта страница открывается под углом 0° для всех (отмените, чтобы вернуть)',
+    orbitHint: 'Alt + перетаскивание холста — свободное вращение',
+    replacePageDefault: 'Сделать {angle} углом страницы по умолчанию (вместо {default})',
+    removePageDefault: 'Убрать угол страницы по умолчанию ({default}) — страница откроется под углом 0°',
+    pinnedElsewhereHint: 'Угол страницы по умолчанию: {default} — нажмите, чтобы заменить или убрать',
+    disabledIn2D: 'Поворот вида доступен в изометрическом виде',
+    announce: 'Угол обзора {angle}'
+  },
   modeHints: {
     connector: 'Перетащите между элементами для соединения • Esc для отмены',
     textBox: 'Нажмите, чтобы добавить текстовое поле • Esc для отмены',
@@ -482,6 +508,10 @@ const locale: LocaleProps = {
   },
   exportImageDialog: {
     groupAppearance: 'Appearance',
+    angle: 'Угол',
+    angleAsViewed: 'Как на экране ({angle})',
+    anglePageDefault: 'По умолчанию для страницы ({angle})',
+    anglePageDefaultSame: 'Угол страницы по умолчанию ({angle}) — совпадает с вашим видом',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'Экспортировать как изображение',

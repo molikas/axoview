@@ -2,7 +2,7 @@ import { Coords, Rectangle as RectangleType } from 'src/types';
 import { UNPROJECTED_TILE_SIZE } from 'src/config';
 import { getColorVariant } from 'src/utils';
 import { getRenderedAreaCorners } from 'src/utils/renderedGeometry';
-import { TilePositionFn } from 'src/utils/renderedGeometry';
+import type { CoordinateTransformStrategy } from 'src/utils/coordinateTransforms';
 import { SpriteBatch, UVRect } from 'src/webgl/glSpriteBatch';
 import { walkDashes, buildAaLineQuad, AA_FEATHER } from 'src/webgl/lineStyle';
 import { glRGB } from 'src/webgl/scene/glColor';
@@ -24,8 +24,12 @@ export interface RectangleEmitterInput {
   batch: SpriteBatch;
   /** Model colour id → css value. */
   colorsById: Map<string, string>;
-  getTilePos: TilePositionFn;
-  isIso: boolean;
+  /**
+   * The projection strategy the bulk is BUILT at — mode + the settled view
+   * rotation θ₀ (ADR 0049 §2, §6). Positions, corners, depth and the off-grid
+   * offset map all come from it.
+   */
+  strategy: CoordinateTransformStrategy;
 }
 
 export interface RectangleEmitter {
@@ -35,9 +39,9 @@ export interface RectangleEmitter {
 export const createRectangleEmitter = ({
   batch: b,
   colorsById,
-  getTilePos,
-  isIso
+  strategy
 }: RectangleEmitterInput): RectangleEmitter => {
+  const getTilePos = strategy.tilePosition;
   const white = b.white;
   const dot = b.dot;
 
@@ -46,8 +50,16 @@ export const createRectangleEmitter = ({
   // DOM's getProjectionCss scale) or they draw ~1/scale too thick.
   const g0 = getTilePos({ tile: { x: 0, y: 0 } });
   const g1 = getTilePos({ tile: { x: 1, y: 0 } });
+  const gY = getTilePos({ tile: { x: 0, y: 1 } });
+  // Mean of both axis scales (ADR 0050 §1): equal when the view is unrotated
+  // (so identical to the old single-axis value) and the constant-screen-width
+  // compromise under view rotation, where the two tile axes foreshorten
+  // differently.
   const widthScale =
-    Math.hypot(g1.x - g0.x, g1.y - g0.y) / UNPROJECTED_TILE_SIZE || 1;
+    (Math.hypot(g1.x - g0.x, g1.y - g0.y) +
+      Math.hypot(gY.x - g0.x, gY.y - g0.y)) /
+      2 /
+      UNPROJECTED_TILE_SIZE || 1;
 
   // Border edge as an ANALYTIC-AA line quad (shapeMode 1) — crisp at every iso
   // angle/zoom via the shader's fwidth() coverage ramp (guidelines §12);
@@ -97,8 +109,7 @@ export const createRectangleEmitter = ({
         rect.from,
         rect.to,
         rect.offset,
-        getTilePos,
-        isIso ? 'ISOMETRIC' : '2D'
+        strategy
       );
 
       // Border metrics (needed BEFORE the fill so the fill can inset away from

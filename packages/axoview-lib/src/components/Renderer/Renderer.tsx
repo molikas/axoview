@@ -8,11 +8,7 @@ import React, {
 import { Box } from '@mui/material';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useInteractionManager } from 'src/interaction/useInteractionManager';
-import {
-  useCanvasMode,
-  CanvasModeContextValue
-} from 'src/contexts/CanvasModeContext';
-import { Grid } from 'src/components/Grid/Grid';
+import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { Cursor } from 'src/components/Cursor/Cursor';
 import { Nodes } from 'src/components/SceneLayers/Nodes/Nodes';
 import { NodeLabelHitLayer } from 'src/components/SceneLayers/Nodes/NodeLabelHitLayer';
@@ -35,21 +31,23 @@ import { Lasso } from 'src/components/Lasso/Lasso';
 import { FreehandLasso } from 'src/components/FreehandLasso/FreehandLasso';
 import { useScene } from 'src/hooks/useScene';
 import { useInlineEditHistoryBracket } from 'src/hooks/useInlineEditHistoryBracket';
+import { getLiveStrategy } from 'src/utils/coordinateTransforms';
 import { getFitToViewParams, CoordsUtils } from 'src/utils';
+import {
+  computeTileBounds,
+  TileBounds
+} from 'src/components/Renderer/viewportBounds';
 import { RendererProps } from 'src/types/rendererProps';
-import { Scroll, Size, ViewItem } from 'src/types';
+import { ViewItem, UiStateStore } from 'src/types';
 
 // Stable empty list so the canvas-node DOM hybrid overlay memo returns a
 // referentially-stable value when nothing is selected (avoids re-renders).
 const NO_HYBRID_NODES: ViewItem[] = [];
 
-// Extra tiles of padding around the screen edges to avoid visible pop-in.
-const VIEWPORT_TILE_PADDING = 4;
-
 // Coalescing windows for the viewport-culling re-render during a continuous
 // pan/zoom gesture (see the coarseBounds subscriber). A fast fling otherwise
 // re-culls on most frames; these throttle it to a handful of times/sec off the
-// per-frame path while keeping the cull current within VIEWPORT_TILE_PADDING.
+// per-frame path while keeping the cull current within the viewport padding.
 const PAN_GESTURE_GAP_MS = 250; // scroll/zoom changes closer than this = one gesture
 const PAN_BOUNDS_THROTTLE_MS = 180; // max cull cadence mid-gesture
 const PAN_SETTLE_MS = 120; // flush the final cull this long after motion stops
@@ -60,40 +58,11 @@ const PAN_SETTLE_MS = 120; // flush the final cull this long after motion stops
  */
 const ID_KEY_SEP = '\u0000';
 
-interface TileBounds {
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
-}
-
-const computeTileBounds = (
-  scroll: Scroll,
-  zoom: number,
-  rendererSize: Size,
-  screenToTile: CanvasModeContextValue['screenToTile']
-): TileBounds => {
-  if (rendererSize.width === 0 || rendererSize.height === 0) {
-    return { minX: -Infinity, maxX: Infinity, minY: -Infinity, maxY: Infinity };
-  }
-
-  const corners = [
-    { x: 0, y: 0 },
-    { x: rendererSize.width, y: 0 },
-    { x: 0, y: rendererSize.height },
-    { x: rendererSize.width, y: rendererSize.height }
-  ].map((mouse) => screenToTile({ mouse, zoom, scroll, rendererSize }));
-
-  const xs = corners.map((t) => t.x);
-  const ys = corners.map((t) => t.y);
-
-  return {
-    minX: Math.min(...xs) - VIEWPORT_TILE_PADDING,
-    maxX: Math.max(...xs) + VIEWPORT_TILE_PADDING,
-    minY: Math.min(...ys) - VIEWPORT_TILE_PADDING,
-    maxY: Math.max(...ys) + VIEWPORT_TILE_PADDING
-  };
-};
+// Culling resolves the viewport at the LIVE angle (ADR 0049 §6): while a
+// rotation is in motion the settled context angle lags the screen. In the
+// isometric view the bounds do not depend on the angle (viewportBounds.ts).
+const liveViewportBounds = (s: UiStateStore) =>
+  computeTileBounds(s.scroll, s.zoom, s.rendererSize, getLiveStrategy(s));
 
 const tileBoundsEqual = (a: TileBounds, b: TileBounds) =>
   a.minX === b.minX &&
@@ -122,11 +91,15 @@ function useStableList<T>(next: T[]): T[] {
   return next;
 }
 
-export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
+export const Renderer = ({
+  showGrid,
+  backgroundColor,
+  pixelRatio
+}: RendererProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const interactionsRef = useRef<HTMLDivElement>(null);
   const uiStateApi = useUiStateStoreApi();
-  const { screenToTile, getTilePosition } = useCanvasMode();
+  const { getTilePosition } = useCanvasMode();
   const enableDebugTools = useUiStateStore((state) => state.enableDebugTools);
   const showCursor = useUiStateStore((state) => state.mode.showCursor);
   // While an annotation draw/eraser tool is active, the canvas cursor tile
@@ -159,7 +132,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   // the user pans far enough to expose new tiles, not on every pixel.
   const [coarseBounds, setCoarseBounds] = useState<TileBounds>(() => {
     const s = uiStateApi.getState();
-    return computeTileBounds(s.scroll, s.zoom, s.rendererSize, screenToTile);
+    return liveViewportBounds(s);
   });
 
   // Viewport-culling re-render, decoupled from the per-frame pan path.
@@ -174,7 +147,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
   // scroll, resize) culls immediately, but a continuous gesture (mouse pan, touch
   // pan, pinch — all detected generically as a rapid stream of changes) throttles
   // the cull off the per-frame path and always flushes once motion settles.
-  // VIEWPORT_TILE_PADDING keeps already-rendered content on-screen during the
+  // The viewport padding keeps already-rendered content on-screen during the
   // throttled window. This leaves the #54 synchronous canvas repaint untouched
   // (SceneCanvas keeps painting the committed set every frame), so no
   // cross-surface rubber-band returns.
@@ -194,16 +167,13 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
       if (
         state.scroll === prev.scroll &&
         state.zoom === prev.zoom &&
-        state.rendererSize === prev.rendererSize
+        state.rendererSize === prev.rendererSize &&
+        state.viewRotation === prev.viewRotation &&
+        state.canvasMode === prev.canvasMode
       ) {
         return;
       }
-      const newBounds = computeTileBounds(
-        state.scroll,
-        state.zoom,
-        state.rendererSize,
-        screenToTile
-      );
+      const newBounds = liveViewportBounds(state);
       pending = newBounds;
       const now = performance.now();
       const continuous = now - lastChangeAt < PAN_GESTURE_GAP_MS;
@@ -227,7 +197,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
       if (settleTimer) clearTimeout(settleTimer);
       unsubscribe();
     };
-  }, [uiStateApi, screenToTile]);
+  }, [uiStateApi]);
 
   useEffect(() => {
     if (!containerRef.current || !interactionsRef.current) return;
@@ -550,33 +520,20 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
             : (backgroundColor ?? theme.customVars.customPalette.diagramBg)
       }}
     >
-      {/* The GRID is the backdrop and mounts FIRST now.
-          Before the merge it sat between RectanglesCanvas and ConnectorsCanvas,
-          so grid lines painted over grouping-rectangle fills but under
-          everything else — a position that only existed because there were four
-          canvases to sit between. With one bulk canvas the grid is either under
-          all content or over all of it, and under is what a backdrop means
-          (and what every other tool does). */}
-      <Box
-        sx={{
-          position: 'absolute',
-          width: '100%',
-          height: '100%',
-          top: 0,
-          left: 0
-        }}
-      >
-        {isShowGrid && <Grid />}
-      </Box>
       {/* THE bulk canvas — rectangles, connectors, nodes and floating Labels in
           ONE WebGL2 context, ordered by one sort (R3/GPU-13, ADR 0038 §8). Mount
-          order carries no ordering meaning any more; the sort key does. */}
+          order carries no ordering meaning any more; the sort key does.
+          The GRID is its first pass (ADR 0050 §5): a procedural backdrop under
+          all content and above the container background, at every view angle
+          and in both projections — it replaced the SVG background tiles. */}
       <SceneCanvas
         rectangles={canvasRectangles}
         connectors={canvasConnectors}
         nodes={visibleItems}
         skipNodes={hybridNodes}
         labels={visibleLabels}
+        showGrid={isShowGrid}
+        pixelRatio={pixelRatio}
       />
       {/* The DOM <Rectangles> keeps only the DRAGGED rect (its [data-drag-id] is
           what DragItems mutates for the live move preview) and the DOM
@@ -590,12 +547,15 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
       <SceneLayer>
         <Connectors connectors={domConnectors} currentView={currentView} />
       </SceneLayer>
-      <SceneLayer>
+      {/* ADR 0049 §6: interaction-only layers PAUSE while a view rotation is in
+          motion (they would sit at the pre-motion angle) and re-sync at settle;
+          content layers follow the floor by a transform-only update. */}
+      <SceneLayer rotationMotion="pause">
         <Lasso />
       </SceneLayer>
       <FreehandLasso />
       {showCursor && !annotationActive && !hoveringItemInCursor && (
-        <SceneLayer>
+        <SceneLayer rotationMotion="pause">
           <Cursor />
         </SceneLayer>
       )}
@@ -623,10 +583,10 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
           0031 §2's "a Label paints above nodes" is now the `label` TYPE RANK in
           `compareSceneDrawOrder`, not this layer's mount position. Only the
           pixel-accurate DOM hit-proxy remains here. */}
-      <SceneLayer>
+      <SceneLayer rotationMotion="pause">
         <LabelHitLayer labels={visibleLabels} />
       </SceneLayer>
-      <SceneLayer>
+      <SceneLayer rotationMotion="pause">
         <NodeLabelHitLayer nodes={canvasLabelNodes} />
       </SceneLayer>
       {/* Connector labels render ABOVE the interactions box (like
@@ -634,7 +594,7 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
           its onPointerDown + stopPropagation then own the gesture. Below the
           interactions box the box ate every press, so label drag/select did
           nothing and the connector got dragged instead. */}
-      <SceneLayer>
+      <SceneLayer rotationMotion="billboard">
         <ConnectorLabels connectors={visibleConnectors} />
       </SceneLayer>
       {hybridNodes.length > 0 && (
@@ -642,16 +602,16 @@ export const Renderer = ({ showGrid, backgroundColor }: RendererProps) => {
           <Nodes nodes={hybridNodes} />
         </SceneLayer>
       )}
-      <SceneLayer>
+      <SceneLayer rotationMotion="pause">
         <ConnectorAnchorOverlay />
       </SceneLayer>
-      <SceneLayer>
+      <SceneLayer rotationMotion="pause">
         <HoverOutline />
         {/* Debug tool (ADR 0023 follow-up): cursor point + rendered footprint
             centres, the two things off-grid hit-testing compares. */}
         {enableDebugTools && <HoverHitDebug />}
       </SceneLayer>
-      <SceneLayer>
+      <SceneLayer rotationMotion="pause">
         <TransformControlsManager />
       </SceneLayer>
       {/* The inline-edited text box (ADR 0034) — promoted above the

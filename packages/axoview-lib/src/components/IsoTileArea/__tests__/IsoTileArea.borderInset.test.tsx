@@ -22,13 +22,14 @@ jest.mock('src/contexts/CanvasModeContext', () => ({
     const TILE = 100;
     const strategy = {
       projectionName: 'ISOMETRIC',
-      gridTileUrl: '',
       toScreen: (x: number, y: number) => ({ x: x * TILE, y: -y * TILE }),
       fromScreen: () => ({ x: 0, y: 0 })
     };
     return {
       strategy,
       getTilePosition: ({ tile }: { tile: { x: number; y: number } }) =>
+        strategy.toScreen(tile.x, tile.y),
+      getTileCorner: ({ tile }: { tile: { x: number; y: number } }) =>
         strategy.toScreen(tile.x, tile.y),
       screenToTile: () => ({ x: 0, y: 0 }),
       getProjectionCss: () => 'matrix(1, 0, 0, 1, 0, 0)'

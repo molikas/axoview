@@ -38,6 +38,8 @@ import { useDirtyTracker } from 'src/hooks/useDirtyTracker';
 import { ClipboardProvider } from 'src/clipboard/ClipboardContext';
 import { LayerContextProvider } from 'src/hooks/useLayerContext';
 import { CanvasModeProvider } from 'src/contexts/CanvasModeContext';
+import { getLiveStrategy } from 'src/utils/coordinateTransforms';
+import { shiftByRenderedOffset } from 'src/utils/renderedGeometry';
 import { LeftDock } from 'src/components/LeftDock/LeftDock';
 import { RightSidebar } from 'src/components/RightSidebar';
 import { BottomDock } from 'src/components/BottomDock/BottomDock';
@@ -149,7 +151,27 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
         scene: sceneStore,
         // SYNC_SCENE-routes a view's connectors into the scene store (mirrors
         // diagram-open). Debug-only; tree-shaken from production builds.
-        changeView
+        changeView,
+        // Where a tile (plus an optional stored off-grid offset) is drawn, in
+        // renderer-relative px, at the LIVE projection — mode and view rotation
+        // (ADR 0049). Lets e2e address content at any angle without
+        // re-deriving the projection. Debug-only, like the rest of the bridge.
+        tileToScreen: (
+          tile: { x: number; y: number },
+          offset?: { x: number; y: number }
+        ) => {
+          const ui = uiStore.getState();
+          const strategy = getLiveStrategy(ui);
+          const p = shiftByRenderedOffset(
+            strategy.tilePosition({ tile }),
+            offset,
+            strategy
+          );
+          return {
+            x: ui.rendererSize.width / 2 + ui.scroll.position.x + ui.zoom * p.x,
+            y: ui.rendererSize.height / 2 + ui.scroll.position.y + ui.zoom * p.y
+          };
+        }
       };
       type DebugBridge = typeof debugBridge;
       type WindowWithDebug = Window & {
@@ -210,7 +232,8 @@ const App = forwardRef<AxoviewRef, AxoviewProps>(
           load(data, opts);
           markClean();
         },
-        openExportImageDialog: () => {
+        openExportImageDialog: (options) => {
+          uiStateActions.setExportImageAngle(options?.angle ?? 'asViewed');
           uiStateActions.setDialog('EXPORT_IMAGE');
         }
       }),

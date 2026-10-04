@@ -172,6 +172,10 @@ const ConnectorTextLabel = ({
       // sets `--axoview-label-scale` on THIS element, so each connector label
       // gets a factor derived from its own font size.
       data-label-font={label.fontSize ?? LABEL_BASE_FONT_PX}
+      // ADR 0049 §6: the anchor a billboard SceneLayer moves while a view
+      // rotation is in motion (the chip itself stays upright).
+      data-billboard-x={position.x}
+      data-billboard-y={position.y}
       sx={{
         position: 'absolute',
         pointerEvents: interactive || linkActive ? 'auto' : 'none',
@@ -295,7 +299,7 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
     (state) => state.connectors[connector.id]?.path,
     (a, b) => a === b
   );
-  const { getTilePosition } = useCanvasMode();
+  const { getTilePosition, strategy } = useCanvasMode();
   // Actions only (not useScene): this label sits in the drag hot path, so it
   // must not re-render on every scene mutation just to hold the updateConnector
   // callback. useSceneActions has no data subscription (perf A-1).
@@ -641,9 +645,18 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
             const offset = connectorWidthPx * 3;
             const perpX = -dy / len;
             const perpY = dx / len;
+            // The perpendicular is read in TILE space but was applied as screen
+            // px — a 0°-view vector. Under view rotation it must turn with the
+            // floor like any sub-tile vector, or line 2's label swings to the
+            // wrong side of the line (ADR 0049 §4, finding F4): carry it through
+            // M(θ). The identity at 0° and in 2D, so their placement is unchanged.
+            const nudge = strategy.offsetToRender({
+              x: -perpX * offset,
+              y: -perpY * offset
+            });
             position = {
-              x: position.x - perpX * offset,
-              y: position.y - perpY * offset
+              x: position.x + nudge.x,
+              y: position.y + nudge.y
             };
           }
         }
@@ -664,7 +677,8 @@ export const ConnectorLabel = memo(({ connector }: Props) => {
     scenePath,
     connector.lineType,
     connector.width,
-    getTilePosition
+    getTilePosition,
+    strategy
   ]);
 
   // "Keep labels readable" (ADR 0015): counter-scale this connector's label chips

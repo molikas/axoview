@@ -28,6 +28,16 @@
 // WebGL2 is required (Phase C): createSpriteBatch returns null when it is
 // unavailable, and the Renderer gates the whole canvas behind the
 // WebGLUnsupportedScreen rather than any per-component Canvas2D fallback.
+//
+// View-rotation MOTION (ADR 0049 §6). The instances are built at one view angle
+// θ₀. The scene at a live angle θ is exactly `M(θ − θ₀)` (a 2×2 in scene space,
+// see utils/viewRotation `offsetMatrix`) applied to ground-plane positions and
+// to billboard ANCHORS — billboard quads stay screen-aligned. So while a
+// rotation is in motion only the `u_motion` uniform changes, exactly as pan and
+// zoom only change `u_view`; the instance buffer is rebuilt once, at settle.
+// Each instance carries its CLASS in `i_misc.x` (bit value 2 = billboard) and a
+// billboard's vertical screen offset from its ground anchor in `i_misc.z` (a
+// name chip floats `labelHeight` px above its node), keeping the 80-byte stride.
 // ---------------------------------------------------------------------------
 
 const VERT_SRC = `#version 300 es
@@ -35,10 +45,12 @@ layout(location=0) in vec4 i_anchorLocal; // (anchorX, anchorY, localOriginX, lo
 layout(location=1) in vec4 i_basis;       // (ux, uy, vx, vy)  local edge vectors, tile space
 layout(location=2) in vec4 i_uvRect;      // (u0, v0, uSize, vSize)  atlas coords
 layout(location=3) in vec4 i_tint;        // (r, g, b, a)  colour multiply
-layout(location=4) in vec4 i_misc;        // (counterScaleFlag, shapeMode, halfWidth, counterScale)
+layout(location=4) in vec4 i_misc;        // (counterScaleFlag + 2·billboard, shapeMode, halfWidth | billboardDy, counterScale)
 uniform vec2 u_resolution;   // device px
 uniform vec3 u_view;         // (zoom*dpr, originX_dev, originY_dev)
 uniform float u_counterScale;
+uniform mat2 u_motion;       // M(θ − θ₀): the view-rotation motion transform (ADR 0049 §6)
+uniform float u_moving;      // 0 at rest — the exact pre-rotation formula, no float drift
 out vec2 v_uv;
 out vec4 v_tint;
 // Analytic edge-AA carriers (§12). Only read when shapeMode>0 (line/disc); a
@@ -61,16 +73,32 @@ void main() {
   // per-instance value (w <= 0), so an emitter that has not been migrated keeps
   // its previous behaviour rather than collapsing to 1.
   float perInstance = (i_misc.w > 0.0) ? i_misc.w : u_counterScale;
-  float s = mix(1.0, perInstance, i_misc.x);
+  // i_misc.x = counterScaleFlag (0/1) + 2 for a BILLBOARD instance.
+  float billboard = step(1.5, i_misc.x);
+  float csFlag = i_misc.x - 2.0 * billboard;
+  float s = mix(1.0, perInstance, csFlag);
   vec2 local = (i_anchorLocal.zw + q.x * i_basis.xy + q.y * i_basis.zw) * s;
   vec2 tile = i_anchorLocal.xy + local;
+  if (u_moving > 0.5) {
+    if (billboard > 0.5) {
+      // The anchor follows the floor; the quad (and its screen-space float above
+      // the ground anchor) stays upright. i_misc.z is the anchor's vertical
+      // screen offset from its ground point (textured sprites only).
+      vec2 ground = i_anchorLocal.xy - vec2(0.0, i_misc.z);
+      tile = u_motion * ground + vec2(0.0, i_misc.z) + local;
+    } else {
+      // Ground plane: the whole quad turns with the floor. Stroke widths shear
+      // with |θ − θ₀| until the settle rebuild — accepted (ADR 0049 §6).
+      tile = u_motion * tile;
+    }
+  }
   vec2 dev = vec2(u_view.x * tile.x + u_view.y, u_view.x * tile.y + u_view.z);
   vec2 clip = (dev / u_resolution) * 2.0 - 1.0;
   gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
   v_uv = i_uvRect.xy + q * i_uvRect.zw;
   v_tint = i_tint;
   v_mode = i_misc.y;
-  v_hw = i_misc.z;
+  v_hw = i_misc.y > 0.5 ? i_misc.z : 0.0;
   // Scene-space distance-field coordinate. A DISC (mode 2) needs both axes; a LINE
   // (mode 1) needs only the perpendicular (.y), so the along-axis is zeroed to keep
   // a long segment's length out of mediump. Scaled by s (the counter-scale mix) so
@@ -110,6 +138,65 @@ void main() {
   // Data select (not control flow) keeps the derivative ops above unconditional.
   outColor = (v_mode > 0.5) ? shape : sprite;
 }`;
+
+// ---------------------------------------------------------------------------
+// The procedural GRID pass (ADR 0050 §5) — one full-screen triangle drawn after
+// the clear and before the instanced bulk, in the same context. Its fragment
+// shader maps each pixel back to TILE space through the inverse of the live
+// view (pan, zoom, rotation θ — all uniforms) and draws the half-integer cell
+// boundaries with `fwidth` coverage at a constant screen width, fading a line
+// family out as its cells shrink towards a pixel. Pan, zoom and rotation change
+// uniforms only; there is no geometry to rebuild and nothing switches path at
+// 0°, so no pop and no per-line sub-pixel shimmer (the POC Canvas2D grid had
+// both). Replaces the SVG background tiles in iso AND 2D.
+// ---------------------------------------------------------------------------
+const GRID_VERT_SRC = `#version 300 es
+void main() {
+  // One oversized triangle covering the viewport: (-1,-1), (3,-1), (-1,3).
+  vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
+  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+}`;
+
+const GRID_FRAG_SRC = `#version 300 es
+precision highp float;
+uniform vec2 u_resolution;   // device px
+uniform vec3 u_view;         // (zoom*dpr, originX_dev, originY_dev) — as the bulk
+uniform mat2 u_sceneToTile;  // inverse of the live tile→scene map (θ folded in)
+uniform vec4 u_color;        // straight RGBA; alpha = line opacity
+uniform float u_lineWidth;   // device px
+uniform vec2 u_fade;         // cell spacing (device px) where a family fades out → in
+out vec4 outColor;
+void main() {
+  vec2 dev = vec2(gl_FragCoord.x, u_resolution.y - gl_FragCoord.y);
+  vec2 scene = (dev - u_view.yz) / u_view.x;
+  // Tile centres are integers, so cell boundaries are the half-integers.
+  vec2 d = u_sceneToTile * scene - 0.5;
+  vec2 dist = abs(fract(d + 0.5) - 0.5);   // tile units to the nearest line
+  vec2 fw = max(fwidth(d), vec2(1e-6));    // tile units per device px
+  vec2 px = dist / fw;                     // device px to the nearest line
+  // Box-filtered line of width u_lineWidth: thin lines get proportionally less
+  // ink, which is the zoom-out fade the SVG tile had.
+  vec2 cov = clamp(u_lineWidth * 0.5 + 0.5 - px, 0.0, min(u_lineWidth, 1.0));
+  // Fade a family out as its spacing (≈ 1 / fwidth) shrinks towards a pixel —
+  // no moiré, and no cost that grows with the zoom-out line count.
+  cov *= smoothstep(u_fade.x, u_fade.y, 1.0 / fw);
+  float a = u_color.a * max(cov.x, cov.y);
+  outColor = vec4(u_color.rgb * a, a); // premultiplied, like the bulk
+}`;
+
+/** The grid pass's per-frame inputs (ADR 0050 §5). */
+export interface GridPass {
+  /** Inverse of the live tile→scene map as a row-major 2×2 (θ folded in). */
+  sceneToTile: readonly [number, number, number, number];
+  /** Straight RGBA, 0–1; alpha is the line opacity. */
+  color: readonly [number, number, number, number];
+  /** Line width in DEVICE px. */
+  lineWidth: number;
+}
+
+// Cell spacings (device px) over which a line family fades out.
+const GRID_FADE_OUT_PX = 4;
+const GRID_FADE_IN_PX = 12;
 
 // 20 floats / instance = 5 vec4 attributes (80-byte stride, 16-byte aligned).
 const FLOATS_PER_INSTANCE = 20;
@@ -298,7 +385,16 @@ export interface SpriteBatch {
      * per-label quantity — a single uniform can only ever be right for a
      * default-sized label.
      */
-    counterScale?: number
+    counterScale?: number,
+    /**
+     * ADR 0049 §6: present ⇒ a BILLBOARD — the anchor follows the floor during
+     * rotation motion, the quad stays screen-aligned. The value is the anchor's
+     * vertical screen offset from its ground point (`anchor.y − ground.y`, e.g.
+     * `−labelHeight` for a name chip), so motion can move the ground point and
+     * keep the float. Absent ⇒ GROUND plane (the whole quad turns). Textured
+     * sprites only — a line/disc instance (shapeMode > 0) is always ground.
+     */
+    billboardDy?: number
   ): void;
   commitInstances(): void;
   instanceCount(): number;
@@ -310,7 +406,14 @@ export interface SpriteBatch {
     zoomDpr: number,
     originXDev: number,
     originYDev: number,
-    counterScale: number
+    counterScale: number,
+    /**
+     * The view-rotation motion transform `M(θ − θ₀)` as a row-major 2×2, or
+     * omitted/null at rest (ADR 0049 §6). A uniform write — no rebuild.
+     */
+    motion?: readonly [number, number, number, number] | null,
+    /** The procedural grid, drawn under the bulk — or omitted/null for none. */
+    grid?: GridPass | null
   ): void;
 
   destroy(): void;
@@ -404,6 +507,34 @@ export const createSpriteBatch = (
   const uView = gl.getUniformLocation(prog, 'u_view');
   const uCounterScale = gl.getUniformLocation(prog, 'u_counterScale');
   const uAtlas = gl.getUniformLocation(prog, 'u_atlas');
+  const uMotion = gl.getUniformLocation(prog, 'u_motion');
+  const uMoving = gl.getUniformLocation(prog, 'u_moving');
+
+  // --- grid program (ADR 0050 §5) ---
+  const gvs = compileShader(gl, gl.VERTEX_SHADER, GRID_VERT_SRC);
+  const gfs = compileShader(gl, gl.FRAGMENT_SHADER, GRID_FRAG_SRC);
+  if (!gvs || !gfs) return null;
+  const gridProg = gl.createProgram();
+  if (!gridProg) return null;
+  gl.attachShader(gridProg, gvs);
+  gl.attachShader(gridProg, gfs);
+  gl.linkProgram(gridProg);
+  if (!gl.getProgramParameter(gridProg, gl.LINK_STATUS)) {
+    console.warn(
+      '[glSpriteBatch] grid link failed:',
+      gl.getProgramInfoLog(gridProg)
+    );
+    return null;
+  }
+  const gResolution = gl.getUniformLocation(gridProg, 'u_resolution');
+  const gView = gl.getUniformLocation(gridProg, 'u_view');
+  const gSceneToTile = gl.getUniformLocation(gridProg, 'u_sceneToTile');
+  const gColor = gl.getUniformLocation(gridProg, 'u_color');
+  const gLineWidth = gl.getUniformLocation(gridProg, 'u_lineWidth');
+  const gFade = gl.getUniformLocation(gridProg, 'u_fade');
+  const gridCols = new Float32Array(4);
+  // Column-major scratch for uniformMatrix2fv (no per-frame allocation).
+  const motionCols = new Float32Array([1, 0, 0, 1]);
 
   // --- atlas texture ---
   const MAX = gl.getParameter(gl.MAX_TEXTURE_SIZE) as number;
@@ -828,8 +959,10 @@ export const createSpriteBatch = (
       counterScaleFlag,
       shapeMode = 0,
       halfWidth = 0,
-      counterScale = 0
+      counterScale = 0,
+      billboardDy
     ) {
+      const billboard = billboardDy !== undefined && shapeMode === 0;
       ensureCapacity(FLOATS_PER_INSTANCE);
       const v = staging;
       stagingPages[(floatCount / FLOATS_PER_INSTANCE) | 0] = uv.page;
@@ -850,9 +983,12 @@ export const createSpriteBatch = (
       v[i++] = g;
       v[i++] = b;
       v[i++] = a;
-      v[i++] = counterScaleFlag; // i_misc.x
+      // i_misc.x — counter-scale flag, +2 for a billboard (ADR 0049 §6).
+      v[i++] = counterScaleFlag + (billboard ? 2 : 0);
       v[i++] = shapeMode; // i_misc.y (0 textured / 1 line / 2 disc)
-      v[i++] = halfWidth; // i_misc.z (scene units)
+      // i_misc.z — line/disc half-width (scene units), or a billboard's
+      // vertical screen offset from its ground anchor.
+      v[i++] = billboard ? (billboardDy as number) : halfWidth;
       // i_misc.w — R5/OVL-02 per-instance counter-scale. 0 = "use the uniform".
       v[i++] = counterScale;
       floatCount = i;
@@ -908,7 +1044,16 @@ export const createSpriteBatch = (
     }),
     drawCallCount: () => runs.length,
     instanceCount: () => instCount,
-    render(bw, bh, zoomDpr, originXDev, originYDev, counterScale) {
+    render(
+      bw,
+      bh,
+      zoomDpr,
+      originXDev,
+      originYDev,
+      counterScale,
+      motion,
+      grid
+    ) {
       if (canvas.width !== bw || canvas.height !== bh) {
         canvas.width = bw;
         canvas.height = bh;
@@ -921,6 +1066,29 @@ export const createSpriteBatch = (
         gl!.bindTexture(gl!.TEXTURE_2D, p.tex);
         gl!.generateMipmap(gl!.TEXTURE_2D);
         p.mipDirty = false;
+      }
+      if (grid) {
+        // Under everything the bulk draws; above the container background.
+        gl!.useProgram(gridProg);
+        gl!.bindVertexArray(null);
+        gl!.uniform2f(gResolution, bw, bh);
+        gl!.uniform3f(gView, zoomDpr, originXDev, originYDev);
+        // Row-major [a, b, c, d] → GLSL column-major (a, c, b, d).
+        gridCols[0] = grid.sceneToTile[0];
+        gridCols[1] = grid.sceneToTile[2];
+        gridCols[2] = grid.sceneToTile[1];
+        gridCols[3] = grid.sceneToTile[3];
+        gl!.uniformMatrix2fv(gSceneToTile, false, gridCols);
+        gl!.uniform4f(
+          gColor,
+          grid.color[0],
+          grid.color[1],
+          grid.color[2],
+          grid.color[3]
+        );
+        gl!.uniform1f(gLineWidth, grid.lineWidth);
+        gl!.uniform2f(gFade, GRID_FADE_OUT_PX, GRID_FADE_IN_PX);
+        gl!.drawArrays(gl!.TRIANGLES, 0, 3);
       }
       if (instCount === 0) return;
       gl!.useProgram(prog);
@@ -937,6 +1105,20 @@ export const createSpriteBatch = (
       gl!.uniform2f(uResolution, bw, bh);
       gl!.uniform3f(uView, zoomDpr, originXDev, originYDev);
       gl!.uniform1f(uCounterScale, counterScale);
+      if (motion) {
+        // Row-major [a, b, c, d] → GLSL column-major (a, c, b, d).
+        motionCols[0] = motion[0];
+        motionCols[1] = motion[2];
+        motionCols[2] = motion[1];
+        motionCols[3] = motion[3];
+      } else {
+        motionCols[0] = 1;
+        motionCols[1] = 0;
+        motionCols[2] = 0;
+        motionCols[3] = 1;
+      }
+      gl!.uniformMatrix2fv(uMotion, false, motionCols);
+      gl!.uniform1f(uMoving, motion ? 1 : 0);
       gl!.activeTexture(gl!.TEXTURE0);
       gl!.uniform1i(uAtlas, 0);
       // One draw per material run. With everything on one page this is a single
@@ -968,6 +1150,9 @@ export const createSpriteBatch = (
       gl!.deleteProgram(prog);
       gl!.deleteShader(vs);
       gl!.deleteShader(fs);
+      gl!.deleteProgram(gridProg);
+      gl!.deleteShader(gvs);
+      gl!.deleteShader(gfs);
     }
   };
 };

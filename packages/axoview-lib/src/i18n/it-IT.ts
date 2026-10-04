@@ -41,6 +41,9 @@ const locale: LocaleProps = {
     zoomOutAction: 'Rimpicciolisci',
     zoomOutShortcut: 'Rotella del mouse giù',
     zoomOutDescription: 'Rimpicciolisci la tela',
+    rotateViewAction: 'Ruota vista',
+    rotateViewShortcut: 'Q / E (Maiusc: quarto di giro)',
+    rotateViewDescription: 'Ruota il pavimento isometrico di 15° in senso antiorario (Q) o orario (E); Maiusc passa al quarto di giro successivo',
     panCanvasAction: 'Sposta la tela',
     panCanvasShortcut: 'Clic sinistro + trascina',
     panCanvasDescription: 'Muovi la tela in modalità panoramica',
@@ -138,7 +141,10 @@ const locale: LocaleProps = {
       'Alt+clic su un punto di passaggio di un connettore per rimuoverlo (senza dover prima selezionare il connettore); gli ancoraggi terminali vengono conservati.',
     miZoomAction: 'Zoom',
     miZoomMethod: 'Rotellina',
-    miZoomDescription: 'Scorri per ingrandire verso il cursore.'
+    miZoomDescription: 'Scorri per ingrandire verso il cursore.',
+    miRotateViewAction: 'Ruota vista',
+    miRotateViewMethod: 'Alt + trascina',
+    miRotateViewDescription: 'Orbita attorno al pavimento isometrico; tieni premuto Maiusc per agganciare a 15°. Alt + clic senza trascinare rimuove ancora un punto di passaggio.'
   },
   connectorHintTooltip: {
     tipCreatingConnectors: 'Suggerimento: Creazione connettori',
@@ -422,6 +428,26 @@ const locale: LocaleProps = {
     help: 'Aiuto (F1)',
     selected: '{count} selezionati'
   },
+  viewRotationControls: {
+    groupLabel: 'Rotazione della vista',
+    rotateCounterClockwise: 'Ruota la vista in senso antiorario (Q)',
+    rotateClockwise: 'Ruota la vista in senso orario (E)',
+    resetToDefault: 'Angolo di vista {angle} — fai clic per tornare al predefinito della pagina ({default})',
+    atDefault: 'Angolo di vista {angle} (predefinito della pagina)',
+    setAsPageDefault: 'Imposta come predefinito della pagina',
+    setAsPageDefaultHint: 'Apri questa pagina a {angle} per tutti — un passo di annullamento',
+    unpinPageDefault: 'Rimuovi il predefinito della pagina',
+    unpinPageDefaultHint: 'Questa pagina si apre a {angle} per tutti — fai clic per rimuoverlo, così si aprirà a 0° (un passo di annullamento)',
+    nothingToPin: '0° è l’angolo standard — ruota la vista per fissare un altro predefinito della pagina',
+    pinnedNotice: 'Predefinito della pagina impostato a {angle}: ora questa pagina si apre con questo angolo per tutti (annulla per ripristinare)',
+    unpinnedNotice: 'Predefinito della pagina rimosso: ora questa pagina si apre a 0° per tutti (annulla per ripristinare)',
+    orbitHint: 'Alt + trascina la tela per orbitare liberamente',
+    replacePageDefault: 'Imposta {angle} come predefinito della pagina (sostituisce {default})',
+    removePageDefault: 'Rimuovi il predefinito della pagina ({default}) — si aprirà a 0°',
+    pinnedElsewhereHint: 'Predefinito della pagina: {default} — fai clic per sostituirlo o rimuoverlo',
+    disabledIn2D: 'La rotazione della vista è disponibile nella vista isometrica',
+    announce: 'Angolo di vista {angle}'
+  },
   modeHints: {
     connector: 'Trascina tra gli elementi per collegare • Esc per annullare',
     textBox:
@@ -487,6 +513,10 @@ const locale: LocaleProps = {
   },
   exportImageDialog: {
     groupAppearance: 'Appearance',
+    angle: 'Angolo',
+    angleAsViewed: 'Come visualizzato ({angle})',
+    anglePageDefault: 'Predefinito della pagina ({angle})',
+    anglePageDefaultSame: 'Predefinito della pagina ({angle}) — uguale alla tua vista',
     groupBackground: 'Background',
     groupCrop: 'Crop',
     title: 'Esporta come immagine',

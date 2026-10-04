@@ -1,10 +1,14 @@
-import domtoimage from 'dom-to-image-more';
 import { optimizeSvgDataUrl, utf8ToBase64 } from './svgOptimizer';
 import { stripDefaultIcons } from './leanSave';
 import type { Icon } from 'src/types';
 import { computeRenderTarget } from './renderTarget';
 import { downloadFile } from './downloadFile';
 import { Model, Size } from '../types';
+
+// Loaded on the first export, off the editor's boot path (the bundle budget,
+// scripts/bundle-budget.json: rarely used code goes behind import()).
+const loadDomToImage = () =>
+  import('dom-to-image-more').then((m) => m.default);
 
 export const generateGenericFilename = (extension: string) => {
   return `axoview-export-${new Date().toISOString()}.${extension}`;
@@ -110,6 +114,7 @@ export const exportAsImage = async (
         : undefined
   };
 
+  const domtoimage = await loadDomToImage();
   try {
     const imageData = await domtoimage.toPng(el, options);
     return imageData;
@@ -160,6 +165,7 @@ export const exportAsSVG = async (
     quality: 1.0
   };
 
+  const domtoimage = await loadDomToImage();
   try {
     const svgData = await domtoimage.toSvg(el, options);
     return optimizeSvgDataUrl(svgData);

@@ -3,6 +3,7 @@ import { useScene } from 'src/hooks/useScene';
 import { IsoTileArea } from 'src/components/IsoTileArea/IsoTileArea';
 import { getColorVariant } from 'src/utils';
 import { useColor } from 'src/hooks/useColor';
+import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import {
   RENDERED_DRAG_TRANSFORM,
   getRenderedDragTransform
@@ -40,6 +41,7 @@ export const Rectangle = memo(
     borderOpacity
   }: Props) => {
     const predefinedColor = useColor(colorId);
+    const { strategy } = useCanvasMode();
 
     // Use custom color if provided, otherwise use the predefined color value.
     const colorValue = customColor ? customColor : predefinedColor?.value;
@@ -60,10 +62,10 @@ export const Rectangle = memo(
         offset
           ? {
               ...RECT_DRAG_STYLE,
-              transform: getRenderedDragTransform(offset)
+              transform: getRenderedDragTransform(offset, strategy)
             }
           : RECT_DRAG_STYLE,
-      [offset?.x, offset?.y] // eslint-disable-line react-hooks/exhaustive-deps
+      [offset?.x, offset?.y, strategy] // eslint-disable-line react-hooks/exhaustive-deps
     );
 
     // Memoise the chroma-derived stroke variant so it isn't recomputed on every

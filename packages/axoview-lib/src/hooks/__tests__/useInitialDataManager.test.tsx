@@ -81,7 +81,9 @@ describe('useInitialDataManager - Orphaned Connector Handling', () => {
         // selection on every load.
         setItemControls: jest.fn(),
         setNotification: jest.fn(),
-        resetUiState: jest.fn()
+        resetUiState: jest.fn(),
+        // ADR 0051 §3 — a load opens at the page's default view angle.
+        jumpViewRotation: jest.fn()
       },
       rendererEl: null,
       editorMode: 'INTERACTIVE'

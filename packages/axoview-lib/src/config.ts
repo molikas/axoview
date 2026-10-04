@@ -31,7 +31,12 @@ export const DEFAULT_COLOR: Colors[0] = {
 export const DEFAULT_FONT_FAMILY = 'Roboto, Arial, sans-serif';
 
 export const VIEW_DEFAULTS: Required<
-  Omit<View, 'id' | 'description' | 'lastUpdated' | 'layers'>
+  Omit<
+    View,
+    // ADR 0051: absent = 0°, so lean-save never writes it on a page that was
+    // never given a default.
+    'id' | 'description' | 'lastUpdated' | 'layers' | 'defaultRotation'
+  >
 > = {
   // D13 — data-layer fallback only. config.ts is a LEAF module (see the
   // INITIAL_UI_STATE note below) and cannot call useTranslation, so the

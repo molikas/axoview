@@ -74,7 +74,7 @@ export const deleteView = (ctx: ViewReducerContext): State => {
 };
 
 export const updateView = (
-  updates: Partial<Pick<View, 'name'>>,
+  updates: Partial<Pick<View, 'name' | 'defaultRotation'>>,
   ctx: ViewReducerContext
 ): State => {
   // RED-06: ViewTabs' inline rename commits on blur/Enter unconditionally, so
@@ -95,6 +95,11 @@ export const updateView = (
   const newState = produce(ctx.state, (draft) => {
     const view = getItemByIdOrThrow(draft.model.views, ctx.viewId);
     Object.assign(view.value, updates);
+    // ADR 0051 §2: setting the page default to 0 REMOVES the field, so a page
+    // that was turned and turned back saves byte-for-byte as before (lean save).
+    if ('defaultRotation' in updates && !updates.defaultRotation) {
+      delete view.value.defaultRotation;
+    }
   });
 
   return newState;

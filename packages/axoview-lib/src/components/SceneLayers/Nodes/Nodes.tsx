@@ -1,8 +1,13 @@
 import React, { memo, useMemo } from 'react';
 import { ViewItem } from 'src/types';
 import { useLayerContext } from 'src/hooks/useLayerContext';
-import { resolveRenderOrder, findLayer } from 'src/utils/renderOrder';
+import {
+  resolveRenderOrder,
+  findLayer,
+  sortTilesInPaintOrder
+} from 'src/utils/renderOrder';
 import { useRenderProbe } from 'src/utils/renderProbe';
+import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { Node } from './Node/Node';
 
 interface Props {
@@ -19,37 +24,35 @@ interface Props {
 export const Nodes = memo(({ nodes }: Props) => {
   useRenderProbe('Nodes');
   const { layers, visibleIds } = useLayerContext();
+  // The projection's depth (rotated under view rotation, ADR 0049 §5) through
+  // the SAME comparator SceneCanvas and the picker use.
+  const { strategy } = useCanvasMode();
 
-  const sortedNodes = useMemo(() => {
-    // Filter to visible-only, then sort by resolved render order descending
-    // (higher order = rendered later = visually on top in CSS stacking).
-    return [...nodes]
-      .filter((node) => layers.length === 0 || visibleIds.has(node.id))
-      .sort((a, b) => {
-        const layerA = findLayer(a.layerId, layers);
-        const layerB = findLayer(b.layerId, layers);
-        const orderA = resolveRenderOrder(
-          layerA?.order ?? 0,
-          a.zIndex ?? 0,
-          -a.tile.x - a.tile.y
-        );
-        const orderB = resolveRenderOrder(
-          layerB?.order ?? 0,
-          b.zIndex ?? 0,
-          -b.tile.x - b.tile.y
-        );
-        return orderA - orderB;
-      });
-  }, [nodes, layers, visibleIds]);
+  const sortedNodes = useMemo(
+    () =>
+      // Filter to visible-only, then sort by render order ascending (later =
+      // visually on top in CSS stacking).
+      sortTilesInPaintOrder(
+        nodes.filter((node) => layers.length === 0 || visibleIds.has(node.id)),
+        (layerId) => findLayer(layerId, layers)?.order ?? 0,
+        strategy
+      ),
+    [nodes, layers, visibleIds, strategy]
+  );
 
   return (
     <>
       {sortedNodes.map((node) => {
         const layer = findLayer(node.layerId, layers);
-        const order = resolveRenderOrder(
-          layer?.order ?? 0,
-          node.zIndex ?? 0,
-          -node.tile.x - node.tile.y
+        // Rounded: the order becomes a CSS z-index, which must be an integer.
+        // A rotated depth is a float; rounding can only TIE two neighbours, and
+        // a z-index tie falls back to DOM order — the sorted order above.
+        const order = Math.round(
+          resolveRenderOrder(
+            layer?.order ?? 0,
+            node.zIndex ?? 0,
+            strategy.depth(node.tile)
+          )
         );
         return <Node key={node.id} order={order} node={node} />;
       })}

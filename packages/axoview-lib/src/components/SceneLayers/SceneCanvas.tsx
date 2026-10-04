@@ -17,6 +17,8 @@ import { useUiStateStoreApi } from 'src/stores/uiStateStore';
 import { useModelStoreApi } from 'src/stores/modelStore';
 import { useSceneStoreApi } from 'src/stores/sceneStore';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
+import { getLiveStrategy, isoKappa } from 'src/utils/coordinateTransforms';
+import { offsetMatrix, rotationTrig } from 'src/utils/viewRotation';
 import { useLayerContext } from 'src/hooks/useLayerContext';
 import {
   SceneEntityKind,
@@ -29,6 +31,7 @@ import {
   SpriteBatch,
   UVRect
 } from 'src/webgl/glSpriteBatch';
+import { gridPassFor } from 'src/webgl/scene/gridPass';
 import { publishAtlasStats } from 'src/webgl/atlasDiagnostics';
 import { attachContextLossRecovery } from 'src/webgl/contextLoss';
 import { CHIP_SUPERSAMPLE } from 'src/webgl/itemRaster';
@@ -65,7 +68,10 @@ import { makeArrowCanvas, makeRingCanvas } from 'src/webgl/scene/connectorSprite
 //     `data-all-icons-drawn`.
 //   • ADR 0038 §5 — no per-frame CPU geometry work: `buildInstances` runs on a
 //     scene change or an LOD-band crossing only, and `data-build-count` stays
-//     flat across a pan.
+//     flat across a pan — and across a view-rotation gesture (ADR 0049 §6):
+//     the instances are built at the settled angle θ₀ and each frame only
+//     writes the `u_motion` uniform M(θ − θ₀); the settle rebuild comes from
+//     the strategy change once the gesture ends.
 //   • ADR 0031 §2 — "a floating Label paints above nodes" is now a SORT-KEY
 //     property (the label type rank), not a mount-order accident.
 // ---------------------------------------------------------------------------
@@ -81,7 +87,20 @@ interface Props {
   skipNodes?: ViewItem[];
   /** Viewport-culled floating Labels. */
   labels: Label[];
+  /**
+   * Draw the procedural grid pass under the bulk (ADR 0050 §5) —
+   * `renderer.showGrid` and the export dialog's grid checkbox.
+   */
+  showGrid?: boolean;
+  /**
+   * Render at this dpr instead of the screen's — the export instance passes
+   * its export scale (ADR 0050 §6), so GPU content is captured crisp.
+   */
+  pixelRatio?: number;
 }
+
+const screenDpr = (): number =>
+  (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
 
 // R3/GPU-01/03: how many times a failing icon url is re-requested before the
 // layer gives up on it. Bounded on both sides deliberately — zero retries cached
@@ -128,13 +147,21 @@ interface DrawUnit {
 }
 
 export const SceneCanvas = memo(
-  ({ rectangles, connectors, nodes, skipNodes, labels }: Props) => {
+  ({
+    rectangles,
+    connectors,
+    nodes,
+    skipNodes,
+    labels,
+    showGrid = true,
+    pixelRatio
+  }: Props) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const uiApi = useUiStateStoreApi();
     const modelApi = useModelStoreApi();
     const sceneApi = useSceneStoreApi();
     const theme = useTheme();
-    const { getTilePosition, strategy } = useCanvasMode();
+    const { strategy, uprightFlip } = useCanvasMode();
     const { layers, visibleIds } = useLayerContext();
 
     // Live refs — the GL effect runs once per store identity and reads the
@@ -145,8 +172,13 @@ export const SceneCanvas = memo(
     const labelsRef = useRef(labels);
     const layersRef = useRef(layers);
     const visibleIdsRef = useRef(visibleIds);
-    const getTilePositionRef = useRef(getTilePosition);
-    const projectionRef = useRef(strategy.projectionName);
+    // The strategy the bulk is BUILT at: mode + the settled view rotation θ₀
+    // (ADR 0049 §6). Read at build time through a ref, like every input here.
+    const strategyRef = useRef(strategy);
+    const showGridRef = useRef(showGrid);
+    const pixelRatioRef = useRef(pixelRatio);
+    // Keep-upright for flat icons (ADR 0050 §2) — decided with the strategy.
+    const uprightFlipXRef = useRef(uprightFlip.X);
     const skipIdsRef = useRef<Set<string>>(EMPTY_SKIP);
     const chipStyleRef = useRef<ChipStyle>({
       radius: 0,
@@ -169,8 +201,10 @@ export const SceneCanvas = memo(
     labelsRef.current = labels;
     layersRef.current = layers;
     visibleIdsRef.current = visibleIds;
-    getTilePositionRef.current = getTilePosition;
-    projectionRef.current = strategy.projectionName;
+    strategyRef.current = strategy;
+    showGridRef.current = showGrid;
+    pixelRatioRef.current = pixelRatio;
+    uprightFlipXRef.current = uprightFlip.X;
     skipIdsRef.current =
       skipNodes && skipNodes.length > 0
         ? new Set(skipNodes.map((n) => n.id))
@@ -229,6 +263,9 @@ export const SceneCanvas = memo(
       layers: Layer[] | null;
       visibleIds: ReadonlySet<string> | null;
       skipIds: ReadonlySet<string> | null;
+      // Node depth is the strategy's (rotated under view rotation, ADR 0049
+      // §5), so the sorted list is stale whenever the build strategy changes.
+      strategy: typeof strategy | null;
       sorted: DrawUnit[];
     }>({
       rectangles: null,
@@ -238,6 +275,7 @@ export const SceneCanvas = memo(
       layers: null,
       visibleIds: null,
       skipIds: null,
+      strategy: null,
       sorted: []
     });
 
@@ -387,6 +425,7 @@ export const SceneCanvas = memo(
         const visibleNow = visibleIdsRef.current;
         const skipIds = skipIdsRef.current;
         const cache = sortCacheRef.current;
+        const strategyNow = strategyRef.current;
         if (
           cache.rectangles === rects &&
           cache.connectors === conns &&
@@ -394,7 +433,8 @@ export const SceneCanvas = memo(
           cache.labels === lbls &&
           cache.layers === layersNow &&
           cache.visibleIds === visibleNow &&
-          cache.skipIds === skipIds
+          cache.skipIds === skipIds &&
+          cache.strategy === strategyNow
         ) {
           return cache.sorted;
         }
@@ -444,7 +484,9 @@ export const SceneCanvas = memo(
             kind: 'node',
             layerOrder: layerOrderOf(n.layerId),
             zIndex: n.zIndex ?? 0,
-            isoDepth: -n.tile.x - n.tile.y,
+            // The projection's depth — `−x − y` unrotated, the rotated plane's
+            // otherwise — the value the picker reads too (ADR 0049 §5).
+            isoDepth: strategyNow.depth(n.tile),
             entity: n
           });
         }
@@ -469,12 +511,20 @@ export const SceneCanvas = memo(
           layers: layersNow,
           visibleIds: visibleNow,
           skipIds,
+          strategy: strategyNow,
           sorted: units
         };
         return units;
       };
 
       let lastBuiltDrawLabels = -1; // -1 = never built
+      // The view angle (and projection) the CURRENT instances were built at.
+      // The motion transform is relative to THESE, not to the store's
+      // `viewRotationBase`: between a settle and the rebuild that follows it the
+      // two differ, and drawing relative to the stale geometry is what keeps
+      // that frame exact (ADR 0049 §6).
+      let builtRotation = 0;
+      let builtIso = false;
       // Published on data-build-count: the "no per-frame CPU work" invariant is
       // that this stays FLAT during a pan/zoom. The perf harness asserts it.
       let buildCount = 0;
@@ -520,13 +570,15 @@ export const SceneCanvas = memo(
           if (it.offset) offsetByItemId.set(it.id, it.offset);
         }
 
-        const getTilePos = getTilePositionRef.current;
-        const isIso = projectionRef.current === 'ISOMETRIC';
+        const buildStrategy = strategyRef.current;
+        const isIso = buildStrategy.projectionName === 'ISOMETRIC';
+        builtRotation = buildStrategy.rotation;
+        builtIso = isIso;
         // Clamp effective dpr at 2 for chip rasterisation: on a 3x screen
         // dpr*CHIP_SUPERSAMPLE would be 6x (36x chip area), overflowing the atlas
         // and thrashing memory for no visible gain.
         const ss =
-          Math.min(window.devicePixelRatio || 1, 2) * CHIP_SUPERSAMPLE;
+          Math.min(pixelRatioRef.current ?? screenDpr(), 2) * CHIP_SUPERSAMPLE;
         const drawLabels = isNodeLabelDrawn(zoom, readableLabels);
 
         // beginInstances() compacts the atlas if a prior build overflowed it (or
@@ -545,15 +597,14 @@ export const SceneCanvas = memo(
         const rectEmitter = createRectangleEmitter({
           batch: b,
           colorsById,
-          getTilePos,
-          isIso
+          strategy: buildStrategy
         });
         const connEmitter = createConnectorEmitter({
           batch: b,
           colorsById,
           scenePaths,
           offsetByItemId,
-          getTilePos,
+          strategy: buildStrategy,
           arrowUV,
           ringUV,
           selectedIds: connectorSelection(ui.itemControls, ui.selectedIds).ids,
@@ -563,7 +614,8 @@ export const SceneCanvas = memo(
           batch: b,
           itemsById,
           iconsById,
-          getTilePos,
+          strategy: buildStrategy,
+          uprightFlip: uprightFlipXRef.current,
           isIso,
           inPreview: ui.editorMode === 'EXPLORABLE_READONLY',
           previewHideLabels: ui.previewHideLabels,
@@ -587,7 +639,7 @@ export const SceneCanvas = memo(
               move: ui.labelMove,
               moves: ui.labelMoves,
               editingId: ui.inlineEditLabelId,
-              getTilePos,
+              strategy: buildStrategy,
               zoom,
               readableLabels,
               ss,
@@ -675,7 +727,7 @@ export const SceneCanvas = memo(
           width: bw,
           height: bh,
           dpr
-        } = computeBackingStore(W, H, window.devicePixelRatio || 1);
+        } = computeBackingStore(W, H, pixelRatioRef.current ?? screenDpr());
         const counterScale = labelCounterScaleFor(zoom, readableLabels);
         const drawLabels = isNodeLabelDrawn(zoom, readableLabels) ? 1 : 0;
 
@@ -689,7 +741,27 @@ export const SceneCanvas = memo(
         canvas.style.height = `${H}px`;
         const originXDev = (W / 2 + scroll.position.x) * dpr;
         const originYDev = (H / 2 + scroll.position.y) * dpr;
-        b.render(bw, bh, zoom * dpr, originXDev, originYDev, counterScale);
+        // ADR 0049 §6: a rotation in motion is a uniform, never a rebuild. The
+        // live angle vs. the angle these instances were built at.
+        const motionDeg =
+          builtIso && ui.canvasMode === 'ISOMETRIC'
+            ? ui.viewRotation - builtRotation
+            : 0;
+        const motion =
+          motionDeg !== 0 ? offsetMatrix(rotationTrig(motionDeg), isoKappa()) : null;
+        b.render(
+          bw,
+          bh,
+          zoom * dpr,
+          originXDev,
+          originYDev,
+          counterScale,
+          motion,
+          showGridRef.current
+            ? gridPassFor(getLiveStrategy(ui), zoom * dpr)
+            : null
+        );
+        canvas.dataset.motionDeg = String(motionDeg);
         canvas.dataset.labelScale = String(counterScale);
         // Now — and only now — is it true that a frame was painted with every
         // available icon. See `allIconsDrawnPending`.
@@ -724,6 +796,7 @@ export const SceneCanvas = memo(
         if (
           s.scroll === p.scroll &&
           s.zoom === p.zoom &&
+          s.viewRotation === p.viewRotation &&
           s.rendererSize === p.rendererSize &&
           s.readableLabels === p.readableLabels &&
           s.previewHideLabels === p.previewHideLabels &&
@@ -751,7 +824,11 @@ export const SceneCanvas = memo(
         ) {
           geomDirtyRef.current = true;
         }
-        if (s.scroll !== p.scroll || s.zoom !== p.zoom) {
+        if (
+          s.scroll !== p.scroll ||
+          s.zoom !== p.zoom ||
+          s.viewRotation !== p.viewRotation
+        ) {
           drawNow();
         } else {
           scheduleDraw();
@@ -804,8 +881,9 @@ export const SceneCanvas = memo(
       labels,
       layers,
       visibleIds,
-      getTilePosition,
-      strategy.projectionName,
+      // The build strategy's identity — mode AND settled view rotation. Keying
+      // on `projectionName` alone would miss a rotation (finding F6).
+      strategy,
       theme
     ]);
 
@@ -815,6 +893,19 @@ export const SceneCanvas = memo(
       geomDirtyRef.current = true;
       drawNowRef.current();
     }, [skipNodes]);
+
+    // The grid toggle is a uniform-level change: repaint, no rebuild.
+    useEffect(() => {
+      scheduleDrawRef.current();
+    }, [showGrid]);
+
+    // A new render dpr (the export scale changed) re-rasterises the chips at it
+    // and repaints in the same commit, before the export's re-capture reads the
+    // canvas.
+    useLayoutEffect(() => {
+      geomDirtyRef.current = true;
+      drawNowRef.current();
+    }, [pixelRatio]);
 
     return (
       <canvas

@@ -28,7 +28,7 @@ export const HoverHitDebug = () => {
   const zoom = useUiStateStore((s) => s.zoom);
   const scroll = useUiStateStore((s) => s.scroll);
   const rendererSize = useUiStateStore((s) => s.rendererSize);
-  const { getTilePosition } = useCanvasMode();
+  const { strategy } = useCanvasMode();
   const { items } = useScene();
 
   if (
@@ -48,7 +48,7 @@ export const HoverHitDebug = () => {
   );
 
   const footprints = items.map((it) => {
-    const c = getRenderedTilePosition(it, getTilePosition, 'CENTER');
+    const c = getRenderedTilePosition(it, strategy, 'CENTER');
     return { id: it.id, x: c.x, y: c.y };
   });
 

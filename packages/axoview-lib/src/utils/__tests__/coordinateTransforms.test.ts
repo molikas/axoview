@@ -350,15 +350,10 @@ describe('strategy metadata', () => {
     expect(cartesian2DStrategy.projectionName).toBe('2D');
   });
 
-  it('both strategies have non-empty gridTileUrl', () => {
-    expect(isometricStrategy.gridTileUrl).toBeTruthy();
-    expect(cartesian2DStrategy.gridTileUrl).toBeTruthy();
-  });
-
-  // NOTE: In the test environment, SVG files are mocked to a stub string so
-  // both URLs resolve to the same value. The distinction is verified at build
-  // time (rslib inlines each file separately). Skip the equality check here.
-  it.skip('strategies have different gridTileUrls (skipped in test env — SVGs are mocked)', () => {
-    expect(isometricStrategy.gridTileUrl).not.toBe(cartesian2DStrategy.gridTileUrl);
+  // The grid is a procedural WebGL pass now (ADR 0050 §5) — no strategy
+  // carries an SVG background tile any more.
+  it('carries no grid tile asset', () => {
+    expect('gridTileUrl' in isometricStrategy).toBe(false);
+    expect('gridTileUrl' in cartesian2DStrategy).toBe(false);
   });
 });

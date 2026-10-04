@@ -5,6 +5,7 @@ import {
   activeLayerPatch
 } from 'src/utils/resolvePlacement';
 import { isCanvasDrop } from 'src/utils/canvasDropTarget';
+import { stateStrategy } from 'src/utils/coordinateTransforms';
 import { LABEL_DEFAULTS } from 'src/config';
 import { exceedsTapSlop } from 'src/config/tapGesture';
 import { ModeActions } from 'src/types';
@@ -22,7 +23,8 @@ export const Label: ModeActions = {
     setWindowCursor('default');
   },
   mousemove: () => {},
-  mouseup: ({ uiState, scene, isRendererInteraction, rendererRef }) => {
+  mouseup: (state) => {
+    const { uiState, scene, isRendererInteraction, rendererRef } = state;
     if (uiState.mode.type !== 'LABEL') return;
 
     // Distinguish the arming tap on the deck card (no renderer release, no move)
@@ -51,7 +53,7 @@ export const Label: ModeActions = {
     const residual = globalSnap
       ? undefined
       : cursorTileResidual(
-          uiState.canvasMode,
+          stateStrategy(state),
           uiState.mouse.position.screen,
           tile,
           uiState.zoom,

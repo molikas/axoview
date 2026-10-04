@@ -238,6 +238,9 @@ export const makeStubCanvas = (
     uniform1i: noop,
     uniform2f: noop,
     uniform3f: noop,
+    uniform4f: noop,
+    uniformMatrix2fv: noop,
+    drawArrays: noop,
     drawArraysInstanced: (_mode: number, _first: number, _count: number, inst: number) => {
       rec.draws.push(inst);
     }

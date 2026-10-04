@@ -84,8 +84,7 @@ describe('area quads use the exact projection ratio (PROJ-06)', () => {
       from,
       to,
       undefined,
-      getTilePosition,
-      'ISOMETRIC'
+      isometricStrategy
     );
     // Corner [1] is the origin plus the full width along the run axis.
     const base = getTilePosition({ tile: { x: 0, y: 0 }, origin: 'LEFT' });

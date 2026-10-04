@@ -12,11 +12,64 @@ import {
   applyAnnotationOp,
   revertAnnotationOp
 } from 'src/utils/annotationOps';
-import { INITIAL_UI_STATE } from 'src/config';
+import { INITIAL_UI_STATE, UNPROJECTED_TILE_SIZE } from 'src/config';
+import {
+  getCanvasModeSwitchScroll,
+  getStrategy,
+  makeIsometricStrategy
+} from 'src/utils/coordinateTransforms';
+import {
+  normaliseDeg,
+  shortestArc,
+  nextLatticeAngle,
+  VIEW_ROTATION_STEP_DEG
+} from 'src/utils/viewRotation';
 import { DEFAULT_ZOOM_SETTINGS } from 'src/config/zoomSettings';
 import { DEFAULT_LABEL_SETTINGS } from 'src/config/labelSettings';
 import { ANNOTATION_COLOR_PRESETS } from 'src/config/annotationSettings';
 import { loadPersistedSettings } from 'src/config/persistedSettings';
+
+// View-rotation step animation length (ADR 0049 §7).
+const VIEW_ROTATION_TWEEN_MS = 220;
+
+/**
+ * The pointer's tile re-resolved at a new view angle (tactical B: a rotation
+ * moves the floor under a still pointer, and a stale `mouse.position.tile`
+ * would send Ctrl+V to the tile that USED to be under it). A patch to spread
+ * into `set`, empty when nothing changed or the renderer is not measured yet.
+ */
+const refreshedMouseTile = (
+  state: UiStateStore,
+  viewRotation: number,
+  scroll: UiStateStore['scroll']
+): Partial<UiStateStore> => {
+  const { mouse, rendererSize, zoom, canvasMode } = state;
+  if (!rendererSize.width || !rendererSize.height) return {};
+  const tile = getStrategy(canvasMode, viewRotation).fromScreen(
+    mouse.position.screen.x,
+    mouse.position.screen.y,
+    UNPROJECTED_TILE_SIZE,
+    zoom || 1,
+    scroll,
+    rendererSize
+  );
+  if (tile.x === mouse.position.tile.x && tile.y === mouse.position.tile.y) {
+    return {};
+  }
+  return { mouse: { ...mouse, position: { ...mouse.position, tile } } };
+};
+
+const prefersReducedMotion = (): boolean => {
+  try {
+    return (
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    );
+  } catch {
+    return false;
+  }
+};
 
 // Canvas reset applied whenever annotation drawing is engaged (pen opened or a
 // draw/eraser tool armed): drop any armed/ in-flight canvas tool so it can't
@@ -43,6 +96,17 @@ const canvasResetForAnnotation = (
 const initialState = () => {
   // Load any previously saved user preferences — fall back to defaults if absent/corrupt.
   const persisted = loadPersistedSettings();
+
+  // The in-flight view-rotation step animation (ADR 0049 §7). Per STORE, like
+  // the angle itself — never module state, so two instances never share one.
+  let rotationAnim: { raf: number; target: number } | null = null;
+  const cancelRotationAnim = () => {
+    if (!rotationAnim) return;
+    if (typeof cancelAnimationFrame === 'function') {
+      cancelAnimationFrame(rotationAnim.raf);
+    }
+    rotationAnim = null;
+  };
 
   return createStore<UiStateStore>((set, get) => {
     return {
@@ -73,6 +137,10 @@ const initialState = () => {
       expandLabels: persisted?.expandLabels ?? false,
       readableLabels: persisted?.readableLabels ?? false,
       canvasMode: persisted?.canvasMode ?? 'ISOMETRIC',
+      viewRotation: 0,
+      viewRotationBase: 0,
+      viewRotationInMotion: false,
+      exportImageAngle: 'asViewed',
       snapToGrid: persisted?.snapToGrid ?? true,
       iconPackManager: null, // Will be set by Axoview if provided
       iconUsageScan: null, // Will be set by Axoview if provided
@@ -681,6 +749,137 @@ const initialState = () => {
         },
         setCanvasMode: (canvasMode) => {
           set({ canvasMode });
+        },
+        setViewRotation: (degrees) => {
+          const next = normaliseDeg(degrees);
+          const state = get();
+          const {
+            viewRotation,
+            viewRotationBase,
+            viewRotationInMotion,
+            scroll,
+            zoom,
+            canvasMode
+          } = state;
+          // Outside motion every change is also a settle (base := live), so the
+          // one rebuild happens here. Inside motion only the live angle moves and
+          // the scene follows by the motion transform (ADR 0049 §6).
+          const nextBase = viewRotationInMotion ? viewRotationBase : next;
+          if (next === viewRotation && nextBase === viewRotationBase) return;
+          // Pivot about the tile under the viewport centre — the same map the
+          // iso↔2D switch uses, here between the iso projection at the old and
+          // the new angle (ADR 0049 §7). 2D: θ is retained but has no effect,
+          // so there is no pivot to keep.
+          const nextScroll =
+            canvasMode === 'ISOMETRIC' && next !== viewRotation
+              ? {
+                  ...scroll,
+                  position: getCanvasModeSwitchScroll(
+                    makeIsometricStrategy(viewRotation),
+                    makeIsometricStrategy(next),
+                    zoom,
+                    scroll
+                  )
+                }
+              : scroll;
+          set({
+            viewRotation: next,
+            viewRotationBase: nextBase,
+            ...(nextScroll !== scroll ? { scroll: nextScroll } : {}),
+            ...(viewRotationInMotion
+              ? {}
+              : refreshedMouseTile(state, next, nextScroll))
+          });
+        },
+        beginViewRotationMotion: () => {
+          if (get().viewRotationInMotion) return;
+          set({ viewRotationInMotion: true });
+        },
+        rebaseViewRotation: () => {
+          const { viewRotation, viewRotationBase } = get();
+          if (viewRotation === viewRotationBase) return;
+          set({ viewRotationBase: viewRotation });
+        },
+        settleViewRotation: () => {
+          const state = get();
+          const { viewRotation, viewRotationBase, viewRotationInMotion } = state;
+          if (!viewRotationInMotion && viewRotation === viewRotationBase) return;
+          set({
+            viewRotationBase: viewRotation,
+            viewRotationInMotion: false,
+            ...refreshedMouseTile(state, viewRotation, state.scroll)
+          });
+        },
+        animateViewRotationTo: (degrees) => {
+          const actions = get().actions;
+          const target = normaliseDeg(degrees);
+          const wasAnimating = rotationAnim !== null;
+          cancelRotationAnim();
+          const from = get().viewRotation;
+          const delta = shortestArc(from, target);
+          if (delta === 0) {
+            if (wasAnimating) actions.settleViewRotation();
+            return;
+          }
+          const raf =
+            typeof requestAnimationFrame === 'function'
+              ? requestAnimationFrame
+              : null;
+          if (!raf || prefersReducedMotion()) {
+            // Instant: one settle, no in-between frames.
+            actions.settleViewRotation();
+            actions.setViewRotation(target);
+            return;
+          }
+          actions.beginViewRotationMotion();
+          const start = performance.now();
+          const tick = (now: number) => {
+            const t = Math.min(1, (now - start) / VIEW_ROTATION_TWEEN_MS);
+            if (t >= 1) {
+              rotationAnim = null;
+              // Land EXACTLY on the target (cardinals stay exact), then settle.
+              actions.setViewRotation(target);
+              actions.settleViewRotation();
+              return;
+            }
+            const eased = 1 - Math.pow(1 - t, 3);
+            actions.setViewRotation(from + delta * eased);
+            if (rotationAnim) rotationAnim.raf = raf(tick);
+          };
+          rotationAnim = { raf: raf(tick), target };
+        },
+        stepViewRotation: (direction, toCardinal = false) => {
+          // Chain from an in-flight animation's target, so a second press during
+          // the tween goes one further step rather than re-targeting the same one.
+          const current = rotationAnim ? rotationAnim.target : get().viewRotation;
+          get().actions.animateViewRotationTo(
+            nextLatticeAngle(
+              current,
+              direction,
+              toCardinal ? 90 : VIEW_ROTATION_STEP_DEG
+            )
+          );
+        },
+        setExportImageAngle: (exportImageAngle) => {
+          set({ exportImageAngle });
+        },
+        jumpViewRotation: (degrees) => {
+          cancelRotationAnim();
+          if (get().viewRotationInMotion) {
+            set({
+              viewRotationInMotion: false,
+              viewRotationBase: get().viewRotation
+            });
+          }
+          get().actions.setViewRotation(degrees);
+        },
+        finishViewRotationAnimation: () => {
+          if (!rotationAnim) return;
+          const { target } = rotationAnim;
+          cancelRotationAnim();
+          const actions = get().actions;
+          actions.setViewRotation(target);
+          actions.settleViewRotation();
         },
         setSnapToGrid: (snapToGrid) => {
           set({ snapToGrid });

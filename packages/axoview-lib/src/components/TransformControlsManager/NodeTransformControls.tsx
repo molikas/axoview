@@ -5,7 +5,7 @@ import { useIcon } from 'src/hooks/useIcon';
 import { useImageAspect } from 'src/hooks/useImageAspect';
 import { useCanvasMode } from 'src/contexts/CanvasModeContext';
 import { useUiStateStore } from 'src/stores/uiStateStore';
-import { AnchorPosition } from 'src/types';
+import { AnchorPosition, Coords } from 'src/types';
 import { PROJECTED_TILE_SIZE } from 'src/config';
 import { getRenderedTilePosition } from 'src/utils/renderedGeometry';
 import { ScreenBoxTransformControls } from './ScreenBoxTransformControls';
@@ -45,7 +45,7 @@ export const NodeTransformControls = ({ id, showHandles = true }: Props) => {
   // Resolves DEFAULT_ICON / TOMBSTONE for the shared-asset `scale` fallback.
   const { icon } = useIcon(modelItem?.icon);
   const aspect = useImageAspect(icon.url);
-  const { getTilePosition } = useCanvasMode();
+  const { strategy } = useCanvasMode();
   const uiStateActions = useUiStateStore((state) => state.actions);
   // Live preview scale for THIS node while it (or its group) is being resized.
   const previewScale = useUiStateStore(
@@ -66,19 +66,25 @@ export const NodeTransformControls = ({ id, showHandles = true }: Props) => {
       iconWidthFactor(icon.isIsometric ?? false) *
       effectiveScale;
     return {
-      center: getRenderedTilePosition(node, getTilePosition, 'CENTER'),
+      center: getRenderedTilePosition(node, strategy, 'CENTER'),
       width,
       height: width * (aspect || 1)
     };
-  }, [node, getTilePosition, icon.isIsometric, effectiveScale, aspect]);
+  }, [node, strategy, icon.isIsometric, effectiveScale, aspect]);
 
   const onAnchorMouseDown = useCallback(
-    (key: AnchorPosition) => {
+    (key: AnchorPosition, outward?: Coords) => {
       if (!node) return;
+      // The projected frame's real handle direction (flat icons) — under view
+      // rotation a corner's name no longer says where it points on screen.
+      const len = outward ? Math.hypot(outward.x, outward.y) : 0;
       uiStateActions.setMode({
         type: 'NODE.TRANSFORM',
         selectedAnchor: key,
         targets: [{ id, startScale: node.iconScale ?? icon.scale ?? 1 }],
+        ...(outward && len > 0
+          ? { outward: { x: outward.x / len, y: outward.y / len } }
+          : {}),
         // No tile-cursor diamond while resizing — it would sit at the pointer's
         // tile over the icon and read as leftover debris (QA 2026-07-19).
         showCursor: false

@@ -51,7 +51,7 @@ describe('getItemAtTile — items resolve in PAINT order (PROJ-10)', () => {
         getItemAtTile({
           tile: TILE,
           scene: makeScene(items),
-          canvasMode: 'ISOMETRIC',
+          strategy: isometricStrategy,
           point: pointAtTile()
         })
       ).toEqual({ type: 'ITEM', id: 'over' });
