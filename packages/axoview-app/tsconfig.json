@@ -2,7 +2,8 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "target": "es5"
+    // TS 6 no longer infers rootDir; ts-jest needs it explicit (TS5011).
+    "rootDir": "."
   },
   // `src/__explore__` is the quarantined exploratory probe lane (ADR 0047 §1):
   // it must never reach CI, and `npm run lint` (tsc --noEmit) is a CI gate.

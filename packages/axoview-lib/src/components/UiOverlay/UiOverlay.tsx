@@ -11,7 +11,7 @@ import {
 import { shallow } from 'zustand/shallow';
 import { ChevronRight, ViewSidebarOutlined } from '@mui/icons-material';
 import { EditorModeEnum, DialogTypeEnum } from 'src/types';
-import { UiElement } from 'components/UiElement/UiElement';
+import { UiElement } from 'src/components/UiElement/UiElement';
 import { SceneLayer } from 'src/components/SceneLayer/SceneLayer';
 import { DragAndDrop } from 'src/components/DragAndDrop/DragAndDrop';
 import { ToolMenu } from 'src/components/ToolMenu/ToolMenu';

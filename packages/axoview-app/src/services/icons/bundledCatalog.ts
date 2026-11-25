@@ -70,9 +70,9 @@ export const isRehydratableIcon = (icon: Pick<Icon, 'collection'>): boolean =>
  * usable from non-React code (the ZIP exporter, the storage providers).
  */
 export const buildBundledCatalog = (loadedPackIcons: Icon[] = []): Icon[] => {
-  // Plain-object index, not a Map spread — this package targets es5 and
-  // `[...map.values()]` needs downlevelIteration (the same constraint
-  // leanModel.ts's header records for Set).
+  // Plain-object index, not a Map spread — written while this package targeted
+  // es5, where `[...map.values()]` needed downlevelIteration (the same
+  // constraint leanModel.ts's header records for Set; es6 since 2026-11).
   const byId: { [id: string]: Icon } = {};
   const order: string[] = [];
   const put = (icon: Icon) => {

@@ -55,8 +55,9 @@ const localeFiles = fs
   .sort();
 
 // Plain-object index and `Array.prototype` calls throughout, NOT `Set` +
-// spread. This package targets es5 without downlevelIteration, so `[...someSet]`
-// silently evaluates to `[]` — the trap the A4 harness header records. The
+// spread. This package targeted es5 without downlevelIteration until the TS 6
+// move (2026-11), so `[...someSet]` silently evaluated to `[]` — the trap the A4
+// harness header records. The
 // "can this comparison detect a difference at all" CONTROL below caught it on
 // the first run of this gate: every locale reported 0 missing keys, which read
 // as twelve perfectly-translated catalogues.

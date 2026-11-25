@@ -63,7 +63,7 @@
     "madge": "8.0.0",
     "semantic-release": "^25.0.9",
     "simple-git-hooks": "^2.14.0",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   },
   "engines": {
     "node": ">=22.12.0",

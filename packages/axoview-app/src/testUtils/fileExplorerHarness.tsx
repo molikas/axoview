@@ -26,8 +26,9 @@
  *  - The place doubles mutate their own arrays, so a `refresh()` after a
  *    mutation shows the real post-state; a probe asserting "the row is gone"
  *    is asserting storage, not a stale render.
- *  - **`[...someMap]` silently evaluates to `[]` in this package.** The app
- *    tsconfig targets `es5` with no `downlevelIteration`, so ts-jest lowers
+ *  - **`[...someMap]` silently evaluated to `[]` in this package** while the
+ *    app tsconfig targeted `es5` (until the TS 6 move, 2026-11; it now
+ *    inherits es6, which iterates natively). With no `downlevelIteration`, ts-jest lowered
  *    spread to the array-like helper: a `Map`/`Set` has no `.length`, so the
  *    spread yields nothing and an assertion built on it "proves" whatever the
  *    probe hoped — and `for (const x of someMap)` lowers the same way, so it
