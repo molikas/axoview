@@ -11,7 +11,8 @@ import {
 // GoogleDrive). Keep it provider-agnostic — no fetch, no storage.
 //
 // Plain-object dictionaries (not Set) and indexed `for` loops throughout are
-// deliberate: ts-jest transpiles `new Set` under target=es5 with a broken
+// deliberate: ts-jest transpiled `new Set` under target=es5 (the app's target
+// until the TS 6 move, 2026-11) with a broken
 // polyfill where `.add()` is a no-op for string members, making derived-/known-
 // lookups silently empty.
 

@@ -48,9 +48,35 @@ if (!fs.existsSync(TSCONFIG)) die(2, `check-cycles: tsconfig not found: ${TSCONF
 
 const baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
 
+// The lib's tsconfig maps `src/*` with `paths` and no `baseUrl` (TS 6 retired
+// baseUrl), so TS resolves those paths against the tsconfig's own folder.
+// madge's resolver (filing-cabinet) re-reads the options as raw JSON and only
+// applies `paths` against a `baseUrl`; handed the file it maps nothing and the
+// graph collapses to ~18 files. So give it the tsconfig's own `paths` with
+// `baseUrl` pinned to that folder: the same mapping, read from the tsconfig,
+// not a second copy of it.
+function tsConfigForMadge(file) {
+  const ts = require('typescript');
+  const parsed = ts.getParsedCommandLineOfConfigFile(file, {}, {
+    ...ts.sys,
+    onUnRecoverableConfigFileDiagnostic: (d) =>
+      die(2, `check-cycles: cannot read ${file}: ${ts.flattenDiagnosticMessageText(d.messageText, '\n')}`)
+  });
+  if (!parsed.options.paths) die(2, `check-cycles: ${file} declares no \`paths\` — the src/* alias moved?`);
+  return {
+    compilerOptions: {
+      baseUrl: path.dirname(file),
+      paths: parsed.options.paths,
+      moduleResolution: 'bundler',
+      allowJs: true,
+      resolveJsonModule: true
+    }
+  };
+}
+
 madge(ENTRY, {
   fileExtensions: ['ts', 'tsx'],
-  tsConfig: TSCONFIG,
+  tsConfig: tsConfigForMadge(TSCONFIG),
   detectiveOptions: { ts: { skipTypeImports: false } }
 })
   .then((res) => {

@@ -36,6 +36,13 @@
     "npm's only remedy is a breaking tsc-alias downgrade, so it is allowlisted below",
     "(dev-only, verified against the lockfile) rather than upgraded.",
     "",
+    "2026-11-24 pass (dependency-currency PR): 34 advisories published since the last",
+    "pass (3 critical: handlebars x2, proxy-addr) were all cleared by upgrading, none",
+    "allowlisted: in-range refreshes of both lockfiles, i18next-http-backend 3 -> 4, and",
+    "a nodemon-scoped minimatch ^11 override (no patched 10.x exists). The same upgrade",
+    "fixed braces (GHSA-vfj7-8cjw-p6xm); its entry was removed. The quill entry was",
+    "re-verified against current code (line anchors refreshed) and re-dated.",
+    "",
     "`scope` names the tree an entry was reviewed against: \"root\" (the workspace",
     "lockfile) or \"backend\" (packages/axoview-backend/package-lock.json, prod deps",
     "only: the tree the Docker image installs). Use [\"root\", \"backend\"] when the",
@@ -48,23 +55,12 @@
       "package": "quill",
       "title": "Quill XSS via HTML export feature",
       "shipped": true,
-      "why": "Axoview DOES call the affected getSemanticHTML(), but every call site pipes the result through sanitizeHtml() before it is stored (TextBoxInlineEditor.tsx:115,134), the model is re-sanitized on load (useInitialDataManager.ts:85), and the sole dangerouslySetInnerHTML sink re-sanitizes at render (TextBox.tsx:254,336). ADR 0029's defence-in-depth absorbs the payload.",
-      "noForwardFix": "npm's only remedy is a BREAKING downgrade to react-quill-new@3.7.0.",
-      "tripwire": "If the ADR 0029 sanitize is removed from ANY of those three points, this becomes live stored-XSS. renderedGeometry-style contract coverage on sanitizeHtml call sites would make that unmissable.",
+      "why": "Axoview DOES call the affected getSemanticHTML(), but both call sites pipe the result through sanitizeHtml() before it is stored (TextBoxInlineEditor.tsx:132,151), the model is re-sanitized on load (useInitialDataManager.ts:90), and the sole dangerouslySetInnerHTML sink re-sanitizes at render (TextBox.tsx:343, rendered at :427). The panel notes editor (RichTextEditor.tsx) stores react-quill-new onChange HTML unsanitized, but notes are only ever rendered back through Quill itself (readOnly ReactQuill), whose clipboard parser rebuilds a Delta and never injects raw HTML. ADR 0029 defence-in-depth absorbs the payload.",
+      "noForwardFix": "quill 2.0.3 is still the newest release and is the affected version; npm's only remedy is a BREAKING downgrade to react-quill-new@3.7.0.",
+      "tripwire": "If the ADR 0029 sanitize is removed from ANY of those three points, or notes HTML is ever rendered outside Quill (a dangerouslySetInnerHTML or innerHTML sink, a tooltip, an export template), this becomes live stored-XSS. Drop this entry once a patched quill ships.",
       "acceptedOn": "2026-07-29",
-      "reviewBy": "2026-10-29"
-    },
-    {
-      "id": "GHSA-vfj7-8cjw-p6xm",
-      "package": "braces",
-      "title": "braces vulnerable to stack-exhaustion denial of service through deeply nested patterns",
-      "shipped": false,
-      "scope": "root",
-      "why": "braces@3.0.3 is dev-only: package-lock marks it `dev`, `npm ls braces --omit=dev` is empty, and its only dependents are chokidar and micromatch, both dev (file watching in nodemon / the dev server, glob matching in jest, rsbuild, eslint, knip, semantic-release). It is in neither browser bundle and not in the Docker image (the backend audit tree is clean). Every pattern it expands is authored in this repo's own config, so no attacker can supply the deeply nested pattern the DoS needs.",
-      "noForwardFix": "The range is `*`: no braces release fixes it, and npm's only remedy is a breaking downgrade of tsc-alias to 1.0.11.",
-      "tripwire": "If braces (or micromatch / chokidar) enters the prod tree, or any code passes a user-supplied string to a glob matcher, this becomes a live DoS. Drop this entry once a patched braces ships.",
-      "acceptedOn": "2026-10-03",
-      "reviewBy": "2027-01-03"
+      "reviewBy": "2027-02-24",
+      "reverifiedOn": "2026-11-24"
     }
   ]
 }

@@ -28,6 +28,7 @@ import {
   placeFirstIcon,
   seedOnboardingFlags,
   waitForApi,
+  waitForApiAfterNavigation,
   waitForAppReady
 } from './fixtures';
 
@@ -76,8 +77,12 @@ test('journey: create, edit and save, reload, rename, create again, share, delet
   });
 
   await test.step('2. DOM-only edit, then save: a 2xx PUT /api/diagrams/:id', async () => {
-    await placeFirstIcon(page);
+    // Armed BEFORE the edit: autosave writes 2 s after it (useAutoSave
+    // DEBOUNCE_MS), and where the drop alone takes ~2 s that PUT lands before
+    // Ctrl+S, which then has nothing left to save. Either write proves the step
+    // (a 2xx PUT through the Origin gate); the poll below proves the edit landed.
     const saved = waitForApi(page, 'PUT', `/api/diagrams/${firstId}`);
+    await placeFirstIcon(page);
     await page.keyboard.press('Control+S');
     const res = await saved;
     expect(res.status(), `PUT /api/diagrams/${firstId}`).toBeGreaterThanOrEqual(200);
@@ -92,7 +97,7 @@ test('journey: create, edit and save, reload, rename, create again, share, delet
   });
 
   await test.step('3. reload: the diagram is still listed, from the server', async () => {
-    const listed = waitForApi(page, 'GET', '/api/diagrams');
+    const listed = waitForApiAfterNavigation(page, 'GET', '/api/diagrams');
     await page.reload();
     await waitForAppReady(page);
     await explorer.open();
@@ -213,7 +218,7 @@ test('journey: create, edit and save, reload, rename, create again, share, delet
     expect(res.status(), `DELETE /api/diagrams/${secondId}`).toBe(200);
     await expect(row).toBeHidden({ timeout: 5_000 });
 
-    const listed = waitForApi(page, 'GET', '/api/diagrams');
+    const listed = waitForApiAfterNavigation(page, 'GET', '/api/diagrams');
     await page.reload();
     await waitForAppReady(page);
     await explorer.open();

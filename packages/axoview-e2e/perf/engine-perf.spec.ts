@@ -1060,8 +1060,18 @@ function installHarness() {
   // and long tasks over a window. GC at the start fixes a clean baseline; we do
   // NOT force GC during the window (we want to see natural growth); a final GC
   // separates a real leak (retained) from transient garbage (collectable).
+  //
+  // The reset is itself an edit, and the app autosaves 2 s after an edit
+  // (packages/axoview-app/src/hooks/useAutoSave.ts, DEBOUNCE_MS). Opening the
+  // window straight after quiesce() measured that save's re-render as idle
+  // churn: one long task at reset + ~2.2 s, on master as much as on a branch
+  // (traced 2026-11-25; it passed in CI only while that render stayed under
+  // 50 ms). Let the harness's own save land first, so the window holds only
+  // what the app does unprompted.
+  const AUTOSAVE_SETTLE_MS = 3000;
   async function measureIdle(durationMs: number) {
     resetState();
+    await new Promise((resolve) => setTimeout(resolve, AUTOSAVE_SETTLE_MS));
     await quiesce();
     forceGc();
     await raf();

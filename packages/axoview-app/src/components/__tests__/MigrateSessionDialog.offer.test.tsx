@@ -17,6 +17,9 @@
 import { act, waitFor } from '@testing-library/react';
 import { render } from '@testing-library/react';
 
+// The harness contract (fileExplorerHarness.tsx header) requires this mock; it
+// also keeps react-arborist 4, which ships ESM only, out of the CJS jest run.
+jest.mock('react-arborist', () => require('../../testUtils/arboristStub'));
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, fallback?: unknown) =>
@@ -51,8 +54,8 @@ import { MigrateSessionDialog } from '../MigrateSessionDialog';
 import { useNotificationStore } from '../../stores/notificationStore';
 
 const dialog = () => document.querySelector('[data-axoview-id="migrate-session-dialog"]');
-// `Array.prototype.slice.call`, not a spread: this package targets es5 without
-// downlevelIteration, and a NodeList spread is a tsc error here (the same class
+// `Array.prototype.slice.call`, not a spread: this package targeted es5 without
+// downlevelIteration until the TS 6 move (2026-11), and a NodeList spread was a tsc error here (the same class
 // the harness header records for Map/Set, where it fails SILENTLY at runtime).
 // Only surfaced once this file moved out of the tsc-excluded explore lane.
 const rows = (): (string | null)[] =>
