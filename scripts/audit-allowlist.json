@@ -43,6 +43,12 @@
     "fixed braces (GHSA-vfj7-8cjw-p6xm); its entry was removed. The quill entry was",
     "re-verified against current code (line anchors refreshed) and re-dated.",
     "",
+    "2026-11-25 (backend API-gate fix): the root pass had been running `npm audit",
+    "--workspaces`, which skips the root package's own devDependencies, so the release",
+    "tooling was never audited. It now adds --include-workspace-root. That surfaced two",
+    "advisories published 2026-10-30, glob and minimatch, both only in the copies npm",
+    "bundles inside itself. Neither has a forward fix, so both are allowlisted below.",
+    "",
     "`scope` names the tree an entry was reviewed against: \"root\" (the workspace",
     "lockfile) or \"backend\" (packages/axoview-backend/package-lock.json, prod deps",
     "only: the tree the Docker image installs). Use [\"root\", \"backend\"] when the",
@@ -61,6 +67,30 @@
       "acceptedOn": "2026-07-29",
       "reviewBy": "2027-02-24",
       "reverifiedOn": "2026-11-24"
+    },
+    {
+      "id": "GHSA-3g3m-2fjr-6pw4",
+      "package": "glob",
+      "title": "Glob: AbortSignal cancellation bypass allows post-timeout filesystem traversal",
+      "scope": "root",
+      "shipped": false,
+      "why": "The only affected copy is glob 13.0.6 bundled inside npm 11.21.3 (node_modules/npm/node_modules/glob), which semantic-release installs through @semantic-release/npm. .releaserc.json never loads that plugin, but npm's bin is linked at node_modules/.bin/npm, so every `npm` run from an npm script here uses this copy (CI, check:audit, the release prepareCmd). The flaw is that an aborted walk keeps reading directories. That matters only to a caller that passes `signal` to bound a walk over untrusted input. No bundled call site passes a signal, and none takes an outside pattern: help/help-search glob npm's own docs, map-workspaces globs the root package.json `workspaces`, cacache globs its cache dir, and @npmcli/package-json globs fixed literals ('*.gyp', README, '**').",
+      "noForwardFix": "Patched in glob 14.0.2, but a bundled dependency cannot be overridden, and npm 12.2.3 (the newest) still bundles glob ^13.0.6. npm audit's only remedy is a BREAKING downgrade to semantic-release 21.",
+      "tripwire": "This entry matches by advisory id, so it would also hide a NEW affected glob anywhere in the root tree. If `npm audit` ever lists a glob node outside node_modules/npm/, re-review instead of relying on this entry. Drop it once an npm release bundles glob >= 14.0.2 (then bump the root npm with it).",
+      "acceptedOn": "2026-11-25",
+      "reviewBy": "2027-02-24"
+    },
+    {
+      "id": "GHSA-g3hv-75wg-m249",
+      "package": "minimatch",
+      "title": "minimatch has potential denial of service via globparts amplification",
+      "scope": "root",
+      "shipped": false,
+      "why": "The only affected copy is minimatch 10.2.5 bundled inside npm 11.21.3 (node_modules/npm/node_modules/minimatch), reached the same way as the glob entry above. The bug is CPU/memory blow-up on an attacker-supplied pattern. The bundled npm builds patterns only from first-party input: root package.json `workspaces`, `--workspace` CLI arguments, `npm query` selectors and npmrc config. It also uses the glob literals listed above and @tufjs/models role paths from Sigstore's signed TUF metadata. No dependency or network response supplies a pattern, and the worst case would be a slow CI step, not data exposure. The nodemon-scoped minimatch ^11 override does not reach a bundled copy.",
+      "noForwardFix": "Patched in minimatch 11.0.1, but a bundled dependency cannot be overridden, and npm 12.2.3 (the newest) still bundles minimatch ^10.2.5. npm audit's only remedy is a BREAKING downgrade to semantic-release 21.",
+      "tripwire": "This entry matches by advisory id, so it would also hide a NEW affected minimatch anywhere in the root tree. If `npm audit` ever lists a minimatch node outside node_modules/npm/, re-review instead of relying on this entry. Drop it once an npm release bundles minimatch >= 11.0.1.",
+      "acceptedOn": "2026-11-25",
+      "reviewBy": "2027-02-24"
     }
   ]
 }

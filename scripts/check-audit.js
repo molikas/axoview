@@ -13,7 +13,8 @@
  * previously lived only in a markdown file and enforced nothing.
  *
  * Two trees are audited, each against the allowlist entries scoped to it:
- *   - `root`: the workspace lockfile — what CI installs and builds from.
+ *   - `root`: the workspace lockfile — what CI installs and builds from,
+ *     including the root package's own devDependencies (the release tooling).
  *   - `backend`: packages/axoview-backend/package-lock.json, production deps
  *     only. It is the tree the Docker image actually installs (the Dockerfile
  *     runs `npm ci --omit=dev --workspaces=false` in that directory), and it
@@ -35,7 +36,17 @@ const ROOT = path.resolve(__dirname, '..');
 // args ARRAY through a shell is what DEP0190 deprecates. Nothing here is
 // interpolated, so there is no quoting or injection surface.
 const PASSES = [
-  { scope: 'root', cwd: ROOT, cmd: 'npm audit --json --workspaces' },
+  {
+    scope: 'root',
+    cwd: ROOT,
+    // --workspaces alone audits only the workspaces' dependency trees and drops
+    // the root package's own devDependencies: semantic-release and everything it
+    // installs, which CI runs with a write token. --include-workspace-root adds
+    // them back. The dependency count printed below is the same either way (it
+    // describes the lockfile, not the audited subset), so the gap was invisible;
+    // it hid GHSA-3g3m-2fjr-6pw4 and GHSA-g3hv-75wg-m249 until 2026-11-25.
+    cmd: 'npm audit --json --workspaces --include-workspace-root'
+  },
   {
     scope: 'backend',
     cwd: path.join(ROOT, 'packages', 'axoview-backend'),
