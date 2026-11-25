@@ -17,6 +17,9 @@
 import { act, waitFor } from '@testing-library/react';
 import { render } from '@testing-library/react';
 
+// The harness contract (fileExplorerHarness.tsx header) requires this mock; it
+// also keeps react-arborist 4, which ships ESM only, out of the CJS jest run.
+jest.mock('react-arborist', () => require('../../testUtils/arboristStub'));
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, fallback?: unknown) =>
