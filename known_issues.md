@@ -594,10 +594,22 @@ regression, and it cannot silently worsen — `npm run check:bundle` fails CI if
 the boot payload grows past
 [`scripts/bundle-budget.json`](scripts/bundle-budget.json).
 
-**Status:** Open, deferred with owner sign-off (2026-07-29). Budget gate in place
-so it cannot drift. Revisit if boot time becomes a user complaint, or
-opportunistically when `ExportImageDialog` is next touched (option 2 pays down
-two items at once). See
+**Update 2026-11-24 — option 0 done, and it found the real root cause.** A
+bundle-analyzer run (`BUNDLE_ANALYZE=true`) names the "unattributed 1173 kB
+module": it is `@mui/icons-material/index.js`, the CJS barrel that requires
+every icon. `axoview-lib`'s `package.json` declared only `"main"` (its CJS
+build), so the app bundled the lib through `require()` and tree-shaking never
+reached the lib's dependencies: all of MUI's icons, all of `@mui/material` and
+`@mui/system`, and every zod locale were boot-critical. The lib now also declares
+`"module"` (the ESM build rslib already emitted). The boot payload fell from
+**1802 kB to 811 kB gzip** (vendor chunk 1407 → 425 kB) with no code split, and
+the budget was ratcheted down to 820 kB. Options 1–3 still apply to what is left
+(Quill, the editor shell), at roughly half the stake.
+
+**Status:** Open, reduced (2026-11-24): 811 kB gzip, budget 820 kB. Originally
+deferred with owner sign-off (2026-07-29). Revisit if boot time becomes a user
+complaint, or opportunistically when `ExportImageDialog` is next touched (option
+2 pays down two items at once). See
 [technical-review-2026-07-29.md §3](docs/reviews/technical-review-2026-07-29.md).
 
 ## Runtime import cycle: `Axoview` → `UiOverlay` → `ExportImageDialog` → `Axoview` (2026-07-29)
