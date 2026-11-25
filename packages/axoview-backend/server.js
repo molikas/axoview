@@ -15,6 +15,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+// Routes match case-sensitively, like the Worker (Hono) and nginx's
+// `location /api/`. Express defaults to case-INsensitive routing, while the
+// Origin and auth gates below decide what an API path is by string prefix — so
+// `/API/diagrams` skipped both gates and still reached the `/api/diagrams`
+// handler (unauthenticated read/write under AUTH_MODE=shared-token). The gates
+// now also compare case-insensitively (`isApiRequest`); this setting is the
+// other half, so a case variant is never routed at all.
+//
+// Must stay above the first `app.use`/`app.get`: Express builds its router on
+// first use and reads the setting only then.
+app.set('case sensitive routing', true);
 const PORT = process.env.BACKEND_PORT || 3001;
 
 const STORAGE_ENABLED = process.env.ENABLE_SERVER_STORAGE === 'true';
@@ -123,8 +134,15 @@ function isOwnOrigin(req, origin) {
   }
 }
 
+// The gates' test for "is this an API request". Case-insensitive on purpose: a
+// gate must cover every path the router could send to an /api handler, so it
+// errs wide. Exemptions (`isPublicRoute`) stay exact-case and narrow.
+function isApiRequest(req) {
+  return req.path.toLowerCase().startsWith('/api/');
+}
+
 app.use((req, res, next) => {
-  if (!req.path.startsWith('/api/')) return next();
+  if (!isApiRequest(req)) return next();
   const origin = req.headers.origin;
   if (!origin || ALLOWED_ORIGINS.includes(origin) || isOwnOrigin(req, origin)) return next();
   return res.status(403).json({ error: 'Origin not allowed' });
@@ -159,7 +177,7 @@ function isPublicRoute(req) {
 }
 
 app.use((req, res, next) => {
-  if (!req.path.startsWith('/api/')) return next();
+  if (!isApiRequest(req)) return next();
   if (isPublicRoute(req)) return next();
   if (AUTH_MODE === 'none') return next();
   if (AUTH_MODE === 'shared-token') {

@@ -8584,3 +8584,34 @@ CSS `translate` per frame (about 6–7 ms). `will-change` was tried and made it 
 **Status:** Open — follow-up is GPU connector labels, or hiding the chips while
 the view turns and re-syncing at settle (the `rotationMotion="pause"` path the
 interaction layers already use).
+
+## The Docker backend's API gates could be skipped by changing the case of `/api/`
+
+**Found by:** the `/security-review` of PR #97 (2026-11-25), as an out-of-scope
+note. The problem predates that PR.
+
+**Symptom:** with `AUTH_MODE=shared-token`, `GET /API/diagrams` listed every
+diagram without a token, and `POST /API/diagrams` from `Origin:
+https://evil.example` created one. `/Api/Diagrams`, `/API/tree-manifest` and
+`POST /API/diagrams/:id/share` behaved the same way, so the SHARE-09 Origin gate
+was open too. Reproduced against the real `server.js`.
+
+**Root cause:** the Origin gate and the auth gate in
+`packages/axoview-backend/server.js` decided what an API request was with
+`req.path.startsWith('/api/')`, which is case-sensitive. Express routes match
+case-insensitively unless `case sensitive routing` is set, and it was not. A
+case variant therefore skipped both gates and still reached the `/api/...`
+handler.
+
+**Reach:** the shipped `compose.yml` publishes only port 80, and nginx proxies
+only the lower-case `location /api/`, so the default deployment was not
+exposed through nginx. It was exposed wherever port 3001 itself was reachable:
+`compose.dev.yml` publishes it, the Dockerfile `EXPOSE`s it, and any proxy that
+forwards to it directly. The Worker was never affected, because Hono matches
+case-sensitively (now pinned in `app.spec.ts`).
+
+**Status:** Fixed (2026-11-25). Two halves: `app.set('case sensitive routing',
+true)` so a variant is never routed, and an `isApiRequest()` helper so both
+gates compare case-insensitively and cover anything the router could match.
+Regression tests are in `server.wiring.spec.js` ("a case variant of /api/ is
+neither ungated nor routed").
