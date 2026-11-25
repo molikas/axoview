@@ -151,6 +151,27 @@ export function waitForApi(
 }
 
 /**
+ * `waitForApi` for a request the NEXT document makes: arm it before
+ * `page.reload()`/`goto()`. A write is followed by the app's own list refresh,
+ * and the page being unloaded can still fire it as the reload starts; plain
+ * `waitForApi` then matches that response, whose body Chromium discards with
+ * the old document ("No resource with given identifier found" on `.json()`,
+ * seen in CI on 2026-11-25). Listening only once the main frame has committed
+ * the new document skips it: the commit cancels the old document's in-flight
+ * requests, so every response after it belongs to the new page.
+ */
+export function waitForApiAfterNavigation(
+  page: Page,
+  method: string,
+  path: string | RegExp,
+  timeout = 15_000
+): Promise<Response> {
+  return page
+    .waitForEvent('framenavigated', { predicate: (frame) => frame === page.mainFrame(), timeout })
+    .then(() => waitForApi(page, method, path, timeout));
+}
+
+/**
  * Storage ON: start every test from an empty server. The runner gives each run
  * its own labelled volume, so nothing here belongs to anyone else. Node-side, no
  * `Origin` header: the backend admits requests without one (curl, server to
