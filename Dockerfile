@@ -11,7 +11,7 @@ COPY packages/axoview-app/package*.json ./packages/axoview-app/
 COPY packages/axoview-backend/package*.json ./packages/axoview-backend/
 
 #Update NPM
-RUN npm install -g npm@11.5.2
+RUN npm install -g npm@11.21.3
 
 # Install dependencies for the entire workspace from the root lockfile: the
 # same locked tree CI tests, never re-resolved the way `npm install` can.
