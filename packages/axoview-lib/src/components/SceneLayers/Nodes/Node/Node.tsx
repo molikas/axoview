@@ -319,7 +319,7 @@ const NodeContent = memo(
         e.preventDefault();
         setIsEditingName(true);
       },
-      [isEditable]
+      [isEditable, setIsEditingName]
     );
 
     // ADR 0032 amendment: canvas inline-rename (F2 / double-click) edits the
@@ -335,7 +335,7 @@ const NodeContent = memo(
         }
         setIsEditingName(false);
       },
-      [updateModelItem, id, modelItem?.label, modelItem?.name]
+      [updateModelItem, id, modelItem?.label, modelItem?.name, setIsEditingName]
     );
 
     const inlineRename = useInlineRename({

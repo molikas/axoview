@@ -350,8 +350,8 @@ app.get('/api/public/diagrams/:uuid', adapt(routes.getPublicSnapshot, { requireS
 // `{ error: 'Payload too large' }` as JSON with 413, and its `onError`
 // deliberately logs the stack while keeping it out of the response. Match it.
 // Typed on `err.type` rather than the message, and mounted last so a parser
-// error raised before any route still lands here.
-// eslint-disable-next-line no-unused-vars -- Express identifies error middleware by its arity
+// error raised before any route still lands here. Keep all four parameters:
+// Express identifies error middleware by its arity.
 app.use((err, req, res, next) => {
   if (res.headersSent) return next(err);
   if (err?.type === 'entity.too.large') {

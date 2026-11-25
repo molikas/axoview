@@ -285,7 +285,7 @@ export function MigrateSessionDialog() {
       setMoving(false);
       setProgress(null);
     }
-  }, [drive, local, items, checkedCount, moving, currentDiagram, notifyDiagramDeletedFromTree, openDiagramById, setFileExplorerOpen, refreshFileTree, t]);
+  }, [drive, local, items, checkedCount, moving, currentDiagram, flushDiagramIfDirty, notifyDiagramDeletedFromTree, openDiagramById, setFileExplorerOpen, refreshFileTree, t]);
 
   if (!googleDriveConfigured) return null;
 

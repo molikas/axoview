@@ -25,10 +25,7 @@ import {
   openLabelContextMenu,
   shouldBeginLabelDrag
 } from 'src/utils/labelPointerContract';
-import {
-  LABEL_BASE_FONT_PX,
-  labelCounterScaleFor
-} from 'src/config/labelSettings';
+import { labelCounterScaleFor } from 'src/config/labelSettings';
 
 // ---------------------------------------------------------------------------
 // LabelHitLayer (ADR 0031 §4) — the pixel-accurate DOM hit-proxy over the

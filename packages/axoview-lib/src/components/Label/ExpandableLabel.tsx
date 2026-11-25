@@ -6,10 +6,7 @@ import { Gradient } from 'src/components/Gradient/Gradient';
 import { ExpandButton } from './ExpandButton';
 import { Label, Props as LabelProps } from './Label';
 import { useUiStateStore, useUiStateStoreApi } from 'src/stores/uiStateStore';
-import {
-  LABEL_BASE_FONT_PX,
-  labelCounterScaleFor
-} from 'src/config/labelSettings';
+import { labelCounterScaleFor } from 'src/config/labelSettings';
 
 type Props = Omit<LabelProps, 'maxHeight'> & {
   onToggleExpand?: (isExpanded: boolean) => void;

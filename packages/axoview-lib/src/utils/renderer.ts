@@ -18,7 +18,6 @@ import { CoordsUtils } from 'src/utils/coordsUtils';
 import { clamp } from 'src/utils/common';
 import {
   getBoundingBox,
-  getBoundingBoxSize,
   sortByPosition,
   getConnectorPath,
   connectorPathTileToGlobal,
