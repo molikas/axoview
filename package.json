@@ -76,8 +76,6 @@
     "nodemon": {
       "minimatch": "^11.0.9"
     },
-    "madge": {
-      "typescript": "$typescript"
-    }
+    "typescript": "$typescript"
   }
 }
