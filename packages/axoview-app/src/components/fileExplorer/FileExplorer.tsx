@@ -833,7 +833,7 @@ export function FileExplorer() {
         void refreshAll();
       }
     },
-    [providerFor, movingIds, currentDiagram, saveAllDirty, sessionTree.folders, notifyDiagramDeletedFromTree, openDiagramById, refreshAll, t]
+    [providerFor, movingIds, currentDiagram, saveAllDirty, flushDiagramIfDirty, sessionTree.folders, notifyDiagramDeletedFromTree, openDiagramById, refreshAll, t]
   );
 
   // ---------------------------------------------------------------------------

@@ -557,7 +557,6 @@ export const createSpriteBatch = (
   // becomes reachable at ordinary diagram sizes with no diagnostic anywhere.
   // One line, once per context, so a small-cap device is at least diagnosable.
   if (ATLAS < atlasSize) {
-    // eslint-disable-next-line no-console
     console.warn(
       `[Axoview] Sprite atlas clamped from ${atlasSize} to ${ATLAS} by this ` +
         `device's MAX_TEXTURE_SIZE. Large diagrams may drop label chips.`

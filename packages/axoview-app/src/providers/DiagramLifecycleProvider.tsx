@@ -10,8 +10,6 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { downloadBlob } from '../utils/downloadBlob';
 import { useTranslation } from 'react-i18next';
-import { flattenCollections } from '@isoflow/isopacks/dist/utils';
-import isoflowIsopack from '@isoflow/isopacks/dist/isoflow';
 import type { AxoviewRef, InitialData, Model, Icon } from 'axoview';
 import { DiagramData, SavedDiagram } from '../diagramUtils';
 import {

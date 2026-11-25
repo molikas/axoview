@@ -545,19 +545,6 @@ interface ImportContext {
   storage: StorageProvider;
 }
 
-const wipeWorkspace = async (storage: StorageProvider): Promise<void> => {
-  const diagrams = await storage.listDiagrams();
-  for (const d of diagrams) await storage.deleteDiagram(d.id, false);
-  const folders = await storage.listFolders();
-  // Delete children before parents — sort by depth (parent chain length). A
-  // cycle here comes from STORAGE, not from the archive, so it cannot be
-  // rejected at parse time: `folderDepth` returns null and those folders sort
-  // last, which still deletes them (A3/ZIP-01).
-  const depth = (f: FolderMeta): number => folderDepth(f, folders) ?? -1;
-  const sorted = [...folders].sort((a, b) => depth(b) - depth(a));
-  for (const f of sorted) await storage.deleteFolder(f.id, false);
-};
-
 export const importProject = async (
   ctx: ImportContext,
   parsed: ParsedProject,

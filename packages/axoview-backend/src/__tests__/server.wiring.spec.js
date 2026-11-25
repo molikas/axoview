@@ -256,6 +256,75 @@ describe('cross-origin writes are refused, not merely unreadable', () => {
 });
 
 // ---------------------------------------------------------------------------
+// The /api/ gates and the router must agree on what an API path is
+// ---------------------------------------------------------------------------
+// Both gates (Origin, auth) used to ask `req.path.startsWith('/api/')`, which is
+// case-sensitive, while Express routes match case-insensitively by default. So
+// `/API/diagrams` skipped both gates and still reached the `/api/diagrams`
+// handler: under AUTH_MODE=shared-token, with no token and a hostile Origin, it
+// listed, created and wrote diagrams. nginx only proxies the lower-case
+// `location /api/`, so this was reachable wherever port 3001 itself was.
+describe('a case variant of /api/ is neither ungated nor routed', () => {
+  const SECRET = 'wiring-secret';
+  const tokenEnv = { AUTH_MODE: 'shared-token', AUTH_SHARED_SECRET: SECRET };
+  const VARIANTS = ['/API/diagrams', '/Api/Diagrams', '/api/DIAGRAMS', '/API/tree-manifest'];
+
+  test('without a token, no variant reads data', async () => {
+    const { base } = await startServer({ storagePath: dir, env: tokenEnv });
+    // Precondition: the gate is armed, and the token opens it.
+    expect((await fetch(`${base}/api/diagrams`)).status).toBe(401);
+    const authed = await fetch(`${base}/api/diagrams`, {
+      headers: { Authorization: `Bearer ${SECRET}` }
+    });
+    expect(authed.status).toBe(200);
+
+    for (const p of VARIANTS) {
+      const res = await fetch(`${base}${p}`);
+      expect({ path: p, status: res.status }).toEqual({ path: p, status: 401 });
+    }
+  }, T);
+
+  test('without a token and from a hostile origin, a variant writes nothing', async () => {
+    const { base } = await startServer({ storagePath: dir, env: tokenEnv });
+    const res = await fetch(`${base}/API/diagrams`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain', Origin: 'https://evil.example' },
+      body: JSON.stringify(DIAGRAM)
+    });
+    expect(res.status).toBe(403);
+    // The load-bearing assertion: nothing reached the storage directory.
+    expect(await fs.readdir(dir)).toEqual([]);
+  }, T);
+
+  test('a hostile origin cannot publish through a variant (SHARE-09)', async () => {
+    const { base } = await startServer({ storagePath: dir });
+    const { id } = await fetch(`${base}/api/diagrams`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(DIAGRAM)
+    }).then((r) => r.json());
+
+    const res = await fetch(`${base}/API/diagrams/${id}/share`, {
+      method: 'POST',
+      headers: { Origin: 'https://evil.example', 'Content-Type': 'text/plain' }
+    });
+    expect(res.status).toBe(403);
+    const after = await fetch(`${base}/api/diagrams/${id}`).then((r) => r.json());
+    expect(after.shareUuid).toBeUndefined();
+  }, T);
+
+  test('with a valid token, a variant is still not an API route', async () => {
+    // Routing is case-sensitive, so the gate is not the only thing standing
+    // between a variant and a handler.
+    const { base } = await startServer({ storagePath: dir, env: tokenEnv });
+    const res = await fetch(`${base}/API/diagrams`, {
+      headers: { Authorization: `Bearer ${SECRET}` }
+    });
+    expect(res.status).toBe(404);
+  }, T);
+});
+
+// ---------------------------------------------------------------------------
 // SHARE-10 (owner ruling 2026-07-30) — read AND revoke survive the kill-switch
 // ---------------------------------------------------------------------------
 describe('with ENABLE_SERVER_STORAGE=false', () => {

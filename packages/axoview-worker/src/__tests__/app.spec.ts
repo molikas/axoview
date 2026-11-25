@@ -256,6 +256,20 @@ describe('auth fires before the 503 short-circuit', () => {
     });
     expect(res.status).toBe(200);
   });
+
+  // Parity with the Express backend, where `/API/diagrams` used to skip the
+  // case-sensitive gates yet still match the case-insensitive router. Hono
+  // matches case-sensitively, so a variant reaches neither the auth middleware
+  // nor a handler. This pins that: it must never be a 200 or the 503 sink.
+  test.each(['/API/diagrams', '/Api/Diagrams', '/API/config', '/API/tree-manifest'])(
+    'case variant %s is not an API route (404), with or without credentials',
+    async (path) => {
+      const env = { AUTH_MODE: 'shared-token', AUTH_SHARED_SECRET: 'sekret' };
+      expect((await request(path, {}, env)).status).toBe(404);
+      const authed = await request(path, { headers: { authorization: 'Bearer sekret' } }, env);
+      expect(authed.status).toBe(404);
+    }
+  );
 });
 
 describe('secureHeaders middleware applied to all routes', () => {

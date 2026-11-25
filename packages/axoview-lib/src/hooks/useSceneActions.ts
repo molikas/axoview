@@ -102,7 +102,7 @@ export const useSceneActions = () => {
       },
       scene: { connectors: scene.connectors, textBoxes: scene.textBoxes }
     };
-  }, [modelStoreApi, sceneStoreApi]);
+  }, [session, modelStoreApi, sceneStoreApi]);
 
   const setState = useCallback(
     (newState: State) => {
@@ -113,7 +113,7 @@ export const useSceneActions = () => {
       modelStoreApi.getState().actions.set(newState.model, true);
       sceneStoreApi.getState().actions.set(newState.scene, true);
     },
-    [modelStoreApi, sceneStoreApi]
+    [session, modelStoreApi, sceneStoreApi]
   );
 
   const saveToHistoryBeforeChange = useCallback(() => {
@@ -537,7 +537,7 @@ export const useSceneActions = () => {
         session.transactionInProgress = false;
       }
     },
-    [saveToHistoryBeforeChange, modelStoreApi, sceneStoreApi]
+    [session, saveToHistoryBeforeChange, modelStoreApi, sceneStoreApi]
   );
 
   // -------------------------------------------------------------------------
@@ -552,7 +552,7 @@ export const useSceneActions = () => {
         return newState;
       });
     },
-    [getState, setState, saveToHistoryBeforeChange]
+    [getState, setState, withHistory]
   );
 
   const updateModelItem = useCallback(
@@ -562,7 +562,7 @@ export const useSceneActions = () => {
         setState(newState);
       });
     },
-    [getState, setState, saveToHistoryBeforeChange]
+    [getState, setState, withHistory]
   );
 
   const deleteModelItem = useCallback(
@@ -572,7 +572,7 @@ export const useSceneActions = () => {
         setState(newState);
       });
     },
-    [getState, setState, saveToHistoryBeforeChange]
+    [getState, setState, withHistory]
   );
 
   // -------------------------------------------------------------------------
@@ -592,7 +592,7 @@ export const useSceneActions = () => {
         return newState;
       });
     },
-    [getState, setState, currentViewId, saveToHistoryBeforeChange]
+    [getState, setState, currentViewId, withHistory]
   );
 
   const updateViewItem = useCallback(
@@ -608,7 +608,7 @@ export const useSceneActions = () => {
         return newState;
       });
     },
-    [getState, setState, currentViewId, saveToHistoryBeforeChange]
+    [getState, setState, currentViewId, withHistory]
   );
 
   const deleteViewItem = useCallback(
@@ -623,7 +623,7 @@ export const useSceneActions = () => {
         setState(newState);
       });
     },
-    [getState, setState, currentViewId, saveToHistoryBeforeChange]
+    [getState, setState, currentViewId, withHistory]
   );
 
   // -------------------------------------------------------------------------
@@ -642,7 +642,7 @@ export const useSceneActions = () => {
         setState(newState);
       });
     },
-    [getState, setState, currentViewId, saveToHistoryBeforeChange]
+    [getState, setState, currentViewId, withHistory]
   );
 
   const updateConnector = useCallback(
@@ -657,7 +657,7 @@ export const useSceneActions = () => {
         setState(newState);
       });
     },
-    [getState, setState, currentViewId, saveToHistoryBeforeChange]
+    [getState, setState, currentViewId, withHistory]
   );
 
   const deleteConnector = useCallback(
@@ -672,7 +672,7 @@ export const useSceneActions = () => {
         setState(newState);
       });
     },
-    [getState, setState, currentViewId, saveToHistoryBeforeChange]
+    [getState, setState, currentViewId, withHistory]
   );
 
   // -------------------------------------------------------------------------
@@ -691,7 +691,7 @@ export const useSceneActions = () => {
         setState(newState);
       });
     },
-    [getState, setState, currentViewId, saveToHistoryBeforeChange]
+    [getState, setState, currentViewId, withHistory]
   );
 
   const updateTextBox = useCallback(
@@ -707,7 +707,7 @@ export const useSceneActions = () => {
         return newState;
       });
     },
-    [getState, setState, currentViewId, saveToHistoryBeforeChange]
+    [getState, setState, currentViewId, withHistory]
   );
 
   const deleteTextBox = useCallback(
@@ -722,7 +722,7 @@ export const useSceneActions = () => {
         setState(newState);
       });
     },
-    [getState, setState, currentViewId, saveToHistoryBeforeChange]
+    [getState, setState, currentViewId, withHistory]
   );
 
   // -------------------------------------------------------------------------
@@ -742,7 +742,7 @@ export const useSceneActions = () => {
         setState(newState);
       });
     },
-    [getState, setState, currentViewId, saveToHistoryBeforeChange]
+    [getState, setState, currentViewId, withHistory]
   );
 
   const updateLabel = useCallback(
@@ -758,7 +758,7 @@ export const useSceneActions = () => {
         return newState;
       });
     },
-    [getState, setState, currentViewId, saveToHistoryBeforeChange]
+    [getState, setState, currentViewId, withHistory]
   );
 
   const deleteLabel = useCallback(
@@ -773,7 +773,7 @@ export const useSceneActions = () => {
         setState(newState);
       });
     },
-    [getState, setState, currentViewId, saveToHistoryBeforeChange]
+    [getState, setState, currentViewId, withHistory]
   );
 
   // -------------------------------------------------------------------------
@@ -792,7 +792,7 @@ export const useSceneActions = () => {
         setState(newState);
       });
     },
-    [getState, setState, currentViewId, saveToHistoryBeforeChange]
+    [getState, setState, currentViewId, withHistory]
   );
 
   const updateRectangle = useCallback(
@@ -808,7 +808,7 @@ export const useSceneActions = () => {
         return newState;
       });
     },
-    [getState, setState, currentViewId, saveToHistoryBeforeChange]
+    [getState, setState, currentViewId, withHistory]
   );
 
   const deleteRectangle = useCallback(
@@ -823,7 +823,7 @@ export const useSceneActions = () => {
         setState(newState);
       });
     },
-    [getState, setState, currentViewId, saveToHistoryBeforeChange]
+    [getState, setState, currentViewId, withHistory]
   );
 
   // -------------------------------------------------------------------------
@@ -929,7 +929,7 @@ export const useSceneActions = () => {
       currentViewId,
       getState,
       setState,
-      saveToHistoryBeforeChange,
+      withHistory,
       changeView,
       modelStoreApi
     ]
@@ -949,7 +949,7 @@ export const useSceneActions = () => {
         setState(newState);
       });
     },
-    [getState, setState, saveToHistoryBeforeChange]
+    [getState, setState, withHistory]
   );
 
   const deleteSelectedItems = useCallback(
