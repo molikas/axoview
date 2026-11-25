@@ -27,7 +27,7 @@ import {
   useDiagramLifecycle
 } from '../providers/DiagramLifecycleProvider';
 import type { StorageProvider } from '../services/storage/types';
-import type { DiagramData, SavedDiagram } from '../diagramUtils';
+import type { DiagramData } from '../diagramUtils';
 
 export type LifecycleCtx = ReturnType<typeof useDiagramLifecycle>;
 
@@ -139,5 +139,3 @@ export function renderLifecycle() {
     renders: seen
   };
 }
-
-export type { SavedDiagram };
