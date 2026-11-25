@@ -15,15 +15,6 @@ const rootNodeModules = path.resolve(__dirname, '../../node_modules');
 
 export default defineConfig({
     plugins: [pluginReact()],
-    dev: {
-        // Rsbuild 2 compiles dynamic import()s lazily in dev by default (on first
-        // request). The dev server is what the e2e suite and the perf harness
-        // (KR3 idle guardrail) measure, so a lazily-compiled chunk — e.g. the
-        // colour picker's idle preload — would land a server round-trip and a
-        // long task inside their timing windows. Keep Rsbuild 1's eager compile.
-        // Dev-only; production builds are unaffected.
-        lazyCompilation: false,
-    },
     server: {
         // R1 (ADR 0040): in `npm run dev`, serve the editor shell (app.html) for
         // /app and any client-side route beneath it, mirroring the Cloudflare
